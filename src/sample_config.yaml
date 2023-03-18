@@ -1,0 +1,84 @@
+experiment_name: test
+workdir: /home/igor.zubarev/projects/DecoNoising/
+
+
+algorithm: 
+  name: n2v
+  #List of class names from losses.py or pytorch
+  loss: [n2v]
+  #Class name from models.py
+  model: UNet
+  conv_dim: 2
+  depth: 3
+  checkpoint: Null
+  patch_shape: [64, 64, 64]
+
+
+training:
+  num_epochs: 100
+  learning_rate: 0.0001
+  optimizer:
+    #Name of the optimizer class from torch.optim
+    name: adam
+    params:
+      lr: 0.0001
+      betas: [0.9, 0.999]
+      eps: 1e-08
+      weight_decay: 0
+      amsgrad: false
+  scheduler: 
+    #Name of the scheduler class from torch.optim.lr_scheduler
+    name: ReduceLROnPlateau
+    scheduler_params:
+      mode: min
+      factor: 0.1
+      patience: 5
+      verbose: true
+      threshold: 0.0001
+      threshold_mode: rel
+      cooldown: 0
+      min_lr: 0
+      eps: 1e-08
+  data:
+    #List of paths to the data
+    path: [/home/igor.zubarev/data/paris_chunk]
+    # File type to load
+    ext: tif
+    # Patch generation strategy [random, sequential]
+    extraction_strategy: sequential
+    #Patch shape in (z)yx. 2D or 3D
+    patch_size: [64, 64, 64]
+    #Total number of patches to generate. Only applicable for random patching
+    num_patches: Null
+    # Batch size
+    batch_size: 1
+    #Num workers parameter for data loader
+    num_workers: 0
+    #TODO add list of specific augmentations or func/list of funcs 
+    augmentation: Null
+  
+
+evaluation:
+  data:
+    #List of paths to the data
+    path: [/home/igor.zubarev/data/paris_chunk]
+    # File type to load
+    ext: tif
+    # Patch generation strategy [random, sequential]
+    extraction_strategy: sequential
+    #Patch shape in (z)yx. 2D or 3D
+    patch_size: [64, 64, 64]
+    #Total number of patches to generate. Only applicable for random patching
+    num_patches: Null
+    # Batch size
+    batch_size: 1
+    #Num workers parameter for data loader
+    num_workers: 0
+    batch_size: 1
+    num_workers: 0
+    augmentation: Null
+metric: psnr
+
+
+misc:
+  use_wandb: Null
