@@ -11,6 +11,7 @@ def n2v_loss(samples, labels, masks, std=None):
 
     # Average over pixels and batch
     loss = torch.sum(errors * masks) / torch.sum(masks)
+    #TODO fix std
     return loss / (std**2)
 
 

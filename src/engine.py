@@ -14,7 +14,7 @@ from tqdm import tqdm
 from typing import Callable, Dict, List, Optional, Tuple, Union
 from torch.utils.data import DataLoader
 
-from .utils import config_validator, getDevice, save_checkpoint
+from .utils import config_loader, config_validator, set_logging, getDevice, save_checkpoint
 from .metrics import MetricTracker
 from .factory import (
     _get_params_from_config,
@@ -68,7 +68,7 @@ class UnsupervisedEngine(Engine):
     def parse_config(self, cfg_path: str) -> Dict:
         #TODO add smart config validator with blackjack and hookers
         try:
-            cfg = yaml.safe_load(Path(cfg_path).open('r'))
+            cfg = config_loader(cfg_path)
         except (FileNotFoundError, yaml.YAMLError):
             #TODO add custom exception for different cases
             raise yaml.YAMLError('Config file not found')
@@ -93,21 +93,29 @@ class UnsupervisedEngine(Engine):
         return create_model(self.cfg)
 
     def train(self):
+        
+        #TODO move to main
+        set_logging()
+
         #General func
         train_loader = self.get_train_dataloader()
         eval_loader = self.get_val_dataloader()
-        lr_scheduler = self.get_lr_scheduler()
         optimizer = self.get_optimizer()
+        lr_scheduler = self.get_lr_scheduler()
         scaler = self.get_grad_scaler()
-
+        
+        #copilot suggested this bullshit message 
+        logging.info(f'Starting training for {self.cfg["training"]["num_epochs"]} epochs')
+        
         try:
-            for epoch in range(self.cfg.training.num_epochs):  # loop over the dataset multiple times
+            for epoch in range(self.cfg['training']['num_epochs']):  # loop over the dataset multiple times
                 logging.info(f'Starting epoch {epoch}')
                 
-                train_outputs = self.train_single_epoch(train_loader, optimizer, scaler, self.cfg.training.amp, self.cfg.training.max_grad_norm)
+                train_outputs = self.train_single_epoch(train_loader, optimizer, scaler, self.cfg['training']['amp'], 
+                self.cfg['training']['max_grad_norm'])
                 
                 # Perform validation step
-                eval_outputs = self.evaluate(eval_loader, self.cfg.evaluation.metric)
+                eval_outputs = self.evaluate(eval_loader, self.cfg['evaluation']['metric'])
 
                 #Add update rule based on type
                 lr_scheduler.step()
@@ -149,16 +157,18 @@ class UnsupervisedEngine(Engine):
             _description_
         """
         avg_loss = MetricTracker()
-
+        
+        #TODO Add proper to device placement
+        self.model.cuda()
         self.model.train()
 
         for batch in tqdm(loader):
             optimizer.zero_grad()
             
             with torch.cuda.amp.autocast(enabled=amp):
-                outputs =self.model(batch)
-
-            loss = self.get_loss_function(outputs, batch)
+                outputs = self.model(batch.cuda())
+            # TODO unpack batch, provide masks, std, etc ! dict from dataloader ? Universalitty
+            loss = self.get_loss_function(outputs, batch, )
             scaler.scale(loss).backward()
 
             if max_grad_norm is not None:
@@ -199,9 +209,7 @@ class UnsupervisedEngine(Engine):
             pin_memory=True,
         )
 
-    def get_optimizer(self,
-        optimizer_type: str, optimizer_params: Dict
-    ) -> Tuple[torch.optim.Optimizer, Dict]:
+    def get_optimizer(self) -> torch.optim.Optimizer:
         """Builds a model based on the model_name or load a checkpoint
 
 
@@ -214,15 +222,16 @@ class UnsupervisedEngine(Engine):
         """
         # assert inspect.get
         #TODO call func from factory
-        optimizer = getattr(torch.optim, optimizer_type)
+        optimizer_name = self.cfg['training']['optimizer']['name']
+        optimizer_params = self.cfg['training']['optimizer']['params']
+        optimizer = getattr(torch.optim, optimizer_name)
         # Get the list of all possible parameters of the optimizer
         params = _get_params_from_config(optimizer, optimizer_params)
-        return optimizer, params
+        #TODO add support for different learning rates for different layers
+        return optimizer(self.model.parameters(), **params)
 
 
-    def get_lr_scheduler(self,
-        scheduler_type: str, scheduler_params: Dict
-    ) -> Tuple[torch.optim.lr_scheduler._LRScheduler, Dict]:
+    def get_lr_scheduler(self) -> torch.optim.lr_scheduler._LRScheduler:
         """Builds a model based on the model_name or load a checkpoint
 
 
@@ -235,10 +244,14 @@ class UnsupervisedEngine(Engine):
         """
 
         #TODO call func from factory
-
-        scheduler = getattr(torch.optim.lr_scheduler, scheduler_type)
+        scheduler_name = self.cfg['training']['lr_scheduler']['name']
+        scheduler_params = self.cfg['training']['lr_scheduler']['params']
+        scheduler = getattr(torch.optim.lr_scheduler, scheduler_name)
         params = _get_params_from_config(scheduler, scheduler_params)
-        return scheduler, params
+        return scheduler
+    
+    def get_grad_scaler(self) -> torch.cuda.amp.GradScaler:
+        return torch.cuda.amp.GradScaler()
     
     def save_checkpoint(self, model, optimizer, scheduler, epoch, loss):
         torch.save(model, os.path.join(self.directory, f'epoch_{epoch}_model.pt'))

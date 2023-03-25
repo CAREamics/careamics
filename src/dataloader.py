@@ -1,6 +1,7 @@
 import os
 import torch
 import logging
+import itertools
 import tifffile
 import numpy as np
 
@@ -15,71 +16,39 @@ from typing import Callable, List, Optional, Sequence, Union, Tuple
 ############################################
 
 
-def apply_struct_n2v_mask(patch, coords, dims, mask):
-    """
-    each point in coords corresponds to the center of the mask.
-    then for point in the mask with value=1 we assign a random value
-    """
-    coords = np.array(coords).astype(np.int32)
-    ndim = mask.ndim
-    center = np.array(mask.shape) // 2
-    ## leave the center value alone
-    mask[tuple(center.T)] = 0j
-    ## displacements from center
-    dx = np.indices(mask.shape)[:, mask == 1] - center[:, None]
-    ## combine all coords (ndim, npts,) with all displacements (ncoords,ndim,)
-    mix = dx.T[..., None] + coords[None]
-    mix = mix.transpose([1, 0, 2]).reshape([ndim, -1]).T
-    ## stay within patch boundary
-    mix = mix.clip(min=np.zeros(ndim), max=np.array(patch.shape) - 1).astype(np.uint)
-    ## replace neighbouring pixels with random values from flat dist
-    patch[tuple(mix.T)] = np.random.rand(mix.shape[0]) * 4 - 2
-    #TODO finish, test
-    return patch
+def open_input_source(path: Union[str, Path], num_files: int = None) -> List:
+    """_summary_
 
-def augment_single(image, seed=1, channel_dim=True):
-    """Augment single data object(2D or 3D) before batching by rotating and flipping patches.
+    _extended_summary_
 
     Parameters
     ----------
-    patches : np.ndarray
-        array containing single image or patch, 2D or 3D
-    seed : int, optional
-        seed for random number generator, controls the rotation and flipping
-    channel_dim : bool, optional
-        Set to True if the channel dimension is present, by default True
+    path : Union[str, Path]
+        _description_
+    n_files : int
+        _description_
 
     Returns
     -------
-    np.ndarray
+    List
         _description_
     """
-    rotate_state = np.random.randint(0, 5)
-    flip_state = np.random.randint(0, 2)
-    rotated = np.rot90(image, k=rotate_state, axes=(-2, -1))
-    flipped = np.flip(rotated, axis=-1) if flip_state == 1 else rotated
-    # TODO check for memory leak
-    return flipped.copy()
-
-
-def open_input_source(path: Union[str, Path]) -> List:
     # Basic function to open input source
-    # TODO add support for other cases
     #TODO add support for reading a subset of files 
-    return [Path(p).rglob('*.tif*') for p in path]
+    return itertools.islice(Path(path).rglob('*.tif*'), num_files) if num_files else (Path(path).rglob('*.tif*'))
 
 
 def extract_patches_sequential(
     arr, patch_size, num_patches=None
 ) -> np.ndarray:  # TODO add support for shapes
     """Generate patches from ND array
-
+    #TODO add time series, image or volume. Patches will be generated differently
     Crop an array into patches deterministically covering the whole array.
 
     Parameters
     ----------
     arr : np.ndarray
-        Input array. Possible shapes are (C, Z, Y, X) or (C, Y, X)
+        Input array. Possible shapes are (C, Z, Y, X), (C, Y, X), (Z, Y, X) or (Y, X)
     patch_size : Tuple
         Patch dimensions for 'ZYX' or 'YX'
     num_patches : int or None (Currently not implemented)
@@ -99,13 +68,15 @@ def extract_patches_sequential(
     y_patch_size = patch_size[-2]
     x_patch_size = patch_size[-1]
 
+    #TODO put asserts in separate function in init 
     # Asserts
+    assert len(patch_size) == len(arr.shape[1:]), "Number of patch dimensions must match image dimensions"
     assert (
         z_patch_size is None or z_patch_size <= arr.shape[1]
-    ), "Patch size must be of length 2 or 3"
+    ), "Z patch size is incosistent with image shape"
     assert (
         y_patch_size <= arr.shape[-2] and x_patch_size <= arr.shape[-1]
-    ), "Patch size must be of length 2 or 3"
+    ), "At least one of XY patch dimensions is incosistent with image shape"
 
     # Calculate total number of patches for each dimension
     z_total_patches = (
@@ -113,9 +84,6 @@ def extract_patches_sequential(
     )
     y_total_patches = np.ceil(arr.shape[-2] / y_patch_size)
     x_total_patches = np.ceil(arr.shape[-1] / x_patch_size)
-
-    # TODO make patch size and overlap calc shorter ?
-    total_patches = [np.ceil()]
 
     # Calculate overlap for each dimension #TODO add more thorough explanation
     overlap_z = (
@@ -141,7 +109,8 @@ def extract_patches_sequential(
             min(y_patch_size - overlap_y, y_patch_size),
             min(x_patch_size - overlap_x, x_patch_size),
         )
-        output_shape = (-1, arr.shape[0], z_patch_size, y_patch_size, x_patch_size)
+        output_shape = (-1, arr.shape[0], y_patch_size, x_patch_size) if z_patch_size == 1 \
+        else (-1, arr.shape[0], z_patch_size, y_patch_size, x_patch_size)
     else:
         window_shape = (arr.shape[0], y_patch_size, x_patch_size)
         step = (
@@ -189,6 +158,7 @@ class PatchDataset(torch.utils.data.IterableDataset):
     def __init__(
         self,
         data_path: str,
+        num_files: int,
         data_reader: Callable,
         patch_size: Union[List[int], Tuple[int]],
         patch_generator: Union[np.ndarray, Callable],
@@ -216,8 +186,8 @@ class PatchDataset(torch.utils.data.IterableDataset):
         
         # Assert input data
         assert isinstance(
-            data_path, list
-        ), f"Incorrect data_path type. Must be a list, given{type(data_path)}"
+            data_path, str
+        ), f"Incorrect data_path type. Must be a str, given{type(data_path)}"
 
         # Assert patch_size
         assert isinstance(
@@ -228,14 +198,14 @@ class PatchDataset(torch.utils.data.IterableDataset):
             3,
         ), f"Incorrect patch_size. Must be a 2 or 3, given{len(patch_size)}"
 
-        self.data_reader = data_reader(data_path)
+        self.data_reader = data_reader(data_path, num_files)
         self.source_iter = iter(self.data_reader)
         self.patch_size = patch_size
         self.patch_generator = patch_generator
         self.image_transform = image_level_transform
         self.patch_transform = patch_level_transform
 
-        assert len(self.data_reader) > 0, "Data source is empty"
+        assert any(True for _ in self.data_reader), "Data source is empty"
 
     @staticmethod
     def read_data_source(self, data_source: str):
@@ -262,18 +232,21 @@ class PatchDataset(torch.utils.data.IterableDataset):
             3,
             4,
         ), f"Incorrect data dimensions. Must be 2, 3 or 4, given {arr.shape} for file {data_source}"
-
+        
+        #TODO improve shape asserts
         # Adding channel dimension if necessary. If present, check correctness
         if len(arr.shape) == 2 or (len(arr.shape) == 3 and len(self.patch_size) == 3):
             arr = np.expand_dims(arr, axis=0)
-        elif len(arr.shape) == 3 and len(self.patch_size) == 2 and arr.shape[0] > 4:
-            raise ValueError(f"Incorrect number of channels {arr.shape[0]}")
+            updated_patch_size = self.patch_size
         elif len(arr.shape) > 3 and len(self.patch_size) == 2:
             raise ValueError(
                 f"Incorrect data dimensions {arr.shape} for given dimensionality {len(self.patch_size)}D in file {data_source}"
             )
-        # TODO add other asserts
-        return arr
+        elif len(arr.shape) == 3 and len(self.patch_size) == 2 and arr.shape[0] > 4:
+            logging.warning(f"Number of channels is {arr.shape[0]} for 2D data. Assuming time series.")
+            arr = np.expand_dims(arr, axis=0)
+            updated_patch_size = (1, *self.patch_size)
+        return arr, updated_patch_size
 
     def __iter_source__(self):
         """
@@ -287,16 +260,17 @@ class PatchDataset(torch.utils.data.IterableDataset):
         num_workers = info.num_workers if info is not None else 1
         id = info.id if info is not None else 0
         # TODO check for mem leaks, explicitly gc the arr after iterator is exhausted
-        for i, filename in enumerate(self.source):
+        for i, filename in enumerate(self.source_iter):
             try:
-                arr = self.read_data_source(self, filename)
+                #TODO add buffer, several images up to some memory limit?
+                arr, patch_size = self.read_data_source(self, filename)
             except (ValueError, FileNotFoundError, OSError) as e:
                 logging.exception(f"Exception in file {filename}, skipping")
                 raise e
             if i % num_workers == id:
                 yield self.image_transform(
-                    arr
-                ) if self.image_transform is not None else arr
+                    (arr, patch_size)
+                ) if self.image_transform is not None else (arr, patch_size)
 
     def __iter__(self):
         """
@@ -306,11 +280,9 @@ class PatchDataset(torch.utils.data.IterableDataset):
         ------
         np.ndarray
         """
-        for image in self.__iter_source__():
-            for patch in self.patch_generator(image, self.patch_size):
-                # TODO add augmentations, multiple functions
-                for func in self.patch_transform:
-                    patch = func(patch)
+        for image, updated_patch_size in self.__iter_source__():
+            for patch in self.patch_generator(image, updated_patch_size):
+                # TODO add augmentations, multiple functions. 
                 yield self.patch_transform(
                     patch
                 ) if self.patch_transform is not None else patch

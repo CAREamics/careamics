@@ -81,6 +81,24 @@ def get_from_config(config: Dict, key: str, default: Optional[Union[str, int, fl
         return default
 
 
+def create_patch_transform(image: np.ndarray, augments: Callable) -> Dict:
+    """Applies a set of augmentations to the image
+
+    Parameters
+    ----------
+    image : np.ndarray
+        The image to be augmented
+    augments : Callable
+        The augmentations to be applied
+
+    Returns
+    -------
+    Dict
+        The augmented image
+    """
+    return {'image': augments(image=image)['image']}
+
+
 def create_dataset(config: Dict, stage: str) -> torch.utils.data.Dataset:
     """Builds a dataset based on the dataset_params
 
@@ -95,6 +113,7 @@ def create_dataset(config: Dict, stage: str) -> torch.utils.data.Dataset:
     if config[stage]['data']['ext'] == 'tif':
         patch_generation_func = getattr(src, f"extract_patches_{config[stage]['data']['extraction_strategy']}")
         dataset = PatchDataset(data_path = config[stage]['data']['path'], 
+        num_files=config[stage]['data']['num_files'],
         data_reader = open_input_source,
         patch_size = config[stage]['data']['patch_size'], 
         patch_generator=patch_generation_func)

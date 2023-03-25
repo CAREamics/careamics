@@ -2,13 +2,32 @@
 #   Utility Functions
 ############################################
 
-import torch.optim as optim
 import os
-import torch
-import torch.nn as nn
+import re
 import sys
-import torchvision
+import logging
+import yaml
+import torch
 import numpy as np
+from pathlib import Path
+
+
+def config_loader(cfg_path):
+    '''
+    Load a yaml config file and correct all datatypes
+    '''
+    loader = yaml.SafeLoader
+    loader.add_implicit_resolver(
+    u'tag:yaml.org,2002:float',
+    re.compile(u'''^(?:
+     [-+]?(?:[0-9][0-9_]*)\\.[0-9_]*(?:[eE][-+]?[0-9]+)?
+    |[-+]?(?:[0-9][0-9_]*)(?:[eE][-+]?[0-9]+)
+    |\\.[0-9_]+(?:[eE][-+][0-9]+)?
+    |[-+]?[0-9][0-9_]*(?::[0-5]?[0-9])+\\.[0-9_]*
+    |[-+]?\\.(?:inf|Inf|INF)
+    |\\.(?:nan|NaN|NAN))$''', re.X),
+    list(u'-+0123456789.'))
+    return yaml.load(Path(cfg_path).open('r'), Loader=loader)
 
 
 def config_validator(cfg):
@@ -20,6 +39,17 @@ def config_validator(cfg):
     #assert hasattr ...
     # algorithm list, models list, loss functions list. All torch modules hasattr. 
     return cfg
+
+
+def set_logging(default_level=logging.INFO, log_path=''):
+    console_handler = logging.StreamHandler()
+    logging.root.addHandler(console_handler)
+    logging.root.setLevel(default_level)
+    if log_path:
+        file_handler = logging.handlers.RotatingFileHandler(log_path, maxBytes=(1024 ** 2 * 2), backupCount=3)
+        file_formatter = logging.Formatter("%(asctime)s - %(name)20s: [%(levelname)8s] - %(message)s")
+        file_handler.setFormatter(file_formatter)
+        logging.root.addHandler(file_handler)
 
 
 def save_checkpoint(model, name, save_best):
