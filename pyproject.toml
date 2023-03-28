@@ -1,0 +1,63 @@
+# https://peps.python.org/pep-0517/
+# https://hatch.pypa.io/latest/config/build/
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+# https://peps.python.org/pep-0621/
+[project]
+name = "n2v"
+description = "Denoising with self-supervised algorithms."
+readme = "README.md"
+license = { text = "MIT" }
+authors = [
+    { name = 'Igor Zubarev', email = 'igor.zubarev@fht.org' },
+    { name = 'Joran Deschamps', email = 'joran.deschamps@fht.org' },
+    { name = 'Mangal Prakash', email = 'mangalcrj@gmail.com' },
+    { name = 'Tim-Oliver Buchholz', email = 'tim-oliver.buchholz@fmi.ch' },
+    { name = 'Alex Krull', email = 'a.f.f.krull@bham.ac.uk' },
+    { name = 'Florian Jug', email = 'florian.jug@fht.org' },
+]
+dynamic = ["version"]
+dependencies = ['torch', 'torchvision', 'tifffile', 'pyyaml', 'pydantic', 'bioimageio.core']
+
+[project.optional-dependencies]
+# development dependencies and tooling
+dev = ["pre-commit", "pytest", "pytest-cov", "ruff", "twine", "build"]
+
+# use wandb for logging
+wandb = ["wandb"]
+
+# testing
+test = ["pytest", "pytest-cov"]
+
+[project.urls]
+homepage = "https://github.com/juglab-torch/n2v"
+
+# https://hatch.pypa.io/latest/version/
+[tool.hatch.version]
+path = "src/n2v/__init__.py"
+
+# https://beta.ruff.rs/docs
+[tool.ruff]
+target-version = "py38"
+src = ["src/n2v"]
+select = [
+    "F",   # pyflakes
+    "E",   # pycodestyle
+    "I",   # isort
+    "UP",  # pyupgrade 
+    "RUF", # ruff specific rules
+]
+
+# https://coverage.readthedocs.io/en/6.4/config.html
+[tool.coverage.report]
+exclude_lines = ["pragma: no cover", "pragma: ${PY_MAJOR_VERSION} no cover"]
+
+[tool.mypy]
+files = "src/n2v"
+strict = false
+allow_untyped_defs = true     # TODO: can eventually fill out typing and remove this
+allow_untyped_calls = true    # TODO: can eventually fill out typing and remove this
+disallow_any_generics = false
+ignore_missing_imports = true
