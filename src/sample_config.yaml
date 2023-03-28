@@ -1,11 +1,15 @@
 experiment_name: test
 workdir: /home/igor.zubarev/projects/DecoNoising/
 
-
+#TODO add nested config & 
 algorithm: 
   name: n2v
   #List of class names from losses.py or pytorch
   loss: [n2v]
+  # Pixel masking strategy #TODO add better description
+  pixel_manipulation: n2v
+  # Number of pixels to mask. Defaul is patch size ** number of patch dims / 32
+  num_masked_pixels: 128
   #Class name from models.py
   model: UNet
   #Whether to use 2D or 3D convolutions
@@ -15,7 +19,7 @@ algorithm:
   #Patch size, must be a list of 2 or 3 integers
 
 training:
-  num_epochs: 100
+  num_epochs: 10
   learning_rate: 0.0001
   optimizer:
     #Name of the optimizer class from torch.optim
@@ -56,7 +60,7 @@ training:
     #Total number of patches to generate. Only applicable for random patching
     num_patches: Null
     # Batch size
-    batch_size: 1
+    batch_size: 2
     #Num workers parameter for data loader
     num_workers: 0
     #TODO add list of specific augmentations or func/list of funcs 
@@ -84,7 +88,7 @@ evaluation:
     batch_size: 1
     num_workers: 0
     augmentation: Null
-metric: psnr
+  metric: psnr
 
 
 misc:

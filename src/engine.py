@@ -9,11 +9,11 @@ import torch.nn.functional as F
 
 from pathlib import Path
 from abc import ABC, abstractmethod
-from collections import OrderedDict
 from tqdm import tqdm
 from typing import Callable, Dict, List, Optional, Tuple, Union
 from torch.utils.data import DataLoader
 
+import src
 from .utils import config_loader, config_validator, set_logging, getDevice, save_checkpoint
 from .metrics import MetricTracker
 from .factory import (
@@ -27,6 +27,7 @@ from .factory import (
     create_lr_scheduler,
 )
 
+#TODO do something with imports, it's a mess. either all from src init, or all separately
 
 class Engine(ABC):
     def __init__(self, cfg):
@@ -100,8 +101,7 @@ class UnsupervisedEngine(Engine):
         #General func
         train_loader = self.get_train_dataloader()
         eval_loader = self.get_val_dataloader()
-        optimizer = self.get_optimizer()
-        lr_scheduler = self.get_lr_scheduler()
+        optimizer, lr_scheduler = self.get_optimizer_and_scheduler()
         scaler = self.get_grad_scaler()
         
         #copilot suggested this bullshit message 
@@ -117,8 +117,8 @@ class UnsupervisedEngine(Engine):
                 # Perform validation step
                 eval_outputs = self.evaluate(eval_loader, self.cfg['evaluation']['metric'])
 
-                #Add update rule based on type
-                lr_scheduler.step()
+                #Add update scheduler rule based on type
+                lr_scheduler.step(eval_outputs['loss'])
                 save_checkpoint(self.model, 'checkpoint.pth', False)
 
         except KeyboardInterrupt:
@@ -129,16 +129,13 @@ class UnsupervisedEngine(Engine):
 
         metric_func = getattr(src.metrics, eval_metric)
         avg_loss = MetricTracker()
-        avg_metric = MetricTracker()
 
         with torch.no_grad():
             for batch in tqdm(eval_loader):
-                outputs = self.model(batch)
-                loss = self.get_loss_function(outputs, batch)
-                avg_loss.update(loss.item(), batch.shape[0])
-                metric = metric_func(outputs, batch)
-                avg_metric.update(metric, batch.shape[0])
-        return OrderedDict([('loss', avg_loss.avg), (eval_metric, avg_metric.avg)])
+                outputs = self.model(batch['masked_images'].cuda())
+                loss = self.get_loss_function()(outputs, batch['original_images'].cuda(), batch['masks'].cuda(), 1)
+                avg_loss.update(loss.item(), batch['masked_images'].shape[0])
+        return {'loss': avg_loss.avg}
 
     def predict(self, args):
         pass
@@ -166,18 +163,22 @@ class UnsupervisedEngine(Engine):
             optimizer.zero_grad()
             
             with torch.cuda.amp.autocast(enabled=amp):
-                outputs = self.model(batch.cuda())
+                #TODO this makes function n2v specific, should be changed?
+                #TODO add normalization
+
+                outputs = self.model(batch['masked_images'].cuda())
             # TODO unpack batch, provide masks, std, etc ! dict from dataloader ? Universalitty
-            loss = self.get_loss_function(outputs, batch, )
+            # TODO std !!
+            loss = self.get_loss_function()(outputs, batch['original_images'].cuda(), batch['masks'].cuda(), 1)
             scaler.scale(loss).backward()
 
             if max_grad_norm is not None:
                 torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=max_grad_norm)
-
-            avg_loss.update(loss.item(), batch.shape[0])
+            #TODO fix batches naming 
+            avg_loss.update(loss.item(), batch['masked_images'].shape[0])
 
             optimizer.step()
-        return OrderedDict([('loss', avg_loss.avg)])
+        return {'loss': avg_loss.avg}
 
     def get_loss_function(self):
         return create_loss_function(self.cfg)
@@ -209,7 +210,7 @@ class UnsupervisedEngine(Engine):
             pin_memory=True,
         )
 
-    def get_optimizer(self) -> torch.optim.Optimizer:
+    def get_optimizer_and_scheduler(self) -> Tuple[torch.optim.Optimizer, torch.optim.lr_scheduler._LRScheduler]:
         """Builds a model based on the model_name or load a checkpoint
 
 
@@ -224,31 +225,18 @@ class UnsupervisedEngine(Engine):
         #TODO call func from factory
         optimizer_name = self.cfg['training']['optimizer']['name']
         optimizer_params = self.cfg['training']['optimizer']['params']
-        optimizer = getattr(torch.optim, optimizer_name)
+        optimizer_func = getattr(torch.optim, optimizer_name)
         # Get the list of all possible parameters of the optimizer
-        params = _get_params_from_config(optimizer, optimizer_params)
+        optim_params = _get_params_from_config(optimizer_func, optimizer_params)
         #TODO add support for different learning rates for different layers
-        return optimizer(self.model.parameters(), **params)
+        optimizer = optimizer_func(self.model.parameters(), **optim_params)
 
-
-    def get_lr_scheduler(self) -> torch.optim.lr_scheduler._LRScheduler:
-        """Builds a model based on the model_name or load a checkpoint
-
-
-        _extended_summary_
-
-        Parameters
-        ----------
-        model_name : _type_
-            _description_
-        """
-
-        #TODO call func from factory
         scheduler_name = self.cfg['training']['lr_scheduler']['name']
         scheduler_params = self.cfg['training']['lr_scheduler']['params']
-        scheduler = getattr(torch.optim.lr_scheduler, scheduler_name)
-        params = _get_params_from_config(scheduler, scheduler_params)
-        return scheduler
+        scheduler_func = getattr(torch.optim.lr_scheduler, scheduler_name)
+        scheduler_params = _get_params_from_config(scheduler_func, scheduler_params)
+        scheduler = scheduler_func(optimizer, **scheduler_params)
+        return optimizer, scheduler
     
     def get_grad_scaler(self) -> torch.cuda.amp.GradScaler:
         return torch.cuda.amp.GradScaler()

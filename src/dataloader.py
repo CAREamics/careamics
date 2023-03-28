@@ -5,10 +5,13 @@ import itertools
 import tifffile
 import numpy as np
 
+from functools import partial
 from torch.utils.data import Dataset, IterableDataset, DataLoader
 from pathlib import Path
 from skimage.util import view_as_windows
 from typing import Callable, List, Optional, Sequence, Union, Tuple
+
+from .n2v import n2v_manipulate
 
 
 ############################################
@@ -16,7 +19,7 @@ from typing import Callable, List, Optional, Sequence, Union, Tuple
 ############################################
 
 
-def open_input_source(path: Union[str, Path], num_files: int = None) -> List:
+def open_input_source(path: Union[str, Path], num_files: int = 1) -> List:
     """_summary_
 
     _extended_summary_
@@ -163,7 +166,7 @@ class PatchDataset(torch.utils.data.IterableDataset):
         patch_size: Union[List[int], Tuple[int]],
         patch_generator: Union[np.ndarray, Callable],
         image_level_transform: Optional[Callable] = None,
-        patch_level_transform: Union[Callable, Optional[Callable]] = None,
+        patch_level_transform: Optional[Callable] = None,
     ) -> None:
         """
         Parameters

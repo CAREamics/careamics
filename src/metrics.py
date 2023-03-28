@@ -1,13 +1,9 @@
 import numpy as np
 
 
-def psnr_base(gt, pred, range_=255.0):
+def psnr(gt, pred, range_=255.0):
     mse = np.mean((gt - pred)**2)
-    # print(gt.max())
-    # print(pred.max())
-    # print('MSE', mse, np.log10(range_))
-    # print(20 * np.log10((range_)/np.sqrt(mse)), 10 * np.log10((range_ ** 2) / mse))
-    return 20 * np.log10((range_)/np.sqrt(mse))
+    return 20 * np.log10((range_) / np.sqrt(mse))
 
 
 def zero_mean(x):
@@ -24,10 +20,24 @@ def fix(gt,x):
     return fix_range(gt_, zero_mean(x))
 
 
-def scale_invariant_psnr(gt, pred):
+def scale_psnr(gt, pred):
+    """Scale invariant PSNR
+
+    Parameters
+    ----------
+    gt : _type_
+        _description_
+    pred : _type_
+        _description_
+
+    Returns
+    -------
+    Callable
+        _description_
+    """
     range = (np.max(gt) - np.min(gt)) / np.std(gt)
     gt_ = zero_mean(gt) / np.std(gt)
-    return psnr_base(zero_mean(gt_), fix(gt_, pred), range)
+    return psnr(zero_mean(gt_), fix(gt_, pred), range)
 
 
 class MetricTracker:

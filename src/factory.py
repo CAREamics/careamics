@@ -3,15 +3,26 @@ import sys
 import inspect
 import numpy as np
 import torch
+from functools import partial
 from typing import Callable, Dict, List, Optional, Tuple, Union
 
 import src
 from .models import UNet
 from .losses import n2v_loss, pn2v_loss, decon_loss
-from .dataloader import PatchDataset, extract_patches_random, extract_patches_sequential, open_input_source
+from .dataloader import (
+    PatchDataset,
+    extract_patches_random,
+    extract_patches_sequential,
+    open_input_source,
+)
+from .n2v import n2v_manipulate
+from .augment import augment_single
 
 
-def _get_params_from_config(func: Union[torch.optim.Optimizer, torch.optim.lr_scheduler._LRScheduler], user_params: Dict) -> Dict:
+def _get_params_from_config(
+    func: Union[torch.optim.Optimizer, torch.optim.lr_scheduler._LRScheduler],
+    user_params: Dict,
+) -> Dict:
     """Returns the parameters of the optimizer or lr_scheduler
 
     Parameters
@@ -26,9 +37,9 @@ def _get_params_from_config(func: Union[torch.optim.Optimizer, torch.optim.lr_sc
     Dict
         The parameters of the optimizer or lr_scheduler
     """
-    #TODO not restrict to optim and lr_scheduler?
+    # TODO not restrict to optim and lr_scheduler?
 
-    # Get the list of all default parameters 
+    # Get the list of all default parameters
     default_params = list(inspect.signature(func).parameters.keys())
     # Retrieve provided parameters
     params_to_be_used = set(user_params.keys()) & set(default_params)
@@ -50,15 +61,17 @@ def _get_params_from_module(func: Callable, user_params: List) -> Dict:
     Dict
         The parameters of the optimizer or lr_scheduler
     """
-    # Get the list of all default parameters 
+    # Get the list of all default parameters
     default_params = list(inspect.signature(func).parameters.keys())
     # Retrieve provided parameters
     params_to_be_used = list(set(user_params) & set(default_params))
     return params_to_be_used
 
 
-#TODO add get from config general function!!
-def get_from_config(config: Dict, key: str, default: Optional[Union[str, int, float, bool]] = None) -> Union[str, int, float, bool]:
+# TODO add get from config general function!!
+def get_from_config(
+    config: Dict, key: str, default: Optional[Union[str, int, float, bool]] = None
+) -> Union[str, int, float, bool]:
     """Returns the value of the key from the config file
 
     Parameters
@@ -81,22 +94,21 @@ def get_from_config(config: Dict, key: str, default: Optional[Union[str, int, fl
         return default
 
 
-def create_patch_transform(image: np.ndarray, augments: Callable) -> Dict:
-    """Applies a set of augmentations to the image
-
+def create_patch_transform(config: Dict) -> Callable:
+    """Creates the patch transform function with optional augmentation
     Parameters
     ----------
-    image : np.ndarray
-        The image to be augmented
-    augments : Callable
-        The augmentations to be applied
+    config : dict
 
     Returns
     -------
-    Dict
-        The augmented image
+    Callable
     """
-    return {'image': augments(image=image)['image']}
+    return partial(
+        getattr(src, f"{config['algorithm']['pixel_manipulation']}_manipulate"),
+        num_pixels=config["algorithm"]["num_masked_pixels"],
+        augmentations=augment_single,
+    )
 
 
 def create_dataset(config: Dict, stage: str) -> torch.utils.data.Dataset:
@@ -108,21 +120,28 @@ def create_dataset(config: Dict, stage: str) -> torch.utils.data.Dataset:
         Config file dictionary
     """
 
-    #TODO rewrite this ugly bullshit. registry,etc!
-    #TODO data reader getattr
-    if config[stage]['data']['ext'] == 'tif':
-        patch_generation_func = getattr(src, f"extract_patches_{config[stage]['data']['extraction_strategy']}")
-        dataset = PatchDataset(data_path = config[stage]['data']['path'], 
-        num_files=config[stage]['data']['num_files'],
-        data_reader = open_input_source,
-        patch_size = config[stage]['data']['patch_size'], 
-        patch_generator=patch_generation_func)
-    #TODO fix import 
+    # TODO rewrite this ugly bullshit. registry,etc!
+    # TODO data reader getattr
+
+    if config[stage]["data"]["ext"] == "tif":
+        patch_generation_func = getattr(
+            src, f"extract_patches_{config[stage]['data']['extraction_strategy']}"
+        )
+        dataset = PatchDataset(
+            data_path=config[stage]["data"]["path"],
+            num_files=config[stage]["data"]["num_files"],
+            data_reader=open_input_source,
+            patch_size=config[stage]["data"]["patch_size"],
+            patch_generator=patch_generation_func,
+            patch_level_transform=create_patch_transform(config),
+        )
+    # TODO getatr manipulate
     # try:
     #     dataset_class = getattr(dataloader, dataset_name)
     # except ImportError:
     #     raise ImportError('Dataset not found')
     return dataset
+
 
 def create_model(config: Dict) -> torch.nn.Module:
     """Builds a model based on the model_name or load a checkpoint
@@ -132,23 +151,25 @@ def create_model(config: Dict) -> torch.nn.Module:
     config : Dict
         Config file dictionary
     """
-    #TODO rewrite this ugly bullshit. registry,etc!
-    model_name = config['algorithm']['model']
-    load_checkpoint = config['algorithm']['checkpoint']
-    #TODO fix import 
+    # TODO rewrite this ugly bullshit. registry,etc!
+    model_name = config["algorithm"]["model"]
+    load_checkpoint = config["algorithm"]["checkpoint"]
+    # TODO fix import
     # try:
     #     model_class = getattr(deconoising, model_name)
     # except ImportError:
     #     raise ImportError('Model not found')
 
-    if model_name == 'UNet':
-        model = UNet(config['algorithm']['conv_dim'])
+    if model_name == "UNet":
+        model = UNet(config["algorithm"]["conv_dim"])
     if load_checkpoint:
         model.load_state_dict(torch.load(load_checkpoint))
     return model
 
 
-def create_optimizer(optimizer_type: str, optimizer_params: Dict) -> Tuple[torch.optim.Optimizer, Dict]:
+def create_optimizer(
+    optimizer_type: str, optimizer_params: Dict
+) -> Tuple[torch.optim.Optimizer, Dict]:
     """Builds a model based on the model_name or load a checkpoint
 
 
@@ -159,14 +180,16 @@ def create_optimizer(optimizer_type: str, optimizer_params: Dict) -> Tuple[torch
     model_name : _type_
         _description_
     """
-    #assert inspect.get
+    # assert inspect.get
     optimizer = getattr(torch.optim, optimizer_type)
-    # Get the list of all possible parameters of the optimizer 
+    # Get the list of all possible parameters of the optimizer
     params = _get_params(optimizer, optimizer_params)
     return optimizer, params
 
 
-def create_lr_scheduler(scheduler_type: str, scheduler_params: Dict) -> Tuple[torch.optim.lr_scheduler._LRScheduler, Dict]:
+def create_lr_scheduler(
+    scheduler_type: str, scheduler_params: Dict
+) -> Tuple[torch.optim.lr_scheduler._LRScheduler, Dict]:
     """Builds a model based on the model_name or load a checkpoint
 
 
@@ -193,14 +216,14 @@ def create_loss_function(config: Dict) -> Callable:
     model_name : _type_
         _description_
     """
-    loss_type = config['algorithm']['loss']
-    if loss_type[0] == 'n2v':
+    loss_type = config["algorithm"]["loss"]
+    if loss_type[0] == "n2v":
         loss_function = n2v_loss
-    #TODO rewrite this ugly bullshit. registry,etc!
+    # TODO rewrite this ugly bullshit. registry,etc!
     # loss_func = getattr(sys.__name__, loss_type)
-    #TODO test !
+    # TODO test !
     return loss_function
-  
+
 
 def create_grad_scaler(scaler_type):
     """Builds a model based on the model_name or load a checkpoint
