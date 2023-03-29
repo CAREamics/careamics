@@ -19,7 +19,7 @@ from .n2v import n2v_manipulate
 ############################################
 
 
-def open_input_source(path: Union[str, Path], num_files: int = 1) -> List:
+def open_input_source(path: Union[str, Path], num_files: Union[int, None] = None) -> List:
     """_summary_
 
     _extended_summary_
@@ -185,7 +185,6 @@ class PatchDataset(torch.utils.data.IterableDataset):
         patch_level_transform : Optional[Callable], optional
             _description_, by default None
         """
-        # super().__init__(data=data, transform=None)
         
         # Assert input data
         assert isinstance(
@@ -263,7 +262,7 @@ class PatchDataset(torch.utils.data.IterableDataset):
         num_workers = info.num_workers if info is not None else 1
         id = info.id if info is not None else 0
         # TODO check for mem leaks, explicitly gc the arr after iterator is exhausted
-        for i, filename in enumerate(self.source_iter):
+        for i, filename in enumerate(self.data_reader):
             try:
                 #TODO add buffer, several images up to some memory limit?
                 arr, patch_size = self.read_data_source(self, filename)

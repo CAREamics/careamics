@@ -13,6 +13,8 @@ from tqdm import tqdm
 from typing import Callable, Dict, List, Optional, Tuple, Union
 from torch.utils.data import DataLoader
 
+import src
+
 from .utils import (
     config_loader,
     config_validator,
@@ -125,7 +127,7 @@ class UnsupervisedEngine(Engine):
                     train_loader,
                     optimizer,
                     scaler,
-                    self.cfg["training"]["amp"],
+                    self.cfg["training"]["amp"]["toggle"],
                     self.cfg["training"]["max_grad_norm"],
                 )
 
@@ -144,7 +146,7 @@ class UnsupervisedEngine(Engine):
     def evaluate(self, eval_loader: torch.utils.data.DataLoader, eval_metric: str):
         self.model.eval()
 
-        metric_func = getattr(src.metrics, eval_metric)
+        metric_func = getattr(src.n2v.metrics, eval_metric)
         avg_loss = MetricTracker()
 
         with torch.no_grad():
@@ -270,7 +272,9 @@ class UnsupervisedEngine(Engine):
         return optimizer, scheduler
 
     def get_grad_scaler(self) -> torch.cuda.amp.GradScaler:
-        return torch.cuda.amp.GradScaler()
+        toggle = self.cfg["training"]["amp"]["toggle"]
+        scaling = self.cfg["training"]["amp"]["init_scale"]
+        return torch.cuda.amp.GradScaler(init_scale=scaling, enabled=toggle)
 
     def save_checkpoint(self, model, optimizer, scheduler, epoch, loss):
         torch.save(model, os.path.join(self.directory, f"epoch_{epoch}_model.pt"))

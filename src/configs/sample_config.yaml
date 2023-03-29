@@ -16,10 +16,9 @@ algorithm:
   conv_dim: 2
   depth: 3
   checkpoint: Null
-  #Patch size, must be a list of 2 or 3 integers
 
 training:
-  num_epochs: 10
+  num_epochs: 5
   learning_rate: 0.0001
   optimizer:
     #Name of the optimizer class from torch.optim
@@ -55,7 +54,7 @@ training:
     # File type to load
     ext: tif
     #Number of files to read. Read all if None
-    num_files: 2
+    num_files: 3
     # Patch generation strategy [random, sequential]
     extraction_strategy: sequential
     #Patch shape in (z)yx. 2D or 3D
