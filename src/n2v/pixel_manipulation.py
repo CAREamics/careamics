@@ -39,7 +39,7 @@ def apply_struct_n2v_mask(patch, coords, dims, mask):
     return patch
 
 
-def n2v_manipulate(patch: np.ndarray, num_pixels: int, augmentations: Callable = None) -> Tuple[np.ndarray, np.ndarray]:
+def n2v_manipulate(patch: np.ndarray, num_pixels: int, augmentations: Callable = None) -> Tuple[np.ndarray, Dict]:
     """_summary_
 
     _extended_summary_
@@ -70,4 +70,5 @@ def n2v_manipulate(patch: np.ndarray, num_pixels: int, augmentations: Callable =
         mask[(..., *[c for c in pn])] = 1.0
 
     patch, mask = patch, mask if augmentations is None else augmentations(patch, mask)
-    return {'masked_images': patch, 'original_images': original_patch, 'masks': mask}
+    #TODO assert this output format ? 1st is required, others are optional
+    return patch, original_patch, mask

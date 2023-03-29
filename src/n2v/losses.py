@@ -2,11 +2,11 @@ import torch
 import numpy as np
 
 
-def n2v_loss(samples, labels, masks, std=None):
+def n2v_loss(samples, labels, masks, device, std=None):
     """
     The loss function as described in Eq. 7 of the paper.
     """
-
+    samples, labels, masks = samples.to(device), labels.to(device), masks.to(device)
     errors = (labels - torch.mean(samples, dim=0)) ** 2
 
     # Average over pixels and batch

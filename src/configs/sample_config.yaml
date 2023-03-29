@@ -18,7 +18,7 @@ algorithm:
   checkpoint: Null
 
 training:
-  num_epochs: 5
+  num_epochs: 3
   learning_rate: 0.0001
   optimizer:
     #Name of the optimizer class from torch.optim
@@ -54,7 +54,7 @@ training:
     # File type to load
     ext: tif
     #Number of files to read. Read all if None
-    num_files: 3
+    num_files: 2
     # Patch generation strategy [random, sequential]
     extraction_strategy: sequential
     #Patch shape in (z)yx. 2D or 3D
@@ -62,7 +62,7 @@ training:
     #Total number of patches to generate. Only applicable for random patching
     num_patches: Null
     # Batch size
-    batch_size: 1
+    batch_size: 8
     #Num workers parameter for data loader
     num_workers: 0
     #TODO add list of specific augmentations or func/list of funcs 

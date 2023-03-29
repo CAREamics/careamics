@@ -13,15 +13,8 @@ from tqdm import tqdm
 from typing import Callable, Dict, List, Optional, Tuple, Union
 from torch.utils.data import DataLoader
 
-import src
+import src.n2v as n2v
 
-from .utils import (
-    config_loader,
-    config_validator,
-    set_logging,
-    getDevice,
-    save_checkpoint,
-)
 from .metrics import MetricTracker
 from .factory import (
     _get_params_from_config,
@@ -34,7 +27,7 @@ from .factory import (
     create_lr_scheduler,
 )
 
-# TODO do something with imports, it's a mess. either all from src init, or all separately
+# TODO do something with imports, it's a mess. either all from n2v init, or all separately
 
 
 class Engine(ABC):
@@ -71,16 +64,17 @@ class UnsupervisedEngine(Engine):
         self.cfg = self.parse_config(cfg_path)
         self.model = self.get_model()
         self.loss_func = self.get_loss_function()
+        self.device = n2v.get_device()
         # TODO all initializations of custom classes should be done here
 
     def parse_config(self, cfg_path: str) -> Dict:
         # TODO add smart config validator with blackjack and hookers
         try:
-            cfg = config_loader(cfg_path)
+            cfg = n2v.config_loader(cfg_path)
         except (FileNotFoundError, yaml.YAMLError):
             # TODO add custom exception for different cases
             raise yaml.YAMLError("Config file not found")
-        cfg = config_validator(cfg)
+        cfg = n2v.config_validator(cfg)
         return cfg
 
     def log_metrics(self):
@@ -104,7 +98,7 @@ class UnsupervisedEngine(Engine):
 
     def train(self):
         # TODO move to main
-        set_logging()
+        n2v.set_logging()
 
         # General func
         train_loader = self.get_train_dataloader()
@@ -112,7 +106,6 @@ class UnsupervisedEngine(Engine):
         optimizer, lr_scheduler = self.get_optimizer_and_scheduler()
         scaler = self.get_grad_scaler()
 
-        # copilot suggested this bullshit message
         logging.info(
             f'Starting training for {self.cfg["training"]["num_epochs"]} epochs'
         )
@@ -138,7 +131,8 @@ class UnsupervisedEngine(Engine):
 
                 # Add update scheduler rule based on type
                 lr_scheduler.step(eval_outputs["loss"])
-                save_checkpoint(self.model, "checkpoint.pth", False)
+                #TODO implement checkpoint naming
+                n2v.save_checkpoint(self.model, "checkpoint.pth", False)
 
         except KeyboardInterrupt:
             logging.info("Training interrupted")
@@ -146,16 +140,15 @@ class UnsupervisedEngine(Engine):
     def evaluate(self, eval_loader: torch.utils.data.DataLoader, eval_metric: str):
         self.model.eval()
 
-        metric_func = getattr(src.n2v.metrics, eval_metric)
         avg_loss = MetricTracker()
 
         with torch.no_grad():
-            for batch in tqdm(eval_loader):
-                outputs = self.model(batch["masked_images"].cuda())
-                loss = self.get_loss_function()(
-                    outputs, batch["original_images"].cuda(), batch["masks"].cuda(), 1
+            for image, *auxillary in tqdm(eval_loader):
+                outputs = self.model(image.to(self.device))
+                loss = self.loss_func(
+                    outputs, *auxillary, self.device, 1
                 )
-                avg_loss.update(loss.item(), batch["masked_images"].shape[0])
+                avg_loss.update(loss.item(), image.shape[0])
         return {"loss": avg_loss.avg}
 
     def predict(self, args):
@@ -181,23 +174,19 @@ class UnsupervisedEngine(Engine):
             _description_
         """
         avg_loss = MetricTracker()
-
         # TODO Add proper to device placement
-        self.model.cuda()
+        self.model.to(self.device)
         self.model.train()
 
-        for batch in tqdm(loader):
+        for image, *auxillary in tqdm(loader):
             optimizer.zero_grad()
 
             with torch.cuda.amp.autocast(enabled=amp):
-                # TODO this makes function n2v specific, should be changed?
                 # TODO add normalization
-
-                outputs = self.model(batch["masked_images"].cuda())
-            # TODO unpack batch, provide masks, std, etc ! dict from dataloader ? Universalitty
+                outputs = self.model(image.to(self.device))
             # TODO std !!
-            loss = self.get_loss_function()(
-                outputs, batch["original_images"].cuda(), batch["masks"].cuda(), 1
+            loss = self.loss_func(
+                outputs, *auxillary, self.device, 1
             )
             scaler.scale(loss).backward()
 
@@ -206,7 +195,7 @@ class UnsupervisedEngine(Engine):
                     self.model.parameters(), max_norm=max_grad_norm
                 )
             # TODO fix batches naming
-            avg_loss.update(loss.item(), batch["masked_images"].shape[0])
+            avg_loss.update(loss.item(), image.shape[0])
 
             optimizer.step()
         return {"loss": avg_loss.avg}

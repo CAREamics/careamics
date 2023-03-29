@@ -11,7 +11,7 @@ from pathlib import Path
 from skimage.util import view_as_windows
 from typing import Callable, List, Optional, Sequence, Union, Tuple
 
-from .n2v import n2v_manipulate
+from .pixel_manipulation import n2v_manipulate
 
 
 ############################################
@@ -19,7 +19,9 @@ from .n2v import n2v_manipulate
 ############################################
 
 
-def open_input_source(path: Union[str, Path], num_files: Union[int, None] = None) -> List:
+def open_input_source(
+    path: Union[str, Path], num_files: Union[int, None] = None
+) -> List:
     """_summary_
 
     _extended_summary_
@@ -37,8 +39,14 @@ def open_input_source(path: Union[str, Path], num_files: Union[int, None] = None
         _description_
     """
     # Basic function to open input source
-    #TODO add support for reading a subset of files 
-    return itertools.islice(Path(path).rglob('*.tif*'), num_files) if num_files else (Path(path).rglob('*.tif*'))
+    # TODO add support for reading a subset of files
+    return (
+        list(itertools.islice(Path(path).rglob("*.tif*"), num_files))
+        if num_files
+        else list(Path(path).rglob("*.tif*"))
+    )
+    # return ['/home/igor.zubarev/data/paris_chunk/wt_N10Division2988shift[0, 0].tif',
+    #  '/home/igor.zubarev/data/paris_chunk/wt_N10Division2993shift[0, 0].tif']
 
 
 def extract_patches_sequential(
@@ -71,9 +79,11 @@ def extract_patches_sequential(
     y_patch_size = patch_size[-2]
     x_patch_size = patch_size[-1]
 
-    #TODO put asserts in separate function in init 
+    # TODO put asserts in separate function in init
     # Asserts
-    assert len(patch_size) == len(arr.shape[1:]), "Number of patch dimensions must match image dimensions"
+    assert len(patch_size) == len(
+        arr.shape[1:]
+    ), "Number of patch dimensions must match image dimensions"
     assert (
         z_patch_size is None or z_patch_size <= arr.shape[1]
     ), "Z patch size is incosistent with image shape"
@@ -112,8 +122,11 @@ def extract_patches_sequential(
             min(y_patch_size - overlap_y, y_patch_size),
             min(x_patch_size - overlap_x, x_patch_size),
         )
-        output_shape = (-1, arr.shape[0], y_patch_size, x_patch_size) if z_patch_size == 1 \
-        else (-1, arr.shape[0], z_patch_size, y_patch_size, x_patch_size)
+        output_shape = (
+            (-1, arr.shape[0], y_patch_size, x_patch_size)
+            if z_patch_size == 1
+            else (-1, arr.shape[0], z_patch_size, y_patch_size, x_patch_size)
+        )
     else:
         window_shape = (arr.shape[0], y_patch_size, x_patch_size)
         step = (
@@ -185,7 +198,7 @@ class PatchDataset(torch.utils.data.IterableDataset):
         patch_level_transform : Optional[Callable], optional
             _description_, by default None
         """
-        
+
         # Assert input data
         assert isinstance(
             data_path, str
@@ -199,15 +212,14 @@ class PatchDataset(torch.utils.data.IterableDataset):
             2,
             3,
         ), f"Incorrect patch_size. Must be a 2 or 3, given{len(patch_size)}"
-
-        self.data_reader = data_reader(data_path, num_files)
-        self.source_iter = iter(self.data_reader)
+        # TODO make this a class method?
+        self.data_path = data_path
+        self.num_files = num_files
+        self.data_reader = data_reader
         self.patch_size = patch_size
         self.patch_generator = patch_generator
         self.image_transform = image_level_transform
         self.patch_transform = patch_level_transform
-
-        assert any(True for _ in self.data_reader), "Data source is empty"
 
     @staticmethod
     def read_data_source(self, data_source: str):
@@ -234,8 +246,8 @@ class PatchDataset(torch.utils.data.IterableDataset):
             3,
             4,
         ), f"Incorrect data dimensions. Must be 2, 3 or 4, given {arr.shape} for file {data_source}"
-        
-        #TODO improve shape asserts
+
+        # TODO improve shape asserts
         # Adding channel dimension if necessary. If present, check correctness
         if len(arr.shape) == 2 or (len(arr.shape) == 3 and len(self.patch_size) == 3):
             arr = np.expand_dims(arr, axis=0)
@@ -245,7 +257,9 @@ class PatchDataset(torch.utils.data.IterableDataset):
                 f"Incorrect data dimensions {arr.shape} for given dimensionality {len(self.patch_size)}D in file {data_source}"
             )
         elif len(arr.shape) == 3 and len(self.patch_size) == 2 and arr.shape[0] > 4:
-            logging.warning(f"Number of channels is {arr.shape[0]} for 2D data. Assuming time series.")
+            logging.warning(
+                f"Number of channels is {arr.shape[0]} for 2D data. Assuming time series."
+            )
             arr = np.expand_dims(arr, axis=0)
             updated_patch_size = (1, *self.patch_size)
         return arr, updated_patch_size
@@ -261,10 +275,16 @@ class PatchDataset(torch.utils.data.IterableDataset):
         info = torch.utils.data.get_worker_info()
         num_workers = info.num_workers if info is not None else 1
         id = info.id if info is not None else 0
+        self.source = (
+            itertools.islice(Path(self.data_path).rglob("*.tif*"), self.num_files)
+            if self.num_files
+            else Path(self.data_path).rglob("*.tif*")
+        )
+
         # TODO check for mem leaks, explicitly gc the arr after iterator is exhausted
-        for i, filename in enumerate(self.data_reader):
+        for i, filename in enumerate(self.source):
             try:
-                #TODO add buffer, several images up to some memory limit?
+                # TODO add buffer, several images up to some memory limit?
                 arr, patch_size = self.read_data_source(self, filename)
             except (ValueError, FileNotFoundError, OSError) as e:
                 logging.exception(f"Exception in file {filename}, skipping")
@@ -284,7 +304,7 @@ class PatchDataset(torch.utils.data.IterableDataset):
         """
         for image, updated_patch_size in self.__iter_source__():
             for patch in self.patch_generator(image, updated_patch_size):
-                # TODO add augmentations, multiple functions. 
+                # TODO add augmentations, multiple functions.
                 yield self.patch_transform(
                     patch
                 ) if self.patch_transform is not None else patch

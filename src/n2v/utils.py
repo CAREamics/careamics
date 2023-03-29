@@ -61,6 +61,15 @@ def save_checkpoint(model, name, save_best):
     else:
         torch.save(model.state_dict(), 'checkpoint.pth')
 
+#TODO implement proper saving/loading
+
+def load_checkpoint(model, name):
+    '''
+    Load the model from a checkpoint file.
+    '''
+    model.load_state_dict(torch.load(name))
+
+
 def printNow(string,a="",b="",c="",d="",e="",f=""):
     print(string,a,b,c,d,e,f)
     sys.stdout.flush()
@@ -84,10 +93,13 @@ def denormalize(x, mean, std):
     return x*std + mean
 
 
-def getDevice():
-    print("CUDA available?",torch.cuda.is_available())
-    assert(torch.cuda.is_available())
-    device = torch.device("cuda")
+def get_device():
+    if torch.cuda.is_available():
+        logging.info('CUDA available. Using GPU.')
+        device = torch.device("cuda")
+    else:
+        logging.info('CUDA not available. Using CPU.')
+        device = torch.device("cpu")
     return device
 
 

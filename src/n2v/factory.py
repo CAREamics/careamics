@@ -16,8 +16,8 @@ from .dataloader import (
     extract_patches_sequential,
     open_input_source,
 )
-from . import n2v
-from .n2v import n2v_manipulate
+from . import pixel_manipulation
+from .pixel_manipulation import n2v_manipulate
 from .augment import augment_single
 
 
@@ -107,7 +107,7 @@ def create_patch_transform(config: Dict) -> Callable:
     Callable
     """
     return partial(
-        getattr(n2v, f"{config['algorithm']['pixel_manipulation']}_manipulate"),
+        getattr(pixel_manipulation, f"{config['algorithm']['pixel_manipulation']}_manipulate"),
         num_pixels=config["algorithm"]["num_masked_pixels"],
         augmentations=augment_single,
     )
