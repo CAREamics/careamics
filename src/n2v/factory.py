@@ -6,15 +6,17 @@ import torch
 from functools import partial
 from typing import Callable, Dict, List, Optional, Tuple, Union
 
-import src
 from .models import UNet
 from .losses import n2v_loss, pn2v_loss, decon_loss
+
+from . import dataloader
 from .dataloader import (
     PatchDataset,
     extract_patches_random,
     extract_patches_sequential,
     open_input_source,
 )
+from . import n2v
 from .n2v import n2v_manipulate
 from .augment import augment_single
 
@@ -105,7 +107,7 @@ def create_patch_transform(config: Dict) -> Callable:
     Callable
     """
     return partial(
-        getattr(src, f"{config['algorithm']['pixel_manipulation']}_manipulate"),
+        getattr(n2v, f"{config['algorithm']['pixel_manipulation']}_manipulate"),
         num_pixels=config["algorithm"]["num_masked_pixels"],
         augmentations=augment_single,
     )
@@ -125,7 +127,8 @@ def create_dataset(config: Dict, stage: str) -> torch.utils.data.Dataset:
 
     if config[stage]["data"]["ext"] == "tif":
         patch_generation_func = getattr(
-            src, f"extract_patches_{config[stage]['data']['extraction_strategy']}"
+            dataloader,
+            f"extract_patches_{config[stage]['data']['extraction_strategy']}",
         )
         dataset = PatchDataset(
             data_path=config[stage]["data"]["path"],

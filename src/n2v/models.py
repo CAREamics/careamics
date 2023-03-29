@@ -6,14 +6,14 @@ import torch.nn.functional as F
 from collections import OrderedDict
 from torch.nn import init
 
-from src.layers import DownConv, UpConv, conv1x1
+from .layers import DownConv, UpConv, conv1x1
 
 
-#TODO add docstings, typing
+# TODO add docstings, typing
 
 
 class UNet(nn.Module):
-    """ `UNet` class is based on https://arxiv.org/abs/1505.04597
+    """`UNet` class is based on https://arxiv.org/abs/1505.04597
     The U-Net is a convolutional encoder-decoder neural network.
     Contextual spatial information (from the decoding,
     expansive pathway) about an input tensor is merged with
@@ -33,9 +33,17 @@ class UNet(nn.Module):
         the tranpose convolution (specified by upmode='transpose')
     """
 
-    def __init__(self, conv_dim, num_classes=1, in_channels=1, depth=5,
-                 start_filts=64, up_mode='transpose',
-                 merge_mode='add', n2v2=False):
+    def __init__(
+        self,
+        conv_dim,
+        num_classes=1,
+        in_channels=1,
+        depth=5,
+        start_filts=64,
+        up_mode="transpose",
+        merge_mode="add",
+        n2v2=False,
+    ):
         """
         Arguments:
             in_channels: int, number of channels in the input tensor.
@@ -49,28 +57,34 @@ class UNet(nn.Module):
         """
         super().__init__()
 
-        if up_mode in ('transpose', 'upsample'):
+        if up_mode in ("transpose", "upsample"):
             self.up_mode = up_mode
         else:
-            raise ValueError("\"{}\" is not a valid mode for "
-                             "upsampling. Only \"transpose\" and "
-                             "\"upsample\" are allowed.".format(up_mode))
+            raise ValueError(
+                '"{}" is not a valid mode for '
+                'upsampling. Only "transpose" and '
+                '"upsample" are allowed.'.format(up_mode)
+            )
 
-        if merge_mode in ('concat', 'add'):
+        if merge_mode in ("concat", "add"):
             self.merge_mode = merge_mode
         else:
-            raise ValueError("\"{}\" is not a valid mode for"
-                             "merging up and down paths. "
-                             "Only \"concat\" and "
-                             "\"add\" are allowed.".format(up_mode))
+            raise ValueError(
+                '"{}" is not a valid mode for'
+                "merging up and down paths. "
+                'Only "concat" and '
+                '"add" are allowed.'.format(up_mode)
+            )
 
         # NOTE: up_mode 'upsample' is incompatible with merge_mode 'add'
-        if self.up_mode == 'upsample' and self.merge_mode == 'add':
-            raise ValueError("up_mode \"upsample\" is incompatible "
-                             "with merge_mode \"add\" at the moment "
-                             "because it doesn't make sense to use "
-                             "nearest neighbour to reduce "
-                             "depth channels (by half).")
+        if self.up_mode == "upsample" and self.merge_mode == "add":
+            raise ValueError(
+                'up_mode "upsample" is incompatible '
+                'with merge_mode "add" at the moment '
+                "because it doesn't make sense to use "
+                "nearest neighbour to reduce "
+                "depth channels (by half)."
+            )
 
         self.num_classes = num_classes
         self.conv_dim = conv_dim
@@ -87,19 +101,27 @@ class UNet(nn.Module):
         # create the encoder pathway and add to a list
         for i in range(depth):
             ins = self.in_channels if i == 0 else outs
-            outs = self.start_filts*(2**i)
-            pooling = True if i < depth-1 else False
+            outs = self.start_filts * (2**i)
+            pooling = True if i < depth - 1 else False
 
-            down_conv = DownConv(self.conv_dim, ins, outs, pooling=pooling, n2v2=self.n2v2)
+            down_conv = DownConv(
+                self.conv_dim, ins, outs, pooling=pooling, n2v2=self.n2v2
+            )
             self.down_convs.append(down_conv)
 
         # create the decoder pathway and add to a list
         # - careful! decoding only requires depth-1 blocks
-        for i in range(depth-1):
+        for i in range(depth - 1):
             ins = outs
             outs = ins // 2
-            up_conv = UpConv(self.conv_dim, ins, outs, up_mode=up_mode,
-                merge_mode=merge_mode, skip=(i==depth-2))
+            up_conv = UpConv(
+                self.conv_dim,
+                ins,
+                outs,
+                up_mode=up_mode,
+                merge_mode=merge_mode,
+                skip=(i == depth - 2),
+            )
             self.up_convs.append(up_conv)
 
         self.conv_final = conv1x1(self.conv_dim, outs, self.num_classes)
@@ -116,11 +138,9 @@ class UNet(nn.Module):
             init.xavier_normal(m.weight)
             init.constant(m.bias, 0)
 
-
     def reset_params(self):
         for i, m in enumerate(self.modules()):
             self.weight_init(m)
-
 
     def forward(self, x):
         encoder_outs = []
@@ -131,7 +151,7 @@ class UNet(nn.Module):
             encoder_outs.append(before_pool)
 
         for i, module in enumerate(self.up_convs):
-            before_pool = encoder_outs[-(i+2)]
+            before_pool = encoder_outs[-(i + 2)]
             x = module(before_pool, x)
 
         # No softmax is used. This means you need to use
