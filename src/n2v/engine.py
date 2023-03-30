@@ -139,7 +139,7 @@ class UnsupervisedEngine(Engine):
 
     def evaluate(self, eval_loader: torch.utils.data.DataLoader, eval_metric: str):
         self.model.eval()
-
+        #TODO Isnt supposed to be called without train ?
         avg_loss = MetricTracker()
 
         with torch.no_grad():
@@ -152,7 +152,20 @@ class UnsupervisedEngine(Engine):
         return {"loss": avg_loss.avg}
 
     def predict(self, args):
-        pass
+        self.model.eval()
+
+        pred_loader = self.get_predict_dataloader()
+        avg_loss = MetricTracker()
+        avg_metric = MetricTracker()
+
+        with torch.no_grad():
+            for image, *auxillary in tqdm(pred_loader):
+                outputs = self.model(image.to(self.device))
+                #TODO tile predict from aux 
+                loss = self.loss_func(
+                    outputs, *auxillary, self.device, 1
+                )
+                avg_loss.update(loss.item(), image.shape[0])
 
     def train_single_epoch(
         self,

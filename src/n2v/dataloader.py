@@ -144,7 +144,7 @@ def extract_patches_sequential(
 
     # Yield single patch #TODO view_as_windows might be inefficient
     for patch_ixd in range(patches.shape[0]):
-        yield patches[patch_ixd].astype(np.float32)
+        yield [patches[patch_ixd].astype(np.float32)]
 
 
 def extract_patches_random(arr, patch_size, num_patches=None) -> np.ndarray:
@@ -156,7 +156,7 @@ def extract_patches_random(arr, patch_size, num_patches=None) -> np.ndarray:
 
     # TODO add multiple arrays support, add possibility to remove empty or almost empty patches ?
     for i in range(crop_coords.shape[1]):
-        yield arr[
+        yield [arr[
             (
                 ...,
                 *[
@@ -164,7 +164,96 @@ def extract_patches_random(arr, patch_size, num_patches=None) -> np.ndarray:
                     for j, c in enumerate(crop_coords[:, i, ...])
                 ],
             )
-        ].copy().astype(np.float32)
+        ].copy().astype(np.float32)]
+
+
+def extract_paches_predict(
+    arr: np.ndarray, patch_size: Tuple[int], overlap: Tuple[int]
+) -> np.ndarray:
+    """_summary_
+
+    _extended_summary_
+
+    Parameters
+    ----------
+    arr : _type_
+        _description_
+    patch_size : _type_
+        _description_
+
+    Yields
+    ------
+    Iterator[np.ndarray]
+        _description_
+    """
+
+    z_patch_size = None if len(patch_size) == 2 else patch_size[0]
+    y_patch_size, x_patch_size = patch_size[-2:]
+    z_overlap = None if len(overlap) == 2 else overlap[0]
+    y_overlap, x_overlap = overlap[-2:]
+
+    num_samples = 1
+
+    # TODO add asserts
+
+    z_min = 0
+    y_min = 0
+    x_min = 0
+    z_max = z_patch_size
+    y_max = y_patch_size
+    x_max = x_patch_size
+    pred = np.zeros(arr.shape)
+
+    tiles = []
+    check_coords = []
+    pred_coords = []
+    # TODO Refactor, this is extremely ugly. 2D/3D separately?
+    z_running_overlap = 0
+    while z_min < arr.shape[0]:
+        # TODO Rename
+        overlap_left = 0
+        while x_min < arr.shape[1]:
+            overlap_top = 0
+            while y_min < arr.shape[2]:
+                z_min_ = min(arr.shape[0], z_max) - z_patch_size
+                y_min_ = min(arr.shape[1], y_max) - y_patch_size
+                x_min_ = min(arr.shape[2], x_max) - x_patch_size
+                lastPatchShiftZ = z_min - z_min_
+                lastPatchShiftY = y_min - y_min_
+                lastPatchShiftX = x_min - x_min_
+                if ((z_min_, y_min_, y_max), (z_min_, x_min_, x_max)) not in check_coords:
+                    check_coords.append(((z_min_, y_min_, y_max), (z_min_, x_min_, x_max)))
+                    tiles.append(arr[z_min_:z_max, y_min_:y_max, x_min_:x_max])
+                    # TODO add proper description
+                    pred_coords.append(
+                        [
+                            lastPatchShiftZ,
+                            lastPatchShiftY,
+                            lastPatchShiftX,
+                            z_running_overlap,
+                            overlap_top,
+                            overlap_left,
+                        ]
+                    )
+                y_min = y_min - y_overlap + y_patch_size
+                y_max = y_min + y_patch_size
+                overlap_top = y_overlap // 2
+            y_min = 0
+            y_max = y_patch_size
+            x_min = x_min - x_overlap + x_patch_size
+            x_max = x_min + x_patch_size
+            overlap_left = overlap // 2
+        x_min = 0
+        x_max = x_patch_size
+        z_min = z_min - z_overlap + z_patch_size
+        z_max = z_min + z_patch_size
+        z_running_overlap = z_overlap // 2
+
+    tiles = np.stack(tiles)
+    crops = [crop for crop in crops if all(crop.shape) > 0]
+    #TODO assert len tiles == len coords
+    for tile, crop in zip(tiles, pred_coords):
+        yield [tile.astype(np.float32), crop]
 
 
 class PatchDataset(torch.utils.data.IterableDataset):
@@ -290,6 +379,7 @@ class PatchDataset(torch.utils.data.IterableDataset):
                 logging.exception(f"Exception in file {filename}, skipping")
                 raise e
             if i % num_workers == id:
+                #TODO add iterator inside
                 yield self.image_transform(
                     (arr, patch_size)
                 ) if self.image_transform is not None else (arr, patch_size)
@@ -303,8 +393,8 @@ class PatchDataset(torch.utils.data.IterableDataset):
         np.ndarray
         """
         for image, updated_patch_size in self.__iter_source__():
-            for patch in self.patch_generator(image, updated_patch_size):
+            for patch_info in self.patch_generator(image, updated_patch_size):
                 # TODO add augmentations, multiple functions.
                 yield self.patch_transform(
-                    patch
-                ) if self.patch_transform is not None else patch
+                    patch_info
+                ) if self.patch_transform is not None else patch_info
