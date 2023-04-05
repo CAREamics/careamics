@@ -12,6 +12,26 @@ import numpy as np
 from pathlib import Path
 
 
+class DuplicateFilter(logging.Filter):
+
+    def filter(self, record):
+        current_log = (record.module, record.levelno, record.msg)
+        return True if current_log == getattr(self, '_last_log', None) else False
+
+
+def set_logging(default_level=logging.INFO, log_path=''):
+    #TODO add log_path and level to config
+    console_handler = logging.StreamHandler()
+    logging.root.addHandler(console_handler)
+    logging.root.setLevel(default_level)
+    logging.root.addFilter(DuplicateFilter())
+    if log_path:
+        file_handler = logging.handlers.RotatingFileHandler(log_path, maxBytes=(1024 ** 2 * 2), backupCount=3)
+        file_formatter = logging.Formatter("%(asctime)s - %(name)20s: [%(levelname)8s] - %(message)s")
+        file_handler.setFormatter(file_formatter)
+        logging.root.addHandler(file_handler)
+
+
 def config_loader(cfg_path):
     '''
     Load a yaml config file and correct all datatypes
@@ -39,17 +59,6 @@ def config_validator(cfg):
     #assert hasattr ...
     # algorithm list, models list, loss functions list. All torch modules hasattr. 
     return cfg
-
-
-def set_logging(default_level=logging.INFO, log_path=''):
-    console_handler = logging.StreamHandler()
-    logging.root.addHandler(console_handler)
-    logging.root.setLevel(default_level)
-    if log_path:
-        file_handler = logging.handlers.RotatingFileHandler(log_path, maxBytes=(1024 ** 2 * 2), backupCount=3)
-        file_formatter = logging.Formatter("%(asctime)s - %(name)20s: [%(levelname)8s] - %(message)s")
-        file_handler.setFormatter(file_formatter)
-        logging.root.addHandler(file_handler)
 
 
 def save_checkpoint(model, name, save_best):
