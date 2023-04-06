@@ -1,5 +1,6 @@
 from enum import Enum
 
+from typing import List, Dict, Union
 from pydantic import BaseModel, Field, validator
 
 
@@ -40,12 +41,13 @@ class Algorithm(BaseModel):
 
     name: str
     loss: list[LossName]
+    pixel_manipulation: str # TODO same as name ?
     model: ModelName = Field(default=ModelName.unet)
+    depth: int = Field(default=3, ge=2)  # example: bounds
     num_masked_pixels: int = Field(default=128, ge=1, le=1024)  # example: bounds
-    patch_size: list[int] = Field(
-        ..., min_items=2, max_items=3
-    )  # example: min/max items
-
+    conv_mult: int = Field(default=2, ge=2, le=3)  # example: bounds
+    checkpoint: str = Field(default=None)
+    
     @validator("num_masked_pixels")
     def validate_num_masked_pixels(cls, num):
         # example validation
@@ -74,14 +76,6 @@ class Optimizer(BaseModel):
         if name == OptimizerName.adam:
             if "lr" not in parameters:
                 raise ValueError("lr is required for Adam optimizer")
-            if "betas" not in parameters:
-                raise ValueError("betas is required for Adam optimizer")
-            if "eps" not in parameters:
-                raise ValueError("eps is required for Adam optimizer")
-            if "weight_decay" not in parameters:
-                raise ValueError("weight_decay is required for Adam optimizer")
-            if "amsgrad" not in parameters:
-                raise ValueError("amsgrad is required for Adam optimizer")
 
         return parameters
 
@@ -100,12 +94,35 @@ class LrScheduler(BaseModel):
     def validate_parameters(cls, parameters, values):
         name = values["name"]
 
-        # TODO validate
+        if name == SchedulerName.reduce_lr_on_plateau:
+            if 'mode' not in parameters:
+                raise ValueError("mode is required for ReduceLROnPlateau scheduler")
+            if 'factor' not in parameters:
+                raise ValueError("factor is required for ReduceLROnPlateau scheduler")
+            if 'patience' not in parameters:
+                raise ValueError("patience is required for ReduceLROnPlateau scheduler")
 
         return parameters
 
     class Config:
         use_enum_values = True  # make sure that enum are exported as str
+
+
+class Data(BaseModel):
+    path: str 
+    ext: str = Field(default=".tif") #TODO add regexp for list of extensions or enum
+    num_files: Union[int , None] = Field(default=None)
+    extraction_strategy: str = Field(default="sequential") #TODO add enum
+    patch_size: List[int] #TODO how to validate list
+    num_patches: Union[int , None] #TODO how to make parameters mutually exclusive
+    batch_size: int
+    num_workers: int = Field(default=0)
+    augmentation: None #TODO add augmentation parameters, list of strings ?
+
+
+class Amp(BaseModel):
+    toggle: bool
+    init_scale: int #TODO excessive ?
 
 
 class Training(BaseModel):
@@ -115,15 +132,30 @@ class Training(BaseModel):
     learning_rate: float = Field(default=0.001, ge=0.0001, le=0.1)
     optimizer: Optimizer
     lr_scheduler: LrScheduler
+    amp: Amp
+    max_grad_norm: float = Field(default=1.0, ge=0.0, le=1.0)
+    data: Data
 
     class Config:
         use_enum_values = True  # make sure that enum are exported as str
 
 
-class Config(BaseModel):
+class Evaluation(BaseModel):
+    data: Data
+    metric: str #TODO add enum
+
+
+class Prediction(BaseModel):
+    data: Data
+
+
+class ConfigValidator(BaseModel):
     """Main configuration model."""
 
     experiment_name: str
     workdir: str
     algorithm: Algorithm
     training: Training
+    evaluation: Evaluation
+    prediction: Prediction
+

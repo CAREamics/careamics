@@ -107,8 +107,8 @@ def create_patch_transform(config: Dict) -> Callable:
     Callable
     """
     return partial(
-        getattr(pixel_manipulation, f"{config['algorithm']['pixel_manipulation']}_manipulate"),
-        num_pixels=config["algorithm"]["num_masked_pixels"],
+        getattr(pixel_manipulation, f"{config.algorithm.pixel_manipulation}_manipulate"),
+        num_pixels=config.algorithm.num_masked_pixels,
         augmentations=augment_single,
     )
 
@@ -124,17 +124,19 @@ def create_dataset(config: Dict, stage: str) -> torch.utils.data.Dataset:
 
     # TODO rewrite this ugly bullshit. registry,etc!
     # TODO data reader getattr
-
-    if config[stage]["data"]["ext"] == "tif":
+    # TODO add support for mixed filetype datasets
+    stage_config = getattr(config, stage)
+    
+    if stage_config.data.ext == "tif":
         patch_generation_func = getattr(
             dataloader,
-            f"extract_patches_{config[stage]['data']['extraction_strategy']}",
+            f"extract_patches_{stage_config.data.extraction_strategy}",
         )
         dataset = PatchDataset(
-            data_path=config[stage]["data"]["path"],
-            num_files=config[stage]["data"]["num_files"],
+            data_path=stage_config.data.path,
+            num_files=stage_config.data.num_files,
             data_reader=open_input_source,
-            patch_size=config[stage]["data"]["patch_size"],
+            patch_size=stage_config.data.patch_size,
             patch_generator=patch_generation_func,
             patch_level_transform=create_patch_transform(config),
         )
@@ -155,8 +157,8 @@ def create_model(config: Dict) -> torch.nn.Module:
         Config file dictionary
     """
     # TODO rewrite this ugly bullshit. registry,etc!
-    model_name = config["algorithm"]["model"]
-    load_checkpoint = config["algorithm"]["checkpoint"]
+    model_name = config.algorithm.model
+    load_checkpoint = config.algorithm.checkpoint
     # TODO fix import
     # try:
     #     model_class = getattr(deconoising, model_name)
@@ -164,7 +166,7 @@ def create_model(config: Dict) -> torch.nn.Module:
     #     raise ImportError('Model not found')
 
     if model_name == "UNet":
-        model = UNet(config["algorithm"]["conv_dim"])
+        model = UNet(config.algorithm.conv_mult)
     if load_checkpoint:
         model.load_state_dict(torch.load(load_checkpoint))
     return model
@@ -219,7 +221,7 @@ def create_loss_function(config: Dict) -> Callable:
     model_name : _type_
         _description_
     """
-    loss_type = config["algorithm"]["loss"]
+    loss_type = config.algorithm.loss
     if loss_type[0] == "n2v":
         loss_function = n2v_loss
     # TODO rewrite this ugly bullshit. registry,etc!

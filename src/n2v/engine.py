@@ -74,7 +74,7 @@ class UnsupervisedEngine(Engine):
         except (FileNotFoundError, yaml.YAMLError):
             # TODO add custom exception for different cases
             raise yaml.YAMLError("Config file not found")
-        cfg = n2v.config_validator(cfg)
+        cfg = n2v.ConfigValidator(**cfg)
         return cfg
 
     def log_metrics(self):
@@ -107,12 +107,12 @@ class UnsupervisedEngine(Engine):
         scaler = self.get_grad_scaler()
 
         logging.info(
-            f'Starting training for {self.cfg["training"]["num_epochs"]} epochs'
+            f'Starting training for {self.cfg.training.num_epochs} epochs'
         )
 
         try:
             for epoch in range(
-                self.cfg["training"]["num_epochs"]
+                self.cfg.training.num_epochs
             ):  # loop over the dataset multiple times
                 logging.info(f"Starting epoch {epoch}")
 
@@ -120,13 +120,13 @@ class UnsupervisedEngine(Engine):
                     train_loader,
                     optimizer,
                     scaler,
-                    self.cfg["training"]["amp"]["toggle"],
-                    self.cfg["training"]["max_grad_norm"],
+                    self.cfg.training.amp.toggle,
+                    self.cfg.training.max_grad_norm,
                 )
 
                 # Perform validation step
                 eval_outputs = self.evaluate(
-                    eval_loader, self.cfg["evaluation"]["metric"]
+                    eval_loader, self.cfg.evalutation.metric
                 )
 
                 # Add update scheduler rule based on type
@@ -151,7 +151,7 @@ class UnsupervisedEngine(Engine):
                 avg_loss.update(loss.item(), image.shape[0])
         return {"loss": avg_loss.avg}
 
-    def predict(self, args):
+    def predict(self):
         self.model.eval()
 
         pred_loader = self.get_predict_dataloader()
@@ -218,19 +218,19 @@ class UnsupervisedEngine(Engine):
 
     def get_train_dataloader(self) -> DataLoader:
         dataset = create_dataset(self.cfg, "training")
-        ##TODO add custom collate function and separate dataloader create function
+        ##TODO add custom collate function and separate dataloader create function, sampler?
         return DataLoader(
             dataset,
-            batch_size=self.cfg["training"]["data"]["batch_size"],
-            num_workers=self.cfg["training"]["data"]["num_workers"],
+            batch_size=self.cfg.training.data.batch_size,
+            num_workers=self.cfg.training.data.num_workers,
         )
 
     def get_val_dataloader(self) -> DataLoader:
         dataset = create_dataset(self.cfg, "evaluation")
         return DataLoader(
             dataset,
-            batch_size=self.cfg["evaluation"]["data"]["batch_size"],
-            num_workers=self.cfg["evaluation"]["data"]["num_workers"],
+            batch_size=self.cfg.evaluation.data.batch_size,
+            num_workers=self.cfg.evaluation.data.num_workers,
             pin_memory=True,
         )
 
@@ -238,8 +238,8 @@ class UnsupervisedEngine(Engine):
         dataset = create_dataset(self.cfg, "predict")
         return DataLoader(
             dataset,
-            batch_size=self.cfg["predict"]["data"]["batch_size"],
-            num_workers=self.cfg["predict"]["data"]["num_workers"],
+            batch_size=self.cfg.predict.data.batch_size,
+            num_workers=self.cfg.predict.data.num_workers,
             pin_memory=True,
         )
 
@@ -258,24 +258,24 @@ class UnsupervisedEngine(Engine):
         """
         # assert inspect.get
         # TODO call func from factory
-        optimizer_name = self.cfg["training"]["optimizer"]["name"]
-        optimizer_params = self.cfg["training"]["optimizer"]["params"]
+        optimizer_name = self.cfg.training.optimizer.name
+        optimizer_params = self.cfg.training.optimizer.parameters
         optimizer_func = getattr(torch.optim, optimizer_name)
         # Get the list of all possible parameters of the optimizer
         optim_params = _get_params_from_config(optimizer_func, optimizer_params)
         # TODO add support for different learning rates for different layers
         optimizer = optimizer_func(self.model.parameters(), **optim_params)
 
-        scheduler_name = self.cfg["training"]["lr_scheduler"]["name"]
-        scheduler_params = self.cfg["training"]["lr_scheduler"]["params"]
+        scheduler_name = self.cfg.training.lr_scheduler.name
+        scheduler_params = self.cfg.training.lr_scheduler.parameters
         scheduler_func = getattr(torch.optim.lr_scheduler, scheduler_name)
         scheduler_params = _get_params_from_config(scheduler_func, scheduler_params)
         scheduler = scheduler_func(optimizer, **scheduler_params)
         return optimizer, scheduler
 
     def get_grad_scaler(self) -> torch.cuda.amp.GradScaler:
-        toggle = self.cfg["training"]["amp"]["toggle"]
-        scaling = self.cfg["training"]["amp"]["init_scale"]
+        toggle = self.cfg.training.amp.toggle
+        scaling = self.cfg.training.amp.init_scale
         return torch.cuda.amp.GradScaler(init_scale=scaling, enabled=toggle)
 
     def save_checkpoint(self, model, optimizer, scheduler, epoch, loss):

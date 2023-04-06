@@ -30,3 +30,5 @@ from .utils import (
     save_checkpoint,
     load_checkpoint,
 )
+
+from .config import ConfigValidator
