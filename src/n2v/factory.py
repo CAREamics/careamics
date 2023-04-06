@@ -109,6 +109,7 @@ def create_patch_transform(config: Dict) -> Callable:
     return partial(
         getattr(pixel_manipulation, f"{config.algorithm.pixel_manipulation}_manipulate"),
         num_pixels=config.algorithm.num_masked_pixels,
+        #TODO add augmentation selection
         augmentations=augment_single,
     )
 
@@ -128,6 +129,7 @@ def create_dataset(config: Dict, stage: str) -> torch.utils.data.Dataset:
     stage_config = getattr(config, stage)
     
     if stage_config.data.ext == "tif":
+        #TODO put this into a separate function?
         patch_generation_func = getattr(
             dataloader,
             f"extract_patches_{stage_config.data.extraction_strategy}",

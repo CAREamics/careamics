@@ -126,7 +126,7 @@ class UnsupervisedEngine(Engine):
 
                 # Perform validation step
                 eval_outputs = self.evaluate(
-                    eval_loader, self.cfg.evalutation.metric
+                    eval_loader, self.cfg.evaluation.metric
                 )
 
                 # Add update scheduler rule based on type

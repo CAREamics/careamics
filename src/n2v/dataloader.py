@@ -144,7 +144,7 @@ def extract_patches_sequential(
 
     # Yield single patch #TODO view_as_windows might be inefficient
     for patch_ixd in range(patches.shape[0]):
-        yield [patches[patch_ixd].astype(np.float32)]
+        yield (patches[patch_ixd].astype(np.float32))
 
 
 def extract_patches_random(arr, patch_size, num_patches=None) -> np.ndarray:
@@ -156,7 +156,7 @@ def extract_patches_random(arr, patch_size, num_patches=None) -> np.ndarray:
 
     # TODO add multiple arrays support, add possibility to remove empty or almost empty patches ?
     for i in range(crop_coords.shape[1]):
-        yield [arr[
+        yield (arr[
             (
                 ...,
                 *[
@@ -164,7 +164,7 @@ def extract_patches_random(arr, patch_size, num_patches=None) -> np.ndarray:
                     for j, c in enumerate(crop_coords[:, i, ...])
                 ],
             )
-        ].copy().astype(np.float32)]
+        ].copy().astype(np.float32))
 
 
 def extract_paches_predict(
@@ -253,7 +253,7 @@ def extract_paches_predict(
     crops = [crop for crop in crops if all(crop.shape) > 0]
     #TODO assert len tiles == len coords
     for tile, crop in zip(tiles, pred_coords):
-        yield [tile.astype(np.float32), crop]
+        yield (tile.astype(np.float32), crop)
 
 
 class PatchDataset(torch.utils.data.IterableDataset):
