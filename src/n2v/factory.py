@@ -19,6 +19,7 @@ from .dataloader import (
 from . import pixel_manipulation
 from .pixel_manipulation import n2v_manipulate
 from .augment import augment_single
+from .config import ConfigValidator
 
 
 def _get_params_from_config(
@@ -114,7 +115,7 @@ def create_patch_transform(config: Dict) -> Callable:
     )
 
 
-def create_dataset(config: Dict, stage: str) -> torch.utils.data.Dataset:
+def create_dataset(config: ConfigValidator, stage: str) -> torch.utils.data.Dataset:
     """Builds a dataset based on the dataset_params
 
     Parameters
@@ -126,8 +127,8 @@ def create_dataset(config: Dict, stage: str) -> torch.utils.data.Dataset:
     # TODO rewrite this ugly bullshit. registry,etc!
     # TODO data reader getattr
     # TODO add support for mixed filetype datasets
-    stage_config = getattr(config, stage)
-    
+    stage_config = config.get_stage_config(stage) #getattr(config, stage)
+
     if stage_config.data.ext == "tif":
         #TODO put this into a separate function?
         patch_generation_func = getattr(

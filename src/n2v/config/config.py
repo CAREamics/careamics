@@ -41,13 +41,13 @@ class Algorithm(BaseModel):
 
     name: str
     loss: list[LossName]
-    pixel_manipulation: str # TODO same as name ?
+    pixel_manipulation: str  # TODO same as name ?
     model: ModelName = Field(default=ModelName.unet)
     depth: int = Field(default=3, ge=2)  # example: bounds
     num_masked_pixels: int = Field(default=128, ge=1, le=1024)  # example: bounds
     conv_mult: int = Field(default=2, ge=2, le=3)  # example: bounds
     checkpoint: str = Field(default=None)
-    
+
     @validator("num_masked_pixels")
     def validate_num_masked_pixels(cls, num):
         # example validation
@@ -95,11 +95,11 @@ class LrScheduler(BaseModel):
         name = values["name"]
 
         if name == SchedulerName.reduce_lr_on_plateau:
-            if 'mode' not in parameters:
+            if "mode" not in parameters:
                 raise ValueError("mode is required for ReduceLROnPlateau scheduler")
-            if 'factor' not in parameters:
+            if "factor" not in parameters:
                 raise ValueError("factor is required for ReduceLROnPlateau scheduler")
-            if 'patience' not in parameters:
+            if "patience" not in parameters:
                 raise ValueError("patience is required for ReduceLROnPlateau scheduler")
 
         return parameters
@@ -109,20 +109,29 @@ class LrScheduler(BaseModel):
 
 
 class Data(BaseModel):
-    path: str 
-    ext: str = Field(default=".tif") #TODO add regexp for list of extensions or enum
-    num_files: Union[int , None] = Field(default=None)
-    extraction_strategy: str = Field(default="sequential") #TODO add enum
-    patch_size: List[int] #TODO how to validate list
-    num_patches: Union[int , None] #TODO how to make parameters mutually exclusive
+    path: str
+    ext: str = Field(default=".tif")  # TODO add regexp for list of extensions or enum
+    num_files: Union[int, None] = Field(default=None)
+    extraction_strategy: str = Field(default="sequential")  # TODO add enum
+    patch_size: List[int] = Field(
+        ..., min_items=2, max_items=3
+    )  # TODO how to validate list
+    num_patches: Union[int, None]  # TODO how to make parameters mutually exclusive
     batch_size: int
     num_workers: int = Field(default=0)
-    augmentation: None #TODO add augmentation parameters, list of strings ?
+    augmentation: None  # TODO add augmentation parameters, list of strings ?
+
+    @validator("patch_size")
+    def validate_parameters(cls, patch_size):
+        for p in patch_size:
+            # TODO validate
+            pass
+        return patch_size
 
 
 class Amp(BaseModel):
     toggle: bool
-    init_scale: int #TODO excessive ?
+    init_scale: int  # TODO excessive ?
 
 
 class Training(BaseModel):
@@ -142,11 +151,16 @@ class Training(BaseModel):
 
 class Evaluation(BaseModel):
     data: Data
-    metric: str #TODO add enum
+    metric: str  # TODO add enum
 
 
 class Prediction(BaseModel):
     data: Data
+
+
+class Stage(str, Enum):
+    TRAINING = "training"
+    EVALUATION = "evaluation"
 
 
 class ConfigValidator(BaseModel):
@@ -159,3 +173,8 @@ class ConfigValidator(BaseModel):
     evaluation: Evaluation
     prediction: Prediction
 
+    def get_stage_config(self, stage: Union[str, Stage]) -> Union[Training, Evaluation]:
+        if stage == Stage.TRAINING:
+            return self.training
+        else:
+            return self.evaluation
