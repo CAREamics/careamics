@@ -13,7 +13,7 @@ from tqdm import tqdm
 from typing import Callable, Dict, List, Optional, Tuple, Union
 from torch.utils.data import DataLoader
 
-import n2v
+import src.n2v
 
 from .metrics import MetricTracker
 from .factory import (
@@ -152,6 +152,7 @@ class UnsupervisedEngine(Engine):
         return {"loss": avg_loss.avg}
 
     def predict(self):
+        self.model.to(self.device)
         self.model.eval()
 
         pred_loader = self.get_predict_dataloader()
@@ -224,22 +225,22 @@ class UnsupervisedEngine(Engine):
             batch_size=self.cfg.training.data.batch_size,
             num_workers=self.cfg.training.data.num_workers,
         )
-
+    #TODO merge into single dataloader func ?
     def get_val_dataloader(self) -> DataLoader:
         dataset = create_dataset(self.cfg, "evaluation")
         return DataLoader(
             dataset,
-            batch_size=self.cfg.evaluation.data.batch_size,
+            batch_size=self.cfg.evaluation.data.batch_size, 
             num_workers=self.cfg.evaluation.data.num_workers,
             pin_memory=True,
         )
 
     def get_predict_dataloader(self) -> DataLoader:
-        dataset = create_dataset(self.cfg, "predict")
+        dataset = create_dataset(self.cfg, "prediction")
         return DataLoader(
             dataset,
-            batch_size=self.cfg.predict.data.batch_size,
-            num_workers=self.cfg.predict.data.num_workers,
+            batch_size=self.cfg.prediction.data.batch_size,
+            num_workers=self.cfg.prediction.data.num_workers,
             pin_memory=True,
         )
 
