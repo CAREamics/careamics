@@ -13,7 +13,7 @@ from tqdm import tqdm
 from typing import Callable, Dict, List, Optional, Tuple, Union
 from torch.utils.data import DataLoader
 
-import src.n2v
+import src.n2v as n2v
 
 from .metrics import MetricTracker
 from .factory import (
