@@ -110,6 +110,10 @@ ignore_missing_imports = true
 [tool.pytest.ini_options]
 minversion = "6.0"
 testpaths = ["tests"]
+filterwarnings = [
+    # "error",
+    # "ignore::UserWarning",
+]
 
 # https://coverage.readthedocs.io/en/6.4/config.html
 [tool.coverage.report]
@@ -121,6 +125,7 @@ exclude_lines = [
     "\\.\\.\\.",
     "raise NotImplementedError()",
 ]
+
 [tool.coverage.run]
 source = ["n2v"]
 

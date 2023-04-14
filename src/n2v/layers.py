@@ -26,7 +26,7 @@ def conv3x3(
 
 
 def upconv2x2(
-    conv_mult, conv_func_transpose, in_channels, out_channels, mode="transpose"
+    conv_dim: int, conv_func_transpose, in_channels, out_channels, mode="transpose"
 ):
     # TODO add better conv definition
     if mode == "transpose":
@@ -36,11 +36,11 @@ def upconv2x2(
         # as in_channels
         return nn.Sequential(
             nn.Upsample(mode="bilinear", scale_factor=2),
-            conv1x1(conv_mult, in_channels, out_channels),
+            conv1x1(conv_dim, in_channels, out_channels),
         )
 
 
-def conv1x1(conv_dim, in_channels, out_channels, groups=1):
+def conv1x1(conv_dim: int, in_channels, out_channels, groups=1):
     conv_func = getattr(nn, f"Conv{conv_dim}d")
     return conv_func(in_channels, out_channels, kernel_size=1, groups=groups, stride=1)
 
@@ -109,7 +109,7 @@ class UpConv(nn.Module):
         self.conv_func_transpose = getattr(nn, f"ConvTranspose{self.conv_dim}d")
 
         self.upconv = upconv2x2(
-            self.conv_func,
+            self.conv_dim,
             self.conv_func_transpose,
             self.in_channels,
             self.out_channels,
