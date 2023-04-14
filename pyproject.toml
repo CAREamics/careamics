@@ -8,7 +8,7 @@ build-backend = "hatchling.build"
 
 # https://hatch.pypa.io/latest/config/metadata/
 [tool.hatch.version]
-path = "vcs"
+ source = "vcs"
 
 # https://peps.python.org/pep-0621/
 [project]
