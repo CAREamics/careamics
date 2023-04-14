@@ -1,8 +1,10 @@
 # https://peps.python.org/pep-0517/
-# https://hatch.pypa.io/latest/config/build/
+
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
+# read more about configuring hatch at:
+# https://hatch.pypa.io/latest/config/build/
 
 # https://hatch.pypa.io/latest/config/metadata/
 [tool.hatch.version]
