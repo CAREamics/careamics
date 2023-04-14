@@ -1,15 +1,12 @@
 import sys
-import torch
+from typing import Optional, Tuple, Union
+
 import numpy as np
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
-from torch.autograd import Variable
-from collections import OrderedDict
-from typing import Optional, Tuple, Union
-from torch.nn.modules.utils import _pair, _triple
 from torch.nn.common_types import _size_2_t, _size_3_t
-
+from torch.nn.modules.utils import _pair, _triple
 
 # TODO add docstings, typing
 
@@ -132,7 +129,7 @@ class UpConv(nn.Module):
         """Forward pass
         Arguments:
             from_down: tensor from the encoder pathway
-            from_up: upconv'd tensor from the decoder pathway
+            from_up: upconv'd tensor from the decoder pathway.
         """
         from_up = self.upconv(from_up)
         if self.merge_mode == "concat":
@@ -187,7 +184,10 @@ def default_3d_filter():
 def padding_filter_same(filter: torch.Tensor) -> Tuple[int]:
     if np.any([dim % 2 == 0 for dim in filter.shape[2:]]):
         raise ValueError("All filter dimensions must be odd")
-    return (int(torch.div(dim, 2)) for dim in filter.shape[2:])
+
+    padded_filter = [int(torch.div(dim, 2)) for dim in filter.shape[2:]]
+
+    return tuple(padded_filter)
 
 
 def blur_operation(
@@ -198,8 +198,10 @@ def blur_operation(
     filter: Optional[torch.Tensor] = None,
 ) -> torch.Tensor:
     """Applies a spatial filter.
+
     Args:
-        input (torch.Tensor): A 4D/5D tensor of shape NC(Z)YX
+    ----
+        input (torch.Tensor): A 4D/5D tensor of shape NC(Z)YX.
 
         stride (int | tuple, optional): Stride(s) along axes. If a single value is passed, this
             value is used for both dimensions.
@@ -263,7 +265,9 @@ def blurmax_pool(
     ``kernel_size``, then applies an anti-aliasing filter to smooth the maxes,
     and only then pools according to ``stride``.
     See also: :func:`.blur_2d`.
+
     Args:
+    ----
         input (torch.Tensor): A 4d tensor of shape NCHW
         kernel_size (int | tuple, optional): Size(s) of the spatial neighborhoods over which to pool.
             This is mostly commonly 2x2. If only a scalar ``s`` is provided, the
@@ -287,8 +291,11 @@ def blurmax_pool(
             [1 2 1]
             [2 4 2] * 1/16
             [1 2 1]
+
+
     Returns:
-         The blurred and max-pooled input
+    -------
+         The blurred and max-pooled input.
     """
     if kernel_size is None:
         kernel_size = (2, 2)

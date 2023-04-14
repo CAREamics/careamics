@@ -8,7 +8,7 @@ def augment_single(image: np.ndarray, seed=1, channel_dim: bool = True) -> np.nd
 
     Parameters
     ----------
-    patches : np.ndarray
+    image : np.ndarray
         array containing single image or patch, 2D or 3D
     seed : int, optional
         seed for random number generator, controls the rotation and flipping

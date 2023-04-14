@@ -1,32 +1,25 @@
-import os
-import sys
 import inspect
-import numpy as np
-import torch
 from functools import partial
 from typing import Callable, Dict, List, Optional, Tuple, Union
 
-from .models import UNet
-from .losses import n2v_loss, pn2v_loss, decon_loss
+import torch
 
-from . import dataloader
-from .dataloader import (
-    PatchDataset,
-    extract_patches_random,
-    extract_patches_sequential,
-    open_input_source,
-)
-from . import pixel_manipulation
-from .pixel_manipulation import n2v_manipulate
+from . import dataloader, pixel_manipulation
 from .augment import augment_single
 from .config import ConfigValidator
+from .dataloader import (
+    PatchDataset,
+    open_input_source,
+)
+from .losses import n2v_loss
+from .models import UNet
 
 
 def _get_params_from_config(
     func: Union[torch.optim.Optimizer, torch.optim.lr_scheduler._LRScheduler],
     user_params: Dict,
 ) -> Dict:
-    """Returns the parameters of the optimizer or lr_scheduler
+    """Returns the parameters of the optimizer or lr_scheduler.
 
     Parameters
     ----------
@@ -49,8 +42,8 @@ def _get_params_from_config(
     return {key: user_params[key] for key in params_to_be_used}
 
 
-def _get_params_from_module(func: Callable, user_params: List) -> Dict:
-    """Returns the parameters of the function
+def _get_params_from_module(func: Callable, user_params: List) -> list:
+    """Returns the parameters of the function.
 
     Parameters
     ----------
@@ -61,7 +54,7 @@ def _get_params_from_module(func: Callable, user_params: List) -> Dict:
 
     Returns
     -------
-    Dict
+    list
         The parameters of the optimizer or lr_scheduler
     """
     # Get the list of all default parameters
@@ -73,9 +66,11 @@ def _get_params_from_module(func: Callable, user_params: List) -> Dict:
 
 # TODO add get from config general function!!
 def get_from_config(
-    config: Dict, key: str, default: Optional[Union[str, int, float, bool]] = None
-) -> Union[str, int, float, bool]:
-    """Returns the value of the key from the config file
+    config: ConfigValidator,
+    key: str,
+    default: Optional[Union[str, int, float, bool]] = None,
+) -> Union[str, int, float, bool, None]:
+    """Returns the value of the key from the config file.
 
     Parameters
     ----------
@@ -97,40 +92,41 @@ def get_from_config(
         return default
 
 
-def create_patch_transform(config: Dict) -> Callable:
+def create_patch_transform(config: ConfigValidator) -> Callable:
     """Creates the patch transform function with optional augmentation
     Parameters
     ----------
-    config : dict
+    config : dict.
 
     Returns
     -------
     Callable
     """
     return partial(
-        getattr(pixel_manipulation, f"{config.algorithm.pixel_manipulation}_manipulate"),
+        getattr(
+            pixel_manipulation, f"{config.algorithm.pixel_manipulation}_manipulate"
+        ),
         num_pixels=config.algorithm.num_masked_pixels,
-        #TODO add augmentation selection
+        # TODO add augmentation selection
         augmentations=augment_single,
     )
 
 
 def create_dataset(config: ConfigValidator, stage: str) -> torch.utils.data.Dataset:
-    """Builds a dataset based on the dataset_params
+    """Builds a dataset based on the dataset_params.
 
     Parameters
     ----------
     config : Dict
         Config file dictionary
     """
-
     # TODO rewrite this ugly bullshit. registry,etc!
     # TODO data reader getattr
     # TODO add support for mixed filetype datasets
-    stage_config = config.get_stage_config(stage) #getattr(config, stage)
+    stage_config = config.get_stage_config(stage)  # getattr(config, stage)
 
     if stage_config.data.ext == "tif":
-        #TODO put this into a separate function?
+        # TODO put this into a separate function?
         patch_generation_func = getattr(
             dataloader,
             f"extract_patches_{stage_config.data.extraction_strategy}",
@@ -152,7 +148,7 @@ def create_dataset(config: ConfigValidator, stage: str) -> torch.utils.data.Data
 
 
 def create_model(config: Dict) -> torch.nn.Module:
-    """Builds a model based on the model_name or load a checkpoint
+    """Builds a model based on the model_name or load a checkpoint.
 
     Parameters
     ----------
@@ -178,8 +174,7 @@ def create_model(config: Dict) -> torch.nn.Module:
 def create_optimizer(
     optimizer_type: str, optimizer_params: Dict
 ) -> Tuple[torch.optim.Optimizer, Dict]:
-    """Builds a model based on the model_name or load a checkpoint
-
+    """Builds a model based on the model_name or load a checkpoint.
 
     _extended_summary_
 
@@ -198,8 +193,7 @@ def create_optimizer(
 def create_lr_scheduler(
     scheduler_type: str, scheduler_params: Dict
 ) -> Tuple[torch.optim.lr_scheduler._LRScheduler, Dict]:
-    """Builds a model based on the model_name or load a checkpoint
-
+    """Builds a model based on the model_name or load a checkpoint.
 
     _extended_summary_
 
@@ -214,8 +208,7 @@ def create_lr_scheduler(
 
 
 def create_loss_function(config: Dict) -> Callable:
-    """Builds a model based on the model_name or load a checkpoint
-
+    """Builds a model based on the model_name or load a checkpoint.
 
     _extended_summary_
 
@@ -234,8 +227,7 @@ def create_loss_function(config: Dict) -> Callable:
 
 
 def create_grad_scaler(scaler_type):
-    """Builds a model based on the model_name or load a checkpoint
-
+    """Builds a model based on the model_name or load a checkpoint.
 
     _extended_summary_
 
