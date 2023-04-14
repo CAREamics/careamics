@@ -40,7 +40,7 @@ class Algorithm(BaseModel):
     """Parameters related to the model architecture."""
 
     name: str
-    loss: list[LossName]
+    loss: List[LossName]
     pixel_manipulation: str  # TODO same as name ?
     model: ModelName = Field(default=ModelName.unet)
     depth: int = Field(default=3, ge=2)  # example: bounds
