@@ -32,7 +32,15 @@ classifiers = [
     # "License :: OSI Approved :: BSD License",
     # "Typing :: Typed",
 ]
-dependencies = ['torch', 'torchvision', 'tifffile', 'pyyaml', 'pydantic', 'bioimageio.core']
+dependencies = [
+    'torch', 
+    'torchvision', 
+    'tifffile', 
+    'pyyaml', 
+    'pydantic', 
+    'scikit-image',
+    'bioimageio.core'
+]
 
 [project.optional-dependencies]
 # development dependencies and tooling
