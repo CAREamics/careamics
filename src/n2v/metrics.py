@@ -1,9 +1,9 @@
 import numpy as np
+from skimage.metrics import peak_signal_noise_ratio
 
 
-def psnr(gt, pred, range_=255.0):
-    mse = np.mean((gt - pred)**2)
-    return 20 * np.log10((range_) / np.sqrt(mse))
+def psnr(gt, pred, range=255.0):
+    return peak_signal_noise_ratio(gt, pred, data_range=range)
 
 
 def zero_mean(x):
