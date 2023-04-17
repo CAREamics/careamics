@@ -82,7 +82,7 @@ def test_config(tmpdir):
                 "num_workers": 0,
                 "augmentation": None,
             },
-            "metric": "psnr,"
+            "overlap": [25, 25],
         }
     }
 
