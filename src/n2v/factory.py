@@ -108,10 +108,12 @@ def create_patch_transform(config: Dict) -> Callable:
     Callable
     """
     return partial(
-        getattr(pixel_manipulation, f"{config.algorithm.pixel_manipulation}_manipulate"),
+        getattr(
+            pixel_manipulation, f"{config.algorithm.pixel_manipulation}_manipulate"
+        ),
         num_pixels=config.algorithm.num_masked_pixels,
-        #TODO add augmentation selection
-        augmentations=augment_single,
+        # TODO add augmentation selection
+        augmentations=None,
     )
 
 
@@ -127,21 +129,28 @@ def create_dataset(config: ConfigValidator, stage: str) -> torch.utils.data.Data
     # TODO rewrite this ugly bullshit. registry,etc!
     # TODO data reader getattr
     # TODO add support for mixed filetype datasets
-    stage_config = config.get_stage_config(stage) #getattr(config, stage)
+    stage_config = config.get_stage_config(stage)  # getattr(config, stage)
 
     if stage_config.data.ext == "tif":
-        #TODO put this into a separate function?
-        patch_generation_func = getattr(
-            dataloader,
-            f"extract_patches_{stage_config.data.extraction_strategy}",
+        # TODO put this into a separate function?
+        patch_generation_func = partial(
+            getattr(
+                dataloader,
+                f"extract_patches_{stage_config.data.extraction_strategy}",
+            ),
+            overlap=config.prediction.overlap,
         )
+        # TODO clear description of what all these funcs/params mean
+        # TODO patch transform should be properly imported from somewhere?
         dataset = PatchDataset(
             data_path=stage_config.data.path,
             num_files=stage_config.data.num_files,
             data_reader=open_input_source,
             patch_size=stage_config.data.patch_size,
             patch_generator=patch_generation_func,
-            patch_level_transform=create_patch_transform(config),
+            patch_level_transform=create_patch_transform(config)
+            if stage != "prediction"
+            else None,
         )
     # TODO getatr manipulate
     # try:
@@ -171,6 +180,7 @@ def create_model(config: Dict) -> torch.nn.Module:
     if model_name == "UNet":
         model = UNet(config.algorithm.conv_mult)
     if load_checkpoint:
+        # TODO add logging message
         model.load_state_dict(torch.load(load_checkpoint))
     return model
 

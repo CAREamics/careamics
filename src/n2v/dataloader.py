@@ -50,7 +50,10 @@ def open_input_source(
 
 
 def extract_patches_sequential(
-    arr, patch_size, num_patches=None
+    arr,
+    patch_size,
+    num_patches=None,
+    overlap=None,  # TODO add support for overlap. This is slighly ugly
 ) -> np.ndarray:  # TODO add support for shapes
     """Generate patches from ND array
     #TODO add time series, image or volume. Patches will be generated differently
@@ -78,7 +81,7 @@ def extract_patches_sequential(
     z_patch_size = None if len(patch_size) == 2 else patch_size[0]
     y_patch_size = patch_size[-2]
     x_patch_size = patch_size[-1]
-
+    # TODO 2D/3D separately ?
     # TODO put asserts in separate function in init
     # Asserts
     assert len(patch_size) == len(
@@ -94,7 +97,7 @@ def extract_patches_sequential(
     # Calculate total number of patches for each dimension
     z_total_patches = (
         np.ceil(arr.shape[1] / z_patch_size) if z_patch_size is not None else None
-    )
+    ) #TODO might need to be changed for prediction case and moved into a separate function
     y_total_patches = np.ceil(arr.shape[-2] / y_patch_size)
     x_total_patches = np.ceil(arr.shape[-1] / x_patch_size)
 
@@ -147,7 +150,7 @@ def extract_patches_sequential(
         yield (patches[patch_ixd].astype(np.float32))
 
 
-def extract_patches_random(arr, patch_size, num_patches=None) -> np.ndarray:
+def extract_patches_random(arr, patch_size, num_patches=None, *args) -> np.ndarray:
 
     # TODO either num_patches are all unique or output exact number of patches
     crop_coords = np.random.default_rng().integers(
@@ -156,18 +159,22 @@ def extract_patches_random(arr, patch_size, num_patches=None) -> np.ndarray:
 
     # TODO add multiple arrays support, add possibility to remove empty or almost empty patches ?
     for i in range(crop_coords.shape[1]):
-        yield (arr[
-            (
-                ...,
-                *[
-                    slice(c, c + patch_size[j])
-                    for j, c in enumerate(crop_coords[:, i, ...])
-                ],
-            )
-        ].copy().astype(np.float32))
+        yield (
+            arr[
+                (
+                    ...,
+                    *[
+                        slice(c, c + patch_size[j])
+                        for j, c in enumerate(crop_coords[:, i, ...])
+                    ],
+                )
+            ]
+            .copy()
+            .astype(np.float32)
+        )
 
 
-def extract_paches_predict(
+def extract_patches_predict(
     arr: np.ndarray, patch_size: Tuple[int], overlap: Tuple[int]
 ) -> np.ndarray:
     """_summary_
@@ -186,10 +193,13 @@ def extract_paches_predict(
     Iterator[np.ndarray]
         _description_
     """
+    arr = arr[:, 0, ...][np.newaxis, ...]
 
-    z_patch_size = None if len(patch_size) == 2 else patch_size[0]
+    z_patch_size = (
+        None if len(patch_size) == 2 else patch_size[0]
+    )  # TODO Should it be None in some cases ?
     y_patch_size, x_patch_size = patch_size[-2:]
-    z_overlap = None if len(overlap) == 2 else overlap[0]
+    z_overlap = 0 if len(overlap) == 2 else overlap[0]
     y_overlap, x_overlap = overlap[-2:]
 
     num_samples = 1
@@ -209,32 +219,49 @@ def extract_paches_predict(
     pred_coords = []
     # TODO Refactor, this is extremely ugly. 2D/3D separately?
     z_running_overlap = 0
-    while z_min < arr.shape[0]:
+    while z_min < arr.shape[1]:
         # TODO Rename
         overlap_left = 0
-        while x_min < arr.shape[1]:
+        while x_min < arr.shape[2]:
             overlap_top = 0
-            while y_min < arr.shape[2]:
-                z_min_ = min(arr.shape[0], z_max) - z_patch_size
-                y_min_ = min(arr.shape[1], y_max) - y_patch_size
-                x_min_ = min(arr.shape[2], x_max) - x_patch_size
-                lastPatchShiftZ = z_min - z_min_
-                lastPatchShiftY = y_min - y_min_
-                lastPatchShiftX = x_min - x_min_
-                if ((z_min_, y_min_, y_max), (z_min_, x_min_, x_max)) not in check_coords:
-                    check_coords.append(((z_min_, y_min_, y_max), (z_min_, x_min_, x_max)))
-                    tiles.append(arr[z_min_:z_max, y_min_:y_max, x_min_:x_max])
+            while y_min < arr.shape[3]:
+                # TODO hardcoded dimensions ? arr size always 4 ? assert ?
+
+
+                # start coordinates of the new patch
+                z_min_ = min(arr.shape[1], z_max) - z_patch_size
+                y_min_ = min(arr.shape[2], y_max) - y_patch_size
+                x_min_ = min(arr.shape[3], x_max) - x_patch_size
+                
+                # difference between the start coordinates of the new patch and the patch given the border
+                # this is non zero only at the borders
+                last_patch_shift_z = z_min - z_min_
+                last_patch_shift_y = y_min - y_min_
+                last_patch_shift_x = x_min - x_min_
+                
+                
+                
+                
+                if (
+                    (z_min_, y_min_, y_max),
+                    (z_min_, x_min_, x_max),
+                ) not in check_coords:
+                    coords = ((z_min_, y_min_, y_max), (z_min_, x_min_, x_max))
+                    tile = arr[:, z_min_:z_max, y_min_:y_max, x_min_:x_max]
+                    check_coords.append(coords)
+                    tiles.append(tile)
                     # TODO add proper description
                     pred_coords.append(
                         [
-                            lastPatchShiftZ,
-                            lastPatchShiftY,
-                            lastPatchShiftX,
+                            last_patch_shift_z,
+                            last_patch_shift_y,
+                            last_patch_shift_x,
                             z_running_overlap,
                             overlap_top,
                             overlap_left,
                         ]
                     )
+                    # pred[:, z_min:z_max, y_min:y_max, x_min:x_max] = tile[:, last_patch_shift_z:, last_patch_shift_y:, last_patch_shift_x:][:, z_running_overlap:, overlap_top:, overlap_left:]
                 y_min = y_min - y_overlap + y_patch_size
                 y_max = y_min + y_patch_size
                 overlap_top = y_overlap // 2
@@ -242,16 +269,15 @@ def extract_paches_predict(
             y_max = y_patch_size
             x_min = x_min - x_overlap + x_patch_size
             x_max = x_min + x_patch_size
-            overlap_left = overlap // 2
+            overlap_left = x_overlap // 2
         x_min = 0
         x_max = x_patch_size
         z_min = z_min - z_overlap + z_patch_size
         z_max = z_min + z_patch_size
         z_running_overlap = z_overlap // 2
 
-    tiles = np.stack(tiles)
-    crops = [crop for crop in crops if all(crop.shape) > 0]
-    #TODO assert len tiles == len coords
+    # crops = [crop for crop in crops if all(crop.shape) > 0]
+    # TODO assert len tiles == len coords
     for tile, crop in zip(tiles, pred_coords):
         yield (tile.astype(np.float32), crop)
 
@@ -379,7 +405,7 @@ class PatchDataset(torch.utils.data.IterableDataset):
                 logging.exception(f"Exception in file {filename}, skipping")
                 raise e
             if i % num_workers == id:
-                #TODO add iterator inside
+                # TODO add iterator inside
                 yield self.image_transform(
                     (arr, patch_size)
                 ) if self.image_transform is not None else (arr, patch_size)
@@ -393,8 +419,9 @@ class PatchDataset(torch.utils.data.IterableDataset):
         np.ndarray
         """
         for image, updated_patch_size in self.__iter_source__():
-            for patch_info in self.patch_generator(image, updated_patch_size):
+            for patch_data in self.patch_generator(image, updated_patch_size):
                 # TODO add augmentations, multiple functions.
+                # TODO Works incorrectly if patch transform is NONE
                 yield self.patch_transform(
-                    patch_info
-                ) if self.patch_transform is not None else patch_info
+                    patch_data
+                ) if self.patch_transform is not None else (patch_data)

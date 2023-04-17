@@ -15,7 +15,7 @@ algorithm:
   #Whether to use 2D or 3D convolutions #TODO better name ?
   conv_mult: 2
   depth: 3
-  checkpoint: Null
+  checkpoint: checkpoint.pth
 
 training:
   num_epochs: 3
@@ -53,7 +53,7 @@ training:
     # Patch generation strategy [random, sequential]
     extraction_strategy: sequential
     #Patch shape in (z)yx. 2D or 3D
-    patch_size: &PS [128, 128]
+    patch_size: &PS [64, 64]
     #Total number of patches to generate. Only applicable for random patching
     num_patches: Null
     # Batch size
@@ -97,18 +97,18 @@ prediction:
     #Number of files to read. Read all if None
     num_files: 1
     # Patch generation strategy [random, sequential]
-    extraction_strategy: sequential
+    extraction_strategy: predict
     #Patch shape in (z)yx. 2D or 3D
-    patch_size: *PS
-    #Total number of patches to generate. Only applicable for random patching
-    num_patches: Null
+    patch_size: [64, 64]
     # Batch size
     batch_size: 1
     #Num workers parameter for data loader
     num_workers: 0
     batch_size: 1
-    num_workers: 0
-    augmentation: Null
+    #test-time augmentation
+    tta: Null
+  #Tuple of overlap values for each dimension between patches in pixels (should be half of the network receptive field)
+  overlap: [16, 16] 
   metric: psnr
 
 

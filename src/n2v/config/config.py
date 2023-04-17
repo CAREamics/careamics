@@ -119,7 +119,7 @@ class Data(BaseModel):
     num_patches: Union[int, None]  # TODO how to make parameters mutually exclusive
     batch_size: int
     num_workers: int = Field(default=0)
-    augmentation: None  # TODO add augmentation parameters, list of strings ?
+    # augmentation: None  # TODO add proper validation and augmentation parameters, list of strings ?
 
     @validator("patch_size")
     def validate_parameters(cls, patch_size):
@@ -156,11 +156,15 @@ class Evaluation(BaseModel):
 
 class Prediction(BaseModel):
     data: Data
+    overlap: List[int] = Field(
+        ..., min_items=2, max_items=3
+    )  # TODO ge image size, check consistency with image size
 
 
 class Stage(str, Enum):
     TRAINING = "training"
     EVALUATION = "evaluation"
+    PREDICTION = "prediction"
 
 
 class ConfigValidator(BaseModel):
@@ -176,5 +180,7 @@ class ConfigValidator(BaseModel):
     def get_stage_config(self, stage: Union[str, Stage]) -> Union[Training, Evaluation]:
         if stage == Stage.TRAINING:
             return self.training
-        else:
+        elif stage == Stage.EVALUATION:
             return self.evaluation
+        else:
+            return self.prediction

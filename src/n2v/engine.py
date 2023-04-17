@@ -68,7 +68,6 @@ class UnsupervisedEngine(Engine):
         # TODO all initializations of custom classes should be done here
 
     def parse_config(self, cfg_path: str) -> Dict:
-        # TODO add smart config validator with blackjack and hookers
         try:
             cfg = n2v.config_loader(cfg_path)
         except (FileNotFoundError, yaml.YAMLError):
@@ -156,17 +155,17 @@ class UnsupervisedEngine(Engine):
         self.model.eval()
 
         pred_loader = self.get_predict_dataloader()
-        avg_loss = MetricTracker()
         avg_metric = MetricTracker()
-
+        inputs = []
+        preds = []
         with torch.no_grad():
             for image, *auxillary in tqdm(pred_loader):
                 outputs = self.model(image.to(self.device))
                 #TODO tile predict from aux 
-                loss = self.loss_func(
-                    outputs, *auxillary, self.device, 1
-                )
-                avg_loss.update(loss.item(), image.shape[0])
+                inputs.append(image)
+                preds.append(outputs)
+        
+        return inputs, preds
 
     def train_single_epoch(
         self,
@@ -188,7 +187,6 @@ class UnsupervisedEngine(Engine):
             _description_
         """
         avg_loss = MetricTracker()
-        # TODO Add proper to device placement
         self.model.to(self.device)
         self.model.train()
 

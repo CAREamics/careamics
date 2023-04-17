@@ -55,7 +55,6 @@ def config_validator(cfg):
     Check config file for required parameters.
     '''
     required_params = ['experiment_name', 'model', 'loss_function', 'optimizer', 'scheduler', 'data_loader', 'trainer']
-    #TODO validate train_single_epoch fucntion name, loss func name etc
     #assert hasattr ...
     # algorithm list, models list, loss functions list. All torch modules hasattr. 
     return cfg
