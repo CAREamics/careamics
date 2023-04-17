@@ -13,7 +13,8 @@ from tqdm import tqdm
 from typing import Callable, Dict, List, Optional, Tuple, Union
 from torch.utils.data import DataLoader
 
-import src.n2v as n2v
+# TODO sort imports here
+from . import *
 
 from .metrics import MetricTracker
 from .factory import (
@@ -64,16 +65,16 @@ class UnsupervisedEngine(Engine):
         self.cfg = self.parse_config(cfg_path)
         self.model = self.get_model()
         self.loss_func = self.get_loss_function()
-        self.device = n2v.get_device()
+        self.device = get_device()
         # TODO all initializations of custom classes should be done here
 
     def parse_config(self, cfg_path: str) -> Dict:
         try:
-            cfg = n2v.config_loader(cfg_path)
+            cfg = config_loader(cfg_path)
         except (FileNotFoundError, yaml.YAMLError):
             # TODO add custom exception for different cases
             raise yaml.YAMLError("Config file not found")
-        cfg = n2v.ConfigValidator(**cfg)
+        cfg = ConfigValidator(**cfg)
         return cfg
 
     def log_metrics(self):
@@ -97,7 +98,7 @@ class UnsupervisedEngine(Engine):
 
     def train(self):
         # TODO move to main
-        n2v.set_logging()
+        set_logging()
 
         # General func
         train_loader = self.get_train_dataloader()
@@ -131,7 +132,7 @@ class UnsupervisedEngine(Engine):
                 # Add update scheduler rule based on type
                 lr_scheduler.step(eval_outputs["loss"])
                 #TODO implement checkpoint naming
-                n2v.save_checkpoint(self.model, "checkpoint.pth", False)
+                save_checkpoint(self.model, "checkpoint.pth", False)
 
         except KeyboardInterrupt:
             logging.info("Training interrupted")
