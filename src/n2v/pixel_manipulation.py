@@ -52,7 +52,6 @@ def n2v_manipulate(patch: np.ndarray, num_pixels: int, augmentations: Callable =
         _description_
     """
     #
-    #TODO check patch tuple ?
     # patch = patch[0]
     original_patch = patch.copy()
     mask = np.zeros(patch.shape)

@@ -182,10 +182,8 @@ class UNet(nn.Module):
     @staticmethod
     def weight_init(m):
         if isinstance(m, nn.Conv2d):
-            # TODO UserWarning: nn.init.xavier_normal is now deprecated in favor of nn.init.xavier_normal_
-            init.xavier_normal(m.weight)
-            # TODO UserWarning: nn.init.constant is now deprecated in favor of nn.init.constant_
-            init.constant(m.bias, 0)
+            init.xavier_normal_(m.weight)
+            init.constant_(m.bias, 0)
 
     def reset_params(self):
         for i, m in enumerate(self.modules()):

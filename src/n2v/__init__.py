@@ -17,6 +17,7 @@ from .dataloader import (
     PatchDataset,
     extract_patches_random,
     extract_patches_sequential,
+    extract_patches_predict,
     open_input_source,
 )
 
