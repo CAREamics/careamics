@@ -282,6 +282,38 @@ def extract_patches_predict(
         yield (tile.astype(np.float32), crop)
 
 
+def _calculare_stitching_coords(tile_coords, last_tile_coord, overlap):
+    #TODO add 2/3d support
+    coords = []
+
+    for i, coord in enumerate(tile_coords): 
+        if coord == 0:
+            coords.append(slice(0, -overlap//2))
+        elif coord == last_tile_coord - 1:
+            coords.append(slice(overlap//2, None))
+        else:
+            coords.append(slice(overlap//2, -overlap//2))
+    return coords
+
+
+def extract_patches_predict_new(arr, patch_size: Tuple[int], overlap=32) -> List[np.ndarray]:
+    # Overlap is half of the value mentioned in original N2V #TODO must be even. It's like this because of current N2V notation
+    actual_overlap = 64 - overlap #ps - overlap
+    step = (actual_overlap, actual_overlap)
+    #TODO add asserts
+    tiles = view_as_windows(arr, window_shape=patch_size, step=step) #shape (tiles in t, tiles in x, Y, X)
+    pred = []
+
+    for tile_coords in itertools.product(*map(range, tiles.shape[:2])): #TODO add 2/3d automatic selection of axes  
+        #TODO test for number of tiles in each category
+        tile = tiles[(*[c for c in tile_coords], ...)]
+
+        coords = _calculare_stitching_coords(tile_coords, tiles.shape[0], overlap)
+        pred.append(tile[(*[c for c in coords], ...)]) #TODO add proper last tile coord ! Should be list !)
+
+    return pred 
+
+
 class PatchDataset(torch.utils.data.IterableDataset):
     """Dataset to extract patches from a list of images and apply transforms to the patches."""
 
