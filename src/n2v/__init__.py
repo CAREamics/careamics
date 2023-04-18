@@ -1,4 +1,9 @@
-__version__ = "1.0.0"  # or either 0.5.0 to continue on the old n2v-tf
+from importlib.metadata import PackageNotFoundError, version
+try:
+    __version__ = version("n2v")
+except PackageNotFoundError:
+    __version__ = "uninstalled"
+
 
 from .factory import (
     create_model,
@@ -18,7 +23,7 @@ from .dataloader import (
     extract_patches_random,
     extract_patches_sequential,
     extract_patches_predict,
-    open_input_source,
+    open_input_source_tiff,
 )
 
 from .pixel_manipulation import n2v_manipulate
