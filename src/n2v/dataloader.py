@@ -12,6 +12,7 @@ from skimage.util import view_as_windows
 from typing import Callable, List, Optional, Sequence, Union, Tuple
 
 from .pixel_manipulation import n2v_manipulate
+from .dataloader_utils import calculate_number_of_patches, calculate_overlap
 
 
 ############################################
@@ -49,9 +50,10 @@ def list_input_source_tiff(
     #  '/home/igor.zubarev/data/paris_chunk/wt_N10Division2993shift[0, 0].tif']
 
 
+
 def extract_patches_sequential(
-    arr,
-    patch_size,
+    arr: np.ndarray,
+    patch_size: Tuple[int],
     num_patches=None,
     overlap=None,  # TODO add support for overlap. This is slighly ugly
 ) -> np.ndarray:  # TODO add support for shapes
@@ -62,7 +64,8 @@ def extract_patches_sequential(
     Parameters
     ----------
     arr : np.ndarray
-        Input array. Possible shapes are (C, Z, Y, X), (C, Y, X), (Z, Y, X) or (Y, X)
+        Input array. Possible shapes are (C, Z, Y, X), (C, Y, X), (C, Z, Y, X) or (C, Y, X)
+        where C can be a singleton dimension.
     patch_size : Tuple
         Patch dimensions for 'ZYX' or 'YX'
     num_patches : int or None (Currently not implemented)
@@ -77,22 +80,32 @@ def extract_patches_sequential(
         is either `max_patches` or the total number of patches that can be
         extracted given the overlap.
     """
-
+    # TODO 2D/3D separately ?
+    # TODO put asserts in separate function in init
+    
+    # extract patch sizes
     z_patch_size = None if len(patch_size) == 2 else patch_size[0]
     y_patch_size = patch_size[-2]
     x_patch_size = patch_size[-1]
-    # TODO 2D/3D separately ?
-    # TODO put asserts in separate function in init
-    # Asserts
-    assert len(patch_size) == len(
-        arr.shape[1:]
-    ), "Number of patch dimensions must match image dimensions"
-    assert (
-        z_patch_size is None or z_patch_size <= arr.shape[1]
-    ), "Z patch size is incosistent with image shape"
-    assert (
-        y_patch_size <= arr.shape[-2] and x_patch_size <= arr.shape[-1]
-    ), "At least one of XY patch dimensions is incosistent with image shape"
+
+    # sanity checks
+    if len(patch_size) != len(arr.shape[1:]):
+        raise ValueError(
+            f"There must be a patch size for each spatial dimensions "
+            f"(got {patch_size} patches for dims {arr.shape[1:]})."
+            )
+
+    if z_patch_size is not None and z_patch_size > arr.shape[1]: 
+        raise ValueError(
+            f"Z patch size is inconsistent with image shape " \
+            f"(got {z_patch_size} patches for dim {arr.shape[1]})."
+            )
+    
+    if y_patch_size > arr.shape[-2] and x_patch_size > arr.shape[-1]:
+        raise ValueError(
+            f"At least one of YX patch dimensions is inconsistent with image shape " \
+            f"(got {patch_size} patches for dims {arr.shape[-2:]})."
+            )
 
     # Calculate total number of patches for each dimension
     z_total_patches = (

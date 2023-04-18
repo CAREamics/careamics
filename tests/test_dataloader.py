@@ -6,7 +6,7 @@ import numpy as np
 from n2v.dataloader import (
     list_input_source_tiff,
     _calculate_stitching_coords,
-    extract_patches_predict_new
+    extract_patches_sequential
 )
 
 
@@ -65,6 +65,7 @@ def test_list_input_source_tiff(tmp_path):
                                 ((6, 2, 0), (7, 3, 5), (6, 10, 8), (3, None, 5, None, 0, -4)),
                          ])
 def test_calculate_stitching_coords(tile_coords, last_tile_coords, overlap, expected):
+    """Test calculating stitching coordinates"""
     expected_slices = [
         slice(expected[2*i], expected[2*i+1]) for i in range(len(overlap))
     ]
@@ -74,8 +75,31 @@ def test_calculate_stitching_coords(tile_coords, last_tile_coords, overlap, expe
     assert result == expected_slices
 
 
+@pytest.mark.parametrize("arr_shape, patch_size", 
+                         [
+                            # Wrong number of dimensions 2D
+                            ((10, 10), (5, )),
+                            ((10, 10), (5, 5, 5)),
+                            ((1, 10, 10), (5, )),
+                            ((1, 1, 10, 10), (5, )),
 
+                            # Wrong number of dimensions 3D
+                            ((10, 10, 10), (5, 5, 5, 5)),
+                            ((1, 10, 10, 10), (5, 5)),
+                            ((1, 10, 10, 10), (5, 5, 5, 5)),
+                            ((1, 1, 10, 10, 10), (5, 5)),
+                            ((1, 1, 10, 10, 10), (5, 5, 5, 5)),
 
+                            # Wrong z patch size
+                            ((1, 10, 10), (5, 5, 5)),
+                            ((10, 10, 10), (10, 5, 5)),
 
+                            # Wrong YX patch sizes
+                            ((10, 10), (10, 5)),
+                            ((1, 10, 10), (5, 10)),
+                        ])
+def test_extract_patches_sequential_invalid_arguments(arr_shape, patch_size):
+    arr = np.zeros(arr_shape)
 
-
+    with pytest.raises(ValueError):
+        extract_patches_sequential(arr, patch_size)
