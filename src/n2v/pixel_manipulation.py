@@ -75,5 +75,19 @@ def n2v_manipulate(patch: np.ndarray, num_pixels: int, augmentations: Callable =
     return patch, original_patch, mask
 
 
+def calculate_stitching_coords(tile_coords: Tuple[int], last_tile_coord: Tuple[int], overlap: Tuple[int]) -> Tuple[slice]:
+    
+   
+    #TODO add 2/3d support
+    # TODO different overlaps for each dimension
+    # TODO different patch sizes for each dimension
+    list_coord = []
 
-
+    for i, coord in enumerate(tile_coords): 
+        if coord == 0:
+            list_coord.append(slice(0, -overlap[i] // 2))
+        elif coord == last_tile_coord[i] - 1:
+            list_coord.append(slice(overlap[i] // 2, None))
+        else:
+            list_coord.append(slice(overlap[i] // 2, -overlap[i] // 2))
+    return list_coord

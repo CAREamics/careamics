@@ -163,6 +163,12 @@ class UnsupervisedEngine(Engine):
             for image, *auxillary in tqdm(pred_loader):
                 outputs = self.model(image.to(self.device))
                 #TODO tile predict from aux 
+                #TODO calc function placement ?
+
+                tile_coords, max_shapes, overlap = auxillary
+                coords = calculate_stitching_coords(tile_coords, max_shapes, overlap)
+                
+                pred.append(tile[(*[c for c in coords], ...)]) #TODO add proper last tile coord ! Should be list !)
                 inputs.append(image)
                 preds.append(outputs)
         

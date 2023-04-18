@@ -26,7 +26,7 @@ from .dataloader import (
     list_input_source_tiff,
 )
 
-from .pixel_manipulation import n2v_manipulate
+from .pixel_manipulation import n2v_manipulate, calculate_stitching_coords
 
 from .utils import (
     get_device,
