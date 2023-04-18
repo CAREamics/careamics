@@ -3,33 +3,28 @@ from pathlib import Path
 import pytest
 import yaml
 
-from n2v.config import Config
+from n2v.config import ConfigValidator
 from n2v.config.config import Algorithm
 
 
 # TODO test optimizer and lr schedulers parameters
 
 
-def test_config_enum_wrong_values():
+def test_config_enum_wrong_values(test_config):
     """Test that we can't instantiate a config with wrong enum values"""
 
-    mydict = {
-        "name": "myalgo",
-        "loss": ["notn2v"],
-        "model": "UNet",
-        "num_masked_pixels": 128,
-        "patch_size": [64, 64],
-    }
+    algorithm_config = test_config["algorithm"]
+    algorithm_config["loss"] = ["notn2v"]
 
     with pytest.raises(ValueError):
-        Algorithm(**mydict)
+        Algorithm(**algorithm_config)
 
 
 def test_config_to_yaml(tmpdir, test_config):
     """Test that we can export a config to yaml and load it back"""
 
     # test that we can instantiate a config
-    myconf = Config(**test_config)
+    myconf = ConfigValidator(**test_config)
 
     # export to yaml
     yaml_path = Path(tmpdir, "data.yml")
@@ -42,7 +37,7 @@ def test_config_to_yaml(tmpdir, test_config):
         config_yaml = yaml.safe_load(f)
 
         # parse yaml
-        my_other_conf = Config(**config_yaml)
+        my_other_conf = ConfigValidator(**config_yaml)
 
         assert my_other_conf == myconf
 

@@ -1,25 +1,46 @@
 # https://peps.python.org/pep-0517/
-# https://hatch.pypa.io/latest/config/build/
+
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
+# read more about configuring hatch at:
+# https://hatch.pypa.io/latest/config/build/
+
+# https://hatch.pypa.io/latest/config/metadata/
+[tool.hatch.version]
+ source = "vcs"
 
 # https://peps.python.org/pep-0621/
 [project]
 name = "n2v"
+dynamic = ["version"]
 description = "Denoising with self-supervised algorithms."
 readme = "README.md"
-license = { text = "MIT" }
+requires-python = ">=3.8"
+license = { text = "BSD-3-Clause" }
 authors = [
     { name = 'Igor Zubarev', email = 'igor.zubarev@fht.org' },
     { name = 'Joran Deschamps', email = 'joran.deschamps@fht.org' },
-    { name = 'Mangal Prakash', email = 'mangalcrj@gmail.com' },
-    { name = 'Tim-Oliver Buchholz', email = 'tim-oliver.buchholz@fmi.ch' },
-    { name = 'Alex Krull', email = 'a.f.f.krull@bham.ac.uk' },
-    { name = 'Florian Jug', email = 'florian.jug@fht.org' },
 ]
-dynamic = ["version"]
-dependencies = ['torch', 'torchvision', 'tifffile', 'pyyaml', 'pydantic', 'bioimageio.core']
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    # "License :: OSI Approved :: BSD License",
+    # "Typing :: Typed",
+]
+dependencies = [
+    'torch', 
+    'torchvision', 
+    'tifffile', 
+    'pyyaml', 
+    'pydantic', 
+    'scikit-image',
+    'bioimageio.core'
+]
 
 [project.optional-dependencies]
 # development dependencies and tooling
@@ -33,31 +54,89 @@ test = ["pytest", "pytest-cov"]
 
 [project.urls]
 homepage = "https://github.com/juglab-torch/n2v"
-
-# https://hatch.pypa.io/latest/version/
-[tool.hatch.version]
-path = "src/n2v/__init__.py"
+repository = "https://github.com/juglab-torch/n2v"
 
 # https://beta.ruff.rs/docs
 [tool.ruff]
+line-length = 88
 target-version = "py38"
 src = ["src/n2v"]
 select = [
-    "F",   # pyflakes
-    "E",   # pycodestyle
-    "I",   # isort
-    "UP",  # pyupgrade 
-    "RUF", # ruff specific rules
+    "E",    # style errors
+    "W",    # style warnings
+    "F",    # flakes
+    "D",    # pydocstyle
+    "I",    # isort
+    "U",    # pyupgrade
+    # "S",    # bandit
+    "C",    # flake8-comprehensions
+    "B",    # flake8-bugbear
+    "A001", # flake8-builtins
+    "RUF",  # ruff-specific rules
 ]
+extend-ignore = [
+    "D100", # Missing docstring in public module
+    "D107", # Missing docstring in __init__
+    "D203", # 1 blank line required before class docstring
+    "D212", # Multi-line docstring summary should start at the first line
+    "D213", # Multi-line docstring summary should start at the second line
+    "D401", # First line should be in imperative mood
+    "D413", # Missing blank line after last section
+    "D416", # Section name should end with a colon
+]
+ignore-init-module-imports = true
 
-# https://coverage.readthedocs.io/en/6.4/config.html
-[tool.coverage.report]
-exclude_lines = ["pragma: no cover", "pragma: ${PY_MAJOR_VERSION} no cover"]
+[tool.ruff.per-file-ignores]
+"tests/*.py" = ["D", "S"]
+"setup.py" = ["D"]
 
+[tool.black]
+line-length = 88
+
+# https://mypy.readthedocs.io/en/stable/config_file.html
 [tool.mypy]
-files = "src/n2v"
+files = "src/**/"
 strict = false
 allow_untyped_defs = true     # TODO: can eventually fill out typing and remove this
 allow_untyped_calls = true    # TODO: can eventually fill out typing and remove this
 disallow_any_generics = false
 ignore_missing_imports = true
+
+# # module specific overrides
+# [[tool.mypy.overrides]]
+# module = ["numpy.*",]
+# ignore_errors = true
+# https://docs.pytest.org/en/6.2.x/customize.html
+[tool.pytest.ini_options]
+minversion = "6.0"
+testpaths = ["tests"]
+filterwarnings = [
+    # "error",
+    # "ignore::UserWarning",
+]
+
+# https://coverage.readthedocs.io/en/6.4/config.html
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "@overload",
+    "except ImportError",
+    "\\.\\.\\.",
+    "raise NotImplementedError()",
+]
+
+[tool.coverage.run]
+source = ["n2v"]
+
+# https://github.com/mgedmin/check-manifest#configuration
+# add files that you want check-manifest to explicitly ignore here
+# (files that are in the repo but shouldn't go in the package)
+[tool.check-manifest]
+ignore = [
+    ".github_changelog_generator",
+    ".pre-commit-config.yaml",
+    ".ruff_cache/**/*",
+    "setup.py",
+    "tests/**/*",
+]

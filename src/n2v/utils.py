@@ -2,52 +2,59 @@
 #   Utility Functions
 ############################################
 
-import os
+import logging
 import re
 import sys
-import logging
-import yaml
-import torch
-import numpy as np
 from pathlib import Path
+
+import numpy as np
+import torch
+import yaml
+
+# TODO cleanup
 
 
 class DuplicateFilter(logging.Filter):
-
     def filter(self, record):
         current_log = (record.module, record.levelno, record.msg)
-        return True if current_log == getattr(self, '_last_log', None) else False
+        return True if current_log == getattr(self, "_last_log", None) else False
 
 
-def set_logging(default_level=logging.INFO, log_path=''):
-    #TODO add log_path and level to config
+def set_logging(default_level=logging.INFO, log_path=""):
+    # TODO add log_path and level to config
     console_handler = logging.StreamHandler()
     logging.root.addHandler(console_handler)
     logging.root.setLevel(default_level)
     logging.root.addFilter(DuplicateFilter())
     if log_path:
-        file_handler = logging.handlers.RotatingFileHandler(log_path, maxBytes=(1024 ** 2 * 2), backupCount=3)
-        file_formatter = logging.Formatter("%(asctime)s - %(name)20s: [%(levelname)8s] - %(message)s")
+        file_handler = logging.handlers.RotatingFileHandler(
+            log_path, maxBytes=(1024**2 * 2), backupCount=3
+        )
+        file_formatter = logging.Formatter(
+            "%(asctime)s - %(name)20s: [%(levelname)8s] - %(message)s"
+        )
         file_handler.setFormatter(file_formatter)
         logging.root.addHandler(file_handler)
 
 
 def config_loader(cfg_path):
-    '''
-    Load a yaml config file and correct all datatypes
-    '''
+    """Load a yaml config file and correct all datatypes."""
     loader = yaml.SafeLoader
     loader.add_implicit_resolver(
-    u'tag:yaml.org,2002:float',
-    re.compile(u'''^(?:
+        "tag:yaml.org,2002:float",
+        re.compile(
+            """^(?:
      [-+]?(?:[0-9][0-9_]*)\\.[0-9_]*(?:[eE][-+]?[0-9]+)?
     |[-+]?(?:[0-9][0-9_]*)(?:[eE][-+]?[0-9]+)
     |\\.[0-9_]+(?:[eE][-+][0-9]+)?
     |[-+]?[0-9][0-9_]*(?::[0-5]?[0-9])+\\.[0-9_]*
     |[-+]?\\.(?:inf|Inf|INF)
-    |\\.(?:nan|NaN|NAN))$''', re.X),
-    list(u'-+0123456789.'))
-    return yaml.load(Path(cfg_path).open('r'), Loader=loader)
+    |\\.(?:nan|NaN|NAN))$""",
+            re.X,
+        ),
+        list("-+0123456789."),
+    )
+    return yaml.load(Path(cfg_path).open("r"), Loader=loader)
 
 
 def config_validator(cfg):
@@ -61,52 +68,48 @@ def config_validator(cfg):
 
 
 def save_checkpoint(model, name, save_best):
-    '''
-    Save the model to a checkpoint file.
-    '''
+    """Save the model to a checkpoint file."""
     if save_best:
-        torch.save(model.state_dict(), 'best_checkpoint.pth')
+        torch.save(model.state_dict(), "best_checkpoint.pth")
     else:
-        torch.save(model.state_dict(), 'checkpoint.pth')
+        torch.save(model.state_dict(), "checkpoint.pth")
 
-#TODO implement proper saving/loading
+
+# TODO implement proper saving/loading
+
 
 def load_checkpoint(model, name):
-    '''
-    Load the model from a checkpoint file.
-    '''
+    """Load the model from a checkpoint file."""
     model.load_state_dict(torch.load(name))
 
 
-def printNow(string,a="",b="",c="",d="",e="",f=""):
-    print(string,a,b,c,d,e,f)
+def printNow(string, a="", b="", c="", d="", e="", f=""):
+    print(string, a, b, c, d, e, f)
     sys.stdout.flush()
 
 
 def imgToTensor(img):
-    '''
-    Convert a 2D single channel image to a pytorch tensor.
-    '''
-    img.shape=(img.shape[0],img.shape[1],1)
+    """Convert a 2D single channel image to a pytorch tensor."""
+    img.shape = (img.shape[0], img.shape[1], 1)
     imgOut = torchvision.transforms.functional.to_tensor(img.astype(np.float32))
     return imgOut
 
 
 def normalize(img, mean, std):
     zero_mean = img - mean
-    return zero_mean/std
+    return zero_mean / std
 
 
 def denormalize(x, mean, std):
-    return x*std + mean
+    return x * std + mean
 
 
 def get_device():
     if torch.cuda.is_available():
-        logging.info('CUDA available. Using GPU.')
+        logging.info("CUDA available. Using GPU.")
         device = torch.device("cuda")
     else:
-        logging.info('CUDA not available. Using CPU.')
+        logging.info("CUDA not available. Using CPU.")
         device = torch.device("cpu")
     return device
 
@@ -120,7 +123,7 @@ def add_noise(image, sigma):
 
 
 def add_poisson(image, scale=0, offset=0, adjust_background=0):
-    """Add poisson noise to the image
+    """Add poisson noise to the image.
 
     Parameters
     ----------
@@ -145,7 +148,7 @@ def add_poisson(image, scale=0, offset=0, adjust_background=0):
 
 
 def export_model_to_zoo(model, path):
-    """Export model to Bioimage model zoo
+    """Export model to Bioimage model zoo.
 
     Parameters
     ----------
@@ -157,13 +160,13 @@ def export_model_to_zoo(model, path):
     try:
         import bioimageio.core
     except ImportError:
-        raise ImportError('bioimageio.core not found. Please install it first.')
-    #TODO add model name, author, etc
+        raise ImportError("bioimageio.core not found. Please install it first.")
+    # TODO add model name, author, etc
     bioimageio.core.build_spec.build_model()
 
 
 def export_model_to_onnx(model, path):
-    """Export model to ONNX format
+    """Export model to ONNX format.
 
     Parameters
     ----------
@@ -173,4 +176,11 @@ def export_model_to_onnx(model, path):
         Path to save the exported model
     """
     dummy_input = torch.randn(1, 1, 256, 256, device=getDevice())
-    torch.onnx.export(model, dummy_input, path, verbose=True, input_names=['input'], output_names=['output'])
+    torch.onnx.export(
+        model,
+        dummy_input,
+        path,
+        verbose=True,
+        input_names=["input"],
+        output_names=["output"],
+    )

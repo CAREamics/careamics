@@ -11,7 +11,7 @@ from .models import UNet
 
 from .losses import n2v_loss, pn2v_loss, decon_loss
 
-from .metrics import MetricTracker, psnr, scale_psnr
+from .metrics import MetricTracker, psnr, scale_invariant_psnr
 
 from .dataloader import (
     PatchDataset,

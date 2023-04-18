@@ -1,9 +1,12 @@
+from enum import Enum
+
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
 from collections import OrderedDict
+from typing import List
 from torch.nn import init
 
 from .layers import DownConv, UpConv, conv1x1
@@ -11,9 +14,45 @@ from .layers import DownConv, UpConv, conv1x1
 
 # TODO add docstings, typing
 
+class UP_MODE(str, Enum):
+    """Up convolution mode
+    """    
+    TRANSPOSE = "transpose"
+    UPSAMPLE = "upsample"
+
+    @staticmethod
+    def list() -> List[str]:
+        """List available up convolution modes
+
+        Returns
+        -------
+        List[str]
+            List of available up convolution modes
+        """        
+        return [mode.value for mode in UP_MODE]
+    
+
+class MERGE_MODE(str, Enum):
+    """Merge mode
+    """    
+    CONCAT = "concat"
+    ADD = "add"
+
+    @staticmethod
+    def list() -> List[str]:
+        """List available up merge modes
+
+        Returns
+        -------
+        List[str]
+            List of available up merge modes
+        """        
+        return [mode.value for mode in MERGE_MODE]
+    
 
 class UNet(nn.Module):
-    """`UNet` class is based on https://arxiv.org/abs/1505.04597
+    """`UNet` class is based on Ronneberger et al. 2015 [1].
+
     The U-Net is a convolutional encoder-decoder neural network.
     Contextual spatial information (from the decoding,
     expansive pathway) about an input tensor is merged with
@@ -31,18 +70,23 @@ class UNet(nn.Module):
         to reduce channel dimensionality by a factor of 2.
         This channel halving happens with the convolution in
         the tranpose convolution (specified by upmode='transpose')
+
+    References:
+        [1] Ronneberger, O., Fischer, P., & Brox, T. (2015). U-net: Convolutional 
+        networks for biomedical image segmentation. In MICCAI 2015, 2015, Proceedings, 
+        Part III 18 (pp. 234-241). Springer International Publishing.
     """
 
     def __init__(
         self,
-        conv_dim,
-        num_classes=1,
-        in_channels=1,
-        depth=5,
-        start_filts=64,
-        up_mode="transpose",
-        merge_mode="add",
-        n2v2=False,
+        conv_dim: int,
+        num_classes: int = 1,
+        in_channels: int = 1,
+        depth: int = 5,
+        start_filts: int = 64,
+        up_mode: str = "transpose",
+        merge_mode: str="add",
+        n2v2: bool=False,
     ):
         """
         Arguments:
@@ -57,23 +101,26 @@ class UNet(nn.Module):
         """
         super().__init__()
 
-        if up_mode in ("transpose", "upsample"):
-            self.up_mode = up_mode
-        else:
+        if depth < 1:
             raise ValueError(
-                '"{}" is not a valid mode for '
-                'upsampling. Only "transpose" and '
-                '"upsample" are allowed.'.format(up_mode)
+                f"depth must be greater than 0 (got {depth})."
             )
 
-        if merge_mode in ("concat", "add"):
-            self.merge_mode = merge_mode
+
+        if up_mode.lower() in UP_MODE.list():
+            self.up_mode = up_mode.lower() # TODO replace by enum, also in layers.py
         else:
             raise ValueError(
-                '"{}" is not a valid mode for'
-                "merging up and down paths. "
-                'Only "concat" and '
-                '"add" are allowed.'.format(up_mode)
+                f"{up_mode} is not a valid mode for " \
+                f"upsampling. Only {UP_MODE.list()} are allowed."
+            )
+
+        if merge_mode.lower() in MERGE_MODE.list():
+            self.merge_mode = merge_mode.lower() # TODO replace by enum, also in layers.py
+        else:
+            raise ValueError(
+                f"{merge_mode} is not a valid mode for " \
+                f"merging up and down paths. Only {MERGE_MODE.list()} are allowed."
             )
 
         # NOTE: up_mode 'upsample' is incompatible with merge_mode 'add'
