@@ -19,7 +19,7 @@ from .pixel_manipulation import n2v_manipulate
 ############################################
 
 
-def open_input_source_tiff(
+def list_input_source_tiff(
     path: Union[str, Path], num_files: Union[int, None] = None
 ) -> List:
     """_summary_
@@ -282,34 +282,40 @@ def extract_patches_predict(
         yield (tile.astype(np.float32), crop)
 
 
-def _calculate_stitching_coords(tile_coords: Tuple[int], last_tile_coord: Tuple[int], overlap: Tuple[int]) -> Tuple[int]:
+def _calculate_stitching_coords(tile_coords: Tuple[int], last_tile_coord: Tuple[int], overlap: Tuple[int]) -> Tuple[slice]:
+    
+   
     #TODO add 2/3d support
-    coords = []
+    # TODO different overlaps for each dimension
+    # TODO different patch sizes for each dimension
+    list_coord = []
 
-    for _, coord in enumerate(tile_coords): 
+    for i, coord in enumerate(tile_coords): 
         if coord == 0:
-            coords.append(slice(0, -overlap//2))
-        elif coord == last_tile_coord - 1:
-            coords.append(slice(overlap//2, None))
+            list_coord.append(slice(0, -overlap[i]//2))
+        elif coord == last_tile_coord[i] - 1:
+            list_coord.append(slice(overlap[i]//2, None))
         else:
-            coords.append(slice(overlap//2, -overlap//2))
-    return coords
+            list_coord.append(slice(overlap[i]//2, -overlap[i]//2))
+    return list_coord
 
 
 def extract_patches_predict_new(arr: np.ndarray, patch_size: Tuple[int], overlap=32) -> List[np.ndarray]:
     # TODO remove hard coded vals
     # Overlap is half of the value mentioned in original N2V #TODO must be even. It's like this because of current N2V notation
-    actual_overlap = 64 - overlap #ps - overlap
-    step = (actual_overlap, actual_overlap)
+    actual_overlap = [
+        patch_size[i] - overlap[i] for i in range(len(patch_size))
+    ]
+    
     #TODO add asserts
-    tiles = view_as_windows(arr, window_shape=patch_size, step=step) #shape (tiles in y, tiles in x, Y, X)
+    all_tiles = view_as_windows(arr, window_shape=patch_size, step=actual_overlap) #shape (tiles in y, tiles in x, Y, X)
     pred = []
 
-    for tile_coords in itertools.product(*map(range, tiles.shape[:2])): #TODO add 2/3d automatic selection of axes  
+    for tile_coords in itertools.product(*map(range, all_tiles.shape[:len(patch_size)])): #TODO add 2/3d automatic selection of axes  
         #TODO test for number of tiles in each category
-        tile = tiles[(*[c for c in tile_coords], ...)]
+        tile = all_tiles[(*[c for c in tile_coords], ...)]
 
-        coords = _calculate_stitching_coords(tile_coords, tiles.shape[0], overlap)
+        coords = _calculate_stitching_coords(tile_coords, all_tiles.shape[:len(patch_size)], overlap)
         pred.append(tile[(*[c for c in coords], ...)]) #TODO add proper last tile coord ! Should be list !)
 
     return pred 

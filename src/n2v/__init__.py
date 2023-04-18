@@ -23,7 +23,7 @@ from .dataloader import (
     extract_patches_random,
     extract_patches_sequential,
     extract_patches_predict,
-    open_input_source_tiff,
+    list_input_source_tiff,
 )
 
 from .pixel_manipulation import n2v_manipulate

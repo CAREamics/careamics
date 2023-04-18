@@ -9,7 +9,7 @@ from .augment import augment_single
 from .config import ConfigValidator
 from .dataloader import (
     PatchDataset,
-    open_input_source_tiff,
+    list_input_source_tiff,
 )
 from .losses import n2v_loss
 from .models import UNet
@@ -139,7 +139,7 @@ def create_dataset(config: ConfigValidator, stage: str) -> torch.utils.data.Data
         dataset = PatchDataset(
             data_path=stage_config.data.path,
             num_files=stage_config.data.num_files,
-            data_reader=open_input_source_tiff,
+            data_reader=list_input_source_tiff,
             patch_size=stage_config.data.patch_size,
             patch_generator=patch_generation_func,
             patch_level_transform=create_patch_transform(config)
