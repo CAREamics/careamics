@@ -19,7 +19,7 @@ from .pixel_manipulation import n2v_manipulate
 ############################################
 
 
-def open_input_source(
+def open_input_source_tiff(
     path: Union[str, Path], num_files: Union[int, None] = None
 ) -> List:
     """_summary_
