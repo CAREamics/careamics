@@ -96,10 +96,10 @@ prediction:
     ext: tif
     #Number of files to read. Read all if None
     num_files: 1
-    # Patch generation strategy [random, sequential]
+    # Patch generation strategy [predict]
     extraction_strategy: predict
-    #Patch shape in (z)yx. 2D or 3D
-    patch_size: [64, 64]
+    #Patch shape in (z)yx. 2D or 3D. 1 for each dimension for prediction on full image
+    patch_size: [1, 1]
     # Batch size
     batch_size: 1
     #Num workers parameter for data loader

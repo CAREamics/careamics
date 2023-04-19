@@ -13,7 +13,7 @@ from tqdm import tqdm
 from typing import Callable, Dict, List, Optional, Tuple, Union
 from torch.utils.data import DataLoader
 
-# TODO sort imports here
+# TODO Ma che cazzo asterisco sta facendo qui?!!
 from . import *
 
 from .metrics import MetricTracker
@@ -155,20 +155,30 @@ class UnsupervisedEngine(Engine):
         self.model.to(self.device)
         self.model.eval()
 
-        pred_loader = self.get_predict_dataloader()
+        pred_loader, tiling = self.get_predict_dataloader()
         avg_metric = MetricTracker()
         inputs = []
         preds = []
         with torch.no_grad():
             for image, *auxillary in tqdm(pred_loader):
-                outputs = self.model(image.to(self.device))
-                #TODO tile predict from aux 
-                #TODO calc function placement ?
+                #TODO define all predict/train funcs in separate modules 
+                if tiling is None:
+                    #TODO add timeseries without tiling 
+                    outputs = self.model(image.to(self.device))
+                else:
+                    patch_size, is_time_series = auxillary
+                    all_tiles = extract_patches_predict(
+                        image,
+                        patch_size,
+                        self.cfg.prediction.overlap,
+                        is_time_series,
+                    )
+                    print(all_tiles.shape)
+                    coords = calculate_stitching_coords(tile_coords, max_shapes, overlap)
+                    outputs = self.model(image.to(self.device))
 
-                tile_coords, max_shapes, overlap = auxillary
-                coords = calculate_stitching_coords(tile_coords, max_shapes, overlap)
-                
-                pred.append(tile[(*[c for c in coords], ...)]) #TODO add proper last tile coord ! Should be list !)
+                    
+                    pred.append(tile[(*[c for c in coords], ...)]) #TODO add proper last tile coord ! Should be list !)
                 inputs.append(image)
                 preds.append(outputs)
         
@@ -241,13 +251,15 @@ class UnsupervisedEngine(Engine):
         )
 
     def get_predict_dataloader(self) -> DataLoader:
+        #TODO add description
+
         dataset = create_dataset(self.cfg, "prediction")
         return DataLoader(
             dataset,
             batch_size=self.cfg.prediction.data.batch_size,
             num_workers=self.cfg.prediction.data.num_workers,
             pin_memory=True,
-        )
+        ), dataset.patch_generator
 
     def get_optimizer_and_scheduler(
         self,

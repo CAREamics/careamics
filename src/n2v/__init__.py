@@ -22,11 +22,11 @@ from .dataloader import (
     PatchDataset,
     extract_patches_random,
     extract_patches_sequential,
-    extract_patches_predict,
     list_input_source_tiff,
 )
 
-from .pixel_manipulation import n2v_manipulate, calculate_stitching_coords
+from .prediction import extract_patches_predict, calculate_stitching_coords
+from .pixel_manipulation import n2v_manipulate
 
 from .utils import (
     get_device,

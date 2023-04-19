@@ -123,8 +123,8 @@ def create_tiling_function(stage: Dict) -> Callable:
     Callable
     """
     #TODO add proper option selection !
-    if stage == 'prediction' and stage.data.patch_size is None:
-        patch_generation_func = None
+    if stage.data.extraction_strategy == 'predict' and all(ps == 1 for ps in stage.data.patch_size):
+        return None
     else:
         return partial(
             getattr(
