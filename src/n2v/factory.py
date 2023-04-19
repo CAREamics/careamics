@@ -112,6 +112,27 @@ def create_patch_transform(config: ConfigValidator) -> Callable:
     )
 
 
+def create_tiling_function(stage: Dict) -> Callable:
+    """Creates the tiling function depending on the provided strategy.
+    Parameters
+    ----------
+    config : dict.
+    
+    Returns
+    -------
+    Callable
+    """
+    #TODO add proper option selection !
+    if stage == 'prediction' and stage.data.patch_size is None:
+        patch_generation_func = None
+    else:
+        return partial(
+            getattr(
+                dataloader,
+                f"extract_patches_{stage.data.extraction_strategy}",
+            ),
+        )
+
 def create_dataset(config: ConfigValidator, stage: str) -> torch.utils.data.Dataset:
     """Builds a dataset based on the dataset_params.
 
@@ -125,15 +146,7 @@ def create_dataset(config: ConfigValidator, stage: str) -> torch.utils.data.Data
     # TODO add support for mixed filetype datasets
     stage_config = config.get_stage_config(stage)  # getattr(config, stage)
 
-    if stage_config.data.ext == "tif":
-        # TODO put this into a separate function?
-        patch_generation_func = partial(
-            getattr(
-                dataloader,
-                f"extract_patches_{stage_config.data.extraction_strategy}",
-            ),
-            overlap=config.prediction.overlap,
-        )
+    if stage_config.data.ext == "tif": #TODO fix, this is ugly
         # TODO clear description of what all these funcs/params mean
         # TODO patch transform should be properly imported from somewhere?
         dataset = PatchDataset(
@@ -141,10 +154,8 @@ def create_dataset(config: ConfigValidator, stage: str) -> torch.utils.data.Data
             num_files=stage_config.data.num_files,
             data_reader=list_input_source_tiff,
             patch_size=stage_config.data.patch_size,
-            patch_generator=patch_generation_func,
-            patch_level_transform=create_patch_transform(config)
-            if stage != "prediction"
-            else None,
+            patch_generator=create_tiling_function(stage_config),
+            patch_level_transform=create_patch_transform(config) if stage != "prediction" else None,
         )
     # TODO getatr manipulate
     # try:
