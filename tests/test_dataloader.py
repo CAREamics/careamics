@@ -8,7 +8,9 @@ from n2v.dataloader import (
     _calculate_stitching_coords,
     extract_patches_sequential
 )
-
+from n2v.dataloader_utils.dataloader_utils import (
+    _compute_number_of_patches
+)
 
 
 def test_list_input_source_tiff(tmp_path):
@@ -79,6 +81,7 @@ def test_calculate_stitching_coords(tile_coords, last_tile_coords, overlap, expe
                          [
                             # Wrong number of dimensions 2D
                             ((10, 10), (5, )),
+                            ((10, 10), (5, 5)), # minimum 3 dimensions CYX
                             ((10, 10), (5, 5, 5)),
                             ((1, 10, 10), (5, )),
                             ((1, 1, 10, 10), (5, )),
@@ -95,11 +98,88 @@ def test_calculate_stitching_coords(tile_coords, last_tile_coords, overlap, expe
                             ((10, 10, 10), (10, 5, 5)),
 
                             # Wrong YX patch sizes
-                            ((10, 10), (10, 5)),
-                            ((1, 10, 10), (5, 10)),
+                            ((1, 10, 10), (12, 5)),
+                            ((1, 10, 10), (5, 11)),
                         ])
 def test_extract_patches_sequential_invalid_arguments(arr_shape, patch_size):
     arr = np.zeros(arr_shape)
 
     with pytest.raises(ValueError):
-        extract_patches_sequential(arr, patch_size)
+        patches_generator = extract_patches_sequential(arr, patch_size)
+
+        # get next yielded value
+        next(patches_generator)
+        
+
+@pytest.mark.parametrize("overlaps", 
+                         [
+                            (3, 2),
+                            (2, 1),
+                            None
+                         ])
+@pytest.mark.parametrize("patch_size",
+                         [
+                            (5, 5),
+                            (6, 3),
+                            (6, 6)
+                         ])
+def test_extract_patches_sequential_2d(array_2D, patch_size, overlaps):
+    """Test extracting patches sequentially in 2D"""
+    patch_generator = extract_patches_sequential(array_2D, patch_size, overlaps)
+
+    # check patch shape
+    counter = 0
+    for patch in patch_generator:
+        assert patch.shape == (array_2D.shape[0],) + patch_size
+
+        counter += 1
+
+    # check number of patches obtained
+    if overlaps is None:
+        n_patches = _compute_number_of_patches(array_2D, patch_size)
+    else:
+        n_patches = [
+            (array_2D.shape[i+1] - patch_size[i]) // (patch_size[i] - overlaps[i]) + 1
+            for i in range(len(patch_size))
+        ]
+
+    assert counter == np.product(n_patches)
+
+
+# TODO case (2, 3, 5), None doesn't work
+@pytest.mark.parametrize("patch_size",
+                            [
+                                (3, 5, 5),
+                                (5, 5, 5),
+                                (3, 3, 5),
+                                (4, 6, 6)
+                            ])
+@pytest.mark.parametrize("overlaps",
+                            [
+                                (0, 2, 1),
+                                (1, 1, 2),
+                                (1, 2, 1),
+                                (2, 1, 2),
+                                None
+                            ])
+def test_extract_patches_sequential_3d(array_3D, patch_size, overlaps):
+    """Test extracting patches sequentially in 3D"""
+    # compute expected number of patches   
+    patch_generator = extract_patches_sequential(array_3D, patch_size, overlaps)
+
+    # check individual patch shape
+    counter = 0
+    for patch in patch_generator:
+        counter += 1
+        assert patch.shape == (array_3D.shape[0],) + patch_size
+
+    # check number of patches obtained
+    if overlaps is None:
+        n_patches = _compute_number_of_patches(array_3D, patch_size)
+    else:
+        n_patches = [
+            (array_3D.shape[i+1] - patch_size[i]) // (patch_size[i] - overlaps[i]) + 1
+            for i in range(len(patch_size))
+        ]
+
+    assert counter == np.product(n_patches)

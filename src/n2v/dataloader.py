@@ -5,6 +5,8 @@ import itertools
 import tifffile
 import numpy as np
 
+from typing import Generator
+
 from functools import partial
 from torch.utils.data import Dataset, IterableDataset, DataLoader
 from pathlib import Path
@@ -12,7 +14,11 @@ from skimage.util import view_as_windows
 from typing import Callable, List, Optional, Sequence, Union, Tuple
 
 from .pixel_manipulation import n2v_manipulate
-from .dataloader_utils import calculate_number_of_patches, calculate_overlap
+from .dataloader_utils import(
+    compute_view_windows,
+    compute_overlap,
+    compute_reshaped_view
+)
 
 
 ############################################
@@ -50,112 +56,85 @@ def list_input_source_tiff(
     #  '/home/igor.zubarev/data/paris_chunk/wt_N10Division2993shift[0, 0].tif']
 
 
-
+# TODO: number of patches?
+# TODO: overlap?
+# formerly :
+# https://github.com/juglab-torch/n2v/blob/00d536cdc5f5cd4bb34c65a777940e6e453f4a93/src/n2v/dataloader.py#L52
 def extract_patches_sequential(
     arr: np.ndarray,
-    patch_size: Tuple[int],
-    num_patches=None,
-    overlap=None,  # TODO add support for overlap. This is slighly ugly
-) -> np.ndarray:  # TODO add support for shapes
-    """Generate patches from ND array
-    #TODO add time series, image or volume. Patches will be generated differently
-    Crop an array into patches deterministically covering the whole array.
+    patch_sizes: Tuple[int],
+    overlaps: Union[Tuple[int], None] = None,
+) -> Generator[np.ndarray, None, None]:
+    """Generate patches from an array of dimensions C(Z)YX, where C can
+    be a singleton dimension.
 
-    Parameters
-    ----------
-    arr : np.ndarray
-        Input array. Possible shapes are (C, Z, Y, X), (C, Y, X), (C, Z, Y, X) or (C, Y, X)
-        where C can be a singleton dimension.
-    patch_size : Tuple
-        Patch dimensions for 'ZYX' or 'YX'
-    num_patches : int or None (Currently not implemented)
-        If None, function will calculate the overlap required to cover the whole array with patches. This might increase memory usage.
-        If num_patches is less than calculated value, patches are taken from random locations with no guarantee of covering the whole array. (Currently not implemented)
-        If num_patches is greater than calculated value, overlap is increased to produce required number of patches. Memory usage may be increased significantly.
+    The patches are generated sequentially and cover the whole array. 
+    """    
+    if len(arr.shape) < 3 or len(arr.shape) > 4:
+        raise ValueError(
+            f"Input array must have dimensions CZYX or CYX (got length {len(arr.shape)})."
+            )
 
-    Returns
-    -------
-    patches : np.ndarray of shape (n_patches, C, Z, Y, X) or (n_patches, C, Y, X)
-        The collection of patches extracted from the image, where `n_patches`
-        is either `max_patches` or the total number of patches that can be
-        extracted given the overlap.
-    """
-    # TODO 2D/3D separately ?
-    # TODO put asserts in separate function in init
-    
-    # extract patch sizes
-    z_patch_size = None if len(patch_size) == 2 else patch_size[0]
-    y_patch_size = patch_size[-2]
-    x_patch_size = patch_size[-1]
-
-    # sanity checks
-    if len(patch_size) != len(arr.shape[1:]):
+    # Patches sanity check
+    if len(patch_sizes) != len(arr.shape[1:]):
         raise ValueError(
             f"There must be a patch size for each spatial dimensions "
-            f"(got {patch_size} patches for dims {arr.shape[1:]})."
+            f"(got {patch_sizes} patches for dims {arr.shape[1:]})."
             )
 
-    if z_patch_size is not None and z_patch_size > arr.shape[1]: 
+    # Sanity checks on patch sizes versus array dimension
+    is_3d_patch = len(patch_sizes) == 3
+    if is_3d_patch and patch_sizes[-3] > arr.shape[-3]: 
         raise ValueError(
             f"Z patch size is inconsistent with image shape " \
-            f"(got {z_patch_size} patches for dim {arr.shape[1]})."
+            f"(got {patch_sizes[-3]} patches for dim {arr.shape[1]})."
             )
     
-    if y_patch_size > arr.shape[-2] and x_patch_size > arr.shape[-1]:
+    if patch_sizes[-2] > arr.shape[-2] or patch_sizes[-1] > arr.shape[-1]:
         raise ValueError(
             f"At least one of YX patch dimensions is inconsistent with image shape " \
-            f"(got {patch_size} patches for dims {arr.shape[-2:]})."
+            f"(got {patch_sizes} patches for dims {arr.shape[-2:]})."
             )
 
-    # Calculate total number of patches for each dimension
-    z_total_patches = (
-        np.ceil(arr.shape[1] / z_patch_size) if z_patch_size is not None else None
-    ) #TODO might need to be changed for prediction case and moved into a separate function
-    y_total_patches = np.ceil(arr.shape[-2] / y_patch_size)
-    x_total_patches = np.ceil(arr.shape[-1] / x_patch_size)
+    # Overlaps sanity check
+    if overlaps is not None and len(overlaps) != len(arr.shape[1:]):
+        raise ValueError(
+            f"There must be an overlap for each spatial dimensions "
+            f"(got {overlaps} overlaps for dims {arr.shape[1:]})."
+            )
+    elif overlaps is None:
+        overlaps = compute_overlap(arr=arr, patch_sizes=patch_sizes)
+    
+    for o, p in zip(overlaps, patch_sizes):
+        if o >= p:
+            raise ValueError(
+                f"Overlaps must be smaller than patch sizes "
+                f"(got {o} overlap for patch size {p})."
+                )
 
-    # Calculate overlap for each dimension #TODO add more thorough explanation
-    overlap_z = (
-        np.ceil(
-            (z_patch_size * z_total_patches - arr.shape[1])
-            / max(1, z_total_patches - 1)
-        ).astype(int)
-        if z_patch_size is not None
-        else None
+    # Create view window and overlaps
+    window_shape, window_steps = compute_view_windows(
+        patch_sizes=patch_sizes, overlaps=overlaps
     )
-    overlap_y = np.ceil(
-        (y_patch_size * y_total_patches - arr.shape[-2]) / max(1, y_total_patches - 1)
-    ).astype(int)
-    overlap_x = np.ceil(
-        (x_patch_size * x_total_patches - arr.shape[-1]) / max(1, x_total_patches - 1)
-    ).astype(int)
 
-    if z_patch_size is not None:
-        window_shape = (arr.shape[0], z_patch_size, y_patch_size, x_patch_size)
-        step = (
-            arr.shape[0],
-            min(z_patch_size - overlap_z, z_patch_size),
-            min(y_patch_size - overlap_y, y_patch_size),
-            min(x_patch_size - overlap_x, x_patch_size),
-        )
-        output_shape = (
-            (-1, arr.shape[0], y_patch_size, x_patch_size)
-            if z_patch_size == 1
-            else (-1, arr.shape[0], z_patch_size, y_patch_size, x_patch_size)
-        )
+    # Correct for first dimension
+    window_shape = (arr.shape[0],) + window_shape
+    window_steps = (arr.shape[0],) + window_steps
+    
+    if is_3d_patch and patch_sizes[-3] == 1:
+        output_shape = (-1,) + window_shape[1:]
     else:
-        window_shape = (arr.shape[0], y_patch_size, x_patch_size)
-        step = (
-            arr.shape[0],
-            min(y_patch_size - overlap_y, y_patch_size),
-            min(x_patch_size - overlap_x, x_patch_size),
-        )
-        output_shape = (-1, arr.shape[0], y_patch_size, x_patch_size)
-    # Generate a view of the input array containing pre-calculated number of patches in each dimension with overlap.
+        output_shape = (-1,) + window_shape
+        
+    # Generate a view of the input array containing pre-calculated number of patches 
+    # in each dimension with overlap.
     # Resulting array is resized to (n_patches, C, Z, Y, X) or (n_patches,C, Y, X)
     # TODO add possibility to remove empty or almost empty patches ?
-    patches = view_as_windows(arr, window_shape=window_shape, step=step).reshape(
-        *output_shape
+    patches = compute_reshaped_view(
+        arr, 
+        window_shape=window_shape, 
+        step=window_steps, 
+        output_shape=output_shape
     )
 
     # Yield single patch #TODO view_as_windows might be inefficient
