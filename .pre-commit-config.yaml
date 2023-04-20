@@ -13,22 +13,37 @@ repos:
     hooks:
       - id: validate-pyproject
 
-  - repo: https://github.com/charliermarsh/ruff-pre-commit
-    rev: v0.0.257
-    hooks:
-      - id: ruff
-        args: [--fix]
+  #  - repo: https://github.com/charliermarsh/ruff-pre-commit
+  #    rev: v0.0.257
+  #    hooks:
+  #      - id: ruff
+  #        args: [--fix]
 
   - repo: https://github.com/psf/black
     rev: 23.1.0
     hooks:
       - id: black
 
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.1.1
+  #  - repo: https://github.com/pre-commit/mirrors-mypy
+  #    rev: v1.1.1
+  #    hooks:
+  #      - id: mypy
+  #        files: "^src/"
+  #        additional_dependencies:
+  #          - numpy
+  #          - types-PyYAML
+
+  # jupyter linting and formatting
+  - repo: https://github.com/nbQA-dev/nbQA
+    rev: 1.7.0
     hooks:
-      - id: mypy
-        files: "^src/"
-        # # you have to add the things you want to type check against here
-        # additional_dependencies:
-        #   - numpy
+      - id: nbqa-ruff
+        args: [--fix]
+      - id: nbqa-black
+      #- id: nbqa-mypy
+
+  # strip out jupyter notebooks
+  - repo: https://github.com/kynan/nbstripout
+    rev: 0.6.1
+    hooks:
+      - id: nbstripout

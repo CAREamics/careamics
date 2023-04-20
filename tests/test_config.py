@@ -40,6 +40,3 @@ def test_config_to_yaml(tmpdir, test_config):
         my_other_conf = ConfigValidator(**config_yaml)
 
         assert my_other_conf == myconf
-
-    # TODO remove the following code (this is just for demo):
-    assert "n2v" in myconf.algorithm.loss
