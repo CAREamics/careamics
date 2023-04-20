@@ -19,13 +19,9 @@ from . import *
 from .metrics import MetricTracker
 from .factory import (
     _get_params_from_config,
-    _get_params_from_module,
     create_model,
     create_dataset,
     create_loss_function,
-    create_grad_scaler,
-    create_optimizer,
-    create_lr_scheduler,
 )
 
 # TODO do something with imports, it's a mess. either all from n2v init, or all separately
@@ -62,6 +58,7 @@ class Engine(ABC):
 
 class UnsupervisedEngine(Engine):
     def __init__(self, cfg_path: str) -> None:
+        set_logging()
         self.cfg = self.parse_config(cfg_path)
         self.model = self.get_model()
         self.loss_func = self.get_loss_function()
@@ -79,7 +76,7 @@ class UnsupervisedEngine(Engine):
 
     def log_metrics(self):
         if self.cfg.misc.use_wandb:
-            try:
+            try: #TODO test wandb. add functionality
                 import wandb
 
                 wandb.init(project=self.cfg.experiment_name, config=self.cfg)
@@ -96,19 +93,14 @@ class UnsupervisedEngine(Engine):
     def get_model(self):
         return create_model(self.cfg)
 
-    def train(self):
-        # TODO move to main
-        set_logging()
-
+    def train(self):        
         # General func
         train_loader = self.get_train_dataloader()
         eval_loader = self.get_val_dataloader()
         optimizer, lr_scheduler = self.get_optimizer_and_scheduler()
         scaler = self.get_grad_scaler()
 
-        logging.info(
-            f'Starting training for {self.cfg.training.num_epochs} epochs'
-        )
+        logging.info(f"Starting training for {self.cfg.training.num_epochs} epochs")
 
         try:
             for epoch in range(
@@ -125,29 +117,25 @@ class UnsupervisedEngine(Engine):
                 )
 
                 # Perform validation step
-                eval_outputs = self.evaluate(
-                    eval_loader, self.cfg.evaluation.metric
-                )
+                eval_outputs = self.evaluate(eval_loader, self.cfg.evaluation.metric)
 
                 # Add update scheduler rule based on type
                 lr_scheduler.step(eval_outputs["loss"])
-                #TODO implement checkpoint naming
-                save_checkpoint(self.model, "checkpoint.pth", False)
+                # TODO implement checkpoint naming
+                self.save_checkpoint("checkpoint.pth", False)
 
         except KeyboardInterrupt:
             logging.info("Training interrupted")
 
     def evaluate(self, eval_loader: torch.utils.data.DataLoader, eval_metric: str):
         self.model.eval()
-        #TODO Isnt supposed to be called without train ?
+        # TODO Isnt supposed to be called without train ?
         avg_loss = MetricTracker()
 
         with torch.no_grad():
             for image, *auxillary in tqdm(eval_loader):
                 outputs = self.model(image.to(self.device))
-                loss = self.loss_func(
-                    outputs, *auxillary, self.device, 1
-                )
+                loss = self.loss_func(outputs, *auxillary, self.device, 1)
                 avg_loss.update(loss.item(), image.shape[0])
         return {"loss": avg_loss.avg}
 
@@ -161,9 +149,10 @@ class UnsupervisedEngine(Engine):
         preds = []
         with torch.no_grad():
             for image, *auxillary in tqdm(pred_loader):
-                #TODO define all predict/train funcs in separate modules 
+                # TODO check loader, no 2nd image
+                # TODO define all predict/train funcs in separate modules
                 if tiling is None:
-                    #TODO add timeseries without tiling 
+                    # TODO add timeseries without tiling
                     outputs = self.model(image.to(self.device))
                 else:
                     patch_size, is_time_series = auxillary
@@ -174,14 +163,17 @@ class UnsupervisedEngine(Engine):
                         is_time_series,
                     )
                     print(all_tiles.shape)
-                    coords = calculate_stitching_coords(tile_coords, max_shapes, overlap)
+                    coords = calculate_stitching_coords(
+                        tile_coords, max_shapes, overlap
+                    )
                     outputs = self.model(image.to(self.device))
 
-                    
-                    pred.append(tile[(*[c for c in coords], ...)]) #TODO add proper last tile coord ! Should be list !)
+                    pred.append(
+                        tile[(*[c for c in coords], ...)]
+                    )  # TODO add proper last tile coord ! Should be list !)
                 inputs.append(image)
                 preds.append(outputs)
-        
+
         return inputs, preds
 
     def train_single_epoch(
@@ -214,9 +206,7 @@ class UnsupervisedEngine(Engine):
                 # TODO add normalization
                 outputs = self.model(image.to(self.device))
             # TODO std !!
-            loss = self.loss_func(
-                outputs, *auxillary, self.device, 1
-            )
+            loss = self.loss_func(outputs, *auxillary, self.device, 1)
             scaler.scale(loss).backward()
 
             if max_grad_norm is not None:
@@ -240,26 +230,30 @@ class UnsupervisedEngine(Engine):
             batch_size=self.cfg.training.data.batch_size,
             num_workers=self.cfg.training.data.num_workers,
         )
-    #TODO merge into single dataloader func ?
+
+    # TODO merge into single dataloader func ?
     def get_val_dataloader(self) -> DataLoader:
         dataset = create_dataset(self.cfg, "evaluation")
         return DataLoader(
             dataset,
-            batch_size=self.cfg.evaluation.data.batch_size, 
+            batch_size=self.cfg.evaluation.data.batch_size,
             num_workers=self.cfg.evaluation.data.num_workers,
             pin_memory=True,
         )
 
     def get_predict_dataloader(self) -> DataLoader:
-        #TODO add description
+        # TODO add description
 
         dataset = create_dataset(self.cfg, "prediction")
-        return DataLoader(
-            dataset,
-            batch_size=self.cfg.prediction.data.batch_size,
-            num_workers=self.cfg.prediction.data.num_workers,
-            pin_memory=True,
-        ), dataset.patch_generator
+        return (
+            DataLoader(
+                dataset,
+                batch_size=self.cfg.prediction.data.batch_size,
+                num_workers=self.cfg.prediction.data.num_workers,
+                pin_memory=True,
+            ),
+            dataset.patch_generator,
+        )
 
     def get_optimizer_and_scheduler(
         self,
@@ -296,11 +290,14 @@ class UnsupervisedEngine(Engine):
         scaling = self.cfg.training.amp.init_scale
         return torch.cuda.amp.GradScaler(init_scale=scaling, enabled=toggle)
 
-    def save_checkpoint(self, model, optimizer, scheduler, epoch, loss):
-        torch.save(model, os.path.join(self.directory, f"epoch_{epoch}_model.pt"))
+    def save_checkpoint(self, name, save_best):
+        """Save the model to a checkpoint file."""
+        if save_best:
+            torch.save(self.model.state_dict(), "best_checkpoint.pth")
+        else:
+            torch.save(self.model.state_dict(), "checkpoint.pth")
 
-    def load_checkpoint(self, model, optimizer, scheduler, epoch, loss):
-        pass
+    # TODO implement proper saving/loading
 
     def export_model(self, model):
         pass

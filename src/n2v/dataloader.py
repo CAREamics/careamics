@@ -156,7 +156,7 @@ def extract_patches_random(arr, patch_size, num_patches=None, *args) -> np.ndarr
     crop_coords = np.random.default_rng().integers(
         np.subtract(arr.shape, (0, *patch_size)), size=(num_patches, len(arr.shape))
     )
-
+    #TODO test random patching
     # TODO add multiple arrays support, add possibility to remove empty or almost empty patches ?
     for i in range(crop_coords.shape[1]):
         yield (
@@ -172,114 +172,6 @@ def extract_patches_random(arr, patch_size, num_patches=None, *args) -> np.ndarr
             .copy()
             .astype(np.float32)
         )
-
-
-def extract_patches_predict_old(
-    arr: np.ndarray, patch_size: Tuple[int], overlap: Tuple[int]
-) -> np.ndarray:
-    """_summary_
-
-    _extended_summary_
-
-    Parameters
-    ----------
-    arr : _type_
-        _description_
-    patch_size : _type_
-        _description_
-
-    Yields
-    ------
-    Iterator[np.ndarray]
-        _description_
-    """
-    arr = arr[:, 0, ...][np.newaxis, ...]
-
-    z_patch_size = (
-        None if len(patch_size) == 2 else patch_size[0]
-    )  # TODO Should it be None in some cases ?
-    y_patch_size, x_patch_size = patch_size[-2:]
-    z_overlap = 0 if len(overlap) == 2 else overlap[0]
-    y_overlap, x_overlap = overlap[-2:]
-
-    num_samples = 1
-
-    # TODO add asserts
-
-    z_min = 0
-    y_min = 0
-    x_min = 0
-    z_max = z_patch_size
-    y_max = y_patch_size
-    x_max = x_patch_size
-    pred = np.zeros(arr.shape)
-
-    tiles = []
-    check_coords = []
-    pred_coords = []
-    # TODO Refactor, this is extremely ugly. 2D/3D separately?
-    z_running_overlap = 0
-    while z_min < arr.shape[1]:
-        # TODO Rename
-        overlap_left = 0
-        while x_min < arr.shape[2]:
-            overlap_top = 0
-            while y_min < arr.shape[3]:
-                # TODO hardcoded dimensions ? arr size always 4 ? assert ?
-
-
-                # start coordinates of the new patch
-                z_min_ = min(arr.shape[1], z_max) - z_patch_size
-                y_min_ = min(arr.shape[2], y_max) - y_patch_size
-                x_min_ = min(arr.shape[3], x_max) - x_patch_size
-                
-                # difference between the start coordinates of the new patch and the patch given the border
-                # this is non zero only at the borders
-                last_patch_shift_z = z_min - z_min_
-                last_patch_shift_y = y_min - y_min_
-                last_patch_shift_x = x_min - x_min_
-                
-                
-                
-                
-                if (
-                    (z_min_, y_min_, y_max),
-                    (z_min_, x_min_, x_max),
-                ) not in check_coords:
-                    coords = ((z_min_, y_min_, y_max), (z_min_, x_min_, x_max))
-                    tile = arr[:, z_min_:z_max, y_min_:y_max, x_min_:x_max]
-                    check_coords.append(coords)
-                    tiles.append(tile)
-                    # TODO add proper description
-                    pred_coords.append(
-                        [
-                            last_patch_shift_z,
-                            last_patch_shift_y,
-                            last_patch_shift_x,
-                            z_running_overlap,
-                            overlap_top,
-                            overlap_left,
-                        ]
-                    )
-                    # pred[:, z_min:z_max, y_min:y_max, x_min:x_max] = tile[:, last_patch_shift_z:, last_patch_shift_y:, last_patch_shift_x:][:, z_running_overlap:, overlap_top:, overlap_left:]
-                y_min = y_min - y_overlap + y_patch_size
-                y_max = y_min + y_patch_size
-                overlap_top = y_overlap // 2
-            y_min = 0
-            y_max = y_patch_size
-            x_min = x_min - x_overlap + x_patch_size
-            x_max = x_min + x_patch_size
-            overlap_left = x_overlap // 2
-        x_min = 0
-        x_max = x_patch_size
-        z_min = z_min - z_overlap + z_patch_size
-        z_max = z_min + z_patch_size
-        z_running_overlap = z_overlap // 2
-
-    # crops = [crop for crop in crops if all(crop.shape) > 0]
-    # TODO assert len tiles == len coords
-    for tile, crop in zip(tiles, pred_coords):
-        yield (tile.astype(np.float32), crop)
 
 
 class PatchDataset(torch.utils.data.IterableDataset):

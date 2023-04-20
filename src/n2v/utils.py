@@ -11,8 +11,6 @@ import numpy as np
 import torch
 import yaml
 
-# TODO cleanup
-
 
 class DuplicateFilter(logging.Filter):
     def filter(self, record):
@@ -57,44 +55,6 @@ def config_loader(cfg_path):
     return yaml.load(Path(cfg_path).open("r"), Loader=loader)
 
 
-def config_validator(cfg):
-    '''
-    Check config file for required parameters.
-    '''
-    required_params = ['experiment_name', 'model', 'loss_function', 'optimizer', 'scheduler', 'data_loader', 'trainer']
-    #assert hasattr ...
-    # algorithm list, models list, loss functions list. All torch modules hasattr. 
-    return cfg
-
-
-def save_checkpoint(model, name, save_best):
-    """Save the model to a checkpoint file."""
-    if save_best:
-        torch.save(model.state_dict(), "best_checkpoint.pth")
-    else:
-        torch.save(model.state_dict(), "checkpoint.pth")
-
-
-# TODO implement proper saving/loading
-
-
-def load_checkpoint(model, name):
-    """Load the model from a checkpoint file."""
-    model.load_state_dict(torch.load(name))
-
-
-def printNow(string, a="", b="", c="", d="", e="", f=""):
-    print(string, a, b, c, d, e, f)
-    sys.stdout.flush()
-
-
-def imgToTensor(img):
-    """Convert a 2D single channel image to a pytorch tensor."""
-    img.shape = (img.shape[0], img.shape[1], 1)
-    imgOut = torchvision.transforms.functional.to_tensor(img.astype(np.float32))
-    return imgOut
-
-
 def normalize(img, mean, std):
     zero_mean = img - mean
     return zero_mean / std
@@ -112,39 +72,6 @@ def get_device():
         logging.info("CUDA not available. Using CPU.")
         device = torch.device("cpu")
     return device
-
-
-def add_noise(image, sigma):
-    img = np.array(image).astype(np.float32)
-    gauss = np.random.normal(0, sigma, image.shape)
-    gauss = gauss.reshape(image.shape)
-    noisy = img + gauss
-    return np.clip(noisy, a_min=0, a_max=66000)
-
-
-def add_poisson(image, scale=0, offset=0, adjust_background=0):
-    """Add poisson noise to the image.
-
-    Parameters
-    ----------
-    image : numpy array
-    scale : int
-        Scaling value to control the magnitude. Default produces default destribution
-    offset : int
-        Offset for the pixel value range.
-    adjust_background: int
-        Add specified fixed value to the background
-
-    Returns
-    -------
-    numpy array
-        Input image with simulated poisson noise
-    """
-    image = image + adjust_background
-    offset = image.min() if image.min() - offset < 0 else offset
-    scale = 2.0 ** (0 - scale)
-    scaled = (image.astype(np.float32) - offset) * scale
-    return np.clip(np.random.poisson(scaled) / scale + offset, 0, 66000)
 
 
 def export_model_to_zoo(model, path):

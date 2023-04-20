@@ -7,10 +7,7 @@ except PackageNotFoundError:
 
 from .factory import (
     create_model,
-    create_optimizer,
-    create_lr_scheduler,
     create_loss_function,
-    create_grad_scaler,
 )
 from .models import UNet
 
@@ -32,9 +29,6 @@ from .utils import (
     get_device,
     set_logging,
     config_loader,
-    config_validator,
-    save_checkpoint,
-    load_checkpoint,
 )
 
 from .config import ConfigValidator
