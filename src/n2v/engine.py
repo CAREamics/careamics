@@ -27,6 +27,10 @@ from .factory import (
 # TODO do something with imports, it's a mess. either all from n2v init, or all separately
 
 
+logger = logging.getLogger(__name__)
+set_logging(logger)
+
+
 class Engine(ABC):
     def __init__(self, cfg):
         self.cfg = cfg
@@ -58,7 +62,6 @@ class Engine(ABC):
 
 class UnsupervisedEngine(Engine):
     def __init__(self, cfg_path: str) -> None:
-        set_logging()
         self.cfg = self.parse_config(cfg_path)
         self.model = self.get_model()
         self.loss_func = self.get_loss_function()
@@ -76,37 +79,37 @@ class UnsupervisedEngine(Engine):
 
     def log_metrics(self):
         if self.cfg.misc.use_wandb:
-            try: #TODO test wandb. add functionality
+            try:  # TODO test wandb. add functionality
                 import wandb
 
                 wandb.init(project=self.cfg.experiment_name, config=self.cfg)
-                logging.info("using wandb logger")
+                logger.info("using wandb logger")
             except ImportError:
                 self.cfg.misc.use_wandb = False
-                logging.warning(
+                logger.warning(
                     "wandb not installed, using default logger. try pip install wandb"
                 )
                 return self.log_metrics()
         else:
-            logging.info("using default logger")
+            logger.info("using default logger")
 
     def get_model(self):
         return create_model(self.cfg)
 
-    def train(self):        
+    def train(self):
         # General func
         train_loader = self.get_train_dataloader()
         eval_loader = self.get_val_dataloader()
         optimizer, lr_scheduler = self.get_optimizer_and_scheduler()
         scaler = self.get_grad_scaler()
 
-        logging.info(f"Starting training for {self.cfg.training.num_epochs} epochs")
+        logger.info(f"Starting training for {self.cfg.training.num_epochs} epochs")
 
         try:
             for epoch in range(
                 self.cfg.training.num_epochs
             ):  # loop over the dataset multiple times
-                logging.info(f"Starting epoch {epoch}")
+                logger.info(f"Starting epoch {epoch}")
 
                 train_outputs = self.train_single_epoch(
                     train_loader,
@@ -125,7 +128,7 @@ class UnsupervisedEngine(Engine):
                 self.save_checkpoint("checkpoint.pth", False)
 
         except KeyboardInterrupt:
-            logging.info("Training interrupted")
+            logger.info("Training interrupted")
 
     def evaluate(self, eval_loader: torch.utils.data.DataLoader, eval_metric: str):
         self.model.eval()

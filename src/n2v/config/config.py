@@ -111,6 +111,7 @@ class LrScheduler(BaseModel):
 class Data(BaseModel):
     path: str
     ext: str = Field(default=".tif")  # TODO add regexp for list of extensions or enum
+    axes: str
     num_files: Union[int, None] = Field(default=None)
     extraction_strategy: str = Field(default="sequential")  # TODO add enum
     patch_size: List[int] = Field(
@@ -127,6 +128,11 @@ class Data(BaseModel):
             # TODO validate
             pass
         return patch_size
+
+    @validator("axes")
+    def validate_axes(cls, axes):
+        # TODO validate axes
+        return axes
 
 
 class Amp(BaseModel):

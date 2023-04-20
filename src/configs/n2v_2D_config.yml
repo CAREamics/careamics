@@ -48,6 +48,7 @@ training:
     path: data/SEM/test_run
     # File type to load
     ext: tif
+    axes: 'YX'
     #Number of files to read. Read all if None
     num_files: 2
     # Patch generation strategy [random, sequential]
@@ -70,6 +71,7 @@ evaluation:
     path: data/SEM/test_run
     # File type to load
     ext: tif
+    axes: 'YX'
     #Number of files to read. Read all if None
     num_files: 1
     # Patch generation strategy [random, sequential]
@@ -94,6 +96,7 @@ prediction:
     path: data/SEM/test_run
     # File type to load
     ext: tif
+    axes: 'YX'
     #Number of files to read. Read all if None
     num_files: 2
     # Patch generation strategy [random, sequential]

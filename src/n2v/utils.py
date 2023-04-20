@@ -18,12 +18,12 @@ class DuplicateFilter(logging.Filter):
         return True if current_log == getattr(self, "_last_log", None) else False
 
 
-def set_logging(default_level=logging.INFO, log_path=""):
+def set_logging(logger, default_level=logging.INFO, log_path=""):
     # TODO add log_path and level to config
     console_handler = logging.StreamHandler()
-    logging.root.addHandler(console_handler)
-    logging.root.setLevel(default_level)
-    logging.root.addFilter(DuplicateFilter())
+    logger.addHandler(console_handler)
+    logger.setLevel(default_level)
+    logger.addFilter(DuplicateFilter())
     if log_path:
         file_handler = logging.handlers.RotatingFileHandler(
             log_path, maxBytes=(1024**2 * 2), backupCount=3
@@ -32,7 +32,7 @@ def set_logging(default_level=logging.INFO, log_path=""):
             "%(asctime)s - %(name)20s: [%(levelname)8s] - %(message)s"
         )
         file_handler.setFormatter(file_formatter)
-        logging.root.addHandler(file_handler)
+        logging.addHandler(file_handler)
 
 
 def config_loader(cfg_path):

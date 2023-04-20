@@ -8,12 +8,17 @@ import torch
 from . import dataloader, pixel_manipulation
 from .augment import augment_single
 from .config import ConfigValidator
+from .utils import set_logging
 from .dataloader import (
     PatchDataset,
     list_input_source_tiff,
 )
 from .losses import n2v_loss
 from .models import UNet
+
+
+logger = logging.getLogger(__name__)
+set_logging(logger)
 
 
 def _get_params_from_config(
@@ -96,13 +101,15 @@ def create_tiling_function(stage: Dict) -> Callable:
     Parameters
     ----------
     config : dict.
-    
+
     Returns
     -------
     Callable
     """
-    #TODO add proper option selection !
-    if stage.data.extraction_strategy == 'predict' and all(ps == 1 for ps in stage.data.patch_size):
+    # TODO add proper option selection !
+    if stage.data.extraction_strategy == "predict" and all(
+        ps == 1 for ps in stage.data.patch_size
+    ):
         return None
     else:
         return partial(
@@ -111,6 +118,7 @@ def create_tiling_function(stage: Dict) -> Callable:
                 f"extract_patches_{stage.data.extraction_strategy}",
             ),
         )
+
 
 def create_dataset(config: ConfigValidator, stage: str) -> torch.utils.data.Dataset:
     """Builds a dataset based on the dataset_params.
@@ -125,7 +133,7 @@ def create_dataset(config: ConfigValidator, stage: str) -> torch.utils.data.Data
     # TODO add support for mixed filetype datasets
     stage_config = config.get_stage_config(stage)  # getattr(config, stage)
 
-    if stage_config.data.ext == "tif": #TODO fix, this is ugly
+    if stage_config.data.ext == "tif":  # TODO fix, this is ugly
         # TODO clear description of what all these funcs/params mean
         # TODO patch transform should be properly imported from somewhere?
         dataset = PatchDataset(
@@ -134,7 +142,9 @@ def create_dataset(config: ConfigValidator, stage: str) -> torch.utils.data.Data
             data_reader=list_input_source_tiff,
             patch_size=stage_config.data.patch_size,
             patch_generator=create_tiling_function(stage_config),
-            patch_level_transform=create_patch_transform(config) if stage != "prediction" else None,
+            patch_level_transform=create_patch_transform(config)
+            if stage != "prediction"
+            else None,
         )
     # TODO getatr manipulate
     # try:
@@ -166,7 +176,7 @@ def create_model(config: Dict) -> torch.nn.Module:
     if load_checkpoint:
         # TODO add proper logging message
         model.load_state_dict(torch.load(load_checkpoint))
-        logging.info("Loaded checkpoint")
+        logger.info("Loaded checkpoint")
     return model
 
 
@@ -187,4 +197,3 @@ def create_loss_function(config: Dict) -> Callable:
     # loss_func = getattr(sys.__name__, loss_type)
     # TODO test !
     return loss_function
-

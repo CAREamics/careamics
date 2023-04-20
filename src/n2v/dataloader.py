@@ -137,7 +137,7 @@ def extract_patches_random(arr, patch_size, num_patches=None, *args) -> np.ndarr
     crop_coords = np.random.default_rng().integers(
         np.subtract(arr.shape, (0, *patch_size)), size=(num_patches, len(arr.shape))
     )
-    #TODO test random patching
+    # TODO test random patching
     # TODO add multiple arrays support, add possibility to remove empty or almost empty patches ?
     for i in range(crop_coords.shape[1]):
         yield (
@@ -209,8 +209,30 @@ class PatchDataset(torch.utils.data.IterableDataset):
         self.image_transform = image_level_transform
         self.patch_transform = patch_level_transform
 
+    # @staticmethod
+    # def read_alter(self):
+
+    #     somearray = read_image_whatever(config)
+
+    #     # read configuration
+    #     check_axis_adn_raise_error(somearray, config.axes)
+
+    # def check_axis_adn_raise_error():
+    #     if config.axes is None and axes!= C(Z)YX:
+    #         raise Error
+    #     else:
+    #         # sanity check on the axes
+    #         if axes != config.axes:
+    #             raise Error
+
+    #         new_arr = move_axes(array)
+
+    #         return new_arr
+
     @staticmethod
-    def read_data_source(self, data_source: str, add_channel: True):
+    def read_data_source(
+        data_source: Union[str, Path], patch_size: Tuple[int], add_channel: bool = True
+    ):
         """
         Read data source and correct dimensions.
 
@@ -218,7 +240,7 @@ class PatchDataset(torch.utils.data.IterableDataset):
         ----------
         data_source : str
             Path to data source
-        
+
         add_channel : bool
             If True, add channel dimension to data source
 
@@ -226,7 +248,7 @@ class PatchDataset(torch.utils.data.IterableDataset):
         -------
         image volume : np.ndarray
         """
-        if not os.path.exists(data_source):
+        if not Path(data_source).exists():
             raise ValueError(f"Data source {data_source} does not exist")
 
         arr = tifffile.imread(data_source)
@@ -237,29 +259,29 @@ class PatchDataset(torch.utils.data.IterableDataset):
             3,
             4,
         ), f"Incorrect data dimensions. Must be 2, 3 or 4, given {arr.shape} for file {data_source}"
-        #TODO test add_channel, ugly?
-        #TODO updated patch_size can be not defined, fix !
+        # TODO test add_channel, ugly?
+        # TODO updated patch_size can be not defined, fix !
         # TODO improve shape asserts
         # Adding channel dimension if necessary. If present, check correctness
-        if len(arr.shape) == 2 or (len(arr.shape) == 3 and len(self.patch_size) == 3):
+
+        updated_patch_size = patch_size
+
+        if len(arr.shape) == 2 or (len(arr.shape) == 3 and len(patch_size) == 3):
             arr = np.expand_dims(arr, axis=0)
-            updated_patch_size = self.patch_size
-        elif len(arr.shape) > 3 and len(self.patch_size) == 2:
-            raise ValueError(
-                f"Incorrect data dimensions {arr.shape} for given dimensionality {len(self.patch_size)}D in file {data_source}"
-            )
-        elif len(arr.shape) == 3 and len(self.patch_size) == 2 and arr.shape[0] > 4:
+
+        elif len(arr.shape) == 3 and len(patch_size) == 2 and arr.shape[0] > 4:
             logging.warning(
                 f"Number of channels is {arr.shape[0]} for 2D data. Assuming time series."
             )
-            #TODO check if time series
+            # TODO check if time series
             is_time_series = True
-            arr = np.expand_dims(arr, axis=0)
-            updated_patch_size = (1, *self.patch_size)
+            arr = np.expand_dims(arr, axis=1)
+            updated_patch_size = (1, *patch_size)
+
         if not add_channel:
             arr = np.squeeze(arr, axis=0)
-            #TODO also update overlap ?
-        #TODO time/n_samples dim should come first, not channel ?
+            # TODO also update overlap ?
+        # TODO time/n_samples dim should come first, not channel ?
         return arr, updated_patch_size, is_time_series
 
     def __iter_source__(self):
@@ -283,15 +305,25 @@ class PatchDataset(torch.utils.data.IterableDataset):
         for i, filename in enumerate(self.source):
             try:
                 # TODO add buffer, several images up to some memory limit?
-                arr, patch_size, is_time_series = self.read_data_source(self, filename, self.add_channel)
+                arr, patch_size, is_time_series = self.read_data_source(
+                    self, filename, self.add_channel
+                )
             except (ValueError, FileNotFoundError, OSError) as e:
                 logging.exception(f"Exception in file {filename}, skipping")
                 raise e
             if i % num_workers == id:
                 # TODO add iterator inside
                 yield self.image_transform(
-                    (arr, patch_size, is_time_series) #TODO add is_time_series inside im transform
-                ) if self.image_transform is not None else (arr, patch_size, is_time_series)
+                    (
+                        arr,
+                        patch_size,
+                        is_time_series,
+                    )  # TODO add is_time_series inside im transform
+                ) if self.image_transform is not None else (
+                    arr,
+                    patch_size,
+                    is_time_series,
+                )
 
     def __iter__(self):
         """
@@ -302,7 +334,7 @@ class PatchDataset(torch.utils.data.IterableDataset):
         np.ndarray
         """
         for image, updated_patch_size, is_time_series in self.__iter_source__():
-            #TODO add no patch generator option !
+            # TODO add no patch generator option !
             if self.patch_generator is None:
                 yield image, updated_patch_size, is_time_series
             else:
