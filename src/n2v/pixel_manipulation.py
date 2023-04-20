@@ -74,6 +74,3 @@ def n2v_manipulate(patch: np.ndarray, num_pixels: int, augmentations: Callable =
     #TODO assert this output format ? 1st is required, others are optional
     return patch, original_patch, mask
 
-
-
-

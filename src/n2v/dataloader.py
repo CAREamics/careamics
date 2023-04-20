@@ -137,7 +137,7 @@ def extract_patches_random(arr, patch_size, num_patches=None, *args) -> np.ndarr
     crop_coords = np.random.default_rng().integers(
         np.subtract(arr.shape, (0, *patch_size)), size=(num_patches, len(arr.shape))
     )
-
+    #TODO test random patching
     # TODO add multiple arrays support, add possibility to remove empty or almost empty patches ?
     for i in range(crop_coords.shape[1]):
         yield (
@@ -155,155 +155,6 @@ def extract_patches_random(arr, patch_size, num_patches=None, *args) -> np.ndarr
         )
 
 
-def extract_patches_predict(
-    arr: np.ndarray, patch_size: Tuple[int], overlap: Tuple[int]
-) -> np.ndarray:
-    """_summary_.
-
-    _extended_summary_
-
-    Parameters
-    ----------
-    arr : _type_
-        _description_
-    patch_size : _type_
-        _description_
-
-    Yields
-    ------
-    Iterator[np.ndarray]
-        _description_
-    """
-    arr = arr[:, 0, ...][np.newaxis, ...]
-
-    z_patch_size = (
-        None if len(patch_size) == 2 else patch_size[0]
-    )  # TODO Should it be None in some cases ?
-    y_patch_size, x_patch_size = patch_size[-2:]
-    z_overlap = 0 if len(overlap) == 2 else overlap[0]
-    y_overlap, x_overlap = overlap[-2:]
-
-    # TODO add asserts
-
-    z_min = 0
-    y_min = 0
-    x_min = 0
-    z_max = z_patch_size
-    y_max = y_patch_size
-    x_max = x_patch_size
-    np.zeros(arr.shape)
-
-    tiles = []
-    check_coords = []
-    pred_coords = []
-    # TODO Refactor, this is extremely ugly. 2D/3D separately?
-    z_running_overlap = 0
-    while z_min < arr.shape[1]:
-        # TODO Rename
-        overlap_left = 0
-        while x_min < arr.shape[2]:
-            overlap_top = 0
-            while y_min < arr.shape[3]:
-                # TODO hardcoded dimensions ? arr size always 4 ? assert ?
-
-                # start coordinates of the new patch
-                z_min_ = min(arr.shape[1], z_max) - z_patch_size
-                y_min_ = min(arr.shape[2], y_max) - y_patch_size
-                x_min_ = min(arr.shape[3], x_max) - x_patch_size
-
-                # difference between the start coordinates of the new patch and the patch given the border
-                # this is non zero only at the borders
-                last_patch_shift_z = z_min - z_min_
-                last_patch_shift_y = y_min - y_min_
-                last_patch_shift_x = x_min - x_min_
-
-                if (
-                    (z_min_, y_min_, y_max),
-                    (z_min_, x_min_, x_max),
-                ) not in check_coords:
-                    coords = ((z_min_, y_min_, y_max), (z_min_, x_min_, x_max))
-                    tile = arr[:, z_min_:z_max, y_min_:y_max, x_min_:x_max]
-                    check_coords.append(coords)
-                    tiles.append(tile)
-                    # TODO add proper description
-                    pred_coords.append(
-                        [
-                            last_patch_shift_z,
-                            last_patch_shift_y,
-                            last_patch_shift_x,
-                            z_running_overlap,
-                            overlap_top,
-                            overlap_left,
-                        ]
-                    )
-                    # pred[:, z_min:z_max, y_min:y_max, x_min:x_max] = tile[:, last_patch_shift_z:, last_patch_shift_y:, last_patch_shift_x:][:, z_running_overlap:, overlap_top:, overlap_left:]
-                y_min = y_min - y_overlap + y_patch_size
-                y_max = y_min + y_patch_size
-                overlap_top = y_overlap // 2
-            y_min = 0
-            y_max = y_patch_size
-            x_min = x_min - x_overlap + x_patch_size
-            x_max = x_min + x_patch_size
-            overlap_left = x_overlap // 2
-        x_min = 0
-        x_max = x_patch_size
-        z_min = z_min - z_overlap + z_patch_size
-        z_max = z_min + z_patch_size
-        z_running_overlap = z_overlap // 2
-
-    # crops = [crop for crop in crops if all(crop.shape) > 0]
-    # TODO assert len tiles == len coords
-    for tile, crop in zip(tiles, pred_coords):
-        yield (tile.astype(np.float32), crop)
-
-
-def _calculate_stitching_coords(
-    tile_coords: Tuple[int], last_tile_coord: Tuple[int], overlap: Tuple[int]
-) -> Tuple[slice]:
-    # TODO add 2/3d support
-    # TODO different overlaps for each dimension
-    # TODO different patch sizes for each dimension
-    list_coord = []
-
-    for i, coord in enumerate(tile_coords):
-        if coord == 0:
-            list_coord.append(slice(0, -overlap[i] // 2))
-        elif coord == last_tile_coord[i] - 1:
-            list_coord.append(slice(overlap[i] // 2, None))
-        else:
-            list_coord.append(slice(overlap[i] // 2, -overlap[i] // 2))
-    return list_coord
-
-
-def extract_patches_predict_new(
-    arr: np.ndarray, patch_size: Tuple[int], overlap=32
-) -> List[np.ndarray]:
-    # TODO remove hard coded vals
-    # Overlap is half of the value mentioned in original N2V #TODO must be even. It's like this because of current N2V notation
-    actual_overlap = [patch_size[i] - overlap[i] for i in range(len(patch_size))]
-
-    # TODO add asserts
-    all_tiles = view_as_windows(
-        arr, window_shape=patch_size, step=actual_overlap
-    )  # shape (tiles in y, tiles in x, Y, X)
-    pred = []
-
-    for tile_coords in itertools.product(
-        *map(range, all_tiles.shape[: len(patch_size)])
-    ):  # TODO add 2/3d automatic selection of axes
-        # TODO test for number of tiles in each category
-        tile = all_tiles[(*list(tile_coords), ...)]
-
-        coords = _calculate_stitching_coords(
-            tile_coords, all_tiles.shape[: len(patch_size)], overlap
-        )
-        pred.append(
-            tile[(*list(coords), ...)]
-        )  # TODO add proper last tile coord ! Should be list !)
-
-    return pred
-
-
 class PatchDataset(torch.utils.data.IterableDataset):
     """Dataset to extract patches from a list of images and apply transforms to the patches."""
 
@@ -314,7 +165,7 @@ class PatchDataset(torch.utils.data.IterableDataset):
         num_files: int,
         data_reader: Callable,
         patch_size: Union[List[int], Tuple[int]],
-        patch_generator: Union[np.ndarray, Callable],
+        patch_generator: Optional[Callable],
         image_level_transform: Optional[Callable] = None,
         patch_level_transform: Optional[Callable] = None,
     ) -> None:
@@ -354,11 +205,12 @@ class PatchDataset(torch.utils.data.IterableDataset):
         self.data_reader = data_reader
         self.patch_size = patch_size
         self.patch_generator = patch_generator
+        self.add_channel = patch_generator is not None
         self.image_transform = image_level_transform
         self.patch_transform = patch_level_transform
 
     @staticmethod
-    def read_data_source(self, data_source: str):
+    def read_data_source(self, data_source: str, add_channel: True):
         """
         Read data source and correct dimensions.
 
@@ -366,6 +218,9 @@ class PatchDataset(torch.utils.data.IterableDataset):
         ----------
         data_source : str
             Path to data source
+        
+        add_channel : bool
+            If True, add channel dimension to data source
 
         Returns
         -------
@@ -375,13 +230,15 @@ class PatchDataset(torch.utils.data.IterableDataset):
             raise ValueError(f"Data source {data_source} does not exist")
 
         arr = tifffile.imread(data_source)
+        is_time_series = False
         # Assert data dimensions are correct
         assert len(arr.shape) in (
             2,
             3,
             4,
         ), f"Incorrect data dimensions. Must be 2, 3 or 4, given {arr.shape} for file {data_source}"
-
+        #TODO test add_channel, ugly?
+        #TODO updated patch_size can be not defined, fix !
         # TODO improve shape asserts
         # Adding channel dimension if necessary. If present, check correctness
         if len(arr.shape) == 2 or (len(arr.shape) == 3 and len(self.patch_size) == 3):
@@ -395,9 +252,15 @@ class PatchDataset(torch.utils.data.IterableDataset):
             logging.warning(
                 f"Number of channels is {arr.shape[0]} for 2D data. Assuming time series."
             )
+            #TODO check if time series
+            is_time_series = True
             arr = np.expand_dims(arr, axis=0)
             updated_patch_size = (1, *self.patch_size)
-        return arr, updated_patch_size
+        if not add_channel:
+            arr = np.squeeze(arr, axis=0)
+            #TODO also update overlap ?
+        #TODO time/n_samples dim should come first, not channel ?
+        return arr, updated_patch_size, is_time_series
 
     def __iter_source__(self):
         """
@@ -420,15 +283,15 @@ class PatchDataset(torch.utils.data.IterableDataset):
         for i, filename in enumerate(self.source):
             try:
                 # TODO add buffer, several images up to some memory limit?
-                arr, patch_size = self.read_data_source(self, filename)
+                arr, patch_size, is_time_series = self.read_data_source(self, filename, self.add_channel)
             except (ValueError, FileNotFoundError, OSError) as e:
                 logging.exception(f"Exception in file {filename}, skipping")
                 raise e
             if i % num_workers == id:
                 # TODO add iterator inside
                 yield self.image_transform(
-                    (arr, patch_size)
-                ) if self.image_transform is not None else (arr, patch_size)
+                    (arr, patch_size, is_time_series) #TODO add is_time_series inside im transform
+                ) if self.image_transform is not None else (arr, patch_size, is_time_series)
 
     def __iter__(self):
         """
@@ -438,10 +301,14 @@ class PatchDataset(torch.utils.data.IterableDataset):
         ------
         np.ndarray
         """
-        for image, updated_patch_size in self.__iter_source__():
-            for patch_data in self.patch_generator(image, updated_patch_size):
-                # TODO add augmentations, multiple functions.
-                # TODO Works incorrectly if patch transform is NONE
-                yield self.patch_transform(
-                    patch_data
-                ) if self.patch_transform is not None else (patch_data)
+        for image, updated_patch_size, is_time_series in self.__iter_source__():
+            #TODO add no patch generator option !
+            if self.patch_generator is None:
+                yield image, updated_patch_size, is_time_series
+            else:
+                for patch_data in self.patch_generator(image, updated_patch_size):
+                    # TODO add augmentations, multiple functions.
+                    # TODO Works incorrectly if patch transform is NONE
+                    yield self.patch_transform(
+                        patch_data
+                    ) if self.patch_transform is not None else (patch_data)

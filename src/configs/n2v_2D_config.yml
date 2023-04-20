@@ -1,5 +1,5 @@
 experiment_name: test
-workdir: /home/igor.zubarev/projects/DecoNoising/
+workdir: .
 
 #TODO add nested config & 
 algorithm: 
@@ -18,7 +18,7 @@ algorithm:
   checkpoint: checkpoint.pth
 
 training:
-  num_epochs: 3
+  num_epochs: 10
   learning_rate: 0.0001
   optimizer:
     #Name of the optimizer class from torch.optim
@@ -45,7 +45,7 @@ training:
   max_grad_norm: 1
   data:
     #Path to the data
-    path: /home/igor.zubarev/data/paris_chunk
+    path: data/SEM/test_run
     # File type to load
     ext: tif
     #Number of files to read. Read all if None
@@ -67,7 +67,7 @@ training:
 evaluation:
   data:
     #Path to the data
-    path: /home/igor.zubarev/data/paris_chunk
+    path: data/SEM/test_run
     # File type to load
     ext: tif
     #Number of files to read. Read all if None
@@ -91,14 +91,14 @@ evaluation:
 prediction:
   data:
     #Path to the data
-    path: /home/igor.zubarev/data/paris_chunk
+    path: data/SEM/test_run
     # File type to load
     ext: tif
     #Number of files to read. Read all if None
-    num_files: 1
-    # Patch generation strategy [predict]
+    num_files: 2
+    # Patch generation strategy [random, sequential]
     extraction_strategy: predict
-    #Patch shape in (z)yx. 2D or 3D. 1 for each dimension for prediction on full image
+    #Patch shape in (z)yx. 2D or 3D
     patch_size: [1, 1]
     # Batch size
     batch_size: 1

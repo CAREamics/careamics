@@ -7,10 +7,7 @@ except PackageNotFoundError:
 
 from .factory import (
     create_model,
-    create_optimizer,
-    create_lr_scheduler,
     create_loss_function,
-    create_grad_scaler,
 )
 from .models import UNet
 
@@ -22,19 +19,16 @@ from .dataloader import (
     PatchDataset,
     extract_patches_random,
     extract_patches_sequential,
-    extract_patches_predict,
     list_input_source_tiff,
 )
 
+from .prediction import extract_patches_predict, calculate_stitching_coords
 from .pixel_manipulation import n2v_manipulate
 
 from .utils import (
     get_device,
     set_logging,
     config_loader,
-    config_validator,
-    save_checkpoint,
-    load_checkpoint,
 )
 
 from .config import ConfigValidator
