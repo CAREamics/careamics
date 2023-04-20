@@ -1,25 +1,19 @@
-import os
-import torch
-import logging
 import itertools
-import tifffile
-import numpy as np
-
-from typing import Generator
-
-from functools import partial
-from torch.utils.data import Dataset, IterableDataset, DataLoader
+import logging
+import os
 from pathlib import Path
+from typing import Callable, Generator, List, Optional, Tuple, Union
+
+import numpy as np
+import tifffile
+import torch
 from skimage.util import view_as_windows
-from typing import Callable, List, Optional, Sequence, Union, Tuple
 
-from .pixel_manipulation import n2v_manipulate
-from .dataloader_utils import(
-    compute_view_windows,
+from .dataloader_utils import (
     compute_overlap,
-    compute_reshaped_view
+    compute_reshaped_view,
+    compute_view_windows,
 )
-
 
 ############################################
 #   ETL pipeline #TODO add description to all modules
@@ -29,7 +23,7 @@ from .dataloader_utils import(
 def list_input_source_tiff(
     path: Union[str, Path], num_files: Union[int, None] = None
 ) -> List:
-    """_summary_
+    """_summary_.
 
     _extended_summary_
 
@@ -57,7 +51,6 @@ def list_input_source_tiff(
 
 
 # TODO: number of patches?
-# TODO: overlap?
 # formerly :
 # https://github.com/juglab-torch/n2v/blob/00d536cdc5f5cd4bb34c65a777940e6e453f4a93/src/n2v/dataloader.py#L52
 def extract_patches_sequential(
@@ -68,49 +61,49 @@ def extract_patches_sequential(
     """Generate patches from an array of dimensions C(Z)YX, where C can
     be a singleton dimension.
 
-    The patches are generated sequentially and cover the whole array. 
-    """    
+    The patches are generated sequentially and cover the whole array.
+    """
     if len(arr.shape) < 3 or len(arr.shape) > 4:
         raise ValueError(
             f"Input array must have dimensions CZYX or CYX (got length {len(arr.shape)})."
-            )
+        )
 
     # Patches sanity check
     if len(patch_sizes) != len(arr.shape[1:]):
         raise ValueError(
             f"There must be a patch size for each spatial dimensions "
             f"(got {patch_sizes} patches for dims {arr.shape[1:]})."
-            )
+        )
 
     # Sanity checks on patch sizes versus array dimension
     is_3d_patch = len(patch_sizes) == 3
-    if is_3d_patch and patch_sizes[-3] > arr.shape[-3]: 
+    if is_3d_patch and patch_sizes[-3] > arr.shape[-3]:
         raise ValueError(
-            f"Z patch size is inconsistent with image shape " \
+            f"Z patch size is inconsistent with image shape "
             f"(got {patch_sizes[-3]} patches for dim {arr.shape[1]})."
-            )
-    
+        )
+
     if patch_sizes[-2] > arr.shape[-2] or patch_sizes[-1] > arr.shape[-1]:
         raise ValueError(
-            f"At least one of YX patch dimensions is inconsistent with image shape " \
+            f"At least one of YX patch dimensions is inconsistent with image shape "
             f"(got {patch_sizes} patches for dims {arr.shape[-2:]})."
-            )
+        )
 
     # Overlaps sanity check
     if overlaps is not None and len(overlaps) != len(arr.shape[1:]):
         raise ValueError(
             f"There must be an overlap for each spatial dimensions "
             f"(got {overlaps} overlaps for dims {arr.shape[1:]})."
-            )
+        )
     elif overlaps is None:
         overlaps = compute_overlap(arr=arr, patch_sizes=patch_sizes)
-    
+
     for o, p in zip(overlaps, patch_sizes):
         if o >= p:
             raise ValueError(
                 f"Overlaps must be smaller than patch sizes "
                 f"(got {o} overlap for patch size {p})."
-                )
+            )
 
     # Create view window and overlaps
     window_shape, window_steps = compute_view_windows(
@@ -118,23 +111,20 @@ def extract_patches_sequential(
     )
 
     # Correct for first dimension
-    window_shape = (arr.shape[0],) + window_shape
-    window_steps = (arr.shape[0],) + window_steps
-    
+    window_shape = (arr.shape[0], *window_shape)
+    window_steps = (arr.shape[0], *window_steps)
+
     if is_3d_patch and patch_sizes[-3] == 1:
         output_shape = (-1,) + window_shape[1:]
     else:
-        output_shape = (-1,) + window_shape
-        
-    # Generate a view of the input array containing pre-calculated number of patches 
+        output_shape = (-1, *window_shape)
+
+    # Generate a view of the input array containing pre-calculated number of patches
     # in each dimension with overlap.
     # Resulting array is resized to (n_patches, C, Z, Y, X) or (n_patches,C, Y, X)
     # TODO add possibility to remove empty or almost empty patches ?
     patches = compute_reshaped_view(
-        arr, 
-        window_shape=window_shape, 
-        step=window_steps, 
-        output_shape=output_shape
+        arr, window_shape=window_shape, step=window_steps, output_shape=output_shape
     )
 
     # Yield single patch #TODO view_as_windows might be inefficient
@@ -143,7 +133,6 @@ def extract_patches_sequential(
 
 
 def extract_patches_random(arr, patch_size, num_patches=None, *args) -> np.ndarray:
-
     # TODO either num_patches are all unique or output exact number of patches
     crop_coords = np.random.default_rng().integers(
         np.subtract(arr.shape, (0, *patch_size)), size=(num_patches, len(arr.shape))
@@ -169,7 +158,7 @@ def extract_patches_random(arr, patch_size, num_patches=None, *args) -> np.ndarr
 def extract_patches_predict(
     arr: np.ndarray, patch_size: Tuple[int], overlap: Tuple[int]
 ) -> np.ndarray:
-    """_summary_
+    """_summary_.
 
     _extended_summary_
 
@@ -194,8 +183,6 @@ def extract_patches_predict(
     z_overlap = 0 if len(overlap) == 2 else overlap[0]
     y_overlap, x_overlap = overlap[-2:]
 
-    num_samples = 1
-
     # TODO add asserts
 
     z_min = 0
@@ -204,7 +191,7 @@ def extract_patches_predict(
     z_max = z_patch_size
     y_max = y_patch_size
     x_max = x_patch_size
-    pred = np.zeros(arr.shape)
+    np.zeros(arr.shape)
 
     tiles = []
     check_coords = []
@@ -219,21 +206,17 @@ def extract_patches_predict(
             while y_min < arr.shape[3]:
                 # TODO hardcoded dimensions ? arr size always 4 ? assert ?
 
-
                 # start coordinates of the new patch
                 z_min_ = min(arr.shape[1], z_max) - z_patch_size
                 y_min_ = min(arr.shape[2], y_max) - y_patch_size
                 x_min_ = min(arr.shape[3], x_max) - x_patch_size
-                
+
                 # difference between the start coordinates of the new patch and the patch given the border
                 # this is non zero only at the borders
                 last_patch_shift_z = z_min - z_min_
                 last_patch_shift_y = y_min - y_min_
                 last_patch_shift_x = x_min - x_min_
-                
-                
-                
-                
+
                 if (
                     (z_min_, y_min_, y_max),
                     (z_min_, x_min_, x_max),
@@ -274,43 +257,51 @@ def extract_patches_predict(
         yield (tile.astype(np.float32), crop)
 
 
-def _calculate_stitching_coords(tile_coords: Tuple[int], last_tile_coord: Tuple[int], overlap: Tuple[int]) -> Tuple[slice]:
-    
-   
-    #TODO add 2/3d support
+def _calculate_stitching_coords(
+    tile_coords: Tuple[int], last_tile_coord: Tuple[int], overlap: Tuple[int]
+) -> Tuple[slice]:
+    # TODO add 2/3d support
     # TODO different overlaps for each dimension
     # TODO different patch sizes for each dimension
     list_coord = []
 
-    for i, coord in enumerate(tile_coords): 
+    for i, coord in enumerate(tile_coords):
         if coord == 0:
-            list_coord.append(slice(0, -overlap[i]//2))
+            list_coord.append(slice(0, -overlap[i] // 2))
         elif coord == last_tile_coord[i] - 1:
-            list_coord.append(slice(overlap[i]//2, None))
+            list_coord.append(slice(overlap[i] // 2, None))
         else:
-            list_coord.append(slice(overlap[i]//2, -overlap[i]//2))
+            list_coord.append(slice(overlap[i] // 2, -overlap[i] // 2))
     return list_coord
 
 
-def extract_patches_predict_new(arr: np.ndarray, patch_size: Tuple[int], overlap=32) -> List[np.ndarray]:
+def extract_patches_predict_new(
+    arr: np.ndarray, patch_size: Tuple[int], overlap=32
+) -> List[np.ndarray]:
     # TODO remove hard coded vals
     # Overlap is half of the value mentioned in original N2V #TODO must be even. It's like this because of current N2V notation
-    actual_overlap = [
-        patch_size[i] - overlap[i] for i in range(len(patch_size))
-    ]
-    
-    #TODO add asserts
-    all_tiles = view_as_windows(arr, window_shape=patch_size, step=actual_overlap) #shape (tiles in y, tiles in x, Y, X)
+    actual_overlap = [patch_size[i] - overlap[i] for i in range(len(patch_size))]
+
+    # TODO add asserts
+    all_tiles = view_as_windows(
+        arr, window_shape=patch_size, step=actual_overlap
+    )  # shape (tiles in y, tiles in x, Y, X)
     pred = []
 
-    for tile_coords in itertools.product(*map(range, all_tiles.shape[:len(patch_size)])): #TODO add 2/3d automatic selection of axes  
-        #TODO test for number of tiles in each category
-        tile = all_tiles[(*[c for c in tile_coords], ...)]
+    for tile_coords in itertools.product(
+        *map(range, all_tiles.shape[: len(patch_size)])
+    ):  # TODO add 2/3d automatic selection of axes
+        # TODO test for number of tiles in each category
+        tile = all_tiles[(*list(tile_coords), ...)]
 
-        coords = _calculate_stitching_coords(tile_coords, all_tiles.shape[:len(patch_size)], overlap)
-        pred.append(tile[(*[c for c in coords], ...)]) #TODO add proper last tile coord ! Should be list !)
+        coords = _calculate_stitching_coords(
+            tile_coords, all_tiles.shape[: len(patch_size)], overlap
+        )
+        pred.append(
+            tile[(*list(coords), ...)]
+        )  # TODO add proper last tile coord ! Should be list !)
 
-    return pred 
+    return pred
 
 
 class PatchDataset(torch.utils.data.IterableDataset):
@@ -344,7 +335,6 @@ class PatchDataset(torch.utils.data.IterableDataset):
         patch_level_transform : Optional[Callable], optional
             _description_, by default None
         """
-
         # Assert input data
         assert isinstance(
             data_path, str
@@ -370,7 +360,7 @@ class PatchDataset(torch.utils.data.IterableDataset):
     @staticmethod
     def read_data_source(self, data_source: str):
         """
-        Read data source and correct dimensions
+        Read data source and correct dimensions.
 
         Parameters
         ----------
@@ -381,7 +371,6 @@ class PatchDataset(torch.utils.data.IterableDataset):
         -------
         image volume : np.ndarray
         """
-
         if not os.path.exists(data_source):
             raise ValueError(f"Data source {data_source} does not exist")
 
