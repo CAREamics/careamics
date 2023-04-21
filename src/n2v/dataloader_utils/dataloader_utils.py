@@ -60,7 +60,7 @@ def compute_overlap(arr: np.ndarray, patch_sizes: Tuple[int]) -> Tuple[int]:
     return tuple(overlap)
 
 
-def compute_patch_steps(patch_size: Tuple[int], overlaps: Tuple[int]) -> Tuple[int]:
+def compute_patch_steps(patch_sizes: Tuple[int], overlaps: Tuple[int]) -> Tuple[int]:
     """Compute steps between patches.
 
     Parameters
@@ -76,7 +76,8 @@ def compute_patch_steps(patch_size: Tuple[int], overlaps: Tuple[int]) -> Tuple[i
         Steps between patches
     """
     steps = [
-        min(patch_size[i] - overlaps[i], patch_size[i]) for i in range(len(patch_size))
+        min(patch_sizes[i] - overlaps[i], patch_sizes[i])
+        for i in range(len(patch_sizes))
     ]
     return tuple(steps)
 
