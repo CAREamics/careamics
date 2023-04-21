@@ -306,7 +306,7 @@ class PatchDataset(torch.utils.data.IterableDataset):
             try:
                 # TODO add buffer, several images up to some memory limit?
                 arr, patch_size, is_time_series = self.read_data_source(
-                    self, filename, self.add_channel
+                    filename, self.patch_size, self.add_channel
                 )
             except (ValueError, FileNotFoundError, OSError) as e:
                 logging.exception(f"Exception in file {filename}, skipping")
