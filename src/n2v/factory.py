@@ -107,10 +107,14 @@ def create_tiling_function(stage: Dict) -> Callable:
     Callable
     """
     # TODO add proper option selection !
-    if stage.data.extraction_strategy == "predict" and all(
-        ps == 1 for ps in stage.data.patch_size
-    ):
-        return None
+    if stage.data.extraction_strategy == "predict":
+        return partial(
+            getattr(
+                dataloader,
+                f"extract_patches_{stage.data.extraction_strategy}",
+            ),
+            overlap=stage.overlap,
+        )
     else:
         return partial(
             getattr(
@@ -138,6 +142,7 @@ def create_dataset(config: ConfigValidator, stage: str) -> torch.utils.data.Data
         # TODO patch transform should be properly imported from somewhere?
         dataset = PatchDataset(
             data_path=stage_config.data.path,
+            axes=stage_config.data.axes,
             num_files=stage_config.data.num_files,
             data_reader=list_input_source_tiff,
             patch_size=stage_config.data.patch_size,

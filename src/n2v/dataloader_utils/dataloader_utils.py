@@ -3,10 +3,11 @@ from typing import Tuple
 import numpy as np
 from skimage.util import view_as_windows
 
+
 def _compute_number_of_patches(arr: np.ndarray, patch_sizes: Tuple[int]) -> Tuple[int]:
     """Compute a number of patches in each dimension in order to covert the whole
     array.
-    
+
     Array must be of dimensions C(Z)YX, and patches must be of dimensions YX or ZYX.
 
     Parameters
@@ -15,14 +16,14 @@ def _compute_number_of_patches(arr: np.ndarray, patch_sizes: Tuple[int]) -> Tupl
         Input array 3 or 4 dimensions.
     patche_sizes : Tuple[int]
         Size of the patches
-        
+
     Returns
     -------
     Tuple[int]
         Number of patches in each dimension
     """
     n_patches = [
-        np.ceil(arr.shape[i+1] / patch_sizes[i]).astype(int)
+        np.ceil(arr.shape[i + 1] / patch_sizes[i]).astype(int)
         for i in range(len(patch_sizes))
     ]
     return tuple(n_patches)
@@ -30,7 +31,7 @@ def _compute_number_of_patches(arr: np.ndarray, patch_sizes: Tuple[int]) -> Tupl
 
 def compute_overlap(arr: np.ndarray, patch_sizes: Tuple[int]) -> Tuple[int]:
     """Compute the overlap between patches in each dimension.
-    
+
     Array must be of dimensions C(Z)YX, and patches must be of dimensions YX or ZYX.
     If the array dimensions are divisible by the patch sizes, then the overlap is 0.
     Otherwise, it is the result of the division rounded to the upper value.
@@ -41,7 +42,7 @@ def compute_overlap(arr: np.ndarray, patch_sizes: Tuple[int]) -> Tuple[int]:
         Input array 3 or 4 dimensions.
     patche_sizes : Tuple[int]
         Size of the patches
-        
+
     Returns
     -------
     Tuple[int]
@@ -50,23 +51,25 @@ def compute_overlap(arr: np.ndarray, patch_sizes: Tuple[int]) -> Tuple[int]:
     n_patches = _compute_number_of_patches(arr, patch_sizes)
 
     overlap = [
-        np.ceil((n_patches[i] * patch_sizes[i] - arr.shape[1+i]) / max(1, (n_patches[i] - 1))).astype(int)
+        np.ceil(
+            (n_patches[i] * patch_sizes[i] - arr.shape[1 + i])
+            / max(1, (n_patches[i] - 1))
+        ).astype(int)
         for i in range(len(patch_sizes))
     ]
     return tuple(overlap)
 
 
-
 def _compute_patch_steps(patch_size: Tuple[int], overlaps: Tuple[int]) -> Tuple[int]:
     """Compute steps between patches.
-    
+
     Parameters
     ----------
     patch_size : Tuple[int]
         Size of the patches
     overlaps : Tuple[int]
         Overlap between patches
-        
+
     Returns
     -------
     Tuple[int]
@@ -78,9 +81,11 @@ def _compute_patch_steps(patch_size: Tuple[int], overlaps: Tuple[int]) -> Tuple[
     return tuple(steps)
 
 
-def compute_view_windows(patch_sizes: Tuple[int], overlaps: Tuple[int]) -> Tuple[Tuple[int]]:
+def compute_view_windows(
+    patch_sizes: Tuple[int], overlaps: Tuple[int]
+) -> Tuple[Tuple[int]]:
     """Compute window shapes, overlaps and steps.
-    
+
     Parameters
     ----------
     patch_sizes : Tuple[int]
@@ -92,7 +97,7 @@ def compute_view_windows(patch_sizes: Tuple[int], overlaps: Tuple[int]) -> Tuple
     -------
     Tuple[Tuple[int]]
         Window shapes, overlaps and steps
-    """    
+    """
     window_shape = [p for p in patch_sizes if p is not None]
     window_overlap = [o for o in overlaps if o is not None]
     steps = _compute_patch_steps(window_shape, window_overlap)
@@ -101,13 +106,13 @@ def compute_view_windows(patch_sizes: Tuple[int], overlaps: Tuple[int]) -> Tuple
 
 
 def compute_reshaped_view(
-        arr: np.ndarray, 
-        window_shape: Tuple[int], 
-        step: Tuple[int],
-        output_shape: Tuple[int]
-    ) -> np.ndarray:
+    arr: np.ndarray,
+    window_shape: Tuple[int],
+    step: Tuple[int],
+    output_shape: Tuple[int],
+) -> np.ndarray:
     """Compute the reshaped views of an array.
-    
+
     Parameters
     ----------
     arr : np.ndarray
@@ -124,3 +129,21 @@ def compute_reshaped_view(
     )
 
     return patches
+
+
+def calculate_stitching_coords(
+    tile_coords: Tuple[int], last_tile_coord: Tuple[int], overlap: Tuple[int]
+) -> Tuple[slice]:
+    # TODO add 2/3d support
+    # TODO different overlaps for each dimension
+    # TODO different patch sizes for each dimension
+    list_coord = []
+
+    for i, coord in enumerate(tile_coords):
+        if coord == 0:
+            list_coord.append(slice(0, -overlap[i] // 2))
+        elif coord == last_tile_coord[i] - 1:
+            list_coord.append(slice(overlap[i] // 2, None))
+        else:
+            list_coord.append(slice(overlap[i] // 2, -overlap[i] // 2))
+    return list_coord
