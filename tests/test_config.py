@@ -6,7 +6,6 @@ import yaml
 from n2v.config import ConfigValidator
 from n2v.config.config import Algorithm
 
-
 # TODO test optimizer and lr schedulers parameters
 
 

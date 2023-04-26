@@ -159,7 +159,7 @@ def test_extract_patches_sequential_2d(array_2D, patch_size):
 
 # TODO case (2, 3, 5), None doesn't work
 @pytest.mark.parametrize(
-    "patch_size", [(2, 2, 4)(3, 5, 5), (5, 5, 5), (5, 5, 3), (3, 3, 5), (4, 6, 6)]
+    "patch_size", [(2, 2, 4), (3, 5, 5), (5, 5, 5), (5, 5, 3), (3, 3, 5), (4, 6, 6)]
 )
 def test_extract_patches_sequential_3d(array_3D, patch_size):
     """Test extracting patches sequentially in 3D.
