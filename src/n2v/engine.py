@@ -148,36 +148,32 @@ class UnsupervisedEngine(Engine):
 
         pred_loader, tiling = self.get_predict_dataloader()
         avg_metric = MetricTracker()
-        inputs = []
-        preds = []
+        # TODO get whole image size
+        pred = np.zeros((1, 512, 512))
+        last_coords = [0] * len(self.cfg.prediction.data.patch_size)
         with torch.no_grad():
             for image, *auxillary in tqdm(pred_loader):
                 # TODO check loader, no 2nd image
                 # TODO define all predict/train funcs in separate modules
-                if tiling is None:
-                    # TODO add timeseries without tiling
-                    outputs = self.model(image.to(self.device))
-                else:
-                    patch_size, is_time_series = auxillary
-                    all_tiles = extract_patches_predict(
-                        image,
-                        patch_size,
-                        self.cfg.prediction.overlap,
-                        is_time_series,
-                    )
-                    print(all_tiles.shape)
-                    coords = calculate_stitching_coords(
-                        tile_coords, max_shapes, overlap
-                    )
-                    outputs = self.model(image.to(self.device))
+                sample, tile_level_coords, all_tiles_shape, overlap = auxillary
+                # #TODO tile shape should be a power of 2
+                outputs = self.model(image.to(self.device))
+                overlap_crop_coords = calculate_tile_cropping_coords(
+                    tile_level_coords, all_tiles_shape, overlap
+                )
+                predicted_tile = outputs.squeeze()[
+                    (*[c for c in overlap_crop_coords], ...)
+                ]
+                stitch_coords = [
+                    slice(start, start + end, None)
+                    for start, end in zip(last_coords, predicted_tile.shape)
+                ]
+                pred[
+                    (sample, *[c for c in stitch_coords], ...)
+                ] = predicted_tile.cpu().numpy()
+                last_coords = predicted_tile.shape
 
-                    pred.append(
-                        tile[(*[c for c in coords], ...)]
-                    )  # TODO add proper last tile coord ! Should be list !)
-                inputs.append(image)
-                preds.append(outputs)
-
-        return inputs, preds
+        return pred
 
     def train_single_epoch(
         self,

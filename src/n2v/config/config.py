@@ -125,7 +125,7 @@ class Data(BaseModel):
     @validator("patch_size")
     def validate_parameters(cls, patch_size):
         for p in patch_size:
-            # TODO validate
+            # TODO validate ,power of 2, divisible by 8 ? Should be acceptable for the model
             pass
         return patch_size
 

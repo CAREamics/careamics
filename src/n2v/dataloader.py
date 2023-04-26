@@ -13,7 +13,6 @@ from .dataloader_utils import (
     compute_overlap,
     compute_reshaped_view,
     compute_view_windows,
-    calculate_stitching_coords,
 )
 
 ############################################
@@ -159,48 +158,43 @@ def extract_patches_random(arr, patch_size, num_patches=None, *args) -> np.ndarr
 def extract_patches_predict(
     arr: np.ndarray, patch_size: Tuple[int], overlap: Tuple[int]
 ) -> List[np.ndarray]:
-    # TODO remove hard coded vals
-    # Overlap is half of the value mentioned in original N2V #TODO must be even. It's like this because of current N2V notation
-    # TODO range start from 1, because 0 is the channel dimension
-    # TODO check if patch size == image size
+    # Overlap is half of the value mentioned in original N2V. must be even. It's like this because of current N2V notation
 
     actual_overlap = [patch_size[i] - overlap[i] for i in range(len(patch_size))]
 
     if len(patch_size) + 1 != len(actual_overlap):
-        # TODO ugly fix for incosistent overlap shape
         actual_overlap.insert(0, 1)
 
     all_tiles = view_as_windows(
         arr, window_shape=[arr.shape[0], *patch_size], step=actual_overlap
     )  # shape (tiles in y, tiles in x, Y, X)
-    # TODO properly handle 2d/3d, copy from sequential patch extraction
-    # TODO questo e una grande cazzata !!!
+
     output_shape = (
         arr.shape[0],
-        arr.shape[1],
-        all_tiles.shape[2],
-        all_tiles.shape[3],
-        *patch_size[1:],
+        *all_tiles.shape[1 : 1 + len(patch_size)],
+        *patch_size,
     )
+    # Save number of tiles in each dimension
     all_tiles = all_tiles.reshape(*output_shape)
-    # TODO yet another ugly hardcode ! :len(patch_size)+1
-    for tile_coords in itertools.product(
-        *map(range, all_tiles.shape[: len(patch_size) + 1])
-    ):  # TODO add 2/3d automatic selection of axes
-        # TODO test for number of tiles in each category
-        tile = all_tiles[(*[c for c in tile_coords], ...)]
-        return (
-            tile.astype(np.float32),
-            tile_coords,
-            all_tiles.shape[: len(patch_size) + 1],
-            overlap,
-        )
+    # Iterate over num samples (S)
+    for sample in range(all_tiles.shape[0]):
+        for tile_level_coords in itertools.product(
+            *map(range, all_tiles.shape[1 : len(patch_size) + 1])
+        ):
+            tile = all_tiles[sample][(*[c for c in tile_level_coords], ...)]
+
+            yield (
+                tile.astype(np.float32),
+                sample,
+                tile_level_coords,
+                all_tiles.shape[1 : len(patch_size) + 1],
+                overlap,
+            )
 
 
 class PatchDataset(torch.utils.data.IterableDataset):
     """Dataset to extract patches from a list of images and apply transforms to the patches."""
 
-    # TODO add napari style axes params, add asserts
     def __init__(
         self,
         data_path: str,
@@ -306,8 +300,6 @@ class PatchDataset(torch.utils.data.IterableDataset):
 
         assert len(arr.shape) == len(axes), f"Incorrect axes. Must be {len(arr.shape)}"
 
-        # TODO improve shape asserts, add channel != asserts
-
         # TODO add axes shuffling and reshapes. so far assuming correct order
         if "S" in axes or "T" in axes:
             arr = arr.reshape(-1, arr.shape[len(axes.replace("ZYX", "")) :])
@@ -351,7 +343,7 @@ class PatchDataset(torch.utils.data.IterableDataset):
                     (
                         arr,
                         patch_size,
-                    )  # TODO add is_time_series inside im transform
+                    )
                 ) if self.image_transform is not None else (
                     arr,
                     patch_size,
@@ -366,7 +358,6 @@ class PatchDataset(torch.utils.data.IterableDataset):
         np.ndarray
         """
         for image, updated_patch_size in self.__iter_source__():
-            # TODO add no patch generator option !
             for patch_data in self.patch_generator(image, updated_patch_size):
                 # TODO add augmentations, multiple functions.
                 # TODO Works incorrectly if patch transform is NONE
