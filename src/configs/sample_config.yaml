@@ -48,6 +48,8 @@ training:
     path: /home/igor.zubarev/data/paris_chunk
     # File type to load
     ext: tif
+    # Axes order of the input data
+    axes: 'YX'
     #Number of files to read. Read all if None
     num_files: 2
     # Patch generation strategy [random, sequential]

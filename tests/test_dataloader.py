@@ -6,7 +6,6 @@ import numpy as np
 from n2v.dataloader import (
     list_input_source_tiff,
     extract_patches_sequential,
-    extract_patches_sequential_old,
     PatchDataset,
 )
 from n2v.dataloader_utils.dataloader_utils import _compute_number_of_patches
@@ -51,7 +50,7 @@ def test_patch_dataset_read_source_errors(tmp_path, arr_shape, axes, patch_size)
     assert path.exists()
 
     with pytest.raises(ValueError):
-        PatchDataset.read_data_source(path, patch_size)
+        PatchDataset.read_data_source(path, axes, patch_size)
 
 
 @pytest.mark.parametrize(
@@ -84,7 +83,7 @@ def test_patch_dataset_read_source(tmp_path, arr_shape, axes, patch_size):
     tifffile.imwrite(path, arr)
     assert path.exists()
 
-    image, updated_patch_size, _ = PatchDataset.read_data_source(path, patch_size)
+    image, _ = PatchDataset.read_data_source(path, axes, patch_size)
 
     if axes == "YX":
         assert image.shape == (1,) + arr_shape
