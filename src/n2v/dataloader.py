@@ -13,6 +13,7 @@ from .dataloader_utils import (
     compute_overlap,
     compute_reshaped_view,
     compute_view_windows,
+    compute_overlap_predict,
 )
 
 ############################################
@@ -160,13 +161,12 @@ def extract_patches_predict(
 ) -> List[np.ndarray]:
     # Overlap is half of the value mentioned in original N2V. must be even. It's like this because of current N2V notation
 
-    actual_overlap = [patch_size[i] - overlap[i] for i in range(len(patch_size))]
-
-    if len(patch_size) + 1 != len(actual_overlap):
-        actual_overlap.insert(0, 1)
+    step, updated_overlap = compute_overlap_predict(
+        arr=arr, patch_size=patch_size, overlap=overlap
+    )
 
     all_tiles = view_as_windows(
-        arr, window_shape=[arr.shape[0], *patch_size], step=actual_overlap
+        arr, window_shape=[arr.shape[0], *patch_size], step=step
     )  # shape (tiles in y, tiles in x, Y, X)
 
     output_shape = (
@@ -188,7 +188,8 @@ def extract_patches_predict(
                 sample,
                 tile_level_coords,
                 all_tiles.shape[1 : len(patch_size) + 1],
-                overlap,
+                updated_overlap,
+                arr.shape[1:],
             )
 
 

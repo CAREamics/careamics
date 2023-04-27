@@ -150,30 +150,42 @@ class UnsupervisedEngine(Engine):
         avg_metric = MetricTracker()
         # TODO get whole image size
         pred = np.zeros((1, 512, 512))
+        tiles = []
         last_coords = [0] * len(self.cfg.prediction.data.patch_size)
         with torch.no_grad():
             for image, *auxillary in tqdm(pred_loader):
                 # TODO check loader, no 2nd image
                 # TODO define all predict/train funcs in separate modules
-                sample, tile_level_coords, all_tiles_shape, overlap = auxillary
+                (
+                    sample,
+                    tile_level_coords,
+                    all_tiles_shape,
+                    overlap,
+                    image_shape,
+                ) = auxillary
                 # #TODO tile shape should be a power of 2
                 outputs = self.model(image.to(self.device))
-                overlap_crop_coords = calculate_tile_cropping_coords(
-                    tile_level_coords, all_tiles_shape, overlap
+                overlap_crop_coords, tile_pixel_coords = calculate_tile_cropping_coords(
+                    tile_level_coords,
+                    all_tiles_shape,
+                    overlap,
+                    image_shape,
+                    self.cfg.prediction.data.patch_size,
                 )
                 predicted_tile = outputs.squeeze()[
                     (*[c for c in overlap_crop_coords], ...)
                 ]
+                tiles.append(predicted_tile.cpu().numpy())
                 stitch_coords = [
                     slice(start, start + end, None)
-                    for start, end in zip(last_coords, predicted_tile.shape)
+                    for start, end in zip(tile_pixel_coords, predicted_tile.shape)
                 ]
                 pred[
                     (sample, *[c for c in stitch_coords], ...)
                 ] = predicted_tile.cpu().numpy()
                 last_coords = predicted_tile.shape
 
-        return pred
+        return pred, tiles
 
     def train_single_epoch(
         self,
