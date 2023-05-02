@@ -157,12 +157,6 @@ def extract_patches_predict(
     step, updated_overlap = compute_overlap_predict(
         arr=arr, patch_size=patch_size, overlap=overlap
     )
-    for i, s in enumerate(step):
-        if s == 1:
-            n = int((arr.shape[i + 1] - overlap[i]) / (patch_size[i] - overlap[i]))
-            raise ValueError(
-                f"Overlap is too large, change patch size or minimum overlap (got {overlap=} which leads to {n=} patches in axis {i})."
-            )
 
     all_tiles = view_as_windows(
         arr, window_shape=[1, *patch_size], step=[1, *step]
