@@ -1,5 +1,5 @@
 import pytest
-
+from typing import Callable
 import numpy as np
 
 
@@ -87,6 +87,28 @@ def test_config(tmpdir):
     }
 
     return test_configuration
+
+
+@pytest.fixture
+def ordered_array() -> Callable:
+    """A function that returns an array with ordered values."""
+
+    def _ordered_array(shape: tuple) -> np.ndarray:
+        """An array with ordered values.
+
+        Parameters
+        ----------
+        shape : tuple
+            Shape of the array.
+
+        Returns
+        -------
+        np.ndarray
+            Array with ordered values.
+        """
+        return np.arange(np.prod(shape)).reshape(shape)
+
+    return _ordered_array
 
 
 @pytest.fixture

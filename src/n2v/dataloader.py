@@ -14,6 +14,7 @@ from .dataloader_utils import (
     compute_reshaped_view,
     compute_patch_steps,
     compute_overlap_predict,
+    are_axes_valid,
 )
 
 ############################################
@@ -73,6 +74,15 @@ def extract_patches_sequential(
             f"There must be a patch size for each spatial dimensions "
             f"(got {patch_sizes} patches for dims {arr.shape[1:]})."
         )
+
+    for p in patch_sizes:
+        # check if 1
+        if p < 2:
+            raise ValueError(f"Invalid patch value (got {p}).")
+
+        # check if power of two
+        if not (p & (p - 1) == 0):
+            raise ValueError(f"Patch size must be a power of two (got {p}).")
 
     # Sanity checks on patch sizes versus array dimension
     is_3d_patch = len(patch_sizes) == 3
@@ -275,23 +285,44 @@ class PatchDataset(torch.utils.data.IterableDataset):
 
         arr = tifffile.imread(data_source)
 
-        # Assert data dimensions are correct
-        assert len(arr.shape) in (
-            2,
-            3,
-            4,
-        ), f"Incorrect data dimensions. Must be 2, 3 or 4, given {arr.shape} for file {data_source}"
+        # remove any singleton dimensions
+        arr = arr.squeeze()
 
-        assert len(arr.shape) == len(axes), f"Incorrect axes. Must be {len(arr.shape)}"
+        # sanity check on dimensions
+        if len(arr.shape) < 2 or len(arr.shape) > 4:
+            raise ValueError(
+                f"Incorrect data dimensions. Must be 2, 3 or 4 (got {arr.shape} for file {data_source})."
+            )
+
+        # sanity check on axes length
+        if len(axes) != len(arr.shape):
+            raise ValueError(
+                f"Incorrect axes length (got {axes} for file {data_source})."
+            )
+
+        # check axes validity
+        are_axes_valid(axes)  # this raises errors
+
+        # patch sanity check
+        if len(patch_size) != len(arr.shape) and len(patch_size) != len(arr.shape) - 1:
+            raise ValueError(
+                f"Incorrect patch size (got {patch_size} for file {data_source} with shape {arr.shape})."
+            )
+
+        for p in patch_size:
+            # check if power of 2
+            if not (p & (p - 1) == 0):
+                raise ValueError(
+                    f"Incorrect patch size, should be power of 2 (got {patch_size} for file {data_source})."
+                )
 
         # TODO add axes shuffling and reshapes. so far assuming correct order
-        if "S" in axes or "T" in axes:
-            arr = arr.reshape(-1, arr.shape[len(axes.replace("ZYX", "")) :])
-            updated_patch_size = (1, *patch_size)
-        else:
+        if not "S" in axes or not "T" in axes:
             arr = np.expand_dims(arr, axis=0)
-            # TODO do we need to update patch size?
             updated_patch_size = patch_size
+
+        updated_patch_size = (1, *patch_size)
+
         return arr, updated_patch_size
 
     def __iter_source__(self):

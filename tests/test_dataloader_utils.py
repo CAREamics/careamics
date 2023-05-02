@@ -7,6 +7,8 @@ from n2v.dataloader_utils.dataloader_utils import (
     _compute_number_of_patches,
     compute_overlap,
     compute_reshaped_view,
+    are_axes_valid,
+    compute_overlap_auto,
 )
 
 
@@ -131,3 +133,58 @@ def test_compute_reshaped_view_3d(array_3D, window_shape, steps):
                     output[i * n_patches[1] * n_patches[2] + j * n_patches[2] + k]
                     == patch
                 )
+
+
+@pytest.mark.parametrize(
+    "axes, valid",
+    [
+        # Passing
+        ("yx", True),
+        ("Yx", True),
+        ("Zyx", True),
+        ("TzYX", True),
+        ("SZYX", True),
+        # Failing due to order
+        ("XY", False),
+        ("YXZ", False),
+        ("YXT", False),
+        ("ZTYX", False),
+        # too few axes
+        ("", False),
+        ("X", False),
+        # too many axes
+        ("STZYX", False),
+        # no yx axes
+        ("ZT", False),
+        ("ZY", False),
+        # unsupported axes or axes pair
+        ("STYX", False),
+        ("CYX", False),
+        # repeating characters
+        ("YYX", False),
+        ("YXY", False),
+        # invalid characters
+        ("YXm", False),
+        ("1YX", False),
+    ],
+)
+def test_are_axes_valid(axes, valid):
+    """Test if axes are valid"""
+    if valid:
+        are_axes_valid(axes)
+    else:
+        with pytest.raises((ValueError, NotImplementedError)):
+            are_axes_valid(axes)
+
+
+@pytest.mark.parametrize("d", [i for i in range(100, 128)])
+@pytest.mark.parametrize("patch_size", [2**i for i in range(4, 6)])
+def test_compute_perfect_overlap(d, patch_size):
+    if patch_size >= d:
+        pytest.skip("Patch size must be smaller than the dimension")
+    else:
+        step, overlap = compute_overlap_auto(d, patch_size)
+
+        n = (d - patch_size) / (patch_size - overlap)
+        print(step)
+        assert n.is_integer()
