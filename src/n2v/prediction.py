@@ -44,10 +44,7 @@ def calculate_tile_cropping_coords(
                     None,
                 )
             )
-            tile_pixel_coords.append(
-                coord
-                * (tile_shape[i] - torch.div(overlap[i], 2, rounding_mode="floor"))
-            )
+            tile_pixel_coords.append(coord * (tile_shape[i] - overlap[i]))
     return list_coord, tile_pixel_coords
 
 

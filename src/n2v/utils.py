@@ -35,6 +35,9 @@ def set_logging(logger, default_level=logging.INFO, log_path=""):
         logging.addHandler(file_handler)
 
 
+# TODO add EDA visualization
+
+
 def config_loader(cfg_path):
     """Load a yaml config file and correct all datatypes."""
     loader = yaml.SafeLoader

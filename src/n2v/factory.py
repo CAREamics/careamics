@@ -137,20 +137,20 @@ def create_dataset(config: ConfigValidator, stage: str) -> torch.utils.data.Data
     # TODO add support for mixed filetype datasets
     stage_config = config.get_stage_config(stage)  # getattr(config, stage)
 
-    if stage_config.data.ext == "tif":  # TODO fix, this is ugly
-        # TODO clear description of what all these funcs/params mean
-        # TODO patch transform should be properly imported from somewhere?
-        dataset = PatchDataset(
-            data_path=stage_config.data.path,
-            axes=stage_config.data.axes,
-            num_files=stage_config.data.num_files,
-            data_reader=list_input_source_tiff,
-            patch_size=stage_config.data.patch_size,
-            patch_generator=create_tiling_function(stage_config),
-            patch_level_transform=create_patch_transform(config)
-            if stage != "prediction"
-            else None,
-        )
+    # TODO clear description of what all these funcs/params mean
+    # TODO patch transform should be properly imported from somewhere?
+    dataset = PatchDataset(
+        data_path=stage_config.data.path,
+        ext=stage_config.data.ext,
+        axes=stage_config.data.axes,
+        num_files=stage_config.data.num_files,
+        data_reader=list_input_source_tiff,
+        patch_size=stage_config.data.patch_size,
+        patch_generator=create_tiling_function(stage_config),
+        patch_level_transform=create_patch_transform(config)
+        if stage != "prediction"
+        else None,
+    )
     # TODO getatr manipulate
     # try:
     #     dataset_class = getattr(dataloader, dataset_name)

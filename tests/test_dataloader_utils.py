@@ -9,6 +9,7 @@ from n2v.dataloader_utils.dataloader_utils import (
     compute_reshaped_view,
     are_axes_valid,
     compute_overlap_auto,
+    compute_overlap_predict,
 )
 
 
@@ -53,6 +54,41 @@ def test_compute_patch_steps(dims, patch_size, overlap):
     expected = (min(patch_size - overlap, patch_size),) * dims
 
     assert compute_patch_steps(patch_sizes, overlaps) == expected
+
+
+@pytest.mark.parametrize(
+    "patch_sizes, overlaps, expected_window, expected_steps",
+    [
+        ((5, 5), (2, 2), (5, 5), (3, 3)),
+        ((None, 5, 8), (None, 1, 2), (5, 8), (4, 6)),
+        ((8, 4, 7), (2, 1, 3), (8, 4, 7), (6, 3, 4)),
+    ],
+)
+def test_compute_view_windows(patch_sizes, overlaps, expected_window, expected_steps):
+    window, steps = compute_view_windows(patch_sizes, overlaps)
+
+    assert window == expected_window
+    assert steps == expected_steps
+
+
+@pytest.mark.parametrize("arr", [(67,), (72,), (321,)])
+@pytest.mark.parametrize(
+    "patch_shape",
+    [(32,), (64,), (256,)],
+)
+@pytest.mark.parametrize("overlap", [(16,), (21,), (24,), (32,)])
+def test_compute_overlap_predict(arr, patch_shape, overlap):
+    if any(patch_shape[i] <= overlap[i] for i in range(len(patch_shape))) or any(
+        patch_shape[i] > arr[i] for i in range(len(patch_shape))
+    ):
+        pass
+    else:
+        step, updated_overlap = compute_overlap_predict(
+            np.ones((1, *arr)), patch_shape, overlap
+        )
+        assert (arr[0] - updated_overlap[0]) / (
+            patch_shape[0] - updated_overlap[0]
+        ).is_integer()
 
 
 @pytest.mark.parametrize(
