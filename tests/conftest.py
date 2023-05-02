@@ -9,7 +9,7 @@ def test_config(tmpdir):
         "experiment_name": "testing",
         "workdir": str(tmpdir),
         "algorithm": {
-            "loss": ["n2v", "pn2v"],
+            "loss": ["n2v"],
             "model": "UNet",
             "num_masked_pixels": 128,
             "pixel_manipulation": "n2v",

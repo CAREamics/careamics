@@ -29,11 +29,13 @@ def test_loss_value(test_config):
 
     # list
     algorithm_config["loss"] = ["n2v", "pn2v"]
-    _ = Algorithm(**algorithm_config)
+    my_algo = Algorithm(**algorithm_config)
+    assert my_algo.loss == algorithm_config["loss"]
 
     # single value
     algorithm_config["loss"] = "n2v"
-    _ = Algorithm(**algorithm_config)
+    my_algo = Algorithm(**algorithm_config)
+    assert my_algo.loss == algorithm_config["loss"]
 
 
 def test_wrong_model_value(test_config):
@@ -110,3 +112,47 @@ def test_trained_model_path(tmpdir, test_config):
     algorithm_config[key] = str(path)
     my_other_algo = Algorithm(**algorithm_config)
     assert my_other_algo.trained_model == path
+
+
+@pytest.mark.parametrize("conv_dims", [2, 3])
+def test_conv_dims(test_config, conv_dims):
+    """Test that we can instantiate a config with a valid conv_dims."""
+    algorithm_config = test_config["algorithm"]
+    algorithm_config["conv_dims"] = conv_dims
+
+    # instantiate model
+    my_algo = Algorithm(**algorithm_config)
+    assert my_algo.conv_dims == conv_dims
+
+
+@pytest.mark.parametrize("conv_dims", [-1, 0, 1, 4])
+def test_wrong_conv_dims(test_config, conv_dims):
+    """Test that we cannot instantiate a config with wrong conv_dims."""
+    algorithm_config = test_config["algorithm"]
+    algorithm_config["conv_dims"] = conv_dims
+
+    # instantiate model
+    with pytest.raises(ValueError):
+        Algorithm(**algorithm_config)
+
+
+@pytest.mark.parametrize("model_depth", [2, 3, 4, 5])
+def test_model_depth(test_config, model_depth):
+    """Test that we can instantiate a config with a valid model_depth."""
+    algorithm_config = test_config["algorithm"]
+    algorithm_config["depth"] = model_depth
+
+    # instantiate model
+    my_algo = Algorithm(**algorithm_config)
+    assert my_algo.depth == model_depth
+
+
+@pytest.mark.parametrize("model_depth", [-1, 0, 1, 6])
+def test_wrong_model_depth(test_config, model_depth):
+    """Test that we cannot instantiate a config with wrong model_depth."""
+    algorithm_config = test_config["algorithm"]
+    algorithm_config["depth"] = model_depth
+
+    # instantiate model
+    with pytest.raises(ValueError):
+        Algorithm(**algorithm_config)

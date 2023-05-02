@@ -49,7 +49,7 @@ class Algorithm(BaseModel):
     # optional fields with default values (appearing in yml)
     # model
     model: ModelName = ModelName.UNET
-    depth: int = Field(default=3, ge=2)
+    depth: int = Field(default=3, ge=2, le=5)
     conv_dims: int = Field(default=2, ge=2, le=3)
 
     # pixel masking
