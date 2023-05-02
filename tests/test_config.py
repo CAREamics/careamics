@@ -18,16 +18,6 @@ def export_to_yaml(folder: Path, config: Configuration) -> Path:
     return yaml_path
 
 
-def test_config_enum_wrong_values(test_config):
-    """Test that we can't instantiate a config with wrong enum values"""
-
-    algorithm_config = test_config["algorithm"]
-    algorithm_config["loss"] = ["notn2v"]
-
-    with pytest.raises(ValueError):
-        Algorithm(**algorithm_config)
-
-
 def test_config_to_yaml(tmpdir, test_config):
     """Test that we can export a config to yaml and load it back"""
 
@@ -48,6 +38,11 @@ def test_config_to_yaml(tmpdir, test_config):
 
 
 def test_config_optional(tmpdir, test_config):
+    """Test that we can export a partial config to yaml and load it back.
+
+    In this case a partial config has none of the optional fields (training,
+    evaluation, prediction).
+    """
     # remove optional entries
     del test_config["training"]
     del test_config["evaluation"]
@@ -67,3 +62,49 @@ def test_config_optional(tmpdir, test_config):
         my_other_conf = Configuration(**config_yaml)
 
         assert my_other_conf == myconf
+
+
+def test_config_non_existing_workdir(test_config):
+    """Test that we cannot instantiate a config with non existing workdir."""
+
+    config = test_config
+    config["workdir"] = "non_existing_workdir"
+
+    with pytest.raises(ValueError):
+        Configuration(**config)
+
+
+def test_config_stage(test_config):
+    """Test that we can get the configuration for a specific stage."""
+
+    # test that we can instantiate a config
+    myconf = Configuration(**test_config)
+
+    # get training config
+    training_config = myconf.get_stage_config("training")
+    assert training_config == myconf.training
+
+    # get evaluation config
+    evaluation_config = myconf.get_stage_config("evaluation")
+    assert evaluation_config == myconf.evaluation
+
+    # get prediction config
+    prediction_config = myconf.get_stage_config("prediction")
+    assert prediction_config == myconf.prediction
+
+    with pytest.raises(ValueError):
+        myconf.get_stage_config("not_a_stage")
+
+
+#####################
+##### Algorithm
+
+
+def test_algorithm_wrong_loss_value(test_config):
+    """Test that we cannot instantiate a config with wrong loss value."""
+
+    algorithm_config = test_config["algorithm"]
+    algorithm_config["loss"] = ["notn2v"]
+
+    with pytest.raises(ValueError):
+        Algorithm(**algorithm_config)

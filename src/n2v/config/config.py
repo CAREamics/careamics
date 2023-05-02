@@ -1,6 +1,6 @@
 from enum import Enum
 from pathlib import Path
-from typing import Union, Optional, List, Dict
+from typing import Union, Optional
 
 from pydantic import BaseModel, validator
 
@@ -36,7 +36,7 @@ class Configuration(BaseModel):
     """
 
     experiment_name: str
-    workdir: Path = "config.yml"
+    workdir: Path
 
     algorithm: Algorithm
 
@@ -77,12 +77,17 @@ class Configuration(BaseModel):
         Parameters
         ----------
         stage : Union[str, Stage]
-            Configuration stage
+            Configuration stage: training, evaluation or prediction
 
         Returns
         -------
         Union[Training, Evaluation]
             Configuration for the specified stage
+
+        Raises
+        ------
+        ValueError
+            If stage is not one of training, evaluation or prediction
         """
         if stage == Stage.TRAINING:
             if self.training is None:
@@ -99,13 +104,19 @@ class Configuration(BaseModel):
                 raise ValueError("Prediction configuration is not defined.")
 
             return self.prediction
+        else:
+            raise ValueError(
+                f"Unknown stage {stage}. Available stages are"
+                f"{Stage.TRAINING}, {Stage.EVALUATION} and"
+                f"{Stage.PREDICTION}."
+            )
 
     def dict(self) -> dict:
         """Override dict method.
 
-        The purpose is to:
+        The purpose is to ensure export smooth import to yaml. It includes:
             - replace Path by str
-            - remove None values
+            - remove entries with None value
         """
         dictionary = super().dict()
 
