@@ -143,14 +143,15 @@ def compute_overlap_auto(d, patch_size, min_overlap=30):
 def compute_overlap_predict(
     arr: np.ndarray, patch_size: Tuple[int], overlap: Tuple[int]
 ) -> Tuple[int]:
-    total_patches = [
-        np.floor((arr.shape[i + 1] - overlap[i]) / (patch_size[i] - overlap[i])).astype(
-            int
+    steps, overlaps = [], []
+    for i in range(len(patch_size)):
+        step, overlap = compute_overlap_auto(
+            arr.shape[i + 1], patch_size[i], overlap[i]
         )
-        for i in range(len(patch_size))
-    ]
+        steps.append(step)
+        overlaps.append(overlap)
 
-    return [1, *step], updated_overlap  # TODO step should not include singleton dim
+    return steps, overlaps
 
 
 def compute_patch_steps(patch_sizes: Tuple[int], overlaps: Tuple[int]) -> Tuple[int]:
