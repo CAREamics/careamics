@@ -56,21 +56,6 @@ def test_compute_patch_steps(dims, patch_size, overlap):
     assert compute_patch_steps(patch_sizes, overlaps) == expected
 
 
-@pytest.mark.parametrize(
-    "patch_sizes, overlaps, expected_window, expected_steps",
-    [
-        ((5, 5), (2, 2), (5, 5), (3, 3)),
-        ((None, 5, 8), (None, 1, 2), (5, 8), (4, 6)),
-        ((8, 4, 7), (2, 1, 3), (8, 4, 7), (6, 3, 4)),
-    ],
-)
-def test_compute_view_windows(patch_sizes, overlaps, expected_window, expected_steps):
-    window, steps = compute_view_windows(patch_sizes, overlaps)
-
-    assert window == expected_window
-    assert steps == expected_steps
-
-
 @pytest.mark.parametrize("arr", [(67,), (72,), (321,)])
 @pytest.mark.parametrize(
     "patch_shape",
@@ -81,14 +66,17 @@ def test_compute_overlap_predict(arr, patch_shape, overlap):
     if any(patch_shape[i] <= overlap[i] for i in range(len(patch_shape))) or any(
         patch_shape[i] > arr[i] for i in range(len(patch_shape))
     ):
-        pass
+        pytest.skip("Skip test due to invalid patch_shape or overlap.")
     else:
-        step, updated_overlap = compute_overlap_predict(
+        _, updated_overlap = compute_overlap_predict(
             np.ones((1, *arr)), patch_shape, overlap
         )
-        assert (arr[0] - updated_overlap[0]) / (
-            patch_shape[0] - updated_overlap[0]
-        ).is_integer()
+
+        # compute the number of patches fitting into the 1D array
+        n = (arr[0] - updated_overlap[0]) / (patch_shape[0] - updated_overlap[0])
+
+        # test that n is an integer value
+        assert n == int(n)
 
 
 @pytest.mark.parametrize(

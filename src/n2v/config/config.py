@@ -128,7 +128,7 @@ class Configuration(BaseModel):
         return dictionary
 
 
-def config_loader(cfg_path):
+def load_configuration(cfg_path: Union[str, Path]) -> dict:
     # TODO: import here because it might not be used everytime?
     # e.g. when using a library of config
     import yaml
@@ -151,3 +151,26 @@ def config_loader(cfg_path):
         list("-+0123456789."),
     )
     return yaml.load(Path(cfg_path).open("r"), Loader=loader)
+
+
+def save_configuration(config: Configuration, path: Union[str, Path]) -> Path:
+    """Save a configuration to a yaml file.
+
+    Parameters
+    ----------
+    config : Configuration
+        Configuration to save
+    path : Union[str, Path]
+        Path to the yaml file
+    """
+    import yaml
+
+    if path.is_dir():
+        path = Path(path, "config.yml")
+    elif path.is_file() and path.suffix != ".yml":
+        raise ValueError(f"Path must be a directory or .yml file (got {path}).")
+
+    with open(path, "w") as f:
+        yaml.dump(config.dict(), f, default_flow_style=False)
+
+    return path

@@ -16,7 +16,7 @@ from .factory import (
     create_dataset,
     create_loss_function,
 )
-from .config import Configuration, config_loader
+from .config import Configuration, load_configuration
 from .utils import set_logging, get_device
 from .prediction import calculate_tile_cropping_coords
 from .models import create_model
@@ -64,7 +64,7 @@ class UnsupervisedEngine(Engine):
 
     def parse_config(self, cfg_path: str) -> Dict:
         try:
-            cfg = config_loader(cfg_path)
+            cfg = load_configuration(cfg_path)
         except (FileNotFoundError, yaml.YAMLError):
             # TODO add custom exception for different cases
             raise yaml.YAMLError(f"Config file not found in {cfg_path}")

@@ -40,9 +40,11 @@ class Algorithm(BaseModel):
         Pixel manipulation strategy (default: PixelManipulator.N2V)
     num_masked_pixels : int
         Number of masked pixels (default: 128)
+    trained_model : Optional[Path]
+        Path to a trained model (default: None)
     """
 
-    loss: List[LossName]
+    loss: Union[List[LossName], LossName]
 
     # optional fields with default values (appearing in yml)
     # model
@@ -52,17 +54,12 @@ class Algorithm(BaseModel):
 
     # pixel masking
     pixel_manipulation: PixelManipulator = PixelManipulator.N2V
+
+    # TODO: should use percentage as in original N2V (absolute number makes no sense)
     num_masked_pixels: int = Field(default=128, ge=1, le=1024)
 
     # optional fields that will not appear if not defined
     trained_model: Optional[Path] = None
-
-    @validator("num_masked_pixels")
-    def validate_num_masked_pixels(cls, num):
-        if num % 32 != 0:
-            raise ValueError("num_masked_pixels must be a multiple of 32")
-
-        return num
 
     @validator("trained_model")
     def validate_trained_model(cls, v: Union[Path, None], values, **kwargs) -> Path:
@@ -80,7 +77,7 @@ class Algorithm(BaseModel):
 
         return None
 
-    def dict(self):
+    def dict(self, *args, **kwargs):
         """Return a dictionary representation of the model."""
         return super().dict(exclude_none=True)
 

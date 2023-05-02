@@ -105,7 +105,7 @@ def extract_patches_sequential(
     window_steps = compute_patch_steps(patch_sizes=patch_sizes, overlaps=overlaps)
 
     # Correct for first dimension for computing windowed views
-    window_shape = (1, *window_shape)
+    window_shape = (1, *patch_sizes)
     window_steps = (1, *window_steps)
 
     if is_3d_patch and patch_sizes[-3] == 1:
