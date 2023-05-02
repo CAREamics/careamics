@@ -4,7 +4,6 @@ import pytest
 import yaml
 
 from n2v.config import Configuration
-from n2v.config.config import Algorithm
 
 # TODO test optimizer and lr schedulers parameters
 
@@ -94,17 +93,3 @@ def test_config_stage(test_config):
 
     with pytest.raises(ValueError):
         myconf.get_stage_config("not_a_stage")
-
-
-#####################
-##### Algorithm
-
-
-def test_algorithm_wrong_loss_value(test_config):
-    """Test that we cannot instantiate a config with wrong loss value."""
-
-    algorithm_config = test_config["algorithm"]
-    algorithm_config["loss"] = ["notn2v"]
-
-    with pytest.raises(ValueError):
-        Algorithm(**algorithm_config)

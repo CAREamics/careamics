@@ -1,27 +1,26 @@
 import inspect
 import logging
 from functools import partial
-from typing import Callable, Dict, List, Optional, Tuple, Union
+from typing import Callable, Dict, Optional, Union
 
 import torch
 
-from . import dataloader, pixel_manipulation
-from .augment import augment_single
+from . import dataloader
 from .config import Configuration
 from .utils import set_logging
 from .dataloader import (
     PatchDataset,
     list_input_source_tiff,
 )
-from .losses import n2v_loss
-from .models import UNet
-
+from .losses.losses import n2v_loss
+from .models import UNET
+from .manipulation import create_patch_transform
 
 logger = logging.getLogger(__name__)
 set_logging(logger)
 
 
-def _get_params_from_config(
+def get_params_from_config(
     func: Union[torch.optim.Optimizer, torch.optim.lr_scheduler._LRScheduler],
     user_params: Dict,
 ) -> Dict:
@@ -46,54 +45,6 @@ def _get_params_from_config(
     # Retrieve provided parameters
     params_to_be_used = set(user_params.keys()) & set(default_params)
     return {key: user_params[key] for key in params_to_be_used}
-
-
-# TODO add get from config general function!!
-def get_from_config(
-    config: Configuration,
-    key: str,
-    default: Optional[Union[str, int, float, bool]] = None,
-) -> Union[str, int, float, bool, None]:
-    """Returns the value of the key from the config file.
-
-    Parameters
-    ----------
-    config : Dict
-        The config file
-    key : str
-        The key to be retrieved
-    default : Optional[Union[str, int, float, bool]], optional
-        The default value, by default None
-
-    Returns
-    -------
-    Union[str, int, float, bool]
-        The value of the key
-    """
-    if key in config:
-        return config[key]
-    else:
-        return default
-
-
-def create_patch_transform(config: Configuration) -> Callable:
-    """Creates the patch transform function with optional augmentation
-    Parameters
-    ----------
-    config : dict.
-
-    Returns
-    -------
-    Callable
-    """
-    return partial(
-        getattr(
-            pixel_manipulation, f"{config.algorithm.pixel_manipulation}_manipulate"
-        ),
-        num_pixels=config.algorithm.num_masked_pixels,
-        # TODO add augmentation selection
-        augmentations=None,
-    )
 
 
 def create_tiling_function(stage: Dict) -> Callable:
@@ -157,32 +108,6 @@ def create_dataset(config: Configuration, stage: str) -> torch.utils.data.Datase
     # except ImportError:
     #     raise ImportError('Dataset not found')
     return dataset
-
-
-def create_model(config: Dict) -> torch.nn.Module:
-    """Builds a model based on the model_name or load a checkpoint.
-
-    Parameters
-    ----------
-    config : Dict
-        Config file dictionary
-    """
-    # TODO rewrite this ugly bullshit. registry,etc!
-    model_name = config.algorithm.model
-    load_checkpoint = config.algorithm.checkpoint
-    # TODO fix import
-    # try:
-    #     model_class = getattr(deconoising, model_name)
-    # except ImportError:
-    #     raise ImportError('Model not found')
-
-    if model_name == "UNet":
-        model = UNet(config.algorithm.conv_mult)
-    if load_checkpoint:
-        # TODO add proper logging message
-        model.load_state_dict(torch.load(load_checkpoint))
-        logger.info("Loaded checkpoint")
-    return model
 
 
 def create_loss_function(config: Dict) -> Callable:

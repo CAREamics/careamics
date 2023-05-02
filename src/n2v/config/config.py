@@ -28,19 +28,21 @@ class Configuration(BaseModel):
     algorithm : Algorithm
         Algorithm configuration
     training : Training
-        Training configuration
+        Training configuration (optional)
     evaluation : Evaluation
-        Evaluation configuration
+        Evaluation configuration (optional)
     prediction : Prediction
-        Prediction configuration
+        Prediction configuration (optional)
     """
 
     experiment_name: str
     workdir: Path
 
+    # sub-configuration
     algorithm: Algorithm
 
-    # the rest is optional
+    # other parameters are optional
+    # these default to none and are omitted from yml export if not set
     training: Optional[Training] = None
     evaluation: Optional[Evaluation] = None
     prediction: Optional[Prediction] = None
@@ -115,17 +117,37 @@ class Configuration(BaseModel):
         """Override dict method.
 
         The purpose is to ensure export smooth import to yaml. It includes:
-            - replace Path by str
             - remove entries with None value
+            - replace Path by str
         """
-        dictionary = super().dict()
+        dictionary = super().dict(exclude_none=True)
 
         # replace Path by str
         dictionary["workdir"] = str(dictionary["workdir"])
 
-        # remove None values
-        for key, value in list(dictionary.items()):
-            if value is None:
-                del dictionary[key]
-
         return dictionary
+
+
+def config_loader(cfg_path):
+    # TODO: import here because it might not be used everytime?
+    # e.g. when using a library of config
+    import yaml
+    import re
+
+    """Load a yaml config file and correct all datatypes."""
+    loader = yaml.SafeLoader
+    loader.add_implicit_resolver(
+        "tag:yaml.org,2002:float",
+        re.compile(
+            """^(?:
+     [-+]?(?:[0-9][0-9_]*)\\.[0-9_]*(?:[eE][-+]?[0-9]+)?
+    |[-+]?(?:[0-9][0-9_]*)(?:[eE][-+]?[0-9]+)
+    |\\.[0-9_]+(?:[eE][-+][0-9]+)?
+    |[-+]?[0-9][0-9_]*(?::[0-5]?[0-9])+\\.[0-9_]*
+    |[-+]?\\.(?:inf|Inf|INF)
+    |\\.(?:nan|NaN|NAN))$""",
+            re.X,
+        ),
+        list("-+0123456789."),
+    )
+    return yaml.load(Path(cfg_path).open("r"), Loader=loader)

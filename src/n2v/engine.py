@@ -1,31 +1,25 @@
-import os
-import sys
-import yaml
-import logging
-import torch
-import numpy as np
-import torch.nn as nn
-import torch.nn.functional as F
-
-from pathlib import Path
 from abc import ABC, abstractmethod
-from tqdm import tqdm
-from typing import Callable, Dict, List, Optional, Tuple, Union
-from torch.utils.data import DataLoader
+from typing import Optional, Tuple, Dict
+import logging
 
-# TODO Ma che cazzo asterisco sta facendo qui?!!
-from . import *
+import yaml
+import numpy as np
+from tqdm import tqdm
+
+import torch
+import torch.nn.functional as F
+from torch.utils.data import DataLoader
 
 from .metrics import MetricTracker
 from .factory import (
-    _get_params_from_config,
-    create_model,
+    get_params_from_config,
     create_dataset,
     create_loss_function,
 )
-
-# TODO do something with imports, it's a mess. either all from n2v init, or all separately
-
+from .config import Configuration, config_loader
+from .utils import set_logging, get_device
+from .prediction import calculate_tile_cropping_coords
+from .models import create_model
 
 logger = logging.getLogger(__name__)
 set_logging(logger)
@@ -73,7 +67,7 @@ class UnsupervisedEngine(Engine):
             cfg = config_loader(cfg_path)
         except (FileNotFoundError, yaml.YAMLError):
             # TODO add custom exception for different cases
-            raise yaml.YAMLError("Config file not found")
+            raise yaml.YAMLError(f"Config file not found in {cfg_path}")
         cfg = Configuration(**cfg)
         return cfg
 
@@ -280,14 +274,14 @@ class UnsupervisedEngine(Engine):
         optimizer_params = self.cfg.training.optimizer.parameters
         optimizer_func = getattr(torch.optim, optimizer_name)
         # Get the list of all possible parameters of the optimizer
-        optim_params = _get_params_from_config(optimizer_func, optimizer_params)
+        optim_params = get_params_from_config(optimizer_func, optimizer_params)
         # TODO add support for different learning rates for different layers
         optimizer = optimizer_func(self.model.parameters(), **optim_params)
 
         scheduler_name = self.cfg.training.lr_scheduler.name
         scheduler_params = self.cfg.training.lr_scheduler.parameters
         scheduler_func = getattr(torch.optim.lr_scheduler, scheduler_name)
-        scheduler_params = _get_params_from_config(scheduler_func, scheduler_params)
+        scheduler_params = get_params_from_config(scheduler_func, scheduler_params)
         scheduler = scheduler_func(optimizer, **scheduler_params)
         return optimizer, scheduler
 
