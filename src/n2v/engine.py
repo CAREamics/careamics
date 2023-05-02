@@ -146,24 +146,23 @@ class UnsupervisedEngine(Engine):
         self.model.to(self.device)
         self.model.eval()
 
-        pred_loader, tiling = self.get_predict_dataloader()
+        pred_loader = self.get_predict_dataloader()
         avg_metric = MetricTracker()
         # TODO get whole image size
-        pred = np.zeros((1, 512, 512))
+        pred = np.zeros((1, 321, 481))
         tiles = []
-        last_coords = [0] * len(self.cfg.prediction.data.patch_size)
         with torch.no_grad():
             for image, *auxillary in tqdm(pred_loader):
-                # TODO check loader, no 2nd image
                 # TODO define all predict/train funcs in separate modules
-                (
-                    sample,
-                    tile_level_coords,
-                    all_tiles_shape,
-                    overlap,
-                    image_shape,
-                ) = auxillary
-                # #TODO tile shape should be a power of 2
+                if auxillary:
+                    (
+                        sample,
+                        tile_level_coords,
+                        all_tiles_shape,
+                        overlap,
+                        image_shape,
+                    ) = auxillary
+
                 outputs = self.model(image.to(self.device))
                 overlap_crop_coords, tile_pixel_coords = calculate_tile_cropping_coords(
                     tile_level_coords,
@@ -183,7 +182,6 @@ class UnsupervisedEngine(Engine):
                 pred[
                     (sample, *[c for c in stitch_coords], ...)
                 ] = predicted_tile.cpu().numpy()
-                last_coords = predicted_tile.shape
 
         return pred, tiles
 
@@ -256,14 +254,11 @@ class UnsupervisedEngine(Engine):
         # TODO add description
 
         dataset = create_dataset(self.cfg, "prediction")
-        return (
-            DataLoader(
-                dataset,
-                batch_size=self.cfg.prediction.data.batch_size,
-                num_workers=self.cfg.prediction.data.num_workers,
-                pin_memory=True,
-            ),
-            dataset.patch_generator,
+        return DataLoader(
+            dataset,
+            batch_size=self.cfg.prediction.data.batch_size,
+            num_workers=self.cfg.prediction.data.num_workers,
+            pin_memory=True,
         )
 
     def get_optimizer_and_scheduler(

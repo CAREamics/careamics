@@ -66,14 +66,14 @@ def extract_patches_sequential(
     """
     if len(arr.shape) < 3 or len(arr.shape) > 4:
         raise ValueError(
-            f"Input array must have dimensions CZYX or CYX (got length {len(arr.shape)})."
+            f"Input array must have dimensions SZYX or SYX (got length {len(arr.shape)})."
         )
 
     # Patches sanity check
     if len(patch_sizes) != len(arr.shape[1:]):
         raise ValueError(
             f"There must be a patch size for each spatial dimensions "
-            f"(got {patch_sizes} patches for dims {arr.shape[1:]})."
+            f"(got {patch_sizes} patches for dims {arr.shape})."
         )
 
     # Sanity checks on patch sizes versus array dimension
@@ -111,9 +111,9 @@ def extract_patches_sequential(
         patch_sizes=patch_sizes, overlaps=overlaps
     )
 
-    # Correct for first dimension
-    window_shape = (arr.shape[0], *window_shape)
-    window_steps = (arr.shape[0], *window_steps)
+    # Correct for first dimension for computing windowed views
+    window_shape = (1, *window_shape)
+    window_steps = (1, *window_steps)
 
     if is_3d_patch and patch_sizes[-3] == 1:
         output_shape = (-1,) + window_shape[1:]
@@ -166,7 +166,7 @@ def extract_patches_predict(
     )
 
     all_tiles = view_as_windows(
-        arr, window_shape=[arr.shape[0], *patch_size], step=step
+        arr, window_shape=[1, *patch_size], step=step
     )  # shape (tiles in y, tiles in x, Y, X)
 
     output_shape = (
@@ -199,6 +199,7 @@ class PatchDataset(torch.utils.data.IterableDataset):
     def __init__(
         self,
         data_path: str,
+        ext: str,
         axes: str,
         num_files: int,
         data_reader: Callable,
@@ -239,6 +240,7 @@ class PatchDataset(torch.utils.data.IterableDataset):
         ), f"Incorrect patch_size. Must be a 2 or 3, given{len(patch_size)}"
         # TODO make this a class method?
         self.data_path = data_path
+        self.ext = ext
         self.axes = axes
         self.num_files = num_files
         self.data_reader = data_reader
@@ -290,7 +292,16 @@ class PatchDataset(torch.utils.data.IterableDataset):
         if not Path(data_source).exists():
             raise ValueError(f"Data source {data_source} does not exist")
 
-        arr = tifffile.imread(data_source)
+        # TODO separate this into a function with other formats
+        if data_source.suffix == ".npy":
+            try:
+                arr = np.load(data_source)
+            except ValueError:
+                arr = np.load(data_source, allow_pickle=True)[0].astype(
+                    np.float32
+                )  # TODO this is a hack to deal with the fact that we are saving a list of arrays
+        elif data_source.suffix[:4] == ".tif":
+            arr = tifffile.imread(data_source)
 
         # Assert data dimensions are correct
         assert len(arr.shape) in (
@@ -303,13 +314,14 @@ class PatchDataset(torch.utils.data.IterableDataset):
 
         # TODO add axes shuffling and reshapes. so far assuming correct order
         if "S" in axes or "T" in axes:
-            arr = arr.reshape(-1, arr.shape[len(axes.replace("ZYX", "")) :])
-            updated_patch_size = (1, *patch_size)
+            # TODO use re?
+            arr = arr.reshape(
+                -1, *arr.shape[len(axes.replace("Z", "").replace("YX", "")) :]
+            )
         else:
             arr = np.expand_dims(arr, axis=0)
             # TODO do we need to update patch size?
-            updated_patch_size = patch_size
-        return arr, updated_patch_size
+        return arr
 
     def __iter_source__(self):
         """
@@ -323,32 +335,26 @@ class PatchDataset(torch.utils.data.IterableDataset):
         num_workers = info.num_workers if info is not None else 1
         id = info.id if info is not None else 0
         self.source = (
-            itertools.islice(Path(self.data_path).rglob("*.tif*"), self.num_files)
+            itertools.islice(
+                Path(self.data_path).rglob(f"*.{self.ext}*"), self.num_files
+            )
             if self.num_files
-            else Path(self.data_path).rglob("*.tif*")
+            else Path(self.data_path).rglob(f"*.{self.ext}*")
         )
 
         # TODO check for mem leaks, explicitly gc the arr after iterator is exhausted
         for i, filename in enumerate(self.source):
             try:
                 # TODO add buffer, several images up to some memory limit?
-                arr, patch_size = self.read_data_source(
-                    filename, self.axes, self.patch_size
-                )
+                arr = self.read_data_source(filename, self.axes, self.patch_size)
             except (ValueError, FileNotFoundError, OSError) as e:
                 logging.exception(f"Exception in file {filename}, skipping")
                 raise e
             if i % num_workers == id:
                 # TODO add iterator inside
                 yield self.image_transform(
-                    (
-                        arr,
-                        patch_size,
-                    )
-                ) if self.image_transform is not None else (
-                    arr,
-                    patch_size,
-                )
+                    arr
+                ) if self.image_transform is not None else arr
 
     def __iter__(self):
         """
@@ -358,10 +364,13 @@ class PatchDataset(torch.utils.data.IterableDataset):
         ------
         np.ndarray
         """
-        for image, updated_patch_size in self.__iter_source__():
-            for patch_data in self.patch_generator(image, updated_patch_size):
-                # TODO add augmentations, multiple functions.
-                # TODO Works incorrectly if patch transform is NONE
-                yield self.patch_transform(
-                    patch_data
-                ) if self.patch_transform is not None else (patch_data)
+        for image in self.__iter_source__():
+            if self.patch_generator is None:
+                yield image
+            else:
+                for patch_data in self.patch_generator(image, self.patch_size):
+                    # TODO add augmentations, multiple functions.
+                    # TODO Works incorrectly if patch transform is NONE
+                    yield self.patch_transform(
+                        patch_data
+                    ) if self.patch_transform is not None else (patch_data)

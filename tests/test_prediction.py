@@ -1,5 +1,5 @@
 import pytest
-from n2v.prediction import extract_patches_predict, calculate_tile_cropping_coords
+from n2v.prediction import calculate_tile_cropping_coords
 
 
 @pytest.mark.parametrize(

@@ -52,7 +52,8 @@ def compute_overlap(arr: np.ndarray, patch_sizes: Tuple[int]) -> Tuple[int]:
 
     overlap = [
         np.ceil(
-            (n_patches[i] * patch_sizes[i] - arr.shape[1 + i])
+            # TODO check min clip ?
+            np.clip(n_patches[i] * patch_sizes[i] - arr.shape[i + 1], 0, None)
             / max(1, (n_patches[i] - 1))
         ).astype(int)
         for i in range(len(patch_sizes))
@@ -64,21 +65,13 @@ def compute_overlap_predict(
     arr: np.ndarray, patch_size: Tuple[int], overlap: Tuple[int]
 ) -> Tuple[int]:
     total_patches = [
-        np.ceil(
-            (arr.shape[i + 1] - overlap[i] // 2) / (patch_size[i] - overlap[i] // 2)
-        ).astype(int)
+        np.floor((arr.shape[i + 1] - overlap[i]) / (patch_size[i] - overlap[i])).astype(
+            int
+        )
         for i in range(len(patch_size))
     ]
 
-    step = [
-        np.ceil(
-            (patch_size[i] * total_patches[i] - arr.shape[i + 1])
-            / max(1, total_patches[i] - 1)
-        ).astype(int)
-        for i in range(len(patch_size))
-    ]
-    updated_overlap = [patch_size[i] - step[i] for i in range(len(patch_size))]
-    return [1, *step], updated_overlap
+    return [1, *step], updated_overlap  # TODO step should not include singleton dim
 
 
 def _compute_patch_steps(patch_size: Tuple[int], overlaps: Tuple[int]) -> Tuple[int]:

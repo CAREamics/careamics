@@ -63,7 +63,7 @@ def test_patch_dataset_read_source_errors(tmp_path, arr_shape, axes, patch_size)
         # 2D
         ((8, 8), "YX", (4, 4)),
         ((1, 8, 8), "CYX", (4, 4)),
-        ((2, 8, 8), "CYX", (4, 4)),
+        # ((2, 8, 8), "CYX", (4, 4)), This should fail
         # # 2D time series
         ((10, 8, 8), "TYX", (4, 4)),
         # (10, 1, 8, 8),
@@ -83,14 +83,17 @@ def test_patch_dataset_read_source(tmp_path, arr_shape, axes, patch_size):
     tifffile.imwrite(path, arr)
     assert path.exists()
 
-    image, updated_patch_size, _ = PatchDataset.read_data_source(path, patch_size)
+    image, updated_patch_size = PatchDataset.read_data_source(path, axes, patch_size)
 
     if axes == "YX":
         assert image.shape == (1,) + arr_shape
+        assert updated_patch_size == (1,) + patch_size
     elif axes == "CYX":
-        assert image.shape == arr_shape
+        assert image.shape == arr_shape[1:]
+        assert updated_patch_size == (1,) + patch_size
     elif axes == "TYX":
-        assert image.shape == (arr_shape[0], 1) + arr_shape[1:]
+        assert image.shape == arr_shape
+        assert updated_patch_size == (1,) + patch_size
 
 
 @pytest.mark.parametrize(
