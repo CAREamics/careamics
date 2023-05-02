@@ -32,4 +32,4 @@ from .utils import (
     config_loader,
 )
 
-from .config import ConfigValidator
+from .config import Configuration

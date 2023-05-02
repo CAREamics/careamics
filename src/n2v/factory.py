@@ -7,7 +7,7 @@ import torch
 
 from . import dataloader, pixel_manipulation
 from .augment import augment_single
-from .config import ConfigValidator
+from .config import Configuration
 from .utils import set_logging
 from .dataloader import (
     PatchDataset,
@@ -50,7 +50,7 @@ def _get_params_from_config(
 
 # TODO add get from config general function!!
 def get_from_config(
-    config: ConfigValidator,
+    config: Configuration,
     key: str,
     default: Optional[Union[str, int, float, bool]] = None,
 ) -> Union[str, int, float, bool, None]:
@@ -76,7 +76,7 @@ def get_from_config(
         return default
 
 
-def create_patch_transform(config: ConfigValidator) -> Callable:
+def create_patch_transform(config: Configuration) -> Callable:
     """Creates the patch transform function with optional augmentation
     Parameters
     ----------
@@ -124,7 +124,7 @@ def create_tiling_function(stage: Dict) -> Callable:
         )
 
 
-def create_dataset(config: ConfigValidator, stage: str) -> torch.utils.data.Dataset:
+def create_dataset(config: Configuration, stage: str) -> torch.utils.data.Dataset:
     """Builds a dataset based on the dataset_params.
 
     Parameters

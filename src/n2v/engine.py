@@ -74,7 +74,7 @@ class UnsupervisedEngine(Engine):
         except (FileNotFoundError, yaml.YAMLError):
             # TODO add custom exception for different cases
             raise yaml.YAMLError("Config file not found")
-        cfg = ConfigValidator(**cfg)
+        cfg = Configuration(**cfg)
         return cfg
 
     def log_metrics(self):
