@@ -36,7 +36,7 @@ def test_config(tmp_path) -> dict:
         "algorithm": {
             "loss": ["n2v"],
             "model": "UNet",
-            "num_masked_pixels": 128,
+            "num_masked_pixels": 0.2,
             "pixel_manipulation": "n2v",
         },
         "training": {

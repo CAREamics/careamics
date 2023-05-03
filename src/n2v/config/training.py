@@ -3,13 +3,7 @@ from enum import Enum
 from pydantic import BaseModel, Field, validator
 
 from .data import Data
-
-
-class OptimizerName(str, Enum):
-    """Represents an optimizer."""
-
-    adam = "Adam"
-    # TODO add all the others
+from .torch_optimizer import TorchOptimizer
 
 
 class SchedulerName(str, Enum):
@@ -22,21 +16,8 @@ class SchedulerName(str, Enum):
 class Optimizer(BaseModel):
     """Parameters related to the optimizer."""
 
-    name: OptimizerName
+    name: TorchOptimizer
     parameters: dict
-
-    # validate parameters using value of name
-    @validator("parameters")
-    def validate_parameters(cls, parameters, values):
-        name = values["name"]
-
-        # TODO: check types and values of the parameters
-        # TODO: alternatively we can do a pydantic model of each optimizer
-        if name == OptimizerName.adam:
-            if "lr" not in parameters:
-                raise ValueError("lr is required for Adam optimizer")
-
-        return parameters
 
     class Config:
         use_enum_values = True  # make sure that enum are exported as str

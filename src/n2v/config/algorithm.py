@@ -38,7 +38,7 @@ class Algorithm(BaseModel):
         Dimensions of the convolution, 2D or 3D (default: 2)
     pixel_manipulation : PixelManipulator
         Pixel manipulation strategy (default: PixelManipulator.N2V)
-    num_masked_pixels : int
+    num_masked_pixels : float
         Percentage of masked pixels (default: 128)
     trained_model : Optional[Path]
         Path to a trained model (default: None)
@@ -54,7 +54,7 @@ class Algorithm(BaseModel):
 
     # pixel masking
     pixel_manipulation: PixelManipulator = PixelManipulator.N2V
-    num_masked_pixels: int = Field(default=0.2, ge=0.1, le=0.4)
+    num_masked_pixels: float = Field(default=0.2, ge=0.1, le=0.4)
 
     # optional fields that will not appear if not defined
     trained_model: Optional[Path] = None
