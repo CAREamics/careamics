@@ -1,13 +1,38 @@
-import pytest
+from pathlib import Path
 from typing import Callable
+
+import pytest
 import numpy as np
 
 
+def create_tiff(path: Path, n_files: int):
+    """Create tiff files for testing."""
+    if not path.exists():
+        path.mkdir()
+
+    for i in range(n_files):
+        file_path = path / f"file_{i}.tif"
+        file_path.touch()
+
+
 @pytest.fixture
-def test_config(tmpdir):
+def test_config(tmp_path) -> dict:
+    # create data
+    ext = "tif"
+
+    path_train = tmp_path / "train"
+    create_tiff(path_train, n_files=3)
+
+    path_validation = tmp_path / "validation"
+    create_tiff(path_validation, n_files=1)
+
+    path_test = tmp_path / "test"
+    create_tiff(path_test, n_files=2)
+
+    # create dictionary
     test_configuration = {
         "experiment_name": "testing",
-        "workdir": str(tmpdir),
+        "workdir": str(tmp_path),
         "algorithm": {
             "loss": ["n2v"],
             "model": "UNet",
@@ -36,49 +61,33 @@ def test_config(tmpdir):
                 "init_scale": 1024,
             },
             "data": {
-                "path": "path/to/data",
-                "ext": "tif",
+                "path": str(path_train),
+                "ext": ext,
                 "axes": "YX",
-                "num_files": 2,
                 "extraction_strategy": "sequential",
                 "patch_size": [128, 128],
-                "num_patches": None,
-                "batch_size": 8,
-                "num_workers": 0,
-                "augmentation": None,
+                "batch_size": 1,
             },
         },
         "evaluation": {
             "data": {
-                "path": "path/to/data",
-                "ext": "tif",
+                "path": str(path_validation),
+                "ext": ext,
                 "axes": "YX",
-                "num_files": 1,
                 "extraction_strategy": "sequential",
                 "patch_size": [128, 128],
-                "num_patches": None,
                 "batch_size": 1,
-                "num_workers": 0,
-                "batch_size": 1,
-                "num_workers": 0,
-                "augmentation": None,
             },
             "metric": "psnr",
         },
         "prediction": {
             "data": {
-                "path": "path/to/data",
-                "ext": "tif",
+                "path": str(path_test),
+                "ext": ext,
                 "axes": "YX",
-                "num_files": 1,
                 "extraction_strategy": "sequential",
                 "patch_size": [128, 128],
-                "num_patches": None,
                 "batch_size": 1,
-                "num_workers": 0,
-                "batch_size": 1,
-                "num_workers": 0,
-                "augmentation": None,
             },
             "overlap": [25, 25],
         },

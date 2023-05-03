@@ -99,17 +99,14 @@ def test_patch_dataset_read_source(
     tifffile.imwrite(path, arr)
     assert path.exists()
 
-    image, updated_patch_size = PatchDataset.read_data_source(path, axes, patch_size)
+    image = PatchDataset.read_data_source(path, axes, patch_size)
 
     if axes == "YX":
         assert image.shape == (1,) + arr_shape
-        assert updated_patch_size == (1,) + patch_size
     elif axes == "CYX":
         assert image.shape == arr_shape[1:]
-        assert updated_patch_size == (1,) + patch_size
     elif axes == "TYX":
         assert image.shape == arr_shape
-        assert updated_patch_size == (1,) + patch_size
 
 
 @pytest.mark.parametrize(
