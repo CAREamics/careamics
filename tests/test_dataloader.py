@@ -114,7 +114,8 @@ def test_patch_dataset_read_source(
     [
         # Wrong number of dimensions 2D
         ((10, 10), (5,)),
-        ((10, 10), (5, 5)),  # minimum 3 dimensions CYX
+        ((10, 10), (5, 5)),
+        # minimum 3 dimensions CYX
         ((10, 10), (5, 5, 5)),
         ((1, 10, 10), (5,)),
         ((1, 1, 10, 10), (5,)),
