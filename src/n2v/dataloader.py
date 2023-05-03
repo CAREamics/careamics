@@ -136,7 +136,7 @@ def extract_patches_sequential(
     # Yield single patch #TODO view_as_windows might be inefficient
     for patch_ixd in range(patches.shape[0]):
         patch = patches[patch_ixd].astype(np.float32)
-        yield (normalize(patch, mean, std)) if mean and std else (patch)
+        yield (normalize(patch, mean, std)) if (mean and std) else (patch)
 
 
 def extract_patches_random(arr, patch_size, num_patches=None, *args) -> np.ndarray:
@@ -402,9 +402,9 @@ class PatchDataset(torch.utils.data.IterableDataset):
         """
         for image in self.__iter_source__():
             if self.patch_generator is None:
-                yield normalize(
-                    image, self.mean, self.std
-                ) if self.mean and self.std else image
+                yield normalize(image, self.mean, self.std) if (
+                    self.mean and self.std
+                ) else image
             else:
                 for patch_data in self.patch_generator(
                     image, self.patch_size, overlaps=None, mean=self.mean, std=self.std

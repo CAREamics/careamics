@@ -145,7 +145,7 @@ class UnsupervisedEngine(Engine):
         self.model.to(self.device)
         self.model.eval()
         pred_loader = self.get_predict_dataloader()
-        if not self.mean and self.std:
+        if not (self.mean and self.std):
             _, self.mean, self.std = self.get_train_dataloader()
         avg_metric = MetricTracker()
         # TODO get whole image size

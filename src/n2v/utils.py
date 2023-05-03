@@ -23,7 +23,7 @@ def set_logging(logger, default_level=logging.INFO, log_path=""):
     console_handler = logging.StreamHandler()
     logger.addHandler(console_handler)
     logger.setLevel(default_level)
-    logger.addFilter(DuplicateFilter())
+    # logger.addFilter(DuplicateFilter())
     if log_path:
         file_handler = logging.handlers.RotatingFileHandler(
             log_path, maxBytes=(1024**2 * 2), backupCount=3
