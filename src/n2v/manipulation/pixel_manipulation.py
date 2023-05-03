@@ -5,6 +5,7 @@ from typing import Callable, Dict, Tuple
 
 def get_stratified_coords(num_pixels, shape):
     # TODO add description, add asserts, add typing
+    # TODO definition of num_pixels changed (now percentage) !!
     box_size = np.round(np.sqrt(np.product(shape) / num_pixels)).astype(np.int32)
     box_count = [range(int(np.ceil(s / box_size))) for s in shape]
     output_coords = []

@@ -39,7 +39,7 @@ class Algorithm(BaseModel):
     pixel_manipulation : PixelManipulator
         Pixel manipulation strategy (default: PixelManipulator.N2V)
     num_masked_pixels : int
-        Number of masked pixels (default: 128)
+        Percentage of masked pixels (default: 128)
     trained_model : Optional[Path]
         Path to a trained model (default: None)
     """
@@ -54,9 +54,7 @@ class Algorithm(BaseModel):
 
     # pixel masking
     pixel_manipulation: PixelManipulator = PixelManipulator.N2V
-
-    # TODO: should use percentage as in original N2V (absolute number makes no sense)
-    num_masked_pixels: int = Field(default=128, ge=1, le=1024)
+    num_masked_pixels: int = Field(default=0.2, ge=0.1, le=0.4)
 
     # optional fields that will not appear if not defined
     trained_model: Optional[Path] = None
