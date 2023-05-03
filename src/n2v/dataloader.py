@@ -1,6 +1,7 @@
 import itertools
 import logging
 import os
+from tqdm import tqdm
 from pathlib import Path
 from typing import Callable, Generator, List, Optional, Tuple, Union
 
@@ -15,6 +16,8 @@ from .dataloader_utils import (
     compute_view_windows,
     compute_overlap_predict,
 )
+
+from .utils import normalize
 
 ############################################
 #   ETL pipeline #TODO add description to all modules
@@ -58,6 +61,8 @@ def extract_patches_sequential(
     arr: np.ndarray,
     patch_sizes: Tuple[int],
     overlaps: Union[Tuple[int], None] = None,
+    mean: int = None,
+    std: int = None,
 ) -> Generator[np.ndarray, None, None]:
     """Generate patches from an array of dimensions C(Z)YX, where C can
     be a singleton dimension.
@@ -130,7 +135,8 @@ def extract_patches_sequential(
 
     # Yield single patch #TODO view_as_windows might be inefficient
     for patch_ixd in range(patches.shape[0]):
-        yield (patches[patch_ixd].astype(np.float32))
+        patch = patches[patch_ixd].astype(np.float32)
+        yield (normalize(patch, mean, std)) if mean and std else (patch)
 
 
 def extract_patches_random(arr, patch_size, num_patches=None, *args) -> np.ndarray:
@@ -344,6 +350,15 @@ class PatchDataset(torch.utils.data.IterableDataset):
             # TODO do we need to update patch size?
         return arr
 
+    def calculate_stats(self):
+        mean = 0
+        std = 0
+        for i, image in tqdm(enumerate(self.__iter_source__())):
+            mean += image.mean()
+            std += np.std(image)
+        self.mean = mean / (i + 1)
+        self.std = std / (i + 1)
+
     def __iter_source__(self):
         """
         Iterate over data source and yield whole image. Optional transform is applied to the images.
@@ -387,9 +402,13 @@ class PatchDataset(torch.utils.data.IterableDataset):
         """
         for image in self.__iter_source__():
             if self.patch_generator is None:
-                yield image
+                yield normalize(
+                    image, self.mean, self.std
+                ) if self.mean and self.std else image
             else:
-                for patch_data in self.patch_generator(image, self.patch_size):
+                for patch_data in self.patch_generator(
+                    image, self.patch_size, overlaps=None, mean=self.mean, std=self.std
+                ):
                     # TODO add augmentations, multiple functions.
                     # TODO Works incorrectly if patch transform is NONE
                     yield self.patch_transform(

@@ -8,7 +8,7 @@ algorithm:
   loss: [n2v]
   # Pixel masking strategy #TODO add better description
   pixel_manipulation: n2v
-  # Number of pixels to mask. Defaul is patch size ** number of patch dims / 32
+  # Number of pixels to mask. Default is patch size ** number of patch dims / 32
   num_masked_pixels: 128
   #Class name from models.py
   model: UNet
@@ -43,6 +43,7 @@ training:
     # Scaling parameter for mixed precision training. Power of 2 recommended
     init_scale: 1024
   max_grad_norm: 1
+  running_stats: false
   data:
     #Path to the data
     path: data/BSD68_reproducibility/BSD68_reproducibility_data/train
@@ -50,7 +51,7 @@ training:
     ext: &EXT npy
     axes: &AX SYX
     #Number of files to read. Read all if None
-    num_files: 2
+    num_files: 10
     # Patch generation strategy [random, sequential]
     extraction_strategy: sequential
     #Patch shape in (z)yx. 2D or 3D

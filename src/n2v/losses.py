@@ -2,7 +2,7 @@ import torch
 import numpy as np
 
 
-def n2v_loss(samples, labels, masks, device, std=None):
+def n2v_loss(samples, labels, masks, device):
     """
     The loss function as described in Eq. 7 of the paper.
     """
@@ -11,8 +11,7 @@ def n2v_loss(samples, labels, masks, device, std=None):
 
     # Average over pixels and batch
     loss = torch.sum(errors * masks) / torch.sum(masks)
-    #TODO fix std
-    return loss / (std**2)
+    return loss
 
 
 def pn2v_loss(samples, labels, masks, noiseModel):
@@ -167,7 +166,7 @@ def tv_regularization(samples):
 def decon_loss(
     samples, labels, masks, std, psf, regularization, positivity_constraint, device
 ):
-    #TODO refactor! 
+    # TODO refactor!
     # psf = artificial_psf(size_of_psf=81, std_gauss=sigma).to('cuda')
 
     psf_shape = psf.shape[2]

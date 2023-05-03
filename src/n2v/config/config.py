@@ -149,6 +149,7 @@ class Training(BaseModel):
     lr_scheduler: LrScheduler
     amp: Amp
     max_grad_norm: float = Field(default=1.0, ge=0.0, le=1.0)
+    running_stats: bool
     data: Data
 
     class Config:
