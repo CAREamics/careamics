@@ -145,8 +145,12 @@ class UnsupervisedEngine(Engine):
         self.model.to(self.device)
         self.model.eval()
         pred_loader = self.get_predict_dataloader()
-        if not (self.mean and self.std):
+        if self.mean and self.std:
+            pred_loader.dataset.mean = self.mean
+            pred_loader.dataset.std = self.std
+        else:
             _, self.mean, self.std = self.get_train_dataloader()
+        self.stitch = pred_loader.dataset.patch_generator is not None
         avg_metric = MetricTracker()
         # TODO get whole image size
         pred = np.zeros((1, 321, 481))
@@ -164,25 +168,30 @@ class UnsupervisedEngine(Engine):
 
                 outputs = self.model(image.to(self.device))
                 outputs = denormalize(outputs, self.mean, self.std)
-                overlap_crop_coords, tile_pixel_coords = calculate_tile_cropping_coords(
-                    tile_level_coords,
-                    all_tiles_shape,
-                    self.cfg.prediction.overlap,
-                    image_shape,
-                    self.cfg.prediction.data.patch_size,
-                )
-                predicted_tile = outputs.squeeze()[
-                    (*[c for c in overlap_crop_coords], ...)
-                ]
-                tiles.append(predicted_tile.cpu().numpy())
-                stitch_coords = [
-                    slice(start, start + end, None)
-                    for start, end in zip(tile_pixel_coords, predicted_tile.shape)
-                ]
-                pred[
-                    (sample, *[c for c in stitch_coords], ...)
-                ] = predicted_tile.cpu().numpy()
-
+                if self.stitch:
+                    (
+                        overlap_crop_coords,
+                        tile_pixel_coords,
+                    ) = calculate_tile_cropping_coords(
+                        tile_level_coords,
+                        all_tiles_shape,
+                        self.cfg.prediction.overlap,
+                        image_shape,
+                        self.cfg.prediction.data.patch_size,
+                    )
+                    predicted_tile = outputs.squeeze()[
+                        (*[c for c in overlap_crop_coords], ...)
+                    ]
+                    tiles.append(predicted_tile.cpu().numpy())
+                    stitch_coords = [
+                        slice(start, start + end, None)
+                        for start, end in zip(tile_pixel_coords, predicted_tile.shape)
+                    ]
+                    pred[
+                        (sample, *[c for c in stitch_coords], ...)
+                    ] = predicted_tile.cpu().numpy()
+                else:
+                    pred = outputs
         return pred, tiles
 
     def train_single_epoch(
