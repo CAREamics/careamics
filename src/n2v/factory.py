@@ -20,33 +20,6 @@ logger = logging.getLogger(__name__)
 set_logging(logger)
 
 
-def get_params_from_config(
-    func: Union[torch.optim.Optimizer, torch.optim.lr_scheduler._LRScheduler],
-    user_params: Dict,
-) -> Dict:
-    """Returns the parameters of the optimizer or lr_scheduler.
-
-    Parameters
-    ----------
-    func : Union[torch.optim.Optimizer, torch.optim.lr_scheduler._LRScheduler]
-        optimizer or lr_scheduler class object
-    user_params : Dict
-        The parameters from user-provided config file
-
-    Returns
-    -------
-    Dict
-        The parameters of the optimizer or lr_scheduler
-    """
-    # TODO not restrict to optim and lr_scheduler?
-
-    # Get the list of all default parameters
-    default_params = list(inspect.signature(func).parameters.keys())
-    # Retrieve provided parameters
-    params_to_be_used = set(user_params.keys()) & set(default_params)
-    return {key: user_params[key] for key in params_to_be_used}
-
-
 def create_tiling_function(stage: Dict) -> Callable:
     """Creates the tiling function depending on the provided strategy.
     Parameters

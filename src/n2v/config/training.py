@@ -1,16 +1,10 @@
-from enum import Enum
-
+from typing import Optional
 from pydantic import BaseModel, Field, validator
 
+from torch import optim
+
 from .data import Data
-from .torch_optimizer import TorchOptimizer
-
-
-class SchedulerName(str, Enum):
-    """Represents a learning rate schedule."""
-
-    reduce_lr_on_plateau = "ReduceLROnPlateau"
-    # TODO add all the others
+from .torch_optimizer import TorchOptimizer, TorchLRScheduler, get_parameters
 
 
 class Optimizer(BaseModel):
@@ -19,6 +13,16 @@ class Optimizer(BaseModel):
     name: TorchOptimizer
     parameters: dict
 
+    @validator("parameters")
+    def check_parameters(cls, user_params, values):
+        if "name" in values:
+            optimizer_name = values["name"].value
+            optimizer_class = getattr(optim, optimizer_name)
+
+            return get_parameters(optimizer_class, user_params)
+        else:
+            raise ValueError("Cannot validate parameters without `name`.")
+
     class Config:
         use_enum_values = True  # make sure that enum are exported as str
 
@@ -26,43 +30,42 @@ class Optimizer(BaseModel):
 class LrScheduler(BaseModel):
     """Parameters related to the learning rate scheduler."""
 
-    name: SchedulerName
+    name: TorchLRScheduler
     parameters: dict
 
-    # validate parameters using value of name
     @validator("parameters")
-    def validate_parameters(cls, parameters, values):
-        name = values["name"]
+    def check_parameters(cls, user_params, values):
+        if "name" in values:
+            lr_scheduler_name = values["name"].value
+            lr_scheduler_class = getattr(optim.lr_scheduler, lr_scheduler_name)
 
-        if name == SchedulerName.reduce_lr_on_plateau:
-            if "mode" not in parameters:
-                raise ValueError("mode is required for ReduceLROnPlateau scheduler")
-            if "factor" not in parameters:
-                raise ValueError("factor is required for ReduceLROnPlateau scheduler")
-            if "patience" not in parameters:
-                raise ValueError("patience is required for ReduceLROnPlateau scheduler")
-
-        return parameters
+            return get_parameters(lr_scheduler_class, user_params)
+        else:
+            raise ValueError("Cannot validate parameters without `name`.")
 
     class Config:
         use_enum_values = True  # make sure that enum are exported as str
 
 
 class Amp(BaseModel):
-    toggle: bool
-    init_scale: int  # TODO excessive ?
+    use: bool = False
+    init_scale: int  # TODO excessive ? <- what is that?
 
 
 class Training(BaseModel):
     """Parameters related to the training."""
 
-    num_epochs: int = Field(default=100, ge=0)
-    learning_rate: float = Field(default=0.001, ge=0.0001, le=0.1)
-    optimizer: Optimizer
-    lr_scheduler: LrScheduler
-    amp: Amp
-    max_grad_norm: float = Field(default=1.0, ge=0.0, le=1.0)
     data: Data
+
+    num_epochs: int = Field(default=100, ge=1, le=1_000)
+    num_steps: int = Field(default=100, ge=1, le=1_000)
+
+    optimizer: Optional[Optimizer] = TorchOptimizer.Adam
+    lr_scheduler: Optional[LrScheduler] = TorchLRScheduler.ReduceLROnPlateau
+
+    amp: Optional[Amp] = None
+    max_grad_norm: Optional[float] = Field(default=1.0, ge=0.0, le=1.0)
+    # learning_rate: float = Field(default=0.001, ge=0.0001, le=0.1)
 
     class Config:
         use_enum_values = True  # enum are exported as str

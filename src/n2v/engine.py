@@ -12,11 +12,10 @@ from torch.utils.data import DataLoader
 
 from .metrics import MetricTracker
 from .factory import (
-    get_params_from_config,
     create_dataset,
     create_loss_function,
 )
-from .config import Configuration, load_configuration
+from .config import Configuration, load_configuration, get_parameters
 from .utils import set_logging, get_device, denormalize
 from .prediction import calculate_tile_cropping_coords
 from .models import create_model
@@ -284,14 +283,14 @@ class UnsupervisedEngine(Engine):
         optimizer_params = self.cfg.training.optimizer.parameters
         optimizer_func = getattr(torch.optim, optimizer_name)
         # Get the list of all possible parameters of the optimizer
-        optim_params = get_params_from_config(optimizer_func, optimizer_params)
+        optim_params = get_parameters(optimizer_func, optimizer_params)
         # TODO add support for different learning rates for different layers
         optimizer = optimizer_func(self.model.parameters(), **optim_params)
 
         scheduler_name = self.cfg.training.lr_scheduler.name
         scheduler_params = self.cfg.training.lr_scheduler.parameters
         scheduler_func = getattr(torch.optim.lr_scheduler, scheduler_name)
-        scheduler_params = get_params_from_config(scheduler_func, scheduler_params)
+        scheduler_params = get_parameters(scheduler_func, scheduler_params)
         scheduler = scheduler_func(optimizer, **scheduler_params)
         return optimizer, scheduler
 
