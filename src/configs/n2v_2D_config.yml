@@ -102,7 +102,7 @@ prediction:
     # Patch generation strategy [random, sequential]
     extraction_strategy: predict
     #Patch shape in (z)yx. 2D or 3D
-    patch_size: [256, 256]
+    patch_size: [128, 128]
     # Batch size
     batch_size: 1
     #Num workers parameter for data loader

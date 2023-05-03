@@ -161,12 +161,12 @@ def extract_patches_predict(
 ) -> List[np.ndarray]:
     # Overlap is half of the value mentioned in original N2V. must be even. It's like this because of current N2V notation
 
-    step, updated_overlap = compute_overlap_predict(
+    last_overlap = compute_overlap_predict(
         arr=arr, patch_size=patch_size, overlap=overlap
     )
-
+    step = tuple([p - o for p, o in zip(patch_size, overlap)])
     all_tiles = view_as_windows(
-        arr, window_shape=[1, *patch_size], step=step
+        arr, window_shape=[1, *patch_size], step=[1, *step]
     )  # shape (tiles in y, tiles in x, Y, X)
 
     output_shape = (
@@ -176,19 +176,40 @@ def extract_patches_predict(
     )
     # Save number of tiles in each dimension
     all_tiles = all_tiles.reshape(*output_shape)
+
     # Iterate over num samples (S)
+    # TODO add +1 to all tiles shape in each dim -> when all_tiles is exhausted -> yield last_tile
     for sample in range(all_tiles.shape[0]):
-        for tile_level_coords in itertools.product(
-            *map(range, all_tiles.shape[1 : len(patch_size) + 1])
-        ):
-            tile = all_tiles[sample][(*[c for c in tile_level_coords], ...)]
+        # Adding 1 to all dimensions to ensure capturing the last tile
+        full_coverage_shape = [d + 1 for d in all_tiles.shape[1 : len(patch_size) + 1]]
+        for tile_level_coords in itertools.product(*map(range, full_coverage_shape)):
+            if all([c1 < c2 for c1, c2 in zip(tile_level_coords, full_coverage_shape)]):
+                tile = all_tiles[sample][(*[c for c in tile_level_coords], ...)]
+            else:
+                last_tile_dims = np.zeros_like(arr.shape)
+                # Id of dimension where the tile pointer is currently at the border
+                idx = np.where(
+                    [c1 >= c2 for c1, c2 in zip(tile_level_coords, full_coverage_shape)]
+                )[0]
+                # TODO fix case where len(idx) > 1
+                last_tile_dims[idx]
+                last_tile_coords = [slice(None)] + [
+                    slice(
+                        (arr.shape[i + 1] - patch_size[i]) * tile_level_coords[i]
+                        - overlap[i],
+                        arr.shape[i + 1] * tile_level_coords[i] - overlap[i],
+                        None,
+                    )
+                    for i in range(len(patch_size))
+                ]
+                tile = arr[sample][(*[c for c in last_tile_coords], ...)]
+                # TODO
 
             yield (
                 tile.astype(np.float32),
                 sample,
                 tile_level_coords,
                 all_tiles.shape[1 : len(patch_size) + 1],
-                updated_overlap,
                 arr.shape[1:],
             )
 

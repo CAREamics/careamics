@@ -159,7 +159,6 @@ class UnsupervisedEngine(Engine):
                         sample,
                         tile_level_coords,
                         all_tiles_shape,
-                        overlap,
                         image_shape,
                     ) = auxillary
 
@@ -167,7 +166,7 @@ class UnsupervisedEngine(Engine):
                 overlap_crop_coords, tile_pixel_coords = calculate_tile_cropping_coords(
                     tile_level_coords,
                     all_tiles_shape,
-                    overlap,
+                    self.cfg.prediction.overlap,
                     image_shape,
                     self.cfg.prediction.data.patch_size,
                 )

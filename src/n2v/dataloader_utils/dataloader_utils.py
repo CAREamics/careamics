@@ -71,7 +71,11 @@ def compute_overlap_predict(
         for i in range(len(patch_size))
     ]
 
-    return [1, *step], updated_overlap  # TODO step should not include singleton dim
+    return [
+        patch_size[i]
+        - (arr.shape[i + 1] - total_patches[i] * (patch_size[i] - overlap[i]))
+        for i in range(len(patch_size))
+    ]
 
 
 def _compute_patch_steps(patch_size: Tuple[int], overlaps: Tuple[int]) -> Tuple[int]:
@@ -141,5 +145,4 @@ def compute_reshaped_view(
     patches = view_as_windows(arr, window_shape=window_shape, step=step).reshape(
         *output_shape
     )
-
     return patches
