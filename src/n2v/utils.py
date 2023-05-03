@@ -80,7 +80,7 @@ def export_model_to_onnx(model, path):
     path : str
         Path to save the exported model
     """
-    dummy_input = torch.randn(1, 1, 256, 256, device=getDevice())
+    dummy_input = torch.randn(1, 1, 256, 256, device=get_device())
     torch.onnx.export(
         model,
         dummy_input,

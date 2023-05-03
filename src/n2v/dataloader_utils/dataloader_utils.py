@@ -151,7 +151,11 @@ def compute_overlap_predict(
         steps.append(step)
         overlaps.append(overlap)
 
-    return steps, overlaps
+    return [
+        patch_size[i]
+        - (arr.shape[i + 1] - total_patches[i] * (patch_size[i] - overlap[i]))
+        for i in range(len(patch_size))
+    ]
 
 
 def compute_patch_steps(patch_sizes: Tuple[int], overlaps: Tuple[int]) -> Tuple[int]:
@@ -198,5 +202,4 @@ def compute_reshaped_view(
     patches = view_as_windows(arr, window_shape=window_shape, step=step).reshape(
         *output_shape
     )
-
     return patches

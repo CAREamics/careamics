@@ -17,12 +17,9 @@ from .factory import (
     create_loss_function,
 )
 from .config import Configuration, load_configuration
-from .utils import set_logging, get_device
+from .utils import set_logging, get_device, denormalize
 from .prediction import calculate_tile_cropping_coords
 from .models import create_model
-
-logger = logging.getLogger(__name__)
-set_logging(logger)
 
 
 class Engine(ABC):
@@ -59,8 +56,12 @@ class UnsupervisedEngine(Engine):
         self.cfg = self.parse_config(cfg_path)
         self.model = self.get_model()
         self.loss_func = self.get_loss_function()
+        self.mean = None
+        self.std = None
         self.device = get_device()
         # TODO all initializations of custom classes should be done here
+        self.logger = logging.getLogger()
+        set_logging(self.logger)
 
     def parse_config(self, cfg_path: str) -> Dict:
         try:
@@ -77,33 +78,31 @@ class UnsupervisedEngine(Engine):
                 import wandb
 
                 wandb.init(project=self.cfg.experiment_name, config=self.cfg)
-                logger.info("using wandb logger")
+                self.logger.info("using wandb logger")
             except ImportError:
                 self.cfg.misc.use_wandb = False
-                logger.warning(
+                self.logger.warning(
                     "wandb not installed, using default logger. try pip install wandb"
                 )
                 return self.log_metrics()
         else:
-            logger.info("using default logger")
+            self.logger.info("Using default logger")
 
     def get_model(self):
         return create_model(self.cfg)
 
     def train(self):
         # General func
-        train_loader = self.get_train_dataloader()
+        train_loader, self.mean, self.std = self.get_train_dataloader()
         eval_loader = self.get_val_dataloader()
         optimizer, lr_scheduler = self.get_optimizer_and_scheduler()
         scaler = self.get_grad_scaler()
-
-        logger.info(f"Starting training for {self.cfg.training.num_epochs} epochs")
-
+        self.logger.info(f"Starting training for {self.cfg.training.num_epochs} epochs")
         try:
             for epoch in range(
                 self.cfg.training.num_epochs
             ):  # loop over the dataset multiple times
-                logger.info(f"Starting epoch {epoch}")
+                self.logger.info(f"Starting epoch {epoch}")
 
                 train_outputs = self.train_single_epoch(
                     train_loader,
@@ -120,9 +119,10 @@ class UnsupervisedEngine(Engine):
                 lr_scheduler.step(eval_outputs["loss"])
                 # TODO implement checkpoint naming
                 self.save_checkpoint("checkpoint.pth", False)
+                self.logger(f"Save checkpoint to ")  # TODO correct path
 
         except KeyboardInterrupt:
-            logger.info("Training interrupted")
+            self.logger.info("Training interrupted")
 
     def evaluate(self, eval_loader: torch.utils.data.DataLoader, eval_metric: str):
         self.model.eval()
@@ -139,8 +139,9 @@ class UnsupervisedEngine(Engine):
     def predict(self):
         self.model.to(self.device)
         self.model.eval()
-
         pred_loader = self.get_predict_dataloader()
+        if not self.mean and self.std:
+            _, self.mean, self.std = self.get_train_dataloader()
         avg_metric = MetricTracker()
         # TODO get whole image size
         pred = np.zeros((1, 321, 481))
@@ -153,15 +154,15 @@ class UnsupervisedEngine(Engine):
                         sample,
                         tile_level_coords,
                         all_tiles_shape,
-                        overlap,
                         image_shape,
                     ) = auxillary
 
                 outputs = self.model(image.to(self.device))
+                outputs = denormalize(outputs, self.mean, self.std)
                 overlap_crop_coords, tile_pixel_coords = calculate_tile_cropping_coords(
                     tile_level_coords,
                     all_tiles_shape,
-                    overlap,
+                    self.cfg.prediction.overlap,
                     image_shape,
                     self.cfg.prediction.data.patch_size,
                 )
@@ -209,7 +210,7 @@ class UnsupervisedEngine(Engine):
                 # TODO add normalization
                 outputs = self.model(image.to(self.device))
             # TODO std !!
-            loss = self.loss_func(outputs, *auxillary, self.device, 1)
+            loss = self.loss_func(outputs, *auxillary, self.device)
             scaler.scale(loss).backward()
 
             if max_grad_norm is not None:
@@ -228,10 +229,19 @@ class UnsupervisedEngine(Engine):
     def get_train_dataloader(self) -> DataLoader:
         dataset = create_dataset(self.cfg, "training")
         ##TODO add custom collate function and separate dataloader create function, sampler?
-        return DataLoader(
-            dataset,
-            batch_size=self.cfg.training.data.batch_size,
-            num_workers=self.cfg.training.data.num_workers,
+        if not self.cfg.training.running_stats:
+            self.logger.info(f"Calculating mean/std of the data")
+            dataset.calculate_stats()
+        else:
+            self.logger.info(f"Using running average of mean/std")
+        return (
+            DataLoader(
+                dataset,
+                batch_size=self.cfg.training.data.batch_size,
+                num_workers=self.cfg.training.data.num_workers,
+            ),
+            dataset.mean,
+            dataset.std,
         )
 
     # TODO merge into single dataloader func ?

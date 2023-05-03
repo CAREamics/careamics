@@ -1,6 +1,7 @@
 import itertools
 import logging
 import os
+from tqdm import tqdm
 from pathlib import Path
 from typing import Callable, Generator, List, Optional, Tuple, Union
 
@@ -16,6 +17,8 @@ from .dataloader_utils import (
     compute_overlap_predict,
     are_axes_valid,
 )
+
+from .utils import normalize
 
 ############################################
 #   ETL pipeline #TODO add description to all modules
@@ -56,7 +59,11 @@ def list_input_source_tiff(
 # formerly :
 # https://github.com/juglab-torch/n2v/blob/00d536cdc5f5cd4bb34c65a777940e6e453f4a93/src/n2v/dataloader.py#L52
 def extract_patches_sequential(
-    arr: np.ndarray, patch_sizes: Tuple[int]
+    arr: np.ndarray,
+    patch_sizes: Tuple[int],
+    overlaps: Union[Tuple[int], None] = None,
+    mean: int = None,
+    std: int = None,
 ) -> Generator[np.ndarray, None, None]:
     """Generate patches from an array of dimensions C(Z)YX, where C can
     be a singleton dimension.
@@ -123,7 +130,8 @@ def extract_patches_sequential(
 
     # Yield single patch #TODO view_as_windows might be inefficient
     for patch_ixd in range(patches.shape[0]):
-        yield (patches[patch_ixd].astype(np.float32))
+        patch = patches[patch_ixd].astype(np.float32)
+        yield (normalize(patch, mean, std)) if mean and std else (patch)
 
 
 def extract_patches_random(arr, patch_size, num_patches=None, *args) -> np.ndarray:
@@ -154,10 +162,10 @@ def extract_patches_predict(
 ) -> List[np.ndarray]:
     # Overlap is half of the value mentioned in original N2V. must be even. It's like this because of current N2V notation
 
-    step, updated_overlap = compute_overlap_predict(
+    last_overlap = compute_overlap_predict(
         arr=arr, patch_size=patch_size, overlap=overlap
     )
-
+    step = tuple([p - o for p, o in zip(patch_size, overlap)])
     all_tiles = view_as_windows(
         arr, window_shape=[1, *patch_size], step=[1, *step]
     )  # shape (tiles in y, tiles in x, Y, X)
@@ -169,19 +177,40 @@ def extract_patches_predict(
     )
     # Save number of tiles in each dimension
     all_tiles = all_tiles.reshape(*output_shape)
+
     # Iterate over num samples (S)
+    # TODO add +1 to all tiles shape in each dim -> when all_tiles is exhausted -> yield last_tile
     for sample in range(all_tiles.shape[0]):
-        for tile_level_coords in itertools.product(
-            *map(range, all_tiles.shape[1 : len(patch_size) + 1])
-        ):
-            tile = all_tiles[sample][(*[c for c in tile_level_coords], ...)]
+        # Adding 1 to all dimensions to ensure capturing the last tile
+        full_coverage_shape = [d + 1 for d in all_tiles.shape[1 : len(patch_size) + 1]]
+        for tile_level_coords in itertools.product(*map(range, full_coverage_shape)):
+            if all([c1 < c2 for c1, c2 in zip(tile_level_coords, full_coverage_shape)]):
+                tile = all_tiles[sample][(*[c for c in tile_level_coords], ...)]
+            else:
+                last_tile_dims = np.zeros_like(arr.shape)
+                # Id of dimension where the tile pointer is currently at the border
+                idx = np.where(
+                    [c1 >= c2 for c1, c2 in zip(tile_level_coords, full_coverage_shape)]
+                )[0]
+                # TODO fix case where len(idx) > 1
+                last_tile_dims[idx]
+                last_tile_coords = [slice(None)] + [
+                    slice(
+                        (arr.shape[i + 1] - patch_size[i]) * tile_level_coords[i]
+                        - overlap[i],
+                        arr.shape[i + 1] * tile_level_coords[i] - overlap[i],
+                        None,
+                    )
+                    for i in range(len(patch_size))
+                ]
+                tile = arr[sample][(*[c for c in last_tile_coords], ...)]
+                # TODO
 
             yield (
                 tile.astype(np.float32),
                 sample,
                 tile_level_coords,
                 all_tiles.shape[1 : len(patch_size) + 1],
-                updated_overlap,
                 arr.shape[1:],
             )
 
@@ -338,6 +367,15 @@ class PatchDataset(torch.utils.data.IterableDataset):
             # TODO do we need to update patch size?
         return arr
 
+    def calculate_stats(self):
+        mean = 0
+        std = 0
+        for i, image in tqdm(enumerate(self.__iter_source__())):
+            mean += image.mean()
+            std += np.std(image)
+        self.mean = mean / (i + 1)
+        self.std = std / (i + 1)
+
     def __iter_source__(self):
         """
         Iterate over data source and yield whole image. Optional transform is applied to the images.
@@ -381,9 +419,13 @@ class PatchDataset(torch.utils.data.IterableDataset):
         """
         for image in self.__iter_source__():
             if self.patch_generator is None:
-                yield image
+                yield normalize(
+                    image, self.mean, self.std
+                ) if self.mean and self.std else image
             else:
-                for patch_data in self.patch_generator(image, self.patch_size):
+                for patch_data in self.patch_generator(
+                    image, self.patch_size, overlaps=None, mean=self.mean, std=self.std
+                ):
                     # TODO add augmentations, multiple functions.
                     # TODO Works incorrectly if patch transform is NONE
                     yield self.patch_transform(
