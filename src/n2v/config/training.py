@@ -13,8 +13,9 @@ class Optimizer(BaseModel):
     name: TorchOptimizer
     parameters: dict
 
+    """
     @validator("parameters")
-    def check_parameters(cls, user_params, values):
+    def check_optim_parameters(cls, user_params, values):
         if "name" in values:
             optimizer_name = values["name"].value
             optimizer_class = getattr(optim, optimizer_name)
@@ -22,6 +23,7 @@ class Optimizer(BaseModel):
             return get_parameters(optimizer_class, user_params)
         else:
             raise ValueError("Cannot validate parameters without `name`.")
+    """
 
     class Config:
         use_enum_values = True  # make sure that enum are exported as str
@@ -32,7 +34,7 @@ class LrScheduler(BaseModel):
 
     name: TorchLRScheduler
     parameters: dict
-
+    """
     @validator("parameters")
     def check_parameters(cls, user_params, values):
         if "name" in values:
@@ -42,6 +44,7 @@ class LrScheduler(BaseModel):
             return get_parameters(lr_scheduler_class, user_params)
         else:
             raise ValueError("Cannot validate parameters without `name`.")
+    """
 
     class Config:
         use_enum_values = True  # make sure that enum are exported as str

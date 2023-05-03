@@ -50,6 +50,8 @@ def get_schedulers() -> Dict[str, str]:
         if inspect.isclass(obj) and issubclass(obj, optim.lr_scheduler.LRScheduler):
             if "LRScheduler" not in name:
                 schedulers[name] = name
+        elif name == "ReduceLROnPlateau":  # somewhat not a subclass of LRScheduler
+            schedulers[name] = name
     return schedulers
 
 
