@@ -20,7 +20,7 @@ def augment_single(image: np.ndarray, seed=1, channel_dim: bool = True) -> np.nd
     np.ndarray
         _description_
     """
-    np.random.seed(seed)
+    # np.random.seed(seed)
 
     rotate_state = np.random.randint(0, 5)
     flip_state = np.random.randint(0, 2)

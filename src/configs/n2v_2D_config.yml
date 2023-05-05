@@ -9,28 +9,27 @@ algorithm:
   # Pixel masking strategy #TODO add better description
   pixel_manipulation: n2v
   # Number of pixels to mask. Default is patch size ** number of patch dims / 32
-  num_masked_pixels: 128
+  num_masked_pixels: 32
   #Class name from models.py
   model: UNet
   #Whether to use 2D or 3D convolutions #TODO better name ?
   conv_mult: 2
   depth: 3
-  checkpoint: checkpoint.pth
+  checkpoint: Null
 
 training:
   num_epochs: 10
-  learning_rate: 0.0001
   optimizer:
     #Name of the optimizer class from torch.optim
     name: Adam
     parameters:
-      lr: 0.0001
+      lr: 0.0004
   lr_scheduler: 
     #Name of the scheduler class from torch.optim.lr_scheduler
     name: ReduceLROnPlateau
     parameters:
       mode: min
-      factor: 0.1
+      factor: 0.5
       patience: 5
       verbose: true
       threshold: 0.0001
@@ -42,7 +41,7 @@ training:
     toggle: false
     # Scaling parameter for mixed precision training. Power of 2 recommended
     init_scale: 1024
-  max_grad_norm: 1
+  max_grad_norm: 0
   running_stats: false
   data:
     #Path to the data
@@ -51,15 +50,15 @@ training:
     ext: &EXT npy
     axes: &AX SYX
     #Number of files to read. Read all if None
-    num_files: 10
+    num_files: Null
     # Patch generation strategy [random, sequential]
     extraction_strategy: sequential
     #Patch shape in (z)yx. 2D or 3D
-    patch_size: &PS [128, 128]
+    patch_size: &PS [64, 64]
     #Total number of patches to generate. Only applicable for random patching
     num_patches: Null
     # Batch size
-    batch_size: 32
+    batch_size: 128
     #Num workers parameter for data loader
     num_workers: 0
     #TODO add list of specific augmentations or func/list of funcs 
@@ -97,7 +96,7 @@ prediction:
     path: data/BSD68_reproducibility/BSD68_reproducibility_data/test
     # File type to load
     ext: *EXT
-    axes: YX
+    axes: SYX
     #Number of files to read. Read all if None
     num_files: 2
     # Patch generation strategy [random, sequential]

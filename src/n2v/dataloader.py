@@ -24,6 +24,9 @@ from .utils import normalize
 ############################################
 
 
+logger = logging.getLogger(__name__)
+
+
 def list_input_source_tiff(
     path: Union[str, Path], num_files: Union[int, None] = None
 ) -> List:
@@ -132,7 +135,7 @@ def extract_patches_sequential(
     patches = compute_reshaped_view(
         arr, window_shape=window_shape, step=window_steps, output_shape=output_shape
     )
-
+    logger.info(f"Extracted {patches.shape[0]} patches from input array.")
     # Yield single patch #TODO view_as_windows might be inefficient
     for patch_ixd in range(patches.shape[0]):
         patch = patches[patch_ixd].astype(np.float32)
@@ -358,6 +361,12 @@ class PatchDataset(torch.utils.data.IterableDataset):
             std += np.std(image)
         self.mean = mean / (i + 1)
         self.std = std / (i + 1)
+        logger.info(f"Calculated mean and std for {i + 1} images")
+        logger.info(f"Mean: {self.mean}, std: {self.std}")
+
+    def set_normalization(self, mean, std):
+        self.mean = mean
+        self.std = std
 
     def __iter_source__(self):
         """
@@ -402,9 +411,11 @@ class PatchDataset(torch.utils.data.IterableDataset):
         """
         for image in self.__iter_source__():
             if self.patch_generator is None:
-                yield normalize(image, self.mean, self.std) if (
-                    self.mean and self.std
-                ) else image
+                for idx in range(image.shape[0]):
+                    sample = np.expand_dims(image[idx], 0).astype(np.float32)
+                    yield normalize(sample, self.mean, self.std) if (
+                        self.mean and self.std
+                    ) else image
             else:
                 for patch_data in self.patch_generator(
                     image, self.patch_size, overlaps=None, mean=self.mean, std=self.std

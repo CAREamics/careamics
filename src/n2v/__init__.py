@@ -29,3 +29,5 @@ from .prediction import calculate_tile_cropping_coords
 from .utils import get_device, set_logging, config_loader, normalize, denormalize
 
 from .config import ConfigValidator
+
+from .augment import augment_single

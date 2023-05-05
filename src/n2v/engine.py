@@ -58,6 +58,8 @@ class Engine(ABC):
 
 class UnsupervisedEngine(Engine):
     def __init__(self, cfg_path: str) -> None:
+        self.logger = logging.getLogger()
+        set_logging(self.logger)
         self.cfg = self.parse_config(cfg_path)
         self.model = self.get_model()
         self.loss_func = self.get_loss_function()
@@ -65,8 +67,6 @@ class UnsupervisedEngine(Engine):
         self.std = None
         self.device = get_device()
         # TODO all initializations of custom classes should be done here
-        self.logger = logging.getLogger()
-        set_logging(self.logger)
 
     def parse_config(self, cfg_path: str) -> Dict:
         try:
@@ -75,6 +75,7 @@ class UnsupervisedEngine(Engine):
             # TODO add custom exception for different cases
             raise yaml.YAMLError("Config file not found")
         cfg = ConfigValidator(**cfg)
+        self.logger.info(f"Config parsing done. Using file: {cfg_path}")
         return cfg
 
     def log_metrics(self):
@@ -100,6 +101,7 @@ class UnsupervisedEngine(Engine):
         # General func
         train_loader, self.mean, self.std = self.get_train_dataloader()
         eval_loader = self.get_val_dataloader()
+        eval_loader.dataset.set_normalization(self.mean, self.std)
         optimizer, lr_scheduler = self.get_optimizer_and_scheduler()
         scaler = self.get_grad_scaler()
         self.logger.info(f"Starting training for {self.cfg.training.num_epochs} epochs")
@@ -119,12 +121,14 @@ class UnsupervisedEngine(Engine):
 
                 # Perform validation step
                 eval_outputs = self.evaluate(eval_loader, self.cfg.evaluation.metric)
-
+                self.logger.info(
+                    f'Validation loss for epoch {epoch}: {eval_outputs["loss"]}'
+                )
                 # Add update scheduler rule based on type
                 lr_scheduler.step(eval_outputs["loss"])
                 # TODO implement checkpoint naming
                 self.save_checkpoint("checkpoint.pth", False)
-                self.logger(f"Save checkpoint to ")  # TODO correct path
+                self.logger.info(f"Save checkpoint to ")  # TODO correct path
 
         except KeyboardInterrupt:
             self.logger.info("Training interrupted")
@@ -133,12 +137,14 @@ class UnsupervisedEngine(Engine):
         self.model.eval()
         # TODO Isnt supposed to be called without train ?
         avg_loss = MetricTracker()
+        avg_loss.reset()
 
         with torch.no_grad():
             for image, *auxillary in tqdm(eval_loader):
                 outputs = self.model(image.to(self.device))
-                loss = self.loss_func(outputs, *auxillary, self.device, 1)
+                loss = self.loss_func(outputs, *auxillary, self.device)
                 avg_loss.update(loss.item(), image.shape[0])
+
         return {"loss": avg_loss.avg}
 
     def predict(self):
@@ -146,15 +152,18 @@ class UnsupervisedEngine(Engine):
         self.model.eval()
         pred_loader = self.get_predict_dataloader()
         if self.mean and self.std:
-            pred_loader.dataset.mean = self.mean
-            pred_loader.dataset.std = self.std
+            pred_loader.dataset.set_normalization(self.mean, self.std)
         else:
             _, self.mean, self.std = self.get_train_dataloader()
         self.stitch = pred_loader.dataset.patch_generator is not None
         avg_metric = MetricTracker()
-        # TODO get whole image size
+        # TODO get whole image size or append to variable sized array, rename
         pred = np.zeros((1, 321, 481))
         tiles = []
+        if self.stitch:
+            self.logger.info("Starting tiled prediction")
+        else:
+            self.logger.info("Starting prediction on whole sample")
         with torch.no_grad():
             for image, *auxillary in tqdm(pred_loader):
                 # TODO define all predict/train funcs in separate modules
@@ -191,7 +200,8 @@ class UnsupervisedEngine(Engine):
                         (sample, *[c for c in stitch_coords], ...)
                     ] = predicted_tile.cpu().numpy()
                 else:
-                    pred = outputs
+                    tiles.append(outputs.detach().cpu().numpy())
+        self.logger.info("Prediction finished")
         return pred, tiles
 
     def train_single_epoch(
@@ -221,13 +231,11 @@ class UnsupervisedEngine(Engine):
             optimizer.zero_grad()
 
             with torch.cuda.amp.autocast(enabled=amp):
-                # TODO add normalization
                 outputs = self.model(image.to(self.device))
-            # TODO std !!
             loss = self.loss_func(outputs, *auxillary, self.device)
             scaler.scale(loss).backward()
 
-            if max_grad_norm is not None:
+            if max_grad_norm > 0:
                 torch.nn.utils.clip_grad_norm_(
                     self.model.parameters(), max_norm=max_grad_norm
                 )
@@ -270,7 +278,6 @@ class UnsupervisedEngine(Engine):
 
     def get_predict_dataloader(self) -> DataLoader:
         # TODO add description
-
         dataset = create_dataset(self.cfg, "prediction")
         return DataLoader(
             dataset,
