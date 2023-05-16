@@ -17,6 +17,39 @@ def get_stratified_coords(num_pixels, shape):
     return output_coords
 
 
+def get_stratified_coords2(num_pixels, shape):
+    # TODO add description, add asserts, add typing, add line comments
+    box_size = np.round(np.sqrt(np.product(shape) / num_pixels)).astype(np.int32)
+    box_count = [range(int(np.ceil(s / box_size))) for s in shape]
+    coordinate_grid = np.meshgrid(*[range(0, d) for d in shape])
+    coordinate_grid = np.array(coordinate_grid).reshape(2, -1).T
+    # optional, TODO fix reshape
+    # coordinate_grid = np.indices((d for d in shape)).reshape(2,-1).T
+    output_coords = coordinate_grid[
+        np.random.choice(coordinate_grid.shape[0], num_pixels, replace=False)
+    ]
+    return output_coords
+
+
+def getStratifiedCoords2D(numPix, shape):
+    """
+    Produce a list of approx. 'numPix' random coordinate, sampled from 'shape' using startified sampling.
+    """
+    box_size = np.round(np.sqrt(shape[0] * shape[1] / numPix)).astype(np.int)
+    coords = []
+    box_count_y = int(np.ceil(shape[0] / box_size))
+    box_count_x = int(np.ceil(shape[1] / box_size))
+    for i in range(box_count_y):
+        for j in range(box_count_x):
+            y = np.random.randint(0, box_size)
+            x = np.random.randint(0, box_size)
+            y = int(i * box_size + y)
+            x = int(j * box_size + x)
+            if y < shape[0] and x < shape[1]:
+                coords.append((y, x))
+    return coords
+
+
 def apply_struct_n2v_mask(patch, coords, dims, mask):
     """
     each point in coords corresponds to the center of the mask.
@@ -54,12 +87,12 @@ def n2v_manipulate(
     num_pixels : _type_
         _description_
     """
-    #
-    # patch = patch[0]
+
     original_patch = patch.copy()
     mask = np.zeros(patch.shape)
 
     hot_pixels = get_stratified_coords(num_pixels, patch.shape)
+    hp = get_stratified_coords2(num_pixels, patch.shape)
     # TODO add another neighborhood selection strategy
     for pn in hot_pixels:
         # mf why you named it like this?
@@ -78,7 +111,6 @@ def n2v_manipulate(
                 np.delete(rr, center_mask.flatten())
             )
         except ValueError:
-            # TODO check if replacement shape is correct, if center mask is correct
             replacement = np.random.default_rng().choice(
                 rr.flatten()
             ) + np.random.randint(-3, 3)
@@ -86,5 +118,8 @@ def n2v_manipulate(
         mask[(..., *[c for c in pn])] = 1.0
 
     patch, mask = patch, mask if augmentations is None else augmentations(patch, mask)
-    # TODO assert this output format ? 1st is required, others are optional
-    return patch, original_patch, mask
+    return (
+        np.expand_dims(patch, 0),
+        np.expand_dims(original_patch, 0),
+        np.expand_dims(mask, 0),
+    )
