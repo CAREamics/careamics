@@ -3,7 +3,7 @@ import numpy as np
 from typing import Callable, Dict, List, Optional, Tuple, Union
 
 
-def get_stratified_coords(num_pixels, shape):
+def get_stratified_coords_old(num_pixels, shape):
     # TODO add description, add asserts, add typing
     # TODO fix num pix
     box_size = np.round(np.sqrt(np.product(shape) / num_pixels)).astype(np.int32)
@@ -17,18 +17,47 @@ def get_stratified_coords(num_pixels, shape):
     return output_coords
 
 
-def get_stratified_coords2(num_pixels, shape):
+def get_stratified_coords(mask_pixel_perc: float, shape: Tuple[int, ...]) -> np.ndarray:
     # TODO add description, add asserts, add typing, add line comments
-    box_size = np.round(np.sqrt(np.product(shape) / num_pixels)).astype(np.int32)
-    box_count = [range(int(np.ceil(s / box_size))) for s in shape]
-    coordinate_grid = np.meshgrid(*[range(0, d) for d in shape])
-    coordinate_grid = np.array(coordinate_grid).reshape(2, -1).T
-    # optional, TODO fix reshape
-    # coordinate_grid = np.indices((d for d in shape)).reshape(2,-1).T
-    output_coords = coordinate_grid[
-        np.random.choice(coordinate_grid.shape[0], num_pixels, replace=False)
-    ]
-    return output_coords
+    """_summary_
+
+    _extended_summary_
+
+    Parameters
+    ----------
+    mask_pixel_perc : float
+        _description_
+    shape : Tuple[int, ...]
+        _description_
+
+    Returns
+    -------
+    np.ndarray
+        _description_
+    """
+    rng = np.random.default_rng()
+    # step = [(d / np.sqrt(d)).astype(np.int32) for d in shape]
+    # Define the approximate distance between masked pixels
+    box_size = np.round(np.sqrt(np.product(shape) / 100 * mask_pixel_perc)).astype(
+        np.int32
+    )
+    # Define a grid of coordinates for each axis in the input patch and the step size
+    pixel_coords, step = np.linspace(
+        0, shape, box_size, dtype=np.int32, endpoint=False, retstep=True
+    )
+    # Create a meshgrid of coordinates for each axis in the input patch
+    coordinate_grid = np.meshgrid(*pixel_coords.T.tolist())
+    coordinate_grid = np.array(coordinate_grid).reshape(len(shape), -1).T
+    # Add random jitter to the grid to account for cases where the step size is not an integer
+    odd_jitter = np.where(np.floor(step) == step, 0, rng.integers(0, 2))
+    # Define the random jitter to be added to the grid
+    grid_random_increment = rng.integers(
+        np.zeros_like(coordinate_grid),
+        odd_jitter + np.floor(step) * np.ones_like(coordinate_grid).astype(np.int32),
+        size=coordinate_grid.shape,
+    )
+    coordinate_grid += grid_random_increment
+    return coordinate_grid
 
 
 def getStratifiedCoords2D(numPix, shape):
@@ -73,7 +102,7 @@ def apply_struct_n2v_mask(patch, coords, dims, mask):
     return patch
 
 
-def n2v_manipulate(
+def n2v_manipulate_old(
     patch: np.ndarray, num_pixels: int, augmentations: Callable = None
 ) -> Tuple[np.ndarray, Dict]:
     """_summary_
@@ -92,7 +121,7 @@ def n2v_manipulate(
     mask = np.zeros(patch.shape)
 
     hot_pixels = get_stratified_coords(num_pixels, patch.shape)
-    hp = get_stratified_coords2(num_pixels, patch.shape)
+    # hp = get_stratified_coords2(num_pixels, patch.shape)
     # TODO add another neighborhood selection strategy
     for pn in hot_pixels:
         # mf why you named it like this?
@@ -118,6 +147,58 @@ def n2v_manipulate(
         mask[(..., *[c for c in pn])] = 1.0
 
     patch, mask = patch, mask if augmentations is None else augmentations(patch, mask)
+    return (
+        np.expand_dims(patch, 0),
+        np.expand_dims(original_patch, 0),
+        np.expand_dims(mask, 0),
+    )
+
+
+def n2v_manipulate(
+    patch: np.ndarray, mask_pixel_perc: float, roi_size: int = 5, augmentations=None
+) -> Tuple[np.ndarray]:
+    """Manipulate pixel in a patch with N2V algorithm
+
+    Parameters
+    ----------
+    patch : np.ndarray
+        image patch, 2D or 3D, shape (y, x) or (z, y, x)
+    mask_pixel_perc : floar
+        Percentage of pixels to be masked, well kinda
+    roi_size : int
+        Size of ROI where to take replacement pixels from, by default 5
+    augmentations : _type_, optional
+        _description_, by default None
+
+    Returns
+    -------
+    Tuple[np.ndarray]
+        manipulated patch, original patch, mask
+    """
+    # TODO add better docstring, add augmentations, add support for 3D
+    original_patch = patch.copy()
+    # Get the coordinates of the pixels to be replaced
+    roi_centers = get_stratified_coords(mask_pixel_perc, patch.shape)
+    rng = np.random.default_rng()
+    # Generate coordinate grid for ROI
+    roi_span_full = np.arange(-np.floor(roi_size / 2), np.ceil(roi_size / 2)).astype(
+        np.int32
+    )
+    # Remove the center pixel from the grid
+    roi_span_wo_center = roi_span_full[roi_span_full != 0]
+    # Randomly select coordinates from the grid
+    random_increment = rng.choice(roi_span_wo_center, size=roi_centers.shape)
+    # Clip the coordinates to the patch size
+    replacement_coords = np.clip(
+        roi_centers + random_increment,
+        0,
+        [patch.shape[i] - 1 for i in range(len(patch.shape))],
+    )
+    # Get the replacement pixels from all rois
+    replacement_pixels = patch[tuple(replacement_coords.T.tolist())]
+    # Replace the original pixels with the replacement pixels
+    patch[tuple(roi_centers.T.tolist())] = replacement_pixels
+    mask = np.where(patch != original_patch, 1, 0)
     return (
         np.expand_dims(patch, 0),
         np.expand_dims(original_patch, 0),

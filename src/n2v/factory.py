@@ -90,7 +90,7 @@ def create_patch_transform(config: ConfigValidator) -> Callable:
         getattr(
             pixel_manipulation, f"{config.algorithm.pixel_manipulation}_manipulate"
         ),
-        num_pixels=config.algorithm.num_masked_pixels,
+        mask_pixel_perc=config.algorithm.mask_pixel_perc,
         # TODO add augmentation selection
         augmentations=None,
     )

@@ -151,10 +151,9 @@ class UnsupervisedEngine(Engine):
         self.model.to(self.device)
         self.model.eval()
         pred_loader = self.get_predict_dataloader()
-        if self.mean and self.std:
-            pred_loader.dataset.set_normalization(self.mean, self.std)
-        else:
+        if not (self.mean and self.std):
             _, self.mean, self.std = self.get_train_dataloader()
+        pred_loader.dataset.set_normalization(self.mean, self.std)
         self.stitch = pred_loader.dataset.patch_generator is not None
         avg_metric = MetricTracker()
         # TODO get whole image size or append to variable sized array, rename
@@ -279,6 +278,7 @@ class UnsupervisedEngine(Engine):
     def get_predict_dataloader(self) -> DataLoader:
         # TODO add description
         dataset = create_dataset(self.cfg, "prediction")
+        dataset.set_normalization(self.mean, self.std)
         return DataLoader(
             dataset,
             batch_size=self.cfg.prediction.data.batch_size,

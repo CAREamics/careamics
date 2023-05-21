@@ -44,17 +44,17 @@ class Algorithm(BaseModel):
     pixel_manipulation: str  # TODO same as name ?
     model: ModelName = Field(default=ModelName.unet)
     depth: int = Field(default=3, ge=2)  # example: bounds
-    num_masked_pixels: int = Field(default=128, ge=1, le=1024)  # example: bounds
+    mask_pixel_perc: float = Field(default=0.2, ge=0.1, le=1)  # example: bounds
     conv_mult: int = Field(default=2, ge=2, le=3)  # example: bounds
     checkpoint: str = Field(default=None)
 
-    @validator("num_masked_pixels")
-    def validate_num_masked_pixels(cls, num):
-        # example validation
-        if num % 32 != 0:
-            raise ValueError("num_masked_pixels must be a multiple of 32")
+    # @validator("mask_pixel_perc")
+    # def validate_mask_pixel_perc(cls, num):
+    #     # example validation
+    #     if num % 1 != 0:
+    #         raise ValueError("num_masked_pixels must be a multiple of 32")
 
-        return num
+    #     return num
 
     class Config:
         use_enum_values = True  # make sure that enum are exported as str

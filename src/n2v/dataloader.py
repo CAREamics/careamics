@@ -138,7 +138,7 @@ def extract_patches_sequential(
     logger.info(f"Extracted {patches.shape[0]} patches from input array.")
     # Yield single patch #TODO view_as_windows might be inefficient
     for patch_ixd in range(patches.shape[0]):
-        patch = patches[patch_ixd].astype(np.float32)
+        patch = patches[patch_ixd].astype(np.float32).squeeze()
         yield (normalize(patch, mean, std)) if (mean and std) else (patch)
 
 

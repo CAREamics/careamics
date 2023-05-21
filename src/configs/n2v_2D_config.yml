@@ -9,21 +9,21 @@ algorithm:
   # Pixel masking strategy #TODO add better description
   pixel_manipulation: n2v
   # Number of pixels to mask. Default is patch size ** number of patch dims / 32
-  num_masked_pixels: 32
+  mask_pixel_perc: 0.4
   #Class name from models.py
   model: UNet
   #Whether to use 2D or 3D convolutions #TODO better name ?
   conv_mult: 2
   depth: 3
-  checkpoint: Null
+  checkpoint: checkpoint50f.pth
 
 training:
-  num_epochs: 10
+  num_epochs: 50
   optimizer:
     #Name of the optimizer class from torch.optim
     name: Adam
     parameters:
-      lr: 0.0004
+      lr: 0.001
   lr_scheduler: 
     #Name of the scheduler class from torch.optim.lr_scheduler
     name: ReduceLROnPlateau
