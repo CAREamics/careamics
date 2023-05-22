@@ -181,7 +181,7 @@ def create_model(config: Dict) -> torch.nn.Module:
     #     raise ImportError('Model not found')
 
     if model_name == "UNet":
-        model = UNet(config.algorithm.conv_mult)
+        model = UNet(config.algorithm.conv_mult, depth=config.algorithm.depth)
     if load_checkpoint:
         # TODO add proper logging message
         model.load_state_dict(torch.load(load_checkpoint))

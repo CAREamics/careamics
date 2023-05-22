@@ -44,7 +44,7 @@ class Algorithm(BaseModel):
     pixel_manipulation: str  # TODO same as name ?
     model: ModelName = Field(default=ModelName.unet)
     depth: int = Field(default=3, ge=2)  # example: bounds
-    mask_pixel_perc: float = Field(default=0.2, ge=0.1, le=1)  # example: bounds
+    mask_pixel_perc: float = Field(default=0.2, ge=0.1, le=100)  # example: bounds
     conv_mult: int = Field(default=2, ge=2, le=3)  # example: bounds
     checkpoint: str = Field(default=None)
 

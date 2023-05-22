@@ -121,7 +121,6 @@ def n2v_manipulate_old(
     mask = np.zeros(patch.shape)
 
     hot_pixels = get_stratified_coords(num_pixels, patch.shape)
-    # hp = get_stratified_coords2(num_pixels, patch.shape)
     # TODO add another neighborhood selection strategy
     for pn in hot_pixels:
         # mf why you named it like this?
