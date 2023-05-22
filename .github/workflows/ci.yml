@@ -76,9 +76,14 @@ jobs:
     needs: test
     if: success() && startsWith(github.ref, 'refs/tags/') && github.event_name != 'schedule'
     runs-on: ubuntu-latest
+    environment: release # Needs to be created in the gh repository settings
     permissions:
       # IMPORTANT: this permission is mandatory for trusted publishing on PyPi
+      # see https://docs.pypi.org/trusted-publishers/
       id-token: write
+
+      # This permission allows writing releases
+      contents: write
 
     steps:
       - uses: actions/checkout@v3
