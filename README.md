@@ -10,3 +10,9 @@
 [![Python Version](https://img.shields.io/pypi/pyversions/careamics.svg?color=green)](https://python.org)
 [![CI](https://github.com/CAREamics/careamics/actions/workflows/ci.yml/badge.svg)](https://github.com/CAREamics/careamics/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/CAREamics/careamics/branch/main/graph/badge.svg)](https://codecov.io/gh/CAREamics/careamics)
+
+
+Stay tuned for DL goodies with CAREamics!
+
+Currently, this version is a place-holder, next version will contain the 
+first usable algorithms, as well as examples.
