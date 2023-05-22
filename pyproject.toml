@@ -1,0 +1,144 @@
+# https://peps.python.org/pep-0517/
+[build-system]
+requires = ["hatchling", "hatch-vcs"]
+build-backend = "hatchling.build"
+# read more about configuring hatch at:
+# https://hatch.pypa.io/latest/config/build/
+
+# https://hatch.pypa.io/latest/config/metadata/
+[tool.hatch.version]
+source = "vcs"
+
+# https://peps.python.org/pep-0621/
+[project]
+name = "careamics"
+dynamic = ["version"]
+description = "CAREamics"
+readme = "README.md"
+requires-python = ">=3.8"
+license = { text = "BSD-3-Clause" }
+authors = [
+    { name = "Igor Zubarev", email = "igor.zubarev@fht.org" },
+    { name = "Joran Deschamps", email = "joran.deschamps@fht.org" },
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    # "License :: OSI Approved :: BSD License",
+    # "Typing :: Typed",
+]
+# add your package dependencies here
+dependencies = []
+
+# https://peps.python.org/pep-0621/#dependencies-optional-dependencies
+# "extras" (e.g. for `pip install .[test]`)
+[project.optional-dependencies]
+# add dependencies used for testing here
+test = ["pytest", "pytest-cov"]
+# add anything else you like to have in your dev environment here
+dev = [
+    "black",
+    "ipython",
+    "mypy",
+    "pdbpp",  # https://github.com/pdbpp/pdbpp
+    "rich",  # https://github.com/Textualize/rich
+    "ruff",
+]
+
+[project.urls]
+homepage = "https://careamics.github.io/"
+repository = "https://github.com/CAREamics/careamics"
+
+# Entry points
+# https://peps.python.org/pep-0621/#entry-points
+# same as console_scripts entry point
+# [project.scripts]
+# careamics-cli = "careamics:main_cli"
+
+# [project.entry-points."some.group"]
+# tomatoes = "careamics:main_tomatoes"
+# https://github.com/charliermarsh/ruff
+[tool.ruff]
+line-length = 88
+target-version = "py38"
+# https://beta.ruff.rs/docs/rules/
+extend-select = [
+    "E",    # style errors
+    "W",    # style warnings
+    "F",    # flakes
+    "D",    # pydocstyle
+    "I",    # isort
+    "U",    # pyupgrade
+    # "S",    # bandit
+    "C",    # flake8-comprehensions
+    "B",    # flake8-bugbear
+    "A001", # flake8-builtins
+    "RUF",  # ruff-specific rules
+]
+# I do this to get numpy-style docstrings AND retain
+# D417 (Missing argument descriptions in the docstring)
+# otherwise, see:
+# https://beta.ruff.rs/docs/faq/#does-ruff-support-numpy-or-google-style-docstrings
+# https://github.com/charliermarsh/ruff/issues/2606
+extend-ignore = [
+    "D100", # Missing docstring in public module
+    "D107", # Missing docstring in __init__
+    "D203", # 1 blank line required before class docstring
+    "D212", # Multi-line docstring summary should start at the first line
+    "D213", # Multi-line docstring summary should start at the second line
+    "D401", # First line should be in imperative mood
+    "D413", # Missing blank line after last section
+    "D416", # Section name should end with a colon
+]
+
+[tool.ruff.per-file-ignores]
+"tests/*.py" = ["D", "S"]
+"setup.py" = ["D"]
+
+# https://mypy.readthedocs.io/en/stable/config_file.html
+[tool.mypy]
+files = "src/**/"
+strict = true
+disallow_any_generics = false
+disallow_subclassing_any = false
+show_error_codes = true
+pretty = true
+
+# # module specific overrides
+# [[tool.mypy.overrides]]
+# module = ["numpy.*",]
+# ignore_errors = true
+# https://docs.pytest.org/en/6.2.x/customize.html
+[tool.pytest.ini_options]
+minversion = "6.0"
+testpaths = ["tests"]
+filterwarnings = ["error"]
+
+# https://coverage.readthedocs.io/en/6.4/config.html
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "@overload",
+    "except ImportError",
+    "\\.\\.\\.",
+    "raise NotImplementedError()",
+]
+[tool.coverage.run]
+source = ["src"]
+
+# https://github.com/mgedmin/check-manifest#configuration
+# add files that you want check-manifest to explicitly ignore here
+# (files that are in the repo but shouldn't go in the package)
+[tool.check-manifest]
+ignore = [
+    ".github_changelog_generator",
+    ".pre-commit-config.yaml",
+    ".ruff_cache/**/*",
+    "setup.py",
+    "tests/**/*",
+]
