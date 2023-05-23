@@ -84,7 +84,7 @@ class UNet(nn.Module):
         num_classes: int = 1,
         in_channels: int = 1,
         depth: int = 3,
-        start_filts: int = 64,
+        start_filts: int = 96,
         up_mode: str = "transpose",
         merge_mode: str = "add",
         n2v2: bool = False,

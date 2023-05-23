@@ -142,27 +142,35 @@ def extract_patches_sequential(
         yield (normalize(patch, mean, std)) if (mean and std) else (patch)
 
 
-def extract_patches_random(arr, patch_size, num_patches=None, *args) -> np.ndarray:
+def extract_patches_random(
+    arr,
+    patch_size,
+    mean: int = None,
+    std: int = None,
+    overlaps=None,
+    num_patches=None,
+    *args,
+) -> Generator[np.ndarray, None, None]:
     # TODO either num_patches are all unique or output exact number of patches
-    crop_coords = np.random.default_rng().integers(
-        np.subtract(arr.shape, (0, *patch_size)), size=(num_patches, len(arr.shape))
-    )
+    rng = np.random.default_rng()
+    y = rng.integers(0, arr.shape[1] - patch_size[0])
+    x = rng.integers(0, arr.shape[2] - patch_size[1])
+    rng.shuffle(arr, axis=0)
+    if num_patches is None:
+        num_patches = arr.shape[0]
+    # crop_coords = rng.integers(
+    #     np.subtract(arr.shape, (0, *patch_size)), size=(num_patches, len(arr.shape))
+    # )
     # TODO test random patching
     # TODO add multiple arrays support, add possibility to remove empty or almost empty patches ?
-    for i in range(crop_coords.shape[1]):
-        yield (
-            arr[
-                (
-                    ...,
-                    *[
-                        slice(c, c + patch_size[j])
-                        for j, c in enumerate(crop_coords[:, i, ...])
-                    ],
-                )
-            ]
+    for i in range(arr.shape[0]):
+        # patch = arr[(...,*[slice(c, c + patch_size[j]) for j, c in enumerate(crop_coords[:, i, ...])],)].copy().astype(np.float32)
+        patch = (
+            arr[i, y : y + patch_size[0], x : x + patch_size[1]]
             .copy()
             .astype(np.float32)
         )
+        yield (normalize(patch, mean, std)) if (mean and std) else (patch)
 
 
 def extract_patches_predict(
@@ -420,8 +428,6 @@ class PatchDataset(torch.utils.data.IterableDataset):
                 for patch_data in self.patch_generator(
                     image, self.patch_size, overlaps=None, mean=self.mean, std=self.std
                 ):
-                    # TODO add augmentations, multiple functions.
-                    # TODO Works incorrectly if patch transform is NONE
                     yield self.patch_transform(
                         patch_data
                     ) if self.patch_transform is not None else (patch_data)

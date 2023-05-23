@@ -30,4 +30,4 @@ from .utils import get_device, set_logging, config_loader, normalize, denormaliz
 
 from .config import ConfigValidator
 
-from .augment import augment_single
+from .augment import augment_batch

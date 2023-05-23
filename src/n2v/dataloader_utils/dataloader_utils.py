@@ -142,7 +142,9 @@ def compute_reshaped_view(
     output_shape : Tuple[int]
         Shape of the output array
     """
+    rng = np.random.default_rng()  # TODO not sure shuffling should be done here
     patches = view_as_windows(arr, window_shape=window_shape, step=step).reshape(
         *output_shape
     )
+    rng.shuffle(patches, axis=0)
     return patches

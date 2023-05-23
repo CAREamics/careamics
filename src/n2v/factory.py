@@ -6,7 +6,7 @@ from typing import Callable, Dict, List, Optional, Tuple, Union
 import torch
 
 from . import dataloader, pixel_manipulation
-from .augment import augment_single
+from .augment import augment_batch
 from .config import ConfigValidator
 from .utils import set_logging
 from .dataloader import (
@@ -86,13 +86,14 @@ def create_patch_transform(config: ConfigValidator) -> Callable:
     -------
     Callable
     """
+    augmentation = augment_batch if config.training.augmentations == "basic" else None
     return partial(
         getattr(
             pixel_manipulation, f"{config.algorithm.pixel_manipulation}_manipulate"
         ),
         mask_pixel_perc=config.algorithm.mask_pixel_perc,
         # TODO add augmentation selection
-        augmentations=None,
+        augmentations=augmentation,
     )
 
 

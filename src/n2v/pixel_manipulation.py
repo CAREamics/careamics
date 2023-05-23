@@ -198,6 +198,44 @@ def n2v_manipulate(
     # Replace the original pixels with the replacement pixels
     patch[tuple(roi_centers.T.tolist())] = replacement_pixels
     mask = np.where(patch != original_patch, 1, 0)
+    patch, original_patch, mask = (
+        (patch, original_patch, mask)
+        if augmentations is None
+        else augmentations(patch, original_patch, mask)
+    )
+    return (
+        np.expand_dims(patch, 0),
+        np.expand_dims(original_patch, 0),
+        np.expand_dims(mask, 0),
+    )
+
+
+def n2v_manipulate_t(
+    patch: np.ndarray, mask_pixel_perc: float, roi_size: int = 5, augmentations=None
+) -> Tuple[np.ndarray]:
+    original_patch = patch.copy()
+    mask = np.zeros(patch.shape)
+    hotPixels = getStratifiedCoords2D(100 * 100 / 32, patch.shape)
+    maxA = patch.shape[1] - 1
+    maxB = patch.shape[0] - 1
+    for p in hotPixels:
+        a, b = p[1], p[0]
+
+        roiMinA = max(a - 2, 0)
+        roiMaxA = min(a + 3, maxA)
+        roiMinB = max(b - 2, 0)
+        roiMaxB = min(b + 3, maxB)
+        roi = patch[roiMinB:roiMaxB, roiMinA:roiMaxA]
+        a_ = 2
+        b_ = 2
+        while a_ == 2 and b_ == 2:
+            a_ = np.random.randint(0, roi.shape[1])
+            b_ = np.random.randint(0, roi.shape[0])
+
+        repl = roi[b_, a_]
+        patch[b, a] = repl
+        mask[b, a] = 1.0
+
     return (
         np.expand_dims(patch, 0),
         np.expand_dims(original_patch, 0),

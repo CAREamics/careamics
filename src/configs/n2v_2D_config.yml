@@ -9,13 +9,13 @@ algorithm:
   # Pixel masking strategy #TODO add better description
   pixel_manipulation: n2v
   # Number of pixels to mask. Default is patch size ** number of patch dims / 32
-  mask_pixel_perc: 0.4
+  mask_pixel_perc: 3
   #Class name from models.py
   model: UNet
   #Whether to use 2D or 3D convolutions #TODO better name ?
   conv_mult: 2
   depth: 3
-  checkpoint: checkpoint50f.pth
+  checkpoint: Null
 
 training:
   num_epochs: 50
@@ -23,7 +23,7 @@ training:
     #Name of the optimizer class from torch.optim
     name: Adam
     parameters:
-      lr: 0.001
+      lr: 0.0004
   lr_scheduler: 
     #Name of the scheduler class from torch.optim.lr_scheduler
     name: ReduceLROnPlateau
@@ -52,7 +52,7 @@ training:
     #Number of files to read. Read all if None
     num_files: Null
     # Patch generation strategy [random, sequential]
-    extraction_strategy: sequential
+    extraction_strategy: random
     #Patch shape in (z)yx. 2D or 3D
     patch_size: &PS [64, 64]
     #Total number of patches to generate. Only applicable for random patching
@@ -62,7 +62,7 @@ training:
     #Num workers parameter for data loader
     num_workers: 0
     #TODO add list of specific augmentations or func/list of funcs 
-    augmentation: Null
+  augmentation: Null
   
 
 evaluation:

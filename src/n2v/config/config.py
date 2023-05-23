@@ -151,6 +151,7 @@ class Training(BaseModel):
     max_grad_norm: float = Field(default=1.0, ge=0.0, le=1.0)
     running_stats: bool
     data: Data
+    augmentations: str = Field(default="basic")
 
     class Config:
         use_enum_values = True  # make sure that enum are exported as str
