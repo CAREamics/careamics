@@ -17,6 +17,7 @@ class ModelName(str, Enum):
     """Represents a model."""
 
     unet = "UNet"
+    unet_tf = "UNet_tf"
     # TODO add all the others
 
 
@@ -43,9 +44,10 @@ class Algorithm(BaseModel):
     loss: List[LossName]
     pixel_manipulation: str  # TODO same as name ?
     model: ModelName = Field(default=ModelName.unet)
-    depth: int = Field(default=3, ge=2)  # example: bounds
-    mask_pixel_perc: float = Field(default=0.2, ge=0.1, le=100)  # example: bounds
     conv_mult: int = Field(default=2, ge=2, le=3)  # example: bounds
+    depth: int = Field(default=3, ge=2)  # example: bounds
+    num_filter_base: int = Field(default=96, ge=16)  # example: bounds
+    mask_pixel_perc: float = Field(default=0.2, ge=0.1, le=100)  # example: bounds
     checkpoint: str = Field(default=None)
 
     # @validator("mask_pixel_perc")

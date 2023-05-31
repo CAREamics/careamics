@@ -14,7 +14,7 @@ from .dataloader import (
     list_input_source_tiff,
 )
 from .losses import n2v_loss
-from .models import UNet
+from .models import UNet, UNet_tf
 
 
 logger = logging.getLogger(__name__)
@@ -183,10 +183,23 @@ def create_model(config: Dict) -> torch.nn.Module:
 
     if model_name == "UNet":
         model = UNet(config.algorithm.conv_mult, depth=config.algorithm.depth)
+    elif model_name == "UNet_tf":
+        model = UNet_tf(
+            depth=config.algorithm.depth,
+            conv_dim=config.algorithm.conv_mult,
+            num_filter_base=config.algorithm.num_filter_base,
+        )
     if load_checkpoint:
         # TODO add proper logging message
-        model.load_state_dict(torch.load(load_checkpoint))
-        logger.info("Loaded checkpoint")
+        try:
+            if load_checkpoint.endswith(".pth") or load_checkpoint.endswith(".pt"):
+                model.load_state_dict(torch.load(load_checkpoint))
+                logger.info("Loaded checkpoint")
+            else:
+                model = torch.load(load_checkpoint)
+                logger.info("Loaded model")
+        except FileNotFoundError:
+            raise FileNotFoundError("Checkpoint not found or wrong format")
     return model
 
 

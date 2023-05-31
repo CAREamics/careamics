@@ -72,10 +72,11 @@ class DownConv(nn.Module):
                 if self.n2v2
                 else getattr(nn, f"MaxPool{self.conv_dim}d")(kernel_size=2, stride=2)
             )
+        self.bn = getattr(nn, f"BatchNorm{self.conv_dim}d")(self.out_channels)
 
     def forward(self, x):
-        x = F.relu(self.conv1(x))
-        x = F.relu(self.conv2(x))
+        x = F.relu(self.bn(self.conv1(x)))
+        x = F.relu(self.bn(self.conv2(x)))
         before_pool = x
         if self.pooling:
             x = self.pool(x)
@@ -124,6 +125,7 @@ class UpConv(nn.Module):
             # num of input channels to conv2 is same
             self.conv1 = conv3x3(self.conv_func, self.out_channels, self.out_channels)
         self.conv2 = conv3x3(self.conv_func, self.out_channels, self.out_channels)
+        self.bn = getattr(nn, f"BatchNorm{self.conv_dim}d")(self.out_channels)
 
     def forward(self, from_down, from_up, skip=False):
         """Forward pass
@@ -138,8 +140,57 @@ class UpConv(nn.Module):
             x = from_up + from_down
         if self.skip:
             x = from_down
-        x = F.relu(self.conv1(x))
-        x = F.relu(self.conv2(x))
+        x = F.relu(self.bn(self.conv1(x)))
+        x = F.relu(self.bn(self.conv2(x)))
+        return x
+
+
+class Conv_Block_tf(nn.Module):
+    def __init__(
+        self,
+        conv_dim,
+        in_channels,
+        out_channels,
+        stride=1,
+        padding=1,
+        bias=True,
+        groups=1,
+        activation="ReLU",
+        dropout_perc=0,
+        use_batch_norm=False,
+        **kwargs,
+    ) -> None:
+        super().__init__()
+        self.use_batch_norm = use_batch_norm
+        self.conv = getattr(nn, f"Conv{conv_dim}d")(
+            in_channels,
+            out_channels,
+            kernel_size=3,
+            stride=stride,
+            padding=padding,
+            bias=bias,
+            groups=groups,
+        )
+
+        self.batch_norm = getattr(nn, f"BatchNorm{conv_dim}d")(out_channels)
+        self.dropout = (
+            getattr(nn, f"Dropout{conv_dim}d")(dropout_perc)
+            if dropout_perc > 0
+            else None
+        )
+        self.activation = (
+            getattr(nn, f"{activation}")() if activation is not None else nn.Identity()
+        )
+
+    def forward(self, x):
+        if self.use_batch_norm:
+            x = self.conv(x)
+            x = self.batch_norm(x)
+            x = self.activation(x)
+        else:
+            x = self.conv(x)
+        if self.dropout is not None:
+            x = self.dropout(x)
         return x
 
 

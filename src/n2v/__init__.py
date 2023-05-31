@@ -10,7 +10,7 @@ from .factory import (
     create_model,
     create_loss_function,
 )
-from .models import UNet
+from .models import UNet, UNet_tf
 
 from .losses import n2v_loss, pn2v_loss, decon_loss
 
