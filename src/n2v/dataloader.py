@@ -420,7 +420,9 @@ class PatchDataset(torch.utils.data.IterableDataset):
         for image in self.__iter_source__():
             if self.patch_generator is None:
                 for idx in range(image.shape[0]):
-                    sample = np.expand_dims(image[idx], 0).astype(np.float32)
+                    sample = np.expand_dims(image[idx], (0, 1)).astype(
+                        np.float32
+                    )  # TODO check explanddims !!
                     yield normalize(sample, self.mean, self.std) if (
                         self.mean and self.std
                     ) else image
