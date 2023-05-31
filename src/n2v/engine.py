@@ -16,6 +16,7 @@ from torch.utils.data import DataLoader
 # TODO Ma che cazzo asterisco sta facendo qui?!!
 from . import *
 
+from .utils import normalize
 from .metrics import MetricTracker
 from .factory import (
     _get_params_from_config,
@@ -105,6 +106,8 @@ class UnsupervisedEngine(Engine):
         optimizer, lr_scheduler = self.get_optimizer_and_scheduler()
         scaler = self.get_grad_scaler()
         self.logger.info(f"Starting training for {self.cfg.training.num_epochs} epochs")
+
+        val_losses = []  # TODO reimplement this uglu shit
         try:
             for epoch in range(
                 self.cfg.training.num_epochs
@@ -127,8 +130,12 @@ class UnsupervisedEngine(Engine):
                 # Add update scheduler rule based on type
                 lr_scheduler.step(eval_outputs["loss"])
                 # TODO implement checkpoint naming
-                self.save_checkpoint("checkpoint.pth", False)
-                self.logger.info(f"Save checkpoint to ")  # TODO correct path
+                if len(val_losses) == 0 or eval_outputs["loss"] < min(val_losses):
+                    self.save_checkpoint(f"best_checkpoint.pth", False)
+                else:
+                    self.save_checkpoint("last_checkpoint.pth", False)
+                val_losses.append(eval_outputs["loss"])
+                self.logger.info(f"Saved checkpoint to ")  # TODO correct path
 
         except KeyboardInterrupt:
             self.logger.info("Training interrupted")
@@ -147,14 +154,18 @@ class UnsupervisedEngine(Engine):
 
         return {"loss": avg_loss.avg}
 
-    def predict(self):
+    def predict(self, ext_input: np.ndarray = None):
         self.model.to(self.device)
         self.model.eval()
-        pred_loader = self.get_predict_dataloader()
         if not (self.mean and self.std):
             _, self.mean, self.std = self.get_train_dataloader()
-        pred_loader.dataset.set_normalization(self.mean, self.std)
-        self.stitch = pred_loader.dataset.patch_generator is not None
+        pred_loader = self.get_predict_dataloader(
+            ext_input=ext_input
+        )  # TODO check, calculate mean and std on all data not only train
+        self.stitch = (
+            hasattr(pred_loader.dataset, "patch_generator")
+            and pred_loader.dataset.patch_generator is not None
+        )
         avg_metric = MetricTracker()
         # TODO get whole image size or append to variable sized array, rename
         pred = np.zeros((1, 321, 481))
@@ -173,8 +184,9 @@ class UnsupervisedEngine(Engine):
                         all_tiles_shape,
                         image_shape,
                     ) = auxillary
-
-                outputs = self.model(image.to(self.device))
+                outputs = self.model(
+                    image.to(self.device)
+                )  # Why batch dimension is not added by dl ?
                 outputs = denormalize(outputs, self.mean, self.std)
                 if self.stitch:
                     (
@@ -275,10 +287,16 @@ class UnsupervisedEngine(Engine):
             pin_memory=True,
         )
 
-    def get_predict_dataloader(self) -> DataLoader:
+    def get_predict_dataloader(self, ext_input: np.ndarray = None) -> DataLoader:
         # TODO add description
-        dataset = create_dataset(self.cfg, "prediction")
-        dataset.set_normalization(self.mean, self.std)
+        if ext_input is not None:
+            ext_input = normalize(ext_input, self.mean, self.std)
+            dataset = torch.utils.data.TensorDataset(
+                torch.from_numpy(ext_input.astype(np.float32))
+            )
+        else:
+            dataset = create_dataset(self.cfg, "prediction")
+            dataset.set_normalization(self.mean, self.std)
         return DataLoader(
             dataset,
             batch_size=self.cfg.prediction.data.batch_size,
@@ -323,10 +341,7 @@ class UnsupervisedEngine(Engine):
 
     def save_checkpoint(self, name, save_best):
         """Save the model to a checkpoint file."""
-        if save_best:
-            torch.save(self.model.state_dict(), "best_checkpoint.pth")
-        else:
-            torch.save(self.model.state_dict(), "checkpoint.pth")
+        torch.save(self.model.state_dict(), name)
 
     # TODO implement proper saving/loading
 
