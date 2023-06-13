@@ -9,16 +9,17 @@ algorithm:
   # Pixel masking strategy #TODO add better description
   pixel_manipulation: n2v
   # Number of pixels to mask. Default is patch size ** number of patch dims / 32
-  mask_pixel_perc: 3
+  mask_pixel_perc: 0.2
   #Class name from models.py
-  model: UNet
+  model: UNet_tf
   #Whether to use 2D or 3D convolutions #TODO better name ?
   conv_mult: 2
-  depth: 3
-  checkpoint: Null
+  depth: 2
+  num_filter_base: 96
+  checkpoint: last_checkpoint.pth
 
 training:
-  num_epochs: 50
+  num_epochs: 600
   optimizer:
     #Name of the optimizer class from torch.optim
     name: Adam
@@ -30,7 +31,7 @@ training:
     parameters:
       mode: min
       factor: 0.5
-      patience: 5
+      patience: 30
       verbose: true
       threshold: 0.0001
       threshold_mode: rel
@@ -62,7 +63,7 @@ training:
     #Num workers parameter for data loader
     num_workers: 0
     #TODO add list of specific augmentations or func/list of funcs 
-  augmentation: Null
+  augmentation: basic
   
 
 evaluation:
@@ -73,7 +74,7 @@ evaluation:
     ext: *EXT
     axes: *AX
     #Number of files to read. Read all if None
-    num_files: 1
+    num_files: Null
     # Patch generation strategy [random, sequential]
     extraction_strategy: sequential
     #Patch shape in (z)yx. 2D or 3D
@@ -102,7 +103,7 @@ prediction:
     # Patch generation strategy [random, sequential]
     extraction_strategy: predict
     #Patch shape in (z)yx. 2D or 3D
-    patch_size: [1, 1]
+    patch_size: [100, 100]
     # Batch size
     batch_size: 1
     #Num workers parameter for data loader

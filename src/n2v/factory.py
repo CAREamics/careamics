@@ -118,7 +118,7 @@ def create_tiling_function(stage: Dict) -> Callable:
                 dataloader,
                 f"extract_patches_{stage.data.extraction_strategy}",
             ),
-            overlap=stage.overlap,
+            overlaps=stage.overlap,
         )
     else:
         return partial(

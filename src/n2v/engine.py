@@ -10,6 +10,7 @@ import torch.nn.functional as F
 from pathlib import Path
 from abc import ABC, abstractmethod
 from tqdm import tqdm
+from collections import OrderedDict
 from typing import Callable, Dict, List, Optional, Tuple, Union
 from torch.utils.data import DataLoader
 
@@ -52,9 +53,9 @@ class Engine(ABC):
     def train_single_epoch(self, args):
         pass
 
-    @abstractmethod
-    def predict(self, args):
-        pass
+    # @abstractmethod
+    # def predict(self, args):
+    #     pass
 
 
 class UnsupervisedEngine(Engine):
@@ -147,14 +148,25 @@ class UnsupervisedEngine(Engine):
         avg_loss.reset()
 
         with torch.no_grad():
-            for image, *auxillary in tqdm(eval_loader):
-                outputs = self.model(image.to(self.device))
+            for patch, *auxillary in tqdm(eval_loader):
+                outputs = self.model(patch.to(self.device))
                 loss = self.loss_func(outputs, *auxillary, self.device)
-                avg_loss.update(loss.item(), image.shape[0])
+                avg_loss.update(loss.item(), patch.shape[0])
 
         return {"loss": avg_loss.avg}
 
-    def predict(self, ext_input: np.ndarray = None):
+    def predict_single_image(self, image: np.ndarray):
+        pass
+
+    def predict_from_memory(self):
+        # TODO predict on externally passed array
+        pass
+
+    def predict_from_disk(self):
+        # TODO predict on externally passed path
+        pass
+
+    def predict_single_sample(self, ext_input: np.ndarray = None):
         self.model.to(self.device)
         self.model.eval()
         if not (self.mean and self.std):
@@ -167,25 +179,29 @@ class UnsupervisedEngine(Engine):
             and pred_loader.dataset.patch_generator is not None
         )
         avg_metric = MetricTracker()
-        # TODO get whole image size or append to variable sized array, rename
-        pred = np.zeros((1, 321, 481))
-        tiles = []
+        # TODO get whole image size or append to variable sized array. Might not fit into memory?
+        # pred = np.empty(68, dtype=np.object)
+        # TODO need acces to overlaps from config
+        tiles = OrderedDict()
         if self.stitch:
             self.logger.info("Starting tiled prediction")
         else:
             self.logger.info("Starting prediction on whole sample")
         with torch.no_grad():
-            for image, *auxillary in tqdm(pred_loader):
+            for idx, (tile, *auxillary) in tqdm(enumerate(pred_loader)):
                 # TODO define all predict/train funcs in separate modules
                 if auxillary:
                     (
-                        sample,
+                        sample_id,
                         tile_level_coords,
                         all_tiles_shape,
                         image_shape,
+                        step,
                     ) = auxillary
+
+                # TODO get sample, iterate over tiles of 1 sample
                 outputs = self.model(
-                    image.to(self.device)
+                    tile.to(self.device)
                 )  # Why batch dimension is not added by dl ?
                 outputs = denormalize(outputs, self.mean, self.std)
                 if self.stitch:
@@ -196,24 +212,36 @@ class UnsupervisedEngine(Engine):
                         tile_level_coords,
                         all_tiles_shape,
                         self.cfg.prediction.overlap,
-                        image_shape,
+                        step,
+                        image_shape[1:],
                         self.cfg.prediction.data.patch_size,
                     )
                     predicted_tile = outputs.squeeze()[
                         (*[c for c in overlap_crop_coords], ...)
                     ]
-                    tiles.append(predicted_tile.cpu().numpy())
                     stitch_coords = [
-                        slice(start, start + end, None)
+                        slice(start.item(), (start + end).item(), None)
                         for start, end in zip(tile_pixel_coords, predicted_tile.shape)
                     ]
-                    pred[
-                        (sample, *[c for c in stitch_coords], ...)
-                    ] = predicted_tile.cpu().numpy()
+                    tiles[idx] = [predicted_tile.cpu().numpy(), stitch_coords]
+                    # pred[sample_id][
+                    #     (*[c for c in stitch_coords], ...)
+                    # ] = predicted_tile.cpu().numpy()
                 else:
-                    tiles.append(outputs.detach().cpu().numpy())
-        self.logger.info("Prediction finished")
-        return pred, tiles
+                    tiles[idx] = [outputs.detach().cpu().numpy(), None]
+
+        # Stitch tiles together
+        # TODO move to separate function
+        if self.stitch:
+            self.logger.info("Stitching tiles together")
+            pred = np.zeros(image_shape[1:])
+            for tile, stitch_coords in tiles.values():
+                pred[(*[c for c in stitch_coords], ...)] = tile
+            self.logger.info("Prediction finished")
+            return pred, tiles
+        else:
+            self.logger.info("Prediction finished")
+            return None, tiles
 
     def train_single_epoch(
         self,
@@ -238,11 +266,11 @@ class UnsupervisedEngine(Engine):
         self.model.to(self.device)
         self.model.train()
 
-        for image, *auxillary in tqdm(loader):
+        for patch, *auxillary in tqdm(loader):
             optimizer.zero_grad()
 
             with torch.cuda.amp.autocast(enabled=amp):
-                outputs = self.model(image.to(self.device))
+                outputs = self.model(patch.to(self.device))
             loss = self.loss_func(outputs, *auxillary, self.device)
             scaler.scale(loss).backward()
 
@@ -251,7 +279,7 @@ class UnsupervisedEngine(Engine):
                     self.model.parameters(), max_norm=max_grad_norm
                 )
             # TODO fix batches naming
-            avg_loss.update(loss.item(), image.shape[0])
+            avg_loss.update(loss.item(), patch.shape[0])
 
             optimizer.step()
         return {"loss": avg_loss.avg}

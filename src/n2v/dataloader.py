@@ -174,17 +174,32 @@ def extract_patches_random(
 
 
 def extract_patches_predict(
-    arr: np.ndarray, patch_size: Tuple[int], overlap: Tuple[int]
+    arr: np.ndarray,
+    patch_size: Tuple[int],
+    overlaps: Tuple[int],
+    mean: int = None,
+    std: int = None,
 ) -> List[np.ndarray]:
     # Overlap is half of the value mentioned in original N2V. must be even. It's like this because of current N2V notation
-
+    arr = arr[:, 99:, :141]
     last_overlap = compute_overlap_predict(
-        arr=arr, patch_size=patch_size, overlap=overlap
+        arr=arr, patch_size=patch_size, overlap=overlaps
     )
-    step = tuple([p - o for p, o in zip(patch_size, overlap)])
+    step = tuple([p - o for p, o in zip(patch_size, overlaps)])
     all_tiles = view_as_windows(
         arr, window_shape=[1, *patch_size], step=[1, *step]
     )  # shape (tiles in y, tiles in x, Y, X)
+    # TODO if arr.shape(xy) != ps + step * all_tiles.shape(n_tiles) - 1
+    #
+    default_tile_coords = all_tiles.shape[1 : len(patch_size) + 1]
+    # Check full coverage
+    irregular_shape = all(lo == s for lo, s in zip(last_overlap, step))
+    # Whether to add extra tile to each dimension
+
+    increment = [1 if lo < s else 0 for lo, s in zip(last_overlap, step)]
+    full_coverage_coords = [
+        s + i for s, i in zip(all_tiles.shape[1 : len(patch_size) + 1], increment)
+    ]
 
     output_shape = (
         arr.shape[0],
@@ -192,42 +207,48 @@ def extract_patches_predict(
         *patch_size,
     )
     # Save number of tiles in each dimension
-    all_tiles = all_tiles.reshape(*output_shape)
-
+    all_tiles = all_tiles.reshape(*output_shape)[0][np.newaxis]
+    # TODO compare image with tiles by pixel
+    # TODO reverse array all dims, create windowed view up to last coord eg 195 in current case
     # Iterate over num samples (S)
-    # TODO add +1 to all tiles shape in each dim -> when all_tiles is exhausted -> yield last_tile
     for sample in range(all_tiles.shape[0]):
-        # Adding 1 to all dimensions to ensure capturing the last tile
-        full_coverage_shape = [d + 1 for d in all_tiles.shape[1 : len(patch_size) + 1]]
-        for tile_level_coords in itertools.product(*map(range, full_coverage_shape)):
-            if all([c1 < c2 for c1, c2 in zip(tile_level_coords, full_coverage_shape)]):
+        for tile_level_coords in itertools.product(*map(range, full_coverage_coords)):
+            try:
                 tile = all_tiles[sample][(*[c for c in tile_level_coords], ...)]
-            else:
-                last_tile_dims = np.zeros_like(arr.shape)
-                # Id of dimension where the tile pointer is currently at the border
-                idx = np.where(
-                    [c1 >= c2 for c1, c2 in zip(tile_level_coords, full_coverage_shape)]
-                )[0]
-                # TODO fix case where len(idx) > 1
-                last_tile_dims[idx]
-                last_tile_coords = [slice(None)] + [
+            except IndexError:
+                # TODO separate function?
+                reverse_tile_level_coords = [
+                    tlc if tlc < dtc else tlc - fcc
+                    for tlc, dtc, fcc in zip(
+                        tile_level_coords, default_tile_coords, full_coverage_coords
+                    )
+                ]
+                last_tile_coords = [
                     slice(
-                        (arr.shape[i + 1] - patch_size[i]) * tile_level_coords[i]
-                        - overlap[i],
-                        arr.shape[i + 1] * tile_level_coords[i] - overlap[i],
+                        step[i] * reverse_tile_level_coords[i],
+                        (step[i] * reverse_tile_level_coords[i]) + patch_size[i],
+                        None,
+                    )
+                    if reverse_tile_level_coords[i] >= 0
+                    else slice(
+                        arr[sample].shape[i]
+                        + step[i] * (reverse_tile_level_coords[i] - 1),
+                        arr[sample].shape[i]
+                        + step[i] * (reverse_tile_level_coords[i] - 1)
+                        + patch_size[i],
                         None,
                     )
                     for i in range(len(patch_size))
                 ]
                 tile = arr[sample][(*[c for c in last_tile_coords], ...)]
-                # TODO
 
             yield (
-                tile.astype(np.float32),
+                np.expand_dims(tile.astype(np.float32), 0),
                 sample,
                 tile_level_coords,
-                all_tiles.shape[1 : len(patch_size) + 1],
-                arr.shape[1:],
+                full_coverage_coords,
+                arr.shape,
+                step,
             )
 
 
@@ -334,28 +355,39 @@ class PatchDataset(torch.utils.data.IterableDataset):
         if data_source.suffix == ".npy":
             try:
                 arr = np.load(data_source)
+                arr_num_dims = len(arr.shape)
             except ValueError:
-                arr = np.load(data_source, allow_pickle=True)[0].astype(
-                    np.float32
+                arr = np.load(
+                    data_source, allow_pickle=True
                 )  # TODO this is a hack to deal with the fact that we are saving a list of arrays
+                arr_num_dims = (
+                    len(arr[0].shape) + 1
+                )  # TODO check all arrays have the same or compliant shape ?
         elif data_source.suffix[:4] == ".tif":
             arr = tifffile.imread(data_source)
+            arr_num_dims = len(arr.shape)
 
+        # TODO add possibility to handle files with different set of axes
         # Assert data dimensions are correct
-        assert len(arr.shape) in (
+        assert arr_num_dims in (
             2,
             3,
             4,
         ), f"Incorrect data dimensions. Must be 2, 3 or 4, given {arr.shape} for file {data_source}"
 
-        assert len(arr.shape) == len(axes), f"Incorrect axes. Must be {len(arr.shape)}"
+        assert arr_num_dims == len(
+            axes
+        ), f"Incorrect axes. Must be {arr_num_dims}, given {axes}"
 
         # TODO add axes shuffling and reshapes. so far assuming correct order
-        if "S" in axes or "T" in axes:
+        if ("S" in axes or "T" in axes) and arr.dtype != "O":
             # TODO use re?
             arr = arr.reshape(
                 -1, *arr.shape[len(axes.replace("Z", "").replace("YX", "")) :]
             )
+        elif arr.dtype == "O":
+            for i in range(len(arr)):  # TODO add check for dimenstions of each array
+                arr[i] = np.expand_dims(arr[i], axis=0)
         else:
             arr = np.expand_dims(arr, axis=0)
             # TODO do we need to update patch size?
@@ -375,6 +407,9 @@ class PatchDataset(torch.utils.data.IterableDataset):
     def set_normalization(self, mean, std):
         self.mean = mean
         self.std = std
+
+    def __len__(self):
+        return self.num_files if self.num_files else len(self.source)
 
     def __iter_source__(self):
         """
@@ -428,7 +463,7 @@ class PatchDataset(torch.utils.data.IterableDataset):
                     ) else image
             else:
                 for patch_data in self.patch_generator(
-                    image, self.patch_size, overlaps=None, mean=self.mean, std=self.std
+                    image, self.patch_size, mean=self.mean, std=self.std
                 ):
                     yield self.patch_transform(
                         patch_data

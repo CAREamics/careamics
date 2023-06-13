@@ -207,25 +207,6 @@ class UNet(nn.Module):
 
 
 class UNet_tf(nn.Module):
-    # def __init__(self, input_shape,
-    #             last_activation,
-    #             n_depth=2,
-    #             n_filter_base=16,
-    #             kernel_size=3,
-    #             n_conv_per_depth=2,
-    #             activation="relu",
-    #             batch_norm=False,
-    #             dropout=0.0,
-    #             pool_size=(2,2,2),
-    #             residual=False,
-    #             prob_out=False,
-    #             eps_scale=1e-3,
-    #             blurpool=False,
-    #             skip_skipone=False) -> None:
-
-    #     super().__init__()
-    #     n_dim = len(kernel_size)
-
     def __init__(
         self,
         conv_dim: int,
@@ -356,6 +337,7 @@ class UNet_tf(nn.Module):
         )
 
     def forward(self, x):
+        # TODO certain input sizes lead to shape mismatch, eg 160x150
         inputs = x.clone()
         for module_name in self.enc_blocks:
             x = self.enc_blocks[module_name](x)
