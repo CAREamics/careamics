@@ -16,7 +16,6 @@ from torch.utils.data import DataLoader
 
 # TODO Ma che cazzo asterisco sta facendo qui?!!
 from . import *
-
 from .utils import normalize
 from .metrics import MetricTracker
 from .factory import (
@@ -155,7 +154,35 @@ class UnsupervisedEngine(Engine):
 
         return {"loss": avg_loss.avg}
 
-    def predict_single_image(self, image: np.ndarray):
+    def predict(self, args):
+        # TODO predict whole folder. Need filenames from DL, indices of samples in each file
+
+        self.model.to(self.device)
+        self.model.eval()
+        if not (self.mean and self.std):
+            _, self.mean, self.std = self.get_train_dataloader()
+        pred_loader = self.get_predict_dataloader(
+            ext_input=ext_input
+        )  # TODO check, calculate mean and std on all data not only train
+        # TODO separate func for external input
+        self.stitch = (
+            hasattr(pred_loader.dataset, "patch_generator")
+            and pred_loader.dataset.patch_generator is not None
+        )
+        if self.stitch:
+            self.logger.info("Starting tiled prediction")
+        else:
+            self.logger.info("Starting prediction on whole sample")
+        with torch.no_grad():
+            for idx, (tile, *auxillary) in tqdm(enumerate(pred_loader)):
+                # TODO define all predict/train funcs in separate modules
+                if auxillary:
+                    (
+                        sample_idx,
+                        overlap_crop_coords,
+                        stitch_coords,
+                    ) = auxillary
+            # TODO get filename from DL, get index treshold marking end of file
         pass
 
     def predict_from_memory(self):
@@ -167,6 +194,7 @@ class UnsupervisedEngine(Engine):
         pass
 
     def predict_single_sample(self, ext_input: np.ndarray = None):
+        # TODO use this in predict
         self.model.to(self.device)
         self.model.eval()
         if not (self.mean and self.std):
@@ -182,7 +210,7 @@ class UnsupervisedEngine(Engine):
         # TODO get whole image size or append to variable sized array. Might not fit into memory?
         # pred = np.empty(68, dtype=np.object)
         # TODO need acces to overlaps from config
-        tiles = OrderedDict()
+        tiles = []
         if self.stitch:
             self.logger.info("Starting tiled prediction")
         else:
@@ -192,11 +220,10 @@ class UnsupervisedEngine(Engine):
                 # TODO define all predict/train funcs in separate modules
                 if auxillary:
                     (
-                        sample_id,
-                        tile_level_coords,
-                        all_tiles_shape,
-                        image_shape,
-                        step,
+                        sample_idx,
+                        sample_shape,
+                        overlap_crop_coords,
+                        stitch_coords,
                     ) = auxillary
 
                 # TODO get sample, iterate over tiles of 1 sample
@@ -205,38 +232,29 @@ class UnsupervisedEngine(Engine):
                 )  # Why batch dimension is not added by dl ?
                 outputs = denormalize(outputs, self.mean, self.std)
                 if self.stitch:
-                    (
-                        overlap_crop_coords,
-                        tile_pixel_coords,
-                    ) = calculate_tile_cropping_coords(
-                        tile_level_coords,
-                        all_tiles_shape,
-                        self.cfg.prediction.overlap,
-                        step,
-                        image_shape[1:],
-                        self.cfg.prediction.data.patch_size,
-                    )
+                    # Crop predited tile according to overlap coordinates
                     predicted_tile = outputs.squeeze()[
-                        (*[c for c in overlap_crop_coords], ...)
+                        (
+                            ...,
+                            *[
+                                slice(c.squeeze()[0], c.squeeze()[1])
+                                for c in list(overlap_crop_coords)
+                            ],
+                        )
                     ]
-                    stitch_coords = [
-                        slice(start.item(), (start + end).item(), None)
-                        for start, end in zip(tile_pixel_coords, predicted_tile.shape)
-                    ]
-                    tiles[idx] = [predicted_tile.cpu().numpy(), stitch_coords]
-                    # pred[sample_id][
-                    #     (*[c for c in stitch_coords], ...)
-                    # ] = predicted_tile.cpu().numpy()
+                    tiles.append(
+                        (
+                            predicted_tile.cpu().numpy(),
+                            [c.squeeze().numpy() for c in stitch_coords],
+                        )
+                    )
                 else:
-                    tiles[idx] = [outputs.detach().cpu().numpy(), None]
+                    tiles.append((outputs.detach().cpu().numpy(), None))
 
         # Stitch tiles together
-        # TODO move to separate function
         if self.stitch:
             self.logger.info("Stitching tiles together")
-            pred = np.zeros(image_shape[1:])
-            for tile, stitch_coords in tiles.values():
-                pred[(*[c for c in stitch_coords], ...)] = tile
+            pred = stitch_prediction(tiles, sample_shape)
             self.logger.info("Prediction finished")
             return pred, tiles
         else:

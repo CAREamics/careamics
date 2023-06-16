@@ -1,70 +1,26 @@
-import os
-import torch
-import logging
-import itertools
-import tifffile
 import numpy as np
 
-from functools import partial
-from torch.utils.data import Dataset, IterableDataset, DataLoader
-from pathlib import Path
-from skimage.util import view_as_windows
-from typing import Callable, List, Optional, Sequence, Union, Tuple
+from typing import List, Tuple
 
 
-def calculate_tile_cropping_coords(
-    tile_coords: Tuple[int],
-    last_tile_coord: Tuple[int],
-    overlap: Tuple[int],
-    step: Tuple[int],
-    image_shape: Tuple[int],
-    tile_shape: Tuple[int],
-) -> Tuple[slice]:
-    overlap_coords = []
-    tile_pixel_coords = []
-    # Iterate over spacial dimensions (Z, Y, X)
-    for i, coord in enumerate(tile_coords):
-        if coord == 0:
-            overlap_coords.append(
-                slice(0, torch.div(-overlap[i], 2, rounding_mode="floor"), None)
-            )
-            tile_pixel_coords.append(coord * overlap[i])
-        elif coord == last_tile_coord[i] - 1:
-            overlap_coords.append(
-                slice(torch.div(overlap[i], 2, rounding_mode="floor"), None)
-            )
-            tile_pixel_coords.append(
-                image_shape[i]
-                - (tile_shape[i] - torch.div(overlap[i], 2, rounding_mode="floor"))
-            )
-        elif coord < 0:
-            overlap_coords.append(
-                slice(
-                    torch.div(overlap[i], 2, rounding_mode="floor"),
-                    torch.div(-overlap[i], 2, rounding_mode="floor"),
-                    None,
-                )
-                if coord == -1
-                else slice(torch.div(overlap[i], 2, rounding_mode="floor"), None)
-            )
-            tile_pixel_coords.append(
-                slice(
-                    image_shape[i] + step[i] * (coord - 1),
-                    image_shape[i] + step[i] * (coord - 1) + tile_shape[i],
-                    None,
-                )
-            )
-        else:
-            overlap_coords.append(
-                slice(
-                    torch.div(overlap[i], 2, rounding_mode="floor"),
-                    torch.div(-overlap[i], 2, rounding_mode="floor"),
-                    None,
-                )
-            )
-            tile_pixel_coords.append(coord * (tile_shape[i] - overlap[i]))
-    return overlap_coords, tile_pixel_coords
+def stitch_prediction(
+    tiles: Tuple[np.ndarray, List[int]], input_shape: Tuple[int]
+) -> np.ndarray:
+    """Stitches tiles back together to form a full image
 
+    Parameters
+    ----------
+    tiles : Tuple[np.ndarray, List[int]]
+        Tuple of tiles and their respective stitching coordinates
+    input_shape : Tuple[int]
+        Shape of the full image
 
-def stitch_prediction(prediction, predicted_tile, sample_num, all_tiles_shape):
-    pass
+    Returns
+    -------
+    np.ndarray
+        Full image
+    """
+    predicted_image = np.zeros(input_shape, dtype=np.float32)
+    for tile, tile_coords in tiles:
+        predicted_image[(..., *[slice(c[0], c[1]) for c in tile_coords])] = tile
+    return predicted_image

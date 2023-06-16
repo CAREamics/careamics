@@ -1,7 +1,8 @@
-from typing import Tuple
-
+import itertools
 import numpy as np
 from skimage.util import view_as_windows
+
+from typing import Tuple
 
 
 def _compute_number_of_patches(arr: np.ndarray, patch_sizes: Tuple[int]) -> Tuple[int]:
@@ -61,21 +62,56 @@ def compute_overlap(arr: np.ndarray, patch_sizes: Tuple[int]) -> Tuple[int]:
     return tuple(overlap)
 
 
-def compute_overlap_predict(
-    arr: np.ndarray, patch_size: Tuple[int], overlap: Tuple[int]
-) -> Tuple[int]:
-    total_patches = [
-        np.floor((arr.shape[i + 1] - overlap[i]) / (patch_size[i] - overlap[i])).astype(
-            int
-        )
-        for i in range(len(patch_size))
-    ]
+def compute_crop_and_stitch_coords_1d(
+    axis_size: int, tile_size: int, overlap: int
+) -> Tuple[Tuple[int]]:
+    """Compute the coordinates for cropping image into tiles, cropping the overlap from predictions and stitching
+    the tiles back together across one axis.
 
-    return [
-        patch_size[i]
-        - (arr.shape[i + 1] - total_patches[i] * (patch_size[i] - overlap[i]))
-        for i in range(len(patch_size))
-    ]
+    Parameters
+    ----------
+    axis_size : int
+        Length of the axis
+    tile_size : int
+        size of the tile for the given axis
+    overlap : int
+        size of the overlap for the given axis
+
+    Returns
+    -------
+    Tuple[Tuple[int]]
+        Tuple of all coordinates for given axis
+    """
+    axis_size = axis_size
+    # Compute the step between tiles
+    step = tile_size - overlap
+    crop_coords = []
+    stitch_coords = []
+    overlap_crop_coords = []
+    # Iterate over the axis with a certain step
+    for i in range(0, axis_size + 1, step):
+        # Check if the tile fits within the axis
+        if i + tile_size <= axis_size:
+            # Add the coordinates to crop one tile
+            crop_coords.append((i, i + tile_size))
+            # Add the pixel coordinates of the cropped tile in the image space
+            stitch_coords.append(
+                (i + overlap // 2 if i > 0 else 0, i + tile_size - overlap // 2)
+            )
+            # Add the coordinates to crop the overlap from the prediction
+            overlap_crop_coords.append(
+                (overlap // 2 if i > 0 else 0, tile_size - overlap // 2)
+            )
+        # If the tile does not fit within the axis, perform the abovementioned operations starting from the end of the axis
+        else:
+            crop_coords.append((axis_size - tile_size, axis_size))
+            last_tile_end_coord = stitch_coords[-1][1]
+            stitch_coords.append((last_tile_end_coord, axis_size))
+            overlap_crop_coords.append(
+                (tile_size - (axis_size - last_tile_end_coord), tile_size)
+            )
+            break
+    return crop_coords, stitch_coords, overlap_crop_coords
 
 
 def _compute_patch_steps(patch_size: Tuple[int], overlaps: Tuple[int]) -> Tuple[int]:

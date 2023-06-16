@@ -25,7 +25,7 @@ from .dataloader import (
 )
 
 from .pixel_manipulation import n2v_manipulate
-from .prediction_utils import calculate_tile_cropping_coords
+from .prediction_utils import stitch_prediction
 from .utils import get_device, set_logging, config_loader, normalize, denormalize
 
 from .config import ConfigValidator

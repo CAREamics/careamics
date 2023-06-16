@@ -8,13 +8,12 @@ from typing import Callable, Generator, List, Optional, Tuple, Union
 import numpy as np
 import tifffile
 import torch
-from skimage.util import view_as_windows
 
 from .dataloader_utils import (
     compute_overlap,
     compute_reshaped_view,
     compute_view_windows,
-    compute_overlap_predict,
+    compute_crop_and_stitch_coords_1d,
 )
 
 from .utils import normalize
@@ -181,74 +180,38 @@ def extract_patches_predict(
     std: int = None,
 ) -> List[np.ndarray]:
     # Overlap is half of the value mentioned in original N2V. must be even. It's like this because of current N2V notation
-    arr = arr[:, 99:, :141]
-    last_overlap = compute_overlap_predict(
-        arr=arr, patch_size=patch_size, overlap=overlaps
-    )
-    step = tuple([p - o for p, o in zip(patch_size, overlaps)])
-    all_tiles = view_as_windows(
-        arr, window_shape=[1, *patch_size], step=[1, *step]
-    )  # shape (tiles in y, tiles in x, Y, X)
-    # TODO if arr.shape(xy) != ps + step * all_tiles.shape(n_tiles) - 1
-    #
-    default_tile_coords = all_tiles.shape[1 : len(patch_size) + 1]
-    # Check full coverage
-    irregular_shape = all(lo == s for lo, s in zip(last_overlap, step))
-    # Whether to add extra tile to each dimension
-
-    increment = [1 if lo < s else 0 for lo, s in zip(last_overlap, step)]
-    full_coverage_coords = [
-        s + i for s, i in zip(all_tiles.shape[1 : len(patch_size) + 1], increment)
-    ]
-
-    output_shape = (
-        arr.shape[0],
-        *all_tiles.shape[1 : 1 + len(patch_size)],
-        *patch_size,
-    )
-    # Save number of tiles in each dimension
-    all_tiles = all_tiles.reshape(*output_shape)[0][np.newaxis]
-    # TODO compare image with tiles by pixel
-    # TODO reverse array all dims, create windowed view up to last coord eg 195 in current case
+    arr = arr[0, 99:, :141][np.newaxis]
     # Iterate over num samples (S)
-    for sample in range(all_tiles.shape[0]):
-        for tile_level_coords in itertools.product(*map(range, full_coverage_coords)):
-            try:
-                tile = all_tiles[sample][(*[c for c in tile_level_coords], ...)]
-            except IndexError:
-                # TODO separate function?
-                reverse_tile_level_coords = [
-                    tlc if tlc < dtc else tlc - fcc
-                    for tlc, dtc, fcc in zip(
-                        tile_level_coords, default_tile_coords, full_coverage_coords
-                    )
-                ]
-                last_tile_coords = [
-                    slice(
-                        step[i] * reverse_tile_level_coords[i],
-                        (step[i] * reverse_tile_level_coords[i]) + patch_size[i],
-                        None,
-                    )
-                    if reverse_tile_level_coords[i] >= 0
-                    else slice(
-                        arr[sample].shape[i]
-                        + step[i] * (reverse_tile_level_coords[i] - 1),
-                        arr[sample].shape[i]
-                        + step[i] * (reverse_tile_level_coords[i] - 1)
-                        + patch_size[i],
-                        None,
-                    )
-                    for i in range(len(patch_size))
-                ]
-                tile = arr[sample][(*[c for c in last_tile_coords], ...)]
-
+    for sample_idx in range(arr.shape[0]):
+        sample = arr[sample_idx]
+        # Create an array of coordinates for cropping and stitching for all axes.
+        # Shape: (axes, type_of_coord, tile_num, start/end coord)
+        crop_and_stitch_coords = np.array(
+            [
+                compute_crop_and_stitch_coords_1d(
+                    sample.shape[i], patch_size[i], overlaps[i]
+                )
+                for i in range(len(patch_size))
+            ]
+        )
+        # TODO check this ugly swapaxes
+        # Swap axes to regroup initial array and get arrays of all crop coords, all stitch coords and all overlap crop coords
+        all_crop_coords, all_stitch_coords, all_overlap_crop_coords = np.swapaxes(
+            crop_and_stitch_coords, 0, 1
+        )
+        # Iterate over generated coordinate pairs:
+        for crop_coords, stitch_coords, overlap_crop_coords in zip(
+            itertools.product(*all_crop_coords),
+            itertools.product(*all_stitch_coords),
+            itertools.product(*all_overlap_crop_coords),
+        ):
+            tile = sample[(..., *[slice(c[0], c[1]) for c in list(crop_coords)])]
             yield (
                 np.expand_dims(tile.astype(np.float32), 0),
-                sample,
-                tile_level_coords,
-                full_coverage_coords,
-                arr.shape,
-                step,
+                sample_idx,
+                arr.shape[1:],
+                overlap_crop_coords,
+                stitch_coords,
             )
 
 
