@@ -1,174 +1,13 @@
 from enum import Enum
+from pathlib import Path
+from typing import Union, Optional
 
-from typing import List, Dict, Union
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, validator
 
-
-# python 3.11: https://docs.python.org/3/library/enum.html
-class LossName(str, Enum):
-    """Represents a loss function."""
-
-    n2v = "n2v"
-    pn2v = "pn2v"
-    # TODO add all the others
-
-
-class ModelName(str, Enum):
-    """Represents a model."""
-
-    unet = "UNet"
-    unet_tf = "UNet_tf"
-    # TODO add all the others
-
-
-class OptimizerName(str, Enum):
-    """Represents an optimizer."""
-
-    adam = "Adam"
-    # TODO add all the others
-
-
-class SchedulerName(str, Enum):
-    """Represents a learning rate schedule."""
-
-    reduce_lr_on_plateau = "ReduceLROnPlateau"
-    # TODO add all the others
-
-
-# TODO finish configuration
-# TODO different name? model?
-class Algorithm(BaseModel):
-    """Parameters related to the model architecture."""
-
-    name: str
-    loss: List[LossName]
-    pixel_manipulation: str  # TODO same as name ?
-    model: ModelName = Field(default=ModelName.unet)
-    conv_mult: int = Field(default=2, ge=2, le=3)  # example: bounds
-    depth: int = Field(default=3, ge=2)  # example: bounds
-    num_filter_base: int = Field(default=96, ge=16)  # example: bounds
-    mask_pixel_perc: float = Field(default=0.2, ge=0.1, le=100)  # example: bounds
-    checkpoint: str = Field(default=None)
-
-    # @validator("mask_pixel_perc")
-    # def validate_mask_pixel_perc(cls, num):
-    #     # example validation
-    #     if num % 1 != 0:
-    #         raise ValueError("num_masked_pixels must be a multiple of 32")
-
-    #     return num
-
-    class Config:
-        use_enum_values = True  # make sure that enum are exported as str
-
-
-class Optimizer(BaseModel):
-    """Parameters related to the optimizer."""
-
-    name: OptimizerName
-    parameters: dict
-
-    # validate parameters using value of name
-    @validator("parameters")
-    def validate_parameters(cls, parameters, values):
-        name = values["name"]
-
-        # TODO: check types and values of the parameters
-        # TODO: alternatively we can do a pydantic model of each optimizer
-        if name == OptimizerName.adam:
-            if "lr" not in parameters:
-                raise ValueError("lr is required for Adam optimizer")
-
-        return parameters
-
-    class Config:
-        use_enum_values = True  # make sure that enum are exported as str
-
-
-class LrScheduler(BaseModel):
-    """Parameters related to the learning rate scheduler."""
-
-    name: SchedulerName
-    parameters: dict
-
-    # validate parameters using value of name
-    @validator("parameters")
-    def validate_parameters(cls, parameters, values):
-        name = values["name"]
-
-        if name == SchedulerName.reduce_lr_on_plateau:
-            if "mode" not in parameters:
-                raise ValueError("mode is required for ReduceLROnPlateau scheduler")
-            if "factor" not in parameters:
-                raise ValueError("factor is required for ReduceLROnPlateau scheduler")
-            if "patience" not in parameters:
-                raise ValueError("patience is required for ReduceLROnPlateau scheduler")
-
-        return parameters
-
-    class Config:
-        use_enum_values = True  # make sure that enum are exported as str
-
-
-class Data(BaseModel):
-    path: str
-    ext: str = Field(default=".tif")  # TODO add regexp for list of extensions or enum
-    axes: str
-    num_files: Union[int, None] = Field(default=None)
-    extraction_strategy: str = Field(default="sequential")  # TODO add enum
-    patch_size: List[int] = Field(
-        ..., min_items=2, max_items=3
-    )  # TODO how to validate list
-    num_patches: Union[int, None]  # TODO how to make parameters mutually exclusive
-    batch_size: int
-    num_workers: int = Field(default=0)
-    # augmentation: None  # TODO add proper validation and augmentation parameters, list of strings ?
-
-    @validator("patch_size")
-    def validate_parameters(cls, patch_size):
-        for p in patch_size:
-            # TODO validate ,power of 2, divisible by 8 ? Should be acceptable for the model
-            pass
-        return patch_size
-
-    @validator("axes")
-    def validate_axes(cls, axes):
-        # TODO validate axes, No C
-        return axes
-
-
-class Amp(BaseModel):
-    toggle: bool
-    init_scale: int  # TODO excessive ?
-
-
-class Training(BaseModel):
-    """Parameters related to the training."""
-
-    num_epochs: int = Field(default=100, ge=0)
-    learning_rate: float = Field(default=0.001, ge=0.0001, le=0.1)
-    optimizer: Optimizer
-    lr_scheduler: LrScheduler
-    amp: Amp
-    max_grad_norm: float = Field(default=1.0, ge=0.0, le=1.0)
-    running_stats: bool
-    data: Data
-    augmentations: str = Field(default="basic")
-
-    class Config:
-        use_enum_values = True  # make sure that enum are exported as str
-
-
-class Evaluation(BaseModel):
-    data: Data
-    metric: str  # TODO add enum
-
-
-class Prediction(BaseModel):
-    data: Data
-    overlap: List[int] = Field(
-        ..., min_items=2, max_items=3
-    )  # TODO ge image size, check consistency with image size
+from .algorithm import Algorithm
+from .training import Training
+from .evaluation import Evaluation
+from .prediction import Prediction
 
 
 class Stage(str, Enum):
@@ -177,20 +16,161 @@ class Stage(str, Enum):
     PREDICTION = "prediction"
 
 
-class ConfigValidator(BaseModel):
-    """Main configuration model."""
+class Configuration(BaseModel):
+    """Main experiment configuration.
+
+    Attributes
+    ----------
+    experiment_name : str
+        Name of the experiment
+    workdir : Path
+        Path to the working directory
+    algorithm : Algorithm
+        Algorithm configuration
+    training : Training
+        Training configuration (optional)
+    evaluation : Evaluation
+        Evaluation configuration (optional)
+    prediction : Prediction
+        Prediction configuration (optional)
+    """
 
     experiment_name: str
-    workdir: str
+    workdir: Path
+
+    # sub-configuration
     algorithm: Algorithm
-    training: Training
-    evaluation: Evaluation
-    prediction: Prediction
+
+    # other parameters are optional
+    # these default to none and are omitted from yml export if not set
+    training: Optional[Training] = None
+    evaluation: Optional[Evaluation] = None
+    prediction: Optional[Prediction] = None
+
+    @validator("workdir")
+    def validate_workdir(cls, v: Union[Path, str], **kwargs) -> Path:
+        """Validate workdir.
+
+        Parameters
+        ----------
+        v : Union[Path, str]
+            Value to validate
+
+        Returns
+        -------
+        Path
+            Validated value
+
+        Raises
+        ------
+        ValueError
+            If workdir does not exist
+        """
+        path = Path(v)
+        if not path.exists():
+            raise ValueError(f"workdir {path} does not exist")
+
+        return path
 
     def get_stage_config(self, stage: Union[str, Stage]) -> Union[Training, Evaluation]:
+        """Get the configuration for a specific stage (training, evaluation or
+        prediction).
+
+        Parameters
+        ----------
+        stage : Union[str, Stage]
+            Configuration stage: training, evaluation or prediction
+
+        Returns
+        -------
+        Union[Training, Evaluation]
+            Configuration for the specified stage
+
+        Raises
+        ------
+        ValueError
+            If stage is not one of training, evaluation or prediction
+        """
         if stage == Stage.TRAINING:
+            if self.training is None:
+                raise ValueError("Training configuration is not defined.")
+
             return self.training
         elif stage == Stage.EVALUATION:
+            if self.evaluation is None:
+                raise ValueError("Evaluation configuration is not defined.")
+
             return self.evaluation
-        else:
+        elif stage == Stage.PREDICTION:
+            if self.prediction is None:
+                raise ValueError("Prediction configuration is not defined.")
+
             return self.prediction
+        else:
+            raise ValueError(
+                f"Unknown stage {stage}. Available stages are"
+                f"{Stage.TRAINING}, {Stage.EVALUATION} and"
+                f"{Stage.PREDICTION}."
+            )
+
+    def dict(self) -> dict:
+        """Override dict method.
+
+        The purpose is to ensure export smooth import to yaml. It includes:
+            - remove entries with None value
+            - replace Path by str
+        """
+        dictionary = super().dict(exclude_none=True)
+
+        # replace Path by str
+        dictionary["workdir"] = str(dictionary["workdir"])
+
+        return dictionary
+
+
+def load_configuration(cfg_path: Union[str, Path]) -> dict:
+    # TODO: import here because it might not be used everytime?
+    # e.g. when using a library of config
+    import yaml
+    import re
+
+    """Load a yaml config file and correct all datatypes."""
+    loader = yaml.SafeLoader
+    loader.add_implicit_resolver(
+        "tag:yaml.org,2002:float",
+        re.compile(
+            """^(?:
+     [-+]?(?:[0-9][0-9_]*)\\.[0-9_]*(?:[eE][-+]?[0-9]+)?
+    |[-+]?(?:[0-9][0-9_]*)(?:[eE][-+]?[0-9]+)
+    |\\.[0-9_]+(?:[eE][-+][0-9]+)?
+    |[-+]?[0-9][0-9_]*(?::[0-5]?[0-9])+\\.[0-9_]*
+    |[-+]?\\.(?:inf|Inf|INF)
+    |\\.(?:nan|NaN|NAN))$""",
+            re.X,
+        ),
+        list("-+0123456789."),
+    )
+    return yaml.load(Path(cfg_path).open("r"), Loader=loader)
+
+
+def save_configuration(config: Configuration, path: Union[str, Path]) -> Path:
+    """Save a configuration to a yaml file.
+
+    Parameters
+    ----------
+    config : Configuration
+        Configuration to save
+    path : Union[str, Path]
+        Path to the yaml file
+    """
+    import yaml
+
+    if path.is_dir():
+        path = Path(path, "config.yml")
+    elif path.is_file() and path.suffix != ".yml":
+        raise ValueError(f"Path must be a directory or .yml file (got {path}).")
+
+    with open(path, "w") as f:
+        yaml.dump(config.dict(), f, default_flow_style=False)
+
+    return path

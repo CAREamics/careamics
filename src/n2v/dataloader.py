@@ -12,7 +12,8 @@ import torch
 from .dataloader_utils import (
     compute_overlap,
     compute_reshaped_view,
-    compute_view_windows,
+    compute_patch_steps,
+    are_axes_valid,
     compute_crop_and_stitch_coords_1d,
 )
 
@@ -83,6 +84,15 @@ def extract_patches_sequential(
             f"(got {patch_sizes} patches for dims {arr.shape})."
         )
 
+    for p in patch_sizes:
+        # check if 1
+        if p < 2:
+            raise ValueError(f"Invalid patch value (got {p}).")
+
+        # check if power of two
+        if not (p & (p - 1) == 0):
+            raise ValueError(f"Patch size must be a power of two (got {p}).")
+
     # Sanity checks on patch sizes versus array dimension
     is_3d_patch = len(patch_sizes) == 3
     if is_3d_patch and patch_sizes[-3] > arr.shape[-3]:
@@ -97,29 +107,14 @@ def extract_patches_sequential(
             f"(got {patch_sizes} patches for dims {arr.shape[-2:]})."
         )
 
-    # Overlaps sanity check
-    if overlaps is not None and len(overlaps) != len(arr.shape[1:]):
-        raise ValueError(
-            f"There must be an overlap for each spatial dimensions "
-            f"(got {overlaps} overlaps for dims {arr.shape[1:]})."
-        )
-    elif overlaps is None:
-        overlaps = compute_overlap(arr=arr, patch_sizes=patch_sizes)
-
-    for o, p in zip(overlaps, patch_sizes):
-        if o >= p:
-            raise ValueError(
-                f"Overlaps must be smaller than patch sizes "
-                f"(got {o} overlap for patch size {p})."
-            )
+    # Compute overlap
+    overlaps = compute_overlap(arr=arr, patch_sizes=patch_sizes)
 
     # Create view window and overlaps
-    window_shape, window_steps = compute_view_windows(
-        patch_sizes=patch_sizes, overlaps=overlaps
-    )
+    window_steps = compute_patch_steps(patch_sizes=patch_sizes, overlaps=overlaps)
 
     # Correct for first dimension for computing windowed views
-    window_shape = (1, *window_shape)
+    window_shape = (1, *patch_sizes)
     window_steps = (1, *window_steps)
 
     if is_3d_patch and patch_sizes[-3] == 1:
@@ -247,20 +242,8 @@ class PatchDataset(torch.utils.data.IterableDataset):
         patch_level_transform : Optional[Callable], optional
             _description_, by default None
         """
-        # Assert input data
-        assert isinstance(
-            data_path, str
-        ), f"Incorrect data_path type. Must be a str, given{type(data_path)}"
+        # #TODO Assert should all be done in Configuration.validate_wordir. Check
 
-        # Assert patch_size
-        assert isinstance(
-            patch_size, (list, tuple)
-        ), f"Incorrect patch_size. Must be a tuple, given{type(patch_size)}"
-        assert len(patch_size) in (
-            2,
-            3,
-        ), f"Incorrect patch_size. Must be a 2 or 3, given{len(patch_size)}"
-        # TODO make this a class method?
         self.data_path = data_path
         self.ext = ext
         self.axes = axes
@@ -330,17 +313,36 @@ class PatchDataset(torch.utils.data.IterableDataset):
             arr = tifffile.imread(data_source)
             arr_num_dims = len(arr.shape)
 
-        # TODO add possibility to handle files with different set of axes
-        # Assert data dimensions are correct
-        assert arr_num_dims in (
-            2,
-            3,
-            4,
-        ), f"Incorrect data dimensions. Must be 2, 3 or 4, given {arr.shape} for file {data_source}"
+        # remove any singleton dimensions
+        arr = arr.squeeze()
 
-        assert arr_num_dims == len(
-            axes
-        ), f"Incorrect axes. Must be {arr_num_dims}, given {axes}"
+        # sanity check on dimensions
+        if len(arr.shape) < 2 or len(arr.shape) > 4:
+            raise ValueError(
+                f"Incorrect data dimensions. Must be 2, 3 or 4 (got {arr.shape} for file {data_source})."
+            )
+
+        # sanity check on axes length
+        if len(axes) != len(arr.shape):
+            raise ValueError(
+                f"Incorrect axes length (got {axes} for file {data_source})."
+            )
+
+        # check axes validity
+        are_axes_valid(axes)  # this raises errors
+
+        # patch sanity check
+        if len(patch_size) != len(arr.shape) and len(patch_size) != len(arr.shape) - 1:
+            raise ValueError(
+                f"Incorrect patch size (got {patch_size} for file {data_source} with shape {arr.shape})."
+            )
+
+        for p in patch_size:
+            # check if power of 2
+            if not (p & (p - 1) == 0):
+                raise ValueError(
+                    f"Incorrect patch size, should be power of 2 (got {patch_size} for file {data_source})."
+                )
 
         # TODO add axes shuffling and reshapes. so far assuming correct order
         if ("S" in axes or "T" in axes) and arr.dtype != "O":

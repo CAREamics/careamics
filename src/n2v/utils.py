@@ -3,13 +3,8 @@
 ############################################
 
 import logging
-import re
-import sys
-from pathlib import Path
 
-import numpy as np
 import torch
-import yaml
 
 
 class DuplicateFilter(logging.Filter):
@@ -36,26 +31,6 @@ def set_logging(logger, default_level=logging.INFO, log_path=""):
 
 
 # TODO add EDA visualization
-
-
-def config_loader(cfg_path):
-    """Load a yaml config file and correct all datatypes."""
-    loader = yaml.SafeLoader
-    loader.add_implicit_resolver(
-        "tag:yaml.org,2002:float",
-        re.compile(
-            """^(?:
-     [-+]?(?:[0-9][0-9_]*)\\.[0-9_]*(?:[eE][-+]?[0-9]+)?
-    |[-+]?(?:[0-9][0-9_]*)(?:[eE][-+]?[0-9]+)
-    |\\.[0-9_]+(?:[eE][-+][0-9]+)?
-    |[-+]?[0-9][0-9_]*(?::[0-5]?[0-9])+\\.[0-9_]*
-    |[-+]?\\.(?:inf|Inf|INF)
-    |\\.(?:nan|NaN|NAN))$""",
-            re.X,
-        ),
-        list("-+0123456789."),
-    )
-    return yaml.load(Path(cfg_path).open("r"), Loader=loader)
 
 
 def normalize(img, mean, std):
@@ -105,7 +80,7 @@ def export_model_to_onnx(model, path):
     path : str
         Path to save the exported model
     """
-    dummy_input = torch.randn(1, 1, 256, 256, device=getDevice())
+    dummy_input = torch.randn(1, 1, 256, 256, device=get_device())
     torch.onnx.export(
         model,
         dummy_input,

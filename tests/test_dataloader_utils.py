@@ -3,12 +3,13 @@ import pytest
 import numpy as np
 
 from n2v.dataloader_utils.dataloader_utils import (
-    compute_view_windows,
-    _compute_patch_steps,
+    compute_patch_steps,
     _compute_number_of_patches,
     compute_overlap,
-    compute_overlap_predict,
     compute_reshaped_view,
+    are_axes_valid,
+    compute_overlap_auto,
+    compute_overlap_predict,
 )
 
 
@@ -52,22 +53,7 @@ def test_compute_patch_steps(dims, patch_size, overlap):
     overlaps = (overlap,) * dims
     expected = (min(patch_size - overlap, patch_size),) * dims
 
-    assert _compute_patch_steps(patch_sizes, overlaps) == expected
-
-
-@pytest.mark.parametrize(
-    "patch_sizes, overlaps, expected_window, expected_steps",
-    [
-        ((5, 5), (2, 2), (5, 5), (3, 3)),
-        ((None, 5, 8), (None, 1, 2), (5, 8), (4, 6)),
-        ((8, 4, 7), (2, 1, 3), (8, 4, 7), (6, 3, 4)),
-    ],
-)
-def test_compute_view_windows(patch_sizes, overlaps, expected_window, expected_steps):
-    window, steps = compute_view_windows(patch_sizes, overlaps)
-
-    assert window == expected_window
-    assert steps == expected_steps
+    assert compute_patch_steps(patch_sizes, overlaps) == expected
 
 
 @pytest.mark.parametrize("arr", [(67,), (72,), (321,)])
@@ -80,14 +66,17 @@ def test_compute_overlap_predict(arr, patch_shape, overlap):
     if any(patch_shape[i] <= overlap[i] for i in range(len(patch_shape))) or any(
         patch_shape[i] > arr[i] for i in range(len(patch_shape))
     ):
-        pass
+        pytest.skip("Skip test due to invalid patch_shape or overlap.")
     else:
-        step, updated_overlap = compute_overlap_predict(
+        _, updated_overlap = compute_overlap_predict(
             np.ones((1, *arr)), patch_shape, overlap
         )
-        assert (arr[0] - updated_overlap[0]) / (
-            patch_shape[0] - updated_overlap[0]
-        ).is_integer()
+
+        # compute the number of patches fitting into the 1D array
+        n = (arr[0] - updated_overlap[0]) / (patch_shape[0] - updated_overlap[0])
+
+        # test that n is an integer value
+        assert n == int(n)
 
 
 @pytest.mark.parametrize(
@@ -168,3 +157,58 @@ def test_compute_reshaped_view_3d(array_3D, window_shape, steps):
                     output[i * n_patches[1] * n_patches[2] + j * n_patches[2] + k]
                     == patch
                 )
+
+
+@pytest.mark.parametrize(
+    "axes, valid",
+    [
+        # Passing
+        ("yx", True),
+        ("Yx", True),
+        ("Zyx", True),
+        ("TzYX", True),
+        ("SZYX", True),
+        # Failing due to order
+        ("XY", False),
+        ("YXZ", False),
+        ("YXT", False),
+        ("ZTYX", False),
+        # too few axes
+        ("", False),
+        ("X", False),
+        # too many axes
+        ("STZYX", False),
+        # no yx axes
+        ("ZT", False),
+        ("ZY", False),
+        # unsupported axes or axes pair
+        ("STYX", False),
+        ("CYX", False),
+        # repeating characters
+        ("YYX", False),
+        ("YXY", False),
+        # invalid characters
+        ("YXm", False),
+        ("1YX", False),
+    ],
+)
+def test_are_axes_valid(axes, valid):
+    """Test if axes are valid"""
+    if valid:
+        are_axes_valid(axes)
+    else:
+        with pytest.raises((ValueError, NotImplementedError)):
+            are_axes_valid(axes)
+
+
+@pytest.mark.parametrize("d", [i for i in range(100, 128)])
+@pytest.mark.parametrize("patch_size", [2**i for i in range(4, 6)])
+def test_compute_perfect_overlap(d, patch_size):
+    if patch_size >= d:
+        pytest.skip("Patch size must be smaller than the dimension")
+    else:
+        step, overlap = compute_overlap_auto(d, patch_size)
+
+        n = (d - patch_size) / (patch_size - overlap)
+        print(step)
+        assert n.is_integer()

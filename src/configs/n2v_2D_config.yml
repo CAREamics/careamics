@@ -9,11 +9,11 @@ algorithm:
   # Pixel masking strategy #TODO add better description
   pixel_manipulation: n2v
   # Number of pixels to mask. Default is patch size ** number of patch dims / 32
-  mask_pixel_perc: 0.2
+  mask_pixel_percentage: 0.2
   #Class name from models.py
-  model: UNet_tf
+  model: UNET
   #Whether to use 2D or 3D convolutions #TODO better name ?
-  conv_mult: 2
+  conv_dims: 2
   depth: 2
   num_filter_base: 96
   checkpoint: last_checkpoint.pth
@@ -39,7 +39,7 @@ training:
       min_lr: 0
   # Toggles automatic mixed precision training
   amp: 
-    toggle: false
+    use: false
     # Scaling parameter for mixed precision training. Power of 2 recommended
     init_scale: 1024
   max_grad_norm: 0
@@ -99,11 +99,11 @@ prediction:
     ext: *EXT
     axes: SYX
     #Number of files to read. Read all if None
-    num_files: 2
+    num_files: Null
     # Patch generation strategy [random, sequential]
     extraction_strategy: predict
     #Patch shape in (z)yx. 2D or 3D
-    patch_size: [100, 100]
+    patch_size: [64, 64]
     # Batch size
     batch_size: 1
     #Num workers parameter for data loader

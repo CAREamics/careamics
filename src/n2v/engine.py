@@ -1,31 +1,24 @@
-import os
-import sys
-import yaml
-import logging
-import torch
-import numpy as np
-import torch.nn as nn
-import torch.nn.functional as F
-
-from pathlib import Path
 from abc import ABC, abstractmethod
+from typing import Optional, Tuple, Dict
+import logging
+
+import yaml
+import numpy as np
 from tqdm import tqdm
-from collections import OrderedDict
-from typing import Callable, Dict, List, Optional, Tuple, Union
+
+import torch
+import torch.nn.functional as F
 from torch.utils.data import DataLoader
 
-# TODO Ma che cazzo asterisco sta facendo qui?!!
-from . import *
-from .utils import normalize
 from .metrics import MetricTracker
 from .factory import (
-    _get_params_from_config,
-    create_model,
     create_dataset,
     create_loss_function,
 )
-
-# TODO do something with imports, it's a mess. either all from n2v init, or all separately
+from .config import Configuration, load_configuration, get_parameters
+from .utils import set_logging, get_device, denormalize
+from .prediction_utils import stitch_prediction
+from .models import create_model
 
 
 class Engine(ABC):
@@ -71,12 +64,11 @@ class UnsupervisedEngine(Engine):
 
     def parse_config(self, cfg_path: str) -> Dict:
         try:
-            cfg = config_loader(cfg_path)
+            cfg = load_configuration(cfg_path)
         except (FileNotFoundError, yaml.YAMLError):
             # TODO add custom exception for different cases
-            raise yaml.YAMLError("Config file not found")
-        cfg = ConfigValidator(**cfg)
-        self.logger.info(f"Config parsing done. Using file: {cfg_path}")
+            raise yaml.YAMLError(f"Config file not found in {cfg_path}")
+        cfg = Configuration(**cfg)
         return cfg
 
     def log_metrics(self):
@@ -118,7 +110,7 @@ class UnsupervisedEngine(Engine):
                     train_loader,
                     optimizer,
                     scaler,
-                    self.cfg.training.amp.toggle,
+                    self.cfg.training.amp.use,
                     self.cfg.training.max_grad_norm,
                 )
 
@@ -242,6 +234,7 @@ class UnsupervisedEngine(Engine):
                             ],
                         )
                     ]
+                    # TODO Do we need to save tiles separately ?
                     tiles.append(
                         (
                             predicted_tile.cpu().numpy(),
@@ -369,21 +362,21 @@ class UnsupervisedEngine(Engine):
         optimizer_params = self.cfg.training.optimizer.parameters
         optimizer_func = getattr(torch.optim, optimizer_name)
         # Get the list of all possible parameters of the optimizer
-        optim_params = _get_params_from_config(optimizer_func, optimizer_params)
+        optim_params = get_parameters(optimizer_func, optimizer_params)
         # TODO add support for different learning rates for different layers
         optimizer = optimizer_func(self.model.parameters(), **optim_params)
 
         scheduler_name = self.cfg.training.lr_scheduler.name
         scheduler_params = self.cfg.training.lr_scheduler.parameters
         scheduler_func = getattr(torch.optim.lr_scheduler, scheduler_name)
-        scheduler_params = _get_params_from_config(scheduler_func, scheduler_params)
+        scheduler_params = get_parameters(scheduler_func, scheduler_params)
         scheduler = scheduler_func(optimizer, **scheduler_params)
         return optimizer, scheduler
 
     def get_grad_scaler(self) -> torch.cuda.amp.GradScaler:
-        toggle = self.cfg.training.amp.toggle
+        use = self.cfg.training.amp.use
         scaling = self.cfg.training.amp.init_scale
-        return torch.cuda.amp.GradScaler(init_scale=scaling, enabled=toggle)
+        return torch.cuda.amp.GradScaler(init_scale=scaling, enabled=use)
 
     def save_checkpoint(self, name, save_best):
         """Save the model to a checkpoint file."""

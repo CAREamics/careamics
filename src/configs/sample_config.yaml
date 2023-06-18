@@ -1,8 +1,8 @@
 experiment_name: test
 workdir: /home/igor.zubarev/projects/DecoNoising/
 
-#TODO add nested config & 
-algorithm: 
+#TODO add nested config &
+algorithm:
   name: n2v
   #List of class names from losses.py or pytorch
   loss: [n2v]
@@ -25,7 +25,7 @@ training:
     name: Adam
     parameters:
       lr: 0.0001
-  lr_scheduler: 
+  lr_scheduler:
     #Name of the scheduler class from torch.optim.lr_scheduler
     name: ReduceLROnPlateau
     parameters:
@@ -38,7 +38,7 @@ training:
       cooldown: 0
       min_lr: 0
   # Toggles automatic mixed precision training
-  amp: 
+  amp:
     toggle: false
     # Scaling parameter for mixed precision training. Power of 2 recommended
     init_scale: 1024
@@ -49,7 +49,7 @@ training:
     # File type to load
     ext: tif
     # Axes order of the input data
-    axes: 'YX'
+    axes: "YX"
     #Number of files to read. Read all if None
     num_files: 2
     # Patch generation strategy [random, sequential]
@@ -62,9 +62,8 @@ training:
     batch_size: 8
     #Num workers parameter for data loader
     num_workers: 0
-    #TODO add list of specific augmentations or func/list of funcs 
+    #TODO add list of specific augmentations or func/list of funcs
     augmentation: Null
-  
 
 evaluation:
   data:
@@ -84,11 +83,8 @@ evaluation:
     batch_size: 1
     #Num workers parameter for data loader
     num_workers: 0
-    batch_size: 1
-    num_workers: 0
     augmentation: Null
   metric: psnr
-
 
 prediction:
   data:
@@ -106,13 +102,11 @@ prediction:
     batch_size: 1
     #Num workers parameter for data loader
     num_workers: 0
-    batch_size: 1
     #test-time augmentation
     tta: Null
   #Tuple of overlap values for each dimension between patches in pixels (should be half of the network receptive field)
-  overlap: [16, 16] 
+  overlap: [16, 16]
   metric: psnr
-
 
 misc:
   use_wandb: Null

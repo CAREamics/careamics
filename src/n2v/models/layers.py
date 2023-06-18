@@ -275,6 +275,8 @@ def blur_operation(
         filter = filter.repeat((channels, 1, 1, 1))
         # TODO fix this
         _, _, filter_h, filter_w = filter.shape
+
+        # TODO unknown h
         if h + 2 * padding[0] < filter_h:
             return input
         if w + 2 * padding[1] < filter_w:
