@@ -1,6 +1,10 @@
 import pytest
 
-from n2v.config import Configuration, load_configuration, save_configuration
+from careamics_restoration.config import (
+    Configuration,
+    load_configuration,
+    save_configuration,
+)
 
 # TODO test optimizer and lr schedulers parameters
 

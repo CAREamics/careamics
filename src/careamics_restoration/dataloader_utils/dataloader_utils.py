@@ -1,4 +1,3 @@
-import itertools
 import numpy as np
 from skimage.util import view_as_windows
 

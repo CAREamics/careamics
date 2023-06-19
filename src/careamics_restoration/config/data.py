@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Optional, Union, List
 from pydantic import BaseModel, Field, validator
 
-from n2v.dataloader_utils import are_axes_valid
+from careamics_restoration.dataloader_utils import are_axes_valid
 
 
 class SupportedExtension(str, Enum):

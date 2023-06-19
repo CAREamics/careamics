@@ -10,9 +10,13 @@ build-backend = "hatchling.build"
 [tool.hatch.version]
  source = "vcs"
 
+[tool.hatch.build.targets.wheel]
+only-include = ["src"]
+sources = ["src"]
+
 # https://peps.python.org/pep-0621/
 [project]
-name = "n2v"
+name = "careamics-restoration"
 dynamic = ["version"]
 description = "Denoising with self-supervised algorithms."
 readme = "README.md"
@@ -53,28 +57,28 @@ wandb = ["wandb"]
 test = ["pytest", "pytest-cov"]
 
 [project.urls]
-homepage = "https://github.com/juglab-torch/n2v"
-repository = "https://github.com/juglab-torch/n2v"
+homepage = "https://careamics.github.io/"
+repository = "https://github.com/CAREamics/careamics-restoration"
 
 # https://beta.ruff.rs/docs
 [tool.ruff]
 line-length = 88
 target-version = "py38"
-src = ["src/n2v"]
+src = ["src"]
 select = [
     "E",    # style errors
     "W",    # style warnings
     "F",    # flakes
     "D",    # pydocstyle
     "I",    # isort
-    "U",    # pyupgrade
+    "UP",    # pyupgrade
     # "S",    # bandit
-    "C",    # flake8-comprehensions
+    "C4",    # flake8-comprehensions
     "B",    # flake8-bugbear
     "A001", # flake8-builtins
     "RUF",  # ruff-specific rules
 ]
-extend-ignore = [
+ignore = [
     "D100", # Missing docstring in public module
     "D107", # Missing docstring in __init__
     "D203", # 1 blank line required before class docstring
@@ -127,7 +131,7 @@ exclude_lines = [
 ]
 
 [tool.coverage.run]
-source = ["n2v"]
+source = ["careamics_restoration"]
 
 # https://github.com/mgedmin/check-manifest#configuration
 # add files that you want check-manifest to explicitly ignore here

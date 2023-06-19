@@ -2,7 +2,7 @@ import pytest
 
 import numpy as np
 
-from n2v.dataloader_utils.dataloader_utils import (
+from careamics_restoration.dataloader_utils.dataloader_utils import (
     compute_patch_steps,
     _compute_number_of_patches,
     compute_overlap,

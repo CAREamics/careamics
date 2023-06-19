@@ -1,5 +1,5 @@
 import pytest
-from n2v.prediction import calculate_tile_cropping_coords
+from careamics_restoration.prediction import calculate_tile_cropping_coords
 
 
 @pytest.mark.parametrize(
