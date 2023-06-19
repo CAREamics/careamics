@@ -2,7 +2,7 @@ import numpy as np
 from skimage.metrics import peak_signal_noise_ratio
 
 
-def psnr(gt: np.ndarray, pred: np.ndarray, range: float =255.0) -> float:
+def psnr(gt: np.ndarray, pred: np.ndarray, range: float = 255.0) -> float:
     """Peak Signal to Noise Ratio
 
     This method calls skimage.metrics.peak_signal_noise_ratio. See:
@@ -21,7 +21,7 @@ def psnr(gt: np.ndarray, pred: np.ndarray, range: float =255.0) -> float:
     -------
     float
         PSNR value
-    """    
+    """
     return peak_signal_noise_ratio(gt, pred, data_range=range)
 
 
@@ -37,16 +37,16 @@ def zero_mean(x: np.ndarray) -> np.ndarray:
     -------
     NumPy array
         Zero-mean array
-    """    
-    return x-np.mean(x)
+    """
+    return x - np.mean(x)
 
 
 def fix_range(gt: np.ndarray, x):
-    a = np.sum(gt*x) / (np.sum(x*x))
-    return x*a
+    a = np.sum(gt * x) / (np.sum(x * x))
+    return x * a
 
 
-def fix(gt,x):
+def fix(gt, x):
     gt_ = zero_mean(gt)
     return fix_range(gt_, zero_mean(x))
 
@@ -86,14 +86,13 @@ class MetricTracker:
         Sum of the metric values (times number of values)
     count : int
         Number of values
-    """    
+    """
 
     def __init__(self) -> None:
         self.reset()
 
     def reset(self) -> None:
-        """Reset the metric tracker state.
-        """        
+        """Reset the metric tracker state."""
         self.val = 0
         self.avg = 0
         self.sum = 0

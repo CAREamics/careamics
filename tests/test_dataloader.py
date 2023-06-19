@@ -3,7 +3,7 @@ import tifffile
 
 import numpy as np
 
-from n2v.dataloader import (
+from careamics_restoration.dataloader import (
     list_input_source_tiff,
     extract_patches_sequential,
     PatchDataset,

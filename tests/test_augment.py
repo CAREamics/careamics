@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from n2v.augment import augment_single
+from careamics_restoration.augment import augment_single
 
 ARRAY_2D = np.array([[1, 2, 3], [4, 5, 6]])
 AUG_ARRAY_2D = [

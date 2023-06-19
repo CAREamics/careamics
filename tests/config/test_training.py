@@ -1,6 +1,6 @@
 import pytest
 
-from n2v.config.training import Optimizer
+from careamics_restoration.config.training import Optimizer
 
 
 def test_optimizer_enum(test_config):

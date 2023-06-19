@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from n2v.config.algorithm import Algorithm
+from careamics_restoration.config.algorithm import Algorithm
 
 
 def test_algorithm(test_config):

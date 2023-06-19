@@ -1,7 +1,7 @@
 import pytest
 import torch.nn as nn
 
-from n2v.models.models import UNET, UP_MODE, MERGE_MODE
+from careamics_restoration.models.models import UNET, UP_MODE, MERGE_MODE
 
 
 @pytest.mark.parametrize("depth", [1, 3, 5])

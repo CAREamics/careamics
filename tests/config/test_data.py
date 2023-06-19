@@ -1,7 +1,7 @@
 from pathlib import Path
 import pytest
 
-from n2v.config.data import Data, SupportedExtension
+from careamics_restoration.config.data import Data, SupportedExtension
 
 
 def test_data(test_config):
