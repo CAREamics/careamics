@@ -40,15 +40,15 @@ class UNET(nn.Module):
             self.pooling = (
                 BlurPool2d if conv_dim == 2 else BlurPool3d
             )  # TODO getattr from layers
+            self.skipone = True
         else:
             self.pooling = getattr(nn, f"MaxPool{conv_dim}d")(kernel_size=pool_kernel)
+            self.skipone = False
 
         self.upsampling = nn.Upsample(
             scale_factor=2, mode="bilinear"
         )  # TODO check align_corners and mode
-        self.skipone = (
-            skip_skipone  # TODO whoever called this skip_skipone must explain himself
-        )
+
         enc_blocks = OrderedDict()
         bottleneck = OrderedDict()
         dec_blocks = OrderedDict()
@@ -74,7 +74,7 @@ class UNET(nn.Module):
                 )
                 enc_blocks[f"encoder_conv_d{n}_num{i}"] = layer
 
-            if skip_skipone:
+            if self.skipone:
                 if n > 0:
                     enc_blocks[f"skip_encoder_conv_d{n}"] = enc_blocks.pop(
                         f"encoder_conv_d{n}_num{i}"
