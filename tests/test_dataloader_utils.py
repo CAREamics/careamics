@@ -8,8 +8,6 @@ from careamics_restoration.dataloader_utils.dataloader_utils import (
     compute_overlap,
     compute_reshaped_view,
     are_axes_valid,
-    compute_overlap_auto,
-    compute_overlap_predict,
 )
 
 
@@ -54,29 +52,6 @@ def test_compute_patch_steps(dims, patch_size, overlap):
     expected = (min(patch_size - overlap, patch_size),) * dims
 
     assert compute_patch_steps(patch_sizes, overlaps) == expected
-
-
-@pytest.mark.parametrize("arr", [(67,), (72,), (321,)])
-@pytest.mark.parametrize(
-    "patch_shape",
-    [(32,), (64,), (256,)],
-)
-@pytest.mark.parametrize("overlap", [(16,), (21,), (24,), (32,)])
-def test_compute_overlap_predict(arr, patch_shape, overlap):
-    if any(patch_shape[i] <= overlap[i] for i in range(len(patch_shape))) or any(
-        patch_shape[i] > arr[i] for i in range(len(patch_shape))
-    ):
-        pytest.skip("Skip test due to invalid patch_shape or overlap.")
-    else:
-        _, updated_overlap = compute_overlap_predict(
-            np.ones((1, *arr)), patch_shape, overlap
-        )
-
-        # compute the number of patches fitting into the 1D array
-        n = (arr[0] - updated_overlap[0]) / (patch_shape[0] - updated_overlap[0])
-
-        # test that n is an integer value
-        assert n == int(n)
 
 
 @pytest.mark.parametrize(
@@ -199,16 +174,3 @@ def test_are_axes_valid(axes, valid):
     else:
         with pytest.raises((ValueError, NotImplementedError)):
             are_axes_valid(axes)
-
-
-@pytest.mark.parametrize("d", [i for i in range(100, 128)])
-@pytest.mark.parametrize("patch_size", [2**i for i in range(4, 6)])
-def test_compute_perfect_overlap(d, patch_size):
-    if patch_size >= d:
-        pytest.skip("Patch size must be smaller than the dimension")
-    else:
-        step, overlap = compute_overlap_auto(d, patch_size)
-
-        n = (d - patch_size) / (patch_size - overlap)
-        print(step)
-        assert n.is_integer()

@@ -1,13 +1,9 @@
-from enum import Enum
-
 import torch
 import torch.nn as nn
 
-from typing import List
 from collections import OrderedDict
-from torch.nn import init
 
-from .layers import DownConv, UpConv, conv1x1, Conv_Block_tf, BlurPool2d, BlurPool3d
+from .layers import Conv_Block_tf, BlurPool2d, BlurPool3d
 
 
 # TODO add docstings, typing
