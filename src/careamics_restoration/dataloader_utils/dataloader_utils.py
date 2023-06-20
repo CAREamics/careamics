@@ -159,21 +159,32 @@ def compute_crop_and_stitch_coords_1d(
     stitch_coords = []
     overlap_crop_coords = []
     # Iterate over the axis with a certain step
-    for i in range(0, axis_size + 1, step):
+    for i in range(0, axis_size - overlap, step):
         # Check if the tile fits within the axis
         if i + tile_size <= axis_size:
             # Add the coordinates to crop one tile
             crop_coords.append((i, i + tile_size))
             # Add the pixel coordinates of the cropped tile in the image space
             stitch_coords.append(
-                (i + overlap // 2 if i > 0 else 0, i + tile_size - overlap // 2)
+                (
+                    i + overlap // 2 if i > 0 else 0,
+                    i + tile_size - overlap // 2
+                    if crop_coords[-1][1] < axis_size
+                    else axis_size,
+                )
             )
             # Add the coordinates to crop the overlap from the prediction
             overlap_crop_coords.append(
-                (overlap // 2 if i > 0 else 0, tile_size - overlap // 2)
+                (
+                    overlap // 2 if i > 0 else 0,
+                    tile_size - overlap // 2
+                    if crop_coords[-1][1] < axis_size
+                    else tile_size,
+                )
             )
         # If the tile does not fit within the axis, perform the abovementioned operations starting from the end of the axis
         else:
+            # if (axis_size - tile_size, axis_size) not in crop_coords:
             crop_coords.append((axis_size - tile_size, axis_size))
             last_tile_end_coord = stitch_coords[-1][1]
             stitch_coords.append((last_tile_end_coord, axis_size))

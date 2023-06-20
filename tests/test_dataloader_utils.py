@@ -8,8 +8,7 @@ from careamics_restoration.dataloader_utils.dataloader_utils import (
     compute_overlap,
     compute_reshaped_view,
     are_axes_valid,
-    compute_overlap_auto,
-    compute_overlap_predict,
+    compute_crop_and_stitch_coords_1d,
 )
 
 
@@ -56,27 +55,57 @@ def test_compute_patch_steps(dims, patch_size, overlap):
     assert compute_patch_steps(patch_sizes, overlaps) == expected
 
 
-@pytest.mark.parametrize("arr", [(67,), (72,), (321,)])
-@pytest.mark.parametrize(
-    "patch_shape",
-    [(32,), (64,), (256,)],
-)
-@pytest.mark.parametrize("overlap", [(16,), (21,), (24,), (32,)])
-def test_compute_overlap_predict(arr, patch_shape, overlap):
-    if any(patch_shape[i] <= overlap[i] for i in range(len(patch_shape))) or any(
-        patch_shape[i] > arr[i] for i in range(len(patch_shape))
-    ):
-        pytest.skip("Skip test due to invalid patch_shape or overlap.")
-    else:
-        _, updated_overlap = compute_overlap_predict(
-            np.ones((1, *arr)), patch_shape, overlap
+@pytest.mark.parametrize("axis_size", [32, 35, 40])
+@pytest.mark.parametrize("patch_size, overlap", [(16, 4), (8, 6), (16, 8)])
+def test_compute_crop_and_stitch_coords_1d(axis_size, patch_size, overlap):
+    crop_coords, stitch_coords, overlap_crop_coords = compute_crop_and_stitch_coords_1d(
+        axis_size, patch_size, overlap
+    )
+
+    # check that the number of patches is sufficient to cover the whole axis and that the number of coordinates is
+    # the same for all three coordinate groups
+    num_patches = np.ceil((axis_size - overlap) / (patch_size - overlap)).astype(int)
+    assert (
+        len(crop_coords)
+        == len(stitch_coords)
+        == len(overlap_crop_coords)
+        == num_patches
+    )
+    # check if 0 is the first coordinate, axis_size is last coordinate in all three coordinate groups
+    assert all(
+        [
+            all((group[0][0] == 0, group[-1][1] == axis_size))
+            for group in [crop_coords, stitch_coords]
+        ]
+    )
+    # TODO Joran non si piaciono perche questo e molto complicato
+    # check if neighboring stitch coordinates are equal
+    assert all(
+        [
+            stitch_coords[i][1] == stitch_coords[i + 1][0]
+            for i in range(len(stitch_coords) - 1)
+        ]
+    )
+
+    # check that the crop coordinates cover the whole axis
+    assert (
+        np.sum(np.array(crop_coords)[:, 1] - np.array(crop_coords)[:, 0])
+        == patch_size * num_patches
+    )
+
+    # check that the overlap crop coordinates cover the whole axis
+    assert (
+        np.sum(
+            np.array(overlap_crop_coords)[:, 1] - np.array(overlap_crop_coords)[:, 0]
         )
+        == axis_size
+    )
 
-        # compute the number of patches fitting into the 1D array
-        n = (arr[0] - updated_overlap[0]) / (patch_shape[0] - updated_overlap[0])
-
-        # test that n is an integer value
-        assert n == int(n)
+    # check that shape of all cropped tiles is equal
+    assert np.array_equal(
+        np.array(overlap_crop_coords)[:, 1] - np.array(overlap_crop_coords)[:, 0],
+        np.array(stitch_coords)[:, 1] - np.array(stitch_coords)[:, 0],
+    )
 
 
 @pytest.mark.parametrize(
@@ -199,16 +228,3 @@ def test_are_axes_valid(axes, valid):
     else:
         with pytest.raises((ValueError, NotImplementedError)):
             are_axes_valid(axes)
-
-
-@pytest.mark.parametrize("d", [i for i in range(100, 128)])
-@pytest.mark.parametrize("patch_size", [2**i for i in range(4, 6)])
-def test_compute_perfect_overlap(d, patch_size):
-    if patch_size >= d:
-        pytest.skip("Patch size must be smaller than the dimension")
-    else:
-        step, overlap = compute_overlap_auto(d, patch_size)
-
-        n = (d - patch_size) / (patch_size - overlap)
-        print(step)
-        assert n.is_integer()
