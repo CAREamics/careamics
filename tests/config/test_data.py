@@ -73,7 +73,7 @@ def test_data_supported_extensions(test_config, ext):
     assert data.ext == ext.lower()
 
 
-@pytest.mark.parametrize("ext", ["npy", ".tif", "tifff", "zarr"])
+@pytest.mark.parametrize("ext", ["nd2", "jpg", "png ", "zarr"])
 def test_wrong_extensions(test_config, ext):
     """Test that Data model raises ValueError for unsupported extensions."""
     data_config = test_config["training"]["data"]
