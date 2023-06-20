@@ -16,17 +16,20 @@ class UNET(nn.Module):
         num_classes: int = 1,
         in_channels: int = 1,
         depth: int = 3,
-        num_filter_base: int = 64,
+        num_filter_base: int = 64,  # TODO cryptic name
         num_conv_per_depth=2,
         activation="ReLU",
         use_batch_norm=True,
         dropout=0.0,
         pool_kernel=2,
         last_activation=None,
-        n2v2: bool = False,
-        skip_skipone=False,
+        n2v2: bool = False,  # TODO: should n2v2 and skip_skipone be linked?
+        skip_skipone=False,  # TODO cryptic name
     ) -> None:
         super().__init__()
+
+        if depth < 1:
+            raise ValueError(f"Depth must be greater than 1 (got {depth}).")
 
         self.depth = depth
         self.num_conv_per_depth = num_conv_per_depth

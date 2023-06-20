@@ -35,7 +35,7 @@ def test_config(tmp_path) -> dict:
         "workdir": str(tmp_path),
         "algorithm": {
             "loss": ["n2v"],
-            "model": "UNet",
+            "model": "UNET",
             "num_masked_pixels": 0.2,
             "pixel_manipulation": "n2v",
         },

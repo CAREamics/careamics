@@ -58,13 +58,13 @@ def test_wrong_manipulator_value(test_config):
         Algorithm(**algorithm_config)
 
 
-@pytest.mark.parametrize("num_masked_pixels", [-10, 0, 1025])
-def test_wrong_num_masked_pixels_value(test_config, num_masked_pixels):
+@pytest.mark.parametrize("mask_pixel_percentage", [-10, 0, 5.1])
+def test_wrong_mask_pixel_percentage(test_config, mask_pixel_percentage):
     """Test that we cannot instantiate a config with wrong number of masked
     pixels."""
 
     algorithm_config = test_config["algorithm"]
-    algorithm_config["num_masked_pixels"] = num_masked_pixels
+    algorithm_config["mask_pixel_percentage"] = mask_pixel_percentage
 
     with pytest.raises(ValueError):
         Algorithm(**algorithm_config)
