@@ -3,7 +3,7 @@ import torch
 
 from ..config import Configuration
 from ..utils import set_logging
-from .models import UNET
+from .unet import UNET
 
 
 logger = logging.getLogger(__name__)

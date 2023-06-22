@@ -11,10 +11,10 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader
 
 from .metrics import MetricTracker
-from .factory import (
+from .dataloader_utils import (
     create_dataset,
-    create_loss_function,
 )
+from .losses import create_loss_function
 from .config import Configuration, load_configuration, get_parameters
 from .utils import set_logging, get_device, normalize, denormalize
 from .prediction_utils import stitch_prediction
