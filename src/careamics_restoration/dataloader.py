@@ -137,30 +137,36 @@ def extract_patches_random(
     patch_size,
     mean: int = None,
     std: int = None,
-    overlaps=None,
-    num_patches=None,
     *args,
 ) -> Generator[np.ndarray, None, None]:
-    # TODO either num_patches are all unique or output exact number of patches
     rng = np.random.default_rng()
-    y = rng.integers(0, arr.shape[1] - patch_size[0])
-    x = rng.integers(0, arr.shape[2] - patch_size[1])
+    # shuffle the array along the first axis TODO do we need shuffling?
     rng.shuffle(arr, axis=0)
-    if num_patches is None:
-        num_patches = arr.shape[0]
-    # crop_coords = rng.integers(
-    #     np.subtract(arr.shape, (0, *patch_size)), size=(num_patches, len(arr.shape))
-    # )
-    # TODO add while area of patches generated is not less than N% of the whole image
-    # TODO add multiple arrays support, add possibility to remove empty or almost empty patches ?
-    for i in range(arr.shape[0]):
-        # patch = arr[(...,*[slice(c, c + patch_size[j]) for j, c in enumerate(crop_coords[:, i, ...])],)].copy().astype(np.float32)
-        patch = (
-            arr[i, y : y + patch_size[0], x : x + patch_size[1]]
-            .copy()
-            .astype(np.float32)
-        )
-        yield (normalize(patch, mean, std)) if (mean and std) else (patch)
+
+    for sample_idx in range(arr.shape[0]):
+        sample = arr[sample_idx]
+        # calculate how many number of patches can image area be divided into
+        # TODO add possibility to remove empty or almost empty patches ? Recalculate?
+        n_patches = np.ceil(np.prod(sample.shape) / np.prod(patch_size)).astype(int)
+        for _ in range(n_patches):
+            crop_coords = [
+                rng.integers(0, arr.shape[i + 1] - patch_size[i])
+                for i in range(len(patch_size))
+            ]
+            patch = (
+                sample[
+                    (
+                        ...,
+                        *[
+                            slice(c, c + patch_size[i])
+                            for i, c in enumerate(crop_coords)
+                        ],
+                    )
+                ]
+                .copy()
+                .astype(np.float32)
+            )
+            yield (normalize(patch, mean, std)) if (mean and std) else (patch)
 
 
 def extract_patches_predict(

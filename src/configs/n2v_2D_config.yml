@@ -56,8 +56,6 @@ training:
     extraction_strategy: random
     #Patch shape in (z)yx. 2D or 3D
     patch_size: &PS [64, 64]
-    #Total number of patches to generate. Only applicable for random patching
-    num_patches: Null
     # Batch size
     batch_size: 128
     #Num workers parameter for data loader
