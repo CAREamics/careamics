@@ -103,7 +103,7 @@ prediction:
     # Patch generation strategy [random, sequential]
     extraction_strategy: predict
     #Patch shape in (z)yx. 2D or 3D
-    patch_size: [64, 64]
+    patch_size: [16, 16]
     # Batch size
     batch_size: 1
     #Num workers parameter for data loader
@@ -111,7 +111,7 @@ prediction:
     #test-time augmentation
     tta: Null
   #Tuple of overlap values for each dimension between patches in pixels (should be half of the network receptive field)
-  overlap: [32, 32] 
+  overlap: [8, 8] 
   metric: psnr
 
 

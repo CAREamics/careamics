@@ -123,7 +123,6 @@ def compute_overlap(arr: np.ndarray, patch_sizes: Tuple[int]) -> Tuple[int]:
 
     overlap = [
         np.ceil(
-            # TODO check min clip ?
             np.clip(n_patches[i] * patch_sizes[i] - arr.shape[i + 1], 0, None)
             / max(1, (n_patches[i] - 1))
         ).astype(int)
@@ -152,7 +151,6 @@ def compute_crop_and_stitch_coords_1d(
     Tuple[Tuple[int]]
         Tuple of all coordinates for given axis
     """
-    axis_size = axis_size
     # Compute the step between tiles
     step = tile_size - overlap
     crop_coords = []
@@ -236,7 +234,7 @@ def compute_reshaped_view(
     output_shape : Tuple[int]
         Shape of the output array
     """
-    rng = np.random.default_rng()  # TODO not sure shuffling should be done here
+    rng = np.random.default_rng()
     patches = view_as_windows(arr, window_shape=window_shape, step=step).reshape(
         *output_shape
     )

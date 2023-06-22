@@ -64,7 +64,6 @@ def create_dataset(config: Configuration, stage: str) -> torch.utils.data.Datase
     """
     # TODO rewrite this ugly bullshit. registry,etc!
     # TODO data reader getattr
-    # TODO add support for mixed filetype datasets
     stage_config = config.get_stage_config(stage)  # getattr(config, stage)
 
     # TODO clear description of what all these funcs/params mean
@@ -104,5 +103,4 @@ def create_loss_function(config: Dict) -> Callable:
         loss_function = n2v_loss
     # TODO rewrite this ugly bullshit. registry,etc!
     # loss_func = getattr(sys.__name__, loss_type)
-    # TODO test !
     return loss_function

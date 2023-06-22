@@ -47,17 +47,13 @@ def list_input_source_tiff(
         _description_
     """
     # Basic function to open input source
-    # TODO add support for reading a subset of files
     return (
         list(itertools.islice(Path(path).rglob("*.tif*"), num_files))
         if num_files
         else list(Path(path).rglob("*.tif*"))
     )
-    # return ['/home/igor.zubarev/data/paris_chunk/wt_N10Division2988shift[0, 0].tif',
-    #  '/home/igor.zubarev/data/paris_chunk/wt_N10Division2993shift[0, 0].tif']
 
 
-# TODO: number of patches?
 # formerly :
 # https://github.com/juglab-torch/n2v/blob/00d536cdc5f5cd4bb34c65a777940e6e453f4a93/src/n2v/dataloader.py#L52
 def extract_patches_sequential(
@@ -130,7 +126,7 @@ def extract_patches_sequential(
         arr, window_shape=window_shape, step=window_steps, output_shape=output_shape
     )
     logger.info(f"Extracted {patches.shape[0]} patches from input array.")
-    # Yield single patch #TODO view_as_windows might be inefficient
+
     for patch_ixd in range(patches.shape[0]):
         patch = patches[patch_ixd].astype(np.float32).squeeze()
         yield (normalize(patch, mean, std)) if (mean and std) else (patch)
@@ -254,26 +250,6 @@ class PatchDataset(torch.utils.data.IterableDataset):
         self.image_transform = image_level_transform
         self.patch_transform = patch_level_transform
 
-    # @staticmethod
-    # def read_alter(self):
-
-    #     somearray = read_image_whatever(config)
-
-    #     # read configuration
-    #     check_axis_adn_raise_error(somearray, config.axes)
-
-    # def check_axis_adn_raise_error():
-    #     if config.axes is None and axes!= C(Z)YX:
-    #         raise Error
-    #     else:
-    #         # sanity check on the axes
-    #         if axes != config.axes:
-    #             raise Error
-
-    #         new_arr = move_axes(array)
-
-    #         return new_arr
-
     @staticmethod
     def read_tiff_source(
         data_source: Union[str, Path], axes: str, patch_size: Tuple[int]
@@ -296,15 +272,12 @@ class PatchDataset(torch.utils.data.IterableDataset):
         if not Path(data_source).exists():
             raise ValueError(f"Data source {data_source} does not exist")
 
-        # TODO separate this into a function with other formats
         if data_source.suffix == ".npy":
             try:
                 arr = np.load(data_source)
                 arr_num_dims = len(arr.shape)
             except ValueError:
-                arr = np.load(
-                    data_source, allow_pickle=True
-                )  # TODO this is a hack to deal with the fact that we are saving a list of arrays
+                arr = np.load(data_source, allow_pickle=True)
                 arr_num_dims = (
                     len(arr[0].shape) + 1
                 )  # TODO check all arrays have the same or compliant shape ?
@@ -345,16 +318,14 @@ class PatchDataset(torch.utils.data.IterableDataset):
 
         # TODO add axes shuffling and reshapes. so far assuming correct order
         if ("S" in axes or "T" in axes) and arr.dtype != "O":
-            # TODO use re?
             arr = arr.reshape(
                 -1, *arr.shape[len(axes.replace("Z", "").replace("YX", "")) :]
             )
         elif arr.dtype == "O":
-            for i in range(len(arr)):  # TODO add check for dimenstions of each array
+            for i in range(len(arr)):
                 arr[i] = np.expand_dims(arr[i], axis=0)
         else:
             arr = np.expand_dims(arr, axis=0)
-            # TODO do we need to update patch size?
         return arr
 
     def calculate_stats(self):

@@ -273,7 +273,6 @@ def blur_operation(
         _, channels, *spatial_dims = input_tensor.shape
 
         filter = filter.repeat((channels, 1, 1, 1))
-        # TODO fix this
         _, _, filter_h, filter_w = filter.shape
 
         # TODO unknown h
