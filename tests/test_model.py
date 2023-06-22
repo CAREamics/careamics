@@ -1,7 +1,7 @@
 import pytest
 import torch.nn as nn
 
-from careamics_restoration.models.models import UNET
+from careamics_restoration.models.unet import UNET
 
 
 @pytest.mark.parametrize("depth", [1, 3, 5])
