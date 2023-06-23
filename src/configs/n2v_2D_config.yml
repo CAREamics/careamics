@@ -1,8 +1,8 @@
 experiment_name: test
-workdir: .
 
 #TODO add nested config & 
 algorithm: 
+  workdir: test
   name: n2v
   #List of class names from losses.py or pytorch
   loss: [n2v]
@@ -16,7 +16,7 @@ algorithm:
   conv_dims: 2
   depth: 2
   num_filter_base: 96
-  checkpoint: last_checkpoint.pth
+  trained_model: last_checkpoint.pth
 
 training:
   num_epochs: 600

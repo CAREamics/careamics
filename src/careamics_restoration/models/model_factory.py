@@ -1,5 +1,6 @@
 import logging
 import torch
+from pathlib import Path
 
 from ..config import Configuration
 from ..utils import set_logging
@@ -37,5 +38,5 @@ def create_model(config: Configuration) -> torch.nn.Module:
     if load_checkpoint:
         # TODO add proper logging message
         model.load_state_dict(torch.load(load_checkpoint))
-        logger.info("Loaded checkpoint")
+        logger.info(f"Loaded model from {load_checkpoint.name}")
     return model

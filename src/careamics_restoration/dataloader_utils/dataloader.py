@@ -172,11 +172,11 @@ class PatchDataset(torch.utils.data.IterableDataset):
     def __iter_source_zarr__(self):
         # TODO better name?
         # load one zarr storage with zarr.open. Storage vs array? Check how it works with zarr
-        # whether to read one bigger chunk and then patch or read patch by patch directly? compare speed
         # if it's zarr object type than read sample by sample. else read no less than 1 batch size ?
-        # if chunk is in metadata, read no less than chunk size
         # Normalization? on Chunk or running?
-        # reshape to 1d and then to user provided shape? test
+
+        # Calculate number of dimensions before (channel, z, y, x) and iterate over them taking random sample
+        # from random axis
 
         info = torch.utils.data.get_worker_info()
         num_workers = info.num_workers if info is not None else 1
@@ -186,8 +186,6 @@ class PatchDataset(torch.utils.data.IterableDataset):
         self.source = zarr.open(Path(self.data_path), mode="r")
 
         if isinstance(self.source, zarr.core.Array):
-            # TODO check if this is the correct way to get the shape
-            self.source_shape = self.source.shape
             self.source = self.source.reshape(-1, *self.source_shape[1:])
             # TODO add checking chunk size ?
 
@@ -253,7 +251,6 @@ class PatchDataset(torch.utils.data.IterableDataset):
                 logging.exception(f"Exception in file {filename}, skipping")
                 raise e
             if i % num_workers == id:
-                # TODO add iterator inside
                 yield self.image_transform(
                     arr
                 ) if self.image_transform is not None else arr

@@ -45,7 +45,8 @@ class Algorithm(BaseModel):
     """
 
     loss: Union[List[LossName], LossName]
-
+    # workdir, mandatory field
+    workdir: str
     # optional fields with default values (appearing in yml)
     # model
     model: ModelName = ModelName.UNET
@@ -58,7 +59,17 @@ class Algorithm(BaseModel):
     mask_pixel_percentage: float = Field(default=0.2, ge=0.1, le=5)
 
     # optional fields that will not appear if not defined
-    trained_model: Optional[Path] = None
+    trained_model: Optional[str] = None
+
+    @validator("workdir")
+    def validate_workdir(cls, v: str, values, **kwargs) -> Path:
+        """Validate trained_model.
+
+        If trained_model is not None, it must be a valid path."""
+        path = Path(v)
+        if path.parent.exists():
+            path.mkdir(parents=True, exist_ok=True)
+        return path
 
     @validator("trained_model")
     def validate_trained_model(cls, v: Union[Path, None], values, **kwargs) -> Path:
@@ -66,8 +77,8 @@ class Algorithm(BaseModel):
 
         If trained_model is not None, it must be a valid path."""
         if v is not None:
-            path = Path(v)
-            if not v.exists():
+            path = values["workdir"] / Path(v)
+            if not path.exists():
                 raise ValueError(f"Path to model does not exist (got {v}).")
             elif path.suffix != ".pth":
                 raise ValueError(f"Path to model must be a .pth file (got {v}).")

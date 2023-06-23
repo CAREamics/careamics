@@ -5,6 +5,7 @@ import logging
 import yaml
 import numpy as np
 from tqdm import tqdm
+from pathlib import Path
 
 import torch
 import torch.nn.functional as F
@@ -119,13 +120,12 @@ class UnsupervisedEngine(Engine):
                 )
                 # Add update scheduler rule based on type
                 lr_scheduler.step(eval_outputs["loss"])
-                # TODO implement proper checkpoint naming
                 if len(val_losses) == 0 or eval_outputs["loss"] < min(val_losses):
-                    self.save_checkpoint(f"best_checkpoint.pth", False)
+                    self.save_checkpoint(True)
                 else:
-                    self.save_checkpoint("last_checkpoint.pth", False)
+                    self.save_checkpoint(False)
                 val_losses.append(eval_outputs["loss"])
-                self.logger.info(f"Saved checkpoint to ")
+                self.logger.info(f"Saved checkpoint to {self.cfg.workdir}")
 
         except KeyboardInterrupt:
             self.logger.info("Training interrupted")
@@ -369,8 +369,14 @@ class UnsupervisedEngine(Engine):
         scaling = self.cfg.training.amp.init_scale
         return torch.cuda.amp.GradScaler(init_scale=scaling, enabled=use)
 
-    def save_checkpoint(self, name, save_best):
+    def save_checkpoint(self, save_best):
         """Save the model to a checkpoint file."""
+        name = (
+            Path(self.cfg.workdir) / self.cfg.experiment / "_best.pth"
+            if save_best
+            else "_latest.pth"
+        )
+        name.mkdirs(parents=True, exist_ok=True)
         torch.save(self.model.state_dict(), name)
 
     def export_model(self, model):
