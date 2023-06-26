@@ -177,6 +177,23 @@ def test_extract_patches_sequential_errors(arr_shape, patch_size):
         next(patches_generator)
 
 
+def check_extract_patches_sequential(array, patch_size):
+    """Check that the patches are extracted correctly."""
+    patch_generator = extract_patches_sequential(array, patch_size)
+
+    # check patch shape
+    patches = []
+    for patch in patch_generator:
+        patches.append(patch)
+        assert patch.shape == patch_size
+
+    # check unique values
+    n_max = np.prod(patch_size)
+    unique = np.unique(np.array(patches))
+    assert 1 in unique and n_max in unique
+    assert len(unique) == n_max
+
+
 @pytest.mark.parametrize(
     "patch_size",
     [
@@ -187,31 +204,10 @@ def test_extract_patches_sequential_errors(arr_shape, patch_size):
     ],
 )
 def test_extract_patches_sequential_2d(array_2D, patch_size):
-    """Test extracting patches sequentially in 2D.
-
-    The 2D array is a fixture of shape (1, 10, 9)."""
-    patch_generator = extract_patches_sequential(array_2D, patch_size)
-
-    # check patch shape
-    patches = []
-    for patch in patch_generator:
-        patches.append(patch)
-        assert patch.shape == (array_2D.shape[0],) + patch_size
-
-    # we assume that if values are missing, these will be border ones
-    # test can be simplified by checking all values, but then it might
-    # get expensive to compute.
-    patches_np = np.array(patches)
-    for i in range(array_2D.shape[1]):
-        assert array_2D[0, i, 0] in patches_np
-        assert array_2D[0, i, -1] in patches_np
-
-    for i in range(array_2D.shape[2]):
-        assert array_2D[0, 0, i] in patches_np
-        assert array_2D[0, -1, i] in patches_np
+    """Test extracting patches sequentially in 2D."""
+    check_extract_patches_sequential(array_2D, patch_size)
 
 
-# TODO case (2, 3, 5), None doesn't work
 @pytest.mark.parametrize(
     "patch_size",
     [
@@ -225,31 +221,4 @@ def test_extract_patches_sequential_3d(array_3D, patch_size):
     """Test extracting patches sequentially in 3D.
 
     The 3D array is a fixture of shape (1, 5, 10, 9)."""
-    # compute expected number of patches
-    patch_generator = extract_patches_sequential(array_3D, patch_size)
-
-    # check individual patch shape
-    patches = []
-    for patch in patch_generator:
-        patches.append(patch)
-        assert patch.shape == (array_3D.shape[0],) + patch_size
-
-    # we assume that if values are missing, these will be border ones
-    # test can be simplified by checking all values, but then it might
-    # get expensive to compute.
-    shape_3d = array_3D.shape
-    patches_np = np.array(patches)
-    for i in range(shape_3d[2]):  # front and back of 3D cuboid
-        for j in range(shape_3d[3]):
-            assert array_3D[0, 0, i, j] in patches_np
-            assert array_3D[0, -1, i, j] in patches_np
-
-    for i in range(shape_3d[2]):  # top and bottom of 3D cuboid
-        for k in range(shape_3d[1]):
-            assert array_3D[0, k, i, 0] in patches_np
-            assert array_3D[0, k, i, -1] in patches_np
-
-    for j in range(shape_3d[3]):  # left and right of 3D cuboid
-        for k in range(shape_3d[1]):
-            assert array_3D[0, k, 0, j] in patches_np
-            assert array_3D[0, k, -1, j] in patches_np
+    check_extract_patches_sequential(array_3D, patch_size)
