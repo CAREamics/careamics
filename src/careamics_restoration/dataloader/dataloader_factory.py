@@ -1,10 +1,10 @@
-import inspect
 from functools import partial
-from typing import Callable, Dict, Optional, Union
+from typing import Union, Callable, Dict
 
 import torch
 
 from ..config import Configuration
+from ..config.stage import Stage
 from .dataloader import PatchDataset
 from .dataloader_utils import (
     extract_patches_predict,
@@ -16,7 +16,7 @@ from .dataloader_utils import (
 from ..manipulation import create_patch_transform
 
 
-def create_tiling_function(stage: Dict) -> Callable:
+def create_tiling_function(stage: Stage) -> Callable:
     """Creates the tiling function depending on the provided strategy.
     Parameters
     ----------
@@ -42,6 +42,8 @@ def create_tiling_function(stage: Dict) -> Callable:
         return partial(
             extract_patches_random,
         )
+
+    return None
 
 
 def create_dataset(config: Configuration, stage: str) -> torch.utils.data.Dataset:

@@ -7,6 +7,7 @@ from pydantic import BaseModel, validator
 from .algorithm import Algorithm
 from .evaluation import Evaluation
 from .prediction import Prediction
+from .stage import Stage
 from .training import Training
 
 
@@ -48,7 +49,7 @@ class RunParams(BaseModel):
         return None
 
 
-class Stage(str, Enum):
+class ConfigStage(str, Enum):
     TRAINING = "training"
     EVALUATION = "evaluation"
     PREDICTION = "prediction"
@@ -84,7 +85,7 @@ class Configuration(BaseModel):
     evaluation: Optional[Evaluation] = None
     prediction: Optional[Prediction] = None
 
-    def get_stage_config(self, stage: Union[str, Stage]) -> Union[Training, Evaluation]:
+    def get_stage_config(self, stage: Union[str, ConfigStage]) -> Stage:
         """Get the configuration for a specific stage (training, evaluation or
         prediction).
 
@@ -103,17 +104,17 @@ class Configuration(BaseModel):
         ValueError
             If stage is not one of training, evaluation or prediction
         """
-        if stage == Stage.TRAINING:
+        if stage == ConfigStage.TRAINING:
             if self.training is None:
                 raise ValueError("Training configuration is not defined.")
 
             return self.training
-        elif stage == Stage.EVALUATION:
+        elif stage == ConfigStage.EVALUATION:
             if self.evaluation is None:
                 raise ValueError("Evaluation configuration is not defined.")
 
             return self.evaluation
-        elif stage == Stage.PREDICTION:
+        elif stage == ConfigStage.PREDICTION:
             if self.prediction is None:
                 raise ValueError("Prediction configuration is not defined.")
 
@@ -121,8 +122,8 @@ class Configuration(BaseModel):
         else:
             raise ValueError(
                 f"Unknown stage {stage}. Available stages are"
-                f"{Stage.TRAINING}, {Stage.EVALUATION} and"
-                f"{Stage.PREDICTION}."
+                f"{ConfigStage.TRAINING}, {ConfigStage.EVALUATION} and"
+                f"{ConfigStage.PREDICTION}."
             )
 
 

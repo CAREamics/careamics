@@ -1,7 +1,7 @@
 from typing import Optional
 from pydantic import BaseModel, Field
 
-from .data import Data
+from .stage import Stage
 from .torch_optimizer import TorchOptimizer, TorchLRScheduler
 
 
@@ -53,10 +53,8 @@ class Amp(BaseModel):
     init_scale: int  # TODO excessive ? <- what is that?
 
 
-class Training(BaseModel):
+class Training(Stage):
     """Parameters related to the training."""
-
-    data: Data
 
     num_epochs: int = Field(default=100, ge=1, le=1_000)
     num_steps: int = Field(default=100, ge=1, le=1_000)
