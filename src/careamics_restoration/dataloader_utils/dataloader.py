@@ -126,19 +126,6 @@ class PatchDataset(torch.utils.data.IterableDataset):
         # check axes validity
         are_axes_valid(axes)  # this raises errors
 
-        # patch sanity check
-        if len(patch_size) != len(arr.shape) and len(patch_size) != len(arr.shape) - 1:
-            raise ValueError(
-                f"Incorrect patch size (got {patch_size} for file {data_source} with shape {arr.shape})."
-            )
-
-        for p in patch_size:
-            # check if power of 2
-            if not (p & (p - 1) == 0):
-                raise ValueError(
-                    f"Incorrect patch size, should be power of 2 (got {patch_size} for file {data_source})."
-                )
-
         # TODO add axes shuffling and reshapes. so far assuming correct order
         if ("S" in axes or "T" in axes) and arr.dtype != "O":
             arr = arr.reshape(

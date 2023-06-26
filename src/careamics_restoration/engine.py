@@ -75,7 +75,7 @@ class UnsupervisedEngine(Engine):
             try:  # TODO test wandb. add functionality
                 import wandb
 
-                wandb.init(project=self.cfg.experiment_name, config=self.cfg)
+                wandb.init(project=self.cfg.run_params.experiment_name, config=self.cfg)
                 self.logger.info("using wandb logger")
             except ImportError:
                 self.cfg.misc.use_wandb = False
@@ -125,7 +125,7 @@ class UnsupervisedEngine(Engine):
                 else:
                     self.save_checkpoint(False)
                 val_losses.append(eval_outputs["loss"])
-                self.logger.info(f"Saved checkpoint to {self.cfg.workdir}")
+                self.logger.info(f"Saved checkpoint to {self.cfg.run_params.workdir}")
 
         except KeyboardInterrupt:
             self.logger.info("Training interrupted")
@@ -372,12 +372,12 @@ class UnsupervisedEngine(Engine):
     def save_checkpoint(self, save_best):
         """Save the model to a checkpoint file."""
         name = (
-            Path(self.cfg.workdir) / self.cfg.experiment / "_best.pth"
+            f"{self.cfg.run_params.experiment_name}_best.pth"
             if save_best
-            else "_latest.pth"
+            else f"{self.cfg.run_params.experiment_name}_latest.pth"
         )
-        name.mkdirs(parents=True, exist_ok=True)
-        torch.save(self.model.state_dict(), name)
+        Path(self.cfg.run_params.workdir).mkdir(parents=True, exist_ok=True)
+        torch.save(self.model.state_dict(), Path(self.cfg.run_params.workdir) / name)
 
     def export_model(self, model):
         pass

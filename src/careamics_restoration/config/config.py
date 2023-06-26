@@ -10,6 +10,40 @@ from .evaluation import Evaluation
 from .prediction import Prediction
 
 
+class RunParams(BaseModel):
+    """Basic parameters or current run."""
+
+    experiment_name: str
+    workdir: str
+    trained_model: Optional[str] = None
+
+    @validator("workdir")
+    def validate_workdir(cls, v: str, values, **kwargs) -> Path:
+        """Validate trained_model.
+
+        If trained_model is not None, it must be a valid path."""
+        path = Path(v)
+        if path.parent.exists():
+            path.mkdir(parents=True, exist_ok=True)
+        return path
+
+    @validator("trained_model")
+    def validate_trained_model(cls, v: Union[Path, None], values, **kwargs) -> Path:
+        """Validate trained_model.
+
+        If trained_model is not None, it must be a valid path."""
+        if v is not None:
+            path = values["workdir"] / Path(v)
+            if not path.exists():
+                raise ValueError(f"Path to model does not exist (got {v}).")
+            elif path.suffix != ".pth":
+                raise ValueError(f"Path to model must be a .pth file (got {v}).")
+            else:
+                return path
+
+        return None
+
+
 class Stage(str, Enum):
     TRAINING = "training"
     EVALUATION = "evaluation"
@@ -35,7 +69,7 @@ class Configuration(BaseModel):
         Prediction configuration (optional)
     """
 
-    experiment_name: str
+    run_params: RunParams
 
     # sub-configuration
     algorithm: Algorithm

@@ -1,4 +1,7 @@
-experiment_name: test
+run_params:
+  experiment_name: test2
+  workdir: test
+  trained_model: test1_latest.pth
 
 #TODO add nested config & 
 algorithm: 
@@ -16,10 +19,9 @@ algorithm:
   conv_dims: 2
   depth: 2
   num_filter_base: 96
-  trained_model: last_checkpoint.pth
 
 training:
-  num_epochs: 600
+  num_epochs: 500
   optimizer:
     #Name of the optimizer class from torch.optim
     name: Adam
@@ -101,7 +103,7 @@ prediction:
     # Patch generation strategy [random, sequential]
     extraction_strategy: predict
     #Patch shape in (z)yx. 2D or 3D
-    patch_size: [16, 16]
+    patch_size: [64, 64]
     # Batch size
     batch_size: 1
     #Num workers parameter for data loader
@@ -109,9 +111,9 @@ prediction:
     #test-time augmentation
     tta: Null
   #Tuple of overlap values for each dimension between patches in pixels (should be half of the network receptive field)
-  overlap: [8, 8] 
+  overlap: [48, 48] 
   metric: psnr
 
-
+#TODO rename to logging? Move to run params?
 misc:
   use_wandb: Null

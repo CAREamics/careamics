@@ -21,7 +21,7 @@ def create_model(config: Configuration) -> torch.nn.Module:
     """
     # TODO rewrite this ugly bullshit. registry,etc!
     model_name = config.algorithm.model
-    load_checkpoint = config.algorithm.trained_model
+    load_checkpoint = config.run_params.trained_model
     # TODO fix import
     # try:
     #     model_class = getattr(deconoising, model_name)

@@ -65,7 +65,7 @@ class Data(BaseModel):
     """
 
     path: Path
-    patch_size: List[int] = Field(..., min_items=2, max_items=3)
+    patch_size: Optional[List[int]] = Field(..., min_items=2, max_items=3)
     axes: str
 
     # optional with default values (included in yml)
@@ -140,10 +140,13 @@ class Data(BaseModel):
         ValueError
             If patch size is not a power of 2 or at minimum 8
         """
-        for p in patch_size:
-            # check if power of 2 and divisible by 8
-            if not (p & (p - 1) == 0) or p < 8:
-                raise ValueError(f"Patch size {p} is not a power of 2 or at minimum 8")
+        if patch_size is not None:
+            for p in patch_size:
+                # check if power of 2 and divisible by 8
+                if not (p & (p - 1) == 0) or p < 8:
+                    raise ValueError(
+                        f"Patch size {p} is not a power of 2 or at minimum 8"
+                    )
         return patch_size
 
     @validator("axes")
@@ -178,16 +181,17 @@ class Data(BaseModel):
             patch_size = values["patch_size"]
 
             # hard constraint
-            if len(axes) < len(patch_size):
-                raise ValueError(
-                    f"Number of axes ({len(axes)}) cannot be smaller than patch"
-                    f"size ({patch_size}) do not match."
-                )
+            if patch_size is not None:
+                if len(axes) < len(patch_size):
+                    raise ValueError(
+                        f"Number of axes ({len(axes)}) cannot be smaller than patch"
+                        f"size ({patch_size}) do not match."
+                    )
 
-            if len(patch_size) == 3 and "Z" not in axes:
-                raise ValueError(f"Missing Z axes in {axes=}.")
-            elif len(patch_size) == 2 and "Z" in axes:
-                raise ValueError(f"Z axes in {axes=}, but patch size is 2D.")
+                if len(patch_size) == 3 and "Z" not in axes:
+                    raise ValueError(f"Missing Z axes in {axes=}.")
+                elif len(patch_size) == 2 and "Z" in axes:
+                    raise ValueError(f"Z axes in {axes=}, but patch size is 2D.")
         else:
             raise ValueError("Cannot check axes validity without patch size.")
 
