@@ -400,7 +400,7 @@ def extract_patches_predict(
     std: int = None,
 ) -> List[np.ndarray]:
     # Overlap is half of the value mentioned in original N2V. must be even. It's like this because of current N2V notation
-    arr = arr[0, :35, :64][np.newaxis]
+    arr = arr[0, :, :][np.newaxis]
     # Iterate over num samples (S)
     for sample_idx in range(arr.shape[0]):
         sample = arr[sample_idx]
@@ -425,6 +425,7 @@ def extract_patches_predict(
             itertools.product(*all_overlap_crop_coords),
         ):
             tile = sample[(..., *[slice(c[0], c[1]) for c in list(crop_coords)])]
+            tile = (normalize(tile, mean, std)) if (mean and std) else (tile)
             yield (
                 np.expand_dims(tile.astype(np.float32), 0),
                 sample_idx,
