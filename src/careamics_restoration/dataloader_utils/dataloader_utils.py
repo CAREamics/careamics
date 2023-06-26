@@ -1,14 +1,12 @@
 import itertools
 import logging
+from pathlib import Path
+from typing import Generator, List, Optional, Tuple, Union
+
 import numpy as np
 from skimage.util import view_as_windows
-from tqdm import tqdm
-from pathlib import Path
-from typing import Tuple, Union, List, Generator, Optional, Callable
-from typing import Callable, Generator, List, Optional, Tuple, Union
 
 from ..utils import normalize
-
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +66,7 @@ def are_axes_valid(axes: str) -> bool:
     # prior: X and Y contiguous (#FancyComments)
     # right now the next check is invalidating this, but in the future, we might
     # allow random order of axes (or at least XY and YX)
-    if not ("XY" in _axes) and not ("YX" in _axes):
+    if "XY" not in _axes and "YX" not in _axes:
         raise ValueError(f"Invalid axes {axes}. X and Y must be contiguous.")
 
     # check that the axes are in the right order
@@ -81,6 +79,8 @@ def are_axes_valid(axes: str) -> bool:
                 raise ValueError(
                     f"Invalid axes {axes}. Axes must be in the order {AXES}."
                 )
+
+    return True
 
 
 def _compute_number_of_patches(arr: np.ndarray, patch_sizes: Tuple[int]) -> Tuple[int]:

@@ -1,25 +1,23 @@
-from abc import ABC, abstractmethod
-from typing import Optional, Tuple, Dict
 import logging
-
-import yaml
-import numpy as np
-from tqdm import tqdm
+from abc import ABC, abstractmethod
 from pathlib import Path
+from typing import Dict, Optional, Tuple
 
+import numpy as np
 import torch
-import torch.nn.functional as F
+import yaml
 from torch.utils.data import DataLoader
+from tqdm import tqdm
 
-from .metrics import MetricTracker
+from .config import Configuration, get_parameters, load_configuration
 from .dataloader_utils import (
     create_dataset,
 )
 from .losses import create_loss_function
-from .config import Configuration, load_configuration, get_parameters
-from .utils import set_logging, get_device, normalize, denormalize
-from .prediction_utils import stitch_prediction
+from .metrics import MetricTracker
 from .models import create_model
+from .prediction_utils import stitch_prediction
+from .utils import denormalize, get_device, normalize, set_logging
 
 
 class Engine(ABC):
@@ -39,11 +37,11 @@ class Engine(ABC):
         pass
 
     @abstractmethod
-    def train(self, args):
+    def train(self, *args, **kwargs):
         pass
 
     @abstractmethod
-    def train_single_epoch(self, args):
+    def train_single_epoch(self, *args, **kwargs):
         pass
 
     # @abstractmethod
@@ -105,7 +103,7 @@ class UnsupervisedEngine(Engine):
             ):  # loop over the dataset multiple times
                 self.logger.info(f"Starting epoch {epoch}")
 
-                train_outputs = self.train_single_epoch(
+                self.train_single_epoch(
                     train_loader,
                     optimizer,
                     scaler,
@@ -162,7 +160,7 @@ class UnsupervisedEngine(Engine):
         else:
             self.logger.info("Starting prediction on whole sample")
         with torch.no_grad():
-            for idx, (tile, *auxillary) in tqdm(enumerate(pred_loader)):
+            for _idx, (_tile, *auxillary) in tqdm(enumerate(pred_loader)):
                 # TODO define all predict/train funcs in separate modules
                 if auxillary:
                     (
@@ -193,18 +191,18 @@ class UnsupervisedEngine(Engine):
             hasattr(pred_loader.dataset, "patch_generator")
             and pred_loader.dataset.patch_generator is not None
         )
-        avg_metric = MetricTracker()
+        MetricTracker()
         tiles = []
         if self.stitch:
             self.logger.info("Starting tiled prediction")
         else:
             self.logger.info("Starting prediction on whole sample")
         with torch.no_grad():
-            for idx, (tile, *auxillary) in tqdm(enumerate(pred_loader)):
+            for _idx, (tile, *auxillary) in tqdm(enumerate(pred_loader)):
                 # TODO define all predict/train funcs in separate modules
                 if auxillary:
                     (
-                        sample_idx,
+                        _,  # TODO: sample_idx was not used
                         sample_shape,
                         overlap_crop_coords,
                         stitch_coords,
@@ -254,7 +252,7 @@ class UnsupervisedEngine(Engine):
         amp: bool,
         max_grad_norm: Optional[float] = None,
     ):
-        """_summary_
+        """_summary_.
 
         _extended_summary_
 
@@ -277,7 +275,7 @@ class UnsupervisedEngine(Engine):
             loss = self.loss_func(outputs, *auxillary, self.device)
             scaler.scale(loss).backward()
 
-            if max_grad_norm > 0:
+            if max_grad_norm is not None and max_grad_norm > 0:
                 torch.nn.utils.clip_grad_norm_(
                     self.model.parameters(), max_norm=max_grad_norm
                 )
@@ -293,10 +291,10 @@ class UnsupervisedEngine(Engine):
         dataset = create_dataset(self.cfg, "training")
         ##TODO add custom collate function and separate dataloader create function, sampler?
         if not self.cfg.training.running_stats:
-            self.logger.info(f"Calculating mean/std of the data")
+            self.logger.info("Calculating mean/std of the data")
             dataset.calculate_stats()
         else:
-            self.logger.info(f"Using running average of mean/std")
+            self.logger.info("Using running average of mean/std")
         return (
             DataLoader(
                 dataset,
@@ -321,6 +319,7 @@ class UnsupervisedEngine(Engine):
         self, ext_input: Optional[np.ndarray] = None
     ) -> DataLoader:
         # TODO add description
+        # TODO mypy does not take into account "is not None", we need to find a workaround
         if ext_input is not None:
             ext_input = normalize(ext_input, self.mean, self.std)
             dataset = torch.utils.data.TensorDataset(
@@ -339,8 +338,7 @@ class UnsupervisedEngine(Engine):
     def get_optimizer_and_scheduler(
         self,
     ) -> Tuple[torch.optim.Optimizer, torch.optim.lr_scheduler._LRScheduler]:
-        """Builds a model based on the model_name or load a checkpoint
-
+        """Builds a model based on the model_name or load a checkpoint.
 
         _extended_summary_
 

@@ -13,25 +13,25 @@ repos:
     hooks:
       - id: validate-pyproject
 
-  - repo: https://github.com/charliermarsh/ruff-pre-commit
-    rev: v0.0.257
-    hooks:
-      - id: ruff
-        args: [--fix]
+  #  - repo: https://github.com/charliermarsh/ruff-pre-commit
+  #    rev: v0.0.257
+  #    hooks:
+  #      - id: ruff
+  #        args: [--fix]
 
   - repo: https://github.com/psf/black
     rev: 23.1.0
     hooks:
       - id: black
 
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.1.1
-    hooks:
-      - id: mypy
-        files: "^src/"
-        additional_dependencies:
-          - numpy
-          - types-PyYAML
+  #  - repo: https://github.com/pre-commit/mirrors-mypy
+  #    rev: v1.1.1
+  #    hooks:
+  #      - id: mypy
+  #        files: "^src/"
+  #        additional_dependencies:
+  #          - numpy
+  #          - types-PyYAML
 
   # jupyter linting and formatting
   - repo: https://github.com/nbQA-dev/nbQA

@@ -1,24 +1,18 @@
-import os
 import itertools
 import logging
+from pathlib import Path
+from typing import Callable, List, Optional, Tuple, Union
+
+import numpy as np
 import tifffile
 import torch
-
 import zarr
-import numpy as np
 from tqdm import tqdm
-from pathlib import Path
-from typing import Callable, Generator, List, Optional, Tuple, Union
-
-from . import (
-    compute_overlap,
-    compute_reshaped_view,
-    compute_patch_steps,
-    are_axes_valid,
-    compute_crop_and_stitch_coords_1d,
-)
 
 from ..utils import normalize
+from . import (
+    are_axes_valid,
+)
 
 ############################################
 #   ETL pipeline
@@ -92,21 +86,23 @@ class PatchDataset(torch.utils.data.IterableDataset):
         -------
         image volume : np.ndarray
         """
-        if not Path(data_source).exists():
-            raise ValueError(f"Data source {data_source} does not exist")
+        path_source = Path(data_source)
 
-        if data_source.suffix == ".npy":
+        if not path_source.exists():
+            raise ValueError(f"Data source {path_source} does not exist")
+
+        if path_source.suffix == ".npy":
             try:
-                arr = np.load(data_source)
-                arr_num_dims = len(arr.shape)
+                arr = np.load(path_source)
+                len(arr.shape)
             except ValueError:
-                arr = np.load(data_source, allow_pickle=True)
-                arr_num_dims = (
+                arr = np.load(path_source, allow_pickle=True)
+                (
                     len(arr[0].shape) + 1
                 )  # TODO check all arrays have the same or compliant shape ?
-        elif data_source.suffix[:4] == ".tif":
-            arr = tifffile.imread(data_source)
-            arr_num_dims = len(arr.shape)
+        elif path_source.suffix[:4] == ".tif":
+            arr = tifffile.imread(path_source)
+            len(arr.shape)
 
         # remove any singleton dimensions
         arr = arr.squeeze()
@@ -114,13 +110,13 @@ class PatchDataset(torch.utils.data.IterableDataset):
         # sanity check on dimensions
         if len(arr.shape) < 2 or len(arr.shape) > 4:
             raise ValueError(
-                f"Incorrect data dimensions. Must be 2, 3 or 4 (got {arr.shape} for file {data_source})."
+                f"Incorrect data dimensions. Must be 2, 3 or 4 (got {arr.shape} for file {path_source})."
             )
 
         # sanity check on axes length
         if len(axes) != len(arr.shape):
             raise ValueError(
-                f"Incorrect axes length (got {axes} for file {data_source})."
+                f"Incorrect axes length (got {axes} for file {path_source})."
             )
 
         # check axes validity
@@ -257,7 +253,6 @@ class PatchDataset(torch.utils.data.IterableDataset):
         ------
         np.ndarray
         """
-
         for image in self.__iter_source__():
             if self.patch_generator is None:
                 for idx in range(image.shape[0]):

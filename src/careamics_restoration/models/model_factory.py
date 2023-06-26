@@ -1,11 +1,11 @@
 import logging
-import torch
 from pathlib import Path
+
+import torch
 
 from ..config import Configuration
 from ..utils import set_logging
 from .unet import UNET
-
 
 logger = logging.getLogger(__name__)
 set_logging(logger)
@@ -38,5 +38,6 @@ def create_model(config: Configuration) -> torch.nn.Module:
     if load_checkpoint:
         # TODO add proper logging message
         model.load_state_dict(torch.load(load_checkpoint))
-        logger.info(f"Loaded model from {load_checkpoint.name}")
+
+        logger.info(f"Loaded model from {Path(load_checkpoint).name}")
     return model
