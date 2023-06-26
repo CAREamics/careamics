@@ -3,7 +3,7 @@ import itertools
 import numpy as np
 
 from careamics_restoration.prediction_utils import stitch_prediction
-from careamics_restoration.dataloader_utils.dataloader_utils import (
+from careamics_restoration.dataloader.dataloader_utils import (
     compute_crop_and_stitch_coords_1d,
 )
 

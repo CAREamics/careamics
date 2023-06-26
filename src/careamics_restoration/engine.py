@@ -10,7 +10,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from .config import Configuration, get_parameters, load_configuration
-from .dataloader_utils import (
+from .dataloader import (
     create_dataset,
 )
 from .losses import create_loss_function
