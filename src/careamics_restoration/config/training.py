@@ -1,10 +1,8 @@
 from typing import Optional
-from pydantic import BaseModel, Field, validator
-
-from torch import optim
+from pydantic import BaseModel, Field
 
 from .data import Data
-from .torch_optimizer import TorchOptimizer, TorchLRScheduler, get_parameters
+from .torch_optimizer import TorchOptimizer, TorchLRScheduler
 
 
 class Optimizer(BaseModel):

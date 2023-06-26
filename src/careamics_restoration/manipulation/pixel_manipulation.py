@@ -1,6 +1,5 @@
-import itertools
 import numpy as np
-from typing import Callable, Dict, Tuple
+from typing import Tuple
 
 
 def get_stratified_coords(mask_pixel_perc: float, shape: Tuple[int, ...]) -> np.ndarray:

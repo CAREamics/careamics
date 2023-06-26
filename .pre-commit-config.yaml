@@ -24,14 +24,14 @@ repos:
     hooks:
       - id: black
 
-  #  - repo: https://github.com/pre-commit/mirrors-mypy
-  #    rev: v1.1.1
-  #    hooks:
-  #      - id: mypy
-  #        files: "^src/"
-  #        additional_dependencies:
-  #          - numpy
-  #          - types-PyYAML
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.1.1
+    hooks:
+      - id: mypy
+        files: "^src/"
+        additional_dependencies:
+          - numpy
+          - types-PyYAML
 
   # jupyter linting and formatting
   - repo: https://github.com/nbQA-dev/nbQA

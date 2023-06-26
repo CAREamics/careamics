@@ -10,7 +10,7 @@ import zarr
 from tqdm import tqdm
 
 from ..utils import normalize
-from . import (
+from .dataloader_utils import (
     are_axes_valid,
 )
 
