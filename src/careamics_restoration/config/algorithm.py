@@ -36,10 +36,13 @@ class Algorithm(BaseModel):
         Depth of the model (default: 3)
     conv_dims : int
         Dimensions of the convolution, 2D or 3D (default: 2)
+    num_filter_base : int
+        # TODO add description
     pixel_manipulation : PixelManipulator
-        Pixel manipulation strategy (default: PixelManipulator.N2V)
-    num_masked_pixels : float
-        Percentage of masked pixels (default: 128)
+        Pixel manipulation strategy, i.e. how are pixel masked during training
+        (default: PixelManipulator.N2V)
+    mask_pixel_percentage : float
+        Percentage of pixels to be masked during training (default: 0.2%)
     trained_model : Optional[Path]
         Path to a trained model (default: None)
     """
@@ -56,7 +59,9 @@ class Algorithm(BaseModel):
 
     # pixel masking
     pixel_manipulation: PixelManipulator = PixelManipulator.N2V
-    mask_pixel_percentage: float = Field(default=0.2, ge=0.1, le=5)
+    mask_pixel_percentage: float = Field(
+        default=0.2, ge=0.1, le=5
+    )  # TODO arbitrary maximum, justify otherwise 100.
 
     # optional fields that will not appear if not defined
     trained_model: Optional[str] = None
@@ -87,9 +92,19 @@ class Algorithm(BaseModel):
 
         return None
 
-    def dict(self, *args, **kwargs):
-        """Return a dictionary representation of the model."""
-        return super().dict(exclude_none=True)
+    def dict(self, *args, **kwargs) -> dict:
+        """Override dict method.
+
+        The purpose is to ensure export smooth import to yaml. It includes:
+            - remove entries with None value
+            - replace Path by str
+        """
+        dictionary = super().dict(exclude_none=True)
+
+        # replace Path by str
+        dictionary["workdir"] = str(dictionary["workdir"])
+
+        return dictionary
 
     class Config:
         use_enum_values = True  # enum are exported as str

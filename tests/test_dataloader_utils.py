@@ -55,6 +55,24 @@ def test_compute_patch_steps(dims, patch_size, overlap):
     assert compute_patch_steps(patch_sizes, overlaps) == expected
 
 
+def check_compute_reshaped_view(array, window_shape, steps):
+    """Check the number of patches"""
+
+    win = (1,) + window_shape
+    step = (1,) + steps
+    output_shape = (-1,) + window_shape
+
+    # compute views
+    output = compute_reshaped_view(array, win, step, output_shape)
+
+    # check the number of patches
+    n_patches = [
+        np.ceil((array.shape[1 + i] - window_shape[i] + 1) / steps[i]).astype(int)
+        for i in range(len(window_shape))
+    ]
+    assert output.shape == (np.prod(n_patches),) + window_shape
+
+
 @pytest.mark.parametrize("axis_size", [32, 35, 40])
 @pytest.mark.parametrize("patch_size, overlap", [(16, 4), (8, 6), (16, 8)])
 def test_compute_crop_and_stitch_coords_1d(axis_size, patch_size, overlap):
@@ -118,31 +136,7 @@ def test_compute_crop_and_stitch_coords_1d(axis_size, patch_size, overlap):
 )
 def test_compute_reshaped_view_2d(array_2D, window_shape, steps):
     """Test computing reshaped view of an array of shape (1, 10, 9)."""
-
-    win = (1,) + window_shape
-    step = (1,) + steps
-    output_shape = (-1,) + window_shape
-
-    # compute views
-    output = compute_reshaped_view(array_2D, win, step, output_shape)
-
-    # check the number of patches
-    n_patches = [
-        np.ceil((array_2D.shape[1 + i] - window_shape[i] + 1) / steps[i]).astype(int)
-        for i in range(len(window_shape))
-    ]
-    assert output.shape == (np.prod(n_patches),) + window_shape
-
-    # check all patches
-    for i in range(n_patches[0]):
-        for j in range(n_patches[1]):
-            start_i = i * steps[0]
-            end_i = i * steps[0] + window_shape[0]
-            start_j = j * steps[1]
-            end_j = j * steps[1] + window_shape[1]
-
-            patch = array_2D[0, start_i:end_i, start_j:end_j]
-            assert np.all(output[i * n_patches[1] + j] == patch)
+    check_compute_reshaped_view(array_2D, window_shape, steps)
 
 
 @pytest.mark.parametrize(
@@ -155,37 +149,7 @@ def test_compute_reshaped_view_2d(array_2D, window_shape, steps):
 )
 def test_compute_reshaped_view_3d(array_3D, window_shape, steps):
     """Test computing reshaped view of an array of shape (1, 5, 10, 9)."""
-
-    win = (1,) + window_shape
-    step = (1,) + steps
-    output_shape = (-1,) + window_shape
-
-    # compute views
-    output = compute_reshaped_view(array_3D, win, step, output_shape)
-
-    # check the number of patches
-    n_patches = [
-        np.ceil((array_3D.shape[1 + i] - window_shape[i] + 1) / steps[i]).astype(int)
-        for i in range(len(window_shape))
-    ]
-    assert output.shape == (np.prod(n_patches),) + window_shape
-
-    # check all patches
-    for i in range(n_patches[0]):
-        for j in range(n_patches[1]):
-            for k in range(n_patches[2]):
-                start_i = i * steps[0]
-                end_i = i * steps[0] + window_shape[0]
-                start_j = j * steps[1]
-                end_j = j * steps[1] + window_shape[1]
-                start_k = k * steps[2]
-                end_k = k * steps[2] + window_shape[2]
-
-                patch = array_3D[0, start_i:end_i, start_j:end_j, start_k:end_k]
-                assert np.all(
-                    output[i * n_patches[1] * n_patches[2] + j * n_patches[2] + k]
-                    == patch
-                )
+    check_compute_reshaped_view(array_3D, window_shape, steps)
 
 
 @pytest.mark.parametrize(

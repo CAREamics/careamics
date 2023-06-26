@@ -1,13 +1,9 @@
-from enum import Enum
-
 import torch
 import torch.nn as nn
 
-from typing import List
 from collections import OrderedDict
-from torch.nn import init
 
-from .layers import DownConv, UpConv, conv1x1, Conv_Block_tf, BlurPool2d, BlurPool3d
+from .layers import Conv_Block_tf, BlurPool2d, BlurPool3d
 
 
 # TODO add docstings, typing
@@ -20,17 +16,20 @@ class UNET(nn.Module):
         num_classes: int = 1,
         in_channels: int = 1,
         depth: int = 3,
-        num_filter_base: int = 64,
+        num_filter_base: int = 64,  # TODO cryptic name
         num_conv_per_depth=2,
         activation="ReLU",
         use_batch_norm=True,
         dropout=0.0,
         pool_kernel=2,
         last_activation=None,
-        n2v2: bool = False,
-        skip_skipone=False,
+        n2v2: bool = False,  # TODO: should n2v2 and skip_skipone be linked?
+        skip_skipone=False,  # TODO cryptic name
     ) -> None:
         super().__init__()
+
+        if depth < 1:
+            raise ValueError(f"Depth must be greater than 1 (got {depth}).")
 
         self.depth = depth
         self.num_conv_per_depth = num_conv_per_depth
@@ -41,15 +40,15 @@ class UNET(nn.Module):
             self.pooling = (
                 BlurPool2d if conv_dim == 2 else BlurPool3d
             )  # TODO getattr from layers
+            self.skipone = True
         else:
             self.pooling = getattr(nn, f"MaxPool{conv_dim}d")(kernel_size=pool_kernel)
+            self.skipone = False
 
         self.upsampling = nn.Upsample(
             scale_factor=2, mode="bilinear"
         )  # TODO check align_corners and mode
-        self.skipone = (
-            skip_skipone  # TODO whoever called this skip_skipone must explain himself
-        )
+
         enc_blocks = OrderedDict()
         bottleneck = OrderedDict()
         dec_blocks = OrderedDict()
@@ -75,7 +74,7 @@ class UNET(nn.Module):
                 )
                 enc_blocks[f"encoder_conv_d{n}_num{i}"] = layer
 
-            if skip_skipone:
+            if self.skipone:
                 if n > 0:
                     enc_blocks[f"skip_encoder_conv_d{n}"] = enc_blocks.pop(
                         f"encoder_conv_d{n}_num{i}"

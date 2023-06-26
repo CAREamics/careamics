@@ -87,20 +87,6 @@ class Configuration(BaseModel):
                 f"{Stage.PREDICTION}."
             )
 
-    def dict(self) -> dict:
-        """Override dict method.
-
-        The purpose is to ensure export smooth import to yaml. It includes:
-            - remove entries with None value
-            - replace Path by str
-        """
-        dictionary = super().dict(exclude_none=True)
-
-        # replace Path by str
-        dictionary["workdir"] = str(dictionary["workdir"])
-
-        return dictionary
-
 
 def load_configuration(cfg_path: Union[str, Path]) -> dict:
     # TODO: import here because it might not be used everytime?

@@ -43,7 +43,8 @@ dependencies = [
     'pyyaml', 
     'pydantic', 
     'scikit-image',
-    'bioimageio.core'
+    'bioimageio.core',
+    'zarr'
 ]
 
 [project.optional-dependencies]
@@ -52,6 +53,9 @@ dev = ["pre-commit", "pytest", "pytest-cov", "ruff", "twine", "build"]
 
 # use wandb for logging
 wandb = ["wandb"]
+
+# notebooks
+notebooks = ["jupyter", "careamics-portfolio"]
 
 # testing
 test = ["pytest", "pytest-cov"]
