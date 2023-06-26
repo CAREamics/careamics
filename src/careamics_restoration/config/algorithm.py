@@ -92,9 +92,19 @@ class Algorithm(BaseModel):
 
         return None
 
-    def dict(self, *args, **kwargs):
-        """Return a dictionary representation of the model."""
-        return super().dict(exclude_none=True)
+    def dict(self) -> dict:
+        """Override dict method.
+
+        The purpose is to ensure export smooth import to yaml. It includes:
+            - remove entries with None value
+            - replace Path by str
+        """
+        dictionary = super().dict(exclude_none=True)
+
+        # replace Path by str
+        dictionary["workdir"] = str(dictionary["workdir"])
+
+        return dictionary
 
     class Config:
         use_enum_values = True  # enum are exported as str

@@ -32,8 +32,8 @@ def test_config(tmp_path) -> dict:
     # create dictionary
     test_configuration = {
         "experiment_name": "testing",
-        "workdir": str(tmp_path),
         "algorithm": {
+            "workdir": str(tmp_path),
             "loss": ["n2v"],
             "model": "UNET",
             "num_masked_pixels": 0.2,

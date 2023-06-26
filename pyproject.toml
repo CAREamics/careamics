@@ -43,7 +43,8 @@ dependencies = [
     'pyyaml', 
     'pydantic', 
     'scikit-image',
-    'bioimageio.core'
+    'bioimageio.core',
+    'zarr'
 ]
 
 [project.optional-dependencies]
