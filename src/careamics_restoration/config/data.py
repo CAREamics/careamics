@@ -4,7 +4,10 @@ from pathlib import Path
 from typing import Optional, Union, List
 from pydantic import BaseModel, Field, validator
 
-from careamics_restoration.dataloader_utils import are_axes_valid
+# TODO this creates a circular import when instantiating the engine
+# engine -> config -> evaluation -> data -> dataloader_utils
+# then are_axes_valid are imported again in the engine.
+from ..utils import are_axes_valid
 
 
 class SupportedExtension(str, Enum):

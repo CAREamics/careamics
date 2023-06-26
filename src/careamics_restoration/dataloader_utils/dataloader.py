@@ -9,10 +9,7 @@ import torch
 import zarr
 from tqdm import tqdm
 
-from ..utils import normalize
-from .dataloader_utils import (
-    are_axes_valid,
-)
+from ..utils import normalize, are_axes_valid
 
 ############################################
 #   ETL pipeline
