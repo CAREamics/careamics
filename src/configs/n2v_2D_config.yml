@@ -1,8 +1,8 @@
 experiment_name: test
-workdir: .
 
 #TODO add nested config & 
 algorithm: 
+  workdir: test
   name: n2v
   #List of class names from losses.py or pytorch
   loss: [n2v]
@@ -16,7 +16,7 @@ algorithm:
   conv_dims: 2
   depth: 2
   num_filter_base: 96
-  checkpoint: last_checkpoint.pth
+  trained_model: last_checkpoint.pth
 
 training:
   num_epochs: 600
@@ -56,8 +56,6 @@ training:
     extraction_strategy: random
     #Patch shape in (z)yx. 2D or 3D
     patch_size: &PS [64, 64]
-    #Total number of patches to generate. Only applicable for random patching
-    num_patches: Null
     # Batch size
     batch_size: 128
     #Num workers parameter for data loader
@@ -103,7 +101,7 @@ prediction:
     # Patch generation strategy [random, sequential]
     extraction_strategy: predict
     #Patch shape in (z)yx. 2D or 3D
-    patch_size: [64, 64]
+    patch_size: [16, 16]
     # Batch size
     batch_size: 1
     #Num workers parameter for data loader
@@ -111,7 +109,7 @@ prediction:
     #test-time augmentation
     tta: Null
   #Tuple of overlap values for each dimension between patches in pixels (should be half of the network receptive field)
-  overlap: [32, 32] 
+  overlap: [8, 8] 
   metric: psnr
 
 

@@ -5,18 +5,19 @@ import logging
 import yaml
 import numpy as np
 from tqdm import tqdm
+from pathlib import Path
 
 import torch
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
 
 from .metrics import MetricTracker
-from .factory import (
+from .dataloader_utils import (
     create_dataset,
-    create_loss_function,
 )
+from .losses import create_loss_function
 from .config import Configuration, load_configuration, get_parameters
-from .utils import set_logging, get_device, denormalize
+from .utils import set_logging, get_device, normalize, denormalize
 from .prediction_utils import stitch_prediction
 from .models import create_model
 
@@ -60,13 +61,11 @@ class UnsupervisedEngine(Engine):
         self.mean = None
         self.std = None
         self.device = get_device()
-        # TODO all initializations of custom classes should be done here
 
     def parse_config(self, cfg_path: str) -> Dict:
         try:
             cfg = load_configuration(cfg_path)
         except (FileNotFoundError, yaml.YAMLError):
-            # TODO add custom exception for different cases
             raise yaml.YAMLError(f"Config file not found in {cfg_path}")
         cfg = Configuration(**cfg)
         return cfg
@@ -99,7 +98,7 @@ class UnsupervisedEngine(Engine):
         scaler = self.get_grad_scaler()
         self.logger.info(f"Starting training for {self.cfg.training.num_epochs} epochs")
 
-        val_losses = []  # TODO reimplement this uglu shit
+        val_losses = []  # TODO reimplement this ugly shit
         try:
             for epoch in range(
                 self.cfg.training.num_epochs
@@ -121,20 +120,18 @@ class UnsupervisedEngine(Engine):
                 )
                 # Add update scheduler rule based on type
                 lr_scheduler.step(eval_outputs["loss"])
-                # TODO implement checkpoint naming
                 if len(val_losses) == 0 or eval_outputs["loss"] < min(val_losses):
-                    self.save_checkpoint(f"best_checkpoint.pth", False)
+                    self.save_checkpoint(True)
                 else:
-                    self.save_checkpoint("last_checkpoint.pth", False)
+                    self.save_checkpoint(False)
                 val_losses.append(eval_outputs["loss"])
-                self.logger.info(f"Saved checkpoint to ")  # TODO correct path
+                self.logger.info(f"Saved checkpoint to {self.cfg.workdir}")
 
         except KeyboardInterrupt:
             self.logger.info("Training interrupted")
 
     def evaluate(self, eval_loader: torch.utils.data.DataLoader, eval_metric: str):
         self.model.eval()
-        # TODO Isnt supposed to be called without train ?
         avg_loss = MetricTracker()
         avg_loss.reset()
 
@@ -156,7 +153,6 @@ class UnsupervisedEngine(Engine):
         pred_loader = self.get_predict_dataloader(
             ext_input=ext_input
         )  # TODO check, calculate mean and std on all data not only train
-        # TODO separate func for external input
         self.stitch = (
             hasattr(pred_loader.dataset, "patch_generator")
             and pred_loader.dataset.patch_generator is not None
@@ -186,7 +182,6 @@ class UnsupervisedEngine(Engine):
         pass
 
     def predict_single_sample(self, ext_input: np.ndarray = None):
-        # TODO use this in predict
         self.model.to(self.device)
         self.model.eval()
         if not (self.mean and self.std):
@@ -199,9 +194,6 @@ class UnsupervisedEngine(Engine):
             and pred_loader.dataset.patch_generator is not None
         )
         avg_metric = MetricTracker()
-        # TODO get whole image size or append to variable sized array. Might not fit into memory?
-        # pred = np.empty(68, dtype=np.object)
-        # TODO need acces to overlaps from config
         tiles = []
         if self.stitch:
             self.logger.info("Starting tiled prediction")
@@ -289,7 +281,6 @@ class UnsupervisedEngine(Engine):
                 torch.nn.utils.clip_grad_norm_(
                     self.model.parameters(), max_norm=max_grad_norm
                 )
-            # TODO fix batches naming
             avg_loss.update(loss.item(), patch.shape[0])
 
             optimizer.step()
@@ -378,11 +369,15 @@ class UnsupervisedEngine(Engine):
         scaling = self.cfg.training.amp.init_scale
         return torch.cuda.amp.GradScaler(init_scale=scaling, enabled=use)
 
-    def save_checkpoint(self, name, save_best):
+    def save_checkpoint(self, save_best):
         """Save the model to a checkpoint file."""
+        name = (
+            Path(self.cfg.workdir) / self.cfg.experiment / "_best.pth"
+            if save_best
+            else "_latest.pth"
+        )
+        name.mkdirs(parents=True, exist_ok=True)
         torch.save(self.model.state_dict(), name)
-
-    # TODO implement proper saving/loading
 
     def export_model(self, model):
         pass

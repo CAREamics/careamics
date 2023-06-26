@@ -1,7 +1,5 @@
 import pytest
-import torch.nn as nn
-
-from careamics_restoration.models.models import UNET
+from careamics_restoration.models.unet import UNET
 
 # TODO mode tests
 # TODO: test n2v2 and skip_skipone

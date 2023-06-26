@@ -4,14 +4,14 @@ from typing import List, Tuple
 
 
 def stitch_prediction(
-    tiles: Tuple[np.ndarray, List[int]], input_shape: Tuple[int]
+    tiles: List[Tuple[np.ndarray, List[int]]], input_shape: Tuple[int]
 ) -> np.ndarray:
     """Stitches tiles back together to form a full image
 
     Parameters
     ----------
-    tiles : Tuple[np.ndarray, List[int]]
-        Tuple of tiles and their respective stitching coordinates
+    tiles : List[Tuple[np.ndarray, List[int]]]
+        Tuple of cropped tiles and their respective stitching coordinates
     input_shape : Tuple[int]
         Shape of the full image
 

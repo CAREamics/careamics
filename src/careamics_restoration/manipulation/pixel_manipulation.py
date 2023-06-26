@@ -65,7 +65,6 @@ def apply_struct_n2v_mask(patch, coords, dims, mask):
     mix = mix.clip(min=np.zeros(ndim), max=np.array(patch.shape) - 1).astype(np.uint)
     ## replace neighbouring pixels with random values from flat dist
     patch[tuple(mix.T)] = np.random.rand(mix.shape[0]) * 4 - 2
-    # TODO finish, test
     return patch
 
 

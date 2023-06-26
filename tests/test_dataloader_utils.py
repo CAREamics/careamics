@@ -8,6 +8,7 @@ from careamics_restoration.dataloader_utils.dataloader_utils import (
     compute_overlap,
     compute_reshaped_view,
     are_axes_valid,
+    compute_crop_and_stitch_coords_1d,
 )
 
 
@@ -70,6 +71,59 @@ def check_compute_reshaped_view(array, window_shape, steps):
         for i in range(len(window_shape))
     ]
     assert output.shape == (np.prod(n_patches),) + window_shape
+
+
+@pytest.mark.parametrize("axis_size", [32, 35, 40])
+@pytest.mark.parametrize("patch_size, overlap", [(16, 4), (8, 6), (16, 8)])
+def test_compute_crop_and_stitch_coords_1d(axis_size, patch_size, overlap):
+    crop_coords, stitch_coords, overlap_crop_coords = compute_crop_and_stitch_coords_1d(
+        axis_size, patch_size, overlap
+    )
+
+    # check that the number of patches is sufficient to cover the whole axis and that the number of coordinates is
+    # the same for all three coordinate groups
+    num_patches = np.ceil((axis_size - overlap) / (patch_size - overlap)).astype(int)
+    assert (
+        len(crop_coords)
+        == len(stitch_coords)
+        == len(overlap_crop_coords)
+        == num_patches
+    )
+    # check if 0 is the first coordinate, axis_size is last coordinate in all three coordinate groups
+    assert all(
+        [
+            all((group[0][0] == 0, group[-1][1] == axis_size))
+            for group in [crop_coords, stitch_coords]
+        ]
+    )
+    # TODO Joran non si piaciono perche questo e molto complicato
+    # check if neighboring stitch coordinates are equal
+    assert all(
+        [
+            stitch_coords[i][1] == stitch_coords[i + 1][0]
+            for i in range(len(stitch_coords) - 1)
+        ]
+    )
+
+    # check that the crop coordinates cover the whole axis
+    assert (
+        np.sum(np.array(crop_coords)[:, 1] - np.array(crop_coords)[:, 0])
+        == patch_size * num_patches
+    )
+
+    # check that the overlap crop coordinates cover the whole axis
+    assert (
+        np.sum(
+            np.array(overlap_crop_coords)[:, 1] - np.array(overlap_crop_coords)[:, 0]
+        )
+        == axis_size
+    )
+
+    # check that shape of all cropped tiles is equal
+    assert np.array_equal(
+        np.array(overlap_crop_coords)[:, 1] - np.array(overlap_crop_coords)[:, 0],
+        np.array(stitch_coords)[:, 1] - np.array(stitch_coords)[:, 0],
+    )
 
 
 @pytest.mark.parametrize(

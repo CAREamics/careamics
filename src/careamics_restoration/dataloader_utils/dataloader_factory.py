@@ -1,25 +1,19 @@
 import inspect
-import logging
 from functools import partial
 from typing import Callable, Dict, Optional, Union
 
 import torch
 
-from . import dataloader
-from .config import Configuration
-from .utils import set_logging
-from .dataloader import (
-    PatchDataset,
+from ..config import Configuration
+from .dataloader import PatchDataset
+from .dataloader_utils import (
+    extract_patches_predict,
+    extract_patches_sequential,
+    extract_patches_random,
     list_input_source_tiff,
 )
-from .losses.losses import n2v_loss
-from .models import UNET
 
-from .manipulation import create_patch_transform
-
-
-logger = logging.getLogger(__name__)
-set_logging(logger)
+from ..manipulation import create_patch_transform
 
 
 def create_tiling_function(stage: Dict) -> Callable:
@@ -39,18 +33,16 @@ def create_tiling_function(stage: Dict) -> Callable:
         return None
     elif stage.data.extraction_strategy == "predict":
         return partial(
-            getattr(
-                dataloader,
-                f"extract_patches_{stage.data.extraction_strategy}",
-            ),
+            extract_patches_predict,
             overlaps=stage.overlap,
         )
-    else:
+    elif stage.data.extraction_strategy == "sequential":
         return partial(
-            getattr(
-                dataloader,
-                f"extract_patches_{stage.data.extraction_strategy}",
-            ),
+            extract_patches_sequential,
+        )
+    elif stage.data.extraction_strategy == "random":
+        return partial(
+            extract_patches_random,
         )
 
 
@@ -64,7 +56,6 @@ def create_dataset(config: Configuration, stage: str) -> torch.utils.data.Datase
     """
     # TODO rewrite this ugly bullshit. registry,etc!
     # TODO data reader getattr
-    # TODO add support for mixed filetype datasets
     stage_config = config.get_stage_config(stage)  # getattr(config, stage)
 
     # TODO clear description of what all these funcs/params mean
@@ -87,22 +78,3 @@ def create_dataset(config: Configuration, stage: str) -> torch.utils.data.Datase
     # except ImportError:
     #     raise ImportError('Dataset not found')
     return dataset
-
-
-def create_loss_function(config: Dict) -> Callable:
-    """Builds a model based on the model_name or load a checkpoint.
-
-    _extended_summary_
-
-    Parameters
-    ----------
-    model_name : _type_
-        _description_
-    """
-    loss_type = config.algorithm.loss
-    if loss_type[0] == "n2v":
-        loss_function = n2v_loss
-    # TODO rewrite this ugly bullshit. registry,etc!
-    # loss_func = getattr(sys.__name__, loss_type)
-    # TODO test !
-    return loss_function

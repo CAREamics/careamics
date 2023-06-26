@@ -36,7 +36,6 @@ class Configuration(BaseModel):
     """
 
     experiment_name: str
-    workdir: Path
 
     # sub-configuration
     algorithm: Algorithm
@@ -46,31 +45,6 @@ class Configuration(BaseModel):
     training: Optional[Training] = None
     evaluation: Optional[Evaluation] = None
     prediction: Optional[Prediction] = None
-
-    @validator("workdir")
-    def validate_workdir(cls, v: Union[Path, str], **kwargs) -> Path:
-        """Validate workdir.
-
-        Parameters
-        ----------
-        v : Union[Path, str]
-            Value to validate
-
-        Returns
-        -------
-        Path
-            Validated value
-
-        Raises
-        ------
-        ValueError
-            If workdir does not exist
-        """
-        path = Path(v)
-        if not path.exists():
-            raise ValueError(f"workdir {path} does not exist")
-
-        return path
 
     def get_stage_config(self, stage: Union[str, Stage]) -> Union[Training, Evaluation]:
         """Get the configuration for a specific stage (training, evaluation or

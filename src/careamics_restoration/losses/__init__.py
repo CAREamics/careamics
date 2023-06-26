@@ -1,1 +1,1 @@
-from .losses import n2v_loss, pn2v_loss
+from .loss_factory import create_loss_function
