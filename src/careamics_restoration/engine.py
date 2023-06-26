@@ -181,7 +181,7 @@ class UnsupervisedEngine(Engine):
         # TODO predict on externally passed path
         pass
 
-    def predict_single_sample(self, ext_input: np.ndarray = None):
+    def predict_single_sample(self, ext_input: Optional[np.ndarray] = None):
         self.model.to(self.device)
         self.model.eval()
         if not (self.mean and self.std):
@@ -317,7 +317,9 @@ class UnsupervisedEngine(Engine):
             pin_memory=True,
         )
 
-    def get_predict_dataloader(self, ext_input: np.ndarray = None) -> DataLoader:
+    def get_predict_dataloader(
+        self, ext_input: Optional[np.ndarray] = None
+    ) -> DataLoader:
         # TODO add description
         if ext_input is not None:
             ext_input = normalize(ext_input, self.mean, self.std)

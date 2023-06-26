@@ -283,8 +283,8 @@ def extract_patches_sequential(
     arr: np.ndarray,
     patch_sizes: Tuple[int],
     overlaps: Union[Tuple[int], None] = None,
-    mean: int = None,
-    std: int = None,
+    mean: Optional[int] = None,
+    std: Optional[int] = None,
 ) -> Generator[np.ndarray, None, None]:
     """Generate patches from an array of dimensions C(Z)YX, where C can
     be a singleton dimension.
@@ -358,8 +358,8 @@ def extract_patches_sequential(
 def extract_patches_random(
     arr,
     patch_size,
-    mean: int = None,
-    std: int = None,
+    mean: Optional[int] = None,
+    std: Optional[int] = None,
     *args,
 ) -> Generator[np.ndarray, None, None]:
     rng = np.random.default_rng()
@@ -396,8 +396,8 @@ def extract_patches_predict(
     arr: np.ndarray,
     patch_size: Tuple[int],
     overlaps: Tuple[int],
-    mean: int = None,
-    std: int = None,
+    mean: Optional[int] = None,
+    std: Optional[int] = None,
 ) -> List[np.ndarray]:
     # Overlap is half of the value mentioned in original N2V. must be even. It's like this because of current N2V notation
     arr = arr[0, :, :][np.newaxis]
