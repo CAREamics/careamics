@@ -92,7 +92,7 @@ class Algorithm(BaseModel):
 
         return None
 
-    def dict(self) -> dict:
+    def dict(self, *args, **kwargs) -> dict:
         """Override dict method.
 
         The purpose is to ensure export smooth import to yaml. It includes:
