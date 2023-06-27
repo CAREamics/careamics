@@ -1,7 +1,6 @@
 import logging
-from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Dict, Optional, Tuple
+from typing import Optional, Tuple
 
 import numpy as np
 import torch
@@ -10,7 +9,7 @@ from torch.utils.data import DataLoader, TensorDataset
 from tqdm import tqdm
 
 from .config import ConfigStageEnum, Configuration, get_parameters, load_configuration
-from .dataloader import (
+from .dataset import (
     create_dataset,
 )
 from .losses import create_loss_function
@@ -20,47 +19,18 @@ from .prediction_utils import stitch_prediction
 from .utils import denormalize, get_device, normalize, set_logging
 
 
-class Engine(ABC):
-    def __init__(self, cfg):
-        self.cfg = cfg
-
-    @abstractmethod
-    def get_model(self):
-        pass
-
-    @abstractmethod
-    def get_train_dataloader(self):
-        pass
-
-    @abstractmethod
-    def get_predict_dataloader(self):
-        pass
-
-    @abstractmethod
-    def train(self, *args, **kwargs):
-        pass
-
-    @abstractmethod
-    def train_single_epoch(self, *args, **kwargs):
-        pass
-
-    # @abstractmethod
-    # def predict(self, args):
-    #     pass
-
-
-class UnsupervisedEngine(Engine):
+class Engine:
     def __init__(self, cfg_path: str) -> None:
         self.logger = logging.getLogger()
         set_logging(self.logger)
         self.cfg = self.parse_config(cfg_path)
-        self.model = self.get_model()
-        self.loss_func = self.get_loss_function()
+        self.model = create_model(self.cfg)
+        self.loss_func = create_loss_function(self.cfg)
         self.mean = None
-        self.std = None
+        self.std = None  # TODO mean/std arent supposed to be the parameters of the engine. Move somewhere
         self.device = get_device()
 
-    def parse_config(self, cfg_path: str) -> Dict:
+    def parse_config(self, cfg_path: str) -> Configuration:
         try:
             cfg = load_configuration(cfg_path)
         except (FileNotFoundError, yaml.YAMLError):
@@ -70,7 +40,7 @@ class UnsupervisedEngine(Engine):
 
     def log_metrics(self):
         if self.cfg.misc.use_wandb:
-            try:  # TODO test wandb. add functionality
+            try:  # TODO Vera will fix this funzione di merda
                 import wandb
 
                 wandb.init(project=self.cfg.run_params.experiment_name, config=self.cfg)
@@ -84,9 +54,6 @@ class UnsupervisedEngine(Engine):
         else:
             self.logger.info("Using default logger")
 
-    def get_model(self):
-        return create_model(self.cfg)
-
     def train(self):
         # General func
         train_loader, self.mean, self.std = self.get_train_dataloader()
@@ -96,7 +63,7 @@ class UnsupervisedEngine(Engine):
         scaler = self.get_grad_scaler()
         self.logger.info(f"Starting training for {self.cfg.training.num_epochs} epochs")
 
-        val_losses = []  # TODO reimplement this ugly shit
+        val_losses = []
         try:
             for epoch in range(
                 self.cfg.training.num_epochs
@@ -267,11 +234,11 @@ class UnsupervisedEngine(Engine):
         self.model.to(self.device)
         self.model.train()
 
-        for patch, *auxillary in tqdm(loader):
+        for batch, *auxillary in tqdm(loader):
             optimizer.zero_grad()
 
             with torch.cuda.amp.autocast(enabled=amp):
-                outputs = self.model(patch.to(self.device))
+                outputs = self.model(batch.to(self.device))
             loss = self.loss_func(outputs, *auxillary, self.device)
             scaler.scale(loss).backward()
 
@@ -279,17 +246,16 @@ class UnsupervisedEngine(Engine):
                 torch.nn.utils.clip_grad_norm_(
                     self.model.parameters(), max_norm=max_grad_norm
                 )
-            avg_loss.update(loss.item(), patch.shape[0])
+            avg_loss.update(loss.item(), batch.shape[0])
 
             optimizer.step()
         return {"loss": avg_loss.avg}
 
-    def get_loss_function(self):
-        return create_loss_function(self.cfg)
-
     def get_train_dataloader(self) -> DataLoader:
         dataset = create_dataset(self.cfg, ConfigStageEnum.TRAINING)
+        # TODO all this should go into the Dataset
         ##TODO add custom collate function and separate dataloader create function, sampler?
+        # Move running stats into dataset
         if not self.cfg.training.running_stats:
             self.logger.info("Calculating mean/std of the data")
             dataset.calculate_stats()
@@ -301,11 +267,12 @@ class UnsupervisedEngine(Engine):
                 batch_size=self.cfg.training.data.batch_size,
                 num_workers=self.cfg.training.data.num_workers,
             ),
+            # TODO move mean std to patch dataset (and rename to tiffdataset)
             dataset.mean,
             dataset.std,
         )
 
-    # TODO merge into single dataloader func ?
+    # TODO merge into single dataloader func ? <-- yes
     def get_val_dataloader(self) -> DataLoader:
         dataset = create_dataset(self.cfg, ConfigStageEnum.EVALUATION)
         return DataLoader(
@@ -350,16 +317,20 @@ class UnsupervisedEngine(Engine):
         optimizer_name = self.cfg.training.optimizer.name
         optimizer_params = self.cfg.training.optimizer.parameters
         optimizer_func = getattr(torch.optim, optimizer_name)
+
         # Get the list of all possible parameters of the optimizer
         optim_params = get_parameters(optimizer_func, optimizer_params)
-        # TODO add support for different learning rates for different layers
+
+        # TODO: Joran move the optimizer instantiation to the optimizer (config > training.py)
         optimizer = optimizer_func(self.model.parameters(), **optim_params)
 
+        # TODO same here
         scheduler_name = self.cfg.training.lr_scheduler.name
         scheduler_params = self.cfg.training.lr_scheduler.parameters
         scheduler_func = getattr(torch.optim.lr_scheduler, scheduler_name)
         scheduler_params = get_parameters(scheduler_func, scheduler_params)
         scheduler = scheduler_func(optimizer, **scheduler_params)
+
         return optimizer, scheduler
 
     def get_grad_scaler(self) -> torch.cuda.amp.GradScaler:

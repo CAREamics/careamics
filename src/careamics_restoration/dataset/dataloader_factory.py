@@ -14,6 +14,8 @@ from .dataloader_utils import (
     list_input_source_tiff,
 )
 
+# TODO Joran: removing factories for now
+
 
 def create_tiling_function(stage: Stage) -> Union[None, Callable]:
     """Creates the tiling function depending on the provided strategy.
@@ -42,7 +44,7 @@ def create_tiling_function(stage: Stage) -> Union[None, Callable]:
         return partial(
             extract_patches_random,
         )
-
+    # TODO Igor: move partial to dataset class
     return None
 
 
@@ -54,12 +56,9 @@ def create_dataset(config: Configuration, stage: ConfigStageEnum) -> Dataset:
     config : Dict
         Config file dictionary
     """
-    # TODO rewrite this ugly bullshit. registry,etc!
-    # TODO data reader getattr
     stage_config = config.get_stage_config(stage)  # getattr(config, stage)
 
     # TODO clear description of what all these funcs/params mean
-    # TODO patch transform should be properly imported from somewhere?
     dataset = PatchDataset(
         data_path=stage_config.data.path,
         ext=stage_config.data.ext,
@@ -70,11 +69,8 @@ def create_dataset(config: Configuration, stage: ConfigStageEnum) -> Dataset:
         patch_generator=create_tiling_function(stage_config),
         patch_level_transform=create_patch_transform(config)
         if stage != "prediction"
-        else None,
+        else None,  # TODO Igor: move all funcs that return callables to dataset class
+        # TODO Igor: separate dataset class for different datatypes, tiff, zarr
     )
-    # TODO getatr manipulate
-    # try:
-    #     dataset_class = getattr(dataloader, dataset_name)
-    # except ImportError:
-    #     raise ImportError('Dataset not found')
+
     return dataset

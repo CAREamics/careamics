@@ -15,10 +15,6 @@ def create_loss_function(config: Configuration) -> Callable:
     model_name : _type_
         _description_
     """
-    # currently the configuration accepts a list of losses or a single name
-    # TODO: it is dubious whether the configuration should accept it at all
-    # therefore this should simplify as soon as a decision is taken in the
-    # configuration
     loss_type = config.algorithm.loss
 
     if len(loss_type) > 1:

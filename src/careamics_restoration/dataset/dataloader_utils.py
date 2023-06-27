@@ -205,7 +205,9 @@ def list_input_source_tiff(
     return (
         list(itertools.islice(Path(path).rglob("*.tif*"), num_files))
         if num_files
-        else list(Path(path).rglob("*.tif*"))
+        else list(
+            Path(path).rglob("*.tif*")
+        )  # TODO Igor: move this functionality to the dataloader. Sort the files by name
     )
 
 

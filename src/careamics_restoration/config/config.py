@@ -55,6 +55,9 @@ class ConfigStageEnum(str, Enum):
     PREDICTION = "prediction"
 
 
+# TODO Discuss the structure and logic of the configuration, and document every constraints decision
+
+
 class Configuration(BaseModel):
     """Main experiment configuration.
 
@@ -135,7 +138,7 @@ def load_configuration(cfg_path: Union[str, Path]) -> Configuration:
     import yaml
 
     """Load a yaml config file and correct all datatypes."""
-    # TODO add description of what this thing does
+    # TODO Igor: move this functionality to a pydantic validator and remove due to a popular request
     loader = yaml.SafeLoader
     loader.add_implicit_resolver(
         "tag:yaml.org,2002:float",

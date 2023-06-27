@@ -1,3 +1,5 @@
+# TODO: Vera test if parameter parent_config could work
+
 run_params:
   experiment_name: test2
   workdir: test
@@ -19,6 +21,9 @@ algorithm:
   conv_dims: 2
   depth: 2
   num_filter_base: 96
+
+  # TODO: hide n2v specifics into parameters
+  # TODO: hide model specifics also in some parameters
 
 training:
   num_epochs: 500
@@ -50,10 +55,11 @@ training:
     #Path to the data
     path: data/BSD68_reproducibility/BSD68_reproducibility_data/train
     # File type to load
+    # TODO remove &EXT &AX
     ext: &EXT npy
     axes: &AX SYX
     #Number of files to read. Read all if None
-    num_files: Null
+    num_files: Null #TODO Igor: remove this functionality
     # Patch generation strategy [random, sequential]
     extraction_strategy: random
     #Patch shape in (z)yx. 2D or 3D
@@ -90,7 +96,7 @@ evaluation:
     augmentation: Null
   metric: psnr
 
-
+# TODO: discuss at some point whether there should be 3 Data in the configs or if they can someway be merged
 prediction:
   data:
     #Path to the data
