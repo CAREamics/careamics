@@ -46,7 +46,8 @@ class Algorithm(BaseModel):
         Path to a trained model (default: None)
     """
 
-    loss: Union[List[LossName], LossName]
+    loss: List[LossName]
+
     # workdir, mandatory field
     workdir: str
     # optional fields with default values (appearing in yml)

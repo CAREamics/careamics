@@ -67,15 +67,15 @@ class Data(BaseModel):
         Number of workers for training (optional)
     """
 
-    path: Path
-    patch_size: Optional[List[int]] = Field(..., min_items=2, max_items=3)
-    axes: str
-
     # optional with default values (included in yml)
     ext: SupportedExtension = SupportedExtension.TIF
     extraction_strategy: ExtractionStrategy = ExtractionStrategy.SEQUENTIAL
 
     batch_size: int = Field(default=1, ge=1)
+
+    path: Path
+    patch_size: Optional[List[int]] = Field(..., min_items=2, max_items=3)
+    axes: str
 
     # optional with None default values (not included in yml if not defined)
     num_files: Optional[int] = Field(default=None, ge=1)  # TODO why is this needed?

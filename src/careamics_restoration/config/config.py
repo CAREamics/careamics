@@ -49,7 +49,7 @@ class RunParams(BaseModel):
         return None
 
 
-class ConfigStage(str, Enum):
+class ConfigStageEnum(str, Enum):
     TRAINING = "training"
     EVALUATION = "evaluation"
     PREDICTION = "prediction"
@@ -85,7 +85,7 @@ class Configuration(BaseModel):
     evaluation: Optional[Evaluation] = None
     prediction: Optional[Prediction] = None
 
-    def get_stage_config(self, stage: Union[str, ConfigStage]) -> Stage:
+    def get_stage_config(self, stage: Union[str, ConfigStageEnum]) -> Stage:
         """Get the configuration for a specific stage (training, evaluation or
         prediction).
 
@@ -104,17 +104,17 @@ class Configuration(BaseModel):
         ValueError
             If stage is not one of training, evaluation or prediction
         """
-        if stage == ConfigStage.TRAINING:
+        if stage == ConfigStageEnum.TRAINING:
             if self.training is None:
                 raise ValueError("Training configuration is not defined.")
 
             return self.training
-        elif stage == ConfigStage.EVALUATION:
+        elif stage == ConfigStageEnum.EVALUATION:
             if self.evaluation is None:
                 raise ValueError("Evaluation configuration is not defined.")
 
             return self.evaluation
-        elif stage == ConfigStage.PREDICTION:
+        elif stage == ConfigStageEnum.PREDICTION:
             if self.prediction is None:
                 raise ValueError("Prediction configuration is not defined.")
 
@@ -122,12 +122,12 @@ class Configuration(BaseModel):
         else:
             raise ValueError(
                 f"Unknown stage {stage}. Available stages are"
-                f"{ConfigStage.TRAINING}, {ConfigStage.EVALUATION} and"
-                f"{ConfigStage.PREDICTION}."
+                f"{ConfigStageEnum.TRAINING}, {ConfigStageEnum.EVALUATION} and"
+                f"{ConfigStageEnum.PREDICTION}."
             )
 
 
-def load_configuration(cfg_path: Union[str, Path]) -> dict:
+def load_configuration(cfg_path: Union[str, Path]) -> Configuration:
     # TODO: import here because it might not be used everytime?
     # e.g. when using a library of config
     import re
@@ -135,6 +135,7 @@ def load_configuration(cfg_path: Union[str, Path]) -> dict:
     import yaml
 
     """Load a yaml config file and correct all datatypes."""
+    # TODO add description of what this thing does
     loader = yaml.SafeLoader
     loader.add_implicit_resolver(
         "tag:yaml.org,2002:float",

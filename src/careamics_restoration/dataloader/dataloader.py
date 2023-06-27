@@ -134,9 +134,13 @@ class PatchDataset(torch.utils.data.IterableDataset):
     def calculate_stats(self):
         mean = 0
         std = 0
+
+        # TODO does this break if there is no files or a single one?
+        # How to know ---> write tests...
         for i, image in tqdm(enumerate(self.__iter_source__())):
             mean += image.mean()
             std += np.std(image)
+
         self.mean = mean / (i + 1)
         self.std = std / (i + 1)
         logger.info(f"Calculated mean and std for {i + 1} images")

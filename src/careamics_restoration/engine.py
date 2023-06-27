@@ -6,10 +6,10 @@ from typing import Dict, Optional, Tuple
 import numpy as np
 import torch
 import yaml
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, TensorDataset
 from tqdm import tqdm
 
-from .config import Configuration, get_parameters, load_configuration
+from .config import Configuration, ConfigStageEnum, get_parameters, load_configuration
 from .dataloader import (
     create_dataset,
 )
@@ -149,7 +149,7 @@ class UnsupervisedEngine(Engine):
         if not (self.mean and self.std):
             _, self.mean, self.std = self.get_train_dataloader()
         pred_loader = self.get_predict_dataloader(
-            ext_input=ext_input
+            ext_input=ext_input  # TODO undefined variable
         )  # TODO check, calculate mean and std on all data not only train
         self.stitch = (
             hasattr(pred_loader.dataset, "patch_generator")
@@ -288,7 +288,7 @@ class UnsupervisedEngine(Engine):
         return create_loss_function(self.cfg)
 
     def get_train_dataloader(self) -> DataLoader:
-        dataset = create_dataset(self.cfg, "training")
+        dataset = create_dataset(self.cfg, ConfigStageEnum.TRAINING)
         ##TODO add custom collate function and separate dataloader create function, sampler?
         if not self.cfg.training.running_stats:
             self.logger.info("Calculating mean/std of the data")
@@ -307,7 +307,7 @@ class UnsupervisedEngine(Engine):
 
     # TODO merge into single dataloader func ?
     def get_val_dataloader(self) -> DataLoader:
-        dataset = create_dataset(self.cfg, "evaluation")
+        dataset = create_dataset(self.cfg, ConfigStageEnum.EVALUATION)
         return DataLoader(
             dataset,
             batch_size=self.cfg.evaluation.data.batch_size,
@@ -322,11 +322,9 @@ class UnsupervisedEngine(Engine):
         # TODO mypy does not take into account "is not None", we need to find a workaround
         if ext_input is not None:
             ext_input = normalize(ext_input, self.mean, self.std)
-            dataset = torch.utils.data.TensorDataset(
-                torch.from_numpy(ext_input.astype(np.float32))
-            )
+            dataset = TensorDataset(torch.from_numpy(ext_input.astype(np.float32)))
         else:
-            dataset = create_dataset(self.cfg, "prediction")
+            dataset = create_dataset(self.cfg, ConfigStageEnum.PREDICTION)
             dataset.set_normalization(self.mean, self.std)
         return DataLoader(
             dataset,
@@ -337,7 +335,7 @@ class UnsupervisedEngine(Engine):
 
     def get_optimizer_and_scheduler(
         self,
-    ) -> Tuple[torch.optim.Optimizer, torch.optim.lr_scheduler._LRScheduler]:
+    ) -> Tuple[torch.optim.Optimizer, torch.optim.lr_scheduler.LRScheduler]:
         """Builds a model based on the model_name or load a checkpoint.
 
         _extended_summary_

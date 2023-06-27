@@ -1,9 +1,9 @@
 from functools import partial
-from typing import Union, Callable, Dict
+from typing import Callable
 
-import torch
+from torch.utils.data import Dataset
 
-from ..config import Configuration
+from ..config import Configuration, ConfigStageEnum
 from ..config.stage import Stage
 from .dataloader import PatchDataset
 from .dataloader_utils import (
@@ -46,7 +46,7 @@ def create_tiling_function(stage: Stage) -> Callable:
     return None
 
 
-def create_dataset(config: Configuration, stage: str) -> torch.utils.data.Dataset:
+def create_dataset(config: Configuration, stage: ConfigStageEnum) -> Dataset:
     """Builds a dataset based on the dataset_params.
 
     Parameters

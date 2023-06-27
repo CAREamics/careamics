@@ -275,12 +275,13 @@ def blur_operation(
         filter = filter.repeat((channels, 1, 1, 1))
         _, _, filter_h, filter_w = filter.shape
 
-        # TODO unknown h
+        # TODO unknown h and w !!
         if h + 2 * padding[0] < filter_h:
             return input
         if w + 2 * padding[1] < filter_w:
             return input
 
+    # TODO: the following comment needs more clarification
     # Call F.conv2d without using keyword arguments as that triggers a bug in fx tracing quantization.
     conv_operation = getattr(F, f"conv{conv_mult}d")
     _ntuple = _pair if conv_mult == 2 else _triple
