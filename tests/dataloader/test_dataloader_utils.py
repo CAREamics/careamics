@@ -1,14 +1,12 @@
+import numpy as np
 import pytest
 
-import numpy as np
-
-from careamics_restoration.dataloader_utils.dataloader_utils import (
-    compute_patch_steps,
+from careamics_restoration.dataloader.dataloader_utils import (
     _compute_number_of_patches,
-    compute_overlap,
-    compute_reshaped_view,
-    are_axes_valid,
     compute_crop_and_stitch_coords_1d,
+    compute_overlap,
+    compute_patch_steps,
+    compute_reshaped_view,
 )
 
 
@@ -58,9 +56,9 @@ def test_compute_patch_steps(dims, patch_size, overlap):
 def check_compute_reshaped_view(array, window_shape, steps):
     """Check the number of patches"""
 
-    win = (1,) + window_shape
-    step = (1,) + steps
-    output_shape = (-1,) + window_shape
+    win = (1, *window_shape)
+    step = (1, *steps)
+    output_shape = (-1, *window_shape)
 
     # compute views
     output = compute_reshaped_view(array, win, step, output_shape)
@@ -70,7 +68,7 @@ def check_compute_reshaped_view(array, window_shape, steps):
         np.ceil((array.shape[1 + i] - window_shape[i] + 1) / steps[i]).astype(int)
         for i in range(len(window_shape))
     ]
-    assert output.shape == (np.prod(n_patches),) + window_shape
+    assert output.shape == (np.prod(n_patches), *window_shape)
 
 
 @pytest.mark.parametrize("axis_size", [32, 35, 40])
@@ -150,45 +148,3 @@ def test_compute_reshaped_view_2d(array_2D, window_shape, steps):
 def test_compute_reshaped_view_3d(array_3D, window_shape, steps):
     """Test computing reshaped view of an array of shape (1, 5, 10, 9)."""
     check_compute_reshaped_view(array_3D, window_shape, steps)
-
-
-@pytest.mark.parametrize(
-    "axes, valid",
-    [
-        # Passing
-        ("yx", True),
-        ("Yx", True),
-        ("Zyx", True),
-        ("TzYX", True),
-        ("SZYX", True),
-        # Failing due to order
-        ("XY", False),
-        ("YXZ", False),
-        ("YXT", False),
-        ("ZTYX", False),
-        # too few axes
-        ("", False),
-        ("X", False),
-        # too many axes
-        ("STZYX", False),
-        # no yx axes
-        ("ZT", False),
-        ("ZY", False),
-        # unsupported axes or axes pair
-        ("STYX", False),
-        ("CYX", False),
-        # repeating characters
-        ("YYX", False),
-        ("YXY", False),
-        # invalid characters
-        ("YXm", False),
-        ("1YX", False),
-    ],
-)
-def test_are_axes_valid(axes, valid):
-    """Test if axes are valid"""
-    if valid:
-        are_axes_valid(axes)
-    else:
-        with pytest.raises((ValueError, NotImplementedError)):
-            are_axes_valid(axes)

@@ -1,10 +1,9 @@
+from collections import OrderedDict
+
 import torch
 import torch.nn as nn
 
-from collections import OrderedDict
-
-from .layers import Conv_Block_tf, BlurPool2d, BlurPool3d
-
+from .layers import BlurPool2d, BlurPool3d, Conv_Block_tf
 
 # TODO add docstings, typing
 
@@ -24,7 +23,6 @@ class UNET(nn.Module):
         pool_kernel=2,
         last_activation=None,
         n2v2: bool = False,  # TODO: should n2v2 and skip_skipone be linked?
-        skip_skipone=False,  # TODO cryptic name
     ) -> None:
         super().__init__()
 
@@ -57,9 +55,10 @@ class UNET(nn.Module):
         # TODO implements better layer naming
         # Encoder
         for n in range(self.depth):
+            out_channels = num_filter_base * (2**n)
+
             for i in range(self.num_conv_per_depth):
                 in_channels = in_channels if i == 0 else out_channels
-                out_channels = num_filter_base * (2**n)
                 layer = self.conv_block(
                     conv_dim,
                     in_channels,

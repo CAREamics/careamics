@@ -1,5 +1,6 @@
 import numpy as np
 import pytest
+
 from careamics_restoration.augment import flip_and_rotate
 
 ARRAY_2D = np.array([[1, 2, 3], [4, 5, 6]])

@@ -1,13 +1,14 @@
 from enum import Enum
 from pathlib import Path
-from typing import Union, Optional
+from typing import Optional, Union
 
 from pydantic import BaseModel, validator
 
 from .algorithm import Algorithm
-from .training import Training
 from .evaluation import Evaluation
 from .prediction import Prediction
+from .stage import Stage
+from .training import Training
 
 
 class RunParams(BaseModel):
@@ -21,17 +22,21 @@ class RunParams(BaseModel):
     def validate_workdir(cls, v: str, values, **kwargs) -> Path:
         """Validate trained_model.
 
-        If trained_model is not None, it must be a valid path."""
+        If trained_model is not None, it must be a valid path.
+        """
         path = Path(v)
         if path.parent.exists():
             path.mkdir(parents=True, exist_ok=True)
         return path
 
     @validator("trained_model")
-    def validate_trained_model(cls, v: Union[Path, None], values, **kwargs) -> Path:
+    def validate_trained_model(
+        cls, v: Union[Path, None], values, **kwargs
+    ) -> Union[None, Path]:
         """Validate trained_model.
 
-        If trained_model is not None, it must be a valid path."""
+        If trained_model is not None, it must be a valid path.
+        """
         if v is not None:
             path = values["workdir"] / Path(v)
             if not path.exists():
@@ -44,7 +49,7 @@ class RunParams(BaseModel):
         return None
 
 
-class Stage(str, Enum):
+class ConfigStageEnum(str, Enum):
     TRAINING = "training"
     EVALUATION = "evaluation"
     PREDICTION = "prediction"
@@ -80,7 +85,7 @@ class Configuration(BaseModel):
     evaluation: Optional[Evaluation] = None
     prediction: Optional[Prediction] = None
 
-    def get_stage_config(self, stage: Union[str, Stage]) -> Union[Training, Evaluation]:
+    def get_stage_config(self, stage: Union[str, ConfigStageEnum]) -> Stage:
         """Get the configuration for a specific stage (training, evaluation or
         prediction).
 
@@ -99,17 +104,17 @@ class Configuration(BaseModel):
         ValueError
             If stage is not one of training, evaluation or prediction
         """
-        if stage == Stage.TRAINING:
+        if stage == ConfigStageEnum.TRAINING:
             if self.training is None:
                 raise ValueError("Training configuration is not defined.")
 
             return self.training
-        elif stage == Stage.EVALUATION:
+        elif stage == ConfigStageEnum.EVALUATION:
             if self.evaluation is None:
                 raise ValueError("Evaluation configuration is not defined.")
 
             return self.evaluation
-        elif stage == Stage.PREDICTION:
+        elif stage == ConfigStageEnum.PREDICTION:
             if self.prediction is None:
                 raise ValueError("Prediction configuration is not defined.")
 
@@ -117,18 +122,20 @@ class Configuration(BaseModel):
         else:
             raise ValueError(
                 f"Unknown stage {stage}. Available stages are"
-                f"{Stage.TRAINING}, {Stage.EVALUATION} and"
-                f"{Stage.PREDICTION}."
+                f"{ConfigStageEnum.TRAINING}, {ConfigStageEnum.EVALUATION} and"
+                f"{ConfigStageEnum.PREDICTION}."
             )
 
 
-def load_configuration(cfg_path: Union[str, Path]) -> dict:
+def load_configuration(cfg_path: Union[str, Path]) -> Configuration:
     # TODO: import here because it might not be used everytime?
     # e.g. when using a library of config
-    import yaml
     import re
 
+    import yaml
+
     """Load a yaml config file and correct all datatypes."""
+    # TODO add description of what this thing does
     loader = yaml.SafeLoader
     loader.add_implicit_resolver(
         "tag:yaml.org,2002:float",
@@ -159,12 +166,15 @@ def save_configuration(config: Configuration, path: Union[str, Path]) -> Path:
     """
     import yaml
 
-    if path.is_dir():
-        path = Path(path, "config.yml")
-    elif path.is_file() and path.suffix != ".yml":
-        raise ValueError(f"Path must be a directory or .yml file (got {path}).")
+    # make sure path is a Path object
+    config_path = Path(path)
 
-    with open(path, "w") as f:
+    if config_path.is_dir():
+        config_path = Path(config_path, "config.yml")
+    elif config_path.is_file() and config_path.suffix != ".yml":
+        raise ValueError(f"Path must be a directory or .yml file (got {config_path}).")
+
+    with open(config_path, "w") as f:
         yaml.dump(config.dict(), f, default_flow_style=False)
 
-    return path
+    return config_path

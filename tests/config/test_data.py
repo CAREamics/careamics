@@ -1,4 +1,5 @@
 from pathlib import Path
+
 import pytest
 
 from careamics_restoration.config.data import Data, SupportedExtension

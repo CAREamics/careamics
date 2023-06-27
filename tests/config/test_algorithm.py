@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import pytest
+from pydantic.error_wrappers import ValidationError
 
 from careamics_restoration.config.algorithm import Algorithm
 
@@ -32,10 +33,11 @@ def test_loss_value(test_config):
     my_algo = Algorithm(**algorithm_config)
     assert my_algo.loss == algorithm_config["loss"]
 
-    # single value
+    # single value throws error
     algorithm_config["loss"] = "n2v"
-    my_algo = Algorithm(**algorithm_config)
-    assert my_algo.loss == algorithm_config["loss"]
+
+    with pytest.raises(ValidationError):
+        Algorithm(**algorithm_config)
 
 
 def test_wrong_model_value(test_config):

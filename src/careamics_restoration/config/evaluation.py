@@ -1,10 +1,7 @@
-from pydantic import BaseModel, Field, validator
-
-from .data import Data
+from .stage import Stage
 
 
-class Evaluation(BaseModel):
-    data: Data
+class Evaluation(Stage):
     metric: str  # TODO add enum
 
     class Config:

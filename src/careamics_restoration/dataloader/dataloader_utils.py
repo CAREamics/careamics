@@ -1,89 +1,19 @@
 import itertools
 import logging
+from pathlib import Path
+from typing import Generator, Iterable, List, Optional, Tuple, Union
+
 import numpy as np
 from skimage.util import view_as_windows
-from tqdm import tqdm
-from pathlib import Path
-from typing import Tuple, Union, List, Generator, Optional, Callable
-from typing import Callable, Generator, List, Optional, Tuple, Union
 
 from ..utils import normalize
 
-
 logger = logging.getLogger(__name__)
 
-AXES = "STCZYX"
 
-
-def are_axes_valid(axes: str) -> bool:
-    """Sanity check on axes.
-
-    The constraints on the axes are the following:
-    - must be a combination of 'STCZYX'
-    - must not contain duplicates
-    - must contain at least 2 contiguous axes: X and Y
-    - must contain at most 4 axes
-    - cannot contain both S and T axes
-    - C is currently not allowed
-
-    Parameters
-    ----------
-    axes :
-        Axes to validate.
-
-    Returns
-    -------
-    bool
-        True if axes are valid, False otherwise.
-    """
-    _axes = axes.upper()
-
-    # Minimum is 2 (XY) and maximum is 4 (TZYX)
-    if len(_axes) < 2 or len(_axes) > 4:
-        raise ValueError(
-            f"Invalid axes {axes}. Must contain at least 2 and at most 4 axes."
-        )
-
-    # all characters must be in REF_AXES = 'STCZYX'
-    if not all([s in AXES for s in _axes]):
-        raise ValueError(f"Invalid axes {axes}. Must be a combination of {AXES}.")
-
-    # check for repeating characters
-    for i, s in enumerate(_axes):
-        if i != _axes.rfind(s):
-            raise ValueError(
-                f"Invalid axes {axes}. Cannot contain duplicate axes (got multiple {axes[i]})."
-            )
-
-    # currently no implementation for C
-    if "C" in _axes:
-        raise NotImplementedError("Currently, C axis is not supported.")
-
-    # prevent S and T axes together
-    if "T" in _axes and "S" in _axes:
-        raise NotImplementedError(
-            f"Invalid axes {axes}. Cannot contain both S and T axes."
-        )
-
-    # prior: X and Y contiguous (#FancyComments)
-    # right now the next check is invalidating this, but in the future, we might
-    # allow random order of axes (or at least XY and YX)
-    if not ("XY" in _axes) and not ("YX" in _axes):
-        raise ValueError(f"Invalid axes {axes}. X and Y must be contiguous.")
-
-    # check that the axes are in the right order
-    for i, s in enumerate(_axes):
-        if i < len(_axes) - 1:
-            index_s = AXES.find(s)
-            index_next = AXES.find(_axes[i + 1])
-
-            if index_s > index_next:
-                raise ValueError(
-                    f"Invalid axes {axes}. Axes must be in the order {AXES}."
-                )
-
-
-def _compute_number_of_patches(arr: np.ndarray, patch_sizes: Tuple[int]) -> Tuple[int]:
+def _compute_number_of_patches(
+    arr: np.ndarray, patch_sizes: Tuple[int]
+) -> Tuple[int, ...]:
     """Compute a number of patches in each dimension in order to covert the whole
     array.
 
@@ -108,7 +38,7 @@ def _compute_number_of_patches(arr: np.ndarray, patch_sizes: Tuple[int]) -> Tupl
     return tuple(n_patches)
 
 
-def compute_overlap(arr: np.ndarray, patch_sizes: Tuple[int]) -> Tuple[int]:
+def compute_overlap(arr: np.ndarray, patch_sizes: Tuple[int]) -> Tuple[int, ...]:
     """Compute the overlap between patches in each dimension.
 
     Array must be of dimensions C(Z)YX, and patches must be of dimensions YX or ZYX.
@@ -141,7 +71,7 @@ def compute_overlap(arr: np.ndarray, patch_sizes: Tuple[int]) -> Tuple[int]:
 
 def compute_crop_and_stitch_coords_1d(
     axis_size: int, tile_size: int, overlap: int
-) -> Tuple[Tuple[int]]:
+) -> Tuple[List[Tuple[int, int]], ...]:  # TODO mypy must be wrong here
     """Compute the coordinates for cropping image into tiles, cropping the overlap from predictions and stitching
     the tiles back together across one axis.
 
@@ -201,7 +131,9 @@ def compute_crop_and_stitch_coords_1d(
     return crop_coords, stitch_coords, overlap_crop_coords
 
 
-def compute_patch_steps(patch_sizes: Tuple[int], overlaps: Tuple[int]) -> Tuple[int]:
+def compute_patch_steps(
+    patch_sizes: Tuple[int, ...], overlaps: Tuple[int, ...]
+) -> Tuple[int, ...]:
     """Compute steps between patches.
 
     Parameters
@@ -225,9 +157,9 @@ def compute_patch_steps(patch_sizes: Tuple[int], overlaps: Tuple[int]) -> Tuple[
 
 def compute_reshaped_view(
     arr: np.ndarray,
-    window_shape: Tuple[int],
-    step: Tuple[int],
-    output_shape: Tuple[int],
+    window_shape: Tuple[int, ...],
+    step: Tuple[int, ...],
+    output_shape: Tuple[int, ...],
 ) -> np.ndarray:
     """Compute the reshaped views of an array.
 
@@ -282,15 +214,15 @@ def list_input_source_tiff(
 def extract_patches_sequential(
     arr: np.ndarray,
     patch_sizes: Tuple[int],
-    overlaps: Union[Tuple[int], None] = None,
-    mean: int = None,
-    std: int = None,
+    mean: Optional[int] = None,
+    std: Optional[int] = None,
 ) -> Generator[np.ndarray, None, None]:
     """Generate patches from an array of dimensions C(Z)YX, where C can
     be a singleton dimension.
 
     The patches are generated sequentially and cover the whole array.
     """
+    # TODO document
     if len(arr.shape) < 3 or len(arr.shape) > 4:
         raise ValueError(
             f"Input array must have dimensions SZYX or SYX (got length {len(arr.shape)})."
@@ -358,8 +290,8 @@ def extract_patches_sequential(
 def extract_patches_random(
     arr,
     patch_size,
-    mean: int = None,
-    std: int = None,
+    mean: Optional[int] = None,
+    std: Optional[int] = None,
     *args,
 ) -> Generator[np.ndarray, None, None]:
     rng = np.random.default_rng()
@@ -396,9 +328,9 @@ def extract_patches_predict(
     arr: np.ndarray,
     patch_size: Tuple[int],
     overlaps: Tuple[int],
-    mean: int = None,
-    std: int = None,
-) -> List[np.ndarray]:
+    mean: Optional[int] = None,
+    std: Optional[int] = None,
+) -> Iterable[List[np.ndarray]]:
     # Overlap is half of the value mentioned in original N2V. must be even. It's like this because of current N2V notation
     arr = arr[0, :, :][np.newaxis]
     # Iterate over num samples (S)

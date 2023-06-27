@@ -1,10 +1,13 @@
 from enum import Enum
 from pathlib import Path
+from typing import List, Optional, Union
 
-from typing import Optional, Union, List
 from pydantic import BaseModel, Field, validator
 
-from careamics_restoration.dataloader_utils import are_axes_valid
+# TODO this creates a circular import when instantiating the engine
+# engine -> config -> evaluation -> data -> dataloader_utils
+# then are_axes_valid are imported again in the engine.
+from ..utils import are_axes_valid
 
 
 class SupportedExtension(str, Enum):
@@ -41,7 +44,7 @@ class ExtractionStrategy(str, Enum):
 class Data(BaseModel):
     """Data configuration.
 
-    Attributes:
+    Attributes
     ----------
     path: Path
         Path to the folder containing the training data or to a specific file (
@@ -64,15 +67,15 @@ class Data(BaseModel):
         Number of workers for training (optional)
     """
 
-    path: Path
-    patch_size: Optional[List[int]] = Field(..., min_items=2, max_items=3)
-    axes: str
-
     # optional with default values (included in yml)
     ext: SupportedExtension = SupportedExtension.TIF
     extraction_strategy: ExtractionStrategy = ExtractionStrategy.SEQUENTIAL
 
     batch_size: int = Field(default=1, ge=1)
+
+    path: Path
+    patch_size: Optional[List[int]] = Field(..., min_items=2, max_items=3)
+    axes: str
 
     # optional with None default values (not included in yml if not defined)
     num_files: Optional[int] = Field(default=None, ge=1)  # TODO why is this needed?

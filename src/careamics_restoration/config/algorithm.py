@@ -1,8 +1,7 @@
 from enum import Enum
-from pathlib import Path
-from typing import Optional, Union, List
+from typing import List, Optional
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field
 
 
 # python 3.11: https://docs.python.org/3/library/enum.html
@@ -47,7 +46,8 @@ class Algorithm(BaseModel):
         Path to a trained model (default: None)
     """
 
-    loss: Union[List[LossName], LossName]
+    loss: List[LossName]
+
     # workdir, mandatory field
     workdir: str
     # optional fields with default values (appearing in yml)
@@ -76,6 +76,7 @@ class Algorithm(BaseModel):
         dictionary = super().dict(exclude_none=True)
 
         # replace Path by str
+        # TODO is this necessary? workdir seems to be a str already. Did something get lost?
         dictionary["workdir"] = str(dictionary["workdir"])
 
         return dictionary

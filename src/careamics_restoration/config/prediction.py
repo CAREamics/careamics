@@ -1,13 +1,11 @@
 from typing import List
 
-from pydantic import BaseModel, Field, validator
+from pydantic import Field
+
+from .stage import Stage
 
 
-from .data import Data
-
-
-class Prediction(BaseModel):
-    data: Data
+class Prediction(Stage):
     overlap: List[int] = Field(
         ..., min_items=2, max_items=3
     )  # TODO ge image size, check consistency with image size

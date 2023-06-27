@@ -2,7 +2,7 @@ import torch
 
 
 def tgvk_reg(samples: torch.Tensor, k: int) -> torch.Tensor:
-    """_summary_
+    """_summary_.
 
     _extended_summary_
 
@@ -18,7 +18,6 @@ def tgvk_reg(samples: torch.Tensor, k: int) -> torch.Tensor:
     torch.Tensor
         _description_
     """
-
     assert samples.shape[-2] == samples.shape[-1]
 
     tgv = 0
@@ -33,7 +32,7 @@ def tgvk_reg(samples: torch.Tensor, k: int) -> torch.Tensor:
 
 
 def anorm(x):
-    """Calculate L2 norm over the last array dimention"""
+    """Calculate L2 norm over the last array dimention."""
     return torch.sqrt((x * x).sum(-1) + 1e-15)
 
 

@@ -1,14 +1,13 @@
+import numpy as np
 import pytest
 import tifffile
 
-import numpy as np
-
-from careamics_restoration.dataloader_utils.dataloader_utils import (
-    list_input_source_tiff,
-    extract_patches_sequential,
-)
-from careamics_restoration.dataloader_utils.dataloader import (
+from careamics_restoration.dataloader.dataloader import (
     PatchDataset,
+)
+from careamics_restoration.dataloader.dataloader_utils import (
+    extract_patches_sequential,
+    list_input_source_tiff,
 )
 
 
@@ -19,7 +18,7 @@ def test_list_input_source_tiff(tmp_path):
     # create np arrays
     arrays = []
     for n in range(num_files):
-        arr_list = [[i for i in range(2 + n)], [i * i for i in range(2 + n)]]
+        arr_list = [list(range(2 + n)), [i * i for i in range(2 + n)]]
         arrays.append(np.array(arr_list))
 
     # create tiff files
@@ -104,7 +103,7 @@ def test_patch_dataset_read_source(
     image = PatchDataset.read_tiff_source(path, axes, patch_size)
 
     if axes == "YX":
-        assert image.shape == (1,) + arr_shape
+        assert image.shape == (1, *arr_shape)
     elif axes == "CYX":
         assert image.shape == arr_shape[1:]
     elif axes == "TYX":
