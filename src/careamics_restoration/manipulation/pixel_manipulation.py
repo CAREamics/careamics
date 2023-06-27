@@ -21,20 +21,25 @@ def get_stratified_coords(mask_pixel_perc: float, shape: Tuple[int, ...]) -> np.
         _description_
     """
     rng = np.random.default_rng()
+
     # step = [(d / np.sqrt(d)).astype(np.int32) for d in shape]
     # Define the approximate distance between masked pixels
     box_size = np.round(np.sqrt(np.product(shape) / 100 * mask_pixel_perc)).astype(
         np.int32
     )
+
     # Define a grid of coordinates for each axis in the input patch and the step size
     pixel_coords, step = np.linspace(
         0, shape, box_size, dtype=np.int32, endpoint=False, retstep=True
     )
+
     # Create a meshgrid of coordinates for each axis in the input patch
-    coordinate_grid = np.meshgrid(*pixel_coords.T.tolist())
-    coordinate_grid = np.array(coordinate_grid).reshape(len(shape), -1).T
+    coordinate_grid_list = np.meshgrid(*pixel_coords.T.tolist())
+    coordinate_grid = np.array(coordinate_grid_list).reshape(len(shape), -1).T
+
     # Add random jitter to the grid to account for cases where the step size is not an integer
     odd_jitter = np.where(np.floor(step) == step, 0, rng.integers(0, 2))
+
     # Define the random jitter to be added to the grid
     grid_random_increment = rng.integers(
         np.zeros_like(coordinate_grid),
@@ -45,6 +50,7 @@ def get_stratified_coords(mask_pixel_perc: float, shape: Tuple[int, ...]) -> np.
     return coordinate_grid
 
 
+# TODO unused dims parameter
 def apply_struct_n2v_mask(patch, coords, dims, mask):
     """
     each point in coords corresponds to the center of the mask.
@@ -72,7 +78,7 @@ def n2v_manipulate(
     mask_pixel_percentage: float,
     roi_size: int = 5,
     augmentations=None,
-) -> Tuple[np.ndarray]:
+) -> Tuple[np.ndarray, ...]:
     """Manipulate pixel in a patch with N2V algorithm
 
     Parameters

@@ -24,7 +24,7 @@ class PatchDataset(torch.utils.data.IterableDataset):
 
     def __init__(
         self,
-        data_path: str,
+        data_path: Union[Path, str],
         ext: str,
         axes: str,
         num_files: int,

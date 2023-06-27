@@ -1,7 +1,7 @@
 import itertools
 import logging
 from pathlib import Path
-from typing import Generator, List, Optional, Tuple, Union
+from typing import Iterable, Generator, List, Optional, Tuple, Union
 
 import numpy as np
 from skimage.util import view_as_windows
@@ -11,7 +11,9 @@ from ..utils import normalize
 logger = logging.getLogger(__name__)
 
 
-def _compute_number_of_patches(arr: np.ndarray, patch_sizes: Tuple[int]) -> Tuple[int]:
+def _compute_number_of_patches(
+    arr: np.ndarray, patch_sizes: Tuple[int]
+) -> Tuple[int, ...]:
     """Compute a number of patches in each dimension in order to covert the whole
     array.
 
@@ -36,7 +38,7 @@ def _compute_number_of_patches(arr: np.ndarray, patch_sizes: Tuple[int]) -> Tupl
     return tuple(n_patches)
 
 
-def compute_overlap(arr: np.ndarray, patch_sizes: Tuple[int]) -> Tuple[int]:
+def compute_overlap(arr: np.ndarray, patch_sizes: Tuple[int]) -> Tuple[int, ...]:
     """Compute the overlap between patches in each dimension.
 
     Array must be of dimensions C(Z)YX, and patches must be of dimensions YX or ZYX.
@@ -69,7 +71,7 @@ def compute_overlap(arr: np.ndarray, patch_sizes: Tuple[int]) -> Tuple[int]:
 
 def compute_crop_and_stitch_coords_1d(
     axis_size: int, tile_size: int, overlap: int
-) -> Tuple[Tuple[int]]:
+) -> Tuple[List[Tuple[int, int]], ...]:  # TODO mypy must be wrong here
     """Compute the coordinates for cropping image into tiles, cropping the overlap from predictions and stitching
     the tiles back together across one axis.
 
@@ -129,7 +131,9 @@ def compute_crop_and_stitch_coords_1d(
     return crop_coords, stitch_coords, overlap_crop_coords
 
 
-def compute_patch_steps(patch_sizes: Tuple[int], overlaps: Tuple[int]) -> Tuple[int]:
+def compute_patch_steps(
+    patch_sizes: Tuple[int, ...], overlaps: Tuple[int, ...]
+) -> Tuple[int, ...]:
     """Compute steps between patches.
 
     Parameters
@@ -153,9 +157,9 @@ def compute_patch_steps(patch_sizes: Tuple[int], overlaps: Tuple[int]) -> Tuple[
 
 def compute_reshaped_view(
     arr: np.ndarray,
-    window_shape: Tuple[int],
-    step: Tuple[int],
-    output_shape: Tuple[int],
+    window_shape: Tuple[int, ...],
+    step: Tuple[int, ...],
+    output_shape: Tuple[int, ...],
 ) -> np.ndarray:
     """Compute the reshaped views of an array.
 
@@ -210,7 +214,6 @@ def list_input_source_tiff(
 def extract_patches_sequential(
     arr: np.ndarray,
     patch_sizes: Tuple[int],
-    overlaps: Union[Tuple[int], None] = None,
     mean: Optional[int] = None,
     std: Optional[int] = None,
 ) -> Generator[np.ndarray, None, None]:
@@ -219,6 +222,7 @@ def extract_patches_sequential(
 
     The patches are generated sequentially and cover the whole array.
     """
+    # TODO document
     if len(arr.shape) < 3 or len(arr.shape) > 4:
         raise ValueError(
             f"Input array must have dimensions SZYX or SYX (got length {len(arr.shape)})."
@@ -326,7 +330,7 @@ def extract_patches_predict(
     overlaps: Tuple[int],
     mean: Optional[int] = None,
     std: Optional[int] = None,
-) -> List[np.ndarray]:
+) -> Iterable[List[np.ndarray]]:
     # Overlap is half of the value mentioned in original N2V. must be even. It's like this because of current N2V notation
     arr = arr[0, :, :][np.newaxis]
     # Iterate over num samples (S)

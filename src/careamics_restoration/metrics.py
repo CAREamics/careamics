@@ -93,10 +93,10 @@ class MetricTracker:
 
     def reset(self) -> None:
         """Reset the metric tracker state."""
-        self.val = 0
-        self.avg = 0
-        self.sum = 0
-        self.count = 0
+        self.val = 0.0
+        self.avg = 0.0
+        self.sum = 0.0
+        self.count = 0.0
 
     def update(self, value: int, n: int = 1) -> None:
         """Update the metric tracker state

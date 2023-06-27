@@ -8,7 +8,7 @@ from .torch_optimizer import TorchOptimizer, TorchLRScheduler
 class Optimizer(BaseModel):
     """Parameters related to the optimizer."""
 
-    name: TorchOptimizer
+    name: TorchOptimizer = TorchOptimizer.Adam
     parameters: dict
 
     """
@@ -30,7 +30,7 @@ class Optimizer(BaseModel):
 class LrScheduler(BaseModel):
     """Parameters related to the learning rate scheduler."""
 
-    name: TorchLRScheduler
+    name: TorchLRScheduler = TorchLRScheduler.ReduceLROnPlateau
     parameters: dict
     """
     @validator("parameters")
@@ -59,8 +59,8 @@ class Training(Stage):
     num_epochs: int = Field(default=100, ge=1, le=1_000)
     num_steps: int = Field(default=100, ge=1, le=1_000)
 
-    optimizer: Optional[Optimizer] = TorchOptimizer.Adam
-    lr_scheduler: Optional[LrScheduler] = TorchLRScheduler.ReduceLROnPlateau
+    optimizer: Optional[Optimizer] = None
+    lr_scheduler: Optional[LrScheduler] = None
 
     amp: Optional[Amp] = None
     max_grad_norm: Optional[float] = Field(default=1.0, ge=0.0, le=1.0)

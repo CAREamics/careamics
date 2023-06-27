@@ -23,7 +23,6 @@ class UNET(nn.Module):
         pool_kernel=2,
         last_activation=None,
         n2v2: bool = False,  # TODO: should n2v2 and skip_skipone be linked?
-        skip_skipone=False,  # TODO cryptic name
     ) -> None:
         super().__init__()
 

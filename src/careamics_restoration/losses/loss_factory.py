@@ -2,7 +2,7 @@ from typing import Callable, Dict
 
 from ..config import Configuration
 from ..config.algorithm import LossName
-from .losses import n2v_loss
+from .losses import n2v_loss, pn2v_loss
 
 
 def create_loss_function(config: Configuration) -> Callable:
@@ -25,8 +25,8 @@ def create_loss_function(config: Configuration) -> Callable:
         raise NotImplementedError("Multiple losses are not supported yet.")
 
     if loss_type[0] == LossName.n2v:
-        return LossName.n2v
+        return n2v_loss
     elif loss_type[0] == LossName.pn2v:
-        return LossName.pn2v
+        return pn2v_loss
     else:
         raise NotImplementedError(f"Unknown loss ({loss_type[0]}).")

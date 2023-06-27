@@ -1,5 +1,5 @@
 from functools import partial
-from typing import Callable
+from typing import Callable, Union
 
 from torch.utils.data import Dataset
 
@@ -16,7 +16,7 @@ from .dataloader_utils import (
 from ..manipulation import create_patch_transform
 
 
-def create_tiling_function(stage: Stage) -> Callable:
+def create_tiling_function(stage: Stage) -> Union[None, Callable]:
     """Creates the tiling function depending on the provided strategy.
     Parameters
     ----------
@@ -64,7 +64,7 @@ def create_dataset(config: Configuration, stage: ConfigStageEnum) -> Dataset:
         data_path=stage_config.data.path,
         ext=stage_config.data.ext,
         axes=stage_config.data.axes,
-        num_files=stage_config.data.num_files,
+        num_files=stage_config.data.num_files,  # TODO this can be None (see config)
         data_reader=list_input_source_tiff,
         patch_size=stage_config.data.patch_size,
         patch_generator=create_tiling_function(stage_config),

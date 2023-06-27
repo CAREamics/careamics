@@ -4,7 +4,7 @@ from typing import Optional, Tuple, Union
 import numpy as np
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
+from torch.nn import functional
 from torch.nn.common_types import _size_2_t, _size_3_t
 from torch.nn.modules.utils import _pair, _triple
 
@@ -75,8 +75,8 @@ class DownConv(nn.Module):
         self.bn = getattr(nn, f"BatchNorm{self.conv_dim}d")(self.out_channels)
 
     def forward(self, x):
-        x = F.relu(self.bn(self.conv1(x)))
-        x = F.relu(self.bn(self.conv2(x)))
+        x = functional.relu(self.bn(self.conv1(x)))
+        x = functional.relu(self.bn(self.conv2(x)))
         before_pool = x
         if self.pooling:
             x = self.pool(x)
@@ -140,8 +140,8 @@ class UpConv(nn.Module):
             x = from_up + from_down
         if self.skip:
             x = from_down
-        x = F.relu(self.bn(self.conv1(x)))
-        x = F.relu(self.bn(self.conv2(x)))
+        x = functional.relu(self.bn(self.conv1(x)))
+        x = functional.relu(self.bn(self.conv2(x)))
         return x
 
 
@@ -232,7 +232,7 @@ def default_3d_filter():
     )
 
 
-def padding_filter_same(filter: torch.Tensor) -> Tuple[int]:
+def padding_filter_same(filter: torch.Tensor) -> Tuple[int, ...]:
     if np.any([dim % 2 == 0 for dim in filter.shape[2:]]):
         raise ValueError("All filter dimensions must be odd")
 
@@ -269,21 +269,23 @@ def blur_operation(
     # The dynamic control flow branch below does not affect the padding as only h and w are used.
     padding = padding_filter_same(filter)
 
-    if channels < 1:  # Use Dynamic Control Flow
+    if (
+        channels is not None and channels < 1
+    ):  # Use Dynamic Control Flow # TODO <- what does that mean?
         _, channels, *spatial_dims = input_tensor.shape
 
         filter = filter.repeat((channels, 1, 1, 1))
         _, _, filter_h, filter_w = filter.shape
 
-        # TODO unknown h and w !!
+        # TODO unknown h and w !!!!!
         if h + 2 * padding[0] < filter_h:
             return input
         if w + 2 * padding[1] < filter_w:
             return input
 
     # TODO: the following comment needs more clarification
-    # Call F.conv2d without using keyword arguments as that triggers a bug in fx tracing quantization.
-    conv_operation = getattr(F, f"conv{conv_mult}d")
+    # Call functional.conv2d without using keyword arguments as that triggers a bug in fx tracing quantization.
+    conv_operation = getattr(functional, f"conv{conv_mult}d")
     _ntuple = _pair if conv_mult == 2 else _triple
     return conv_operation(
         input_tensor,
@@ -353,7 +355,7 @@ def blurmax_pool(
     if kernel_size is None:
         kernel_size = (2, 2)
 
-    pool_operation = getattr(F, f"max_pool{len(conv_mult)}d")
+    pool_operation = getattr(functional, f"max_pool{len(conv_mult)}d")
     maxs = pool_operation(
         input_tensor,
         kernel_size=kernel_size,

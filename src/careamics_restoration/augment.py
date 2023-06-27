@@ -6,11 +6,11 @@ from typing import Tuple
 # TODO document...
 def augment_batch(
     patch: np.ndarray,
-    orig_image: np.ndarray,  # TODO what is that?
+    orig_image: np.ndarray,  # TODO what is that for?
     mask: np.ndarray,
     seed=1,
     channel_dim: bool = True,
-) -> Tuple[np.ndarray]:
+) -> Tuple[np.ndarray, ...]:
     """Augment a single array by applying a random 90 degress rotation and
     possibly a flip.
 
