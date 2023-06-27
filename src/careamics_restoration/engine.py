@@ -108,36 +108,6 @@ class Engine:
 
         return {"loss": avg_loss.avg}
 
-    def predict(self, args):
-        # TODO predict whole folder. Need filenames from DL, indices of samples in each file
-
-        self.model.to(self.device)
-        self.model.eval()
-        if not (self.mean and self.std):
-            _, self.mean, self.std = self.get_train_dataloader()
-        pred_loader = self.get_predict_dataloader(
-            ext_input=ext_input  # TODO undefined variable
-        )  # TODO check, calculate mean and std on all data not only train
-        self.stitch = (
-            hasattr(pred_loader.dataset, "patch_generator")
-            and pred_loader.dataset.patch_generator is not None
-        )
-        if self.stitch:
-            self.logger.info("Starting tiled prediction")
-        else:
-            self.logger.info("Starting prediction on whole sample")
-        with torch.no_grad():
-            for _idx, (_tile, *auxillary) in tqdm(enumerate(pred_loader)):
-                # TODO define all predict/train funcs in separate modules
-                if auxillary:
-                    (
-                        sample_idx,
-                        overlap_crop_coords,
-                        stitch_coords,
-                    ) = auxillary
-            # TODO get filename from DL, get index treshold marking end of file
-        pass
-
     def predict_from_memory(self):
         # TODO predict on externally passed array
         pass
@@ -146,7 +116,7 @@ class Engine:
         # TODO predict on externally passed path
         pass
 
-    def predict_single_sample(self, ext_input: Optional[np.ndarray] = None):
+    def predict(self, ext_input: Optional[np.ndarray] = None):
         self.model.to(self.device)
         self.model.eval()
         if not (self.mean and self.std):
@@ -160,22 +130,26 @@ class Engine:
         )
         MetricTracker()
         tiles = []
+        prediction = []
         if self.stitch:
             self.logger.info("Starting tiled prediction")
         else:
             self.logger.info("Starting prediction on whole sample")
         with torch.no_grad():
-            for _idx, (tile, *auxillary) in tqdm(enumerate(pred_loader)):
-                # TODO define all predict/train funcs in separate modules
+            current_sample = 0
+            #TODO reset iterator for every sample ?
+            # TODO tiled prediction slow af, profile and optimize
+            for idx, (tile, *auxillary) in tqdm(enumerate(pred_loader)):
                 if auxillary:
                     (
-                        _,  # TODO: sample_idx was not used
+                        sample_idx,
                         sample_shape,
                         overlap_crop_coords,
                         stitch_coords,
                     ) = auxillary
+                else:
+                    sample_idx = idx
 
-                # TODO get sample, iterate over tiles of 1 sample
                 outputs = self.model(
                     tile.to(self.device)
                 )  # Why batch dimension is not added by dl ?
@@ -191,7 +165,6 @@ class Engine:
                             ],
                         )
                     ]
-                    # TODO Do we need to save tiles separately ?
                     tiles.append(
                         (
                             predicted_tile.cpu().numpy(),
@@ -199,17 +172,24 @@ class Engine:
                         )
                     )
                 else:
-                    tiles.append((outputs.detach().cpu().numpy(), None))
-
-        # Stitch tiles together
+                    prediction.append(outputs.detach().cpu().numpy().squeeze())
+                
+                # check if sample is finished
+                if sample_idx != current_sample:
+                    # Stitch tiles together
+                    if self.stitch:
+                        # Leaving last tile aside because it belongs to the next sample
+                        predicted_sample = stitch_prediction(tiles[:-1], sample_shape)
+                        prediction.append(predicted_sample)
+                        tiles = [tiles[-1]]
+                        current_sample = sample_idx
+                    self.logger.info(f'Finished prediction for sample {sample_idx - 1}')
+        # Add last sample
         if self.stitch:
-            self.logger.info("Stitching tiles together")
-            pred = stitch_prediction(tiles, sample_shape)
-            self.logger.info("Prediction finished")
-            return pred, tiles
-        else:
-            self.logger.info("Prediction finished")
-            return None, tiles
+            predicted_sample = stitch_prediction(tiles, sample_shape)
+            prediction.append(predicted_sample)
+        self.logger.info(f'Predicted {len(prediction)} samples')
+        return np.stack(prediction)
 
     def train_single_epoch(
         self,

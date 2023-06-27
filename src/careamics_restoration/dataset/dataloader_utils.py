@@ -334,7 +334,6 @@ def extract_patches_predict(
     std: Optional[int] = None,
 ) -> Iterable[List[np.ndarray]]:
     # Overlap is half of the value mentioned in original N2V. must be even. It's like this because of current N2V notation
-    arr = arr[0, :, :][np.newaxis]
     # Iterate over num samples (S)
     for sample_idx in range(arr.shape[0]):
         sample = arr[sample_idx]

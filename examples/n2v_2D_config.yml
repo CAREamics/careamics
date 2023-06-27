@@ -109,7 +109,7 @@ prediction:
     # Patch generation strategy [random, sequential]
     extraction_strategy: predict
     #Patch shape in (z)yx. 2D or 3D
-    patch_size: [64, 64]
+    patch_size: Null # TODO rename to tile size!
     # Batch size
     batch_size: 1
     #Num workers parameter for data loader
