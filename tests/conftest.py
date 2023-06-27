@@ -1,8 +1,8 @@
 from pathlib import Path
 from typing import Callable
 
-import pytest
 import numpy as np
+import pytest
 
 
 def create_tiff(path: Path, n_files: int):

@@ -9,7 +9,7 @@ import yaml
 from torch.utils.data import DataLoader, TensorDataset
 from tqdm import tqdm
 
-from .config import Configuration, ConfigStageEnum, get_parameters, load_configuration
+from .config import ConfigStageEnum, Configuration, get_parameters, load_configuration
 from .dataloader import (
     create_dataset,
 )

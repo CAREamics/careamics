@@ -1,6 +1,6 @@
-import torch
-
 import logging
+
+import torch
 
 # TODO instantiate logging?
 

@@ -1,4 +1,4 @@
 from .axes import are_axes_valid
-from .utils import set_logging
-from .normalization import normalize, denormalize
+from .normalization import denormalize, normalize
 from .torch_utils import get_device
+from .utils import set_logging

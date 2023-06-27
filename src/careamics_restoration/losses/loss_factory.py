@@ -1,4 +1,4 @@
-from typing import Callable, Dict
+from typing import Callable
 
 from ..config import Configuration
 from ..config.algorithm import LossName

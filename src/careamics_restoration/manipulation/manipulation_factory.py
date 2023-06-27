@@ -1,5 +1,4 @@
 from functools import partial
-
 from typing import Callable
 
 from ..config import Configuration

@@ -1,12 +1,12 @@
-import numpy as np
-
 from typing import List, Tuple
+
+import numpy as np
 
 
 def stitch_prediction(
     tiles: List[Tuple[np.ndarray, List[int]]], input_shape: Tuple[int]
 ) -> np.ndarray:
-    """Stitches tiles back together to form a full image
+    """Stitches tiles back together to form a full image.
 
     Parameters
     ----------

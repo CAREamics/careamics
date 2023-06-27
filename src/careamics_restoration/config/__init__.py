@@ -1,6 +1,6 @@
 from .config import (
-    Configuration,
     ConfigStageEnum,
+    Configuration,
     load_configuration,
     save_configuration,
 )

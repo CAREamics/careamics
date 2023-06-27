@@ -3,21 +3,21 @@ from typing import Callable, Union
 
 from torch.utils.data import Dataset
 
-from ..config import Configuration, ConfigStageEnum
+from ..config import ConfigStageEnum, Configuration
 from ..config.stage import Stage
+from ..manipulation import create_patch_transform
 from .dataloader import PatchDataset
 from .dataloader_utils import (
     extract_patches_predict,
-    extract_patches_sequential,
     extract_patches_random,
+    extract_patches_sequential,
     list_input_source_tiff,
 )
-
-from ..manipulation import create_patch_transform
 
 
 def create_tiling_function(stage: Stage) -> Union[None, Callable]:
     """Creates the tiling function depending on the provided strategy.
+
     Parameters
     ----------
     config : dict.

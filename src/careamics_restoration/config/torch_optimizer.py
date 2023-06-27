@@ -1,6 +1,5 @@
 import inspect
 from enum import Enum
-
 from typing import Dict
 
 from torch import optim
@@ -78,7 +77,7 @@ def get_parameters(
 
 
 def get_optimizers() -> Dict[str, str]:
-    """Returns the list of all optimizers available in torch.optim"""
+    """Returns the list of all optimizers available in torch.optim."""
     optims = {}
     for name, obj in inspect.getmembers(optim):
         if inspect.isclass(obj) and issubclass(obj, optim.Optimizer):
@@ -88,7 +87,7 @@ def get_optimizers() -> Dict[str, str]:
 
 
 def get_schedulers() -> Dict[str, str]:
-    """Returns the list of all schedulers available in torch.optim.lr_scheduler"""
+    """Returns the list of all schedulers available in torch.optim.lr_scheduler."""
     schedulers = {}
     for name, obj in inspect.getmembers(optim.lr_scheduler):
         if inspect.isclass(obj) and issubclass(obj, optim.lr_scheduler.LRScheduler):

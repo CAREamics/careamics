@@ -1,8 +1,9 @@
 from typing import Optional
+
 from pydantic import BaseModel, Field
 
 from .stage import Stage
-from .torch_optimizer import TorchOptimizer, TorchLRScheduler
+from .torch_optimizer import TorchLRScheduler, TorchOptimizer
 
 
 class Optimizer(BaseModel):

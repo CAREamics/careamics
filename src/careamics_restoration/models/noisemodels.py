@@ -1,7 +1,6 @@
 import numpy as np
 import torch
 
-
 ############################################
 #    Noise Models
 ############################################
@@ -9,7 +8,7 @@ import torch
 
 def createHistogram(bins, minVal, maxVal, observation, signal):
     """
-    Creates a 2D histogram from 'observation' and 'signal'
+    Creates a 2D histogram from 'observation' and 'signal'.
 
     Parameters
     ----------
@@ -27,7 +26,7 @@ def createHistogram(bins, minVal, maxVal, observation, signal):
         A 3D numpy array that is interpretted as a stack of 2D images.
 
     Returns
-    ----------
+    -------
     histogram: numpy array
         A 3D array:
         'histogram[0,...]' holds the normalized 2D counts.
@@ -36,7 +35,6 @@ def createHistogram(bins, minVal, maxVal, observation, signal):
         'histogram[2,...]' holds the upper boundaries of each bin in y.
         The values for x can be obtained by transposing 'histogram[1,...]' and 'histogram[2,...]'.
     """
-
     imgFactor = int(observation.shape[0] / signal.shape[0])
     histogram = np.zeros((3, bins, bins))
     ra = [minVal, maxVal]
@@ -112,7 +110,7 @@ class NoiseModel:
             tensor holding hypotheses for the clean signal at every pixel s_i^k.
 
         Returns
-        ----------
+        -------
         Torch tensor containing the observation likelihoods according to the noise model.
         """
         obsF = self.getIndexObsFloat(obs)

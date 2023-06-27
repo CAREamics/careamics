@@ -1,13 +1,12 @@
+import numpy as np
 import pytest
 
-import numpy as np
-
 from careamics_restoration.dataloader.dataloader_utils import (
-    compute_patch_steps,
     _compute_number_of_patches,
-    compute_overlap,
-    compute_reshaped_view,
     compute_crop_and_stitch_coords_1d,
+    compute_overlap,
+    compute_patch_steps,
+    compute_reshaped_view,
 )
 
 
@@ -57,9 +56,9 @@ def test_compute_patch_steps(dims, patch_size, overlap):
 def check_compute_reshaped_view(array, window_shape, steps):
     """Check the number of patches"""
 
-    win = (1,) + window_shape
-    step = (1,) + steps
-    output_shape = (-1,) + window_shape
+    win = (1, *window_shape)
+    step = (1, *steps)
+    output_shape = (-1, *window_shape)
 
     # compute views
     output = compute_reshaped_view(array, win, step, output_shape)
@@ -69,7 +68,7 @@ def check_compute_reshaped_view(array, window_shape, steps):
         np.ceil((array.shape[1 + i] - window_shape[i] + 1) / steps[i]).astype(int)
         for i in range(len(window_shape))
     ]
-    assert output.shape == (np.prod(n_patches),) + window_shape
+    assert output.shape == (np.prod(n_patches), *window_shape)
 
 
 @pytest.mark.parametrize("axis_size", [32, 35, 40])

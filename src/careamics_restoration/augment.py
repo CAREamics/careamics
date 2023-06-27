@@ -1,5 +1,6 @@
-import numpy as np
 from typing import Tuple
+
+import numpy as np
 
 
 # TODO channel_dim is unused

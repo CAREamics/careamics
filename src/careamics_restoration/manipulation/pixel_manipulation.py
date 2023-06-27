@@ -1,10 +1,11 @@
-import numpy as np
 from typing import Tuple
+
+import numpy as np
 
 
 def get_stratified_coords(mask_pixel_perc: float, shape: Tuple[int, ...]) -> np.ndarray:
     # TODO add description, add asserts, add typing, add line comments
-    """_summary_
+    """_summary_.
 
     _extended_summary_
 
@@ -54,7 +55,7 @@ def get_stratified_coords(mask_pixel_perc: float, shape: Tuple[int, ...]) -> np.
 def apply_struct_n2v_mask(patch, coords, dims, mask):
     """
     each point in coords corresponds to the center of the mask.
-    then for point in the mask with value=1 we assign a random value
+    then for point in the mask with value=1 we assign a random value.
     """
     coords = np.array(coords).astype(np.int32)
     ndim = mask.ndim
@@ -79,7 +80,7 @@ def n2v_manipulate(
     roi_size: int = 5,
     augmentations=None,
 ) -> Tuple[np.ndarray, ...]:
-    """Manipulate pixel in a patch with N2V algorithm
+    """Manipulate pixel in a patch with N2V algorithm.
 
     Parameters
     ----------

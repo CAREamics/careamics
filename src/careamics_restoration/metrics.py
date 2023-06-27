@@ -3,7 +3,7 @@ from skimage.metrics import peak_signal_noise_ratio
 
 
 def psnr(gt: np.ndarray, pred: np.ndarray, range: float = 255.0) -> float:
-    """Peak Signal to Noise Ratio
+    """Peak Signal to Noise Ratio.
 
     This method calls skimage.metrics.peak_signal_noise_ratio. See:
     https://scikit-image.org/docs/dev/api/skimage.metrics.html
@@ -72,7 +72,7 @@ def scale_invariant_psnr(gt: np.ndarray, pred: np.ndarray) -> float:
 
 
 class MetricTracker:
-    """Metric tracker
+    """Metric tracker.
 
     This class is used to track values, sum, count and average of a metric over time.
 
@@ -99,7 +99,7 @@ class MetricTracker:
         self.count = 0.0
 
     def update(self, value: int, n: int = 1) -> None:
-        """Update the metric tracker state
+        """Update the metric tracker state.
 
         Parameters
         ----------

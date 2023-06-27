@@ -1,7 +1,7 @@
 from enum import Enum
 from pathlib import Path
+from typing import List, Optional, Union
 
-from typing import Optional, Union, List
 from pydantic import BaseModel, Field, validator
 
 # TODO this creates a circular import when instantiating the engine
@@ -44,7 +44,7 @@ class ExtractionStrategy(str, Enum):
 class Data(BaseModel):
     """Data configuration.
 
-    Attributes:
+    Attributes
     ----------
     path: Path
         Path to the folder containing the training data or to a specific file (

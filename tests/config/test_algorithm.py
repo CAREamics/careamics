@@ -1,7 +1,6 @@
 from pathlib import Path
 
 import pytest
-
 from pydantic.error_wrappers import ValidationError
 
 from careamics_restoration.config.algorithm import Algorithm
@@ -39,7 +38,7 @@ def test_loss_value(test_config):
 
     with pytest.raises(ValidationError):
         Algorithm(**algorithm_config)
-    
+
 
 def test_wrong_model_value(test_config):
     """Test that we cannot instantiate a config with wrong loss value."""

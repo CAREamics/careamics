@@ -1,11 +1,10 @@
 from torch import optim
 
 from careamics_restoration.config.torch_optimizer import (
-    TorchOptimizer,
     TorchLRScheduler,
-    get_schedulers,
+    TorchOptimizer,
     get_optimizers,
-    get_parameters,
+    get_schedulers,
 )
 
 # TODO test get parameters
