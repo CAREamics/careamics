@@ -1,16 +1,13 @@
 from typing import Tuple
-
 import numpy as np
 
 
-# TODO channel_dim is unused
-# TODO document...
+# TODO refactor to be used with just a single tensor. Use 3rd party lib for augments?
 def augment_batch(
     patch: np.ndarray,
-    orig_image: np.ndarray,  # TODO what is that for?
+    original_image: np.ndarray,
     mask: np.ndarray,
-    seed=1,
-    channel_dim: bool = True,
+    seed: int = 1,
 ) -> Tuple[np.ndarray, ...]:
     """Augment a single array by applying a random 90 degress rotation and
     possibly a flip.
@@ -19,23 +16,21 @@ def augment_batch(
     ----------
     patch : np.ndarray
         Array containing single image or patch, 2D or 3D
+    original_image : np.ndarray
     seed : int, optional
         Seed for random number generator, controls the rotation and flipping
-    channel_dim : bool, optional
-        Set to True if the channel dimension is present, by default True
 
     Returns
     -------
-    np.ndarray
-        _description_
+    Tuple[np.ndarray, ...]
+        Tuple of augmented arrays
     """
-    # np.random.seed(seed)
     rng = np.random.default_rng(seed=seed)
     rotate_state = rng.integers(0, 4)
     flip_state = rng.integers(0, 2)
     return (
         flip_and_rotate(patch, rotate_state, flip_state),
-        flip_and_rotate(orig_image, rotate_state, flip_state),
+        flip_and_rotate(original_image, rotate_state, flip_state),
         flip_and_rotate(mask, rotate_state, flip_state),
     )
 
