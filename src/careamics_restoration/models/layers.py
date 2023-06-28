@@ -262,7 +262,6 @@ def blur_operation(
     Returns:
         Blurred input
     """
-    # TODO add asserts
 
     if filter is None:
         filter = getattr(sys.modules[__name__], f"default_{conv_mult}d_filter")
@@ -271,17 +270,14 @@ def blur_operation(
 
     if (
         channels is not None and channels < 1
-    ):  # Use Dynamic Control Flow # TODO <- what does that mean?
+    ):  # Use Dynamic Control Flow # TODO <- what does that mean? I wish I knew :)
         _, channels, *spatial_dims = input_tensor.shape
 
-        filter = filter.repeat((channels, 1, 1, 1))
-        _, _, filter_h, filter_w = filter.shape
+        filter = filter.repeat((channels, [1] * len(input_tensor.shape[1:])))
+        _, _, *filter_spatial_dims = filter.shape
 
-        # TODO unknown h and w !!!!!
-        if h + 2 * padding[0] < filter_h:
-            return input
-        if w + 2 * padding[1] < filter_w:
-            return input
+        if torch.any(torch.tensor(spatial_dims) < torch.tensor(filter_spatial_dims)):
+            return input_tensor
 
     # TODO: the following comment needs more clarification
     # Call functional.conv2d without using keyword arguments as that triggers a bug in fx tracing quantization.
