@@ -2,10 +2,10 @@ import numpy as np
 import pytest
 import tifffile
 
-from careamics_restoration.dataloader.dataloader import (
+from careamics_restoration.dataset.dataset import (
     PatchDataset,
 )
-from careamics_restoration.dataloader.dataloader_utils import (
+from careamics_restoration.dataset.dataset_utils import (
     extract_patches_sequential,
     list_input_source_tiff,
 )

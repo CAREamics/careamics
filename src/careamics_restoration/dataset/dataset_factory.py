@@ -6,8 +6,8 @@ from torch.utils.data import Dataset
 from ..config import ConfigStageEnum, Configuration
 from ..config.stage import Stage
 from ..manipulation import create_patch_transform
-from .dataloader import PatchDataset
-from .dataloader_utils import (
+from .dataset import PatchDataset
+from .dataset_utils import (
     extract_patches_predict,
     extract_patches_random,
     extract_patches_sequential,
