@@ -48,7 +48,7 @@ def create_tiling_function(stage: Stage) -> Union[None, Callable]:
     return None
 
 
-def create_dataset(config: Configuration, stage: ConfigStageEnum) -> Dataset:
+def create_dataset(config: Configuration, stage: ConfigStageEnum) -> PatchDataset:
     """Builds a dataset based on the dataset_params.
 
     Parameters

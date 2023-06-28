@@ -60,10 +60,10 @@ class Training(Stage):
     num_epochs: int = Field(default=100, ge=1, le=1_000)
     num_steps: int = Field(default=100, ge=1, le=1_000)
 
-    optimizer: Optional[Optimizer] = None
-    lr_scheduler: Optional[LrScheduler] = None
+    optimizer: Optional[Optimizer]
+    lr_scheduler: Optional[LrScheduler]
 
-    amp: Optional[Amp] = None
+    amp: Optional[Amp]
     max_grad_norm: Optional[float] = Field(default=1.0, ge=0.0, le=1.0)
     # learning_rate: float = Field(default=0.001, ge=0.0001, le=0.1)
     running_stats: bool = Field(default=False)

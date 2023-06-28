@@ -351,7 +351,7 @@ def blurmax_pool(
     if kernel_size is None:
         kernel_size = (2, 2)
 
-    pool_operation = getattr(functional, f"max_pool{len(conv_mult)}d")
+    pool_operation = getattr(functional, f"max_pool{conv_mult}d")
     maxs = pool_operation(
         input_tensor,
         kernel_size=kernel_size,

@@ -231,7 +231,7 @@ class Engine:
             optimizer.step()
         return {"loss": avg_loss.avg}
 
-    def get_train_dataloader(self) -> DataLoader:
+    def get_train_dataloader(self) -> Tuple[DataLoader, int, int]:
         dataset = create_dataset(self.cfg, ConfigStageEnum.TRAINING)
         # TODO all this should go into the Dataset
         ##TODO add custom collate function and separate dataloader create function, sampler?
@@ -247,7 +247,7 @@ class Engine:
                 batch_size=self.cfg.training.data.batch_size,
                 num_workers=self.cfg.training.data.num_workers,
             ),
-            # TODO move mean std to patch dataset (and rename to tiffdataset)
+            # TODO Igor: move mean std to patch dataset (and rename to tiffdataset)
             dataset.mean,
             dataset.std,
         )

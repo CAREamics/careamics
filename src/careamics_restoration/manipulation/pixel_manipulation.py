@@ -25,7 +25,7 @@ def get_stratified_coords(mask_pixel_perc: float, shape: Tuple[int, ...]) -> np.
 
     # step = [(d / np.sqrt(d)).astype(np.int32) for d in shape]
     # Define the approximate distance between masked pixels
-    box_size = np.round(np.sqrt(np.product(shape) / 100 * mask_pixel_perc)).astype(
+    box_size = np.round(np.sqrt(np.prod(shape) / 100 * mask_pixel_perc)).astype(
         np.int32
     )
 

@@ -28,7 +28,7 @@ class PatchDataset(torch.utils.data.IterableDataset):
         data_path: Union[Path, str],
         ext: str,
         axes: str,
-        num_files: int,
+        num_files: Optional[int], # TODO remove num files arg ?
         data_reader: Callable,
         patch_size: Union[List[int], Tuple[int]],
         patch_generator: Optional[Callable],

@@ -224,7 +224,7 @@ def extract_patches_sequential(
 
     The patches are generated sequentially and cover the whole array.
     """
-    # TODO document
+    # TODO move to Config or dataset class. Not raise error but skip ?
     if len(arr.shape) < 3 or len(arr.shape) > 4:
         raise ValueError(
             f"Input array must have dimensions SZYX or SYX (got length {len(arr.shape)})."
@@ -248,10 +248,10 @@ def extract_patches_sequential(
 
     # Sanity checks on patch sizes versus array dimension
     is_3d_patch = len(patch_sizes) == 3
-    if is_3d_patch and patch_sizes[-3] > arr.shape[-3]:
+    if is_3d_patch and patch_sizes[0] > arr.shape[-3]:
         raise ValueError(
             f"Z patch size is inconsistent with image shape "
-            f"(got {patch_sizes[-3]} patches for dim {arr.shape[1]})."
+            f"(got {patch_sizes[0]} patches for dim {arr.shape[1]})."
         )
 
     if patch_sizes[-2] > arr.shape[-2] or patch_sizes[-1] > arr.shape[-1]:

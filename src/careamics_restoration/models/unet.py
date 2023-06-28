@@ -50,7 +50,7 @@ class UNET(nn.Module):
         enc_blocks = OrderedDict()
         bottleneck = OrderedDict()
         dec_blocks = OrderedDict()
-        self.skip_layers_ouputs = OrderedDict()
+        self.skip_layers_ouputs = OrderedDict() # type: ignore
 
         # TODO implements better layer naming
         # Encoder

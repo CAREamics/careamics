@@ -1,6 +1,6 @@
 from enum import Enum
 from pathlib import Path
-from typing import Optional, Union
+from typing import Optional, Union, Dict
 
 from pydantic import BaseModel, validator
 
@@ -130,11 +130,10 @@ class Configuration(BaseModel):
             )
 
 
-def load_configuration(cfg_path: Union[str, Path]) -> Configuration:
+def load_configuration(cfg_path: Union[str, Path]) -> Dict:
     # TODO: import here because it might not be used everytime?
     # e.g. when using a library of config
     import re
-
     import yaml
 
     """Load a yaml config file and correct all datatypes."""
