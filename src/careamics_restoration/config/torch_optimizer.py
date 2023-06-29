@@ -11,41 +11,42 @@ class TorchOptimizer(str, Enum):
     List obtained using get_optimizers().
     """
 
-    ASGD = "ASGD"
-    Adadelta = "Adadelta"
-    Adagrad = "Adagrad"
+    # ASGD = "ASGD"
+    # Adadelta = "Adadelta"
+    # Adagrad = "Adagrad"
     Adam = "Adam"
-    AdamW = "AdamW"
-    Adamax = "Adamax"
-    LBFGS = "LBFGS"
-    NAdam = "NAdam"
+    # AdamW = "AdamW"
+    # Adamax = "Adamax"
+    # LBFGS = "LBFGS"
+    # NAdam = "NAdam"
     RAdam = "RAdam"
-    RMSprop = "RMSprop"
-    Rprop = "Rprop"
+    # RMSprop = "RMSprop"
+    # Rprop = "Rprop"
     SGD = "SGD"
-    SparseAdam = "SparseAdam"
+    # SparseAdam = "SparseAdam"
 
 
+# TODO: Test which schedulers are compatible and if not, how to make them compatible (if we want to support them)
 class TorchLRScheduler(str, Enum):
     """List of all schedulers available in torch.optim.lr_scheduler.
 
     List obtained using get_schedulers().
     """
 
-    ChainedScheduler = "ChainedScheduler"
-    ConstantLR = "ConstantLR"
-    CosineAnnealingLR = "CosineAnnealingLR"
-    CosineAnnealingWarmRestarts = "CosineAnnealingWarmRestarts"
-    CyclicLR = "CyclicLR"
-    ExponentialLR = "ExponentialLR"
-    LambdaLR = "LambdaLR"
-    LinearLR = "LinearLR"
-    MultiStepLR = "MultiStepLR"
-    MultiplicativeLR = "MultiplicativeLR"
-    OneCycleLR = "OneCycleLR"
-    PolynomialLR = "PolynomialLR"
+    # ChainedScheduler = "ChainedScheduler"
+    # ConstantLR = "ConstantLR"
+    # CosineAnnealingLR = "CosineAnnealingLR"
+    # CosineAnnealingWarmRestarts = "CosineAnnealingWarmRestarts"
+    # CyclicLR = "CyclicLR"
+    # ExponentialLR = "ExponentialLR"
+    # LambdaLR = "LambdaLR"
+    # LinearLR = "LinearLR"
+    # MultiStepLR = "MultiStepLR"
+    # MultiplicativeLR = "MultiplicativeLR"
+    # OneCycleLR = "OneCycleLR"
+    # PolynomialLR = "PolynomialLR"
     ReduceLROnPlateau = "ReduceLROnPlateau"
-    SequentialLR = "SequentialLR"
+    # SequentialLR = "SequentialLR"
     StepLR = "StepLR"
 
 
