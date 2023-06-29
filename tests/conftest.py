@@ -4,6 +4,8 @@ from typing import Callable
 import numpy as np
 import pytest
 
+# TODO Make two fixtures, one full configuration and one minimal
+
 
 def create_tiff(path: Path, n_files: int):
     """Create tiff files for testing."""
@@ -31,11 +33,13 @@ def test_config(tmp_path) -> dict:
 
     # create dictionary
     test_configuration = {
-        "experiment_name": "testing",
-        "algorithm": {
+        "run_params": {
+            "experiment_name": "testing",
             "workdir": str(tmp_path),
+        },
+        "algorithm": {
             "loss": ["n2v"],
-            "model": "UNET",
+            "model": "UNet",
             "num_masked_pixels": 0.2,
             "pixel_manipulation": "n2v",
         },

@@ -1,6 +1,6 @@
 import pytest
 
-from careamics_restoration.models.unet import UNET
+from careamics_restoration.models.unet import UNet
 
 # TODO mode tests
 # TODO: test n2v2 and skip_skipone
@@ -11,7 +11,7 @@ from careamics_restoration.models.unet import UNET
 def test_unet_depth(depth):
     """Test that the UNet has the correct number of down and up convs
     with respect to the depth."""
-    model = UNET(conv_dim=2, depth=depth)
+    model = UNet(conv_dim=2, depth=depth)
 
     # check depth
     assert model.depth == depth
@@ -37,4 +37,4 @@ def test_unet_depth(depth):
 def test_no_depth_error(depth):
     """Test that the UNet raises an error if the depth is less than 1."""
     with pytest.raises(ValueError):
-        UNET(conv_dim=2, depth=depth)
+        UNet(conv_dim=2, depth=depth)

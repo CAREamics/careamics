@@ -1,6 +1,6 @@
 from enum import Enum
 from pathlib import Path
-from typing import Optional, Union, Dict
+from typing import Dict, Optional, Union
 
 from pydantic import BaseModel, validator
 
@@ -12,31 +12,31 @@ from .training import Training
 
 
 class RunParams(BaseModel):
-    """Basic parameters or current run."""
+    """Basic parameters of current run."""
+
+    trained_model: Optional[str] = None
 
     experiment_name: str
-    workdir: str
-    trained_model: Optional[str] = None
+    workdir: Union[str, Path]
 
     @validator("workdir")
     def validate_workdir(cls, v: str, values, **kwargs) -> Path:
         """Validate trained_model.
 
         If trained_model is not None, it must be a valid path.
+        # TODO yet this is not enforced here
         """
         path = Path(v)
         if path.parent.exists():
             path.mkdir(parents=True, exist_ok=True)
+
         return path
 
     @validator("trained_model")
     def validate_trained_model(
         cls, v: Union[Path, None], values, **kwargs
     ) -> Union[None, Path]:
-        """Validate trained_model.
-
-        If trained_model is not None, it must be a valid path.
-        """
+        """Validate trained_model."""
         if v is not None:
             path = values["workdir"] / Path(v)
             if not path.exists():
@@ -47,6 +47,21 @@ class RunParams(BaseModel):
                 return path
 
         return None
+
+    def dict(self, *args, **kwargs) -> dict:
+        """Override dict method.
+
+        The purpose is to ensure export smooth import to yaml. It includes:
+            - remove entries with None value
+            - replace Path by str
+        """
+        dictionary = super().dict(exclude_none=True)
+
+        # replace Path by str
+        # TODO is this necessary? workdir seems to be a str already. Did something get lost?
+        dictionary["workdir"] = str(dictionary["workdir"])
+
+        return dictionary
 
 
 class ConfigStageEnum(str, Enum):
@@ -134,6 +149,7 @@ def load_configuration(cfg_path: Union[str, Path]) -> Dict:
     # TODO: import here because it might not be used everytime?
     # e.g. when using a library of config
     import re
+
     import yaml
 
     """Load a yaml config file and correct all datatypes."""

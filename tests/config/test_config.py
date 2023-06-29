@@ -7,6 +7,7 @@ from careamics_restoration.config import (
 )
 
 # TODO test optimizer and lr schedulers parameters
+# TODO test run_params...
 
 
 def test_config_to_yaml(tmp_path, test_config):
@@ -52,16 +53,6 @@ def test_optional_entries(tmp_path, test_config):
     # parse yaml
     my_other_conf = Configuration(**config_yaml)
     assert my_other_conf == myconf
-
-
-def test_non_existing_workdir(test_config):
-    """Test that we cannot instantiate a config with non existing workdir."""
-
-    config = test_config
-    config["workdir"] = "non_existing_workdir"
-
-    with pytest.raises(ValueError):
-        Configuration(**config)
 
 
 def test_get_stage(test_config):

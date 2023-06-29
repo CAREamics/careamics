@@ -27,7 +27,9 @@ def test_data(test_config):
     data_dict = data.dict()
     assert "num_files" not in data_dict
     assert "num_patches" not in data_dict
-    assert "num_workers" not in data_dict
+
+    # TODO default value is not None (revisit after cleaning up configuration)
+    assert "num_workers" in data_dict
 
     # check that dictionary contains str not a Path
     assert isinstance(data_dict["path"], str)

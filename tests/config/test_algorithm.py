@@ -1,5 +1,3 @@
-from pathlib import Path
-
 import pytest
 from pydantic.error_wrappers import ValidationError
 
@@ -70,50 +68,6 @@ def test_wrong_mask_pixel_percentage(test_config, mask_pixel_percentage):
 
     with pytest.raises(ValueError):
         Algorithm(**algorithm_config)
-
-
-def test_trained_model_path(tmpdir, test_config):
-    """Test that we can instantiate a config without a trained model and that
-    the model validation works."""
-    key = "trained_model"
-    algorithm_config = test_config["algorithm"]
-
-    # check that key is absent
-    assert key not in algorithm_config.keys()
-
-    # instantiate model
-    my_algo = Algorithm(**algorithm_config)
-    assert key not in my_algo.dict().keys()
-
-    # create a non-valid path
-    path = Path(tmpdir, "mytrainedmodel.pth")
-    algorithm_config[key] = str(path)
-    assert not path.exists()
-
-    # check that it fails instantiation
-    with pytest.raises(ValueError):
-        Algorithm(**algorithm_config)
-
-    # create a valid path without the extension
-    path = Path(tmpdir, "mytrainedmodel")
-    algorithm_config[key] = str(path)
-    path.touch()
-    assert path.exists()
-
-    # check that it fails instantiation
-    with pytest.raises(ValueError):
-        Algorithm(**algorithm_config)
-
-    # finally create a valid path
-    path = Path(tmpdir, "mytrainedmodel.pth")
-    algorithm_config[key] = str(path)
-    path.touch()
-    assert path.exists()
-
-    # create a config with a valid path to a trained model
-    algorithm_config[key] = str(path)
-    my_other_algo = Algorithm(**algorithm_config)
-    assert my_other_algo.trained_model == path
 
 
 @pytest.mark.parametrize("conv_dims", [2, 3])

@@ -9,7 +9,7 @@ from .layers import Conv_Block_tf
 # TODO Urgent: refactor
 
 
-class UNET(nn.Module):
+class UNet(nn.Module):
     def __init__(
         self,
         conv_dim: int,
@@ -51,7 +51,7 @@ class UNET(nn.Module):
         enc_blocks = OrderedDict()
         bottleneck = OrderedDict()
         dec_blocks = OrderedDict()
-        self.skip_layers_ouputs = OrderedDict() # type: ignore
+        self.skip_layers_ouputs = OrderedDict()  # type: ignore
 
         # TODO implements better layer naming
         # Encoder

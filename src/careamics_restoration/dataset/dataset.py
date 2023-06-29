@@ -28,7 +28,7 @@ class PatchDataset(torch.utils.data.IterableDataset):
         data_path: Union[Path, str],
         ext: str,
         axes: str,
-        num_files: Optional[int], # TODO remove num files arg ?
+        num_files: Optional[int],  # TODO remove num files arg ?
         data_reader: Callable,
         patch_size: Union[List[int], Tuple[int]],
         patch_generator: Optional[Callable],
@@ -66,9 +66,7 @@ class PatchDataset(torch.utils.data.IterableDataset):
         self.patch_transform = patch_level_transform
 
     @staticmethod
-    def read_tiff_source(
-        data_source: Union[str, Path], axes: str, patch_size: Tuple[int]
-    ):
+    def read_tiff_source(data_source: Union[str, Path], axes: str):
         """
         Read data source and correct dimensions.
 
@@ -231,7 +229,7 @@ class PatchDataset(torch.utils.data.IterableDataset):
         for i, filename in enumerate(self.source):
             try:
                 # TODO add buffer, several images up to some memory limit?
-                arr = self.read_tiff_source(filename, self.axes, self.patch_size)
+                arr = self.read_tiff_source(filename, self.axes)
             except (ValueError, FileNotFoundError, OSError) as e:
                 logging.exception(f"Exception in file {filename}, skipping")
                 raise e

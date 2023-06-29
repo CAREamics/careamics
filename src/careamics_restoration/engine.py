@@ -55,45 +55,55 @@ class Engine:
             self.logger.info("Using default logger")
 
     def train(self):
-        # General func
-        train_loader, self.mean, self.std = self.get_train_dataloader()
-        eval_loader = self.get_val_dataloader()
-        eval_loader.dataset.set_normalization(self.mean, self.std)
-        optimizer, lr_scheduler = self.get_optimizer_and_scheduler()
-        scaler = self.get_grad_scaler()
-        self.logger.info(f"Starting training for {self.cfg.training.num_epochs} epochs")
+        if self.cfg.training is not None:
+            # General func
+            train_loader, self.mean, self.std = self._get_train_dataloader()
+            eval_loader = self._get_val_dataloader()
+            eval_loader.dataset.set_normalization(self.mean, self.std)
+            optimizer, lr_scheduler = self.get_optimizer_and_scheduler()
+            scaler = self.get_grad_scaler()
+            self.logger.info(
+                f"Starting training for {self.cfg.training.num_epochs} epochs"
+            )
 
-        val_losses = []
-        try:
-            for epoch in range(
-                self.cfg.training.num_epochs
-            ):  # loop over the dataset multiple times
-                self.logger.info(f"Starting epoch {epoch}")
+            val_losses = []
+            try:
+                for epoch in range(
+                    self.cfg.training.num_epochs
+                ):  # loop over the dataset multiple times
+                    self.logger.info(f"Starting epoch {epoch}")
 
-                self.train_single_epoch(
-                    train_loader,
-                    optimizer,
-                    scaler,
-                    self.cfg.training.amp.use,
-                    self.cfg.training.max_grad_norm,
-                )
+                    self._train_single_epoch(
+                        train_loader,
+                        optimizer,
+                        scaler,
+                        self.cfg.training.amp.use,
+                        self.cfg.training.max_grad_norm,
+                    )
 
-                # Perform validation step
-                eval_outputs = self.evaluate(eval_loader, self.cfg.evaluation.metric)
-                self.logger.info(
-                    f'Validation loss for epoch {epoch}: {eval_outputs["loss"]}'
-                )
-                # Add update scheduler rule based on type
-                lr_scheduler.step(eval_outputs["loss"])
-                if len(val_losses) == 0 or eval_outputs["loss"] < min(val_losses):
-                    self.save_checkpoint(True)
-                else:
-                    self.save_checkpoint(False)
-                val_losses.append(eval_outputs["loss"])
-                self.logger.info(f"Saved checkpoint to {self.cfg.run_params.workdir}")
+                    # Perform validation step
+                    eval_outputs = self.evaluate(
+                        eval_loader, self.cfg.evaluation.metric
+                    )
+                    self.logger.info(
+                        f'Validation loss for epoch {epoch}: {eval_outputs["loss"]}'
+                    )
+                    # Add update scheduler rule based on type
+                    lr_scheduler.step(eval_outputs["loss"])
+                    if len(val_losses) == 0 or eval_outputs["loss"] < min(val_losses):
+                        self.save_checkpoint(True)
+                    else:
+                        self.save_checkpoint(False)
+                    val_losses.append(eval_outputs["loss"])
+                    self.logger.info(
+                        f"Saved checkpoint to {self.cfg.run_params.workdir}"
+                    )
 
-        except KeyboardInterrupt:
-            self.logger.info("Training interrupted")
+            except KeyboardInterrupt:
+                self.logger.info("Training interrupted")
+        else:
+            # TODO: instead of error, maybe fail gracefully with a logging/warning to users
+            raise ValueError("Missing training entry in configuration file.")
 
     def evaluate(self, eval_loader: torch.utils.data.DataLoader, eval_metric: str):
         self.model.eval()
@@ -120,7 +130,7 @@ class Engine:
         self.model.to(self.device)
         self.model.eval()
         if not (self.mean and self.std):
-            _, self.mean, self.std = self.get_train_dataloader()
+            _, self.mean, self.std = self._get_train_dataloader()
         pred_loader = self.get_predict_dataloader(
             ext_input=ext_input
         )  # TODO check, calculate mean and std on all data not only train
@@ -137,7 +147,7 @@ class Engine:
             self.logger.info("Starting prediction on whole sample")
         with torch.no_grad():
             current_sample = 0
-            #TODO reset iterator for every sample ?
+            # TODO reset iterator for every sample ?
             # TODO tiled prediction slow af, profile and optimize
             for idx, (tile, *auxillary) in tqdm(enumerate(pred_loader)):
                 if auxillary:
@@ -173,7 +183,7 @@ class Engine:
                     )
                 else:
                     prediction.append(outputs.detach().cpu().numpy().squeeze())
-                
+
                 # check if sample is finished
                 if sample_idx != current_sample:
                     # Stitch tiles together
@@ -183,15 +193,15 @@ class Engine:
                         prediction.append(predicted_sample)
                         tiles = [tiles[-1]]
                         current_sample = sample_idx
-                    self.logger.info(f'Finished prediction for sample {sample_idx - 1}')
+                    self.logger.info(f"Finished prediction for sample {sample_idx - 1}")
         # Add last sample
         if self.stitch:
             predicted_sample = stitch_prediction(tiles, sample_shape)
             prediction.append(predicted_sample)
-        self.logger.info(f'Predicted {len(prediction)} samples')
+        self.logger.info(f"Predicted {len(prediction)} samples")
         return np.stack(prediction)
 
-    def train_single_epoch(
+    def _train_single_epoch(
         self,
         loader: torch.utils.data.DataLoader,
         optimizer: torch.optim.Optimizer,
@@ -231,7 +241,7 @@ class Engine:
             optimizer.step()
         return {"loss": avg_loss.avg}
 
-    def get_train_dataloader(self) -> Tuple[DataLoader, int, int]:
+    def _get_train_dataloader(self) -> Tuple[DataLoader, int, int]:
         dataset = create_dataset(self.cfg, ConfigStageEnum.TRAINING)
         # TODO all this should go into the Dataset
         ##TODO add custom collate function and separate dataloader create function, sampler?
@@ -253,7 +263,7 @@ class Engine:
         )
 
     # TODO merge into single dataloader func ? <-- yes
-    def get_val_dataloader(self) -> DataLoader:
+    def _get_val_dataloader(self) -> DataLoader:
         dataset = create_dataset(self.cfg, ConfigStageEnum.EVALUATION)
         return DataLoader(
             dataset,

@@ -14,7 +14,7 @@ algorithm:
   # Number of pixels to mask. Default is patch size ** number of patch dims / 32
   mask_pixel_percentage: 0.2
   #Class name from models.py
-  model: UNET
+  model: UNet
   #Whether to use 2D or 3D convolutions #TODO better name ?
   conv_dims: 2
   depth: 2
@@ -49,9 +49,9 @@ training:
   data:
     # File type to load
     ext: &EXT tif
-    axes: &AX SYX
+    axes: &AX YX
     #Path to the data
-    path: test_run/train_image.tif
+    path: test_run
     #Number of files to read. Read all if None
     num_files: Null
     # Patch generation strategy [random, sequential]
@@ -94,10 +94,10 @@ evaluation:
 prediction:
   data:
     #Path to the data
-    path: test_run/train_image.tif
+    path: test_run
     # File type to load
     ext: *EXT
-    axes: SYX
+    axes: YX
     #Number of files to read. Read all if None
     num_files: Null
     # Patch generation strategy [random, sequential]

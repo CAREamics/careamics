@@ -211,6 +211,7 @@ def list_input_source_tiff(
     )
 
 
+# TODO: this function does not ensure full coverage (see tests)
 # formerly :
 # https://github.com/juglab-torch/n2v/blob/00d536cdc5f5cd4bb34c65a777940e6e453f4a93/src/n2v/dataloader.py#L52
 def extract_patches_sequential(

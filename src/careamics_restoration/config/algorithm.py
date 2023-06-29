@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import List, Optional
+from typing import List
 
 from pydantic import BaseModel, Field
 
@@ -15,11 +15,15 @@ class LossName(str, Enum):
 class ModelName(str, Enum):
     """Class representing an accepted model."""
 
-    UNET = "UNET"
+    UNET = "UNet"
 
 
 class PixelManipulator(str, Enum):
     N2V = "n2v"
+
+
+# TODO refactor n2v specifics stuff into a parameters dict?
+# TODO: hide model specifics also in some parameters (eg n filters)
 
 
 class Algorithm(BaseModel):
@@ -42,14 +46,10 @@ class Algorithm(BaseModel):
         (default: PixelManipulator.N2V)
     mask_pixel_percentage : float
         Percentage of pixels to be masked during training (default: 0.2%)
-    trained_model : Optional[Path]
-        Path to a trained model (default: None)
     """
 
     loss: List[LossName]
 
-    # workdir, mandatory field
-    workdir: str
     # optional fields with default values (appearing in yml)
     # model
     model: ModelName = ModelName.UNET
@@ -62,24 +62,6 @@ class Algorithm(BaseModel):
     mask_pixel_percentage: float = Field(
         default=0.2, ge=0.1, le=5
     )  # TODO arbitrary maximum, justify otherwise 100.
-
-    # optional fields that will not appear if not defined
-    trained_model: Optional[str] = None
-
-    def dict(self, *args, **kwargs) -> dict:
-        """Override dict method.
-
-        The purpose is to ensure export smooth import to yaml. It includes:
-            - remove entries with None value
-            - replace Path by str
-        """
-        dictionary = super().dict(exclude_none=True)
-
-        # replace Path by str
-        # TODO is this necessary? workdir seems to be a str already. Did something get lost?
-        dictionary["workdir"] = str(dictionary["workdir"])
-
-        return dictionary
 
     class Config:
         use_enum_values = True  # enum are exported as str
