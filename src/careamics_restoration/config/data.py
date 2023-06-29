@@ -80,7 +80,9 @@ class Data(BaseModel):
     # optional with None default values (not included in yml if not defined)
     num_files: Optional[int] = Field(default=None, ge=1)  # TODO why is this needed?
     num_patches: Optional[int] = Field(None, ge=1)
-    num_workers: Optional[int] = Field(default=0, ge=0, le=8)
+    num_workers: Optional[int] = Field(
+        default=0, ge=0, le=8
+    )  # TODO minimum of 0 make sense?
 
     # TODO how to make parameters mutually exclusive (which one???)
 

@@ -7,7 +7,6 @@ run_params:
 
 #TODO add nested config & 
 algorithm: 
-  workdir: test
   name: n2v
   #List of class names from losses.py or pytorch
   loss: [n2v]
@@ -16,14 +15,11 @@ algorithm:
   # Number of pixels to mask. Default is patch size ** number of patch dims / 32
   mask_pixel_percentage: 0.2
   #Class name from models.py
-  model: UNET
+  model: UNet
   #Whether to use 2D or 3D convolutions #TODO better name ?
   conv_dims: 2
   depth: 2
   num_filter_base: 96
-
-  # TODO: hide n2v specifics into parameters
-  # TODO: hide model specifics also in some parameters
 
 training:
   num_epochs: 500

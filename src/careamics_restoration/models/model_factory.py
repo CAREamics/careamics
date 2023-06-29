@@ -5,7 +5,7 @@ import torch
 
 from ..config import Configuration
 from ..utils import set_logging
-from .unet import UNET
+from .unet import UNet
 
 logger = logging.getLogger(__name__)
 set_logging(logger)
@@ -29,7 +29,7 @@ def create_model(config: Configuration) -> torch.nn.Module:
     #     raise ImportError('Model not found')
 
     if model_name == "UNET":
-        model = UNET(
+        model = UNet(
             depth=config.algorithm.depth,
             conv_dim=config.algorithm.conv_dims,
             num_filter_base=config.algorithm.num_filter_base,

@@ -28,7 +28,7 @@ class PatchDataset(torch.utils.data.IterableDataset):
         data_path: Union[Path, str],
         ext: str,
         axes: str,
-        num_files: Optional[int], # TODO remove num files arg ?
+        num_files: Optional[int],  # TODO remove num files arg ?
         data_reader: Callable,
         patch_size: Union[List[int], Tuple[int]],
         patch_generator: Optional[Callable],
@@ -66,9 +66,7 @@ class PatchDataset(torch.utils.data.IterableDataset):
         self.patch_transform = patch_level_transform
 
     @staticmethod
-    def read_tiff_source(
-        data_source: Union[str, Path], axes: str, patch_size: Tuple[int]
-    ):
+    def read_tiff_source(data_source: Union[str, Path], axes: str):
         """
         Read data source and correct dimensions.
 

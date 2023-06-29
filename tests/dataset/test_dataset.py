@@ -37,29 +37,22 @@ def test_list_input_source_tiff(tmp_path):
 
 
 @pytest.mark.parametrize(
-    "arr_shape, axes, patch_size",
+    "arr_shape, axes",
     [
         # wrong shapes
-        ((8,), "Y", (4,)),
+        ((8,), "Y"),
         # axes and array not compatible
-        ((8, 8), "Y", (4, 4)),
-        ((8, 8, 8), "YX", (4, 4)),
-        ((8, 8, 8, 8, 8), "TCZYX", (4, 4, 4)),
+        ((8, 8), "Y"),
+        ((8, 8, 8), "YX"),
+        ((8, 8, 8, 8, 8), "TCZYX"),
         # wrong axes
-        ((8, 8), "XY", (4, 4)),
-        ((8, 8, 8), "YXZ", (4, 4, 4)),
-        ((3, 8, 8), "CYX", (1, 4, 4)),
-        ((5, 3, 8, 8), "STYX", (1, 1, 4, 4)),
-        # wrong patch size
-        ((8, 8), "YX", (4,)),
-        ((8, 8), "YX", (4, 3)),
-        ((8, 8), "YX", (4, 4, 4)),
-        ((8, 8, 8), "ZYX", (4, 4)),
-        ((8, 8, 8), "ZYX", (4, 4, 4, 4)),
-        ((8, 8, 8), "ZYX", (3, 4, 4)),
+        ((8, 8), "XY"),
+        ((8, 8, 8), "YXZ"),
+        ((3, 8, 8), "CYX"),
+        ((5, 3, 8, 8), "STYX"),
     ],
 )
-def test_patch_dataset_read_source_errors(tmp_path, arr_shape, axes, patch_size):
+def test_patch_dataset_read_source_errors(tmp_path, arr_shape, axes):
     arr = np.ones(arr_shape)
 
     path = tmp_path / "test.tif"
@@ -67,40 +60,38 @@ def test_patch_dataset_read_source_errors(tmp_path, arr_shape, axes, patch_size)
     assert path.exists()
 
     with pytest.raises((ValueError, NotImplementedError)):
-        PatchDataset.read_tiff_source(path, axes, patch_size)
+        PatchDataset.read_tiff_source(path, axes)
 
 
 @pytest.mark.parametrize(
-    "arr_shape, axes, patch_size",
+    "arr_shape, axes",
     [
         # All possible input variations (S(B), T(o), C(o), Z(o), Y, X)
         # -> ((S(B) * T * P, C(o), Z(o), Y, X)
         # 2D (S(B), C, Y, X)
         # 3D (S(B), C, Z, Y, X)
         # 2D
-        ((8, 8), "YX", (4, 4)),
+        ((8, 8), "YX"),
         # ((2, 8, 8), "CYX", (4, 4)),
         # # 2D time series
-        ((10, 8, 8), "TYX", (4, 4)),
+        ((10, 8, 8), "TYX"),
         # (10, 1, 8, 8),
         # (10, 2, 8, 8),
         # # 3D
-        ((4, 8, 8), "ZYX", (4, 4, 4)),
-        ((8, 8, 8), "ZYX", (4, 4, 4)),
+        ((4, 8, 8), "ZYX"),
+        ((8, 8, 8), "ZYX"),
         # # 3D time series
         # (10, 32, 64, 64),
     ],
 )
-def test_patch_dataset_read_source(
-    tmp_path, ordered_array, arr_shape, axes, patch_size
-):
+def test_patch_dataset_read_source(tmp_path, ordered_array, arr_shape, axes):
     arr = ordered_array(arr_shape)
 
     path = tmp_path / "test.tif"
     tifffile.imwrite(path, arr)
     assert path.exists()
 
-    image = PatchDataset.read_tiff_source(path, axes, patch_size)
+    image = PatchDataset.read_tiff_source(path, axes)
 
     if axes == "YX":
         assert image.shape == (1, *arr_shape)
@@ -179,7 +170,9 @@ def test_extract_patches_sequential_errors(arr_shape, patch_size):
 
 
 def check_extract_patches_sequential(array, patch_size):
-    """Check that the patches are extracted correctly."""
+    """Check that the patches are extracted correctly.
+
+    The array should have been generated using np.arange and np.reshape."""
     patch_generator = extract_patches_sequential(array, patch_size)
 
     # check patch shape
@@ -188,10 +181,9 @@ def check_extract_patches_sequential(array, patch_size):
         patches.append(patch)
         assert patch.shape == patch_size
 
-    # check unique values
-    n_max = np.prod(patch_size)
-    unique = np.unique(np.array(patches))
-    assert 1 in unique and n_max in unique
+    # check that all values are covered by the patches
+    n_max = np.prod(array.shape)  # maximum value in the array
+    unique = np.unique(np.array(patches))  # unique values in the patches
     assert len(unique) == n_max
 
 
