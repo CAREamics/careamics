@@ -290,6 +290,8 @@ def extract_patches_sequential(
         yield (normalize(patch, mean, std)) if (mean and std) else (patch)
 
 
+# TODO: extract patches random default number of patches 1 or max? parameter for number of patches?
+# TODO: extract patches random but with the possibility to remove (almost) empty patches
 def extract_patches_random(
     arr,
     patch_size,

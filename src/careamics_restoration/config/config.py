@@ -10,6 +10,8 @@ from .prediction import Prediction
 from .stage import Stage
 from .training import Training
 
+# TODO: Vera test if parameter parent_config at the top of the config could work
+
 
 class RunParams(BaseModel):
     """Basic parameters of current run."""

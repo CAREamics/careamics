@@ -19,6 +19,7 @@ from .prediction_utils import stitch_prediction
 from .utils import denormalize, get_device, normalize, set_logging
 
 
+# TODO: discuss normalization strategies, test running mean and std
 class Engine:
     def __init__(self, cfg_path: str) -> None:
         self.logger = logging.getLogger()
@@ -78,13 +79,10 @@ class Engine:
                         optimizer,
                         scaler,
                         self.cfg.training.amp.use,
-                        self.cfg.training.max_grad_norm,
                     )
 
                     # Perform validation step
-                    eval_outputs = self.evaluate(
-                        eval_loader, self.cfg.evaluation.metric
-                    )
+                    eval_outputs = self.evaluate(eval_loader)
                     self.logger.info(
                         f'Validation loss for epoch {epoch}: {eval_outputs["loss"]}'
                     )
@@ -105,10 +103,9 @@ class Engine:
             # TODO: instead of error, maybe fail gracefully with a logging/warning to users
             raise ValueError("Missing training entry in configuration file.")
 
-    def evaluate(self, eval_loader: torch.utils.data.DataLoader, eval_metric: str):
+    def evaluate(self, eval_loader: torch.utils.data.DataLoader):
         self.model.eval()
         avg_loss = MetricTracker()
-        avg_loss.reset()
 
         with torch.no_grad():
             for patch, *auxillary in tqdm(eval_loader):
@@ -126,30 +123,38 @@ class Engine:
         # TODO predict on externally passed path
         pass
 
+    # TODO: refactor into one function from the configuration, one function
+    # for external input (can be the same one called from the first one)
     def predict(self, ext_input: Optional[np.ndarray] = None):
         self.model.to(self.device)
         self.model.eval()
+
         if not (self.mean and self.std):
             _, self.mean, self.std = self._get_train_dataloader()
-        pred_loader = self.get_predict_dataloader(
-            ext_input=ext_input
-        )  # TODO check, calculate mean and std on all data not only train
+
+        # TODO check, calculate mean and std on all data not only train
+        pred_loader = self.get_predict_dataloader(ext_input=ext_input)
+
         self.stitch = (
+            # TODO move all this to dataset.should_stitch()
             hasattr(pred_loader.dataset, "patch_generator")
             and pred_loader.dataset.patch_generator is not None
         )
-        MetricTracker()
+
         tiles = []
         prediction = []
         if self.stitch:
             self.logger.info("Starting tiled prediction")
         else:
             self.logger.info("Starting prediction on whole sample")
+
         with torch.no_grad():
             current_sample = 0
             # TODO reset iterator for every sample ?
             # TODO tiled prediction slow af, profile and optimize
             for idx, (tile, *auxillary) in tqdm(enumerate(pred_loader)):
+                # TODO: can the logic be simplified by passing a "last tile" or
+                # "new sample" flag in auxillary?
                 if auxillary:
                     (
                         sample_idx,
@@ -160,12 +165,17 @@ class Engine:
                 else:
                     sample_idx = idx
 
-                outputs = self.model(
-                    tile.to(self.device)
-                )  # Why batch dimension is not added by dl ?
+                # TODO: move normalization here?
+                outputs = self.model(tile.to(self.device))
+
                 outputs = denormalize(outputs, self.mean, self.std)
+
                 if self.stitch:
+                    # TODO: can the code be expanded to have the squeezing done
+                    # not in one liners, also check the detach() and numpy()
+
                     # Crop predited tile according to overlap coordinates
+                    # (..., *[ ]) necessary before python 3.11 TODO: check
                     predicted_tile = outputs.squeeze()[
                         (
                             ...,
@@ -193,7 +203,9 @@ class Engine:
                         prediction.append(predicted_sample)
                         tiles = [tiles[-1]]
                         current_sample = sample_idx
+
                     self.logger.info(f"Finished prediction for sample {sample_idx - 1}")
+
         # Add last sample
         if self.stitch:
             predicted_sample = stitch_prediction(tiles, sample_shape)
@@ -207,7 +219,6 @@ class Engine:
         optimizer: torch.optim.Optimizer,
         scaler: torch.cuda.amp.GradScaler,
         amp: bool,
-        max_grad_norm: Optional[float] = None,
     ):
         """_summary_.
 
@@ -229,13 +240,10 @@ class Engine:
 
             with torch.cuda.amp.autocast(enabled=amp):
                 outputs = self.model(batch.to(self.device))
+
             loss = self.loss_func(outputs, *auxillary, self.device)
             scaler.scale(loss).backward()
 
-            if max_grad_norm is not None and max_grad_norm > 0:
-                torch.nn.utils.clip_grad_norm_(
-                    self.model.parameters(), max_norm=max_grad_norm
-                )
             avg_loss.update(loss.item(), batch.shape[0])
 
             optimizer.step()
