@@ -229,7 +229,7 @@ class PatchDataset(torch.utils.data.IterableDataset):
         for i, filename in enumerate(self.source):
             try:
                 # TODO add buffer, several images up to some memory limit?
-                arr = self.read_tiff_source(filename, self.axes, self.patch_size)
+                arr = self.read_tiff_source(filename, self.axes)
             except (ValueError, FileNotFoundError, OSError) as e:
                 logging.exception(f"Exception in file {filename}, skipping")
                 raise e
