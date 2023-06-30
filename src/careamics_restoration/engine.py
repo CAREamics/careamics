@@ -17,7 +17,13 @@ from .losses import create_loss_function
 from .metrics import MetricTracker
 from .models import create_model
 from .prediction_utils import stitch_prediction
-from .utils import denormalize, get_device, normalize, set_logging, setup_cudnn_reproducibility
+from .utils import (
+    denormalize,
+    get_device,
+    normalize,
+    set_logging,
+    setup_cudnn_reproducibility,
+)
 
 
 def seed_everything(seed: int):
@@ -114,95 +120,6 @@ class Engine:
             # TODO: instead of error, maybe fail gracefully with a logging/warning to users
             raise ValueError("Missing training entry in configuration file.")
 
-    def evaluate(self, eval_loader: torch.utils.data.DataLoader):
-        self.model.eval()
-        avg_loss = MetricTracker()
-
-        with torch.no_grad():
-            for patch, *auxillary in tqdm(eval_loader):
-                outputs = self.model(patch.to(self.device))
-                loss = self.loss_func(outputs, *auxillary, self.device)
-                avg_loss.update(loss.item(), patch.shape[0])
-
-        return {"loss": avg_loss.avg}
-
-    def predict_from_memory(self):
-        # TODO predict on externally passed array
-        pass
-
-    def predict_from_disk(self):
-        # TODO predict on externally passed path
-        pass
-
-    # TODO: refactor into one function from the configuration, one function
-    # for external input (can be the same one called from the first one)
-    def predict(self, ext_input: Optional[np.ndarray] = None, stitch: bool = False):
-        self.model.to(self.device)
-        self.model.eval()
-
-        if not (self.mean and self.std):
-            _, self.mean, self.std = self._get_train_dataloader()
-
-        # TODO check, calculate mean and std on all data not only train
-        pred_loader, stitch = self.get_predict_dataloader(
-            ext_input=ext_input, stitch=stitch
-        )
-
-        tiles = []
-        prediction = []
-        if stitch:
-            self.logger.info("Starting tiled prediction")
-        else:
-            self.logger.info("Starting prediction on whole sample")
-
-        with torch.no_grad():
-            # TODO reset iterator for every sample ?
-            # TODO tiled prediction slow af, profile and optimize
-            for idx, (tile, *auxillary) in tqdm(enumerate(pred_loader)):
-                if auxillary:
-                    (
-                        last_tile,
-                        sample_shape,
-                        overlap_crop_coords,
-                        stitch_coords,
-                    ) = auxillary
-
-                normalized_input = normalize(tile, self.mean, self.std).to(self.device)
-                outputs = self.model(normalized_input)
-                outputs = denormalize(outputs, self.mean, self.std)
-
-                if stitch:
-                    # TODO: can the code be expanded to have the squeezing done
-                    # not in one liners, also check the detach() and numpy()
-
-                    # Crop predited tile according to overlap coordinates
-                    # (..., *[ ]) necessary before python 3.11 TODO: check
-                    predicted_tile = outputs.squeeze()[
-                        (
-                            ...,
-                            *[
-                                slice(c.squeeze()[0], c.squeeze()[1])
-                                for c in list(overlap_crop_coords)
-                            ],
-                        )
-                    ]
-                    tiles.append(
-                        (
-                            predicted_tile.cpu().numpy(),
-                            [c.squeeze().numpy() for c in stitch_coords],
-                        )
-                    )
-                    # check if sample is finished
-                    if last_tile:
-                        # Stitch tiles together
-                        predicted_sample = stitch_prediction(tiles, sample_shape)
-                        prediction.append(predicted_sample)
-                else:
-                    prediction.append(outputs.detach().cpu().numpy().squeeze())
-
-        self.logger.info(f"Predicted {len(prediction)} samples")
-        return np.stack(prediction)
-
     def _train_single_epoch(
         self,
         loader: torch.utils.data.DataLoader,
@@ -239,6 +156,95 @@ class Engine:
             optimizer.step()
         return {"loss": avg_loss.avg}
 
+    def evaluate(self, eval_loader: torch.utils.data.DataLoader):
+        self.model.eval()
+        avg_loss = MetricTracker()
+
+        with torch.no_grad():
+            for patch, *auxillary in tqdm(eval_loader):
+                outputs = self.model(patch.to(self.device))
+                loss = self.loss_func(outputs, *auxillary, self.device)
+                avg_loss.update(loss.item(), patch.shape[0])
+
+        return {"loss": avg_loss.avg}
+
+    def predict(self, external_input: Optional[np.ndarray] = None):
+        self.model.to(self.device)
+        self.model.eval()
+        # TODO external input shape should either be compatible with the model or tiled. Add checks and raise errors
+        if not (self.mean and self.std):
+            _, self.mean, self.std = self._get_train_dataloader()
+
+        # TODO check, calculate mean and std on all data not only train
+        pred_loader, stitch = self.get_predict_dataloader(
+            external_input=external_input,
+        )
+
+        tiles = []
+        prediction = []
+        if external_input is not None:
+            logging.info("Starting prediction on external input")
+        if stitch:
+            self.logger.info("Starting tiled prediction")
+        else:
+            self.logger.info("Starting prediction on whole sample")
+
+        with torch.no_grad():
+            # TODO reset iterator for every sample ?
+            # TODO tiled prediction slow af, profile and optimize
+            for idx, (tile, *auxillary) in tqdm(enumerate(pred_loader)):
+                if auxillary:
+                    (
+                        last_tile,
+                        sample_shape,
+                        overlap_crop_coords,
+                        stitch_coords,
+                    ) = auxillary
+
+                normalized_input = normalize(tile, self.mean, self.std).to(self.device)
+                outputs = self.model(normalized_input)
+                outputs = denormalize(outputs, self.mean, self.std)
+
+                if stitch:
+                    # TODO: can the code be expanded to have the squeezing done
+                    # not in one liners, also check the detach() and numpy()
+
+                    # Crop predited tile according to overlap coordinates
+                    predicted_tile = outputs.squeeze()[
+                        (
+                            ...,
+                            *[
+                                slice(c.squeeze()[0], c.squeeze()[1])
+                                for c in list(overlap_crop_coords)
+                            ],
+                        )
+                    ]
+                    #TODO: removing ellipsis works for 3.11
+                    ''' 3.11 syntax 
+                    predicted_tile = outputs.squeeze()[
+                        *[
+                            slice(c.squeeze()[0], c.squeeze()[1])
+                            for c in list(overlap_crop_coords)
+                        ],
+                    ]
+                    '''
+                    tiles.append(
+                        (
+                            predicted_tile.cpu().numpy(),
+                            [c.squeeze().numpy() for c in stitch_coords],
+                        )
+                    )
+                    # check if sample is finished
+                    if last_tile:
+                        # Stitch tiles together
+                        predicted_sample = stitch_prediction(tiles, sample_shape)
+                        prediction.append(predicted_sample)
+                else:
+                    prediction.append(outputs.detach().cpu().numpy().squeeze())
+
+        self.logger.info(f"Predicted {len(prediction)} samples")
+        return np.stack(prediction)
+
     def _get_train_dataloader(self) -> Tuple[DataLoader, int, int]:
         dataset = create_dataset(self.cfg, ConfigStageEnum.TRAINING)
         # TODO all this should go into the Dataset
@@ -271,13 +277,15 @@ class Engine:
         )
 
     def get_predict_dataloader(
-        self, ext_input: Optional[np.ndarray] = None, stitch: bool = False
+        self,
+        external_input: Optional[np.ndarray] = None,
     ) -> Tuple[DataLoader, bool]:
         # TODO add description
         # TODO mypy does not take into account "is not None", we need to find a workaround
-        if ext_input is not None:
-            ext_input = normalize(ext_input, self.mean, self.std)
-            dataset = TensorDataset(torch.from_numpy(ext_input.astype(np.float32)))
+        if external_input is not None:
+            external_input = normalize(external_input, self.mean, self.std)
+            dataset = TensorDataset(torch.from_numpy(external_input.astype(np.float32)))
+            stitch = False
         else:
             dataset = create_dataset(self.cfg, ConfigStageEnum.PREDICTION)
             dataset.set_normalization(self.mean, self.std)
