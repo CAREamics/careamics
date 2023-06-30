@@ -1,4 +1,5 @@
 import logging
+
 from pathlib import Path
 from typing import Optional, Tuple
 
@@ -16,11 +17,10 @@ from .losses import create_loss_function
 from .metrics import MetricTracker
 from .models import create_model
 from .prediction_utils import stitch_prediction
-from .utils import denormalize, get_device, normalize, set_logging
+from .utils import denormalize, get_device, normalize, set_logging, setup_cudnn_reproducibility
 
 
 def seed_everything(seed: int):
-    random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
@@ -167,9 +167,8 @@ class Engine:
                         stitch_coords,
                     ) = auxillary
 
-                # TODO: move normalization here?
-                outputs = self.model(tile.to(self.device))
-
+                normalized_input = normalize(tile, self.mean, self.std).to(self.device)
+                outputs = self.model(normalized_input)
                 outputs = denormalize(outputs, self.mean, self.std)
 
                 if stitch:

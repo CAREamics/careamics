@@ -365,11 +365,9 @@ def extract_patches_predict(
             )
         ):
             tile = sample[(..., *[slice(c[0], c[1]) for c in list(crop_coords)])]
-            tile = (normalize(tile, mean, std)) if (mean and std) else (tile)
             # Check if we are at the end of the sample.
             # To check we compute the lenght of the array that contains all the tiles
             if tile_idx == all_crop_coords.shape[1] ** 2 - 1:
-                current_sample = sample_idx
                 last_tile = True
             else:
                 last_tile = False
