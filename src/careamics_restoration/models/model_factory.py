@@ -4,7 +4,7 @@ from pathlib import Path
 import torch
 
 from ..config import Configuration
-from ..config.algorithm import ModelName
+from ..config.algorithm import Models
 from ..utils import set_logging
 from .unet import UNet
 
@@ -29,7 +29,7 @@ def create_model(config: Configuration) -> torch.nn.Module:
     # except ImportError:
     #     raise ImportError('Model not found')
 
-    if model_name == ModelName.UNET:
+    if model_name == Models.UNET:
         model = UNet(
             depth=config.algorithm.depth,
             conv_dim=config.algorithm.conv_dims,

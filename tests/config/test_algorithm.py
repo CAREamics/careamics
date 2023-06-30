@@ -4,15 +4,15 @@ from pydantic.error_wrappers import ValidationError
 from careamics_restoration.config.algorithm import Algorithm
 
 
-def test_algorithm(test_config):
+def test_algorithm(minimum_config):
     """Test that we can instantiate a config with a valid algorithm."""
-    algorithm_config = test_config["algorithm"]
+    algorithm_config = minimum_config["algorithm"]
     _ = Algorithm(**algorithm_config)
 
 
-def test_wrong_loss_value(test_config):
+def test_wrong_loss_value(minimum_config):
     """Test that we cannot instantiate a config with wrong loss value."""
-    algorithm_config = test_config["algorithm"]
+    algorithm_config = minimum_config["algorithm"]
 
     # wrong entry
     algorithm_config["loss"] = ["notn2v"]
@@ -21,10 +21,10 @@ def test_wrong_loss_value(test_config):
         Algorithm(**algorithm_config)
 
 
-def test_loss_value(test_config):
+def test_loss_value(minimum_config):
     """Test that we can instantiate a config with a single loss or a list of
     losses."""
-    algorithm_config = test_config["algorithm"]
+    algorithm_config = minimum_config["algorithm"]
 
     # list
     algorithm_config["loss"] = ["n2v", "pn2v"]
@@ -38,20 +38,20 @@ def test_loss_value(test_config):
         Algorithm(**algorithm_config)
 
 
-def test_wrong_model_value(test_config):
+def test_wrong_model_value(minimum_config):
     """Test that we cannot instantiate a config with wrong loss value."""
 
-    algorithm_config = test_config["algorithm"]
+    algorithm_config = minimum_config["algorithm"]
     algorithm_config["model"] = "wrongmodel"
 
     with pytest.raises(ValueError):
         Algorithm(**algorithm_config)
 
 
-def test_wrong_manipulator_value(test_config):
+def test_wrong_manipulator_value(minimum_config):
     """Test that we cannot instantiate a config with wrong loss value."""
 
-    algorithm_config = test_config["algorithm"]
+    algorithm_config = minimum_config["algorithm"]
     algorithm_config["pixel_manipulation"] = "notn2v"
 
     with pytest.raises(ValueError):
@@ -59,11 +59,11 @@ def test_wrong_manipulator_value(test_config):
 
 
 @pytest.mark.parametrize("mask_pixel_percentage", [-10, 0, 5.1])
-def test_wrong_mask_pixel_percentage(test_config, mask_pixel_percentage):
+def test_wrong_mask_pixel_percentage(minimum_config, mask_pixel_percentage):
     """Test that we cannot instantiate a config with wrong number of masked
     pixels."""
 
-    algorithm_config = test_config["algorithm"]
+    algorithm_config = minimum_config["algorithm"]
     algorithm_config["mask_pixel_percentage"] = mask_pixel_percentage
 
     with pytest.raises(ValueError):
@@ -71,9 +71,9 @@ def test_wrong_mask_pixel_percentage(test_config, mask_pixel_percentage):
 
 
 @pytest.mark.parametrize("conv_dims", [2, 3])
-def test_conv_dims(test_config, conv_dims):
+def test_conv_dims(minimum_config, conv_dims):
     """Test that we can instantiate a config with a valid conv_dims."""
-    algorithm_config = test_config["algorithm"]
+    algorithm_config = minimum_config["algorithm"]
     algorithm_config["conv_dims"] = conv_dims
 
     # instantiate model
@@ -82,9 +82,9 @@ def test_conv_dims(test_config, conv_dims):
 
 
 @pytest.mark.parametrize("conv_dims", [-1, 0, 1, 4])
-def test_wrong_conv_dims(test_config, conv_dims):
+def test_wrong_conv_dims(minimum_config, conv_dims):
     """Test that we cannot instantiate a config with wrong conv_dims."""
-    algorithm_config = test_config["algorithm"]
+    algorithm_config = minimum_config["algorithm"]
     algorithm_config["conv_dims"] = conv_dims
 
     # instantiate model
@@ -93,9 +93,9 @@ def test_wrong_conv_dims(test_config, conv_dims):
 
 
 @pytest.mark.parametrize("model_depth", [2, 3, 4, 5])
-def test_model_depth(test_config, model_depth):
+def test_model_depth(minimum_config, model_depth):
     """Test that we can instantiate a config with a valid model_depth."""
-    algorithm_config = test_config["algorithm"]
+    algorithm_config = minimum_config["algorithm"]
     algorithm_config["depth"] = model_depth
 
     # instantiate model
@@ -104,9 +104,9 @@ def test_model_depth(test_config, model_depth):
 
 
 @pytest.mark.parametrize("model_depth", [-1, 0, 1, 6])
-def test_wrong_model_depth(test_config, model_depth):
+def test_wrong_model_depth(minimum_config, model_depth):
     """Test that we cannot instantiate a config with wrong model_depth."""
-    algorithm_config = test_config["algorithm"]
+    algorithm_config = minimum_config["algorithm"]
     algorithm_config["depth"] = model_depth
 
     # instantiate model

@@ -2,11 +2,11 @@ from pathlib import Path
 
 import pytest
 
-from careamics_restoration.config.data import Data, SupportedExtension
+from careamics_restoration.config.data import Data, SupportedExtensions
 
 
-def test_data(test_config):
-    data_config = test_config["training"]["data"]
+def test_data(minimum_config):
+    data_config = minimum_config["training"]["data"]
 
     # instantiate Data model
     data = Data(**data_config)
@@ -62,13 +62,13 @@ def test_data(test_config):
 def test_supported_extensions_case_insensitive(ext):
     """Test that SupportedExtension enum accepts all extensions in upper
     cases."""
-    assert SupportedExtension(ext).value == ext.lower()
+    assert SupportedExtensions(ext).value == ext.lower()
 
 
 @pytest.mark.parametrize("ext", ["tiff", "tif", "TIFF", "TIF"])
-def test_data_supported_extensions(test_config, ext):
+def test_data_supported_extensions(minimum_config, ext):
     """Test that Data model accepts all extensions in upper cases."""
-    data_config = test_config["training"]["data"]
+    data_config = minimum_config["training"]["data"]
     data_config["ext"] = ext
 
     # instantiate Data model
@@ -77,9 +77,9 @@ def test_data_supported_extensions(test_config, ext):
 
 
 @pytest.mark.parametrize("ext", ["nd2", "jpg", "png ", "zarr"])
-def test_wrong_extensions(test_config, ext):
+def test_wrong_extensions(minimum_config, ext):
     """Test that Data model raises ValueError for unsupported extensions."""
-    data_config = test_config["training"]["data"]
+    data_config = minimum_config["training"]["data"]
     data_config["ext"] = ext
 
     # instantiate Data model
@@ -87,9 +87,9 @@ def test_wrong_extensions(test_config, ext):
         Data(**data_config)
 
 
-def test_invalid_path(test_config):
+def test_invalid_path(minimum_config):
     """Test that Data model raises ValueError for invalid path."""
-    data_config = test_config["training"]["data"]
+    data_config = minimum_config["training"]["data"]
     data_config["path"] = "invalid/path"
 
     # instantiate Data model
@@ -97,10 +97,10 @@ def test_invalid_path(test_config):
         Data(**data_config)
 
 
-def test_wrong_extension(test_config):
+def test_wrong_extension(minimum_config):
     """Test that Data model raises ValueError for incompatible extension
     and path."""
-    data_config = test_config["training"]["data"]
+    data_config = minimum_config["training"]["data"]
     data_config["ext"] = ".tiff"
 
     # instantiate Data model
@@ -133,9 +133,9 @@ def test_wrong_extension(test_config):
         ((8, 16, 32), "SYX"),
     ],
 )
-def test_wrong_patch_and_axes(test_config, patch_size, axes):
+def test_wrong_patch_and_axes(minimum_config, patch_size, axes):
     """Test that Data model raises ValueError for wrong axes."""
-    data_config = test_config["training"]["data"]
+    data_config = minimum_config["training"]["data"]
     data_config["patch_size"] = list(patch_size)
     data_config["axes"] = axes
 
@@ -155,9 +155,9 @@ def test_wrong_patch_and_axes(test_config, patch_size, axes):
         ((8, 16, 32), "SZYX"),
     ],
 )
-def test_correct_patch_and_axes(test_config, patch_size, axes):
+def test_correct_patch_and_axes(minimum_config, patch_size, axes):
     """Test that Data model accepts correct axes."""
-    data_config = test_config["training"]["data"]
+    data_config = minimum_config["training"]["data"]
     data_config["patch_size"] = list(patch_size)
     data_config["axes"] = axes
 

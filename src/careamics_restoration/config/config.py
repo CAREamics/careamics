@@ -1,129 +1,167 @@
+import re
 from enum import Enum
 from pathlib import Path
-from typing import Dict, Optional, Union
+from typing import Optional, Union
 
+import yaml
 from pydantic import BaseModel, validator
 
 from .algorithm import Algorithm
-from .evaluation import Evaluation
+from .data import Data
 from .prediction import Prediction
 from .stage import Stage
 from .training import Training
 
 # TODO: Vera test if parameter parent_config at the top of the config could work
-
-
-class RunParams(BaseModel):
-    """Basic parameters of current run."""
-
-    trained_model: Optional[str] = None
-
-    experiment_name: str
-    workdir: Union[str, Path]
-
-    @validator("workdir")
-    def validate_workdir(cls, v: str, values, **kwargs) -> Path:
-        """Validate trained_model.
-
-        If trained_model is not None, it must be a valid path.
-        # TODO yet this is not enforced here
-        """
-        path = Path(v)
-        if path.parent.exists():
-            path.mkdir(parents=True, exist_ok=True)
-
-        return path
-
-    @validator("trained_model")
-    def validate_trained_model(
-        cls, v: Union[Path, None], values, **kwargs
-    ) -> Union[None, Path]:
-        """Validate trained_model."""
-        if v is not None:
-            path = values["workdir"] / Path(v)
-            if not path.exists():
-                raise ValueError(f"Path to model does not exist (got {v}).")
-            elif path.suffix != ".pth":
-                raise ValueError(f"Path to model must be a .pth file (got {v}).")
-            else:
-                return path
-
-        return None
-
-    def dict(self, *args, **kwargs) -> dict:
-        """Override dict method.
-
-        The purpose is to ensure export smooth import to yaml. It includes:
-            - remove entries with None value
-            - replace Path by str
-        """
-        dictionary = super().dict(exclude_none=True)
-
-        # replace Path by str
-        # TODO is this necessary? workdir seems to be a str already. Did something get lost?
-        dictionary["workdir"] = str(dictionary["workdir"])
-
-        return dictionary
+# TODO: is stage necessary? it seems to bring a lot of compelxity for little gain
+# TODO: use to_dict to exclude optional fields (if equal to the default) from the export
+# TODO: check Algorithm vs Data for 3D, Z in axes
+# TODO: test configuration mutability and whether the validators are called when changing a field
+# TODO: still work to do on deciding what the data organization should be (train/validation folders, linking tiff/zarr directly)
 
 
 class ConfigStageEnum(str, Enum):
+    """Stages of the pipeline."""
+
     TRAINING = "training"
-    EVALUATION = "evaluation"
     PREDICTION = "prediction"
 
 
-# TODO Discuss the structure and logic of the configuration, and document every constraints decision
-
-
 class Configuration(BaseModel):
-    """Main experiment configuration.
+    """Main configuration class.
+
+    The minimum configuration is composed of the following fields:
+    - experiment_name:
+        name of the experiment, composed solely of letters, numbers, underscores,
+        dashes and spaces.
+    - working_directory:
+        path to the working directory, its parents folders must exist. If the working
+        directory does not exist itself, it is then created.
+    - algorithm:
+        algorithm configuration
+    - training or prediction:
+        training or prediction configuration, one of the two configuration must be
+        provided.
 
     Attributes
     ----------
     experiment_name : str
-        Name of the experiment
-    workdir : Path
-        Path to the working directory
+        Name of the experiment.
+    working_directory : Union[str, Path]
+        Path to the working directory.
+    trained_model : Optional[str]
+        Path to the trained model.
     algorithm : Algorithm
-        Algorithm configuration
-    training : Training
-        Training configuration (optional)
-    evaluation : Evaluation
-        Evaluation configuration (optional)
-    prediction : Prediction
-        Prediction configuration (optional)
+        Algorithm configuration.
+    training : Optional[Training]
+        Training configuration.
+    prediction : Optional[Prediction]
+        Prediction configuration.
     """
 
-    run_params: RunParams
+    # required parameters
+    experiment_name: str
+    working_directory: Union[str, Path]
 
-    # sub-configuration
+    # Optional field
+    trained_model: Optional[str] = None
+
+    # Sub-configurations
     algorithm: Algorithm
+    data: Data
 
-    # other parameters are optional
-    # these default to none and are omitted from yml export if not set
+    # Optional sub-configurations
     training: Optional[Training] = None
-    evaluation: Optional[Evaluation] = None
     prediction: Optional[Prediction] = None
 
-    def get_stage_config(self, stage: Union[str, ConfigStageEnum]) -> Stage:
-        """Get the configuration for a specific stage (training, evaluation or
-        prediction).
+    @validator("experiment_name")
+    def validate_name(cls, name: str) -> str:
+        """Validate experiment name.
 
-        Parameters
-        ----------
-        stage : Union[str, Stage]
-            Configuration stage: training, evaluation or prediction
-
-        Returns
-        -------
-        Union[Training, Evaluation]
-            Configuration for the specified stage
-
-        Raises
-        ------
-        ValueError
-            If stage is not one of training, evaluation or prediction
+        A valid experiment name is a non-empty string with only contains letters,
+        numbers, underscores, dashes and spaces.
         """
+        if len(name) == 0:
+            raise ValueError("Experiment name is empty.")
+
+        # Validate using a regex that it contains only letters, numbers, underscores,
+        # dashes and spaces
+        if not re.match(r"^[a-zA-Z0-9_\- ]*$", name):
+            raise ValueError(
+                f"Experiment name contains invalid characters (got {name}). "
+                f"Only letters, numbers, underscores, dashes and spaces are allowed."
+            )
+
+        return name
+
+    @validator("working_directory")
+    def validate_workdir(cls, workdir: str) -> Path:
+        """Validate working directory.
+
+        A valid working directory is a directory whose parent directory exists. If the
+        working directory does not exist itself, it is then created.
+        """
+        path = Path(workdir)
+
+        # check if it is a directory
+        if not path.is_dir():
+            raise ValueError(f"Working directory is not a directory (got {workdir}).")
+
+        # check if parent directory exists
+        if not path.parent.exists():
+            raise ValueError(
+                f"Parent directory of working directory does not exist (got {workdir})."
+            )
+
+        # create directory if it does not exist already
+        path.mkdir(exist_ok=True)
+
+        return path
+
+    @validator("trained_model")
+    def validate_trained_model(cls, model: str, values: dict) -> Union[str, Path]:
+        """Validate trained model path.
+
+        The model path must point to an existing .pth file, either relative to
+        the working directory or with an absolute path.
+        """
+        if "working_directory" not in values:
+            raise ValueError("Working directory is not defined.")
+
+        workdir = values["working_directory"]
+        relative_path = Path(workdir, model)
+        absolute_path = Path(model)
+
+        # check suffix
+        if absolute_path.suffix != ".pth":
+            raise ValueError(f"Path to model must be a .pth file (got {model}).")
+
+        # check if relative or absolute
+        if absolute_path.exists():
+            return absolute_path
+        elif relative_path.exists():
+            return relative_path.absolute()
+        else:
+            raise ValueError(
+                f"Path to model does not exist. "
+                f"Tried absolute ({absolute_path}) and relative ({relative_path})."
+            )
+
+    def dict(self, *args, **kwargs) -> dict:
+        """Override dict method.
+
+        This method ensures that the working directory is exported as a string and
+        not as a Path object.
+        """
+        dictionary = super().dict(exclude_none=True)
+
+        # replace Path by str
+        dictionary["working_directory"] = str(dictionary["working_directory"])
+
+        return dictionary
+
+    # TODO make sure we need this one, and cannot live without stages
+    def get_stage_config(self, stage: Union[str, ConfigStageEnum]) -> Stage:
         if stage == ConfigStageEnum.TRAINING:
             if self.training is None:
                 raise ValueError("Training configuration is not defined.")
@@ -147,53 +185,53 @@ class Configuration(BaseModel):
             )
 
 
-def load_configuration(cfg_path: Union[str, Path]) -> Dict:
-    # TODO: import here because it might not be used everytime?
-    # e.g. when using a library of config
-    import re
+def load_configuration(path: Union[str, Path]) -> dict:
+    """Load configuration from a yaml file.
 
-    import yaml
+    Parameters
+    ----------
+    path : Union[str, Path]
+        Path to the configudation.
 
-    """Load a yaml config file and correct all datatypes."""
-    # TODO Igor: move this functionality to a pydantic validator and remove due to a popular request
-    loader = yaml.SafeLoader
-    loader.add_implicit_resolver(
-        "tag:yaml.org,2002:float",
-        re.compile(
-            """^(?:
-     [-+]?(?:[0-9][0-9_]*)\\.[0-9_]*(?:[eE][-+]?[0-9]+)?
-    |[-+]?(?:[0-9][0-9_]*)(?:[eE][-+]?[0-9]+)
-    |\\.[0-9_]+(?:[eE][-+][0-9]+)?
-    |[-+]?[0-9][0-9_]*(?::[0-5]?[0-9])+\\.[0-9_]*
-    |[-+]?\\.(?:inf|Inf|INF)
-    |\\.(?:nan|NaN|NAN))$""",
-            re.X,
-        ),
-        list("-+0123456789."),
-    )
-    return yaml.load(Path(cfg_path).open("r"), Loader=loader)
+    Returns
+    -------
+    dict
+        Configuration as a dictionary.
+    """
+    return yaml.load(Path(path).open("r"), Loader=yaml.SafeLoader)
 
 
 def save_configuration(config: Configuration, path: Union[str, Path]) -> Path:
-    """Save a configuration to a yaml file.
+    """Save configuration to path.
 
     Parameters
     ----------
     config : Configuration
-        Configuration to save
+        Configuration to save.
     path : Union[str, Path]
-        Path to the yaml file
-    """
-    import yaml
+        Path to a existing folder in which to save the configuration or to an existing
+        configuration file.
 
+    Returns
+    -------
+    Path
+        Path object representing the configuration.
+
+    Raises
+    ------
+    ValueError
+       If the path does not point to an existing directory or .yml file.
+    """
     # make sure path is a Path object
     config_path = Path(path)
 
+    # check if path is pointing to an existing directory or .yml file
     if config_path.is_dir():
         config_path = Path(config_path, "config.yml")
     elif config_path.is_file() and config_path.suffix != ".yml":
         raise ValueError(f"Path must be a directory or .yml file (got {config_path}).")
 
+    # save configuration as dictionary to yaml
     with open(config_path, "w") as f:
         yaml.dump(config.dict(), f, default_flow_style=False)
 
