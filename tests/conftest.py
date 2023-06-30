@@ -31,8 +31,8 @@ def minimum_config(tmp_path: Path) -> dict:
     dict
         A minumum configuration example.
     """
-    # create data
-    path_train = tmp_path / "train"
+    # create data in the temporary folder
+    path_train = tmp_path / "training"
     create_tiff(path_train, n_files=3)
 
     # create dictionary
@@ -54,11 +54,11 @@ def minimum_config(tmp_path: Path) -> dict:
             "lr_scheduler": {"ReduceLROnPlateau"},
             "extraction_strategy": "random",
             "augmentation": True,
-            "data": {
-                "folder_path": str(path_train),
-                "data_format": "npy",
-                "axes": "SYX",
-            },
+        },
+        "data": {
+            "training_path": str(path_train),
+            "data_format": "tif",
+            "axes": "SYX",
         },
     }
 
@@ -113,19 +113,15 @@ def complete_config(tmp_path: Path, minimum_config: dict) -> dict:
     }
     complete_config["training"]["num_workers"] = (6,)
     complete_config["training"]["amp"] = {
-        "use": True,  # todo remove
+        "use": True,
         "init_scale": 1024,
     }
-    complete_config["training"]["data"]["folder_path"] = str(tmp_path)
+    complete_config["data"]["validation_path"] = str(path_validation)
+    complete_config["data"]["prediction_path"] = str(path_test)
 
     complete_config["prediction"] = {
         "tile_shape": [64, 64],
         "overlaps": [32, 32],
-        "data": {
-            "folder_path": str(path_test),
-            "data_format": "npy",
-            "axes": "SYX",
-        },
     }
 
     return complete_config

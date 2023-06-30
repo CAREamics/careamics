@@ -1,6 +1,6 @@
 from enum import Enum
 from pathlib import Path
-from typing import Union
+from typing import Optional, Union
 
 from pydantic import BaseModel, validator
 
@@ -14,7 +14,7 @@ class SupportedExtensions(str, Enum):
     """Supported extensions for input data.
 
     Currently supported:
-        - tiff/tiff: tiff files.
+        - tif/tiff: .tiff files.
         - npy: numpy files.
     """
 
@@ -50,22 +50,33 @@ class SupportedExtensions(str, Enum):
 class Data(BaseModel):
     """Data configuration.
 
+    The optional paths to the training, validation and prediction data should point to
+    the data parent folder.
+
     Attributes
     ----------
-    folder_path : Union[Path, str]
-        Path to the data, .
     data_format : SupportedExtensions
         Extensions of the data.
     axes : str
-        Axes of the training data.
+        Axes of the data.
+    training_path : Optional[Union[Path, str]]
+        Path to the training data.
+    validation_path : Optional[Union[Path, str]]
+        Path to the validation data.
+    prediction_path : Optional[Union[Path, str]]
+        Path to the prediction data.
     """
 
     # Mandatory fields
     data_format: SupportedExtensions
-    folder_path: Union[Path, str]
     axes: str
 
-    @validator("path")
+    # Optional fields
+    training_path: Optional[Union[Path, str]] = None
+    validation_path: Optional[Union[Path, str]] = None
+    prediction_path: Optional[Union[Path, str]] = None
+
+    @validator("training_path", "validation_path", "prediction_path")
     def check_path(cls, path_value: str, values: dict) -> Path:
         """Validate folder path.
 
@@ -136,36 +147,3 @@ class Data(BaseModel):
     class Config:
         use_enum_values = True  # enum are exported as str
         allow_mutation = False  # model is immutable
-
-
-class TrainingData(Data):
-    @validator("path")
-    def check_path(cls, path_value: str, values: dict) -> Path:
-        """Validate folder path for training data.
-
-        For training data, the folder path can contain training and validation
-        sub-folder.
-        """
-        try:
-            # check if it contains values with the correct extension
-            path = super().check_path(path_value, values)
-        except ValueError:
-            # if it doesn't, we check for training and validation sub-folders.
-            path = Path(path_value)
-            train_path = path / "training"
-
-            if not train_path.exists():
-                raise ValueError(f"Path {path} does not contain a training sub-folder.")
-            else:
-                # check that the path contains files with the correct extension
-                if "data_format" in values:
-                    ext = values["data_format"]
-
-                    if len(list(train_path.glob(f"*.{ext}"))) == 0:
-                        raise ValueError(
-                            f"No files with extension {ext} found in {path}."
-                        )
-                else:
-                    raise ValueError("Cannot check path validity without extension.")
-
-            return path

@@ -1,20 +1,14 @@
-from pydantic import conlist, validator
-
-from .data import Data
-from .stage import Stage
+from pydantic import BaseModel, conlist, validator
 
 
-class Prediction(Stage):
+class Prediction(BaseModel):
     # Mandatory parameters
     tile_shape: conlist(int, min_items=2, max_items=3)
 
     # Optional parameter
     overlaps: conlist(int, min_items=2, max_items=3) = [48, 48]
 
-    # Sub-configuration
-    prediction_data: Data
-
-    @validator("tile_shape, overlaps")
+    @validator("tile_shape", "overlaps")
     def check_divisible_by_2(cls, dims_list: conlist) -> conlist:
         """Validate tile shape and overlaps.
 
@@ -36,6 +30,12 @@ class Prediction(Stage):
         Overlaps must be smaller than tile shape.
         """
         tile_shape = values["tile_shape"]
+
+        if len(overlaps) != len(tile_shape):
+            raise ValueError(
+                f"Overlaps ({len(overlaps)}) and tile shape ({len(tile_shape)}) must "
+                f"have the same number of dimensions."
+            )
 
         for overlap, tile_dim in zip(overlaps, tile_shape):
             if overlap >= tile_dim:

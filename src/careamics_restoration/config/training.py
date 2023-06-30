@@ -4,8 +4,6 @@ from typing import Optional
 from pydantic import BaseModel, Field, conlist, validator
 from torch import optim
 
-from .data import TrainingData
-from .stage import Stage
 from .torch_optimizer import TorchLRScheduler, TorchOptimizer, get_parameters
 
 
@@ -118,7 +116,7 @@ class Amp(BaseModel):
         Initial scale used for loss scaling.
     """
 
-    use: bool
+    use: bool = False
 
     # Optional
     # TODO review init_scale and document better
@@ -137,7 +135,7 @@ class Amp(BaseModel):
         allow_mutation = False  # model is immutable
 
 
-class Training(Stage):
+class Training(BaseModel):
     """Parameters related to the training."""
 
     # Mandatory fields
@@ -148,8 +146,6 @@ class Training(Stage):
     optimizer: Optimizer
     lr_scheduler: LrScheduler
 
-    training_data: TrainingData
-
     extraction_strategy: ExtractionStrategies
 
     augmentation: bool
@@ -159,7 +155,7 @@ class Training(Stage):
     num_workers: int = Field(default=0, ge=0)
     amp: Optional[Amp] = Amp()
 
-    @validator("num_epochs, batch_size")
+    @validator("num_epochs", "batch_size")
     def check_greater_than_0(cls, val: int) -> int:
         """Validate number of epochs.
 

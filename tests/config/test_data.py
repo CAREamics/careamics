@@ -1,61 +1,8 @@
-from pathlib import Path
-
 import pytest
 
 from careamics_restoration.config.data import Data, SupportedExtensions
 
-
-def test_data(minimum_config):
-    data_config = minimum_config["training"]["data"]
-
-    # instantiate Data model
-    data = Data(**data_config)
-
-    # check that attributes are set correctly
-    assert str(data.path) == data_config["path"]
-    assert data.axes == data_config["axes"]
-    assert data.ext == data_config["ext"]
-    assert data.extraction_strategy == data_config["extraction_strategy"]
-    assert data.batch_size == data_config["batch_size"]
-    assert data.patch_size == data_config["patch_size"]
-
-    # check that None optional attributes are not in the dictionary
-    assert "num_files" not in data_config.keys()
-    assert "num_patches" not in data_config.keys()
-    assert "num_workers" not in data_config.keys()
-
-    data_dict = data.dict()
-    assert "num_files" not in data_dict
-    assert "num_patches" not in data_dict
-
-    # TODO default value is not None (revisit after cleaning up configuration)
-    assert "num_workers" in data_dict
-
-    # check that dictionary contains str not a Path
-    assert isinstance(data_dict["path"], str)
-
-    # add optional attributes
-    path_to_data = Path(data_config["path"])
-    extension = f"*.{data_config['ext']}"
-    n_files = len(list(path_to_data.glob(extension)))
-
-    data_config["num_files"] = n_files
-    data_config["num_patches"] = 100
-    data_config["num_workers"] = 8
-
-    # instantiate Data model
-    data = Data(**data_config)
-
-    # check the optional attributes
-    assert data.num_files == data_config["num_files"]
-    assert data.num_patches == data_config["num_patches"]
-    assert data.num_workers == data_config["num_workers"]
-
-    # check that they are also in the dictionary
-    data_dict = data.dict()
-    assert data_dict["num_files"] == data_config["num_files"]
-    assert data_dict["num_patches"] == data_config["num_patches"]
-    assert data_dict["num_workers"] == data_config["num_workers"]
+# TODO test fields
 
 
 @pytest.mark.parametrize("ext", ["tiff", "tif", "TIFF", "TIF"])

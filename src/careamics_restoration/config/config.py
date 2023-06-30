@@ -9,7 +9,6 @@ from pydantic import BaseModel, validator
 from .algorithm import Algorithm
 from .data import Data
 from .prediction import Prediction
-from .stage import Stage
 from .training import Training
 
 # TODO: Vera test if parameter parent_config at the top of the config could work
@@ -18,6 +17,7 @@ from .training import Training
 # TODO: check Algorithm vs Data for 3D, Z in axes
 # TODO: test configuration mutability and whether the validators are called when changing a field
 # TODO: still work to do on deciding what the data organization should be (train/validation folders, linking tiff/zarr directly)
+# TODO: how to make sure that one of training (+data) and prediction (+data) is defined?
 
 
 class ConfigStageEnum(str, Enum):
@@ -161,17 +161,14 @@ class Configuration(BaseModel):
         return dictionary
 
     # TODO make sure we need this one, and cannot live without stages
-    def get_stage_config(self, stage: Union[str, ConfigStageEnum]) -> Stage:
+    def get_stage_config(
+        self, stage: Union[str, ConfigStageEnum]
+    ) -> Union[Training, Prediction]:
         if stage == ConfigStageEnum.TRAINING:
             if self.training is None:
                 raise ValueError("Training configuration is not defined.")
 
             return self.training
-        elif stage == ConfigStageEnum.EVALUATION:
-            if self.evaluation is None:
-                raise ValueError("Evaluation configuration is not defined.")
-
-            return self.evaluation
         elif stage == ConfigStageEnum.PREDICTION:
             if self.prediction is None:
                 raise ValueError("Prediction configuration is not defined.")
@@ -179,8 +176,8 @@ class Configuration(BaseModel):
             return self.prediction
         else:
             raise ValueError(
-                f"Unknown stage {stage}. Available stages are"
-                f"{ConfigStageEnum.TRAINING}, {ConfigStageEnum.EVALUATION} and"
+                f"Unknown stage {stage}. Available stages are "
+                f"{ConfigStageEnum.TRAINING} and "
                 f"{ConfigStageEnum.PREDICTION}."
             )
 

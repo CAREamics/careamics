@@ -1,10 +1,7 @@
 from functools import partial
 from typing import Callable, Union
 
-from torch.utils.data import Dataset
-
 from ..config import ConfigStageEnum, Configuration
-from ..config.stage import Stage
 from ..manipulation import create_patch_transform
 from .dataset import PatchDataset
 from .dataset_utils import (
@@ -17,7 +14,7 @@ from .dataset_utils import (
 # TODO Joran: removing factories for now
 
 
-def create_tiling_function(stage: Stage) -> Union[None, Callable]:
+def create_tiling_function(stage) -> Union[None, Callable]:
     """Creates the tiling function depending on the provided strategy.
 
     Parameters

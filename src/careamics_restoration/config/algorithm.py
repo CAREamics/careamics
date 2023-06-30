@@ -49,8 +49,8 @@ class ModelParameters(BaseModel):
         of 2 (default 96).
     """
 
-    depth: int = Field(ge=1, le=10)
-    num_filters_base: int
+    depth: int = Field(default=2, ge=1, le=10)
+    num_filters_base: int = 96
 
     @validator("num_filters_base")
     def num_filter_base_must_be_power_of_two(cls, num_filters):
