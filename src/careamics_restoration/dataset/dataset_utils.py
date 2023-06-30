@@ -337,6 +337,7 @@ def extract_patches_predict(
     std: Optional[int] = None,
 ) -> Iterable[List[np.ndarray]]:
     # Overlap is half of the value mentioned in original N2V. must be even. It's like this because of current N2V notation
+
     # Iterate over num samples (S)
     for sample_idx in range(arr.shape[0]):
         sample = arr[sample_idx]
@@ -354,17 +355,27 @@ def extract_patches_predict(
         all_crop_coords, all_stitch_coords, all_overlap_crop_coords = np.swapaxes(
             crop_and_stitch_coords, 0, 1
         )
+
         # Iterate over generated coordinate pairs:
-        for crop_coords, stitch_coords, overlap_crop_coords in zip(
-            itertools.product(*all_crop_coords),
-            itertools.product(*all_stitch_coords),
-            itertools.product(*all_overlap_crop_coords),
+        for tile_idx, (crop_coords, stitch_coords, overlap_crop_coords) in enumerate(
+            zip(
+                itertools.product(*all_crop_coords),
+                itertools.product(*all_stitch_coords),
+                itertools.product(*all_overlap_crop_coords),
+            )
         ):
             tile = sample[(..., *[slice(c[0], c[1]) for c in list(crop_coords)])]
             tile = (normalize(tile, mean, std)) if (mean and std) else (tile)
+            # Check if we are at the end of the sample.
+            # To check we compute the lenght of the array that contains all the tiles
+            if tile_idx == all_crop_coords.shape[1] ** 2 - 1:
+                current_sample = sample_idx
+                last_tile = True
+            else:
+                last_tile = False
             yield (
                 np.expand_dims(tile.astype(np.float32), 0),
-                sample_idx,
+                last_tile,
                 arr.shape[1:],
                 overlap_crop_coords,
                 stitch_coords,

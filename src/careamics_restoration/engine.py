@@ -1,5 +1,4 @@
 import logging
-import random
 from pathlib import Path
 from typing import Optional, Tuple
 
@@ -17,7 +16,7 @@ from .losses import create_loss_function
 from .metrics import MetricTracker
 from .models import create_model
 from .prediction_utils import stitch_prediction
-from .utils import denormalize, get_device, normalize, set_logging, setup_cudnn_reproducibility
+from .utils import denormalize, get_device, normalize, set_logging
 
 
 def seed_everything(seed: int):
@@ -26,6 +25,7 @@ def seed_everything(seed: int):
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
     return seed
+
 
 # TODO: discuss normalization strategies, test running mean and std
 class Engine:
@@ -136,7 +136,7 @@ class Engine:
 
     # TODO: refactor into one function from the configuration, one function
     # for external input (can be the same one called from the first one)
-    def predict(self, ext_input: Optional[np.ndarray] = None):
+    def predict(self, ext_input: Optional[np.ndarray] = None, stitch: bool = False):
         self.model.to(self.device)
         self.model.eval()
 
@@ -144,44 +144,35 @@ class Engine:
             _, self.mean, self.std = self._get_train_dataloader()
 
         # TODO check, calculate mean and std on all data not only train
-        pred_loader = self.get_predict_dataloader(ext_input=ext_input)
-
-        self.stitch = (
-            # TODO move all this to dataset.should_stitch()
-            hasattr(pred_loader.dataset, "patch_generator")
-            and pred_loader.dataset.patch_generator is not None
+        pred_loader, stitch = self.get_predict_dataloader(
+            ext_input=ext_input, stitch=stitch
         )
 
         tiles = []
         prediction = []
-        if self.stitch:
+        if stitch:
             self.logger.info("Starting tiled prediction")
         else:
             self.logger.info("Starting prediction on whole sample")
 
         with torch.no_grad():
-            current_sample = 0
             # TODO reset iterator for every sample ?
             # TODO tiled prediction slow af, profile and optimize
             for idx, (tile, *auxillary) in tqdm(enumerate(pred_loader)):
-                # TODO: can the logic be simplified by passing a "last tile" or
-                # "new sample" flag in auxillary?
                 if auxillary:
                     (
-                        sample_idx,
+                        last_tile,
                         sample_shape,
                         overlap_crop_coords,
                         stitch_coords,
                     ) = auxillary
-                else:
-                    sample_idx = idx
 
                 # TODO: move normalization here?
                 outputs = self.model(tile.to(self.device))
 
                 outputs = denormalize(outputs, self.mean, self.std)
 
-                if self.stitch:
+                if stitch:
                     # TODO: can the code be expanded to have the squeezing done
                     # not in one liners, also check the detach() and numpy()
 
@@ -202,25 +193,14 @@ class Engine:
                             [c.squeeze().numpy() for c in stitch_coords],
                         )
                     )
+                    # check if sample is finished
+                    if last_tile:
+                        # Stitch tiles together
+                        predicted_sample = stitch_prediction(tiles, sample_shape)
+                        prediction.append(predicted_sample)
                 else:
                     prediction.append(outputs.detach().cpu().numpy().squeeze())
 
-                # check if sample is finished
-                if sample_idx != current_sample:
-                    # Stitch tiles together
-                    if self.stitch:
-                        # Leaving last tile aside because it belongs to the next sample
-                        predicted_sample = stitch_prediction(tiles[:-1], sample_shape)
-                        prediction.append(predicted_sample)
-                        tiles = [tiles[-1]]
-                        current_sample = sample_idx
-
-                    self.logger.info(f"Finished prediction for sample {sample_idx - 1}")
-
-        # Add last sample
-        if self.stitch:
-            predicted_sample = stitch_prediction(tiles, sample_shape)
-            prediction.append(predicted_sample)
         self.logger.info(f"Predicted {len(prediction)} samples")
         return np.stack(prediction)
 
@@ -292,8 +272,8 @@ class Engine:
         )
 
     def get_predict_dataloader(
-        self, ext_input: Optional[np.ndarray] = None
-    ) -> DataLoader:
+        self, ext_input: Optional[np.ndarray] = None, stitch: bool = False
+    ) -> Tuple[DataLoader, bool]:
         # TODO add description
         # TODO mypy does not take into account "is not None", we need to find a workaround
         if ext_input is not None:
@@ -302,11 +282,18 @@ class Engine:
         else:
             dataset = create_dataset(self.cfg, ConfigStageEnum.PREDICTION)
             dataset.set_normalization(self.mean, self.std)
-        return DataLoader(
-            dataset,
-            batch_size=self.cfg.prediction.data.batch_size,
-            num_workers=self.cfg.prediction.data.num_workers,
-            pin_memory=True,
+            stitch = (
+                hasattr(dataset, "patch_generator")
+                and dataset.patch_generator is not None
+            )
+        return (
+            DataLoader(
+                dataset,
+                batch_size=self.cfg.prediction.data.batch_size,
+                num_workers=self.cfg.prediction.data.num_workers,
+                pin_memory=True,
+            ),
+            stitch,
         )
 
     def get_optimizer_and_scheduler(
