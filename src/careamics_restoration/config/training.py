@@ -28,6 +28,8 @@ class Optimizer(BaseModel):
     into account. For more details, check:
     https://pytorch.org/docs/stable/optim.html#algorithms
 
+    Note that mandatory parameters (see the specific Optimizer signature in the
+    link above) must be provided. For example, SGD requires `lr`.
 
     Attributes
     ----------
@@ -68,6 +70,8 @@ class LrScheduler(BaseModel):
     into account. For more details, check:
     https://pytorch.org/docs/stable/optim.html#how-to-adjust-learning-rate
 
+    Note that mandatory parameters (see the specific LrScheduler signature in the
+    link above) must be provided. For example, StepLR requires `step_size`.
 
     Attributes
     ----------
@@ -101,7 +105,7 @@ class LrScheduler(BaseModel):
         allow_mutation = False  # model is immutable
 
 
-class Amp(BaseModel):
+class AMP(BaseModel):
     """Automatic mixed precision (AMP) parameters.
 
     See:
@@ -153,7 +157,7 @@ class Training(BaseModel):
     # Optional fields
     use_wandb: bool = True
     num_workers: int = Field(default=0, ge=0)
-    amp: Optional[Amp] = Amp()
+    amp: Optional[AMP] = AMP()
 
     @validator("num_epochs", "batch_size")
     def check_greater_than_0(cls, val: int) -> int:

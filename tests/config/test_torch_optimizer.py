@@ -7,8 +7,6 @@ from careamics_restoration.config.torch_optimizer import (
     get_schedulers,
 )
 
-# TODO test get parameters
-
 
 def test_get_schedulers_exist():
     """Test that the function `get_schedulers` return

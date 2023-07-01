@@ -7,7 +7,13 @@ from careamics_restoration.config.data import Data, SupportedExtensions
 def test_supported_extensions_case_insensitive(ext):
     """Test that SupportedExtension enum accepts all extensions in upper
     cases and with ."""
-    SupportedExtensions(ext)
+    sup_ext = SupportedExtensions(ext)
+
+    new_ext = ext.lower()
+    if ext.startswith("."):
+        new_ext = new_ext[1:]
+
+    assert sup_ext.value == new_ext
 
 
 @pytest.mark.parametrize("ext", ["nd2", "jpg", "png ", "zarr"])
