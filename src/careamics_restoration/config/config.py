@@ -14,11 +14,12 @@ from .training import Training
 
 # TODO: Vera test if parameter parent_config at the top of the config could work
 # TODO: is stage necessary? it seems to bring a lot of compelxity for little gain
-# TODO: use to_dict to exclude optional fields (if equal to the default) from the export
 # TODO: check Algorithm vs Data for 3D, Z in axes
-# TODO: test configuration mutability and whether the validators are called when changing a field
+# TODO: test configuration mutability and whether the validators are called when
+# changing a field
 # TODO: how to make sure that one of training (+data) and prediction (+data) is defined?
-# TODO: some of the optimizer and lr_scheduler have one mandatory parameter, how to handle that?
+# TODO: some of the optimizer and lr_scheduler have one mandatory parameter, how to
+# handle that?
 
 
 class ConfigStageEnum(str, Enum):
@@ -82,7 +83,7 @@ class Configuration(BaseModel):
         A valid experiment name is a non-empty string with only contains letters,
         numbers, underscores, dashes and spaces.
         """
-        if len(name) == 0:
+        if len(name) == 0 or name.isspace():
             raise ValueError("Experiment name is empty.")
 
         # Validate using a regex that it contains only letters, numbers, underscores,
@@ -105,7 +106,7 @@ class Configuration(BaseModel):
         path = Path(workdir)
 
         # check if it is a directory
-        if not path.is_dir():
+        if path.exists() and not path.is_dir():
             raise ValueError(f"Working directory is not a directory (got {workdir}).")
 
         # check if parent directory exists
@@ -121,7 +122,7 @@ class Configuration(BaseModel):
 
     @field_validator("trained_model")
     def validate_trained_model(
-        cls, model: str, values: FieldValidationInfo
+        cls, model_path: str, values: FieldValidationInfo
     ) -> Union[str, Path]:
         """Validate trained model path.
 
@@ -134,18 +135,16 @@ class Configuration(BaseModel):
             )
 
         workdir = values.data["working_directory"]
-        relative_path = Path(workdir, model)
-        absolute_path = Path(model)
+        relative_path = Path(workdir, model_path)
+        absolute_path = Path(model_path)
 
         # check suffix
         if absolute_path.suffix != ".pth":
-            raise ValueError(f"Path to model must be a .pth file (got {model}).")
+            raise ValueError(f"Path to model must be a .pth file (got {model_path}).")
 
         # check if relative or absolute
-        if absolute_path.exists():
-            return absolute_path
-        elif relative_path.exists():
-            return relative_path.absolute()
+        if absolute_path.exists() or relative_path.exists():
+            return model_path
         else:
             raise ValueError(
                 f"Path to model does not exist. "
@@ -169,8 +168,12 @@ class Configuration(BaseModel):
         # let's revisit this.
         dictionary["algorithm"] = self.algorithm.model_dump()
         dictionary["data"] = self.data.model_dump()
-        dictionary["training"] = self.training.model_dump()
-        dictionary["prediction"] = self.prediction.model_dump()
+
+        # same for optional fields
+        if self.training is not None:
+            dictionary["training"] = self.training.model_dump()
+        if self.prediction is not None:
+            dictionary["prediction"] = self.prediction.model_dump()
 
         return dictionary
 
@@ -178,6 +181,23 @@ class Configuration(BaseModel):
     def get_stage_config(
         self, stage: Union[str, ConfigStageEnum]
     ) -> Union[Training, Prediction]:
+        """Get configuration for a given stage (training or prediction).
+
+        Parameters
+        ----------
+        stage : Union[str, ConfigStageEnum]
+            Stage for which to get the configuration.
+
+        Returns
+        -------
+        Union[Training, Prediction]
+            Configuration for the given stage.
+
+        Raises
+        ------
+        ValueError
+            If the corresponding stage is not defined or the stage unknown.
+        """
         if stage == ConfigStageEnum.TRAINING:
             if self.training is None:
                 raise ValueError("Training configuration is not defined.")
