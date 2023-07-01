@@ -105,7 +105,7 @@ class Algorithm(BaseModel):
         Model parameters, see ModelParameters for more details.
     """
 
-    # Config
+    # Pydantic class configuration
     model_config = ConfigDict(
         use_enum_values=True,
         protected_namespaces=(),  # allows to use mode_* as a field name

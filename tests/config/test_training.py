@@ -1,4 +1,5 @@
 import pytest
+from pydantic import conlist
 
 from careamics_restoration.config.torch_optimizer import (
     TorchLRScheduler,
@@ -117,6 +118,57 @@ def test_training_wrong_num_epochs(minimum_config: dict, num_epochs: int):
     """Test that wrong number of epochs cause an error."""
     training = minimum_config["training"]
     training["num_epochs"] = num_epochs
+
+    with pytest.raises(ValueError):
+        Training(**training)
+
+
+@pytest.mark.parametrize("batch_size", [1, 2, 4, 9000])
+def test_training_batch_size(minimum_config: dict, batch_size: int):
+    """Test batch size greater than 0."""
+    training = minimum_config["training"]
+    training["batch_size"] = batch_size
+
+    training = Training(**training)
+    assert training.batch_size == batch_size
+
+
+@pytest.mark.parametrize("batch_size", [-1, 0])
+def test_training_wrong_batch_size(minimum_config: dict, batch_size: int):
+    """Test that wrong batch size cause an error."""
+    training = minimum_config["training"]
+    training["batch_size"] = batch_size
+
+    with pytest.raises(ValueError):
+        Training(**training)
+
+
+@pytest.mark.parametrize("patch_size", [[2, 2], [2, 4, 2], [32, 96]])
+def test_training_patch_size(minimum_config: dict, patch_size: conlist):
+    """Test patch size greater than 0."""
+    training = minimum_config["training"]
+    training["patch_size"] = patch_size
+
+    training = Training(**training)
+    assert training.patch_size == patch_size
+
+
+@pytest.mark.parametrize(
+    "patch_size",
+    [
+        [
+            2,
+        ],
+        [2, 4, 2, 2],
+        [1, 1],
+        [2, 0],
+        [33, 32],
+    ],
+)
+def test_training_wrong_patch_size(minimum_config: dict, patch_size: conlist):
+    """Test that wrong patch size cause an error."""
+    training = minimum_config["training"]
+    training["patch_size"] = patch_size
 
     with pytest.raises(ValueError):
         Training(**training)

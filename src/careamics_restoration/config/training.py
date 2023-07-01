@@ -46,7 +46,7 @@ class Optimizer(BaseModel):
         Parameters of the optimizer (see torch documentation).
     """
 
-    # Config
+    # Pydantic class configuration
     model_config = ConfigDict(use_enum_values=True)
 
     # Mandatory field
@@ -88,7 +88,7 @@ class LrScheduler(BaseModel):
         Parameters of the learning rate scheduler (see torch documentation).
     """
 
-    # Config
+    # Pydantic class configuration
     model_config = ConfigDict(use_enum_values=True)
 
     # Mandatory field
@@ -143,9 +143,47 @@ class AMP(BaseModel):
 
 
 class Training(BaseModel):
-    """Parameters related to the training."""
+    """Parameters related to the training.
 
-    # Config
+    Mandatory parameters are:
+        - num_epochs: number of epochs, greater than 0.
+        - patch_size: patch size, 2D or 3D, non-zero and divisible by 2.
+        - batch_size: batch size, greater than 0.
+        - optimizer: optimizer, see `Optimizer`.
+        - lr_scheduler: learning rate scheduler, see `LrScheduler`.
+        - extraction_strategy: extraction strategy, see `ExtractionStrategies`.
+        - augmentation: whether to use data augmentation or not (True or False).
+
+    The other fields are optional:
+        - use_wandb: whether to use wandb or not (default True).
+        - num_workers: number of workers (default 0).
+        - amp: automatic mixed precision parameters (disabled by default).
+
+    Attributes
+    ----------
+    num_epochs : int
+        Number of epochs, greater than 0.
+    patch_size : conlist(int, min_length=2, max_length=3)
+        Patch size, 2D or 3D, non-zero and divisible by 2.
+    batch_size : int
+        Batch size, greater than 0.
+    optimizer : Optimizer
+        Optimizer.
+    lr_scheduler : LrScheduler
+        Learning rate scheduler.
+    extraction_strategy : ExtractionStrategies
+        Extraction strategy.
+    augmentation : bool
+        Whether to use data augmentation or not.
+    use_wandb : bool
+        Optional, whether to use wandb or not (default True).
+    num_workers : int
+        Optional, number of workers (default 0).
+    amp : AMP
+        Optional, automatic mixed precision parameters (disabled by default).
+    """
+
+    # Pydantic class configuration
     model_config = ConfigDict(use_enum_values=True)
 
     # Mandatory fields
@@ -180,11 +218,11 @@ class Training(BaseModel):
     def check_patch_size_divisible_by_2(cls, patch_list: conlist) -> conlist:
         """Validate patch size.
 
-        Patch size must be positive and divisible by 2.
+        Patch size must be non-zero, positive and divisible by 2.
         """
         for dim in patch_list:
-            if dim < 0:
-                raise ValueError(f"Patch size must be positive (got {dim}).")
+            if dim < 1:
+                raise ValueError(f"Patch size must be non-zero positive (got {dim}).")
 
             if dim % 2 != 0:
                 raise ValueError(f"Patch size must be divisible by 2 (got {dim}).")

@@ -67,7 +67,7 @@ class Data(BaseModel):
         Path to the prediction data.
     """
 
-    # Config
+    # Pydantic class configuration
     model_config = ConfigDict(use_enum_values=True)
 
     # Mandatory fields
