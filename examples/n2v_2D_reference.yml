@@ -31,7 +31,7 @@ algorithm:
 
 training:
   # Number of epochs, greater or equal than 1
-  num_epochs: 500
+  num_epochs: 100
 
   # Patch size, 2D or 3D, divisible by 2
   patch_size: [64, 64]
@@ -46,8 +46,8 @@ training:
 
     # Optional, parameters of the optimizer
     # see https://pytorch.org/docs/stable/optim.html#algorithms
-    parameters:
-      lr: 0.0004
+    # parameters:
+    #   lr: 0.0004
 
   # Learning rate scheduler
   lr_scheduler:
@@ -60,7 +60,7 @@ training:
     #   mode: min
 
   # Extraction strategy, one of random or sequential
-  extraction_strategy: sequential
+  extraction_strategy: random
 
   # Use augmentation (True or False)
   augmentation: True
@@ -74,7 +74,7 @@ training:
   # Optional, automatic mixed precision
   # amp:
   #   # Use (True or False)
-  #   use: True
+  #   use: False
 
   #   # Optional, scaling parameter for mixed precision training, power of 2 recommended.
   #   # minimum is 512, maximum is 65536
@@ -82,20 +82,20 @@ training:
 
 data:
   # Extension of the data, one of npy, tiff and tif
-  data_format: tif
+  data_format: npy
 
   # Axes, among STCZYX with constraints on order
-  axes: YX
+  axes: SYX
 
   # Optional, path to the data, absolute or relative to working_directory
-  training_path: n2v_sem/train
-  validation_path: n2v_sem/val
+  training_path: data/training
+  # validation_path: data/validation
   # prediction_path: data/prediction
 
 # Optional
 prediction:
   # Tile shape for tiled prediction, 2D or 3D, divisible by 2
-  tile_shape: [128, 128]
+  tile_shape: [64, 64]
 
   # Overlap for tiled prediction, 2D or 3D, divisible by 2, smaller than tile shape
   overlaps: [48, 48]

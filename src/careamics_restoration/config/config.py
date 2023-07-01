@@ -20,6 +20,9 @@ from .training import Training
 # TODO: how to make sure that one of training (+data) and prediction (+data) is defined?
 # TODO: some of the optimizer and lr_scheduler have one mandatory parameter, how to
 # handle that?
+# TODO: config version?
+# TODO: for the working directory to work it should probably be set when starting the
+# engine
 
 
 class ConfigStageEnum(str, Enum):
@@ -216,7 +219,7 @@ class Configuration(BaseModel):
             )
 
 
-def load_configuration(path: Union[str, Path]) -> dict:
+def load_configuration(path: Union[str, Path]) -> Configuration:
     """Load configuration from a yaml file.
 
     Parameters
@@ -226,10 +229,13 @@ def load_configuration(path: Union[str, Path]) -> dict:
 
     Returns
     -------
-    dict
-        Configuration as a dictionary.
+    Configuration
+        Configuration.
     """
-    return yaml.load(Path(path).open("r"), Loader=yaml.SafeLoader)
+    # load dictionary from yaml
+    dictionary = yaml.load(Path(path).open("r"), Loader=yaml.SafeLoader)
+
+    return Configuration(**dictionary)
 
 
 def save_configuration(config: Configuration, path: Union[str, Path]) -> Path:

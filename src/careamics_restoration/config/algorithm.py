@@ -77,7 +77,7 @@ class Algorithm(BaseModel):
 
     The minimum algorithm configuration is composed of the following fields:
         - loss:
-            List of losses to use, currently only supports n2v.
+            Loss to use, currently only supports n2v.
         - model:
             Model to use, currently only supports UNet.
         - is_3D:
