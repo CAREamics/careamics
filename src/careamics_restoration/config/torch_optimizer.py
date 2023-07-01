@@ -53,8 +53,8 @@ class TorchLRScheduler(str, Enum):
 
 def get_parameters(
     func: type,
-    user_params: Dict,
-) -> Dict:
+    user_params: dict,
+) -> dict:
     """Filter parameters according to `func`'s signature.
 
     Parameters

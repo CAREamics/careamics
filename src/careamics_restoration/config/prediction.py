@@ -1,14 +1,14 @@
-from pydantic import BaseModel, conlist, validator
+from pydantic import BaseModel, FieldValidationInfo, conlist, field_validator
 
 
 class Prediction(BaseModel):
     # Mandatory parameters
-    tile_shape: conlist(int, min_items=2, max_items=3)
+    tile_shape: conlist(int, min_length=2, max_length=3)
 
     # Optional parameter
-    overlaps: conlist(int, min_items=2, max_items=3) = [48, 48]
+    overlaps: conlist(int, min_length=2, max_length=3) = [48, 48]
 
-    @validator("tile_shape", "overlaps")
+    @field_validator("tile_shape", "overlaps")
     def check_divisible_by_2(cls, dims_list: conlist) -> conlist:
         """Validate tile shape and overlaps.
 
@@ -23,13 +23,15 @@ class Prediction(BaseModel):
 
         return dims_list
 
-    @validator("overlaps")
-    def check_smaller_than_tile(cls, overlaps: conlist, values: dict) -> conlist:
+    @field_validator("overlaps")
+    def check_smaller_than_tile(
+        cls, overlaps: conlist, values: FieldValidationInfo
+    ) -> conlist:
         """Validate overlaps.
 
         Overlaps must be smaller than tile shape.
         """
-        tile_shape = values["tile_shape"]
+        tile_shape = values.data["tile_shape"]
 
         if len(overlaps) != len(tile_shape):
             raise ValueError(
@@ -44,6 +46,3 @@ class Prediction(BaseModel):
                 )
 
         return overlaps
-
-    class Config:
-        allow_mutation = False

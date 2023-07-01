@@ -2,7 +2,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Optional, Union
 
-from pydantic import BaseModel, validator
+from pydantic import BaseModel, ConfigDict, FieldValidationInfo, field_validator
 
 # TODO this creates a circular import when instantiating the engine
 # engine -> config -> evaluation -> data -> dataloader_utils
@@ -23,7 +23,7 @@ class SupportedExtensions(str, Enum):
     NPY = "npy"
 
     @classmethod
-    def _missing_(cls, value):
+    def _missing_(cls, value: str):
         """Override default behaviour for missing values.
 
         This method is called when `value` is not found in the enum values. It
@@ -67,6 +67,9 @@ class Data(BaseModel):
         Path to the prediction data.
     """
 
+    # Config
+    model_config = ConfigDict(use_enum_values=True)
+
     # Mandatory fields
     data_format: SupportedExtensions
     axes: str
@@ -76,8 +79,8 @@ class Data(BaseModel):
     validation_path: Optional[Union[Path, str]] = None
     prediction_path: Optional[Union[Path, str]] = None
 
-    @validator("training_path", "validation_path", "prediction_path")
-    def check_path(cls, path_value: str, values: dict) -> Path:
+    @field_validator("training_path", "validation_path", "prediction_path")
+    def check_path(cls, path_value: str, values: FieldValidationInfo) -> Path:
         """Validate folder path.
 
         Check that files with the correct extension can be found in the folder.
@@ -91,8 +94,8 @@ class Data(BaseModel):
             raise ValueError(f"Path {path} is not a directory")
 
         # check that the path contains files with the correct extension
-        if "data_format" in values:
-            ext = values["data_format"]
+        if "data_format" in values.data:
+            ext = values.data["data_format"]
 
             if len(list(path.glob(f"*.{ext}"))) == 0:
                 raise ValueError(f"No files with extension {ext} found in {path}.")
@@ -101,7 +104,7 @@ class Data(BaseModel):
 
         return path
 
-    @validator("axes")
+    @field_validator("axes")
     def validate_axes(cls, axes: str) -> str:
         """Validate axes.
 
@@ -143,7 +146,3 @@ class Data(BaseModel):
         dictionary["folder_path"] = str(dictionary["folder_path"])
 
         return dictionary
-
-    class Config:
-        use_enum_values = True  # enum are exported as str
-        allow_mutation = False  # model is immutable

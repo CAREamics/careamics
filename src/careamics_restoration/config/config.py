@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Optional, Union
 
 import yaml
-from pydantic import BaseModel, validator
+from pydantic import BaseModel, FieldValidationInfo, field_validator
 
 from .algorithm import Algorithm
 from .data import Data
@@ -18,6 +18,7 @@ from .training import Training
 # TODO: test configuration mutability and whether the validators are called when changing a field
 # TODO: still work to do on deciding what the data organization should be (train/validation folders, linking tiff/zarr directly)
 # TODO: how to make sure that one of training (+data) and prediction (+data) is defined?
+# TODO: check out pydantic serialization decorators, maybe can help
 
 
 class ConfigStageEnum(str, Enum):
@@ -74,7 +75,7 @@ class Configuration(BaseModel):
     training: Optional[Training] = None
     prediction: Optional[Prediction] = None
 
-    @validator("experiment_name")
+    @field_validator("experiment_name")
     def validate_name(cls, name: str) -> str:
         """Validate experiment name.
 
@@ -94,7 +95,7 @@ class Configuration(BaseModel):
 
         return name
 
-    @validator("working_directory")
+    @field_validator("working_directory")
     def validate_workdir(cls, workdir: str) -> Path:
         """Validate working directory.
 
@@ -118,17 +119,19 @@ class Configuration(BaseModel):
 
         return path
 
-    @validator("trained_model")
-    def validate_trained_model(cls, model: str, values: dict) -> Union[str, Path]:
+    @field_validator("trained_model")
+    def validate_trained_model(
+        cls, model: str, values: FieldValidationInfo
+    ) -> Union[str, Path]:
         """Validate trained model path.
 
         The model path must point to an existing .pth file, either relative to
         the working directory or with an absolute path.
         """
-        if "working_directory" not in values:
+        if "working_directory" not in values.data:
             raise ValueError("Working directory is not defined.")
 
-        workdir = values["working_directory"]
+        workdir = values.data["working_directory"]
         relative_path = Path(workdir, model)
         absolute_path = Path(model)
 

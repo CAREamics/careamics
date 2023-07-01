@@ -118,5 +118,5 @@ def test_training_wrong_num_epochs(minimum_config: dict, num_epochs: int):
     training = minimum_config["training"]
     training["num_epochs"] = num_epochs
 
-    Training(**training)
-    print(training)
+    with pytest.raises(ValueError):
+        Training(**training)

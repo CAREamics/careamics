@@ -1,6 +1,6 @@
 from enum import Enum
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 # python 3.11: https://docs.python.org/3/library/enum.html
@@ -52,8 +52,8 @@ class ModelParameters(BaseModel):
     num_filters_base: int = 96
 
     # TODO revisit the constraints on num_filters_base
-    @validator("num_filters_base")
-    def num_filter_base_must_even(cls, num_filters):
+    @field_validator("num_filters_base")
+    def num_filter_base_must_even(cls, num_filters: int):
         """Validate that num_filter_base is a power of two (minimum 8)."""
         # if odd
         if num_filters % 2 != 0:
@@ -105,6 +105,12 @@ class Algorithm(BaseModel):
         Model parameters, see ModelParameters for more details.
     """
 
+    # Config
+    model_config = ConfigDict(
+        use_enum_values=True,
+        protected_namespaces=(),  # allows to use mode_* as a field name
+    )
+
     # Mandatory fields
     loss: Losses
     model: Models
@@ -114,7 +120,3 @@ class Algorithm(BaseModel):
     masking_strategy: MaskingStrategies = MaskingStrategies.DEFAULT
     masked_pixel_percentage: float = Field(default=0.2, ge=0.1, le=20)
     model_parameters: ModelParameters = ModelParameters()
-
-    class Config:
-        use_enum_values = True  # enum are exported as str
-        allow_mutation = False  # model is immutable

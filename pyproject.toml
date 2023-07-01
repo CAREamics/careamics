@@ -41,7 +41,7 @@ dependencies = [
     'torchvision', 
     'tifffile', 
     'pyyaml', 
-    'pydantic', 
+    'pydantic>=2.0', 
     'scikit-image',
     'bioimageio.core',
     'zarr'

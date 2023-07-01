@@ -1,7 +1,14 @@
 from enum import Enum
 from typing import Optional
 
-from pydantic import BaseModel, Field, conlist, validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    FieldValidationInfo,
+    conlist,
+    field_validator,
+)
 from torch import optim
 
 from .torch_optimizer import TorchLRScheduler, TorchOptimizer, get_parameters
@@ -39,16 +46,20 @@ class Optimizer(BaseModel):
         Parameters of the optimizer (see torch documentation).
     """
 
+    # Config
+    model_config = ConfigDict(use_enum_values=True)
+
+    # Mandatory field
     name: TorchOptimizer
 
     # Optional parameters
     parameters: dict = {}
 
-    @validator("parameters")
-    def check_optimizer_parameters(cls, user_params, values):
+    @field_validator("parameters")
+    def check_optimizer_parameters(cls, user_params: dict, values: FieldValidationInfo):
         """Validate optimizer parameters."""
-        if "name" in values:
-            optimizer_name = values["name"]
+        if "name" in values.data:
+            optimizer_name = values.data["name"]
 
             # retrieve the corresponding optimizer class
             optimizer_class = getattr(optim, optimizer_name)
@@ -57,10 +68,6 @@ class Optimizer(BaseModel):
             return get_parameters(optimizer_class, user_params)
         else:
             raise ValueError("Cannot validate optimizer parameters without `name`.")
-
-    class Config:
-        use_enum_values = True  # enum are exported as str
-        allow_mutation = False  # model is immutable
 
 
 class LrScheduler(BaseModel):
@@ -81,16 +88,20 @@ class LrScheduler(BaseModel):
         Parameters of the learning rate scheduler (see torch documentation).
     """
 
+    # Config
+    model_config = ConfigDict(use_enum_values=True)
+
+    # Mandatory field
     name: TorchLRScheduler
 
     # Optional parameters
     parameters: dict = {}
 
-    @validator("parameters")
-    def check_parameters(cls, user_params, values):
+    @field_validator("parameters")
+    def check_parameters(cls, user_params: dict, values: FieldValidationInfo):
         """Validate lr scheduler parameters."""
-        if "name" in values:
-            lr_scheduler_name = values["name"]
+        if "name" in values.data:
+            lr_scheduler_name = values.data["name"]
 
             # retrieve the corresponding lr scheduler class
             lr_scheduler_class = getattr(optim.lr_scheduler, lr_scheduler_name)
@@ -99,10 +110,6 @@ class LrScheduler(BaseModel):
             return get_parameters(lr_scheduler_class, user_params)
         else:
             raise ValueError("Cannot validate lr scheduler parameters without `name`.")
-
-    class Config:
-        use_enum_values = True  # enum are exported as str
-        allow_mutation = False  # model is immutable
 
 
 class AMP(BaseModel):
@@ -126,25 +133,24 @@ class AMP(BaseModel):
     # TODO review init_scale and document better
     init_scale: int = Field(default=1024, ge=512, le=65536)
 
-    @validator("init_scale")
-    def check_power_of_2(cls, scale):
+    @field_validator("init_scale")
+    def check_power_of_2(cls, scale: int):
         """Validate that init_scale is a power of two."""
         if not scale & (scale - 1) == 0:
             raise ValueError(f"Init scale must be a power of two (got {scale}).")
 
         return scale
 
-    class Config:
-        use_enum_values = True  # enum are exported as str
-        allow_mutation = False  # model is immutable
-
 
 class Training(BaseModel):
     """Parameters related to the training."""
 
+    # Config
+    model_config = ConfigDict(use_enum_values=True)
+
     # Mandatory fields
     num_epochs: int
-    patch_size: conlist(int, min_items=2, max_items=3)
+    patch_size: conlist(int, min_length=2, max_length=3)
     batch_size: int
 
     optimizer: Optimizer
@@ -159,7 +165,7 @@ class Training(BaseModel):
     num_workers: int = Field(default=0, ge=0)
     amp: Optional[AMP] = AMP()
 
-    @validator("num_epochs", "batch_size")
+    @field_validator("num_epochs", "batch_size")
     def check_greater_than_0(cls, val: int) -> int:
         """Validate number of epochs.
 
@@ -170,8 +176,8 @@ class Training(BaseModel):
 
         return val
 
-    @validator("patch_size")
-    def check_patch_size_divisible_by_2(cls, patch_list) -> conlist:
+    @field_validator("patch_size")
+    def check_patch_size_divisible_by_2(cls, patch_list: conlist) -> conlist:
         """Validate patch size.
 
         Patch size must be positive and divisible by 2.
@@ -184,7 +190,3 @@ class Training(BaseModel):
                 raise ValueError(f"Patch size must be divisible by 2 (got {dim}).")
 
         return patch_list
-
-    class Config:
-        use_enum_values = True  # enum are exported as str
-        allow_mutation = False  # model is immutable
