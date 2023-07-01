@@ -48,6 +48,34 @@ def test_optimizer_parameters(optimizer_name: TorchOptimizer, parameters: dict):
     assert optimizer.parameters == parameters
 
 
+def test_optimizer_to_dict_minimum(minimum_config: dict):
+    """ "Test that export to dict does not include optional value."""
+    optim_minimum = Optimizer(**minimum_config["training"]["optimizer"]).model_dump()
+    assert optim_minimum == minimum_config["training"]["optimizer"]
+
+    assert "name" in optim_minimum.keys()
+    assert "parameters" not in optim_minimum.keys()
+
+
+def test_optimizer_to_dict_complete(complete_config: dict):
+    """ "Test that export to dict does include optional value."""
+    optim_minimum = Optimizer(**complete_config["training"]["optimizer"]).model_dump()
+    assert optim_minimum == complete_config["training"]["optimizer"]
+
+    assert "name" in optim_minimum.keys()
+    assert "parameters" in optim_minimum.keys()
+
+
+def test_optimizer_to_dict_optional(complete_config: dict):
+    """ "Test that export to dict does not include optional value."""
+    optim_config = complete_config["training"]["optimizer"]
+    optim_config["parameters"] = {}
+
+    optim_minimum = Optimizer(**optim_config).model_dump()
+    assert "name" in optim_minimum.keys()
+    assert "parameters" not in optim_minimum.keys()
+
+
 @pytest.mark.parametrize(
     "lr_scheduler_name, parameters",
     [
@@ -74,7 +102,7 @@ def test_optimizer_parameters(optimizer_name: TorchOptimizer, parameters: dict):
         ),
     ],
 )
-def test_lr_scheduler_parameters(lr_scheduler_name: TorchLRScheduler, parameters: dict):
+def test_scheduler_parameters(lr_scheduler_name: TorchLRScheduler, parameters: dict):
     """Test lr scheduler parameters filtering.
 
     For parameters, see:
@@ -89,6 +117,39 @@ def test_lr_scheduler_parameters(lr_scheduler_name: TorchLRScheduler, parameters
     assert lr_scheduler.parameters == parameters
 
 
+def test_scheduler_to_dict_minimum(minimum_config: dict):
+    """ "Test that export to dict does not include optional value."""
+    scheduler_minimum = LrScheduler(
+        **minimum_config["training"]["lr_scheduler"]
+    ).model_dump()
+    assert scheduler_minimum == minimum_config["training"]["lr_scheduler"]
+
+    assert "name" in scheduler_minimum.keys()
+    assert "parameters" not in scheduler_minimum.keys()
+
+
+def test_scheduler_to_dict_complete(complete_config: dict):
+    """ "Test that export to dict does include optional value."""
+    scheduler_complete = LrScheduler(
+        **complete_config["training"]["lr_scheduler"]
+    ).model_dump()
+    assert scheduler_complete == complete_config["training"]["lr_scheduler"]
+
+    assert "name" in scheduler_complete.keys()
+    assert "parameters" in scheduler_complete.keys()
+
+
+def test_scheduler_to_dict_optional(complete_config: dict):
+    """ "Test that export to dict does not include optional value."""
+    scheduler_config = complete_config["training"]["lr_scheduler"]
+    scheduler_config["parameters"] = {}
+
+    scheduler_complete = LrScheduler(**scheduler_config).model_dump()
+
+    assert "name" in scheduler_complete.keys()
+    assert "parameters" not in scheduler_complete.keys()
+
+
 @pytest.mark.parametrize("init_scale", [512, 1024, 65536])
 def test_amp_init_scale(init_scale: int):
     """Test AMP init_scale parameter."""
@@ -101,6 +162,32 @@ def test_amp_wrong_init_scale(init_scale: int):
     """Test wrong AMP init_scale parameter."""
     with pytest.raises(ValueError):
         AMP(use=True, init_scale=init_scale)
+
+
+def test_amp_to_dict():
+    """ "Test export to dict."""
+    # all values in there
+    vals = {"use": True, "init_scale": 512}
+    amp = AMP(**vals).model_dump()
+    assert amp == vals
+
+    assert "use" in amp.keys()
+    assert "init_scale" in amp.keys()
+
+    # optional value not in there if not specified (default)
+    vals = {"use": True}
+    amp = AMP(**vals).model_dump()
+    assert amp == vals
+
+    assert "use" in amp.keys()
+    assert "init_scale" not in amp.keys()
+
+    # optional value not in there if provided as default
+    vals = {"use": True, "init_scale": 1024}
+    amp = AMP(**vals).model_dump()
+
+    assert "use" in amp.keys()
+    assert "init_scale" not in amp.keys()
 
 
 @pytest.mark.parametrize("num_epochs", [1, 2, 4, 9000])
@@ -172,3 +259,83 @@ def test_training_wrong_patch_size(minimum_config: dict, patch_size: conlist):
 
     with pytest.raises(ValueError):
         Training(**training)
+
+
+@pytest.mark.parametrize("num_workers", [0, 1, 4, 9000])
+def test_training_num_workers(complete_config: dict, num_workers: int):
+    """Test batch size greater than 0."""
+    training = complete_config["training"]
+    training["num_workers"] = num_workers
+
+    training = Training(**training)
+    assert training.num_workers == num_workers
+
+
+@pytest.mark.parametrize("num_workers", [-1, -2])
+def test_training_wrong_num_workers(complete_config: dict, num_workers: int):
+    """Test that wrong batch size cause an error."""
+    training = complete_config["training"]
+    training["num_workers"] = num_workers
+
+    with pytest.raises(ValueError):
+        Training(**training)
+
+
+def test_training_to_dict_minimum(minimum_config: dict):
+    """Test that the minimum config get export to dict correctly."""
+    training_minimum = Training(**minimum_config["training"]).model_dump()
+    assert training_minimum == minimum_config["training"]
+
+    # Mandatory fields are present
+    assert "num_epochs" in training_minimum.keys()
+    assert "patch_size" in training_minimum.keys()
+    assert "batch_size" in training_minimum.keys()
+
+    assert "optimizer" in training_minimum.keys()
+    assert "name" in training_minimum["optimizer"].keys()
+    # optional subfield
+    assert "parameters" not in training_minimum["optimizer"].keys()
+
+    assert "lr_scheduler" in training_minimum.keys()
+    assert "name" in training_minimum["lr_scheduler"].keys()
+    # optional subfield
+    assert "parameters" not in training_minimum["lr_scheduler"].keys()
+
+    assert "augmentation" in training_minimum.keys()
+    assert "extraction_strategy" in training_minimum.keys()
+
+    # Optionals fields are absent
+    assert "wandb" not in training_minimum.keys()
+    assert "num_workers" not in training_minimum.keys()
+    assert "amp" not in training_minimum.keys()
+
+
+def test_training_to_dict_optionals(complete_config: dict):
+    """Test that the optionals fields are omitted when default."""
+    train_conf = complete_config["training"]
+    train_conf["amp"] = AMP(use=False, init_scale=1024)
+    train_conf["num_workers"] = 0
+    train_conf["use_wandb"] = True
+
+    training_complete = Training(**train_conf).model_dump()
+
+    # Mandatory fields are present
+    assert "num_epochs" in training_complete.keys()
+    assert "patch_size" in training_complete.keys()
+    assert "batch_size" in training_complete.keys()
+
+    assert "optimizer" in training_complete.keys()
+    assert "name" in training_complete["optimizer"].keys()
+    assert "parameters" in training_complete["optimizer"].keys()
+
+    assert "lr_scheduler" in training_complete.keys()
+    assert "name" in training_complete["lr_scheduler"].keys()
+    assert "parameters" in training_complete["lr_scheduler"].keys()
+
+    assert "augmentation" in training_complete.keys()
+    assert "extraction_strategy" in training_complete.keys()
+
+    # Optionals fields
+    assert "use_wandb" not in training_complete.keys()
+    assert "num_workers" not in training_complete.keys()
+    assert "amp" not in training_complete.keys()

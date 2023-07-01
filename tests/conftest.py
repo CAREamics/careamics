@@ -95,14 +95,16 @@ def complete_config(tmp_path: Path, minimum_config: dict) -> dict:
     create_tiff(path_test, n_files=2)
 
     # add to configuration
-    complete_config = minimum_config
+    complete_config = minimum_config.copy()
     complete_config["trained_model"] = model
 
-    complete_config["algorithm"]["masking_strategy"] = "default"
-    complete_config["algorithm"]["masked_pixel_percentage"] = 0.2
+    # currently no other altern
+    complete_config["algorithm"]["masking_strategy"] = "median"
+
+    complete_config["algorithm"]["masked_pixel_percentage"] = 0.6
     complete_config["algorithm"]["model_parameters"] = {
         "depth": 8,
-        "num_filter_base": 128,
+        "num_filters_base": 128,
     }
 
     complete_config["training"]["optimizer"]["parameters"] = {
@@ -111,10 +113,11 @@ def complete_config(tmp_path: Path, minimum_config: dict) -> dict:
     complete_config["training"]["lr_scheduler"]["parameters"] = {
         "patience": 22,
     }
-    complete_config["training"]["num_workers"] = (6,)
+    complete_config["training"]["use_wandb"] = False
+    complete_config["training"]["num_workers"] = 6
     complete_config["training"]["amp"] = {
         "use": True,
-        "init_scale": 1024,
+        "init_scale": 512,
     }
     complete_config["data"]["validation_path"] = str(path_validation)
     complete_config["data"]["prediction_path"] = str(path_test)

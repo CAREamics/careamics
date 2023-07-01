@@ -8,6 +8,7 @@ from pydantic import BaseModel, ConfigDict, FieldValidationInfo, field_validator
 # engine -> config -> evaluation -> data -> dataloader_utils
 # then are_axes_valid are imported again in the engine.
 from ..utils import are_axes_valid
+from .config_filter import paths_to_str
 
 
 class SupportedExtensions(str, Enum):
@@ -100,7 +101,10 @@ class Data(BaseModel):
             if len(list(path.glob(f"*.{ext}"))) == 0:
                 raise ValueError(f"No files with extension {ext} found in {path}.")
         else:
-            raise ValueError("Cannot check path validity without extension.")
+            raise ValueError(
+                "Cannot check path validity without extension, make sure it has been "
+                "correctly specified."
+            )
 
         return path
 
@@ -133,16 +137,15 @@ class Data(BaseModel):
 
         return axes
 
-    def dict(self, *args, **kwargs) -> dict:
-        """Override dict method.
+    def model_dump(self, *args, **kwargs) -> dict:
+        """Override model_dump method.
 
         The purpose is to ensure export smooth import to yaml. It includes:
             - remove entries with None value
             - replace Path by str
+            - remove optional values if they have the default value
         """
-        dictionary = super().dict(exclude_none=True)
+        dictionary = super().model_dump(exclude_none=True)
 
-        # replace Path by str
-        dictionary["folder_path"] = str(dictionary["folder_path"])
-
-        return dictionary
+        # replace Paths by str
+        return paths_to_str(dictionary)

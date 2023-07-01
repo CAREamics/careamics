@@ -7,6 +7,7 @@ import yaml
 from pydantic import BaseModel, FieldValidationInfo, field_validator
 
 from .algorithm import Algorithm
+from .config_filter import paths_to_str
 from .data import Data
 from .prediction import Prediction
 from .training import Training
@@ -16,9 +17,8 @@ from .training import Training
 # TODO: use to_dict to exclude optional fields (if equal to the default) from the export
 # TODO: check Algorithm vs Data for 3D, Z in axes
 # TODO: test configuration mutability and whether the validators are called when changing a field
-# TODO: still work to do on deciding what the data organization should be (train/validation folders, linking tiff/zarr directly)
 # TODO: how to make sure that one of training (+data) and prediction (+data) is defined?
-# TODO: check out pydantic serialization decorators, maybe can help
+# TODO: some of the optimizer and lr_scheduler have one mandatory parameter, how to handle that?
 
 
 class ConfigStageEnum(str, Enum):
@@ -129,7 +129,9 @@ class Configuration(BaseModel):
         the working directory or with an absolute path.
         """
         if "working_directory" not in values.data:
-            raise ValueError("Working directory is not defined.")
+            raise ValueError(
+                "Working directory is not defined, check if was is correctly entered."
+            )
 
         workdir = values.data["working_directory"]
         relative_path = Path(workdir, model)
@@ -150,16 +152,25 @@ class Configuration(BaseModel):
                 f"Tried absolute ({absolute_path}) and relative ({relative_path})."
             )
 
-    def dict(self, *args, **kwargs) -> dict:
-        """Override dict method.
+    def model_dump(self, *args, **kwargs) -> dict:
+        """Override model_dump method.
 
-        This method ensures that the working directory is exported as a string and
-        not as a Path object.
+        The purpose is to ensure export smooth import to yaml. It includes:
+            - remove entries with None value
+            - remove optional values if they have the default value
         """
-        dictionary = super().dict(exclude_none=True)
+        dictionary = super().model_dump(exclude_none=True)
 
-        # replace Path by str
-        dictionary["working_directory"] = str(dictionary["working_directory"])
+        # remove paths
+        dictionary = paths_to_str(dictionary)
+
+        # TODO: did not find out how to call `model_dump` from members (e.g. Optimzer)
+        # in Pydantic v2... so we do it manually for now. Once their doc is updated,
+        # let's revisit this.
+        dictionary["algorithm"] = self.algorithm.model_dump()
+        dictionary["data"] = self.data.model_dump()
+        dictionary["training"] = self.training.model_dump()
+        dictionary["prediction"] = self.prediction.model_dump()
 
         return dictionary
 
@@ -233,6 +244,6 @@ def save_configuration(config: Configuration, path: Union[str, Path]) -> Path:
 
     # save configuration as dictionary to yaml
     with open(config_path, "w") as f:
-        yaml.dump(config.dict(), f, default_flow_style=False)
+        yaml.dump(config.model_dump(), f, default_flow_style=False)
 
     return config_path

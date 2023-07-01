@@ -11,6 +11,7 @@ from pydantic import (
 )
 from torch import optim
 
+from .config_filter import remove_default_optionals
 from .torch_optimizer import TorchLRScheduler, TorchOptimizer, get_parameters
 
 
@@ -67,7 +68,24 @@ class Optimizer(BaseModel):
             # filter the user parameters according to the optimizer's signature
             return get_parameters(optimizer_class, user_params)
         else:
-            raise ValueError("Cannot validate optimizer parameters without `name`.")
+            raise ValueError(
+                "Cannot validate optimizer parameters without `name`, check that it "
+                "has correctly been specified."
+            )
+
+    def model_dump(self, *args, **kwargs) -> dict:
+        """Override model_dump method.
+
+        The purpose is to ensure export smooth import to yaml. It includes:
+            - remove entries with None value
+            - remove optional values if they have the default value
+        """
+        dictionary = super().model_dump(exclude_none=True)
+
+        # remove optional arguments if they are default
+        defaults = {"parameters": {}}
+
+        return remove_default_optionals(dictionary, defaults)
 
 
 class LrScheduler(BaseModel):
@@ -109,7 +127,24 @@ class LrScheduler(BaseModel):
             # filter the user parameters according to the lr scheduler's signature
             return get_parameters(lr_scheduler_class, user_params)
         else:
-            raise ValueError("Cannot validate lr scheduler parameters without `name`.")
+            raise ValueError(
+                "Cannot validate lr scheduler parameters without `name`, check that it "
+                "has correctly been specified."
+            )
+
+    def model_dump(self, *args, **kwargs) -> dict:
+        """Override model_dump method.
+
+        The purpose is to ensure export smooth import to yaml. It includes:
+            - remove entries with None value
+            - remove optional values if they have the default value
+        """
+        dictionary = super().model_dump(exclude_none=True)
+
+        # remove optional arguments if they are default
+        defaults = {"parameters": {}}
+
+        return remove_default_optionals(dictionary, defaults)
 
 
 class AMP(BaseModel):
@@ -140,6 +175,20 @@ class AMP(BaseModel):
             raise ValueError(f"Init scale must be a power of two (got {scale}).")
 
         return scale
+
+    def model_dump(self, *args, **kwargs) -> dict:
+        """Override model_dump method.
+
+        The purpose is to ensure export smooth import to yaml. It includes:
+            - remove entries with None value
+            - remove optional values if they have the default value
+        """
+        dictionary = super().model_dump(exclude_none=True)
+
+        # remove optional arguments if they are default
+        defaults = {"init_scale": 1024}
+
+        return remove_default_optionals(dictionary, defaults)
 
 
 class Training(BaseModel):
@@ -228,3 +277,28 @@ class Training(BaseModel):
                 raise ValueError(f"Patch size must be divisible by 2 (got {dim}).")
 
         return patch_list
+
+    def model_dump(self, *args, **kwargs) -> dict:
+        """Override model_dump method.
+
+        The purpose is to ensure export smooth import to yaml. It includes:
+            - remove entries with None value
+            - remove optional values if they have the default value
+        """
+        dictionary = super().model_dump(exclude_none=True)
+
+        # TODO: did not find out how to call `model_dump` from members (e.g. Optimzer)
+        # in Pydantic v2... so we do it manually for now. Once their doc is updated,
+        # let's revisit this.
+        dictionary["optimizer"] = self.optimizer.model_dump()
+        dictionary["lr_scheduler"] = self.lr_scheduler.model_dump()
+        dictionary["amp"] = self.amp.model_dump()
+
+        # remove optional arguments if they are default
+        defaults = {
+            "use_wandb": True,
+            "num_workers": 0,
+            "amp": AMP().model_dump(),
+        }
+
+        return remove_default_optionals(dictionary, defaults)

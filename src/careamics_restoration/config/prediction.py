@@ -2,11 +2,22 @@ from pydantic import BaseModel, FieldValidationInfo, conlist, field_validator
 
 
 class Prediction(BaseModel):
+    """Prediction configuration.
+
+    Tile and overlap shapes must be divisible by 2, and overlaps must be smaller than
+    the tile shapes.
+
+    Attributes
+    ----------
+    tile_shape : conlist(int, min_length=2, max_length=3)
+        Shape of the tiles to be predicted.
+    overlaps : conlist(int, min_length=2, max_length=3)
+        Overlaps between tiles.
+    """
+
     # Mandatory parameters
     tile_shape: conlist(int, min_length=2, max_length=3)
-
-    # Optional parameter
-    overlaps: conlist(int, min_length=2, max_length=3) = [48, 48]
+    overlaps: conlist(int, min_length=2, max_length=3)
 
     @field_validator("tile_shape", "overlaps")
     def check_divisible_by_2(cls, dims_list: conlist) -> conlist:
@@ -15,8 +26,8 @@ class Prediction(BaseModel):
         Both must be positive and divisible by 2.
         """
         for dim in dims_list:
-            if dim < 0:
-                raise ValueError(f"Entry must be positive (got {dim}).")
+            if dim < 1:
+                raise ValueError(f"Entry must be non-null positive (got {dim}).")
 
             if dim % 2 != 0:
                 raise ValueError(f"Entry must be divisible by 2 (got {dim}).")
@@ -31,6 +42,13 @@ class Prediction(BaseModel):
 
         Overlaps must be smaller than tile shape.
         """
+        if "tile_shape" not in values.data:
+            raise ValueError(
+                "Cannot validate overlaps without `tile_shape`, make sure it has "
+                "correctly been specified."
+            )
+
+        # retrieve tile shape
         tile_shape = values.data["tile_shape"]
 
         if len(overlaps) != len(tile_shape):

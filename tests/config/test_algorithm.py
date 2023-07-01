@@ -68,3 +68,46 @@ def test_wrong_masked_pixel_percentage(
 
     with pytest.raises(ValueError):
         Algorithm(**algorithm)
+
+
+def test_algorithm_to_dict_minimum(minimum_config: dict):
+    """ "Test that export to dict does not include optional values."""
+    algorithm_minimum = Algorithm(**minimum_config["algorithm"]).model_dump()
+    assert algorithm_minimum == minimum_config["algorithm"]
+
+    assert "loss" in algorithm_minimum
+    assert "model" in algorithm_minimum
+    assert "is_3D" in algorithm_minimum
+    assert "masking_strategy" not in algorithm_minimum
+    assert "masked_pixel_percentage" not in algorithm_minimum
+    assert "model_parameters" not in algorithm_minimum
+
+
+def test_algorithm_to_dict_complete(complete_config: dict):
+    """ "Test that export to dict does not include optional values."""
+    algorithm_complete = Algorithm(**complete_config["algorithm"]).model_dump()
+    assert algorithm_complete == complete_config["algorithm"]
+
+    assert "loss" in algorithm_complete
+    assert "model" in algorithm_complete
+    assert "is_3D" in algorithm_complete
+    assert "masking_strategy" in algorithm_complete
+    assert "masked_pixel_percentage" in algorithm_complete
+    assert "model_parameters" in algorithm_complete
+    assert "depth" in algorithm_complete["model_parameters"]
+    assert "num_filters_base" in algorithm_complete["model_parameters"]
+
+
+def test_algorithm_to_dict_optionals(complete_config: dict):
+    """ "Test that export to dict does not include optional values."""
+    # change optional value to the default
+    algo_config = complete_config["algorithm"]
+    algo_config["model_parameters"] = {
+        "depth": 2,
+        "num_filters_base": 96,
+    }
+    algo_config["masking_strategy"] = "default"
+
+    algorithm_complete = Algorithm(**complete_config["algorithm"]).model_dump()
+    assert "model_parameters" not in algorithm_complete
+    assert "masking_strategy" not in algorithm_complete

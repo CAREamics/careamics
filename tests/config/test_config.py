@@ -6,15 +6,16 @@ from careamics_restoration.config import (
     save_configuration,
 )
 
-# TODO test optimizer and lr schedulers parameters
-
 
 def test_minimum_config(minimum_config):
     """Test that we can instantiate a minimum config."""
     myconf = Configuration(**minimum_config)
+    dictionary = myconf.dict()
 
-    assert myconf.experiment_name == minimum_config["experiment_name"]
-    assert myconf.working_directory == minimum_config["working_directory"]
+    assert dictionary["algorithm"] == minimum_config["algorithm"]
+    assert dictionary["data"] == minimum_config["data"]
+    assert dictionary["training"] == minimum_config["training"]
+    assert myconf.dict() == minimum_config
 
 
 def test_config_to_yaml(tmp_path, minimum_config):
@@ -36,45 +37,15 @@ def test_config_to_yaml(tmp_path, minimum_config):
     assert my_other_conf == myconf
 
 
-def test_optional_entries(tmp_path, minimum_config):
-    """Test that we can export a partial config to yaml and load it back.
-
-    In this case a partial config has none of the optional fields (training,
-    evaluation, prediction).
-    """
-    # remove optional entries
-    del minimum_config["training"]
-    del minimum_config["evaluation"]
-    del minimum_config["prediction"]
-
-    # instantiate configuration
-    myconf = Configuration(**minimum_config)
-
-    # export to yaml
-    yaml_path = save_configuration(myconf, tmp_path)
-    assert yaml_path.exists()
-
-    # load from yaml
-    config_yaml = load_configuration(yaml_path)
-
-    # parse yaml
-    my_other_conf = Configuration(**config_yaml)
-    assert my_other_conf == myconf
-
-
-def test_get_stage(minimum_config):
+def test_get_stage(complete_config):
     """Test that we can get the configuration for a specific stage."""
 
     # test that we can instantiate a config
-    myconf = Configuration(**minimum_config)
+    myconf = Configuration(**complete_config)
 
     # get training config
     training_config = myconf.get_stage_config("training")
     assert training_config == myconf.training
-
-    # get evaluation config
-    evaluation_config = myconf.get_stage_config("evaluation")
-    assert evaluation_config == myconf.evaluation
 
     # get prediction config
     prediction_config = myconf.get_stage_config("prediction")

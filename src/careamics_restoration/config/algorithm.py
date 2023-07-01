@@ -2,6 +2,8 @@ from enum import Enum
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from .config_filter import remove_default_optionals
+
 
 # python 3.11: https://docs.python.org/3/library/enum.html
 class Losses(str, Enum):
@@ -28,10 +30,12 @@ class MaskingStrategies(str, Enum):
     """Available masking strategies.
 
     Currently supported:
-    - default: default masking strategy of Noise2Void.
+    - default: default masking strategy of Noise2Void (uniform sampling of neighbors).
+    - median: median masking strategy of N2V2
     """
 
     DEFAULT = "default"
+    MEDIAN = "median"
 
 
 class ModelParameters(BaseModel):
@@ -44,7 +48,7 @@ class ModelParameters(BaseModel):
     depth : int
         Depth of the model, between 1 and 10 (default 2).
     num_filters_base : int
-        Number of filters of the first level of the network, should be odd
+        Number of filters of the first level of the network, should be even
         and minimum 8 (default 96).
     """
 
@@ -117,6 +121,24 @@ class Algorithm(BaseModel):
     is_3D: bool
 
     # Optional fields, define a default value
-    masking_strategy: MaskingStrategies = MaskingStrategies.DEFAULT
+    masking_strategy: MaskingStrategies = MaskingStrategies.DEFAULT.value
     masked_pixel_percentage: float = Field(default=0.2, ge=0.1, le=20)
     model_parameters: ModelParameters = ModelParameters()
+
+    def model_dump(self, *args, **kwargs) -> dict:
+        """Override model_dump method.
+
+        The purpose is to ensure export smooth import to yaml. It includes:
+            - remove entries with None value
+            - remove optional values if they have the default value
+        """
+        dictionary = super().model_dump(exclude_none=True)
+
+        # remove optional arguments if they are default
+        defaults = {
+            "masking_strategy": MaskingStrategies.DEFAULT.value,
+            "masked_pixel_percentage": 0.2,
+            "model_parameters": ModelParameters().model_dump(exclude_none=True),
+        }
+
+        return remove_default_optionals(dictionary, defaults)
