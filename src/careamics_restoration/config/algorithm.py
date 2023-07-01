@@ -1,5 +1,4 @@
 from enum import Enum
-from typing import List
 
 from pydantic import BaseModel, Field, validator
 
@@ -38,25 +37,33 @@ class MaskingStrategies(str, Enum):
 class ModelParameters(BaseModel):
     """Model parameters.
 
-    The number of filters (base) must be a power of two.
+    The number of filters (base) must be even and minimum 8.
 
     Attributes
     ----------
     depth : int
         Depth of the model, between 1 and 10 (default 2).
     num_filters_base : int
-        Number of filters of the first level of the network, should be a power
-        of 2 (default 96).
+        Number of filters of the first level of the network, should be odd
+        and minimum 8 (default 96).
     """
 
     depth: int = Field(default=2, ge=1, le=10)
     num_filters_base: int = 96
 
+    # TODO revisit the constraints on num_filters_base
     @validator("num_filters_base")
-    def num_filter_base_must_be_power_of_two(cls, num_filters):
-        """Validate that num_filter_base is a power of two."""
-        if not num_filters & (num_filters - 1) == 0:
-            raise ValueError("Number of filters (base) must be a power of two.")
+    def num_filter_base_must_even(cls, num_filters):
+        """Validate that num_filter_base is a power of two (minimum 8)."""
+        # if odd
+        if num_filters % 2 != 0:
+            raise ValueError(f"Number of filters (base) must even (got {num_filters}).")
+
+        # if less than 8
+        if num_filters < 8:
+            raise ValueError(
+                f"Number of filters (base) must be at least 8 (got {num_filters})."
+            )
 
         return num_filters
 
@@ -99,7 +106,7 @@ class Algorithm(BaseModel):
     """
 
     # Mandatory fields
-    loss: List[Losses]
+    loss: Losses
     model: Models
     is_3D: bool
 

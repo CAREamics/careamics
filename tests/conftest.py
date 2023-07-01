@@ -49,9 +49,9 @@ def minimum_config(tmp_path: Path) -> dict:
             "batch_size": 42,
             "patch_size": [64, 64],
             "optimizer": {
-                "Adam",
+                "name": "Adam",
             },
-            "lr_scheduler": {"ReduceLROnPlateau"},
+            "lr_scheduler": {"name": "ReduceLROnPlateau"},
             "extraction_strategy": "random",
             "augmentation": True,
         },
