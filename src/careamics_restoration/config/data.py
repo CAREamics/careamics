@@ -1,6 +1,7 @@
+from __future__ import annotations
+
 from enum import Enum
 from pathlib import Path
-from typing import Optional, Union
 
 from pydantic import BaseModel, ConfigDict, FieldValidationInfo, field_validator
 
@@ -24,22 +25,20 @@ class SupportedExtensions(str, Enum):
     NPY = "npy"
 
     @classmethod
-    def _missing_(cls, value: str):
+    def _missing_(cls, value: object):
         """Override default behaviour for missing values.
 
-        This method is called when `value` is not found in the enum values. It
-        convert `value` to lowercase and try to match it with enum values.
+        This method is called when `value` is not found in the enum values. It convert
+        `value` to lowercase, remove "." if it is the first character and try to match
+        it with enum values.
         """
-        lower_value = value.lower()
+        if isinstance(value, str):
+            lower_value = value.lower()
 
-        # attempt to match lowercase value with enum values
-        for member in cls:
-            if member.value == lower_value:
-                return member
+            if lower_value.startswith("."):
+                lower_value = lower_value[1:]
 
-        # attempt to remove a starting "."
-        if lower_value.startswith("."):
-            lower_value = lower_value[1:]
+            # attempt to match lowercase value with enum values
             for member in cls:
                 if member.value == lower_value:
                     return member
@@ -76,9 +75,9 @@ class Data(BaseModel):
     axes: str
 
     # Optional fields
-    training_path: Optional[Union[Path, str]] = None
-    validation_path: Optional[Union[Path, str]] = None
-    prediction_path: Optional[Union[Path, str]] = None
+    training_path: Path | str | None = None
+    validation_path: Path | str | None = None
+    prediction_path: Path | str | None = None
 
     @field_validator("training_path", "validation_path", "prediction_path")
     def check_path(cls, path_value: str, values: FieldValidationInfo) -> Path:

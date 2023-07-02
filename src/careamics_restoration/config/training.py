@@ -82,9 +82,9 @@ class Optimizer(BaseModel):
         dictionary = super().model_dump(exclude_none=True)
 
         # remove optional arguments if they are default
-        defaults = {"parameters": {}}
+        default_optionals: dict = {"parameters": {}}
 
-        return remove_default_optionals(dictionary, defaults)
+        return remove_default_optionals(dictionary, default_optionals)
 
 
 class LrScheduler(BaseModel):
@@ -141,9 +141,9 @@ class LrScheduler(BaseModel):
         dictionary = super().model_dump(exclude_none=True)
 
         # remove optional arguments if they are default
-        defaults = {"parameters": {}}
+        default_optionals: dict = {"parameters": {}}
 
-        return remove_default_optionals(dictionary, defaults)
+        return remove_default_optionals(dictionary, default_optionals)
 
 
 class AMP(BaseModel):
@@ -291,7 +291,9 @@ class Training(BaseModel):
         # let's revisit this.
         dictionary["optimizer"] = self.optimizer.model_dump()
         dictionary["lr_scheduler"] = self.lr_scheduler.model_dump()
-        dictionary["amp"] = self.amp.model_dump()
+
+        if self.amp is not None:
+            dictionary["amp"] = self.amp.model_dump()
 
         # remove optional arguments if they are default
         defaults = {

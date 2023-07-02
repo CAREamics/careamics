@@ -121,7 +121,7 @@ class Algorithm(BaseModel):
     is_3D: bool
 
     # Optional fields, define a default value
-    masking_strategy: MaskingStrategies = MaskingStrategies.DEFAULT.value
+    masking_strategy: MaskingStrategies = MaskingStrategies.DEFAULT
     masked_pixel_percentage: float = Field(default=0.2, ge=0.1, le=20)
     model_parameters: ModelParameters = ModelParameters()
 
