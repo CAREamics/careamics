@@ -1,26 +1,29 @@
-from pydantic import BaseModel, FieldValidationInfo, conlist, field_validator
+from typing import List
+
+from pydantic import BaseModel, Field, FieldValidationInfo, field_validator
 
 
 class Prediction(BaseModel):
     """Prediction configuration.
 
-    Tile and overlap shapes must be divisible by 2, and overlaps must be smaller than
-    the tile shapes.
+    Tile and overlap shapes must be divisible by 2, 2D or 3D. Overlaps must be of same
+    dimensions than tile shape and each dimension must be smaller than the corresponding
+    tile shape.
 
     Attributes
     ----------
-    tile_shape : conlist(int, min_length=2, max_length=3)
-        Shape of the tiles to be predicted.
-    overlaps : conlist(int, min_length=2, max_length=3)
-        Overlaps between tiles.
+    tile_shape : List[int]
+        2D or 3D shape of the tiles to be predicted.
+    overlaps : List[int]
+        2D or 3D verlaps between tiles.
     """
 
     # Mandatory parameters
-    tile_shape: conlist(int, min_length=2, max_length=3)
-    overlaps: conlist(int, min_length=2, max_length=3)
+    tile_shape: List[int] = Field(..., min_length=2, max_length=3)
+    overlaps: List[int] = Field(..., min_length=2, max_length=3)
 
     @field_validator("tile_shape", "overlaps")
-    def check_divisible_by_2(cls, dims_list: conlist) -> conlist:
+    def check_divisible_by_2(cls, dims_list: List[int]) -> List[int]:
         """Validate tile shape and overlaps.
 
         Both must be positive and divisible by 2.
@@ -36,8 +39,8 @@ class Prediction(BaseModel):
 
     @field_validator("overlaps")
     def check_smaller_than_tile(
-        cls, overlaps: conlist, values: FieldValidationInfo
-    ) -> conlist:
+        cls, overlaps: List[int], values: FieldValidationInfo
+    ) -> List[int]:
         """Validate overlaps.
 
         Overlaps must be smaller than tile shape.

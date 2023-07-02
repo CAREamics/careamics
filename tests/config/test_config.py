@@ -109,10 +109,7 @@ def test_config_to_yaml(tmp_path: Path, minimum_config: dict):
     assert yaml_path.exists()
 
     # load from yaml
-    config_yaml = load_configuration(yaml_path)
-
-    # parse yaml
-    my_other_conf = Configuration(**config_yaml)
+    my_other_conf = load_configuration(yaml_path)
     assert my_other_conf == myconf
 
 

@@ -1,12 +1,11 @@
 from enum import Enum
-from typing import Optional
+from typing import List, Optional
 
 from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
     FieldValidationInfo,
-    conlist,
     field_validator,
 )
 from torch import optim
@@ -237,7 +236,7 @@ class Training(BaseModel):
 
     # Mandatory fields
     num_epochs: int
-    patch_size: conlist(int, min_length=2, max_length=3)
+    patch_size: List[int] = Field(..., min_length=2, max_length=3)
     batch_size: int
 
     optimizer: Optimizer
@@ -264,7 +263,7 @@ class Training(BaseModel):
         return val
 
     @field_validator("patch_size")
-    def check_patch_size_divisible_by_2(cls, patch_list: conlist) -> conlist:
+    def check_patch_size_divisible_by_2(cls, patch_list: List[int]) -> List[int]:
         """Validate patch size.
 
         Patch size must be non-zero, positive and divisible by 2.
