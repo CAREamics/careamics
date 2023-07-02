@@ -125,6 +125,16 @@ class Algorithm(BaseModel):
     masked_pixel_percentage: float = Field(default=0.2, ge=0.1, le=20)
     model_parameters: ModelParameters = ModelParameters()
 
+    def get_conv_dim(self) -> int:
+        """Get the convolution layers dimension (2D or 3D).
+
+        Returns
+        -------
+        int
+            Dimension (2 or 3)
+        """
+        return 3 if self.is_3D else 2
+
     def model_dump(self, *args, **kwargs) -> dict:
         """Override model_dump method.
 

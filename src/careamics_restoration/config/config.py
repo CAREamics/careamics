@@ -21,14 +21,16 @@ from .training import Training
 # TODO: some of the optimizer and lr_scheduler have one mandatory parameter, how to
 # handle that?
 # TODO: config version?
-# TODO: for the working directory to work it should probably be set when starting the
-# engine
+# TODO: for the working directory to work it should probably be set globally when
+# starting the engine
+# TODO: currently the data paths are all optional and can be None...
 
 
 class ConfigStageEnum(str, Enum):
     """Stages of the pipeline."""
 
     TRAINING = "training"
+    VALIDATION = "validation"
     PREDICTION = "prediction"
 
 
@@ -66,7 +68,7 @@ class Configuration(BaseModel):
 
     # required parameters
     experiment_name: str
-    working_directory: Union[str, Path]
+    working_directory: Path
 
     # Optional field
     trained_model: Optional[str] = None
@@ -100,7 +102,7 @@ class Configuration(BaseModel):
         return name
 
     @field_validator("working_directory")
-    def validate_workdir(cls, workdir: str) -> Path:
+    def validate_workdir(cls, workdir: Union[str, Path]) -> Path:
         """Validate working directory.
 
         A valid working directory is a directory whose parent directory exists. If the
@@ -201,7 +203,8 @@ class Configuration(BaseModel):
         ValueError
             If the corresponding stage is not defined or the stage unknown.
         """
-        if stage == ConfigStageEnum.TRAINING:
+        # TODO this first clause is absurd, simplify downstream code to not have to use this
+        if stage == ConfigStageEnum.TRAINING or stage == ConfigStageEnum.VALIDATION:
             if self.training is None:
                 raise ValueError("Training configuration is not defined.")
 
@@ -214,7 +217,7 @@ class Configuration(BaseModel):
         else:
             raise ValueError(
                 f"Unknown stage {stage}. Available stages are "
-                f"{ConfigStageEnum.TRAINING} and "
+                f"{ConfigStageEnum.TRAINING}, {ConfigStageEnum.VALIDATION} and "
                 f"{ConfigStageEnum.PREDICTION}."
             )
 

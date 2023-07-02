@@ -22,7 +22,7 @@ class SupportedExtensions(str, Enum):
 
     TIFF = "tiff"
     TIF = "tif"
-    NPY = "npy"
+    NPY = "npy"  # TODO check if actually supported, probably not.
 
     @classmethod
     def _missing_(cls, value: object):

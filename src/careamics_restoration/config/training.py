@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import List, Optional
+from typing import List
 
 from pydantic import (
     BaseModel,
@@ -249,7 +249,7 @@ class Training(BaseModel):
     # Optional fields
     use_wandb: bool = True
     num_workers: int = Field(default=0, ge=0)
-    amp: Optional[AMP] = AMP()
+    amp: AMP = AMP()
 
     @field_validator("num_epochs", "batch_size")
     def check_greater_than_0(cls, val: int) -> int:

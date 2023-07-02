@@ -1,4 +1,3 @@
-import itertools
 import logging
 from pathlib import Path
 from typing import Callable, List, Optional, Tuple, Union
@@ -28,7 +27,6 @@ class PatchDataset(torch.utils.data.IterableDataset):
         data_path: Union[Path, str],
         ext: str,
         axes: str,
-        num_files: Optional[int],  # TODO remove num files arg ?
         data_reader: Callable,
         patch_size: Union[List[int], Tuple[int]],
         patch_generator: Optional[Callable],
@@ -57,7 +55,6 @@ class PatchDataset(torch.utils.data.IterableDataset):
         self.data_path = data_path
         self.ext = ext
         self.axes = axes
-        self.num_files = num_files
         self.data_reader = data_reader
         self.patch_size = patch_size
         self.patch_generator = patch_generator
@@ -150,7 +147,7 @@ class PatchDataset(torch.utils.data.IterableDataset):
         self.std = std
 
     def __len__(self):
-        return self.num_files if self.num_files else len(self.source)
+        return len(self.source)
 
     def __iter_source_zarr__(self):
         # TODO better name?
@@ -217,13 +214,7 @@ class PatchDataset(torch.utils.data.IterableDataset):
         info = torch.utils.data.get_worker_info()
         num_workers = info.num_workers if info is not None else 1
         id = info.id if info is not None else 0
-        self.source = (
-            itertools.islice(
-                Path(self.data_path).rglob(f"*.{self.ext}*"), self.num_files
-            )
-            if self.num_files
-            else Path(self.data_path).rglob(f"*.{self.ext}*")
-        )
+        self.source = Path(self.data_path).rglob(f"*.{self.ext}*")
 
         # TODO check for mem leaks, explicitly gc the arr after iterator is exhausted
         for i, filename in enumerate(self.source):
