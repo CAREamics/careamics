@@ -123,6 +123,7 @@ def complete_config(tmp_path: Path, minimum_config: dict) -> dict:
     complete_config["data"]["prediction_path"] = str(path_test)
 
     complete_config["prediction"] = {
+        "use_tiling": True,
         "tile_shape": [64, 64],
         "overlaps": [32, 32],
     }

@@ -1,15 +1,13 @@
 import logging
-
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Union
 
 import numpy as np
 import torch
-import yaml
 from torch.utils.data import DataLoader, TensorDataset
 from tqdm import tqdm
 
-from .config import ConfigStageEnum, Configuration, get_parameters, load_configuration
+from .config import ConfigStageEnum, get_parameters, load_configuration
 from .dataset import (
     create_dataset,
 )
@@ -35,26 +33,29 @@ def seed_everything(seed: int):
 
 # TODO: discuss normalization strategies, test running mean and std
 class Engine:
-    def __init__(self, cfg_path: str) -> None:
+    def __init__(self, cfg_path: Union[str, Path]) -> None:
+        # set logging
         self.logger = logging.getLogger()
         set_logging(self.logger)
-        self.cfg = self.parse_config(cfg_path)
+
+        # load configuration from disk
+        self.cfg = load_configuration(cfg_path)
+
+        # create model and loss function
         self.model = create_model(self.cfg)
         self.loss_func = create_loss_function(self.cfg)
-        self.mean = None
-        self.std = None  # TODO mean/std arent supposed to be the parameters of the engine. Move somewhere
+
+        # get GPU or CPU device
         self.device = get_device()
 
+        # seeding
         setup_cudnn_reproducibility(deterministic=True, benchmark=False)
         seed_everything(seed=42)
 
-    def parse_config(self, cfg_path: str) -> Configuration:
-        try:
-            cfg = load_configuration(cfg_path)
-        except (FileNotFoundError, yaml.YAMLError):
-            raise yaml.YAMLError(f"Config file not found in {cfg_path}")
-        cfg = Configuration(**cfg)
-        return cfg
+        # placeholders for mean and std
+        # TODO mean/std arent supposed to be the parameters of the engine. Move them.
+        self.mean: Optional[int] = None
+        self.std: Optional[int] = None
 
     def log_metrics(self):
         if self.cfg.misc.use_wandb:
@@ -192,7 +193,7 @@ class Engine:
         with torch.no_grad():
             # TODO reset iterator for every sample ?
             # TODO tiled prediction slow af, profile and optimize
-            for idx, (tile, *auxillary) in tqdm(enumerate(pred_loader)):
+            for _idx, (tile, *auxillary) in tqdm(enumerate(pred_loader)):
                 if auxillary:
                     (
                         last_tile,
@@ -219,15 +220,15 @@ class Engine:
                             ],
                         )
                     ]
-                    #TODO: removing ellipsis works for 3.11
-                    ''' 3.11 syntax 
+                    # TODO: removing ellipsis works for 3.11
+                    """ 3.11 syntax
                     predicted_tile = outputs.squeeze()[
                         *[
                             slice(c.squeeze()[0], c.squeeze()[1])
                             for c in list(overlap_crop_coords)
                         ],
                     ]
-                    '''
+                    """
                     tiles.append(
                         (
                             predicted_tile.cpu().numpy(),
@@ -246,7 +247,9 @@ class Engine:
         return np.stack(prediction)
 
     def _get_train_dataloader(self) -> Tuple[DataLoader, int, int]:
+        # create training dataset
         dataset = create_dataset(self.cfg, ConfigStageEnum.TRAINING)
+
         # TODO all this should go into the Dataset
         ##TODO add custom collate function and separate dataloader create function, sampler?
         # Move running stats into dataset

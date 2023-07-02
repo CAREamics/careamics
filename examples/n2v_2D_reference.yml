@@ -94,8 +94,13 @@ data:
 
 # Optional
 prediction:
-  # Tile shape for tiled prediction, 2D or 3D, divisible by 2
+  # Whether to use tiling or not (True or False).
+  # If True, then tile_shape and overlaps must be specified
+  use_tiling: True
+
+  # Optional, tile shape for tiled prediction, 2D or 3D, divisible by 2
   tile_shape: [64, 64]
 
-  # Overlap for tiled prediction, 2D or 3D, divisible by 2, smaller than tile shape
+  # Optional, overlap for tiled prediction, 2D or 3D, divisible by 2, smaller than
+  # tile shape
   overlaps: [48, 48]

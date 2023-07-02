@@ -14,18 +14,7 @@ from .dataset_utils import (
 # TODO Joran: removing factories for now
 
 
-def create_tiling_function(stage) -> Union[None, Callable]:
-    """Creates the tiling function depending on the provided strategy.
-
-    Parameters
-    ----------
-    config : dict.
-
-    Returns
-    -------
-    Callable
-    """
-    # TODO add proper option selection !
+def create_tiling_function(stage: str) -> Union[None, Callable]:
     if stage.data.extraction_strategy == "predict" and stage.data.patch_size is None:
         return None
     elif stage.data.extraction_strategy == "predict":
