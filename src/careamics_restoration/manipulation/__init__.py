@@ -1,1 +1,1 @@
-from .manipulation_factory import create_patch_transform
+from .manipulation_factory import create_masking_transform

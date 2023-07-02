@@ -74,7 +74,7 @@ def apply_struct_n2v_mask(patch, coords, dims, mask):
     return patch
 
 
-def n2v_manipulate(
+def default_manipulate(
     patch: np.ndarray,
     mask_pixel_percentage: float,
     roi_size: int = 5,

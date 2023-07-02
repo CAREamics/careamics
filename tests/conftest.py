@@ -18,86 +18,117 @@ def create_tiff(path: Path, n_files: int):
 
 
 @pytest.fixture
-def test_config(tmp_path) -> dict:
-    # create data
-    ext = "tif"
+def minimum_config(tmp_path: Path) -> dict:
+    """Create a minimum configuration.
 
-    path_train = tmp_path / "train"
+    Parameters
+    ----------
+    tmp_path : Path
+        Temporary path for testing.
+
+    Returns
+    -------
+    dict
+        A minumum configuration example.
+    """
+    # create data in the temporary folder
+    path_train = tmp_path / "training"
     create_tiff(path_train, n_files=3)
 
+    # create dictionary
+    configuration = {
+        "experiment_name": "LevitatingFrog",
+        "working_directory": str(tmp_path),
+        "algorithm": {
+            "loss": "n2v",
+            "model": "UNet",
+            "is_3D": False,
+        },
+        "training": {
+            "num_epochs": 666,
+            "batch_size": 42,
+            "patch_size": [64, 64],
+            "optimizer": {
+                "name": "Adam",
+            },
+            "lr_scheduler": {"name": "ReduceLROnPlateau"},
+            "extraction_strategy": "random",
+            "augmentation": True,
+        },
+        "data": {
+            "training_path": str(path_train),
+            "data_format": "tif",
+            "axes": "SYX",
+        },
+    }
+
+    return configuration
+
+
+@pytest.fixture
+def complete_config(tmp_path: Path, minimum_config: dict) -> dict:
+    """Create a complete configuration.
+
+    Parameters
+    ----------
+    tmp_path : Path
+        Temporary path for testing.
+    minimum_config : dict
+        A minimum configuration.
+
+    Returns
+    -------
+    dict
+        A complete configuration example.
+    """
+
+    # create model
+    model = "model.pth"
+    path_model = tmp_path / model
+    path_model.touch()
+
+    # create validation and prediction data
     path_validation = tmp_path / "validation"
     create_tiff(path_validation, n_files=1)
 
     path_test = tmp_path / "test"
     create_tiff(path_test, n_files=2)
 
-    # create dictionary
-    test_configuration = {
-        "run_params": {
-            "experiment_name": "testing",
-            "workdir": str(tmp_path),
-        },
-        "algorithm": {
-            "loss": ["n2v"],
-            "model": "UNet",
-            "num_masked_pixels": 0.2,
-            "pixel_manipulation": "n2v",
-        },
-        "training": {
-            "num_epochs": 100,
-            "learning_rate": 0.0001,
-            "optimizer": {
-                "name": "Adam",
-                "parameters": {
-                    "lr": 0.001,
-                    "betas": [0.9, 0.999],
-                    "eps": 1e-08,
-                    "weight_decay": 0.0005,
-                    "amsgrad": True,
-                },
-            },
-            "lr_scheduler": {
-                "name": "ReduceLROnPlateau",
-                "parameters": {"factor": 0.5, "patience": 5, "mode": "min"},
-            },
-            "amp": {
-                "toggle": False,
-                "init_scale": 1024,
-            },
-            "data": {
-                "path": str(path_train),
-                "ext": ext,
-                "axes": "YX",
-                "extraction_strategy": "sequential",
-                "patch_size": [128, 128],
-                "batch_size": 1,
-            },
-        },
-        "evaluation": {
-            "data": {
-                "path": str(path_validation),
-                "ext": ext,
-                "axes": "YX",
-                "extraction_strategy": "sequential",
-                "patch_size": [128, 128],
-                "batch_size": 1,
-            },
-            "metric": "psnr",
-        },
-        "prediction": {
-            "data": {
-                "path": str(path_test),
-                "ext": ext,
-                "axes": "YX",
-                "extraction_strategy": "sequential",
-                "patch_size": [128, 128],
-                "batch_size": 1,
-            },
-            "overlap": [25, 25],
-        },
+    # add to configuration
+    complete_config = minimum_config.copy()
+    complete_config["trained_model"] = model
+
+    # currently no other altern
+    complete_config["algorithm"]["masking_strategy"] = "median"
+
+    complete_config["algorithm"]["masked_pixel_percentage"] = 0.6
+    complete_config["algorithm"]["model_parameters"] = {
+        "depth": 8,
+        "num_filters_base": 128,
     }
 
-    return test_configuration
+    complete_config["training"]["optimizer"]["parameters"] = {
+        "lr": 0.00999,
+    }
+    complete_config["training"]["lr_scheduler"]["parameters"] = {
+        "patience": 22,
+    }
+    complete_config["training"]["use_wandb"] = False
+    complete_config["training"]["num_workers"] = 6
+    complete_config["training"]["amp"] = {
+        "use": True,
+        "init_scale": 512,
+    }
+    complete_config["data"]["validation_path"] = str(path_validation)
+    complete_config["data"]["prediction_path"] = str(path_test)
+
+    complete_config["prediction"] = {
+        "use_tiling": True,
+        "tile_shape": [64, 64],
+        "overlaps": [32, 32],
+    }
+
+    return complete_config
 
 
 @pytest.fixture

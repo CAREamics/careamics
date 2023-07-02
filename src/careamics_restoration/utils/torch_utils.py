@@ -1,5 +1,6 @@
-import os
 import logging
+import os
+from typing import Optional
 
 import torch
 
@@ -17,12 +18,12 @@ def get_device():
 
 
 def setup_cudnn_reproducibility(
-    deterministic: bool = None, benchmark: bool = None
+    deterministic: Optional[bool] = None, benchmark: Optional[bool] = None
 ) -> None:
     """
     Prepares CuDNN benchmark and sets CuDNN
     to be deterministic/non-deterministic mode
-    See https://pytorch.org/docs/stable/notes/randomness.html#cuda-convolution-benchmarking
+    See https://pytorch.org/docs/stable/notes/randomness.html#cuda-convolution-benchmarking.
 
     Args:
         deterministic: deterministic mode if running in CuDNN backend.

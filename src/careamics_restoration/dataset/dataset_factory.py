@@ -1,11 +1,9 @@
 from functools import partial
-from typing import Callable, Union
-
-from torch.utils.data import Dataset
+from typing import Callable, List, Optional, Union
 
 from ..config import ConfigStageEnum, Configuration
-from ..config.stage import Stage
-from ..manipulation import create_patch_transform
+from ..config.training import ExtractionStrategies
+from ..manipulation import create_masking_transform
 from .dataset import PatchDataset
 from .dataset_utils import (
     extract_patches_predict,
@@ -14,40 +12,32 @@ from .dataset_utils import (
     list_input_source_tiff,
 )
 
-# TODO Joran: removing factories for now
 
-
-def create_tiling_function(stage: Stage) -> Union[None, Callable]:
-    """Creates the tiling function depending on the provided strategy.
-
-    Parameters
-    ----------
-    config : dict.
-
-    Returns
-    -------
-    Callable
-    """
-    # TODO add proper option selection !
-    if stage.data.extraction_strategy == "predict" and stage.data.patch_size is None:
+# TODO this needs to be refactored and rewritten
+def create_tiling_function(
+    strategy: str,
+    patch_size: Optional[List[int]] = None,
+    overlaps: Optional[List[int]] = None,
+) -> Union[None, Callable]:
+    if strategy == ExtractionStrategies.TILED and patch_size is None:
         return None
-    elif stage.data.extraction_strategy == "predict":
+    elif strategy == ExtractionStrategies.TILED:
         return partial(
             extract_patches_predict,
-            overlaps=stage.overlap,
+            overlaps=overlaps,
         )
-    elif stage.data.extraction_strategy == "sequential":
+    elif strategy == ExtractionStrategies.SEQUENTIAL:
         return partial(
             extract_patches_sequential,
         )
-    elif stage.data.extraction_strategy == "random":
+    elif strategy == ExtractionStrategies.RANDOM:
         return partial(
             extract_patches_random,
         )
-    # TODO Igor: move partial to dataset class
     return None
 
 
+# TODO this needs to be refactored and rewritten
 def create_dataset(config: Configuration, stage: ConfigStageEnum) -> PatchDataset:
     """Builds a dataset based on the dataset_params.
 
@@ -56,21 +46,48 @@ def create_dataset(config: Configuration, stage: ConfigStageEnum) -> PatchDatase
     config : Dict
         Config file dictionary
     """
-    stage_config = config.get_stage_config(stage)  # getattr(config, stage)
+    if stage == ConfigStageEnum.TRAINING:
+        if config.training is None:
+            raise ValueError("Training configuration is not defined.")
 
-    # TODO clear description of what all these funcs/params mean
-    dataset = PatchDataset(
-        data_path=stage_config.data.path,
-        ext=stage_config.data.ext,
-        axes=stage_config.data.axes,
-        num_files=stage_config.data.num_files,  # TODO this can be None (see config)
-        data_reader=list_input_source_tiff,
-        patch_size=stage_config.data.patch_size,
-        patch_generator=create_tiling_function(stage_config),
-        patch_level_transform=create_patch_transform(config)
-        if stage != "prediction"
-        else None,  # TODO Igor: move all funcs that return callables to dataset class
-        # TODO Igor: separate dataset class for different datatypes, tiff, zarr
-    )
+        dataset = PatchDataset(
+            data_path=config.data.training_path,  # TODO this can be None
+            ext=config.data.data_format,
+            axes=config.data.axes,
+            data_reader=list_input_source_tiff,
+            patch_size=config.training.patch_size,
+            patch_generator=create_tiling_function(config.training.extraction_strategy),
+            patch_level_transform=create_masking_transform(config),
+        )
+    elif stage == ConfigStageEnum.VALIDATION:
+        if config.training is None:
+            raise ValueError("Training configuration is not defined.")
+
+        dataset = PatchDataset(
+            data_path=config.data.validation_path,  # TODO this can be None
+            ext=config.data.data_format,
+            axes=config.data.axes,
+            data_reader=list_input_source_tiff,
+            patch_size=config.training.patch_size,
+            patch_generator=create_tiling_function(config.training.extraction_strategy),
+            patch_level_transform=create_masking_transform(config),
+        )
+    elif stage == ConfigStageEnum.PREDICTION:
+        if config.prediction is None:
+            raise ValueError("Prediction configuration is not defined.")
+
+        dataset = PatchDataset(
+            data_path=config.data.prediction_path,
+            ext=config.data.data_format,
+            axes=config.data.axes,
+            data_reader=list_input_source_tiff,
+            patch_size=config.prediction.tile_shape,  # TODO this can be None
+            patch_generator=create_tiling_function(
+                ExtractionStrategies.TILED,
+                config.prediction.tile_shape,
+                config.prediction.overlaps,
+            ),
+            patch_level_transform=None,
+        )
 
     return dataset

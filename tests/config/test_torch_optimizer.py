@@ -7,22 +7,32 @@ from careamics_restoration.config.torch_optimizer import (
     get_schedulers,
 )
 
-# TODO test get parameters
+
+def test_get_schedulers_exist():
+    """Test that the function `get_schedulers` return
+    existing torch schedulers.
+    """
+    for scheduler in get_schedulers():
+        assert hasattr(optim.lr_scheduler, scheduler)
 
 
-def test_schedulers_are_all_present():
-    assert len(TorchLRScheduler) == len(get_schedulers())
-
-
-def test_schedulers_exist():
+def test_torch_schedulers_exist():
+    """Test that the enum `TorchLRScheduler` contains
+    existing torch schedulers."""
     for scheduler in TorchLRScheduler:
         assert hasattr(optim.lr_scheduler, scheduler)
 
 
-def test_optimizers_are_all_present():
-    assert len(TorchOptimizer) == len(get_optimizers())
+def test_get_optimizers_exist():
+    """Test that the function `get_optimizers` return
+    existing torch optimizers.
+    """
+    for optimizer in get_optimizers():
+        assert hasattr(optim, optimizer)
 
 
 def test_optimizers_exist():
+    """Test that the enum `TorchOptimizer` contains
+    existing torch optimizers."""
     for optimizer in TorchOptimizer:
         assert hasattr(optim, optimizer)

@@ -1,15 +1,13 @@
 import logging
-
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Union
 
 import numpy as np
 import torch
-import yaml
 from torch.utils.data import DataLoader, TensorDataset
 from tqdm import tqdm
 
-from .config import ConfigStageEnum, Configuration, get_parameters, load_configuration
+from .config import ConfigStageEnum, load_configuration
 from .dataset import (
     create_dataset,
 )
@@ -35,33 +33,36 @@ def seed_everything(seed: int):
 
 # TODO: discuss normalization strategies, test running mean and std
 class Engine:
-    def __init__(self, cfg_path: str) -> None:
+    def __init__(self, cfg_path: Union[str, Path]) -> None:
+        # set logging
         self.logger = logging.getLogger()
         set_logging(self.logger)
-        self.cfg = self.parse_config(cfg_path)
+
+        # load configuration from disk
+        self.cfg = load_configuration(cfg_path)
+
+        # create model and loss function
         self.model = create_model(self.cfg)
         self.loss_func = create_loss_function(self.cfg)
-        self.mean = None
-        self.std = None  # TODO mean/std arent supposed to be the parameters of the engine. Move somewhere
+
+        # get GPU or CPU device
         self.device = get_device()
 
+        # seeding
         setup_cudnn_reproducibility(deterministic=True, benchmark=False)
         seed_everything(seed=42)
 
-    def parse_config(self, cfg_path: str) -> Configuration:
-        try:
-            cfg = load_configuration(cfg_path)
-        except (FileNotFoundError, yaml.YAMLError):
-            raise yaml.YAMLError(f"Config file not found in {cfg_path}")
-        cfg = Configuration(**cfg)
-        return cfg
+        # placeholders for mean and std
+        # TODO mean/std arent supposed to be the parameters of the engine. Move them.
+        self.mean: Optional[float] = None
+        self.std: Optional[float] = None
 
     def log_metrics(self):
         if self.cfg.misc.use_wandb:
             try:  # TODO Vera will fix this funzione di merda
                 import wandb
 
-                wandb.init(project=self.cfg.run_params.experiment_name, config=self.cfg)
+                wandb.init(project=self.cfg.experiment_name, config=self.cfg)
                 self.logger.info("using wandb logger")
             except ImportError:
                 self.cfg.misc.use_wandb = False
@@ -76,8 +77,11 @@ class Engine:
         if self.cfg.training is not None:
             # General func
             train_loader, self.mean, self.std = self._get_train_dataloader()
+
+            # TODO what if there are no validation data ? That happens a lot with N2V
             eval_loader = self._get_val_dataloader()
             eval_loader.dataset.set_normalization(self.mean, self.std)
+
             optimizer, lr_scheduler = self.get_optimizer_and_scheduler()
             scaler = self.get_grad_scaler()
             self.logger.info(
@@ -111,7 +115,7 @@ class Engine:
                         self.save_checkpoint(False)
                     val_losses.append(eval_outputs["loss"])
                     self.logger.info(
-                        f"Saved checkpoint to {self.cfg.run_params.workdir}"
+                        f"Saved checkpoint to {self.cfg.working_directory}"
                     )
 
             except KeyboardInterrupt:
@@ -192,7 +196,7 @@ class Engine:
         with torch.no_grad():
             # TODO reset iterator for every sample ?
             # TODO tiled prediction slow af, profile and optimize
-            for idx, (tile, *auxillary) in tqdm(enumerate(pred_loader)):
+            for _, (tile, *auxillary) in tqdm(enumerate(pred_loader)):
                 if auxillary:
                     (
                         last_tile,
@@ -219,15 +223,15 @@ class Engine:
                             ],
                         )
                     ]
-                    #TODO: removing ellipsis works for 3.11
-                    ''' 3.11 syntax 
+                    # TODO: removing ellipsis works for 3.11
+                    """ 3.11 syntax
                     predicted_tile = outputs.squeeze()[
                         *[
                             slice(c.squeeze()[0], c.squeeze()[1])
                             for c in list(overlap_crop_coords)
                         ],
                     ]
-                    '''
+                    """
                     tiles.append(
                         (
                             predicted_tile.cpu().numpy(),
@@ -246,35 +250,41 @@ class Engine:
         return np.stack(prediction)
 
     def _get_train_dataloader(self) -> Tuple[DataLoader, int, int]:
-        dataset = create_dataset(self.cfg, ConfigStageEnum.TRAINING)
-        # TODO all this should go into the Dataset
-        ##TODO add custom collate function and separate dataloader create function, sampler?
-        # Move running stats into dataset
-        if not self.cfg.training.running_stats:
+        if self.cfg.training is not None:
+            # create training dataset
+            dataset = create_dataset(self.cfg, ConfigStageEnum.TRAINING)
+
+            # TODO all this should go into the Dataset
+            ##TODO add custom collate function and separate dataloader create function, sampler?
+            # Move running stats into dataset
             self.logger.info("Calculating mean/std of the data")
             dataset.calculate_stats()
+
+            return (
+                DataLoader(
+                    dataset,
+                    batch_size=self.cfg.training.batch_size,
+                    num_workers=self.cfg.training.num_workers,
+                ),
+                # TODO Igor: move mean std to patch dataset (and rename to tiffdataset)
+                dataset.mean,
+                dataset.std,
+            )
         else:
-            self.logger.info("Using running average of mean/std")
-        return (
-            DataLoader(
-                dataset,
-                batch_size=self.cfg.training.data.batch_size,
-                num_workers=self.cfg.training.data.num_workers,
-            ),
-            # TODO Igor: move mean std to patch dataset (and rename to tiffdataset)
-            dataset.mean,
-            dataset.std,
-        )
+            raise ValueError("Missing training entry in configuration file.")
 
     # TODO merge into single dataloader func ? <-- yes
     def _get_val_dataloader(self) -> DataLoader:
-        dataset = create_dataset(self.cfg, ConfigStageEnum.EVALUATION)
-        return DataLoader(
-            dataset,
-            batch_size=self.cfg.evaluation.data.batch_size,
-            num_workers=self.cfg.evaluation.data.num_workers,
-            pin_memory=True,
-        )
+        if self.cfg.training is not None:
+            dataset = create_dataset(self.cfg, ConfigStageEnum.TRAINING)
+            return DataLoader(
+                dataset,
+                batch_size=self.cfg.training.batch_size,
+                num_workers=self.cfg.training.num_workers,
+                pin_memory=True,
+            )
+        else:
+            raise ValueError("Missing training entry in configuration file.")
 
     def get_predict_dataloader(
         self,
@@ -283,8 +293,10 @@ class Engine:
         # TODO add description
         # TODO mypy does not take into account "is not None", we need to find a workaround
         if external_input is not None:
-            external_input = normalize(external_input, self.mean, self.std)
-            dataset = TensorDataset(torch.from_numpy(external_input.astype(np.float32)))
+            normalized_input = normalize(external_input, self.mean, self.std)
+            normalized_input = normalized_input.astype(np.float32)
+
+            dataset = TensorDataset(torch.from_numpy(normalized_input))
             stitch = False
         else:
             dataset = create_dataset(self.cfg, ConfigStageEnum.PREDICTION)
@@ -294,10 +306,11 @@ class Engine:
                 and dataset.patch_generator is not None
             )
         return (
+            # TODO there is not batch_size and num_workers in prediction
             DataLoader(
                 dataset,
-                batch_size=self.cfg.prediction.data.batch_size,
-                num_workers=self.cfg.prediction.data.num_workers,
+                batch_size=1,  # self.cfg.prediction.data.batch_size,
+                num_workers=0,  # self.cfg.prediction.data.num_workers,
                 pin_memory=True,
             ),
             stitch,
@@ -317,42 +330,41 @@ class Engine:
         """
         # assert inspect.get
         # TODO call func from factory
-        optimizer_name = self.cfg.training.optimizer.name
-        optimizer_params = self.cfg.training.optimizer.parameters
-        optimizer_func = getattr(torch.optim, optimizer_name)
+        if self.cfg.training is not None:
+            # retrieve optimizer name and parameters from config
+            optimizer_name = self.cfg.training.optimizer.name
+            optimizer_params = self.cfg.training.optimizer.parameters
 
-        # Get the list of all possible parameters of the optimizer
-        optim_params = get_parameters(optimizer_func, optimizer_params)
+            # then instantiate it
+            optimizer_func = getattr(torch.optim, optimizer_name)
+            optimizer = optimizer_func(self.model.parameters(), **optimizer_params)
 
-        # TODO: Joran move the optimizer instantiation to the optimizer (config > training.py)
-        optimizer = optimizer_func(self.model.parameters(), **optim_params)
+            # same for learning rate scheduler
+            scheduler_name = self.cfg.training.lr_scheduler.name
+            scheduler_params = self.cfg.training.lr_scheduler.parameters
+            scheduler_func = getattr(torch.optim.lr_scheduler, scheduler_name)
+            scheduler = scheduler_func(optimizer, **scheduler_params)
 
-        # TODO same here
-        scheduler_name = self.cfg.training.lr_scheduler.name
-        scheduler_params = self.cfg.training.lr_scheduler.parameters
-        scheduler_func = getattr(torch.optim.lr_scheduler, scheduler_name)
-        scheduler_params = get_parameters(scheduler_func, scheduler_params)
-        scheduler = scheduler_func(optimizer, **scheduler_params)
-
-        return optimizer, scheduler
+            return optimizer, scheduler
+        else:
+            raise ValueError("Missing training entry in configuration file.")
 
     def get_grad_scaler(self) -> torch.cuda.amp.GradScaler:
-        use = self.cfg.training.amp.use
-        scaling = self.cfg.training.amp.init_scale
-        return torch.cuda.amp.GradScaler(init_scale=scaling, enabled=use)
+        if self.cfg.training is not None:
+            use = self.cfg.training.amp.use
+            scaling = self.cfg.training.amp.init_scale
+            return torch.cuda.amp.GradScaler(init_scale=scaling, enabled=use)
+        else:
+            raise ValueError("Missing training entry in configuration file.")
 
     def save_checkpoint(self, save_best):
         """Save the model to a checkpoint file."""
         name = (
-            f"{self.cfg.run_params.experiment_name}_best.pth"
+            f"{self.cfg.experiment_name}_best.pth"
             if save_best
-            else f"{self.cfg.run_params.experiment_name}_latest.pth"
+            else f"{self.cfg.experiment_name}_latest.pth"
         )
-        Path(self.cfg.run_params.workdir).mkdir(parents=True, exist_ok=True)
-        torch.save(self.model.state_dict(), Path(self.cfg.run_params.workdir) / name)
+        workdir = self.cfg.working_directory
+        workdir.mkdir(parents=True, exist_ok=True)
 
-    def export_model(self, model):
-        pass
-
-    def compute_metrics(self, args):
-        pass
+        torch.save(self.model.state_dict(), workdir / name)
