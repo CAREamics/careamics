@@ -54,6 +54,30 @@ def test_wrong_extension(minimum_config: dict):
         Data(**data_config)
 
 
+def test_at_least_one_of_training_or_prediction(complete_config: dict):
+    """Test that Data model raises an error if both training and prediction
+    paths are None (not supplied)."""
+    training = complete_config["data"]["training_path"]
+    validation = complete_config["data"]["validation_path"]
+    prediction = complete_config["data"]["prediction_path"]
+
+    # None specified
+    with pytest.raises(ValueError):
+        Data(data_format="tif", axes="YX")
+
+    # Only validation specified
+    with pytest.raises(ValueError):
+        Data(data_format="tif", axes="YX", validation_path=validation)
+
+    # Only prediction specified
+    data_model = Data(data_format="tif", axes="YX", prediction_path=prediction)
+    assert str(data_model.prediction_path) == prediction
+
+    # Only training specified
+    data_model = Data(data_format="tif", axes="YX", training_path=training)
+    assert str(data_model.training_path) == training
+
+
 def test_data_to_dict_minimum(minimum_config: dict):
     """ "Test that export to dict does not include None values and Paths.
 
