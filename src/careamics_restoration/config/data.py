@@ -79,6 +79,49 @@ class Data(BaseModel):
     validation_path: Path | str | None = None
     prediction_path: Path | str | None = None
 
+    #TODO Joran: add at least one of the two fields functionality 
+    # @field_validator("prediction_path")
+    # def check_path(cls, path_value: str, values: FieldValidationInfo) -> Path:
+    #     """Validate folder path.
+
+    #     Check that files with the correct extension can be found in the folder.
+    #     """
+    #     train_path = values.data["training_path"]
+    #     val_path = values.data["validation_path"]
+    #     test_path = Path(path_value)
+
+    #     # check that the path exists
+    #     if not train_path.exists() and test_path.exists():
+    #         raise ValueError(f"Both training {train_path} and test_path {test_path} do not exist")
+    #     elif train_path.exists():
+    #         path = train_path
+    #         # TODO add logging message  
+    #     elif test_path.exists():
+    #         path = test_path
+
+    #     if not path.is_dir():
+    #         raise ValueError(f"Path {path} is not a directory")
+
+    #     # check that the path contains files with the correct extension
+    #     if "data_format" in values.data:
+    #         ext = values.data["data_format"]
+
+    #         if len(list(path.glob(f"*.{ext}"))) == 0:
+    #             raise ValueError(f"No files with extension {ext} found in {path}.")
+    #     else:
+    #         raise ValueError(
+    #             "Cannot check path validity without extension, make sure it has been "
+    #             "correctly specified."
+    #         )
+        
+    #     if val_path is not None:
+    #         if not val_path.exists():
+    #             raise ValueError(f"Validation path {val_path} does not exist")
+    #         elif not val_path.is_dir():
+    #             raise ValueError(f"Validation path {val_path} is not a directory")
+
+    #     return path
+    
     @field_validator("training_path", "validation_path", "prediction_path")
     def check_path(cls, path_value: str, values: FieldValidationInfo) -> Path:
         """Validate folder path.
