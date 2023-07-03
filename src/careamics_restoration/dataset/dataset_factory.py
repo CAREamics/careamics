@@ -4,7 +4,7 @@ from typing import Callable, List, Optional, Union
 from ..config import ConfigStageEnum, Configuration
 from ..config.training import ExtractionStrategies
 from ..manipulation import create_masking_transform
-from .dataset import PatchDataset
+from .dataset import TiffDataset
 from .dataset_utils import (
     extract_patches_predict,
     extract_patches_random,
@@ -38,7 +38,7 @@ def create_tiling_function(
 
 
 # TODO this needs to be refactored and rewritten
-def create_dataset(config: Configuration, stage: ConfigStageEnum) -> PatchDataset:
+def create_dataset(config: Configuration, stage: ConfigStageEnum) -> TiffDataset:
     """Builds a dataset based on the dataset_params.
 
     Parameters
@@ -50,7 +50,7 @@ def create_dataset(config: Configuration, stage: ConfigStageEnum) -> PatchDatase
         if config.training is None:
             raise ValueError("Training configuration is not defined.")
 
-        dataset = PatchDataset(
+        dataset = TiffDataset(
             data_path=config.data.training_path,  # TODO this can be None
             ext=config.data.data_format,
             axes=config.data.axes,
@@ -63,7 +63,7 @@ def create_dataset(config: Configuration, stage: ConfigStageEnum) -> PatchDatase
         if config.training is None:
             raise ValueError("Training configuration is not defined.")
 
-        dataset = PatchDataset(
+        dataset = TiffDataset(
             data_path=config.data.validation_path,  # TODO this can be None
             ext=config.data.data_format,
             axes=config.data.axes,
@@ -76,7 +76,7 @@ def create_dataset(config: Configuration, stage: ConfigStageEnum) -> PatchDatase
         if config.prediction is None:
             raise ValueError("Prediction configuration is not defined.")
 
-        dataset = PatchDataset(
+        dataset = TiffDataset(
             data_path=config.data.prediction_path,
             ext=config.data.data_format,
             axes=config.data.axes,

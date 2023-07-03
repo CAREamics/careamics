@@ -3,7 +3,7 @@ import pytest
 import tifffile
 
 from careamics_restoration.dataset.dataset import (
-    PatchDataset,
+    TiffDataset,
 )
 from careamics_restoration.dataset.dataset_utils import (
     extract_patches_sequential,
@@ -60,7 +60,7 @@ def test_patch_dataset_read_source_errors(tmp_path, arr_shape, axes):
     assert path.exists()
 
     with pytest.raises((ValueError, NotImplementedError)):
-        PatchDataset.read_tiff_source(path, axes)
+        TiffDataset.read_source(path, axes)
 
 
 @pytest.mark.parametrize(
@@ -91,7 +91,7 @@ def test_patch_dataset_read_source(tmp_path, ordered_array, arr_shape, axes):
     tifffile.imwrite(path, arr)
     assert path.exists()
 
-    image = PatchDataset.read_tiff_source(path, axes)
+    image = TiffDataset.read_source(path, axes)
 
     if axes == "YX":
         assert image.shape == (1, *arr_shape)
