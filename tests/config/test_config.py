@@ -88,10 +88,24 @@ def test_config_invalid_model_path(
         Configuration(**complete_config)
 
 
+def test_3D_algorithm_and_data_compatibility(minimum_config: dict):
+    """Test that errors are raised if algithm `is_3D` and data axes are incompatible."""
+    # 3D but no Z in axes
+    minimum_config["algorithm"]["is_3D"] = True
+    with pytest.raises(ValueError):
+        Configuration(**minimum_config)
+
+    # 2D but Z in axes
+    minimum_config["algorithm"]["is_3D"] = False
+    minimum_config["data"]["axes"] = "ZYX"
+    with pytest.raises(ValueError):
+        Configuration(**minimum_config)
+
+
 def test_at_least_one_of_training_or_prediction(complete_config: dict):
     """Test that at least one of training or prediction is specified."""
     config_empty = complete_config.copy()
-    
+
     # remove training and prediction
     config_empty.pop("training")
     config_empty.pop("prediction")
