@@ -1,14 +1,15 @@
+import os
 import logging
-from pathlib import Path
-from typing import Callable, List, Optional, Tuple, Union
-
-import numpy as np
 import tifffile
 import torch
 import zarr
+import numpy as np
 from tqdm import tqdm
+from pathlib import Path
+from typing import Callable, List, Optional, Tuple, Union
 
 from ..utils import are_axes_valid, normalize
+
 
 ############################################
 #   ETL pipeline
@@ -139,7 +140,7 @@ class TiffDataset(torch.utils.data.IterableDataset):
         self.std = std
 
     def __len__(self):
-        return len(self.source)
+        return len(os.listdir(self.data_path))
 
     def __iter_source__(self):
         """
@@ -154,7 +155,7 @@ class TiffDataset(torch.utils.data.IterableDataset):
         id = info.id if info is not None else 0
         self.source = Path(self.data_path).rglob(f"*.{self.ext}*")
 
-        # TODO check for mem leaks, explicitly gc the arr after iterator is exhausted
+        # TODO discuss tests for multiplrocessing in iterator
         for i, filename in enumerate(self.source):
             try:
                 # TODO add buffer, several images up to some memory limit?
@@ -260,7 +261,7 @@ class NGFFDataset(torch.utils.data.IterableDataset):
         # sanity check on dimensions
         if len(arr.shape) < 2 or len(arr.shape) > 4:
             raise ValueError(
-                f"Incorrect data dimensions. Must be 2, 3 or 4 (got {arr.shape} for file {path_source})."
+                f"Incorrect data dimensions. Must be 2, 3 or 4 (got {arr.shape})."
             )
 
         # sanity check on axes length
