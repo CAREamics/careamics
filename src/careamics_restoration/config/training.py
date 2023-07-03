@@ -76,6 +76,24 @@ class Optimizer(BaseModel):
 
     @model_validator(mode="after")
     def sgd_lr_parameter(cls, optimizer: Optimizer) -> Optimizer:
+        """Check that SGD optimizer as `lr` parameter specified.
+
+        Parameters
+        ----------
+        optimizer : Optimizer
+            Optimizer to validate.
+
+        Returns
+        -------
+        Optimizer
+            Validated optimizer.
+        """
+        if optimizer.name == TorchOptimizer.SGD and "lr" not in optimizer.parameters:
+            raise ValueError(
+                "SGD optimizer requires `lr` parameter, check that it has correctly "
+                "been specified in `parameters`."
+            )
+
         return optimizer
 
     def model_dump(self, *args, **kwargs) -> dict:
@@ -136,6 +154,31 @@ class LrScheduler(BaseModel):
                 "Cannot validate lr scheduler parameters without `name`, check that it "
                 "has correctly been specified."
             )
+
+    @model_validator(mode="after")
+    def step_lr_step_size_parameter(cls, lr_scheduler: LrScheduler) -> LrScheduler:
+        """Check that StepLR lr scheduler has `step_size` parameter specified.
+
+        Parameters
+        ----------
+        lr_scheduler : LrScheduler
+            Lr scheduler to validate.
+
+        Returns
+        -------
+        LrScheduler
+            Validated lr scheduler.
+        """
+        if (
+            lr_scheduler.name == TorchLRScheduler.StepLR
+            and "step_size" not in lr_scheduler.parameters
+        ):
+            raise ValueError(
+                "StepLR lr scheduler requires `step_size` parameter, check that it has "
+                "correctly been specified in `parameters`."
+            )
+
+        return lr_scheduler
 
     def model_dump(self, *args, **kwargs) -> dict:
         """Override model_dump method.

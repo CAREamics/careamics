@@ -18,12 +18,9 @@ from .training import Training
 # TODO: is stage necessary? it seems to bring a lot of compelxity for little gain
 # TODO: test configuration mutability and whether the validators are called when
 # changing a field
-# TODO: some of the optimizer and lr_scheduler have one mandatory parameter, how to
-# handle that?
 # TODO: config version?
 # TODO: for the working directory to work it should probably be set globally when
 # starting the engine
-# TODO: currently the data paths are all optional and can be None...
 
 
 class ConfigStageEnum(str, Enum):

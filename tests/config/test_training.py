@@ -48,6 +48,16 @@ def test_optimizer_parameters(optimizer_name: TorchOptimizer, parameters: dict):
     assert optimizer.parameters == parameters
 
 
+def test_sgd_missing_parameter():
+    """Test that SGD optimizer fails if `lr` is not provided"""
+    with pytest.raises(ValueError):
+        Optimizer(name=TorchOptimizer.SGD, parameters={})
+
+    # test that it works if lr is provided
+    optimizer = Optimizer(name=TorchOptimizer.SGD, parameters={"lr": 0.1})
+    assert optimizer.parameters == {"lr": 0.1}
+
+
 def test_optimizer_to_dict_minimum(minimum_config: dict):
     """ "Test that export to dict does not include optional value."""
     optim_minimum = Optimizer(**minimum_config["training"]["optimizer"]).model_dump()
@@ -115,6 +125,18 @@ def test_scheduler_parameters(lr_scheduler_name: TorchLRScheduler, parameters: d
     # create optimizer and check that the parameters are filtered
     lr_scheduler = LrScheduler(name=lr_scheduler_name, parameters=new_parameters)
     assert lr_scheduler.parameters == parameters
+
+
+def test_scheduler_missing_parameter():
+    """Test that StepLR scheduler fails if `step_size` is not provided"""
+    with pytest.raises(ValueError):
+        LrScheduler(name=TorchLRScheduler.StepLR, parameters={})
+
+    # test that it works if lr is provided
+    lr_scheduler = LrScheduler(
+        name=TorchLRScheduler.StepLR, parameters={"step_size": "5"}
+    )
+    assert lr_scheduler.parameters == {"step_size": "5"}
 
 
 def test_scheduler_to_dict_minimum(minimum_config: dict):
