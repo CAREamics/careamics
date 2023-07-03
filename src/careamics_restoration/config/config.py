@@ -1,10 +1,12 @@
+from __future__ import annotations
+
 import re
 from enum import Enum
 from pathlib import Path
 from typing import Optional, Union
 
 import yaml
-from pydantic import BaseModel, FieldValidationInfo, field_validator
+from pydantic import BaseModel, FieldValidationInfo, field_validator, model_validator
 
 from .algorithm import Algorithm
 from .config_filter import paths_to_str
@@ -155,6 +157,40 @@ class Configuration(BaseModel):
                 f"Path to model does not exist. "
                 f"Tried absolute ({absolute_path}) and relative ({relative_path})."
             )
+        
+    @model_validator(mode="after")
+    def validate_training_or_prediction(cls, config: Configuration) -> Configuration:
+        """Check that at least one of training or prediction is defined, and that 
+        the corresponding data path is as well.
+
+        Parameters
+        ----------
+        config : Configuration
+            Configuration to validate.
+
+        Returns
+        -------
+        Configuration
+            Validated configuration.
+        """        
+        # check that at least one of training or prediction is defined
+        if config.training is None and config.prediction is None:
+            raise ValueError(
+                "At least one of training or prediction must be defined."
+            )
+
+        # check that the corresponding data path is defined as well
+        if config.training is not None and config.data.training_path is None:
+            raise ValueError(
+                "Training configuration is defined but training data path is not."
+            )
+        if config.prediction is not None and config.data.prediction_path is None:
+            raise ValueError(
+                "Prediction configuration is defined but prediction data path is not."
+            )
+
+        return config
+
 
     def model_dump(self, *args, **kwargs) -> dict:
         """Override model_dump method.

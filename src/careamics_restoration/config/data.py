@@ -147,7 +147,24 @@ class Data(BaseModel):
         return axes
 
     @model_validator(mode="after")
-    def at_least_one_path_valid(cls, data_model: Data):
+    def at_least_one_path_valid(cls, data_model: Data) -> Data:
+        """Validate that at least one of training or prediction paths is specified.
+
+        Parameters
+        ----------
+        data_model : Data
+            Data model to validate
+
+        Returns
+        -------
+        Data
+            Validated model
+
+        Raises
+        ------
+        ValueError
+            If neither training or prediction paths are specified
+        """        
         if data_model.training_path is None and data_model.prediction_path is None:
             raise ValueError(
                 "At least one of training or prediction paths must be specified."
