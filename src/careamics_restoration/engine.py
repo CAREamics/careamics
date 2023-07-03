@@ -1,15 +1,13 @@
 import logging
-import random
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Union
 
 import numpy as np
 import torch
-import yaml
 from torch.utils.data import DataLoader, TensorDataset
 from tqdm import tqdm
 
-from .config import ConfigStageEnum, Configuration, get_parameters, load_configuration
+from .config import ConfigStageEnum, load_configuration
 from .dataset import (
     create_dataset,
 )
@@ -17,45 +15,54 @@ from .losses import create_loss_function
 from .metrics import MetricTracker
 from .models import create_model
 from .prediction_utils import stitch_prediction
-from .utils import denormalize, get_device, normalize, set_logging, setup_cudnn_reproducibility
+from .utils import (
+    denormalize,
+    get_device,
+    normalize,
+    set_logging,
+    setup_cudnn_reproducibility,
+)
 
 
 def seed_everything(seed: int):
-    random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
     return seed
 
+
 # TODO: discuss normalization strategies, test running mean and std
 class Engine:
-    def __init__(self, cfg_path: str) -> None:
+    def __init__(self, cfg_path: Union[str, Path]) -> None:
+        # set logging
         self.logger = logging.getLogger()
         set_logging(self.logger)
-        self.cfg = self.parse_config(cfg_path)
+
+        # load configuration from disk
+        self.cfg = load_configuration(cfg_path)
+
+        # create model and loss function
         self.model = create_model(self.cfg)
         self.loss_func = create_loss_function(self.cfg)
-        self.mean = None
-        self.std = None  # TODO mean/std arent supposed to be the parameters of the engine. Move somewhere
+
+        # get GPU or CPU device
         self.device = get_device()
 
+        # seeding
         setup_cudnn_reproducibility(deterministic=True, benchmark=False)
         seed_everything(seed=42)
 
-    def parse_config(self, cfg_path: str) -> Configuration:
-        try:
-            cfg = load_configuration(cfg_path)
-        except (FileNotFoundError, yaml.YAMLError):
-            raise yaml.YAMLError(f"Config file not found in {cfg_path}")
-        cfg = Configuration(**cfg)
-        return cfg
+        # placeholders for mean and std
+        # TODO mean/std arent supposed to be the parameters of the engine. Move them.
+        self.mean: Optional[float] = None
+        self.std: Optional[float] = None
 
     def log_metrics(self):
         if self.cfg.misc.use_wandb:
             try:  # TODO Vera will fix this funzione di merda
                 import wandb
 
-                wandb.init(project=self.cfg.run_params.experiment_name, config=self.cfg)
+                wandb.init(project=self.cfg.experiment_name, config=self.cfg)
                 self.logger.info("using wandb logger")
             except ImportError:
                 self.cfg.misc.use_wandb = False
@@ -70,8 +77,11 @@ class Engine:
         if self.cfg.training is not None:
             # General func
             train_loader, self.mean, self.std = self._get_train_dataloader()
+
+            # TODO what if there are no validation data ? That happens a lot with N2V
             eval_loader = self._get_val_dataloader()
             eval_loader.dataset.set_normalization(self.mean, self.std)
+
             optimizer, lr_scheduler = self.get_optimizer_and_scheduler()
             scaler = self.get_grad_scaler()
             self.logger.info(
@@ -105,7 +115,7 @@ class Engine:
                         self.save_checkpoint(False)
                     val_losses.append(eval_outputs["loss"])
                     self.logger.info(
-                        f"Saved checkpoint to {self.cfg.run_params.workdir}"
+                        f"Saved checkpoint to {self.cfg.working_directory}"
                     )
 
             except KeyboardInterrupt:
@@ -113,116 +123,6 @@ class Engine:
         else:
             # TODO: instead of error, maybe fail gracefully with a logging/warning to users
             raise ValueError("Missing training entry in configuration file.")
-
-    def evaluate(self, eval_loader: torch.utils.data.DataLoader):
-        self.model.eval()
-        avg_loss = MetricTracker()
-
-        with torch.no_grad():
-            for patch, *auxillary in tqdm(eval_loader):
-                outputs = self.model(patch.to(self.device))
-                loss = self.loss_func(outputs, *auxillary, self.device)
-                avg_loss.update(loss.item(), patch.shape[0])
-
-        return {"loss": avg_loss.avg}
-
-    def predict_from_memory(self):
-        # TODO predict on externally passed array
-        pass
-
-    def predict_from_disk(self):
-        # TODO predict on externally passed path
-        pass
-
-    # TODO: refactor into one function from the configuration, one function
-    # for external input (can be the same one called from the first one)
-    def predict(self, ext_input: Optional[np.ndarray] = None):
-        self.model.to(self.device)
-        self.model.eval()
-
-        if not (self.mean and self.std):
-            _, self.mean, self.std = self._get_train_dataloader()
-
-        # TODO check, calculate mean and std on all data not only train
-        pred_loader = self.get_predict_dataloader(ext_input=ext_input)
-
-        self.stitch = (
-            # TODO move all this to dataset.should_stitch()
-            hasattr(pred_loader.dataset, "patch_generator")
-            and pred_loader.dataset.patch_generator is not None
-        )
-
-        tiles = []
-        prediction = []
-        if self.stitch:
-            self.logger.info("Starting tiled prediction")
-        else:
-            self.logger.info("Starting prediction on whole sample")
-
-        with torch.no_grad():
-            current_sample = 0
-            # TODO reset iterator for every sample ?
-            # TODO tiled prediction slow af, profile and optimize
-            for idx, (tile, *auxillary) in tqdm(enumerate(pred_loader)):
-                # TODO: can the logic be simplified by passing a "last tile" or
-                # "new sample" flag in auxillary?
-                if auxillary:
-                    (
-                        sample_idx,
-                        sample_shape,
-                        overlap_crop_coords,
-                        stitch_coords,
-                    ) = auxillary
-                else:
-                    sample_idx = idx
-
-                # TODO: move normalization here?
-                outputs = self.model(tile.to(self.device))
-
-                outputs = denormalize(outputs, self.mean, self.std)
-
-                if self.stitch:
-                    # TODO: can the code be expanded to have the squeezing done
-                    # not in one liners, also check the detach() and numpy()
-
-                    # Crop predited tile according to overlap coordinates
-                    # (..., *[ ]) necessary before python 3.11 TODO: check
-                    predicted_tile = outputs.squeeze()[
-                        (
-                            ...,
-                            *[
-                                slice(c.squeeze()[0], c.squeeze()[1])
-                                for c in list(overlap_crop_coords)
-                            ],
-                        )
-                    ]
-                    tiles.append(
-                        (
-                            predicted_tile.cpu().numpy(),
-                            [c.squeeze().numpy() for c in stitch_coords],
-                        )
-                    )
-                else:
-                    prediction.append(outputs.detach().cpu().numpy().squeeze())
-
-                # check if sample is finished
-                if sample_idx != current_sample:
-                    # Stitch tiles together
-                    if self.stitch:
-                        # Leaving last tile aside because it belongs to the next sample
-                        predicted_sample = stitch_prediction(tiles[:-1], sample_shape)
-                        prediction.append(predicted_sample)
-                        tiles = [tiles[-1]]
-                        current_sample = sample_idx
-
-                    self.logger.info(f"Finished prediction for sample {sample_idx - 1}")
-
-        # Add last sample
-        if self.stitch:
-            predicted_sample = stitch_prediction(tiles, sample_shape)
-            prediction.append(predicted_sample)
-        self.logger.info(f"Predicted {len(prediction)} samples")
-        return np.stack(prediction)
 
     def _train_single_epoch(
         self,
@@ -260,53 +160,160 @@ class Engine:
             optimizer.step()
         return {"loss": avg_loss.avg}
 
+    def evaluate(self, eval_loader: torch.utils.data.DataLoader):
+        self.model.eval()
+        avg_loss = MetricTracker()
+
+        with torch.no_grad():
+            for patch, *auxillary in tqdm(eval_loader):
+                outputs = self.model(patch.to(self.device))
+                loss = self.loss_func(outputs, *auxillary, self.device)
+                avg_loss.update(loss.item(), patch.shape[0])
+
+        return {"loss": avg_loss.avg}
+
+    def predict(self, external_input: Optional[np.ndarray] = None):
+        self.model.to(self.device)
+        self.model.eval()
+        # TODO external input shape should either be compatible with the model or tiled. Add checks and raise errors
+        if not (self.mean and self.std):
+            _, self.mean, self.std = self._get_train_dataloader()
+
+        # TODO check, calculate mean and std on all data not only train
+        pred_loader, stitch = self.get_predict_dataloader(
+            external_input=external_input,
+        )
+
+        tiles = []
+        prediction = []
+        if external_input is not None:
+            logging.info("Starting prediction on external input")
+        if stitch:
+            self.logger.info("Starting tiled prediction")
+        else:
+            self.logger.info("Starting prediction on whole sample")
+
+        with torch.no_grad():
+            # TODO reset iterator for every sample ?
+            # TODO tiled prediction slow af, profile and optimize
+            for _, (tile, *auxillary) in tqdm(enumerate(pred_loader)):
+                if auxillary:
+                    (
+                        last_tile,
+                        sample_shape,
+                        overlap_crop_coords,
+                        stitch_coords,
+                    ) = auxillary
+
+                normalized_input = normalize(tile, self.mean, self.std).to(self.device)
+                outputs = self.model(normalized_input)
+                outputs = denormalize(outputs, self.mean, self.std)
+
+                if stitch:
+                    # TODO: can the code be expanded to have the squeezing done
+                    # not in one liners, also check the detach() and numpy()
+
+                    # Crop predited tile according to overlap coordinates
+                    predicted_tile = outputs.squeeze()[
+                        (
+                            ...,
+                            *[
+                                slice(c.squeeze()[0], c.squeeze()[1])
+                                for c in list(overlap_crop_coords)
+                            ],
+                        )
+                    ]
+                    # TODO: removing ellipsis works for 3.11
+                    """ 3.11 syntax
+                    predicted_tile = outputs.squeeze()[
+                        *[
+                            slice(c.squeeze()[0], c.squeeze()[1])
+                            for c in list(overlap_crop_coords)
+                        ],
+                    ]
+                    """
+                    tiles.append(
+                        (
+                            predicted_tile.cpu().numpy(),
+                            [c.squeeze().numpy() for c in stitch_coords],
+                        )
+                    )
+                    # check if sample is finished
+                    if last_tile:
+                        # Stitch tiles together
+                        predicted_sample = stitch_prediction(tiles, sample_shape)
+                        prediction.append(predicted_sample)
+                else:
+                    prediction.append(outputs.detach().cpu().numpy().squeeze())
+
+        self.logger.info(f"Predicted {len(prediction)} samples")
+        return np.stack(prediction)
+
     def _get_train_dataloader(self) -> Tuple[DataLoader, int, int]:
-        dataset = create_dataset(self.cfg, ConfigStageEnum.TRAINING)
-        # TODO all this should go into the Dataset
-        ##TODO add custom collate function and separate dataloader create function, sampler?
-        # Move running stats into dataset
-        if not self.cfg.training.running_stats:
+        if self.cfg.training is not None:
+            # create training dataset
+            dataset = create_dataset(self.cfg, ConfigStageEnum.TRAINING)
+
+            # TODO all this should go into the Dataset
+            ##TODO add custom collate function and separate dataloader create function, sampler?
+            # Move running stats into dataset
             self.logger.info("Calculating mean/std of the data")
             dataset.calculate_stats()
+
+            return (
+                DataLoader(
+                    dataset,
+                    batch_size=self.cfg.training.batch_size,
+                    num_workers=self.cfg.training.num_workers,
+                ),
+                # TODO Igor: move mean std to patch dataset (and rename to tiffdataset)
+                dataset.mean,
+                dataset.std,
+            )
         else:
-            self.logger.info("Using running average of mean/std")
-        return (
-            DataLoader(
-                dataset,
-                batch_size=self.cfg.training.data.batch_size,
-                num_workers=self.cfg.training.data.num_workers,
-            ),
-            # TODO Igor: move mean std to patch dataset (and rename to tiffdataset)
-            dataset.mean,
-            dataset.std,
-        )
+            raise ValueError("Missing training entry in configuration file.")
 
     # TODO merge into single dataloader func ? <-- yes
     def _get_val_dataloader(self) -> DataLoader:
-        dataset = create_dataset(self.cfg, ConfigStageEnum.EVALUATION)
-        return DataLoader(
-            dataset,
-            batch_size=self.cfg.evaluation.data.batch_size,
-            num_workers=self.cfg.evaluation.data.num_workers,
-            pin_memory=True,
-        )
+        if self.cfg.training is not None:
+            dataset = create_dataset(self.cfg, ConfigStageEnum.TRAINING)
+            return DataLoader(
+                dataset,
+                batch_size=self.cfg.training.batch_size,
+                num_workers=self.cfg.training.num_workers,
+                pin_memory=True,
+            )
+        else:
+            raise ValueError("Missing training entry in configuration file.")
 
     def get_predict_dataloader(
-        self, ext_input: Optional[np.ndarray] = None
-    ) -> DataLoader:
+        self,
+        external_input: Optional[np.ndarray] = None,
+    ) -> Tuple[DataLoader, bool]:
         # TODO add description
         # TODO mypy does not take into account "is not None", we need to find a workaround
-        if ext_input is not None:
-            ext_input = normalize(ext_input, self.mean, self.std)
-            dataset = TensorDataset(torch.from_numpy(ext_input.astype(np.float32)))
+        if external_input is not None:
+            normalized_input = normalize(external_input, self.mean, self.std)
+            normalized_input = normalized_input.astype(np.float32)
+
+            dataset = TensorDataset(torch.from_numpy(normalized_input))
+            stitch = False
         else:
             dataset = create_dataset(self.cfg, ConfigStageEnum.PREDICTION)
             dataset.set_normalization(self.mean, self.std)
-        return DataLoader(
-            dataset,
-            batch_size=self.cfg.prediction.data.batch_size,
-            num_workers=self.cfg.prediction.data.num_workers,
-            pin_memory=True,
+            stitch = (
+                hasattr(dataset, "patch_generator")
+                and dataset.patch_generator is not None
+            )
+        return (
+            # TODO there is not batch_size and num_workers in prediction
+            DataLoader(
+                dataset,
+                batch_size=1,  # self.cfg.prediction.data.batch_size,
+                num_workers=0,  # self.cfg.prediction.data.num_workers,
+                pin_memory=True,
+            ),
+            stitch,
         )
 
     def get_optimizer_and_scheduler(
@@ -323,42 +330,41 @@ class Engine:
         """
         # assert inspect.get
         # TODO call func from factory
-        optimizer_name = self.cfg.training.optimizer.name
-        optimizer_params = self.cfg.training.optimizer.parameters
-        optimizer_func = getattr(torch.optim, optimizer_name)
+        if self.cfg.training is not None:
+            # retrieve optimizer name and parameters from config
+            optimizer_name = self.cfg.training.optimizer.name
+            optimizer_params = self.cfg.training.optimizer.parameters
 
-        # Get the list of all possible parameters of the optimizer
-        optim_params = get_parameters(optimizer_func, optimizer_params)
+            # then instantiate it
+            optimizer_func = getattr(torch.optim, optimizer_name)
+            optimizer = optimizer_func(self.model.parameters(), **optimizer_params)
 
-        # TODO: Joran move the optimizer instantiation to the optimizer (config > training.py)
-        optimizer = optimizer_func(self.model.parameters(), **optim_params)
+            # same for learning rate scheduler
+            scheduler_name = self.cfg.training.lr_scheduler.name
+            scheduler_params = self.cfg.training.lr_scheduler.parameters
+            scheduler_func = getattr(torch.optim.lr_scheduler, scheduler_name)
+            scheduler = scheduler_func(optimizer, **scheduler_params)
 
-        # TODO same here
-        scheduler_name = self.cfg.training.lr_scheduler.name
-        scheduler_params = self.cfg.training.lr_scheduler.parameters
-        scheduler_func = getattr(torch.optim.lr_scheduler, scheduler_name)
-        scheduler_params = get_parameters(scheduler_func, scheduler_params)
-        scheduler = scheduler_func(optimizer, **scheduler_params)
-
-        return optimizer, scheduler
+            return optimizer, scheduler
+        else:
+            raise ValueError("Missing training entry in configuration file.")
 
     def get_grad_scaler(self) -> torch.cuda.amp.GradScaler:
-        use = self.cfg.training.amp.use
-        scaling = self.cfg.training.amp.init_scale
-        return torch.cuda.amp.GradScaler(init_scale=scaling, enabled=use)
+        if self.cfg.training is not None:
+            use = self.cfg.training.amp.use
+            scaling = self.cfg.training.amp.init_scale
+            return torch.cuda.amp.GradScaler(init_scale=scaling, enabled=use)
+        else:
+            raise ValueError("Missing training entry in configuration file.")
 
     def save_checkpoint(self, save_best):
         """Save the model to a checkpoint file."""
         name = (
-            f"{self.cfg.run_params.experiment_name}_best.pth"
+            f"{self.cfg.experiment_name}_best.pth"
             if save_best
-            else f"{self.cfg.run_params.experiment_name}_latest.pth"
+            else f"{self.cfg.experiment_name}_latest.pth"
         )
-        Path(self.cfg.run_params.workdir).mkdir(parents=True, exist_ok=True)
-        torch.save(self.model.state_dict(), Path(self.cfg.run_params.workdir) / name)
+        workdir = self.cfg.working_directory
+        workdir.mkdir(parents=True, exist_ok=True)
 
-    def export_model(self, model):
-        pass
-
-    def compute_metrics(self, args):
-        pass
+        torch.save(self.model.state_dict(), workdir / name)
