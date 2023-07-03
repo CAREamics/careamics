@@ -16,7 +16,7 @@ algorithm:
   model: UNet
 
   # Dimensions 2D (False) or 3D (True)
-  is_3D: True
+  is_3D: False
 
   # Optional, masking strategy, currently only default is supported
   # masking_strategy: default
@@ -90,7 +90,7 @@ data:
   # Optional, path to the data, absolute or relative to working_directory
   training_path: n2v_sem/train
   validation_path: n2v_sem/val
-  # prediction_path: data/prediction
+  prediction_path: n2v_sem/train
 
 # Optional
 prediction:
