@@ -163,6 +163,7 @@ class Configuration(BaseModel):
             - remove entries with None value
             - remove optional values if they have the default value
         """
+        # TODO Joran: save full dump of the config with all the defaults
         dictionary = super().model_dump(exclude_none=True)
 
         # remove paths
