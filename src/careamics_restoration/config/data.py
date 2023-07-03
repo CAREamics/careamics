@@ -90,7 +90,7 @@ class Data(BaseModel):
     prediction_path: Optional[Union[Path, str]] = None
 
     @field_validator("training_path", "validation_path", "prediction_path")
-    def check_path(cls, path_value: str, values: FieldValidationInfo) -> Path:
+    def path_contains_images(cls, path_value: str, values: FieldValidationInfo) -> Path:
         """Validate folder path.
 
         Check that files with the correct extension can be found in the folder.
@@ -118,7 +118,7 @@ class Data(BaseModel):
         return path
 
     @field_validator("axes")
-    def validate_axes(cls, axes: str) -> str:
+    def valid_axes(cls, axes: str) -> str:
         """Validate axes.
 
         Axes must be a subset of STZYX, must contain YX, be in the right order
@@ -164,7 +164,7 @@ class Data(BaseModel):
         ------
         ValueError
             If neither training or prediction paths are specified
-        """        
+        """
         if data_model.training_path is None and data_model.prediction_path is None:
             raise ValueError(
                 "At least one of training or prediction paths must be specified."

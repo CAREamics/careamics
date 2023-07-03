@@ -82,7 +82,7 @@ class Configuration(BaseModel):
     prediction: Optional[Prediction] = None
 
     @field_validator("experiment_name")
-    def validate_name(cls, name: str) -> str:
+    def no_symbol(cls, name: str) -> str:
         """Validate experiment name.
 
         A valid experiment name is a non-empty string with only contains letters,
@@ -102,7 +102,7 @@ class Configuration(BaseModel):
         return name
 
     @field_validator("working_directory")
-    def validate_workdir(cls, workdir: Union[str, Path]) -> Path:
+    def parent_directory_exists(cls, workdir: Union[str, Path]) -> Path:
         """Validate working directory.
 
         A valid working directory is a directory whose parent directory exists. If the
@@ -126,7 +126,7 @@ class Configuration(BaseModel):
         return path
 
     @field_validator("trained_model")
-    def validate_trained_model(
+    def trained_model_exists(
         cls, model_path: str, values: FieldValidationInfo
     ) -> Union[str, Path]:
         """Validate trained model path.
@@ -175,7 +175,7 @@ class Configuration(BaseModel):
             )
 
     @model_validator(mode="after")
-    def validate_training_or_prediction(cls, config: Configuration) -> Configuration:
+    def at_least_training_or_prediction(cls, config: Configuration) -> Configuration:
         """Check that at least one of training or prediction is defined, and that
         the corresponding data path is as well.
 

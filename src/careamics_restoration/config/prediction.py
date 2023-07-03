@@ -27,7 +27,7 @@ class Prediction(BaseModel):
     use_tiling: bool
 
     @field_validator("tile_shape", "overlaps")
-    def check_divisible_by_2(cls, dims_list: List[int]) -> List[int]:
+    def all_elements_non_zero_divisible_by_two(cls, dims_list: List[int]) -> List[int]:
         """Validate tile shape and overlaps.
 
         Both must be positive and divisible by 2.
@@ -45,7 +45,7 @@ class Prediction(BaseModel):
         return dims_list
 
     @field_validator("overlaps")
-    def check_smaller_than_tile(
+    def overlaps_smaller_than_tiles(
         cls, overlaps: List[int], values: FieldValidationInfo
     ) -> List[int]:
         """Validate overlaps.
@@ -79,7 +79,7 @@ class Prediction(BaseModel):
         return overlaps
 
     @field_validator("use_tiling")
-    def check_optional_parameters_if_true(
+    def optional_parameters_if_tiling_true(
         cls, use_tiling: bool, values: FieldValidationInfo
     ) -> bool:
         """Validate `use_tiling` if False, or only when optional parameters are
