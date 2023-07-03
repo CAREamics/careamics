@@ -91,6 +91,7 @@ ignore = [
     "D401", # First line should be in imperative mood
     "D413", # Missing blank line after last section
     "D416", # Section name should end with a colon
+    "UP007", # Replace Union by |, mandatory for py3.9
 ]
 ignore-init-module-imports = true
 
