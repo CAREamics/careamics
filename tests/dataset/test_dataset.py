@@ -215,3 +215,17 @@ def test_extract_patches_sequential_3d(array_3D, patch_size):
 
     The 3D array is a fixture of shape (1, 5, 10, 9)."""
     check_extract_patches_sequential(array_3D, patch_size)
+
+
+def test_calculate_stats():
+    arr = np.random.rand(2, 10, 10)
+
+    mean = 0
+    std = 0
+    for i in range(arr.shape[0]):
+        mean += np.mean(arr[i])
+        std += np.std(arr[i])
+    
+    assert np.around(arr.mean(), decimals=4) == np.around(mean / (i+1), decimals=4)
+    assert np.around(arr.std(), decimals=2) == np.around(std / (i+1), decimals=2)
+

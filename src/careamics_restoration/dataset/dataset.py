@@ -14,7 +14,6 @@ from ..utils import are_axes_valid, normalize
 #   ETL pipeline
 ############################################
 
-# TODO: URGENT rename all Dataloader modules to Dataset
 
 logger = logging.getLogger(__name__)
 
@@ -81,18 +80,14 @@ class PatchDataset(torch.utils.data.IterableDataset):
         """
         path_source = Path(data_source)
 
-        if not path_source.exists():
-            raise ValueError(f"Data source {path_source} does not exist")
-
         if path_source.suffix == ".npy":
             try:
                 arr = np.load(path_source)
                 len(arr.shape)
             except ValueError:
                 arr = np.load(path_source, allow_pickle=True)
-                (
-                    len(arr[0].shape) + 1
-                )  # TODO check all arrays have the same or compliant shape ?
+                (len(arr[0].shape) + 1)
+
         elif path_source.suffix[:4] == ".tif":
             arr = tifffile.imread(path_source)
             len(arr.shape)
@@ -115,7 +110,6 @@ class PatchDataset(torch.utils.data.IterableDataset):
         # check axes validity
         are_axes_valid(axes)  # this raises errors
 
-        # TODO add axes shuffling and reshapes. so far assuming correct order
         if ("S" in axes or "T" in axes) and arr.dtype != "O":
             arr = arr.reshape(
                 -1, *arr.shape[len(axes.replace("Z", "").replace("YX", "")) :]
@@ -125,14 +119,13 @@ class PatchDataset(torch.utils.data.IterableDataset):
                 arr[i] = np.expand_dims(arr[i], axis=0)
         else:
             arr = np.expand_dims(arr, axis=0)
-        return arr
 
+        return arr
+    
     def calculate_stats(self):
         mean = 0
         std = 0
 
-        # TODO does this break if there is no files or a single one?
-        # How to know ---> write tests...
         for i, image in tqdm(enumerate(self.__iter_source__())):
             mean += image.mean()
             std += np.std(image)
@@ -150,7 +143,6 @@ class PatchDataset(torch.utils.data.IterableDataset):
         return len(self.source)
 
     def __iter_source_zarr__(self):
-        # TODO better name?
         # load one zarr storage with zarr.open. Storage vs array? Check how it works with zarr
         # if it's zarr object type than read sample by sample. else read no less than 1 batch size ?
         # Normalization? on Chunk or running?
@@ -249,7 +241,7 @@ class PatchDataset(torch.utils.data.IterableDataset):
                 for idx in range(image.shape[0]):
                     sample = np.expand_dims(image[idx], (0, 1)).astype(
                         np.float32
-                    )  # TODO check explanddims !!
+                    ) 
                     yield normalize(sample, self.mean, self.std) if (
                         self.mean and self.std
                     ) else image
