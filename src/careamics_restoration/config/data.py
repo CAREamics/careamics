@@ -228,6 +228,11 @@ class Data(BaseModel):
             - remove entries with None value
             - replace Path by str
             - remove optional values if they have the default value
+
+        Returns
+        -------
+        dict
+            Dictionary containing the model parameters
         """
         dictionary = super().model_dump(exclude_none=True)
 

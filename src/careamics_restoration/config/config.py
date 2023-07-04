@@ -242,30 +242,43 @@ class Configuration(BaseModel):
 
         return config
 
-    def model_dump(self, *args, **kwargs) -> dict:
+    def model_dump(self, exclude_optionals: bool = True, *args, **kwargs) -> dict:
         """Override model_dump method.
 
         The purpose is to ensure export smooth import to yaml. It includes:
             - remove entries with None value
             - remove optional values if they have the default value
+
+        Parameters
+        ----------
+        exclude_optionals : bool, optional
+            Whether to exclude optional fields with default values or not, by default
+            True.
+
+        Returns
+        -------
+        dict
+            Dictionary containing the model parameters
         """
-        # TODO Joran: save full dump of the config with all the defaults
         dictionary = super().model_dump(exclude_none=True)
 
         # remove paths
         dictionary = paths_to_str(dictionary)
 
-        # TODO: did not find out how to call `model_dump` from members (e.g. Optimzer)
-        # in Pydantic v2... so we do it manually for now. Once their doc is updated,
-        # let's revisit this.
-        dictionary["algorithm"] = self.algorithm.model_dump()
-        dictionary["data"] = self.data.model_dump()
+        dictionary["algorithm"] = self.algorithm.model_dump(
+            exclude_optionals=exclude_optionals
+        )
+        dictionary["data"] = self.data.model_dump(exclude_optionals=exclude_optionals)
 
         # same for optional fields
         if self.training is not None:
-            dictionary["training"] = self.training.model_dump()
+            dictionary["training"] = self.training.model_dump(
+                exclude_optionals=exclude_optionals
+            )
         if self.prediction is not None:
-            dictionary["prediction"] = self.prediction.model_dump()
+            dictionary["prediction"] = self.prediction.model_dump(
+                exclude_optionals=exclude_optionals
+            )
 
         return dictionary
 
