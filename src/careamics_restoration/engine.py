@@ -1,4 +1,5 @@
 import logging
+import random
 from pathlib import Path
 from typing import Optional, Tuple, Union
 
@@ -8,9 +9,7 @@ from torch.utils.data import DataLoader, TensorDataset
 from tqdm import tqdm
 
 from .config import ConfigStageEnum, load_configuration
-from .dataset import (
-    create_dataset,
-)
+from .dataset.tiff_dataset import get_dataset
 from .losses import create_loss_function
 from .metrics import MetricTracker
 from .models import create_model
@@ -25,6 +24,7 @@ from .utils import (
 
 
 def seed_everything(seed: int):
+    random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
@@ -52,11 +52,6 @@ class Engine:
         setup_cudnn_reproducibility(deterministic=True, benchmark=False)
         seed_everything(seed=42)
 
-        # placeholders for mean and std
-        # TODO mean/std arent supposed to be the parameters of the engine. Move them.
-        self.mean: Optional[float] = None
-        self.std: Optional[float] = None
-
     def log_metrics(self):
         if self.cfg.misc.use_wandb:
             try:  # TODO Vera will fix this funzione di merda
@@ -76,11 +71,10 @@ class Engine:
     def train(self):
         if self.cfg.training is not None:
             # General func
-            train_loader, self.mean, self.std = self._get_train_dataloader()
+            train_loader = self.get_dataloader(ConfigStageEnum.TRAINING)
 
             # TODO what if there are no validation data ? That happens a lot with N2V
-            eval_loader = self._get_val_dataloader()
-            eval_loader.dataset.set_normalization(self.mean, self.std)
+            eval_loader = self.get_dataloader(ConfigStageEnum.VALIDATION)
 
             optimizer, lr_scheduler = self.get_optimizer_and_scheduler()
             scaler = self.get_grad_scaler()
@@ -172,16 +166,26 @@ class Engine:
 
         return {"loss": avg_loss.avg}
 
-    def predict(self, external_input: Optional[np.ndarray] = None):
+    def predict(
+        self,
+        external_input: Optional[np.ndarray] = None,
+        mean: float = None,
+        std: float = None,
+    ):
         self.model.to(self.device)
         self.model.eval()
         # TODO external input shape should either be compatible with the model or tiled. Add checks and raise errors
-        if not (self.mean and self.std):
-            _, self.mean, self.std = self._get_train_dataloader()
+        if not mean and not std:
+            reference_dataset = self.get_dataloader(ConfigStageEnum.TRAINING).dataset
+            mean = reference_dataset.mean
+            std = reference_dataset.std
 
+        # TODO external input shape should either be compatible with the model or tiled. Add checks and raise errors
         # TODO check, calculate mean and std on all data not only train
         pred_loader, stitch = self.get_predict_dataloader(
             external_input=external_input,
+            mean=mean,
+            std=std,
         )
 
         tiles = []
@@ -205,9 +209,10 @@ class Engine:
                         stitch_coords,
                     ) = auxillary
 
-                normalized_input = normalize(tile, self.mean, self.std).to(self.device)
-                outputs = self.model(normalized_input)
-                outputs = denormalize(outputs, self.mean, self.std)
+                outputs = self.model(tile.to(self.device))
+                outputs = denormalize(
+                    outputs, pred_loader.dataset.mean, pred_loader.dataset.std
+                )
 
                 if stitch:
                     # TODO: can the code be expanded to have the squeezing done
@@ -249,58 +254,33 @@ class Engine:
         self.logger.info(f"Predicted {len(prediction)} samples")
         return np.stack(prediction)
 
-    def _get_train_dataloader(self) -> Tuple[DataLoader, int, int]:
-        if self.cfg.training is not None:
-            # create training dataset
-            dataset = create_dataset(self.cfg, ConfigStageEnum.TRAINING)
-
-            # TODO all this should go into the Dataset
-            ##TODO add custom collate function and separate dataloader create function, sampler?
-            # Move running stats into dataset
-            self.logger.info("Calculating mean/std of the data")
-            dataset.calculate_stats()
-
-            return (
-                DataLoader(
-                    dataset,
-                    batch_size=self.cfg.training.batch_size,
-                    num_workers=self.cfg.training.num_workers,
-                ),
-                # TODO Igor: move mean std to patch dataset (and rename to tiffdataset)
-                dataset.mean,
-                dataset.std,
-            )
-        else:
-            raise ValueError("Missing training entry in configuration file.")
-
-    # TODO merge into single dataloader func ? <-- yes
-    def _get_val_dataloader(self) -> DataLoader:
-        if self.cfg.training is not None:
-            dataset = create_dataset(self.cfg, ConfigStageEnum.TRAINING)
-            return DataLoader(
-                dataset,
-                batch_size=self.cfg.training.batch_size,
-                num_workers=self.cfg.training.num_workers,
-                pin_memory=True,
-            )
-        else:
-            raise ValueError("Missing training entry in configuration file.")
+    # TODO: add custom collate function and separate dataloader create function, sampler?
+    def get_dataloader(self, stage: ConfigStageEnum) -> DataLoader:
+        dataset = get_dataset(stage, self.cfg)
+        dataloader = DataLoader(
+            dataset,
+            batch_size=self.cfg.training.batch_size,
+            num_workers=self.cfg.training.num_workers,
+            pin_memory=True,
+        )
+        return dataloader
 
     def get_predict_dataloader(
         self,
         external_input: Optional[np.ndarray] = None,
+        mean: float = None,
+        std: float = None,
     ) -> Tuple[DataLoader, bool]:
         # TODO add description
         # TODO mypy does not take into account "is not None", we need to find a workaround
         if external_input is not None:
-            normalized_input = normalize(external_input, self.mean, self.std)
+            normalized_input = normalize(external_input, mean, std)
             normalized_input = normalized_input.astype(np.float32)
 
             dataset = TensorDataset(torch.from_numpy(normalized_input))
             stitch = False
         else:
-            dataset = create_dataset(self.cfg, ConfigStageEnum.PREDICTION)
-            dataset.set_normalization(self.mean, self.std)
+            dataset = get_dataset(ConfigStageEnum.PREDICTION, self.cfg)
             stitch = (
                 hasattr(dataset, "patch_generator")
                 and dataset.patch_generator is not None

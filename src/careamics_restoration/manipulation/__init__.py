@@ -1,1 +1,1 @@
-from .manipulation_factory import create_masking_transform
+from .pixel_manipulation import default_manipulate

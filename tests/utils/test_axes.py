@@ -1,6 +1,6 @@
 import pytest
 
-from careamics_restoration.utils.axes import are_axes_valid
+from careamics_restoration.utils import check_axes_validity
 
 
 @pytest.mark.parametrize(
@@ -39,7 +39,7 @@ from careamics_restoration.utils.axes import are_axes_valid
 def test_are_axes_valid(axes, valid):
     """Test if axes are valid"""
     if valid:
-        are_axes_valid(axes)
+        check_axes_validity(axes)
     else:
         with pytest.raises((ValueError, NotImplementedError)):
-            are_axes_valid(axes)
+            check_axes_validity(axes)

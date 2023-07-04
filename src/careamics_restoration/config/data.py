@@ -15,8 +15,8 @@ from pydantic import (
 # TODO this creates a circular import when instantiating the engine
 # engine -> config -> evaluation -> data -> dataloader_utils
 # then are_axes_valid are imported again in the engine.
-from ..utils import are_axes_valid
 from .config_filter import paths_to_str
+from ..utils import check_axes_validity
 
 
 class SupportedExtensions(str, Enum):
@@ -76,6 +76,10 @@ class Data(BaseModel):
         Path to the validation data.
     prediction_path : Optional[Union[Path, str]]
         Path to the prediction data.
+    mean: Optional[float]
+       Expected data mean
+    std: Optional[float]
+       Expected data std
     """
 
     # Pydantic class configuration
@@ -89,6 +93,9 @@ class Data(BaseModel):
     training_path: Optional[Union[Path, str]] = None
     validation_path: Optional[Union[Path, str]] = None
     prediction_path: Optional[Union[Path, str]] = None
+
+    mean: Optional[float] = None
+    std: Optional[float] = None
 
     @field_validator("training_path", "validation_path", "prediction_path")
     def path_contains_images(cls, path_value: str, values: FieldValidationInfo) -> Path:
@@ -145,7 +152,7 @@ class Data(BaseModel):
             If axes are not valid
         """
         # validate axes
-        are_axes_valid(axes)
+        check_axes_validity(axes)
 
         return axes
 

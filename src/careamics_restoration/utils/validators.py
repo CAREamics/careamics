@@ -1,7 +1,7 @@
 AXES = "STCZYX"
 
 
-def are_axes_valid(axes: str) -> bool:
+def check_axes_validity(axes: str) -> bool:
     """Sanity check on axes.
 
     The constraints on the axes are the following:

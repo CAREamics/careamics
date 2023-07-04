@@ -2,13 +2,8 @@ import numpy as np
 import pytest
 import tifffile
 
-from careamics_restoration.dataset.dataset import (
-    TiffDataset,
-)
-from careamics_restoration.dataset.dataset_utils import (
-    extract_patches_sequential,
-    list_input_source_tiff,
-)
+from careamics_restoration.dataset.tiff_dataset import TiffDataset
+from careamics_restoration.dataset.tiling import extract_patches_sequential
 
 
 def test_list_input_source_tiff(tmp_path):

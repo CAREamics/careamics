@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from careamics_restoration.dataset.dataset_utils import (
+from careamics_restoration.dataset.tiling import (
     _compute_number_of_patches,
     compute_crop_and_stitch_coords_1d,
     compute_overlap,
