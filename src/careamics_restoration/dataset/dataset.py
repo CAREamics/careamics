@@ -202,7 +202,7 @@ class TiffDataset(torch.utils.data.IterableDataset):
 
                 for patch in patches:
                     # TODO: remove this ugly workaround for normalizing 'prediction' patches
-                    if type(patch) == Tuple:
+                    if isinstance(patch, tuple):
                         normalized_patch = normalize(patch[0], self.mean, self.std)
                         patch = (normalized_patch, *patch[1:])
                     else:
