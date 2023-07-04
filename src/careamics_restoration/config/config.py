@@ -14,13 +14,14 @@ from .data import Data
 from .prediction import Prediction
 from .training import Training
 
-# TODO: Vera test if parameter parent_config at the top of the config could work
+# TODO: test if parameter parent_config at the top of the config could work
 # TODO: is stage necessary? it seems to bring a lot of compelxity for little gain
 # TODO: test configuration mutability and whether the validators are called when
 # changing a field
 # TODO: config version?
 # TODO: for the working directory to work it should probably be set globally when
 # starting the engine
+# TODO: option to dump the whole configuration with all the defaults
 
 
 class ConfigStageEnum(str, Enum):
