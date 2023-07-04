@@ -178,7 +178,7 @@ class Engine:
         pred_loader, stitch = self.get_predict_dataloader(
             external_input=external_input,
             mean=self.cfg.data.mean,
-            std=self.cfg.data.mean
+            std=self.cfg.data.mean,
         )
 
         tiles = []
@@ -203,7 +203,9 @@ class Engine:
                     ) = auxillary
 
                 outputs = self.model(tile.to(self.device))
-                outputs = denormalize(outputs, pred_loader.dataset.mean, pred_loader.dataset.std)
+                outputs = denormalize(
+                    outputs, pred_loader.dataset.mean, pred_loader.dataset.std
+                )
 
                 if stitch:
                     # TODO: can the code be expanded to have the squeezing done
@@ -252,7 +254,7 @@ class Engine:
             dataset,
             batch_size=self.cfg.training.batch_size,
             num_workers=self.cfg.training.num_workers,
-            pin_memory=True
+            pin_memory=True,
         )
         return dataloader
 

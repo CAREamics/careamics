@@ -213,7 +213,9 @@ class TiffDataset(torch.utils.data.IterableDataset):
                         patch = normalize(patch, self.mean, self.std)
 
                     if self.patch_transform is not None:
-                        patch = self.patch_transform(patch, **self.patch_transform_params)
+                        patch = self.patch_transform(
+                            patch, **self.patch_transform_params
+                        )
 
                     yield patch
 
@@ -245,8 +247,8 @@ def get_tiff_dataset(stage, config):
             patch_size=config.training.patch_size,
             patch_transform=default_manipulate,
             patch_transform_params={
-                'mask_pixel_percentage': config.algorithm.masked_pixel_percentage
-            }
+                "mask_pixel_percentage": config.algorithm.masked_pixel_percentage
+            },
         )
     elif stage == ConfigStageEnum.PREDICTION:
         if config.prediction is None:
@@ -262,6 +264,6 @@ def get_tiff_dataset(stage, config):
             patch_transform=None,
         )
     else:
-        raise ValueError(f'Stage {stage} not supported')
+        raise ValueError(f"Stage {stage} not supported")
 
     return dataset

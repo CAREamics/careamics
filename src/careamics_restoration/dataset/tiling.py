@@ -183,8 +183,7 @@ def compute_reshaped_view(
 # formerly :
 # https://github.com/juglab-torch/n2v/blob/00d536cdc5f5cd4bb34c65a777940e6e453f4a93/src/n2v/dataloader.py#L52
 def extract_patches_sequential(
-    arr: np.ndarray,
-    patch_size: Tuple[int]
+    arr: np.ndarray, patch_size: Tuple[int]
 ) -> Generator[np.ndarray, None, None]:
     """Generate patches from an array of dimensions C(Z)YX, where C can
     be a singleton dimension.
@@ -258,10 +257,7 @@ def extract_patches_sequential(
 
 # TODO: extract patches random default number of patches 1 or max? parameter for number of patches?
 # TODO: extract patches random but with the possibility to remove (almost) empty patches
-def extract_patches_random(
-    arr,
-    patch_size
-) -> Generator[np.ndarray, None, None]:
+def extract_patches_random(arr, patch_size) -> Generator[np.ndarray, None, None]:
     rng = np.random.default_rng()
     # shuffle the array along the first axis TODO do we need shuffling?
     rng.shuffle(arr, axis=0)
