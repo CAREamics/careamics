@@ -7,7 +7,7 @@ import tifffile
 import torch
 from tqdm import tqdm
 
-from .tiling import (
+from careamics_restoration.dataset.tiling import (
     extract_patches_predict,
     extract_patches_sequential,
     extract_patches_random,
@@ -80,7 +80,7 @@ class TiffDataset(torch.utils.data.IterableDataset):
         means, stds = 0, 0
         num_samples = 0
 
-        for sample in tqdm(self.iterate_path, title="Calculating data stats"):
+        for sample in tqdm(self.iterate_files()):
             means += sample.mean()
             stds += np.std(sample)
             num_samples += 1
@@ -201,7 +201,12 @@ class TiffDataset(torch.utils.data.IterableDataset):
                 patches = self.generate_patches(sample)
 
                 for patch in patches:
-                    patch = normalize(patch, self.mean, self.std)
+                    # TODO: remove this ugly workaround for normalizing 'prediction' patches
+                    if type(patch) == Tuple:
+                        normalized_patch = normalize(patch[0], self.mean, self.std)
+                        patch = (normalized_patch, *patch[1:])
+                    else:
+                        patch = normalize(patch, self.mean, self.std)
 
                     if self.patch_transform is not None:
                         patch = self.patch_transform(patch)
