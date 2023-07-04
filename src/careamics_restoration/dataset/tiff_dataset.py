@@ -1,17 +1,19 @@
 import logging
 from pathlib import Path
-from typing import Callable, List, Optional, Tuple, Union
+from typing import Callable, List, Optional, Tuple, Union, Dict
 
 import numpy as np
 import tifffile
 import torch
 from tqdm import tqdm
 
+from careamics_restoration.config import ConfigStageEnum
 from careamics_restoration.dataset.tiling import (
     extract_patches_predict,
     extract_patches_sequential,
     extract_patches_random,
 )
+from careamics_restoration.manipulation.pixel_manipulation import n2v_manipulate
 from careamics_restoration.utils import normalize
 from careamics_restoration.config.training import ExtractionStrategies
 
@@ -31,6 +33,7 @@ class TiffDataset(torch.utils.data.IterableDataset):
         mean: float = None,
         std: float = None,
         patch_transform: Optional[Callable] = None,
+        patch_transform_params: Optional[Dict] = None,
     ) -> None:
         """
         Parameters
@@ -69,6 +72,7 @@ class TiffDataset(torch.utils.data.IterableDataset):
         self.patch_overlap = patch_overlap
         self.patch_extraction_method = patch_extraction_method
         self.patch_transform = patch_transform
+        self.patch_transform_params = patch_transform_params
 
     def list_files(self) -> List[Path]:
         files = sorted(Path(self.data_path).rglob(f"*.tif*"))
@@ -209,7 +213,7 @@ class TiffDataset(torch.utils.data.IterableDataset):
                         patch = normalize(patch, self.mean, self.std)
 
                     if self.patch_transform is not None:
-                        patch = self.patch_transform(patch)
+                        patch = self.patch_transform(patch, **self.patch_transform_params)
 
                     yield patch
 
@@ -220,3 +224,44 @@ class TiffDataset(torch.utils.data.IterableDataset):
                     item = np.expand_dims(item, (0, 1))
                     item = normalize(item, self.mean, self.std)
                     yield item
+
+
+def get_tiff_dataset(stage, config):
+    if stage in (ConfigStageEnum.TRAINING, ConfigStageEnum.EVALUATION):
+        if config.training is None:
+            raise ValueError("Training configuration is not defined.")
+
+        if stage == ConfigStageEnum.TRAINING:
+            data_path = config.data.training_path
+        else:
+            data_path = config.data.validation_path
+
+        dataset = TiffDataset(
+            data_path=data_path,  # TODO this can be None
+            axes=config.data.axes,
+            mean=config.data.mean,
+            std=config.data.std,
+            patch_extraction_method=config.training.extraction_strategy,
+            patch_size=config.training.patch_size,
+            patch_transform=n2v_manipulate,
+            patch_transform_params={
+                'mask_pixel_percentage': config.algorithm.masked_pixel_percentage
+            }
+        )
+    elif stage == ConfigStageEnum.PREDICTION:
+        if config.prediction is None:
+            raise ValueError("Prediction configuration is not defined.")
+
+        dataset = TiffDataset(
+            data_path=config.data.prediction_path,
+            axes=config.data.axes,
+            mean=config.data.mean,
+            std=config.data.std,
+            patch_size=config.prediction.tile_shape,  # TODO this can be None
+            patch_extraction_method=config.prediction.extraction_strategy,
+            patch_transform=None,
+        )
+    else:
+        raise ValueError(f'Stage {stage} not supported')
+
+    return dataset

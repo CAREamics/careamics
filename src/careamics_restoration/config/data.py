@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field, validator
 # TODO this creates a circular import when instantiating the engine
 # engine -> config -> evaluation -> data -> dataloader_utils
 # then are_axes_valid are imported again in the engine.
-from ..utils import are_axes_valid
+from ..utils import check_axes_validity
 
 
 class SupportedExtension(str, Enum):
