@@ -1,13 +1,13 @@
 import logging
 from pathlib import Path
-from typing import Callable, List, Optional, Tuple, Union, Dict
+from typing import Callable, List, Optional, Tuple, Union, Dict, Generator
 
 import numpy as np
 import tifffile
 import torch
 from tqdm import tqdm
 
-from careamics_restoration.config import ConfigStageEnum
+from careamics_restoration.config import ConfigStageEnum, Configuration
 from careamics_restoration.dataset.tiling import (
     extract_patches_predict,
     extract_patches_sequential,
@@ -21,13 +21,13 @@ logger = logging.getLogger(__name__)
 
 
 class TiffDataset(torch.utils.data.IterableDataset):
-    """Dataset to extract patches from a list of images and apply transforms to the patches."""
+    """Dataset to extract patches from a list of tiff images and apply transforms to the patches."""
 
     def __init__(
         self,
         data_path: Union[Path, str],
         axes: str,
-        patch_extraction_method: str,
+        patch_extraction_method: ExtractionStrategies,
         patch_size: Union[List[int], Tuple[int]] = None,
         patch_overlap: Union[List[int], Tuple[int]] = None,
         mean: float = None,
@@ -40,23 +40,31 @@ class TiffDataset(torch.utils.data.IterableDataset):
         ----------
         data_path : str
             Path to data, must be a directory.
+
         axes: str
             Description of axes in format STCZYX
+
         patch_extraction_method: str
-            aaa
+            Patch extraction strategy, one of "sequential", "random", "tiled"
+
         patch_size : Tuple[int]
             The size of the patch to extract from the image. Must be a tuple of len either 2 or 3
             depending on number of spatial dimension in the data.
-        patch_overlap:
-            aaa
-        mean:
-            aaa
-        std:
-            aaa
-        image_transform : Optional[Callable], optional
-            _description_, by default None
+
+        patch_overlap: Tuple[int]
+            Size of the overlaps. Used for "tiled" tiling strategy.
+
+        mean: float
+            Expected mean of the samples
+
+        std: float
+            Expected std of the samples
+
         patch_transform: Optional[Callable], optional
-            aaa
+            Transform to apply to patches.
+
+        patch_transform_params: Optional[Dict], optional
+            Additional parameters to pass to patch transform function
         """
         self.data_path = data_path
         self.axes = axes
@@ -80,63 +88,18 @@ class TiffDataset(torch.utils.data.IterableDataset):
             raise ValueError(f"No tiff files found in {self.data_path}.")
         return files
 
-    def calculate_mean_and_std(self) -> Tuple[float, float]:
-        means, stds = 0, 0
-        num_samples = 0
-
-        for sample in tqdm(self.iterate_files()):
-            means += sample.mean()
-            stds += np.std(sample)
-            num_samples += 1
-
-        result_mean = means / num_samples
-        result_std = stds / num_samples
-
-        logger.info(f"Calculated mean and std for {num_samples} images")
-        logger.info(f"Mean: {result_mean}, std: {result_std}")
-
-        return result_mean, result_std
-
-    # TODO add axes shuffling and reshapes. so far assuming correct order
-    # TODO rewrite it to make it readable
-    def fix_axes(self, sample):
-        # concatenate ST axes to N, return NCZYX
-        if ("S" in self.axes or "T" in self.axes) and sample.dtype != "O":
-            new_axes_len = len(self.axes.replace("Z", "").replace("YX", ""))
-            sample = sample.reshape(-1, *sample.shape[new_axes_len:])
-
-        elif sample.dtype == "O":
-            for i in range(len(sample)):
-                sample[i] = np.expand_dims(sample[i], axis=0)
-
-        else:
-            sample = np.expand_dims(sample, axis=0)
-
-        return sample
-
     def read_image(self, file_path: Path) -> np.ndarray:
-        """
-        Read image from source and correct dimensions.
-
-        Parameters
-        ----------
-        file_path : Path
-            Path to image source
-
-        Returns
-        -------
-        image volume : np.ndarray
-        """
         if not file_path.exists():
             raise ValueError(f"File {file_path} does not exist")
 
         try:
             sample = tifffile.imread(file_path)
-            sample = sample.squeeze()
-            sample = sample.astype(np.float32)
         except (ValueError, OSError) as e:
             logging.exception(f"Exception in file {file_path}: {e}, skipping")
             raise e
+
+        sample = sample.squeeze()
+        sample = sample.astype(np.float32)
 
         # check number of dimensions
         if len(sample.shape) < 2 or len(sample.shape) > 4:
@@ -152,7 +115,41 @@ class TiffDataset(torch.utils.data.IterableDataset):
 
         return sample
 
-    def generate_patches(self, sample):
+    def calculate_mean_and_std(self) -> Tuple[float, float]:
+        means, stds = 0, 0
+        num_samples = 0
+
+        for sample in tqdm(self.iterate_files(), total=len(self.files)):
+            means += sample.mean()
+            stds += np.std(sample)
+            num_samples += 1
+
+        result_mean = means / num_samples
+        result_std = stds / num_samples
+
+        logger.info(f"Calculated mean and std for {num_samples} images")
+        logger.info(f"Mean: {result_mean}, std: {result_std}")
+
+        return result_mean, result_std
+
+    # TODO add axes shuffling and reshapes. so far assuming correct order
+    # TODO rewrite it to make it readable
+    def fix_axes(self, sample: np.ndarray) -> np.ndarray:
+        # concatenate ST axes to N, return NCZYX
+        if ("S" in self.axes or "T" in self.axes) and sample.dtype != "O":
+            new_axes_len = len(self.axes.replace("Z", "").replace("YX", ""))
+            sample = sample.reshape(-1, *sample.shape[new_axes_len:])
+
+        elif sample.dtype == "O":
+            for i in range(len(sample)):
+                sample[i] = np.expand_dims(sample[i], axis=0)
+
+        else:
+            sample = np.expand_dims(sample, axis=0)
+
+        return sample
+
+    def generate_patches(self, sample: np.ndarray) -> Generator[np.ndarray, None, None]:
         patches = None
 
         if self.patch_extraction_method == ExtractionStrategies.TILED:
@@ -173,7 +170,7 @@ class TiffDataset(torch.utils.data.IterableDataset):
 
     def iterate_files(self) -> np.ndarray:
         """
-        Iterate over data source and yield whole image. Optional transform is applied to the images.
+        Iterate over data source and yield whole image.
 
         Yields
         ------
@@ -228,8 +225,15 @@ class TiffDataset(torch.utils.data.IterableDataset):
                     yield item
 
 
-def get_tiff_dataset(stage, config):
-    if stage in (ConfigStageEnum.TRAINING, ConfigStageEnum.EVALUATION):
+def get_tiff_dataset(stage: ConfigStageEnum, config: Configuration) -> TiffDataset:
+    """
+    Create TiffDataset instance from configuration
+
+    Yields
+    ------
+    TiffDataset
+    """
+    if stage in (ConfigStageEnum.TRAINING, ConfigStageEnum.VALIDATION):
         if config.training is None:
             raise ValueError("Training configuration is not defined.")
 
@@ -254,13 +258,19 @@ def get_tiff_dataset(stage, config):
         if config.prediction is None:
             raise ValueError("Prediction configuration is not defined.")
 
+        if config.prediction.use_tiling:
+            patch_extraction_method = ExtractionStrategies.TILED
+        else:
+            patch_extraction_method = None
+
         dataset = TiffDataset(
             data_path=config.data.prediction_path,
             axes=config.data.axes,
             mean=config.data.mean,
             std=config.data.std,
-            patch_size=config.prediction.tile_shape,  # TODO this can be None
-            patch_extraction_method=config.prediction.extraction_strategy,
+            patch_size=config.prediction.tile_shape,
+            patch_overlap=config.prediction.overlaps,
+            patch_extraction_method=patch_extraction_method,
             patch_transform=None,
         )
     else:
