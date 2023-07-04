@@ -26,6 +26,7 @@ class TiffDataset(torch.utils.data.IterableDataset):
     def __init__(
         self,
         data_path: Union[Path, str],
+        data_format: str,
         axes: str,
         patch_extraction_method: ExtractionStrategies,
         patch_size: Optional[Union[List[int], Tuple[int]]] = None,
@@ -67,6 +68,7 @@ class TiffDataset(torch.utils.data.IterableDataset):
             Additional parameters to pass to patch transform function
         """
         self.data_path = data_path
+        self.data_format = data_format
         self.axes = axes
 
         self.patch_transform = patch_transform
@@ -83,24 +85,26 @@ class TiffDataset(torch.utils.data.IterableDataset):
         self.patch_transform_params = patch_transform_params
 
     def list_files(self) -> List[Path]:
-        files = sorted(Path(self.data_path).rglob(f"*.tif*"))
-        if len(files) == 0:
-            raise ValueError(f"No tiff files found in {self.data_path}.")
+        files = sorted(Path(self.data_path).rglob(f"*.{self.data_format}*"))
         return files
 
     def read_image(self, file_path: Path) -> np.ndarray:
-        if not file_path.exists():
-            raise ValueError(f"File {file_path} does not exist")
+        if file_path.suffix == ".npy":
+            try:
+                sample = np.load(file_path)
+            except ValueError:
+                sample = np.load(file_path, allow_pickle=True)
 
-        try:
-            sample = tifffile.imread(file_path)
-        except (ValueError, OSError) as e:
-            logging.exception(f"Exception in file {file_path}: {e}, skipping")
-            raise e
+        elif file_path.suffix[:4] == ".tif":
+            try:
+                sample = tifffile.imread(file_path)
+            except (ValueError, OSError) as e:
+                logging.exception(f"Exception in file {file_path}: {e}, skipping")
+                raise e
 
         sample = sample.squeeze()
-        sample = sample.astype(np.float32)
-
+        sample = self.fix_axes(sample)
+        # TODO this doesn't work with object dtype. Move these checks somewhere or dont support object dtype
         # check number of dimensions
         if len(sample.shape) < 2 or len(sample.shape) > 4:
             raise ValueError(
@@ -129,7 +133,7 @@ class TiffDataset(torch.utils.data.IterableDataset):
 
         logger.info(f"Calculated mean and std for {num_samples} images")
         logger.info(f"Mean: {result_mean}, std: {result_std}")
-
+        # TODO pass stage here to be more explicit with logging
         return result_mean, result_std
 
     # TODO add axes shuffling and reshapes. so far assuming correct order
@@ -138,14 +142,14 @@ class TiffDataset(torch.utils.data.IterableDataset):
         # concatenate ST axes to N, return NCZYX
         if ("S" in self.axes or "T" in self.axes) and sample.dtype != "O":
             new_axes_len = len(self.axes.replace("Z", "").replace("YX", ""))
-            sample = sample.reshape(-1, *sample.shape[new_axes_len:])
+            sample = sample.reshape(-1, *sample.shape[new_axes_len:]).astype(np.float32)
 
         elif sample.dtype == "O":
             for i in range(len(sample)):
-                sample[i] = np.expand_dims(sample[i], axis=0)
+                sample[i] = np.expand_dims(sample[i], axis=0).astype(np.float32)
 
         else:
-            sample = np.expand_dims(sample, axis=0)
+            sample = np.expand_dims(sample, axis=0).astype()
 
         return sample
 
@@ -185,7 +189,6 @@ class TiffDataset(torch.utils.data.IterableDataset):
         for i, filename in enumerate(self.files):
             if i % num_workers == worker_id:
                 sample = self.read_image(filename)
-                sample = self.fix_axes(sample)
                 yield sample
 
     def __iter__(self) -> np.ndarray:
@@ -241,9 +244,11 @@ def get_dataset(stage: ConfigStageEnum, config: Configuration) -> TiffDataset:
             data_path = config.data.training_path
         else:
             data_path = config.data.validation_path
-
+        # TODO create dataset once, define all params before. Or create separate class for prediction. This might
+        # simplify things
         dataset = TiffDataset(
             data_path=data_path,  # TODO this can be None
+            data_format=config.data.data_format,
             axes=config.data.axes,
             mean=config.data.mean,
             std=config.data.std,
@@ -265,6 +270,7 @@ def get_dataset(stage: ConfigStageEnum, config: Configuration) -> TiffDataset:
 
         dataset = TiffDataset(
             data_path=config.data.prediction_path,
+            data_format=config.data.data_format,
             axes=config.data.axes,
             mean=config.data.mean,
             std=config.data.std,

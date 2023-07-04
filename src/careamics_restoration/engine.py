@@ -75,7 +75,7 @@ class Engine:
 
             # TODO what if there are no validation data ? That happens a lot with N2V
             eval_loader = self.get_dataloader(ConfigStageEnum.VALIDATION)
-
+            # TODO calculates mean and std of valuation data. Do we want this?
             optimizer, lr_scheduler = self.get_optimizer_and_scheduler()
             scaler = self.get_grad_scaler()
             self.logger.info(
@@ -174,6 +174,7 @@ class Engine:
     ):
         self.model.to(self.device)
         self.model.eval()
+        # TODO mean std don't get passed from train 
         # TODO external input shape should either be compatible with the model or tiled. Add checks and raise errors
         if not mean and not std:
             reference_dataset = self.get_dataloader(ConfigStageEnum.TRAINING).dataset
@@ -271,19 +272,19 @@ class Engine:
         mean: float = None,
         std: float = None,
     ) -> Tuple[DataLoader, bool]:
+        # TODO mean/std don't get passed here
         # TODO add description
         # TODO mypy does not take into account "is not None", we need to find a workaround
         if external_input is not None:
             normalized_input = normalize(external_input, mean, std)
             normalized_input = normalized_input.astype(np.float32)
-
             dataset = TensorDataset(torch.from_numpy(normalized_input))
-            stitch = False
+            stitch = False # TODO can also be true
         else:
             dataset = get_dataset(ConfigStageEnum.PREDICTION, self.cfg)
             stitch = (
-                hasattr(dataset, "patch_generator")
-                and dataset.patch_generator is not None
+                hasattr(dataset, "patch_extraction_method")
+                and dataset.patch_extraction_method is not None
             )
         return (
             # TODO there is not batch_size and num_workers in prediction
