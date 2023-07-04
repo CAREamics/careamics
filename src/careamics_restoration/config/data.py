@@ -30,6 +30,7 @@ class SupportedExtensions(str, Enum):
     TIFF = "tiff"
     TIF = "tif"
     NPY = "npy"  # TODO check if actually supported, probably not.
+    ZARR = "zarr"
 
     @classmethod
     def _missing_(cls, value: object):
@@ -123,6 +124,8 @@ class Data(BaseModel):
             )
 
         return path
+
+    #TODO add validation for zarr storage, if it is a folder
 
     @field_validator("axes")
     def valid_axes(cls, axes: str) -> str:

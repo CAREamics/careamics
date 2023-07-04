@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 from typing import Callable, List, Optional, Tuple, Union
 
@@ -8,6 +9,8 @@ from tqdm import tqdm
 
 from ..utils import normalize, check_axes_validity
 
+logger = logging.getLogger(__name__)
+
 
 class NGFFDataset(torch.utils.data.IterableDataset):
     """Dataset to extract patches from a list of images and apply transforms to the patches."""
@@ -17,7 +20,6 @@ class NGFFDataset(torch.utils.data.IterableDataset):
         data_path: Union[Path, str],
         ext: str,
         axes: str,
-        data_reader: Callable,
         patch_size: Union[List[int], Tuple[int]],
         patch_generator: Optional[Callable],
         image_level_transform: Optional[Callable] = None,
@@ -45,7 +47,6 @@ class NGFFDataset(torch.utils.data.IterableDataset):
         self.data_path = data_path
         self.ext = ext
         self.axes = axes
-        self.data_reader = data_reader
         self.patch_size = patch_size
         self.patch_generator = patch_generator
         self.add_channel = patch_generator is not None
@@ -70,9 +71,28 @@ class NGFFDataset(torch.utils.data.IterableDataset):
         image volume : np.ndarray
         """
 
-        # remove any singleton dimensions
-        arr = arr.squeeze()
+        zarr_source = zarr.open(Path(data_source), mode="r")
+        if isinstance(zarr_source, zarr.hierarchy.Group):
+            # get members
+            pass
+        elif isinstance(zarr_source, zarr.storage.DirectoryStore):
+            # TODO add support for different types of storages
+            pass
 
+        elif isinstance(zarr_source, zarr.core.Array):
+            zarr_source = zarr_source.reshape(-1, *zarr_source[1:])
+            # TODO add checking chunk size ?
+
+            # array should be of shape (S, (C), (Z), Y, X), iterating over S ?
+            # TODO what if array is not of that shape and/or chunks aren't defined and
+            if zarr_source.dtype == "O":
+                pass
+            else:
+                arr = zarr_source
+        else:
+            raise ValueError(f"Unsupported zarr object type {type(zarr_source)}")
+
+        # TODO move tthis to separate func ?
         # sanity check on dimensions
         if len(arr.shape) < 2 or len(arr.shape) > 4:
             raise ValueError(
@@ -115,61 +135,19 @@ class NGFFDataset(torch.utils.data.IterableDataset):
         self.mean = mean
         self.std = std
 
-    def __len__(self):
-        return len(self.source)
-
     def __iter_source__(self):
-        # load one zarr storage with zarr.open. Storage vs array? Check how it works with zarr
-        # if it's zarr object type than read sample by sample. else read no less than 1 batch size ?
-        # Normalization? on Chunk or running?
-
-        # Calculate number of dimensions before (channel, z, y, x) and iterate over them taking random sample
-        # from random axis
-
         info = torch.utils.data.get_worker_info()
         num_workers = info.num_workers if info is not None else 1
         id = info.id if info is not None else 0
 
         # TODO add check if source is a valid zarr object
-        self.source = zarr.open(Path(self.data_path), mode="r")
+        self.source = self.read_source(self.data_path, self.axes)
 
-        if isinstance(self.source, zarr.core.Array):
-            self.source = self.source.reshape(-1, *self.source_shape[1:])
-            # TODO add checking chunk size ?
-
-            # array should be of shape (S, (C), (Z), Y, X), iterating over S ?
-            # TODO what if array is not of that shape and/or chunks aren't defined and
-            if self.source.dtype == "O":
-                # each sample is an array. Need patching in this case.
-                for sample in range(self.source_shape[0]):
-                    # start iterating over the source
-                    # read chunk, reshape. #TODO this might be ok for random patching
-                    if sample % num_workers == id:
-                        yield self.image_transform(
-                            self.source[sample]
-                        ) if self.image_transform is not None else self.source[sample]
-            else:
-                # TODO add support for reshaping arbitraty number of dimensions
-                # start iterating over the source
-                # read chunk, reshape. #TODO this might be ok for random patching or if
-                # array is of shape (S, (C), (Z), Y, X), iterating over S
-                num_samples = 0  # TODO how to define number of samples in this case?
-                for sample in range(num_samples):
-                    if sample % num_workers == id:
-                        yield self.image_transform(
-                            self.source[sample]
-                        ) if self.image_transform is not None else self.source[sample]
-
-        elif isinstance(self.source, zarr.hierarchy.Group):
-            # TODO add support for groups
-            pass
-
-        elif isinstance(self.source, zarr.storage.DirectoryStore):
-            # TODO add support for different types of storages
-            pass
-
-        else:
-            raise ValueError(f"Unsupported zarr object type {type(self.source)}")
+        for sample in range(self.source_shape[0]):
+            if sample % num_workers == id:
+                yield self.image_transform(
+                    self.source[sample]
+                ) if self.image_transform is not None else self.source[sample]
 
     def __iter__(self):
         """
@@ -180,16 +158,10 @@ class NGFFDataset(torch.utils.data.IterableDataset):
         np.ndarray
         """
         for image in self.__iter_source__():
-            if self.patch_generator is None:
-                for idx in range(image.shape[0]):
-                    sample = np.expand_dims(image[idx], (0, 1)).astype(np.float32)
-                    yield normalize(sample, self.mean, self.std) if (
-                        self.mean and self.std
-                    ) else image
-            else:
-                for patch_data in self.patch_generator(
-                    image, self.patch_size, mean=self.mean, std=self.std
-                ):
-                    yield self.patch_transform(
-                        patch_data
-                    ) if self.patch_transform is not None else (patch_data)
+            # Patch generator should be extract_patches_random
+            for patch_data in self.patch_generator(
+                image, self.patch_size, mean=self.mean, std=self.std
+            ):
+                yield self.patch_transform(
+                    patch_data
+                ) if self.patch_transform is not None else (patch_data)
