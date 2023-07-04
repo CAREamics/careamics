@@ -6,7 +6,7 @@ import torch
 import zarr
 from tqdm import tqdm
 
-from ..utils import normalize
+from ..utils import normalize, check_axes_validity
 
 
 class NGFFDataset(torch.utils.data.IterableDataset):
@@ -84,7 +84,7 @@ class NGFFDataset(torch.utils.data.IterableDataset):
             raise ValueError(f"Incorrect axes length (got {axes}).")
 
         # check axes validity
-        are_axes_valid(axes)  # this raises errors
+        check_axes_validity(axes)  # this raises errors
 
         if ("S" in axes or "T" in axes) and arr.dtype != "O":
             arr = arr.reshape(
