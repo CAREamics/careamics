@@ -8,7 +8,7 @@ from torch import optim
 class TorchOptimizer(str, Enum):
     """List of all optimizers available in torch.optim.
 
-    List obtained using get_optimizers().
+    Currently only supports Adam and SGD.
     """
 
     # ASGD = "ASGD"
@@ -19,18 +19,19 @@ class TorchOptimizer(str, Enum):
     # Adamax = "Adamax"
     # LBFGS = "LBFGS"
     # NAdam = "NAdam"
-    RAdam = "RAdam"
+    # RAdam = "RAdam"
     # RMSprop = "RMSprop"
     # Rprop = "Rprop"
     SGD = "SGD"
     # SparseAdam = "SparseAdam"
 
 
-# TODO: Test which schedulers are compatible and if not, how to make them compatible (if we want to support them)
+# TODO: Test which schedulers are compatible and if not, how to make them compatible
+# (if we want to support them)
 class TorchLRScheduler(str, Enum):
     """List of all schedulers available in torch.optim.lr_scheduler.
 
-    List obtained using get_schedulers().
+    Currently only supports ReduceLROnPlateau and StepLR.
     """
 
     # ChainedScheduler = "ChainedScheduler"
@@ -52,8 +53,8 @@ class TorchLRScheduler(str, Enum):
 
 def get_parameters(
     func: type,
-    user_params: Dict,
-) -> Dict:
+    user_params: dict,
+) -> dict:
     """Filter parameters according to `func`'s signature.
 
     Parameters

@@ -3,7 +3,7 @@ import pytest
 import tifffile
 
 from careamics_restoration.dataset.dataset import (
-    PatchDataset,
+    TiffDataset,
 )
 from careamics_restoration.dataset.dataset_utils import (
     extract_patches_sequential,
@@ -60,7 +60,7 @@ def test_patch_dataset_read_source_errors(tmp_path, arr_shape, axes):
     assert path.exists()
 
     with pytest.raises((ValueError, NotImplementedError)):
-        PatchDataset.read_tiff_source(path, axes)
+        TiffDataset.read_source(path, axes)
 
 
 @pytest.mark.parametrize(
@@ -91,7 +91,7 @@ def test_patch_dataset_read_source(tmp_path, ordered_array, arr_shape, axes):
     tifffile.imwrite(path, arr)
     assert path.exists()
 
-    image = PatchDataset.read_tiff_source(path, axes)
+    image = TiffDataset.read_source(path, axes)
 
     if axes == "YX":
         assert image.shape == (1, *arr_shape)
@@ -215,3 +215,17 @@ def test_extract_patches_sequential_3d(array_3D, patch_size):
 
     The 3D array is a fixture of shape (1, 5, 10, 9)."""
     check_extract_patches_sequential(array_3D, patch_size)
+
+
+def test_calculate_stats():
+    arr = np.random.rand(2, 10, 10)
+
+    mean = 0
+    std = 0
+    for i in range(arr.shape[0]):
+        mean += np.mean(arr[i])
+        std += np.std(arr[i])
+    
+    assert np.around(arr.mean(), decimals=4) == np.around(mean / (i+1), decimals=4)
+    assert np.around(arr.std(), decimals=2) == np.around(std / (i+1), decimals=2)
+

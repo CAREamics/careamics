@@ -170,6 +170,10 @@ class Engine:
         self.model.to(self.device)
         self.model.eval()
         # TODO external input shape should either be compatible with the model or tiled. Add checks and raise errors
+        if not (self.mean and self.std):
+            _, self.mean, self.std = self._get_train_dataloader()
+
+        # TODO external input shape should either be compatible with the model or tiled. Add checks and raise errors
         # TODO check, calculate mean and std on all data not only train
         pred_loader, stitch = self.get_predict_dataloader(
             external_input=external_input,
@@ -255,13 +259,11 @@ class Engine:
     def get_predict_dataloader(
         self,
         external_input: Optional[np.ndarray] = None,
-        mean: float = None,
-        std: float = None
     ) -> Tuple[DataLoader, bool]:
         # TODO add description
         # TODO mypy does not take into account "is not None", we need to find a workaround
         if external_input is not None:
-            normalized_input = normalize(external_input, mean, std)
+            normalized_input = normalize(external_input, self.mean, self.std)
             normalized_input = normalized_input.astype(np.float32)
 
             dataset = TensorDataset(torch.from_numpy(normalized_input))

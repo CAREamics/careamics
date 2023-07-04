@@ -1,8 +1,8 @@
 # Name, composed of letters, numbers, spaces, dashes and underscores
-experiment_name: N2V_SEM
+experiment_name: N2V_BSD_test
 
 # Working directory (logs, models, etc), its parent folder must exist
-working_directory: n2v_sem
+working_directory: n2v_bsd_test
 
 # Optional
 # Absolute or relative (wrt working_directory) path to model
@@ -60,7 +60,7 @@ training:
     #   mode: min
 
   # Extraction strategy, one of random or sequential
-  extraction_strategy: sequential
+  extraction_strategy: random
 
   # Use augmentation (True or False)
   augmentation: True
@@ -82,16 +82,19 @@ training:
 
 data:
   # Extension of the data, one of npy, tiff and tif
-  data_format: tif
+  data_format: npy
 
   # Axes, among STCZYX with constraints on order
-  axes: YX
+  axes: SYX
 
   # Optional, path to the data, absolute or relative to working_directory
-  training_path: n2v_sem/train
-  validation_path: n2v_sem/val
-  prediction_path: n2v_sem/train
+  training_path: data/BSD68_reproducibility/BSD68_reproducibility_data/train
+  validation_path: data/BSD68_reproducibility/BSD68_reproducibility_data/val
+  prediction_path: data/BSD68_reproducibility/BSD68_reproducibility_data/test
 
+  # Optional, mean/std of the dataset
+  # mean = Null
+  # std = Null
 # Optional
 prediction:
   # Whether to use tiling or not (True or False).
