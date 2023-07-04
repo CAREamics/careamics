@@ -13,15 +13,15 @@ class NGFFDataset(torch.utils.data.IterableDataset):
     """Dataset to extract patches from a list of images and apply transforms to the patches."""
 
     def __init__(
-            self,
-            data_path: Union[Path, str],
-            ext: str,
-            axes: str,
-            data_reader: Callable,
-            patch_size: Union[List[int], Tuple[int]],
-            patch_generator: Optional[Callable],
-            image_level_transform: Optional[Callable] = None,
-            patch_level_transform: Optional[Callable] = None,
+        self,
+        data_path: Union[Path, str],
+        ext: str,
+        axes: str,
+        data_reader: Callable,
+        patch_size: Union[List[int], Tuple[int]],
+        patch_generator: Optional[Callable],
+        image_level_transform: Optional[Callable] = None,
+        patch_level_transform: Optional[Callable] = None,
     ) -> None:
         """
         Parameters
@@ -81,16 +81,14 @@ class NGFFDataset(torch.utils.data.IterableDataset):
 
         # sanity check on axes length
         if len(axes) != len(arr.shape):
-            raise ValueError(
-                f"Incorrect axes length (got {axes})."
-            )
+            raise ValueError(f"Incorrect axes length (got {axes}).")
 
         # check axes validity
         are_axes_valid(axes)  # this raises errors
 
         if ("S" in axes or "T" in axes) and arr.dtype != "O":
             arr = arr.reshape(
-                -1, *arr.shape[len(axes.replace("Z", "").replace("YX", "")):]
+                -1, *arr.shape[len(axes.replace("Z", "").replace("YX", "")) :]
             )
         elif arr.dtype == "O":
             for i in range(len(arr)):
@@ -184,15 +182,13 @@ class NGFFDataset(torch.utils.data.IterableDataset):
         for image in self.__iter_source__():
             if self.patch_generator is None:
                 for idx in range(image.shape[0]):
-                    sample = np.expand_dims(image[idx], (0, 1)).astype(
-                        np.float32
-                    )
+                    sample = np.expand_dims(image[idx], (0, 1)).astype(np.float32)
                     yield normalize(sample, self.mean, self.std) if (
-                            self.mean and self.std
+                        self.mean and self.std
                     ) else image
             else:
                 for patch_data in self.patch_generator(
-                        image, self.patch_size, mean=self.mean, std=self.std
+                    image, self.patch_size, mean=self.mean, std=self.std
                 ):
                     yield self.patch_transform(
                         patch_data
