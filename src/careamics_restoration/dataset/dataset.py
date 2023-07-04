@@ -7,8 +7,13 @@ import tifffile
 import torch
 from tqdm import tqdm
 
-from .tiling import extract_patches_predict, extract_patches_sequential, extract_patches_random
-from ..utils import normalize
+from .tiling import (
+    extract_patches_predict,
+    extract_patches_sequential,
+    extract_patches_random,
+)
+from careamics_restoration.utils import normalize
+from careamics_restoration.config.training import ExtractionStrategies
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +30,7 @@ class TiffDataset(torch.utils.data.IterableDataset):
         patch_overlap: Union[List[int], Tuple[int]] = None,
         mean: float = None,
         std: float = None,
-        patch_transform: Optional[Callable] = None
+        patch_transform: Optional[Callable] = None,
     ) -> None:
         """
         Parameters
@@ -68,16 +73,14 @@ class TiffDataset(torch.utils.data.IterableDataset):
     def list_files(self) -> List[Path]:
         files = sorted(Path(self.data_path).rglob(f"*.tif*"))
         if len(files) == 0:
-            raise ValueError(
-                f"No tiff files found in {self.data_path}."
-            )
+            raise ValueError(f"No tiff files found in {self.data_path}.")
         return files
 
     def calculate_mean_and_std(self) -> Tuple[float, float]:
         means, stds = 0, 0
         num_samples = 0
 
-        for sample in tqdm(self.iterate_path, title='Calculating data stats'):
+        for sample in tqdm(self.iterate_path, title="Calculating data stats"):
             means += sample.mean()
             stds += np.std(sample)
             num_samples += 1
@@ -91,6 +94,7 @@ class TiffDataset(torch.utils.data.IterableDataset):
         return result_mean, result_std
 
     # TODO add axes shuffling and reshapes. so far assuming correct order
+    # TODO rewrite it to make it readable
     def fix_axes(self, sample):
         # concatenate ST axes to N, return NCZYX
         if ("S" in self.axes or "T" in self.axes) and sample.dtype != "O":
@@ -124,12 +128,11 @@ class TiffDataset(torch.utils.data.IterableDataset):
 
         try:
             sample = tifffile.imread(file_path)
+            sample = sample.squeeze()
+            sample = sample.astype(np.float32)
         except (ValueError, OSError) as e:
             logging.exception(f"Exception in file {file_path}: {e}, skipping")
             raise e
-
-        sample = sample.squeeze()
-        sample = sample.astype(np.float32)
 
         # check number of dimensions
         if len(sample.shape) < 2 or len(sample.shape) > 4:
@@ -143,9 +146,26 @@ class TiffDataset(torch.utils.data.IterableDataset):
                 f"Incorrect axes length (got {self.axes} for file {file_path})."
             )
 
-        sample = self.fix_axes(sample)
-
         return sample
+
+    def generate_patches(self, sample):
+        patches = None
+
+        if self.patch_extraction_method == ExtractionStrategies.TILED:
+            patches = extract_patches_predict(
+                sample, patch_size=self.patch_size, overlaps=self.patch_overlap
+            )
+
+        elif self.patch_extraction_method == ExtractionStrategies.SEQUENTIAL:
+            patches = extract_patches_sequential(sample, patch_size=self.patch_size)
+
+        elif self.patch_extraction_method == ExtractionStrategies.RANDOM:
+            patches = extract_patches_random(sample, patch_size=self.patch_size)
+
+        if patches is None:
+            raise ValueError("No patches generated")
+
+        return patches
 
     def iterate_files(self) -> np.ndarray:
         """
@@ -163,11 +183,8 @@ class TiffDataset(torch.utils.data.IterableDataset):
 
         for i, filename in enumerate(self.files):
             if i % num_workers == worker_id:
-                sample = self.read_tiff(filename)
-
-                if self.image_transform:
-                    sample = self.image_transform(sample)
-
+                sample = self.read_image(filename)
+                sample = self.fix_axes(sample)
                 yield sample
 
     def __iter__(self) -> np.ndarray:
@@ -180,17 +197,8 @@ class TiffDataset(torch.utils.data.IterableDataset):
         """
         for sample in self.iterate_files():
             if self.patch_extraction_method:
-                # TODO: validate that patch size is not none if patch_extraction_method is set
-                patches = []
-
-                if self.patch_extraction_method == "predict":
-                    patches = extract_patches_predict(sample, patch_size=self.patch_size, overlaps=self.patch_overlap)
-
-                elif self.patch_extraction_method == "sequential":
-                    patches = extract_patches_sequential(sample, patch_size=self.patch_size)
-
-                elif self.patch_extraction_method == "random":
-                    patches = extract_patches_random(sample, patch_size=self.patch_size)
+                # TODO: move S and T unpacking logic from patch generator
+                patches = self.generate_patches(sample)
 
                 for patch in patches:
                     patch = normalize(patch, self.mean, self.std)
@@ -201,8 +209,9 @@ class TiffDataset(torch.utils.data.IterableDataset):
                     yield patch
 
             else:
-                # if S or T dims are not empty - assume every image is a separate sample
-                for sample in sample[0]:
-                    sample = np.expand_dims(sample, (0, 1))
-                    sample = normalize(sample, self.mean, self.std)
-                    yield sample
+                # if S or T dims are not empty - assume every image is a separate sample in dim 0
+                # TODO: is there always mean and std?
+                for item in sample[0]:
+                    item = np.expand_dims(item, (0, 1))
+                    item = normalize(item, self.mean, self.std)
+                    yield item

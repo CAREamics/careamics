@@ -1,12 +1,9 @@
 import itertools
 import logging
-from pathlib import Path
-from typing import Generator, Iterable, List, Optional, Tuple, Union
+from typing import Generator, Iterable, List, Tuple
 
 import numpy as np
 from skimage.util import view_as_windows
-
-from ..utils import normalize
 
 logger = logging.getLogger(__name__)
 
