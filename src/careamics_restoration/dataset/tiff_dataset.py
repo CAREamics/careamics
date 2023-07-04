@@ -225,7 +225,7 @@ class TiffDataset(torch.utils.data.IterableDataset):
                     yield item
 
 
-def get_tiff_dataset(stage: ConfigStageEnum, config: Configuration) -> TiffDataset:
+def get_dataset(stage: ConfigStageEnum, config: Configuration) -> TiffDataset:
     """
     Create TiffDataset instance from configuration
 

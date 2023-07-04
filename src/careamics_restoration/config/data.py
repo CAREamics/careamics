@@ -75,6 +75,10 @@ class Data(BaseModel):
         Path to the validation data.
     prediction_path : Optional[Union[Path, str]]
         Path to the prediction data.
+    mean: Optional[float]
+       Expected data mean
+    std: Optional[float]
+       Expected data std
     """
 
     # Pydantic class configuration
@@ -88,6 +92,9 @@ class Data(BaseModel):
     training_path: Optional[Union[Path, str]] = None
     validation_path: Optional[Union[Path, str]] = None
     prediction_path: Optional[Union[Path, str]] = None
+
+    mean: Optional[float] = None
+    std: Optional[float] = None
 
     @field_validator("training_path", "validation_path", "prediction_path")
     def path_contains_images(cls, path_value: str, values: FieldValidationInfo) -> Path:

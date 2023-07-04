@@ -9,7 +9,7 @@ from torch.utils.data import DataLoader, TensorDataset
 from tqdm import tqdm
 
 from .config import ConfigStageEnum, load_configuration
-from .dataset import get_tiff_dataset
+from .dataset.tiff_dataset import get_dataset
 from .losses import create_loss_function
 from .metrics import MetricTracker
 from .models import create_model
@@ -249,7 +249,7 @@ class Engine:
 
     # TODO: add custom collate function and separate dataloader create function, sampler?
     def get_dataloader(self, stage: ConfigStageEnum) -> DataLoader:
-        dataset = get_tiff_dataset(self.cfg, stage)
+        dataset = get_dataset(stage, self.cfg)
         dataloader = DataLoader(
             dataset,
             batch_size=self.cfg.training.batch_size,
@@ -271,7 +271,7 @@ class Engine:
             dataset = TensorDataset(torch.from_numpy(normalized_input))
             stitch = False
         else:
-            dataset = get_tiff_dataset(self.cfg, ConfigStageEnum.PREDICTION)
+            dataset = get_dataset(ConfigStageEnum.PREDICTION, self.cfg)
             stitch = (
                 hasattr(dataset, "patch_generator")
                 and dataset.patch_generator is not None

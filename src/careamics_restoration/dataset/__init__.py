@@ -4,4 +4,3 @@ from .tiling import (
     compute_patch_steps,
     compute_reshaped_view,
 )
-from .tiff_dataset import get_tiff_dataset
