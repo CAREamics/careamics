@@ -57,11 +57,13 @@ class ModelParameters(BaseModel):
 
     # TODO revisit the constraints on num_filters_base
     @field_validator("num_filters_base")
-    def num_filter_base_must_even(cls, num_filters: int):
+    def greater_than_eight_and_even(cls, num_filters: int):
         """Validate that num_filter_base is a power of two (minimum 8)."""
         # if odd
         if num_filters % 2 != 0:
-            raise ValueError(f"Number of filters (base) must even (got {num_filters}).")
+            raise ValueError(
+                f"Number of filters (base) must be even (got {num_filters})."
+            )
 
         # if less than 8
         if num_filters < 8:

@@ -2,8 +2,15 @@ from __future__ import annotations
 
 from enum import Enum
 from pathlib import Path
+from typing import Optional, Union
 
-from pydantic import BaseModel, ConfigDict, FieldValidationInfo, field_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    FieldValidationInfo,
+    field_validator,
+    model_validator,
+)
 
 # TODO this creates a circular import when instantiating the engine
 # engine -> config -> evaluation -> data -> dataloader_utils
@@ -50,8 +57,11 @@ class SupportedExtensions(str, Enum):
 class Data(BaseModel):
     """Data configuration.
 
+    The data paths are individually optional, however, at least one of training or
+    prediction must be specified.
+
     The optional paths to the training, validation and prediction data should point to
-    the data parent folder.
+    the parent folder of the images.
 
     Attributes
     ----------
@@ -75,55 +85,12 @@ class Data(BaseModel):
     axes: str
 
     # Optional fields
-    training_path: Path | str | None = None
-    validation_path: Path | str | None = None
-    prediction_path: Path | str | None = None
+    training_path: Optional[Union[Path, str]] = None
+    validation_path: Optional[Union[Path, str]] = None
+    prediction_path: Optional[Union[Path, str]] = None
 
-    #TODO Joran: add at least one of the two fields functionality 
-    # @field_validator("prediction_path")
-    # def check_path(cls, path_value: str, values: FieldValidationInfo) -> Path:
-    #     """Validate folder path.
-
-    #     Check that files with the correct extension can be found in the folder.
-    #     """
-    #     train_path = values.data["training_path"]
-    #     val_path = values.data["validation_path"]
-    #     test_path = Path(path_value)
-
-    #     # check that the path exists
-    #     if not train_path.exists() and test_path.exists():
-    #         raise ValueError(f"Both training {train_path} and test_path {test_path} do not exist")
-    #     elif train_path.exists():
-    #         path = train_path
-    #         # TODO add logging message  
-    #     elif test_path.exists():
-    #         path = test_path
-
-    #     if not path.is_dir():
-    #         raise ValueError(f"Path {path} is not a directory")
-
-    #     # check that the path contains files with the correct extension
-    #     if "data_format" in values.data:
-    #         ext = values.data["data_format"]
-
-    #         if len(list(path.glob(f"*.{ext}"))) == 0:
-    #             raise ValueError(f"No files with extension {ext} found in {path}.")
-    #     else:
-    #         raise ValueError(
-    #             "Cannot check path validity without extension, make sure it has been "
-    #             "correctly specified."
-    #         )
-        
-    #     if val_path is not None:
-    #         if not val_path.exists():
-    #             raise ValueError(f"Validation path {val_path} does not exist")
-    #         elif not val_path.is_dir():
-    #             raise ValueError(f"Validation path {val_path} is not a directory")
-
-    #     return path
-    
     @field_validator("training_path", "validation_path", "prediction_path")
-    def check_path(cls, path_value: str, values: FieldValidationInfo) -> Path:
+    def path_contains_images(cls, path_value: str, values: FieldValidationInfo) -> Path:
         """Validate folder path.
 
         Check that files with the correct extension can be found in the folder.
@@ -151,7 +118,7 @@ class Data(BaseModel):
         return path
 
     @field_validator("axes")
-    def validate_axes(cls, axes: str) -> str:
+    def valid_axes(cls, axes: str) -> str:
         """Validate axes.
 
         Axes must be a subset of STZYX, must contain YX, be in the right order
@@ -178,6 +145,32 @@ class Data(BaseModel):
         are_axes_valid(axes)
 
         return axes
+
+    @model_validator(mode="after")
+    def at_least_one_path_valid(cls, data_model: Data) -> Data:
+        """Validate that at least one of training or prediction paths is specified.
+
+        Parameters
+        ----------
+        data_model : Data
+            Data model to validate
+
+        Returns
+        -------
+        Data
+            Validated model
+
+        Raises
+        ------
+        ValueError
+            If neither training or prediction paths are specified
+        """
+        if data_model.training_path is None and data_model.prediction_path is None:
+            raise ValueError(
+                "At least one of training or prediction paths must be specified."
+            )
+
+        return data_model
 
     def model_dump(self, *args, **kwargs) -> dict:
         """Override model_dump method.

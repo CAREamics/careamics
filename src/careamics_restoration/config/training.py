@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 from enum import Enum
-from typing import List
 
 from pydantic import (
     BaseModel,
@@ -7,6 +8,7 @@ from pydantic import (
     Field,
     FieldValidationInfo,
     field_validator,
+    model_validator,
 )
 from torch import optim
 
@@ -56,7 +58,7 @@ class Optimizer(BaseModel):
     parameters: dict = {}
 
     @field_validator("parameters")
-    def check_optimizer_parameters(cls, user_params: dict, values: FieldValidationInfo):
+    def filter_parameters(cls, user_params: dict, values: FieldValidationInfo):
         """Validate optimizer parameters."""
         if "name" in values.data:
             optimizer_name = values.data["name"]
@@ -71,6 +73,28 @@ class Optimizer(BaseModel):
                 "Cannot validate optimizer parameters without `name`, check that it "
                 "has correctly been specified."
             )
+
+    @model_validator(mode="after")
+    def sgd_lr_parameter(cls, optimizer: Optimizer) -> Optimizer:
+        """Check that SGD optimizer as `lr` parameter specified.
+
+        Parameters
+        ----------
+        optimizer : Optimizer
+            Optimizer to validate.
+
+        Returns
+        -------
+        Optimizer
+            Validated optimizer.
+        """
+        if optimizer.name == TorchOptimizer.SGD and "lr" not in optimizer.parameters:
+            raise ValueError(
+                "SGD optimizer requires `lr` parameter, check that it has correctly "
+                "been specified in `parameters`."
+            )
+
+        return optimizer
 
     def model_dump(self, *args, **kwargs) -> dict:
         """Override model_dump method.
@@ -115,7 +139,7 @@ class LrScheduler(BaseModel):
     parameters: dict = {}
 
     @field_validator("parameters")
-    def check_parameters(cls, user_params: dict, values: FieldValidationInfo):
+    def filter_parameters(cls, user_params: dict, values: FieldValidationInfo):
         """Validate lr scheduler parameters."""
         if "name" in values.data:
             lr_scheduler_name = values.data["name"]
@@ -130,6 +154,31 @@ class LrScheduler(BaseModel):
                 "Cannot validate lr scheduler parameters without `name`, check that it "
                 "has correctly been specified."
             )
+
+    @model_validator(mode="after")
+    def step_lr_step_size_parameter(cls, lr_scheduler: LrScheduler) -> LrScheduler:
+        """Check that StepLR lr scheduler has `step_size` parameter specified.
+
+        Parameters
+        ----------
+        lr_scheduler : LrScheduler
+            Lr scheduler to validate.
+
+        Returns
+        -------
+        LrScheduler
+            Validated lr scheduler.
+        """
+        if (
+            lr_scheduler.name == TorchLRScheduler.StepLR
+            and "step_size" not in lr_scheduler.parameters
+        ):
+            raise ValueError(
+                "StepLR lr scheduler requires `step_size` parameter, check that it has "
+                "correctly been specified in `parameters`."
+            )
+
+        return lr_scheduler
 
     def model_dump(self, *args, **kwargs) -> dict:
         """Override model_dump method.
@@ -168,7 +217,7 @@ class AMP(BaseModel):
     init_scale: int = Field(default=1024, ge=512, le=65536)
 
     @field_validator("init_scale")
-    def check_power_of_2(cls, scale: int):
+    def power_of_two(cls, scale: int):
         """Validate that init_scale is a power of two."""
         if not scale & (scale - 1) == 0:
             raise ValueError(f"Init scale must be a power of two (got {scale}).")
@@ -236,7 +285,7 @@ class Training(BaseModel):
 
     # Mandatory fields
     num_epochs: int
-    patch_size: List[int] = Field(..., min_length=2, max_length=3)
+    patch_size: list[int] = Field(..., min_length=2, max_length=3)
     batch_size: int
 
     optimizer: Optimizer
@@ -252,7 +301,7 @@ class Training(BaseModel):
     amp: AMP = AMP()
 
     @field_validator("num_epochs", "batch_size")
-    def check_greater_than_0(cls, val: int) -> int:
+    def greater_than_0(cls, val: int) -> int:
         """Validate number of epochs.
 
         Number of epochs must be greater than 0.
@@ -263,7 +312,7 @@ class Training(BaseModel):
         return val
 
     @field_validator("patch_size")
-    def check_patch_size_divisible_by_2(cls, patch_list: List[int]) -> List[int]:
+    def all_elements_non_zero_divisible_by_2(cls, patch_list: list[int]) -> list[int]:
         """Validate patch size.
 
         Patch size must be non-zero, positive and divisible by 2.

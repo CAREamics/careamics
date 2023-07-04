@@ -78,12 +78,66 @@ def test_config_valid_model_absolute(tmp_path: Path, complete_config: dict):
 
 
 @pytest.mark.parametrize("model_path", ["model", "tmp/model"])
-def test_config_invalid_model(tmp_path: Path, complete_config: dict, model_path: str):
+def test_config_invalid_model_path(
+    tmp_path: Path, complete_config: dict, model_path: str
+):
     """Test that invalid model path raise an error."""
     complete_config["working_directory"] = tmp_path
     complete_config["trained_model"] = model_path
     with pytest.raises(ValueError):
         Configuration(**complete_config)
+
+
+def test_3D_algorithm_and_data_compatibility(minimum_config: dict):
+    """Test that errors are raised if algithm `is_3D` and data axes are incompatible."""
+    # 3D but no Z in axes
+    minimum_config["algorithm"]["is_3D"] = True
+    with pytest.raises(ValueError):
+        Configuration(**minimum_config)
+
+    # 2D but Z in axes
+    minimum_config["algorithm"]["is_3D"] = False
+    minimum_config["data"]["axes"] = "ZYX"
+    with pytest.raises(ValueError):
+        Configuration(**minimum_config)
+
+
+def test_at_least_one_of_training_or_prediction(complete_config: dict):
+    """Test that at least one of training or prediction is specified."""
+    config_empty = complete_config.copy()
+
+    # remove training and prediction
+    config_empty.pop("training")
+    config_empty.pop("prediction")
+
+    # test that config is invalid
+    with pytest.raises(ValueError):
+        Configuration(**config_empty)
+
+    # test that config is valid if we add training
+    config_empty["training"] = complete_config["training"]
+    config_train = Configuration(**config_empty)
+    assert config_train.training.model_dump() == config_empty["training"]
+
+    # test that config fails if training data is not there
+    config_empty["data"].pop("training_path")
+    with pytest.raises(ValueError):
+        Configuration(**config_empty)
+
+    # remove training
+    config_empty.pop("training")
+
+    # test that config is valid if we add prediction
+    config_empty["prediction"] = complete_config["prediction"]
+    config_pred = Configuration(**config_empty)
+    assert config_pred.prediction.model_dump() == config_empty["prediction"]
+
+    # test that config fails if prediction data is not there
+    # we must add the training path so that Data model gets validated
+    config_empty["data"] = complete_config["data"]
+    config_empty["data"].pop("prediction_path")
+    with pytest.raises(ValueError):
+        Configuration(**config_empty)
 
 
 def test_minimum_config(minimum_config: dict):

@@ -1,10 +1,12 @@
+from __future__ import annotations
+
 import re
 from enum import Enum
 from pathlib import Path
 from typing import Optional, Union
 
 import yaml
-from pydantic import BaseModel, FieldValidationInfo, field_validator
+from pydantic import BaseModel, FieldValidationInfo, field_validator, model_validator
 
 from .algorithm import Algorithm
 from .config_filter import paths_to_str
@@ -14,16 +16,11 @@ from .training import Training
 
 # TODO: Vera test if parameter parent_config at the top of the config could work
 # TODO: is stage necessary? it seems to bring a lot of compelxity for little gain
-# TODO: check Algorithm vs Data for 3D, Z in axes
 # TODO: test configuration mutability and whether the validators are called when
 # changing a field
-# TODO: how to make sure that one of training (+data) and prediction (+data) is defined?
-# TODO: some of the optimizer and lr_scheduler have one mandatory parameter, how to
-# handle that?
 # TODO: config version?
 # TODO: for the working directory to work it should probably be set globally when
 # starting the engine
-# TODO: currently the data paths are all optional and can be None...
 
 
 class ConfigStageEnum(str, Enum):
@@ -82,7 +79,7 @@ class Configuration(BaseModel):
     prediction: Optional[Prediction] = None
 
     @field_validator("experiment_name")
-    def validate_name(cls, name: str) -> str:
+    def no_symbol(cls, name: str) -> str:
         """Validate experiment name.
 
         A valid experiment name is a non-empty string with only contains letters,
@@ -102,7 +99,7 @@ class Configuration(BaseModel):
         return name
 
     @field_validator("working_directory")
-    def validate_workdir(cls, workdir: Union[str, Path]) -> Path:
+    def parent_directory_exists(cls, workdir: Union[str, Path]) -> Path:
         """Validate working directory.
 
         A valid working directory is a directory whose parent directory exists. If the
@@ -126,13 +123,31 @@ class Configuration(BaseModel):
         return path
 
     @field_validator("trained_model")
-    def validate_trained_model(
+    def trained_model_exists(
         cls, model_path: str, values: FieldValidationInfo
     ) -> Union[str, Path]:
         """Validate trained model path.
 
         The model path must point to an existing .pth file, either relative to
         the working directory or with an absolute path.
+
+        Parameters
+        ----------
+        model_path : str
+            Path to the trained model.
+        values : FieldValidationInfo
+            Information about the other fields.
+
+        Returns
+        -------
+        Union[str, Path]
+            Path to the trained model.
+
+
+        Raises
+        ------
+        ValueError
+            If the path does not point to an existing .pth file.
         """
         if "working_directory" not in values.data:
             raise ValueError(
@@ -155,6 +170,76 @@ class Configuration(BaseModel):
                 f"Path to model does not exist. "
                 f"Tried absolute ({absolute_path}) and relative ({relative_path})."
             )
+
+    @model_validator(mode="after")
+    def at_least_training_or_prediction(cls, config: Configuration) -> Configuration:
+        """Check that at least one of training or prediction is defined, and that
+        the corresponding data path is as well.
+
+        Parameters
+        ----------
+        config : Configuration
+            Configuration to validate.
+
+        Returns
+        -------
+        Configuration
+            Validated configuration.
+
+        Raises
+        ------
+        ValueError
+            If neither training nor prediction is defined, and if their corresponding
+            paths are not defined.
+        """
+        # check that at least one of training or prediction is defined
+        if config.training is None and config.prediction is None:
+            raise ValueError("At least one of training or prediction must be defined.")
+
+        # check that the corresponding data path is defined as well
+        if config.training is not None and config.data.training_path is None:
+            raise ValueError(
+                "Training configuration is defined but training data path is not."
+            )
+        if config.prediction is not None and config.data.prediction_path is None:
+            raise ValueError(
+                "Prediction configuration is defined but prediction data path is not."
+            )
+
+        return config
+
+    @model_validator(mode="after")
+    def validate_3D(cls, config: Configuration) -> Configuration:
+        """Check that the algorithm is_3D flag is compatible with the axes in the
+        data configuration.
+
+        Parameters
+        ----------
+        config : Configuration
+            Configuration to validate.
+
+        Returns
+        -------
+        Configuration
+            Validated configuration.
+
+        Raises
+        ------
+        ValueError
+            If the algorithm is 3D but the data axes are not, or if the algorithm is
+            not 3D but the data axes are.
+        """
+        # check that is_3D and axes are compatible
+        if config.algorithm.is_3D and "Z" not in config.data.axes:
+            raise ValueError(
+                f"Algorithm is 3D but data axes are not (got axes {config.data.axes})."
+            )
+        elif not config.algorithm.is_3D and "Z" in config.data.axes:
+            raise ValueError(
+                f"Algorithm is not 3D but data axes are (got axes {config.data.axes})."
+            )
+
+        return config
 
     def model_dump(self, *args, **kwargs) -> dict:
         """Override model_dump method.
