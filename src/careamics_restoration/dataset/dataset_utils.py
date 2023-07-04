@@ -181,36 +181,6 @@ def compute_reshaped_view(
     rng.shuffle(patches, axis=0)
     return patches
 
-
-def list_input_source_tiff(
-    path: Union[str, Path], num_files: Union[int, None] = None
-) -> List:
-    """_summary_.
-
-    _extended_summary_
-
-    Parameters
-    ----------
-    path : Union[str, Path]
-        _description_
-    n_files : int
-        _description_
-
-    Returns
-    -------
-    List
-        _description_
-    """
-    # Basic function to open input source
-    return (
-        list(itertools.islice(Path(path).rglob("*.tif*"), num_files))
-        if num_files
-        else list(
-            Path(path).rglob("*.tif*")
-        )  # TODO Igor: move this functionality to the dataloader. Sort the files by name
-    )
-
-
 # TODO: this function does not ensure full coverage (see tests)
 # formerly :
 # https://github.com/juglab-torch/n2v/blob/00d536cdc5f5cd4bb34c65a777940e6e453f4a93/src/n2v/dataloader.py#L52

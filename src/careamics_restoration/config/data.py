@@ -30,6 +30,7 @@ class SupportedExtensions(str, Enum):
     TIFF = "tiff"
     TIF = "tif"
     NPY = "npy"  # TODO check if actually supported, probably not.
+    ZARR = "zarr"
 
     @classmethod
     def _missing_(cls, value: object):

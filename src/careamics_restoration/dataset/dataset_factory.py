@@ -4,7 +4,7 @@ from typing import Callable, List, Optional, Union
 from ..config import ConfigStageEnum, Configuration
 from ..config.training import ExtractionStrategies
 from ..manipulation import create_masking_transform
-from .dataset import TiffDataset
+from .dataset import TiffDataset, NGFFDataset
 from .dataset_utils import (
     extract_patches_predict,
     extract_patches_random,
@@ -49,16 +49,24 @@ def create_dataset(config: Configuration, stage: ConfigStageEnum) -> TiffDataset
     if stage == ConfigStageEnum.TRAINING:
         if config.training is None:
             raise ValueError("Training configuration is not defined.")
-
-        dataset = TiffDataset(
-            data_path=config.data.training_path,  # TODO this can be None
-            ext=config.data.data_format,
-            axes=config.data.axes,
-            data_reader=list_input_source_tiff,
-            patch_size=config.training.patch_size,
-            patch_generator=create_tiling_function(config.training.extraction_strategy),
-            patch_level_transform=create_masking_transform(config),
-        )
+        if config.data.data_format == 'tiff':
+            dataset = TiffDataset(
+                data_path=config.data.training_path,  # TODO this can be None
+                ext=config.data.data_format,
+                axes=config.data.axes,
+                patch_size=config.training.patch_size,
+                patch_generator=create_tiling_function(config.training.extraction_strategy),
+                patch_level_transform=create_masking_transform(config),
+            )
+        elif config.data.data_format == 'zarr':
+            dataset = NGFFDataset(
+                data_path=config.data.training_path,
+                ext=config.data.data_format,
+                axes=config.data.axes,
+                patch_size=config.training.patch_size,
+                patch_generator=create_tiling_function(config.training.extraction_strategy), # should only be random
+                patch_level_transform=create_masking_transform(config),
+            )
     elif stage == ConfigStageEnum.VALIDATION:
         if config.training is None:
             raise ValueError("Training configuration is not defined.")

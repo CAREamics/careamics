@@ -54,7 +54,6 @@ class TiffDataset(torch.utils.data.IterableDataset):
         self.data_path = data_path
         self.ext = ext
         self.axes = axes
-        self.data_reader = data_reader
         self.patch_size = patch_size
         self.patch_generator = patch_generator
         self.add_channel = patch_generator is not None
@@ -200,7 +199,6 @@ class NGFFDataset(torch.utils.data.IterableDataset):
         data_path: Union[Path, str],
         ext: str,
         axes: str,
-        data_reader: Callable,
         patch_size: Union[List[int], Tuple[int]],
         patch_generator: Optional[Callable],
         image_level_transform: Optional[Callable] = None,
@@ -228,7 +226,6 @@ class NGFFDataset(torch.utils.data.IterableDataset):
         self.data_path = data_path
         self.ext = ext
         self.axes = axes
-        self.data_reader = data_reader
         self.patch_size = patch_size
         self.patch_generator = patch_generator
         self.add_channel = patch_generator is not None
