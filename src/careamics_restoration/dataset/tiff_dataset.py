@@ -13,7 +13,7 @@ from careamics_restoration.dataset.tiling import (
     extract_patches_sequential,
     extract_patches_random,
 )
-from careamics_restoration.manipulation.pixel_manipulation import n2v_manipulate
+from careamics_restoration.manipulation import default_manipulate
 from careamics_restoration.utils import normalize
 from careamics_restoration.config.training import ExtractionStrategies
 
@@ -243,7 +243,7 @@ def get_tiff_dataset(stage, config):
             std=config.data.std,
             patch_extraction_method=config.training.extraction_strategy,
             patch_size=config.training.patch_size,
-            patch_transform=n2v_manipulate,
+            patch_transform=default_manipulate,
             patch_transform_params={
                 'mask_pixel_percentage': config.algorithm.masked_pixel_percentage
             }
