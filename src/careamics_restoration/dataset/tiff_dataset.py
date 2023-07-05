@@ -103,9 +103,7 @@ class TiffDataset(torch.utils.data.IterableDataset):
                 raise e
 
         sample = sample.squeeze()
-        sample = self.fix_axes(sample)
-        # TODO this doesn't work with object dtype. Move these checks somewhere or dont support object dtype
-        # check number of dimensions
+
         if len(sample.shape) < 2 or len(sample.shape) > 4:
             raise ValueError(
                 f"Incorrect data dimensions. Must be 2, 3 or 4 (got {sample.shape} for file {file_path})."
@@ -116,7 +114,7 @@ class TiffDataset(torch.utils.data.IterableDataset):
             raise ValueError(
                 f"Incorrect axes length (got {self.axes} for file {file_path})."
             )
-
+        sample = self.fix_axes(sample)
         return sample
 
     def calculate_mean_and_std(self) -> Tuple[float, float]:
@@ -136,12 +134,13 @@ class TiffDataset(torch.utils.data.IterableDataset):
         # TODO pass stage here to be more explicit with logging
         return result_mean, result_std
 
-    # TODO add axes shuffling and reshapes. so far assuming correct order
-    # TODO rewrite it to make it readable
+    # TODO Jean-Paul: get rid of numpy for now 
+
     def fix_axes(self, sample: np.ndarray) -> np.ndarray:
         # concatenate ST axes to N, return NCZYX
         if ("S" in self.axes or "T" in self.axes) and sample.dtype != "O":
             new_axes_len = len(self.axes.replace("Z", "").replace("YX", ""))
+            # TODO test reshape, replace with moveaxis ?
             sample = sample.reshape(-1, *sample.shape[new_axes_len:]).astype(np.float32)
 
         elif sample.dtype == "O":

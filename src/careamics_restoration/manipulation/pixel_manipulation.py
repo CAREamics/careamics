@@ -51,29 +51,6 @@ def get_stratified_coords(mask_pixel_perc: float, shape: Tuple[int, ...]) -> np.
     return coordinate_grid
 
 
-# TODO unused dims parameter
-def apply_struct_n2v_mask(patch, coords, dims, mask):
-    """
-    each point in coords corresponds to the center of the mask.
-    then for point in the mask with value=1 we assign a random value.
-    """
-    coords = np.array(coords).astype(np.int32)
-    ndim = mask.ndim
-    center = np.array(mask.shape) // 2
-    ## leave the center value alone
-    mask[tuple(center.T)] = 0j
-    ## displacements from center
-    dx = np.indices(mask.shape)[:, mask == 1] - center[:, None]
-    ## combine all coords (ndim, npts,) with all displacements (ncoords,ndim,)
-    mix = dx.T[..., None] + coords[None]
-    mix = mix.transpose([1, 0, 2]).reshape([ndim, -1]).T
-    ## stay within patch boundary
-    mix = mix.clip(min=np.zeros(ndim), max=np.array(patch.shape) - 1).astype(np.uint)
-    ## replace neighbouring pixels with random values from flat dist
-    patch[tuple(mix.T)] = np.random.rand(mix.shape[0]) * 4 - 2
-    return patch
-
-
 def default_manipulate(
     patch: np.ndarray,
     mask_pixel_percentage: float,
@@ -98,7 +75,6 @@ def default_manipulate(
     Tuple[np.ndarray]
         manipulated patch, original patch, mask
     """
-    # TODO add better docstring, add augmentations, add support for 3D
     original_patch = patch.copy()
     # Get the coordinates of the pixels to be replaced
     roi_centers = get_stratified_coords(mask_pixel_percentage, patch.shape)
