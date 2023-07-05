@@ -149,7 +149,7 @@ class TiffDataset(torch.utils.data.IterableDataset):
                 sample[i] = np.expand_dims(sample[i], axis=0).astype(np.float32)
 
         else:
-            sample = np.expand_dims(sample, axis=0).astype()
+            sample = np.expand_dims(sample, axis=0).astype(np.float32)
 
         return sample
 
