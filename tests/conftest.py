@@ -121,6 +121,8 @@ def complete_config(tmp_path: Path, minimum_config: dict) -> dict:
     }
     complete_config["data"]["validation_path"] = str(path_validation)
     complete_config["data"]["prediction_path"] = str(path_test)
+    complete_config["data"]["mean"] = 666.666
+    complete_config["data"]["std"] = 42.420
 
     complete_config["prediction"] = {
         "use_tiling": True,

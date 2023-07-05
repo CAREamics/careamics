@@ -101,5 +101,10 @@ class Prediction(BaseModel):
 
         The purpose is to ensure export smooth import to yaml. It includes:
             - remove entries with None value
+
+        Returns
+        -------
+        dict
+            Dictionary containing the model parameters
         """
         return super().model_dump(exclude_none=True)

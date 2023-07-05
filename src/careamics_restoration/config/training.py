@@ -96,19 +96,32 @@ class Optimizer(BaseModel):
 
         return optimizer
 
-    def model_dump(self, *args, **kwargs) -> dict:
+    def model_dump(self, exclude_optionals=True, *args, **kwargs) -> dict:
         """Override model_dump method.
 
         The purpose is to ensure export smooth import to yaml. It includes:
             - remove entries with None value
             - remove optional values if they have the default value
+
+        Parameters
+        ----------
+        exclude_optionals : bool, optional
+            Whether to exclude optional arguments if they are default, by default True.
+
+        Returns
+        -------
+        dict
+            Dictionary containing the model parameters
         """
         dictionary = super().model_dump(exclude_none=True)
 
-        # remove optional arguments if they are default
-        default_optionals: dict = {"parameters": {}}
+        if exclude_optionals:
+            # remove optional arguments if they are default
+            default_optionals: dict = {"parameters": {}}
 
-        return remove_default_optionals(dictionary, default_optionals)
+            remove_default_optionals(dictionary, default_optionals)
+
+        return dictionary
 
 
 class LrScheduler(BaseModel):
@@ -180,19 +193,31 @@ class LrScheduler(BaseModel):
 
         return lr_scheduler
 
-    def model_dump(self, *args, **kwargs) -> dict:
+    def model_dump(self, exclude_optionals: bool = True, *args, **kwargs) -> dict:
         """Override model_dump method.
 
         The purpose is to ensure export smooth import to yaml. It includes:
             - remove entries with None value
             - remove optional values if they have the default value
+
+        Parameters
+        ----------
+        exclude_optionals : bool, optional
+            Whether to exclude optional arguments if they are default, by default True.
+
+        Returns
+        -------
+        dict
+            Dictionary containing the model parameters
         """
         dictionary = super().model_dump(exclude_none=True)
 
-        # remove optional arguments if they are default
-        default_optionals: dict = {"parameters": {}}
+        if exclude_optionals:
+            # remove optional arguments if they are default
+            default_optionals: dict = {"parameters": {}}
+            remove_default_optionals(dictionary, default_optionals)
 
-        return remove_default_optionals(dictionary, default_optionals)
+        return dictionary
 
 
 class AMP(BaseModel):
@@ -224,19 +249,32 @@ class AMP(BaseModel):
 
         return scale
 
-    def model_dump(self, *args, **kwargs) -> dict:
+    def model_dump(self, exclude_optionals=True, *args, **kwargs) -> dict:
         """Override model_dump method.
 
         The purpose is to ensure export smooth import to yaml. It includes:
             - remove entries with None value
             - remove optional values if they have the default value
+
+        Parameters
+        ----------
+        exclude_optionals : bool, optional
+            Whether to exclude optional arguments if they are default, by default True.
+
+        Returns
+        -------
+        dict
+            Dictionary containing the model parameters
         """
         dictionary = super().model_dump(exclude_none=True)
 
-        # remove optional arguments if they are default
-        defaults = {"init_scale": 1024}
+        if exclude_optionals:
+            # remove optional arguments if they are default
+            defaults = {"init_scale": 1024}
 
-        return remove_default_optionals(dictionary, defaults)
+            remove_default_optionals(dictionary, defaults)
+
+        return dictionary
 
 
 class Training(BaseModel):
@@ -326,29 +364,39 @@ class Training(BaseModel):
 
         return patch_list
 
-    def model_dump(self, *args, **kwargs) -> dict:
+    def model_dump(self, exclude_optionals=True, *args, **kwargs) -> dict:
         """Override model_dump method.
 
         The purpose is to ensure export smooth import to yaml. It includes:
             - remove entries with None value
             - remove optional values if they have the default value
+
+        Parameters
+        ----------
+        exclude_optionals : bool, optional
+            Whether to exclude optional arguments if they are default, by default True.
+
+        Returns
+        -------
+        dict
+            Dictionary containing the model parameters
         """
         dictionary = super().model_dump(exclude_none=True)
 
-        # TODO: did not find out how to call `model_dump` from members (e.g. Optimzer)
-        # in Pydantic v2... so we do it manually for now. Once their doc is updated,
-        # let's revisit this.
-        dictionary["optimizer"] = self.optimizer.model_dump()
-        dictionary["lr_scheduler"] = self.lr_scheduler.model_dump()
+        dictionary["optimizer"] = self.optimizer.model_dump(exclude_optionals)
+        dictionary["lr_scheduler"] = self.lr_scheduler.model_dump(exclude_optionals)
 
         if self.amp is not None:
-            dictionary["amp"] = self.amp.model_dump()
+            dictionary["amp"] = self.amp.model_dump(exclude_optionals)
 
-        # remove optional arguments if they are default
-        defaults = {
-            "use_wandb": True,
-            "num_workers": 0,
-            "amp": AMP().model_dump(),
-        }
+        if exclude_optionals:
+            # remove optional arguments if they are default
+            defaults = {
+                "use_wandb": True,
+                "num_workers": 0,
+                "amp": AMP().model_dump(),
+            }
 
-        return remove_default_optionals(dictionary, defaults)
+            remove_default_optionals(dictionary, defaults)
+
+        return dictionary

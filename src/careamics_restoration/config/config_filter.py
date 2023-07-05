@@ -26,22 +26,17 @@ def remove_default_optionals(dictionary: dict, default: dict) -> dict:
     """Remove arguments from a dictionary if they are equal to the
     provided default ones.
 
+    This is performed in place
+
     Parameters
     ----------
     dictionary : dict
         Dictionary to modify.
     default : dict
         Dictionary containing the default values.
-
-    Returns
-    -------
-    dict
-        Modified dictionary.
     """
     dict_copy = dictionary.copy()
     for k in dict_copy.keys():
         if k in default.keys():
             if dict_copy[k] == default[k]:
                 del dictionary[k]
-
-    return dictionary

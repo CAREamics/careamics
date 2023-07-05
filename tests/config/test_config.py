@@ -152,6 +152,35 @@ def test_complete_config(complete_config: dict):
     assert dictionary == complete_config
 
 
+def test_config_to_dict_with_default_optionals(complete_config: dict):
+    """Test that the exclude optional options in model dump gives a full configuration,
+    including the default optional values.
+
+    Note that None values are always excluded.
+    """
+    # Algorithm default optional parameters
+    complete_config["algorithm"]["masking_strategy"] = "default"
+    complete_config["algorithm"]["masked_pixel_percentage"] = 0.2
+    complete_config["algorithm"]["model_parameters"] = {
+        "depth": 2,
+        "num_filters_base": 96,
+    }
+
+    # Training default optional parameters
+    complete_config["training"]["optimizer"]["parameters"] = {}
+    complete_config["training"]["lr_scheduler"]["parameters"] = {}
+    complete_config["training"]["use_wandb"] = True
+    complete_config["training"]["num_workers"] = 0
+    complete_config["training"]["amp"] = {
+        "use": True,
+        "init_scale": 1024,
+    }
+
+    # instantiate config
+    myconf = Configuration(**complete_config)
+    assert myconf.model_dump(exclude_optionals=False) == complete_config
+
+
 def test_config_to_yaml(tmp_path: Path, minimum_config: dict):
     """Test that we can export a config to yaml and load it back"""
 
