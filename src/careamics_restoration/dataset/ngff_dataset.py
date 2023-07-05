@@ -8,8 +8,9 @@ import zarr
 from tqdm import tqdm
 
 from ..utils import normalize, check_axes_validity
+from ..utils.logging import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class NGFFDataset(torch.utils.data.IterableDataset):

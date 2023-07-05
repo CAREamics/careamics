@@ -1,15 +1,13 @@
-import logging
 from pathlib import Path
 
 import torch
 
 from ..config import Configuration
 from ..config.algorithm import Models
-from ..utils import set_logging
 from .unet import UNet
+from ..utils.logging import get_logger
 
-logger = logging.getLogger(__name__)
-set_logging(logger)
+logger = get_logger(__name__)
 
 
 def create_model(config: Configuration) -> torch.nn.Module:

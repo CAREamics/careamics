@@ -1,4 +1,3 @@
-import logging
 import random
 from pathlib import Path
 from typing import Optional, Tuple, Union
@@ -6,7 +5,6 @@ from typing import Optional, Tuple, Union
 import numpy as np
 import torch
 from torch.utils.data import DataLoader, TensorDataset
-from tqdm import tqdm
 
 from .config import ConfigStageEnum, load_configuration
 from .dataset.tiff_dataset import get_dataset
@@ -18,9 +16,9 @@ from .utils import (
     denormalize,
     get_device,
     normalize,
-    set_logging,
     setup_cudnn_reproducibility,
 )
+from careamics_restoration.utils.logging import ProgressLogger, get_logger
 
 
 def seed_everything(seed: int):
@@ -35,8 +33,8 @@ def seed_everything(seed: int):
 class Engine:
     def __init__(self, cfg_path: Union[str, Path]) -> None:
         # set logging
-        self.logger = logging.getLogger()
-        set_logging(self.logger)
+        self.progress = ProgressLogger()
+        self.logger = get_logger(__name__)
 
         # load configuration from disk
         self.cfg = load_configuration(cfg_path)
@@ -84,8 +82,10 @@ class Engine:
 
             val_losses = []
             try:
-                for epoch in range(
-                    self.cfg.training.num_epochs
+                for epoch in self.progress(
+                    range(self.cfg.training.num_epochs),
+                    task_name='Epochs',
+                    overall_progress=True
                 ):  # loop over the dataset multiple times
                     self.logger.info(f"Starting epoch {epoch}")
 
@@ -114,6 +114,7 @@ class Engine:
 
             except KeyboardInterrupt:
                 self.logger.info("Training interrupted")
+                self.progress.exit()
         else:
             # TODO: instead of error, maybe fail gracefully with a logging/warning to users
             raise ValueError("Missing training entry in configuration file.")
@@ -140,18 +141,20 @@ class Engine:
         self.model.to(self.device)
         self.model.train()
 
-        for batch, *auxillary in tqdm(loader):
-            optimizer.zero_grad()
-
-            with torch.cuda.amp.autocast(enabled=amp):
-                outputs = self.model(batch.to(self.device))
-
-            loss = self.loss_func(outputs, *auxillary, self.device)
-            scaler.scale(loss).backward()
-
-            avg_loss.update(loss.item(), batch.shape[0])
-
-            optimizer.step()
+        for batch, *auxillary in self.progress(loader, task_name='train', endless=True):
+            # optimizer.zero_grad()
+            #
+            # with torch.cuda.amp.autocast(enabled=amp):
+            #     outputs = self.model(batch.to(self.device))
+            #
+            # loss = self.loss_func(outputs, *auxillary, self.device)
+            # scaler.scale(loss).backward()
+            #
+            # avg_loss.update(loss.item(), batch.shape[0])
+            #
+            # optimizer.step()
+            import time
+            time.sleep(0.1)
         return {"loss": avg_loss.avg}
 
     def evaluate(self, eval_loader: torch.utils.data.DataLoader):
@@ -159,7 +162,7 @@ class Engine:
         avg_loss = MetricTracker()
 
         with torch.no_grad():
-            for patch, *auxillary in tqdm(eval_loader):
+            for patch, *auxillary in self.progress(eval_loader, task_name='validate', endless=True, persistent=False):
                 outputs = self.model(patch.to(self.device))
                 loss = self.loss_func(outputs, *auxillary, self.device)
                 avg_loss.update(loss.item(), patch.shape[0])
@@ -192,7 +195,7 @@ class Engine:
         tiles = []
         prediction = []
         if external_input is not None:
-            logging.info("Starting prediction on external input")
+            self.logger.info("Starting prediction on external input")
         if stitch:
             self.logger.info("Starting tiled prediction")
         else:
@@ -201,7 +204,7 @@ class Engine:
         with torch.no_grad():
             # TODO reset iterator for every sample ?
             # TODO tiled prediction slow af, profile and optimize
-            for _, (tile, *auxillary) in tqdm(enumerate(pred_loader)):
+            for _, (tile, *auxillary) in enumerate(pred_loader):
                 if auxillary:
                     (
                         last_tile,

@@ -5,7 +5,6 @@ from typing import Callable, List, Optional, Tuple, Union, Dict, Generator
 import numpy as np
 import tifffile
 import torch
-from tqdm import tqdm
 
 from careamics_restoration.config import ConfigStageEnum, Configuration
 from careamics_restoration.dataset.tiling import (
@@ -16,8 +15,9 @@ from careamics_restoration.dataset.tiling import (
 from careamics_restoration.manipulation import default_manipulate
 from careamics_restoration.utils import normalize
 from careamics_restoration.config.training import ExtractionStrategies
+from careamics_restoration.utils.logging import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class TiffDataset(torch.utils.data.IterableDataset):
@@ -84,6 +84,9 @@ class TiffDataset(torch.utils.data.IterableDataset):
         self.patch_transform = patch_transform
         self.patch_transform_params = patch_transform_params
 
+    def __len__(self):
+        return len(self.files)
+
     def list_files(self) -> List[Path]:
         files = sorted(Path(self.data_path).rglob(f"*.{self.data_format}*"))
         return files
@@ -103,7 +106,6 @@ class TiffDataset(torch.utils.data.IterableDataset):
                 raise e
 
         sample = sample.squeeze()
-        sample = self.fix_axes(sample)
         # TODO this doesn't work with object dtype. Move these checks somewhere or dont support object dtype
         # check number of dimensions
         if len(sample.shape) < 2 or len(sample.shape) > 4:
@@ -117,13 +119,15 @@ class TiffDataset(torch.utils.data.IterableDataset):
                 f"Incorrect axes length (got {self.axes} for file {file_path})."
             )
 
+        sample = self.fix_axes(sample)
+
         return sample
 
     def calculate_mean_and_std(self) -> Tuple[float, float]:
         means, stds = 0, 0
         num_samples = 0
 
-        for sample in tqdm(self.iterate_files(), total=len(self.files)):
+        for sample in self.iterate_files():
             means += sample.mean()
             stds += np.std(sample)
             num_samples += 1
@@ -149,7 +153,7 @@ class TiffDataset(torch.utils.data.IterableDataset):
                 sample[i] = np.expand_dims(sample[i], axis=0).astype(np.float32)
 
         else:
-            sample = np.expand_dims(sample, axis=0).astype()
+            sample = np.expand_dims(sample, axis=0).astype(np.float32)
 
         return sample
 
@@ -259,6 +263,8 @@ def get_dataset(stage: ConfigStageEnum, config: Configuration) -> TiffDataset:
                 "mask_pixel_percentage": config.algorithm.masked_pixel_percentage
             },
         )
+
+
     elif stage == ConfigStageEnum.PREDICTION:
         if config.prediction is None:
             raise ValueError("Prediction configuration is not defined.")

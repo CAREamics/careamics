@@ -5,7 +5,9 @@ from typing import Generator, Iterable, List, Tuple
 import numpy as np
 from skimage.util import view_as_windows
 
-logger = logging.getLogger(__name__)
+from careamics_restoration.utils.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 def _compute_number_of_patches(
@@ -248,7 +250,7 @@ def extract_patches_sequential(
     patches = compute_reshaped_view(
         arr, window_shape=window_shape, step=window_steps, output_shape=output_shape
     )
-    logger.info(f"Extracted {patches.shape[0]} patches from input array.")
+    logger.debug(f"Extracted {patches.shape[0]} patches from input array.")
 
     for patch_ixd in range(patches.shape[0]):
         patch = patches[patch_ixd].astype(np.float32).squeeze()
