@@ -1,67 +1,66 @@
-from enum import Enum
+from collections import OrderedDict
 
 import torch
 import torch.nn as nn
 
-from typing import List
-from collections import OrderedDict
-from torch.nn import init
-
-from .layers import DownConv, UpConv, conv1x1, Conv_Block_tf, BlurPool2d, BlurPool3d
-
+from .layers import Conv_Block_tf
 
 # TODO add docstings, typing
+# TODO Urgent: refactor
 
 
-class UNET(nn.Module):
+class UNet(nn.Module):
     def __init__(
         self,
         conv_dim: int,
         num_classes: int = 1,
         in_channels: int = 1,
         depth: int = 3,
-        num_filter_base: int = 64,
+        num_filter_base: int = 64,  # TODO cryptic name
         num_conv_per_depth=2,
         activation="ReLU",
         use_batch_norm=True,
         dropout=0.0,
         pool_kernel=2,
         last_activation=None,
-        n2v2: bool = False,
-        skip_skipone=False,
+        # n2v2: bool = False,  # TODO: should n2v2 and skip_skipone be linked?
     ) -> None:
         super().__init__()
 
+        if depth < 1:
+            raise ValueError(f"Depth must be greater than 1 (got {depth}).")
+
         self.depth = depth
         self.num_conv_per_depth = num_conv_per_depth
-        self.conv_block_in = Conv_Block_tf
-        self.conv_block = Conv_Block_tf
 
-        if n2v2:
-            self.pooling = (
-                BlurPool2d if conv_dim == 2 else BlurPool3d
-            )  # TODO getattr from layers
-        else:
-            self.pooling = getattr(nn, f"MaxPool{conv_dim}d")(kernel_size=pool_kernel)
+        # if n2v2:
+        #     self.pooling = (
+        #         BlurPool2d() if conv_dim == 2 else BlurPool3d()
+        #     )  # TODO getattr from layers
+        #     self.skipone = True
+        # else:
+        #     self.pooling = getattr(nn, f"MaxPool{conv_dim}d")(kernel_size=pool_kernel)
+        #     self.skipone = False
+
+        self.pooling = getattr(nn, f"MaxPool{conv_dim}d")(kernel_size=pool_kernel)
 
         self.upsampling = nn.Upsample(
             scale_factor=2, mode="bilinear"
         )  # TODO check align_corners and mode
-        self.skipone = (
-            skip_skipone  # TODO whoever called this skip_skipone must explain himself
-        )
+
         enc_blocks = OrderedDict()
         bottleneck = OrderedDict()
         dec_blocks = OrderedDict()
-        self.skip_layers_ouputs = OrderedDict()
+        self.skip_layers_ouputs = OrderedDict()  # type: ignore
 
         # TODO implements better layer naming
         # Encoder
         for n in range(self.depth):
+            out_channels = num_filter_base * (2**n)
+
             for i in range(self.num_conv_per_depth):
                 in_channels = in_channels if i == 0 else out_channels
-                out_channels = num_filter_base * (2**n)
-                layer = self.conv_block(
+                layer = Conv_Block_tf(
                     conv_dim,
                     in_channels,
                     out_channels,
@@ -75,21 +74,24 @@ class UNET(nn.Module):
                 )
                 enc_blocks[f"encoder_conv_d{n}_num{i}"] = layer
 
-            if skip_skipone:
-                if n > 0:
-                    enc_blocks[f"skip_encoder_conv_d{n}"] = enc_blocks.pop(
-                        f"encoder_conv_d{n}_num{i}"
-                    )
-            else:
-                enc_blocks[f"skip_encoder_conv_d{n}"] = enc_blocks.pop(
-                    f"encoder_conv_d{n}_num{i}"
-                )
+            # if self.skipone:
+            #     if n > 0:
+            #         enc_blocks[f"skip_encoder_conv_d{n}"] = enc_blocks.pop(
+            #             f"encoder_conv_d{n}_num{i}"
+            #         )
+            # else:
+            #     enc_blocks[f"skip_encoder_conv_d{n}"] = enc_blocks.pop(
+            #         f"encoder_conv_d{n}_num{i}"
+            #     )
 
+            enc_blocks[f"skip_encoder_conv_d{n}"] = enc_blocks.pop(
+                f"encoder_conv_d{n}_num{i}"
+            )
             enc_blocks[f"encoder_pool_d{n}"] = self.pooling
 
         # Bottleneck
         for i in range(num_conv_per_depth - 1):
-            bottleneck[f"bottleneck_num{i}"] = self.conv_block(
+            bottleneck[f"bottleneck_num{i}"] = Conv_Block_tf(
                 conv_dim,
                 in_channels=out_channels,
                 out_channels=num_filter_base * 2**depth,
@@ -102,7 +104,7 @@ class UNET(nn.Module):
                 use_batch_norm=use_batch_norm,
             )
 
-        bottleneck["bottleneck_final"] = self.conv_block(
+        bottleneck["bottleneck_final"] = Conv_Block_tf(
             conv_dim,
             in_channels=num_filter_base * 2**depth,
             out_channels=num_filter_base * 2 ** max(0, depth - 1),
@@ -116,7 +118,7 @@ class UNET(nn.Module):
             dec_blocks[f"upsampling_d{n}"] = self.upsampling
             for i in range(num_conv_per_depth - 1):
                 n_filter = num_filter_base * 2**n if n > 0 else num_filter_base
-                dec_blocks[f"decoder_conv_d{n}_num{i}"] = self.conv_block(
+                dec_blocks[f"decoder_conv_d{n}_num{i}"] = Conv_Block_tf(
                     conv_dim,
                     in_channels=n_filter * 2,
                     out_channels=n_filter,
@@ -125,7 +127,7 @@ class UNET(nn.Module):
                     use_batch_norm=use_batch_norm,
                 )
 
-            dec_blocks[f"decoder_conv_d{n}"] = self.conv_block(
+            dec_blocks[f"decoder_conv_d{n}"] = Conv_Block_tf(
                 conv_dim,
                 in_channels=n_filter,
                 out_channels=num_filter_base * 2 ** max(0, n - 1),
@@ -148,6 +150,8 @@ class UNET(nn.Module):
         inputs = x.clone()
         for module_name in self.enc_blocks:
             x = self.enc_blocks[module_name](x)
+
+            # TODO: figure out what this is for
             if module_name.startswith("skip"):
                 self.skip_layers_ouputs[module_name] = x
 

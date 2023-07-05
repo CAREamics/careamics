@@ -1,85 +1,156 @@
 from enum import Enum
-from pathlib import Path
-from typing import Optional, Union, List
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+from .config_filter import remove_default_optionals
 
 
 # python 3.11: https://docs.python.org/3/library/enum.html
-class LossName(str, Enum):
-    """Class representing an accepted loss function."""
+class Losses(str, Enum):
+    """Available loss functions.
 
-    n2v = "n2v"
-    pn2v = "pn2v"
+    Currently supported:
+        - n2v: Noise2Void loss.
+    """
 
-
-class ModelName(str, Enum):
-    """Class representing an accepted model."""
-
-    UNET = "UNET"
-
-
-class PixelManipulator(str, Enum):
     N2V = "n2v"
 
 
-class Algorithm(BaseModel):
-    """Algorithm configuration model.
+class Models(str, Enum):
+    """Available models.
+
+    Currently supported:
+        - UNet: U-Net model.
+    """
+
+    UNET = "UNet"
+
+
+class MaskingStrategies(str, Enum):
+    """Available masking strategies.
+
+    Currently supported:
+    - default: default masking strategy of Noise2Void (uniform sampling of neighbors).
+    - median: median masking strategy of N2V2
+    """
+
+    DEFAULT = "default"
+    MEDIAN = "median"
+
+
+class ModelParameters(BaseModel):
+    """Model parameters.
+
+    The number of filters (base) must be even and minimum 8.
 
     Attributes
     ----------
-    loss : List[LossName]
-        List of loss functions to be used for training (defined in n2v.losses)
-    model : ModelName
-        Model to be used for training (defined in n2v.models)
     depth : int
-        Depth of the model (default: 3)
-    conv_dims : int
-        Dimensions of the convolution, 2D or 3D (default: 2)
-    pixel_manipulation : PixelManipulator
-        Pixel manipulation strategy (default: PixelManipulator.N2V)
-    num_masked_pixels : float
-        Percentage of masked pixels (default: 128)
-    trained_model : Optional[Path]
-        Path to a trained model (default: None)
+        Depth of the model, between 1 and 10 (default 2).
+    num_filters_base : int
+        Number of filters of the first level of the network, should be even
+        and minimum 8 (default 96).
     """
 
-    loss: Union[List[LossName], LossName]
+    depth: int = Field(default=2, ge=1, le=10)
+    num_filters_base: int = 96
 
-    # optional fields with default values (appearing in yml)
-    # model
-    model: ModelName = ModelName.UNET
-    depth: int = Field(default=3, ge=2, le=5)
-    conv_dims: int = Field(default=2, ge=2, le=3)
-    num_filter_base: int = Field(default=96, ge=16, le=256)
+    # TODO revisit the constraints on num_filters_base
+    @field_validator("num_filters_base")
+    def greater_than_eight_and_even(cls, num_filters: int):
+        """Validate that num_filter_base is a power of two (minimum 8)."""
+        # if odd
+        if num_filters % 2 != 0:
+            raise ValueError(
+                f"Number of filters (base) must be even (got {num_filters})."
+            )
 
-    # pixel masking
-    pixel_manipulation: PixelManipulator = PixelManipulator.N2V
-    mask_pixel_percentage: float = Field(default=0.2, ge=0.1, le=5)
+        # if less than 8
+        if num_filters < 8:
+            raise ValueError(
+                f"Number of filters (base) must be at least 8 (got {num_filters})."
+            )
 
-    # optional fields that will not appear if not defined
-    trained_model: Optional[Path] = None
+        return num_filters
 
-    @validator("trained_model")
-    def validate_trained_model(cls, v: Union[Path, None], values, **kwargs) -> Path:
-        """Validate trained_model.
 
-        If trained_model is not None, it must be a valid path."""
-        if v is not None:
-            path = Path(v)
-            if not v.exists():
-                raise ValueError(f"Path to model does not exist (got {v}).")
-            elif path.suffix != ".pth":
-                raise ValueError(f"Path to model must be a .pth file (got {v}).")
-            else:
-                return path
+class Algorithm(BaseModel):
+    """Algorithm configuration used to configure the model and the loss.
 
-        return None
+    The minimum algorithm configuration is composed of the following fields:
+        - loss:
+            Loss to use, currently only supports n2v.
+        - model:
+            Model to use, currently only supports UNet.
+        - is_3D:
+            Whether to use a 3D model or not, this should be coherent with the
+            data configuration (axes).
 
-    def dict(self, *args, **kwargs):
-        """Return a dictionary representation of the model."""
-        return super().dict(exclude_none=True)
+    Other optional fields are:
+        - masking_strategy:
+            Masking strategy to use, currently only supports default masking.
+            # TODO explain default masking
+        - masked_pixel_percentage:
+            Percentage of pixels to be masked in each patch.
+        - model_parameters:
+            Model parameters, see ModelParameters for more details.
 
-    class Config:
-        use_enum_values = True  # enum are exported as str
-        allow_mutation = False  # model is immutable
+    Attributes
+    ----------
+    loss : List[Losses]
+        List of losses to use, currently only supports n2v.
+    model : Models
+        Model to use, currently only supports UNet.
+    is_3D : bool
+        Whether to use a 3D model or not.
+    masking_strategy : MaskingStrategies
+        Masking strategy to use, currently only supports default masking.
+    masked_pixel_percentage : float
+        Percentage of pixels to be masked in each patch.
+    model_parameters : ModelParameters
+        Model parameters, see ModelParameters for more details.
+    """
+
+    # Pydantic class configuration
+    model_config = ConfigDict(
+        use_enum_values=True,
+        protected_namespaces=(),  # allows to use mode_* as a field name
+    )
+
+    # Mandatory fields
+    loss: Losses
+    model: Models
+    is_3D: bool
+
+    # Optional fields, define a default value
+    masking_strategy: MaskingStrategies = MaskingStrategies.DEFAULT
+    masked_pixel_percentage: float = Field(default=0.2, ge=0.1, le=20)
+    model_parameters: ModelParameters = ModelParameters()
+
+    def get_conv_dim(self) -> int:
+        """Get the convolution layers dimension (2D or 3D).
+
+        Returns
+        -------
+        int
+            Dimension (2 or 3)
+        """
+        return 3 if self.is_3D else 2
+
+    def model_dump(self, *args, **kwargs) -> dict:
+        """Override model_dump method.
+
+        The purpose is to ensure export smooth import to yaml. It includes:
+            - remove entries with None value
+            - remove optional values if they have the default value
+        """
+        dictionary = super().model_dump(exclude_none=True)
+
+        # remove optional arguments if they are default
+        defaults = {
+            "masking_strategy": MaskingStrategies.DEFAULT.value,
+            "masked_pixel_percentage": 0.2,
+            "model_parameters": ModelParameters().model_dump(exclude_none=True),
+        }
+
+        return remove_default_optionals(dictionary, defaults)

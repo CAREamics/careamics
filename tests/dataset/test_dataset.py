@@ -1,13 +1,9 @@
+import numpy as np
 import pytest
 import tifffile
 
-import numpy as np
-
-from careamics_restoration.dataloader import (
-    list_input_source_tiff,
-    extract_patches_sequential,
-    PatchDataset,
-)
+from careamics_restoration.dataset.tiff_dataset import TiffDataset
+from careamics_restoration.dataset.tiling import extract_patches_sequential
 
 
 def test_list_input_source_tiff(tmp_path):
@@ -17,7 +13,7 @@ def test_list_input_source_tiff(tmp_path):
     # create np arrays
     arrays = []
     for n in range(num_files):
-        arr_list = [[i for i in range(2 + n)], [i * i for i in range(2 + n)]]
+        arr_list = [list(range(2 + n)), [i * i for i in range(2 + n)]]
         arrays.append(np.array(arr_list))
 
     # create tiff files
@@ -36,29 +32,22 @@ def test_list_input_source_tiff(tmp_path):
 
 
 @pytest.mark.parametrize(
-    "arr_shape, axes, patch_size",
+    "arr_shape, axes",
     [
         # wrong shapes
-        ((8,), "Y", (4,)),
+        ((8,), "Y"),
         # axes and array not compatible
-        ((8, 8), "Y", (4, 4)),
-        ((8, 8, 8), "YX", (4, 4)),
-        ((8, 8, 8, 8, 8), "TCZYX", (4, 4, 4)),
+        ((8, 8), "Y"),
+        ((8, 8, 8), "YX"),
+        ((8, 8, 8, 8, 8), "TCZYX"),
         # wrong axes
-        ((8, 8), "XY", (4, 4)),
-        ((8, 8, 8), "YXZ", (4, 4, 4)),
-        ((3, 8, 8), "CYX", (1, 4, 4)),
-        ((5, 3, 8, 8), "STYX", (1, 1, 4, 4)),
-        # wrong patch size
-        ((8, 8), "YX", (4,)),
-        ((8, 8), "YX", (4, 3)),
-        ((8, 8), "YX", (4, 4, 4)),
-        ((8, 8, 8), "ZYX", (4, 4)),
-        ((8, 8, 8), "ZYX", (4, 4, 4, 4)),
-        ((8, 8, 8), "ZYX", (3, 4, 4)),
+        ((8, 8), "XY"),
+        ((8, 8, 8), "YXZ"),
+        ((3, 8, 8), "CYX"),
+        ((5, 3, 8, 8), "STYX"),
     ],
 )
-def test_patch_dataset_read_source_errors(tmp_path, arr_shape, axes, patch_size):
+def test_patch_dataset_read_source_errors(tmp_path, arr_shape, axes):
     arr = np.ones(arr_shape)
 
     path = tmp_path / "test.tif"
@@ -66,43 +55,41 @@ def test_patch_dataset_read_source_errors(tmp_path, arr_shape, axes, patch_size)
     assert path.exists()
 
     with pytest.raises((ValueError, NotImplementedError)):
-        PatchDataset.read_data_source(path, axes, patch_size)
+        TiffDataset.read_source(path, axes)
 
 
 @pytest.mark.parametrize(
-    "arr_shape, axes, patch_size",
+    "arr_shape, axes",
     [
         # All possible input variations (S(B), T(o), C(o), Z(o), Y, X)
         # -> ((S(B) * T * P, C(o), Z(o), Y, X)
         # 2D (S(B), C, Y, X)
         # 3D (S(B), C, Z, Y, X)
         # 2D
-        ((8, 8), "YX", (4, 4)),
+        ((8, 8), "YX"),
         # ((2, 8, 8), "CYX", (4, 4)),
         # # 2D time series
-        ((10, 8, 8), "TYX", (4, 4)),
+        ((10, 8, 8), "TYX"),
         # (10, 1, 8, 8),
         # (10, 2, 8, 8),
         # # 3D
-        ((4, 8, 8), "ZYX", (4, 4, 4)),
-        ((8, 8, 8), "ZYX", (4, 4, 4)),
+        ((4, 8, 8), "ZYX"),
+        ((8, 8, 8), "ZYX"),
         # # 3D time series
         # (10, 32, 64, 64),
     ],
 )
-def test_patch_dataset_read_source(
-    tmp_path, ordered_array, arr_shape, axes, patch_size
-):
+def test_patch_dataset_read_source(tmp_path, ordered_array, arr_shape, axes):
     arr = ordered_array(arr_shape)
 
     path = tmp_path / "test.tif"
     tifffile.imwrite(path, arr)
     assert path.exists()
 
-    image = PatchDataset.read_data_source(path, axes, patch_size)
+    image = TiffDataset.read_source(path, axes)
 
     if axes == "YX":
-        assert image.shape == (1,) + arr_shape
+        assert image.shape == (1, *arr_shape)
     elif axes == "CYX":
         assert image.shape == arr_shape[1:]
     elif axes == "TYX":
@@ -177,6 +164,24 @@ def test_extract_patches_sequential_errors(arr_shape, patch_size):
         next(patches_generator)
 
 
+def check_extract_patches_sequential(array, patch_size):
+    """Check that the patches are extracted correctly.
+
+    The array should have been generated using np.arange and np.reshape."""
+    patch_generator = extract_patches_sequential(array, patch_size)
+
+    # check patch shape
+    patches = []
+    for patch in patch_generator:
+        patches.append(patch)
+        assert patch.shape == patch_size
+
+    # check that all values are covered by the patches
+    n_max = np.prod(array.shape)  # maximum value in the array
+    unique = np.unique(np.array(patches))  # unique values in the patches
+    assert len(unique) == n_max
+
+
 @pytest.mark.parametrize(
     "patch_size",
     [
@@ -187,31 +192,10 @@ def test_extract_patches_sequential_errors(arr_shape, patch_size):
     ],
 )
 def test_extract_patches_sequential_2d(array_2D, patch_size):
-    """Test extracting patches sequentially in 2D.
-
-    The 2D array is a fixture of shape (1, 10, 9)."""
-    patch_generator = extract_patches_sequential(array_2D, patch_size)
-
-    # check patch shape
-    patches = []
-    for patch in patch_generator:
-        patches.append(patch)
-        assert patch.shape == (array_2D.shape[0],) + patch_size
-
-    # we assume that if values are missing, these will be border ones
-    # test can be simplified by checking all values, but then it might
-    # get expensive to compute.
-    patches_np = np.array(patches)
-    for i in range(array_2D.shape[1]):
-        assert array_2D[0, i, 0] in patches_np
-        assert array_2D[0, i, -1] in patches_np
-
-    for i in range(array_2D.shape[2]):
-        assert array_2D[0, 0, i] in patches_np
-        assert array_2D[0, -1, i] in patches_np
+    """Test extracting patches sequentially in 2D."""
+    check_extract_patches_sequential(array_2D, patch_size)
 
 
-# TODO case (2, 3, 5), None doesn't work
 @pytest.mark.parametrize(
     "patch_size",
     [
@@ -225,31 +209,18 @@ def test_extract_patches_sequential_3d(array_3D, patch_size):
     """Test extracting patches sequentially in 3D.
 
     The 3D array is a fixture of shape (1, 5, 10, 9)."""
-    # compute expected number of patches
-    patch_generator = extract_patches_sequential(array_3D, patch_size)
+    check_extract_patches_sequential(array_3D, patch_size)
 
-    # check individual patch shape
-    patches = []
-    for patch in patch_generator:
-        patches.append(patch)
-        assert patch.shape == (array_3D.shape[0],) + patch_size
 
-    # we assume that if values are missing, these will be border ones
-    # test can be simplified by checking all values, but then it might
-    # get expensive to compute.
-    shape_3d = array_3D.shape
-    patches_np = np.array(patches)
-    for i in range(shape_3d[2]):  # front and back of 3D cuboid
-        for j in range(shape_3d[3]):
-            assert array_3D[0, 0, i, j] in patches_np
-            assert array_3D[0, -1, i, j] in patches_np
+def test_calculate_stats():
+    arr = np.random.rand(2, 10, 10)
 
-    for i in range(shape_3d[2]):  # top and bottom of 3D cuboid
-        for k in range(shape_3d[1]):
-            assert array_3D[0, k, i, 0] in patches_np
-            assert array_3D[0, k, i, -1] in patches_np
+    mean = 0
+    std = 0
+    for i in range(arr.shape[0]):
+        mean += np.mean(arr[i])
+        std += np.std(arr[i])
+    
+    assert np.around(arr.mean(), decimals=4) == np.around(mean / (i+1), decimals=4)
+    assert np.around(arr.std(), decimals=2) == np.around(std / (i+1), decimals=2)
 
-    for j in range(shape_3d[3]):  # left and right of 3D cuboid
-        for k in range(shape_3d[1]):
-            assert array_3D[0, k, 0, j] in patches_np
-            assert array_3D[0, k, -1, j] in patches_np

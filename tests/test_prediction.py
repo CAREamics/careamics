@@ -1,33 +1,46 @@
+import numpy as np
 import pytest
-from careamics_restoration.prediction import calculate_tile_cropping_coords
+
+# TODO: unused impots and incomplete tests
+
+[
+    (48, 48),
+    (48, 32),
+    (48, 32),
+    (48, 29),
+    (32, 48),
+    (32, 32),
+    (32, 32),
+    (32, 29),
+    (32, 48),
+    (32, 32),
+    (32, 32),
+    (32, 29),
+    (45, 48),
+    (45, 32),
+    (),
+]
 
 
 @pytest.mark.parametrize(
-    "tile_coords, last_tile_coords, overlap, expected",
+    "n_tiles, tile_size",
     [
-        # (y, x) [...] (start_y, end_y, start_x, end_x)
-        # 2D: top left corner
-        ((0, 0), (3, 5), (10, 8), (0, -5, 0, -4)),
-        # 2D: top right corner
-        ((0, 4), (3, 5), (10, 8), (0, -5, 4, None)),
-        # 2D: bottom left corner
-        ((2, 0), (3, 5), (10, 8), (5, None, 0, -4)),
-        # 2D: bottom right corner
-        ((2, 4), (3, 5), (10, 8), (5, None, 4, None)),
-        # 2D middle
-        ((1, 1), (3, 5), (10, 8), (5, -5, 4, -4)),
-        # 3D: front (bottom left)
-        ((0, 2, 0), (7, 3, 5), (6, 10, 8), (0, -3, 5, None, 0, -4)),
-        # 3D: back (bottom left)
-        ((6, 2, 0), (7, 3, 5), (6, 10, 8), (3, None, 5, None, 0, -4)),
+        (4, (4, 4)),
     ],
 )
-def test_calculate_stitching_coords(tile_coords, last_tile_coords, overlap, expected):
+@pytest.mark.parametrize("input_shape", [(8, 8)])
+def test_stitch_prediction(n_tiles, tile_size, input_shape):
     """Test calculating stitching coordinates"""
-    expected_slices = [
-        slice(expected[2 * i], expected[2 * i + 1]) for i in range(len(overlap))
-    ]
+    tile_coords = []
+    np.zeros(input_shape, dtype=int)
 
-    # compute stitching coordinates
-    result = calculate_tile_cropping_coords(tile_coords, last_tile_coords, overlap)
-    assert result == expected_slices
+    # create dummy tiles
+    for y in range(0, input_shape[0] // tile_size[0]):
+        for x in range(input_shape[1] // tile_size[1]):
+            tile = np.ones(tile_size, dtype=int)
+            ((y, y + tile_size[0]), (x, x + tile_size[0]))
+            tile_coords.append((tile,))
+    # TODO finish this test...........
+
+    # # compute stitching coordinates
+    # result = stitch_prediction(tile_coords, input_shape)

@@ -1,158 +1,113 @@
-from pathlib import Path
-
 import pytest
 
-from careamics_restoration.config.algorithm import Algorithm
+from careamics_restoration.config.algorithm import Algorithm, ModelParameters
 
 
-def test_algorithm(test_config):
-    """Test that we can instantiate a config with a valid algorithm."""
-    algorithm_config = test_config["algorithm"]
-    _ = Algorithm(**algorithm_config)
+@pytest.mark.parametrize("depth", [1, 5, 10])
+def test_model_parameters_depth(complete_config: dict, depth: int):
+    """Test that ModelParameters accepts depth between 1 and 10."""
+    model_params = complete_config["algorithm"]["model_parameters"]
+    model_params["depth"] = depth
+
+    model_params = ModelParameters(**model_params)
+    assert model_params.depth == depth
 
 
-def test_wrong_loss_value(test_config):
-    """Test that we cannot instantiate a config with wrong loss value."""
-    algorithm_config = test_config["algorithm"]
-
-    # wrong entry
-    algorithm_config["loss"] = ["notn2v"]
-
-    with pytest.raises(ValueError):
-        Algorithm(**algorithm_config)
-
-
-def test_loss_value(test_config):
-    """Test that we can instantiate a config with a single loss or a list of
-    losses."""
-    algorithm_config = test_config["algorithm"]
-
-    # list
-    algorithm_config["loss"] = ["n2v", "pn2v"]
-    my_algo = Algorithm(**algorithm_config)
-    assert my_algo.loss == algorithm_config["loss"]
-
-    # single value
-    algorithm_config["loss"] = "n2v"
-    my_algo = Algorithm(**algorithm_config)
-    assert my_algo.loss == algorithm_config["loss"]
-
-
-def test_wrong_model_value(test_config):
-    """Test that we cannot instantiate a config with wrong loss value."""
-
-    algorithm_config = test_config["algorithm"]
-    algorithm_config["model"] = "wrongmodel"
+@pytest.mark.parametrize("depth", [-1, 11])
+def test_model_parameters_wrong_depth(complete_config: dict, depth: int):
+    """Test that wrong depth cause an error."""
+    model_params = complete_config["algorithm"]["model_parameters"]
+    model_params["depth"] = depth
 
     with pytest.raises(ValueError):
-        Algorithm(**algorithm_config)
+        ModelParameters(**model_params)
 
 
-def test_wrong_manipulator_value(test_config):
-    """Test that we cannot instantiate a config with wrong loss value."""
+@pytest.mark.parametrize("num_filters_base", [8, 16, 32, 96, 128])
+def test_model_parameters_num_filters_base(
+    complete_config: dict, num_filters_base: int
+):
+    """Test that ModelParameters accepts num_filters_base as a power of two and
+    minimum 8."""
+    model_params = complete_config["algorithm"]["model_parameters"]
+    model_params["num_filters_base"] = num_filters_base
 
-    algorithm_config = test_config["algorithm"]
-    algorithm_config["pixel_manipulation"] = "notn2v"
+    model_params = ModelParameters(**model_params)
+    assert model_params.num_filters_base == num_filters_base
+
+
+@pytest.mark.parametrize("num_filters_base", [2, 17, 127])
+def test_model_parameters_wrong_num_filters_base(
+    complete_config: dict, num_filters_base: int
+):
+    """Test that wrong num_filters_base cause an error."""
+    model_params = complete_config["algorithm"]["model_parameters"]
+    model_params["num_filters_base"] = num_filters_base
 
     with pytest.raises(ValueError):
-        Algorithm(**algorithm_config)
+        ModelParameters(**model_params)
 
 
-@pytest.mark.parametrize("num_masked_pixels", [-10, 0, 1025])
-def test_wrong_num_masked_pixels_value(test_config, num_masked_pixels):
-    """Test that we cannot instantiate a config with wrong number of masked
-    pixels."""
+@pytest.mark.parametrize("masked_pixel_percentage", [0.1, 0.2, 5, 20])
+def test_masked_pixel_percentage(complete_config: dict, masked_pixel_percentage: float):
+    """Test that Algorithm accepts the minimum configuration."""
+    algorithm = complete_config["algorithm"]
+    algorithm["masked_pixel_percentage"] = masked_pixel_percentage
 
-    algorithm_config = test_config["algorithm"]
-    algorithm_config["num_masked_pixels"] = num_masked_pixels
+    algo = Algorithm(**algorithm)
+    assert algo.masked_pixel_percentage == masked_pixel_percentage
+
+
+@pytest.mark.parametrize("masked_pixel_percentage", [0.01, 21])
+def test_wrong_masked_pixel_percentage(
+    complete_config: dict, masked_pixel_percentage: float
+):
+    """Test that Algorithm accepts the minimum configuration."""
+    algorithm = complete_config["algorithm"]
+    algorithm["masked_pixel_percentage"] = masked_pixel_percentage
 
     with pytest.raises(ValueError):
-        Algorithm(**algorithm_config)
+        Algorithm(**algorithm)
 
 
-def test_trained_model_path(tmpdir, test_config):
-    """Test that we can instantiate a config without a trained model and that
-    the model validation works."""
-    key = "trained_model"
-    algorithm_config = test_config["algorithm"]
+def test_algorithm_to_dict_minimum(minimum_config: dict):
+    """ "Test that export to dict does not include optional values."""
+    algorithm_minimum = Algorithm(**minimum_config["algorithm"]).model_dump()
+    assert algorithm_minimum == minimum_config["algorithm"]
 
-    # check that key is absent
-    assert key not in algorithm_config.keys()
-
-    # instantiate model
-    my_algo = Algorithm(**algorithm_config)
-    assert key not in my_algo.dict().keys()
-
-    # create a non-valid path
-    path = Path(tmpdir, "mytrainedmodel.pth")
-    algorithm_config[key] = str(path)
-    assert not path.exists()
-
-    # check that it fails instantiation
-    with pytest.raises(ValueError):
-        Algorithm(**algorithm_config)
-
-    # create a valid path without the extension
-    path = Path(tmpdir, "mytrainedmodel")
-    algorithm_config[key] = str(path)
-    path.touch()
-    assert path.exists()
-
-    # check that it fails instantiation
-    with pytest.raises(ValueError):
-        Algorithm(**algorithm_config)
-
-    # finally create a valid path
-    path = Path(tmpdir, "mytrainedmodel.pth")
-    algorithm_config[key] = str(path)
-    path.touch()
-    assert path.exists()
-
-    # create a config with a valid path to a trained model
-    algorithm_config[key] = str(path)
-    my_other_algo = Algorithm(**algorithm_config)
-    assert my_other_algo.trained_model == path
+    assert "loss" in algorithm_minimum
+    assert "model" in algorithm_minimum
+    assert "is_3D" in algorithm_minimum
+    assert "masking_strategy" not in algorithm_minimum
+    assert "masked_pixel_percentage" not in algorithm_minimum
+    assert "model_parameters" not in algorithm_minimum
 
 
-@pytest.mark.parametrize("conv_dims", [2, 3])
-def test_conv_dims(test_config, conv_dims):
-    """Test that we can instantiate a config with a valid conv_dims."""
-    algorithm_config = test_config["algorithm"]
-    algorithm_config["conv_dims"] = conv_dims
+def test_algorithm_to_dict_complete(complete_config: dict):
+    """ "Test that export to dict does not include optional values."""
+    algorithm_complete = Algorithm(**complete_config["algorithm"]).model_dump()
+    assert algorithm_complete == complete_config["algorithm"]
 
-    # instantiate model
-    my_algo = Algorithm(**algorithm_config)
-    assert my_algo.conv_dims == conv_dims
-
-
-@pytest.mark.parametrize("conv_dims", [-1, 0, 1, 4])
-def test_wrong_conv_dims(test_config, conv_dims):
-    """Test that we cannot instantiate a config with wrong conv_dims."""
-    algorithm_config = test_config["algorithm"]
-    algorithm_config["conv_dims"] = conv_dims
-
-    # instantiate model
-    with pytest.raises(ValueError):
-        Algorithm(**algorithm_config)
+    assert "loss" in algorithm_complete
+    assert "model" in algorithm_complete
+    assert "is_3D" in algorithm_complete
+    assert "masking_strategy" in algorithm_complete
+    assert "masked_pixel_percentage" in algorithm_complete
+    assert "model_parameters" in algorithm_complete
+    assert "depth" in algorithm_complete["model_parameters"]
+    assert "num_filters_base" in algorithm_complete["model_parameters"]
 
 
-@pytest.mark.parametrize("model_depth", [2, 3, 4, 5])
-def test_model_depth(test_config, model_depth):
-    """Test that we can instantiate a config with a valid model_depth."""
-    algorithm_config = test_config["algorithm"]
-    algorithm_config["depth"] = model_depth
+def test_algorithm_to_dict_optionals(complete_config: dict):
+    """ "Test that export to dict does not include optional values."""
+    # change optional value to the default
+    algo_config = complete_config["algorithm"]
+    algo_config["model_parameters"] = {
+        "depth": 2,
+        "num_filters_base": 96,
+    }
+    algo_config["masking_strategy"] = "default"
 
-    # instantiate model
-    my_algo = Algorithm(**algorithm_config)
-    assert my_algo.depth == model_depth
-
-
-@pytest.mark.parametrize("model_depth", [-1, 0, 1, 6])
-def test_wrong_model_depth(test_config, model_depth):
-    """Test that we cannot instantiate a config with wrong model_depth."""
-    algorithm_config = test_config["algorithm"]
-    algorithm_config["depth"] = model_depth
-
-    # instantiate model
-    with pytest.raises(ValueError):
-        Algorithm(**algorithm_config)
+    algorithm_complete = Algorithm(**complete_config["algorithm"]).model_dump()
+    assert "model_parameters" not in algorithm_complete
+    assert "masking_strategy" not in algorithm_complete

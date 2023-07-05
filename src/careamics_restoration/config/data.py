@@ -1,153 +1,134 @@
+from __future__ import annotations
+
 from enum import Enum
 from pathlib import Path
+from typing import Optional, Union
 
-from typing import Optional, Union, List
-from pydantic import BaseModel, Field, validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    FieldValidationInfo,
+    field_validator,
+    model_validator,
+)
 
-from src.careamics_restoration.dataloader_utils import are_axes_valid
+# TODO this creates a circular import when instantiating the engine
+# engine -> config -> evaluation -> data -> dataloader_utils
+# then are_axes_valid are imported again in the engine.
+from .config_filter import paths_to_str
+from ..utils import check_axes_validity
 
 
-class SupportedExtension(str, Enum):
-    """Supported extensions for input data."""
+class SupportedExtensions(str, Enum):
+    """Supported extensions for input data.
+
+    Currently supported:
+        - tif/tiff: .tiff files.
+        - npy: numpy files.
+    """
 
     TIFF = "tiff"
     TIF = "tif"
-    NPY = "npy"
+    NPY = "npy"  # TODO check if actually supported, probably not.
+    ZARR = "zarr"
 
     @classmethod
-    def _missing_(cls, value):
+    def _missing_(cls, value: object):
         """Override default behaviour for missing values.
 
-        Convert value to lowercase and try to match it with enum values.
+        This method is called when `value` is not found in the enum values. It convert
+        `value` to lowercase, remove "." if it is the first character and try to match
+        it with enum values.
         """
-        lower_value = value.lower()
+        if isinstance(value, str):
+            lower_value = value.lower()
 
-        # attempt to match lowercase value with enum values
-        for member in cls:
-            if member.value == lower_value:
-                return member
+            if lower_value.startswith("."):
+                lower_value = lower_value[1:]
 
+            # attempt to match lowercase value with enum values
+            for member in cls:
+                if member.value == lower_value:
+                    return member
+
+        # still missing
         return super()._missing_(value)
-
-
-class ExtractionStrategy(str, Enum):
-    """Extraction strategy for training patches."""
-
-    SEQUENTIAL = "sequential"
-    RANDOM = "random"
-    PREDICT = "predict"
 
 
 class Data(BaseModel):
     """Data configuration.
 
-    Attributes:
+    The data paths are individually optional, however, at least one of training or
+    prediction must be specified.
+
+    The optional paths to the training, validation and prediction data should point to
+    the parent folder of the images.
+
+    Attributes
     ----------
-    path: Path
-        Path to the folder containing the training data or to a specific file (
-        extension must match `ext`)
-    axes: str
-        Axes of the training data
-    ext: SupportedExtension
-        File type of the training data
-    extraction_strategy: ExtractionStrategy
-        Extraction strategy for training patches
-    batch_size: int
-        Batch size for training
-    patch_size: List[int]
-        Patch size for training, defines spatial dimensionality (2D vs 3D)
-    num_files: Optional[int]
-        Number of files to use for training (optional)
-    num_patches: Optional[int]
-        Number of patches to use for training (optional)
-    num_workers: Optional[int]
-        Number of workers for training (optional)
+    data_format : SupportedExtensions
+        Extensions of the data.
+    axes : str
+        Axes of the data.
+    training_path : Optional[Union[Path, str]]
+        Path to the training data.
+    validation_path : Optional[Union[Path, str]]
+        Path to the validation data.
+    prediction_path : Optional[Union[Path, str]]
+        Path to the prediction data.
+    mean: Optional[float]
+       Expected data mean
+    std: Optional[float]
+       Expected data std
     """
 
-    path: Path
-    patch_size: List[int] = Field(..., min_items=2, max_items=3)
+    # Pydantic class configuration
+    model_config = ConfigDict(use_enum_values=True)
+
+    # Mandatory fields
+    data_format: SupportedExtensions
     axes: str
 
-    # optional with default values (included in yml)
-    ext: SupportedExtension = SupportedExtension.TIF
-    extraction_strategy: ExtractionStrategy = ExtractionStrategy.SEQUENTIAL
+    # Optional fields
+    training_path: Optional[Union[Path, str]] = None
+    validation_path: Optional[Union[Path, str]] = None
+    prediction_path: Optional[Union[Path, str]] = None
 
-    batch_size: int = Field(default=1, ge=1)
+    mean: Optional[float] = None
+    std: Optional[float] = None
 
-    # optional with None default values (not included in yml if not defined)
-    num_files: Optional[int] = Field(default=None, ge=1)  # TODO why is this needed?
-    num_patches: Optional[int] = Field(None, ge=1)
-    num_workers: Optional[int] = Field(default=None, ge=0, le=8)  # TODO is this used?
+    @field_validator("training_path", "validation_path", "prediction_path")
+    def path_contains_images(cls, path_value: str, values: FieldValidationInfo) -> Path:
+        """Validate folder path.
 
-    # TODO how to make parameters mutually exclusive (which one???)
-
-    @validator("path")
-    def validate_path(cls, v: Union[Path, str], values: dict) -> Path:
-        """Validate path to training data.
-
-        Parameters
-        ----------
-        v : Union[Path, str]
-            Path to training data
-        values : dict
-            Dictionary of other parameter values
-
-        Returns
-        -------
-        Path
-            Path to training data
-
-        Raises
-        ------
-        ValueError
-            If path does not exist, or if it has the wrong extension
+        Check that files with the correct extension can be found in the folder.
         """
-        path = Path(v)
+        path = Path(path_value)
+
+        # check that the path exists
         if not path.exists():
             raise ValueError(f"Path {path} does not exist")
         elif not path.is_dir():
-            if "ext" in values:
-                if path.suffix != f".{values['ext']}":
-                    raise ValueError(
-                        f"Path {path} does not have the expected extension"
-                        f" {values['ext']}"
-                    )
-            else:
-                raise ValueError("Cannot check path validity without extension.")
+            raise ValueError(f"Path {path} is not a directory")
+
+        # check that the path contains files with the correct extension
+        if "data_format" in values.data:
+            ext = values.data["data_format"]
+
+            if len(list(path.glob(f"*.{ext}"))) == 0:
+                raise ValueError(f"No files with extension {ext} found in {path}.")
+        else:
+            raise ValueError(
+                "Cannot check path validity without extension, make sure it has been "
+                "correctly specified."
+            )
 
         return path
 
-    @validator("patch_size")
-    def validate_patch_size(cls, patch_size: List[int]) -> List[int]:
-        """Validate patch size.
+    #TODO add validation for zarr storage, if it is a folder
 
-        For each entry:
-        - check if power of 2
-        - check if at minimum 8
-
-        Parameters
-        ----------
-        patch_size : List[int]
-            Patch size for training
-
-        Returns
-        -------
-        List[int]
-            Patch size for training
-
-        Raises
-        ------
-        ValueError
-            If patch size is not a power of 2 or at minimum 8
-        """
-        for p in patch_size:
-            # check if power of 2 and divisible by 8
-            if not (p & (p - 1) == 0) or p < 8:
-                raise ValueError(f"Patch size {p} is not a power of 2 or at minimum 8")
-        return patch_size
-
-    @validator("axes")
-    def validate_axes(cls, axes: str, values: dict) -> str:
+    @field_validator("axes")
+    def valid_axes(cls, axes: str) -> str:
         """Validate axes.
 
         Axes must be a subset of STZYX, must contain YX, be in the right order
@@ -171,61 +152,45 @@ class Data(BaseModel):
             If axes are not valid
         """
         # validate axes
-        are_axes_valid(axes)
-
-        # check if comaptible with patch size
-        if "patch_size" in values:
-            patch_size = values["patch_size"]
-
-            # hard constraint
-            if len(axes) < len(patch_size):
-                raise ValueError(
-                    f"Number of axes ({len(axes)}) cannot be smaller than patch"
-                    f"size ({patch_size}) do not match."
-                )
-
-            if len(patch_size) == 3 and "Z" not in axes:
-                raise ValueError(f"Missing Z axes in {axes=}.")
-            elif len(patch_size) == 2 and "Z" in axes:
-                raise ValueError(f"Z axes in {axes=}, but patch size is 2D.")
-        else:
-            raise ValueError("Cannot check axes validity without patch size.")
+        check_axes_validity(axes)
 
         return axes
 
-    @validator("num_files")
-    def validate_num_files(
-        cls, num_files: Optional[int], values: dict
-    ) -> Optional[int]:
-        if num_files is not None:
-            if "ext" in values and "path" in values:
-                file_list = list(values["path"].glob("*." + values["ext"]))
-                if num_files != len(file_list):
-                    raise ValueError(
-                        f"Number of files ({len(file_list)}) found does not "
-                        f"match num_files ({num_files})."
-                    )
-            else:
-                raise ValueError(
-                    "Cannot check num_files validity without extension and path."
-                )
+    @model_validator(mode="after")
+    def at_least_one_path_valid(cls, data_model: Data) -> Data:
+        """Validate that at least one of training or prediction paths is specified.
 
-        return num_files
+        Parameters
+        ----------
+        data_model : Data
+            Data model to validate
 
-    def dict(self, *args, **kwargs) -> dict:
-        """Override dict method.
+        Returns
+        -------
+        Data
+            Validated model
+
+        Raises
+        ------
+        ValueError
+            If neither training or prediction paths are specified
+        """
+        if data_model.training_path is None and data_model.prediction_path is None:
+            raise ValueError(
+                "At least one of training or prediction paths must be specified."
+            )
+
+        return data_model
+
+    def model_dump(self, *args, **kwargs) -> dict:
+        """Override model_dump method.
 
         The purpose is to ensure export smooth import to yaml. It includes:
             - remove entries with None value
             - replace Path by str
+            - remove optional values if they have the default value
         """
-        dictionary = super().dict(exclude_none=True)
+        dictionary = super().model_dump(exclude_none=True)
 
-        # replace Path by str
-        dictionary["path"] = str(dictionary["path"])
-
-        return dictionary
-
-    class Config:
-        use_enum_values = True  # enum are exported as str
-        allow_mutation = False  # model is immutable
+        # replace Paths by str
+        return paths_to_str(dictionary)

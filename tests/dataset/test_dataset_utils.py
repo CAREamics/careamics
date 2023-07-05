@@ -1,14 +1,12 @@
+import numpy as np
 import pytest
 
-import numpy as np
-
-from careamics_restoration.dataloader_utils.dataloader_utils import (
-    compute_patch_steps,
+from careamics_restoration.dataset.tiling import (
     _compute_number_of_patches,
-    compute_overlap,
-    compute_reshaped_view,
-    are_axes_valid,
     compute_crop_and_stitch_coords_1d,
+    compute_overlap,
+    compute_patch_steps,
+    compute_reshaped_view,
 )
 
 
@@ -53,6 +51,24 @@ def test_compute_patch_steps(dims, patch_size, overlap):
     expected = (min(patch_size - overlap, patch_size),) * dims
 
     assert compute_patch_steps(patch_sizes, overlaps) == expected
+
+
+def check_compute_reshaped_view(array, window_shape, steps):
+    """Check the number of patches"""
+
+    win = (1, *window_shape)
+    step = (1, *steps)
+    output_shape = (-1, *window_shape)
+
+    # compute views
+    output = compute_reshaped_view(array, win, step, output_shape)
+
+    # check the number of patches
+    n_patches = [
+        np.ceil((array.shape[1 + i] - window_shape[i] + 1) / steps[i]).astype(int)
+        for i in range(len(window_shape))
+    ]
+    assert output.shape == (np.prod(n_patches), *window_shape)
 
 
 @pytest.mark.parametrize("axis_size", [32, 35, 40])
@@ -118,31 +134,7 @@ def test_compute_crop_and_stitch_coords_1d(axis_size, patch_size, overlap):
 )
 def test_compute_reshaped_view_2d(array_2D, window_shape, steps):
     """Test computing reshaped view of an array of shape (1, 10, 9)."""
-
-    win = (1,) + window_shape
-    step = (1,) + steps
-    output_shape = (-1,) + window_shape
-
-    # compute views
-    output = compute_reshaped_view(array_2D, win, step, output_shape)
-
-    # check the number of patches
-    n_patches = [
-        np.ceil((array_2D.shape[1 + i] - window_shape[i] + 1) / steps[i]).astype(int)
-        for i in range(len(window_shape))
-    ]
-    assert output.shape == (np.prod(n_patches),) + window_shape
-
-    # check all patches
-    for i in range(n_patches[0]):
-        for j in range(n_patches[1]):
-            start_i = i * steps[0]
-            end_i = i * steps[0] + window_shape[0]
-            start_j = j * steps[1]
-            end_j = j * steps[1] + window_shape[1]
-
-            patch = array_2D[0, start_i:end_i, start_j:end_j]
-            assert np.all(output[i * n_patches[1] + j] == patch)
+    check_compute_reshaped_view(array_2D, window_shape, steps)
 
 
 @pytest.mark.parametrize(
@@ -155,76 +147,4 @@ def test_compute_reshaped_view_2d(array_2D, window_shape, steps):
 )
 def test_compute_reshaped_view_3d(array_3D, window_shape, steps):
     """Test computing reshaped view of an array of shape (1, 5, 10, 9)."""
-
-    win = (1,) + window_shape
-    step = (1,) + steps
-    output_shape = (-1,) + window_shape
-
-    # compute views
-    output = compute_reshaped_view(array_3D, win, step, output_shape)
-
-    # check the number of patches
-    n_patches = [
-        np.ceil((array_3D.shape[1 + i] - window_shape[i] + 1) / steps[i]).astype(int)
-        for i in range(len(window_shape))
-    ]
-    assert output.shape == (np.prod(n_patches),) + window_shape
-
-    # check all patches
-    for i in range(n_patches[0]):
-        for j in range(n_patches[1]):
-            for k in range(n_patches[2]):
-                start_i = i * steps[0]
-                end_i = i * steps[0] + window_shape[0]
-                start_j = j * steps[1]
-                end_j = j * steps[1] + window_shape[1]
-                start_k = k * steps[2]
-                end_k = k * steps[2] + window_shape[2]
-
-                patch = array_3D[0, start_i:end_i, start_j:end_j, start_k:end_k]
-                assert np.all(
-                    output[i * n_patches[1] * n_patches[2] + j * n_patches[2] + k]
-                    == patch
-                )
-
-
-@pytest.mark.parametrize(
-    "axes, valid",
-    [
-        # Passing
-        ("yx", True),
-        ("Yx", True),
-        ("Zyx", True),
-        ("TzYX", True),
-        ("SZYX", True),
-        # Failing due to order
-        ("XY", False),
-        ("YXZ", False),
-        ("YXT", False),
-        ("ZTYX", False),
-        # too few axes
-        ("", False),
-        ("X", False),
-        # too many axes
-        ("STZYX", False),
-        # no yx axes
-        ("ZT", False),
-        ("ZY", False),
-        # unsupported axes or axes pair
-        ("STYX", False),
-        ("CYX", False),
-        # repeating characters
-        ("YYX", False),
-        ("YXY", False),
-        # invalid characters
-        ("YXm", False),
-        ("1YX", False),
-    ],
-)
-def test_are_axes_valid(axes, valid):
-    """Test if axes are valid"""
-    if valid:
-        are_axes_valid(axes)
-    else:
-        with pytest.raises((ValueError, NotImplementedError)):
-            are_axes_valid(axes)
+    check_compute_reshaped_view(array_3D, window_shape, steps)

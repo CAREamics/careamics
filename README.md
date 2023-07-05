@@ -1,7 +1,9 @@
-# N2V family image restoration. Joint restoration suite(optional)
+# JugLab image restoration
 
 
 ``` bash
 conda create -n n2v python=3.10
-pip install torch torchvision tifffile pyyaml jupyter tqdm scikit-image wandb pydantic
+conda install pytorch pytorch-cuda=11.8 -c pytorch -c nvidia
+pip install tifffile scikit-image pyyaml matplotlib
+pip install -U pydantic
 ```

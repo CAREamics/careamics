@@ -1,12 +1,12 @@
+import numpy as np
 import pytest
 
-import numpy as np
-
 from careamics_restoration.metrics import (
-    zero_mean,
-    scale_invariant_psnr,
     MetricTracker,
+    scale_invariant_psnr,
+    zero_mean,
 )
+
 
 # TODO tests fix and fix_range
 

@@ -1,79 +1,60 @@
-from abc import ABC, abstractmethod
-from typing import Optional, Tuple, Dict
 import logging
+import random
+from pathlib import Path
+from typing import Optional, Tuple, Union
 
-import yaml
 import numpy as np
+import torch
+from torch.utils.data import DataLoader, TensorDataset
 from tqdm import tqdm
 
-import torch
-import torch.nn.functional as F
-from torch.utils.data import DataLoader
-
+from .config import ConfigStageEnum, load_configuration
+from .dataset.tiff_dataset import get_dataset
+from .losses import create_loss_function
 from .metrics import MetricTracker
-from .factory import (
-    create_dataset,
-    create_loss_function,
-)
-from .config import Configuration, load_configuration, get_parameters
-from .utils import set_logging, get_device, denormalize
-from .prediction_utils import stitch_prediction
 from .models import create_model
+from .prediction_utils import stitch_prediction
+from .utils import (
+    denormalize,
+    get_device,
+    normalize,
+    set_logging,
+    setup_cudnn_reproducibility,
+)
 
 
-class Engine(ABC):
-    def __init__(self, cfg):
-        self.cfg = cfg
-
-    @abstractmethod
-    def get_model(self):
-        pass
-
-    @abstractmethod
-    def get_train_dataloader(self):
-        pass
-
-    @abstractmethod
-    def get_predict_dataloader(self):
-        pass
-
-    @abstractmethod
-    def train(self, args):
-        pass
-
-    @abstractmethod
-    def train_single_epoch(self, args):
-        pass
-
-    # @abstractmethod
-    # def predict(self, args):
-    #     pass
+def seed_everything(seed: int):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    return seed
 
 
-class UnsupervisedEngine(Engine):
-    def __init__(self, cfg_path: str) -> None:
+# TODO: discuss normalization strategies, test running mean and std
+class Engine:
+    def __init__(self, cfg_path: Union[str, Path]) -> None:
+        # set logging
         self.logger = logging.getLogger()
         set_logging(self.logger)
-        self.cfg = self.parse_config(cfg_path)
-        self.model = self.get_model()
-        self.loss_func = self.get_loss_function()
-        self.mean = None
-        self.std = None
-        self.device = get_device()
-        # TODO all initializations of custom classes should be done here
 
-    def parse_config(self, cfg_path: str) -> Dict:
-        try:
-            cfg = load_configuration(cfg_path)
-        except (FileNotFoundError, yaml.YAMLError):
-            # TODO add custom exception for different cases
-            raise yaml.YAMLError(f"Config file not found in {cfg_path}")
-        cfg = Configuration(**cfg)
-        return cfg
+        # load configuration from disk
+        self.cfg = load_configuration(cfg_path)
+
+        # create model and loss function
+        self.model = create_model(self.cfg)
+        self.loss_func = create_loss_function(self.cfg)
+
+        # get GPU or CPU device
+        self.device = get_device()
+
+        # seeding
+        setup_cudnn_reproducibility(deterministic=True, benchmark=False)
+        seed_everything(seed=42)
 
     def log_metrics(self):
         if self.cfg.misc.use_wandb:
-            try:  # TODO test wandb. add functionality
+            try:  # TODO Vera will fix this funzione di merda
                 import wandb
 
                 wandb.init(project=self.cfg.experiment_name, config=self.cfg)
@@ -87,182 +68,64 @@ class UnsupervisedEngine(Engine):
         else:
             self.logger.info("Using default logger")
 
-    def get_model(self):
-        return create_model(self.cfg)
-
     def train(self):
-        # General func
-        train_loader, self.mean, self.std = self.get_train_dataloader()
-        eval_loader = self.get_val_dataloader()
-        eval_loader.dataset.set_normalization(self.mean, self.std)
-        optimizer, lr_scheduler = self.get_optimizer_and_scheduler()
-        scaler = self.get_grad_scaler()
-        self.logger.info(f"Starting training for {self.cfg.training.num_epochs} epochs")
+        if self.cfg.training is not None:
+            # General func
+            train_loader = self.get_dataloader(ConfigStageEnum.TRAINING)
 
-        val_losses = []  # TODO reimplement this uglu shit
-        try:
-            for epoch in range(
-                self.cfg.training.num_epochs
-            ):  # loop over the dataset multiple times
-                self.logger.info(f"Starting epoch {epoch}")
+            # TODO what if there are no validation data ? That happens a lot with N2V
+            eval_loader = self.get_dataloader(ConfigStageEnum.VALIDATION)
+            # TODO calculates mean and std of valuation data. Do we want this?
+            optimizer, lr_scheduler = self.get_optimizer_and_scheduler()
+            scaler = self.get_grad_scaler()
+            self.logger.info(
+                f"Starting training for {self.cfg.training.num_epochs} epochs"
+            )
 
-                train_outputs = self.train_single_epoch(
-                    train_loader,
-                    optimizer,
-                    scaler,
-                    self.cfg.training.amp.use,
-                    self.cfg.training.max_grad_norm,
-                )
+            val_losses = []
+            try:
+                for epoch in range(
+                    self.cfg.training.num_epochs
+                ):  # loop over the dataset multiple times
+                    self.logger.info(f"Starting epoch {epoch}")
 
-                # Perform validation step
-                eval_outputs = self.evaluate(eval_loader, self.cfg.evaluation.metric)
-                self.logger.info(
-                    f'Validation loss for epoch {epoch}: {eval_outputs["loss"]}'
-                )
-                # Add update scheduler rule based on type
-                lr_scheduler.step(eval_outputs["loss"])
-                # TODO implement checkpoint naming
-                if len(val_losses) == 0 or eval_outputs["loss"] < min(val_losses):
-                    self.save_checkpoint(f"best_checkpoint.pth", False)
-                else:
-                    self.save_checkpoint("last_checkpoint.pth", False)
-                val_losses.append(eval_outputs["loss"])
-                self.logger.info(f"Saved checkpoint to ")  # TODO correct path
-
-        except KeyboardInterrupt:
-            self.logger.info("Training interrupted")
-
-    def evaluate(self, eval_loader: torch.utils.data.DataLoader, eval_metric: str):
-        self.model.eval()
-        # TODO Isnt supposed to be called without train ?
-        avg_loss = MetricTracker()
-        avg_loss.reset()
-
-        with torch.no_grad():
-            for patch, *auxillary in tqdm(eval_loader):
-                outputs = self.model(patch.to(self.device))
-                loss = self.loss_func(outputs, *auxillary, self.device)
-                avg_loss.update(loss.item(), patch.shape[0])
-
-        return {"loss": avg_loss.avg}
-
-    def predict(self, args):
-        # TODO predict whole folder. Need filenames from DL, indices of samples in each file
-
-        self.model.to(self.device)
-        self.model.eval()
-        if not (self.mean and self.std):
-            _, self.mean, self.std = self.get_train_dataloader()
-        pred_loader = self.get_predict_dataloader(
-            ext_input=ext_input
-        )  # TODO check, calculate mean and std on all data not only train
-        # TODO separate func for external input
-        self.stitch = (
-            hasattr(pred_loader.dataset, "patch_generator")
-            and pred_loader.dataset.patch_generator is not None
-        )
-        if self.stitch:
-            self.logger.info("Starting tiled prediction")
-        else:
-            self.logger.info("Starting prediction on whole sample")
-        with torch.no_grad():
-            for idx, (tile, *auxillary) in tqdm(enumerate(pred_loader)):
-                # TODO define all predict/train funcs in separate modules
-                if auxillary:
-                    (
-                        sample_idx,
-                        overlap_crop_coords,
-                        stitch_coords,
-                    ) = auxillary
-            # TODO get filename from DL, get index treshold marking end of file
-        pass
-
-    def predict_from_memory(self):
-        # TODO predict on externally passed array
-        pass
-
-    def predict_from_disk(self):
-        # TODO predict on externally passed path
-        pass
-
-    def predict_single_sample(self, ext_input: np.ndarray = None):
-        # TODO use this in predict
-        self.model.to(self.device)
-        self.model.eval()
-        if not (self.mean and self.std):
-            _, self.mean, self.std = self.get_train_dataloader()
-        pred_loader = self.get_predict_dataloader(
-            ext_input=ext_input
-        )  # TODO check, calculate mean and std on all data not only train
-        self.stitch = (
-            hasattr(pred_loader.dataset, "patch_generator")
-            and pred_loader.dataset.patch_generator is not None
-        )
-        avg_metric = MetricTracker()
-        # TODO get whole image size or append to variable sized array. Might not fit into memory?
-        # pred = np.empty(68, dtype=np.object)
-        # TODO need acces to overlaps from config
-        tiles = []
-        if self.stitch:
-            self.logger.info("Starting tiled prediction")
-        else:
-            self.logger.info("Starting prediction on whole sample")
-        with torch.no_grad():
-            for idx, (tile, *auxillary) in tqdm(enumerate(pred_loader)):
-                # TODO define all predict/train funcs in separate modules
-                if auxillary:
-                    (
-                        sample_idx,
-                        sample_shape,
-                        overlap_crop_coords,
-                        stitch_coords,
-                    ) = auxillary
-
-                # TODO get sample, iterate over tiles of 1 sample
-                outputs = self.model(
-                    tile.to(self.device)
-                )  # Why batch dimension is not added by dl ?
-                outputs = denormalize(outputs, self.mean, self.std)
-                if self.stitch:
-                    # Crop predited tile according to overlap coordinates
-                    predicted_tile = outputs.squeeze()[
-                        (
-                            ...,
-                            *[
-                                slice(c.squeeze()[0], c.squeeze()[1])
-                                for c in list(overlap_crop_coords)
-                            ],
-                        )
-                    ]
-                    # TODO Do we need to save tiles separately ?
-                    tiles.append(
-                        (
-                            predicted_tile.cpu().numpy(),
-                            [c.squeeze().numpy() for c in stitch_coords],
-                        )
+                    self._train_single_epoch(
+                        train_loader,
+                        optimizer,
+                        scaler,
+                        self.cfg.training.amp.use,
                     )
-                else:
-                    tiles.append((outputs.detach().cpu().numpy(), None))
 
-        # Stitch tiles together
-        if self.stitch:
-            self.logger.info("Stitching tiles together")
-            pred = stitch_prediction(tiles, sample_shape)
-            self.logger.info("Prediction finished")
-            return pred, tiles
+                    # Perform validation step
+                    eval_outputs = self.evaluate(eval_loader)
+                    self.logger.info(
+                        f'Validation loss for epoch {epoch}: {eval_outputs["loss"]}'
+                    )
+                    # Add update scheduler rule based on type
+                    lr_scheduler.step(eval_outputs["loss"])
+                    if len(val_losses) == 0 or eval_outputs["loss"] < min(val_losses):
+                        self.save_checkpoint(True)
+                    else:
+                        self.save_checkpoint(False)
+                    val_losses.append(eval_outputs["loss"])
+                    self.logger.info(
+                        f"Saved checkpoint to {self.cfg.working_directory}"
+                    )
+
+            except KeyboardInterrupt:
+                self.logger.info("Training interrupted")
         else:
-            self.logger.info("Prediction finished")
-            return None, tiles
+            # TODO: instead of error, maybe fail gracefully with a logging/warning to users
+            raise ValueError("Missing training entry in configuration file.")
 
-    def train_single_epoch(
+    def _train_single_epoch(
         self,
         loader: torch.utils.data.DataLoader,
         optimizer: torch.optim.Optimizer,
         scaler: torch.cuda.amp.GradScaler,
         amp: bool,
-        max_grad_norm: Optional[float] = None,
     ):
-        """_summary_
+        """_summary_.
 
         _extended_summary_
 
@@ -277,77 +140,167 @@ class UnsupervisedEngine(Engine):
         self.model.to(self.device)
         self.model.train()
 
-        for patch, *auxillary in tqdm(loader):
+        for batch, *auxillary in tqdm(loader):
             optimizer.zero_grad()
 
             with torch.cuda.amp.autocast(enabled=amp):
-                outputs = self.model(patch.to(self.device))
+                outputs = self.model(batch.to(self.device))
+
             loss = self.loss_func(outputs, *auxillary, self.device)
             scaler.scale(loss).backward()
 
-            if max_grad_norm > 0:
-                torch.nn.utils.clip_grad_norm_(
-                    self.model.parameters(), max_norm=max_grad_norm
-                )
-            # TODO fix batches naming
-            avg_loss.update(loss.item(), patch.shape[0])
+            avg_loss.update(loss.item(), batch.shape[0])
 
             optimizer.step()
         return {"loss": avg_loss.avg}
 
-    def get_loss_function(self):
-        return create_loss_function(self.cfg)
+    def evaluate(self, eval_loader: torch.utils.data.DataLoader):
+        self.model.eval()
+        avg_loss = MetricTracker()
 
-    def get_train_dataloader(self) -> DataLoader:
-        dataset = create_dataset(self.cfg, "training")
-        ##TODO add custom collate function and separate dataloader create function, sampler?
-        if not self.cfg.training.running_stats:
-            self.logger.info(f"Calculating mean/std of the data")
-            dataset.calculate_stats()
+        with torch.no_grad():
+            for patch, *auxillary in tqdm(eval_loader):
+                outputs = self.model(patch.to(self.device))
+                loss = self.loss_func(outputs, *auxillary, self.device)
+                avg_loss.update(loss.item(), patch.shape[0])
+
+        return {"loss": avg_loss.avg}
+
+    def predict(
+        self,
+        external_input: Optional[np.ndarray] = None,
+        mean: float = None,
+        std: float = None,
+    ):
+        self.model.to(self.device)
+        self.model.eval()
+        # TODO mean std don't get passed from train 
+        # TODO external input shape should either be compatible with the model or tiled. Add checks and raise errors
+        if not mean and not std:
+            reference_dataset = self.get_dataloader(ConfigStageEnum.TRAINING).dataset
+            mean = reference_dataset.mean
+            std = reference_dataset.std
+
+        # TODO external input shape should either be compatible with the model or tiled. Add checks and raise errors
+        # TODO check, calculate mean and std on all data not only train
+        pred_loader, stitch = self.get_predict_dataloader(
+            external_input=external_input,
+            mean=mean,
+            std=std,
+        )
+
+        tiles = []
+        prediction = []
+        if external_input is not None:
+            logging.info("Starting prediction on external input")
+        if stitch:
+            self.logger.info("Starting tiled prediction")
         else:
-            self.logger.info(f"Using running average of mean/std")
+            self.logger.info("Starting prediction on whole sample")
+
+        with torch.no_grad():
+            # TODO reset iterator for every sample ?
+            # TODO tiled prediction slow af, profile and optimize
+            for _, (tile, *auxillary) in tqdm(enumerate(pred_loader)):
+                if auxillary:
+                    (
+                        last_tile,
+                        sample_shape,
+                        overlap_crop_coords,
+                        stitch_coords,
+                    ) = auxillary
+
+                outputs = self.model(tile.to(self.device))
+                outputs = denormalize(
+                    outputs, pred_loader.dataset.mean, pred_loader.dataset.std
+                )
+
+                if stitch:
+                    # TODO: can the code be expanded to have the squeezing done
+                    # not in one liners, also check the detach() and numpy()
+
+                    # Crop predited tile according to overlap coordinates
+                    predicted_tile = outputs.squeeze()[
+                        (
+                            ...,
+                            *[
+                                slice(c.squeeze()[0], c.squeeze()[1])
+                                for c in list(overlap_crop_coords)
+                            ],
+                        )
+                    ]
+                    # TODO: removing ellipsis works for 3.11
+                    """ 3.11 syntax
+                    predicted_tile = outputs.squeeze()[
+                        *[
+                            slice(c.squeeze()[0], c.squeeze()[1])
+                            for c in list(overlap_crop_coords)
+                        ],
+                    ]
+                    """
+                    tiles.append(
+                        (
+                            predicted_tile.cpu().numpy(),
+                            [c.squeeze().numpy() for c in stitch_coords],
+                        )
+                    )
+                    # check if sample is finished
+                    if last_tile:
+                        # Stitch tiles together
+                        predicted_sample = stitch_prediction(tiles, sample_shape)
+                        prediction.append(predicted_sample)
+                else:
+                    prediction.append(outputs.detach().cpu().numpy().squeeze())
+
+        self.logger.info(f"Predicted {len(prediction)} samples")
+        return np.stack(prediction)
+
+    # TODO: add custom collate function and separate dataloader create function, sampler?
+    def get_dataloader(self, stage: ConfigStageEnum) -> DataLoader:
+        dataset = get_dataset(stage, self.cfg)
+        dataloader = DataLoader(
+            dataset,
+            batch_size=self.cfg.training.batch_size,
+            num_workers=self.cfg.training.num_workers,
+            pin_memory=True,
+        )
+        return dataloader
+
+    def get_predict_dataloader(
+        self,
+        external_input: Optional[np.ndarray] = None,
+        mean: float = None,
+        std: float = None,
+    ) -> Tuple[DataLoader, bool]:
+        # TODO mean/std don't get passed here
+        # TODO add description
+        # TODO mypy does not take into account "is not None", we need to find a workaround
+        if external_input is not None:
+            normalized_input = normalize(external_input, mean, std)
+            normalized_input = normalized_input.astype(np.float32)
+            dataset = TensorDataset(torch.from_numpy(normalized_input))
+            stitch = False # TODO can also be true
+        else:
+            dataset = get_dataset(ConfigStageEnum.PREDICTION, self.cfg)
+            stitch = (
+                hasattr(dataset, "patch_extraction_method")
+                and dataset.patch_extraction_method is not None
+            )
         return (
+            # TODO there is not batch_size and num_workers in prediction
             DataLoader(
                 dataset,
-                batch_size=self.cfg.training.data.batch_size,
-                num_workers=self.cfg.training.data.num_workers,
+                batch_size=1,  # self.cfg.prediction.data.batch_size,
+                num_workers=0,  # self.cfg.prediction.data.num_workers,
+                pin_memory=True,
             ),
-            dataset.mean,
-            dataset.std,
-        )
-
-    # TODO merge into single dataloader func ?
-    def get_val_dataloader(self) -> DataLoader:
-        dataset = create_dataset(self.cfg, "evaluation")
-        return DataLoader(
-            dataset,
-            batch_size=self.cfg.evaluation.data.batch_size,
-            num_workers=self.cfg.evaluation.data.num_workers,
-            pin_memory=True,
-        )
-
-    def get_predict_dataloader(self, ext_input: np.ndarray = None) -> DataLoader:
-        # TODO add description
-        if ext_input is not None:
-            ext_input = normalize(ext_input, self.mean, self.std)
-            dataset = torch.utils.data.TensorDataset(
-                torch.from_numpy(ext_input.astype(np.float32))
-            )
-        else:
-            dataset = create_dataset(self.cfg, "prediction")
-            dataset.set_normalization(self.mean, self.std)
-        return DataLoader(
-            dataset,
-            batch_size=self.cfg.prediction.data.batch_size,
-            num_workers=self.cfg.prediction.data.num_workers,
-            pin_memory=True,
+            stitch,
         )
 
     def get_optimizer_and_scheduler(
         self,
-    ) -> Tuple[torch.optim.Optimizer, torch.optim.lr_scheduler._LRScheduler]:
-        """Builds a model based on the model_name or load a checkpoint
-
+    ) -> Tuple[torch.optim.Optimizer, torch.optim.lr_scheduler.LRScheduler]:
+        """Builds a model based on the model_name or load a checkpoint.
 
         _extended_summary_
 
@@ -358,34 +311,41 @@ class UnsupervisedEngine(Engine):
         """
         # assert inspect.get
         # TODO call func from factory
-        optimizer_name = self.cfg.training.optimizer.name
-        optimizer_params = self.cfg.training.optimizer.parameters
-        optimizer_func = getattr(torch.optim, optimizer_name)
-        # Get the list of all possible parameters of the optimizer
-        optim_params = get_parameters(optimizer_func, optimizer_params)
-        # TODO add support for different learning rates for different layers
-        optimizer = optimizer_func(self.model.parameters(), **optim_params)
+        if self.cfg.training is not None:
+            # retrieve optimizer name and parameters from config
+            optimizer_name = self.cfg.training.optimizer.name
+            optimizer_params = self.cfg.training.optimizer.parameters
 
-        scheduler_name = self.cfg.training.lr_scheduler.name
-        scheduler_params = self.cfg.training.lr_scheduler.parameters
-        scheduler_func = getattr(torch.optim.lr_scheduler, scheduler_name)
-        scheduler_params = get_parameters(scheduler_func, scheduler_params)
-        scheduler = scheduler_func(optimizer, **scheduler_params)
-        return optimizer, scheduler
+            # then instantiate it
+            optimizer_func = getattr(torch.optim, optimizer_name)
+            optimizer = optimizer_func(self.model.parameters(), **optimizer_params)
+
+            # same for learning rate scheduler
+            scheduler_name = self.cfg.training.lr_scheduler.name
+            scheduler_params = self.cfg.training.lr_scheduler.parameters
+            scheduler_func = getattr(torch.optim.lr_scheduler, scheduler_name)
+            scheduler = scheduler_func(optimizer, **scheduler_params)
+
+            return optimizer, scheduler
+        else:
+            raise ValueError("Missing training entry in configuration file.")
 
     def get_grad_scaler(self) -> torch.cuda.amp.GradScaler:
-        use = self.cfg.training.amp.use
-        scaling = self.cfg.training.amp.init_scale
-        return torch.cuda.amp.GradScaler(init_scale=scaling, enabled=use)
+        if self.cfg.training is not None:
+            use = self.cfg.training.amp.use
+            scaling = self.cfg.training.amp.init_scale
+            return torch.cuda.amp.GradScaler(init_scale=scaling, enabled=use)
+        else:
+            raise ValueError("Missing training entry in configuration file.")
 
-    def save_checkpoint(self, name, save_best):
+    def save_checkpoint(self, save_best):
         """Save the model to a checkpoint file."""
-        torch.save(self.model.state_dict(), name)
+        name = (
+            f"{self.cfg.experiment_name}_best.pth"
+            if save_best
+            else f"{self.cfg.experiment_name}_latest.pth"
+        )
+        workdir = self.cfg.working_directory
+        workdir.mkdir(parents=True, exist_ok=True)
 
-    # TODO implement proper saving/loading
-
-    def export_model(self, model):
-        pass
-
-    def compute_metrics(self, args):
-        pass
+        torch.save(self.model.state_dict(), workdir / name)
