@@ -1,5 +1,7 @@
 import logging
 import sys
+from logging.handlers import RotatingFileHandler
+from typing import Iterable, Union, Sized
 
 from rich.console import Group, Console
 from rich.logging import RichHandler
@@ -29,21 +31,27 @@ banner = """
  -++=-::-+=  .+++.  .+++. :+++   :+++  :+++-::::   =++=--=+++. :+++   :+++   -+++  -+++   =++=:-+=   =+-:=++=  
    ......     ...    ...   ...    ...   ........     .... ...   ...    ...   ....  ....     ....      .....                                                                                                                                                                                                                    
 """
-loggers = {}
+
+LOGGERS = {}
 
 
-def get_logger(name, log_level=logging.INFO):
+def get_logger(name, log_level=logging.INFO, log_path: str = None):
     logger = logging.getLogger(name)
-    if name in loggers:
+    if name in LOGGERS:
         return logger
 
-    for logger_name in loggers:
+    for logger_name in LOGGERS:
         if name.startswith(logger_name):
             return logger
 
     logger.propagate = False
 
-    handlers = [RichHandler(rich_tracebacks=True, show_level=False)]
+    handlers = [
+        RichHandler(rich_tracebacks=True, show_level=False),
+        RotatingFileHandler(
+            log_path, maxBytes=1024 * 1024 * 10, backupCount=10  # 10Mb
+        ),
+    ]
 
     formatter = logging.Formatter("%(message)s")
 
@@ -53,13 +61,13 @@ def get_logger(name, log_level=logging.INFO):
         logger.addHandler(handler)
 
     logger.setLevel(log_level)
-    loggers[name] = True
+    LOGGERS[name] = True
     return logger
 
 
 class ProgressLogger:
-    def __init__(self):
-        self.in_notebook = 'ipykernel' in sys.modules
+    def __init__(self, log_file):
+        self.is_in_notebook = "ipykernel" in sys.modules
 
         self.console = Console()
 
@@ -71,7 +79,7 @@ class ProgressLogger:
             TextColumn("Time elapsed: "),
             TimeElapsedColumn(),
             TextColumn("Time remaining: "),
-            TimeRemainingColumn(compact=True)
+            TimeRemainingColumn(compact=True),
         )
 
         self.task_progress = Progress(
@@ -84,21 +92,21 @@ class ProgressLogger:
         )
 
         progress_group = Group(
-            Padding(self.total_progress, (1, 8)),
-            Padding(self.task_progress, (0, 5))
+            Padding(self.total_progress, (1, 8)), Padding(self.task_progress, (0, 5))
         )
 
-        if not self.in_notebook:
+        if not self.is_in_notebook:
             pixels = Pixels.from_ascii(banner)
             header_panel = Panel.fit(pixels, style="red", padding=1)
-            self.interface = Group(
-                header_panel, progress_group
-            )
+            self.interface = Group(header_panel, progress_group)
         else:
-            self.interface = Group(
-                progress_group
-            )
+            self.interface = Group(progress_group)
         self.live = None
+
+    def _start_live_if_needed(self):
+        if not self.live:
+            self.live = Live(self.interface)
+            self.live.__enter__()
 
     def _get_task(self, task_name, task_length, tracker):
         if task_name not in self.tasks:
@@ -111,17 +119,17 @@ class ProgressLogger:
 
         return task_id
 
-    def _start_live_if_needed(self):
-        if not self.live:
-            self.live = Live(self.interface)
-            self.live.__enter__()
-
     def exit(self):
         self.live.__exit__(None, None, None)
         self.live = None
 
     def __call__(
-        self, task_iterable, task_name, overall_progress=False, persistent=True, endless=False
+        self,
+        task_iterable: Iterable,
+        task_name: str,
+        overall_progress: bool = False,
+        persistent: bool = True,
+        unbounded: bool = False,
     ):
         self._start_live_if_needed()
 
@@ -130,7 +138,7 @@ class ProgressLogger:
         else:
             tracker = self.task_progress
 
-        if endless:
+        if unbounded:
             task_length = None
         else:
             task_length = len(task_iterable)

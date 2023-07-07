@@ -264,7 +264,6 @@ def get_dataset(stage: ConfigStageEnum, config: Configuration) -> TiffDataset:
             },
         )
 
-
     elif stage == ConfigStageEnum.PREDICTION:
         if config.prediction is None:
             raise ValueError("Prediction configuration is not defined.")

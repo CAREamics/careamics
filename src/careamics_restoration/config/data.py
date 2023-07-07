@@ -125,7 +125,7 @@ class Data(BaseModel):
 
         return path
 
-    #TODO add validation for zarr storage, if it is a folder
+    # TODO add validation for zarr storage, if it is a folder
 
     @field_validator("axes")
     def valid_axes(cls, axes: str) -> str:
