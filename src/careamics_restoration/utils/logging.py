@@ -35,7 +35,8 @@ banner = """
 LOGGERS = {}
 
 
-def get_logger(name, log_level=logging.INFO, log_path: str = None):
+# TODO: export all the loggers to the same file
+def get_logger(name: str, log_level=logging.INFO, log_path: str = None):
     logger = logging.getLogger(name)
     if name in LOGGERS:
         return logger
@@ -48,10 +49,11 @@ def get_logger(name, log_level=logging.INFO, log_path: str = None):
 
     handlers = [
         RichHandler(rich_tracebacks=True, show_level=False),
-        RotatingFileHandler(
-            log_path, maxBytes=1024 * 1024 * 10, backupCount=10  # 10Mb
-        ),
     ]
+    if log_path:
+        handlers.append(
+            logging.FileHandler(log_path),
+        )
 
     formatter = logging.Formatter("%(message)s")
 
@@ -66,7 +68,7 @@ def get_logger(name, log_level=logging.INFO, log_path: str = None):
 
 
 class ProgressLogger:
-    def __init__(self, log_file):
+    def __init__(self):
         self.is_in_notebook = "ipykernel" in sys.modules
 
         self.console = Console()
@@ -108,7 +110,7 @@ class ProgressLogger:
             self.live = Live(self.interface)
             self.live.__enter__()
 
-    def _get_task(self, task_name, task_length, tracker):
+    def _get_task(self, task_name: str, task_length: int, tracker: Progress):
         if task_name not in self.tasks:
             task_id = tracker.add_task(task_name, total=task_length)
             self.tasks[task_name] = task_id

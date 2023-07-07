@@ -32,12 +32,13 @@ def seed_everything(seed: int):
 # TODO: discuss normalization strategies, test running mean and std
 class Engine:
     def __init__(self, cfg_path: Union[str, Path]) -> None:
-        # set logging
-        self.progress = ProgressLogger()
-        self.logger = get_logger(__name__)
-
         # load configuration from disk
         self.cfg = load_configuration(cfg_path)
+
+        # set logging
+        log_path = self.cfg.working_directory / "log.txt"
+        self.progress = ProgressLogger()
+        self.logger = get_logger(__name__, log_path=log_path)
 
         # create model and loss function
         self.model = create_model(self.cfg)
@@ -84,11 +85,9 @@ class Engine:
             try:
                 for epoch in self.progress(
                     range(self.cfg.training.num_epochs),
-                    task_name='Epochs',
-                    overall_progress=True
+                    task_name="Epochs",
+                    overall_progress=True,
                 ):  # loop over the dataset multiple times
-                    self.logger.info(f"Starting epoch {epoch}")
-
                     self._train_single_epoch(
                         train_loader,
                         optimizer,
@@ -141,20 +140,20 @@ class Engine:
         self.model.to(self.device)
         self.model.train()
 
-        for batch, *auxillary in self.progress(loader, task_name='train', endless=True):
-            # optimizer.zero_grad()
-            #
-            # with torch.cuda.amp.autocast(enabled=amp):
-            #     outputs = self.model(batch.to(self.device))
-            #
-            # loss = self.loss_func(outputs, *auxillary, self.device)
-            # scaler.scale(loss).backward()
-            #
-            # avg_loss.update(loss.item(), batch.shape[0])
-            #
-            # optimizer.step()
-            import time
-            time.sleep(0.1)
+        for batch, *auxillary in self.progress(
+            loader, task_name="train", unbounded=True
+        ):
+            optimizer.zero_grad()
+
+            with torch.cuda.amp.autocast(enabled=amp):
+                outputs = self.model(batch.to(self.device))
+
+            loss = self.loss_func(outputs, *auxillary, self.device)
+            scaler.scale(loss).backward()
+
+            avg_loss.update(loss.item(), batch.shape[0])
+
+            optimizer.step()
         return {"loss": avg_loss.avg}
 
     def evaluate(self, eval_loader: torch.utils.data.DataLoader):
@@ -162,7 +161,9 @@ class Engine:
         avg_loss = MetricTracker()
 
         with torch.no_grad():
-            for patch, *auxillary in self.progress(eval_loader, task_name='validate', endless=True, persistent=False):
+            for patch, *auxillary in self.progress(
+                eval_loader, task_name="validate", unbounded=True, persistent=False
+            ):
                 outputs = self.model(patch.to(self.device))
                 loss = self.loss_func(outputs, *auxillary, self.device)
                 avg_loss.update(loss.item(), patch.shape[0])
@@ -177,7 +178,7 @@ class Engine:
     ):
         self.model.to(self.device)
         self.model.eval()
-        # TODO mean std don't get passed from train 
+        # TODO mean std don't get passed from train
         # TODO external input shape should either be compatible with the model or tiled. Add checks and raise errors
         if not mean and not std:
             reference_dataset = self.get_dataloader(ConfigStageEnum.TRAINING).dataset
@@ -204,7 +205,9 @@ class Engine:
         with torch.no_grad():
             # TODO reset iterator for every sample ?
             # TODO tiled prediction slow af, profile and optimize
-            for _, (tile, *auxillary) in enumerate(pred_loader):
+            for _, (tile, *auxillary) in self.progress(
+                enumerate(pred_loader), task_name="Prediction"
+            ):
                 if auxillary:
                     (
                         last_tile,
@@ -282,7 +285,7 @@ class Engine:
             normalized_input = normalize(external_input, mean, std)
             normalized_input = normalized_input.astype(np.float32)
             dataset = TensorDataset(torch.from_numpy(normalized_input))
-            stitch = False # TODO can also be true
+            stitch = False  # TODO can also be true
         else:
             dataset = get_dataset(ConfigStageEnum.PREDICTION, self.cfg)
             stitch = (
