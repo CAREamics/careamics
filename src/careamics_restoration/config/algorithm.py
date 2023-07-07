@@ -89,7 +89,6 @@ class Algorithm(BaseModel):
     Other optional fields are:
         - masking_strategy:
             Masking strategy to use, currently only supports default masking.
-            # TODO explain default masking
         - masked_pixel_percentage:
             Percentage of pixels to be masked in each patch.
         - model_parameters:
@@ -114,7 +113,7 @@ class Algorithm(BaseModel):
     # Pydantic class configuration
     model_config = ConfigDict(
         use_enum_values=True,
-        protected_namespaces=(),  # allows to use mode_* as a field name
+        protected_namespaces=(),  # allows to use model_* as a field name
     )
 
     # Mandatory fields
@@ -137,20 +136,28 @@ class Algorithm(BaseModel):
         """
         return 3 if self.is_3D else 2
 
-    def model_dump(self, *args, **kwargs) -> dict:
+    def model_dump(self, exclude_optionals=True, *args, **kwargs) -> dict:
         """Override model_dump method.
 
         The purpose is to ensure export smooth import to yaml. It includes:
             - remove entries with None value
             - remove optional values if they have the default value
+
+        Parameters
+        ----------
+        exclude_optionals : bool, optional
+            Whether to exclude optional arguments if they are default, by default True.
         """
         dictionary = super().model_dump(exclude_none=True)
 
-        # remove optional arguments if they are default
-        defaults = {
-            "masking_strategy": MaskingStrategies.DEFAULT.value,
-            "masked_pixel_percentage": 0.2,
-            "model_parameters": ModelParameters().model_dump(exclude_none=True),
-        }
+        if exclude_optionals:
+            # remove optional arguments if they are default
+            defaults = {
+                "masking_strategy": MaskingStrategies.DEFAULT.value,
+                "masked_pixel_percentage": 0.2,
+                "model_parameters": ModelParameters().model_dump(exclude_none=True),
+            }
 
-        return remove_default_optionals(dictionary, defaults)
+            remove_default_optionals(dictionary, defaults)
+
+        return dictionary

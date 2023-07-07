@@ -35,7 +35,7 @@ def test_remove_default_optionals():
         "key3": "value3",
     }
 
-    dictionary = remove_default_optionals(dictionary, default)
+    remove_default_optionals(dictionary, default)
     assert dictionary["key1"] == "value1"
     assert "key2" not in dictionary.keys()
     assert "key3" not in dictionary.keys()

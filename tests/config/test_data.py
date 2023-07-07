@@ -78,6 +78,52 @@ def test_at_least_one_of_training_or_prediction(complete_config: dict):
     assert str(data_model.training_path) == training
 
 
+@pytest.mark.parametrize("mean, std", [(0, 124.5), (12.6, 0)])
+def test_mean_std_non_negative(complete_config: dict, mean, std):
+    """Test that non negative mean and std are accepted."""
+    complete_config["data"]["mean"] = mean
+    complete_config["data"]["std"] = std
+
+    data_model = Data(**complete_config["data"])
+    assert data_model.mean == mean
+    assert data_model.std == std
+
+
+def test_mean_std_negative(complete_config: dict):
+    """Test that negative mean and std are not accepted."""
+    complete_config["data"]["mean"] = -1
+    complete_config["data"]["std"] = 10.4
+
+    with pytest.raises(ValueError):
+        Data(**complete_config["data"])
+
+    complete_config["data"]["mean"] = 10.4
+    complete_config["data"]["std"] = -1
+
+    with pytest.raises(ValueError):
+        Data(**complete_config["data"])
+
+
+def test_mean_std_both_specified_or_none(complete_config: dict):
+    """Test an error is raised if only one of mean or std is specified."""
+    # No error if both are None
+    complete_config["data"].pop("mean")
+    complete_config["data"].pop("std")
+    Data(**complete_config["data"])
+
+    # Error if only one is None
+    complete_config["data"]["mean"] = 10.4
+
+    with pytest.raises(ValueError):
+        Data(**complete_config["data"])
+
+    complete_config["data"].pop("mean")
+    complete_config["data"]["std"] = 10.4
+
+    with pytest.raises(ValueError):
+        Data(**complete_config["data"])
+
+
 def test_data_to_dict_minimum(minimum_config: dict):
     """ "Test that export to dict does not include None values and Paths.
 

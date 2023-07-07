@@ -12,11 +12,12 @@ from pydantic import (
     model_validator,
 )
 
+from ..utils import check_axes_validity
+
 # TODO this creates a circular import when instantiating the engine
 # engine -> config -> evaluation -> data -> dataloader_utils
 # then are_axes_valid are imported again in the engine.
 from .config_filter import paths_to_str
-from ..utils import check_axes_validity
 
 
 class SupportedExtensions(str, Enum):
@@ -91,7 +92,7 @@ class Data(BaseModel):
 
     # Optional fields
     training_path: Optional[Union[Path, str]] = None
-    validation_path: Optional[Union[Path, str]] = None
+    validation_path: Optional[Union[Path, str]] = None # TODO Jerome: validation path must be there 
     prediction_path: Optional[Union[Path, str]] = None
 
     mean: Optional[float] = None
@@ -124,6 +125,36 @@ class Data(BaseModel):
             )
 
         return path
+
+    @field_validator("mean", "std")
+    def non_negative(cls, value: float) -> float:
+        """Validate mean and std as non-negative.
+
+        None value are accepted, because the full configuration will contain None if
+        mean and std were not specified.
+
+
+        Parameters
+        ----------
+        value : float
+            Value to validate
+
+
+        Returns
+        -------
+        float
+            Validated value
+
+
+        Raises
+        ------
+        ValueError
+            If value is negative
+        """
+        if value is not None and value < 0:
+            raise ValueError(f"Value {value} (mean or std) must be non-negative.")
+
+        return value
 
     # TODO add validation for zarr storage, if it is a folder
 
@@ -182,6 +213,14 @@ class Data(BaseModel):
 
         return data_model
 
+    @model_validator(mode="after")
+    def both_mean_and_std(cls, data_model: Data) -> Data:
+        """Check that mean and std are either both None, or both specified."""
+        if (data_model.mean is None) != (data_model.std is None):
+            raise ValueError("Both mean and std must be specified, or both None.")
+
+        return data_model
+
     def model_dump(self, *args, **kwargs) -> dict:
         """Override model_dump method.
 
@@ -189,6 +228,11 @@ class Data(BaseModel):
             - remove entries with None value
             - replace Path by str
             - remove optional values if they have the default value
+
+        Returns
+        -------
+        dict
+            Dictionary containing the model parameters
         """
         dictionary = super().model_dump(exclude_none=True)
 

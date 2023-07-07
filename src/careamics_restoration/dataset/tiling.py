@@ -192,11 +192,6 @@ def extract_patches_sequential(
 
     The patches are generated sequentially and cover the whole array.
     """
-    # TODO move to Config or dataset class. Not raise error but skip ?
-    if len(arr.shape) < 3 or len(arr.shape) > 4:
-        raise ValueError(
-            f"Input array must have dimensions SZYX or SYX (got length {len(arr.shape)})."
-        )
 
     # Patches sanity check
     if len(patch_size) != len(arr.shape[1:]):

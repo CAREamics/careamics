@@ -71,10 +71,7 @@ class Engine:
         if self.cfg.training is not None:
             # General func
             train_loader = self.get_dataloader(ConfigStageEnum.TRAINING)
-
-            # TODO what if there are no validation data ? That happens a lot with N2V
             eval_loader = self.get_dataloader(ConfigStageEnum.VALIDATION)
-            # TODO calculates mean and std of valuation data. Do we want this?
             optimizer, lr_scheduler = self.get_optimizer_and_scheduler()
             scaler = self.get_grad_scaler()
             self.logger.info(
@@ -178,21 +175,19 @@ class Engine:
     ):
         self.model.to(self.device)
         self.model.eval()
-        # TODO mean std don't get passed from train
+        # TODO Vera: mean std don't get passed from train. Get configuration
         # TODO external input shape should either be compatible with the model or tiled. Add checks and raise errors
         if not mean and not std:
             reference_dataset = self.get_dataloader(ConfigStageEnum.TRAINING).dataset
             mean = reference_dataset.mean
             std = reference_dataset.std
 
-        # TODO external input shape should either be compatible with the model or tiled. Add checks and raise errors
-        # TODO check, calculate mean and std on all data not only train
         pred_loader, stitch = self.get_predict_dataloader(
             external_input=external_input,
             mean=mean,
             std=std,
         )
-
+        #TODO Vera: fix mean and std calculation. Should be done only only once on the training or train+validation data
         tiles = []
         prediction = []
         if external_input is not None:
@@ -203,10 +198,9 @@ class Engine:
             self.logger.info("Starting prediction on whole sample")
 
         with torch.no_grad():
-            # TODO reset iterator for every sample ?
             # TODO tiled prediction slow af, profile and optimize
             for _, (tile, *auxillary) in self.progress(
-                enumerate(pred_loader), task_name="Prediction"
+                enumerate(pred_loader), task_name="Prediction", unbounded=True
             ):
                 if auxillary:
                     (
@@ -278,14 +272,14 @@ class Engine:
         mean: float = None,
         std: float = None,
     ) -> Tuple[DataLoader, bool]:
-        # TODO mean/std don't get passed here
+        # TODO Vera: mean/std don't get passed here
         # TODO add description
         # TODO mypy does not take into account "is not None", we need to find a workaround
         if external_input is not None:
             normalized_input = normalize(external_input, mean, std)
             normalized_input = normalized_input.astype(np.float32)
             dataset = TensorDataset(torch.from_numpy(normalized_input))
-            stitch = False  # TODO can also be true
+            stitch = False # TODO can also be true
         else:
             dataset = get_dataset(ConfigStageEnum.PREDICTION, self.cfg)
             stitch = (
@@ -293,7 +287,7 @@ class Engine:
                 and dataset.patch_extraction_method is not None
             )
         return (
-            # TODO there is not batch_size and num_workers in prediction
+            # TODO this is hardcoded for now
             DataLoader(
                 dataset,
                 batch_size=1,  # self.cfg.prediction.data.batch_size,
@@ -316,7 +310,6 @@ class Engine:
             _description_
         """
         # assert inspect.get
-        # TODO call func from factory
         if self.cfg.training is not None:
             # retrieve optimizer name and parameters from config
             optimizer_name = self.cfg.training.optimizer.name
