@@ -245,7 +245,7 @@ def extract_patches_sequential(
     patches = compute_reshaped_view(
         arr, window_shape=window_shape, step=window_steps, output_shape=output_shape
     )
-    logger.debug(f"Extracted {patches.shape[0]} patches from input array.")
+    logger.info(f"Extracted {patches.shape[0]} patches from input array.")
 
     for patch_ixd in range(patches.shape[0]):
         patch = patches[patch_ixd].astype(np.float32).squeeze()
