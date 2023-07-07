@@ -5,7 +5,9 @@ from typing import Generator, Iterable, List, Tuple
 import numpy as np
 from skimage.util import view_as_windows
 
-logger = logging.getLogger(__name__)
+from careamics_restoration.utils.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 def _compute_number_of_patches(

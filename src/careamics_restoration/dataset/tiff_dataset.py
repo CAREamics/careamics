@@ -5,7 +5,6 @@ from typing import Callable, List, Optional, Tuple, Union, Dict, Generator
 import numpy as np
 import tifffile
 import torch
-from tqdm import tqdm
 
 from careamics_restoration.config import ConfigStageEnum, Configuration
 from careamics_restoration.dataset.tiling import (
@@ -16,8 +15,9 @@ from careamics_restoration.dataset.tiling import (
 from careamics_restoration.manipulation import default_manipulate
 from careamics_restoration.utils import normalize
 from careamics_restoration.config.training import ExtractionStrategies
+from careamics_restoration.utils.logging import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class TiffDataset(torch.utils.data.IterableDataset):
@@ -121,7 +121,7 @@ class TiffDataset(torch.utils.data.IterableDataset):
         means, stds = 0, 0
         num_samples = 0
 
-        for sample in tqdm(self.iterate_files(), total=len(self.files)):
+        for sample in self.iterate_files():
             means += sample.mean()
             stds += np.std(sample)
             num_samples += 1
@@ -134,7 +134,7 @@ class TiffDataset(torch.utils.data.IterableDataset):
         # TODO pass stage here to be more explicit with logging
         return result_mean, result_std
 
-    # TODO Jean-Paul: get rid of numpy for now 
+    # TODO Jean-Paul: get rid of numpy for now
 
     def fix_axes(self, sample: np.ndarray) -> np.ndarray:
         # concatenate ST axes to N, return NCZYX

@@ -1,4 +1,3 @@
-import logging
 import random
 from pathlib import Path
 from typing import Optional, Tuple, Union
@@ -6,7 +5,6 @@ from typing import Optional, Tuple, Union
 import numpy as np
 import torch
 from torch.utils.data import DataLoader, TensorDataset
-from tqdm import tqdm
 
 from .config import ConfigStageEnum, load_configuration
 from .dataset.tiff_dataset import get_dataset
@@ -18,9 +16,9 @@ from .utils import (
     denormalize,
     get_device,
     normalize,
-    set_logging,
     setup_cudnn_reproducibility,
 )
+from careamics_restoration.utils.logging import ProgressLogger, get_logger
 
 
 def seed_everything(seed: int):
@@ -34,12 +32,13 @@ def seed_everything(seed: int):
 # TODO: discuss normalization strategies, test running mean and std
 class Engine:
     def __init__(self, cfg_path: Union[str, Path]) -> None:
-        # set logging
-        self.logger = logging.getLogger()
-        set_logging(self.logger)
-
         # load configuration from disk
         self.cfg = load_configuration(cfg_path)
+
+        # set logging
+        log_path = self.cfg.working_directory / "log.txt"
+        self.progress = ProgressLogger()
+        self.logger = get_logger(__name__, log_path=log_path)
 
         # create model and loss function
         self.model = create_model(self.cfg)
@@ -81,11 +80,11 @@ class Engine:
 
             val_losses = []
             try:
-                for epoch in range(
-                    self.cfg.training.num_epochs
+                for epoch in self.progress(
+                    range(self.cfg.training.num_epochs),
+                    task_name="Epochs",
+                    overall_progress=True,
                 ):  # loop over the dataset multiple times
-                    self.logger.info(f"Starting epoch {epoch}")
-
                     self._train_single_epoch(
                         train_loader,
                         optimizer,
@@ -111,6 +110,7 @@ class Engine:
 
             except KeyboardInterrupt:
                 self.logger.info("Training interrupted")
+                self.progress.exit()
         else:
             # TODO: instead of error, maybe fail gracefully with a logging/warning to users
             raise ValueError("Missing training entry in configuration file.")
@@ -137,7 +137,9 @@ class Engine:
         self.model.to(self.device)
         self.model.train()
 
-        for batch, *auxillary in tqdm(loader):
+        for batch, *auxillary in self.progress(
+            loader, task_name="train", unbounded=True
+        ):
             optimizer.zero_grad()
 
             with torch.cuda.amp.autocast(enabled=amp):
@@ -156,7 +158,9 @@ class Engine:
         avg_loss = MetricTracker()
 
         with torch.no_grad():
-            for patch, *auxillary in tqdm(eval_loader):
+            for patch, *auxillary in self.progress(
+                eval_loader, task_name="validate", unbounded=True, persistent=False
+            ):
                 outputs = self.model(patch.to(self.device))
                 loss = self.loss_func(outputs, *auxillary, self.device)
                 avg_loss.update(loss.item(), patch.shape[0])
@@ -187,16 +191,17 @@ class Engine:
         tiles = []
         prediction = []
         if external_input is not None:
-            logging.info("Starting prediction on external input")
+            self.logger.info("Starting prediction on external input")
         if stitch:
             self.logger.info("Starting tiled prediction")
         else:
             self.logger.info("Starting prediction on whole sample")
 
         with torch.no_grad():
-            # TODO Vera: reset iterator for every sample ? or unlimited progress bar
             # TODO tiled prediction slow af, profile and optimize
-            for _, (tile, *auxillary) in tqdm(enumerate(pred_loader)):
+            for _, (tile, *auxillary) in self.progress(
+                enumerate(pred_loader), task_name="Prediction", unbounded=True
+            ):
                 if auxillary:
                     (
                         last_tile,
