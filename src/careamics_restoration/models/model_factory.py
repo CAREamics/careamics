@@ -41,7 +41,24 @@ def create_model(config: Configuration) -> torch.nn.Module:
     # TODO add more models or remove if
     if load_checkpoint is not None:
         # TODO add proper logging message
-        model.load_state_dict(torch.load(load_checkpoint))
-
-        logger.info(f"Loaded model from {Path(load_checkpoint).name}")
+        if not Path(load_checkpoint).is_absolute():
+            try:
+                logger.info(
+                    f"Trying to load checkpoint from relative path {config.working_directory / load_checkpoint}"
+                )
+                model.load_state_dict(
+                    torch.load(config.working_directory / load_checkpoint)
+                )
+                logger.info(f"Loaded model from {Path(load_checkpoint).name}")
+            except FileNotFoundError:
+                raise FileNotFoundError(f"Checkpoint {load_checkpoint} not found")
+        else:
+            try:
+                logger.info(
+                    f"Trying to load checkpoint from absolute path {load_checkpoint}"
+                )
+                model.load_state_dict(torch.load(load_checkpoint))
+                logger.info(f"Loaded model from {Path(load_checkpoint).name}")
+            except FileNotFoundError:
+                raise FileNotFoundError(f"Checkpoint {load_checkpoint} not found")
     return model
