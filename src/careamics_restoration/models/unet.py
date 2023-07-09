@@ -45,7 +45,7 @@ class UNet(nn.Module):
         self.pooling = getattr(nn, f"MaxPool{conv_dim}d")(kernel_size=pool_kernel)
 
         self.upsampling = nn.Upsample(
-            scale_factor=2, mode="bilinear"
+            scale_factor=2, mode="bilinear" if conv_dim == 2 else "trilinear"
         )  # TODO check align_corners and mode
 
         enc_blocks = OrderedDict()
