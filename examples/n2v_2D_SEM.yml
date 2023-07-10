@@ -1,5 +1,5 @@
 # Name, composed of letters, numbers, spaces, dashes and underscores
-experiment_name: N2V_SEM
+experiment_name: N2V_SEM_test1
 
 # Working directory (logs, models, etc), its parent folder must exist
 working_directory: n2v_sem
@@ -31,7 +31,7 @@ algorithm:
 
 training:
   # Number of epochs, greater or equal than 1
-  num_epochs: 500
+  num_epochs: 100
 
   # Patch size, 2D or 3D, divisible by 2
   patch_size: [64, 64]
@@ -60,7 +60,7 @@ training:
     #   mode: min
 
   # Extraction strategy, one of random or sequential
-  extraction_strategy: sequential
+  extraction_strategy: random
 
   # Use augmentation (True or False)
   augmentation: True
@@ -88,9 +88,9 @@ data:
   axes: YX
 
   # Optional, path to the data, absolute or relative to working_directory
-  training_path: n2v_sem/train
-  validation_path: n2v_sem/val
-  prediction_path: n2v_sem/train
+  training_path: data/n2v_sem/train
+  validation_path: data/n2v_sem/val
+  prediction_path: data/n2v_sem/train
 
 # Optional
 prediction:
