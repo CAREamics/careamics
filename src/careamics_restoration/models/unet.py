@@ -164,6 +164,7 @@ class UNet(nn.Module):
                 skip_connection = self.skip_layers_ouputs[
                     module_name.replace("upsampling", "skip_encoder_conv")
                 ]
+                # TODO: Dimension mismatch, Sizes of tensors must match except in dimension 1. Expected size 320 but got size 321
                 x = torch.cat((x, skip_connection), axis=1)
             else:
                 x = self.dec_blocks[module_name](x)

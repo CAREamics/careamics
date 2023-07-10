@@ -187,7 +187,7 @@ class Engine:
             mean=mean,
             std=std,
         )
-        #TODO Vera: fix mean and std calculation. Should be done only only once on the training or train+validation data
+        # TODO Vera: fix mean and std calculation. Should be done only once on the training or train+validation data
         tiles = []
         prediction = []
         if external_input is not None:
@@ -197,8 +197,10 @@ class Engine:
         else:
             self.logger.info("Starting prediction on whole sample")
 
+        # TODO add fucntion to assess the external input.
         with torch.no_grad():
             # TODO tiled prediction slow af, profile and optimize
+            # TODO progress bar isn't displayed
             for _, (tile, *auxillary) in self.progress(
                 enumerate(pred_loader), task_name="Prediction", unbounded=True
             ):
@@ -211,21 +213,16 @@ class Engine:
                     ) = auxillary
 
                 outputs = self.model(tile.to(self.device))
-                outputs = denormalize(
-                    outputs, pred_loader.dataset.mean, pred_loader.dataset.std
-                )
+                outputs = denormalize(outputs, mean, std)
 
                 if stitch:
-                    # TODO: can the code be expanded to have the squeezing done
-                    # not in one liners, also check the detach() and numpy()
-
                     # Crop predited tile according to overlap coordinates
                     predicted_tile = outputs.squeeze()[
                         (
                             ...,
                             *[
-                                slice(c.squeeze()[0], c.squeeze()[1])
-                                for c in list(overlap_crop_coords)
+                                slice(c[0].item(), c[1].item())
+                                for c in overlap_crop_coords
                             ],
                         )
                     ]
@@ -233,7 +230,7 @@ class Engine:
                     """ 3.11 syntax
                     predicted_tile = outputs.squeeze()[
                         *[
-                            slice(c.squeeze()[0], c.squeeze()[1])
+                            slice(c[0].item(), c[1].item())
                             for c in list(overlap_crop_coords)
                         ],
                     ]
@@ -241,7 +238,7 @@ class Engine:
                     tiles.append(
                         (
                             predicted_tile.cpu().numpy(),
-                            [c.squeeze().numpy() for c in stitch_coords],
+                            stitch_coords,
                         )
                     )
                     # check if sample is finished
@@ -279,7 +276,7 @@ class Engine:
             normalized_input = normalize(external_input, mean, std)
             normalized_input = normalized_input.astype(np.float32)
             dataset = TensorDataset(torch.from_numpy(normalized_input))
-            stitch = False # TODO can also be true
+            stitch = False  # TODO can also be true
         else:
             dataset = get_dataset(ConfigStageEnum.PREDICTION, self.cfg)
             stitch = (

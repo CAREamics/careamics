@@ -1,10 +1,10 @@
-from typing import List, Tuple
-
+import torch
 import numpy as np
+from typing import List, Tuple
 
 
 def stitch_prediction(
-    tiles: List[Tuple[np.ndarray, List[np.ndarray]]], input_shape: Tuple[int]
+    tiles: List[Tuple[np.ndarray, List[torch.tensor]]], input_shape: Tuple[int]
 ) -> np.ndarray:
     """Stitches tiles back together to form a full image.
 

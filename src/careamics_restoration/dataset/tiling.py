@@ -99,7 +99,7 @@ def compute_crop_and_stitch_coords_1d(
         if i + tile_size <= axis_size:
             # Add the coordinates to crop one tile
             crop_coords.append((i, i + tile_size))
-            # Add the pixel coordinates of the cropped tile in the image space
+            # Add the pixel coordinates of the cropped tile in the original image space
             stitch_coords.append(
                 (
                     i + overlap // 2 if i > 0 else 0,
@@ -108,7 +108,7 @@ def compute_crop_and_stitch_coords_1d(
                     else axis_size,
                 )
             )
-            # Add the coordinates to crop the overlap from the prediction
+            # Add the coordinates to crop the overlap from the prediction.
             overlap_crop_coords.append(
                 (
                     overlap // 2 if i > 0 else 0,
@@ -290,7 +290,6 @@ def extract_patches_predict(
     patch_size: Tuple[int],
     overlaps: Tuple[int],
 ) -> Iterable[List[np.ndarray]]:
-    # Overlap is half of the value mentioned in original N2V. must be even. It's like this because of current N2V notation
 
     # Iterate over num samples (S)
     for sample_idx in range(arr.shape[0]):
@@ -303,12 +302,15 @@ def extract_patches_predict(
             )
             for i in range(len(patch_size))
         ]
-        crop_and_stitch_coords = np.array(crop_and_stitch_coords_list)
-        # TODO check this ugly swapaxes
-        # Swap axes to regroup initial array and get arrays of all crop coords, all stitch coords and all overlap crop coords
-        all_crop_coords, all_stitch_coords, all_overlap_crop_coords = np.swapaxes(
-            crop_and_stitch_coords, 0, 1
-        )
+        # Rearrange crop coordinates from a list of coordinate pairs per axis to a list grouped by type.
+        # compute_crop_and_stitch_coords_1d outputs a tuple of crop coordinates, stitch coordinates and overlap crop 
+        # coordinates for each axis. This function rearranges the coordinates so that all crop coordinates, all stitch 
+        # coordinates and all overlap crop coordinates.
+        # E.G. For axis of size 35 and patch size of 32 compute_crop_and_stitch_coords_1d will output 
+        # ([(0, 32), (3, 35)], [(0, 20), (20, 35)], [(0, 20), (17, 32)]), where the first list is crop coordinates for 
+        # 1st axis.
+        # TODO review this description, move this to separate function?
+        all_crop_coords, all_stitch_coords, all_overlap_crop_coords = zip(*crop_and_stitch_coords_list)
 
         # Iterate over generated coordinate pairs:
         for tile_idx, (crop_coords, stitch_coords, overlap_crop_coords) in enumerate(
@@ -321,7 +323,7 @@ def extract_patches_predict(
             tile = sample[(..., *[slice(c[0], c[1]) for c in list(crop_coords)])]
             # Check if we are at the end of the sample.
             # To check we compute the lenght of the array that contains all the tiles
-            if tile_idx == all_crop_coords.shape[1] ** 2 - 1:
+            if tile_idx == np.prod([len(axis) for axis in all_crop_coords]) - 1:
                 last_tile = True
             else:
                 last_tile = False
