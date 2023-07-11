@@ -194,21 +194,3 @@ def test_config_to_yaml(tmp_path: Path, minimum_config: dict):
     # load from yaml
     my_other_conf = load_configuration(yaml_path)
     assert my_other_conf == myconf
-
-
-def test_get_stage(complete_config: dict):
-    """Test that we can get the configuration for a specific stage."""
-
-    # test that we can instantiate a config
-    myconf = Configuration(**complete_config)
-
-    # get training config
-    training_config = myconf.get_stage_config("training")
-    assert training_config == myconf.training
-
-    # get prediction config
-    prediction_config = myconf.get_stage_config("prediction")
-    assert prediction_config == myconf.prediction
-
-    with pytest.raises(ValueError):
-        myconf.get_stage_config("not_a_stage")

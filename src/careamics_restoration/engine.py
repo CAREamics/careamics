@@ -6,8 +6,12 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader, TensorDataset
 
-from .config import ConfigStageEnum, load_configuration
-from .dataset.tiff_dataset import get_dataset
+from .config import load_configuration
+from .dataset.tiff_dataset import (
+    get_train_dataset,
+    get_prediction_dataset,
+    get_validation_dataset,
+)
 from .losses import create_loss_function
 from .metrics import MetricTracker
 from .models import create_model
@@ -70,8 +74,8 @@ class Engine:
     def train(self):
         if self.cfg.training is not None:
             # General func
-            train_loader = self.get_dataloader(ConfigStageEnum.TRAINING)
-            eval_loader = self.get_dataloader(ConfigStageEnum.VALIDATION)
+            train_loader = self.get_train_dataloader()
+            eval_loader = self.get_val_dataloader()
             optimizer, lr_scheduler = self.get_optimizer_and_scheduler()
             scaler = self.get_grad_scaler()
             self.logger.info(
@@ -175,12 +179,15 @@ class Engine:
     ):
         self.model.to(self.device)
         self.model.eval()
-        # TODO Vera: mean std don't get passed from train. Get configuration
         # TODO external input shape should either be compatible with the model or tiled. Add checks and raise errors
         if not mean and not std:
-            reference_dataset = self.get_dataloader(ConfigStageEnum.TRAINING).dataset
-            mean = reference_dataset.mean
-            std = reference_dataset.std
+            mean = self.cfg.data.mean
+            std = self.cfg.data.std
+
+        if not mean or not std:
+            raise ValueError(
+                "Mean or std are not specified in the configuration and in parameters"
+            )
 
         pred_loader, stitch = self.get_predict_dataloader(
             external_input=external_input,
@@ -253,8 +260,18 @@ class Engine:
         return np.stack(prediction)
 
     # TODO: add custom collate function and separate dataloader create function, sampler?
-    def get_dataloader(self, stage: ConfigStageEnum) -> DataLoader:
-        dataset = get_dataset(stage, self.cfg)
+    def get_train_dataloader(self) -> DataLoader:
+        dataset = get_train_dataset(self.cfg)
+        dataloader = DataLoader(
+            dataset,
+            batch_size=self.cfg.training.batch_size,
+            num_workers=self.cfg.training.num_workers,
+            pin_memory=True,
+        )
+        return dataloader
+
+    def get_val_dataloader(self) -> DataLoader:
+        dataset = get_validation_dataset(self.cfg)
         dataloader = DataLoader(
             dataset,
             batch_size=self.cfg.training.batch_size,
@@ -278,7 +295,7 @@ class Engine:
             dataset = TensorDataset(torch.from_numpy(normalized_input))
             stitch = False  # TODO can also be true
         else:
-            dataset = get_dataset(ConfigStageEnum.PREDICTION, self.cfg)
+            dataset = get_prediction_dataset(self.cfg)
             stitch = (
                 hasattr(dataset, "patch_extraction_method")
                 and dataset.patch_extraction_method is not None

@@ -24,14 +24,6 @@ from .training import Training
 # TODO: option to dump the whole configuration with all the defaults
 
 
-class ConfigStageEnum(str, Enum):
-    """Stages of the pipeline."""
-
-    TRAINING = "training"
-    VALIDATION = "validation"
-    PREDICTION = "prediction"
-
-
 class Configuration(BaseModel):
     """Main configuration class.
 
@@ -281,45 +273,6 @@ class Configuration(BaseModel):
             )
 
         return dictionary
-
-    # TODO make sure we need this one, and cannot live without stages
-    def get_stage_config(
-        self, stage: Union[str, ConfigStageEnum]
-    ) -> Union[Training, Prediction]:
-        """Get configuration for a given stage (training or prediction).
-
-        Parameters
-        ----------
-        stage : Union[str, ConfigStageEnum]
-            Stage for which to get the configuration.
-
-        Returns
-        -------
-        Union[Training, Prediction]
-            Configuration for the given stage.
-
-        Raises
-        ------
-        ValueError
-            If the corresponding stage is not defined or the stage unknown.
-        """
-        # TODO this first clause is absurd, simplify downstream code to not have to use this
-        if stage == ConfigStageEnum.TRAINING or stage == ConfigStageEnum.VALIDATION:
-            if self.training is None:
-                raise ValueError("Training configuration is not defined.")
-
-            return self.training
-        elif stage == ConfigStageEnum.PREDICTION:
-            if self.prediction is None:
-                raise ValueError("Prediction configuration is not defined.")
-
-            return self.prediction
-        else:
-            raise ValueError(
-                f"Unknown stage {stage}. Available stages are "
-                f"{ConfigStageEnum.TRAINING}, {ConfigStageEnum.VALIDATION} and "
-                f"{ConfigStageEnum.PREDICTION}."
-            )
 
 
 def load_configuration(path: Union[str, Path]) -> Configuration:
