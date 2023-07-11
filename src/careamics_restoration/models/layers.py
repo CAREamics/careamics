@@ -145,7 +145,7 @@ class UpConv(nn.Module):
         return x
 
 
-class Conv_Block_tf(nn.Module):
+class Conv_Block(nn.Module):
     def __init__(
         self,
         conv_dim,
@@ -187,8 +187,14 @@ class Conv_Block_tf(nn.Module):
             x = self.conv(x)
             x = self.batch_norm(x)
             x = self.activation(x)
+            x = self.conv(x)
+            x = self.batch_norm(x)
+            x = self.activation(x)
         else:
             x = self.conv(x)
+            x = self.activation(x)
+            x = self.conv(x)
+            x = self.activation(x)
         if self.dropout is not None:
             x = self.dropout(x)
         return x
