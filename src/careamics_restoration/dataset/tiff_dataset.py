@@ -75,6 +75,8 @@ class TiffDataset(torch.utils.data.IterableDataset):
 
         self.files = self.list_files()
 
+        self.mean = mean
+        self.std = std
         if not mean or not std:
             self.mean, self.std = self.calculate_mean_and_std()
 

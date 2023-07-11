@@ -75,7 +75,13 @@ class Engine:
         if self.cfg.training is not None:
             # General func
             train_loader = self.get_train_dataloader()
+            # Set mean and std from train dataset of none
+            if not self.cfg.data.mean or not self.cfg.data.std:
+                self.cfg.data.mean = train_loader.dataset.mean
+                self.cfg.data.std = train_loader.dataset.std
+
             eval_loader = self.get_val_dataloader()
+
             optimizer, lr_scheduler = self.get_optimizer_and_scheduler()
             scaler = self.get_grad_scaler()
             self.logger.info(
@@ -155,6 +161,7 @@ class Engine:
             avg_loss.update(loss.item(), batch.shape[0])
 
             optimizer.step()
+
         return {"loss": avg_loss.avg}
 
     def evaluate(self, eval_loader: torch.utils.data.DataLoader):
@@ -194,7 +201,7 @@ class Engine:
             mean=mean,
             std=std,
         )
-        # TODO Vera: fix mean and std calculation. Should be done only once on the training or train+validation data
+
         tiles = []
         prediction = []
         if external_input is not None:
@@ -286,7 +293,6 @@ class Engine:
         mean: float = None,
         std: float = None,
     ) -> Tuple[DataLoader, bool]:
-        # TODO Vera: mean/std don't get passed here
         # TODO add description
         # TODO mypy does not take into account "is not None", we need to find a workaround
         if external_input is not None:
