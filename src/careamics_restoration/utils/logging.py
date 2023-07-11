@@ -100,9 +100,9 @@ class ProgressLogger:
         if not self.is_in_notebook:
             pixels = Pixels.from_ascii(banner)
             header_panel = Panel.fit(pixels, style="red", padding=1)
-            self.interface = Group(header_panel, progress_group)
-        else:
-            self.interface = Group(progress_group)
+            self.console.print(header_panel)
+
+        self.interface = Group(progress_group)
         self.live = None
 
     def _start_live_if_needed(self):
