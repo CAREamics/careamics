@@ -3,7 +3,7 @@ from typing import Tuple
 import numpy as np
 
 
-def get_stratified_coords(mask_pixel_perc: float, shape: Tuple[int, ...]) -> np.ndarray:
+def get_stratified_coords(mask_pixel_perc: float, shape: Tuple[int, ...], seed: int = 42) -> np.ndarray:
     # TODO add description, add asserts, add typing, add line comments
     """_summary_.
 
@@ -21,7 +21,7 @@ def get_stratified_coords(mask_pixel_perc: float, shape: Tuple[int, ...]) -> np.
     np.ndarray
         _description_
     """
-    rng = np.random.default_rng()
+    rng = np.random.default_rng(seed=seed)
 
     # Define the approximate distance between masked pixels
     box_size = np.round(np.sqrt(100 / mask_pixel_perc)).astype(
@@ -52,11 +52,13 @@ def get_stratified_coords(mask_pixel_perc: float, shape: Tuple[int, ...]) -> np.
     coordinate_grid = np.clip(coordinate_grid, 0, np.array(shape) - 1)
     return coordinate_grid  
 
+
 def default_manipulate(
     patch: np.ndarray,
     mask_pixel_percentage: float,
     roi_size: int = 5,
     augmentations=None,
+    seed: int = 42
 ) -> Tuple[np.ndarray, ...]:
     """Manipulate pixel in a patch with N2V algorithm.
 
@@ -79,7 +81,7 @@ def default_manipulate(
     original_patch = patch.copy()
     # Get the coordinates of the pixels to be replaced
     roi_centers = get_stratified_coords(mask_pixel_percentage, patch.shape)
-    rng = np.random.default_rng()
+    rng = np.random.default_rng(seed=seed)
     # Generate coordinate grid for ROI
     roi_span_full = np.arange(-np.floor(roi_size / 2), np.ceil(roi_size / 2)).astype(
         np.int32

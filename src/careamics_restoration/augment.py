@@ -7,7 +7,7 @@ def augment_batch(
     patch: np.ndarray,
     original_image: np.ndarray,
     mask: np.ndarray,
-    seed: int = 1,
+    seed: int = 42,
 ) -> Tuple[np.ndarray, ...]:
     """Augment a single array by applying a random 90 degress rotation and
     possibly a flip.
