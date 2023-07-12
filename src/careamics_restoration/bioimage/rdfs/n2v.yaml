@@ -1,0 +1,38 @@
+name: Noise2Void
+description: Self-supervised denoising.
+documentation: n2v.md
+license: BSD-3-Clause
+authors:
+- {name: Alexander Krull}
+- {name: Tim-Oliver Buchholz}
+- {name: Florian Jug}
+cite:
+- {doi: 10.48550/arXiv.1811.10980, text: 'A. Krull, T.-O. Buchholz and F. Jug, "Noise2Void
+    - Learning Denoising From Single Noisy Images," 2019 IEEE/CVF Conference on Computer
+    Vision and Pattern Recognition  (CVPR), 2019, pp. 2124-2132'}
+inputs:
+- axes: byxc
+  data_range: [-.inf, .inf]
+  data_type: float64
+  name: input_1
+  preprocessing:
+  - kwargs:
+      axes: yx
+      mean: [46912.574]
+      mode: fixed
+      std: [16847.809]
+    name: zero_mean_unit_variance
+  shape: [1, 64, 64, 1]
+outputs:
+- axes: byxc
+  data_range: [-.inf, .inf]
+  data_type: float64
+  name: output_1
+  postprocessing:
+  - kwargs:
+      axes: yx
+      gain: [16847.809]
+      offset: [46912.574]
+    name: scale_linear
+  shape: [1, 64, 64, 1]
+tags: [2d, unet, denoising, Noise2Void, tensorflow, napari]

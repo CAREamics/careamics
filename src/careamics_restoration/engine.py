@@ -1,6 +1,6 @@
 import random
 from pathlib import Path
-from typing import Optional, Tuple, Union
+from typing import Optional, Tuple, Union, List
 
 import numpy as np
 import torch
@@ -23,6 +23,7 @@ from .utils import (
     setup_cudnn_reproducibility,
 )
 from careamics_restoration.utils.logging import ProgressLogger, get_logger
+from careamics_restoration.bioimage import build_zip_model
 
 
 def seed_everything(seed: int):
@@ -368,3 +369,24 @@ class Engine:
         workdir.mkdir(parents=True, exist_ok=True)
 
         torch.save(self.model.state_dict(), workdir / name)
+
+    def save_as_bioimage(self, model_data: dict):
+        """Export the current model to the BioImage.io model zoo format."""
+        workdir = self.cfg.working_directory
+        weights = workdir.joinpath(f"{self.cfg.experiment_name}_best.pth").absolute()
+        sample_in, sample_out = self._get_sample_io_files()
+
+        raw_model = build_zip_model(
+            config=self.cfg,
+            weights=weights,
+            sample_inputs=sample_in,
+            sample_outputs=sample_out
+        )
+
+        return raw_model
+
+    def _get_sample_io_files(self) -> Tuple[List[str], List[str]]:
+        """Create numpy files for each model's input and outputs."""
+        # TODO: to be implemented
+
+        return ["dummy_in.npy"], ["dummy_out.npy"]
