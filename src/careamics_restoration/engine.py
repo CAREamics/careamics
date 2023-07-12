@@ -6,6 +6,8 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader, TensorDataset
 
+from bioimageio.spec.model.raw_nodes import Model as BioimageModel
+
 from .config import load_configuration
 from .dataset.tiff_dataset import (
     get_train_dataset,
@@ -370,8 +372,8 @@ class Engine:
 
         torch.save(self.model.state_dict(), workdir / name)
 
-    def save_as_bioimage(self, model_data: dict):
-        """Export the current model to the BioImage.io model zoo format."""
+    def save_as_bioimage(self, model_data: Optional[dict] = None) -> BioimageModel:
+        """Export the current model to BioImage.io model zoo format."""
         workdir = self.cfg.working_directory
         weights = workdir.joinpath(f"{self.cfg.experiment_name}_best.pth").absolute()
         sample_in, sample_out = self._get_sample_io_files()
