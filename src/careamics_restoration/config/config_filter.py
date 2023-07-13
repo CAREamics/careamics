@@ -23,10 +23,9 @@ def paths_to_str(dictionary: dict) -> dict:
 
 
 def remove_default_optionals(dictionary: dict, default: dict) -> dict:
-    """Remove arguments from a dictionary if they are equal to the
-    provided default ones.
+    """Remove default arguments from a dictionary.
 
-    This is performed in place
+    Removes arguments if they are equal to the provided default ones in place
 
     Parameters
     ----------

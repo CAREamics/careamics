@@ -1,6 +1,7 @@
-import torch
-import numpy as np
 from typing import List, Tuple
+
+import numpy as np
+import torch
 
 
 def stitch_prediction(

@@ -6,6 +6,23 @@ from .losses import n2v_loss
 
 
 def create_loss_function(config: Configuration) -> Callable:
+    """Creates loss function specified in config.
+
+    Parameters
+    ----------
+    config : Configuration
+        main configuration object
+
+    Returns
+    -------
+    Callable
+        loss function
+
+    Raises
+    ------
+    NotImplementedError
+        if the loss is not supported or incorrect parameter is provided in the config
+    """
     loss_type = config.algorithm.loss
 
     if loss_type == Losses.N2V:

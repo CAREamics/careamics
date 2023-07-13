@@ -1,12 +1,9 @@
-from typing import List, Union
+from typing import List
 
 import torch
 import torch.nn as nn
 
 from .layers import Conv_Block
-
-# TODO add docstings, typing
-# TODO Urgent: refactor
 
 
 class UnetEncoder(nn.Module):
