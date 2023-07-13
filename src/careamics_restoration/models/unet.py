@@ -33,7 +33,7 @@ class UnetEncoder(nn.Module):
         conv_dim: int,
         in_channels: int = 1,
         depth: int = 3,
-        num_filter_base: int = 64, #TODO rename to num_channels_init
+        num_filter_base: int = 64,  # TODO rename to num_channels_init
         use_batch_norm=True,
         dropout=0.0,
         pool_kernel=2,
@@ -98,8 +98,6 @@ class UnetDecoder(nn.Module):
         whether to use batch normalization
     dropout : float
         dropout probability
-    last_activation : Union[str, None]
-        type of the last activation layer, if None activation is applied
     """
 
     def __init__(
@@ -109,7 +107,6 @@ class UnetDecoder(nn.Module):
         num_filter_base: int = 64,
         use_batch_norm=True,
         dropout=0.0,
-        last_activation=Union[str, None],
     ) -> None:
         super().__init__()
 
@@ -138,7 +135,7 @@ class UnetDecoder(nn.Module):
                     out_channels=out_channels,
                     intermediate_channel_multiplier=2,
                     dropout_perc=dropout,
-                    activation="ReLU" if n > 0 else last_activation, #TODO check the last_activation
+                    activation="ReLU",
                     use_batch_norm=use_batch_norm,
                 )
             )
@@ -235,13 +232,13 @@ class UNet(nn.Module):
             num_filter_base=num_filter_base,
             use_batch_norm=use_batch_norm,
             dropout=dropout,
-            last_activation=last_activation,
         )
         self.final_conv = getattr(nn, f"Conv{conv_dim}d")(
             in_channels=num_filter_base,
             out_channels=num_classes,
             kernel_size=1,
         )
+        self.last_activation = last_activation if last_activation else nn.Identity()
 
     def forward(self, x):
         """Forward pass.
@@ -261,4 +258,5 @@ class UNet(nn.Module):
         x = self.decoder(*encoder_features)
         x = self.final_conv(x)
         x = torch.add(x, inputs)
+        x = self.last_activation(x)
         return x
