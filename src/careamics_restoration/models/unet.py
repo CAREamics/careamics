@@ -3,7 +3,7 @@ from collections import OrderedDict
 import torch
 import torch.nn as nn
 
-from .layers import Conv_Block, Conv_Block_tf
+from .layers import Conv_Block
 
 # TODO add docstings, typing
 # TODO Urgent: refactor
