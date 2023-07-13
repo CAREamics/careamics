@@ -243,7 +243,7 @@ def get_train_dataset(config: Configuration) -> TiffDataset:
     data_path = config.data.training_path
 
     dataset = TiffDataset(
-        data_path=data_path,  # TODO this can be None
+        data_path=data_path,  
         data_format=config.data.data_format,
         axes=config.data.axes,
         mean=config.data.mean,
@@ -265,7 +265,7 @@ def get_validation_dataset(config: Configuration) -> TiffDataset:
     data_path = config.data.validation_path
 
     dataset = TiffDataset(
-        data_path=data_path,  # TODO this can be None
+        data_path=data_path, 
         data_format=config.data.data_format,
         axes=config.data.axes,
         mean=config.data.mean,

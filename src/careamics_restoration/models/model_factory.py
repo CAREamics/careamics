@@ -18,18 +18,11 @@ def create_model(config: Configuration) -> torch.nn.Module:
     config : Dict
         Config file dictionary
     """
-    # TODO rewrite this ugly bullshit. registry,etc!
     algo_config = config.algorithm
     model_config = algo_config.model_parameters
 
     model_name = algo_config.model
     load_checkpoint = config.trained_model
-
-    # TODO fix import
-    # try:
-    #     model_class = getattr(deconoising, model_name)
-    # except ImportError:
-    #     raise ImportError('Model not found')
 
     if model_name == Models.UNET:
         model = UNet(
@@ -38,9 +31,7 @@ def create_model(config: Configuration) -> torch.nn.Module:
             num_filter_base=model_config.num_filters_base,
         )
 
-    # TODO add more models or remove if
     if load_checkpoint is not None:
-        # TODO add proper logging message
         if not Path(load_checkpoint).is_absolute():
             try:
                 logger.info(

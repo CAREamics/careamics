@@ -3,7 +3,7 @@ from collections import OrderedDict
 import torch
 import torch.nn as nn
 
-from .layers import Conv_Block
+from .layers import Conv_Block, Conv_Block_tf
 
 # TODO add docstings, typing
 # TODO Urgent: refactor
@@ -24,62 +24,32 @@ class UnetEncoder(nn.Module):
 
         self.pooling = getattr(nn, f"MaxPool{conv_dim}d")(kernel_size=pool_kernel)
 
-        enc_blocks = []
+        encoder_blocks = []
 
         for n in range(depth):
             out_channels = num_filter_base * (2**n)
-            in_channels = in_channels if n == 0 else out_channels
-            enc_blocks.append(
+            in_channels = in_channels if n == 0 else out_channels // 2
+            encoder_blocks.append(
                 Conv_Block(
                     conv_dim,
-                    in_channels,
-                    out_channels,
+                    in_channels=in_channels,
+                    out_channels=out_channels,
                     dropout_perc=dropout,
                     use_batch_norm=use_batch_norm,
                 )
             )
-            enc_blocks.append(self.pooling)
+            encoder_blocks.append(self.pooling)
 
-        self.encoder = nn.ModuleList(enc_blocks)
-
-    def forward(self, x):
-        for module in self.encoder:
-            x = module(x)
-        return x
-
-
-class Bottleneck(nn.Module):
-    def __init__(
-        self,
-        conv_dim: int,
-        out_channels: int = 64,
-        depth: int = 3,
-        num_filter_base: int = 64,
-        num_conv_per_depth=2,
-        use_batch_norm=True,
-        dropout=0.0,
-    ) -> None:
-        super().__init__()
-
-        bottleneck = []
-
-        for i in range(num_conv_per_depth - 1):
-            bottleneck.append(
-                Conv_Block(
-                    conv_dim,
-                    in_channels=out_channels,
-                    out_channels=num_filter_base * 2**depth,
-                    dropout_perc=dropout,
-                    use_batch_norm=use_batch_norm,
-                )
-            )
-
-        self.bottleneck = nn.ModuleList(bottleneck)
+        self.encoder_blocks = nn.ModuleList(encoder_blocks)
 
     def forward(self, x):
-        for module in self.bottleneck:
+        encoder_features = []
+        for module in self.encoder_blocks:
             x = module(x)
-        return x
+            if isinstance(module, Conv_Block):
+                encoder_features.append(x)
+        features = [x] + encoder_features
+        return features
 
 
 class UnetDecoder(nn.Module):
@@ -97,30 +67,45 @@ class UnetDecoder(nn.Module):
         upsampling = nn.Upsample(
             scale_factor=2, mode="bilinear" if conv_dim == 2 else "trilinear"
         )  # TODO check align_corners and mode
+        in_channels = out_channels = num_filter_base * 2 ** (depth - 1)
+        self.bottleneck = Conv_Block(
+            conv_dim,
+            in_channels=in_channels,
+            out_channels=out_channels,
+            intermediate_channel_multiplier=2,
+            use_batch_norm=use_batch_norm,
+            dropout_perc=dropout,
+        )
 
-        dec_blocks = []
-        for n in reversed(range(depth)):
-            dec_blocks.append(upsampling)
-            n_filter = num_filter_base * 2**n if n > 0 else num_filter_base
-            dec_blocks.append(
+        decoder_blocks = []
+        for n in range(depth):
+            decoder_blocks.append(upsampling)
+            in_channels = num_filter_base * 2 ** (depth - n)
+            out_channels = num_filter_base
+            decoder_blocks.append(
                 Conv_Block(
                     conv_dim,
-                    in_channels=n_filter * 2,
-                    out_channels=n_filter,
-                    dropout=dropout,
+                    in_channels=in_channels,
+                    out_channels=out_channels,
+                    intermediate_channel_multiplier=2,
+                    dropout_perc=dropout,
                     activation="ReLU" if n > 0 else last_activation,
                     use_batch_norm=use_batch_norm,
                 )
             )
 
-        self.decoder = nn.ModuleList(dec_blocks)
+        self.decoder_blocks = nn.ModuleList(decoder_blocks)
 
-    def forward(features):
-        skip_connections = features[::-1]
-        for i, module in enumerate(self.decoder):
-            x = module(features[i])
-            x = torch.cat([x, skip_connections[i]])
-
+    def forward(self, *features):
+        # TODO skipskipone goes brrr
+        x = features[0]
+        skip_connections = features[1:][::-1]
+        x = self.bottleneck(x)
+        for i, module in enumerate(self.decoder_blocks):
+            # TODO upsample order
+            x = module(x)
+            if isinstance(module, nn.Upsample):
+                x = torch.cat([x, skip_connections[i // 2]], axis=1)
         return x
 
 
@@ -165,7 +150,6 @@ class UNet(nn.Module):
         in_channels: int = 1,
         depth: int = 3,
         num_filter_base: int = 64,
-        num_conv_per_depth=2,
         use_batch_norm=True,
         dropout=0.0,
         pool_kernel=2,
@@ -173,7 +157,7 @@ class UNet(nn.Module):
     ) -> None:
         super().__init__()
 
-        self.enc_blocks = UnetEncoder(
+        self.encoder = UnetEncoder(
             conv_dim,
             in_channels=in_channels,
             depth=depth,
@@ -182,15 +166,8 @@ class UNet(nn.Module):
             dropout=dropout,
             pool_kernel=pool_kernel,
         )
-        self.bottleneck = Bottleneck(
-            conv_dim,
-            out_channels=num_filter_base * 2**depth,
-            depth=depth,
-            num_filter_base=num_filter_base,
-            use_batch_norm=use_batch_norm,
-            dropout=dropout,
-        )
-        self.dec_blocks = UnetDecoder(
+
+        self.decoder = UnetDecoder(
             conv_dim,
             depth=depth,
             num_filter_base=num_filter_base,
@@ -199,16 +176,15 @@ class UNet(nn.Module):
             last_activation=last_activation,
         )
         self.final_conv = getattr(nn, f"Conv{conv_dim}d")(
-            in_channels=num_filter_base * 2 ** max(0, depth - 1),
+            in_channels=num_filter_base,
             out_channels=num_classes,
             kernel_size=1,
         )
 
     def forward(self, x):
         inputs = x.clone()
-        x = self.enc_blocks(x)
-        x = self.bottleneck(x)
-        x = self.dec_blocks(x)
+        encoder_features = self.encoder(x)
+        x = self.decoder(*encoder_features)
         x = self.final_conv(x)
         x = torch.add(x, inputs)
         return x

@@ -8,141 +8,8 @@ from torch.nn import functional
 from torch.nn.common_types import _size_2_t, _size_3_t
 from torch.nn.modules.utils import _pair, _triple
 
+
 # TODO add docstings, typing
-
-
-def conv3x3(
-    conv_func, in_channels, out_channels, stride=1, padding=1, bias=True, groups=1
-):
-    return conv_func(
-        in_channels,
-        out_channels,
-        kernel_size=3,
-        stride=stride,
-        padding=padding,
-        bias=bias,
-        groups=groups,
-    )
-
-
-def upconv2x2(
-    conv_dim: int, conv_func_transpose, in_channels, out_channels, mode="transpose"
-):
-    # TODO add better conv definition
-    if mode == "transpose":
-        return conv_func_transpose(in_channels, out_channels, kernel_size=2, stride=2)
-    else:
-        # out_channels is always going to be the same
-        # as in_channels
-        return nn.Sequential(
-            nn.Upsample(mode="bilinear", scale_factor=2),
-            conv1x1(conv_dim, in_channels, out_channels),
-        )
-
-
-def conv1x1(conv_dim: int, in_channels, out_channels, groups=1):
-    conv_func = getattr(nn, f"Conv{conv_dim}d")
-    return conv_func(in_channels, out_channels, kernel_size=1, groups=groups, stride=1)
-
-
-class DownConv(nn.Module):
-    """
-    A helper Module that performs 2 convolutions and 1 MaxPool.
-    A ReLU activation follows each convolution.
-    """
-
-    def __init__(self, conv_dim, in_channels, out_channels, pooling=True, n2v2=False):
-        super().__init__()
-
-        self.conv_dim = conv_dim
-        self.in_channels = in_channels
-        self.out_channels = out_channels
-        self.pooling = pooling
-        self.n2v2 = n2v2
-        self.conv_func = getattr(nn, f"Conv{self.conv_dim}d")
-
-        self.conv1 = conv3x3(self.conv_func, self.in_channels, self.out_channels)
-        self.conv2 = conv3x3(self.conv_func, self.out_channels, self.out_channels)
-
-        if self.pooling:
-            self.pool = (
-                getattr(sys.__name__, f"BlurPool{2}d")(
-                    channels=1, filt_size=2, stride=2
-                )
-                if self.n2v2
-                else getattr(nn, f"MaxPool{self.conv_dim}d")(kernel_size=2, stride=2)
-            )
-        self.bn = getattr(nn, f"BatchNorm{self.conv_dim}d")(self.out_channels)
-
-    def forward(self, x):
-        x = functional.relu(self.bn(self.conv1(x)))
-        x = functional.relu(self.bn(self.conv2(x)))
-        before_pool = x
-        if self.pooling:
-            x = self.pool(x)
-        return x, before_pool
-
-
-class UpConv(nn.Module):
-    """
-    A helper Module that performs 2 convolutions and 1 UpConvolution.
-    A ReLU activation follows each convolution.
-    """
-
-    def __init__(
-        self,
-        conv_dim,
-        in_channels,
-        out_channels,
-        merge_mode="concat",
-        up_mode="transpose",
-        skip=False,
-    ):
-        super().__init__()
-
-        self.conv_dim = conv_dim
-        self.in_channels = in_channels
-        self.out_channels = out_channels
-        self.merge_mode = merge_mode
-        self.up_mode = up_mode
-        self.skip = skip
-        self.conv_func = getattr(nn, f"Conv{self.conv_dim}d")
-        self.conv_func_transpose = getattr(nn, f"ConvTranspose{self.conv_dim}d")
-
-        self.upconv = upconv2x2(
-            self.conv_dim,
-            self.conv_func_transpose,
-            self.in_channels,
-            self.out_channels,
-            mode=self.up_mode,
-        )
-
-        if self.merge_mode == "concat":
-            self.conv1 = conv3x3(
-                self.conv_func, 2 * self.out_channels, self.out_channels
-            )
-        else:
-            # num of input channels to conv2 is same
-            self.conv1 = conv3x3(self.conv_func, self.out_channels, self.out_channels)
-        self.conv2 = conv3x3(self.conv_func, self.out_channels, self.out_channels)
-        self.bn = getattr(nn, f"BatchNorm{self.conv_dim}d")(self.out_channels)
-
-    def forward(self, from_down, from_up, skip=False):
-        """Forward pass
-        Arguments:
-            from_down: tensor from the encoder pathway
-            from_up: upconv'd tensor from the decoder pathway.
-        """
-        from_up = self.upconv(from_up)
-        if self.merge_mode == "concat":
-            x = torch.cat((from_up, from_down), 1)
-        else:
-            x = from_up + from_down
-        if self.skip:
-            x = from_down
-        x = functional.relu(self.bn(self.conv1(x)))
-        x = functional.relu(self.bn(self.conv2(x)))
-        return x
 
 
 class Conv_Block(nn.Module):
@@ -151,6 +18,7 @@ class Conv_Block(nn.Module):
         conv_dim,
         in_channels,
         out_channels,
+        intermediate_channel_multiplier=1,
         stride=1,
         padding=1,
         bias=True,
@@ -158,12 +26,21 @@ class Conv_Block(nn.Module):
         activation="ReLU",
         dropout_perc=0,
         use_batch_norm=False,
-        **kwargs,
     ) -> None:
         super().__init__()
         self.use_batch_norm = use_batch_norm
-        self.conv = getattr(nn, f"Conv{conv_dim}d")(
+        self.conv1 = getattr(nn, f"Conv{conv_dim}d")(
             in_channels,
+            out_channels * intermediate_channel_multiplier,
+            kernel_size=3,
+            stride=stride,
+            padding=padding,
+            bias=bias,
+            groups=groups,
+        )
+
+        self.conv2 = getattr(nn, f"Conv{conv_dim}d")(
+            out_channels * intermediate_channel_multiplier,
             out_channels,
             kernel_size=3,
             stride=stride,
@@ -172,7 +49,11 @@ class Conv_Block(nn.Module):
             groups=groups,
         )
 
-        self.batch_norm = getattr(nn, f"BatchNorm{conv_dim}d")(out_channels)
+        self.batch_norm1 = getattr(nn, f"BatchNorm{conv_dim}d")(
+            out_channels * intermediate_channel_multiplier
+        )
+        self.batch_norm2 = getattr(nn, f"BatchNorm{conv_dim}d")(out_channels)
+
         self.dropout = (
             getattr(nn, f"Dropout{conv_dim}d")(dropout_perc)
             if dropout_perc > 0
@@ -184,16 +65,16 @@ class Conv_Block(nn.Module):
 
     def forward(self, x):
         if self.use_batch_norm:
-            x = self.conv(x)
-            x = self.batch_norm(x)
+            x = self.conv1(x)
+            x = self.batch_norm1(x)
             x = self.activation(x)
-            x = self.conv(x)
-            x = self.batch_norm(x)
+            x = self.conv2(x)
+            x = self.batch_norm2(x)
             x = self.activation(x)
         else:
-            x = self.conv(x)
+            x = self.conv1(x)
             x = self.activation(x)
-            x = self.conv(x)
+            x = self.conv2(x)
             x = self.activation(x)
         if self.dropout is not None:
             x = self.dropout(x)

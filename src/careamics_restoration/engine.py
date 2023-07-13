@@ -116,7 +116,7 @@ class Engine:
                     val_losses.append(eval_outputs["loss"])
                     self.logger.info(
                         f"Saved checkpoint to {self.cfg.working_directory}"
-                    )
+                    )  # TODO add absolute path and name
 
             except KeyboardInterrupt:
                 self.logger.info("Training interrupted")
@@ -143,6 +143,9 @@ class Engine:
         loader : _type_
             _description_
         """
+
+        # TODO looging error LiveError: Only one live display may be active at once
+
         avg_loss = MetricTracker()
         self.model.to(self.device)
         self.model.train()
@@ -201,6 +204,7 @@ class Engine:
             mean=mean,
             std=std,
         )
+        # TODO keep getting this ValueError: Mean or std are not specified in the configuration and in parameters
 
         tiles = []
         prediction = []
@@ -211,7 +215,7 @@ class Engine:
         else:
             self.logger.info("Starting prediction on whole sample")
 
-        # TODO add fucntion to assess the external input.
+        # TODO Joran/Vera: make this as a config object, add function to assess the external input
         with torch.no_grad():
             # TODO tiled prediction slow af, profile and optimize
             # TODO progress bar isn't displayed
