@@ -21,7 +21,7 @@ def get_stratified_coords(mask_pixel_perc: float, shape: Tuple[int, ...], seed: 
     np.ndarray
         _description_
     """
-    rng = np.random.default_rng(seed=seed)
+    rng = np.random.default_rng()
 
     # Define the approximate distance between masked pixels
     box_size = np.round(np.sqrt(100 / mask_pixel_perc)).astype(
@@ -81,7 +81,7 @@ def default_manipulate(
     original_patch = patch.copy()
     # Get the coordinates of the pixels to be replaced
     roi_centers = get_stratified_coords(mask_pixel_percentage, patch.shape)
-    rng = np.random.default_rng(seed=seed)
+    rng = np.random.default_rng()
     # Generate coordinate grid for ROI
     roi_span_full = np.arange(-np.floor(roi_size / 2), np.ceil(roi_size / 2)).astype(
         np.int32

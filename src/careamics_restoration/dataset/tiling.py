@@ -174,7 +174,7 @@ def compute_reshaped_view(
     output_shape : Tuple[int]
         Shape of the output array
     """
-    rng = np.random.default_rng(seed=seed)
+    rng = np.random.default_rng()
     patches = view_as_windows(arr, window_shape=window_shape, step=step).reshape(
         *output_shape
     )
@@ -256,7 +256,7 @@ def extract_patches_sequential(
 # TODO: extract patches random default number of patches 1 or max? parameter for number of patches?
 # TODO: extract patches random but with the possibility to remove (almost) empty patches
 def extract_patches_random(arr, patch_size, seed: int=42) -> Generator[np.ndarray, None, None]:
-    rng = np.random.default_rng(seed=seed)
+    rng = np.random.default_rng()
     # shuffle the array along the first axis TODO do we need shuffling?
     rng.shuffle(arr, axis=0)
 
