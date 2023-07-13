@@ -24,14 +24,14 @@ def get_stratified_coords(mask_pixel_perc: float, shape: Tuple[int, ...], seed: 
     rng = np.random.default_rng()
 
     # Define the approximate distance between masked pixels
-    box_size = np.round(np.sqrt(100 / mask_pixel_perc)).astype(
+    mask_pixel_distance = np.round(np.sqrt(100 / mask_pixel_perc)).astype(
         np.int32
     )
     # Define a grid of coordinates for each axis in the input patch and the step size
     pixel_coords = []
     for axis_size in shape:
         # make sure axis size is evenly divisible by box size
-        num_pixels = int(np.ceil(axis_size / box_size))
+        num_pixels = int(np.ceil(axis_size / mask_pixel_distance))
         axis_pixel_coords, step = np.linspace(
             0, axis_size, num_pixels, dtype=np.int32, endpoint=False, retstep=True
         )

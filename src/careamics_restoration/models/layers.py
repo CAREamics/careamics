@@ -8,11 +8,40 @@ from torch.nn import functional
 from torch.nn.common_types import _size_2_t, _size_3_t
 from torch.nn.modules.utils import _pair, _triple
 
-
-# TODO add docstings, typing
+# TODO finish docstrings
 
 
 class Conv_Block(nn.Module):
+    """_summary_.
+
+    _extended_summary_
+
+    Parameters
+    ----------
+    conv_dim : _type_
+        _description_
+    in_channels : _type_
+        _description_
+    out_channels : _type_
+        _description_
+    intermediate_channel_multiplier : int, optional
+        _description_, by default 1
+    stride : int, optional
+        _description_, by default 1
+    padding : int, optional
+        _description_, by default 1
+    bias : bool, optional
+        _description_, by default True
+    groups : int, optional
+        _description_, by default 1
+    activation : str, optional
+        _description_, by default "ReLU"
+    dropout_perc : int, optional
+        _description_, by default 0
+    use_batch_norm : bool, optional
+        _description_, by default False
+    """
+
     def __init__(
         self,
         conv_dim,
@@ -64,6 +93,20 @@ class Conv_Block(nn.Module):
         )
 
     def forward(self, x):
+        """_summary_.
+
+        _extended_summary_
+
+        Parameters
+        ----------
+        x : _type_
+            _description_
+
+        Returns
+        -------
+        _type_
+            _description_
+        """
         if self.use_batch_norm:
             x = self.conv1(x)
             x = self.batch_norm1(x)
@@ -82,6 +125,15 @@ class Conv_Block(nn.Module):
 
 
 def default_2d_filter():
+    """_summary_.
+
+    _extended_summary_
+
+    Returns
+    -------
+    _type_
+        _description_
+    """
     return (
         torch.tensor(
             [
@@ -96,6 +148,15 @@ def default_2d_filter():
 
 
 def default_3d_filter():
+    """_summary_.
+
+    _extended_summary_
+
+    Returns
+    -------
+    _type_
+        _description_
+    """
     return (
         torch.tensor(
             [
@@ -120,6 +181,25 @@ def default_3d_filter():
 
 
 def padding_filter_same(filter: torch.Tensor) -> Tuple[int, ...]:
+    """_summary_.
+
+    _extended_summary_
+
+    Parameters
+    ----------
+    filter : torch.Tensor
+        _description_
+
+    Returns
+    -------
+    Tuple[int, ...]
+        _description_
+
+    Raises
+    ------
+    ValueError
+        _description_
+    """
     if np.any([dim % 2 == 0 for dim in filter.shape[2:]]):
         raise ValueError("All filter dimensions must be odd")
 
@@ -141,18 +221,19 @@ def blur_operation(
     ----
         input (torch.Tensor): A 4D/5D tensor of shape NC(Z)YX.
 
-        stride (int | tuple, optional): Stride(s) along axes. If a single value is passed, this
-            value is used for both dimensions.
+        stride (int | tuple, optional): Stride(s) along axes. If a single value is
+        passed, this value is used for both dimensions.
         conv_mult (int): Used to choose between 2D and 3D convolution. Default: 2.
-        filter (torch.Tensor, optional): A 2D/3D tensor to be convolved with the input tensor
-            at each spatial position, across all channels. If not provided, a default filter
+        filter (torch.Tensor, optional): A 2D/3D tensor to be convolved with the input
+        tensor at each spatial position, across all channels. If not provided, a default
+        filter
     Returns:
         Blurred input
     """
-
     if filter is None:
         filter = getattr(sys.modules[__name__], f"default_{conv_mult}d_filter")
-    # The dynamic control flow branch below does not affect the padding as only h and w are used.
+    # The dynamic control flow branch below does not affect the padding as only h and w
+    #  are used.
     padding = padding_filter_same(filter)
 
     if (
@@ -167,7 +248,8 @@ def blur_operation(
             return input_tensor
 
     # TODO: the following comment needs more clarification
-    # Call functional.conv2d without using keyword arguments as that triggers a bug in fx tracing quantization.
+    # Call functional.conv2d without using keyword arguments as that triggers a bug in
+    # fx tracing quantization.
     conv_operation = getattr(functional, f"conv{conv_mult}d")
     _ntuple = _pair if conv_mult == 2 else _triple
     return conv_operation(
@@ -192,6 +274,7 @@ def blurmax_pool(
     filter: Optional[torch.Tensor] = None,
 ) -> torch.Tensor:
     """Max-pooling with anti-aliasing.
+
     This is a nearly drop-in replacement for PyTorch's :func:`torch.nn.functional.max_pool2d`.
     The only API difference is that the parameter ``return_indices`` is not
     available, because it is ill-defined when using anti-aliasing.
@@ -230,10 +313,9 @@ def blurmax_pool(
             [2 4 2] * 1/16
             [1 2 1]
 
-
-    Returns:
+    Returns
     -------
-         The blurred and max-pooled input.
+    The blurred and max-pooled input.
     """
     if kernel_size is None:
         kernel_size = (2, 2)
@@ -251,7 +333,9 @@ def blurmax_pool(
 
 
 class BlurPool2d(nn.Module):
-    """This module is a (nearly) drop-in replacement for :class:`torch.nn.MaxPool2d`, but with an anti-aliasing filter.
+    """Module is a (nearly) drop-in replacement for :class:`torch.nn.MaxPool2d`.
+
+    Adds anti-aliasing filter.
     The only API difference is that the parameter ``return_indices`` is not
     available, because it is ill-defined when using anti-aliasing.
     See the associated `paper <http://proceedings.mlr.press/v97/zhang19a.html>`_
@@ -290,7 +374,9 @@ class BlurPool2d(nn.Module):
 
 
 class BlurPool3d(nn.Module):
-    """This module is a (nearly) drop-in replacement for :class:`torch.nn.MaxPool2d`, but with an anti-aliasing filter.
+    """Module is a (nearly) drop-in replacement for :class:`torch.nn.MaxPool2d`.
+
+    Adds anti-aliasing filter.
     The only API difference is that the parameter ``return_indices`` is not
     available, because it is ill-defined when using anti-aliasing.
     See the associated `paper <http://proceedings.mlr.press/v97/zhang19a.html>`_

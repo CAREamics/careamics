@@ -1,4 +1,4 @@
-from collections import OrderedDict
+from typing import List, Union
 
 import torch
 import torch.nn as nn
@@ -10,12 +10,30 @@ from .layers import Conv_Block
 
 
 class UnetEncoder(nn.Module):
+    """Unet encoder pathway.
+
+    Parameters
+    ----------
+    conv_dim : int
+        controls the type of the convolution layers, 2 for 2D and 3 for 3D
+    depth : int
+        number of encoder blocks
+    num_filter_base : int
+        number of channels in the first encoder block
+    use_batch_norm : bool
+        whether to use batch normalization
+    dropout : float
+        dropout probability
+    pool_kernel : int
+        kernel size for the max pooling layers
+    """
+
     def __init__(
         self,
         conv_dim: int,
         in_channels: int = 1,
         depth: int = 3,
-        num_filter_base: int = 64,
+        num_filter_base: int = 64, #TODO rename to num_channels_init
         use_batch_norm=True,
         dropout=0.0,
         pool_kernel=2,
@@ -42,17 +60,48 @@ class UnetEncoder(nn.Module):
 
         self.encoder_blocks = nn.ModuleList(encoder_blocks)
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> List[torch.Tensor]:
+        """Forward pass.
+
+        Parameters
+        ----------
+        x : torch.Tensor
+            input tensor
+
+        Returns
+        -------
+        List[torch.Tensor]
+            List containing the output of each encoder block(skip connections) and final
+            output of the encoder
+        """
         encoder_features = []
         for module in self.encoder_blocks:
             x = module(x)
             if isinstance(module, Conv_Block):
                 encoder_features.append(x)
-        features = [x] + encoder_features
+        features = [x, *encoder_features]
         return features
 
 
 class UnetDecoder(nn.Module):
+    """Unet decoder pathway.
+
+    Parameters
+    ----------
+    conv_dim : int
+        controls the type of the convolution layers, 2 for 2D and 3 for 3D
+    depth : int
+        number of encoder blocks
+    num_filter_base : int
+        number of channels in the first encoder block
+    use_batch_norm : bool
+        whether to use batch normalization
+    dropout : float
+        dropout probability
+    last_activation : Union[str, None]
+        type of the last activation layer, if None activation is applied
+    """
+
     def __init__(
         self,
         conv_dim: int,
@@ -60,7 +109,7 @@ class UnetDecoder(nn.Module):
         num_filter_base: int = 64,
         use_batch_norm=True,
         dropout=0.0,
-        last_activation=None,
+        last_activation=Union[str, None],
     ) -> None:
         super().__init__()
 
@@ -89,7 +138,7 @@ class UnetDecoder(nn.Module):
                     out_channels=out_channels,
                     intermediate_channel_multiplier=2,
                     dropout_perc=dropout,
-                    activation="ReLU" if n > 0 else last_activation,
+                    activation="ReLU" if n > 0 else last_activation, #TODO check the last_activation
                     use_batch_norm=use_batch_norm,
                 )
             )
@@ -97,6 +146,19 @@ class UnetDecoder(nn.Module):
         self.decoder_blocks = nn.ModuleList(decoder_blocks)
 
     def forward(self, *features):
+        """Forward pass.
+
+        Parameters
+        ----------
+        features :  List[torch.Tensor]
+            List containing the output of each encoder block(skip connections) and final
+            output of the encoder
+
+        Returns
+        -------
+        torch.Tensor
+            output of the decoder
+        """
         # TODO skipskipone goes brrr
         x = features[0]
         skip_connections = features[1:][::-1]
@@ -110,7 +172,7 @@ class UnetDecoder(nn.Module):
 
 
 class UNet(nn.Module):
-    """UNet model. Refactored from https://github.com/juglab/n2v/blob/main/n2v/nets/unet_blocks.py
+    """UNet model. Refactored from https://github.com/juglab/n2v/blob/main/n2v/nets/unet_blocks.py.
 
     args:
         conv_dim: int
@@ -182,6 +244,18 @@ class UNet(nn.Module):
         )
 
     def forward(self, x):
+        """Forward pass.
+
+        Parameters
+        ----------
+        x :  torch.Tensor
+            input tensor
+
+        Returns
+        -------
+        torch.Tensor
+            final output of the model
+        """
         inputs = x.clone()
         encoder_features = self.encoder(x)
         x = self.decoder(*encoder_features)

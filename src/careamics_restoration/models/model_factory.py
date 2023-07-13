@@ -4,8 +4,8 @@ import torch
 
 from ..config import Configuration
 from ..config.algorithm import Models
-from .unet import UNet
 from ..utils.logging import get_logger
+from .unet import UNet
 
 logger = get_logger(__name__)
 
@@ -41,8 +41,10 @@ def create_model(config: Configuration) -> torch.nn.Module:
                     torch.load(config.working_directory / load_checkpoint)
                 )
                 logger.info(f"Loaded model from {Path(load_checkpoint).name}")
-            except FileNotFoundError:
-                raise FileNotFoundError(f"Checkpoint {load_checkpoint} not found")
+            except FileNotFoundError as exc:
+                raise FileNotFoundError(
+                    f"Checkpoint {load_checkpoint} not found"
+                ) from exc
         else:
             try:
                 logger.info(
@@ -50,6 +52,8 @@ def create_model(config: Configuration) -> torch.nn.Module:
                 )
                 model.load_state_dict(torch.load(load_checkpoint))
                 logger.info(f"Loaded model from {Path(load_checkpoint).name}")
-            except FileNotFoundError:
-                raise FileNotFoundError(f"Checkpoint {load_checkpoint} not found")
+            except FileNotFoundError as exc:
+                raise FileNotFoundError(
+                    f"Checkpoint {load_checkpoint} not found"
+                ) from exc
     return model
