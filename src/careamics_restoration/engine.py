@@ -25,7 +25,10 @@ from .utils import (
     setup_cudnn_reproducibility,
 )
 from careamics_restoration.utils.logging import ProgressLogger, get_logger
-from careamics_restoration.bioimage import build_zip_model
+from careamics_restoration.bioimage import (
+    build_zip_model, get_default_model_specs,
+    PYTORCH_STATE_DICT
+)
 
 
 def seed_everything(seed: int):
@@ -372,17 +375,39 @@ class Engine:
 
         torch.save(self.model.state_dict(), workdir / name)
 
-    def save_as_bioimage(self, model_data: Optional[dict] = None) -> BioimageModel:
-        """Export the current model to BioImage.io model zoo format."""
+    def save_as_bioimage(
+        self,
+        output_zip: Union[Path, str],
+        model_specs: Optional[dict] = None
+    ) -> BioimageModel:
+        """Export the current model to BioImage.io model zoo format.
+
+        Parameters
+        ----------
+        output_zip (Union[Path, str]): Where to save the model zip file.
+        model_specs (Optional[dict]): a dictionary that keys are the bioimage-core
+        `build_model` parameters.
+        If None then it will be populated up by the model default specs.
+        """
         workdir = self.cfg.working_directory
-        weights = workdir.joinpath(f"{self.cfg.experiment_name}_best.pth").absolute()
+        weight_path = workdir.joinpath(
+            f"{self.cfg.experiment_name}_best.pth").absolute()
         sample_in, sample_out = self._get_sample_io_files()
+
+        if model_specs is None:
+            model_specs = get_default_model_specs(self.cfg.algorithm.loss)
+
+        model_specs.update({
+            "output_path": output_zip,
+            "weight_type": PYTORCH_STATE_DICT,
+            "weight_uri": weight_path,
+            "test_inputs": sample_in,
+            "test_outputs": sample_out,
+        })
 
         raw_model = build_zip_model(
             config=self.cfg,
-            weights=weights,
-            sample_inputs=sample_in,
-            sample_outputs=sample_out
+            model_specs=model_specs,
         )
 
         return raw_model
