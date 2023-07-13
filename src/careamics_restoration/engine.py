@@ -415,13 +415,7 @@ class Engine:
     def _get_sample_io_files(self) -> Tuple[List[str], List[str]]:
         """Create numpy files for each model's input and outputs."""
         # TODO: to be implemented...
-        # Also, needs to know number of model's inputs and outputs and their shapes,
-        # or is it alway one input and one output?
-        # The tricky part is that in n2v rdf, the input shape is [1, 64, 64, 1],
-        # So it is channel-last at least in numpy.
-        # But here patches are [1, 64, 64].
-        data_loader = self.get_val_dataloader()
-        a_batch = next(iter(data_loader))
-        print(len(a_batch), a_batch[0].shape)  # 3, [128, 1, 64, 64]
+        # self.cfg.training.patch_size
+        # self.cfg.data.axes
 
         return ["dummy_in.npy"], ["dummy_out.npy"]

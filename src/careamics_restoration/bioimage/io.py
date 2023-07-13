@@ -57,11 +57,20 @@ def build_zip_model(
     ------
         A bioimage raw Model
     """
-    # workdir = config.working_directory
-    # workdir.mkdir(parents=True, exist_ok=True)
+    # save config file as attachments
+    workdir = config.working_directory
+    workdir.mkdir(parents=True, exist_ok=True)
+    config_file = workdir.joinpath("careamics_config.yml")
+    with open(config_file, mode="w") as f:
+        yaml.safe_dump(config, f)
+    # build model zip
     raw_model = build_model(
         root=Path(model_specs["output_path"]).parent,
+        attachments={"files": [config_file]},
         **model_specs
     )
+
+    # delete config_file
+    config_file.unlink()
 
     return raw_model
