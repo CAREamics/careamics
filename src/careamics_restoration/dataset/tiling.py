@@ -1,5 +1,4 @@
 import itertools
-import logging
 from typing import Generator, Iterable, List, Tuple
 
 import numpy as np
@@ -13,8 +12,7 @@ logger = get_logger(__name__)
 def _compute_number_of_patches(
     arr: np.ndarray, patch_sizes: Tuple[int]
 ) -> Tuple[int, ...]:
-    """Compute a number of patches in each dimension in order to covert the whole
-    array.
+    """Compute a number of patches in each dimension in order to covert the whole array.
 
     Array must be of dimensions C(Z)YX, and patches must be of dimensions YX or ZYX.
 
@@ -71,8 +69,10 @@ def compute_overlap(arr: np.ndarray, patch_sizes: Tuple[int]) -> Tuple[int, ...]
 def compute_crop_and_stitch_coords_1d(
     axis_size: int, tile_size: int, overlap: int
 ) -> Tuple[List[Tuple[int, int]], ...]:  # TODO mypy must be wrong here
-    """Compute the coordinates for cropping image into tiles, cropping the overlap from predictions and stitching
-    the tiles back together across one axis.
+    """Compute the coordinates for cropping image into tiles.
+
+    Computes coordinates to crop the overlap region from predictions and coordinates
+    for stitching the tiles back together across one axis.
 
     Parameters
     ----------
@@ -159,7 +159,7 @@ def compute_reshaped_view(
     window_shape: Tuple[int, ...],
     step: Tuple[int, ...],
     output_shape: Tuple[int, ...],
-    seed: int = 42
+    seed: int = 42,
 ) -> np.ndarray:
     """Compute the reshaped views of an array.
 
@@ -174,7 +174,7 @@ def compute_reshaped_view(
     output_shape : Tuple[int]
         Shape of the output array
     """
-    rng = np.random.default_rng(seed=seed)
+    rng = np.random.default_rng()
     patches = view_as_windows(arr, window_shape=window_shape, step=step).reshape(
         *output_shape
     )
@@ -188,12 +188,33 @@ def compute_reshaped_view(
 def extract_patches_sequential(
     arr: np.ndarray, patch_size: Tuple[int]
 ) -> Generator[np.ndarray, None, None]:
-    """Generate patches from an array of dimensions C(Z)YX, where C can
+    """Generate patches from an array.
+
+    Array dimensions should be C(Z)YX, where C can
     be a singleton dimension.
 
     The patches are generated sequentially and cover the whole array.
-    """
 
+    Parameters
+    ----------
+    arr : np.ndarray
+        input image array
+    patch_size : Tuple[int]
+        tuple of patch sizes in each dimension
+    seed : int, optional
+        _description_, by default 42
+
+    Yields
+    ------
+    Generator[np.ndarray, None, None]
+        generator of patches
+
+    Raises
+    ------
+    ValueError
+        Patch size isn't consistent with array shape, isn't a power of two, or is
+        less than 2
+    """
     # Patches sanity check
     if len(patch_size) != len(arr.shape[1:]):
         raise ValueError(
@@ -255,8 +276,29 @@ def extract_patches_sequential(
 
 # TODO: extract patches random default number of patches 1 or max? parameter for number of patches?
 # TODO: extract patches random but with the possibility to remove (almost) empty patches
-def extract_patches_random(arr, patch_size, seed: int=42) -> Generator[np.ndarray, None, None]:
-    rng = np.random.default_rng(seed=seed)
+def extract_patches_random(
+    arr: np.ndarray, patch_size: Tuple[int], seed: int = 42
+) -> Generator[np.ndarray, None, None]:
+    """Extracts random patches.
+
+    Extracts specified number of patches from the input array taken from
+    random locations.
+
+    Parameters
+    ----------
+    arr : np.ndarray
+        input image array
+    patch_size : Tuple[int]
+        tuple of patch sizes in each dimension
+    seed : int, optional
+        _description_, by default 42
+
+    Yields
+    ------
+    Generator[np.ndarray, None, None]
+        generator of patches
+    """
+    rng = np.random.default_rng()
     # shuffle the array along the first axis TODO do we need shuffling?
     rng.shuffle(arr, axis=0)
 
@@ -291,7 +333,29 @@ def extract_patches_predict(
     patch_size: Tuple[int],
     overlaps: Tuple[int],
 ) -> Iterable[List[np.ndarray]]:
+    """_summary_.
 
+    _extended_summary_
+
+    Parameters
+    ----------
+    arr : np.ndarray
+        _description_
+    patch_size : Tuple[int]
+        _description_
+    overlaps : Tuple[int]
+        _description_
+
+    Returns
+    -------
+    Iterable[List[np.ndarray]]
+        _description_
+
+    Yields
+    ------
+    Iterator[Iterable[List[np.ndarray]]]
+        _description_
+    """
     # Iterate over num samples (S)
     for sample_idx in range(arr.shape[0]):
         sample = arr[sample_idx]
@@ -303,15 +367,21 @@ def extract_patches_predict(
             )
             for i in range(len(patch_size))
         ]
-        # Rearrange crop coordinates from a list of coordinate pairs per axis to a list grouped by type.
-        # compute_crop_and_stitch_coords_1d outputs a tuple of crop coordinates, stitch coordinates and overlap crop 
-        # coordinates for each axis. This function rearranges the coordinates so that all crop coordinates, all stitch 
+        # Rearrange crop coordinates from a list of coordinate pairs per axis to a list
+        # grouped by type
+        # compute_crop_and_stitch_coords_1d outputs a tuple of crop coordinates, stitch
+        # coordinates and overlap crop
+        # coordinates for each axis. This function rearranges the coordinates so that al
+        # crop coordinates, all stitch
         # coordinates and all overlap crop coordinates.
-        # E.G. For axis of size 35 and patch size of 32 compute_crop_and_stitch_coords_1d will output 
-        # ([(0, 32), (3, 35)], [(0, 20), (20, 35)], [(0, 20), (17, 32)]), where the first list is crop coordinates for 
-        # 1st axis.
+        # For axis of size 35 and patch size of 32 compute_crop_and_stitch_coords_1d
+        # will output ([(0, 32), (3, 35)], [(0, 20), (20, 35)], [(0, 20), (17, 32)]),
+        # where the first list is crop coordinates for 1st axis.
+
         # TODO review this description, move this to separate function?
-        all_crop_coords, all_stitch_coords, all_overlap_crop_coords = zip(*crop_and_stitch_coords_list)
+        all_crop_coords, all_stitch_coords, all_overlap_crop_coords = zip(
+            *crop_and_stitch_coords_list
+        )
 
         # Iterate over generated coordinate pairs:
         for tile_idx, (crop_coords, stitch_coords, overlap_crop_coords) in enumerate(

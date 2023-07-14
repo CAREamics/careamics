@@ -82,7 +82,8 @@ class Prediction(BaseModel):
     def optional_parameters_if_tiling_true(
         cls, use_tiling: bool, values: FieldValidationInfo
     ) -> bool:
-        """Validate `use_tiling` if False, or only when optional parameters are
+        """ TODO Joran fix me 
+        Validate `use_tiling` if False, or only when optional parameters are
         specified if True.
         """
         if use_tiling:

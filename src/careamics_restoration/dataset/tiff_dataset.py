@@ -1,27 +1,58 @@
 import logging
 from pathlib import Path
-from typing import Callable, List, Optional, Tuple, Union, Dict, Generator
+from typing import Callable, Dict, Generator, List, Optional, Tuple, Union
 
 import numpy as np
 import tifffile
 import torch
 
 from careamics_restoration.config import Configuration
+from careamics_restoration.config.training import ExtractionStrategies
 from careamics_restoration.dataset.tiling import (
     extract_patches_predict,
-    extract_patches_sequential,
     extract_patches_random,
+    extract_patches_sequential,
 )
 from careamics_restoration.manipulation import default_manipulate
 from careamics_restoration.utils import normalize
-from careamics_restoration.config.training import ExtractionStrategies
 from careamics_restoration.utils.logging import get_logger
 
 logger = get_logger(__name__)
 
 
 class TiffDataset(torch.utils.data.IterableDataset):
-    """Dataset to extract patches from a list of tiff images and apply transforms to the patches."""
+    """Dataset to extract patches from a tiff image(s).
+
+    Parameters
+    ----------
+    data_path : str
+        Path to data, must be a directory.
+
+    axes: str
+        Description of axes in format STCZYX
+
+    patch_extraction_method: str
+        Patch extraction strategy, one of "sequential", "random", "tiled"
+
+    patch_size : Tuple[int]
+        The size of the patch to extract from the image. Must be a tuple of len either
+        2 or 3 depending on number of spatial dimension in the data.
+
+    patch_overlap: Tuple[int]
+        Size of the overlaps. Used for "tiled" tiling strategy.
+
+    mean: float
+        Expected mean of the samples
+
+    std: float
+        Expected std of the samples
+
+    patch_transform: Optional[Callable], optional
+        Transform to apply to patches.
+
+    patch_transform_params: Optional[Dict], optional
+        Additional parameters to pass to patch transform function
+    """
 
     def __init__(
         self,
@@ -36,37 +67,6 @@ class TiffDataset(torch.utils.data.IterableDataset):
         patch_transform: Optional[Callable] = None,
         patch_transform_params: Optional[Dict] = None,
     ) -> None:
-        """
-        Parameters
-        ----------
-        data_path : str
-            Path to data, must be a directory.
-
-        axes: str
-            Description of axes in format STCZYX
-
-        patch_extraction_method: str
-            Patch extraction strategy, one of "sequential", "random", "tiled"
-
-        patch_size : Tuple[int]
-            The size of the patch to extract from the image. Must be a tuple of len either 2 or 3
-            depending on number of spatial dimension in the data.
-
-        patch_overlap: Tuple[int]
-            Size of the overlaps. Used for "tiled" tiling strategy.
-
-        mean: float
-            Expected mean of the samples
-
-        std: float
-            Expected std of the samples
-
-        patch_transform: Optional[Callable], optional
-            Transform to apply to patches.
-
-        patch_transform_params: Optional[Dict], optional
-            Additional parameters to pass to patch transform function
-        """
         self.data_path = data_path
         self.data_format = data_format
         self.axes = axes
@@ -87,10 +87,38 @@ class TiffDataset(torch.utils.data.IterableDataset):
         self.patch_transform_params = patch_transform_params
 
     def list_files(self) -> List[Path]:
+        """Creates a list of paths to source tiff files from path string.
+
+        Returns
+        -------
+        List[Path]
+            List of pathlib.Path objects
+        """
         files = sorted(Path(self.data_path).rglob(f"*.{self.data_format}*"))
         return files
 
     def read_image(self, file_path: Path) -> np.ndarray:
+        """_summary_.
+
+        Parameters
+        ----------
+        file_path : Path
+            _description_
+
+        Returns
+        -------
+        np.ndarray
+            _description_
+
+        Raises
+        ------
+        e
+            _description_
+        ValueError
+            _description_
+        ValueError
+            _description_
+        """
         if file_path.suffix == ".npy":
             try:
                 sample = np.load(file_path)
@@ -181,8 +209,10 @@ class TiffDataset(torch.utils.data.IterableDataset):
         ------
         np.ndarray
         """
-        # When num_workers > 0, each worker process will have a different copy of the dataset object
-        # Configuring each copy independently to avoid having duplicate data returned from the workers
+        # When num_workers > 0, each worker process will have a different copy of the
+        # dataset object
+        # Configuring each copy independently to avoid having duplicate data returned
+        # from the workers
         worker_info = torch.utils.data.get_worker_info()
         worker_id = worker_info.id if worker_info is not None else 0
         num_workers = worker_info.num_workers if worker_info is not None else 1
@@ -194,7 +224,7 @@ class TiffDataset(torch.utils.data.IterableDataset):
 
     def __iter__(self) -> np.ndarray:
         """
-        Iterate over data source and yield single patch. Optional transform is applied to the patches.
+        Iterate over data source and yield single patch.
 
         Yields
         ------
@@ -231,7 +261,7 @@ class TiffDataset(torch.utils.data.IterableDataset):
 
 def get_train_dataset(config: Configuration) -> TiffDataset:
     """
-    Create TiffDataset instance from configuration
+    Create TiffDataset instance from configuration.
 
     Yields
     ------
@@ -243,7 +273,7 @@ def get_train_dataset(config: Configuration) -> TiffDataset:
     data_path = config.data.training_path
 
     dataset = TiffDataset(
-        data_path=data_path,  # TODO this can be None
+        data_path=data_path,
         data_format=config.data.data_format,
         axes=config.data.axes,
         mean=config.data.mean,
@@ -265,7 +295,7 @@ def get_validation_dataset(config: Configuration) -> TiffDataset:
     data_path = config.data.validation_path
 
     dataset = TiffDataset(
-        data_path=data_path,  # TODO this can be None
+        data_path=data_path,
         data_format=config.data.data_format,
         axes=config.data.axes,
         mean=config.data.mean,

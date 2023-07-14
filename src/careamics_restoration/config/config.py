@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import re
-from enum import Enum
 from pathlib import Path
 from typing import Optional, Union
 
@@ -166,7 +165,9 @@ class Configuration(BaseModel):
 
     @model_validator(mode="after")
     def at_least_training_or_prediction(cls, config: Configuration) -> Configuration:
-        """Check that at least one of training or prediction is defined, and that
+        """Checks training/prediction config validity.
+
+        Check that at least one of training or prediction is defined, and that
         the corresponding data path is as well.
 
         Parameters
@@ -203,7 +204,9 @@ class Configuration(BaseModel):
 
     @model_validator(mode="after")
     def validate_3D(cls, config: Configuration) -> Configuration:
-        """Check that the algorithm is_3D flag is compatible with the axes in the
+        """Checks 3D flag validity.
+
+        Check that the algorithm is_3D flag is compatible with the axes in the
         data configuration.
 
         Parameters

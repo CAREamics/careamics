@@ -1,4 +1,5 @@
 from typing import Tuple
+
 import numpy as np
 
 
@@ -9,16 +10,18 @@ def augment_batch(
     mask: np.ndarray,
     seed: int = 42,
 ) -> Tuple[np.ndarray, ...]:
-    """Augment a single array by applying a random 90 degress rotation and
-    possibly a flip.
+    """Apply augmentation fucntion to patches and masks.
 
     Parameters
     ----------
     patch : np.ndarray
-        Array containing single image or patch, 2D or 3D
+        Array containing single image or patch, 2D or 3D with masked pixels
     original_image : np.ndarray
+        Array containing original image or patch, 2D or 3D
+    mask : np.ndarray
+        Array containing only masked pixels, 2D or 3D
     seed : int, optional
-        Seed for random number generator, controls the rotation and flipping
+        Seed for random number generator, controls the rotation and falipping
 
     Returns
     -------

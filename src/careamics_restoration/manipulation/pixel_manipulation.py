@@ -3,54 +3,57 @@ from typing import Tuple
 import numpy as np
 
 
-def get_stratified_coords(mask_pixel_perc: float, shape: Tuple[int, ...], seed: int = 42) -> np.ndarray:
-    # TODO add description, add asserts, add typing, add line comments
-    """_summary_.
+def get_stratified_coords(
+    mask_pixel_perc: float, shape: Tuple[int, ...], seed: int = 42
+) -> np.ndarray:
+    """Get coordinates of the pixels to mask.
 
-    _extended_summary_
+    Randomly selects the coordinates of the pixels to mask in a stratified way, i.e.
+    the distance between masked pixels is approximately the same
 
     Parameters
     ----------
     mask_pixel_perc : float
-        _description_
+        Actual (quasi) percentage of masked pixels across the whole image. Used in
+        calculating the distance between masked pixels across each axis
     shape : Tuple[int, ...]
-        _description_
+        Shape of the input patch
 
     Returns
     -------
     np.ndarray
-        _description_
+        array of coordinates of the masked pixels
     """
-    rng = np.random.default_rng(seed=seed)
+    rng = np.random.default_rng()
 
     # Define the approximate distance between masked pixels
-    box_size = np.round(np.sqrt(100 / mask_pixel_perc)).astype(
-        np.int32
-    )
+    mask_pixel_distance = np.round(np.sqrt(100 / mask_pixel_perc)).astype(np.int32)
     # Define a grid of coordinates for each axis in the input patch and the step size
     pixel_coords = []
     for axis_size in shape:
         # make sure axis size is evenly divisible by box size
-        num_pixels = int(np.ceil(axis_size / box_size))
+        num_pixels = int(np.ceil(axis_size / mask_pixel_distance))
         axis_pixel_coords, step = np.linspace(
             0, axis_size, num_pixels, dtype=np.int32, endpoint=False, retstep=True
         )
-        #explain
+        # explain
         pixel_coords.append(axis_pixel_coords.T)
     # Create a meshgrid of coordinates for each axis in the input patch
     coordinate_grid_list = np.meshgrid(*pixel_coords)
     coordinate_grid = np.array(coordinate_grid_list).reshape(len(shape), -1).T
-    # Add random jitter to the grid to account for cases where the step size is not an integer
+    # Add random jitter to the grid to account for cases where the step size is not
+    # an integer
     odd_jitter = np.where(np.floor(step) == step, 0, rng.integers(0, 2))
     # Define the random jitter to be added to the grid
     odd_jitter_func = np.floor if odd_jitter == 0 else np.ceil
     grid_random_increment = rng.integers(
         odd_jitter_func(step) * np.ones_like(coordinate_grid).astype(np.int32) - 1,
-        size=coordinate_grid.shape, endpoint=True
+        size=coordinate_grid.shape,
+        endpoint=True,
     )
     coordinate_grid += grid_random_increment
     coordinate_grid = np.clip(coordinate_grid, 0, np.array(shape) - 1)
-    return coordinate_grid  
+    return coordinate_grid
 
 
 def default_manipulate(
@@ -58,7 +61,7 @@ def default_manipulate(
     mask_pixel_percentage: float,
     roi_size: int = 5,
     augmentations=None,
-    seed: int = 42
+    seed: int = 42,
 ) -> Tuple[np.ndarray, ...]:
     """Manipulate pixel in a patch with N2V algorithm.
 
@@ -81,7 +84,7 @@ def default_manipulate(
     original_patch = patch.copy()
     # Get the coordinates of the pixels to be replaced
     roi_centers = get_stratified_coords(mask_pixel_percentage, patch.shape)
-    rng = np.random.default_rng(seed=seed)
+    rng = np.random.default_rng()
     # Generate coordinate grid for ROI
     roi_span_full = np.arange(-np.floor(roi_size / 2), np.ceil(roi_size / 2)).astype(
         np.int32
