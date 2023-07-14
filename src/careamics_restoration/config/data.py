@@ -30,7 +30,7 @@ class SupportedExtensions(str, Enum):
 
     TIFF = "tiff"
     TIF = "tif"
-    NPY = "npy"  # TODO check if actually supported, probably not.
+    NPY = "npy"  # TODO remove numpy after we reupload the dataset as zarr
     ZARR = "zarr"
 
     @classmethod

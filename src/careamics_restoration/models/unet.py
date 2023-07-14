@@ -30,7 +30,7 @@ class UnetEncoder(nn.Module):
         conv_dim: int,
         in_channels: int = 1,
         depth: int = 3,
-        num_channels_init: int = 64,  # TODO rename to num_channels_init
+        num_channels_init: int = 64,
         use_batch_norm=True,
         dropout=0.0,
         pool_kernel=2,

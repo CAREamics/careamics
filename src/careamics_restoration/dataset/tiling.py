@@ -378,7 +378,6 @@ def extract_patches_predict(
         # will output ([(0, 32), (3, 35)], [(0, 20), (20, 35)], [(0, 20), (17, 32)]),
         # where the first list is crop coordinates for 1st axis.
 
-        # TODO review this description, move this to separate function?
         all_crop_coords, all_stitch_coords, all_overlap_crop_coords = zip(
             *crop_and_stitch_coords_list
         )

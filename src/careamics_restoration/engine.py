@@ -381,7 +381,6 @@ class Engine:
         Tuple[DataLoader, bool]
             _description_
         """
-        # TODO add description
         # TODO mypy does not take into account "is not None", we need to find a workaround
         if external_input is not None:
             normalized_input = normalize(external_input, mean, std)
