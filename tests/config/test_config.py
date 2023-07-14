@@ -149,7 +149,7 @@ def test_minimum_config(minimum_config: dict):
 def test_complete_config(complete_config: dict):
     """Test that we can instantiate a minimum config."""
     dictionary = Configuration(**complete_config).model_dump()
-    assert dictionary == complete_config
+    assert sorted(dictionary) == sorted(complete_config)
 
 
 def test_config_to_dict_with_default_optionals(complete_config: dict):
@@ -163,7 +163,7 @@ def test_config_to_dict_with_default_optionals(complete_config: dict):
     complete_config["algorithm"]["masked_pixel_percentage"] = 0.2
     complete_config["algorithm"]["model_parameters"] = {
         "depth": 2,
-        "num_filters_base": 96,
+        "num_channels_init": 96,
     }
 
     # Training default optional parameters

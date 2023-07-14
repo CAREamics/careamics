@@ -104,7 +104,7 @@ def complete_config(tmp_path: Path, minimum_config: dict) -> dict:
     complete_config["algorithm"]["masked_pixel_percentage"] = 0.6
     complete_config["algorithm"]["model_parameters"] = {
         "depth": 8,
-        "num_filters_base": 128,
+        "num_channels_init": 96,
     }
 
     complete_config["training"]["optimizer"]["parameters"] = {
@@ -176,4 +176,4 @@ def array_3D() -> np.ndarray:
     np.ndarray
         3D array with shape (1, 5, 10, 9).
     """
-    return np.arange(450).reshape((1, 5, 10, 9))
+    return np.arange(2048).reshape((1, 8, 16, 16))
