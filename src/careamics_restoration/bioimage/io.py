@@ -19,6 +19,11 @@ PYTORCH_STATE_DICT = "pytorch_state_dict"
 def _load_model_rdf(name: str) -> dict:
     """Load an rdf(yaml) file given a model name."""
     name = name.lower()
+    rdf_file = Path(__file__).parent.joinpath(name + ".yaml")
+    if not rdf_file.exists:
+        # a warning maybe?
+        return {}
+
     with open(Path(__file__).parent.joinpath(name + ".yaml")) as f:
         rdf = yaml.safe_load(f)
 

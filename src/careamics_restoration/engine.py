@@ -394,10 +394,11 @@ class Engine:
             f"{self.cfg.experiment_name}_best.pth").absolute()
         sample_in, sample_out = self._get_sample_io_files()
 
-        if model_specs is None:
-            model_specs = get_default_model_specs(self.cfg.algorithm.loss)
+        specs = get_default_model_specs(self.cfg.algorithm.loss)
+        if model_specs is not None:
+            specs.update(model_specs)
 
-        model_specs.update({
+        specs.update({
             "output_path": output_zip,
             "weight_type": PYTORCH_STATE_DICT,
             "weight_uri": weight_path,
@@ -407,7 +408,7 @@ class Engine:
 
         raw_model = build_zip_model(
             config=self.cfg,
-            model_specs=model_specs,
+            model_specs=specs,
         )
 
         return raw_model
