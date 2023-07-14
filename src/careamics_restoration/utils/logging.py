@@ -1,35 +1,33 @@
 import logging
 import sys
-from logging.handlers import RotatingFileHandler
-from typing import Iterable, Union, Sized
+from typing import Iterable
 
-from rich.console import Group, Console
+from rich.console import Console, Group
+from rich.live import Live
 from rich.logging import RichHandler
 from rich.padding import Padding
 from rich.panel import Panel
 from rich.progress import (
-    Progress,
     BarColumn,
-    TextColumn,
-    TimeRemainingColumn,
     MofNCompleteColumn,
-    TimeElapsedColumn,
+    Progress,
     SpinnerColumn,
+    TextColumn,
+    TimeElapsedColumn,
+    TimeRemainingColumn,
 )
-from rich.live import Live
 from rich_pixels import Pixels
 
-
-banner = """                                                                                                                         
-   ......       ......     ........     ........                                   ....                          
- -+++----+-   -+++--+++-  :+++---+++:  :+++-----                                   .--:                          
-.+++     .:   +++.  .+++. :+++   :+++  :+++         :------.   .---:----..:----.   :---    :----:     :----:.  
-.+++         .+++.  .+++. :+++   -++=  :+++        +=....=+++  :+++-..=+++-..=++=  -+++  .+++-..++   +++-..=+. 
-.+++         .++++++++++. :++++++++=.  :++++++:          .+++. :+++   :+++   -+++  -+++  :+++       .+++=.     
-.+++         .+++.  .+++. :+++   -+++  :+++        :=++==++++. :+++   :+++   -+++  -+++  :+++        .-=+++=:  
-.+++     ..  .+++.  .+++. :+++   :+++  :+++       .+++.  .+++. :+++   :+++   -+++  -+++  :+++   ..   ..  :+++. 
- -++=-::-+=  .+++.  .+++. :+++   :+++  :+++-::::   =++=--=+++. :+++   :+++   -+++  -+++   =++=:-+=   =+-:=++=  
-   ......     ...    ...   ...    ...   ........     .... ...   ...    ...   ....  ....     ....      .....                                                                                                                                                                                                                    
+banner = """
+   ......       ......     ........     ........                                   ....
+ -+++----+-   -+++--+++-  :+++---+++:  :+++-----                                   .--:
+.+++     .:   +++.  .+++. :+++   :+++  :+++         :------.   .---:----..:----.   :---    :----:     :----:.
+.+++         .+++.  .+++. :+++   -++=  :+++        +=....=+++  :+++-..=+++-..=++=  -+++  .+++-..++   +++-..=+.
+.+++         .++++++++++. :++++++++=.  :++++++:          .+++. :+++   :+++   -+++  -+++  :+++       .+++=.
+.+++         .+++.  .+++. :+++   -+++  :+++        :=++==++++. :+++   :+++   -+++  -+++  :+++        .-=+++=:
+.+++     ..  .+++.  .+++. :+++   :+++  :+++       .+++.  .+++. :+++   :+++   -+++  -+++  :+++   ..   ..  :+++.
+ -++=-::-+=  .+++.  .+++. :+++   :+++  :+++-::::   =++=--=+++. :+++   :+++   -+++  -+++   =++=:-+=   =+-:=++=
+   ......     ...    ...   ...    ...   ........     .... ...   ...    ...   ....  ....     ....      .....
 """
 
 LOGGERS = {}

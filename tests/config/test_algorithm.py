@@ -87,7 +87,7 @@ def test_algorithm_to_dict_complete(complete_config: dict):
     """ "Test that export to dict does not include optional values."""
     algorithm_complete = Algorithm(**complete_config["algorithm"]).model_dump()
     assert algorithm_complete == complete_config["algorithm"]
-    #TODO values are hardcoded in the fixture, is it ok ?
+    # TODO values are hardcoded in the fixture, is it ok ?
     assert "loss" in algorithm_complete
     assert "model" in algorithm_complete
     assert "is_3D" in algorithm_complete

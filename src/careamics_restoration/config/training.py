@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import List
 
 from pydantic import (
     BaseModel,
@@ -324,7 +323,7 @@ class Training(BaseModel):
 
     # Mandatory fields
     num_epochs: int
-    patch_size: List[int] = Field(..., min_length=2, max_length=3)
+    patch_size: list[int] = Field(..., min_length=2, max_length=3)
     batch_size: int
 
     optimizer: Optimizer
@@ -351,7 +350,7 @@ class Training(BaseModel):
         return val
 
     @field_validator("patch_size")
-    def all_elements_non_zero_divisible_by_2(cls, patch_list: List[int]) -> List[int]:
+    def all_elements_non_zero_divisible_by_2(cls, patch_list: list[int]) -> list[int]:
         """Validate patch size.
 
         Patch size must be non-zero, positive and divisible by 2.
