@@ -11,9 +11,8 @@ from careamics_restoration.config import Configuration
 from careamics_restoration.config.algorithm import Algorithm
 from careamics_restoration.config.data import Data
 from careamics_restoration.config.prediction import Prediction
-from careamics_restoration.config.training import Training, Optimizer, LrScheduler
+from careamics_restoration.config.training import LrScheduler, Optimizer, Training
 from careamics_restoration.engine import Engine
-
 
 TEST_IMAGE_SIZE = (128, 128)
 TEST_PATCH_SIZE = (64, 64)
@@ -41,7 +40,9 @@ def example_data_path(temp_dir: Path) -> Tuple[Path, Path]:
 
 
 @pytest.fixture
-def base_configuration(temp_dir: Path, example_data_path: Tuple[Path, Path]) -> Configuration:
+def base_configuration(
+    temp_dir: Path, example_data_path: Tuple[Path, Path]
+) -> Configuration:
     train_dir, val_dir = example_data_path
     configuration = Configuration(
         experiment_name="smoke_test",

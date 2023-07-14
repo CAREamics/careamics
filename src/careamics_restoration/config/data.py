@@ -92,7 +92,9 @@ class Data(BaseModel):
 
     # Optional fields
     training_path: Optional[Union[Path, str]] = None
-    validation_path: Optional[Union[Path, str]] = None # TODO Jerome: validation path must be there 
+    validation_path: Optional[
+        Union[Path, str]
+    ] = None  # TODO Jerome: validation path must be there
     prediction_path: Optional[Union[Path, str]] = None
 
     mean: Optional[float] = None

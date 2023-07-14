@@ -1,4 +1,3 @@
-import logging
 from pathlib import Path
 from typing import Callable, List, Optional, Tuple, Union
 
@@ -7,7 +6,7 @@ import torch
 import zarr
 from tqdm import tqdm
 
-from ..utils import normalize, check_axes_validity
+from ..utils import check_axes_validity
 from ..utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -71,7 +70,6 @@ class NGFFDataset(torch.utils.data.IterableDataset):
         -------
         image volume : np.ndarray
         """
-
         zarr_source = zarr.open(Path(data_source), mode="r")
         if isinstance(zarr_source, zarr.hierarchy.Group):
             # get members
