@@ -126,13 +126,13 @@ class Engine:
                     # Add update scheduler rule based on type
                     lr_scheduler.step(eval_outputs["loss"])
                     if len(val_losses) == 0 or eval_outputs["loss"] < min(val_losses):
-                        self.save_checkpoint(True)
+                        name = self.save_checkpoint(True)
                     else:
-                        self.save_checkpoint(False)
+                        name = self.save_checkpoint(False)
                     val_losses.append(eval_outputs["loss"])
                     self.logger.info(
-                        f"Saved checkpoint to {self.cfg.working_directory}"
-                    )  # TODO add absolute path and name
+                        f"Saved checkpoint to {self.cfg.working_directory.absolute() / name}"
+                    )
 
             except KeyboardInterrupt:
                 self.logger.info("Training interrupted")
@@ -468,3 +468,4 @@ class Engine:
         workdir.mkdir(parents=True, exist_ok=True)
 
         torch.save(self.model.state_dict(), workdir / name)
+        return name
