@@ -47,31 +47,31 @@ class ModelParameters(BaseModel):
     ----------
     depth : int
         Depth of the model, between 1 and 10 (default 2).
-    num_filters_base : int
+    num_channels_init : int
         Number of filters of the first level of the network, should be even
         and minimum 8 (default 96).
     """
 
     depth: int = Field(default=2, ge=1, le=10)
-    num_filters_base: int = 96
+    num_channels_init: int = 96
 
-    # TODO revisit the constraints on num_filters_base
-    @field_validator("num_filters_base")
-    def greater_than_eight_and_even(cls, num_filters: int):
-        """Validate that num_filter_base is a power of two (minimum 8)."""
+    # TODO revisit the constraints on num_channels_init
+    @field_validator("num_channels_init")
+    def greater_than_eight_and_even(cls, num_channels: int):
+        """Validate that num_channels_init is a power of two (minimum 8)."""
         # if odd
-        if num_filters % 2 != 0:
+        if num_channels % 2 != 0:
             raise ValueError(
-                f"Number of filters (base) must be even (got {num_filters})."
+                f"Number of channels (init) must be even (got {num_channels})."
             )
 
         # if less than 8
-        if num_filters < 8:
+        if num_channels < 8:
             raise ValueError(
-                f"Number of filters (base) must be at least 8 (got {num_filters})."
+                f"Number of filters (base) must be at least 8 (got {num_channels})."
             )
 
-        return num_filters
+        return num_channels
 
 
 class Algorithm(BaseModel):

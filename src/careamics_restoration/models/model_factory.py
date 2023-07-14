@@ -28,7 +28,7 @@ def create_model(config: Configuration) -> torch.nn.Module:
         model = UNet(
             depth=model_config.depth,
             conv_dim=algo_config.get_conv_dim(),
-            num_filter_base=model_config.num_filters_base,
+            num_channels_init=model_config.num_channels_init,
         )
 
     if load_checkpoint is not None:
