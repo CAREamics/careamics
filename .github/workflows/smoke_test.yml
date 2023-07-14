@@ -32,4 +32,4 @@ jobs:
           python -m pip install .[test]
 
       - name: 🧪 Run Tests
-        run: pytest --color=yes --cov --cov-report=xml --cov-report=term-missing tests/smoke_test.py
+        run: pytest --color=yes tests/smoke_test.py
