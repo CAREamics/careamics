@@ -23,26 +23,26 @@ def test_model_parameters_wrong_depth(complete_config: dict, depth: int):
         ModelParameters(**model_params)
 
 
-@pytest.mark.parametrize("num_filters_base", [8, 16, 32, 96, 128])
-def test_model_parameters_num_filters_base(
-    complete_config: dict, num_filters_base: int
+@pytest.mark.parametrize("num_channels_init", [8, 16, 32, 96, 128])
+def test_model_parameters_num_channels_init(
+    complete_config: dict, num_channels_init: int
 ):
-    """Test that ModelParameters accepts num_filters_base as a power of two and
+    """Test that ModelParameters accepts num_channels_init as a power of two and
     minimum 8."""
     model_params = complete_config["algorithm"]["model_parameters"]
-    model_params["num_filters_base"] = num_filters_base
+    model_params["num_channels_init"] = num_channels_init
 
     model_params = ModelParameters(**model_params)
-    assert model_params.num_filters_base == num_filters_base
+    assert model_params.num_channels_init == num_channels_init
 
 
-@pytest.mark.parametrize("num_filters_base", [2, 17, 127])
-def test_model_parameters_wrong_num_filters_base(
-    complete_config: dict, num_filters_base: int
+@pytest.mark.parametrize("num_channels_init", [2, 17, 127])
+def test_model_parameters_wrong_num_channels_init(
+    complete_config: dict, num_channels_init: int
 ):
-    """Test that wrong num_filters_base cause an error."""
+    """Test that wrong num_channels_init cause an error."""
     model_params = complete_config["algorithm"]["model_parameters"]
-    model_params["num_filters_base"] = num_filters_base
+    model_params["num_channels_init"] = num_channels_init
 
     with pytest.raises(ValueError):
         ModelParameters(**model_params)
@@ -87,7 +87,7 @@ def test_algorithm_to_dict_complete(complete_config: dict):
     """ "Test that export to dict does not include optional values."""
     algorithm_complete = Algorithm(**complete_config["algorithm"]).model_dump()
     assert algorithm_complete == complete_config["algorithm"]
-
+    #TODO values are hardcoded in the fixture, is it ok ?
     assert "loss" in algorithm_complete
     assert "model" in algorithm_complete
     assert "is_3D" in algorithm_complete
@@ -95,7 +95,7 @@ def test_algorithm_to_dict_complete(complete_config: dict):
     assert "masked_pixel_percentage" in algorithm_complete
     assert "model_parameters" in algorithm_complete
     assert "depth" in algorithm_complete["model_parameters"]
-    assert "num_filters_base" in algorithm_complete["model_parameters"]
+    assert "num_channels_init" in algorithm_complete["model_parameters"]
 
 
 def test_algorithm_to_dict_optionals(complete_config: dict):
@@ -104,7 +104,7 @@ def test_algorithm_to_dict_optionals(complete_config: dict):
     algo_config = complete_config["algorithm"]
     algo_config["model_parameters"] = {
         "depth": 2,
-        "num_filters_base": 96,
+        "num_channels_init": 96,
     }
     algo_config["masking_strategy"] = "default"
 
