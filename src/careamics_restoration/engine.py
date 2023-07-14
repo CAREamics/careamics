@@ -392,7 +392,7 @@ class Engine:
         workdir = self.cfg.working_directory
         weight_path = workdir.joinpath(
             f"{self.cfg.experiment_name}_best.pth").absolute()
-        sample_in, sample_out = self._get_sample_io_files()
+        test_inputs, test_outputs = self._get_sample_io_files()
 
         specs = get_default_model_specs(self.cfg.algorithm.loss)
         if model_specs is not None:
@@ -403,8 +403,8 @@ class Engine:
             "weight_type": PYTORCH_STATE_DICT,
             "weight_uri": weight_path,
             "architecture": "careamics_restoration.models.unet",
-            "test_inputs": sample_in,
-            "test_outputs": sample_out,
+            "test_inputs": test_inputs,
+            "test_outputs": test_outputs,
         })
 
         raw_model = build_zip_model(
@@ -416,8 +416,24 @@ class Engine:
 
     def _get_sample_io_files(self) -> Tuple[List[str], List[str]]:
         """Create numpy files for each model's input and outputs."""
-        # TODO: to be implemented...
-        # self.cfg.training.patch_size
-        # self.cfg.data.axes
+        # TODO: Right now this just creates random arrays.
+        # input:
+        sample_input = np.random.randn(*self.cfg.training.patch_size)
+        # if there are more input axes (like channel, ...),
+        # then expand the sample dimensions.
+        len_diff = len(self.cfg.data.axes) - len(self.cfg.training.patch_size)
+        if len_diff > 0:
+            sample_input = np.expand_dims(
+                sample_input,
+                axis=tuple(i for i in range(len_diff))
+            )
+        # output: I guess this is the same as input.
+        sample_output = np.random.randn(*sample_input.shape)
+        # save numpy files
+        workdir = self.cfg.working_directory
+        in_file = workdir.joinpath("test_inputs.npy", sample_input)
+        np.save(in_file, sample_input)
+        out_file = workdir.joinpath("test_outputs.npy", sample_output)
+        np.save(out_file, sample_output)
 
-        return ["dummy_in.npy"], ["dummy_out.npy"]
+        return [str(in_file)], [str(out_file)]
