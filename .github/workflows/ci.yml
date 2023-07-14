@@ -52,7 +52,7 @@ jobs:
           python -m pip install .[test] ${{ github.event_name == 'schedule' && '--pre' || ''  }}
 
       - name: 🧪 Run Tests
-        run: pytest --color=yes --cov --cov-report=xml --cov-report=term-missing -m "not dataset"
+        run: pytest --color=yes --cov --cov-report=xml --cov-report=term-missing
 
       # If something goes wrong with --pre tests, we can open an issue in the repo
       - name: 📝 Report --pre Failures
