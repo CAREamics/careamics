@@ -402,6 +402,7 @@ class Engine:
             "output_path": output_zip,
             "weight_type": PYTORCH_STATE_DICT,
             "weight_uri": weight_path,
+            "architecture": "careamics_restoration.models.unet",
             "test_inputs": sample_in,
             "test_outputs": sample_out,
         })
