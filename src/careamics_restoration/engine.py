@@ -1,6 +1,6 @@
 import random
 from pathlib import Path
-from typing import Optional, Tuple, Union, List
+from typing import Dict, Optional, Tuple, Union, List
 
 import numpy as np
 import torch
@@ -8,10 +8,12 @@ from torch.utils.data import DataLoader, TensorDataset
 
 from bioimageio.spec.model.raw_nodes import Model as BioimageModel
 
+from careamics_restoration.utils.logging import ProgressLogger, get_logger
+
 from .config import load_configuration
 from .dataset.tiff_dataset import (
-    get_train_dataset,
     get_prediction_dataset,
+    get_train_dataset,
     get_validation_dataset,
 )
 from .losses import create_loss_function
@@ -24,7 +26,6 @@ from .utils import (
     normalize,
     setup_cudnn_reproducibility,
 )
-from careamics_restoration.utils.logging import ProgressLogger, get_logger
 from careamics_restoration.bioimage import (
     build_zip_model, get_default_model_specs,
     PYTORCH_STATE_DICT
@@ -32,6 +33,7 @@ from careamics_restoration.bioimage import (
 
 
 def seed_everything(seed: int):
+    """Seed all random number generators for reproducibility."""
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
@@ -41,6 +43,14 @@ def seed_everything(seed: int):
 
 # TODO: discuss normalization strategies, test running mean and std
 class Engine:
+    """Main Engine class.
+
+    Parameters
+    ----------
+    cfg_path : Union[str, Path]
+
+    """
+
     def __init__(self, cfg_path: Union[str, Path]) -> None:
         # load configuration from disk
         self.cfg = load_configuration(cfg_path)
@@ -62,6 +72,7 @@ class Engine:
         seed_everything(seed=42)
 
     def log_metrics(self):
+        """Log metrics to wandb or default logger."""
         if self.cfg.misc.use_wandb:
             try:  # TODO Vera will fix this funzione di merda
                 import wandb
@@ -78,6 +89,11 @@ class Engine:
             self.logger.info("Using default logger")
 
     def train(self):
+        """Main train method.
+
+        Performs training and validation steps for the specified number of epochs.
+
+        """
         if self.cfg.training is not None:
             # General func
             train_loader = self.get_train_dataloader()
@@ -122,7 +138,7 @@ class Engine:
                     val_losses.append(eval_outputs["loss"])
                     self.logger.info(
                         f"Saved checkpoint to {self.cfg.working_directory}"
-                    )
+                    )  # TODO add absolute path and name
 
             except KeyboardInterrupt:
                 self.logger.info("Training interrupted")
@@ -138,17 +154,21 @@ class Engine:
         scaler: torch.cuda.amp.GradScaler,
         amp: bool,
     ):
-        """_summary_.
-
-        _extended_summary_
+        """Runs a single epoch of training.
 
         Parameters
         ----------
-        model : _type_
-            _description_
-        loader : _type_
-            _description_
+        loader : torch.utils.data.DataLoader
+            dataloader object for training stage
+        optimizer : torch.optim.Optimizer
+            optimizer object
+        scaler : torch.cuda.amp.GradScaler
+            scaler object for mixed precision training
+        amp : bool
+            whether to use automatic mixed precision
         """
+        # TODO looging error LiveError: Only one live display may be active at once
+
         avg_loss = MetricTracker()
         self.model.to(self.device)
         self.model.train()
@@ -170,7 +190,19 @@ class Engine:
 
         return {"loss": avg_loss.avg}
 
-    def evaluate(self, eval_loader: torch.utils.data.DataLoader):
+    def evaluate(self, eval_loader: torch.utils.data.DataLoader) -> Dict[str, float]:
+        """Perform evaluation on the validation set.
+
+        Parameters
+        ----------
+        eval_loader : torch.utils.data.DataLoader
+            dataloader object for validation set
+
+        Returns
+        -------
+        metrics: Dict
+            validation metrics
+        """
         self.model.eval()
         avg_loss = MetricTracker()
 
@@ -187,9 +219,28 @@ class Engine:
     def predict(
         self,
         external_input: Optional[np.ndarray] = None,
-        mean: float = None,
-        std: float = None,
-    ):
+        mean: Optional[float] = None,
+        std: Optional[float] = None,
+    ) -> np.ndarray:
+        """Inference.
+
+        Can be used with external input or with the dataset, provided in the
+        configuration file.
+
+        Parameters
+        ----------
+        external_input : Optional[np.ndarray], optional
+            external image array to predict on, by default None
+        mean : float, optional
+            mean of the train dataset, by default None
+        std : float, optional
+            standard deviation of the train dataset, by default None
+
+        Returns
+        -------
+        np.ndarray
+            predicted image array of the same shape as the input
+        """
         self.model.to(self.device)
         self.model.eval()
         # TODO external input shape should either be compatible with the model or tiled. Add checks and raise errors
@@ -207,6 +258,7 @@ class Engine:
             mean=mean,
             std=std,
         )
+        # TODO keep getting this ValueError: Mean or std are not specified in the configuration and in parameters
 
         tiles = []
         prediction = []
@@ -217,7 +269,7 @@ class Engine:
         else:
             self.logger.info("Starting prediction on whole sample")
 
-        # TODO add fucntion to assess the external input.
+        # TODO Joran/Vera: make this as a config object, add function to assess the external input
         with torch.no_grad():
             # TODO tiled prediction slow af, profile and optimize
             # TODO progress bar isn't displayed
@@ -274,6 +326,15 @@ class Engine:
 
     # TODO: add custom collate function and separate dataloader create function, sampler?
     def get_train_dataloader(self) -> DataLoader:
+        """_summary_.
+
+        _extended_summary_
+
+        Returns
+        -------
+        DataLoader
+            _description_
+        """
         dataset = get_train_dataset(self.cfg)
         dataloader = DataLoader(
             dataset,
@@ -284,6 +345,15 @@ class Engine:
         return dataloader
 
     def get_val_dataloader(self) -> DataLoader:
+        """_summary_.
+
+        _extended_summary_
+
+        Returns
+        -------
+        DataLoader
+            _description_
+        """
         dataset = get_validation_dataset(self.cfg)
         dataloader = DataLoader(
             dataset,
@@ -296,9 +366,27 @@ class Engine:
     def get_predict_dataloader(
         self,
         external_input: Optional[np.ndarray] = None,
-        mean: float = None,
-        std: float = None,
+        mean: Optional[float] = None,
+        std: Optional[float] = None,
     ) -> Tuple[DataLoader, bool]:
+        """_summary_.
+
+        _extended_summary_
+
+        Parameters
+        ----------
+        external_input : Optional[np.ndarray], optional
+            _description_, by default None
+        mean : Optional[float], optional
+            _description_, by default None
+        std : Optional[float], optional
+            _description_, by default None
+
+        Returns
+        -------
+        Tuple[DataLoader, bool]
+            _description_
+        """
         # TODO add description
         # TODO mypy does not take into account "is not None", we need to find a workaround
         if external_input is not None:
@@ -326,16 +414,17 @@ class Engine:
     def get_optimizer_and_scheduler(
         self,
     ) -> Tuple[torch.optim.Optimizer, torch.optim.lr_scheduler.LRScheduler]:
-        """Builds a model based on the model_name or load a checkpoint.
+        """Creates optimizer and learning rate scheduler objects.
 
-        _extended_summary_
+        Returns
+        -------
+        Tuple[torch.optim.Optimizer, torch.optim.lr_scheduler.LRScheduler]
 
-        Parameters
-        ----------
-        model_name : _type_
-            _description_
+        Raises
+        ------
+        ValueError
+            If the entry is missing in the configuration file.
         """
-        # assert inspect.get
         if self.cfg.training is not None:
             # retrieve optimizer name and parameters from config
             optimizer_name = self.cfg.training.optimizer.name
@@ -356,6 +445,17 @@ class Engine:
             raise ValueError("Missing training entry in configuration file.")
 
     def get_grad_scaler(self) -> torch.cuda.amp.GradScaler:
+        """Create the gradscaler object.
+
+        Returns
+        -------
+        torch.cuda.amp.GradScaler
+
+        Raises
+        ------
+        ValueError
+            If the entry is missing in the configuration file.
+        """
         if self.cfg.training is not None:
             use = self.cfg.training.amp.use
             scaling = self.cfg.training.amp.init_scale
