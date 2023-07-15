@@ -1,17 +1,11 @@
 from pathlib import Path
-# from typing import Optional, Union
 
 import yaml
 
-# from bioimageio.spec.model import raw_nodes as model
-# from bioimageio.spec.rdf import raw_nodes as rdf
-# from bioimageio.spec.shared.raw_nodes import RawNode
 from bioimageio.spec.model.raw_nodes import Model
 from bioimageio.core.build_spec import build_model
 
 from careamics_restoration.config.config import Configuration
-# from careamics_restoration.config.algorithm import Losses
-# from .rdfs import BIOIMAGE_MODEL_RDFS
 
 PYTORCH_STATE_DICT = "pytorch_state_dict"
 
