@@ -5,7 +5,9 @@ import yaml
 from bioimageio.spec.model.raw_nodes import Model
 from bioimageio.core.build_spec import build_model
 
-from careamics_restoration.config.config import Configuration
+from careamics_restoration.config.config import (
+    Configuration, save_configuration
+)
 
 PYTORCH_STATE_DICT = "pytorch_state_dict"
 
@@ -13,25 +15,24 @@ PYTORCH_STATE_DICT = "pytorch_state_dict"
 def _load_model_rdf(name: str) -> dict:
     """Load an rdf(yaml) file given a model name."""
     name = name.lower()
-    rdf_file = Path(__file__).parent.joinpath(name + ".yaml")
+    rdf_file = Path(__file__).parent.joinpath("rdfs").joinpath(name + ".yaml")
     if not rdf_file.exists:
         # a warning maybe?
         return {}
 
-    with open(Path(__file__).parent.joinpath(name + ".yaml")) as f:
+    with open(rdf_file) as f:
         rdf = yaml.safe_load(f)
 
     # add covers if available
-    cover_folder = Path(__file__).parent.parent.joinpath("covers")
+    cover_folder = Path(__file__).parent.joinpath("covers")
     cover_images = list(cover_folder.glob(f"{name}_cover*.*"))
     if len(cover_images) > 0:
         rdf["covers"] = [str(img.absolute()) for img in cover_images]
 
     # add documentation (md file)
-    doc_folder = Path(__file__).parent.parent.joinpath("docs")
-    doc = list(doc_folder.glob(f"{name}.md"))
-    if len(doc) > 0:
-        rdf["documentation"] = doc[0]
+    doc = Path(__file__).parent.joinpath("docs").joinpath(f"{name}.md")
+    if doc.exists() > 0:
+        rdf["documentation"] = str(doc.absolute())
 
     return rdf
 
@@ -59,13 +60,11 @@ def build_zip_model(
     # save config file as attachments
     workdir = config.working_directory
     workdir.mkdir(parents=True, exist_ok=True)
-    config_file = workdir.joinpath("careamics_config.yml")
-    with open(config_file, mode="w") as f:
-        yaml.safe_dump(config, f)
+    config_file = save_configuration(config, workdir.joinpath("careamics_config.yml"))
     # build model zip
     raw_model = build_model(
-        root=Path(model_specs["output_path"]).parent,
-        attachments={"files": [config_file]},
+        root=str(Path(model_specs["output_path"]).parent.absolute()),
+        attachments={"files": [str(config_file)]},
         **model_specs
     )
 
@@ -73,3 +72,7 @@ def build_zip_model(
     config_file.unlink()
 
     return raw_model
+
+
+if __name__ == "__main__":
+    print(_load_model_rdf("n2v"))

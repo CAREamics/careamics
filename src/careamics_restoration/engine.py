@@ -499,9 +499,9 @@ class Engine:
             specs.update(model_specs)
 
         specs.update({
-            "output_path": output_zip,
+            "output_path": str(output_zip),
             "weight_type": PYTORCH_STATE_DICT,
-            "weight_uri": weight_path,
+            "weight_uri": str(weight_path),
             "architecture": "careamics_restoration.models.unet",
             "test_inputs": test_inputs,
             "test_outputs": test_outputs,
@@ -527,13 +527,15 @@ class Engine:
                 sample_input,
                 axis=tuple(i for i in range(len_diff))
             )
+        # finally add batch dim
+        sample_input = np.expand_dims(sample_input, axis=0)
         # output: I guess this is the same as input.
         sample_output = np.random.randn(*sample_input.shape)
         # save numpy files
         workdir = self.cfg.working_directory
-        in_file = workdir.joinpath("test_inputs.npy", sample_input)
+        in_file = workdir.joinpath("test_inputs.npy")
         np.save(in_file, sample_input)
-        out_file = workdir.joinpath("test_outputs.npy", sample_output)
+        out_file = workdir.joinpath("test_outputs.npy")
         np.save(out_file, sample_output)
 
-        return [str(in_file)], [str(out_file)]
+        return [str(in_file.absolute())], [str(out_file.absolute())]

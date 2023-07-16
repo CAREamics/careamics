@@ -1,6 +1,5 @@
 name: Noise2Void
 description: Self-supervised denoising.
-documentation: n2v.md
 license: BSD-3-Clause
 authors:
 - {name: Alexander Krull}
