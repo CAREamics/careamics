@@ -1,6 +1,6 @@
 import random
 from pathlib import Path
-from typing import Dict, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import torch
@@ -98,8 +98,8 @@ class Engine:
 
             eval_loader = self.get_val_dataloader()
 
-            optimizer, lr_scheduler = self.get_optimizer_and_scheduler()
-            scaler = self.get_grad_scaler()
+            self.optimizer, self.lr_scheduler = self.get_optimizer_and_scheduler()
+            self.scaler = self.get_grad_scaler()
             self.logger.info(
                 f"Starting training for {self.cfg.training.num_epochs} epochs"
             )
@@ -113,8 +113,6 @@ class Engine:
                 ):  # loop over the dataset multiple times
                     self._train_single_epoch(
                         train_loader,
-                        optimizer,
-                        scaler,
                         self.cfg.training.amp.use,
                     )
 
@@ -124,15 +122,10 @@ class Engine:
                         f'Validation loss for epoch {epoch}: {eval_outputs["loss"]}'
                     )
                     # Add update scheduler rule based on type
-                    lr_scheduler.step(eval_outputs["loss"])
-                    if len(val_losses) == 0 or eval_outputs["loss"] < min(val_losses):
-                        name = self.save_checkpoint(True)
-                    else:
-                        name = self.save_checkpoint(False)
+                    self.lr_scheduler.step(eval_outputs["loss"])
                     val_losses.append(eval_outputs["loss"])
-                    self.logger.info(
-                        f"Saved checkpoint to {self.cfg.working_directory.absolute() / name}"
-                    )
+                    name = self.save_checkpoint(epoch, val_losses, 'model')
+                    self.logger.info(f"Saved checkpoint to {name}")
 
             except KeyboardInterrupt:
                 self.logger.info("Training interrupted")
@@ -144,8 +137,6 @@ class Engine:
     def _train_single_epoch(
         self,
         loader: torch.utils.data.DataLoader,
-        optimizer: torch.optim.Optimizer,
-        scaler: torch.cuda.amp.GradScaler,
         amp: bool,
     ):
         """Runs a single epoch of training.
@@ -170,17 +161,17 @@ class Engine:
         for batch, *auxillary in self.progress(
             loader, task_name="train", unbounded=True
         ):
-            optimizer.zero_grad()
+            self.optimizer.zero_grad()
 
             with torch.cuda.amp.autocast(enabled=amp):
                 outputs = self.model(batch.to(self.device))
 
             loss = self.loss_func(outputs, *auxillary, self.device)
-            scaler.scale(loss).backward()
+            self.scaler.scale(loss).backward()
 
             avg_loss.update(loss.item(), batch.shape[0])
 
-            optimizer.step()
+            self.optimizer.step()
 
         return {"loss": avg_loss.avg}
 
@@ -456,15 +447,41 @@ class Engine:
         else:
             raise ValueError("Missing training entry in configuration file.")
 
-    def save_checkpoint(self, save_best):
-        """Save the model to a checkpoint file."""
-        name = (
-            f"{self.cfg.experiment_name}_best.pth"
-            if save_best
-            else f"{self.cfg.experiment_name}_latest.pth"
-        )
+    def save_checkpoint(
+        self, epoch: int, losses: List[float], save_method: str
+    ) -> str:
+        """Save the model to a checkpoint file.
+
+        Parameters
+        ----------
+        epoch : int
+            Last epoch.
+        losses : List[float]
+            List of losses.
+        save_method : str
+            Method to save the model. Can be 'state_dict', 'model' or jit.
+        """
+        if epoch == 0 or losses[-1] < min(losses):
+            name = f"{self.cfg.experiment_name}_best.pth"
+        else:
+            name = f"{self.cfg.experiment_name}_latest.pth"
         workdir = self.cfg.working_directory
         workdir.mkdir(parents=True, exist_ok=True)
-
-        torch.save(self.model.state_dict(), workdir / name)
-        return name
+        if save_method =='state_dict':
+            checkpoint = {
+                "epoch": epoch,
+                "model_state_dict": self.model.state_dict(),
+                "optimizer_state_dict": self.optimizer.state_dict(),
+                "scheduler_state_dict": self.lr_scheduler.state_dict(),
+                "grad_scaler_state_dict": self.scaler.state_dict(),
+                "loss": losses[-1],
+                "config": self.cfg.model_dump()
+            }
+        elif save_method == 'model':
+            checkpoint = {'model': self.model,
+                          'config': self.cfg.model_dump()}
+        elif save_method == 'jit':
+            # TODO Vera help
+            raise NotImplementedError
+        torch.save(checkpoint, workdir / name)
+        return self.cfg.working_directory.absolute() / name
