@@ -54,6 +54,9 @@ dependencies = [
 # development dependencies and tooling
 dev = ["pre-commit", "pytest", "pytest-cov"]
 
+# test for ci
+test = ["pytest", "pytest-cov"]
+
 # use wandb for logging
 wandb = ["wandb"]
 
