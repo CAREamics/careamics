@@ -103,9 +103,13 @@ ignore = [
     "D401", # First line should be in imperative mood
     "D413", # Missing blank line after last section
     "D416", # Section name should end with a colon
+
+    # version specific
+    "UP006", # Replace typing.List by list, mandatory for py3.8
     "UP007", # Replace Union by |, mandatory for py3.9
 ]
 ignore-init-module-imports = true
+show-fixes = true
 
 [tool.ruff.pydocstyle]
 convention = "numpy" 

@@ -19,7 +19,6 @@ from .training import Training
 # TODO: config version?
 # TODO: for the working directory to work it should probably be set globally when
 # starting the engine
-# TODO: option to dump the whole configuration with all the defaults
 
 
 class Configuration(BaseModel):
@@ -296,6 +295,7 @@ def load_configuration(path: Union[str, Path]) -> Configuration:
     return Configuration(**dictionary)
 
 
+# TODO add save optional to this function
 def save_configuration(config: Configuration, path: Union[str, Path]) -> Path:
     """Save configuration to path.
 
