@@ -59,29 +59,34 @@ class Engine:
         self.model = create_model(self.cfg)
         self.loss_func = create_loss_function(self.cfg)
 
+        # use wandb or not
+        if self.cfg.training is not None:
+            self.use_wandb = self.cfg.training.use_wandb
+        else:
+            self.use_wandb = False
+    
+        if self.use_wandb:
+            try:
+                from careamics_restoration.utils.wandb import WandBLogging
+
+                self.wandb = WandBLogging(
+                    experiment_name=self.cfg.experiment_name,
+                    log_path=self.cfg.working_directory,
+                    config=self.cfg,
+                    model_to_watch=self.model,
+                )
+            except ModuleNotFoundError:
+                self.logger.warning(
+                    "Wandb not installed, using default logger. Try pip install wandb"
+                )
+                self.use_wandb = False
+
         # get GPU or CPU device
         self.device = get_device()
 
         # seeding
         setup_cudnn_reproducibility(deterministic=True, benchmark=False)
         seed_everything(seed=42)
-
-    def log_metrics(self):
-        """Log metrics to wandb or default logger."""
-        if self.cfg.training.use_wandb:
-            try:  # TODO Vera will fix this funzione di merda
-                import wandb
-
-                wandb.init(project=self.cfg.experiment_name, config=self.cfg)
-                self.logger.info("using wandb logger")
-            except ImportError:
-                self.cfg.misc.use_wandb = False
-                self.logger.warning(
-                    "wandb not installed, using default logger. try pip install wandb"
-                )
-                return self.log_metrics()
-        else:
-            self.logger.info("Using default logger")
 
     def train(self):
         """Main train method.
@@ -113,7 +118,7 @@ class Engine:
                     task_name="Epochs",
                     overall_progress=True,
                 ):  # loop over the dataset multiple times
-                    self._train_single_epoch(
+                    train_outputs = self._train_single_epoch(
                         train_loader,
                         optimizer,
                         scaler,
@@ -127,14 +132,25 @@ class Engine:
                     )
                     # Add update scheduler rule based on type
                     lr_scheduler.step(eval_outputs["loss"])
+
                     if len(val_losses) == 0 or eval_outputs["loss"] < min(val_losses):
                         name = self.save_checkpoint(True)
                     else:
                         name = self.save_checkpoint(False)
                     val_losses.append(eval_outputs["loss"])
+
                     self.logger.info(
                         f"Saved checkpoint to {self.cfg.working_directory.absolute() / name}"
                     )
+
+                    if self.use_wandb:
+                        learning_rate = optimizer.param_groups[0]["lr"]
+                        metrics = {
+                            "train": train_outputs,
+                            "eval": eval_outputs,
+                            "lr": learning_rate,
+                        }
+                        self.wandb.log_metrics(metrics)
 
             except KeyboardInterrupt:
                 self.logger.info("Training interrupted")
