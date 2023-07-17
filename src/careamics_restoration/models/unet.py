@@ -30,7 +30,7 @@ class UnetEncoder(nn.Module):
         conv_dim: int,
         in_channels: int = 1,
         depth: int = 3,
-        num_filter_base: int = 64,  # TODO rename to num_channels_init
+        num_channels_init: int = 64,
         use_batch_norm=True,
         dropout=0.0,
         pool_kernel=2,
@@ -42,7 +42,7 @@ class UnetEncoder(nn.Module):
         encoder_blocks = []
 
         for n in range(depth):
-            out_channels = num_filter_base * (2**n)
+            out_channels = num_channels_init * (2**n)
             in_channels = in_channels if n == 0 else out_channels // 2
             encoder_blocks.append(
                 Conv_Block(
@@ -101,7 +101,7 @@ class UnetDecoder(nn.Module):
         self,
         conv_dim: int,
         depth: int = 3,
-        num_filter_base: int = 64,
+        num_channels_init: int = 64,
         use_batch_norm=True,
         dropout=0.0,
     ) -> None:
@@ -110,7 +110,7 @@ class UnetDecoder(nn.Module):
         upsampling = nn.Upsample(
             scale_factor=2, mode="bilinear" if conv_dim == 2 else "trilinear"
         )  # TODO check align_corners and mode
-        in_channels = out_channels = num_filter_base * 2 ** (depth - 1)
+        in_channels = out_channels = num_channels_init * 2 ** (depth - 1)
         self.bottleneck = Conv_Block(
             conv_dim,
             in_channels=in_channels,
@@ -123,8 +123,8 @@ class UnetDecoder(nn.Module):
         decoder_blocks = []
         for n in range(depth):
             decoder_blocks.append(upsampling)
-            in_channels = num_filter_base * 2 ** (depth - n)
-            out_channels = num_filter_base
+            in_channels = num_channels_init * 2 ** (depth - n)
+            out_channels = num_channels_init
             decoder_blocks.append(
                 Conv_Block(
                     conv_dim,
@@ -158,7 +158,6 @@ class UnetDecoder(nn.Module):
         skip_connections = features[1:][::-1]
         x = self.bottleneck(x)
         for i, module in enumerate(self.decoder_blocks):
-            # TODO upsample order
             x = module(x)
             if isinstance(module, nn.Upsample):
                 x = torch.cat([x, skip_connections[i // 2]], axis=1)
@@ -205,7 +204,7 @@ class UNet(nn.Module):
         num_classes: int = 1,
         in_channels: int = 1,
         depth: int = 3,
-        num_filter_base: int = 64,
+        num_channels_init: int = 64,
         use_batch_norm=True,
         dropout=0.0,
         pool_kernel=2,
@@ -217,7 +216,7 @@ class UNet(nn.Module):
             conv_dim,
             in_channels=in_channels,
             depth=depth,
-            num_filter_base=num_filter_base,
+            num_channels_init=num_channels_init,
             use_batch_norm=use_batch_norm,
             dropout=dropout,
             pool_kernel=pool_kernel,
@@ -226,12 +225,12 @@ class UNet(nn.Module):
         self.decoder = UnetDecoder(
             conv_dim,
             depth=depth,
-            num_filter_base=num_filter_base,
+            num_channels_init=num_channels_init,
             use_batch_norm=use_batch_norm,
             dropout=dropout,
         )
         self.final_conv = getattr(nn, f"Conv{conv_dim}d")(
-            in_channels=num_filter_base,
+            in_channels=num_channels_init,
             out_channels=num_classes,
             kernel_size=1,
         )

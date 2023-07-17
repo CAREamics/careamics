@@ -1,42 +1,41 @@
 import logging
 import sys
-from logging.handlers import RotatingFileHandler
-from typing import Iterable, Union, Sized
+from pathlib import Path
+from typing import Iterable
 
-from rich.console import Group, Console
+from rich.console import Console, Group
+from rich.live import Live
 from rich.logging import RichHandler
 from rich.padding import Padding
 from rich.panel import Panel
 from rich.progress import (
-    Progress,
     BarColumn,
-    TextColumn,
-    TimeRemainingColumn,
     MofNCompleteColumn,
-    TimeElapsedColumn,
+    Progress,
     SpinnerColumn,
+    TextColumn,
+    TimeElapsedColumn,
+    TimeRemainingColumn,
 )
-from rich.live import Live
 from rich_pixels import Pixels
 
-
-banner = """                                                                                                                         
-   ......       ......     ........     ........                                   ....                          
- -+++----+-   -+++--+++-  :+++---+++:  :+++-----                                   .--:                          
-.+++     .:   +++.  .+++. :+++   :+++  :+++         :------.   .---:----..:----.   :---    :----:     :----:.  
-.+++         .+++.  .+++. :+++   -++=  :+++        +=....=+++  :+++-..=+++-..=++=  -+++  .+++-..++   +++-..=+. 
-.+++         .++++++++++. :++++++++=.  :++++++:          .+++. :+++   :+++   -+++  -+++  :+++       .+++=.     
-.+++         .+++.  .+++. :+++   -+++  :+++        :=++==++++. :+++   :+++   -+++  -+++  :+++        .-=+++=:  
-.+++     ..  .+++.  .+++. :+++   :+++  :+++       .+++.  .+++. :+++   :+++   -+++  -+++  :+++   ..   ..  :+++. 
- -++=-::-+=  .+++.  .+++. :+++   :+++  :+++-::::   =++=--=+++. :+++   :+++   -+++  -+++   =++=:-+=   =+-:=++=  
-   ......     ...    ...   ...    ...   ........     .... ...   ...    ...   ....  ....     ....      .....                                                                                                                                                                                                                    
+banner = """
+   ......       ......     ........     ........                                   ....
+ -+++----+-   -+++--+++-  :+++---+++:  :+++-----                                   .--:
+.+++     .:   +++.  .+++. :+++   :+++  :+++         :------.   .---:----..:----.   :---    :----:     :----:.
+.+++         .+++.  .+++. :+++   -++=  :+++        +=....=+++  :+++-..=+++-..=++=  -+++  .+++-..++   +++-..=+.
+.+++         .++++++++++. :++++++++=.  :++++++:          .+++. :+++   :+++   -+++  -+++  :+++       .+++=.
+.+++         .+++.  .+++. :+++   -+++  :+++        :=++==++++. :+++   :+++   -+++  -+++  :+++        .-=+++=:
+.+++     ..  .+++.  .+++. :+++   :+++  :+++       .+++.  .+++. :+++   :+++   -+++  -+++  :+++   ..   ..  :+++.
+ -++=-::-+=  .+++.  .+++. :+++   :+++  :+++-::::   =++=--=+++. :+++   :+++   -+++  -+++   =++=:-+=   =+-:=++=
+   ......     ...    ...   ...    ...   ........     .... ...   ...    ...   ....  ....     ....      .....
 """
 
 LOGGERS = {}
 
 
 # TODO: export all the loggers to the same file
-def get_logger(name: str, log_level=logging.INFO, log_path: str = None):
+def get_logger(name: str, log_level=logging.INFO, log_path: Path = None):
     logger = logging.getLogger(name)
     if name in LOGGERS:
         return logger
