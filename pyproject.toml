@@ -58,7 +58,7 @@ dev = ["pre-commit", "pytest", "pytest-cov"]
 wandb = ["wandb"]
 
 # notebooks
-notebooks = ["jupyter", "careamics-portfolio"]
+notebooks = ["jupyter", "careamics-portfolio", "itkwidgets", "torchsummary"]
 
 # all
 all = [
@@ -67,7 +67,9 @@ all = [
     "pytest-cov", 
     "wandb", 
     "jupyter", 
-    "careamics-portfolio"
+    "careamics-portfolio",
+    "itkwidgets",
+    "torchsummary"
 ]
 
 [project.urls]
