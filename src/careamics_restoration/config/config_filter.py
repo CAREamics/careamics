@@ -22,7 +22,7 @@ def paths_to_str(dictionary: dict) -> dict:
     return dictionary
 
 
-def remove_default_optionals(dictionary: dict, default: dict) -> dict:
+def remove_default_optionals(dictionary: dict, default: dict):
     """Remove default arguments from a dictionary.
 
     Removes arguments if they are equal to the provided default ones in place

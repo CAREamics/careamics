@@ -64,7 +64,7 @@ class Engine:
             self.use_wandb = self.cfg.training.use_wandb
         else:
             self.use_wandb = False
-    
+
         if self.use_wandb:
             try:
                 from careamics_restoration.utils.wandb import WandBLogging
@@ -271,6 +271,7 @@ class Engine:
             std=std,
         )
         # TODO keep getting this ValueError: Mean or std are not specified in the configuration and in parameters
+        # TODO where is this error? is this linked to an issue? Mention issue here.
 
         tiles = []
         prediction = []
@@ -282,9 +283,11 @@ class Engine:
             self.logger.info("Starting prediction on whole sample")
 
         # TODO Joran/Vera: make this as a config object, add function to assess the external input
+        # TODO instruction unclear
         with torch.no_grad():
             # TODO tiled prediction slow af, profile and optimize
             # TODO progress bar isn't displayed
+            # TODO is this linked to an issue? Mention issue here.
             for _, (tile, *auxillary) in self.progress(
                 enumerate(pred_loader), task_name="Prediction", unbounded=True
             ):
