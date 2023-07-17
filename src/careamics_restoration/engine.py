@@ -340,7 +340,7 @@ class Engine:
         return np.stack(prediction)
 
     # TODO: add custom collate function and separate dataloader create func, sample
-    def get_train_dataloader(self, training_cfg: Training) -> DataLoader:
+    def get_train_dataloader(self) -> DataLoader:
         """_summary_.
 
         _extended_summary_
