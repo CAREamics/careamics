@@ -1,7 +1,7 @@
 import logging
 import sys
 from pathlib import Path
-from typing import Iterable
+from typing import Iterable, Optional, Union
 
 from rich.console import Console, Group
 from rich.live import Live
@@ -19,7 +19,7 @@ from rich.progress import (
 )
 from rich_pixels import Pixels
 
-banner = """
+banner: str = """
    ......       ......     ........     ........                                   ....
  -+++----+-   -+++--+++-  :+++---+++:  :+++-----                                   .--:
 .+++     .:   +++.  .+++. :+++   :+++  :+++         :------.   .---:----..:----.   :---    :----:     :----:.
@@ -31,11 +31,13 @@ banner = """
    ......     ...    ...   ...    ...   ........     .... ...   ...    ...   ....  ....     ....      .....
 """
 
-LOGGERS = {}
+LOGGERS: dict = {}
 
 
 # TODO: export all the loggers to the same file
-def get_logger(name: str, log_level=logging.INFO, log_path: Path = None):
+def get_logger(
+    name: str, log_level=logging.INFO, log_path: Optional[Union[str, Path]] = None
+):
     logger = logging.getLogger(name)
     if name in LOGGERS:
         return logger
@@ -109,7 +111,7 @@ class ProgressLogger:
             self.live = Live(self.interface)
             self.live.__enter__()
 
-    def _get_task(self, task_name: str, task_length: int, tracker: Progress):
+    def _get_task(self, task_name: str, task_length: Optional[int], tracker: Progress):
         if task_name not in self.tasks:
             task_id = tracker.add_task(task_name, total=task_length)
             self.tasks[task_name] = task_id
@@ -142,6 +144,7 @@ class ProgressLogger:
         if unbounded:
             task_length = None
         else:
+            # TODO in Engine, task_iterable is an enumeration, but neither enumerate nor Iterable have __len__
             task_length = len(task_iterable)
         task_id = self._get_task(task_name, task_length, tracker=tracker)
 
