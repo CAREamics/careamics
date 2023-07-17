@@ -144,22 +144,25 @@ class Configuration(BaseModel):
             raise ValueError(
                 "Working directory is not defined, check if was is correctly entered."
             )
-
-        workdir = values.data["working_directory"]
-        relative_path = Path(workdir, model_path)
-        absolute_path = Path(model_path)
+        if "/" in model_path:
+            raise ValueError("Trained model path must not contain a slash.")
+        relative_path = Path(values.data["working_directory"]) / model_path
+        absolute_path = Path(
+            relative_path
+        ).resolve()  # replace with .absolute() after 3.11
 
         # check suffix
-        if absolute_path.suffix != ".pth":
-            raise ValueError(f"Path to model must be a .pth file (got {model_path}).")
+        if absolute_path.suffix not in [".pt", ".pth"]:
+            raise ValueError(
+                f"Path to model must be a .pt or .pth file (got {model_path})."
+            )
 
         # check if relative or absolute
-        if absolute_path.exists() or relative_path.exists():
-            return model_path
+        if absolute_path.exists():
+            return absolute_path
         else:
             raise ValueError(
-                f"Path to model does not exist. "
-                f"Tried absolute ({absolute_path}) and relative ({relative_path})."
+                f"Path to model does not exist. " f"Tried absolute ({absolute_path})."
             )
 
     @model_validator(mode="after")
