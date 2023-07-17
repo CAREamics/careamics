@@ -25,6 +25,7 @@ license = { text = "BSD-3-Clause" }
 authors = [
     { name = 'Igor Zubarev', email = 'igor.zubarev@fht.org' },
     { name = 'Joran Deschamps', email = 'joran.deschamps@fht.org' },
+    { name = 'Vera Galinova', email = 'vera.galinova@fht.org' },
 ]
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -33,8 +34,8 @@ classifiers = [
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
-    # "License :: OSI Approved :: BSD License",
-    # "Typing :: Typed",
+    "License :: OSI Approved :: BSD License",
+    "Typing :: Typed",
 ]
 dependencies = [
     'torch', 
@@ -51,7 +52,7 @@ dependencies = [
 
 [project.optional-dependencies]
 # development dependencies and tooling
-dev = ["pre-commit", "pytest", "pytest-cov", "ruff", "twine", "build"]
+dev = ["pre-commit", "pytest", "pytest-cov"]
 
 # use wandb for logging
 wandb = ["wandb"]
@@ -59,8 +60,15 @@ wandb = ["wandb"]
 # notebooks
 notebooks = ["jupyter", "careamics-portfolio"]
 
-# testing
-test = ["pytest", "pytest-cov"]
+# all
+all = [
+    "pre-commit", 
+    "pytest", 
+    "pytest-cov", 
+    "wandb", 
+    "jupyter", 
+    "careamics-portfolio"
+]
 
 [project.urls]
 homepage = "https://careamics.github.io/"
