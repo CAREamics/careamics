@@ -9,7 +9,7 @@ cite:
 - {doi: 10.48550/arXiv.1811.10980, text: 'A. Krull, T.-O. Buchholz and F. Jug, "Noise2Void
     - Learning Denoising From Single Noisy Images," 2019 IEEE/CVF Conference on Computer
     Vision and Pattern Recognition  (CVPR), 2019, pp. 2124-2132'}
-input_axes: byxc
+input_axes: ["bcyx"]
 preprocessing:
   -
     - kwargs:
@@ -18,7 +18,7 @@ preprocessing:
         mode: fixed
         std: [16847.809]
       name: zero_mean_unit_variance
-output_axes: byxc
+output_axes: ["bcyx"]
 postprocessing:
   -
     - kwargs:

@@ -527,7 +527,7 @@ class Engine:
                 sample_input,
                 axis=tuple(i for i in range(len_diff))
             )
-        # finally add batch dim
+        # finally add the batch dim
         sample_input = np.expand_dims(sample_input, axis=0)
         # output: I guess this is the same as input.
         sample_output = np.random.randn(*sample_input.shape)
