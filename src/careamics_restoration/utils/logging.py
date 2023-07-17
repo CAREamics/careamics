@@ -1,5 +1,6 @@
 import logging
 import sys
+from pathlib import Path
 from typing import Iterable
 
 from rich.console import Console, Group
@@ -34,7 +35,7 @@ LOGGERS = {}
 
 
 # TODO: export all the loggers to the same file
-def get_logger(name: str, log_level=logging.INFO, log_path: str = None):
+def get_logger(name: str, log_level=logging.INFO, log_path: Path = None):
     logger = logging.getLogger(name)
     if name in LOGGERS:
         return logger
