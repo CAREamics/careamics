@@ -501,10 +501,9 @@ class Engine:
         return name
 
     def __exit__(self) -> None:
-
+        import warnings
 
         import psutil
-        import warnings
 
         for proc in psutil.process_iter():
             try:
@@ -513,13 +512,12 @@ class Engine:
                 if flist:
                     warnings.warn(proc.pid, proc.name)
                     for nt in flist:
-                        warnings.warn("\t",nt.path)
+                        warnings.warn("\t", nt.path)
 
             # This catches a race condition where a process ends
-            # before we can examine its files    
+            # before we can examine its files
             except psutil.NoSuchProcess as err:
-                print("****",err) 
-
+                print("****", err)
 
         for handler in self.logger.handlers:
             if isinstance(handler, FileHandler):
