@@ -99,10 +99,10 @@ def get_optimizer_and_scheduler(
 
         # load state from ther checkpoint if available
         if state_dict is not None:
-            if 'optimizer_state_dict' in state_dict:
+            if "optimizer_state_dict" in state_dict:
                 optimizer.load_state_dict(state_dict["optimizer_state_dict"])
                 logger.info("Loaded optimizer state dict")
-            if 'scheduler_state_dict' in state_dict:
+            if "scheduler_state_dict" in state_dict:
                 scheduler.load_state_dict(state_dict["scheduler_state_dict"])
                 logger.info("Loaded LR scheduler state dict")
         return optimizer, scheduler
@@ -126,7 +126,7 @@ def get_grad_scaler(cfg, state_dict=None) -> torch.cuda.amp.GradScaler:
         use = cfg.training.amp.use
         scaling = cfg.training.amp.init_scale
         scaler = torch.cuda.amp.GradScaler(init_scale=scaling, enabled=use)
-        if state_dict is not None and 'scaler_state_dict' in state_dict:
+        if state_dict is not None and "scaler_state_dict" in state_dict:
             scaler.load_state_dict(state_dict["scaler_state_dict"])
             logger.info("Loaded GradScaler state dict")
         return scaler

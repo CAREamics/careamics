@@ -396,58 +396,6 @@ class Engine:
             stitch,
         )
 
-    def get_optimizer_and_scheduler(
-        self,
-    ) -> Tuple[torch.optim.Optimizer, torch.optim.lr_scheduler.LRScheduler]:
-        """Creates optimizer and learning rate scheduler objects.
-
-        Returns
-        -------
-        Tuple[torch.optim.Optimizer, torch.optim.lr_scheduler.LRScheduler]
-
-        Raises
-        ------
-        ValueError
-            If the entry is missing in the configuration file.
-        """
-        if self.cfg.training is not None:
-            # retrieve optimizer name and parameters from config
-            optimizer_name = self.cfg.training.optimizer.name
-            optimizer_params = self.cfg.training.optimizer.parameters
-
-            # then instantiate it
-            optimizer_func = getattr(torch.optim, optimizer_name)
-            optimizer = optimizer_func(self.model.parameters(), **optimizer_params)
-
-            # same for learning rate scheduler
-            scheduler_name = self.cfg.training.lr_scheduler.name
-            scheduler_params = self.cfg.training.lr_scheduler.parameters
-            scheduler_func = getattr(torch.optim.lr_scheduler, scheduler_name)
-            scheduler = scheduler_func(optimizer, **scheduler_params)
-
-            return optimizer, scheduler
-        else:
-            raise ValueError("Missing training entry in configuration file.")
-
-    def get_grad_scaler(self) -> torch.cuda.amp.GradScaler:
-        """Create the gradscaler object.
-
-        Returns
-        -------
-        torch.cuda.amp.GradScaler
-
-        Raises
-        ------
-        ValueError
-            If the entry is missing in the configuration file.
-        """
-        if self.cfg.training is not None:
-            use = self.cfg.training.amp.use
-            scaling = self.cfg.training.amp.init_scale
-            return torch.cuda.amp.GradScaler(init_scale=scaling, enabled=use)
-        else:
-            raise ValueError("Missing training entry in configuration file.")
-
     def save_checkpoint(self, epoch: int, losses: List[float], save_method: str) -> str:
         """Save the model to a checkpoint file.
 
