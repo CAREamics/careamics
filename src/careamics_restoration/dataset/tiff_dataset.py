@@ -31,7 +31,7 @@ class TiffDataset(torch.utils.data.IterableDataset):
     axes: str
         Description of axes in format STCZYX
 
-    patch_extraction_method: str
+    patch_extraction_method: ExtractionStrategies
         Patch extraction strategy, one of "sequential", "random", "tiled"
 
     patch_size : Tuple[int]
@@ -231,6 +231,7 @@ class TiffDataset(torch.utils.data.IterableDataset):
         np.ndarray
         """
         for sample in self.iterate_files():
+            # TODO patch_extraction_method should never be None!
             if self.patch_extraction_method:
                 # TODO: move S and T unpacking logic from patch generator
                 patches = self.generate_patches(sample)

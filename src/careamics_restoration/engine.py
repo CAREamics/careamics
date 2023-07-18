@@ -9,6 +9,7 @@ from torch.utils.data import DataLoader, TensorDataset
 from careamics_restoration.utils.logging import ProgressLogger, get_logger
 
 from .config import load_configuration
+from .config.training import Training
 from .dataset.tiff_dataset import (
     get_prediction_dataset,
     get_train_dataset,
@@ -65,29 +66,34 @@ class Engine:
         # create loss function
         self.loss_func = create_loss_function(self.cfg)
 
+        # use wandb or not
+        if self.cfg.training is not None:
+            self.use_wandb = self.cfg.training.use_wandb
+        else:
+            self.use_wandb = False
+
+        if self.use_wandb:
+            try:
+                from careamics_restoration.utils.wandb import WandBLogging
+
+                self.wandb = WandBLogging(
+                    experiment_name=self.cfg.experiment_name,
+                    log_path=self.cfg.working_directory,
+                    config=self.cfg,
+                    model_to_watch=self.model,
+                )
+            except ModuleNotFoundError:
+                self.logger.warning(
+                    "Wandb not installed, using default logger. Try pip install wandb"
+                )
+                self.use_wandb = False
+
         # get GPU or CPU device
         self.device = get_device()
 
         # seeding
         setup_cudnn_reproducibility(deterministic=True, benchmark=False)
         seed_everything(seed=42)
-
-    def log_metrics(self):
-        """Log metrics to wandb or default logger."""
-        if self.cfg.misc.use_wandb:
-            try:  # TODO Vera will fix this funzione di merda
-                import wandb
-
-                wandb.init(project=self.cfg.experiment_name, config=self.cfg)
-                self.logger.info("using wandb logger")
-            except ImportError:
-                self.cfg.misc.use_wandb = False
-                self.logger.warning(
-                    "wandb not installed, using default logger. try pip install wandb"
-                )
-                return self.log_metrics()
-        else:
-            self.logger.info("Using default logger")
 
     def train(self):
         """Main train method.
@@ -98,6 +104,7 @@ class Engine:
         if self.cfg.training is not None:
             # General func
             train_loader = self.get_train_dataloader()
+
             # Set mean and std from train dataset of none
             if not self.cfg.data.mean or not self.cfg.data.std:
                 self.cfg.data.mean = train_loader.dataset.mean
@@ -116,7 +123,7 @@ class Engine:
                     task_name="Epochs",
                     overall_progress=True,
                 ):  # loop over the dataset multiple times
-                    self._train_single_epoch(
+                    train_outputs = self._train_single_epoch(
                         train_loader,
                         self.cfg.training.amp.use,
                     )
@@ -131,6 +138,15 @@ class Engine:
                     val_losses.append(eval_outputs["loss"])
                     name = self.save_checkpoint(epoch, val_losses, "model")
                     self.logger.info(f"Saved checkpoint to {name}")
+
+                    if self.use_wandb:
+                        learning_rate = optimizer.param_groups[0]["lr"]
+                        metrics = {
+                            "train": train_outputs,
+                            "eval": eval_outputs,
+                            "lr": learning_rate,
+                        }
+                        self.wandb.log_metrics(metrics)
 
             except KeyboardInterrupt:
                 self.logger.info("Training interrupted")
@@ -249,8 +265,8 @@ class Engine:
             mean=mean,
             std=std,
         )
-        # TODO keep getting this ValueError: Mean or std are not specified in the
-        # configuration and in parameters
+        # TODO keep getting this ValueError: Mean or std are not specified in the configuration and in parameters
+        # TODO where is this error? is this linked to an issue? Mention issue here.
 
         tiles = []
         prediction = []
@@ -261,11 +277,12 @@ class Engine:
         else:
             self.logger.info("Starting prediction on whole sample")
 
-        # TODO Joran/Vera: make this as a config object, add function to assess the
-        # external input
+        # TODO Joran/Vera: make this as a config object, add function to assess the external input
+        # TODO instruction unclear
         with torch.no_grad():
             # TODO tiled prediction slow af, profile and optimize
             # TODO progress bar isn't displayed
+            # TODO is this linked to an issue? Mention issue here.
             for _, (tile, *auxillary) in self.progress(
                 enumerate(pred_loader), task_name="Prediction", unbounded=True
             ):
@@ -327,14 +344,20 @@ class Engine:
         DataLoader
             _description_
         """
-        dataset = get_train_dataset(self.cfg)
-        dataloader = DataLoader(
-            dataset,
-            batch_size=self.cfg.training.batch_size,
-            num_workers=self.cfg.training.num_workers,
-            pin_memory=True,
-        )
-        return dataloader
+        # TODO necessary for mypy, is there a better way to enforce non-null? Should
+        # the training config be optional?
+        if self.cfg.training is not None:
+            dataset = get_train_dataset(self.cfg)
+            dataloader = DataLoader(
+                dataset,
+                batch_size=self.cfg.training.batch_size,
+                num_workers=self.cfg.training.num_workers,
+                pin_memory=True,
+            )
+            return dataloader
+
+        else:
+            raise ValueError("Missing training entry in configuration file.")
 
     def get_val_dataloader(self) -> DataLoader:
         """_summary_.
@@ -346,14 +369,18 @@ class Engine:
         DataLoader
             _description_
         """
-        dataset = get_validation_dataset(self.cfg)
-        dataloader = DataLoader(
-            dataset,
-            batch_size=self.cfg.training.batch_size,
-            num_workers=self.cfg.training.num_workers,
-            pin_memory=True,
-        )
-        return dataloader
+        if self.cfg.training is not None:
+            dataset = get_validation_dataset(self.cfg)
+            dataloader = DataLoader(
+                dataset,
+                batch_size=self.cfg.training.batch_size,
+                num_workers=self.cfg.training.num_workers,
+                pin_memory=True,
+            )
+            return dataloader
+
+        else:
+            raise ValueError("Missing training entry in configuration file.")
 
     def get_predict_dataloader(
         self,
@@ -379,9 +406,8 @@ class Engine:
         Tuple[DataLoader, bool]
             _description_
         """
-        # TODO mypy does not take into account "is not None", we need to
-        # find a workaround
-        if external_input is not None:
+        # TODO mypy does not take into account "is not None", we need to find a workaround
+        if external_input is not None and mean is not None and std is not None:
             normalized_input = normalize(external_input, mean, std)
             normalized_input = normalized_input.astype(np.float32)
             dataset = TensorDataset(torch.from_numpy(normalized_input))

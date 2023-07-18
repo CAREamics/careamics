@@ -40,4 +40,3 @@ def remove_default_optionals(dictionary: Dict, default: Dict):
         if k in default.keys():
             if dict_copy[k] == default[k]:
                 del dictionary[k]
-    return None

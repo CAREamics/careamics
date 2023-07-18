@@ -25,6 +25,7 @@ license = { text = "BSD-3-Clause" }
 authors = [
     { name = 'Igor Zubarev', email = 'igor.zubarev@fht.org' },
     { name = 'Joran Deschamps', email = 'joran.deschamps@fht.org' },
+    { name = 'Vera Galinova', email = 'vera.galinova@fht.org' },
 ]
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -33,8 +34,8 @@ classifiers = [
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
-    # "License :: OSI Approved :: BSD License",
-    # "Typing :: Typed",
+    "License :: OSI Approved :: BSD License",
+    "Typing :: Typed",
 ]
 dependencies = [
     'torch', 
@@ -51,16 +52,28 @@ dependencies = [
 
 [project.optional-dependencies]
 # development dependencies and tooling
-dev = ["pre-commit", "pytest", "pytest-cov", "ruff", "twine", "build"]
+dev = ["pre-commit", "pytest", "pytest-cov"]
+
+# test for ci
+test = ["pytest", "pytest-cov"]
 
 # use wandb for logging
 wandb = ["wandb"]
 
 # notebooks
-notebooks = ["jupyter", "careamics-portfolio"]
+notebooks = ["jupyter", "careamics-portfolio", "itkwidgets", "torchsummary"]
 
-# testing
-test = ["pytest", "pytest-cov"]
+# all
+all = [
+    "pre-commit", 
+    "pytest", 
+    "pytest-cov", 
+    "wandb", 
+    "jupyter", 
+    "careamics-portfolio",
+    "itkwidgets",
+    "torchsummary"
+]
 
 [project.urls]
 homepage = "https://careamics.github.io/"
@@ -93,9 +106,13 @@ ignore = [
     "D401", # First line should be in imperative mood
     "D413", # Missing blank line after last section
     "D416", # Section name should end with a colon
+
+    # version specific
+    "UP006", # Replace typing.List by list, mandatory for py3.8
     "UP007", # Replace Union by |, mandatory for py3.9
 ]
 ignore-init-module-imports = true
+show-fixes = true
 
 [tool.ruff.pydocstyle]
 convention = "numpy" 
