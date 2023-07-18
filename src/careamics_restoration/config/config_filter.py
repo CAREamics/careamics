@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Dict
 
 
 def paths_to_str(dictionary: dict) -> dict:
@@ -22,7 +23,7 @@ def paths_to_str(dictionary: dict) -> dict:
     return dictionary
 
 
-def remove_default_optionals(dictionary: dict, default: dict) -> dict:
+def remove_default_optionals(dictionary: Dict, default: Dict):
     """Remove default arguments from a dictionary.
 
     Removes arguments if they are equal to the provided default ones in place
@@ -39,3 +40,4 @@ def remove_default_optionals(dictionary: dict, default: dict) -> dict:
         if k in default.keys():
             if dict_copy[k] == default[k]:
                 del dictionary[k]
+    return None
