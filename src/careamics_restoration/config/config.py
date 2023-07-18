@@ -144,8 +144,7 @@ class Configuration(BaseModel):
             raise ValueError(
                 "Working directory is not defined, check if was is correctly entered."
             )
-        if "/" in model_path:
-            raise ValueError("Trained model path must not contain a slash.")
+
         relative_path = Path(values.data["working_directory"]) / model_path
         absolute_path = Path(
             relative_path

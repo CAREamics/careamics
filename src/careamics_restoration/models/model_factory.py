@@ -51,13 +51,9 @@ def create_model(config: Configuration) -> torch.nn.Module:
             )
             model.load_state_dict(checkpoint["model_state_dict"])
             logger.info(f"Loaded model from {Path(load_checkpoint).name}")
-
-        elif "model" in checkpoint:
-            logger.info(f"Trying to load full model from {Path(load_checkpoint).name}")
-            model = checkpoint["model"]
         else:
             # TODO: add jit, onxx, etc.
-            raise NotImplementedError("Invalid checkpoint format")
+            raise ValueError("Invalid checkpoint format")
 
         logger.info(f"Loaded model from {Path(load_checkpoint).name}")
         if "config" in checkpoint:
@@ -106,9 +102,18 @@ def get_optimizer_and_scheduler(
             if "optimizer_state_dict" in state_dict:
                 optimizer.load_state_dict(state_dict["optimizer_state_dict"])
                 logger.info("Loaded optimizer state dict")
+            else:
+                logger.warning(
+                    "No optimizer state dict found in checkpoint. Optimizer not loaded."
+                )
             if "scheduler_state_dict" in state_dict:
                 scheduler.load_state_dict(state_dict["scheduler_state_dict"])
                 logger.info("Loaded LR scheduler state dict")
+            else:
+                logger.warning(
+                    "No LR scheduler state dict found in checkpoint. "
+                    "LR scheduler not loaded."
+                )
         return optimizer, scheduler
     else:
         raise ValueError("Missing training entry in configuration file.")

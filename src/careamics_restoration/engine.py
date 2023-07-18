@@ -431,8 +431,6 @@ class Engine:
                 "loss": losses[-1],
                 "config": self.cfg.model_dump(),
             }
-        elif save_method == "model":
-            checkpoint = {"model": self.model, "config": self.cfg.model_dump()}
         elif save_method == "jit":
             # TODO Vera help
             raise NotImplementedError
