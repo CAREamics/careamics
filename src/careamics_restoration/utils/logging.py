@@ -29,7 +29,7 @@ banner: str = """
 .+++     ..  .+++.  .+++. :+++   :+++  :+++       .+++.  .+++. :+++   :+++   -+++  -+++  :+++   ..   ..  :+++.
  -++=-::-+=  .+++.  .+++. :+++   :+++  :+++-::::   =++=--=+++. :+++   :+++   -+++  -+++   =++=:-+=   =+-:=++=
    ......     ...    ...   ...    ...   ........     .... ...   ...    ...   ....  ....     ....      .....
-"""
+"""  # noqa: E501
 
 LOGGERS: dict = {}
 
@@ -37,7 +37,23 @@ LOGGERS: dict = {}
 # TODO: export all the loggers to the same file
 def get_logger(
     name: str, log_level=logging.INFO, log_path: Optional[Union[str, Path]] = None
-):
+) -> logging.Logger:
+    """Returns a logger with the given name.
+
+    Parameters
+    ----------
+    name : str
+        Name of the logger
+    log_level : int, optional
+        Log level, by default logging.INFO
+    log_path : Optional[Union[str, Path]], optional
+        Path to the log file, by default None
+
+    Returns
+    -------
+    logging.Logger
+        Logger
+    """
     logger = logging.getLogger(name)
     if name in LOGGERS:
         return logger
@@ -69,6 +85,8 @@ def get_logger(
 
 
 class ProgressLogger:
+    """Progress logger."""
+
     def __init__(self):
         self.is_in_notebook = "ipykernel" in sys.modules
 
@@ -123,6 +141,7 @@ class ProgressLogger:
         return task_id
 
     def exit(self):
+        """Exits the logger."""
         self.live.__exit__(None, None, None)
         self.live = None
 
@@ -134,6 +153,7 @@ class ProgressLogger:
         persistent: bool = True,
         unbounded: bool = False,
     ):
+        """Logs the progress of a task."""
         self._start_live_if_needed()
 
         if overall_progress:
@@ -144,7 +164,8 @@ class ProgressLogger:
         if unbounded:
             task_length = None
         else:
-            # TODO in Engine, task_iterable is an enumeration, but neither enumerate nor Iterable have __len__
+            # TODO in Engine, task_iterable is an enumeration, but neither enumerate
+            # nor Iterable have __len__
             task_length = len(task_iterable)
         task_id = self._get_task(task_name, task_length, tracker=tracker)
 
