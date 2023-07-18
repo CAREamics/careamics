@@ -123,7 +123,10 @@ class ProgressLogger:
 
         return task_id
 
-    def exit(self):
+    def __exit__(self) -> None:
+        self.exit()
+
+    def exit(self) -> None:
         self.live.__exit__(None, None, None)
         self.live = None
 

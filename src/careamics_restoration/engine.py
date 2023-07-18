@@ -501,4 +501,5 @@ class Engine:
 
     def __exit__(self) -> None:
         for handler in self.logger.handlers:
+            self.logger.removeHandler(handler)
             handler.close()
