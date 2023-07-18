@@ -55,9 +55,13 @@ class Engine:
         self.logger = get_logger(__name__, log_path=log_path)
 
         # create model, optimizer, lr scheduler and gradient scaler
-        self.model, self.optimizer, self.lr_scheduler, self.scaler = create_model(
-            self.cfg
-        )
+        (
+            self.model,
+            self.optimizer,
+            self.lr_scheduler,
+            self.scaler,
+            self.cfg,
+        ) = create_model(self.cfg)
         # create loss function
         self.loss_func = create_loss_function(self.cfg)
 
@@ -132,7 +136,7 @@ class Engine:
                 self.logger.info("Training interrupted")
                 self.progress.exit()
         else:
-            # TODO: instead of error, maybe fail gracefully with a logging/warning to users
+            # TODO: instead of error, maybe fail gracefully with a logging/warning
             raise ValueError("Missing training entry in configuration file.")
 
     def _train_single_epoch(
@@ -229,7 +233,8 @@ class Engine:
         """
         self.model.to(self.device)
         self.model.eval()
-        # TODO external input shape should either be compatible with the model or tiled. Add checks and raise errors
+        # TODO external input shape should either be compatible with the model or tiled.
+        #  Add checks and raise errors
         if not mean and not std:
             mean = self.cfg.data.mean
             std = self.cfg.data.std
@@ -244,7 +249,8 @@ class Engine:
             mean=mean,
             std=std,
         )
-        # TODO keep getting this ValueError: Mean or std are not specified in the configuration and in parameters
+        # TODO keep getting this ValueError: Mean or std are not specified in the
+        # configuration and in parameters
 
         tiles = []
         prediction = []
@@ -255,7 +261,8 @@ class Engine:
         else:
             self.logger.info("Starting prediction on whole sample")
 
-        # TODO Joran/Vera: make this as a config object, add function to assess the external input
+        # TODO Joran/Vera: make this as a config object, add function to assess the
+        # external input
         with torch.no_grad():
             # TODO tiled prediction slow af, profile and optimize
             # TODO progress bar isn't displayed
@@ -310,7 +317,6 @@ class Engine:
         self.logger.info(f"Predicted {len(prediction)} samples")
         return np.stack(prediction)
 
-    # TODO: add custom collate function and separate dataloader create function, sampler?
     def get_train_dataloader(self) -> DataLoader:
         """_summary_.
 
@@ -373,7 +379,8 @@ class Engine:
         Tuple[DataLoader, bool]
             _description_
         """
-        # TODO mypy does not take into account "is not None", we need to find a workaround
+        # TODO mypy does not take into account "is not None", we need to
+        # find a workaround
         if external_input is not None:
             normalized_input = normalize(external_input, mean, std)
             normalized_input = normalized_input.astype(np.float32)

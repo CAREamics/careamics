@@ -60,12 +60,16 @@ def create_model(config: Configuration) -> torch.nn.Module:
             raise NotImplementedError("Invalid checkpoint format")
 
         logger.info(f"Loaded model from {Path(load_checkpoint).name}")
-
+        if "config" in checkpoint:
+            config.data.mean = checkpoint["config"]["data"]["mean"]
+            config.data.std = checkpoint["config"]["data"]["std"]
+            logger.info("Updated config from checkpoint")
+            # TODO discuss other updates
     optimizer, scheduler = get_optimizer_and_scheduler(
         config, model, state_dict=checkpoint
     )
     scaler = get_grad_scaler(config, state_dict=checkpoint)
-    return model, optimizer, scheduler, scaler
+    return model, optimizer, scheduler, scaler, config
 
 
 def get_optimizer_and_scheduler(
