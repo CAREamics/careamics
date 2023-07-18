@@ -4,10 +4,6 @@ experiment_name: N2V_BSD_test_3d1
 # Working directory (logs, models, etc), its parent folder must exist
 working_directory: n2v_bsd_test
 
-# Optional
-# Absolute or relative (wrt working_directory) path to model
-trained_model: N2V_BSD_test_3d1_best.pth
-
 algorithm:
   # Loss, currently only n2v is supported
   loss: n2v
@@ -73,7 +69,7 @@ training:
 
   # Optional, automatic mixed precision
   amp:
-  #   # Use (True or False)
+    #   # Use (True or False)
     use: True
 
   #   # Optional, scaling parameter for mixed precision training, power of 2 recommended.
@@ -88,9 +84,9 @@ data:
   axes: ZYX
 
   # Optional, path to the data, absolute or relative to working_directory
-  training_path: /home/igor.zubarev/projects/caremics/examples/data/flywing-data
-  validation_path: /home/igor.zubarev/projects/caremics/examples/data/flywing-data
-  prediction_path: /home/igor.zubarev/projects/caremics/examples/data/flywing-data
+  training_path: data/denoising-Flywing.unzip
+  validation_path: data/denoising-Flywing.unzip
+  prediction_path: data/denoising-Flywing.unzip
 
   # Optional, mean/std of the dataset
   # mean = Null
