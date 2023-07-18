@@ -54,8 +54,11 @@ class Engine:
         self.progress = ProgressLogger()
         self.logger = get_logger(__name__, log_path=log_path)
 
-        # create model and loss function
-        self.model = create_model(self.cfg)
+        # create model, optimizer, lr scheduler and gradient scaler
+        self.model, self.optimizer, self.lr_scheduler, self.scaler = create_model(
+            self.cfg
+        )
+        # create loss function
         self.loss_func = create_loss_function(self.cfg)
 
         # get GPU or CPU device
@@ -98,8 +101,6 @@ class Engine:
 
             eval_loader = self.get_val_dataloader()
 
-            self.optimizer, self.lr_scheduler = self.get_optimizer_and_scheduler()
-            self.scaler = self.get_grad_scaler()
             self.logger.info(
                 f"Starting training for {self.cfg.training.num_epochs} epochs"
             )
@@ -124,7 +125,7 @@ class Engine:
                     # Add update scheduler rule based on type
                     self.lr_scheduler.step(eval_outputs["loss"])
                     val_losses.append(eval_outputs["loss"])
-                    name = self.save_checkpoint(epoch, val_losses, 'model')
+                    name = self.save_checkpoint(epoch, val_losses, "model")
                     self.logger.info(f"Saved checkpoint to {name}")
 
             except KeyboardInterrupt:
@@ -447,9 +448,7 @@ class Engine:
         else:
             raise ValueError("Missing training entry in configuration file.")
 
-    def save_checkpoint(
-        self, epoch: int, losses: List[float], save_method: str
-    ) -> str:
+    def save_checkpoint(self, epoch: int, losses: List[float], save_method: str) -> str:
         """Save the model to a checkpoint file.
 
         Parameters
@@ -467,7 +466,7 @@ class Engine:
             name = f"{self.cfg.experiment_name}_latest.pth"
         workdir = self.cfg.working_directory
         workdir.mkdir(parents=True, exist_ok=True)
-        if save_method =='state_dict':
+        if save_method == "state_dict":
             checkpoint = {
                 "epoch": epoch,
                 "model_state_dict": self.model.state_dict(),
@@ -475,12 +474,11 @@ class Engine:
                 "scheduler_state_dict": self.lr_scheduler.state_dict(),
                 "grad_scaler_state_dict": self.scaler.state_dict(),
                 "loss": losses[-1],
-                "config": self.cfg.model_dump()
+                "config": self.cfg.model_dump(),
             }
-        elif save_method == 'model':
-            checkpoint = {'model': self.model,
-                          'config': self.cfg.model_dump()}
-        elif save_method == 'jit':
+        elif save_method == "model":
+            checkpoint = {"model": self.model, "config": self.cfg.model_dump()}
+        elif save_method == "jit":
             # TODO Vera help
             raise NotImplementedError
         torch.save(checkpoint, workdir / name)
