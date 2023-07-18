@@ -8,8 +8,7 @@ from torch.utils.data import DataLoader, TensorDataset
 
 from careamics_restoration.utils.logging import ProgressLogger, get_logger
 
-from .config import load_configuration
-from .config.training import Training
+from .config import Configuration, load_configuration
 from .dataset.tiff_dataset import (
     get_prediction_dataset,
     get_train_dataset,
@@ -38,17 +37,42 @@ def seed_everything(seed: int):
 
 # TODO: discuss normalization strategies, test running mean and std
 class Engine:
-    """Main Engine class.
+    """Class allowing training and prediction of a model.
+
+    There are three ways to instantiate an Engine:
+    1. With a configuration object
+    2. With a configuration file, by passing a path
+
+    In each case, the parameter name must be provided explicitly. For example:
+    ``` python
+    engine = Engine(config_path="path/to/config.yaml")
+    ```
+
+    Note that only one of these options can be used at a time, otherwise only one
+    of them will be used, in the order of the list above.
 
     Parameters
     ----------
-    cfg_path : Union[str, Path]
-
+    config : Optional[Configuration], optional
+        Configuration object, by default None
+    config_path : Optional[Union[str, Path]], optional
+        Path to configuration file, by default None
     """
 
-    def __init__(self, cfg_path: Union[str, Path]) -> None:
-        # load configuration from disk
-        self.cfg = load_configuration(cfg_path)
+    def __init__(
+        self,
+        *,
+        config: Optional[Configuration] = None,
+        config_path: Optional[Union[str, Path]] = None,
+    ) -> None:
+        # Sanity checks
+        if config is None and config_path is None:
+            raise ValueError("No configuration or model path provided.")
+
+        if config is not None:
+            self.cfg = config
+        elif config_path is not None:
+            self.cfg = load_configuration(config_path)
 
         # set logging
         log_path = self.cfg.working_directory / "log.txt"
