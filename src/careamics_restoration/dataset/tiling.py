@@ -1,5 +1,5 @@
 import itertools
-from typing import Generator, Iterable, List, Tuple
+from typing import Any, Generator, Iterable, List, Tuple
 
 import numpy as np
 from skimage.util import view_as_windows
@@ -10,7 +10,7 @@ logger = get_logger(__name__)
 
 
 def _compute_number_of_patches(
-    arr: np.ndarray, patch_sizes: Tuple[int]
+    arr: np.ndarray, patch_sizes: Tuple[int, ...]
 ) -> Tuple[int, ...]:
     """Compute a number of patches in each dimension in order to covert the whole array.
 
@@ -35,7 +35,7 @@ def _compute_number_of_patches(
     return tuple(n_patches)
 
 
-def compute_overlap(arr: np.ndarray, patch_sizes: Tuple[int]) -> Tuple[int, ...]:
+def compute_overlap(arr: np.ndarray, patch_sizes: Tuple[int, ...]) -> Tuple[int, ...]:
     """Compute the overlap between patches in each dimension.
 
     Array must be of dimensions C(Z)YX, and patches must be of dimensions YX or ZYX.
@@ -117,7 +117,8 @@ def compute_crop_and_stitch_coords_1d(
                     else tile_size,
                 )
             )
-        # If the tile does not fit within the axis, perform the abovementioned operations starting from the end of the axis
+        # If the tile does not fit within the axis, perform the abovementioned
+        # operations starting from the end of the axis
         else:
             # if (axis_size - tile_size, axis_size) not in crop_coords:
             crop_coords.append((axis_size - tile_size, axis_size))
@@ -186,7 +187,7 @@ def compute_reshaped_view(
 # formerly :
 # https://github.com/juglab-torch/n2v/blob/00d536cdc5f5cd4bb34c65a777940e6e453f4a93/src/n2v/dataloader.py#L52
 def extract_patches_sequential(
-    arr: np.ndarray, patch_size: Tuple[int]
+    arr: np.ndarray, patch_size: Tuple[int, ...]
 ) -> Generator[np.ndarray, None, None]:
     """Generate patches from an array.
 
@@ -274,7 +275,8 @@ def extract_patches_sequential(
         yield patch
 
 
-# TODO: extract patches random default number of patches 1 or max? parameter for number of patches?
+# TODO: extract patches random default number of patches 1 or max? parameter for number
+#  of patches?
 # TODO: extract patches random but with the possibility to remove (almost) empty patches
 def extract_patches_random(
     arr: np.ndarray, patch_size: Tuple[int], seed: int = 42
@@ -332,7 +334,7 @@ def extract_patches_predict(
     arr: np.ndarray,
     patch_size: Tuple[int],
     overlaps: Tuple[int],
-) -> Iterable[List[np.ndarray]]:
+) -> Iterable[Tuple[np.ndarray[Any, np.dtype[Any]], bool, Tuple[int, ...], Any, Any]]:
     """_summary_.
 
     _extended_summary_
