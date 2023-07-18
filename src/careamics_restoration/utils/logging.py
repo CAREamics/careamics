@@ -65,6 +65,7 @@ def get_logger(
 
     logger.setLevel(log_level)
     LOGGERS[name] = True
+
     return logger
 
 

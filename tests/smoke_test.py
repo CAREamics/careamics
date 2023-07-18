@@ -64,6 +64,7 @@ def base_configuration(
             extraction_strategy="random",
             augmentation=True,
             num_workers=0,
+            use_wandb=False,
         ),
         prediction=Prediction(use_tiling=False),
     )

@@ -9,7 +9,6 @@ from torch.utils.data import DataLoader, TensorDataset
 from careamics_restoration.utils.logging import ProgressLogger, get_logger
 
 from .config import load_configuration
-from .config.training import Training
 from .dataset.tiff_dataset import (
     get_prediction_dataset,
     get_train_dataset,
@@ -499,3 +498,7 @@ class Engine:
 
         torch.save(self.model.state_dict(), workdir / name)
         return name
+
+    def __exit__(self) -> None:
+        for handler in self.logger.handlers:
+            handler.close()
