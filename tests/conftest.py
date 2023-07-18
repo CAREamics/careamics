@@ -5,8 +5,6 @@ from typing import Callable
 import numpy as np
 import pytest
 
-# TODO Make two fixtures, one full configuration and one minimal
-
 
 def create_tiff(path: Path, n_files: int):
     """Create tiff files for testing."""

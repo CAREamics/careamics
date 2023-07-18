@@ -102,7 +102,7 @@ def test_both_training_and_validation(complete_config: dict):
         Data(data_format="tif", axes="YX", training_path=training)
 
 
-@pytest.mark.parametrize("mean, std", [(0, 124.5), (12.6, 0)])
+@pytest.mark.parametrize("mean, std", [(0, 124.5), (12.6, 0.1)])
 def test_mean_std_non_negative(complete_config: dict, mean, std):
     """Test that non negative mean and std are accepted."""
     complete_config["data"]["mean"] = mean
@@ -129,23 +129,35 @@ def test_mean_std_negative(complete_config: dict):
 
 
 def test_mean_std_both_specified_or_none(complete_config: dict):
-    """Test an error is raised if only one of mean or std is specified."""
+    """Test an error is raised if std is specified but mean is None."""
     # No error if both are None
     complete_config["data"].pop("mean")
     complete_config["data"].pop("std")
     Data(**complete_config["data"])
 
-    # Error if only one is None
+    # No error if mean is defined
     complete_config["data"]["mean"] = 10.4
+    Data(**complete_config["data"])
 
-    with pytest.raises(ValueError):
-        Data(**complete_config["data"])
-
+    # Error if only std is defined
     complete_config["data"].pop("mean")
     complete_config["data"]["std"] = 10.4
 
     with pytest.raises(ValueError):
         Data(**complete_config["data"])
+
+
+def test_set_mean_and_std(complete_config: dict):
+    """Test that mean and std can be set after initialization."""
+    # they can be set both, when they are already set
+    data = Data(**complete_config["data"])
+    data.set_mean_and_std(4.07, 14.07)
+
+    # and if they are both None
+    complete_config["data"].pop("mean")
+    complete_config["data"].pop("std")
+    data = Data(**complete_config["data"])
+    data.set_mean_and_std(10.4, 0.5)
 
 
 def test_wrong_values_by_assigment(complete_config: dict):
