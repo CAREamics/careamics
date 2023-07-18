@@ -91,14 +91,25 @@ class Engine:
 
         if self.use_wandb:
             try:
+                from wandb.errors import UsageError
+
                 from careamics_restoration.utils.wandb import WandBLogging
 
-                self.wandb = WandBLogging(
-                    experiment_name=self.cfg.experiment_name,
-                    log_path=self.cfg.working_directory,
-                    config=self.cfg,
-                    model_to_watch=self.model,
-                )
+                try:
+                    self.wandb = WandBLogging(
+                        experiment_name=self.cfg.experiment_name,
+                        log_path=self.cfg.working_directory,
+                        config=self.cfg,
+                        model_to_watch=self.model,
+                    )
+                except UsageError as e:
+                    self.logger.warning(
+                        f"Wandb usage error, using default logger. Check whether wandb "
+                        f"correctly configured:\n"
+                        f"{e}"
+                    )
+                    self.use_wandb = False
+
             except ModuleNotFoundError:
                 self.logger.warning(
                     "Wandb not installed, using default logger. Try pip install wandb"
