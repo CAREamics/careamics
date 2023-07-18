@@ -1,15 +1,18 @@
+from typing import Union
 from pathlib import Path
 
 import yaml
 
 from bioimageio.spec.model.raw_nodes import Model
 from bioimageio.core.build_spec import build_model
+from bioimageio.core import load_resource_description
 
 from careamics_restoration.config.config import (
-    Configuration, save_configuration
+    Configuration, save_configuration, load_configuration
 )
 
 PYTORCH_STATE_DICT = "pytorch_state_dict"
+CAREAMICS_CONFIG = "careamics_config.yml"
 
 
 def _load_model_rdf(name: str) -> dict:
@@ -60,7 +63,7 @@ def build_zip_model(
     # save config file as attachments
     workdir = config.working_directory
     workdir.mkdir(parents=True, exist_ok=True)
-    config_file = save_configuration(config, workdir.joinpath("careamics_config.yml"))
+    config_file = save_configuration(config, workdir.joinpath(CAREAMICS_CONFIG))
     # build model zip
     raw_model = build_model(
         root=str(Path(model_specs["output_path"]).parent.absolute()),
@@ -74,5 +77,35 @@ def build_zip_model(
     return raw_model
 
 
+def import_bioimage_model(model_path: Union[str, Path]) -> Configuration:
+    """Load configs and weights from a bioimage zip model.
+
+    Parameters
+    ----------
+        model_path (Union[str, Path]): Path to the bioimage model
+
+    Return
+    ------
+        Configuration instance
+    """
+    if isinstance(model_path, str):
+        model_path = Path(model_path)
+    # check the model extension (should be a zip file).
+    if model_path.suffix != ".zip":
+        raise ValueError("Invalid model format. Expected bioimage model zip file.")
+    # load the model
+    rdf = load_resource_description(model_path)
+    config_file = None
+    for file in rdf.attachments.files:
+        if file.name == CAREAMICS_CONFIG:
+            config_file = file
+            break
+    if config_file is not None:
+        config = load_configuration(config_file)
+
+    return config
+
+
 if __name__ == "__main__":
-    print(_load_model_rdf("n2v"))
+    # print(_load_model_rdf("n2v"))
+    print(import_bioimage_model("/Users/mehdi.seifi/Projects/CAREamics/n2v_bio.zip"))
