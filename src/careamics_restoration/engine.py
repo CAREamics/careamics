@@ -1,4 +1,5 @@
 import random
+from logging import FileHandler
 from pathlib import Path
 from typing import Dict, Optional, Tuple, Union
 
@@ -500,6 +501,27 @@ class Engine:
         return name
 
     def __exit__(self) -> None:
+
+
+        import psutil
+        import warnings
+
+        for proc in psutil.process_iter():
+            try:
+                # this returns the list of opened files by the current process
+                flist = proc.open_files()
+                if flist:
+                    warnings.warn(proc.pid, proc.name)
+                    for nt in flist:
+                        warnings.warn("\t",nt.path)
+
+            # This catches a race condition where a process ends
+            # before we can examine its files    
+            except psutil.NoSuchProcess as err:
+                print("****",err) 
+
+
         for handler in self.logger.handlers:
-            self.logger.removeHandler(handler)
-            handler.close()
+            if isinstance(handler, FileHandler):
+                self.logger.removeHandler(handler)
+                handler.close()
