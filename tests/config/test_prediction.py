@@ -95,6 +95,37 @@ def test_prediction_tiling_without_parameters():
         Prediction(use_tiling=True, overlaps=[96, 96])
 
 
+def test_wrong_values_by_assigment(complete_config: dict):
+    """Test that wrong values are not accepted through assignment."""
+    prediction = Prediction(**complete_config["prediction"])
+
+    # tile shape
+    prediction.tile_shape = complete_config["prediction"]["tile_shape"]
+    with pytest.raises(ValueError):
+        prediction.tile_shape = [5, 4]
+
+    # overlaps
+    prediction.overlaps = complete_config["prediction"]["overlaps"]
+    with pytest.raises(ValueError):
+        prediction.overlaps = [4, 5]
+
+    # use tiling
+    prediction.use_tiling = complete_config["prediction"]["use_tiling"]
+    with pytest.raises(ValueError):
+        prediction.use_tiling = None
+
+
+def test_model_validator_by_assigment():
+    """Test that model validator is called when assigning values."""
+    pred_config = {
+        "use_tiling": False,
+    }
+    prediction = Prediction(**pred_config)
+
+    with pytest.raises(ValueError):
+        prediction.use_tiling = True
+
+
 def test_prediction_to_dict(complete_config):
     """Test that to_dict method works."""
     prediction_dict = Prediction(**complete_config["prediction"]).model_dump()

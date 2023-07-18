@@ -1,3 +1,4 @@
+import copy
 from pathlib import Path
 
 import pytest
@@ -104,40 +105,91 @@ def test_3D_algorithm_and_data_compatibility(minimum_config: dict):
 
 def test_at_least_one_of_training_or_prediction(complete_config: dict):
     """Test that at least one of training or prediction is specified."""
-    config_empty = complete_config.copy()
+    test_config = copy.deepcopy(complete_config)
 
     # remove training and prediction
-    config_empty.pop("training")
-    config_empty.pop("prediction")
+    test_config.pop("training")
+    test_config.pop("prediction")
 
     # test that config is invalid
     with pytest.raises(ValueError):
-        Configuration(**config_empty)
+        Configuration(**test_config)
 
     # test that config is valid if we add training
-    config_empty["training"] = complete_config["training"]
-    config_train = Configuration(**config_empty)
-    assert config_train.training.model_dump() == config_empty["training"]
+    test_config["training"] = copy.deepcopy(complete_config["training"])
+    config_train = Configuration(**test_config)
+    assert config_train.training.model_dump() == test_config["training"]
 
-    # test that config fails if training data is not there
-    config_empty["data"].pop("training_path")
+    # test that config fails if training+validation data is not there
+    test_config["data"].pop("training_path")
+    test_config["data"].pop("validation_path")
     with pytest.raises(ValueError):
-        Configuration(**config_empty)
+        Configuration(**test_config)
 
     # remove training
-    config_empty.pop("training")
+    test_config.pop("training")
 
     # test that config is valid if we add prediction
-    config_empty["prediction"] = complete_config["prediction"]
-    config_pred = Configuration(**config_empty)
-    assert config_pred.prediction.model_dump() == config_empty["prediction"]
+    test_config["prediction"] = copy.deepcopy(complete_config["prediction"])
+    config_pred = Configuration(**test_config)
+    assert config_pred.prediction.model_dump() == test_config["prediction"]
 
     # test that config fails if prediction data is not there
     # we must add the training path so that Data model gets validated
-    config_empty["data"] = complete_config["data"]
-    config_empty["data"].pop("prediction_path")
+    test_config["data"] = copy.deepcopy(complete_config["data"])
+    test_config["data"].pop("prediction_path")
     with pytest.raises(ValueError):
-        Configuration(**config_empty)
+        Configuration(**test_config)
+
+
+def test_wrong_values_by_assignment(complete_config: dict):
+    """Test that wrong values raise an error when assigned."""
+    config = Configuration(**complete_config)
+
+    # experiment name
+    config.experiment_name = "My name is Inigo Montoya"
+    with pytest.raises(ValueError):
+        config.experiment_name = "¯\\_(ツ)_/¯"
+
+    # working directory
+    config.working_directory = complete_config["working_directory"]
+    with pytest.raises(ValueError):
+        config.working_directory = "o/o"
+
+    # trained model
+    config.trained_model = complete_config["trained_model"]
+    with pytest.raises(ValueError):
+        config.trained_model = [None]
+
+    # data
+    config.data = complete_config["data"]
+    with pytest.raises(ValueError):
+        config.data = "I am not a data model"
+
+    # algorithm
+    config.algorithm = complete_config["algorithm"]
+    with pytest.raises(ValueError):
+        config.algorithm = None
+
+    # training
+    config.training = complete_config["training"]
+    with pytest.raises(ValueError):
+        config.training = "Hubert Blaine Wolfeschlegelsteinhausenbergerdorff Sr."
+
+    # prediction
+    config.prediction = complete_config["prediction"]
+    with pytest.raises(ValueError):
+        config.prediction = "You can call me Giorgio"
+
+    # Test that the model validators are also run after assigment
+    config.prediction = None
+    with pytest.raises(ValueError):
+        config.training = None
+
+    # TODO Because algorithm is a sub-model of Configuration, and the validation is
+    # done at the level of the Configuration, this does not cause any error, although
+    # it should.
+    config.algorithm.is_3D = True
 
 
 def test_minimum_config(minimum_config: dict):

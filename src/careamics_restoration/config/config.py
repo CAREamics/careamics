@@ -5,7 +5,13 @@ from pathlib import Path
 from typing import Optional, Union
 
 import yaml
-from pydantic import BaseModel, FieldValidationInfo, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    FieldValidationInfo,
+    field_validator,
+    model_validator,
+)
 
 from .algorithm import Algorithm
 from .config_filter import paths_to_str
@@ -14,8 +20,6 @@ from .prediction import Prediction
 from .training import Training
 
 # TODO: test if parameter parent_config at the top of the config could work
-# TODO: test configuration mutability and whether the validators are called when
-# changing a field
 # TODO: config version?
 # TODO: for the working directory to work it should probably be set globally when
 # starting the engine
@@ -52,6 +56,8 @@ class Configuration(BaseModel):
     prediction : Optional[Prediction]
         Prediction configuration.
     """
+
+    model_config = ConfigDict(validate_assignment=True)
 
     # required parameters
     experiment_name: str

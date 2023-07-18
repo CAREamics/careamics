@@ -59,8 +59,8 @@ class SupportedExtensions(str, Enum):
 class Data(BaseModel):
     """Data configuration.
 
-    The data paths are individually optional, however, at least one of training or
-    prediction must be specified.
+    The data paths are individually optional, however, at least one of training +
+    validation orprediction must be specified.
 
     The optional paths to the training, validation and prediction data should point to
     the parent folder of the images.
@@ -84,7 +84,10 @@ class Data(BaseModel):
     """
 
     # Pydantic class configuration
-    model_config = ConfigDict(use_enum_values=True)
+    model_config = ConfigDict(
+        use_enum_values=True,
+        validate_assignment=True,
+    )
 
     # Mandatory fields
     data_format: SupportedExtensions
@@ -92,9 +95,7 @@ class Data(BaseModel):
 
     # Optional fields
     training_path: Optional[Union[Path, str]] = None
-    validation_path: Optional[
-        Union[Path, str]
-    ] = None  # TODO Jerome: validation path must be there
+    validation_path: Optional[Union[Path, str]] = None
     prediction_path: Optional[Union[Path, str]] = None
 
     mean: Optional[float] = None
@@ -212,6 +213,30 @@ class Data(BaseModel):
             raise ValueError(
                 "At least one of training or prediction paths must be specified."
             )
+
+        return data_model
+
+    @model_validator(mode="after")
+    def both_training_and_validation(cls, data_model: Data) -> Data:
+        """Validate that both training and validation paths are specified.
+
+        Parameters
+        ----------
+        data_model : Data
+            Data model to validate
+
+        Returns
+        -------
+        Data
+            Validated model
+
+        Raises
+        ------
+        ValueError
+            If one of training or validation paths is specified and not the other
+        """
+        if (data_model.training_path is None) != (data_model.validation_path is None):
+            raise ValueError("Both training and validation paths must be specified.")
 
         return data_model
 
