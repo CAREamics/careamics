@@ -332,31 +332,27 @@ def extract_patches_random(
 
 def extract_tiles_predict(
     arr: np.ndarray,
-    patch_size: Tuple[int],
+    tile_size: Tuple[int],
     overlaps: Tuple[int],
 ) -> Iterable[Tuple[np.ndarray]]:
-    """_summary_.
-
-    _extended_summary_
+    """Extracts tiles or specified size from input array with specified overlap.
 
     Parameters
     ----------
     arr : np.ndarray
-        _description_
+        Array of shape (S, (Z), Y, X)
     patch_size : Tuple[int]
-        _description_
+        Tuple of tile sizes in each dimension, could be of size 2 or 3, depending on
+        the input shape
     overlaps : Tuple[int]
-        _description_
-
-    Returns
-    -------
-    Iterable[List[np.ndarray]]
-        _description_
+        Tuple of overlap values in each dimension, could be of size 2 or 3, depending
+        on the input shape
 
     Yields
     ------
     Iterator[Iterable[List[np.ndarray]]]
-        _description_
+        Tile with corresponding coordinates for cropping the overlap region from
+        the prediction and stitching the tiles back together across each axis
     """
     # Iterate over num samples (S)
     for sample_idx in range(arr.shape[0]):
@@ -365,9 +361,9 @@ def extract_tiles_predict(
         # Shape: (axes, type_of_coord, tile_num, start/end coord)
         crop_and_stitch_coords_list = [
             compute_crop_and_stitch_coords_1d(
-                sample.shape[i], patch_size[i], overlaps[i]
+                sample.shape[i], tile_size[i], overlaps[i]
             )
-            for i in range(len(patch_size))
+            for i in range(len(tile_size))
         ]
         # Rearrange crop coordinates from a list of coordinate pairs per axis to a list
         # grouped by type
