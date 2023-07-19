@@ -186,7 +186,7 @@ class Engine:
         self.model.train()
 
         for batch, *auxillary in self.progress(
-            loader, task_name="train", unbounded=True
+            loader, task_name="train"
         ):
             optimizer.zero_grad()
 
@@ -220,7 +220,7 @@ class Engine:
 
         with torch.no_grad():
             for patch, *auxillary in self.progress(
-                eval_loader, task_name="validate", unbounded=True, persistent=False
+                eval_loader, task_name="validate", persistent=False
             ):
                 outputs = self.model(patch.to(self.device))
                 loss = self.loss_func(outputs, *auxillary, self.device)
@@ -289,7 +289,7 @@ class Engine:
             # TODO progress bar isn't displayed
             # TODO is this linked to an issue? Mention issue here.
             for _, (tile, *auxillary) in self.progress(
-                enumerate(pred_loader), task_name="Prediction", unbounded=True
+                enumerate(pred_loader), task_name="Prediction"
             ):
                 if auxillary:
                     (

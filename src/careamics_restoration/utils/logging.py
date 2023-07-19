@@ -1,8 +1,9 @@
 import logging
 import sys
 from pathlib import Path
-from typing import Iterable, Optional, Union
+from typing import Iterable, Optional, Union, Sequence
 
+import torch.utils.data
 from rich.console import Console, Group
 from rich.live import Live
 from rich.logging import RichHandler
@@ -48,13 +49,13 @@ def get_logger(
 
     logger.propagate = False
 
-    handlers = [
-        RichHandler(rich_tracebacks=True, show_level=False),
-    ]
     if log_path:
-        handlers.append(
+        handlers = [
+            RichHandler(rich_tracebacks=True, show_level=False),
             logging.FileHandler(log_path),
-        )
+        ]
+    else:
+        handlers = [RichHandler(rich_tracebacks=True, show_level=False)]
 
     formatter = logging.Formatter("%(message)s")
 
@@ -126,13 +127,27 @@ class ProgressLogger:
         self.live.__exit__(None, None, None)
         self.live = None
 
+    @staticmethod
+    def get_task_length(task_iterable: Union[Iterable, Sequence]) -> Optional[int]:
+        task_length = None
+
+        if isinstance(task_iterable, torch.utils.data.DataLoader):
+            task_type = type(task_iterable.dataset)
+            if not issubclass(task_type, torch.utils.data.IterableDataset):
+                if hasattr(task_iterable, "__len__"):
+                    task_length = task_iterable.__len__()
+        else:
+            if hasattr(task_iterable, "__len__"):
+                task_length = task_iterable.__len__()
+
+        return task_length
+
     def __call__(
         self,
-        task_iterable: Iterable,
+        task_iterable: Union[Iterable, Sequence],
         task_name: str,
         overall_progress: bool = False,
         persistent: bool = True,
-        unbounded: bool = False,
     ):
         self._start_live_if_needed()
 
@@ -141,11 +156,8 @@ class ProgressLogger:
         else:
             tracker = self.task_progress
 
-        if unbounded:
-            task_length = None
-        else:
-            # TODO in Engine, task_iterable is an enumeration, but neither enumerate nor Iterable have __len__
-            task_length = len(task_iterable)
+        task_length = self.get_task_length(task_iterable)
+
         task_id = self._get_task(task_name, task_length, tracker=tracker)
 
         for item in task_iterable:
