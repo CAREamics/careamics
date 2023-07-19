@@ -20,14 +20,12 @@ from rich.progress import (
 )
 from rich_pixels import Pixels
 
-
 LOGGERS: dict = {}
 
 
 # TODO: export all the loggers to the same file
 def get_logger(
     name: str, log_level=logging.INFO, log_path: Optional[Union[str, Path]] = None
-
 ):
     """Creates a python logger instance with configured handlers."""
     logger = logging.getLogger(name)
@@ -61,7 +59,6 @@ def get_logger(
 
 
 class ProgressLogger:
-
     """
     Provides Rich interface for logging and progress monitoring.
 
@@ -156,7 +153,6 @@ class ProgressLogger:
         overall_progress: bool = False,
         persistent: bool = True,
     ):
-
         """
         Tracks progress of an iterable task.
 
