@@ -9,8 +9,8 @@ def test_model_parameters_depth(complete_config: dict, depth: int):
     model_params = complete_config["algorithm"]["model_parameters"]
     model_params["depth"] = depth
 
-    model_params = ModelParameters(**model_params)
-    assert model_params.depth == depth
+    model = ModelParameters(**model_params)
+    assert model.depth == depth
 
 
 @pytest.mark.parametrize("depth", [-1, 11])
@@ -32,8 +32,8 @@ def test_model_parameters_num_channels_init(
     model_params = complete_config["algorithm"]["model_parameters"]
     model_params["num_channels_init"] = num_channels_init
 
-    model_params = ModelParameters(**model_params)
-    assert model_params.num_channels_init == num_channels_init
+    model = ModelParameters(**model_params)
+    assert model.num_channels_init == num_channels_init
 
 
 @pytest.mark.parametrize("num_channels_init", [2, 17, 127])
@@ -46,6 +46,22 @@ def test_model_parameters_wrong_num_channels_init(
 
     with pytest.raises(ValueError):
         ModelParameters(**model_params)
+
+
+def test_model_parameters_wrong_values_by_assigment(complete_config: dict):
+    """Test that wrong values are not accepted through assignment."""
+    model_params = complete_config["algorithm"]["model_parameters"]
+    model = ModelParameters(**model_params)
+
+    # depth
+    model.depth = model_params["depth"]
+    with pytest.raises(ValueError):
+        model.depth = -1
+
+    # number of channels
+    model.num_channels_init = model_params["num_channels_init"]
+    with pytest.raises(ValueError):
+        model.num_channels_init = 2
 
 
 @pytest.mark.parametrize("masked_pixel_percentage", [0.1, 0.2, 5, 20])
@@ -68,6 +84,42 @@ def test_wrong_masked_pixel_percentage(
 
     with pytest.raises(ValueError):
         Algorithm(**algorithm)
+
+
+def test_wrong_values_by_assigment(complete_config: dict):
+    """Test that wrong values are not accepted through assignment."""
+    algorithm = complete_config["algorithm"]
+    algo = Algorithm(**algorithm)
+
+    # loss
+    algo.loss = algorithm["loss"]
+    with pytest.raises(ValueError):
+        algo.loss = "mse"
+
+    # model
+    algo.model = algorithm["model"]
+    with pytest.raises(ValueError):
+        algo.model = "unet"
+
+    # is_3D
+    algo.is_3D = algorithm["is_3D"]
+    with pytest.raises(ValueError):
+        algo.is_3D = 3
+
+    # masking_strategy
+    algo.masking_strategy = algorithm["masking_strategy"]
+    with pytest.raises(ValueError):
+        algo.masking_strategy = "mean"
+
+    # masked_pixel_percentage
+    algo.masked_pixel_percentage = algorithm["masked_pixel_percentage"]
+    with pytest.raises(ValueError):
+        algo.masked_pixel_percentage = 0.01
+
+    # model_parameters
+    algo.model_parameters = algorithm["model_parameters"]
+    with pytest.raises(ValueError):
+        algo.model_parameters = "params"
 
 
 def test_algorithm_to_dict_minimum(minimum_config: dict):

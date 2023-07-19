@@ -64,6 +64,7 @@ def base_configuration(
             extraction_strategy="random",
             augmentation=True,
             num_workers=0,
+            use_wandb=False,
         ),
         prediction=Prediction(use_tiling=False),
     )
@@ -83,10 +84,7 @@ def test_is_engine_runnable(base_configuration: Configuration):
     """
     Test if basic workflow does not fail - train model and then predict
     """
-    # TODO: remove when engine accepts configuration in init
-    config_path = dump_config(base_configuration)
-
-    engine = Engine(config_path)
+    engine = Engine(config=base_configuration)
     engine.train()
 
     model_name = f"{engine.cfg.experiment_name}_best.pth"

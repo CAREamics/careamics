@@ -3,6 +3,7 @@ import pytest
 
 from careamics_restoration.prediction_utils import stitch_prediction
 
+
 # TODO: unused impots and incomplete tests
 
 # [

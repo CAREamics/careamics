@@ -58,6 +58,21 @@ def test_sgd_missing_parameter():
     assert optimizer.parameters == {"lr": 0.1}
 
 
+def test_optimizer_wrong_values_by_assignments():
+    """Test that wrong values cause an error during assignment."""
+    optimizer = Optimizer(name=TorchOptimizer.Adam, parameters={"lr": 0.08})
+
+    # name
+    optimizer.name = TorchOptimizer.SGD
+    with pytest.raises(ValueError):
+        optimizer.name = "MyOptim"
+
+    # parameters
+    optimizer.parameters = {"lr": 0.1}
+    with pytest.raises(ValueError):
+        optimizer.parameters = "lr = 0.3"
+
+
 def test_optimizer_to_dict_minimum(minimum_config: dict):
     """ "Test that export to dict does not include optional value."""
     optim_minimum = Optimizer(**minimum_config["training"]["optimizer"]).model_dump()
@@ -139,6 +154,28 @@ def test_scheduler_missing_parameter():
     assert lr_scheduler.parameters == {"step_size": "5"}
 
 
+def test_scheduler_wrong_values_by_assignments():
+    """Test that wrong values cause an error during assignment."""
+    scheduler = LrScheduler(
+        name=TorchLRScheduler.ReduceLROnPlateau, parameters={"factor": 0.3}
+    )
+
+    # name
+    scheduler.name = TorchLRScheduler.ReduceLROnPlateau
+    with pytest.raises(ValueError):
+        # this fails because the step parameter is missing
+        scheduler.name = TorchLRScheduler.StepLR
+
+    with pytest.raises(ValueError):
+        scheduler.name = "Schedule it yourself!"
+
+    # parameters
+    scheduler.name = TorchLRScheduler.ReduceLROnPlateau
+    scheduler.parameters = {"factor": 0.1}
+    with pytest.raises(ValueError):
+        scheduler.parameters = "factor = 0.3"
+
+
 def test_scheduler_to_dict_minimum(minimum_config: dict):
     """ "Test that export to dict does not include optional value."""
     scheduler_minimum = LrScheduler(
@@ -184,6 +221,24 @@ def test_amp_wrong_init_scale(init_scale: int):
     """Test wrong AMP init_scale parameter."""
     with pytest.raises(ValueError):
         AMP(use=True, init_scale=init_scale)
+
+
+def test_amp_wrong_values_by_assignments():
+    """Test that wrong values cause an error during assignment."""
+    amp = AMP(use=True, init_scale=1024)
+
+    # use
+    amp.use = False
+    with pytest.raises(ValueError):
+        amp.use = None
+
+    with pytest.raises(ValueError):
+        amp.use = 3
+
+    # init_scale
+    amp.init_scale = 512
+    with pytest.raises(ValueError):
+        amp.init_scale = "1026"
 
 
 def test_amp_to_dict():
@@ -301,6 +356,63 @@ def test_training_wrong_num_workers(complete_config: dict, num_workers: int):
 
     with pytest.raises(ValueError):
         Training(**training)
+
+
+def test_training_wrong_values_by_assignments(complete_config: dict):
+    """Test that wrong values cause an error during assignment."""
+    training = Training(**complete_config["training"])
+
+    # num_epochs
+    training.num_epochs = 2
+    with pytest.raises(ValueError):
+        training.num_epochs = -1
+
+    # batch_size
+    training.batch_size = 2
+    with pytest.raises(ValueError):
+        training.batch_size = -1
+
+    # patch_size
+    training.patch_size = [2, 2]
+    with pytest.raises(ValueError):
+        training.patch_size = [5, 4]
+
+    # optimizer
+    training.optimizer = Optimizer(name=TorchOptimizer.Adam, parameters={"lr": 0.1})
+    with pytest.raises(ValueError):
+        training.optimizer = "I'd rather not to."
+
+    # lr_scheduler
+    training.lr_scheduler = LrScheduler(
+        name=TorchLRScheduler.ReduceLROnPlateau, parameters={"factor": 0.1}
+    )
+    with pytest.raises(ValueError):
+        training.lr_scheduler = "Why don't you schedule it for once? :)"
+
+    # extraction_strategy
+    training.extraction_strategy = "random"
+    with pytest.raises(ValueError):
+        training.extraction_strategy = "Maybe we should just extract everything?"
+
+    # augmentation
+    training.augmentation = True
+    with pytest.raises(ValueError):
+        training.augmentation = None
+
+    # use_wandb
+    training.use_wandb = True
+    with pytest.raises(ValueError):
+        training.use_wandb = None
+
+    # amp
+    training.amp = AMP(use=True, init_scale=1024)
+    with pytest.raises(ValueError):
+        training.amp = "I don't want to use AMP."
+
+    # num_workers
+    training.num_workers = 2
+    with pytest.raises(ValueError):
+        training.num_workers = -1
 
 
 def test_training_to_dict_minimum(minimum_config: dict):
