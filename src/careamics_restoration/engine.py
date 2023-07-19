@@ -71,6 +71,11 @@ class Engine:
             raise ValueError("No configuration or path provided.")
 
         if config is not None:
+            # check that config is a Configuration object
+            if not isinstance(config, Configuration):
+                raise TypeError(
+                    f"config must be a Configuration object, got {type(config)}"
+                )
             self.cfg = config
         elif config_path is not None:
             self.cfg = load_configuration(config_path)
