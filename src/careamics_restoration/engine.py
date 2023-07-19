@@ -8,7 +8,6 @@ from torch.utils.data import DataLoader, TensorDataset
 
 from careamics_restoration.utils.logging import ProgressLogger, get_logger
 
-
 from .config import Configuration, load_configuration
 from .dataset.tiff_dataset import (
     get_prediction_dataset,
