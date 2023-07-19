@@ -334,7 +334,7 @@ def extract_patches_predict(
     arr: np.ndarray,
     patch_size: Tuple[int],
     overlaps: Tuple[int],
-) -> Iterable[Tuple[np.ndarray[Any, np.dtype[Any]], bool, Tuple[int, ...], Any, Any]]:
+) -> Iterable[Tuple[np.ndarray]]:
     """_summary_.
 
     _extended_summary_
