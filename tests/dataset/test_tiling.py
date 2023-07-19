@@ -32,11 +32,17 @@ from careamics_restoration.dataset.tiling import (
         ((1, 10, 10), (5, 11)),
     ],
 )
-def test_extract_patches_sequential_invalid_arguments(arr_shape, patch_size):
+def test_extract_patches_invalid_arguments(arr_shape, patch_size):
     arr = np.zeros(arr_shape)
 
     with pytest.raises(ValueError):
         patches_generator = extract_patches_sequential(arr, patch_size)
+
+        # get next yielded value
+        next(patches_generator)
+
+    with pytest.raises(ValueError):
+        patches_generator = extract_patches_random(arr, patch_size)
 
         # get next yielded value
         next(patches_generator)
@@ -139,10 +145,10 @@ def test_calculate_stats():
     assert np.around(arr.std(), decimals=2) == np.around(std / (i + 1), decimals=2)
 
 
-def test_extract_patches_random():
-    extract_patches_random()
-    pass
+# def test_extract_patches_random():
+#     extract_patches_random()
+#     pass
 
-def test_extract_patches_predict():
-    extract_patches_predict()
-    pass
+# def test_extract_patches_predict():
+#     extract_patches_predict()
+#     pass
