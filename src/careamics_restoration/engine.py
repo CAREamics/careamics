@@ -67,7 +67,7 @@ class Engine:
     ) -> None:
         # Sanity checks
         if config is None and config_path is None:
-            raise ValueError("No configuration or model path provided.")
+            raise ValueError("No configuration or path provided.")
 
         if config is not None:
             self.cfg = config
