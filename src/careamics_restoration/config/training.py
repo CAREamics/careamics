@@ -50,7 +50,10 @@ class Optimizer(BaseModel):
     """
 
     # Pydantic class configuration
-    model_config = ConfigDict(use_enum_values=True)
+    model_config = ConfigDict(
+        use_enum_values=True,
+        validate_assignment=True,
+    )
 
     # Mandatory field
     name: TorchOptimizer
@@ -144,7 +147,10 @@ class LrScheduler(BaseModel):
     """
 
     # Pydantic class configuration
-    model_config = ConfigDict(use_enum_values=True)
+    model_config = ConfigDict(
+        use_enum_values=True,
+        validate_assignment=True,
+    )
 
     # Mandatory field
     name: TorchLRScheduler
@@ -236,6 +242,10 @@ class AMP(BaseModel):
         Initial scale used for loss scaling.
     """
 
+    model_config = ConfigDict(
+        validate_assignment=True,
+    )
+
     use: bool = False
 
     # Optional
@@ -320,7 +330,10 @@ class Training(BaseModel):
     """
 
     # Pydantic class configuration
-    model_config = ConfigDict(use_enum_values=True)
+    model_config = ConfigDict(
+        use_enum_values=True,
+        validate_assignment=True,
+    )
 
     # Mandatory fields
     num_epochs: int

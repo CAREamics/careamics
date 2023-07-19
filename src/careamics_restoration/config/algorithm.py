@@ -52,6 +52,8 @@ class ModelParameters(BaseModel):
         and minimum 8 (default 96).
     """
 
+    model_config = ConfigDict(validate_assignment=True)
+
     depth: int = Field(default=2, ge=1, le=10)
     num_channels_init: int = 96
 
@@ -114,6 +116,7 @@ class Algorithm(BaseModel):
     model_config = ConfigDict(
         use_enum_values=True,
         protected_namespaces=(),  # allows to use model_* as a field name
+        validate_assignment=True,
     )
 
     # Mandatory fields

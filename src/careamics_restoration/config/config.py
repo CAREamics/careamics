@@ -5,7 +5,13 @@ from pathlib import Path
 from typing import Optional, Union
 
 import yaml
-from pydantic import BaseModel, FieldValidationInfo, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    FieldValidationInfo,
+    field_validator,
+    model_validator,
+)
 
 from .algorithm import Algorithm
 from .config_filter import paths_to_str
@@ -14,8 +20,6 @@ from .prediction import Prediction
 from .training import Training
 
 # TODO: test if parameter parent_config at the top of the config could work
-# TODO: test configuration mutability and whether the validators are called when
-# changing a field
 # TODO: config version?
 # TODO: for the working directory to work it should probably be set globally when
 # starting the engine
@@ -53,6 +57,8 @@ class Configuration(BaseModel):
         Prediction configuration.
     """
 
+    model_config = ConfigDict(validate_assignment=True)
+
     # required parameters
     experiment_name: str
     working_directory: Path
@@ -67,6 +73,23 @@ class Configuration(BaseModel):
     # Optional sub-configurations
     training: Optional[Training] = None
     prediction: Optional[Prediction] = None
+
+    def set_3D(self, is_3D: bool, axes: str) -> None:
+        """Set 3D flag and axes.
+
+        Parameters
+        ----------
+        is_3D : bool
+            Whether the algorithm is 3D or not.
+        axes : str
+            Axes of the data.
+        """
+        # set the flag and axes (this will not trigger validation at the config level)
+        self.algorithm.is_3D = is_3D
+        self.data.axes = axes
+
+        # cheap hack: trigger validation
+        self.algorithm = self.algorithm
 
     @field_validator("experiment_name")
     def no_symbol(cls, name: str) -> str:

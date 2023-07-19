@@ -1,6 +1,15 @@
+from __future__ import annotations
+
 from typing import List, Optional
 
-from pydantic import BaseModel, Field, FieldValidationInfo, field_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    FieldValidationInfo,
+    field_validator,
+    model_validator,
+)
 
 
 class Prediction(BaseModel):
@@ -18,6 +27,8 @@ class Prediction(BaseModel):
         2D or 3D verlaps between tiles.
     """
 
+    model_config = ConfigDict(validate_assignment=True)
+
     # Optional parameters
     tile_shape: Optional[List[int]] = Field(default=None, min_length=2, max_length=3)
     overlaps: Optional[List[int]] = Field(default=None, min_length=2, max_length=3)
@@ -25,6 +36,40 @@ class Prediction(BaseModel):
     # Mandatory parameter
     # defined after the optional ones to allow checking for their presence
     use_tiling: bool
+
+    def set_tiling(
+        self,
+        use_tiling: bool,
+        *,
+        tile_shape: Optional[List[int]] = None,
+        overlaps: Optional[List[int]] = None,
+    ) -> None:
+        """Set tiling parameters.
+
+        Parameters
+        ----------
+        use_tiling : bool
+            Whether to use tiling or not.
+        tile_shape : List[int]
+            2D or 3D shape of the tiles to be predicted.
+        overlaps : List[int]
+            2D or 3D overlaps between tiles.
+        """
+        if use_tiling:
+            if tile_shape is None or overlaps is None:
+                if self.tile_shape is None or self.overlaps is None:
+                    raise ValueError(
+                        "Cannot use tiling without specifying `tile_shape` and "
+                        "`overlaps`, make sure they have been correctly specified."
+                    )
+                # If the function parameters are None, but the model parameters are not
+                # then we just keep the model parameters
+            else:
+                # Ensure correct order of parameters to pass Pydantic validation
+                self.tile_shape = tile_shape
+                self.overlaps = overlaps
+
+        self.use_tiling = use_tiling
 
     @field_validator("tile_shape", "overlaps")
     def all_elements_non_zero_divisible_by_two(cls, dims_list: List[int]) -> List[int]:
@@ -78,24 +123,17 @@ class Prediction(BaseModel):
 
         return overlaps
 
-    @field_validator("use_tiling")
-    def optional_parameters_if_tiling_true(
-        cls, use_tiling: bool, values: FieldValidationInfo
-    ) -> bool:
-        """TODO Joran fix me
-        Validate `use_tiling` if False, or only when optional parameters are
-        specified if True.
-        """
-        if use_tiling:
-            if (
-                "tile_shape" not in values.data or values.data["tile_shape"] is None
-            ) or ("overlaps" not in values.data or values.data["overlaps"] is None):
+    @model_validator(mode="after")
+    def optional_parameters_if_tiling_true(cls, config: Prediction) -> Prediction:
+        """Check that the optional parameteres are provided if tiling is true."""
+        if config.use_tiling:
+            if config.tile_shape is None or config.overlaps is None:
                 raise ValueError(
                     "Cannot use tiling without specifying `tile_shape` and `overlaps`, "
-                    "make sure they have correctly been specified."
+                    "make sure they have been correctly specified."
                 )
 
-        return use_tiling
+        return config
 
     def model_dump(self, *args, **kwargs) -> dict:
         """Override model_dump method.
