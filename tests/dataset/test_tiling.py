@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 
 from careamics_restoration.dataset.tiling import (
-    extract_patches_predict,
+    extract_tiles_predict,
     extract_patches_random,
     extract_patches_sequential,
 )
@@ -47,6 +47,11 @@ def test_extract_patches_invalid_arguments(arr_shape, patch_size):
         # get next yielded value
         next(patches_generator)
 
+
+def test_extract_tiles_predict():
+    """Test extracting patches randomly."""
+    extract_tiles_predict()
+    pass
 
 @pytest.mark.parametrize(
     "arr_shape, patch_size",

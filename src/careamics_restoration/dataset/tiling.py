@@ -328,7 +328,7 @@ def extract_patches_random(
             yield patch
 
 
-def extract_patches_predict(
+def extract_tiles_predict(
     arr: np.ndarray,
     patch_size: Tuple[int],
     overlaps: Tuple[int],
