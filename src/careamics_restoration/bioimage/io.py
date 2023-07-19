@@ -102,10 +102,6 @@ def import_bioimage_model(model_path: Union[str, Path]) -> Configuration:
             break
     if config_file is not None:
         config = load_configuration(config_file)
+        return config
 
-    return config
-
-
-if __name__ == "__main__":
-    # print(_load_model_rdf("n2v"))
-    print(import_bioimage_model("/Users/mehdi.seifi/Projects/CAREamics/n2v_bio.zip"))
+    raise FileNotFoundError(f"No careamics config file was found in {model_path}.")
