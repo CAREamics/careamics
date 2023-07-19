@@ -98,7 +98,6 @@ def complete_config(tmp_path: Path, minimum_config: dict) -> dict:
     complete_config = copy.deepcopy(minimum_config)
     complete_config["trained_model"] = model
 
-    # currently no other altern
     complete_config["algorithm"]["masking_strategy"] = "median"
 
     complete_config["algorithm"]["masked_pixel_percentage"] = 0.6

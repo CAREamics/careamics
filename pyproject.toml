@@ -128,10 +128,10 @@ line-length = 88
 [tool.mypy]
 files = "src/**/"
 strict = false
-allow_untyped_defs = true     # TODO: can eventually fill out typing and remove this
-allow_untyped_calls = true    # TODO: can eventually fill out typing and remove this
+allow_untyped_defs = false    
+allow_untyped_calls = false    
 disallow_any_generics = false
-ignore_missing_imports = true
+ignore_missing_imports = false
 
 # # module specific overrides
 # [[tool.mypy.overrides]]
