@@ -134,9 +134,10 @@ class Engine:
             train_loader = self.get_train_dataloader()
 
             # Set mean and std from train dataset of none
-            if not self.cfg.data.mean or not self.cfg.data.std:
-                self.cfg.data.mean = train_loader.dataset.mean
-                self.cfg.data.std = train_loader.dataset.std
+            if self.cfg.data.mean is None or self.cfg.data.std is None:
+                self.cfg.data.set_mean_and_std(
+                    train_loader.dataset.mean, train_loader.dataset.std
+                )
 
             eval_loader = self.get_val_dataloader()
 

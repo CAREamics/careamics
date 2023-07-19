@@ -95,6 +95,61 @@ def test_prediction_tiling_without_parameters():
         Prediction(use_tiling=True, overlaps=[96, 96])
 
 
+def test_prediction_set_tiling():
+    """Test that set_tiling does not trigger validation errors."""
+    # Setting tiling while tiling and overlaps are None triggers an error
+    prediction = Prediction(use_tiling=False)
+    with pytest.raises(ValueError):
+        prediction.use_tiling = True
+
+    # We also get an error if we set tiling to True and None tiles/overlaps
+    prediction = Prediction(use_tiling=False)
+    with pytest.raises(ValueError):
+        prediction.set_tiling(True)
+
+    # set tiling to True
+    prediction = Prediction(use_tiling=False)
+    prediction.set_tiling(True, tile_shape=[96, 96], overlaps=[32, 32])
+
+    # set tiling to False
+    prediction.use_tiling = False
+
+    # set tiling to False
+    prediction.set_tiling(True, tile_shape=[96, 96], overlaps=[32, 32])
+    prediction.set_tiling(False)
+
+
+def test_wrong_values_by_assigment(complete_config: dict):
+    """Test that wrong values are not accepted through assignment."""
+    prediction = Prediction(**complete_config["prediction"])
+
+    # tile shape
+    prediction.tile_shape = complete_config["prediction"]["tile_shape"]
+    with pytest.raises(ValueError):
+        prediction.tile_shape = [5, 4]
+
+    # overlaps
+    prediction.overlaps = complete_config["prediction"]["overlaps"]
+    with pytest.raises(ValueError):
+        prediction.overlaps = [4, 5]
+
+    # use tiling
+    prediction.use_tiling = complete_config["prediction"]["use_tiling"]
+    with pytest.raises(ValueError):
+        prediction.use_tiling = None
+
+
+def test_model_validator_by_assigment():
+    """Test that model validator is called when assigning values."""
+    pred_config = {
+        "use_tiling": False,
+    }
+    prediction = Prediction(**pred_config)
+
+    with pytest.raises(ValueError):
+        prediction.use_tiling = True
+
+
 def test_prediction_to_dict(complete_config):
     """Test that to_dict method works."""
     prediction_dict = Prediction(**complete_config["prediction"]).model_dump()
