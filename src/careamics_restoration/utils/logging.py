@@ -20,18 +20,6 @@ from rich.progress import (
 )
 from rich_pixels import Pixels
 
-banner: str = """
-   ......       ......     ........     ........                                   ....
- -+++----+-   -+++--+++-  :+++---+++:  :+++-----                                   .--:
-.+++     .:   +++.  .+++. :+++   :+++  :+++         :------.   .---:----..:----.   :---    :----:     :----:.
-.+++         .+++.  .+++. :+++   -++=  :+++        +=....=+++  :+++-..=+++-..=++=  -+++  .+++-..++   +++-..=+.
-.+++         .++++++++++. :++++++++=.  :++++++:          .+++. :+++   :+++   -+++  -+++  :+++       .+++=.
-.+++         .+++.  .+++. :+++   -+++  :+++        :=++==++++. :+++   :+++   -+++  -+++  :+++        .-=+++=:
-.+++     ..  .+++.  .+++. :+++   :+++  :+++       .+++.  .+++. :+++   :+++   -+++  -+++  :+++   ..   ..  :+++.
- -++=-::-+=  .+++.  .+++. :+++   :+++  :+++-::::   =++=--=+++. :+++   :+++   -+++  -+++   =++=:-+=   =+-:=++=
-   ......     ...    ...   ...    ...   ........     .... ...   ...    ...   ....  ....     ....      .....
-"""
-
 LOGGERS: dict = {}
 
 
@@ -100,12 +88,20 @@ class ProgressLogger:
         )
 
         if not self.is_in_notebook:
+            banner = self._open_banner()
             pixels = Pixels.from_ascii(banner)
             header_panel = Panel.fit(pixels, style="red", padding=1)
             self.console.print(header_panel)
 
         self.interface = Group(progress_group)
         self.live = None
+
+    @staticmethod
+    def _open_banner():
+        banner_path = Path(__file__).with_name("ascii_logo.txt")
+        with banner_path.open() as file:
+            banner = file.read()
+        return banner
 
     def _start_live_if_needed(self):
         if not self.live:
@@ -128,7 +124,7 @@ class ProgressLogger:
         self.live = None
 
     @staticmethod
-    def get_task_length(task_iterable: Union[Iterable, Sequence]) -> Optional[int]:
+    def _get_task_length(task_iterable: Union[Iterable, Sequence]) -> Optional[int]:
         task_length = None
 
         if isinstance(task_iterable, torch.utils.data.DataLoader):
@@ -156,7 +152,7 @@ class ProgressLogger:
         else:
             tracker = self.task_progress
 
-        task_length = self.get_task_length(task_iterable)
+        task_length = self._get_task_length(task_iterable)
 
         task_id = self._get_task(task_name, task_length, tracker=tracker)
 
