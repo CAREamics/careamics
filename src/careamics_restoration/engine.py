@@ -441,7 +441,7 @@ class Engine:
         losses : List[float]
             List of losses.
         save_method : str
-            Method to save the model. Can be 'state_dict', 'model' or jit.
+            Method to save the model. Can be 'state_dict', or jit.
         """
         if epoch == 0 or losses[-1] < min(losses):
             name = f"{self.cfg.experiment_name}_best.pth"
@@ -462,6 +462,9 @@ class Engine:
             torch.save(checkpoint, workdir / name)
 
         elif save_method == "jit":
-            # TODO Vera help
-            raise NotImplementedError
+            # TODO Vera help.
+            # TODO add save method check in config
+            raise NotImplementedError("JIT not implemented")
+        else:
+            raise ValueError("Invalid save method")
         return self.cfg.working_directory.absolute() / name
