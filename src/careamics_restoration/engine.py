@@ -1,4 +1,5 @@
 import random
+from logging import FileHandler
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Union
 
@@ -484,6 +485,7 @@ class Engine:
             name = f"{self.cfg.experiment_name}_latest.pth"
         workdir = self.cfg.working_directory
         workdir.mkdir(parents=True, exist_ok=True)
+
         if save_method == "state_dict":
             checkpoint = {
                 "epoch": epoch,
@@ -503,3 +505,9 @@ class Engine:
         else:
             raise ValueError("Invalid save method")
         return self.cfg.working_directory.absolute() / name
+
+    def __del__(self) -> None:
+        for handler in self.logger.handlers:
+            if isinstance(handler, FileHandler):
+                self.logger.removeHandler(handler)
+                handler.close()

@@ -55,6 +55,7 @@ def get_logger(
 
     logger.setLevel(log_level)
     LOGGERS[name] = True
+
     return logger
 
 
@@ -126,7 +127,7 @@ class ProgressLogger:
 
         return task_id
 
-    def exit(self):
+    def exit(self) -> None:
         """Exits the logger."""
         self.live.__exit__(None, None, None)
         self.live = None
