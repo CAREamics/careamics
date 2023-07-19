@@ -500,7 +500,7 @@ class Engine:
         torch.save(self.model.state_dict(), workdir / name)
         return name
 
-    def __exit__(self) -> None:
+    def __del__(self) -> None:
         import warnings
 
         import psutil
