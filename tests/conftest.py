@@ -1,10 +1,9 @@
+import copy
 from pathlib import Path
 from typing import Callable
 
 import numpy as np
 import pytest
-
-# TODO Make two fixtures, one full configuration and one minimal
 
 
 def create_tiff(path: Path, n_files: int):
@@ -35,6 +34,9 @@ def minimum_config(tmp_path: Path) -> dict:
     path_train = tmp_path / "training"
     create_tiff(path_train, n_files=3)
 
+    path_validation = tmp_path / "validation"
+    create_tiff(path_validation, n_files=1)
+
     # create dictionary
     configuration = {
         "experiment_name": "LevitatingFrog",
@@ -57,6 +59,7 @@ def minimum_config(tmp_path: Path) -> dict:
         },
         "data": {
             "training_path": str(path_train),
+            "validation_path": str(path_validation),
             "data_format": "tif",
             "axes": "SYX",
         },
@@ -87,15 +90,12 @@ def complete_config(tmp_path: Path, minimum_config: dict) -> dict:
     path_model = tmp_path / model
     path_model.touch()
 
-    # create validation and prediction data
-    path_validation = tmp_path / "validation"
-    create_tiff(path_validation, n_files=1)
-
+    # create prediction data
     path_test = tmp_path / "test"
     create_tiff(path_test, n_files=2)
 
     # add to configuration
-    complete_config = minimum_config.copy()
+    complete_config = copy.deepcopy(minimum_config)
     complete_config["trained_model"] = model
 
     # currently no other altern
@@ -119,7 +119,6 @@ def complete_config(tmp_path: Path, minimum_config: dict) -> dict:
         "use": True,
         "init_scale": 512,
     }
-    complete_config["data"]["validation_path"] = str(path_validation)
     complete_config["data"]["prediction_path"] = str(path_test)
     complete_config["data"]["mean"] = 666.666
     complete_config["data"]["std"] = 42.420

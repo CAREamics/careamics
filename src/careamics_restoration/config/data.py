@@ -7,6 +7,7 @@ from typing import Optional, Union
 from pydantic import (
     BaseModel,
     ConfigDict,
+    Field,
     FieldValidationInfo,
     field_validator,
     model_validator,
@@ -59,11 +60,15 @@ class SupportedExtensions(str, Enum):
 class Data(BaseModel):
     """Data configuration.
 
-    The data paths are individually optional, however, at least one of training or
-    prediction must be specified.
+    The data paths are individually optional, however, at least one of training +
+    validation or prediction must be specified.
 
     The optional paths to the training, validation and prediction data should point to
     the parent folder of the images.
+
+    If std is specified, mean must be specified as well. Note that setting the std first
+    and then the mean (if they were both `None` before) will raise a validation error.
+    Prefer using the `set_mean_and_std` method instead.
 
     Attributes
     ----------
@@ -84,7 +89,10 @@ class Data(BaseModel):
     """
 
     # Pydantic class configuration
-    model_config = ConfigDict(use_enum_values=True)
+    model_config = ConfigDict(
+        use_enum_values=True,
+        validate_assignment=True,
+    )
 
     # Mandatory fields
     data_format: SupportedExtensions
@@ -92,13 +100,11 @@ class Data(BaseModel):
 
     # Optional fields
     training_path: Optional[Union[Path, str]] = None
-    validation_path: Optional[
-        Union[Path, str]
-    ] = None  # TODO Jerome: validation path must be there
+    validation_path: Optional[Union[Path, str]] = None
     prediction_path: Optional[Union[Path, str]] = None
 
-    mean: Optional[float] = None
-    std: Optional[float] = None
+    mean: Optional[float] = Field(default=None, ge=0)
+    std: Optional[float] = Field(default=None, gt=0)
 
     @field_validator("training_path", "validation_path", "prediction_path")
     def path_contains_images(cls, path_value: str, values: FieldValidationInfo) -> Path:
@@ -128,37 +134,14 @@ class Data(BaseModel):
 
         return path
 
-    @field_validator("mean", "std")
-    def non_negative(cls, value: float) -> float:
-        """Validate mean and std as non-negative.
+    def set_mean_and_std(self, mean: float, std: float) -> None:
+        """Set mean and std of the data.
 
-        None value are accepted, because the full configuration will contain None if
-        mean and std were not specified.
-
-
-        Parameters
-        ----------
-        value : float
-            Value to validate
-
-
-        Returns
-        -------
-        float
-            Validated value
-
-
-        Raises
-        ------
-        ValueError
-            If value is negative
+        This method is preferred to setting the field directly, as it ensures that the
+        mean is set first, then the std; thus avoiding a validation error to be thrown.
         """
-        if value is not None and value < 0:
-            raise ValueError(f"Value {value} (mean or std) must be non-negative.")
-
-        return value
-
-    # TODO add validation for zarr storage, if it is a folder
+        self.mean = mean
+        self.std = std
 
     @field_validator("axes")
     def valid_axes(cls, axes: str) -> str:
@@ -216,10 +199,39 @@ class Data(BaseModel):
         return data_model
 
     @model_validator(mode="after")
-    def both_mean_and_std(cls, data_model: Data) -> Data:
-        """Check that mean and std are either both None, or both specified."""
-        if (data_model.mean is None) != (data_model.std is None):
-            raise ValueError("Both mean and std must be specified, or both None.")
+    def both_training_and_validation(cls, data_model: Data) -> Data:
+        """Validate that both training and validation paths are specified.
+
+        Parameters
+        ----------
+        data_model : Data
+            Data model to validate
+
+        Returns
+        -------
+        Data
+            Validated model
+
+        Raises
+        ------
+        ValueError
+            If one of training or validation paths is specified and not the other
+        """
+        if (data_model.training_path is None) != (data_model.validation_path is None):
+            raise ValueError("Both training and validation paths must be specified.")
+
+        return data_model
+
+    @model_validator(mode="after")
+    def std_only_with_mean(cls, data_model: Data) -> Data:
+        """Check that mean and std are either both None, or both specified.
+
+        If we enforce both None or both specified, we cannot set the values one by one
+        due to the ConfDict enforcing the validation on assignment. Therefore, we check
+        only when the std is not None and the mean is None.
+        """
+        if data_model.std is not None and data_model.mean is None:
+            raise ValueError("Cannot have std non None if mean is None.")
 
         return data_model
 
