@@ -1,5 +1,5 @@
 import itertools
-from typing import Any, Generator, Iterable, List, Tuple
+from typing import Generator, Iterable, List, Tuple
 
 import numpy as np
 from skimage.util import view_as_windows
