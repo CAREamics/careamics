@@ -1,8 +1,9 @@
 import logging
 import sys
 from pathlib import Path
-from typing import Iterable, Optional, Union
+from typing import Iterable, Optional, Sequence, Union
 
+import torch.utils.data
 from rich.console import Console, Group
 from rich.live import Live
 from rich.logging import RichHandler
@@ -19,18 +20,6 @@ from rich.progress import (
 )
 from rich_pixels import Pixels
 
-banner: str = """
-   ......       ......     ........     ........                                   ....
- -+++----+-   -+++--+++-  :+++---+++:  :+++-----                                   .--:
-.+++     .:   +++.  .+++. :+++   :+++  :+++         :------.   .---:----..:----.   :---    :----:     :----:.
-.+++         .+++.  .+++. :+++   -++=  :+++        +=....=+++  :+++-..=+++-..=++=  -+++  .+++-..++   +++-..=+.
-.+++         .++++++++++. :++++++++=.  :++++++:          .+++. :+++   :+++   -+++  -+++  :+++       .+++=.
-.+++         .+++.  .+++. :+++   -+++  :+++        :=++==++++. :+++   :+++   -+++  -+++  :+++        .-=+++=:
-.+++     ..  .+++.  .+++. :+++   :+++  :+++       .+++.  .+++. :+++   :+++   -+++  -+++  :+++   ..   ..  :+++.
- -++=-::-+=  .+++.  .+++. :+++   :+++  :+++-::::   =++=--=+++. :+++   :+++   -+++  -+++   =++=:-+=   =+-:=++=
-   ......     ...    ...   ...    ...   ........     .... ...   ...    ...   ....  ....     ....      .....
-"""
-
 LOGGERS: dict = {}
 
 
@@ -38,6 +27,7 @@ LOGGERS: dict = {}
 def get_logger(
     name: str, log_level=logging.INFO, log_path: Optional[Union[str, Path]] = None
 ):
+    """Creates a python logger instance with configured handlers."""
     logger = logging.getLogger(name)
     if name in LOGGERS:
         return logger
@@ -48,13 +38,13 @@ def get_logger(
 
     logger.propagate = False
 
-    handlers = [
-        RichHandler(rich_tracebacks=True, show_level=False),
-    ]
     if log_path:
-        handlers.append(
+        handlers = [
+            RichHandler(rich_tracebacks=True, show_level=False),
             logging.FileHandler(log_path),
-        )
+        ]
+    else:
+        handlers = [RichHandler(rich_tracebacks=True, show_level=False)]
 
     formatter = logging.Formatter("%(message)s")
 
@@ -69,6 +59,12 @@ def get_logger(
 
 
 class ProgressLogger:
+    """
+    Provides Rich interface for logging and progress monitoring.
+
+    Can track progress of different concurrent iterable tasks.
+    """
+
     def __init__(self):
         self.is_in_notebook = "ipykernel" in sys.modules
 
@@ -99,12 +95,20 @@ class ProgressLogger:
         )
 
         if not self.is_in_notebook:
+            banner = self._open_banner()
             pixels = Pixels.from_ascii(banner)
             header_panel = Panel.fit(pixels, style="red", padding=1)
             self.console.print(header_panel)
 
         self.interface = Group(progress_group)
         self.live = None
+
+    @staticmethod
+    def _open_banner():
+        banner_path = Path(__file__).with_name("ascii_logo.txt")
+        with banner_path.open() as file:
+            banner = file.read()
+        return banner
 
     def _start_live_if_needed(self):
         if not self.live:
@@ -126,14 +130,42 @@ class ProgressLogger:
         self.live.__exit__(None, None, None)
         self.live = None
 
+    @staticmethod
+    def _get_task_length(task_iterable: Union[Iterable, Sequence]) -> Optional[int]:
+        task_length = None
+
+        if isinstance(task_iterable, torch.utils.data.DataLoader):
+            task_type = type(task_iterable.dataset)
+            if not issubclass(task_type, torch.utils.data.IterableDataset):
+                if hasattr(task_iterable, "__len__"):
+                    task_length = task_iterable.__len__()
+        else:
+            if hasattr(task_iterable, "__len__"):
+                task_length = task_iterable.__len__()
+
+        return task_length
+
     def __call__(
         self,
-        task_iterable: Iterable,
+        task_iterable: Union[Iterable, Sequence],
         task_name: str,
         overall_progress: bool = False,
         persistent: bool = True,
-        unbounded: bool = False,
     ):
+        """
+        Tracks progress of an iterable task.
+
+        Parameters
+        ----------
+        task_iterable: Iterable
+            Any iterable, for example torch dataset, dataloader, range, etc.
+        task_name: str
+            Task name to be displayed on the progress bar.
+        overall_progress: bool
+            If True, the task is considered a "main" one, and will be displayed on top
+        persistent: bool
+            If False, task's progress bar will disappear after task is finished
+        """
         self._start_live_if_needed()
 
         if overall_progress:
@@ -141,11 +173,8 @@ class ProgressLogger:
         else:
             tracker = self.task_progress
 
-        if unbounded:
-            task_length = None
-        else:
-            # TODO in Engine, task_iterable is an enumeration, but neither enumerate nor Iterable have __len__
-            task_length = len(task_iterable)
+        task_length = self._get_task_length(task_iterable)
+
         task_id = self._get_task(task_name, task_length, tracker=tracker)
 
         for item in task_iterable:
