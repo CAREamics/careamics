@@ -103,6 +103,24 @@ def test_3D_algorithm_and_data_compatibility(minimum_config: dict):
         Configuration(**minimum_config)
 
 
+def test_set_3D(minimum_config: dict):
+    """Test the set 3D method."""
+    conf = Configuration(**minimum_config)
+
+    # set to 3D
+    conf.set_3D(True, "ZYX")
+
+    # set to 2D
+    conf.set_3D(False, "SYX")
+
+    # fails if they are not compatible
+    with pytest.raises(ValueError):
+        conf.set_3D(True, "SYX")
+
+    with pytest.raises(ValueError):
+        conf.set_3D(False, "ZYX")
+
+
 def test_at_least_one_of_training_or_prediction(complete_config: dict):
     """Test that at least one of training or prediction is specified."""
     test_config = copy.deepcopy(complete_config)

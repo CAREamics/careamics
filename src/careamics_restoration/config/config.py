@@ -74,6 +74,23 @@ class Configuration(BaseModel):
     training: Optional[Training] = None
     prediction: Optional[Prediction] = None
 
+    def set_3D(self, is_3D: bool, axes: str) -> None:
+        """Set 3D flag and axes.
+
+        Parameters
+        ----------
+        is_3D : bool
+            Whether the algorithm is 3D or not.
+        axes : str
+            Axes of the data.
+        """
+        # set the flag and axes (this will not trigger validation at the config level)
+        self.algorithm.is_3D = is_3D
+        self.data.axes = axes
+
+        # cheap hack: trigger validation
+        self.algorithm = self.algorithm
+
     @field_validator("experiment_name")
     def no_symbol(cls, name: str) -> str:
         """Validate experiment name.
