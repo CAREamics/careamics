@@ -27,6 +27,7 @@ LOGGERS: dict = {}
 def get_logger(
     name: str, log_level=logging.INFO, log_path: Optional[Union[str, Path]] = None
 ):
+    """Creates a python logger instance with configured handlers."""
     logger = logging.getLogger(name)
     if name in LOGGERS:
         return logger
@@ -58,6 +59,12 @@ def get_logger(
 
 
 class ProgressLogger:
+    """
+    Provides Rich interface for logging and progress monitoring.
+
+    Can track progress of different concurrent iterable tasks.
+    """
+
     def __init__(self):
         self.is_in_notebook = "ipykernel" in sys.modules
 
@@ -145,6 +152,20 @@ class ProgressLogger:
         overall_progress: bool = False,
         persistent: bool = True,
     ):
+        """
+        Tracks progress of an iterable task.
+
+        Parameters
+        ----------
+        task_iterable: Iterable
+            Any iterable, for example torch dataset, dataloader, range, etc.
+        task_name: str
+            Task name to be displayed on the progress bar.
+        overall_progress: bool
+            If True, the task is considered a "main" one, and will be displayed on top
+        persistent: bool
+            If False, task's progress bar will disappear after task is finished
+        """
         self._start_live_if_needed()
 
         if overall_progress:
