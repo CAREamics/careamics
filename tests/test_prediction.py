@@ -1,6 +1,8 @@
 import numpy as np
 import pytest
 
+from careamics_restoration.prediction_utils import stitch_prediction
+
 # TODO: unused impots and incomplete tests
 
 [
@@ -33,7 +35,7 @@ def test_stitch_prediction(n_tiles, tile_size, input_shape):
     """Test calculating stitching coordinates"""
     tile_coords = []
     np.zeros(input_shape, dtype=int)
-
+    for tile_id in range(n_tiles):
     # create dummy tiles
     for y in range(0, input_shape[0] // tile_size[0]):
         for x in range(input_shape[1] // tile_size[1]):
@@ -43,4 +45,5 @@ def test_stitch_prediction(n_tiles, tile_size, input_shape):
     # TODO finish this test...........
 
     # # compute stitching coordinates
-    # result = stitch_prediction(tile_coords, input_shape)
+    result = stitch_prediction(tile_coords, input_shape)
+    assert result.shape == input_shape

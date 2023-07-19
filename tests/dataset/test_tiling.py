@@ -1,7 +1,11 @@
 import numpy as np
 import pytest
 
-from careamics_restoration.dataset.tiling import extract_patches_sequential
+from careamics_restoration.dataset.tiling import (
+    extract_patches_predict,
+    extract_patches_random,
+    extract_patches_sequential,
+)
 
 
 @pytest.mark.parametrize(
@@ -133,3 +137,12 @@ def test_calculate_stats():
 
     assert np.around(arr.mean(), decimals=4) == np.around(mean / (i + 1), decimals=4)
     assert np.around(arr.std(), decimals=2) == np.around(std / (i + 1), decimals=2)
+
+
+def test_extract_patches_random():
+    extract_patches_random()
+    pass
+
+def test_extract_patches_predict():
+    extract_patches_predict()
+    pass
