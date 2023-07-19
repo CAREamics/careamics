@@ -187,7 +187,7 @@ class TiffDataset(torch.utils.data.IterableDataset):
 
         if self.patch_extraction_method == ExtractionStrategies.TILED:
             patches = extract_tiles_predict(
-                sample, patch_size=self.patch_size, overlaps=self.patch_overlap
+                sample, tile_size=self.patch_size, overlaps=self.patch_overlap
             )
 
         elif self.patch_extraction_method == ExtractionStrategies.SEQUENTIAL:
