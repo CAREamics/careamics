@@ -3,24 +3,6 @@ import pytest
 
 # TODO: unused impots and incomplete tests
 
-[
-    (48, 48),
-    (48, 32),
-    (48, 32),
-    (48, 29),
-    (32, 48),
-    (32, 32),
-    (32, 32),
-    (32, 29),
-    (32, 48),
-    (32, 32),
-    (32, 32),
-    (32, 29),
-    (45, 48),
-    (45, 32),
-    (),
-]
-
 
 @pytest.mark.parametrize(
     "n_tiles, tile_size",

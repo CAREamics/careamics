@@ -9,7 +9,6 @@ from torch.utils.data import DataLoader, TensorDataset
 from careamics_restoration.utils.logging import ProgressLogger, get_logger
 
 from .config import load_configuration
-from .config.training import Training
 from .dataset.tiff_dataset import (
     get_prediction_dataset,
     get_train_dataset,
@@ -136,11 +135,11 @@ class Engine:
                     # Add update scheduler rule based on type
                     self.lr_scheduler.step(eval_outputs["loss"])
                     val_losses.append(eval_outputs["loss"])
-                    name = self.save_checkpoint(epoch, val_losses, "model")
+                    name = self.save_checkpoint(epoch, val_losses, "state_dict")
                     self.logger.info(f"Saved checkpoint to {name}")
 
                     if self.use_wandb:
-                        learning_rate = optimizer.param_groups[0]["lr"]
+                        learning_rate = self.optimizer.param_groups[0]["lr"]
                         metrics = {
                             "train": train_outputs,
                             "eval": eval_outputs,
@@ -265,7 +264,8 @@ class Engine:
             mean=mean,
             std=std,
         )
-        # TODO keep getting this ValueError: Mean or std are not specified in the configuration and in parameters
+        # TODO keep getting this ValueError: Mean or std are not specified in the
+        # configuration and in parameters
         # TODO where is this error? is this linked to an issue? Mention issue here.
 
         tiles = []
@@ -277,7 +277,8 @@ class Engine:
         else:
             self.logger.info("Starting prediction on whole sample")
 
-        # TODO Joran/Vera: make this as a config object, add function to assess the external input
+        # TODO Joran/Vera: make this as a config object, add function to assess the
+        # external input
         # TODO instruction unclear
         with torch.no_grad():
             # TODO tiled prediction slow af, profile and optimize
@@ -406,7 +407,8 @@ class Engine:
         Tuple[DataLoader, bool]
             _description_
         """
-        # TODO mypy does not take into account "is not None", we need to find a workaround
+        # TODO mypy does not take into account "is not None", we need to find a
+        # workaround
         if external_input is not None and mean is not None and std is not None:
             normalized_input = normalize(external_input, mean, std)
             normalized_input = normalized_input.astype(np.float32)
@@ -457,8 +459,9 @@ class Engine:
                 "loss": losses[-1],
                 "config": self.cfg.model_dump(),
             }
+            torch.save(checkpoint, workdir / name)
+
         elif save_method == "jit":
             # TODO Vera help
             raise NotImplementedError
-        torch.save(checkpoint, workdir / name)
         return self.cfg.working_directory.absolute() / name

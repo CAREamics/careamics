@@ -36,7 +36,7 @@ class Conv_Block(nn.Module):
         _description_, by default 1
     activation : str, optional
         _description_, by default "ReLU"
-    dropout_perc : int, optional
+    dropout_perc : float, optional
         _description_, by default 0
     use_batch_norm : bool, optional
         _description_, by default False
@@ -44,17 +44,17 @@ class Conv_Block(nn.Module):
 
     def __init__(
         self,
-        conv_dim,
-        in_channels,
-        out_channels,
-        intermediate_channel_multiplier=1,
-        stride=1,
-        padding=1,
-        bias=True,
-        groups=1,
-        activation="ReLU",
-        dropout_perc=0,
-        use_batch_norm=False,
+        conv_dim: int,
+        in_channels: int,
+        out_channels: int,
+        intermediate_channel_multiplier: int = 1,
+        stride: int = 1,
+        padding: int = 1,
+        bias: bool = True,
+        groups: int = 1,
+        activation: str = "ReLU",
+        dropout_perc: float = 0,
+        use_batch_norm: bool = False,
     ) -> None:
         super().__init__()
         self.use_batch_norm = use_batch_norm

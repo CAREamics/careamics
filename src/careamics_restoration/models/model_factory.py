@@ -39,16 +39,15 @@ def create_model(config: Configuration) -> torch.nn.Module:
     model_name = algo_config.model
 
     load_checkpoint = config.trained_model
-
+    model = model_registry(model_name)(
+        depth=model_config.depth,
+        conv_dim=algo_config.get_conv_dim(),
+        num_channels_init=model_config.num_channels_init,
+    )
     if load_checkpoint is not None:
         checkpoint = torch.load(load_checkpoint)
         if "model_state_dict" in checkpoint:
             logger.info("Trying to load model state dict")
-            model = model_registry(model_name)(
-                depth=model_config.depth,
-                conv_dim=algo_config.get_conv_dim(),
-                num_channels_init=model_config.num_channels_init,
-            )
             model.load_state_dict(checkpoint["model_state_dict"])
             logger.info(f"Loaded model from {Path(load_checkpoint).name}")
         else:
@@ -62,9 +61,9 @@ def create_model(config: Configuration) -> torch.nn.Module:
             logger.info("Updated config from checkpoint")
             # TODO discuss other updates
     optimizer, scheduler = get_optimizer_and_scheduler(
-        config, model, state_dict=checkpoint
+        config, model, state_dict=checkpoint if load_checkpoint else None
     )
-    scaler = get_grad_scaler(config, state_dict=checkpoint)
+    scaler = get_grad_scaler(config, state_dict=checkpoint if load_checkpoint else None)
     return model, optimizer, scheduler, scaler, config
 
 
