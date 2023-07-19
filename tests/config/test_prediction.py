@@ -95,6 +95,30 @@ def test_prediction_tiling_without_parameters():
         Prediction(use_tiling=True, overlaps=[96, 96])
 
 
+def test_prediction_set_tiling():
+    """Test that set_tiling does not trigger validation errors."""
+    # Setting tiling while tiling and overlaps are None triggers an error
+    prediction = Prediction(use_tiling=False)
+    with pytest.raises(ValueError):
+        prediction.use_tiling = True
+
+    # We also get an error if we set tiling to True and None tiles/overlaps
+    prediction = Prediction(use_tiling=False)
+    with pytest.raises(ValueError):
+        prediction.set_tiling(True)
+
+    # set tiling to True
+    prediction = Prediction(use_tiling=False)
+    prediction.set_tiling(True, tile_shape=[96, 96], overlaps=[32, 32])
+
+    # set tiling to False
+    prediction.use_tiling = False
+
+    # set tiling to False
+    prediction.set_tiling(True, tile_shape=[96, 96], overlaps=[32, 32])
+    prediction.set_tiling(False)
+
+
 def test_wrong_values_by_assigment(complete_config: dict):
     """Test that wrong values are not accepted through assignment."""
     prediction = Prediction(**complete_config["prediction"])

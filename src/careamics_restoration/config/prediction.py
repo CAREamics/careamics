@@ -37,6 +37,40 @@ class Prediction(BaseModel):
     # defined after the optional ones to allow checking for their presence
     use_tiling: bool
 
+    def set_tiling(
+        self,
+        use_tiling: bool,
+        *,
+        tile_shape: Optional[List[int]] = None,
+        overlaps: Optional[List[int]] = None,
+    ) -> None:
+        """Set tiling parameters.
+
+        Parameters
+        ----------
+        use_tiling : bool
+            Whether to use tiling or not.
+        tile_shape : List[int]
+            2D or 3D shape of the tiles to be predicted.
+        overlaps : List[int]
+            2D or 3D overlaps between tiles.
+        """
+        if use_tiling:
+            if tile_shape is None or overlaps is None:
+                if self.tile_shape is None or self.overlaps is None:
+                    raise ValueError(
+                        "Cannot use tiling without specifying `tile_shape` and "
+                        "`overlaps`, make sure they have been correctly specified."
+                    )
+                # If the function parameters are None, but the model parameters are not
+                # then we just keep the model parameters
+            else:
+                # Ensure correct order of parameters to pass Pydantic validation
+                self.tile_shape = tile_shape
+                self.overlaps = overlaps
+
+        self.use_tiling = use_tiling
+
     @field_validator("tile_shape", "overlaps")
     def all_elements_non_zero_divisible_by_two(cls, dims_list: List[int]) -> List[int]:
         """Validate tile shape and overlaps.
