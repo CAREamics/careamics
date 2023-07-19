@@ -9,7 +9,6 @@ from torch.utils.data import DataLoader, TensorDataset
 from careamics_restoration.utils.logging import ProgressLogger, get_logger
 
 from .config import load_configuration
-from .config.training import Training
 from .dataset.tiff_dataset import (
     get_prediction_dataset,
     get_train_dataset,
@@ -185,9 +184,7 @@ class Engine:
         self.model.to(self.device)
         self.model.train()
 
-        for batch, *auxillary in self.progress(
-            loader, task_name="train"
-        ):
+        for batch, *auxillary in self.progress(loader, task_name="train"):
             optimizer.zero_grad()
 
             with torch.cuda.amp.autocast(enabled=amp):

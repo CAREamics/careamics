@@ -1,7 +1,7 @@
 import logging
 import sys
 from pathlib import Path
-from typing import Iterable, Optional, Union, Sequence
+from typing import Iterable, Optional, Sequence, Union
 
 import torch.utils.data
 from rich.console import Console, Group
