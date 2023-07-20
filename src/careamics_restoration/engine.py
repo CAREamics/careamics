@@ -577,7 +577,7 @@ class Engine:
             )
         # finally add the batch dim
         sample_input = np.expand_dims(sample_input, axis=0)
-        # output: I guess this is the same as input.
+        # TODO: output, I guess this is the same as input.
         sample_output = np.random.randn(*sample_input.shape)
         # save numpy files
         workdir = self.cfg.working_directory
