@@ -66,12 +66,6 @@ def test_extract_patches_invalid_arguments(arr_shape, patch_size):
         next(patches_generator)
 
 
-def test_extract_tiles_predict():
-    """Test extracting patches randomly."""
-    extract_tiles_predict()
-    pass
-
-
 @pytest.mark.parametrize(
     "arr_shape, patch_size",
     [
@@ -113,6 +107,7 @@ def test_extract_patches_errors(arr_shape, patch_size):
         # get next yielded value
         next(patches_generator)
 
+
 def check_extract_patches_sequential(array, patch_size):
     """Check that the patches are extracted correctly.
 
@@ -129,6 +124,20 @@ def check_extract_patches_sequential(array, patch_size):
     n_max = np.prod(array.shape)  # maximum value in the array
     unique = np.unique(np.array(patches))  # unique values in the patches
     assert len(unique) == n_max
+
+
+def check_extract_patches_random(array, patch_size):
+    """Check that the patches are extracted correctly.
+
+    The array should have been generated using np.arange and np.reshape."""
+    patch_generator = extract_patches_random(array, patch_size)
+
+    # check patch shape
+    patches = []
+    for patch in patch_generator:
+        patches.append(patch)
+        assert patch.shape == patch_size
+    # TODO discuss whether we need num patches. Add assert
 
 
 @pytest.mark.parametrize(
@@ -161,6 +170,36 @@ def test_extract_patches_sequential_3d(array_3D, patch_size):
     # TODO changed the fixture to (1, 8, 16, 16), uneven shape doesnt work. We need to
     # discuss the function or the test cases
     check_extract_patches_sequential(array_3D, patch_size)
+
+
+@pytest.mark.parametrize(
+    "patch_size",
+    [
+        (2, 2),
+        (4, 2),
+        (4, 8),
+        (8, 8),
+    ],
+)
+def test_extract_patches_random_2d(array_2D, patch_size):
+    """Test extracting patches randomly in 2D."""
+    check_extract_patches_random(array_2D, patch_size)
+
+
+@pytest.mark.parametrize(
+    "patch_size",
+    [
+        (2, 2, 4),
+        (4, 2, 2),
+        (2, 8, 4),
+        (4, 8, 8),
+    ],
+)
+def test_extract_patches_random_3d(array_3D, patch_size):
+    """Test extracting patches randomly in 3D.
+
+    The 3D array is a fixture of shape (1, 8, 16, 16)."""
+    check_extract_patches_random(array_3D, patch_size)
 
 
 def test_calculate_stats():
