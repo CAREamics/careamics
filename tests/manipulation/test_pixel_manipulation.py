@@ -40,6 +40,40 @@ def test_get_stratified_coords(mask_pixel_perc, shape, num_iterations):
     hist = sorted(np.histogram(array, bins=100)[0])
     assert hist[-1] < hist[-2] * 2
 
-    # def test_defaul_manipulate():
-    #     default_manipulate(np.zeros((10, 10)), 0.5)
-    # pass
+
+def test_default_manipulate_2d(array_2D):
+    """Test the default_manipulate function.
+
+    Ensure that the function returns an array of the same shape as the input.
+    """
+    # Get manipulated patch, original patch and mask
+    patch, original_patch, mask = default_manipulate(array_2D, 0.5)
+
+    # Add sample dimension to the moch input array
+    array_2D = array_2D[np.newaxis, ...]
+    # Check that the shapes of the arrays are the same
+    assert patch.shape == array_2D.shape
+    assert original_patch.shape == array_2D.shape
+    assert mask.shape == array_2D.shape
+
+    # Check that the manipulated patch is different from the original patch
+    assert not np.array_equal(patch, original_patch)
+
+
+def test_default_manipulate_3d(array_3D):
+    """Test the default_manipulate function.
+
+    Ensure that the function returns an array of the same shape as the input.
+    """
+    # Get manipulated patch, original patch and mask
+    patch, original_patch, mask = default_manipulate(array_3D, 0.5)
+
+    # Add sample dimension to the moch input array
+    array_3D = array_3D[np.newaxis, ...]
+    # Check that the shapes of the arrays are the same
+    assert patch.shape == array_3D.shape
+    assert original_patch.shape == array_3D.shape
+    assert mask.shape == array_3D.shape
+
+    # Check that the manipulated patch is different from the original patch
+    assert not np.array_equal(patch, original_patch)
