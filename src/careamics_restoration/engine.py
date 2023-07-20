@@ -338,8 +338,8 @@ class Engine:
                     tiles.append(
                         (
                             outputs.squeeze().cpu().numpy(),
-                            overlap_crop_coords,
-                            stitch_coords,
+                            [list(map(int, c)) for c in overlap_crop_coords],
+                            [list(map(int, c)) for c in stitch_coords],
                         )
                     )
                     # check if sample is finished

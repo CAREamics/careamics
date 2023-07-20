@@ -1,11 +1,10 @@
 from typing import List, Tuple
 
 import numpy as np
-import torch
 
 
 def stitch_prediction(
-    tiles: List[Tuple[np.ndarray, List[torch.tensor], List[torch.tensor]]],
+    tiles: List[Tuple[np.ndarray, List[int], List[int]]],
     input_shape: Tuple[int],
 ) -> np.ndarray:
     """Stitches tiles back together to form a full image.
@@ -28,7 +27,7 @@ def stitch_prediction(
         cropped_tile = tile[
             (
                 ...,
-                *[slice(c[0].item(), c[1].item()) for c in overlap_crop_coords],
+                *[slice(c[0], c[1]) for c in overlap_crop_coords],
             )
         ]
         # TODO: removing ellipsis works for 3.11
