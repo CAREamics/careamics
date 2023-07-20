@@ -140,6 +140,33 @@ def check_extract_patches_random(array, patch_size):
     # TODO discuss whether we need num patches. Add assert
 
 
+def check_extract_tiles_predict(array, tile_size, overlaps):
+    """Test extracting patches randomly."""
+    tile_data_generator = extract_tiles_predict(array, tile_size, overlaps)
+
+    tiles = []
+    all_overlap_crop_coords = []
+    all_stitch_coords = []
+    # Assemble all tiles and their respective coordinates
+    for tile_data in tile_data_generator:
+        tile, _, _, overlap_crop_coords, stitch_coords = tile_data
+        tiles.append(tile)
+        all_overlap_crop_coords.append(overlap_crop_coords)
+        all_stitch_coords.append(stitch_coords)
+
+        # check tile shape, ignore sample dimension
+        assert tile.shape[1:] == tile_size
+        assert len(overlap_crop_coords) == len(stitch_coords) == len(tile_size)
+
+    # check that each tile has a unique set of coordinates
+    assert len(tiles) == len(all_overlap_crop_coords) == len(all_stitch_coords)
+
+    # check that all values are covered by the tiles
+    n_max = np.prod(array.shape)  # maximum value in the array
+    unique = np.unique(np.array(tiles))  # unique values in the patches
+    assert len(unique) >= n_max
+
+
 @pytest.mark.parametrize(
     "patch_size",
     [
@@ -202,6 +229,32 @@ def test_extract_patches_random_3d(array_3D, patch_size):
     check_extract_patches_random(array_3D, patch_size)
 
 
+@pytest.mark.parametrize(
+    "tile_size, overlaps",
+    [
+        ((4, 4), (2, 2)),
+        ((8, 8), (4, 4)),
+    ],
+)
+def test_extract_tiles_predict_2d(array_2D, tile_size, overlaps):
+    """Test extracting tiles for prediction in 2D."""
+    check_extract_tiles_predict(array_2D, tile_size, overlaps)
+
+
+@pytest.mark.parametrize(
+    "tile_size, overlaps",
+    [
+        ((4, 4, 4), (2, 2, 2)),
+        ((8, 8, 8), (4, 4, 4)),
+    ],
+)
+def test_extract_tiles_predict_3d(array_3D, tile_size, overlaps):
+    """Test extracting tiles for prediction in 3D.
+
+    The 3D array is a fixture of shape (1, 8, 16, 16)."""
+    check_extract_tiles_predict(array_3D, tile_size, overlaps)
+
+
 def test_calculate_stats():
     arr = np.random.rand(2, 10, 10)
 
@@ -213,12 +266,3 @@ def test_calculate_stats():
 
     assert np.around(arr.mean(), decimals=4) == np.around(mean / (i + 1), decimals=4)
     assert np.around(arr.std(), decimals=2) == np.around(std / (i + 1), decimals=2)
-
-
-# def test_extract_patches_random():
-#     extract_patches_random()
-#     pass
-
-# def test_extract_patches_predict():
-#     extract_patches_predict()
-#     pass
