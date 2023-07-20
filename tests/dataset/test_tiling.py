@@ -5,7 +5,25 @@ from careamics_restoration.dataset.tiling import (
     extract_patches_random,
     extract_patches_sequential,
     extract_tiles_predict,
+    patches_sanity_check,
 )
+
+
+@pytest.mark.parametrize(
+    "arr_shape, patch_size",
+    [
+        ((1, 8, 8), (2, 2)),
+        ((1, 8, 8, 8), (2, 2, 2)),
+    ],
+)
+def test_patches_sanity_check(arr_shape, patch_size):
+    arr = np.zeros(arr_shape)
+    is_3d_patch = patches_sanity_check(arr, patch_size)
+    # check if the patch is 2D or 3D. Subtract 1 because the first dimension is sample
+    if len(arr_shape) - 1 == 2:
+        assert not is_3d_patch
+    elif len(arr_shape) - 1 == 3:
+        assert is_3d_patch
 
 
 @pytest.mark.parametrize(
@@ -52,6 +70,7 @@ def test_extract_tiles_predict():
     """Test extracting patches randomly."""
     extract_tiles_predict()
     pass
+
 
 @pytest.mark.parametrize(
     "arr_shape, patch_size",
