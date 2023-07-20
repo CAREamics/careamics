@@ -1,11 +1,11 @@
 from pathlib import Path
-from typing import Dict
+from typing import Dict, Optional
 
 import torch
-
 import wandb
-from careamics_restoration.config import Configuration
 from wandb import Settings
+
+from careamics_restoration.config import Configuration
 
 
 class WandBLogging:
@@ -13,14 +13,17 @@ class WandBLogging:
         self,
         experiment_name: str,
         log_path: Path,
-        config: Configuration = None,
-        model_to_watch: torch.nn.Module = None,
-        save_code: bool = True
+        # TODO shouldn't it be always not None?
+        config: Optional[Configuration] = None,
+        # TODO same here
+        model_to_watch: Optional[torch.nn.Module] = None,
+        save_code: bool = True,
     ):
         self.run = wandb.init(
             dir=log_path,
             name=experiment_name,
             settings=Settings(silent="true", console="off"),
+            # TODO should we dump the whole configuration (including default optionals)?
             config=config.model_dump() if config else None,
             save_code=save_code,
         )

@@ -1,6 +1,7 @@
 import random
+from logging import FileHandler
 from pathlib import Path
-from typing import Dict, Optional, Tuple, Union, List
+from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import torch
@@ -10,7 +11,7 @@ from bioimageio.spec.model.raw_nodes import Model as BioimageModel
 
 from careamics_restoration.utils.logging import ProgressLogger, get_logger
 
-from .config import load_configuration
+from .config import Configuration, load_configuration
 from .dataset.tiff_dataset import (
     get_prediction_dataset,
     get_train_dataset,
@@ -43,38 +44,91 @@ def seed_everything(seed: int):
 
 # TODO: discuss normalization strategies, test running mean and std
 class Engine:
-    """Main Engine class.
+    """Class allowing training and prediction of a model.
+
+    There are three ways to instantiate an Engine:
+    1. With a configuration object
+    2. With a configuration file, by passing a path
+
+    In each case, the parameter name must be provided explicitly. For example:
+    ``` python
+    engine = Engine(config_path="path/to/config.yaml")
+    ```
+
+    Note that only one of these options can be used at a time, otherwise only one
+    of them will be used, in the order of the list above.
 
     Parameters
     ----------
-    cfg_path : Union[str, Path]
-
+    config : Optional[Configuration], optional
+        Configuration object, by default None
+    config_path : Optional[Union[str, Path]], optional
+        Path to configuration file, by default None
     """
 
-    def __init__(self, cfg_path: Union[str, Path]) -> None:
-        # load configuration from disk
-        self.cfg = load_configuration(cfg_path)
+    def __init__(
+        self,
+        *,
+        config: Optional[Configuration] = None,
+        config_path: Optional[Union[str, Path]] = None,
+    ) -> None:
+        # Sanity checks
+        if config is None and config_path is None:
+            raise ValueError("No configuration or path provided.")
+
+        if config is not None:
+            # check that config is a Configuration object
+            if not isinstance(config, Configuration):
+                raise TypeError(
+                    f"config must be a Configuration object, got {type(config)}"
+                )
+            self.cfg = config
+        elif config_path is not None:
+            self.cfg = load_configuration(config_path)
 
         # set logging
         log_path = self.cfg.working_directory / "log.txt"
         self.progress = ProgressLogger()
         self.logger = get_logger(__name__, log_path=log_path)
 
-        # create model and loss function
-        self.model = create_model(self.cfg)
+        # create model, optimizer, lr scheduler and gradient scaler
+        (
+            self.model,
+            self.optimizer,
+            self.lr_scheduler,
+            self.scaler,
+            self.cfg,
+        ) = create_model(self.cfg)
+        # create loss function
         self.loss_func = create_loss_function(self.cfg)
 
-        self.use_wandb = self.cfg.training.use_wandb
+        # use wandb or not
+        if self.cfg.training is not None:
+            self.use_wandb = self.cfg.training.use_wandb
+        else:
+            self.use_wandb = False
+
         if self.use_wandb:
             try:
+                from wandb.errors import UsageError
+
                 from careamics_restoration.utils.wandb import WandBLogging
 
-                self.wandb = WandBLogging(
-                    experiment_name=self.cfg.experiment_name,
-                    log_path=self.cfg.working_directory,
-                    config=self.cfg,
-                    model_to_watch=self.model,
-                )
+                try:
+                    self.wandb = WandBLogging(
+                        experiment_name=self.cfg.experiment_name,
+                        log_path=self.cfg.working_directory,
+                        config=self.cfg,
+                        model_to_watch=self.model,
+                    )
+                except UsageError as e:
+                    self.logger.warning(
+                        f"Wandb usage error, using default logger. Check whether wandb "
+                        f"correctly configured:\n"
+                        f"{e}"
+                    )
+                    self.use_wandb = False
+
             except ModuleNotFoundError:
                 self.logger.warning(
                     "Wandb not installed, using default logger. Try pip install wandb"
@@ -97,15 +151,15 @@ class Engine:
         if self.cfg.training is not None:
             # General func
             train_loader = self.get_train_dataloader()
+
             # Set mean and std from train dataset of none
-            if not self.cfg.data.mean or not self.cfg.data.std:
-                self.cfg.data.mean = train_loader.dataset.mean
-                self.cfg.data.std = train_loader.dataset.std
+            if self.cfg.data.mean is None or self.cfg.data.std is None:
+                self.cfg.data.set_mean_and_std(
+                    train_loader.dataset.mean, train_loader.dataset.std
+                )
 
             eval_loader = self.get_val_dataloader()
 
-            optimizer, lr_scheduler = self.get_optimizer_and_scheduler()
-            scaler = self.get_grad_scaler()
             self.logger.info(
                 f"Starting training for {self.cfg.training.num_epochs} epochs"
             )
@@ -119,8 +173,6 @@ class Engine:
                 ):  # loop over the dataset multiple times
                     train_outputs = self._train_single_epoch(
                         train_loader,
-                        optimizer,
-                        scaler,
                         self.cfg.training.amp.use,
                     )
 
@@ -130,37 +182,30 @@ class Engine:
                         f'Validation loss for epoch {epoch}: {eval_outputs["loss"]}'
                     )
                     # Add update scheduler rule based on type
-                    lr_scheduler.step(eval_outputs["loss"])
-
-                    if len(val_losses) == 0 or eval_outputs["loss"] < min(val_losses):
-                        name = self.save_checkpoint(True)
-                    else:
-                        name = self.save_checkpoint(False)
+                    self.lr_scheduler.step(eval_outputs["loss"])
                     val_losses.append(eval_outputs["loss"])
-
-                    self.logger.info(
-                        f"Saved checkpoint to {self.cfg.working_directory.absolute() / name}"
-                    )
+                    name = self.save_checkpoint(epoch, val_losses, "state_dict")
+                    self.logger.info(f"Saved checkpoint to {name}")
 
                     if self.use_wandb:
-                        learning_rate = optimizer.param_groups[0]["lr"]
-                        metrics = dict(
-                            train=train_outputs, eval=eval_outputs, lr=learning_rate
-                        )
+                        learning_rate = self.optimizer.param_groups[0]["lr"]
+                        metrics = {
+                            "train": train_outputs,
+                            "eval": eval_outputs,
+                            "lr": learning_rate,
+                        }
                         self.wandb.log_metrics(metrics)
 
             except KeyboardInterrupt:
                 self.logger.info("Training interrupted")
                 self.progress.exit()
         else:
-            # TODO: instead of error, maybe fail gracefully with a logging/warning to users
+            # TODO: instead of error, maybe fail gracefully with a logging/warning
             raise ValueError("Missing training entry in configuration file.")
 
     def _train_single_epoch(
         self,
         loader: torch.utils.data.DataLoader,
-        optimizer: torch.optim.Optimizer,
-        scaler: torch.cuda.amp.GradScaler,
         amp: bool,
     ):
         """Runs a single epoch of training.
@@ -182,20 +227,18 @@ class Engine:
         self.model.to(self.device)
         self.model.train()
 
-        for batch, *auxillary in self.progress(
-            loader, task_name="train", unbounded=True
-        ):
-            optimizer.zero_grad()
+        for batch, *auxillary in self.progress(loader, task_name="train"):
+            self.optimizer.zero_grad()
 
             with torch.cuda.amp.autocast(enabled=amp):
                 outputs = self.model(batch.to(self.device))
 
             loss = self.loss_func(outputs, *auxillary, self.device)
-            scaler.scale(loss).backward()
+            self.scaler.scale(loss).backward()
 
             avg_loss.update(loss.item(), batch.shape[0])
 
-            optimizer.step()
+            self.optimizer.step()
 
         return {"loss": avg_loss.avg}
 
@@ -217,7 +260,7 @@ class Engine:
 
         with torch.no_grad():
             for patch, *auxillary in self.progress(
-                eval_loader, task_name="validate", unbounded=True, persistent=False
+                eval_loader, task_name="validate", persistent=False
             ):
                 outputs = self.model(patch.to(self.device))
                 loss = self.loss_func(outputs, *auxillary, self.device)
@@ -252,7 +295,8 @@ class Engine:
         """
         self.model.to(self.device)
         self.model.eval()
-        # TODO external input shape should either be compatible with the model or tiled. Add checks and raise errors
+        # TODO external input shape should either be compatible with the model or tiled.
+        #  Add checks and raise errors
         if not mean and not std:
             mean = self.cfg.data.mean
             std = self.cfg.data.std
@@ -267,7 +311,9 @@ class Engine:
             mean=mean,
             std=std,
         )
-        # TODO keep getting this ValueError: Mean or std are not specified in the configuration and in parameters
+        # TODO keep getting this ValueError: Mean or std are not specified in the
+        # configuration and in parameters
+        # TODO where is this error? is this linked to an issue? Mention issue here.
 
         tiles = []
         prediction = []
@@ -278,12 +324,15 @@ class Engine:
         else:
             self.logger.info("Starting prediction on whole sample")
 
-        # TODO Joran/Vera: make this as a config object, add function to assess the external input
+        # TODO Joran/Vera: make this as a config object, add function to assess the
+        # external input
+        # TODO instruction unclear
         with torch.no_grad():
             # TODO tiled prediction slow af, profile and optimize
             # TODO progress bar isn't displayed
+            # TODO is this linked to an issue? Mention issue here.
             for _, (tile, *auxillary) in self.progress(
-                enumerate(pred_loader), task_name="Prediction", unbounded=True
+                enumerate(pred_loader), task_name="Prediction"
             ):
                 if auxillary:
                     (
@@ -333,7 +382,6 @@ class Engine:
         self.logger.info(f"Predicted {len(prediction)} samples")
         return np.stack(prediction)
 
-    # TODO: add custom collate function and separate dataloader create function, sampler?
     def get_train_dataloader(self) -> DataLoader:
         """_summary_.
 
@@ -344,14 +392,20 @@ class Engine:
         DataLoader
             _description_
         """
-        dataset = get_train_dataset(self.cfg)
-        dataloader = DataLoader(
-            dataset,
-            batch_size=self.cfg.training.batch_size,
-            num_workers=self.cfg.training.num_workers,
-            pin_memory=True,
-        )
-        return dataloader
+        # TODO necessary for mypy, is there a better way to enforce non-null? Should
+        # the training config be optional?
+        if self.cfg.training is not None:
+            dataset = get_train_dataset(self.cfg)
+            dataloader = DataLoader(
+                dataset,
+                batch_size=self.cfg.training.batch_size,
+                num_workers=self.cfg.training.num_workers,
+                pin_memory=True,
+            )
+            return dataloader
+
+        else:
+            raise ValueError("Missing training entry in configuration file.")
 
     def get_val_dataloader(self) -> DataLoader:
         """_summary_.
@@ -363,14 +417,18 @@ class Engine:
         DataLoader
             _description_
         """
-        dataset = get_validation_dataset(self.cfg)
-        dataloader = DataLoader(
-            dataset,
-            batch_size=self.cfg.training.batch_size,
-            num_workers=self.cfg.training.num_workers,
-            pin_memory=True,
-        )
-        return dataloader
+        if self.cfg.training is not None:
+            dataset = get_validation_dataset(self.cfg)
+            dataloader = DataLoader(
+                dataset,
+                batch_size=self.cfg.training.batch_size,
+                num_workers=self.cfg.training.num_workers,
+                pin_memory=True,
+            )
+            return dataloader
+
+        else:
+            raise ValueError("Missing training entry in configuration file.")
 
     def get_predict_dataloader(
         self,
@@ -396,8 +454,9 @@ class Engine:
         Tuple[DataLoader, bool]
             _description_
         """
-        # TODO mypy does not take into account "is not None", we need to find a workaround
-        if external_input is not None:
+        # TODO mypy does not take into account "is not None", we need to find a
+        # workaround
+        if external_input is not None and mean is not None and std is not None:
             normalized_input = normalize(external_input, mean, std)
             normalized_input = normalized_input.astype(np.float32)
             dataset = TensorDataset(torch.from_numpy(normalized_input))
@@ -419,70 +478,50 @@ class Engine:
             stitch,
         )
 
-    def get_optimizer_and_scheduler(
-        self,
-    ) -> Tuple[torch.optim.Optimizer, torch.optim.lr_scheduler.LRScheduler]:
-        """Creates optimizer and learning rate scheduler objects.
+    def save_checkpoint(self, epoch: int, losses: List[float], save_method: str) -> str:
+        """Save the model to a checkpoint file.
 
-        Returns
-        -------
-        Tuple[torch.optim.Optimizer, torch.optim.lr_scheduler.LRScheduler]
-
-        Raises
-        ------
-        ValueError
-            If the entry is missing in the configuration file.
+        Parameters
+        ----------
+        epoch : int
+            Last epoch.
+        losses : List[float]
+            List of losses.
+        save_method : str
+            Method to save the model. Can be 'state_dict', or jit.
         """
-        if self.cfg.training is not None:
-            # retrieve optimizer name and parameters from config
-            optimizer_name = self.cfg.training.optimizer.name
-            optimizer_params = self.cfg.training.optimizer.parameters
-
-            # then instantiate it
-            optimizer_func = getattr(torch.optim, optimizer_name)
-            optimizer = optimizer_func(self.model.parameters(), **optimizer_params)
-
-            # same for learning rate scheduler
-            scheduler_name = self.cfg.training.lr_scheduler.name
-            scheduler_params = self.cfg.training.lr_scheduler.parameters
-            scheduler_func = getattr(torch.optim.lr_scheduler, scheduler_name)
-            scheduler = scheduler_func(optimizer, **scheduler_params)
-
-            return optimizer, scheduler
+        if epoch == 0 or losses[-1] < min(losses):
+            name = f"{self.cfg.experiment_name}_best.pth"
         else:
-            raise ValueError("Missing training entry in configuration file.")
-
-    def get_grad_scaler(self) -> torch.cuda.amp.GradScaler:
-        """Create the gradscaler object.
-
-        Returns
-        -------
-        torch.cuda.amp.GradScaler
-
-        Raises
-        ------
-        ValueError
-            If the entry is missing in the configuration file.
-        """
-        if self.cfg.training is not None:
-            use = self.cfg.training.amp.use
-            scaling = self.cfg.training.amp.init_scale
-            return torch.cuda.amp.GradScaler(init_scale=scaling, enabled=use)
-        else:
-            raise ValueError("Missing training entry in configuration file.")
-
-    def save_checkpoint(self, save_best):
-        """Save the model to a checkpoint file."""
-        name = (
-            f"{self.cfg.experiment_name}_best.pth"
-            if save_best
-            else f"{self.cfg.experiment_name}_latest.pth"
-        )
+            name = f"{self.cfg.experiment_name}_latest.pth"
         workdir = self.cfg.working_directory
         workdir.mkdir(parents=True, exist_ok=True)
 
-        torch.save(self.model.state_dict(), workdir / name)
-        return name
+        if save_method == "state_dict":
+            checkpoint = {
+                "epoch": epoch,
+                "model_state_dict": self.model.state_dict(),
+                "optimizer_state_dict": self.optimizer.state_dict(),
+                "scheduler_state_dict": self.lr_scheduler.state_dict(),
+                "grad_scaler_state_dict": self.scaler.state_dict(),
+                "loss": losses[-1],
+                "config": self.cfg.model_dump(),
+            }
+            torch.save(checkpoint, workdir / name)
+
+        elif save_method == "jit":
+            # TODO Vera help.
+            # TODO add save method check in config
+            raise NotImplementedError("JIT not implemented")
+        else:
+            raise ValueError("Invalid save method")
+        return self.cfg.working_directory.absolute() / name
+
+    def __del__(self) -> None:
+        for handler in self.logger.handlers:
+            if isinstance(handler, FileHandler):
+                self.logger.removeHandler(handler)
+                handler.close()
 
     def save_as_bioimage(
         self,
