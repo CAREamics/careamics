@@ -5,10 +5,14 @@ from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import torch
+from bioimageio.spec.model.raw_nodes import Model as BioimageModel
 from torch.utils.data import DataLoader, TensorDataset
 
-from bioimageio.spec.model.raw_nodes import Model as BioimageModel
-
+from careamics_restoration.bioimage import (
+    PYTORCH_STATE_DICT,
+    build_zip_model,
+    get_default_model_specs,
+)
 from careamics_restoration.utils.logging import ProgressLogger, get_logger
 
 from .config import Configuration, load_configuration
@@ -26,10 +30,6 @@ from .utils import (
     get_device,
     normalize,
     setup_cudnn_reproducibility,
-)
-from careamics_restoration.bioimage import (
-    build_zip_model, get_default_model_specs,
-    PYTORCH_STATE_DICT
 )
 
 
@@ -524,9 +524,7 @@ class Engine:
                 handler.close()
 
     def save_as_bioimage(
-        self,
-        output_zip: Union[Path, str],
-        model_specs: Optional[dict] = None
+        self, output_zip: Union[Path, str], model_specs: Optional[dict] = None
     ) -> BioimageModel:
         """Export the current model to BioImage.io model zoo format.
 
@@ -539,21 +537,24 @@ class Engine:
         """
         workdir = self.cfg.working_directory
         weight_path = workdir.joinpath(
-            f"{self.cfg.experiment_name}_best.pth").absolute()
+            f"{self.cfg.experiment_name}_best.pth"
+        ).absolute()
         test_inputs, test_outputs = self._get_sample_io_files()
 
         specs = get_default_model_specs(self.cfg.algorithm.loss)
         if model_specs is not None:
             specs.update(model_specs)
 
-        specs.update({
-            "output_path": str(output_zip),
-            "weight_type": PYTORCH_STATE_DICT,
-            "weight_uri": str(weight_path),
-            "architecture": "careamics_restoration.models.unet",
-            "test_inputs": test_inputs,
-            "test_outputs": test_outputs,
-        })
+        specs.update(
+            {
+                "output_path": str(output_zip),
+                "weight_type": PYTORCH_STATE_DICT,
+                "weight_uri": str(weight_path),
+                "architecture": "careamics_restoration.models.unet",
+                "test_inputs": test_inputs,
+                "test_outputs": test_outputs,
+            }
+        )
 
         raw_model = build_zip_model(
             config=self.cfg,
@@ -572,8 +573,7 @@ class Engine:
         len_diff = len(self.cfg.data.axes) - len(self.cfg.training.patch_size)
         if len_diff > 0:
             sample_input = np.expand_dims(
-                sample_input,
-                axis=tuple(i for i in range(len_diff))
+                sample_input, axis=tuple(i for i in range(len_diff))
             )
         # finally add the batch dim
         sample_input = np.expand_dims(sample_input, axis=0)
