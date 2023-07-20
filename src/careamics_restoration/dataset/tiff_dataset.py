@@ -9,9 +9,9 @@ import torch
 from careamics_restoration.config import Configuration
 from careamics_restoration.config.training import ExtractionStrategies
 from careamics_restoration.dataset.tiling import (
-    extract_tiles_predict,
     extract_patches_random,
     extract_patches_sequential,
+    extract_tiles_predict,
 )
 from careamics_restoration.manipulation import default_manipulate
 from careamics_restoration.utils import normalize
