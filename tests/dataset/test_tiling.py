@@ -95,16 +95,23 @@ def test_extract_tiles_predict():
         ((1, 8, 8, 8), (9, 9, 9)),
     ],
 )
-def test_extract_patches_sequential_errors(arr_shape, patch_size):
+def test_extract_patches_errors(arr_shape, patch_size):
     """Test errors when trying to extract patches serquentially."""
     arr = np.zeros(arr_shape)
 
+    # test sequential extraction
     with pytest.raises(ValueError):
         patches_generator = extract_patches_sequential(arr, patch_size)
 
         # get next yielded value
         next(patches_generator)
 
+    # test random exraction
+    with pytest.raises(ValueError):
+        patches_generator = extract_patches_random(arr, patch_size)
+
+        # get next yielded value
+        next(patches_generator)
 
 def check_extract_patches_sequential(array, patch_size):
     """Check that the patches are extracted correctly.
