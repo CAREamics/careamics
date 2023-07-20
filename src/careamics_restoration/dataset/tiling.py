@@ -183,6 +183,39 @@ def compute_reshaped_view(
     return patches
 
 
+def patches_sanity_check(arr: np.ndarray, patch_size: Tuple[int, ...]) -> bool:
+    """Different asserts for patch sizes."""
+    if len(patch_size) != len(arr.shape[1:]):
+        raise ValueError(
+            f"There must be a patch size for each spatial dimensions "
+            f"(got {patch_size} patches for dims {arr.shape})."
+        )
+
+    for p in patch_size:
+        # check if 1
+        if p < 2:
+            raise ValueError(f"Invalid patch value (got {p}).")
+
+        # check if power of two
+        if not (p & (p - 1) == 0):
+            raise ValueError(f"Patch size must be a power of two (got {p}).")
+
+    # Sanity checks on patch sizes versus array dimension
+    is_3d_patch = len(patch_size) == 3
+    if is_3d_patch and patch_size[0] > arr.shape[-3]:
+        raise ValueError(
+            f"Z patch size is inconsistent with image shape "
+            f"(got {patch_size[0]} patches for dim {arr.shape[1]})."
+        )
+
+    if patch_size[-2] > arr.shape[-2] or patch_size[-1] > arr.shape[-1]:
+        raise ValueError(
+            f"At least one of YX patch dimensions is inconsistent with image shape "
+            f"(got {patch_size} patches for dims {arr.shape[-2:]})."
+        )
+    return is_3d_patch
+
+
 # TODO: this function does not ensure full coverage (see tests)
 # formerly :
 # https://github.com/juglab-torch/n2v/blob/00d536cdc5f5cd4bb34c65a777940e6e453f4a93/src/n2v/dataloader.py#L52
@@ -217,34 +250,7 @@ def extract_patches_sequential(
         less than 2
     """
     # Patches sanity check
-    if len(patch_size) != len(arr.shape[1:]):
-        raise ValueError(
-            f"There must be a patch size for each spatial dimensions "
-            f"(got {patch_size} patches for dims {arr.shape})."
-        )
-
-    for p in patch_size:
-        # check if 1
-        if p < 2:
-            raise ValueError(f"Invalid patch value (got {p}).")
-
-        # check if power of two
-        if not (p & (p - 1) == 0):
-            raise ValueError(f"Patch size must be a power of two (got {p}).")
-
-    # Sanity checks on patch sizes versus array dimension
-    is_3d_patch = len(patch_size) == 3
-    if is_3d_patch and patch_size[0] > arr.shape[-3]:
-        raise ValueError(
-            f"Z patch size is inconsistent with image shape "
-            f"(got {patch_size[0]} patches for dim {arr.shape[1]})."
-        )
-
-    if patch_size[-2] > arr.shape[-2] or patch_size[-1] > arr.shape[-1]:
-        raise ValueError(
-            f"At least one of YX patch dimensions is inconsistent with image shape "
-            f"(got {patch_size} patches for dims {arr.shape[-2:]})."
-        )
+    is_3d_patch = patches_sanity_check(arr, patch_size)
 
     # Compute overlap
     overlaps = compute_overlap(arr=arr, patch_sizes=patch_size)
@@ -300,6 +306,8 @@ def extract_patches_random(
     Generator[np.ndarray, None, None]
         generator of patches
     """
+    # Patches sanity check
+    _ = patches_sanity_check(arr, patch_size)
     rng = np.random.default_rng()
     # shuffle the array along the first axis TODO do we need shuffling?
     rng.shuffle(arr, axis=0)

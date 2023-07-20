@@ -2,9 +2,9 @@ import numpy as np
 import pytest
 
 from careamics_restoration.dataset.tiling import (
-    extract_tiles_predict,
     extract_patches_random,
     extract_patches_sequential,
+    extract_tiles_predict,
 )
 
 
