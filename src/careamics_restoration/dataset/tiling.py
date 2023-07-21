@@ -183,7 +183,9 @@ def compute_reshaped_view(
     return patches
 
 
-def patches_sanity_check(arr: np.ndarray, patch_size: Tuple[int, ...]) -> bool:
+def patches_sanity_check(
+    arr: np.ndarray, patch_size: Tuple[int, ...], is_3d_patch: bool
+):
     """Different asserts for patch sizes."""
     if len(patch_size) != len(arr.shape[1:]):
         raise ValueError(
@@ -191,17 +193,7 @@ def patches_sanity_check(arr: np.ndarray, patch_size: Tuple[int, ...]) -> bool:
             f"(got {patch_size} patches for dims {arr.shape})."
         )
 
-    for p in patch_size:
-        # check if 1
-        if p < 2:
-            raise ValueError(f"Invalid patch value (got {p}).")
-
-        # check if power of two
-        if not (p & (p - 1) == 0):
-            raise ValueError(f"Patch size must be a power of two (got {p}).")
-
     # Sanity checks on patch sizes versus array dimension
-    is_3d_patch = len(patch_size) == 3
     if is_3d_patch and patch_size[0] > arr.shape[-3]:
         raise ValueError(
             f"Z patch size is inconsistent with image shape "
@@ -213,7 +205,6 @@ def patches_sanity_check(arr: np.ndarray, patch_size: Tuple[int, ...]) -> bool:
             f"At least one of YX patch dimensions is inconsistent with image shape "
             f"(got {patch_size} patches for dims {arr.shape[-2:]})."
         )
-    return is_3d_patch
 
 
 # TODO: this function does not ensure full coverage (see tests)
@@ -250,7 +241,9 @@ def extract_patches_sequential(
         less than 2
     """
     # Patches sanity check
-    is_3d_patch = patches_sanity_check(arr, patch_size)
+    is_3d_patch = len(patch_size) == 3
+
+    patches_sanity_check(arr, patch_size, is_3d_patch)
 
     # Compute overlap
     overlaps = compute_overlap(arr=arr, patch_sizes=patch_size)
@@ -281,8 +274,6 @@ def extract_patches_sequential(
         yield patch
 
 
-# TODO: extract patches random default number of patches 1 or max? parameter for number
-#  of patches?
 # TODO: extract patches random but with the possibility to remove (almost) empty patches
 def extract_patches_random(
     arr: np.ndarray, patch_size: Tuple[int], seed: int = 42
@@ -306,8 +297,11 @@ def extract_patches_random(
     Generator[np.ndarray, None, None]
         generator of patches
     """
+    is_3d_patch = len(patch_size) == 3
+
     # Patches sanity check
-    _ = patches_sanity_check(arr, patch_size)
+    patches_sanity_check(arr, patch_size, is_3d_patch)
+
     rng = np.random.default_rng()
     # shuffle the array along the first axis TODO do we need shuffling?
     rng.shuffle(arr, axis=0)
@@ -338,7 +332,7 @@ def extract_patches_random(
             yield patch
 
 
-def extract_tiles_predict(
+def extract_tiles(
     arr: np.ndarray,
     tile_size: Tuple[int],
     overlaps: Tuple[int],
