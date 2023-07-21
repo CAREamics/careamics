@@ -4,108 +4,9 @@ import pytest
 from careamics_restoration.dataset.tiling import (
     extract_patches_random,
     extract_patches_sequential,
-    extract_tiles_predict,
+    extract_tiles,
     patches_sanity_check,
 )
-
-
-@pytest.mark.parametrize(
-    "arr_shape, patch_size",
-    [
-        ((1, 8, 8), (2, 2)),
-        ((1, 8, 8, 8), (2, 2, 2)),
-    ],
-)
-def test_patches_sanity_check(arr_shape, patch_size):
-    arr = np.zeros(arr_shape)
-    is_3d_patch = patches_sanity_check(arr, patch_size)
-    # check if the patch is 2D or 3D. Subtract 1 because the first dimension is sample
-    if len(arr_shape) - 1 == 2:
-        assert not is_3d_patch
-    elif len(arr_shape) - 1 == 3:
-        assert is_3d_patch
-
-
-@pytest.mark.parametrize(
-    "arr_shape, patch_size",
-    [
-        # Wrong number of dimensions 2D
-        ((10, 10), (5,)),
-        ((10, 10), (5, 5)),
-        # minimum 3 dimensions CYX
-        ((10, 10), (5, 5, 5)),
-        ((1, 10, 10), (5,)),
-        ((1, 1, 10, 10), (5,)),
-        # Wrong number of dimensions 3D
-        ((10, 10, 10), (5, 5, 5, 5)),
-        ((1, 10, 10, 10), (5, 5)),
-        ((1, 10, 10, 10), (5, 5, 5, 5)),
-        ((1, 1, 10, 10, 10), (5, 5)),
-        ((1, 1, 10, 10, 10), (5, 5, 5, 5)),
-        # Wrong z patch size
-        ((1, 10, 10), (5, 5, 5)),
-        ((10, 10, 10), (10, 5, 5)),
-        # Wrong YX patch sizes
-        ((1, 10, 10), (12, 5)),
-        ((1, 10, 10), (5, 11)),
-    ],
-)
-def test_extract_patches_invalid_arguments(arr_shape, patch_size):
-    arr = np.zeros(arr_shape)
-
-    with pytest.raises(ValueError):
-        patches_generator = extract_patches_sequential(arr, patch_size)
-
-        # get next yielded value
-        next(patches_generator)
-
-    with pytest.raises(ValueError):
-        patches_generator = extract_patches_random(arr, patch_size)
-
-        # get next yielded value
-        next(patches_generator)
-
-
-@pytest.mark.parametrize(
-    "arr_shape, patch_size",
-    [
-        # wrong number of dimensions
-        ((8, 8), (2, 2)),
-        ((1, 1, 8, 8, 8), (4, 4, 4)),
-        # incompatible array and patch sizes
-        ((1, 8, 8), (2,)),
-        ((1, 8, 8), (2, 2, 2)),
-        ((1, 8, 8, 8), (2, 2)),
-        # patches with non power of two values
-        ((1, 8, 8), (2, 3)),
-        ((1, 8, 8), (5, 2)),
-        ((1, 8, 8, 8), (5, 2, 2)),
-        # patches with size 1
-        ((1, 8, 8), (2, 1)),
-        ((1, 8, 8), (1, 2)),
-        ((1, 8, 8, 8), (1, 2, 2)),
-        # patches too large
-        ((1, 8, 8), (9, 9)),
-        ((1, 8, 8, 8), (9, 9, 9)),
-    ],
-)
-def test_extract_patches_errors(arr_shape, patch_size):
-    """Test errors when trying to extract patches serquentially."""
-    arr = np.zeros(arr_shape)
-
-    # test sequential extraction
-    with pytest.raises(ValueError):
-        patches_generator = extract_patches_sequential(arr, patch_size)
-
-        # get next yielded value
-        next(patches_generator)
-
-    # test random exraction
-    with pytest.raises(ValueError):
-        patches_generator = extract_patches_random(arr, patch_size)
-
-        # get next yielded value
-        next(patches_generator)
 
 
 def check_extract_patches_sequential(array, patch_size):
@@ -137,12 +38,11 @@ def check_extract_patches_random(array, patch_size):
     for patch in patch_generator:
         patches.append(patch)
         assert patch.shape == patch_size
-    # TODO discuss whether we need num patches. Add assert
 
 
-def check_extract_tiles_predict(array, tile_size, overlaps):
+def check_extract_tiles(array, tile_size, overlaps):
     """Test extracting patches randomly."""
-    tile_data_generator = extract_tiles_predict(array, tile_size, overlaps)
+    tile_data_generator = extract_tiles(array, tile_size, overlaps)
 
     tiles = []
     all_overlap_crop_coords = []
@@ -165,6 +65,49 @@ def check_extract_tiles_predict(array, tile_size, overlaps):
     n_max = np.prod(array.shape)  # maximum value in the array
     unique = np.unique(np.array(tiles))  # unique values in the patches
     assert len(unique) >= n_max
+
+
+@pytest.mark.parametrize(
+    "arr_shape, patch_size",
+    [
+        ((1, 8, 8), (2, 2)),
+        ((1, 8, 8, 8), (2, 2, 2)),
+    ],
+)
+def test_patches_sanity_check(arr_shape, patch_size):
+    arr = np.zeros(arr_shape)
+    is_3d_patch = len(patch_size) == 3
+    # check if the patch is 2D or 3D. Subtract 1 because the first dimension is sample
+    patches_sanity_check(arr, patch_size, is_3d_patch)
+
+
+@pytest.mark.parametrize(
+    "arr_shape, patch_size",
+    [
+        # Wrong number of dimensions 2D
+        ((10, 10), (5, 5)),
+        # minimum 3 dimensions CYX
+        ((10, 10), (5, 5, 5)),
+        ((1, 1, 10, 10), (5, 5)),
+        # Wrong number of dimensions 3D
+        ((10, 10, 10), (5, 5, 5)),
+        ((1, 10, 10, 10), (5, 5)),
+        ((1, 1, 10, 10, 10), (5, 5)),
+        ((1, 1, 10, 10, 10), (5, 5, 5)),
+        # Wrong z patch size
+        ((1, 10, 10), (5, 5, 5)),
+        ((10, 10, 10), (10, 5, 5)),
+        # Wrong YX patch sizes
+        ((1, 10, 10), (12, 5)),
+        ((1, 10, 10), (5, 11)),
+    ],
+)
+def test_patches_sanity_check_invalid_cases(arr_shape, patch_size):
+    arr = np.zeros(arr_shape)
+    is_3d_patch = len(patch_size) == 3
+    # check if the patch is 2D or 3D. Subtract 1 because the first dimension is sample
+    with pytest.raises(ValueError):
+        patches_sanity_check(arr, patch_size, is_3d_patch)
 
 
 @pytest.mark.parametrize(
@@ -236,9 +179,9 @@ def test_extract_patches_random_3d(array_3D, patch_size):
         ((8, 8), (4, 4)),
     ],
 )
-def test_extract_tiles_predict_2d(array_2D, tile_size, overlaps):
+def test_extract_tiles_2d(array_2D, tile_size, overlaps):
     """Test extracting tiles for prediction in 2D."""
-    check_extract_tiles_predict(array_2D, tile_size, overlaps)
+    check_extract_tiles(array_2D, tile_size, overlaps)
 
 
 @pytest.mark.parametrize(
@@ -248,11 +191,11 @@ def test_extract_tiles_predict_2d(array_2D, tile_size, overlaps):
         ((8, 8, 8), (4, 4, 4)),
     ],
 )
-def test_extract_tiles_predict_3d(array_3D, tile_size, overlaps):
+def test_extract_tiles_3d(array_3D, tile_size, overlaps):
     """Test extracting tiles for prediction in 3D.
 
     The 3D array is a fixture of shape (1, 8, 16, 16)."""
-    check_extract_tiles_predict(array_3D, tile_size, overlaps)
+    check_extract_tiles(array_3D, tile_size, overlaps)
 
 
 def test_calculate_stats():

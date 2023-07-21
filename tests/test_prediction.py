@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from careamics_restoration.dataset.tiling import extract_tiles_predict
+from careamics_restoration.dataset.tiling import extract_tiles
 from careamics_restoration.prediction_utils import stitch_prediction
 
 
@@ -20,7 +20,7 @@ def test_stitch_prediction(input_shape, tile_size, overlaps):
     arr = np.zeros(input_shape, dtype=int)
     stitching_data = []
     # extract tiles
-    tiling_outputs = extract_tiles_predict(arr, tile_size, overlaps)
+    tiling_outputs = extract_tiles(arr, tile_size, overlaps)
     # Assemble all tiles as it's done during the prediction stage
     for tile_data in tiling_outputs:
         tile, _, _, overlap_crop_coords, stitch_coords = tile_data
