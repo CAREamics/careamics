@@ -17,22 +17,25 @@ def test_get_stratified_coords(mask_pixel_perc, shape, num_iterations):
     Ensure that the array of coordinates is randomly distributed across the
     image and doesn't demonstrate any strong pattern.
     """
-    # Define the number of iterations to run the test and the array
+    # Define the dummy array
     array = np.zeros(shape)
 
-    # Iterate over the number of iterations and add the coordinates
+    # Iterate over the number of iterations and add the coordinates. This is an MC
+    # simulation to ensure that the coordinates are randomly distributed and not
+    # biased towards any particular region.
     for _ in range(num_iterations):
-        # Calculate distance between masked pixels as it's done in the
-        # get_stratified_coords function
+        # Get the coordinates of the pixels to be masked
         coords = get_stratified_coords(mask_pixel_perc, shape)
-        # Check that the coordinates are within the shape of the array
-        # Check that the distance between masked pixels is approximately the same,
-        # and distance from border is equal
+        # Check every pair in the array of coordinates
         for coord_pair in coords:
+            # Check that the coordinates are of the same shape as the patch
             assert len(coord_pair) == len(shape)
+            # Check that the coordinates are positive values
             assert all(coord_pair) >= 0
+            # Check that the coordinates are within the shape of the array
             assert [c <= s for c, s in zip(coord_pair, shape)]
 
+        # Add the 1 to the every coordinate location.
         array[tuple(np.array(coords).T.tolist())] += 1
 
     # Check that the maximum value of the array is less than half of the second
