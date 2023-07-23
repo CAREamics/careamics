@@ -260,7 +260,9 @@ class TiffDataset(torch.utils.data.IterableDataset):
                     yield item
 
 
-def get_train_dataset(config: Configuration) -> TiffDataset:
+def get_train_dataset(
+    config: Configuration, train_path: Union[str, Path]
+) -> TiffDataset:
     """
     Create TiffDataset instance from configuration.
 
@@ -271,10 +273,8 @@ def get_train_dataset(config: Configuration) -> TiffDataset:
     if config.training is None:
         raise ValueError("Training configuration is not defined.")
 
-    data_path = config.data.training_path
-
     dataset = TiffDataset(
-        data_path=data_path,
+        data_path=train_path,
         data_format=config.data.data_format,
         axes=config.data.axes,
         mean=config.data.mean,
@@ -289,11 +289,13 @@ def get_train_dataset(config: Configuration) -> TiffDataset:
     return dataset
 
 
-def get_validation_dataset(config: Configuration) -> TiffDataset:
+def get_validation_dataset(
+    config: Configuration, val_path: Union[str, Path]
+) -> TiffDataset:
     if config.training is None:
         raise ValueError("Training configuration is not defined.")
 
-    data_path = config.data.validation_path
+    data_path = val_path
 
     dataset = TiffDataset(
         data_path=data_path,

@@ -1,24 +1,17 @@
 from __future__ import annotations
 
 from enum import Enum
-from pathlib import Path
-from typing import Optional, Union
+from typing import Optional
 
 from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
-    FieldValidationInfo,
     field_validator,
     model_validator,
 )
 
 from ..utils import check_axes_validity
-
-# TODO this creates a circular import when instantiating the engine
-# engine -> config -> evaluation -> data -> dataloader_utils
-# then are_axes_valid are imported again in the engine.
-from .config_filter import paths_to_str
 
 
 class SupportedExtensions(str, Enum):
@@ -31,8 +24,6 @@ class SupportedExtensions(str, Enum):
 
     TIFF = "tiff"
     TIF = "tif"
-    NPY = "npy"  # TODO remove numpy after we reupload the dataset as zarr
-    ZARR = "zarr"
 
     @classmethod
     def _missing_(cls, value: object):
@@ -76,12 +67,6 @@ class Data(BaseModel):
         Extensions of the data.
     axes : str
         Axes of the data.
-    training_path : Optional[Union[Path, str]]
-        Path to the training data.
-    validation_path : Optional[Union[Path, str]]
-        Path to the validation data.
-    prediction_path : Optional[Union[Path, str]]
-        Path to the prediction data.
     mean: Optional[float]
        Expected data mean
     std: Optional[float]
@@ -99,40 +84,8 @@ class Data(BaseModel):
     axes: str
 
     # Optional fields
-    training_path: Optional[Union[Path, str]] = None
-    validation_path: Optional[Union[Path, str]] = None
-    prediction_path: Optional[Union[Path, str]] = None
-
     mean: Optional[float] = Field(default=None, ge=0)
     std: Optional[float] = Field(default=None, gt=0)
-
-    @field_validator("training_path", "validation_path", "prediction_path")
-    def path_contains_images(cls, path_value: str, values: FieldValidationInfo) -> Path:
-        """Validate folder path.
-
-        Check that files with the correct extension can be found in the folder.
-        """
-        path = Path(path_value)
-
-        # check that the path exists
-        if not path.exists():
-            raise ValueError(f"Path {path} does not exist")
-        elif not path.is_dir():
-            raise ValueError(f"Path {path} is not a directory")
-
-        # check that the path contains files with the correct extension
-        if "data_format" in values.data:
-            ext = values.data["data_format"]
-
-            if len(list(path.glob(f"*.{ext}"))) == 0:
-                raise ValueError(f"No files with extension {ext} found in {path}.")
-        else:
-            raise ValueError(
-                "Cannot check path validity without extension, make sure it has been "
-                "correctly specified."
-            )
-
-        return path
 
     def set_mean_and_std(self, mean: float, std: float) -> None:
         """Set mean and std of the data.
@@ -173,56 +126,6 @@ class Data(BaseModel):
         return axes
 
     @model_validator(mode="after")
-    def at_least_one_path_valid(cls, data_model: Data) -> Data:
-        """Validate that at least one of training or prediction paths is specified.
-
-        Parameters
-        ----------
-        data_model : Data
-            Data model to validate
-
-        Returns
-        -------
-        Data
-            Validated model
-
-        Raises
-        ------
-        ValueError
-            If neither training or prediction paths are specified
-        """
-        if data_model.training_path is None and data_model.prediction_path is None:
-            raise ValueError(
-                "At least one of training or prediction paths must be specified."
-            )
-
-        return data_model
-
-    @model_validator(mode="after")
-    def both_training_and_validation(cls, data_model: Data) -> Data:
-        """Validate that both training and validation paths are specified.
-
-        Parameters
-        ----------
-        data_model : Data
-            Data model to validate
-
-        Returns
-        -------
-        Data
-            Validated model
-
-        Raises
-        ------
-        ValueError
-            If one of training or validation paths is specified and not the other
-        """
-        if (data_model.training_path is None) != (data_model.validation_path is None):
-            raise ValueError("Both training and validation paths must be specified.")
-
-        return data_model
-
-    @model_validator(mode="after")
     def std_only_with_mean(cls, data_model: Data) -> Data:
         """Check that mean and std are either both None, or both specified.
 
@@ -240,15 +143,10 @@ class Data(BaseModel):
 
         The purpose is to ensure export smooth import to yaml. It includes:
             - remove entries with None value
-            - replace Path by str
-            - remove optional values if they have the default value
 
         Returns
         -------
         dict
             Dictionary containing the model parameters
         """
-        dictionary = super().model_dump(exclude_none=True)
-
-        # replace Paths by str
-        return paths_to_str(dictionary)
+        return super().model_dump(exclude_none=True)

@@ -138,12 +138,6 @@ def test_at_least_one_of_training_or_prediction(complete_config: dict):
     config_train = Configuration(**test_config)
     assert config_train.training.model_dump() == test_config["training"]
 
-    # test that config fails if training+validation data is not there
-    test_config["data"].pop("training_path")
-    test_config["data"].pop("validation_path")
-    with pytest.raises(ValueError):
-        Configuration(**test_config)
-
     # remove training
     test_config.pop("training")
 
@@ -151,13 +145,6 @@ def test_at_least_one_of_training_or_prediction(complete_config: dict):
     test_config["prediction"] = copy.deepcopy(complete_config["prediction"])
     config_pred = Configuration(**test_config)
     assert config_pred.prediction.model_dump() == test_config["prediction"]
-
-    # test that config fails if prediction data is not there
-    # we must add the training path so that Data model gets validated
-    test_config["data"] = copy.deepcopy(complete_config["data"])
-    test_config["data"].pop("prediction_path")
-    with pytest.raises(ValueError):
-        Configuration(**test_config)
 
 
 def test_wrong_values_by_assignment(complete_config: dict):
@@ -219,7 +206,7 @@ def test_minimum_config(minimum_config: dict):
 def test_complete_config(complete_config: dict):
     """Test that we can instantiate a minimum config."""
     dictionary = Configuration(**complete_config).model_dump()
-    assert sorted(dictionary) == sorted(complete_config)
+    assert dictionary == complete_config
 
 
 def test_config_to_dict_with_default_optionals(complete_config: dict):
@@ -248,8 +235,7 @@ def test_config_to_dict_with_default_optionals(complete_config: dict):
 
     # instantiate config
     myconf = Configuration(**complete_config)
-    # TODO check better way to compare dictionaries
-    assert sorted(myconf.model_dump(exclude_optionals=False)) == sorted(complete_config)
+    assert myconf.model_dump(exclude_optionals=False) == complete_config
 
 
 def test_config_to_yaml(tmp_path: Path, minimum_config: dict):

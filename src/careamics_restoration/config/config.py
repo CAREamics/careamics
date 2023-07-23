@@ -64,7 +64,7 @@ class Configuration(BaseModel):
     working_directory: Path
 
     # Optional field
-    trained_model: Optional[str] = None
+    trained_model: Optional[Path] = None
 
     # Sub-configurations
     algorithm: Algorithm
@@ -136,9 +136,7 @@ class Configuration(BaseModel):
         return path
 
     @field_validator("trained_model")
-    def trained_model_exists(
-        cls, model_path: str, values: FieldValidationInfo
-    ) -> Union[str, Path]:
+    def trained_model_exists(cls, model_path: str, values: FieldValidationInfo) -> Path:
         """Validate trained model path.
 
         The model path must point to an existing .pth file, either relative to
@@ -153,7 +151,7 @@ class Configuration(BaseModel):
 
         Returns
         -------
-        Union[str, Path]
+        Path
             Path to the trained model.
 
 
@@ -213,16 +211,6 @@ class Configuration(BaseModel):
         if config.training is None and config.prediction is None:
             raise ValueError("At least one of training or prediction must be defined.")
 
-        # check that the corresponding data path is defined as well
-        if config.training is not None and config.data.training_path is None:
-            raise ValueError(
-                "Training configuration is defined but training data path is not."
-            )
-        if config.prediction is not None and config.data.prediction_path is None:
-            raise ValueError(
-                "Prediction configuration is defined but prediction data path is not."
-            )
-
         return config
 
     @model_validator(mode="after")
@@ -281,6 +269,9 @@ class Configuration(BaseModel):
         dictionary = super().model_dump(exclude_none=True)
 
         # remove paths
+        if self.trained_model is not None:
+            dictionary["trained_model"] = self.trained_model.name
+
         dictionary = paths_to_str(dictionary)
 
         dictionary["algorithm"] = self.algorithm.model_dump(

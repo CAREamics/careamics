@@ -136,15 +136,31 @@ class Engine:
         setup_cudnn_reproducibility(deterministic=True, benchmark=False)
         seed_everything(seed=42)
 
-    def train(self):
-        """Main train method.
+    def train(
+        self,
+        train_path: Union[str, Path],
+        val_path: Union[str, Path],
+    ) -> None:
+        """Train the network.
 
-        Performs training and validation steps for the specified number of epochs.
+        The training and validation data given by the paths must obey the axes and
+        data format used in the configuration.
 
+        Parameters
+        ----------
+        train_path : Union[str, Path]
+            Path to the training data
+        val_path : Union[str, Path]
+            Path to the validation data
+
+        Raises
+        ------
+        ValueError
+            Raise a VakueError if the training configuration is missing
         """
         if self.cfg.training is not None:
             # General func
-            train_loader = self.get_train_dataloader()
+            train_loader = self.get_train_dataloader(train_path)
 
             # Set mean and std from train dataset of none
             if self.cfg.data.mean is None or self.cfg.data.std is None:
@@ -152,7 +168,7 @@ class Engine:
                     train_loader.dataset.mean, train_loader.dataset.std
                 )
 
-            eval_loader = self.get_val_dataloader()
+            eval_loader = self.get_val_dataloader(val_path)
 
             self.logger.info(
                 f"Starting training for {self.cfg.training.num_epochs} epochs"
@@ -194,7 +210,6 @@ class Engine:
                 self.logger.info("Training interrupted")
                 self.progress.exit()
         else:
-            # TODO: instead of error, maybe fail gracefully with a logging/warning
             raise ValueError("Missing training entry in configuration file.")
 
     def _train_single_epoch(
@@ -305,9 +320,6 @@ class Engine:
             mean=mean,
             std=std,
         )
-        # TODO keep getting this ValueError: Mean or std are not specified in the
-        # configuration and in parameters
-        # TODO where is this error? is this linked to an issue? Mention issue here.
 
         tiles = []
         prediction = []
@@ -318,9 +330,6 @@ class Engine:
         else:
             self.logger.info("Starting prediction on whole sample")
 
-        # TODO Joran/Vera: make this as a config object, add function to assess the
-        # external input
-        # TODO instruction unclear
         with torch.no_grad():
             # TODO tiled prediction slow af, profile and optimize
             # TODO progress bar isn't displayed
@@ -376,20 +385,26 @@ class Engine:
         self.logger.info(f"Predicted {len(prediction)} samples")
         return np.stack(prediction)
 
-    def get_train_dataloader(self) -> DataLoader:
-        """_summary_.
+    def get_train_dataloader(self, train_path: Union[str, Path]) -> DataLoader:
+        """Return a training dataloader.
 
-        _extended_summary_
+        Parameters
+        ----------
+        train_path : Union[str, Path]
+            Path to the training data.
 
         Returns
         -------
         DataLoader
-            _description_
+            Data loader
+
+        Raises
+        ------
+        ValueError
+            If the training configuration is None
         """
-        # TODO necessary for mypy, is there a better way to enforce non-null? Should
-        # the training config be optional?
         if self.cfg.training is not None:
-            dataset = get_train_dataset(self.cfg)
+            dataset = get_train_dataset(self.cfg, train_path)
             dataloader = DataLoader(
                 dataset,
                 batch_size=self.cfg.training.batch_size,
@@ -401,18 +416,9 @@ class Engine:
         else:
             raise ValueError("Missing training entry in configuration file.")
 
-    def get_val_dataloader(self) -> DataLoader:
-        """_summary_.
-
-        _extended_summary_
-
-        Returns
-        -------
-        DataLoader
-            _description_
-        """
+    def get_val_dataloader(self, val_path: Union[str, Path]) -> DataLoader:
         if self.cfg.training is not None:
-            dataset = get_validation_dataset(self.cfg)
+            dataset = get_validation_dataset(self.cfg, val_path)
             dataloader = DataLoader(
                 dataset,
                 batch_size=self.cfg.training.batch_size,
