@@ -20,6 +20,7 @@ from .metrics import MetricTracker
 from .models import create_model
 from .prediction_utils import stitch_prediction
 from .utils import (
+    check_array_validity,
     denormalize,
     get_device,
     normalize,
@@ -279,11 +280,11 @@ class Engine:
 
     def predict(
         self,
+        *,
         external_input: Optional[np.ndarray] = None,
-        mean: Optional[float] = None,
-        std: Optional[float] = None,
+        pred_path: Optional[Union[str, Path]] = None,
     ) -> np.ndarray:
-        """Inference.
+        """Predict using the Engine's model.
 
         Can be used with external input or with the dataset, provided in the
         configuration file.
@@ -292,34 +293,41 @@ class Engine:
         ----------
         external_input : Optional[np.ndarray], optional
             external image array to predict on, by default None
-        mean : float, optional
-            mean of the train dataset, by default None
-        std : float, optional
-            standard deviation of the train dataset, by default None
 
         Returns
         -------
         np.ndarray
             predicted image array of the same shape as the input
         """
-        self.model.to(self.device)
-        self.model.eval()
-        # TODO external input shape should either be compatible with the model or tiled.
-        #  Add checks and raise errors
-        if not mean and not std:
-            mean = self.cfg.data.mean
-            std = self.cfg.data.std
-
-        if not mean or not std:
+        # Check that there is at least one input parameter
+        if external_input is None and pred_path is None:
             raise ValueError(
-                "Mean or std are not specified in the configuration and in parameters"
+                "Prediction takes at an external input or a path to data "
+                "(both None here)."
             )
 
-        pred_loader, stitch = self.get_predict_dataloader(
-            external_input=external_input,
-            mean=mean,
-            std=std,
-        )
+        # Check that the mean and std are there (= has been trained)
+        if not self.cfg.data.mean or not self.cfg.data.std:
+            raise ValueError(
+                "Mean or std are not specified in the configuration, prediction cannot "
+                "be performed"
+            )
+
+        # check array
+        if external_input is not None:
+            check_array_validity(external_input, self.cfg.data.axes)
+
+        # set model to eval mode
+        self.model.to(self.device)
+        self.model.eval()
+
+        if external_input is not None:
+            pred_loader, stitch = self.get_predict_dataloader(
+                external_input=external_input
+            )
+        else:
+            # we have a path
+            pred_loader, stitch = self.get_predict_dataloader(pred_path=pred_path)
 
         tiles = []
         prediction = []
@@ -332,8 +340,6 @@ class Engine:
 
         with torch.no_grad():
             # TODO tiled prediction slow af, profile and optimize
-            # TODO progress bar isn't displayed
-            # TODO is this linked to an issue? Mention issue here.
             for _, (tile, *auxillary) in self.progress(
                 enumerate(pred_loader), task_name="Prediction"
             ):
@@ -346,7 +352,7 @@ class Engine:
                     ) = auxillary
 
                 outputs = self.model(tile.to(self.device))
-                outputs = denormalize(outputs, mean, std)
+                outputs = denormalize(outputs, self.cfg.data.mean, self.cfg.data.std)
 
                 if stitch:
                     # Crop predited tile according to overlap coordinates
@@ -432,47 +438,29 @@ class Engine:
 
     def get_predict_dataloader(
         self,
+        *,
         external_input: Optional[np.ndarray] = None,
-        mean: Optional[float] = None,
-        std: Optional[float] = None,
+        pred_path: Optional[np.ndarray] = None,
     ) -> Tuple[DataLoader, bool]:
-        """_summary_.
-
-        _extended_summary_
-
-        Parameters
-        ----------
-        external_input : Optional[np.ndarray], optional
-            _description_, by default None
-        mean : Optional[float], optional
-            _description_, by default None
-        std : Optional[float], optional
-            _description_, by default None
-
-        Returns
-        -------
-        Tuple[DataLoader, bool]
-            _description_
-        """
-        # TODO mypy does not take into account "is not None", we need to find a
-        # workaround
-        if external_input is not None and mean is not None and std is not None:
-            normalized_input = normalize(external_input, mean, std)
+        if external_input is not None:
+            normalized_input = normalize(
+                external_input, self.cfg.data.mean, self.cfg.data.std
+            )
             normalized_input = normalized_input.astype(np.float32)
             dataset = TensorDataset(torch.from_numpy(normalized_input))
             stitch = False  # TODO can also be true
         else:
-            dataset = get_prediction_dataset(self.cfg)
+            dataset = get_prediction_dataset(self.cfg, pred_path=pred_path)
             stitch = (
                 hasattr(dataset, "patch_extraction_method")
                 and dataset.patch_extraction_method is not None
             )
         return (
-            # TODO this is hardcoded for now
+            # TODO batch_size and num_workers hardocded for now
             DataLoader(
                 dataset,
-                batch_size=1,  # self.cfg.prediction.data.batch_size,
-                num_workers=0,  # self.cfg.prediction.data.num_workers,
+                batch_size=1,
+                num_workers=0,
                 pin_memory=True,
             ),
             stitch,

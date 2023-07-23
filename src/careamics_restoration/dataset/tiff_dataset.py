@@ -297,7 +297,9 @@ def get_validation_dataset(
     return dataset
 
 
-def get_prediction_dataset(config: Configuration) -> TiffDataset:
+def get_prediction_dataset(
+    config: Configuration, pred_path: Union[str, Path]
+) -> TiffDataset:
     if config.prediction is None:
         raise ValueError("Prediction configuration is not defined.")
 
@@ -307,7 +309,7 @@ def get_prediction_dataset(config: Configuration) -> TiffDataset:
         patch_extraction_method = None
 
     dataset = TiffDataset(
-        data_path=config.data.prediction_path,
+        data_path=pred_path,
         data_format=config.data.data_format,
         axes=config.data.axes,
         mean=config.data.mean,

@@ -94,6 +94,6 @@ def test_is_engine_runnable(
 
     # Predict only accepts 4D input for now
     test_image = test_image[None, None, ...]
-    test_result = engine.predict(external_input=test_image, mean=0.5, std=0.5)
+    test_result = engine.predict(external_input=test_image)
 
     assert test_result is not None
