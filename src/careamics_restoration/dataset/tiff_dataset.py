@@ -67,6 +67,10 @@ class TiffDataset(torch.utils.data.IterableDataset):
         patch_transform: Optional[Callable] = None,
         patch_transform_params: Optional[Dict] = None,
     ) -> None:
+        self.data_path = Path(data_path)
+        if not self.data_path.is_dir():
+            raise ValueError("Path to data should be an existing folder.")
+
         self.data_path = data_path
         self.data_format = data_format
         self.axes = axes
@@ -98,27 +102,6 @@ class TiffDataset(torch.utils.data.IterableDataset):
         return files
 
     def read_image(self, file_path: Path) -> np.ndarray:
-        """_summary_.
-
-        Parameters
-        ----------
-        file_path : Path
-            _description_
-
-        Returns
-        -------
-        np.ndarray
-            _description_
-
-        Raises
-        ------
-        e
-            _description_
-        ValueError
-            _description_
-        ValueError
-            _description_
-        """
         if file_path.suffix == ".npy":
             try:
                 sample = np.load(file_path)
