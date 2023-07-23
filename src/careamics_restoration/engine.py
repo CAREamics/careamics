@@ -42,19 +42,21 @@ class Engine:
     """Class allowing training and prediction of a model.
 
     There are three ways to instantiate an Engine:
-    1. With a configuration object
-    2. With a configuration file, by passing a path
+    1. With a CAREamics model (.pth), by passing a path
+    2. With a configuration object
+    3. With a configuration file, by passing a path
 
     In each case, the parameter name must be provided explicitly. For example:
     ``` python
     engine = Engine(config_path="path/to/config.yaml")
     ```
-
     Note that only one of these options can be used at a time, otherwise only one
-    of them will be used, in the order of the list above.
+    of them will be used, in the order listed above.
 
     Parameters
     ----------
+    model_path: Optional[Union[str, Path]], optional
+        Path to model file, by default None
     config : Optional[Configuration], optional
         Configuration object, by default None
     config_path : Optional[Union[str, Path]], optional
@@ -66,36 +68,44 @@ class Engine:
         *,
         config: Optional[Configuration] = None,
         config_path: Optional[Union[str, Path]] = None,
+        model_path: Optional[Union[str, Path]] = None,
     ) -> None:
         # Sanity checks
-        if config is None and config_path is None:
-            raise ValueError("No configuration or path provided.")
+        if config is None and config_path is None and model_path is None:
+            raise ValueError(
+                "No configuration or path provided. One of configuration "
+                "object, configuration path or model path must be provided."
+            )
 
-        if config is not None:
-            # check that config is a Configuration object
+        if model_path is not None and Path(model_path).exists():
+            # Ensure that config is None
+            self.cfg = None
+        elif config is not None:
+            # Check that config is a Configuration object
             if not isinstance(config, Configuration):
                 raise TypeError(
                     f"config must be a Configuration object, got {type(config)}"
                 )
             self.cfg = config
-        elif config_path is not None:
+        else:
             self.cfg = load_configuration(config_path)
 
-        # set logging
-        log_path = self.cfg.working_directory / "log.txt"
-        self.progress = ProgressLogger()
-        self.logger = get_logger(__name__, log_path=log_path)
-
-        # create model, optimizer, lr scheduler and gradient scaler
+        # Create model, optimizer, lr scheduler and gradient scaler
         (
             self.model,
             self.optimizer,
             self.lr_scheduler,
             self.scaler,
             self.cfg,
-        ) = create_model(self.cfg)
+        ) = create_model(config=self.cfg, model_path=model_path)
+
         # create loss function
         self.loss_func = create_loss_function(self.cfg)
+
+        # Set logging
+        log_path = self.cfg.working_directory / "log.txt"
+        self.progress = ProgressLogger()
+        self.logger = get_logger(__name__, log_path=log_path)
 
         # use wandb or not
         if self.cfg.training is not None:
@@ -496,17 +506,14 @@ class Engine:
                 "config": self.cfg.model_dump(),
             }
             torch.save(checkpoint, workdir / name)
-
-        elif save_method == "jit":
-            # TODO Vera help.
-            # TODO add save method check in config
-            raise NotImplementedError("JIT not implemented")
         else:
-            raise ValueError("Invalid save method")
+            raise NotImplementedError("Invalid save method")
+
         return self.cfg.working_directory.absolute() / name
 
     def __del__(self) -> None:
-        for handler in self.logger.handlers:
-            if isinstance(handler, FileHandler):
-                self.logger.removeHandler(handler)
-                handler.close()
+        if hasattr(self, "logger"):
+            for handler in self.logger.handlers:
+                if isinstance(handler, FileHandler):
+                    self.logger.removeHandler(handler)
+                    handler.close()

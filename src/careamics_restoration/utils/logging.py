@@ -127,6 +127,9 @@ class ProgressLogger:
 
         return task_id
 
+    def __del__(self):
+        self.exit()
+
     def exit(self) -> None:
         """Exits the logger."""
         self.live.__exit__(None, None, None)

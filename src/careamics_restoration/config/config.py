@@ -8,7 +8,6 @@ import yaml
 from pydantic import (
     BaseModel,
     ConfigDict,
-    FieldValidationInfo,
     field_validator,
     model_validator,
 )
@@ -47,8 +46,6 @@ class Configuration(BaseModel):
         Name of the experiment.
     working_directory : Union[str, Path]
         Path to the working directory.
-    trained_model : Optional[str]
-        Path to the trained model.
     algorithm : Algorithm
         Algorithm configuration.
     training : Optional[Training]
@@ -62,9 +59,6 @@ class Configuration(BaseModel):
     # required parameters
     experiment_name: str
     working_directory: Path
-
-    # Optional field
-    trained_model: Optional[Path] = None
 
     # Sub-configurations
     algorithm: Algorithm
@@ -134,55 +128,6 @@ class Configuration(BaseModel):
         path.mkdir(exist_ok=True)
 
         return path
-
-    @field_validator("trained_model")
-    def trained_model_exists(cls, model_path: str, values: FieldValidationInfo) -> Path:
-        """Validate trained model path.
-
-        The model path must point to an existing .pth file, either relative to
-        the working directory or with an absolute path.
-
-        Parameters
-        ----------
-        model_path : str
-            Path to the trained model.
-        values : FieldValidationInfo
-            Information about the other fields.
-
-        Returns
-        -------
-        Path
-            Path to the trained model.
-
-
-        Raises
-        ------
-        ValueError
-            If the path does not point to an existing .pth file.
-        """
-        if "working_directory" not in values.data:
-            raise ValueError(
-                "Working directory is not defined, check if was is correctly entered."
-            )
-
-        relative_path = Path(values.data["working_directory"]) / model_path
-        absolute_path = Path(
-            relative_path
-        ).resolve()  # replace with .absolute() after 3.11
-
-        # check suffix
-        if absolute_path.suffix not in [".pt", ".pth"]:
-            raise ValueError(
-                f"Path to model must be a .pt or .pth file (got {model_path})."
-            )
-
-        # check if relative or absolute
-        if absolute_path.exists():
-            return absolute_path
-        else:
-            raise ValueError(
-                f"Path to model does not exist. " f"Tried absolute ({absolute_path})."
-            )
 
     @model_validator(mode="after")
     def at_least_training_or_prediction(cls, config: Configuration) -> Configuration:
@@ -269,9 +214,6 @@ class Configuration(BaseModel):
         dictionary = super().model_dump(exclude_none=True)
 
         # remove paths
-        if self.trained_model is not None:
-            dictionary["trained_model"] = self.trained_model.name
-
         dictionary = paths_to_str(dictionary)
 
         dictionary["algorithm"] = self.algorithm.model_dump(

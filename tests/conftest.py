@@ -76,15 +76,8 @@ def complete_config(tmp_path: Path, minimum_config: dict) -> dict:
     dict
         A complete configuration example.
     """
-
-    # create model
-    model = "model.pth"
-    path_model = tmp_path / model
-    path_model.touch()
-
     # add to configuration
     complete_config = copy.deepcopy(minimum_config)
-    complete_config["trained_model"] = model
 
     complete_config["algorithm"]["masking_strategy"] = "median"
 

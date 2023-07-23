@@ -51,44 +51,6 @@ def test_config_invalid_working_directory(tmp_path: Path, minimum_config: dict):
         Configuration(**minimum_config)
 
 
-@pytest.mark.parametrize("model_path", ["model.pth"])
-def test_config_valid_model(tmp_path: Path, complete_config: dict, model_path: str):
-    """Test valid model path."""
-    path = tmp_path / model_path
-    path.parent.mkdir(exist_ok=True, parents=True)
-    path.touch()
-
-    complete_config["working_directory"] = tmp_path
-    complete_config["trained_model"] = model_path
-
-    myconf = Configuration(**complete_config)
-    assert myconf.trained_model == tmp_path / model_path
-
-
-def test_config_valid_model_absolute(tmp_path: Path, complete_config: dict):
-    """Test valid model path."""
-    path = tmp_path / "tmp1/tmp2/model.pth"
-    path.parent.mkdir(exist_ok=True, parents=True)
-    path.touch()
-
-    complete_config["working_directory"] = tmp_path
-    complete_config["trained_model"] = str(path.absolute())
-
-    myconf = Configuration(**complete_config)
-    assert str(myconf.trained_model) == complete_config["trained_model"]
-
-
-@pytest.mark.parametrize("model_path", ["model", "tmp/model"])
-def test_config_invalid_model_path(
-    tmp_path: Path, complete_config: dict, model_path: str
-):
-    """Test that invalid model path raise an error."""
-    complete_config["working_directory"] = tmp_path
-    complete_config["trained_model"] = model_path
-    with pytest.raises(ValueError):
-        Configuration(**complete_config)
-
-
 def test_3D_algorithm_and_data_compatibility(minimum_config: dict):
     """Test that errors are raised if algithm `is_3D` and data axes are incompatible."""
     # 3D but no Z in axes
@@ -160,11 +122,6 @@ def test_wrong_values_by_assignment(complete_config: dict):
     config.working_directory = complete_config["working_directory"]
     with pytest.raises(ValueError):
         config.working_directory = "o/o"
-
-    # trained model
-    config.trained_model = complete_config["trained_model"]
-    with pytest.raises(ValueError):
-        config.trained_model = [None]
 
     # data
     config.data = complete_config["data"]
