@@ -512,6 +512,8 @@ class Engine:
         return self.cfg.working_directory.absolute() / name
 
     def __del__(self) -> None:
+        del self.progress
+
         if hasattr(self, "logger"):
             for handler in self.logger.handlers:
                 if isinstance(handler, FileHandler):

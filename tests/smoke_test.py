@@ -65,21 +65,6 @@ def base_configuration(temp_dir: Path) -> Configuration:
     return configuration
 
 
-@pytest.fixture
-def trained_model(
-    base_configuration: Configuration, example_data_path: Tuple[Path, Path]
-) -> Path:
-    train_path, val_path = example_data_path
-
-    engine = Engine(config=base_configuration)
-    engine.train(train_path, val_path)
-
-    model_name = f"{engine.cfg.experiment_name}_best.pth"
-    result_model_path = engine.cfg.working_directory / model_name
-
-    return result_model_path
-
-
 def dump_config(configuration: Configuration) -> Path:
     temp_dir = configuration.working_directory
     config_path = temp_dir / "test_config.yml"
@@ -113,10 +98,7 @@ def test_is_engine_runnable(
 
     assert test_result is not None
 
-
-def test_load_from_checkpoint(example_data_path: Tuple[Path, Path], trained_model):
-    train_path, val_path = example_data_path
-
     # Create engine from checkpoint
-    second_engine = Engine(model_path=trained_model)
+    del engine
+    second_engine = Engine(model_path=result_model_path)
     second_engine.train(train_path, val_path)
