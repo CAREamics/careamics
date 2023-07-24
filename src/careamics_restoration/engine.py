@@ -332,7 +332,7 @@ class Engine:
         # set model to eval mode
         self.model.to(self.device)
         self.model.eval()
-        
+
         # Reset progress bar
         self.progress.reset()
 
