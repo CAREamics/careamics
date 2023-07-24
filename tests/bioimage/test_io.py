@@ -26,8 +26,11 @@ def test_bioimage_export_default(minimum_config: dict, tmp_path: Path, request):
         "loss": 0.01,
         "config": {},
     }
-    checkpoint_path = Path(minimum_config["working_directory"]).joinpath(
-            f"{minimum_config['experiment_name']}_best.pth").absolute()
+    checkpoint_path = (
+        Path(minimum_config["working_directory"])
+        .joinpath(f"{minimum_config['experiment_name']}_best.pth")
+        .absolute()
+    )
     torch.save(checkpoint, checkpoint_path)
     # output zip file
     zip_file = tmp_path.joinpath("tmp_model.zip")

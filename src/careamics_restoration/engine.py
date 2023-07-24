@@ -542,7 +542,8 @@ class Engine:
         workdir = self.cfg.working_directory
         # load a best check point and save only the model state_dict.
         checkpoint_path = workdir.joinpath(
-            f"{self.cfg.experiment_name}_best.pth").absolute()
+            f"{self.cfg.experiment_name}_best.pth"
+        ).absolute()
         checkpoint = torch.load(checkpoint_path)
         weight_path = workdir.joinpath("model_weights.pth")
         torch.save(checkpoint["model_state_dict"], weight_path)
