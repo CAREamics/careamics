@@ -169,6 +169,8 @@ class Engine:
         ValueError
             Raise a VakueError if the training configuration is missing
         """
+        self.progress.reset()
+
         if self.cfg.training is not None:
             # General func
             train_loader = self.get_train_dataloader(train_path)
@@ -219,7 +221,7 @@ class Engine:
 
             except KeyboardInterrupt:
                 self.logger.info("Training interrupted")
-                self.progress.exit()
+                self.progress.reset()
         else:
             raise ValueError("Missing training entry in configuration file.")
 
@@ -330,6 +332,9 @@ class Engine:
         # set model to eval mode
         self.model.to(self.device)
         self.model.eval()
+        
+        # Reset progress bar
+        self.progress.reset()
 
         if external_input is not None:
             pred_loader, stitch = self.get_predict_dataloader(

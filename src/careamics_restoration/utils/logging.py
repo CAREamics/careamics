@@ -127,13 +127,11 @@ class ProgressLogger:
 
         return task_id
 
-    def __del__(self):
-        self.exit()
-
-    def exit(self) -> None:
+    def reset(self) -> None:
         """Exits the logger."""
-        self.live.__exit__(None, None, None)
-        self.live = None
+        if self.live is not None:
+            self.live.__exit__(None, None, None)
+            self.live = None
 
     @staticmethod
     def _get_task_length(task_iterable: Union[Iterable, Sequence]) -> Optional[int]:
