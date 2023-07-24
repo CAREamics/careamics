@@ -1,14 +1,15 @@
-from typing import Union
 from pathlib import Path
+from typing import Union
 
 import yaml
-
-from bioimageio.spec.model.raw_nodes import Model
-from bioimageio.core.build_spec import build_model
 from bioimageio.core import load_resource_description
+from bioimageio.core.build_spec import build_model
+from bioimageio.spec.model.raw_nodes import Model
 
 from careamics_restoration.config.config import (
-    Configuration, save_configuration, load_configuration
+    Configuration,
+    load_configuration,
+    save_configuration,
 )
 
 PYTORCH_STATE_DICT = "pytorch_state_dict"
@@ -68,7 +69,7 @@ def build_zip_model(
     raw_model = build_model(
         root=str(Path(model_specs["output_path"]).parent.absolute()),
         attachments={"files": [str(config_file)]},
-        **model_specs
+        **model_specs,
     )
 
     # delete config_file
