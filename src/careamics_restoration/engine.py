@@ -542,8 +542,13 @@ class Engine:
         If None then it will be populated up by the model default specs.
         """
         workdir = self.cfg.working_directory
-        weight_path = workdir.joinpath(
+        # load a best check point and save only the model state_dict.
+        checkpoint_path = workdir.joinpath(
             f"{self.cfg.experiment_name}_best.pth").absolute()
+        checkpoint = torch.load(checkpoint_path)
+        weight_path = workdir.joinpath("model_weights.pth")
+        torch.save(checkpoint["model_state_dict"], weight_path)
+        # get in/out samples' files
         test_inputs, test_outputs = self._get_sample_io_files()
 
         specs = get_default_model_specs(self.cfg.algorithm.loss)
@@ -563,6 +568,9 @@ class Engine:
             config=self.cfg,
             model_specs=specs,
         )
+
+        # remove the temporary model weights' file
+        weight_path.unlink()
 
         return raw_model
 
