@@ -148,6 +148,8 @@ class Engine:
         Performs training and validation steps for the specified number of epochs.
 
         """
+        self.progress.reset()
+
         if self.cfg.training is not None:
             # General func
             train_loader = self.get_train_dataloader()
@@ -198,7 +200,7 @@ class Engine:
 
             except KeyboardInterrupt:
                 self.logger.info("Training interrupted")
-                self.progress.exit()
+                self.progress.reset()
         else:
             # TODO: instead of error, maybe fail gracefully with a logging/warning
             raise ValueError("Missing training entry in configuration file.")
@@ -293,6 +295,8 @@ class Engine:
         np.ndarray
             predicted image array of the same shape as the input
         """
+        self.progress.reset()
+
         self.model.to(self.device)
         self.model.eval()
         # TODO external input shape should either be compatible with the model or tiled.
