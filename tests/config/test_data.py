@@ -3,7 +3,7 @@ import pytest
 from careamics_restoration.config.data import Data, SupportedExtensions
 
 
-@pytest.mark.parametrize("ext", ["tiff", "tif", "TIFF", "TIF", ".TIF"])
+@pytest.mark.parametrize("ext", ["tiff", "tif", "TIFF", "TIF", ".TIF", "npy", "NPY"])
 def test_supported_extensions_case_insensitive(ext: str):
     """Test that SupportedExtension enum accepts all extensions in upper
     cases and with ."""
@@ -16,7 +16,7 @@ def test_supported_extensions_case_insensitive(ext: str):
     assert sup_ext.value == new_ext
 
 
-@pytest.mark.parametrize("ext", ["nd2", "jpg", "png ", "npy", "zarr"])
+@pytest.mark.parametrize("ext", ["nd2", "jpg", "png ", "zarr"])
 def test_wrong_extensions(minimum_config: dict, ext: str):
     """Test that supported model raises ValueError for unsupported extensions."""
     data_config = minimum_config["data"]
