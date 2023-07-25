@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Union, List
+from typing import List, Union
 
 import torch
 from bioimageio.core import load_resource_description
@@ -43,11 +43,13 @@ def get_default_model_specs(name: str) -> dict:
         "authors": [
             {"name": "Alexander Krull"},
             {"name": "Tim-Oliver Buchholz"},
-            {"name": "Florian Jug"}
+            {"name": "Florian Jug"},
         ],
         "cite": [
-            {"doi": "10.48550/arXiv.1811.10980",
-             "text": "A. Krull, T.-O. Buchholz and F. Jug, \"Noise2Void - Learning Denoising From Single Noisy Images,\" 2019 IEEE/CVF Conference on Computer Vision and Pattern Recognition  (CVPR), 2019, pp. 2124-2132"}
+            {
+                "doi": "10.48550/arXiv.1811.10980",
+                "text": 'A. Krull, T.-O. Buchholz and F. Jug, "Noise2Void - Learning Denoising From Single Noisy Images," 2019 IEEE/CVF Conference on Computer Vision and Pattern Recognition  (CVPR), 2019, pp. 2124-2132',
+            }
         ],
         "input_axes": ["bcyx"],
         "preprocessing": [  # for multiple inputs
@@ -57,9 +59,9 @@ def get_default_model_specs(name: str) -> dict:
                         "axes": "yx",
                         "mean": [46912.574],
                         "mode": "fixed",
-                        "std": [16847.809]
+                        "std": [16847.809],
                     },
-                    "name": "zero_mean_unit_variance"
+                    "name": "zero_mean_unit_variance",
                 }
             ]
         ],
@@ -70,13 +72,13 @@ def get_default_model_specs(name: str) -> dict:
                     "kwargs": {
                         "axes": "yx",
                         "gain": [16847.809],
-                        "offset": [46912.574]
+                        "offset": [46912.574],
                     },
-                    "name": "scale_linear"
+                    "name": "scale_linear",
                 }
             ]
         ],
-        "tags": ["unet", "denoising", "Noise2Void", "tensorflow", "napari"]
+        "tags": ["unet", "denoising", "Noise2Void", "tensorflow", "napari"],
     }
 
     rdf["documentation"] = _get_model_doc(name)
@@ -121,14 +123,19 @@ def build_zip_model(
     torch.save(config.model_dump(), config_path)
 
     attachments = [
-        str(optim_path), str(scheduler_path), str(grad_path), str(config_path)
+        str(optim_path),
+        str(scheduler_path),
+        str(grad_path),
+        str(config_path),
     ]
 
-    model_specs.update({
-        "weight_type": PYTORCH_STATE_DICT,
-        "weight_uri": str(weight_path),
-        "attachments": {"files": attachments},
-    })
+    model_specs.update(
+        {
+            "weight_type": PYTORCH_STATE_DICT,
+            "weight_uri": str(weight_path),
+            "attachments": {"files": attachments},
+        }
+    )
 
     # build model zip
     raw_model = build_model(
@@ -188,17 +195,20 @@ def import_bioimage_model(model_path: Union[str, Path]) -> Path:
             config_path = file
 
     if (
-        weight_path is None or optim_path is None or scheduler_path is None or
-        grad_path is None or config_path is None
+        weight_path is None
+        or optim_path is None
+        or scheduler_path is None
+        or grad_path is None
+        or config_path is None
     ):
         raise FileNotFoundError(f"No valid checkpoint file was found in {model_path}.")
 
     checkpoint = {
-        "model_state_dict": torch.load(weight_path, map_location='cpu'),
-        "optimizer_state_dict": torch.load(optim_path, map_location='cpu'),
-        "scheduler_state_dict": torch.load(scheduler_path, map_location='cpu'),
-        "grad_scaler_state_dict": torch.load(grad_path, map_location='cpu'),
-        "config": torch.load(config_path, map_location='cpu'),
+        "model_state_dict": torch.load(weight_path, map_location="cpu"),
+        "optimizer_state_dict": torch.load(optim_path, map_location="cpu"),
+        "scheduler_state_dict": torch.load(scheduler_path, map_location="cpu"),
+        "grad_scaler_state_dict": torch.load(grad_path, map_location="cpu"),
+        "config": torch.load(config_path, map_location="cpu"),
     }
     checkpoint_path = basedir.joinpath("checkpoint.pth")
     torch.save(checkpoint, checkpoint_path)
