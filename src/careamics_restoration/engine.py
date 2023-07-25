@@ -544,11 +544,12 @@ class Engine:
         If None then it will be populated up by the model default specs.
         """
         workdir = self.cfg.working_directory
-        # load a best check point and save only the model state_dict.
+        # load the best check point
         checkpoint_path = workdir.joinpath(
             f"{self.cfg.experiment_name}_best.pth"
         ).absolute()
         checkpoint = torch.load(checkpoint_path)
+        # save the model state_dict separately.
         weight_path = workdir.joinpath("model_weights.pth")
         torch.save(checkpoint["model_state_dict"], weight_path)
         # get in/out samples' files

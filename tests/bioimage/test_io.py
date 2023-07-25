@@ -4,7 +4,6 @@ import torch
 import yaml
 
 from careamics_restoration.bioimage import import_bioimage_model
-from careamics_restoration.config import Configuration
 from careamics_restoration.engine import Engine
 
 
@@ -19,12 +18,12 @@ def test_bioimage_export_default(minimum_config: dict, tmp_path: Path, request):
     # create a fake checkpoint!
     checkpoint = {
         "epoch": 1,
-        "model_state_dict": {"weight_1": [0.0, 0.1, 0.001]},
-        "optimizer_state_dict": {},
-        "scheduler_state_dict": {},
-        "grad_scaler_state_dict": {},
+        "model_state_dict": engine.model.state_dict(),
+        "optimizer_state_dict": engine.optimizer.state_dict(),
+        "scheduler_state_dict": engine.lr_scheduler.state_dict(),
+        "grad_scaler_state_dict": engine.scaler.state_dict(),
         "loss": 0.01,
-        "config": {},
+        "config": minimum_config,
     }
     checkpoint_path = (
         Path(minimum_config["working_directory"])
@@ -46,7 +45,9 @@ def test_bioimage_export_default(minimum_config: dict, tmp_path: Path, request):
 def test_bioimage_import(request):
     zip_file = request.config.cache.get("bioimage_model", None)
     if zip_file is not None and Path(zip_file).exists():
-        config = import_bioimage_model(zip_file)
-        assert isinstance(config, Configuration)
+        checkpoint_path = import_bioimage_model(zip_file)
+        assert checkpoint_path.exists()
+        engine = Engine(model_path=checkpoint_path)
+        assert isinstance(engine, Engine)
     else:
         raise ValueError("No bioimage model zip provided.")

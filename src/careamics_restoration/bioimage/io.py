@@ -8,8 +8,6 @@ from bioimageio.spec.model.raw_nodes import Model
 
 from careamics_restoration.config.config import (
     Configuration,
-    load_configuration,
-    save_configuration,
 )
 
 PYTORCH_STATE_DICT = "pytorch_state_dict"
@@ -61,24 +59,22 @@ def build_zip_model(
     ------
         A bioimage raw Model
     """
-    # save config file as attachments
     workdir = config.working_directory
-    workdir.mkdir(parents=True, exist_ok=True)
-    config_file = save_configuration(config, workdir.joinpath(CAREAMICS_CONFIG))
+    # attach the best checkpoint to the bioimage model
+    checkpoint_path = workdir.joinpath(
+        f"{config.experiment_name}_best.pth"
+    ).absolute()
     # build model zip
     raw_model = build_model(
         root=str(Path(model_specs["output_path"]).parent.absolute()),
-        attachments={"files": [str(config_file)]},
+        attachments={"files": [str(checkpoint_path)]},
         **model_specs,
     )
-
-    # delete config_file
-    config_file.unlink()
 
     return raw_model
 
 
-def import_bioimage_model(model_path: Union[str, Path]) -> Configuration:
+def import_bioimage_model(model_path: Union[str, Path]) -> Path:
     """Load configs and weights from a bioimage zip model.
 
     Parameters
@@ -87,7 +83,7 @@ def import_bioimage_model(model_path: Union[str, Path]) -> Configuration:
 
     Return
     ------
-        Configuration instance
+        Path to the model's checkpoint file
     """
     if isinstance(model_path, str):
         model_path = Path(model_path)
@@ -96,13 +92,13 @@ def import_bioimage_model(model_path: Union[str, Path]) -> Configuration:
         raise ValueError("Invalid model format. Expected bioimage model zip file.")
     # load the model
     rdf = load_resource_description(model_path)
-    config_file = None
+    # check and return the attached chekpoint file
+    checkpoint_file = None
     for file in rdf.attachments.files:
-        if file.name == CAREAMICS_CONFIG:
-            config_file = file
+        if file.name.endswith("_best.pth"):
+            checkpoint_file = file
             break
-    if config_file is not None:
-        config = load_configuration(config_file)
-        return config
+    if checkpoint_file is not None:
+        return checkpoint_file
 
-    raise FileNotFoundError(f"No careamics config file was found in {model_path}.")
+    raise FileNotFoundError(f"No valid checkpoint file was found in {model_path}.")
