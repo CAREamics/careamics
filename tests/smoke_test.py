@@ -40,10 +40,7 @@ def example_data_path(temp_dir: Path) -> Tuple[Path, Path]:
 
 
 @pytest.fixture
-def base_configuration(
-    temp_dir: Path, example_data_path: Tuple[Path, Path]
-) -> Configuration:
-    train_dir, val_dir = example_data_path
+def base_configuration(temp_dir: Path) -> Configuration:
     configuration = Configuration(
         experiment_name="smoke_test",
         working_directory=temp_dir,
@@ -51,9 +48,6 @@ def base_configuration(
         data=Data(
             data_format="tif",
             axes="YX",
-            training_path=train_dir,
-            validation_path=val_dir,
-            prediction_path=val_dir,
         ),
         training=Training(
             num_epochs=1,
@@ -80,12 +74,16 @@ def dump_config(configuration: Configuration) -> Path:
     return config_path
 
 
-def test_is_engine_runnable(base_configuration: Configuration):
+def test_is_engine_runnable(
+    base_configuration: Configuration, example_data_path: Tuple[Path, Path]
+):
     """
     Test if basic workflow does not fail - train model and then predict
     """
+    train_path, val_path = example_data_path
+
     engine = Engine(config=base_configuration)
-    engine.train()
+    engine.train(train_path, val_path)
 
     model_name = f"{engine.cfg.experiment_name}_best.pth"
     result_model_path = engine.cfg.working_directory / model_name
@@ -96,6 +94,11 @@ def test_is_engine_runnable(base_configuration: Configuration):
 
     # Predict only accepts 4D input for now
     test_image = test_image[None, None, ...]
-    test_result = engine.predict(external_input=test_image, mean=0.5, std=0.5)
+    test_result = engine.predict(external_input=test_image)
 
     assert test_result is not None
+
+    # Create engine from checkpoint
+    del engine
+    second_engine = Engine(model_path=result_model_path)
+    second_engine.train(train_path, val_path)

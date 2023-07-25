@@ -67,6 +67,10 @@ class TiffDataset(torch.utils.data.IterableDataset):
         patch_transform: Optional[Callable] = None,
         patch_transform_params: Optional[Dict] = None,
     ) -> None:
+        self.data_path = Path(data_path)
+        if not self.data_path.is_dir():
+            raise ValueError("Path to data should be an existing folder.")
+
         self.data_path = data_path
         self.data_format = data_format
         self.axes = axes
@@ -98,27 +102,6 @@ class TiffDataset(torch.utils.data.IterableDataset):
         return files
 
     def read_image(self, file_path: Path) -> np.ndarray:
-        """_summary_.
-
-        Parameters
-        ----------
-        file_path : Path
-            _description_
-
-        Returns
-        -------
-        np.ndarray
-            _description_
-
-        Raises
-        ------
-        e
-            _description_
-        ValueError
-            _description_
-        ValueError
-            _description_
-        """
         if file_path.suffix == ".npy":
             try:
                 sample = np.load(file_path)
@@ -260,7 +243,9 @@ class TiffDataset(torch.utils.data.IterableDataset):
                     yield item
 
 
-def get_train_dataset(config: Configuration) -> TiffDataset:
+def get_train_dataset(
+    config: Configuration, train_path: Union[str, Path]
+) -> TiffDataset:
     """
     Create TiffDataset instance from configuration.
 
@@ -271,10 +256,8 @@ def get_train_dataset(config: Configuration) -> TiffDataset:
     if config.training is None:
         raise ValueError("Training configuration is not defined.")
 
-    data_path = config.data.training_path
-
     dataset = TiffDataset(
-        data_path=data_path,
+        data_path=train_path,
         data_format=config.data.data_format,
         axes=config.data.axes,
         mean=config.data.mean,
@@ -289,11 +272,13 @@ def get_train_dataset(config: Configuration) -> TiffDataset:
     return dataset
 
 
-def get_validation_dataset(config: Configuration) -> TiffDataset:
+def get_validation_dataset(
+    config: Configuration, val_path: Union[str, Path]
+) -> TiffDataset:
     if config.training is None:
         raise ValueError("Training configuration is not defined.")
 
-    data_path = config.data.validation_path
+    data_path = val_path
 
     dataset = TiffDataset(
         data_path=data_path,
@@ -312,7 +297,9 @@ def get_validation_dataset(config: Configuration) -> TiffDataset:
     return dataset
 
 
-def get_prediction_dataset(config: Configuration) -> TiffDataset:
+def get_prediction_dataset(
+    config: Configuration, pred_path: Union[str, Path]
+) -> TiffDataset:
     if config.prediction is None:
         raise ValueError("Prediction configuration is not defined.")
 
@@ -322,7 +309,7 @@ def get_prediction_dataset(config: Configuration) -> TiffDataset:
         patch_extraction_method = None
 
     dataset = TiffDataset(
-        data_path=config.data.prediction_path,
+        data_path=pred_path,
         data_format=config.data.data_format,
         axes=config.data.axes,
         mean=config.data.mean,

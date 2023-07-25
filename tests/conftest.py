@@ -6,6 +6,7 @@ import numpy as np
 import pytest
 
 
+@pytest.fixture
 def create_tiff(path: Path, n_files: int):
     """Create tiff files for testing."""
     if not path.exists():
@@ -30,13 +31,6 @@ def minimum_config(tmp_path: Path) -> dict:
     dict
         A minumum configuration example.
     """
-    # create data in the temporary folder
-    path_train = tmp_path / "training"
-    create_tiff(path_train, n_files=3)
-
-    path_validation = tmp_path / "validation"
-    create_tiff(path_validation, n_files=1)
-
     # create dictionary
     configuration = {
         "experiment_name": "LevitatingFrog",
@@ -58,8 +52,6 @@ def minimum_config(tmp_path: Path) -> dict:
             "augmentation": True,
         },
         "data": {
-            "training_path": str(path_train),
-            "validation_path": str(path_validation),
             "data_format": "tif",
             "axes": "SYX",
         },
@@ -84,19 +76,8 @@ def complete_config(tmp_path: Path, minimum_config: dict) -> dict:
     dict
         A complete configuration example.
     """
-
-    # create model
-    model = "model.pth"
-    path_model = tmp_path / model
-    path_model.touch()
-
-    # create prediction data
-    path_test = tmp_path / "test"
-    create_tiff(path_test, n_files=2)
-
     # add to configuration
     complete_config = copy.deepcopy(minimum_config)
-    complete_config["trained_model"] = model
 
     complete_config["algorithm"]["masking_strategy"] = "median"
 
@@ -112,13 +93,12 @@ def complete_config(tmp_path: Path, minimum_config: dict) -> dict:
     complete_config["training"]["lr_scheduler"]["parameters"] = {
         "patience": 22,
     }
-    complete_config["training"]["use_wandb"] = False
+    complete_config["training"]["use_wandb"] = True
     complete_config["training"]["num_workers"] = 6
     complete_config["training"]["amp"] = {
         "use": True,
         "init_scale": 512,
     }
-    complete_config["data"]["prediction_path"] = str(path_test)
     complete_config["data"]["mean"] = 666.666
     complete_config["data"]["std"] = 42.420
 

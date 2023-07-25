@@ -1,3 +1,5 @@
+import numpy as np
+
 AXES = "STCZYX"
 
 
@@ -69,3 +71,20 @@ def check_axes_validity(axes: str) -> bool:
                 )
 
     return True
+
+
+def check_array_validity(array: np.ndarray, axes: str):
+    """Check that the numpy array is compatible with the axes.
+
+    Parameters
+    ----------
+    array : np.ndarray
+        Numpy array
+    axes : str
+        Valid axes (see check_axes_validity)
+    """
+    # TODO discuss that one
+    if len(array.shape) - 2 != len(axes):
+        raise ValueError(
+            f"Array has {len(array.shape)} dimensions, but axes are {len(axes)}."
+        )

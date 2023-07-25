@@ -51,44 +51,6 @@ def test_config_invalid_working_directory(tmp_path: Path, minimum_config: dict):
         Configuration(**minimum_config)
 
 
-@pytest.mark.parametrize("model_path", ["model.pth"])
-def test_config_valid_model(tmp_path: Path, complete_config: dict, model_path: str):
-    """Test valid model path."""
-    path = tmp_path / model_path
-    path.parent.mkdir(exist_ok=True, parents=True)
-    path.touch()
-
-    complete_config["working_directory"] = tmp_path
-    complete_config["trained_model"] = model_path
-
-    myconf = Configuration(**complete_config)
-    assert myconf.trained_model == tmp_path / model_path
-
-
-def test_config_valid_model_absolute(tmp_path: Path, complete_config: dict):
-    """Test valid model path."""
-    path = tmp_path / "tmp1/tmp2/model.pth"
-    path.parent.mkdir(exist_ok=True, parents=True)
-    path.touch()
-
-    complete_config["working_directory"] = tmp_path
-    complete_config["trained_model"] = str(path.absolute())
-
-    myconf = Configuration(**complete_config)
-    assert str(myconf.trained_model) == complete_config["trained_model"]
-
-
-@pytest.mark.parametrize("model_path", ["model", "tmp/model"])
-def test_config_invalid_model_path(
-    tmp_path: Path, complete_config: dict, model_path: str
-):
-    """Test that invalid model path raise an error."""
-    complete_config["working_directory"] = tmp_path
-    complete_config["trained_model"] = model_path
-    with pytest.raises(ValueError):
-        Configuration(**complete_config)
-
-
 def test_3D_algorithm_and_data_compatibility(minimum_config: dict):
     """Test that errors are raised if algithm `is_3D` and data axes are incompatible."""
     # 3D but no Z in axes
@@ -138,12 +100,6 @@ def test_at_least_one_of_training_or_prediction(complete_config: dict):
     config_train = Configuration(**test_config)
     assert config_train.training.model_dump() == test_config["training"]
 
-    # test that config fails if training+validation data is not there
-    test_config["data"].pop("training_path")
-    test_config["data"].pop("validation_path")
-    with pytest.raises(ValueError):
-        Configuration(**test_config)
-
     # remove training
     test_config.pop("training")
 
@@ -151,13 +107,6 @@ def test_at_least_one_of_training_or_prediction(complete_config: dict):
     test_config["prediction"] = copy.deepcopy(complete_config["prediction"])
     config_pred = Configuration(**test_config)
     assert config_pred.prediction.model_dump() == test_config["prediction"]
-
-    # test that config fails if prediction data is not there
-    # we must add the training path so that Data model gets validated
-    test_config["data"] = copy.deepcopy(complete_config["data"])
-    test_config["data"].pop("prediction_path")
-    with pytest.raises(ValueError):
-        Configuration(**test_config)
 
 
 def test_wrong_values_by_assignment(complete_config: dict):
@@ -173,11 +122,6 @@ def test_wrong_values_by_assignment(complete_config: dict):
     config.working_directory = complete_config["working_directory"]
     with pytest.raises(ValueError):
         config.working_directory = "o/o"
-
-    # trained model
-    config.trained_model = complete_config["trained_model"]
-    with pytest.raises(ValueError):
-        config.trained_model = [None]
 
     # data
     config.data = complete_config["data"]
@@ -219,7 +163,7 @@ def test_minimum_config(minimum_config: dict):
 def test_complete_config(complete_config: dict):
     """Test that we can instantiate a minimum config."""
     dictionary = Configuration(**complete_config).model_dump()
-    assert sorted(dictionary) == sorted(complete_config)
+    assert dictionary == complete_config
 
 
 def test_config_to_dict_with_default_optionals(complete_config: dict):
@@ -248,8 +192,7 @@ def test_config_to_dict_with_default_optionals(complete_config: dict):
 
     # instantiate config
     myconf = Configuration(**complete_config)
-    # TODO check better way to compare dictionaries
-    assert sorted(myconf.model_dump(exclude_optionals=False)) == sorted(complete_config)
+    assert myconf.model_dump(exclude_optionals=False) == complete_config
 
 
 def test_config_to_yaml(tmp_path: Path, minimum_config: dict):
