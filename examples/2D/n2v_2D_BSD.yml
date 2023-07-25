@@ -6,7 +6,7 @@ working_directory: n2v_bsd_test
 
 # Optional
 # Absolute or relative (wrt working_directory) path to model
-# trained_model: 
+# trained_model:
 
 algorithm:
   # Loss, currently only n2v is supported
@@ -73,7 +73,7 @@ training:
 
   # Optional, automatic mixed precision
   amp:
-  #   # Use (True or False)
+    #   # Use (True or False)
     use: True
 
   #   # Optional, scaling parameter for mixed precision training, power of 2 recommended.
@@ -86,11 +86,6 @@ data:
 
   # Axes, among STCZYX with constraints on order
   axes: SYX
-
-  # Optional, path to the data, absolute or relative to working_directory
-  training_path: ../data/BSD68_reproducibility/BSD68_reproducibility_data/train
-  validation_path: ../data/BSD68_reproducibility/BSD68_reproducibility_data/val
-  prediction_path: ../data/BSD68_reproducibility/BSD68_reproducibility_data/test
 
   # Optional, mean/std of the dataset
   # mean = Null
