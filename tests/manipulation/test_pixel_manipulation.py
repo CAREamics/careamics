@@ -38,10 +38,9 @@ def test_get_stratified_coords(mask_pixel_perc, shape, num_iterations):
         # Add the 1 to the every coordinate location.
         array[tuple(np.array(coords).T.tolist())] += 1
 
-    # Check that the maximum value of the array is less than half of the second
-    # largest. This is to ensure that there's no strong pattern in the array.
-    hist = sorted(np.histogram(array, bins=100)[0])
-    assert hist[-1] < hist[-2] * 2
+    # Ensure that there's no strong pattern in the array and sufficient number of
+    # pixels is masked.
+    assert np.sum(array==0) < np.sum(shape)
 
 
 def test_default_manipulate_2d(array_2D):

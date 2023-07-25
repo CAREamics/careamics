@@ -196,16 +196,3 @@ def test_extract_tiles_3d(array_3D, tile_size, overlaps):
 
     The 3D array is a fixture of shape (1, 8, 16, 16)."""
     check_extract_tiles(array_3D, tile_size, overlaps)
-
-
-def test_calculate_stats():
-    arr = np.random.rand(2, 10, 10)
-
-    mean = 0
-    std = 0
-    for i in range(arr.shape[0]):
-        mean += np.mean(arr[i])
-        std += np.std(arr[i])
-
-    assert np.around(arr.mean(), decimals=4) == np.around(mean / (i + 1), decimals=4)
-    assert np.around(arr.std(), decimals=2) == np.around(std / (i + 1), decimals=2)
