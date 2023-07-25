@@ -555,7 +555,7 @@ class Engine:
         # get in/out samples' files
         test_inputs, test_outputs = self._get_sample_io_files()
 
-        specs = get_default_model_specs(self.cfg.algorithm.loss)
+        specs = get_default_model_specs("n2v")
         if model_specs is not None:
             specs.update(model_specs)
 
