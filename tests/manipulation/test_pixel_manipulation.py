@@ -40,7 +40,7 @@ def test_get_stratified_coords(mask_pixel_perc, shape, num_iterations):
 
     # Ensure that there's no strong pattern in the array and sufficient number of
     # pixels is masked.
-    assert np.sum(array==0) < np.sum(shape)
+    assert np.sum(array == 0) < np.sum(shape)
 
 
 def test_default_manipulate_2d(array_2D):
