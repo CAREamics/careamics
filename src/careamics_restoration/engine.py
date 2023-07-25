@@ -9,7 +9,6 @@ from bioimageio.spec.model.raw_nodes import Model as BioimageModel
 from torch.utils.data import DataLoader, TensorDataset
 
 from careamics_restoration.bioimage import (
-    PYTORCH_STATE_DICT,
     build_zip_model,
     get_default_model_specs,
 )
@@ -543,15 +542,6 @@ class Engine:
         `build_model` parameters.
         If None then it will be populated up by the model default specs.
         """
-        workdir = self.cfg.working_directory
-        # load the best check point
-        checkpoint_path = workdir.joinpath(
-            f"{self.cfg.experiment_name}_best.pth"
-        ).absolute()
-        checkpoint = torch.load(checkpoint_path)
-        # save the model state_dict separately.
-        weight_path = workdir.joinpath("model_weights.pth")
-        torch.save(checkpoint["model_state_dict"], weight_path)
         # get in/out samples' files
         test_inputs, test_outputs = self._get_sample_io_files()
 
@@ -562,8 +552,6 @@ class Engine:
         specs.update(
             {
                 "output_path": str(output_zip),
-                "weight_type": PYTORCH_STATE_DICT,
-                "weight_uri": str(weight_path),
                 "architecture": "careamics_restoration.models.unet",
                 "test_inputs": test_inputs,
                 "test_outputs": test_outputs,
@@ -574,9 +562,6 @@ class Engine:
             config=self.cfg,
             model_specs=specs,
         )
-
-        # remove the temporary model weights' file
-        weight_path.unlink()
 
         return raw_model
 
