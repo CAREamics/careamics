@@ -61,9 +61,7 @@ def build_zip_model(
     """
     workdir = config.working_directory
     # attach the best checkpoint to the bioimage model
-    checkpoint_path = workdir.joinpath(
-        f"{config.experiment_name}_best.pth"
-    ).absolute()
+    checkpoint_path = workdir.joinpath(f"{config.experiment_name}_best.pth").absolute()
     # build model zip
     raw_model = build_model(
         root=str(Path(model_specs["output_path"]).parent.absolute()),
