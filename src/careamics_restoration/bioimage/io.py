@@ -11,7 +11,6 @@ from careamics_restoration.config.config import (
 )
 
 PYTORCH_STATE_DICT = "pytorch_state_dict"
-CAREAMICS_CONFIG = "careamics_config.yml"
 
 
 def _load_model_rdf(name: str) -> dict:
