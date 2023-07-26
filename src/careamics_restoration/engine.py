@@ -1,7 +1,7 @@
 import random
 from logging import FileHandler
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import torch
@@ -28,7 +28,7 @@ from .utils import (
 )
 
 
-def seed_everything(seed: int):
+def seed_everything(seed: int) -> int:
     """Seed all random number generators for reproducibility."""
     random.seed(seed)
     np.random.seed(seed)
@@ -498,7 +498,9 @@ class Engine:
             stitch,
         )
 
-    def save_checkpoint(self, epoch: int, losses: List[float], save_method: str) -> str:
+    def save_checkpoint(
+        self, epoch: int, losses: List[float], save_method: str
+    ) -> Union[Path, Any]:
         """Save the model to a checkpoint file.
 
         Parameters

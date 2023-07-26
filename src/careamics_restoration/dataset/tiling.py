@@ -1,5 +1,5 @@
 import itertools
-from typing import Any, Generator, List, Tuple
+from typing import Any, Generator, List, Tuple, Union
 
 import numpy as np
 from skimage.util import view_as_windows
@@ -10,7 +10,7 @@ logger = get_logger(__name__)
 
 
 def _compute_number_of_patches(
-    arr: np.ndarray, patch_sizes: Tuple[int, ...]
+    arr: np.ndarray, patch_sizes: Union[List[int], Tuple[int, ...]]
 ) -> Tuple[int, ...]:
     """Compute a number of patches in each dimension in order to covert the whole array.
 
@@ -35,7 +35,9 @@ def _compute_number_of_patches(
     return tuple(n_patches)
 
 
-def compute_overlap(arr: np.ndarray, patch_sizes: Tuple[int, ...]) -> Tuple[int, ...]:
+def compute_overlap(
+    arr: np.ndarray, patch_sizes: Union[List[int], Tuple[int, ...]]
+) -> Tuple[int, ...]:
     """Compute the overlap between patches in each dimension.
 
     Array must be of dimensions C(Z)YX, and patches must be of dimensions YX or ZYX.
@@ -132,7 +134,7 @@ def compute_crop_and_stitch_coords_1d(
 
 
 def compute_patch_steps(
-    patch_sizes: Tuple[int, ...], overlaps: Tuple[int, ...]
+    patch_sizes: Union[List[int], Tuple[int, ...]], overlaps: Tuple[int, ...]
 ) -> Tuple[int, ...]:
     """Compute steps between patches.
 
@@ -184,7 +186,9 @@ def compute_reshaped_view(
 
 
 def patches_sanity_check(
-    arr: np.ndarray, patch_size: Tuple[int, ...], is_3d_patch: bool
+    arr: np.ndarray,
+    patch_size: Union[List[int], Tuple[int, ...]],
+    is_3d_patch: bool,
 ) -> None:
     """Different asserts for patch sizes."""
     if len(patch_size) != len(arr.shape[1:]):
@@ -211,7 +215,7 @@ def patches_sanity_check(
 # formerly :
 # https://github.com/juglab-torch/n2v/blob/00d536cdc5f5cd4bb34c65a777940e6e453f4a93/src/n2v/dataloader.py#L52
 def extract_patches_sequential(
-    arr: np.ndarray, patch_size: Tuple[int, ...]
+    arr: np.ndarray, patch_size: Union[List[int], Tuple[int]]
 ) -> Generator[np.ndarray, None, None]:
     """Generate patches from an array.
 
@@ -334,8 +338,8 @@ def extract_patches_random(
 
 def extract_tiles(
     arr: np.ndarray,
-    tile_size: Tuple[int],
-    overlaps: Tuple[int],
+    tile_size: Union[List[int], Tuple[int]],
+    overlaps: Union[List[int], Tuple[int]],
 ) -> Tuple[np.ndarray[Any, Any]]:
     """Extracts tiles or specified size from input array with specified overlap.
 

@@ -59,7 +59,7 @@ class TiffDataset(torch.utils.data.IterableDataset):
         data_path: Union[Path, str],
         data_format: str,
         axes: str,
-        patch_extraction_method: ExtractionStrategies,
+        patch_extraction_method: Union[ExtractionStrategies, None],
         patch_size: Optional[Union[List[int], Tuple[int]]] = None,
         patch_overlap: Optional[Union[List[int], Tuple[int]]] = None,
         mean: Optional[float] = None,
@@ -242,7 +242,7 @@ class TiffDataset(torch.utils.data.IterableDataset):
 
         return patches
 
-    def iterate_files(self) -> Generator[np.ndarray]:
+    def iterate_files(self) -> np.ndarray:
         """
         Iterate over data source and yield whole image.
 
