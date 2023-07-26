@@ -532,12 +532,21 @@ class Engine:
         if model_specs is not None:
             specs.update(model_specs)
 
+        # set in/out axes from config
+        axes = self.cfg.data.axes.lower().replace("s", "")
+        if "c" not in axes:
+            axes = "c" + axes
+        if "b" not in axes:
+            axes = "b" + axes
+
         specs.update(
             {
                 "output_path": str(output_zip),
                 "architecture": "careamics_restoration.models.unet",
                 "test_inputs": test_inputs,
                 "test_outputs": test_outputs,
+                "input_axes": [axes],
+                "output_axes": [axes],
             }
         )
 

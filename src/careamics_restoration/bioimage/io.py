@@ -137,6 +137,11 @@ def build_zip_model(
         }
     )
 
+    if config.algorithm.is_3D:
+        model_specs["tags"].append("3D")
+    else:
+        model_specs["tags"].append("2D")
+
     # build model zip
     raw_model = build_model(
         root=str(Path(model_specs["output_path"]).parent.absolute()),
