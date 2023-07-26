@@ -101,7 +101,7 @@ class Optimizer(BaseModel):
         return optimizer
 
     def model_dump(
-        self: Self, exclude_optionals=True, *args: List, **kwargs: Dict
+        self: Self, exclude_optionals: bool = True, *args: List, **kwargs: Dict
     ) -> Dict:
         """Override model_dump method.
 
@@ -269,7 +269,7 @@ class AMP(BaseModel):
         return scale
 
     def model_dump(
-        self: Self, exclude_optionals=True, *args: List, **kwargs: Dict
+        self: Self, exclude_optionals: bool = True, *args: List, **kwargs: Dict
     ) -> Dict:
         """Override model_dump method.
 
@@ -390,7 +390,9 @@ class Training(BaseModel):
 
         return patch_list
 
-    def model_dump(self: Self, exclude_optionals=True, *args, **kwargs) -> dict:
+    def model_dump(
+        self: Self, exclude_optionals: bool = True, *args: List, **kwargs: Dict
+    ) -> Dict:
         """Override model_dump method.
 
         The purpose is to ensure export smooth import to yaml. It includes:

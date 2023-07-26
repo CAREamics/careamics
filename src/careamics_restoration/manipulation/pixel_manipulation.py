@@ -1,4 +1,4 @@
-from typing import Tuple
+from typing import Callable, Optional, Tuple
 
 import numpy as np
 
@@ -51,7 +51,7 @@ def get_stratified_coords(
     odd_jitter = np.where(np.floor(step) == step, 0, rng.integers(0, 2))
 
     # Define the random jitter to be added to the grid
-    odd_jitter_func = np.floor if odd_jitter == 0 else np.ceil # type: ignore
+    odd_jitter_func = np.floor if odd_jitter == 0 else np.ceil  # type: ignore
 
     grid_random_increment = rng.integers(
         odd_jitter_func(step) * np.ones_like(coordinate_grid).astype(np.int32) - 1,
@@ -67,7 +67,7 @@ def default_manipulate(
     patch: np.ndarray,
     mask_pixel_percentage: float,
     roi_size: int = 5,
-    augmentations=None,  # TODO what type? doc is also missing details
+    augmentations: Optional[Callable] = None,
     seed: int = 42,  # TODO seed is not used
 ) -> Tuple[np.ndarray, ...]:
     """Manipulate pixel in a patch with N2V algorithm.

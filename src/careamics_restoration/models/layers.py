@@ -200,7 +200,7 @@ def blur_operation(
     stride: Union[_size_2_t, _size_3_t] = 1,
     channels: Optional[int] = None,
     conv_mult: int = 2,
-    filter: Optional[torch.Tensor] = None,
+    spacial_filter: Optional[torch.Tensor] = None,
 ) -> torch.Tensor:
     """Applies a spatial filter.
 
@@ -211,25 +211,27 @@ def blur_operation(
         stride (int | tuple, optional): Stride(s) along axes. If a single value is
         passed, this value is used for both dimensions.
         conv_mult (int): Used to choose between 2D and 3D convolution. Default: 2.
-        filter (torch.Tensor, optional): A 2D/3D tensor to be convolved with the input
-        tensor at each spatial position, across all channels. If not provided, a default
-        filter
+        spacial_filter (torch.Tensor, optional): A 2D/3D tensor to be convolved with the
+        input tensor at each spatial position, across all channels. If not provided,
+        a default filter
     Returns:
         Blurred input
     """
-    if filter is None:
-        filter = getattr(sys.modules[__name__], f"default_{conv_mult}d_filter")
+    if spacial_filter is None:
+        spacial_filter = getattr(sys.modules[__name__], f"default_{conv_mult}d_filter")
     # The dynamic control flow branch below does not affect the padding as only h and w
     #  are used.
-    padding = padding_filter_same(filter)
+    padding = padding_filter_same(spacial_filter)
 
     if (
         channels is not None and channels < 1
     ):  # Use Dynamic Control Flow # TODO <- what does that mean? I wish I knew :)
         _, channels, *spatial_dims = input_tensor.shape
 
-        filter = filter.repeat((channels, [1] * len(input_tensor.shape[1:])))
-        _, _, *filter_spatial_dims = filter.shape
+        spacial_filter = spacial_filter.repeat(
+            (channels, [1] * len(input_tensor.shape[1:]))
+        )
+        _, _, *filter_spatial_dims = spacial_filter.shape
 
         if torch.any(torch.tensor(spatial_dims) < torch.tensor(filter_spatial_dims)):
             return input_tensor
@@ -262,7 +264,8 @@ def blurmax_pool(
 ) -> torch.Tensor:
     """Max-pooling with anti-aliasing.
 
-    This is a nearly drop-in replacement for PyTorch's :func:`torch.nn.functional.max_pool2d`.
+    This is a nearly drop-in replacement for
+    PyTorch's :func:`torch.nn.functional.max_pool2d`.
     The only API difference is that the parameter ``return_indices`` is not
     available, because it is ill-defined when using anti-aliasing.
     See the associated `paper <http://proceedings.mlr.press/v97/zhang19a.html>`_
@@ -277,23 +280,24 @@ def blurmax_pool(
     Args:
     ----
         input (torch.Tensor): A 4d tensor of shape NCHW
-        kernel_size (int | tuple, optional): Size(s) of the spatial neighborhoods over which to pool.
-            This is mostly commonly 2x2. If only a scalar ``s`` is provided, the
-            neighborhood is of size ``(s, s)``. Default: ``(2, 2)``.
-        stride (int | tuple, optional): Stride(s) along H and W axes. If a single value is passed, this
-            value is used for both dimensions. Default: 2.
-        padding (int | tuple, optional): implicit zero-padding to use. For the default 3x3 low-pass
-            filter, ``padding=1`` (the default) returns output of the same size
+        kernel_size (int | tuple, optional): Size(s) of the spatial neighborhoods over
+        which to pool. This is mostly commonly 2x2. If only a scalar ``s`` is provided,
+        the neighborhood is of size ``(s, s)``. Default: ``(2, 2)``.
+        stride (int | tuple, optional): Stride(s) along H and W axes. If a single value
+        is passed, this value is used for both dimensions. Default: 2.
+        padding (int | tuple, optional): implicit zero-padding to use. For the default
+        3x3 low-pass filter, ``padding=1`` (the default) returns output of the same size
             as the input. Default: 0.
-        dilation (int | tuple, optional): Amount by which to "stretch" the pooling region for a given
-            total size. See :class:`torch.nn.MaxPool2d`
+        dilation (int | tuple, optional): Amount by which to "stretch" the pooling
+        region for a given total size. See :class:`torch.nn.MaxPool2d`
             for our favorite explanation of how this works. Default: 1.
-        ceil_mode (bool): When True, will use ceil instead of floor to compute the output shape. Default: ``False``.
-        filter (torch.Tensor, optional): A 2d or 4d tensor to be cross-correlated with the input tensor
-            at each spatial position, within each channel. If 4d, the structure
-            is required to be ``(C, 1, kH, kW)`` where ``C`` is the number of
-            channels in the input tensor and ``kH`` and ``kW`` are the spatial
-            sizes of the filter.
+        ceil_mode (bool): When True, will use ceil instead of floor to compute the
+        output shape. Default: ``False``.
+        filter (torch.Tensor, optional): A 2d or 4d tensor to be cross-correlated with
+        the input tensor at each spatial position, within each channel. If 4d, the
+        structure is required to be ``(C, 1, kH, kW)`` where ``C`` is the number of
+        channels in the input tensor and ``kH`` and ``kW`` are the spatial sizes of
+        the filter.
     By default, the filter used is:
     .. code-block:: python
             [1 2 1]

@@ -421,6 +421,23 @@ class Engine:
             raise ValueError("Missing training entry in configuration file.")
 
     def get_val_dataloader(self, val_path: Union[str, Path]) -> DataLoader:
+        """Return a validation dataloader.
+
+        Parameters
+        ----------
+        val_path : Union[str, Path]
+            Path to the validation data.
+
+        Returns
+        -------
+        DataLoader
+            Data loader
+
+        Raises
+        ------
+        ValueError
+            If the training configuration is None
+        """
         if self.cfg.training is not None:
             dataset = get_validation_dataset(self.cfg, val_path)
             dataloader = DataLoader(
@@ -440,6 +457,23 @@ class Engine:
         external_input: Optional[np.ndarray] = None,
         pred_path: Optional[np.ndarray] = None,
     ) -> Tuple[DataLoader, bool]:
+        """Return a prediction dataloader.
+
+        Parameters
+        ----------
+        pred_path : Union[str, Path]
+            Path to the prediction data.
+
+        Returns
+        -------
+        DataLoader
+            Data loader
+
+        Raises
+        ------
+        ValueError
+            If the training configuration is None
+        """
         if external_input is not None:
             normalized_input = normalize(
                 external_input, self.cfg.data.mean, self.cfg.data.std
@@ -500,6 +534,7 @@ class Engine:
         return self.cfg.working_directory.absolute() / name
 
     def __del__(self) -> None:
+        """Exits the logger."""
         del self.progress
 
         if hasattr(self, "logger"):

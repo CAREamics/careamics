@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Optional, Tuple, Union
+from typing import Dict, Optional, Tuple, Union
 
 import torch
 
@@ -114,9 +114,18 @@ def create_model(
 
 
 def get_optimizer_and_scheduler(
-    config: Configuration, model, state_dict=None
+    config: Configuration, model: torch.nn.Module, state_dict: Optional[Dict] = None
 ) -> Tuple[torch.optim.Optimizer, torch.optim.lr_scheduler.LRScheduler]:
     """Creates optimizer and learning rate scheduler objects.
+
+    Parameters
+    ----------
+    config : Configuration
+        Configuration object
+    model : torch.nn.Module
+        Model object
+    state_dict : Optional[Dict], optional
+        State dict of the checkpoint, by default None
 
     Returns
     -------

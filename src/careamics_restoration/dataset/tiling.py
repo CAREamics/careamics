@@ -1,5 +1,5 @@
 import itertools
-from typing import Generator, Iterable, List, Tuple
+from typing import Any, Generator, List, Tuple
 
 import numpy as np
 from skimage.util import view_as_windows
@@ -68,7 +68,7 @@ def compute_overlap(arr: np.ndarray, patch_sizes: Tuple[int, ...]) -> Tuple[int,
 
 def compute_crop_and_stitch_coords_1d(
     axis_size: int, tile_size: int, overlap: int
-) -> Tuple[List[Tuple[int, int]], ...]:  # TODO mypy must be wrong here
+) -> Tuple[List[Tuple[int, int]], ...]:
     """Compute the coordinates for cropping image into tiles.
 
     Computes coordinates to crop the overlap region from predictions and coordinates
@@ -185,7 +185,7 @@ def compute_reshaped_view(
 
 def patches_sanity_check(
     arr: np.ndarray, patch_size: Tuple[int, ...], is_3d_patch: bool
-):
+) -> None:
     """Different asserts for patch sizes."""
     if len(patch_size) != len(arr.shape[1:]):
         raise ValueError(
@@ -336,7 +336,7 @@ def extract_tiles(
     arr: np.ndarray,
     tile_size: Tuple[int],
     overlaps: Tuple[int],
-) -> Iterable[Tuple[np.ndarray]]:
+) -> Tuple[np.ndarray[Any, Any]]:
     """Extracts tiles or specified size from input array with specified overlap.
 
     Parameters

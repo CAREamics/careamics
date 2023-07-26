@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Dict, List
+from typing import Dict, List, Self
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -140,7 +140,9 @@ class Algorithm(BaseModel):
         """
         return 3 if self.is_3D else 2
 
-    def model_dump(self, exclude_optionals=True, *args: List, **kwargs: Dict) -> dict:
+    def model_dump(
+        self: Self, exclude_optionals=True, *args: List, **kwargs: Dict
+    ) -> Dict:
         """Override model_dump method.
 
         The purpose is to ensure export smooth import to yaml. It includes:

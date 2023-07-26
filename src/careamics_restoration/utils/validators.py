@@ -33,14 +33,15 @@ def check_axes_validity(axes: str) -> bool:
         )
 
     # all characters must be in REF_AXES = 'STCZYX'
-    if not all([s in AXES for s in _axes]):
+    if not all(s in AXES for s in _axes):
         raise ValueError(f"Invalid axes {axes}. Must be a combination of {AXES}.")
 
     # check for repeating characters
     for i, s in enumerate(_axes):
         if i != _axes.rfind(s):
             raise ValueError(
-                f"Invalid axes {axes}. Cannot contain duplicate axes (got multiple {axes[i]})."
+                f"Invalid axes {axes}. Cannot contain duplicate axes"
+                f" (got multiple {axes[i]})."
             )
 
     # currently no implementation for C
@@ -73,7 +74,7 @@ def check_axes_validity(axes: str) -> bool:
     return True
 
 
-def check_array_validity(array: np.ndarray, axes: str):
+def check_array_validity(array: np.ndarray, axes: str) -> None:
     """Check that the numpy array is compatible with the axes.
 
     Parameters
