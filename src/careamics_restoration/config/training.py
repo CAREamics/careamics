@@ -358,7 +358,7 @@ class Training(BaseModel):
     augmentation: bool
 
     # Optional fields
-    use_wandb: bool = True
+    use_wandb: bool = False
     num_workers: int = Field(default=0, ge=0)
     amp: AMP = AMP()
 
@@ -418,7 +418,7 @@ class Training(BaseModel):
         if exclude_optionals:
             # remove optional arguments if they are default
             defaults = {
-                "use_wandb": True,
+                "use_wandb": False,
                 "num_workers": 0,
                 "amp": AMP().model_dump(),
             }

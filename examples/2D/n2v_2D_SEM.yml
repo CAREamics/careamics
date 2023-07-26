@@ -66,7 +66,7 @@ training:
   augmentation: True
 
   # Optional, use WandB (True or False), must be installed in your conda environment
-  # use_wandb: True
+  use_wandb: False
 
   # Optional, number of workers for data loading, greater or equal than 0
   num_workers: 0
@@ -86,11 +86,6 @@ data:
 
   # Axes, among STCZYX with constraints on order
   axes: YX
-
-  # Optional, path to the data, absolute or relative to working_directory
-  training_path: data/n2v_sem/train
-  validation_path: data/n2v_sem/val
-  prediction_path: data/n2v_sem/train
 
 # Optional
 prediction:

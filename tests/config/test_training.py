@@ -449,7 +449,7 @@ def test_training_to_dict_optionals(complete_config: dict):
     train_conf = complete_config["training"]
     train_conf["amp"] = AMP(use=False, init_scale=1024)
     train_conf["num_workers"] = 0
-    train_conf["use_wandb"] = True
+    train_conf["use_wandb"] = False
 
     training_complete = Training(**train_conf).model_dump()
 
