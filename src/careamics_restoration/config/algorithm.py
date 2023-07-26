@@ -141,7 +141,7 @@ class Algorithm(BaseModel):
         return 3 if self.is_3D else 2
 
     def model_dump(
-        self: Self, exclude_optionals=True, *args: List, **kwargs: Dict
+        self: Self, exclude_optionals: bool = True, *args: List, **kwargs: Dict
     ) -> Dict:
         """Override model_dump method.
 
