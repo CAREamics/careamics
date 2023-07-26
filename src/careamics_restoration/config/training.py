@@ -100,7 +100,9 @@ class Optimizer(BaseModel):
 
         return optimizer
 
-    def model_dump(self, exclude_optionals=True, *args: List, **kwargs: Dict) -> Dict:
+    def model_dump(
+        self: Self, exclude_optionals=True, *args: List, **kwargs: Dict
+    ) -> Dict:
         """Override model_dump method.
 
         The purpose is to ensure export smooth import to yaml. It includes:
