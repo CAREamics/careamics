@@ -92,21 +92,8 @@ class Conv_Block(nn.Module):
             getattr(nn, f"{activation}")() if activation is not None else nn.Identity()
         )
 
-    def forward(self, x):
-        """_summary_.
-
-        _extended_summary_
-
-        Parameters
-        ----------
-        x : _type_
-            _description_
-
-        Returns
-        -------
-        _type_
-            _description_
-        """
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Forward pass."""
         if self.use_batch_norm:
             x = self.conv1(x)
             x = self.batch_norm1(x)
@@ -124,7 +111,7 @@ class Conv_Block(nn.Module):
         return x
 
 
-def default_2d_filter():
+def default_2d_filter() -> torch.Tensor:
     """_summary_.
 
     _extended_summary_
@@ -147,7 +134,7 @@ def default_2d_filter():
     )
 
 
-def default_3d_filter():
+def default_3d_filter() -> torch.Tensor:
     """_summary_.
 
     _extended_summary_
@@ -360,7 +347,8 @@ class BlurPool2d(nn.Module):
         self.dilation = dilation
         self.ceil_mode = ceil_mode
 
-    def forward(self, input: torch.Tensor):
+    def forward(self, input: torch.Tensor) -> torch.Tensor:
+        """Forward pass."""
         return blurmax_pool(
             input,
             kernel_size=self.kernel_size,
@@ -401,7 +389,8 @@ class BlurPool3d(nn.Module):
         self.dilation = dilation
         self.ceil_mode = ceil_mode
 
-    def forward(self, input: torch.Tensor):
+    def forward(self, input: torch.Tensor) -> torch.Tensor:
+        """Forward pass."""
         return blurmax_pool(
             input,
             kernel_size=self.kernel_size,

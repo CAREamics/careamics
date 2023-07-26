@@ -1,4 +1,5 @@
 from enum import Enum
+from typing import Dict, List
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -59,7 +60,7 @@ class ModelParameters(BaseModel):
 
     # TODO revisit the constraints on num_channels_init
     @field_validator("num_channels_init")
-    def greater_than_eight_and_even(cls, num_channels: int):
+    def greater_than_eight_and_even(cls, num_channels: int) -> int:
         """Validate that num_channels_init is a power of two (minimum 8)."""
         # if odd
         if num_channels % 2 != 0:
@@ -139,7 +140,7 @@ class Algorithm(BaseModel):
         """
         return 3 if self.is_3D else 2
 
-    def model_dump(self, exclude_optionals=True, *args, **kwargs) -> dict:
+    def model_dump(self, exclude_optionals=True, *args: List, **kwargs: Dict) -> dict:
         """Override model_dump method.
 
         The purpose is to ensure export smooth import to yaml. It includes:

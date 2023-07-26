@@ -7,7 +7,8 @@ import torch
 # TODO instantiate logging?
 
 
-def get_device():
+def get_device() -> torch.device:
+    """Selects the device to use for training."""
     if torch.cuda.is_available():
         logging.info("CUDA available. Using GPU.")
         device = torch.device("cuda")
@@ -20,9 +21,8 @@ def get_device():
 def setup_cudnn_reproducibility(
     deterministic: Optional[bool] = None, benchmark: Optional[bool] = None
 ) -> None:
-    """
-    Prepares CuDNN benchmark and sets CuDNN
-    to be deterministic/non-deterministic mode
+    """Prepares CuDNN benchmark and sets it to be deterministic/non-deterministic mode.
+
     See https://pytorch.org/docs/stable/notes/randomness.html#cuda-convolution-benchmarking.
 
     Args:
