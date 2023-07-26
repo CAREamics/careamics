@@ -3,6 +3,9 @@ from pathlib import Path
 import torch
 import yaml
 
+import bioimageio.spec.shared.raw_nodes as nodes
+from bioimageio.core import load_resource_description
+
 from careamics_restoration.bioimage import import_bioimage_model
 from careamics_restoration.engine import Engine
 
@@ -40,6 +43,9 @@ def test_bioimage_export_default(minimum_config: dict, tmp_path: Path, request):
     request.config.cache.set("bioimage_model", str(zip_file))
 
     assert zip_file.exists()
+
+    rdf = load_resource_description(zip_file)
+    assert isinstance(rdf, nodes.ResourceDescription)
 
 
 def test_bioimage_import(request):
