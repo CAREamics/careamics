@@ -236,7 +236,7 @@ class UNet(nn.Module):
         )
         self.last_activation = last_activation if last_activation else nn.Identity()
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Forward pass.
 
         Parameters

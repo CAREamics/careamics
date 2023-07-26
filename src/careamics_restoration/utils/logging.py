@@ -104,7 +104,7 @@ class ProgressLogger:
             self.console.print(header_panel)
 
         self.interface = Group(progress_group)
-        self.live = None
+        self.live = Live(self.interface)
 
     @staticmethod
     def _open_banner() -> str:
@@ -114,7 +114,7 @@ class ProgressLogger:
         return banner
 
     def _start_live_if_needed(self) -> None:
-        if not self.live:
+        if self.live is None:
             self.live = Live(self.interface)
             self.live.__enter__()
 
