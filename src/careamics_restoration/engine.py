@@ -375,29 +375,12 @@ class Engine:
                 outputs = denormalize(outputs, self.cfg.data.mean, self.cfg.data.std)
 
                 if stitch:
-                    # Crop predited tile according to overlap coordinates
-                    predicted_tile = outputs.squeeze()[
-                        (
-                            ...,
-                            *[
-                                slice(c[0].item(), c[1].item())
-                                for c in overlap_crop_coords
-                            ],
-                        )
-                    ]
-                    # TODO: removing ellipsis works for 3.11
-                    """ 3.11 syntax
-                    predicted_tile = outputs.squeeze()[
-                        *[
-                            slice(c[0].item(), c[1].item())
-                            for c in list(overlap_crop_coords)
-                        ],
-                    ]
-                    """
+                    # Append tile and respective coordinates to list for stitching
                     tiles.append(
                         (
-                            predicted_tile.cpu().numpy(),
-                            stitch_coords,
+                            outputs.squeeze().cpu().numpy(),
+                            [list(map(int, c)) for c in overlap_crop_coords],
+                            [list(map(int, c)) for c in stitch_coords],
                         )
                     )
                     # check if sample is finished

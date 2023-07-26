@@ -9,9 +9,9 @@ import torch
 from careamics_restoration.config import Configuration
 from careamics_restoration.config.training import ExtractionStrategies
 from careamics_restoration.dataset.tiling import (
-    extract_patches_predict,
     extract_patches_random,
     extract_patches_sequential,
+    extract_tiles,
 )
 from careamics_restoration.manipulation import default_manipulate
 from careamics_restoration.utils import normalize
@@ -169,8 +169,8 @@ class TiffDataset(torch.utils.data.IterableDataset):
         patches = None
 
         if self.patch_extraction_method == ExtractionStrategies.TILED:
-            patches = extract_patches_predict(
-                sample, patch_size=self.patch_size, overlaps=self.patch_overlap
+            patches = extract_tiles(
+                sample, tile_size=self.patch_size, overlaps=self.patch_overlap
             )
 
         elif self.patch_extraction_method == ExtractionStrategies.SEQUENTIAL:
