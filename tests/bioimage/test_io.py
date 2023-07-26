@@ -1,9 +1,8 @@
 from pathlib import Path
 
+import bioimageio.spec.shared.raw_nodes as nodes
 import torch
 import yaml
-
-import bioimageio.spec.shared.raw_nodes as nodes
 from bioimageio.core import load_resource_description
 
 # from careamics_restoration.bioimage import import_bioimage_model

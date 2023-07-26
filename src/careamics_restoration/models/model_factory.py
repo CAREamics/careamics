@@ -3,10 +3,10 @@ from typing import Optional, Tuple, Union
 
 import torch
 
+from ..bioimage import import_bioimage_model
 from ..config import Configuration
 from ..config.algorithm import Models
 from ..utils.logging import get_logger
-from ..bioimage import import_bioimage_model
 from .unet import UNet
 
 logger = get_logger(__name__)
