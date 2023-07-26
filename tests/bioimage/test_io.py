@@ -5,10 +5,11 @@ import torch
 import yaml
 from bioimageio.core import load_resource_description
 
+from careamics_restoration.config import Configuration
+
 # from careamics_restoration.bioimage import import_bioimage_model
 from careamics_restoration.engine import Engine
 from careamics_restoration.models import create_model
-from careamics_restoration.config import Configuration
 
 
 def test_bioimage_export_default(minimum_config: dict, tmp_path: Path, request):
