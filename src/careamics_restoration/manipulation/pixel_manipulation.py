@@ -49,8 +49,7 @@ def get_stratified_coords(
     odd_jitter = np.where(np.floor(step) == step, 0, rng.integers(0, 2))
 
     # Define the random jitter to be added to the grid
-    def odd_jitter_func(x: np.ndarray):
-        return np.floor(x) if odd_jitter == 0 else np.ceil(x)
+    odd_jitter_func = np.floor if odd_jitter == 0 else np.ceil
 
     grid_random_increment = rng.integers(
         odd_jitter_func(step) * np.ones_like(coordinate_grid).astype(np.int32) - 1,
