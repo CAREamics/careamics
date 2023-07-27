@@ -56,7 +56,7 @@ class TiffDataset(torch.utils.data.IterableDataset):
 
     def __init__(
         self,
-        data_path: Union[Path, str],
+        data_path: str,
         data_format: str,
         axes: str,
         patch_extraction_method: Union[ExtractionStrategies, None],
@@ -71,7 +71,6 @@ class TiffDataset(torch.utils.data.IterableDataset):
         if not self.data_path.is_dir():
             raise ValueError("Path to data should be an existing folder.")
 
-        self.data_path = data_path
         self.data_format = data_format
         self.axes = axes
 
@@ -242,7 +241,7 @@ class TiffDataset(torch.utils.data.IterableDataset):
 
         return patches
 
-    def iterate_files(self) -> np.ndarray:
+    def iterate_files(self) -> Generator:
         """
         Iterate over data source and yield whole image.
 
@@ -303,7 +302,7 @@ class TiffDataset(torch.utils.data.IterableDataset):
 
 
 def get_train_dataset(
-    config: Configuration, train_path: Union[str, Path]
+    config: Configuration, train_path: str
 ) -> TiffDataset:
     """Create Dataset instance from configuration.
 
@@ -343,7 +342,7 @@ def get_train_dataset(
 
 
 def get_validation_dataset(
-    config: Configuration, val_path: Union[str, Path]
+    config: Configuration, val_path: str
 ) -> TiffDataset:
     """Create Dataset instance from configuration.
 
@@ -387,7 +386,7 @@ def get_validation_dataset(
 
 
 def get_prediction_dataset(
-    config: Configuration, pred_path: Union[str, Path]
+    config: Configuration, pred_path: str
 ) -> TiffDataset:
     """Create Dataset instance from configuration.
 

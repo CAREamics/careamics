@@ -88,6 +88,7 @@ class Engine:
                 )
             self.cfg = config
         else:
+            assert config_path is not None, "config_path is None"  # mypy
             self.cfg = load_configuration(config_path)
 
         # Create model, optimizer, lr scheduler and gradient scaler
@@ -100,6 +101,7 @@ class Engine:
         ) = create_model(config=self.cfg, model_path=model_path)
 
         # create loss function
+        assert self.cfg is not None, "Configuration is not defined" # mypy
         self.loss_func = create_loss_function(self.cfg)
 
         # Set logging
@@ -149,8 +151,8 @@ class Engine:
 
     def train(
         self,
-        train_path: Union[str, Path],
-        val_path: Union[str, Path],
+        train_path: str,
+        val_path: str,
     ) -> None:
         """Train the network.
 
@@ -229,7 +231,7 @@ class Engine:
         self,
         loader: torch.utils.data.DataLoader,
         amp: bool,
-    ):
+    ) -> Dict[str, float]:
         """Runs a single epoch of training.
 
         Parameters
@@ -294,7 +296,7 @@ class Engine:
         self,
         *,
         external_input: Optional[np.ndarray] = None,
-        pred_path: Optional[Union[str, Path]] = None,
+        pred_path: Optional[str] = None,
     ) -> np.ndarray:
         """Predict using the Engine's model.
 
@@ -389,7 +391,7 @@ class Engine:
         self.logger.info(f"Predicted {len(prediction)} samples")
         return np.stack(prediction)
 
-    def get_train_dataloader(self, train_path: Union[str, Path]) -> DataLoader:
+    def get_train_dataloader(self, train_path: str) -> DataLoader:
         """Return a training dataloader.
 
         Parameters
@@ -420,7 +422,7 @@ class Engine:
         else:
             raise ValueError("Missing training entry in configuration file.")
 
-    def get_val_dataloader(self, val_path: Union[str, Path]) -> DataLoader:
+    def get_val_dataloader(self, val_path: str) -> DataLoader:
         """Return a validation dataloader.
 
         Parameters
@@ -455,13 +457,13 @@ class Engine:
         self,
         *,
         external_input: Optional[np.ndarray] = None,
-        pred_path: Optional[np.ndarray] = None,
+        pred_path: Optional[str] = None,
     ) -> Tuple[DataLoader, bool]:
         """Return a prediction dataloader.
 
         Parameters
         ----------
-        pred_path : Union[str, Path]
+        pred_path : str
             Path to the prediction data.
 
         Returns
@@ -482,6 +484,7 @@ class Engine:
             dataset = TensorDataset(torch.from_numpy(normalized_input))
             stitch = False  # TODO can also be true
         else:
+            assert pred_path is not None, "path to prediction data not provided"  # mypy
             dataset = get_prediction_dataset(self.cfg, pred_path=pred_path)
             stitch = (
                 hasattr(dataset, "patch_extraction_method")

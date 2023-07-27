@@ -1,9 +1,9 @@
-from typing import Callable, Optional, Tuple, Union
+from typing import Callable, Optional, Tuple
 
 import numpy as np
 
 
-def odd_jitter_func(step: Union[int, float], rng: np.random.Generator) -> np.ndarray:
+def odd_jitter_func(step: float, rng: np.random.Generator) -> np.ndarray:
     """Adds random jitter to the grid.
 
     This is done to account for cases where the step size is not an integer.
@@ -70,7 +70,9 @@ def get_stratified_coords(
     coordinate_grid = np.array(coordinate_grid_list).reshape(len(shape), -1).T
 
     grid_random_increment = rng.integers(
-        odd_jitter_func(step, rng) * np.ones_like(coordinate_grid).astype(np.int32) - 1,
+        odd_jitter_func(float(step), rng)
+        * np.ones_like(coordinate_grid).astype(np.int32)
+        - 1,
         size=coordinate_grid.shape,
         endpoint=True,
     )

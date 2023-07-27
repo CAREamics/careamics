@@ -1,5 +1,5 @@
 import itertools
-from typing import Any, Generator, List, Tuple, Union
+from typing import Generator, List, Tuple, Union
 
 import numpy as np
 from skimage.util import view_as_windows
@@ -340,7 +340,7 @@ def extract_tiles(
     arr: np.ndarray,
     tile_size: Union[List[int], Tuple[int]],
     overlaps: Union[List[int], Tuple[int]],
-) -> Tuple[np.ndarray[Any, Any]]:
+) -> Generator:
     """Extracts tiles or specified size from input array with specified overlap.
 
     Parameters

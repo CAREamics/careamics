@@ -106,7 +106,7 @@ def create_model(
             conv_dim=algo_config.get_conv_dim(),
             num_channels_init=model_config.num_channels_init,
         )
-
+        assert config is not None, "Configuration must be provided" # mypy
         optimizer, scheduler = get_optimizer_and_scheduler(config, model)
         scaler = get_grad_scaler(config)
 
@@ -173,7 +173,9 @@ def get_optimizer_and_scheduler(
         raise ValueError("Missing training entry in configuration file.")
 
 
-def get_grad_scaler(cfg: Configuration, state_dict=None) -> torch.cuda.amp.GradScaler:
+def get_grad_scaler(
+    cfg: Configuration, state_dict: Optional[Dict] = None
+) -> torch.cuda.amp.GradScaler:
     """Create the gradscaler object.
 
     Returns
