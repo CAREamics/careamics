@@ -91,14 +91,18 @@ class Engine:
             assert config_path is not None, "config_path is None"  # mypy
             self.cfg = load_configuration(config_path)
 
-        # Create model, optimizer, lr scheduler and gradient scaler
+        # get device, CPU or GPU
+        self.device = get_device()
+
+        # Create model, optimizer, lr scheduler and gradient scaler and load everything
+        # to the specified device
         (
             self.model,
             self.optimizer,
             self.lr_scheduler,
             self.scaler,
             self.cfg,
-        ) = create_model(config=self.cfg, model_path=model_path)
+        ) = create_model(config=self.cfg, model_path=model_path, device=self.device)
 
         # create loss function
         assert self.cfg is not None, "Configuration is not defined"  # mypy
@@ -141,9 +145,6 @@ class Engine:
                     "Wandb not installed, using default logger. Try pip install wandb"
                 )
                 self.use_wandb = False
-
-        # get GPU or CPU device
-        self.device = get_device()
 
         # seeding
         setup_cudnn_reproducibility(deterministic=True, benchmark=False)

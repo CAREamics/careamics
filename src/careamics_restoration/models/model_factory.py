@@ -30,6 +30,7 @@ def create_model(
     *,
     config: Optional[Configuration] = None,
     model_path: Optional[Union[str, Path]] = None,
+    device: Optional[torch.device] = None,
 ) -> torch.nn.Module:
     """Creates a model from a configuration file or a checkpoint.
 
@@ -62,7 +63,7 @@ def create_model(
             raise ValueError(f"Invalid model path: {model_path}")
 
         # Load checkpoint
-        checkpoint = torch.load(model_path)
+        checkpoint = torch.load(model_path, map_location=device)
 
         # Load the configuration
         if "config" in checkpoint:
@@ -79,7 +80,7 @@ def create_model(
             conv_dim=algo_config.get_conv_dim(),
             num_channels_init=model_config.num_channels_init,
         )
-
+        model.to(device)
         # Load the model state dict
         if "model_state_dict" in checkpoint:
             model.load_state_dict(checkpoint["model_state_dict"])
@@ -104,6 +105,7 @@ def create_model(
             conv_dim=algo_config.get_conv_dim(),
             num_channels_init=model_config.num_channels_init,
         )
+        model.to(device)
         assert config is not None, "Configuration must be provided"  # mypy
         optimizer, scheduler = get_optimizer_and_scheduler(config, model)
         scaler = get_grad_scaler(config)
