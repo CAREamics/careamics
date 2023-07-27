@@ -293,6 +293,7 @@ class TiffDataset(torch.utils.data.IterableDataset):
                         patch = normalize(img=patch, mean=self.mean, std=self.std)
 
                     if self.patch_transform is not None:
+                        assert self.patch_transform_params is not None
                         patch = self.patch_transform(
                             patch, **self.patch_transform_params
                         )

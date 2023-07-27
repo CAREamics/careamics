@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import Dict, List, Optional, Self
+from typing import Dict, List, Optional
 
 from pydantic import (
     BaseModel,
@@ -139,7 +139,7 @@ class Data(BaseModel):
 
         return data_model
 
-    def model_dump(self: Self, *args: List, **kwargs: Dict) -> dict:
+    def model_dump(self, *args: List, **kwargs: Dict) -> dict:
         """Override model_dump method.
 
         The purpose is to ensure export smooth import to yaml. It includes:

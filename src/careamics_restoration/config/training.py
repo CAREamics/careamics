@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import Dict, List, Self
+from typing import Dict, List
 
 from pydantic import (
     BaseModel,
@@ -101,7 +101,7 @@ class Optimizer(BaseModel):
         return optimizer
 
     def model_dump(
-        self: Self, exclude_optionals: bool = True, *args: List, **kwargs: Dict
+        self, exclude_optionals: bool = True, *args: List, **kwargs: Dict
     ) -> Dict:
         """Override model_dump method.
 
@@ -161,9 +161,7 @@ class LrScheduler(BaseModel):
     parameters: dict = {}
 
     @field_validator("parameters")
-    def filter_parameters(
-        cls: Self, user_params: dict, values: FieldValidationInfo
-    ) -> Dict:
+    def filter_parameters(cls, user_params: dict, values: FieldValidationInfo) -> Dict:
         """Validate lr scheduler parameters."""
         if "name" in values.data:
             lr_scheduler_name = values.data["name"]
@@ -180,9 +178,7 @@ class LrScheduler(BaseModel):
             )
 
     @model_validator(mode="after")
-    def step_lr_step_size_parameter(
-        cls: Self, lr_scheduler: LrScheduler
-    ) -> LrScheduler:
+    def step_lr_step_size_parameter(cls, lr_scheduler: LrScheduler) -> LrScheduler:
         """Check that StepLR lr scheduler has `step_size` parameter specified.
 
         Parameters
@@ -261,7 +257,7 @@ class AMP(BaseModel):
     init_scale: int = Field(default=1024, ge=512, le=65536)
 
     @field_validator("init_scale")
-    def power_of_two(cls: Self, scale: int) -> int:
+    def power_of_two(cls, scale: int) -> int:
         """Validate that init_scale is a power of two."""
         if not scale & (scale - 1) == 0:
             raise ValueError(f"Init scale must be a power of two (got {scale}).")
@@ -269,7 +265,7 @@ class AMP(BaseModel):
         return scale
 
     def model_dump(
-        self: Self, exclude_optionals: bool = True, *args: List, **kwargs: Dict
+        self, exclude_optionals: bool = True, *args: List, **kwargs: Dict
     ) -> Dict:
         """Override model_dump method.
 
@@ -374,9 +370,7 @@ class Training(BaseModel):
         return val
 
     @field_validator("patch_size")
-    def all_elements_non_zero_divisible_by_2(
-        cls: Self, patch_list: List[int]
-    ) -> List[int]:
+    def all_elements_non_zero_divisible_by_2(cls, patch_list: List[int]) -> List[int]:
         """Validate patch size.
 
         Patch size must be non-zero, positive and divisible by 2.
@@ -391,7 +385,7 @@ class Training(BaseModel):
         return patch_list
 
     def model_dump(
-        self: Self, exclude_optionals: bool = True, *args: List, **kwargs: Dict
+        self, exclude_optionals: bool = True, *args: List, **kwargs: Dict
     ) -> Dict:
         """Override model_dump method.
 

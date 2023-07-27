@@ -259,7 +259,7 @@ def extract_patches_sequential(
     window_shape = (1, *patch_size)
     window_steps = (1, *window_steps)
 
-    if is_3d_patch and patch_size[-3] == 1:
+    if is_3d_patch and patch_size[0] == 1:
         output_shape = (-1,) + window_shape[1:]
     else:
         output_shape = (-1, *window_shape)

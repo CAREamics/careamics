@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import Dict, List, Optional, Self, Union
+from typing import Dict, List, Optional, Union
 
 import yaml
 from pydantic import (
@@ -194,7 +194,7 @@ class Configuration(BaseModel):
         return config
 
     def model_dump(
-        self: Self, exclude_optionals: bool = True, *args: List, **kwargs: Dict
+        self, exclude_optionals: bool = True, *args: List, **kwargs: Dict
     ) -> Dict:
         """Override model_dump method.
 
