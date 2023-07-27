@@ -101,7 +101,7 @@ class Engine:
         ) = create_model(config=self.cfg, model_path=model_path)
 
         # create loss function
-        assert self.cfg is not None, "Configuration is not defined" # mypy
+        assert self.cfg is not None, "Configuration is not defined"  # mypy
         self.loss_func = create_loss_function(self.cfg)
 
         # Set logging
@@ -173,59 +173,60 @@ class Engine:
         """
         self.progress.reset()
 
-        if self.cfg.training is not None:
-            # General func
-            train_loader = self.get_train_dataloader(train_path)
+        # Check that the configuration is not None
+        assert self.cfg is not None, "Missing configuration."  # mypy
+        assert (
+            self.cfg.training is not None
+        ), "Missing training entry in configuration."  # mypy
 
-            # Set mean and std from train dataset of none
-            if self.cfg.data.mean is None or self.cfg.data.std is None:
-                self.cfg.data.set_mean_and_std(
-                    train_loader.dataset.mean, train_loader.dataset.std
-                )
+        # General func
+        train_loader = self.get_train_dataloader(train_path)
 
-            eval_loader = self.get_val_dataloader(val_path)
-
-            self.logger.info(
-                f"Starting training for {self.cfg.training.num_epochs} epochs"
+        # Set mean and std from train dataset of none
+        if self.cfg.data.mean is None or self.cfg.data.std is None:
+            self.cfg.data.set_mean_and_std(
+                train_loader.dataset.mean, train_loader.dataset.std
             )
 
-            val_losses = []
-            try:
-                for epoch in self.progress(
-                    range(self.cfg.training.num_epochs),
-                    task_name="Epochs",
-                    overall_progress=True,
-                ):  # loop over the dataset multiple times
-                    train_outputs = self._train_single_epoch(
-                        train_loader,
-                        self.cfg.training.amp.use,
-                    )
+        eval_loader = self.get_val_dataloader(val_path)
 
-                    # Perform validation step
-                    eval_outputs = self.evaluate(eval_loader)
-                    self.logger.info(
-                        f'Validation loss for epoch {epoch}: {eval_outputs["loss"]}'
-                    )
-                    # Add update scheduler rule based on type
-                    self.lr_scheduler.step(eval_outputs["loss"])
-                    val_losses.append(eval_outputs["loss"])
-                    name = self.save_checkpoint(epoch, val_losses, "state_dict")
-                    self.logger.info(f"Saved checkpoint to {name}")
+        self.logger.info(f"Starting training for {self.cfg.training.num_epochs} epochs")
 
-                    if self.use_wandb:
-                        learning_rate = self.optimizer.param_groups[0]["lr"]
-                        metrics = {
-                            "train": train_outputs,
-                            "eval": eval_outputs,
-                            "lr": learning_rate,
-                        }
-                        self.wandb.log_metrics(metrics)
+        val_losses = []
+        try:
+            for epoch in self.progress(
+                range(self.cfg.training.num_epochs),
+                task_name="Epochs",
+                overall_progress=True,
+            ):  # loop over the dataset multiple times
+                train_outputs = self._train_single_epoch(
+                    train_loader,
+                    self.cfg.training.amp.use,
+                )
 
-            except KeyboardInterrupt:
-                self.logger.info("Training interrupted")
-                self.progress.reset()
-        else:
-            raise ValueError("Missing training entry in configuration file.")
+                # Perform validation step
+                eval_outputs = self.evaluate(eval_loader)
+                self.logger.info(
+                    f'Validation loss for epoch {epoch}: {eval_outputs["loss"]}'
+                )
+                # Add update scheduler rule based on type
+                self.lr_scheduler.step(eval_outputs["loss"])
+                val_losses.append(eval_outputs["loss"])
+                name = self.save_checkpoint(epoch, val_losses, "state_dict")
+                self.logger.info(f"Saved checkpoint to {name}")
+
+                if self.use_wandb:
+                    learning_rate = self.optimizer.param_groups[0]["lr"]
+                    metrics = {
+                        "train": train_outputs,
+                        "eval": eval_outputs,
+                        "lr": learning_rate,
+                    }
+                    self.wandb.log_metrics(metrics)
+
+        except KeyboardInterrupt:
+            self.logger.info("Training interrupted")
+            self.progress.reset()
 
     def _train_single_epoch(
         self,
@@ -320,6 +321,9 @@ class Engine:
                 "(both None here)."
             )
 
+        assert self.cfg is not None, "Missing configuration."  # mypy
+        assert self.cfg.data is not None, "Missing data entry in configuration."  # mypy
+
         # Check that the mean and std are there (= has been trained)
         if not self.cfg.data.mean or not self.cfg.data.std:
             raise ValueError(
@@ -409,18 +413,19 @@ class Engine:
         ValueError
             If the training configuration is None
         """
-        if self.cfg.training is not None:
-            dataset = get_train_dataset(self.cfg, train_path)
-            dataloader = DataLoader(
-                dataset,
-                batch_size=self.cfg.training.batch_size,
-                num_workers=self.cfg.training.num_workers,
-                pin_memory=True,
-            )
-            return dataloader
+        assert self.cfg is not None, "Missing configuration."  # mypy
+        assert (
+            self.cfg.training is not None
+        ), "Missing training entry in configuration."  # mypy
 
-        else:
-            raise ValueError("Missing training entry in configuration file.")
+        dataset = get_train_dataset(self.cfg, train_path)
+        dataloader = DataLoader(
+            dataset,
+            batch_size=self.cfg.training.batch_size,
+            num_workers=self.cfg.training.num_workers,
+            pin_memory=True,
+        )
+        return dataloader
 
     def get_val_dataloader(self, val_path: str) -> DataLoader:
         """Return a validation dataloader.
@@ -440,18 +445,19 @@ class Engine:
         ValueError
             If the training configuration is None
         """
-        if self.cfg.training is not None:
-            dataset = get_validation_dataset(self.cfg, val_path)
-            dataloader = DataLoader(
-                dataset,
-                batch_size=self.cfg.training.batch_size,
-                num_workers=self.cfg.training.num_workers,
-                pin_memory=True,
-            )
-            return dataloader
+        assert self.cfg is not None, "Missing configuration."  # mypy
+        assert (
+            self.cfg.training is not None
+        ), "Missing training entry in configuration."  # mypy
 
-        else:
-            raise ValueError("Missing training entry in configuration file.")
+        dataset = get_validation_dataset(self.cfg, val_path)
+        dataloader = DataLoader(
+            dataset,
+            batch_size=self.cfg.training.batch_size,
+            num_workers=self.cfg.training.num_workers,
+            pin_memory=True,
+        )
+        return dataloader
 
     def get_predict_dataloader(
         self,
@@ -476,9 +482,14 @@ class Engine:
         ValueError
             If the training configuration is None
         """
+        assert self.cfg is not None, "Missing configuration."  # mypy
+
         if external_input is not None:
+            assert (
+                self.cfg.data.mean is not None and self.cfg.data.std is not None
+            ), "Missing data entry in configuration."  # mypy
             normalized_input = normalize(
-                external_input, self.cfg.data.mean, self.cfg.data.std
+                img=external_input, mean=self.cfg.data.mean, std=self.cfg.data.std
             )
             normalized_input = normalized_input.astype(np.float32)
             dataset = TensorDataset(torch.from_numpy(normalized_input))
@@ -515,6 +526,8 @@ class Engine:
         save_method : str
             Method to save the model. Can be 'state_dict', or jit.
         """
+        assert self.cfg is not None, "Missing configuration."  # mypy
+
         if epoch == 0 or losses[-1] < min(losses):
             name = f"{self.cfg.experiment_name}_best.pth"
         else:
