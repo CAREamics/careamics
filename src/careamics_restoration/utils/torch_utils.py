@@ -23,7 +23,7 @@ def setup_cudnn_reproducibility(
 ) -> None:
     """Prepares CuDNN benchmark and sets it to be deterministic/non-deterministic mode.
 
-    See https://pytorch.org/docs/stable/notes/randomness.html#cuda-convolution-benchmarking.
+    https://pytorch.org/docs/stable/notes/randomness.html#cuda-convolution-benchmarking.
 
     Args:
         deterministic: deterministic mode if running in CuDNN backend.

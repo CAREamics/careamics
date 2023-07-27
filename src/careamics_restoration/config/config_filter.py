@@ -14,7 +14,7 @@ def paths_to_str(dictionary: dict) -> dict:
     -------
     dict
         Modified dictionary.
-    """ """
+
     """
     for k in dictionary.keys():
         if isinstance(dictionary[k], Path):

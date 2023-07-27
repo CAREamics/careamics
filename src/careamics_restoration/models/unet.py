@@ -165,7 +165,9 @@ class UnetDecoder(nn.Module):
 
 
 class UNet(nn.Module):
-    """UNet model. Refactored from https://github.com/juglab/n2v/blob/main/n2v/nets/unet_blocks.py.
+    """UNet model.
+
+    Refactored from https://github.com/juglab/n2v/blob/main/n2v/nets/unet_blocks.py.
 
     args:
         conv_dim: int
