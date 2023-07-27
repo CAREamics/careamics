@@ -280,7 +280,7 @@ def extract_patches_sequential(
 
 # TODO: extract patches random but with the possibility to remove (almost) empty patches
 def extract_patches_random(
-    arr: np.ndarray, patch_size: Tuple[int], seed: int = 42
+    arr: np.ndarray, patch_size: Union[List[int], Tuple[int]], seed: int = 42
 ) -> Generator[np.ndarray, None, None]:
     """Extracts random patches.
 

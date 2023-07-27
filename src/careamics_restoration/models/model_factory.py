@@ -55,13 +55,10 @@ def create_model(
     ValueError
         If neither config nor model_path is provided
     """
-    if config is None and model_path is None:
-        raise ValueError("Either config or model_path must be provided")
-
     if model_path is not None:
         # Create model from checkpoint
         model_path = Path(model_path)
-        if not model_path.exists or not model_path.suffix == ".pth":
+        if not model_path.exists() or not model_path.suffix == ".pth":
             raise ValueError(f"Invalid model path: {model_path}")
 
         # Load checkpoint
@@ -94,7 +91,8 @@ def create_model(
             config, model, state_dict=checkpoint
         )
         scaler = get_grad_scaler(config, state_dict=checkpoint)
-    else:
+
+    elif config is not None:
         # Create model from configuration
         algo_config = config.algorithm
         model_config = algo_config.model_parameters
@@ -106,9 +104,12 @@ def create_model(
             conv_dim=algo_config.get_conv_dim(),
             num_channels_init=model_config.num_channels_init,
         )
-        assert config is not None, "Configuration must be provided" # mypy
+        assert config is not None, "Configuration must be provided"  # mypy
         optimizer, scheduler = get_optimizer_and_scheduler(config, model)
         scaler = get_grad_scaler(config)
+
+    else:
+        raise ValueError("Either config or model_path must be provided")
 
     return model, optimizer, scheduler, scaler, config
 

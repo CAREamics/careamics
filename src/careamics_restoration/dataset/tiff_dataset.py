@@ -224,10 +224,12 @@ class TiffDataset(torch.utils.data.IterableDataset):
             if no patches are generated
         """
         patches = None
+        assert self.patch_size is not None, "Patch size must be provided"
 
         if self.patch_extraction_method == ExtractionStrategies.TILED:
+            assert self.patch_overlap is not None, "Patch overlap must be provided"
             patches = extract_tiles(
-                sample, tile_size=self.patch_size, overlaps=self.patch_overlap
+                arr=sample, tile_size=self.patch_size, overlaps=self.patch_overlap
             )
 
         elif self.patch_extraction_method == ExtractionStrategies.SEQUENTIAL:
@@ -270,6 +272,9 @@ class TiffDataset(torch.utils.data.IterableDataset):
         ------
         np.ndarray
         """
+        assert (
+            self.mean is not None and self.std is not None
+        ), "Mean and std must be provided"
         for sample in self.iterate_files():
             # TODO patch_extraction_method should never be None!
             if self.patch_extraction_method:
@@ -280,10 +285,12 @@ class TiffDataset(torch.utils.data.IterableDataset):
                     # TODO: remove this ugly workaround for normalizing 'prediction'
                     # patches
                     if isinstance(patch, tuple):
-                        normalized_patch = normalize(patch[0], self.mean, self.std)
+                        normalized_patch = normalize(
+                            img=patch[0], mean=self.mean, std=self.std
+                        )
                         patch = (normalized_patch, *patch[1:])
                     else:
-                        patch = normalize(patch, self.mean, self.std)
+                        patch = normalize(img=patch, mean=self.mean, std=self.std)
 
                     if self.patch_transform is not None:
                         patch = self.patch_transform(
@@ -297,13 +304,11 @@ class TiffDataset(torch.utils.data.IterableDataset):
                 # sample in dim 0
                 for item in sample[0]:
                     item = np.expand_dims(item, (0, 1))
-                    item = normalize(item, self.mean, self.std)
+                    item = normalize(img=item, mean=self.mean, std=self.std)
                     yield item
 
 
-def get_train_dataset(
-    config: Configuration, train_path: str
-) -> TiffDataset:
+def get_train_dataset(config: Configuration, train_path: str) -> TiffDataset:
     """Create Dataset instance from configuration.
 
     Parameters
@@ -341,9 +346,7 @@ def get_train_dataset(
     return dataset
 
 
-def get_validation_dataset(
-    config: Configuration, val_path: str
-) -> TiffDataset:
+def get_validation_dataset(config: Configuration, val_path: str) -> TiffDataset:
     """Create Dataset instance from configuration.
 
     Parameters
@@ -385,9 +388,7 @@ def get_validation_dataset(
     return dataset
 
 
-def get_prediction_dataset(
-    config: Configuration, pred_path: str
-) -> TiffDataset:
+def get_prediction_dataset(config: Configuration, pred_path: str) -> TiffDataset:
     """Create Dataset instance from configuration.
 
     Parameters
