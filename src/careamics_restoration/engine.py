@@ -539,6 +539,34 @@ class Engine:
         if "b" not in axes:
             axes = "b" + axes
 
+        # set mean & std for pre/post processings from config
+        if self.cfg.data.mean is not None:
+            specs["preprocessing"] = [  # for multiple inputs
+                [  # multiple processes per input
+                    {
+                        "kwargs": {
+                            "axes": "yx",
+                            "mean": [self.cfg.data.mean],
+                            "mode": "fixed",
+                            "std": [self.cfg.data.std],
+                        },
+                        "name": "zero_mean_unit_variance",
+                    }
+                ]
+            ]
+            specs["postprocessing"] = [  # for multiple outputs
+                [  # multiple processes per input
+                    {
+                        "kwargs": {
+                            "axes": "yx",
+                            "gain": [self.cfg.data.mean],
+                            "offset": [self.cfg.data.std],
+                        },
+                        "name": "scale_linear",
+                    }
+                ]
+            ]
+
         specs.update(
             {
                 "output_path": str(output_zip),
