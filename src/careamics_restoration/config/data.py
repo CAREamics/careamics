@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import Optional
+from typing import Dict, List, Optional
 
 from pydantic import (
     BaseModel,
@@ -27,7 +27,7 @@ class SupportedExtensions(str, Enum):
     NPY = "npy"
 
     @classmethod
-    def _missing_(cls, value: object):
+    def _missing_(cls, value: object) -> str:
         """Override default behaviour for missing values.
 
         This method is called when `value` is not found in the enum values. It convert
@@ -139,7 +139,7 @@ class Data(BaseModel):
 
         return data_model
 
-    def model_dump(self, *args, **kwargs) -> dict:
+    def model_dump(self, *args: List, **kwargs: Dict) -> dict:
         """Override model_dump method.
 
         The purpose is to ensure export smooth import to yaml. It includes:

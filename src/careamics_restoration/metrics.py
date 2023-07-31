@@ -41,12 +41,14 @@ def zero_mean(x: np.ndarray) -> np.ndarray:
     return x - np.mean(x)
 
 
-def fix_range(gt: np.ndarray, x):
+def fix_range(gt: np.ndarray, x: np.ndarray) -> np.ndarray:
+    """Adjust the range of an array."""
     a = np.sum(gt * x) / (np.sum(x * x))
     return x * a
 
 
-def fix(gt, x):
+def fix(gt: np.ndarray, x: np.ndarray) -> np.ndarray:
+    """Zero mean the groud truth."""
     gt_ = zero_mean(gt)
     return fix_range(gt_, zero_mean(x))
 
@@ -66,9 +68,9 @@ def scale_invariant_psnr(gt: np.ndarray, pred: np.ndarray) -> float:
     Callable
         Scale invariant PSNR
     """
-    range = (np.max(gt) - np.min(gt)) / np.std(gt)
+    range_parameter = (np.max(gt) - np.min(gt)) / np.std(gt)
     gt_ = zero_mean(gt) / np.std(gt)
-    return psnr(zero_mean(gt_), fix(gt_, pred), range)
+    return psnr(zero_mean(gt_), fix(gt_, pred), range_parameter)
 
 
 class MetricTracker:

@@ -4,7 +4,7 @@ import numpy as np
 
 
 def stitch_prediction(
-    tiles: List[Tuple[np.ndarray, List[int], List[int]]],
+    tiles: List[Tuple[np.ndarray, List, List]],
     input_shape: Tuple[int],
 ) -> np.ndarray:
     """Stitches tiles back together to form a full image.

@@ -25,8 +25,10 @@ LOGGERS: dict = {}
 
 # TODO: export all the loggers to the same file
 def get_logger(
-    name: str, log_level=logging.INFO, log_path: Optional[Union[str, Path]] = None
-):
+    name: str,
+    log_level: int = logging.INFO,
+    log_path: Optional[Union[str, Path]] = None,
+) -> logging.Logger:
     """Creates a python logger instance with configured handlers."""
     logger = logging.getLogger(name)
     if name in LOGGERS:
@@ -66,12 +68,12 @@ class ProgressLogger:
     Can track progress of different concurrent iterable tasks.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.is_in_notebook = "ipykernel" in sys.modules
 
         self.console = Console()
 
-        self.tasks = {}
+        self.tasks = {}  # type: dict
         self.total_progress = Progress(
             TextColumn("{task.description}", justify="right"),
             MofNCompleteColumn(),
@@ -102,21 +104,23 @@ class ProgressLogger:
             self.console.print(header_panel)
 
         self.interface = Group(progress_group)
-        self.live = None
+        self.live = Live(self.interface)
 
     @staticmethod
-    def _open_banner():
+    def _open_banner() -> str:
         banner_path = Path(__file__).with_name("ascii_logo.txt")
         with banner_path.open() as file:
             banner = file.read()
         return banner
 
-    def _start_live_if_needed(self):
-        if not self.live:
+    def _start_live_if_needed(self) -> None:
+        if self.live is None:
             self.live = Live(self.interface)
             self.live.__enter__()
 
-    def _get_task(self, task_name: str, task_length: Optional[int], tracker: Progress):
+    def _get_task(
+        self, task_name: str, task_length: Optional[int], tracker: Progress
+    ) -> int:
         if task_name not in self.tasks:
             task_id = tracker.add_task(task_name, total=task_length)
             self.tasks[task_name] = task_id
@@ -127,7 +131,8 @@ class ProgressLogger:
 
         return task_id
 
-    def __del__(self):
+    def __del__(self) -> None:
+        """Exits the logger."""
         self.reset()
 
     def reset(self) -> None:
@@ -157,7 +162,7 @@ class ProgressLogger:
         task_name: str,
         overall_progress: bool = False,
         persistent: bool = True,
-    ):
+    ) -> Iterable:
         """
         Tracks progress of an iterable task.
 

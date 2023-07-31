@@ -1,3 +1,6 @@
+"""Main module."""
+
+
 from importlib.metadata import PackageNotFoundError, version
 
 try:
@@ -5,4 +8,4 @@ try:
 except PackageNotFoundError:
     __version__ = "uninstalled"
 
-from .engine import Engine
+from .engine import Engine as Engine
