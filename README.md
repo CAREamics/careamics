@@ -29,7 +29,7 @@ The Engine could be initialized in 2 ways:
 1. Using the [yaml config](examples/n2v_2D_reference.yml) file
 
 Specify the mandatory parameters in the config file
----
+```yaml
 experiment_name: Name of the experiment
 working_directory: Path to the working directory, where all the outputs will be stored
 
@@ -48,7 +48,7 @@ extraction_strategy: Controls how the patches are extracted from the data
 data:
     data_format: File extension, e.g. tif
     axes: Defines the shape of the input data
----
+```
 Full description of the configuration parameters is in the [documentation](https://careamics.github.io/careamics-restoration/).
 
 
