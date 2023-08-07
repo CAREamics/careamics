@@ -15,18 +15,23 @@
 ## Installation
 
 ``` bash
-pip install careamics[all]
-pip install careamics[wandb]
-etc...
+pip install careamics
 ```
+For more details on the options please follow the installation [guide](https://careamics.github.io/careamics-restoration/).
 
 ## Usage
 
-Define the main Engine object using either [yaml config](examples/n2v_2D_reference.yml) or path to pretrained model
-Define mandatory parameters in the config file
+CAREamics uses the Engine object to construct the pipeline for both training and prediction. First we import the Engine.
 ```python
-experiment_name: Random name of the experiment
-working_directory: Path to the working directory
+from careamics_restoration.engine import Engine
+```
+The Engine could be initialized in 2 ways:
+1. Using the [yaml config](examples/n2v_2D_reference.yml) file
+
+Specify the mandatory parameters in the config file
+---
+experiment_name: Name of the experiment
+working_directory: Path to the working directory, where all the outputs will be stored
 
 algorithm: 
     loss: type of loss function, e.g. n2v for Noise2Void
@@ -43,26 +48,31 @@ extraction_strategy: Controls how the patches are extracted from the data
 data:
     data_format: File extension, e.g. tif
     axes: Defines the shape of the input data
-```
-For more details on the config file please follow the [documentation](https://careamics.github.io/careamics-restoration/).
+---
+Full description of the configuration parameters is in the [documentation](https://careamics.github.io/careamics-restoration/).
+
 
 ```python
-from careamics_restoration.engine import Engine
-
-engine = Engine(config_path="n2v_2D_SEM.yml")
+engine = Engine(config_path="config.yml")
 
 ```
-Start training, providing the relative paths to train and validation data
+2. Using the path to the pretrained model
+It's also possible to initialize the Engine using the model checkpoint, saved during the training or downloaded from the [BioImage Model Zoo](https://bioimage.io/#/).
+Checkpoint must contain model_state_dict.
+Read more abount saving and loading models in the [documentation](https://careamics.github.io/careamics-restoration/).
+
+Once Engine is initialized, we can start training, providing the relative paths to train and validation data
 
 ```python
 engine.train(train_path=train_path, val_path=val_path)
 ```
+Training will run for the specified number of epochs and save the model checkpoint in the working directory.
 
-Do the same for prediction
+Prediction could be done directly after the training or by loading the pretrained model checkpoint.
 
 ```python
 predictions = engine.predict(pred_path=predict_path)
 ```
 
-For specific examples please follow the [example notebooks](examples).
+For more examples please take a look at the [notebooks](examples).
 
