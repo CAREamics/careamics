@@ -6,7 +6,7 @@
 
 # CAREamics Restoration
 
-[![License](https://img.shields.io/pypi/l/careamics-restoration.svg?color=green)](https://github.com/CAREamics/careamics-restoration/blob/main/LICENSE.md)
+[![License](https://img.shields.io/pypi/l/careamics-restoration.svg?color=green)](https://github.com/CAREamics/careamics-restoration/blob/main/LICENSE)
 [![PyPI](https://img.shields.io/pypi/v/careamics-restoration.svg?color=green)](https://pypi.org/project/careamics)
 [![Python Version](https://img.shields.io/pypi/pyversions/careamics-restoration.svg?color=green)](https://python.org)
 [![CI](https://github.com/CAREamics/careamics-restoration/actions/workflows/ci.yml/badge.svg)](https://github.com/CAREamics/careamics-restoration/actions/workflows/ci.yml)
