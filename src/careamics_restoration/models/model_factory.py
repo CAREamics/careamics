@@ -3,6 +3,7 @@ from typing import Dict, Optional, Tuple, Union
 
 import torch
 
+from ..bioimage import import_bioimage_model
 from ..config import Configuration
 from ..config.algorithm import Models
 from ..utils.logging import get_logger
@@ -59,8 +60,11 @@ def create_model(
     if model_path is not None:
         # Create model from checkpoint
         model_path = Path(model_path)
-        if not model_path.exists() or not model_path.suffix == ".pth":
+        if not model_path.exists or model_path.suffix not in [".pth", ".zip"]:
             raise ValueError(f"Invalid model path: {model_path}")
+
+        if model_path.suffix == ".zip":
+            model_path = import_bioimage_model(model_path)
 
         # Load checkpoint
         checkpoint = torch.load(model_path, map_location=device)
