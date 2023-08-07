@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Optional, Tuple, Union
+from typing import Dict, Optional, Tuple, Union
 
 import torch
 
@@ -31,6 +31,7 @@ def create_model(
     *,
     config: Optional[Configuration] = None,
     model_path: Optional[Union[str, Path]] = None,
+    device: Optional[torch.device] = None,
 ) -> torch.nn.Module:
     """Creates a model from a configuration file or a checkpoint.
 
@@ -56,9 +57,6 @@ def create_model(
     ValueError
         If neither config nor model_path is provided
     """
-    if config is None and model_path is None:
-        raise ValueError("Either config or model_path must be provided")
-
     if model_path is not None:
         # Create model from checkpoint
         model_path = Path(model_path)
@@ -69,7 +67,7 @@ def create_model(
             model_path = import_bioimage_model(model_path)
 
         # Load checkpoint
-        checkpoint = torch.load(model_path)
+        checkpoint = torch.load(model_path, map_location=device)
 
         # Load the configuration
         if "config" in checkpoint:
@@ -86,7 +84,7 @@ def create_model(
             conv_dim=algo_config.get_conv_dim(),
             num_channels_init=model_config.num_channels_init,
         )
-
+        model.to(device)
         # Load the model state dict
         if "model_state_dict" in checkpoint:
             model.load_state_dict(checkpoint["model_state_dict"])
@@ -98,7 +96,8 @@ def create_model(
             config, model, state_dict=checkpoint
         )
         scaler = get_grad_scaler(config, state_dict=checkpoint)
-    else:
+
+    elif config is not None:
         # Create model from configuration
         algo_config = config.algorithm
         model_config = algo_config.model_parameters
@@ -110,17 +109,30 @@ def create_model(
             conv_dim=algo_config.get_conv_dim(),
             num_channels_init=model_config.num_channels_init,
         )
-
+        model.to(device)
+        assert config is not None, "Configuration must be provided"  # mypy
         optimizer, scheduler = get_optimizer_and_scheduler(config, model)
         scaler = get_grad_scaler(config)
+
+    else:
+        raise ValueError("Either config or model_path must be provided")
 
     return model, optimizer, scheduler, scaler, config
 
 
 def get_optimizer_and_scheduler(
-    config: Configuration, model, state_dict=None
+    config: Configuration, model: torch.nn.Module, state_dict: Optional[Dict] = None
 ) -> Tuple[torch.optim.Optimizer, torch.optim.lr_scheduler.LRScheduler]:
     """Creates optimizer and learning rate scheduler objects.
+
+    Parameters
+    ----------
+    config : Configuration
+        Configuration object
+    model : torch.nn.Module
+        Model object
+    state_dict : Optional[Dict], optional
+        State dict of the checkpoint, by default None
 
     Returns
     -------
@@ -168,7 +180,9 @@ def get_optimizer_and_scheduler(
         raise ValueError("Missing training entry in configuration file.")
 
 
-def get_grad_scaler(cfg: Configuration, state_dict=None) -> torch.cuda.amp.GradScaler:
+def get_grad_scaler(
+    cfg: Configuration, state_dict: Optional[Dict] = None
+) -> torch.cuda.amp.GradScaler:
     """Create the gradscaler object.
 
     Returns

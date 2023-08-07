@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import Optional, Union
+from typing import Dict, List, Optional, Union
 
 import yaml
 from pydantic import (
@@ -193,7 +193,9 @@ class Configuration(BaseModel):
 
         return config
 
-    def model_dump(self, exclude_optionals: bool = True, *args, **kwargs) -> dict:
+    def model_dump(
+        self, exclude_optionals: bool = True, *args: List, **kwargs: Dict
+    ) -> Dict:
         """Override model_dump method.
 
         The purpose is to ensure export smooth import to yaml. It includes:

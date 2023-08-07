@@ -56,10 +56,10 @@ class TiffDataset(torch.utils.data.IterableDataset):
 
     def __init__(
         self,
-        data_path: Union[Path, str],
+        data_path: str,
         data_format: str,
         axes: str,
-        patch_extraction_method: ExtractionStrategies,
+        patch_extraction_method: Union[ExtractionStrategies, None],
         patch_size: Optional[Union[List[int], Tuple[int]]] = None,
         patch_overlap: Optional[Union[List[int], Tuple[int]]] = None,
         mean: Optional[float] = None,
@@ -71,7 +71,6 @@ class TiffDataset(torch.utils.data.IterableDataset):
         if not self.data_path.is_dir():
             raise ValueError("Path to data should be an existing folder.")
 
-        self.data_path = data_path
         self.data_format = data_format
         self.axes = axes
 
@@ -102,6 +101,27 @@ class TiffDataset(torch.utils.data.IterableDataset):
         return files
 
     def read_image(self, file_path: Path) -> np.ndarray:
+        """Reads a file and returns a numpy array.
+
+        Parameters
+        ----------
+        file_path : Path
+            pathlib.Path object containing a path to a file
+
+        Returns
+        -------
+        np.ndarray
+            array containing the image
+
+        Raises
+        ------
+        ValueError, OSError
+            if a file is not a valid tiff or damaged
+        ValueError
+            if data dimensions are not 2, 3 or 4
+        ValueError
+            if axes parameter from config is not consistent with data dimensions
+        """
         if file_path.suffix == ".npy":
             try:
                 sample = np.load(file_path)
@@ -119,7 +139,8 @@ class TiffDataset(torch.utils.data.IterableDataset):
 
         if len(sample.shape) < 2 or len(sample.shape) > 4:
             raise ValueError(
-                f"Incorrect data dimensions. Must be 2, 3 or 4 (got {sample.shape} for file {file_path})."
+                f"Incorrect data dimensions. Must be 2, 3 or 4 (got {sample.shape} for"
+                f"file {file_path})."
             )
 
         # check number of axes
@@ -131,6 +152,13 @@ class TiffDataset(torch.utils.data.IterableDataset):
         return sample
 
     def calculate_mean_and_std(self) -> Tuple[float, float]:
+        """Calculates mean and std of the dataset.
+
+        Returns
+        -------
+        Tuple[float, float]
+            Tuple containing mean and std
+        """
         means, stds = 0, 0
         num_samples = 0
 
@@ -150,6 +178,18 @@ class TiffDataset(torch.utils.data.IterableDataset):
     # TODO Jean-Paul: get rid of numpy for now
 
     def fix_axes(self, sample: np.ndarray) -> np.ndarray:
+        """Fixes axes of the sample to match the config axes.
+
+        Parameters
+        ----------
+        sample : np.ndarray
+            array containing the image
+
+        Returns
+        -------
+        np.ndarray
+            reshaped array
+        """
         # concatenate ST axes to N, return NCZYX
         if ("S" in self.axes or "T" in self.axes) and sample.dtype != "O":
             new_axes_len = len(self.axes.replace("Z", "").replace("YX", ""))
@@ -166,11 +206,30 @@ class TiffDataset(torch.utils.data.IterableDataset):
         return sample
 
     def generate_patches(self, sample: np.ndarray) -> Generator[np.ndarray, None, None]:
+        """Generate patches from a sample.
+
+        Parameters
+        ----------
+        sample : np.ndarray
+            array containing the image
+
+        Yields
+        ------
+        Generator[np.ndarray, None, None]
+            Generator function yielding patches/tiles
+
+        Raises
+        ------
+        ValueError
+            if no patches are generated
+        """
         patches = None
+        assert self.patch_size is not None, "Patch size must be provided"
 
         if self.patch_extraction_method == ExtractionStrategies.TILED:
+            assert self.patch_overlap is not None, "Patch overlap must be provided"
             patches = extract_tiles(
-                sample, tile_size=self.patch_size, overlaps=self.patch_overlap
+                arr=sample, tile_size=self.patch_size, overlaps=self.patch_overlap
             )
 
         elif self.patch_extraction_method == ExtractionStrategies.SEQUENTIAL:
@@ -184,7 +243,7 @@ class TiffDataset(torch.utils.data.IterableDataset):
 
         return patches
 
-    def iterate_files(self) -> np.ndarray:
+    def iterate_files(self) -> Generator:
         """
         Iterate over data source and yield whole image.
 
@@ -205,7 +264,7 @@ class TiffDataset(torch.utils.data.IterableDataset):
                 sample = self.read_image(filename)
                 yield sample
 
-    def __iter__(self) -> np.ndarray:
+    def __iter__(self) -> Generator[np.ndarray, None, None]:
         """
         Iterate over data source and yield single patch.
 
@@ -213,6 +272,9 @@ class TiffDataset(torch.utils.data.IterableDataset):
         ------
         np.ndarray
         """
+        assert (
+            self.mean is not None and self.std is not None
+        ), "Mean and std must be provided"
         for sample in self.iterate_files():
             # TODO patch_extraction_method should never be None!
             if self.patch_extraction_method:
@@ -220,14 +282,18 @@ class TiffDataset(torch.utils.data.IterableDataset):
                 patches = self.generate_patches(sample)
 
                 for patch in patches:
-                    # TODO: remove this ugly workaround for normalizing 'prediction' patches
+                    # TODO: remove this ugly workaround for normalizing 'prediction'
+                    # patches
                     if isinstance(patch, tuple):
-                        normalized_patch = normalize(patch[0], self.mean, self.std)
+                        normalized_patch = normalize(
+                            img=patch[0], mean=self.mean, std=self.std
+                        )
                         patch = (normalized_patch, *patch[1:])
                     else:
-                        patch = normalize(patch, self.mean, self.std)
+                        patch = normalize(img=patch, mean=self.mean, std=self.std)
 
                     if self.patch_transform is not None:
+                        assert self.patch_transform_params is not None
                         patch = self.patch_transform(
                             patch, **self.patch_transform_params
                         )
@@ -235,23 +301,32 @@ class TiffDataset(torch.utils.data.IterableDataset):
                     yield patch
 
             else:
-                # if S or T dims are not empty - assume every image is a separate sample in dim 0
-                # TODO: is there always mean and std?
+                # if S or T dims are not empty - assume every image is a separate
+                # sample in dim 0
                 for item in sample[0]:
                     item = np.expand_dims(item, (0, 1))
-                    item = normalize(item, self.mean, self.std)
+                    item = normalize(img=item, mean=self.mean, std=self.std)
                     yield item
 
 
-def get_train_dataset(
-    config: Configuration, train_path: Union[str, Path]
-) -> TiffDataset:
-    """
-    Create TiffDataset instance from configuration.
+def get_train_dataset(config: Configuration, train_path: str) -> TiffDataset:
+    """Create Dataset instance from configuration.
 
-    Yields
+    Parameters
+    ----------
+    config : Configuration
+        Configuration object
+    train_path : Union[str, Path]
+        Pathlike object with a path to training data
+
+    Returns
+    -------
+        Dataset object
+
+    Raises
     ------
-    TiffDataset
+    ValueError
+        No training configuration found
     """
     if config.training is None:
         raise ValueError("Training configuration is not defined.")
@@ -272,9 +347,26 @@ def get_train_dataset(
     return dataset
 
 
-def get_validation_dataset(
-    config: Configuration, val_path: Union[str, Path]
-) -> TiffDataset:
+def get_validation_dataset(config: Configuration, val_path: str) -> TiffDataset:
+    """Create Dataset instance from configuration.
+
+    Parameters
+    ----------
+    config : Configuration
+        Configuration object
+    val_path : Union[str, Path]
+        Pathlike object with a path to validation data
+
+    Returns
+    -------
+    TiffDataset
+        Dataset object
+
+    Raises
+    ------
+    ValueError
+        No validation configuration found
+    """
     if config.training is None:
         raise ValueError("Training configuration is not defined.")
 
@@ -297,9 +389,26 @@ def get_validation_dataset(
     return dataset
 
 
-def get_prediction_dataset(
-    config: Configuration, pred_path: Union[str, Path]
-) -> TiffDataset:
+def get_prediction_dataset(config: Configuration, pred_path: str) -> TiffDataset:
+    """Create Dataset instance from configuration.
+
+    Parameters
+    ----------
+    config : Configuration
+        Configuration object
+    pred_path : Union[str, Path]
+        Pathlike object with a path to prediction data
+
+    Returns
+    -------
+    TiffDataset
+        Dataset object
+
+    Raises
+    ------
+    ValueError
+        No prediction configuration found
+    """
     if config.prediction is None:
         raise ValueError("Prediction configuration is not defined.")
 

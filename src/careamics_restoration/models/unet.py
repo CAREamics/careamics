@@ -1,4 +1,4 @@
-from typing import List
+from typing import Callable, List, Optional
 
 import torch
 import torch.nn as nn
@@ -31,9 +31,9 @@ class UnetEncoder(nn.Module):
         in_channels: int = 1,
         depth: int = 3,
         num_channels_init: int = 64,
-        use_batch_norm=True,
-        dropout=0.0,
-        pool_kernel=2,
+        use_batch_norm: bool = True,
+        dropout: float = 0.0,
+        pool_kernel: int = 2,
     ) -> None:
         super().__init__()
 
@@ -102,8 +102,8 @@ class UnetDecoder(nn.Module):
         conv_dim: int,
         depth: int = 3,
         num_channels_init: int = 64,
-        use_batch_norm=True,
-        dropout=0.0,
+        use_batch_norm: bool = True,
+        dropout: float = 0.0,
     ) -> None:
         super().__init__()
 
@@ -139,7 +139,7 @@ class UnetDecoder(nn.Module):
 
         self.decoder_blocks = nn.ModuleList(decoder_blocks)
 
-    def forward(self, *features):
+    def forward(self, *features: List[torch.Tensor]) -> torch.Tensor:
         """Forward pass.
 
         Parameters
@@ -165,7 +165,9 @@ class UnetDecoder(nn.Module):
 
 
 class UNet(nn.Module):
-    """UNet model. Refactored from https://github.com/juglab/n2v/blob/main/n2v/nets/unet_blocks.py.
+    """UNet model.
+
+    Refactored from https://github.com/juglab/n2v/blob/main/n2v/nets/unet_blocks.py.
 
     args:
         conv_dim: int
@@ -205,10 +207,10 @@ class UNet(nn.Module):
         in_channels: int = 1,
         depth: int = 3,
         num_channels_init: int = 64,
-        use_batch_norm=True,
-        dropout=0.0,
-        pool_kernel=2,
-        last_activation=None,
+        use_batch_norm: bool = True,
+        dropout: float = 0.0,
+        pool_kernel: int = 2,
+        last_activation: Optional[Callable] = None,
     ) -> None:
         super().__init__()
 
@@ -236,7 +238,7 @@ class UNet(nn.Module):
         )
         self.last_activation = last_activation if last_activation else nn.Identity()
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Forward pass.
 
         Parameters

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from pydantic import (
     BaseModel,
@@ -135,7 +135,7 @@ class Prediction(BaseModel):
 
         return config
 
-    def model_dump(self, *args, **kwargs) -> dict:
+    def model_dump(self, *args: List, **kwargs: Dict) -> dict:
         """Override model_dump method.
 
         The purpose is to ensure export smooth import to yaml. It includes:

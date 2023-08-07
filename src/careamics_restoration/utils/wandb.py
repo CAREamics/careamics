@@ -9,6 +9,8 @@ from careamics_restoration.config import Configuration
 
 
 class WandBLogging:
+    """WandB logging class."""
+
     def __init__(
         self,
         experiment_name: str,
@@ -30,5 +32,6 @@ class WandBLogging:
         if model_to_watch:
             wandb.watch(model_to_watch, log="all", log_freq=1)
 
-    def log_metrics(self, metric_dict: Dict):
+    def log_metrics(self, metric_dict: Dict) -> None:
+        """Log metrics to wandb."""
         self.run.log(metric_dict, commit=True)
