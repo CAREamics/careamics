@@ -26,8 +26,8 @@ def stitch_prediction(
         # Crop predited tile according to overlap coordinates
         cropped_tile = tile[
             (
-                ...,
-                *[slice(c[0], c[1]) for c in overlap_crop_coords],
+                ...,  # type: ignore
+                *[slice(c[0], c[1]) for c in overlap_crop_coords],  # type: ignore
             )
         ]
         # TODO: removing ellipsis works for 3.11

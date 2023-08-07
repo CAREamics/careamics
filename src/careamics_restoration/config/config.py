@@ -221,7 +221,9 @@ class Configuration(BaseModel):
         dictionary["algorithm"] = self.algorithm.model_dump(
             exclude_optionals=exclude_optionals
         )
-        dictionary["data"] = self.data.model_dump(exclude_optionals=exclude_optionals)
+        dictionary["data"] = self.data.model_dump(
+            exclude_optionals=exclude_optionals  # type: ignore
+        )
 
         # same for optional fields
         if self.training is not None:
@@ -230,7 +232,7 @@ class Configuration(BaseModel):
             )
         if self.prediction is not None:
             dictionary["prediction"] = self.prediction.model_dump(
-                exclude_optionals=exclude_optionals
+                exclude_optionals=exclude_optionals  # type: ignore
             )
 
         return dictionary
