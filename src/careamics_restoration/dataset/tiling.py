@@ -4,6 +4,7 @@ from typing import Generator, List, Tuple, Union
 import numpy as np
 from skimage.util import view_as_windows
 
+from careamics_restoration.utils.rng import GLOBAL_RNG
 from careamics_restoration.utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -161,8 +162,7 @@ def compute_reshaped_view(
     arr: np.ndarray,
     window_shape: Tuple[int, ...],
     step: Tuple[int, ...],
-    output_shape: Tuple[int, ...],
-    seed: int = 42,
+    output_shape: Tuple[int, ...]
 ) -> np.ndarray:
     """Compute the reshaped views of an array.
 
@@ -177,11 +177,10 @@ def compute_reshaped_view(
     output_shape : Tuple[int]
         Shape of the output array
     """
-    rng = np.random.default_rng()
     patches = view_as_windows(arr, window_shape=window_shape, step=step).reshape(
         *output_shape
     )
-    rng.shuffle(patches, axis=0)
+    GLOBAL_RNG.shuffle(patches, axis=0)
     return patches
 
 
@@ -209,6 +208,7 @@ def patches_sanity_check(
             f"At least one of YX patch dimensions is inconsistent with image shape "
             f"(got {patch_size} patches for dims {arr.shape[-2:]})."
         )
+
 
 
 # TODO: this function does not ensure full coverage (see tests)
@@ -306,9 +306,8 @@ def extract_patches_random(
     # Patches sanity check
     patches_sanity_check(arr, patch_size, is_3d_patch)
 
-    rng = np.random.default_rng()
     # shuffle the array along the first axis TODO do we need shuffling?
-    rng.shuffle(arr, axis=0)
+    GLOBAL_RNG.shuffle(arr, axis=0)
 
     for sample_idx in range(arr.shape[0]):
         sample = arr[sample_idx]
@@ -317,7 +316,7 @@ def extract_patches_random(
         n_patches = np.ceil(np.prod(sample.shape) / np.prod(patch_size)).astype(int)
         for _ in range(n_patches):
             crop_coords = [
-                rng.integers(0, arr.shape[i + 1] - patch_size[i])
+                GLOBAL_RNG.integers(0, arr.shape[i + 1] - patch_size[i])
                 for i in range(len(patch_size))
             ]
             patch = (
