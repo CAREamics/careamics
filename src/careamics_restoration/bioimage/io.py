@@ -48,7 +48,10 @@ def get_default_model_specs(name: str) -> dict:
         "cite": [
             {
                 "doi": "10.48550/arXiv.1811.10980",
-                "text": 'A. Krull, T.-O. Buchholz and F. Jug, "Noise2Void - Learning Denoising From Single Noisy Images," 2019 IEEE/CVF Conference on Computer Vision and Pattern Recognition  (CVPR), 2019, pp. 2124-2132',
+                "text": 'A. Krull, T.-O. Buchholz and F. Jug, "Noise2Void - Learning '
+                'Denoising From Single Noisy Images," 2019 IEEE/CVF '
+                "Conference on Computer Vision and Pattern Recognition "
+                "(CVPR), 2019, pp. 2124-2132",
             }
         ],
         "input_axes": ["bcyx"],

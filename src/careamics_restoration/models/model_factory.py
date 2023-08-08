@@ -60,7 +60,7 @@ def create_model(
     if model_path is not None:
         # Create model from checkpoint
         model_path = Path(model_path)
-        if not model_path.exists or model_path.suffix not in [".pth", ".zip"]:
+        if not model_path.exists() or model_path.suffix not in [".pth", ".zip"]:
             raise ValueError(f"Invalid model path: {model_path}")
 
         if model_path.suffix == ".zip":

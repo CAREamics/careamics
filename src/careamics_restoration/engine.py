@@ -579,87 +579,93 @@ class Engine:
         `build_model` parameters.
         If None then it will be populated up by the model default specs.
         """
-        # get in/out samples' files
-        test_inputs, test_outputs = self._get_sample_io_files()
+        if self.cfg is not None:
+            # get in/out samples' files
+            test_inputs, test_outputs = self._get_sample_io_files()
 
-        specs = get_default_model_specs("n2v")
-        if model_specs is not None:
-            specs.update(model_specs)
+            specs = get_default_model_specs("n2v")
+            if model_specs is not None:
+                specs.update(model_specs)
 
-        # set in/out axes from config
-        axes = self.cfg.data.axes.lower().replace("s", "")
-        if "c" not in axes:
-            axes = "c" + axes
-        if "b" not in axes:
-            axes = "b" + axes
+            # set in/out axes from config
+            axes = self.cfg.data.axes.lower().replace("s", "")
+            if "c" not in axes:
+                axes = "c" + axes
+            if "b" not in axes:
+                axes = "b" + axes
 
-        # set mean & std for pre/post processings from config
-        if self.cfg.data.mean is not None:
-            specs["preprocessing"] = [  # for multiple inputs
-                [  # multiple processes per input
-                    {
-                        "kwargs": {
-                            "axes": "yx",
-                            "mean": [self.cfg.data.mean],
-                            "mode": "fixed",
-                            "std": [self.cfg.data.std],
-                        },
-                        "name": "zero_mean_unit_variance",
-                    }
+            # set mean & std for pre/post processings from config
+            if self.cfg.data.mean is not None:
+                specs["preprocessing"] = [  # for multiple inputs
+                    [  # multiple processes per input
+                        {
+                            "kwargs": {
+                                "axes": "yx",
+                                "mean": [self.cfg.data.mean],
+                                "mode": "fixed",
+                                "std": [self.cfg.data.std],
+                            },
+                            "name": "zero_mean_unit_variance",
+                        }
+                    ]
                 ]
-            ]
-            specs["postprocessing"] = [  # for multiple outputs
-                [  # multiple processes per input
-                    {
-                        "kwargs": {
-                            "axes": "yx",
-                            "gain": [self.cfg.data.mean],
-                            "offset": [self.cfg.data.std],
-                        },
-                        "name": "scale_linear",
-                    }
+                specs["postprocessing"] = [  # for multiple outputs
+                    [  # multiple processes per input
+                        {
+                            "kwargs": {
+                                "axes": "yx",
+                                "gain": [self.cfg.data.mean],
+                                "offset": [self.cfg.data.std],
+                            },
+                            "name": "scale_linear",
+                        }
+                    ]
                 ]
-            ]
 
-        specs.update(
-            {
-                "output_path": str(output_zip),
-                "architecture": "careamics_restoration.models.unet",
-                "test_inputs": test_inputs,
-                "test_outputs": test_outputs,
-                "input_axes": [axes],
-                "output_axes": [axes],
-            }
-        )
+            specs.update(
+                {
+                    "output_path": str(output_zip),
+                    "architecture": "careamics_restoration.models.unet",
+                    "test_inputs": test_inputs,
+                    "test_outputs": test_outputs,
+                    "input_axes": [axes],
+                    "output_axes": [axes],
+                }
+            )
 
-        raw_model = build_zip_model(
-            config=self.cfg,
-            model_specs=specs,
-        )
+            raw_model = build_zip_model(
+                config=self.cfg,
+                model_specs=specs,
+            )
 
-        return raw_model
+            return raw_model
+        else:
+            raise ValueError("Configuration is not defined.")
 
     def _get_sample_io_files(self) -> Tuple[List[str], List[str]]:
         """Create numpy files for each model's input and outputs."""
         # TODO: Right now this just creates random arrays.
         # input:
-        sample_input = np.random.randn(*self.cfg.training.patch_size)
-        # if there are more input axes (like channel, ...),
-        # then expand the sample dimensions.
-        len_diff = len(self.cfg.data.axes) - len(self.cfg.training.patch_size)
-        if len_diff > 0:
-            sample_input = np.expand_dims(
-                sample_input, axis=tuple(i for i in range(len_diff))
-            )
-        # finally add the batch dim
-        sample_input = np.expand_dims(sample_input, axis=0)
-        # TODO: output, I guess this is the same as input.
-        sample_output = np.random.randn(*sample_input.shape)
-        # save numpy files
-        workdir = self.cfg.working_directory
-        in_file = workdir.joinpath("test_inputs.npy")
-        np.save(in_file, sample_input)
-        out_file = workdir.joinpath("test_outputs.npy")
-        np.save(out_file, sample_output)
+        if self.cfg is not None and self.cfg.training is not None:
+            sample_input = np.random.randn(*self.cfg.training.patch_size)
+            # if there are more input axes (like channel, ...),
+            # then expand the sample dimensions.
+            len_diff = len(self.cfg.data.axes) - len(self.cfg.training.patch_size)
+            if len_diff > 0:
+                sample_input = np.expand_dims(
+                    sample_input, axis=tuple(i for i in range(len_diff))
+                )
+            # finally add the batch dim
+            sample_input = np.expand_dims(sample_input, axis=0)
+            # TODO: output, I guess this is the same as input.
+            sample_output = np.random.randn(*sample_input.shape)
+            # save numpy files
+            workdir = self.cfg.working_directory
+            in_file = workdir.joinpath("test_inputs.npy")
+            np.save(in_file, sample_input)
+            out_file = workdir.joinpath("test_outputs.npy")
+            np.save(out_file, sample_output)
 
-        return [str(in_file.absolute())], [str(out_file.absolute())]
+            return [str(in_file.absolute())], [str(out_file.absolute())]
+        else:
+            raise ValueError("Configuration is not defined.")
