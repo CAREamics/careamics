@@ -4,8 +4,8 @@ from typing import Generator, List, Tuple, Union
 import numpy as np
 from skimage.util import view_as_windows
 
-from careamics_restoration.utils.rng import GLOBAL_RNG
 from careamics_restoration.utils.logging import get_logger
+from careamics_restoration.utils.rng import GLOBAL_RNG
 
 logger = get_logger(__name__)
 
@@ -162,7 +162,7 @@ def compute_reshaped_view(
     arr: np.ndarray,
     window_shape: Tuple[int, ...],
     step: Tuple[int, ...],
-    output_shape: Tuple[int, ...]
+    output_shape: Tuple[int, ...],
 ) -> np.ndarray:
     """Compute the reshaped views of an array.
 
@@ -208,7 +208,6 @@ def patches_sanity_check(
             f"At least one of YX patch dimensions is inconsistent with image shape "
             f"(got {patch_size} patches for dims {arr.shape[-2:]})."
         )
-
 
 
 # TODO: this function does not ensure full coverage (see tests)
