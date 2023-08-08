@@ -45,7 +45,13 @@ def test_config_invalid_working_directory(tmp_path: Path, minimum_config: dict):
 
     Since its parent does not exist, this case is invalid.
     """
-    path = tmp_path / "tmp/tmp"
+    path = tmp_path / "tmp" / "tmp"
+    minimum_config["working_directory"] = str(path)
+    with pytest.raises(ValueError):
+        Configuration(**minimum_config)
+
+    path = tmp_path / "tmp.txt"
+    path.touch()
     minimum_config["working_directory"] = str(path)
     with pytest.raises(ValueError):
         Configuration(**minimum_config)
