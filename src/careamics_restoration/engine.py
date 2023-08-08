@@ -5,8 +5,13 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import torch
+from bioimageio.spec.model.raw_nodes import Model as BioimageModel
 from torch.utils.data import DataLoader, TensorDataset
 
+from careamics_restoration.bioimage import (
+    build_zip_model,
+    get_default_model_specs,
+)
 from careamics_restoration.utils.logging import ProgressLogger, get_logger
 
 from .config import Configuration, load_configuration
@@ -561,3 +566,100 @@ class Engine:
                 if isinstance(handler, FileHandler):
                     self.logger.removeHandler(handler)
                     handler.close()
+
+    def save_as_bioimage(
+        self, output_zip: Union[Path, str], model_specs: Optional[dict] = None
+    ) -> BioimageModel:
+        """Export the current model to BioImage.io model zoo format.
+
+        Parameters
+        ----------
+        output_zip (Union[Path, str]): Where to save the model zip file.
+        model_specs (Optional[dict]): a dictionary that keys are the bioimage-core
+        `build_model` parameters.
+        If None then it will be populated up by the model default specs.
+        """
+        # get in/out samples' files
+        test_inputs, test_outputs = self._get_sample_io_files()
+
+        specs = get_default_model_specs("n2v")
+        if model_specs is not None:
+            specs.update(model_specs)
+
+        # set in/out axes from config
+        axes = self.cfg.data.axes.lower().replace("s", "")
+        if "c" not in axes:
+            axes = "c" + axes
+        if "b" not in axes:
+            axes = "b" + axes
+
+        # set mean & std for pre/post processings from config
+        if self.cfg.data.mean is not None:
+            specs["preprocessing"] = [  # for multiple inputs
+                [  # multiple processes per input
+                    {
+                        "kwargs": {
+                            "axes": "yx",
+                            "mean": [self.cfg.data.mean],
+                            "mode": "fixed",
+                            "std": [self.cfg.data.std],
+                        },
+                        "name": "zero_mean_unit_variance",
+                    }
+                ]
+            ]
+            specs["postprocessing"] = [  # for multiple outputs
+                [  # multiple processes per input
+                    {
+                        "kwargs": {
+                            "axes": "yx",
+                            "gain": [self.cfg.data.mean],
+                            "offset": [self.cfg.data.std],
+                        },
+                        "name": "scale_linear",
+                    }
+                ]
+            ]
+
+        specs.update(
+            {
+                "output_path": str(output_zip),
+                "architecture": "careamics_restoration.models.unet",
+                "test_inputs": test_inputs,
+                "test_outputs": test_outputs,
+                "input_axes": [axes],
+                "output_axes": [axes],
+            }
+        )
+
+        raw_model = build_zip_model(
+            config=self.cfg,
+            model_specs=specs,
+        )
+
+        return raw_model
+
+    def _get_sample_io_files(self) -> Tuple[List[str], List[str]]:
+        """Create numpy files for each model's input and outputs."""
+        # TODO: Right now this just creates random arrays.
+        # input:
+        sample_input = np.random.randn(*self.cfg.training.patch_size)
+        # if there are more input axes (like channel, ...),
+        # then expand the sample dimensions.
+        len_diff = len(self.cfg.data.axes) - len(self.cfg.training.patch_size)
+        if len_diff > 0:
+            sample_input = np.expand_dims(
+                sample_input, axis=tuple(i for i in range(len_diff))
+            )
+        # finally add the batch dim
+        sample_input = np.expand_dims(sample_input, axis=0)
+        # TODO: output, I guess this is the same as input.
+        sample_output = np.random.randn(*sample_input.shape)
+        # save numpy files
+        workdir = self.cfg.working_directory
+        in_file = workdir.joinpath("test_inputs.npy")
+        np.save(in_file, sample_input)
+        out_file = workdir.joinpath("test_outputs.npy")
+        np.save(out_file, sample_output)
+
+        return [str(in_file.absolute())], [str(out_file.absolute())]
