@@ -91,6 +91,7 @@ def test_set_3D(minimum_config: dict):
 
 def test_at_least_one_of_training_or_prediction(complete_config: dict):
     """Test that at least one of training or prediction is specified."""
+    complete_config["training"]["use_wandb"] = True  # not default
     test_config = copy.deepcopy(complete_config)
 
     # remove training and prediction
@@ -168,6 +169,8 @@ def test_minimum_config(minimum_config: dict):
 
 def test_complete_config(complete_config: dict):
     """Test that we can instantiate a minimum config."""
+    complete_config["training"]["use_wandb"] = True  # not default
+
     dictionary = Configuration(**complete_config).model_dump()
     assert dictionary == complete_config
 

@@ -93,7 +93,7 @@ def complete_config(tmp_path: Path, minimum_config: dict) -> dict:
     complete_config["training"]["lr_scheduler"]["parameters"] = {
         "patience": 22,
     }
-    complete_config["training"]["use_wandb"] = True
+    complete_config["training"]["use_wandb"] = False
     complete_config["training"]["num_workers"] = 6
     complete_config["training"]["amp"] = {
         "use": True,
