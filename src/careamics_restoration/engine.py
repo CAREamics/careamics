@@ -42,7 +42,6 @@ def seed_everything(seed: int) -> int:
     return seed
 
 
-# TODO: discuss normalization strategies, test running mean and std
 class Engine:
     """Class allowing training and prediction of a model.
 
@@ -580,10 +579,18 @@ class Engine:
         If None then it will be populated up by the model default specs.
         """
         if self.cfg is not None:
+            if self.cfg.data.mean is None or self.cfg.data.std is None:
+                raise ValueError(
+                    "Mean or std are not specified in the configuration, export to "
+                    "bioimage.io format is not possible."
+                )
+
             # get in/out samples' files
             test_inputs, test_outputs = self._get_sample_io_files()
 
-            specs = get_default_model_specs("n2v")
+            specs = get_default_model_specs(
+                "n2v", self.cfg.data.mean, self.cfg.data.std, self.cfg.algorithm.is_3D
+            )
             if model_specs is not None:
                 specs.update(model_specs)
 
@@ -593,34 +600,6 @@ class Engine:
                 axes = "c" + axes
             if "b" not in axes:
                 axes = "b" + axes
-
-            # set mean & std for pre/post processings from config
-            if self.cfg.data.mean is not None:
-                specs["preprocessing"] = [  # for multiple inputs
-                    [  # multiple processes per input
-                        {
-                            "kwargs": {
-                                "axes": "yx",
-                                "mean": [self.cfg.data.mean],
-                                "mode": "fixed",
-                                "std": [self.cfg.data.std],
-                            },
-                            "name": "zero_mean_unit_variance",
-                        }
-                    ]
-                ]
-                specs["postprocessing"] = [  # for multiple outputs
-                    [  # multiple processes per input
-                        {
-                            "kwargs": {
-                                "axes": "yx",
-                                "gain": [self.cfg.data.mean],
-                                "offset": [self.cfg.data.std],
-                            },
-                            "name": "scale_linear",
-                        }
-                    ]
-                ]
 
             specs.update(
                 {

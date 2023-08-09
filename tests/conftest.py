@@ -61,13 +61,13 @@ def minimum_config(tmp_path: Path) -> dict:
 
 
 @pytest.fixture
-def complete_config(tmp_path: Path, minimum_config: dict) -> dict:
+def complete_config(minimum_config: dict) -> dict:
     """Create a complete configuration.
+
+    This configuration should not be used for testing an Engine.
 
     Parameters
     ----------
-    tmp_path : Path
-        Temporary path for testing.
     minimum_config : dict
         A minimum configuration.
 
@@ -93,7 +93,7 @@ def complete_config(tmp_path: Path, minimum_config: dict) -> dict:
     complete_config["training"]["lr_scheduler"]["parameters"] = {
         "patience": 22,
     }
-    complete_config["training"]["use_wandb"] = False
+    complete_config["training"]["use_wandb"] = True
     complete_config["training"]["num_workers"] = 6
     complete_config["training"]["amp"] = {
         "use": True,

@@ -32,10 +32,31 @@ def _get_model_covers(name: str) -> List:
     return []
 
 
-def get_default_model_specs(name: str) -> dict:
-    """Return the default specs for given model's name."""
+def get_default_model_specs(
+    name: str, mean: float, std: float, is_3D: bool = False
+) -> dict:
+    """Return the default bioimage.io specs for given model's name.
+
+    Currently only supports `n2v` model.
+
+    Parameters
+    ----------
+    name : str
+        Algorithm's name.
+    mean : float
+        Mean of the dataset.
+    std : float
+        Std of the dataset.
+    is_3D : bool, optional
+        Whether the model is 3D or not, by default False.
+
+    Returns
+    -------
+    dict
+        Model specs compatible with bioimage.io export.
+    """
     name = name.lower()
-    # for now it's just N2V specs.
+
     rdf = {
         "name": "Noise2Void",
         "description": "Self-supervised denoising.",
@@ -54,28 +75,28 @@ def get_default_model_specs(name: str) -> dict:
                 "(CVPR), 2019, pp. 2124-2132",
             }
         ],
-        "input_axes": ["bcyx"],
+        # "input_axes": ["bcyx"], <- overriden in save_as_bioimage
         "preprocessing": [  # for multiple inputs
             [  # multiple processes per input
                 {
                     "kwargs": {
-                        "axes": "yx",
-                        "mean": [46912.574],
+                        "axes": "zyx" if is_3D else "yx",
+                        "mean": [mean],
                         "mode": "fixed",
-                        "std": [16847.809],
+                        "std": [std],
                     },
                     "name": "zero_mean_unit_variance",
                 }
             ]
         ],
-        "output_axes": ["bcyx"],
+        # "output_axes": ["bcyx"], <- overriden in save_as_bioimage
         "postprocessing": [  # for multiple outputs
             [  # multiple processes per input
                 {
                     "kwargs": {
-                        "axes": "yx",
-                        "gain": [16847.809],
-                        "offset": [46912.574],
+                        "axes": "zyx" if is_3D else "yx",
+                        "gain": [std],
+                        "offset": [mean],
                     },
                     "name": "scale_linear",
                 }
