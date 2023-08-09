@@ -45,8 +45,6 @@ def get_default_model_specs(
     dict
         Model specs compatible with bioimage.io export.
     """
-    name = name.lower()
-
     rdf = {
         "name": "Noise2Void",
         "description": "Self-supervised denoising.",
