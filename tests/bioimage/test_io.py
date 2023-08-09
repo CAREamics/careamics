@@ -9,6 +9,7 @@ from careamics_restoration.bioimage.io import get_default_model_specs
 from careamics_restoration.config import Configuration, save_configuration
 from careamics_restoration.engine import Engine
 from careamics_restoration.models import create_model
+from careamics_restoration.utils import cwd
 
 
 def save_checkpoint(engine: Engine, config: Configuration) -> None:
@@ -112,7 +113,6 @@ def test_generate_rdf_without_mean_std(minimum_config: dict):
 
 def test_bioimage_export_default(minimum_config: dict, tmp_path: Path, request):
     """Test model export to bioimage format by using default specs."""
-
     # create configuration and save it to disk
     minimum_config["data"]["mean"] = 666.666
     minimum_config["data"]["std"] = 42.420
@@ -131,15 +131,16 @@ def test_bioimage_export_default(minimum_config: dict, tmp_path: Path, request):
     zip_file = tmp_path / "tmp_model.bioimage.io.zip"
 
     # export the model (overriding the weight_uri)
-    engine.save_as_bioimage(zip_file)
+    with cwd(tmp_path):
+        engine.save_as_bioimage(zip_file)
 
-    # put zip file in the cache for the import test
-    request.config.cache.set("bioimage_model", str(zip_file))
+        # put zip file in the cache for the import test
+        request.config.cache.set("bioimage_model", str(zip_file))
 
-    assert zip_file.exists()
+        assert zip_file.exists()
 
-    rdf = load_resource_description(zip_file)
-    assert isinstance(rdf, nodes.ResourceDescription)
+        rdf = load_resource_description(zip_file)
+        assert isinstance(rdf, nodes.ResourceDescription)
 
 
 def test_bioimage_import(request):
