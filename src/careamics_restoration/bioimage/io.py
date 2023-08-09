@@ -18,8 +18,8 @@ def _get_model_doc(name: str) -> str:
     doc = Path(__file__).parent.joinpath("docs").joinpath(f"{name}.md")
     if doc.exists():
         return str(doc.absolute())
-
-    return ""
+    else:
+        raise FileNotFoundError(f"Documentation for {name} was not found.")
 
 
 def get_default_model_specs(
