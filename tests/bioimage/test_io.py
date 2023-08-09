@@ -51,6 +51,65 @@ def test_default_model_specs(name, is_3D):
     assert specs["postprocessing"][0][0]["kwargs"]["axes"] == axes
 
 
+def test_bioimage_generate_rdf(minimum_config: dict):
+    """Test model export to bioimage format by using default specs."""
+
+    # create configuration and save it to disk
+    mean = 666.666
+    std = 42.420
+    minimum_config["data"]["mean"] = mean
+    minimum_config["data"]["std"] = std
+    config = Configuration(**minimum_config)
+
+    # create an engine to export the model
+    engine = Engine(config=config)
+
+    # Sample files
+    test_inputs, test_outputs = engine._get_sample_io_files()
+
+    # Export rdf
+    rdf = engine._generate_rdf()
+    assert rdf["preprocessing"][0][0]["kwargs"]["mean"] == [mean]
+    assert rdf["preprocessing"][0][0]["kwargs"]["std"] == [std]
+    assert rdf["postprocessing"][0][0]["kwargs"]["offset"] == [mean]
+    assert rdf["postprocessing"][0][0]["kwargs"]["gain"] == [std]
+    assert rdf["test_inputs"] == test_inputs
+    assert rdf["test_outputs"] == test_outputs
+    assert rdf["input_axes"] == ["bcyx"]
+    assert rdf["output_axes"] == ["bcyx"]
+
+    # Change to 3D
+    config.set_3D(True, "SZYX")
+    engine = Engine(config=config)
+    test_inputs, test_outputs = engine._get_sample_io_files()
+    rdf = engine._generate_rdf()
+    assert rdf["input_axes"] == ["bczyx"]
+    assert rdf["output_axes"] == ["bczyx"]
+
+    # Test model specs
+    model_specs = {"description": "Some description", "license": "to kill"}
+    rdf = engine._generate_rdf(model_specs=model_specs)
+    assert rdf["description"] == model_specs["description"]
+    assert rdf["license"] == model_specs["license"]
+
+
+def test_generate_rdf_without_mean_std(minimum_config: dict):
+    """Test that generating rdf without specifying mean and std
+    raises an error."""
+    # create configuration and save it to disk
+    config = Configuration(**minimum_config)
+
+    # create an engine to export the model
+    engine = Engine(config=config)
+    with pytest.raises(ValueError):
+        engine._generate_rdf()
+
+    # test if error is raised when config is None
+    engine.config = None
+    with pytest.raises(ValueError):
+        engine._generate_rdf()
+
+
 def test_bioimage_export_default(minimum_config: dict, tmp_path: Path, request):
     """Test model export to bioimage format by using default specs."""
 
@@ -69,7 +128,7 @@ def test_bioimage_export_default(minimum_config: dict, tmp_path: Path, request):
     save_checkpoint(engine, minimum_config)
 
     # output zip file
-    zip_file = tmp_path.joinpath("tmp_model.zip")
+    zip_file = tmp_path / "tmp_model.bioimage.io.zip"
 
     # export the model (overriding the weight_uri)
     engine.save_as_bioimage(zip_file)
@@ -83,35 +142,11 @@ def test_bioimage_export_default(minimum_config: dict, tmp_path: Path, request):
     assert isinstance(rdf, nodes.ResourceDescription)
 
 
-def test_bioimage_export_without_mean_std(minimum_config: dict, tmp_path: Path):
-    """Test that model export to bioimage format without specifying mean and std
-    raises an error."""
-
-    # create configuration and save it to disk
-    config = Configuration(**minimum_config)
-    config_file = tmp_path / "tmp_config.yml"
-    save_configuration(config, config_file)
-
-    # create an engine to export the model
-    engine = Engine(config=config)
-
-    # save fake checkpoint
-    save_checkpoint(engine, minimum_config)
-
-    # output zip file
-    zip_file = tmp_path.joinpath("tmp_model.zip")
-
-    with pytest.raises(ValueError):
-        engine.save_as_bioimage(zip_file)
-
-    # test if error is raised when config is None
-    engine.config = None
-
-    with pytest.raises(ValueError):
-        engine.save_as_bioimage(zip_file)
-
-
 def test_bioimage_import(request):
+    """Test model import from bioimage format.
+
+    IMPORTANT: this test will only pass if `test_bioimage_export_default` passed.
+    """
     zip_file = request.config.cache.get("bioimage_model", None)
     if zip_file is not None and Path(zip_file).exists():
         # checkpoint_path = import_bioimage_model(zip_file)

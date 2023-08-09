@@ -226,3 +226,8 @@ def test_config_to_yaml_wrong_path(tmp_path: Path, minimum_config: dict):
     yaml_path = tmp_path / "tmp.txt"
     with pytest.raises(ValueError):
         save_configuration(myconf, yaml_path)
+
+    # existing file
+    yaml_path.touch()
+    with pytest.raises(ValueError):
+        save_configuration(myconf, yaml_path)

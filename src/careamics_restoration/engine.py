@@ -566,17 +566,27 @@ class Engine:
                     self.logger.removeHandler(handler)
                     handler.close()
 
-    def save_as_bioimage(
-        self, output_zip: Union[Path, str], model_specs: Optional[dict] = None
-    ) -> BioimageModel:
-        """Export the current model to BioImage.io model zoo format.
+    def _generate_rdf(self, model_specs: Optional[dict] = None) -> dict:
+        """Generate the rdf data for bioimage.io export.
 
         Parameters
         ----------
-        output_zip (Union[Path, str]): Where to save the model zip file.
-        model_specs (Optional[dict]): a dictionary that keys are the bioimage-core
-        `build_model` parameters.
-        If None then it will be populated up by the model default specs.
+        path : Union[Path, str]
+            Path to the output zip file.
+        model_specs : Optional[dict], optional
+            Custom specs if different than the default ones, by default None
+
+        Returns
+        -------
+        dict
+            RDF specs
+
+        Raises
+        ------
+        ValueError
+            If the mean or std are not specified in the configuration.
+        ValueError
+            If the configuration is not defined.
         """
         if self.cfg is not None:
             if self.cfg.data.mean is None or self.cfg.data.std is None:
@@ -589,7 +599,10 @@ class Engine:
             test_inputs, test_outputs = self._get_sample_io_files()
 
             specs = get_default_model_specs(
-                "n2v", self.cfg.data.mean, self.cfg.data.std, self.cfg.algorithm.is_3D
+                "Noise2Void",
+                self.cfg.data.mean,
+                self.cfg.data.std,
+                self.cfg.algorithm.is_3D,
             )
             if model_specs is not None:
                 specs.update(model_specs)
@@ -603,7 +616,6 @@ class Engine:
 
             specs.update(
                 {
-                    "output_path": str(output_zip),
                     "architecture": "careamics_restoration.models.unet",
                     "test_inputs": test_inputs,
                     "test_outputs": test_outputs,
@@ -611,8 +623,29 @@ class Engine:
                     "output_axes": [axes],
                 }
             )
+            return specs
+        else:
+            raise ValueError("Configuration is not defined.")
 
+    def save_as_bioimage(
+        self, output_zip: Union[Path, str], model_specs: Optional[dict] = None
+    ) -> BioimageModel:
+        """Export the current model to BioImage.io model zoo format.
+
+        Parameters
+        ----------
+        output_zip (Union[Path, str]): Where to save the model zip file.
+        model_specs (Optional[dict]): a dictionary that keys are the bioimage-core
+        `build_model` parameters.
+        If None then it will be populated up by the model default specs.
+        """
+        if self.cfg is not None:
+            # Generate specs
+            specs = self._generate_rdf(model_specs)
+
+            # Build model
             raw_model = build_zip_model(
+                path=output_zip,
                 config=self.cfg,
                 model_specs=specs,
             )
