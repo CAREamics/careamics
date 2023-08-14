@@ -23,22 +23,12 @@ def stitch_prediction(
     """
     predicted_image = np.zeros(input_shape, dtype=np.float32)
     for tile, overlap_crop_coords, stitch_coords in tiles:
+        # Compute coordinates for cropping predicted tile
+        slices = tuple([slice(c[0], c[1]) for c in overlap_crop_coords])
+
         # Crop predited tile according to overlap coordinates
-        cropped_tile = tile[
-            (
-                ...,
-                *[slice(c[0], c[1]) for c in overlap_crop_coords],
-            )
-        ]
-        # TODO: removing ellipsis works for 3.11
-        """ 3.11 syntax
-                    predicted_tile = outputs.squeeze()[
-                        *[
-                            slice(c[0].item(), c[1].item())
-                            for c in list(overlap_crop_coords)
-                        ],
-                    ]
-        """
+        cropped_tile = tile.squeeze()[slices]
+
         # Insert cropped tile into predicted image using stitch coordinates
         predicted_image[
             (..., *[slice(c[0], c[1]) for c in stitch_coords])

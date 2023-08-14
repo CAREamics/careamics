@@ -45,7 +45,13 @@ def test_config_invalid_working_directory(tmp_path: Path, minimum_config: dict):
 
     Since its parent does not exist, this case is invalid.
     """
-    path = tmp_path / "tmp/tmp"
+    path = tmp_path / "tmp" / "tmp"
+    minimum_config["working_directory"] = str(path)
+    with pytest.raises(ValueError):
+        Configuration(**minimum_config)
+
+    path = tmp_path / "tmp.txt"
+    path.touch()
     minimum_config["working_directory"] = str(path)
     with pytest.raises(ValueError):
         Configuration(**minimum_config)
@@ -208,3 +214,20 @@ def test_config_to_yaml(tmp_path: Path, minimum_config: dict):
     # load from yaml
     my_other_conf = load_configuration(yaml_path)
     assert my_other_conf == myconf
+
+
+def test_config_to_yaml_wrong_path(tmp_path: Path, minimum_config: dict):
+    """Test that an error is raised when the path is not a directory and not a .yml"""
+
+    # test that we can instantiate a config
+    myconf = Configuration(**minimum_config)
+
+    # export to yaml
+    yaml_path = tmp_path / "tmp.txt"
+    with pytest.raises(ValueError):
+        save_configuration(myconf, yaml_path)
+
+    # existing file
+    yaml_path.touch()
+    with pytest.raises(ValueError):
+        save_configuration(myconf, yaml_path)

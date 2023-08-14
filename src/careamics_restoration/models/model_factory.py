@@ -29,8 +29,8 @@ def model_registry(model_name: str) -> torch.nn.Module:
 
 def create_model(
     *,
-    config: Optional[Configuration] = None,
     model_path: Optional[Union[str, Path]] = None,
+    config: Optional[Configuration] = None,
     device: Optional[torch.device] = None,
 ) -> torch.nn.Module:
     """Creates a model from a configuration file or a checkpoint.
@@ -40,14 +40,13 @@ def create_model(
 
     Parameters
     ----------
-    config : Optional[Configuration], optional
-        Configuration object, by default None
     model_path : Optional[Union[str, Path]], optional
         Path to a checkpoint, by default None
+    config : Optional[Configuration], optional
+        Configuration object, by default None
 
     Returns
     -------
-    # TODO wrong return type
     torch.nn.Module
         Model object
 
@@ -60,7 +59,7 @@ def create_model(
     if model_path is not None:
         # Create model from checkpoint
         model_path = Path(model_path)
-        if not model_path.exists or model_path.suffix not in [".pth", ".zip"]:
+        if not model_path.exists() or model_path.suffix not in [".pth", ".zip"]:
             raise ValueError(f"Invalid model path: {model_path}")
 
         if model_path.suffix == ".zip":

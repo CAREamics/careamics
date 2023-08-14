@@ -221,7 +221,7 @@ class Configuration(BaseModel):
         dictionary["algorithm"] = self.algorithm.model_dump(
             exclude_optionals=exclude_optionals
         )
-        dictionary["data"] = self.data.model_dump(exclude_optionals=exclude_optionals)
+        dictionary["data"] = self.data.model_dump()
 
         # same for optional fields
         if self.training is not None:
@@ -229,9 +229,7 @@ class Configuration(BaseModel):
                 exclude_optionals=exclude_optionals
             )
         if self.prediction is not None:
-            dictionary["prediction"] = self.prediction.model_dump(
-                exclude_optionals=exclude_optionals
-            )
+            dictionary["prediction"] = self.prediction.model_dump()
 
         return dictionary
 
@@ -255,7 +253,6 @@ def load_configuration(path: Union[str, Path]) -> Configuration:
     return Configuration(**dictionary)
 
 
-# TODO add save optional to this function
 def save_configuration(config: Configuration, path: Union[str, Path]) -> Path:
     """Save configuration to path.
 
@@ -281,10 +278,16 @@ def save_configuration(config: Configuration, path: Union[str, Path]) -> Path:
     config_path = Path(path)
 
     # check if path is pointing to an existing directory or .yml file
-    if config_path.is_dir():
-        config_path = Path(config_path, "config.yml")
-    elif config_path.is_file() and config_path.suffix != ".yml":
-        raise ValueError(f"Path must be a directory or .yml file (got {config_path}).")
+    if config_path.exists():
+        if config_path.is_dir():
+            config_path = Path(config_path, "config.yml")
+        elif config_path.suffix != ".yml":
+            raise ValueError(
+                f"Path must be a directory or .yml file (got {config_path})."
+            )
+    else:
+        if config_path.suffix != ".yml":
+            raise ValueError(f"Path must be a .yml file (got {config_path}).")
 
     # save configuration as dictionary to yaml
     with open(config_path, "w") as f:
