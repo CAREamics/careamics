@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import List, Union
+from typing import Union
 
 import torch
 from bioimageio.core import load_resource_description
@@ -18,24 +18,33 @@ def _get_model_doc(name: str) -> str:
     doc = Path(__file__).parent.joinpath("docs").joinpath(f"{name}.md")
     if doc.exists():
         return str(doc.absolute())
-
-    return ""
-
-
-def _get_model_covers(name: str) -> List:
-    """Return image cover paths for a given model."""
-    cover_folder = Path(__file__).parent.joinpath("covers")
-    cover_images = list(cover_folder.glob(f"{name}_cover*.*"))
-    if len(cover_images) > 0:
-        return [str(img.absolute()) for img in cover_images]
-
-    return []
+    else:
+        raise FileNotFoundError(f"Documentation for {name} was not found.")
 
 
-def get_default_model_specs(name: str) -> dict:
-    """Return the default specs for given model's name."""
-    name = name.lower()
-    # for now it's just N2V specs.
+def get_default_model_specs(
+    name: str, mean: float, std: float, is_3D: bool = False
+) -> dict:
+    """Return the default bioimage.io specs for given model's name.
+
+    Currently only supports `n2v` model.
+
+    Parameters
+    ----------
+    name : str
+        Algorithm's name.
+    mean : float
+        Mean of the dataset.
+    std : float
+        Std of the dataset.
+    is_3D : bool, optional
+        Whether the model is 3D or not, by default False.
+
+    Returns
+    -------
+    dict
+        Model specs compatible with bioimage.io export.
+    """
     rdf = {
         "name": "Noise2Void",
         "description": "Self-supervised denoising.",
@@ -48,31 +57,34 @@ def get_default_model_specs(name: str) -> dict:
         "cite": [
             {
                 "doi": "10.48550/arXiv.1811.10980",
-                "text": 'A. Krull, T.-O. Buchholz and F. Jug, "Noise2Void - Learning Denoising From Single Noisy Images," 2019 IEEE/CVF Conference on Computer Vision and Pattern Recognition  (CVPR), 2019, pp. 2124-2132',
+                "text": 'A. Krull, T.-O. Buchholz and F. Jug, "Noise2Void - Learning '
+                'Denoising From Single Noisy Images," 2019 IEEE/CVF '
+                "Conference on Computer Vision and Pattern Recognition "
+                "(CVPR), 2019, pp. 2124-2132",
             }
         ],
-        "input_axes": ["bcyx"],
+        # "input_axes": ["bcyx"], <- overriden in save_as_bioimage
         "preprocessing": [  # for multiple inputs
             [  # multiple processes per input
                 {
                     "kwargs": {
-                        "axes": "yx",
-                        "mean": [46912.574],
+                        "axes": "zyx" if is_3D else "yx",
+                        "mean": [mean],
                         "mode": "fixed",
-                        "std": [16847.809],
+                        "std": [std],
                     },
                     "name": "zero_mean_unit_variance",
                 }
             ]
         ],
-        "output_axes": ["bcyx"],
+        # "output_axes": ["bcyx"], <- overriden in save_as_bioimage
         "postprocessing": [  # for multiple outputs
             [  # multiple processes per input
                 {
                     "kwargs": {
-                        "axes": "yx",
-                        "gain": [16847.809],
-                        "offset": [46912.574],
+                        "axes": "zyx" if is_3D else "yx",
+                        "gain": [std],
+                        "offset": [mean],
                     },
                     "name": "scale_linear",
                 }
@@ -82,12 +94,12 @@ def get_default_model_specs(name: str) -> dict:
     }
 
     rdf["documentation"] = _get_model_doc(name)
-    rdf["covers"] = _get_model_covers(name)
 
     return rdf
 
 
 def build_zip_model(
+    path: Union[str, Path],
     config: Configuration,
     model_specs: dict,
 ) -> Model:
@@ -95,33 +107,41 @@ def build_zip_model(
 
     Parameters
     ----------
-        config (Configuration): Careamics' configuration,
-        model_specs (dict): Model's specs to export.
+    path : Union[str, Path]
+        Path to the model zip file.
+    config : Configuration
+        Configuration object.
+    model_specs : dict
+        Model specification data.
 
-    Return
-    ------
-        A bioimage raw Model
+    Returns
+    -------
+    Model
+        Bioimage model object.
     """
     workdir = config.working_directory
-    # losd the best checkpoint
+
+    # load best checkpoint
     checkpoint_path = workdir.joinpath(f"{config.experiment_name}_best.pth").absolute()
     checkpoint = torch.load(checkpoint_path, map_location="cpu")
+
     # save chekpoint entries in separate files
     weight_path = workdir.joinpath("model_weights.pth")
     torch.save(checkpoint["model_state_dict"], weight_path)
-    #
+
     optim_path = workdir.joinpath("optim.pth")
     torch.save(checkpoint["optimizer_state_dict"], optim_path)
-    #
+
     scheduler_path = workdir.joinpath("scheduler.pth")
     torch.save(checkpoint["scheduler_state_dict"], scheduler_path)
-    #
+
     grad_path = workdir.joinpath("grad.pth")
     torch.save(checkpoint["grad_scaler_state_dict"], grad_path)
-    #
+
     config_path = workdir.joinpath("config.pth")
     torch.save(config.model_dump(), config_path)
 
+    # Create attachments
     attachments = [
         str(optim_path),
         str(scheduler_path),
@@ -144,7 +164,7 @@ def build_zip_model(
 
     # build model zip
     raw_model = build_model(
-        root=str(Path(model_specs["output_path"]).parent.absolute()),
+        output_path=Path(path).absolute(),
         **model_specs,
     )
 
