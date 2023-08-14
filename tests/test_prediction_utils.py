@@ -5,13 +5,14 @@ from careamics_restoration.prediction_utils import stitch_prediction
 
 
 @pytest.mark.parametrize(
-    "tile_size, overlaps",
+    "input_shape, tile_size, overlaps",
     [
-        ((4, 4), (2, 2)),
+        ((1, 8, 8), (4, 4), (2, 2)),
+        ((1, 7, 9), (4, 4), (2, 2)),
+        ((1, 9, 7, 8), (4, 4, 4), (2, 2, 2)),
     ],
 )
-@pytest.mark.parametrize("input_shape", [(1, 8, 8), (1, 7, 9)])
-def test_stitch_prediction(ordered_array, input_shape, tile_size, overlaps):
+def test_stitch_prediction(input_shape, ordered_array, tile_size, overlaps):
     """Test calculating stitching coordinates.
 
     Test cases include only valid inputs.
