@@ -115,7 +115,7 @@ def complete_config(minimum_config: dict) -> dict:
 def ordered_array() -> Callable:
     """A function that returns an array with ordered values."""
 
-    def _ordered_array(shape: tuple) -> np.ndarray:
+    def _ordered_array(shape: tuple, dtype=int) -> np.ndarray:
         """An array with ordered values.
 
         Parameters
@@ -128,7 +128,7 @@ def ordered_array() -> Callable:
         np.ndarray
             Array with ordered values.
         """
-        return np.arange(np.prod(shape)).reshape(shape)
+        return np.arange(np.prod(shape), dtype=dtype).reshape(shape)
 
     return _ordered_array
 
