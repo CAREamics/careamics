@@ -1,73 +1,11 @@
-import tempfile
 from pathlib import Path
 from typing import Tuple
 
 import numpy as np
-import pytest
 import yaml
-from tifffile import tifffile
 
 from careamics_restoration.config import Configuration
-from careamics_restoration.config.algorithm import Algorithm
-from careamics_restoration.config.data import Data
-from careamics_restoration.config.prediction import Prediction
-from careamics_restoration.config.training import LrScheduler, Optimizer, Training
 from careamics_restoration.engine import Engine
-
-TEST_IMAGE_SIZE = (128, 128)
-TEST_PATCH_SIZE = (64, 64)
-TEST_OVERLAPS = (32, 32)
-
-
-@pytest.fixture
-def temp_dir() -> Path:
-    with tempfile.TemporaryDirectory() as temp_dir:
-        yield Path(temp_dir)
-
-
-@pytest.fixture
-def example_data_path(temp_dir: Path) -> Tuple[Path, Path]:
-    test_image = np.random.rand(*TEST_IMAGE_SIZE)
-    test_image_predict = test_image[None, None, ...]
-
-    train_path = temp_dir / "train"
-    val_path = temp_dir / "val"
-    test_path = temp_dir / "test"
-    train_path.mkdir()
-    val_path.mkdir()
-    test_path.mkdir()
-
-    tifffile.imwrite(train_path / "train_image.tif", test_image)
-    tifffile.imwrite(val_path / "val_image.tif", test_image)
-    tifffile.imwrite(test_path / "test_image.tif", test_image_predict)
-
-    return train_path, val_path, test_path
-
-
-@pytest.fixture
-def base_configuration(temp_dir: Path) -> Configuration:
-    configuration = Configuration(
-        experiment_name="smoke_test",
-        working_directory=temp_dir,
-        algorithm=Algorithm(loss="n2v", model="UNet", is_3D="False"),
-        data=Data(
-            data_format="tif",
-            axes="YX",
-        ),
-        training=Training(
-            num_epochs=1,
-            patch_size=TEST_PATCH_SIZE,
-            batch_size=1,
-            optimizer=Optimizer(name="Adam"),
-            lr_scheduler=LrScheduler(name="ReduceLROnPlateau"),
-            extraction_strategy="random",
-            augmentation=True,
-            num_workers=0,
-            use_wandb=False,
-        ),
-        prediction=Prediction(use_tiling=False),
-    )
-    return configuration
 
 
 def dump_config(configuration: Configuration) -> Path:
@@ -80,7 +18,11 @@ def dump_config(configuration: Configuration) -> Path:
 
 
 def test_is_engine_runnable(
-    base_configuration: Configuration, example_data_path: Tuple[Path, Path]
+    base_configuration: Configuration,
+    example_data_path: Tuple[Path, Path],
+    image_size: Tuple[int, int],
+    patch_size: Tuple[int, int],
+    overlaps: Tuple[int, int],
 ):
     """
     Test if basic workflow does not fail - train model and then predict
@@ -96,7 +38,7 @@ def test_is_engine_runnable(
     assert result_model_path.exists()
 
     # Test prediction with external input
-    test_image = np.random.rand(*TEST_IMAGE_SIZE)
+    test_image = np.random.rand(*image_size)
     # Predict only accepts 4D input for now
     test_image = test_image[None, None, ...]
     test_result = engine.predict(external_input=test_image)
@@ -114,8 +56,8 @@ def test_is_engine_runnable(
     second_engine.train(train_path, val_path)
 
     # Test prediction with pred_path with tiling
-    second_engine.cfg.prediction.tile_shape = TEST_PATCH_SIZE
-    second_engine.cfg.prediction.overlaps = TEST_OVERLAPS
+    second_engine.cfg.prediction.tile_shape = patch_size
+    second_engine.cfg.prediction.overlaps = overlaps
     second_engine.cfg.prediction.use_tiling = True
     test_result = second_engine.predict(external_input=None, pred_path=test_path)
     assert test_result is not None
