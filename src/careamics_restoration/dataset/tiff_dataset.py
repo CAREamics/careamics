@@ -303,8 +303,8 @@ class TiffDataset(torch.utils.data.IterableDataset):
             else:
                 # if S or T dims are not empty - assume every image is a separate
                 # sample in dim 0
-                for item in sample[0]:
-                    item = np.expand_dims(item, (0, 1))
+                for i in range(sample.shape[0]):
+                    item = np.expand_dims(sample[i], (0, 1))
                     item = normalize(img=item, mean=self.mean, std=self.std)
                     yield item
 

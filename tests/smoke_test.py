@@ -16,6 +16,7 @@ from careamics_restoration.engine import Engine
 
 TEST_IMAGE_SIZE = (128, 128)
 TEST_PATCH_SIZE = (64, 64)
+TEST_OVERLAPS = (32, 32)
 
 
 @pytest.fixture
@@ -27,16 +28,20 @@ def temp_dir() -> Path:
 @pytest.fixture
 def example_data_path(temp_dir: Path) -> Tuple[Path, Path]:
     test_image = np.random.rand(*TEST_IMAGE_SIZE)
+    test_image_predict = test_image[None, None, ...]
 
     train_path = temp_dir / "train"
     val_path = temp_dir / "val"
+    test_path = temp_dir / "test"
     train_path.mkdir()
     val_path.mkdir()
+    test_path.mkdir()
 
     tifffile.imwrite(train_path / "train_image.tif", test_image)
     tifffile.imwrite(val_path / "val_image.tif", test_image)
+    tifffile.imwrite(test_path / "test_image.tif", test_image_predict)
 
-    return train_path, val_path
+    return train_path, val_path, test_path
 
 
 @pytest.fixture
@@ -80,7 +85,7 @@ def test_is_engine_runnable(
     """
     Test if basic workflow does not fail - train model and then predict
     """
-    train_path, val_path = example_data_path
+    train_path, val_path, test_path = example_data_path
 
     engine = Engine(config=base_configuration)
     engine.train(train_path, val_path)
@@ -90,11 +95,16 @@ def test_is_engine_runnable(
 
     assert result_model_path.exists()
 
+    # Test prediction with external input
     test_image = np.random.rand(*TEST_IMAGE_SIZE)
-
     # Predict only accepts 4D input for now
     test_image = test_image[None, None, ...]
     test_result = engine.predict(external_input=test_image)
+
+    assert test_result is not None
+
+    # Test prediction with pred_path without tiling
+    test_result = engine.predict(external_input=None, pred_path=test_path)
 
     assert test_result is not None
 
@@ -102,3 +112,10 @@ def test_is_engine_runnable(
     del engine
     second_engine = Engine(model_path=result_model_path)
     second_engine.train(train_path, val_path)
+
+    # Test prediction with pred_path with tiling
+    second_engine.cfg.prediction.tile_shape = TEST_PATCH_SIZE
+    second_engine.cfg.prediction.overlaps = TEST_OVERLAPS
+    second_engine.cfg.prediction.use_tiling = True
+    test_result = second_engine.predict(external_input=None, pred_path=test_path)
+    assert test_result is not None
