@@ -82,8 +82,10 @@ class Engine:
             )
 
         if model_path is not None:
-            assert Path(model_path).exists(), f"Model path {model_path} incorrect or \
-            does not exist"
+            assert Path(model_path).exists(), (
+                f"Model path {model_path} incorrect or"
+                f" does not exist. Current working directory is: {Path.cwd()!s}"
+            )
             # Ensure that config is None
             self.cfg = None
         elif config is not None:
@@ -502,7 +504,7 @@ class Engine:
             dataset = TensorDataset(torch.from_numpy(normalized_input))
             stitch = False  # TODO can also be true
         else:
-            assert pred_path is not None, "path to prediction data not provided"  # mypy
+            assert pred_path is not None, "Path to prediction data not provided"  # mypy
             dataset = get_prediction_dataset(self.cfg, pred_path=pred_path)
             stitch = (
                 hasattr(dataset, "patch_extraction_method")
@@ -535,7 +537,7 @@ class Engine:
         """
         assert self.cfg is not None, "Missing configuration."  # mypy
 
-        if epoch == 0 or losses[-1] < min(losses):
+        if epoch == 0 or losses[-1] == min(losses):
             name = f"{self.cfg.experiment_name}_best.pth"
         else:
             name = f"{self.cfg.experiment_name}_latest.pth"

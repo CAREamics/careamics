@@ -60,7 +60,8 @@ def create_model(
         # Create model from checkpoint
         model_path = Path(model_path)
         if not model_path.exists() or model_path.suffix not in [".pth", ".zip"]:
-            raise ValueError(f"Invalid model path: {model_path}")
+            raise ValueError(f"Invalid model path: {model_path}. Current working dir: \
+                              {Path.cwd()!s}")
 
         if model_path.suffix == ".zip":
             model_path = import_bioimage_model(model_path)
