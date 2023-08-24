@@ -87,6 +87,7 @@ def create_model(
         # Load the model state dict
         if "model_state_dict" in checkpoint:
             model.load_state_dict(checkpoint["model_state_dict"])
+            logger.info("Loaded model state dict")
         else:
             raise ValueError("Invalid checkpoint format")
 

@@ -81,7 +81,9 @@ class Engine:
                 "object, configuration path or model path must be provided."
             )
 
-        if model_path is not None and Path(model_path).exists():
+        if model_path is not None:
+            assert Path(model_path).exists(), f"Model path {model_path} incorrect or \
+            does not exist"
             # Ensure that config is None
             self.cfg = None
         elif config is not None:
