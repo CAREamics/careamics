@@ -2,19 +2,9 @@ from pathlib import Path
 from typing import Tuple
 
 import numpy as np
-import yaml
 
 from careamics_restoration.config import Configuration
 from careamics_restoration.engine import Engine
-
-
-def dump_config(configuration: Configuration) -> Path:
-    temp_dir = configuration.working_directory
-    config_path = temp_dir / "test_config.yml"
-    config_dict = configuration.model_dump()
-    with open(config_path, "w") as config_file:
-        yaml.dump(config_dict, config_file)
-    return config_path
 
 
 def test_is_engine_runnable(
@@ -39,6 +29,7 @@ def test_is_engine_runnable(
 
     # Test prediction with external input
     test_image = np.random.rand(*image_size)
+
     # Predict only accepts 4D input for now
     test_image = test_image[None, None, ...]
     test_result = engine.predict(external_input=test_image)
