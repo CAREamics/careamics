@@ -14,6 +14,7 @@ def test_get_device(device):
     assert device.type == "cuda" if torch.cuda.is_available() else "cpu"
 
 
+@pytest.mark.gpu
 @pytest.mark.parametrize("deterministic", [True, False])
 @pytest.mark.parametrize("benchmark", [True, False])
 def test_setup_cudnn_reproducibility(deterministic, benchmark):

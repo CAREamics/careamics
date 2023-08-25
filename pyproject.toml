@@ -148,6 +148,8 @@ filterwarnings = [
     # "error",
     # "ignore::UserWarning",
 ]
+markers = ["gpu: marks tests as requiring gpu"]
+
 
 # https://coverage.readthedocs.io/en/6.4/config.html
 [tool.coverage.report]
