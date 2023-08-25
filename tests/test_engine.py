@@ -12,6 +12,12 @@ def test_engine_init_errors():
     with pytest.raises(TypeError):
         Engine(config="config", config_path=None, model_path=None)
 
+    with pytest.raises(FileNotFoundError):
+        Engine(config=None, config_path="some/path", model_path=None)
+
+    with pytest.raises(FileNotFoundError):
+        Engine(config=None, config_path=None, model_path="some/other/path")
+
 
 def test_engine_predict_errors(minimum_config: dict):
     config = Configuration(**minimum_config)
@@ -38,14 +44,14 @@ def test_engine_save_checkpoint(epoch, losses, minimum_config: dict):
     if epoch == 0:
         assert path.stem.split("_")[-1] == "best"
 
-    assert (
-        path.stem.split("_")[-1] == "best"
-        if losses[-1] == min(losses)
-        else path.stem.split("_")[-1] == "latest"
-    )
+    if losses[-1] == min(losses):
+        assert path.stem.split("_")[-1] == "best"
+    else:
+        assert path.stem.split("_")[-1] == "latest"
 
     model, optimizer, scheduler, scaler, config = create_model(model_path=path)
     assert model is not None
-    assert config is not None
-
+    assert optimizer is not None
+    assert scheduler is not None
+    assert scaler is not None
     assert config == init_config

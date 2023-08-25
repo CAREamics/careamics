@@ -340,7 +340,7 @@ class Engine:
         if not self.cfg.data.mean or not self.cfg.data.std:
             raise ValueError(
                 "Mean or std are not specified in the configuration, prediction cannot "
-                "be performed"
+                "be performed."
             )
 
         # check array
@@ -529,6 +529,8 @@ class Engine:
     ) -> Union[Path, Any]:
         """Save the model to a checkpoint file.
 
+        Currently only supports saving using `save_method="state_dict"`.
+
         Parameters
         ----------
         epoch : int
@@ -559,7 +561,7 @@ class Engine:
             }
             torch.save(checkpoint, workdir / name)
         else:
-            raise NotImplementedError("Invalid save method")
+            raise NotImplementedError("Invalid save method.")
 
         return self.cfg.working_directory.absolute() / name
 
