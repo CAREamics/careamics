@@ -82,12 +82,15 @@ class Engine:
             )
 
         if model_path is not None:
-            assert Path(model_path).exists(), (
-                f"Model path {model_path} incorrect or"
-                f" does not exist. Current working directory is: {Path.cwd()!s}"
-            )
+            if not Path(model_path).exists():
+                raise FileNotFoundError(
+                    f"Model path {model_path} incorrect or"
+                    f" does not exist. Current working directory is: {Path.cwd()!s}"
+                )
+
             # Ensure that config is None
             self.cfg = None
+
         elif config is not None:
             # Check that config is a Configuration object
             if not isinstance(config, Configuration):
