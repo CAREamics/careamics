@@ -166,6 +166,7 @@ def test_algorithm_to_dict_complete(complete_config: dict):
     assert "is_3D" in algorithm_complete
     assert "masking_strategy" in algorithm_complete
     assert "masked_pixel_percentage" in algorithm_complete
+    assert "roi_size" in algorithm_complete
     assert "model_parameters" in algorithm_complete
     assert "depth" in algorithm_complete["model_parameters"]
     assert "num_channels_init" in algorithm_complete["model_parameters"]
@@ -177,7 +178,7 @@ def test_algorithm_to_dict_optionals(complete_config: dict):
     algo_config = complete_config["algorithm"]
     algo_config["model_parameters"] = {
         "depth": 2,
-        "num_channels_init": 96,
+        "num_channels_init": 32,
     }
     algo_config["masking_strategy"] = "default"
 

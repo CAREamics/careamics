@@ -183,7 +183,7 @@ def test_config_to_dict_with_default_optionals(complete_config: dict):
     complete_config["algorithm"]["masked_pixel_percentage"] = 0.2
     complete_config["algorithm"]["model_parameters"] = {
         "depth": 2,
-        "num_channels_init": 96,
+        "num_channels_init": 32,
     }
 
     # Training default optional parameters
