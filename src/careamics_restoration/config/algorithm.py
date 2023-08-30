@@ -56,7 +56,7 @@ class ModelParameters(BaseModel):
     model_config = ConfigDict(validate_assignment=True)
 
     depth: int = Field(default=2, ge=1, le=10)
-    num_channels_init: int = 96
+    num_channels_init: int = Field(default=96, ge=8)
 
     # TODO revisit the constraints on num_channels_init
     @field_validator("num_channels_init")
@@ -66,12 +66,6 @@ class ModelParameters(BaseModel):
         if num_channels % 2 != 0:
             raise ValueError(
                 f"Number of channels (init) must be even (got {num_channels})."
-            )
-
-        # if less than 8
-        if num_channels < 8:
-            raise ValueError(
-                f"Number of filters (base) must be at least 8 (got {num_channels})."
             )
 
         return num_channels
