@@ -81,9 +81,16 @@ class Engine:
                 "object, configuration path or model path must be provided."
             )
 
-        if model_path is not None and Path(model_path).exists():
+        if model_path is not None:
+            if not Path(model_path).exists():
+                raise FileNotFoundError(
+                    f"Model path {model_path} incorrect or"
+                    f" does not exist. Current working directory is: {Path.cwd()!s}"
+                )
+
             # Ensure that config is None
             self.cfg = None
+
         elif config is not None:
             # Check that config is a Configuration object
             if not isinstance(config, Configuration):
@@ -333,7 +340,7 @@ class Engine:
         if not self.cfg.data.mean or not self.cfg.data.std:
             raise ValueError(
                 "Mean or std are not specified in the configuration, prediction cannot "
-                "be performed"
+                "be performed."
             )
 
         # check array
@@ -500,7 +507,7 @@ class Engine:
             dataset = TensorDataset(torch.from_numpy(normalized_input))
             stitch = False  # TODO can also be true
         else:
-            assert pred_path is not None, "path to prediction data not provided"  # mypy
+            assert pred_path is not None, "Path to prediction data not provided"  # mypy
             dataset = get_prediction_dataset(self.cfg, pred_path=pred_path)
             stitch = (
                 hasattr(dataset, "patch_extraction_method")
@@ -522,6 +529,8 @@ class Engine:
     ) -> Union[Path, Any]:
         """Save the model to a checkpoint file.
 
+        Currently only supports saving using `save_method="state_dict"`.
+
         Parameters
         ----------
         epoch : int
@@ -533,7 +542,7 @@ class Engine:
         """
         assert self.cfg is not None, "Missing configuration."  # mypy
 
-        if epoch == 0 or losses[-1] < min(losses):
+        if epoch == 0 or losses[-1] == min(losses):
             name = f"{self.cfg.experiment_name}_best.pth"
         else:
             name = f"{self.cfg.experiment_name}_latest.pth"
@@ -552,7 +561,7 @@ class Engine:
             }
             torch.save(checkpoint, workdir / name)
         else:
-            raise NotImplementedError("Invalid save method")
+            raise NotImplementedError("Invalid save method.")
 
         return self.cfg.working_directory.absolute() / name
 

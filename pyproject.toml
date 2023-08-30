@@ -55,7 +55,7 @@ dependencies = [
 dev = ["pre-commit", "pytest", "pytest-cov"]
 
 # test for ci
-test = ["pytest", "pytest-cov"]
+test = ["pytest", "pytest-cov", "wandb"]
 
 # use wandb for logging
 wandb = ["wandb"]
@@ -148,6 +148,8 @@ filterwarnings = [
     # "error",
     # "ignore::UserWarning",
 ]
+markers = ["gpu: marks tests as requiring gpu"]
+
 
 # https://coverage.readthedocs.io/en/6.4/config.html
 [tool.coverage.report]

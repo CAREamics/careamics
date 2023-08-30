@@ -48,6 +48,27 @@ def test_model_parameters_wrong_num_channels_init(
         ModelParameters(**model_params)
 
 
+@pytest.mark.parametrize("roi_size", [5, 9, 15])
+def test_model_parameters_roi_size(complete_config: dict, roi_size: int):
+    """Test that Algorithm accepts roi_size as an even number within the
+    range [3, 21]."""
+    params = complete_config["algorithm"]
+    params["roi_size"] = roi_size
+
+    algorithm = Algorithm(**params)
+    assert algorithm.roi_size == roi_size
+
+
+@pytest.mark.parametrize("roi_size", [2, 4, 23])
+def test_model_parameters_wrong_roi_size(complete_config: dict, roi_size: int):
+    """Test that wrong num_channels_init cause an error."""
+    params = complete_config["algorithm"]
+    params["roi_size"] = roi_size
+
+    with pytest.raises(ValueError):
+        Algorithm(**params)
+
+
 def test_model_parameters_wrong_values_by_assigment(complete_config: dict):
     """Test that wrong values are not accepted through assignment."""
     model_params = complete_config["algorithm"]["model_parameters"]
@@ -145,6 +166,7 @@ def test_algorithm_to_dict_complete(complete_config: dict):
     assert "is_3D" in algorithm_complete
     assert "masking_strategy" in algorithm_complete
     assert "masked_pixel_percentage" in algorithm_complete
+    assert "roi_size" in algorithm_complete
     assert "model_parameters" in algorithm_complete
     assert "depth" in algorithm_complete["model_parameters"]
     assert "num_channels_init" in algorithm_complete["model_parameters"]
@@ -156,7 +178,7 @@ def test_algorithm_to_dict_optionals(complete_config: dict):
     algo_config = complete_config["algorithm"]
     algo_config["model_parameters"] = {
         "depth": 2,
-        "num_channels_init": 96,
+        "num_channels_init": 32,
     }
     algo_config["masking_strategy"] = "default"
 

@@ -56,7 +56,7 @@ class ModelParameters(BaseModel):
     model_config = ConfigDict(validate_assignment=True)
 
     depth: int = Field(default=2, ge=1, le=10)
-    num_channels_init: int = 96
+    num_channels_init: int = Field(default=32, ge=8)
 
     # TODO revisit the constraints on num_channels_init
     @field_validator("num_channels_init")
@@ -66,12 +66,6 @@ class ModelParameters(BaseModel):
         if num_channels % 2 != 0:
             raise ValueError(
                 f"Number of channels (init) must be even (got {num_channels})."
-            )
-
-        # if less than 8
-        if num_channels < 8:
-            raise ValueError(
-                f"Number of filters (base) must be at least 8 (got {num_channels})."
             )
 
         return num_channels
@@ -94,6 +88,8 @@ class Algorithm(BaseModel):
             Masking strategy to use, currently only supports default masking.
         - masked_pixel_percentage:
             Percentage of pixels to be masked in each patch.
+        - roi_size:
+            Size of the region of interest to use in the masking algorithm.
         - model_parameters:
             Model parameters, see ModelParameters for more details.
 
@@ -109,6 +105,8 @@ class Algorithm(BaseModel):
         Masking strategy to use, currently only supports default masking.
     masked_pixel_percentage : float
         Percentage of pixels to be masked in each patch.
+    roi_size : int
+        Size of the region of interest to use in the masking algorithm.
     model_parameters : ModelParameters
         Model parameters, see ModelParameters for more details.
     """
@@ -128,6 +126,7 @@ class Algorithm(BaseModel):
     # Optional fields, define a default value
     masking_strategy: MaskingStrategies = MaskingStrategies.DEFAULT
     masked_pixel_percentage: float = Field(default=0.2, ge=0.1, le=20)
+    roi_size: int = Field(default=11, ge=3, le=21)
     model_parameters: ModelParameters = ModelParameters()
 
     def get_conv_dim(self) -> int:
@@ -139,6 +138,15 @@ class Algorithm(BaseModel):
             Dimension (2 or 3)
         """
         return 3 if self.is_3D else 2
+
+    @field_validator("roi_size")
+    def greater_than_eight_and_power_of_two(cls, roi_size: int) -> int:
+        """Validate that roi_size is odd and whithin specified range."""
+        # if even
+        if roi_size % 2 == 0:
+            raise ValueError(f"ROI size must be odd (got {roi_size}).")
+
+        return roi_size
 
     def model_dump(
         self, exclude_optionals: bool = True, *args: List, **kwargs: Dict
@@ -161,6 +169,7 @@ class Algorithm(BaseModel):
             defaults = {
                 "masking_strategy": MaskingStrategies.DEFAULT.value,
                 "masked_pixel_percentage": 0.2,
+                "roi_size": 11,
                 "model_parameters": ModelParameters().model_dump(exclude_none=True),
             }
 

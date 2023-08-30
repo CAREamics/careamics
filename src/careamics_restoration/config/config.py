@@ -248,6 +248,11 @@ def load_configuration(path: Union[str, Path]) -> Configuration:
         Configuration.
     """
     # load dictionary from yaml
+    if not Path(path).exists():
+        raise FileNotFoundError(
+            f"Configuration file {path} does not exist in " f" {Path.cwd()!s}"
+        )
+
     dictionary = yaml.load(Path(path).open("r"), Loader=yaml.SafeLoader)
 
     return Configuration(**dictionary)
