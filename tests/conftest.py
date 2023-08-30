@@ -105,9 +105,10 @@ def complete_config(minimum_config: dict) -> dict:
     complete_config["algorithm"]["masking_strategy"] = "median"
 
     complete_config["algorithm"]["masked_pixel_percentage"] = 0.6
+    complete_config["algorithm"]["roi_size"] = 11
     complete_config["algorithm"]["model_parameters"] = {
         "depth": 8,
-        "num_channels_init": 96,
+        "num_channels_init": 32,
     }
 
     complete_config["training"]["optimizer"]["parameters"] = {

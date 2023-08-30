@@ -48,6 +48,27 @@ def test_model_parameters_wrong_num_channels_init(
         ModelParameters(**model_params)
 
 
+@pytest.mark.parametrize("roi_size", [5, 9, 15])
+def test_model_parameters_roi_size(complete_config: dict, roi_size: int):
+    """Test that Algorithm accepts roi_size as an even number within the range [3, 21].
+    """
+    params = complete_config["algorithm"]
+    params["roi_size"] = roi_size
+
+    algorithm = Algorithm(**params)
+    assert algorithm.roi_size == roi_size
+
+
+@pytest.mark.parametrize("roi_size", [2, 4, 23])
+def test_model_parameters_wrong_roi_size(complete_config: dict, roi_size: int):
+    """Test that wrong num_channels_init cause an error."""
+    params = complete_config["algorithm"]
+    params["roi_size"] = roi_size
+
+    with pytest.raises(ValueError):
+        Algorithm(**params)
+
+
 def test_model_parameters_wrong_values_by_assigment(complete_config: dict):
     """Test that wrong values are not accepted through assignment."""
     model_params = complete_config["algorithm"]["model_parameters"]

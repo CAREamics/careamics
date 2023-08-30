@@ -109,7 +109,7 @@ class UnetDecoder(nn.Module):
 
         upsampling = nn.Upsample(
             scale_factor=2, mode="bilinear" if conv_dim == 2 else "trilinear"
-        )  # TODO check align_corners and mode
+        )
         in_channels = out_channels = num_channels_init * 2 ** (depth - 1)
         self.bottleneck = Conv_Block(
             conv_dim,
@@ -153,7 +153,6 @@ class UnetDecoder(nn.Module):
         torch.Tensor
             output of the decoder
         """
-        # TODO skipskipone goes brrr
         x = features[0]
         skip_connections = features[1:][::-1]
         x = self.bottleneck(x)
@@ -251,10 +250,8 @@ class UNet(nn.Module):
         torch.Tensor
             final output of the model
         """
-        inputs = x.clone()
         encoder_features = self.encoder(x)
         x = self.decoder(*encoder_features)
         x = self.final_conv(x)
-        x = torch.add(x, inputs)
         x = self.last_activation(x)
         return x

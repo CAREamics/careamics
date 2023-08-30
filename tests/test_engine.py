@@ -50,8 +50,8 @@ def test_engine_save_checkpoint(epoch, losses, minimum_config: dict):
         assert path.stem.split("_")[-1] == "latest"
 
     model, optimizer, scheduler, scaler, config = create_model(model_path=path)
-    assert model is not None
-    assert optimizer is not None
-    assert scheduler is not None
-    assert scaler is not None
+    assert all(model.children()) == all(engine.model.children())
+    assert optimizer.__class__ == engine.optimizer.__class__
+    assert scheduler.__class__ == engine.lr_scheduler.__class__
+    assert scaler.__class__ == engine.scaler.__class__
     assert config == init_config
