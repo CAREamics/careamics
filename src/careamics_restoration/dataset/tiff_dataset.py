@@ -342,7 +342,7 @@ def get_train_dataset(config: Configuration, train_path: str) -> TiffDataset:
         patch_transform=default_manipulate,
         patch_transform_params={
             "mask_pixel_percentage": config.algorithm.masked_pixel_percentage,
-            "roi_size": config.algorithm.roi_size
+            "roi_size": config.algorithm.roi_size,
         },
     )
     return dataset

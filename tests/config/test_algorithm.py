@@ -50,8 +50,7 @@ def test_model_parameters_wrong_num_channels_init(
 
 @pytest.mark.parametrize("roi_size", [5, 9, 15])
 def test_model_parameters_roi_size(complete_config: dict, roi_size: int):
-    """Test that Algorithm accepts roi_size as an even number within the range [3, 21].
-    """
+    """Test that Algorithm accepts roi_size as an even number within the range [3, 21]."""
     params = complete_config["algorithm"]
     params["roi_size"] = roi_size
 
