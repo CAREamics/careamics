@@ -389,7 +389,7 @@ class Engine:
 
         with torch.no_grad():
             # TODO tiled prediction slow af, profile and optimize
-            for _, (tile, *auxillary) in enumerate(pred_loader):
+            for (tile, *auxillary) in pred_loader:
                 # Unpack auxillary data into last tile indicator and data, required to
                 # stitch tiles together
                 if auxillary:
@@ -424,8 +424,8 @@ class Engine:
         """
         prediction = []
         with torch.no_grad():
-            for _, sample in enumerate(pred_loader):
-                outputs = self.model(sample.to(self.device))
+            for sample in pred_loader:
+                outputs = self.model(sample[0].to(self.device))
                 outputs = denormalize(outputs, self.cfg.data.mean, self.cfg.data.std)
                 prediction.append(outputs.detach().cpu().numpy().squeeze())
         return np.stack(prediction)
