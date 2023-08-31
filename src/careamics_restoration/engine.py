@@ -84,7 +84,7 @@ class Engine:
         if model_path is not None:
             if not Path(model_path).exists():
                 raise FileNotFoundError(
-                    f"Model path {model_path} incorrect or"
+                    f"Model path {model_path} is incorrect or"
                     f" does not exist. Current working directory is: {Path.cwd()!s}"
                 )
 
@@ -351,9 +351,6 @@ class Engine:
         self.model.to(self.device)
         self.model.eval()
 
-        # Reset progress bar
-        self.progress.reset()
-
         if external_input is not None:
             pred_loader, stitch = self.get_predict_dataloader(
                 external_input=external_input
@@ -362,49 +359,75 @@ class Engine:
             # we have a path
             pred_loader, stitch = self.get_predict_dataloader(pred_path=pred_path)
 
-        tiles = []
-        prediction = []
         if external_input is not None:
             self.logger.info("Starting prediction on external input")
         if stitch:
             self.logger.info("Starting tiled prediction")
+            prediction = self._predict_tiled(pred_loader)
         else:
             self.logger.info("Starting prediction on whole sample")
+            prediction = self._predict_full(pred_loader)
+
+        return prediction
+
+    def _predict_tiled(self, pred_loader: DataLoader) -> np.ndarray:
+        """Predict from separate tiles.
+
+        Parameters
+        ----------
+        pred_loader : DataLoader
+            Prediction dataloader
+
+        Returns
+        -------
+        np.ndarray
+            Predicted image
+        """
+        prediction = []
+        tiles = []
+        stitching_data = []
 
         with torch.no_grad():
             # TODO tiled prediction slow af, profile and optimize
-            for _, (tile, *auxillary) in self.progress(
-                enumerate(pred_loader), task_name="Prediction"
-            ):
+            for _, (tile, *auxillary) in enumerate(pred_loader):
+                # Unpack auxillary data into last tile indicator and data, required to
+                # stitch tiles together
                 if auxillary:
-                    (
-                        last_tile,
-                        sample_shape,
-                        overlap_crop_coords,
-                        stitch_coords,
-                    ) = auxillary
+                    last_tile, *data = auxillary
 
                 outputs = self.model(tile.to(self.device))
                 outputs = denormalize(outputs, self.cfg.data.mean, self.cfg.data.std)
 
-                if stitch:
-                    # Append tile and respective coordinates to list for stitching
-                    tiles.append(
-                        (
-                            outputs.squeeze().cpu().numpy(),
-                            [list(map(int, c)) for c in overlap_crop_coords],
-                            [list(map(int, c)) for c in stitch_coords],
-                        )
-                    )
-                    # check if sample is finished
-                    if last_tile:
-                        # Stitch tiles together
-                        predicted_sample = stitch_prediction(tiles, sample_shape)
-                        prediction.append(predicted_sample)
-                else:
-                    prediction.append(outputs.detach().cpu().numpy().squeeze())
+                tiles.append(outputs.squeeze().cpu().numpy())
+                stitching_data.append(data)
+
+                if last_tile:
+                    # Stitch tiles together if sample is finished
+                    predicted_sample = stitch_prediction(tiles, stitching_data)
+                    prediction.append(predicted_sample)
 
         self.logger.info(f"Predicted {len(prediction)} samples")
+        return np.stack(prediction)
+
+    def _predict_full(self, pred_loader: DataLoader) -> np.ndarray:
+        """Predict from whole sample.
+
+        Parameters
+        ----------
+        pred_loader : DataLoader
+            Prediction dataloader
+
+        Returns
+        -------
+        np.ndarray
+            Predicted image
+        """
+        prediction = []
+        with torch.no_grad():
+            for _, sample in enumerate(pred_loader):
+                outputs = self.model(sample.to(self.device))
+                outputs = denormalize(outputs, self.cfg.data.mean, self.cfg.data.std)
+                prediction.append(outputs.detach().cpu().numpy().squeeze())
         return np.stack(prediction)
 
     def get_train_dataloader(self, train_path: str) -> DataLoader:

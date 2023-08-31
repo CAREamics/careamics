@@ -1,11 +1,11 @@
-from typing import List, Tuple
+from typing import List
 
 import numpy as np
 
 
 def stitch_prediction(
-    tiles: List[Tuple[np.ndarray, List, List]],
-    input_shape: Tuple[int],
+    tiles: List[np.ndarray],
+    stitching_data: List,
 ) -> np.ndarray:
     """Stitches tiles back together to form a full image.
 
@@ -21,8 +21,10 @@ def stitch_prediction(
     np.ndarray
         Full image
     """
+    # Get whole sample shape
+    input_shape = stitching_data[0][0]
     predicted_image = np.zeros(input_shape, dtype=np.float32)
-    for tile, overlap_crop_coords, stitch_coords in tiles:
+    for tile, (_, overlap_crop_coords, stitch_coords) in zip(tiles, stitching_data):
         # Compute coordinates for cropping predicted tile
         slices = tuple([slice(c[0], c[1]) for c in overlap_crop_coords])
 

@@ -84,8 +84,9 @@ def check_array_validity(array: np.ndarray, axes: str) -> None:
     axes : str
         Valid axes (see check_axes_validity)
     """
-    # TODO discuss that one
     if len(array.shape) - 2 != len(axes):
         raise ValueError(
             f"Array has {len(array.shape)} dimensions, but axes are {len(axes)}."
+            f"Externally provided arrays must have extra dimensions for batch and"
+            f"channel to be compatible with the batchnorm layers."
         )

@@ -18,6 +18,7 @@ def test_stitch_prediction(input_shape, ordered_array, tile_size, overlaps):
     Test cases include only valid inputs.
     """
     arr = ordered_array(input_shape, dtype=int)
+    tiles = []
     stitching_data = []
 
     # extract tiles
@@ -25,14 +26,16 @@ def test_stitch_prediction(input_shape, ordered_array, tile_size, overlaps):
 
     # Assemble all tiles as it's done during the prediction stage
     for tile_data in tiling_outputs:
-        tile, _, _, overlap_crop_coords, stitch_coords = tile_data
+        tile, _, input_shape, overlap_crop_coords, stitch_coords = tile_data
+
+        tiles.append(tile)
         stitching_data.append(
             (
-                tile,
+                input_shape,
                 overlap_crop_coords,
                 stitch_coords,
             )
         )
     # compute stitching coordinates
-    result = stitch_prediction(stitching_data, input_shape)
+    result = stitch_prediction(tiles, stitching_data)
     assert (result == arr).all()
