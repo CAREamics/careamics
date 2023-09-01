@@ -12,7 +12,7 @@ from careamics_restoration.bioimage import (
     build_zip_model,
     get_default_model_specs,
 )
-from careamics_restoration.utils.logging import ProgressLogger, get_logger
+from careamics_restoration.utils.logging import ProgressLogger, get_logger, ProgressBar
 
 from .config import Configuration, load_configuration
 from .dataset.tiff_dataset import (
@@ -351,6 +351,7 @@ class Engine:
         self.model.to(self.device)
         self.model.eval()
 
+        progress_bar = ProgressBar(num_epochs=1, mode="predict")
         if external_input is not None:
             pred_loader, stitch = self.get_predict_dataloader(
                 external_input=external_input
@@ -363,14 +364,14 @@ class Engine:
             self.logger.info("Starting prediction on external input")
         if stitch:
             self.logger.info("Starting tiled prediction")
-            prediction = self._predict_tiled(pred_loader)
+            prediction = self._predict_tiled(pred_loader, progress_bar)
         else:
             self.logger.info("Starting prediction on whole sample")
-            prediction = self._predict_full(pred_loader)
+            prediction = self._predict_full(pred_loader, progress_bar)
 
         return prediction
 
-    def _predict_tiled(self, pred_loader: DataLoader) -> np.ndarray:
+    def _predict_tiled(self, pred_loader: DataLoader, progress_bar) -> np.ndarray:
         """Predict from separate tiles.
 
         Parameters
@@ -389,7 +390,7 @@ class Engine:
 
         with torch.no_grad():
             # TODO tiled prediction slow af, profile and optimize
-            for (tile, *auxillary) in pred_loader:
+            for i, (tile, *auxillary) in enumerate(pred_loader):
                 # Unpack auxillary data into last tile indicator and data, required to
                 # stitch tiles together
                 if auxillary:
@@ -405,6 +406,8 @@ class Engine:
                     # Stitch tiles together if sample is finished
                     predicted_sample = stitch_prediction(tiles, stitching_data)
                     prediction.append(predicted_sample)
+
+                progress_bar.update(i)
 
         self.logger.info(f"Predicted {len(prediction)} samples")
         return np.stack(prediction)
