@@ -44,11 +44,11 @@ def get_logger(
 
     if log_path:
         handlers = [
-            RichHandler(rich_tracebacks=True, show_level=False),
+            logging.StreamHandler(),
             logging.FileHandler(log_path),
         ]
     else:
-        handlers = [RichHandler(rich_tracebacks=True, show_level=False)]
+        handlers = [logging.StreamHandler()]
 
     formatter = logging.Formatter("%(message)s")
 
@@ -62,145 +62,10 @@ def get_logger(
 
     return logger
 
-
-class ProgressLogger:
-    """
-    Provides Rich interface for logging and progress monitoring.
-
-    Can track progress of different concurrent iterable tasks.
-    """
-
-    def __init__(self) -> None:
-        self.is_in_notebook = "ipykernel" in sys.modules
-
-        self.console = Console()
-
-        self.tasks = {}  # type: dict
-        self.total_progress = Progress(
-            TextColumn("{task.description}", justify="right"),
-            MofNCompleteColumn(),
-            BarColumn(bar_width=60),
-            TextColumn("Time elapsed: "),
-            TimeElapsedColumn(),
-            TextColumn("Time remaining: "),
-            TimeRemainingColumn(compact=True),
-        )
-
-        self.task_progress = Progress(
-            TextColumn("{task.description}", justify="right"),
-            SpinnerColumn(spinner_name="point", style="red"),
-            MofNCompleteColumn(),
-            BarColumn(bar_width=60),
-            TextColumn("Time elapsed: "),
-            TimeElapsedColumn(),
-        )
-
-        progress_group = Group(
-            Padding(self.total_progress, (1, 8)), Padding(self.task_progress, (0, 5))
-        )
-
-        if not self.is_in_notebook:
-            banner = self._open_banner()
-            pixels = Pixels.from_ascii(banner)
-            header_panel = Panel.fit(pixels, style="red", padding=1)
-            self.console.print(header_panel)
-
-        self.interface = Group(progress_group)
-        self.live = Live(self.interface)
-
-    @staticmethod
-    def _open_banner() -> str:
-        banner_path = Path(__file__).with_name("ascii_logo.txt")
-        with banner_path.open() as file:
-            banner = file.read()
-        return banner
-
-    def _start_live_if_needed(self) -> None:
-        if self.live is None:
-            self.live = Live(self.interface)
-            self.live.__enter__()
-
-    def _get_task(
-        self, task_name: str, task_length: Optional[int], tracker: Progress
-    ) -> int:
-        if task_name not in self.tasks:
-            task_id = tracker.add_task(task_name, total=task_length)
-            self.tasks[task_name] = task_id
-        else:
-            task_id = self.tasks[task_name]
-            tracker.reset(task_id, visible=True)
-            tracker.start_task(task_id)
-
-        return task_id
-
-    def __del__(self) -> None:
-        """Exits the logger."""
-        self.reset()
-
-    def reset(self) -> None:
-        """Exits the logger."""
-        if self.live is not None:
-            self.live.__exit__(None, None, None)
-            self.live = None
-
-    @staticmethod
-    def _get_task_length(task_iterable: Union[Iterable, Sequence]) -> Optional[int]:
-        task_length = None
-
-        if isinstance(task_iterable, torch.utils.data.DataLoader):
-            task_type = type(task_iterable.dataset)
-            if not issubclass(task_type, torch.utils.data.IterableDataset):
-                if hasattr(task_iterable, "__len__"):
-                    task_length = task_iterable.__len__()
-        else:
-            if hasattr(task_iterable, "__len__"):
-                task_length = task_iterable.__len__()
-
-        return task_length
-
-    def __call__(
-        self,
-        task_iterable: Union[Iterable, Sequence],
-        task_name: str,
-        overall_progress: bool = False,
-        persistent: bool = True,
-    ) -> Iterable:
-        """
-        Tracks progress of an iterable task.
-
-        Parameters
-        ----------
-        task_iterable: Iterable
-            Any iterable, for example torch dataset, dataloader, range, etc.
-        task_name: str
-            Task name to be displayed on the progress bar.
-        overall_progress: bool
-            If True, the task is considered a "main" one, and will be displayed on top
-        persistent: bool
-            If False, task's progress bar will disappear after task is finished
-        """
-        self._start_live_if_needed()
-
-        if overall_progress:
-            tracker = self.total_progress
-        else:
-            tracker = self.task_progress
-
-        task_length = self._get_task_length(task_iterable)
-
-        task_id = self._get_task(task_name, task_length, tracker=tracker)
-
-        for item in task_iterable:
-            yield item
-            tracker.update(task_id, advance=1)
-
-        if not persistent:
-            tracker.reset(task_id, visible=False)
-            self.tasks.pop(task_name)
-
-
 class ProgressBar:
     """Keras style progress bar.
+
+    Modified from https://github.com/yueyericardo/pkbar
 
     Arguments:
             epoch: Zero-indexed current epoch.
@@ -303,7 +168,7 @@ class ProgressBar:
             bar += ('.' * (self.width - progress_width))
             bar += ']'
         else:
-            bar = f'{self.message} {next(self.spin)}'
+            bar = f'{self.message} {next(self.spin)} {current_step} tiles'
 
         self._total_width = len(bar)
         sys.stdout.write(bar)
@@ -344,6 +209,7 @@ class ProgressBar:
         self._last_update = now
 
     def add(self, n, values=None):
+        """Adds progress."""
         self.update(self._seen_so_far + n, values)
 
     def spinning_cursor(self) -> str:

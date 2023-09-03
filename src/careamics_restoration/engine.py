@@ -12,7 +12,7 @@ from careamics_restoration.bioimage import (
     build_zip_model,
     get_default_model_specs,
 )
-from careamics_restoration.utils.logging import ProgressLogger, get_logger, ProgressBar
+from careamics_restoration.utils.logging import ProgressBar, get_logger
 
 from .config import Configuration, load_configuration
 from .dataset.tiff_dataset import (
@@ -121,7 +121,7 @@ class Engine:
 
         # Set logging
         log_path = self.cfg.working_directory / "log.txt"
-        self.progress = ProgressLogger()
+        # self.progress = ProgressLogger()
         self.logger = get_logger(__name__, log_path=log_path)
 
         # use wandb or not
@@ -183,7 +183,7 @@ class Engine:
         ValueError
             Raise a VakueError if the training configuration is missing
         """
-        self.progress.reset()
+        # self.progress.reset()
 
         # Check that the configuration is not None
         assert self.cfg is not None, "Missing configuration."  # mypy
@@ -593,8 +593,6 @@ class Engine:
 
     def __del__(self) -> None:
         """Exits the logger."""
-        del self.progress
-
         if hasattr(self, "logger"):
             for handler in self.logger.handlers:
                 if isinstance(handler, FileHandler):
