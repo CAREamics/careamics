@@ -121,7 +121,6 @@ class Engine:
 
         # Set logging
         log_path = self.cfg.working_directory / "log.txt"
-        # self.progress = ProgressLogger()
         self.logger = get_logger(__name__, log_path=log_path)
 
         # use wandb or not
@@ -183,8 +182,6 @@ class Engine:
         ValueError
             Raise a VakueError if the training configuration is missing
         """
-        # self.progress.reset()
-
         # Check that the configuration is not None
         assert self.cfg is not None, "Missing configuration."  # mypy
         assert (
@@ -206,11 +203,8 @@ class Engine:
 
         val_losses = []
         try:
-            for epoch in self.progress(
-                range(self.cfg.training.num_epochs),
-                task_name="Epochs",
-                overall_progress=True,
-            ):  # loop over the dataset multiple times
+            # loop over the dataset multiple times
+            for epoch in range(self.cfg.training.num_epochs):
                 train_outputs = self._train_single_epoch(
                     train_loader,
                     self.cfg.training.amp.use,
@@ -238,7 +232,6 @@ class Engine:
 
         except KeyboardInterrupt:
             self.logger.info("Training interrupted")
-            self.progress.reset()
 
     def _train_single_epoch(
         self,
@@ -264,7 +257,7 @@ class Engine:
         self.model.to(self.device)
         self.model.train()
 
-        for batch, *auxillary in self.progress(loader, task_name="train"):
+        for batch, *auxillary in loader:
             self.optimizer.zero_grad()
 
             with torch.cuda.amp.autocast(enabled=amp):
@@ -296,9 +289,7 @@ class Engine:
         avg_loss = MetricTracker()
 
         with torch.no_grad():
-            for patch, *auxillary in self.progress(
-                eval_loader, task_name="validate", persistent=False
-            ):
+            for patch, *auxillary in eval_loader:
                 outputs = self.model(patch.to(self.device))
                 loss = self.loss_func(outputs, *auxillary, self.device)
                 avg_loss.update(loss.item(), patch.shape[0])
@@ -371,7 +362,9 @@ class Engine:
 
         return prediction
 
-    def _predict_tiled(self, pred_loader: DataLoader, progress_bar) -> np.ndarray:
+    def _predict_tiled(
+        self, pred_loader: DataLoader, progress_bar: ProgressBar
+    ) -> np.ndarray:
         """Predict from separate tiles.
 
         Parameters
@@ -397,7 +390,9 @@ class Engine:
                     last_tile, *data = auxillary
 
                 outputs = self.model(tile.to(self.device))
-                outputs = denormalize(outputs, self.cfg.data.mean, self.cfg.data.std)
+                outputs = denormalize(
+                    outputs, float(self.cfg.data.mean), float(self.cfg.data.std)  # type: ignore  # noqa: E501
+                )
 
                 tiles.append(outputs.squeeze().cpu().numpy())
                 stitching_data.append(data)
@@ -409,10 +404,12 @@ class Engine:
 
                 progress_bar.update(i)
 
-        self.logger.info(f"Predicted {len(prediction)} samples")
+        self.logger.info(f"Predicted {len(prediction)} samples, {i} tiles in total")
         return np.stack(prediction)
 
-    def _predict_full(self, pred_loader: DataLoader) -> np.ndarray:
+    def _predict_full(
+        self, pred_loader: DataLoader, progress_bar: ProgressBar
+    ) -> np.ndarray:
         """Predict from whole sample.
 
         Parameters
@@ -427,10 +424,13 @@ class Engine:
         """
         prediction = []
         with torch.no_grad():
-            for sample in pred_loader:
+            for i, sample in enumerate(pred_loader):
                 outputs = self.model(sample[0].to(self.device))
-                outputs = denormalize(outputs, self.cfg.data.mean, self.cfg.data.std)
+                outputs = denormalize(
+                    outputs, float(self.cfg.data.mean), float(self.cfg.data.std)  # type: ignore  # noqa: E501
+                )
                 prediction.append(outputs.detach().cpu().numpy().squeeze())
+                progress_bar.update(i)
         return np.stack(prediction)
 
     def get_train_dataloader(self, train_path: str) -> DataLoader:
