@@ -102,7 +102,7 @@ class ProgressBar:
         self._values_order: List[Any] = []
         self._start = time.time()
         self._last_update = 0.0
-        self.spin = self.spinning_cursor()
+        self.spin = self.spinning_cursor() if self.max_value is None else None
         self.message = "Denoising" if mode == "predict" else "Estimating"
 
     def update(self, current_step: int, values: Optional[List] = None) -> None:
@@ -215,13 +215,33 @@ class ProgressBar:
         while True:
             yield from [
                 "▓ ----- ▒",
+                "▓ ----- ▒",
+                "▓ ----- ▒",
+                "▓ ->--- ▒",
+                "▓ ->--- ▒",
                 "▓ ->--- ▒",
                 "▓ -->-- ▒",
+                "▓ -->-- ▒",
+                "▓ -->-- ▒",
+                "▓ --->- ▒",
+                "▓ --->- ▒",
                 "▓ --->- ▒",
                 "▓ ----> ▒",
+                "▓ ----> ▒",
+                "▓ ----> ▒",
+                "▒ ----- ░",
+                "▒ ----- ░",
                 "▒ ----- ░",
                 "▒ ->--- ░",
+                "▒ ->--- ░",
+                "▒ ->--- ░",
+                "▒ -->-- ░",
+                "▒ -->-- ░",
                 "▒ -->-- ░",
                 "▒ --->- ░",
+                "▒ --->- ░",
+                "▒ --->- ░",
+                "▒ ----> ░",
+                "▒ ----> ░",
                 "▒ ----> ░",
             ]
