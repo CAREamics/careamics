@@ -116,6 +116,7 @@ def create_model(
         assert config is not None, "Configuration must be provided"  # mypy
         optimizer, scheduler = get_optimizer_and_scheduler(config, model)
         scaler = get_grad_scaler(config)
+        logger.info("Engine initialized from configuration")
 
     else:
         raise ValueError("Either config or model_path must be provided")

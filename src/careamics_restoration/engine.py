@@ -198,23 +198,32 @@ class Engine:
             )
 
         eval_loader = self.get_val_dataloader(val_path)
-
         self.logger.info(f"Starting training for {self.cfg.training.num_epochs} epochs")
 
         val_losses = []
         try:
             # loop over the dataset multiple times
             for epoch in range(self.cfg.training.num_epochs):
-                train_outputs = self._train_single_epoch(
+                try:
+                    epoch_size = epoch_size
+                except NameError:
+                    epoch_size = None
+
+                progress_bar = ProgressBar(
+                    max_value=epoch_size,
+                    num_epochs=self.cfg.training.num_epochs, mode="train"
+                )
+
+                train_outputs, epoch_size = self._train_single_epoch(
                     train_loader,
+                    progress_bar,
                     self.cfg.training.amp.use,
                 )
 
                 # Perform validation step
                 eval_outputs = self.evaluate(eval_loader)
-                self.logger.info(
-                    f'Validation loss for epoch {epoch}: {eval_outputs["loss"]}'
-                )
+                progress_bar.add(1, values=[("val loss", eval_outputs["loss"])])
+
                 # Add update scheduler rule based on type
                 self.lr_scheduler.step(eval_outputs["loss"])
                 val_losses.append(eval_outputs["loss"])
@@ -236,6 +245,7 @@ class Engine:
     def _train_single_epoch(
         self,
         loader: torch.utils.data.DataLoader,
+        progress_bar: ProgressBar,
         amp: bool,
     ) -> Dict[str, float]:
         """Runs a single epoch of training.
@@ -256,8 +266,9 @@ class Engine:
         avg_loss = MetricTracker()
         self.model.to(self.device)
         self.model.train()
+        epoch_size = 0
 
-        for batch, *auxillary in loader:
+        for i, (batch, *auxillary) in enumerate(loader):
             self.optimizer.zero_grad()
 
             with torch.cuda.amp.autocast(enabled=amp):
@@ -269,8 +280,10 @@ class Engine:
             avg_loss.update(loss.item(), batch.shape[0])
 
             self.optimizer.step()
+            epoch_size += 1
+            progress_bar.update(i, values=[("train loss", avg_loss.avg)])
 
-        return {"loss": avg_loss.avg}
+        return {"loss": avg_loss.avg}, epoch_size
 
     def evaluate(self, eval_loader: torch.utils.data.DataLoader) -> Dict[str, float]:
         """Perform evaluation on the validation set.
@@ -293,7 +306,6 @@ class Engine:
                 outputs = self.model(patch.to(self.device))
                 loss = self.loss_func(outputs, *auxillary, self.device)
                 avg_loss.update(loss.item(), patch.shape[0])
-
         return {"loss": avg_loss.avg}
 
     def predict(

@@ -17,6 +17,8 @@ def get_logger(
 ) -> logging.Logger:
     """Creates a python logger instance with configured handlers."""
     logger = logging.getLogger(name)
+    logger.propagate = False
+
     if name in LOGGERS:
         return logger
 
@@ -43,6 +45,8 @@ def get_logger(
 
     logger.setLevel(log_level)
     LOGGERS[name] = True
+
+    logger.propagate = False
 
     return logger
 
@@ -103,7 +107,14 @@ class ProgressBar:
         self._start = time.time()
         self._last_update = 0.0
         self.spin = self.spinning_cursor() if self.max_value is None else None
-        self.message = "Denoising" if mode == "predict" else "Estimating"
+        if mode == "train":
+            self.message = "Estimating"
+        elif mode == 'val':
+            self.message = "Validating"
+        elif mode == 'predict':
+            self.message = "Denoising"
+        else:
+            raise ValueError(f"Unknown mode: {mode}")
 
     def update(self, current_step: int, values: Optional[List] = None) -> None:
         """Updates the progress bar.
@@ -138,6 +149,8 @@ class ProgressBar:
                 # means "take an average from a single value" but keeps the
                 # numeric formatting.
                 self._values[k] = [v, 1]
+            # if self._values[k][0] == 0:
+            #     self._values[k][0] = values[k][0]
         self._seen_so_far = current_step
 
         now = time.time()
@@ -181,13 +194,13 @@ class ProgressBar:
             info += f" {time_per_unit * 1e6:.0f}us/step"
 
         for k in self._values_order:
-            info += f" - {k}s:"
+            info += f" - {k}:"
             if isinstance(self._values[k], list):
                 avg = np.mean(self._values[k][0] / max(1, self._values[k][1]))
                 if abs(avg) > 1e-3:
-                    info += f" {avg}:.4f"
+                    info += f" {avg:.4f}"
                 else:
-                    info += f" {avg}:.4e"
+                    info += f" {avg:.4e}"
             else:
                 info += f" {self._values[k]}s"
 
