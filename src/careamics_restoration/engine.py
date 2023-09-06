@@ -415,11 +415,17 @@ class Engine:
                     # Stitch tiles together if sample is finished
                     predicted_sample = stitch_prediction(tiles, stitching_data)
                     prediction.append(predicted_sample)
+                    tiles.clear()
+                    stitching_data.clear()
 
                 progress_bar.update(i)
 
         self.logger.info(f"Predicted {len(prediction)} samples, {i} tiles in total")
-        return np.stack(prediction)
+        try:
+            return np.stack(prediction)
+        except ValueError:
+            self.logger.warning("Samples have different shapes, returning list.")
+            return prediction
 
     def _predict_full(
         self, pred_loader: DataLoader, progress_bar: ProgressBar
