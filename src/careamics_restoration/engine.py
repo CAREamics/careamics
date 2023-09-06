@@ -203,6 +203,9 @@ class Engine:
         val_losses = []
         try:
             # loop over the dataset multiple times
+            train_stats = []
+            eval_stats = []
+
             for epoch in range(self.cfg.training.num_epochs):
                 try:
                     epoch_size = epoch_size
@@ -224,16 +227,13 @@ class Engine:
 
                 # Perform validation step
                 eval_outputs = self.evaluate(eval_loader)
-                progress_bar.add(1, values=[("val loss", eval_outputs["loss"])])
 
                 # Add update scheduler rule based on type
                 self.lr_scheduler.step(eval_outputs["loss"])
                 val_losses.append(eval_outputs["loss"])
-                name = self.save_checkpoint(epoch, val_losses, "state_dict")
-                self.logger.info(f"Saved checkpoint to {name}")
 
+                learning_rate = self.optimizer.param_groups[0]["lr"]
                 if self.use_wandb:
-                    learning_rate = self.optimizer.param_groups[0]["lr"]
                     metrics = {
                         "train": train_outputs,
                         "eval": eval_outputs,
@@ -241,8 +241,20 @@ class Engine:
                     }
                     self.wandb.log_metrics(metrics)
 
+                progress_bar.add(
+                    1,
+                    values=[("val loss", eval_outputs["loss"]), ("lr", learning_rate)],
+                )
+                train_stats.append(train_outputs)
+                eval_stats.append(eval_outputs)
+
+                name = self.save_checkpoint(epoch, val_losses, "state_dict")
+                self.logger.info(f"Saved checkpoint to {name}")
+
         except KeyboardInterrupt:
             self.logger.info("Training interrupted")
+
+        return train_outputs, eval_outputs
 
     def _train_single_epoch(
         self,
@@ -283,7 +295,12 @@ class Engine:
 
             self.optimizer.step()
             epoch_size += 1
-            progress_bar.update(i, values=[("train loss", avg_loss.avg)])
+
+            progress_bar.update(
+                current_step=i,
+                batch_size=self.cfg.training.batch_size,
+                values=[("train loss", avg_loss.avg)],
+            )
 
         return {"loss": avg_loss.avg}, epoch_size
 
@@ -418,7 +435,7 @@ class Engine:
                     tiles.clear()
                     stitching_data.clear()
 
-                progress_bar.update(i)
+                progress_bar.update(i, 1)
 
         self.logger.info(f"Predicted {len(prediction)} samples, {i} tiles in total")
         try:
@@ -450,7 +467,7 @@ class Engine:
                     outputs, float(self.cfg.data.mean), float(self.cfg.data.std)  # type: ignore  # noqa: E501
                 )
                 prediction.append(outputs.detach().cpu().numpy().squeeze())
-                progress_bar.update(i)
+                progress_bar.update(i, 1)
         return np.stack(prediction)
 
     def get_train_dataloader(self, train_path: str) -> DataLoader:

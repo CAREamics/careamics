@@ -116,7 +116,9 @@ class ProgressBar:
         else:
             raise ValueError(f"Unknown mode: {mode}")
 
-    def update(self, current_step: int, values: Optional[List] = None) -> None:
+    def update(
+        self, current_step: int, batch_size: int, values: Optional[List] = None
+    ) -> None:
         """Updates the progress bar.
 
         Arguments:
@@ -149,8 +151,7 @@ class ProgressBar:
                 # means "take an average from a single value" but keeps the
                 # numeric formatting.
                 self._values[k] = [v, 1]
-            # if self._values[k][0] == 0:
-            #     self._values[k][0] = values[k][0]
+
         self._seen_so_far = current_step
 
         now = time.time()
@@ -176,7 +177,7 @@ class ProgressBar:
             bar += "." * (self.width - progress_width)
             bar += "]"
         else:
-            bar = f"{self.message} {next(self.spin)}, tile No. {current_step}"
+            bar = f"{self.message} {next(self.spin)}, tile No. {current_step * batch_size}"  # noqa: E501
 
         self._total_width = len(bar)
         sys.stdout.write(bar)
@@ -218,7 +219,7 @@ class ProgressBar:
 
     def add(self, n: int, values: Optional[List] = None) -> None:
         """Adds progress."""
-        self.update(self._seen_so_far + n, values)
+        self.update(self._seen_so_far + n, 1, values=values)
 
     def spinning_cursor(self) -> Generator:
         """Generates a spinning cursor animation.
