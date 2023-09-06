@@ -211,7 +211,9 @@ class Engine:
 
                 progress_bar = ProgressBar(
                     max_value=epoch_size,
-                    num_epochs=self.cfg.training.num_epochs, mode="train"
+                    epoch=epoch,
+                    num_epochs=self.cfg.training.num_epochs,
+                    mode="train",
                 )
 
                 train_outputs, epoch_size = self._train_single_epoch(

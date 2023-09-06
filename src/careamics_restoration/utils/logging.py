@@ -109,9 +109,9 @@ class ProgressBar:
         self.spin = self.spinning_cursor() if self.max_value is None else None
         if mode == "train":
             self.message = "Estimating"
-        elif mode == 'val':
+        elif mode == "val":
             self.message = "Validating"
-        elif mode == 'predict':
+        elif mode == "predict":
             self.message = "Denoising"
         else:
             raise ValueError(f"Unknown mode: {mode}")
