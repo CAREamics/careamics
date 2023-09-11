@@ -1,4 +1,3 @@
-import random
 from logging import FileHandler
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
@@ -31,15 +30,7 @@ from .utils import (
     normalize,
     setup_cudnn_reproducibility,
 )
-
-
-def seed_everything(seed: int) -> int:
-    """Seed all random number generators for reproducibility."""
-    random.seed(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)
-    return seed
+from .utils.rng import seed_everything
 
 
 class Engine:
@@ -158,7 +149,7 @@ class Engine:
 
         # seeding
         setup_cudnn_reproducibility(deterministic=True, benchmark=False)
-        seed_everything(seed=42)
+        seed_everything()
 
     def train(
         self,
