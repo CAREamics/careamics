@@ -180,7 +180,7 @@ class Engine:
         Raises
         ------
         ValueError
-            Raise a VakueError if the training configuration is missing
+            Raise a ValueError if the training configuration is missing
         """
         # Check that the configuration is not None
         assert self.cfg is not None, "Missing configuration."  # mypy
@@ -201,11 +201,12 @@ class Engine:
         self.logger.info(f"Starting training for {self.cfg.training.num_epochs} epochs")
 
         val_losses = []
+
         try:
-            # loop over the dataset multiple times
             train_stats = []
             eval_stats = []
 
+            # loop over the dataset multiple times
             for epoch in range(self.cfg.training.num_epochs):
                 try:
                     epoch_size = epoch_size
@@ -224,7 +225,6 @@ class Engine:
                     progress_bar,
                     self.cfg.training.amp.use,
                 )
-
                 # Perform validation step
                 eval_outputs = self.evaluate(eval_loader)
 
@@ -254,7 +254,7 @@ class Engine:
         except KeyboardInterrupt:
             self.logger.info("Training interrupted")
 
-        return train_outputs, eval_outputs
+        return train_stats, eval_stats
 
     def _train_single_epoch(
         self,
@@ -275,8 +275,6 @@ class Engine:
         amp : bool
             whether to use automatic mixed precision
         """
-        # TODO looging error LiveError: Only one live display may be active at once
-
         avg_loss = MetricTracker()
         self.model.to(self.device)
         self.model.train()
@@ -293,14 +291,14 @@ class Engine:
 
             avg_loss.update(loss.item(), batch.shape[0])
 
-            self.optimizer.step()
-            epoch_size += 1
-
             progress_bar.update(
                 current_step=i,
                 batch_size=self.cfg.training.batch_size,
                 values=[("train loss", avg_loss.avg)],
             )
+
+            self.optimizer.step()
+            epoch_size += 1
 
         return {"loss": avg_loss.avg}, epoch_size
 

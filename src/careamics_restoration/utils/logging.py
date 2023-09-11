@@ -9,7 +9,6 @@ import numpy as np
 LOGGERS: dict = {}
 
 
-# TODO: export all the loggers to the same file
 def get_logger(
     name: str,
     log_level: int = logging.INFO,
@@ -108,7 +107,7 @@ class ProgressBar:
         self._last_update = 0.0
         self.spin = self.spinning_cursor() if self.max_value is None else None
         if mode == "train":
-            self.message = "Estimating"
+            self.message = "Estimating dataset size"
         elif mode == "val":
             self.message = "Validating"
         elif mode == "predict":
