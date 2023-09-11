@@ -5,7 +5,6 @@ import numpy as np
 from skimage.util import view_as_windows
 
 from careamics_restoration.utils.logging import get_logger
-from careamics_restoration.utils.rng import GLOBAL_RNG
 
 logger = get_logger(__name__)
 
@@ -163,6 +162,7 @@ def compute_reshaped_view(
     window_shape: Tuple[int, ...],
     step: Tuple[int, ...],
     output_shape: Tuple[int, ...],
+    seed: int = 42,
 ) -> np.ndarray:
     """Compute the reshaped views of an array.
 
@@ -177,10 +177,11 @@ def compute_reshaped_view(
     output_shape : Tuple[int]
         Shape of the output array
     """
+    rng = np.random.default_rng()
     patches = view_as_windows(arr, window_shape=window_shape, step=step).reshape(
         *output_shape
     )
-    GLOBAL_RNG.shuffle(patches, axis=0)
+    rng.shuffle(patches, axis=0)
     return patches
 
 
@@ -305,8 +306,9 @@ def extract_patches_random(
     # Patches sanity check
     patches_sanity_check(arr, patch_size, is_3d_patch)
 
+    rng = np.random.default_rng()
     # shuffle the array along the first axis TODO do we need shuffling?
-    GLOBAL_RNG.shuffle(arr, axis=0)
+    rng.shuffle(arr, axis=0)
 
     for sample_idx in range(arr.shape[0]):
         sample = arr[sample_idx]
@@ -315,7 +317,7 @@ def extract_patches_random(
         n_patches = np.ceil(np.prod(sample.shape) / np.prod(patch_size)).astype(int)
         for _ in range(n_patches):
             crop_coords = [
-                GLOBAL_RNG.integers(0, arr.shape[i + 1] - patch_size[i])
+                rng.integers(0, arr.shape[i + 1] - patch_size[i])
                 for i in range(len(patch_size))
             ]
             patch = (

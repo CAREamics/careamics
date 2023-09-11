@@ -2,8 +2,6 @@ from typing import Callable, Optional, Tuple
 
 import numpy as np
 
-from careamics_restoration.utils.rng import GLOBAL_RNG
-
 
 def odd_jitter_func(step: float, rng: np.random.Generator) -> np.ndarray:
     """Adds random jitter to the grid.
@@ -49,6 +47,8 @@ def get_stratified_coords(
     np.ndarray
         array of coordinates of the masked pixels
     """
+    rng = np.random.default_rng()
+
     # Define the approximate distance between masked pixels
     mask_pixel_distance = np.round((100 / mask_pixel_perc) ** (1 / len(shape))).astype(
         np.int32
@@ -69,8 +69,8 @@ def get_stratified_coords(
     coordinate_grid_list = np.meshgrid(*pixel_coords)
     coordinate_grid = np.array(coordinate_grid_list).reshape(len(shape), -1).T
 
-    grid_random_increment = GLOBAL_RNG.integers(
-        odd_jitter_func(float(step), GLOBAL_RNG)
+    grid_random_increment = rng.integers(
+        odd_jitter_func(float(step), rng)
         * np.ones_like(coordinate_grid).astype(np.int32)
         - 1,
         size=coordinate_grid.shape,
@@ -84,7 +84,7 @@ def get_stratified_coords(
 def default_manipulate(
     patch: np.ndarray,
     mask_pixel_percentage: float,
-    roi_size: int = 5,
+    roi_size: int = 11,
     augmentations: Optional[Callable] = None,
     seed: int = 42,  # TODO seed is not used
 ) -> Tuple[np.ndarray, ...]:
@@ -110,6 +110,7 @@ def default_manipulate(
 
     # Get the coordinates of the pixels to be replaced
     roi_centers = get_stratified_coords(mask_pixel_percentage, patch.shape)
+    rng = np.random.default_rng()
 
     # Generate coordinate grid for ROI
     roi_span_full = np.arange(-np.floor(roi_size / 2), np.ceil(roi_size / 2)).astype(
@@ -119,7 +120,7 @@ def default_manipulate(
     roi_span_wo_center = roi_span_full[roi_span_full != 0]
 
     # Randomly select coordinates from the grid
-    random_increment = GLOBAL_RNG.choice(roi_span_wo_center, size=roi_centers.shape)
+    random_increment = rng.choice(roi_span_wo_center, size=roi_centers.shape)
 
     # Clip the coordinates to the patch size
     replacement_coords = np.clip(

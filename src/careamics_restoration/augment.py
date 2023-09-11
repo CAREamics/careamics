@@ -2,8 +2,6 @@ from typing import Tuple
 
 import numpy as np
 
-from careamics_restoration.utils.rng import GLOBAL_RNG
-
 
 # TODO refactor to be used with just a single tensor. Use 3rd party lib for augments?
 def augment_batch(
@@ -30,8 +28,9 @@ def augment_batch(
     Tuple[np.ndarray, ...]
         Tuple of augmented arrays
     """
-    rotate_state = GLOBAL_RNG.integers(0, 4)
-    flip_state = GLOBAL_RNG.integers(0, 2)
+    rng = np.random.default_rng(seed=seed)
+    rotate_state = rng.integers(0, 4)
+    flip_state = rng.integers(0, 2)
     return (
         flip_and_rotate(patch, rotate_state, flip_state),
         flip_and_rotate(original_image, rotate_state, flip_state),
