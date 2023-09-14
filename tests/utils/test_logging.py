@@ -20,7 +20,7 @@ def test_progress_bar_update(max_value, epoch, num_epochs, mode):
         max_value=max_value, epoch=epoch, num_epochs=num_epochs, mode=mode
     )
     for step in range(2):
-        progress_bar.update(step)
+        progress_bar.update(step, batch_size=1)
         assert progress_bar._seen_so_far == step
 
         if progress_bar.max_value is not None:
