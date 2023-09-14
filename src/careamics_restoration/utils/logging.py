@@ -116,7 +116,7 @@ class ProgressBar:
             raise ValueError(f"Unknown mode: {mode}")
 
     def update(
-        self, current_step: int, batch_size: int, values: Optional[List] = None
+        self, current_step: int, batch_size: int = 1, values: Optional[List] = None
     ) -> None:
         """Updates the progress bar.
 
@@ -176,7 +176,10 @@ class ProgressBar:
             bar += "." * (self.width - progress_width)
             bar += "]"
         else:
-            bar = f"{self.message} {next(self.spin)}, tile No. {current_step * batch_size}"  # noqa: E501
+            bar = (
+                f"{self.message} {next(self.spin)}, tile "  # type: ignore
+                f"No. {current_step * batch_size}"
+            )
 
         self._total_width = len(bar)
         sys.stdout.write(bar)

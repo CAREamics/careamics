@@ -50,8 +50,8 @@ def test_model_parameters_wrong_num_channels_init(
 
 @pytest.mark.parametrize("roi_size", [5, 9, 15])
 def test_model_parameters_roi_size(complete_config: dict, roi_size: int):
-    """Test that Algorithm accepts roi_size as an even number within the range [3, 21].
-    """
+    """Test that Algorithm accepts roi_size as an even number within the
+    range [3, 21]."""
     params = complete_config["algorithm"]
     params["roi_size"] = roi_size
 
@@ -166,18 +166,19 @@ def test_algorithm_to_dict_complete(complete_config: dict):
     assert "is_3D" in algorithm_complete
     assert "masking_strategy" in algorithm_complete
     assert "masked_pixel_percentage" in algorithm_complete
+    assert "roi_size" in algorithm_complete
     assert "model_parameters" in algorithm_complete
     assert "depth" in algorithm_complete["model_parameters"]
     assert "num_channels_init" in algorithm_complete["model_parameters"]
 
 
 def test_algorithm_to_dict_optionals(complete_config: dict):
-    """ "Test that export to dict does not include optional values."""
+    """Test that export to dict does not include optional values."""
     # change optional value to the default
     algo_config = complete_config["algorithm"]
     algo_config["model_parameters"] = {
         "depth": 2,
-        "num_channels_init": 96,
+        "num_channels_init": 32,
     }
     algo_config["masking_strategy"] = "default"
 

@@ -164,7 +164,7 @@ class Engine:
         self,
         train_path: str,
         val_path: str,
-    ) -> None:
+    ) -> Tuple[List[Any], List[Any]]:
         """Train the network.
 
         The training and validation data given by the paths must obey the axes and
@@ -182,11 +182,8 @@ class Engine:
         ValueError
             Raise a ValueError if the training configuration is missing
         """
-        # Check that the configuration is not None
-        assert self.cfg is not None, "Missing configuration."  # mypy
-        assert (
-            self.cfg.training is not None
-        ), "Missing training entry in configuration."  # mypy
+        if self.cfg is None:
+            raise ValueError("Configuration is not defined, cannot train.")
 
         # General func
         train_loader = self.get_train_dataloader(train_path)
@@ -209,7 +206,7 @@ class Engine:
             # loop over the dataset multiple times
             for epoch in range(self.cfg.training.num_epochs):
                 try:
-                    epoch_size = epoch_size
+                    epoch_size = epoch_size  # FIXME
                 except NameError:
                     epoch_size = None
 
@@ -261,7 +258,7 @@ class Engine:
         loader: torch.utils.data.DataLoader,
         progress_bar: ProgressBar,
         amp: bool,
-    ) -> Dict[str, float]:
+    ) -> Tuple[Dict[str, float], int]:
         """Runs a single epoch of training.
 
         Parameters
@@ -274,33 +271,41 @@ class Engine:
             scaler object for mixed precision training
         amp : bool
             whether to use automatic mixed precision
+
+        Returns
+        -------
+        Tuple[Dict[str, float], int]
+            Tuple of training metrics and epoch size
         """
-        avg_loss = MetricTracker()
-        self.model.to(self.device)
-        self.model.train()
-        epoch_size = 0
+        if self.cfg is not None:
+            avg_loss = MetricTracker()
+            self.model.to(self.device)
+            self.model.train()
+            epoch_size = 0
 
-        for i, (batch, *auxillary) in enumerate(loader):
-            self.optimizer.zero_grad()
+            for i, (batch, *auxillary) in enumerate(loader):
+                self.optimizer.zero_grad()
 
-            with torch.cuda.amp.autocast(enabled=amp):
-                outputs = self.model(batch.to(self.device))
+                with torch.cuda.amp.autocast(enabled=amp):
+                    outputs = self.model(batch.to(self.device))
 
-            loss = self.loss_func(outputs, *auxillary, self.device)
-            self.scaler.scale(loss).backward()
+                loss = self.loss_func(outputs, *auxillary, self.device)
+                self.scaler.scale(loss).backward()
 
-            avg_loss.update(loss.item(), batch.shape[0])
+                avg_loss.update(loss.item(), batch.shape[0])
 
-            progress_bar.update(
-                current_step=i,
-                batch_size=self.cfg.training.batch_size,
-                values=[("train loss", avg_loss.avg)],
-            )
+                progress_bar.update(
+                    current_step=i,
+                    batch_size=self.cfg.training.batch_size,
+                    values=[("train loss", avg_loss.avg)],
+                )
 
-            self.optimizer.step()
-            epoch_size += 1
+                self.optimizer.step()
+                epoch_size += 1
 
-        return {"loss": avg_loss.avg}, epoch_size
+            return {"loss": avg_loss.avg}, epoch_size
+        else:
+            raise ValueError("Configuration is not defined, cannot train.")
 
     def evaluate(self, eval_loader: torch.utils.data.DataLoader) -> Dict[str, float]:
         """Perform evaluation on the validation set.
@@ -327,34 +332,43 @@ class Engine:
 
     def predict(
         self,
+        input: Union[np.ndarray, str, Path],
         *,
-        external_input: Optional[np.ndarray] = None,
-        pred_path: Optional[str] = None,
-    ) -> np.ndarray:
+        tile_shape: Optional[List[int]] = None,
+        overlaps: Optional[List[int]] = None,
+        axes: Optional[str] = None,
+    ) -> Union[np.ndarray, List[np.ndarray]]:
         """Predict using the Engine's model.
 
-        Can be used with external input or with the dataset, provided in the
-        configuration file.
+        Can be used with an input array or a path to data.
+
+        The Engine must have previously been trained and mean/std be specified in
+        its configuration.
+
+        To use tiling, both `tile_shape` and `overlaps` must be specified, have same
+        length, be divisible by 2 and greater than 0. Finally, the overlaps must be
+        smaller than the tiles.
 
         Parameters
         ----------
-        external_input : Optional[np.ndarray], optional
-            external image array to predict on, by default None
+        input : Optional[np.ndarray], optional
+            Image array or path to predict on
+        tile_shape : Optional[List[int]], optional
+            2D or 3D shape of the tiles to be predicted, by default None
+        overlaps : Optional[List[int]], optional
+            2D or 3D overlaps between tiles, by default None
+        axes : Optional[str], optional
+            Axes of the input array if different from the one in the
+            configuration, by default None
 
         Returns
         -------
-        np.ndarray
-            predicted image array of the same shape as the input
+        Union[np.ndarray, List[np.ndarray]]
+            predicted image array of the same shape as the input or list of arrays
+            if the arrays have inconsistent shapes
         """
-        # Check that there is at least one input parameter
-        if external_input is None and pred_path is None:
-            raise ValueError(
-                "Prediction takes at an external input or a path to data "
-                "(both None here)."
-            )
-
-        assert self.cfg is not None, "Missing configuration."  # mypy
-        assert self.cfg.data is not None, "Missing data entry in configuration."  # mypy
+        if self.cfg is None:
+            raise ValueError("Configuration is not defined, cannot predict.")
 
         # Check that the mean and std are there (= has been trained)
         if not self.cfg.data.mean or not self.cfg.data.std:
@@ -363,26 +377,20 @@ class Engine:
                 "be performed."
             )
 
-        # check array
-        if external_input is not None:
-            check_array_validity(external_input, self.cfg.data.axes)
-
         # set model to eval mode
         self.model.to(self.device)
         self.model.eval()
 
         progress_bar = ProgressBar(num_epochs=1, mode="predict")
-        if external_input is not None:
-            pred_loader, stitch = self.get_predict_dataloader(
-                external_input=external_input
-            )
-        else:
-            # we have a path
-            pred_loader, stitch = self.get_predict_dataloader(pred_path=pred_path)
 
-        if external_input is not None:
-            self.logger.info("Starting prediction on external input")
-        if stitch:
+        # Get dataloader
+        pred_loader, tiled = self.get_predict_dataloader(
+            input=input, tile_shape=tile_shape, overlaps=overlaps, axes=axes
+        )
+
+        # Start prediction
+        self.logger.info("Starting prediction")
+        if tiled:
             self.logger.info("Starting tiled prediction")
             prediction = self._predict_tiled(pred_loader, progress_bar)
         else:
@@ -393,7 +401,7 @@ class Engine:
 
     def _predict_tiled(
         self, pred_loader: DataLoader, progress_bar: ProgressBar
-    ) -> np.ndarray:
+    ) -> Union[np.ndarray, List[np.ndarray]]:
         """Predict from separate tiles.
 
         Parameters
@@ -534,16 +542,24 @@ class Engine:
 
     def get_predict_dataloader(
         self,
+        input: Union[np.ndarray, str, Path],
         *,
-        external_input: Optional[np.ndarray] = None,
-        pred_path: Optional[str] = None,
+        tile_shape: Optional[List[int]] = None,
+        overlaps: Optional[List[int]] = None,
+        axes: Optional[str] = None,
     ) -> Tuple[DataLoader, bool]:
         """Return a prediction dataloader.
 
         Parameters
         ----------
-        pred_path : str
-            Path to the prediction data.
+        input : Union[np.ndarray, str, Path], optional
+            Input array or path to predict on, by default None
+        tile_shape : Optional[List[int]], optional
+            2D or 3D shape of the tiles to be predicted, by default None
+        overlaps : Optional[List[int]], optional
+            2D or 3D overlaps between tiles, by default None
+        axes : Optional[str], optional
+            Axes of the input array if different from the one in the configuration.
 
         Returns
         -------
@@ -555,22 +571,53 @@ class Engine:
         ValueError
             If the training configuration is None
         """
-        assert self.cfg is not None, "Missing configuration."  # mypy
+        # Assertions for mypy
+        assert self.cfg is not None, "Missing configuration."
+        assert (
+            self.cfg.data.mean is not None and self.cfg.data.std is not None
+        ), "Missing data entry in configuration."
 
-        if external_input is not None:
-            assert (
-                self.cfg.data.mean is not None and self.cfg.data.std is not None
-            ), "Missing data entry in configuration."  # mypy
+        if input is None:
+            raise ValueError("Input is None, cannot predict.")
+
+        # Create dataset
+        if isinstance(input, np.ndarray):  # np.ndarray
+            # Check that the axes fit the input
+            img_axes = self.cfg.data.axes if axes is None else axes
+            # TODO are self.cfg.data.axes and axes compatible (same spatial dim)?
+            check_array_validity(input, img_axes)
+
+            # Check if tiling requested
+            tiled = tile_shape is not None and overlaps is not None
+
+            # Validate tiles and overlaps
+            if tiled:
+                # TODO is tiling possible with TensorDataset?
+                raise NotImplementedError(
+                    "Tiling with in memory array is currently not implemented."
+                )
+
+                # check_tiling_validity(tile_shape, overlaps)
+
+            # Normalize input and cast to float32
             normalized_input = normalize(
-                img=external_input, mean=self.cfg.data.mean, std=self.cfg.data.std
+                img=input, mean=self.cfg.data.mean, std=self.cfg.data.std
             )
             normalized_input = normalized_input.astype(np.float32)
+
+            # Create dataset
             dataset = TensorDataset(torch.from_numpy(normalized_input))
-            stitch = False  # TODO can also be true
-        else:
-            assert pred_path is not None, "Path to prediction data not provided"  # mypy
-            dataset = get_prediction_dataset(self.cfg, pred_path=pred_path)
-            stitch = (
+        elif isinstance(input, str) or isinstance(input, Path):  # path
+            # Create dataset
+            dataset = get_prediction_dataset(
+                self.cfg,
+                pred_path=input,
+                tile_shape=tile_shape,
+                overlaps=overlaps,
+                axes=axes,
+            )
+
+            tiled = (
                 hasattr(dataset, "patch_extraction_method")
                 and dataset.patch_extraction_method is not None
             )
@@ -582,7 +629,7 @@ class Engine:
                 num_workers=0,
                 pin_memory=True,
             ),
-            stitch,
+            tiled,
         )
 
     def save_checkpoint(

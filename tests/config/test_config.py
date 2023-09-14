@@ -1,4 +1,3 @@
-import copy
 from pathlib import Path
 
 import pytest
@@ -89,32 +88,6 @@ def test_set_3D(minimum_config: dict):
         conf.set_3D(False, "ZYX")
 
 
-def test_at_least_one_of_training_or_prediction(complete_config: dict):
-    """Test that at least one of training or prediction is specified."""
-    test_config = copy.deepcopy(complete_config)
-
-    # remove training and prediction
-    test_config.pop("training")
-    test_config.pop("prediction")
-
-    # test that config is invalid
-    with pytest.raises(ValueError):
-        Configuration(**test_config)
-
-    # test that config is valid if we add training
-    test_config["training"] = copy.deepcopy(complete_config["training"])
-    config_train = Configuration(**test_config)
-    assert config_train.training.model_dump() == test_config["training"]
-
-    # remove training
-    test_config.pop("training")
-
-    # test that config is valid if we add prediction
-    test_config["prediction"] = copy.deepcopy(complete_config["prediction"])
-    config_pred = Configuration(**test_config)
-    assert config_pred.prediction.model_dump() == test_config["prediction"]
-
-
 def test_wrong_values_by_assignment(complete_config: dict):
     """Test that wrong values raise an error when assigned."""
     config = Configuration(**complete_config)
@@ -143,16 +116,6 @@ def test_wrong_values_by_assignment(complete_config: dict):
     config.training = complete_config["training"]
     with pytest.raises(ValueError):
         config.training = "Hubert Blaine Wolfeschlegelsteinhausenbergerdorff Sr."
-
-    # prediction
-    config.prediction = complete_config["prediction"]
-    with pytest.raises(ValueError):
-        config.prediction = "You can call me Giorgio"
-
-    # Test that the model validators are also run after assigment
-    config.prediction = None
-    with pytest.raises(ValueError):
-        config.training = None
 
     # TODO Because algorithm is a sub-model of Configuration, and the validation is
     # done at the level of the Configuration, this does not cause any error, although
@@ -183,7 +146,7 @@ def test_config_to_dict_with_default_optionals(complete_config: dict):
     complete_config["algorithm"]["masked_pixel_percentage"] = 0.2
     complete_config["algorithm"]["model_parameters"] = {
         "depth": 2,
-        "num_channels_init": 96,
+        "num_channels_init": 32,
     }
 
     # Training default optional parameters
