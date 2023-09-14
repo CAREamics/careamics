@@ -24,7 +24,7 @@ algorithm:
   masked_pixel_percentage: 0.2
   # Optional, parameters of the model
   model_parameters:
-    #  Depth betwen 1 and 10
+    # Depth betwen 1 and 10
     depth: 2
     # Number of filters of the first level, must be divisible by 2
     num_filter_base: 32
@@ -53,11 +53,12 @@ training:
   lr_scheduler:
     # Name, one of ReduceLROnPlateau or StepLR
     name: ReduceLROnPlateau
-
     # Optional, parameters of the learning rate scheduler
     # see https://pytorch.org/docs/stable/optim.html#how-to-adjust-learning-rate
     parameters:
       mode: min
+      patience: 10
+      factor: 0.5
 
   # Extraction strategy, one of random or sequential
   extraction_strategy: random
@@ -75,14 +76,13 @@ training:
   amp:
     # Use (True or False)
     use: False
-
-  #   # Optional, scaling parameter for mixed precision training, power of 2 recommended.
-  #   # minimum is 512, maximum is 65536
-  #   # init_scale: 1024
+    # Optional, scaling parameter for mixed precision training, power of 2 recommended.
+    # minimum is 512, maximum is 65536
+    init_scale: 1024
 
 data:
-  # Extension of the data, one of npy, tiff and tif
-  data_format: npy
+  # Extension of the data, e.g. tiff or zarr
+  data_format: tiff
 
   # Axes, among STCZYX with constraints on order
   axes: SYX
