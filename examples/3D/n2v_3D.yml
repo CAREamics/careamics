@@ -87,13 +87,13 @@ data:
   # mean = Null
   # std = Null
 # Optional
-prediction:
-  # Whether to use tiling or not (True or False).
-  # If True, then tile_shape and overlaps must be specified
-  use_tiling: True
+# prediction:
+#   # Whether to use tiling or not (True or False).
+#   # If True, then tile_shape and overlaps must be specified
+#   use_tiling: True
 
-  # Tile shape for tiled prediction, 2D or 3D, divisible by 2
-  tile_shape: [32, 64, 64]
+#   # Tile shape for tiled prediction, 2D or 3D, divisible by 2
+#   tile_shape: [32, 64, 64]
 
-  # Overlap for tiled prediction, 2D or 3D, divisible by 2, smaller than tile shape
-  overlaps: [24, 48, 48]
+#   # Overlap for tiled prediction, 2D or 3D, divisible by 2, smaller than tile shape
+#   overlaps: [24, 48, 48]

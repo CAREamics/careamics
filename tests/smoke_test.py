@@ -32,12 +32,12 @@ def test_is_engine_runnable(
 
     # Predict only accepts 4D input for now
     test_image = test_image[None, None, ...]
-    test_result = engine.predict(external_input=test_image)
+    test_result = engine.predict(input=test_image)
 
     assert test_result is not None
 
     # Test prediction with pred_path without tiling
-    test_result = engine.predict(external_input=None, pred_path=test_path)
+    test_result = engine.predict(input=test_path)
 
     assert test_result is not None
 
@@ -47,8 +47,7 @@ def test_is_engine_runnable(
     _ = second_engine.train(train_path, val_path)
 
     # Test prediction with pred_path with tiling
-    second_engine.cfg.prediction.tile_shape = patch_size
-    second_engine.cfg.prediction.overlaps = overlaps
-    second_engine.cfg.prediction.use_tiling = True
-    test_result = second_engine.predict(external_input=None, pred_path=test_path)
+    test_result = second_engine.predict(
+        input=test_path, tile_shape=patch_size, overlaps=overlaps
+    )
     assert test_result is not None

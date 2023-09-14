@@ -1,3 +1,5 @@
+from typing import List
+
 import numpy as np
 
 AXES = "STCZYX"
@@ -90,3 +92,57 @@ def check_array_validity(array: np.ndarray, axes: str) -> None:
             f"Externally provided arrays must have extra dimensions for batch and"
             f"channel to be compatible with the batchnorm layers."
         )
+
+
+def check_tiling_validity(tile_shape: List[int], overlaps: List[int]) -> None:
+    """Check that the tiling parameters are valid.
+
+    Parameters
+    ----------
+    tile_shape : List[int]
+        Shape of the tiles
+    overlaps : List[int]
+        Overlap between tiles
+
+    Raises
+    ------
+    ValueError
+        If one of the parameters is None
+    ValueError
+        If one of the element is zero
+    ValueError
+        If one of the element is non-divisible by 2
+    ValueError
+        If the number of elements in `overlaps` and `tile_shape` is different
+    ValueError
+        If one of the overlaps is larger than the corresponding tile shape
+    """
+    # cannot be None
+    if tile_shape is None or overlaps is None:
+        raise ValueError(
+            "Cannot use tiling without specifying `tile_shape` and "
+            "`overlaps`, make sure they have been correctly specified."
+        )
+
+    # non-zero and divisible by two
+    for dims_list in [tile_shape, overlaps]:
+        for dim in dims_list:
+            if dim < 1:
+                raise ValueError(f"Entry must be non-null positive (got {dim}).")
+
+            if dim % 2 != 0:
+                raise ValueError(f"Entry must be divisible by 2 (got {dim}).")
+
+    # same length
+    if len(overlaps) != len(tile_shape):
+        raise ValueError(
+            f"Overlaps ({len(overlaps)}) and tile shape ({len(tile_shape)}) must "
+            f"have the same number of dimensions."
+        )
+
+    # overlaps smaller than tile shape
+    for overlap, tile_dim in zip(overlaps, tile_shape):
+        if overlap >= tile_dim:
+            raise ValueError(
+                f"Overlap ({overlap}) must be smaller than tile shape ({tile_dim})."
+            )
