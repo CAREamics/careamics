@@ -584,6 +584,7 @@ class Engine:
         if isinstance(input, np.ndarray):  # np.ndarray
             # Check that the axes fit the input
             img_axes = self.cfg.data.axes if axes is None else axes
+            # TODO are self.cfg.data.axes and axes compatible (same spatial dim)?
             check_array_validity(input, img_axes)
 
             # Check if tiling requested
