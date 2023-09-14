@@ -84,7 +84,7 @@ def get_stratified_coords(
 def default_manipulate(
     patch: np.ndarray,
     mask_pixel_percentage: float,
-    roi_size: int = 5,
+    roi_size: int = 11,
     augmentations: Optional[Callable] = None,
     seed: int = 42,  # TODO seed is not used
 ) -> Tuple[np.ndarray, ...]:

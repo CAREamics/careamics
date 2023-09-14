@@ -14,7 +14,7 @@ from careamics_restoration.dataset.tiling import (
     extract_tiles,
 )
 from careamics_restoration.manipulation import default_manipulate
-from careamics_restoration.utils import normalize
+from careamics_restoration.utils import check_tiling_validity, normalize
 from careamics_restoration.utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -56,7 +56,7 @@ class TiffDataset(torch.utils.data.IterableDataset):
 
     def __init__(
         self,
-        data_path: str,
+        data_path: Union[str, Path],
         data_format: str,
         axes: str,
         patch_extraction_method: Union[ExtractionStrategies, None],
@@ -390,8 +390,19 @@ def get_validation_dataset(config: Configuration, val_path: str) -> TiffDataset:
     return dataset
 
 
-def get_prediction_dataset(config: Configuration, pred_path: str) -> TiffDataset:
+def get_prediction_dataset(
+    config: Configuration,
+    pred_path: Union[str, Path],
+    *,
+    tile_shape: Optional[List[int]] = None,
+    overlaps: Optional[List[int]] = None,
+    axes: Optional[str] = None,
+) -> TiffDataset:
     """Create Dataset instance from configuration.
+
+    To use tiling, both `tile_shape` and `overlaps` must be specified, have same
+    length, be divisible by 2 and greater than 0. Finally, the overlaps must be
+    smaller than the tiles.
 
     Parameters
     ----------
@@ -399,6 +410,12 @@ def get_prediction_dataset(config: Configuration, pred_path: str) -> TiffDataset
         Configuration object
     pred_path : Union[str, Path]
         Pathlike object with a path to prediction data
+    tile_shape : Optional[List[int]], optional
+        2D or 3D shape of the tiles to be predicted, by default None
+    overlaps : Optional[List[int]], optional
+        2D or 3D overlaps between tiles, by default None
+    axes : Optional[str], optional
+        Axes of the data, by default None
 
     Returns
     -------
@@ -408,24 +425,32 @@ def get_prediction_dataset(config: Configuration, pred_path: str) -> TiffDataset
     Raises
     ------
     ValueError
-        No prediction configuration found
-    """
-    if config.prediction is None:
-        raise ValueError("Prediction configuration is not defined.")
 
-    if config.prediction.use_tiling:
+    """
+    use_tiling = False  # default value
+
+    # Validate tiles and overlaps
+    if tile_shape is not None and overlaps is not None:
+        check_tiling_validity(tile_shape, overlaps)
+
+        # Use tiling
+        use_tiling = True
+
+    # Extraction strategy
+    if use_tiling:
         patch_extraction_method = ExtractionStrategies.TILED
     else:
         patch_extraction_method = None
 
+    # Create dataset
     dataset = TiffDataset(
         data_path=pred_path,
         data_format=config.data.data_format,
-        axes=config.data.axes,
+        axes=config.data.axes if axes is None else axes,  # supersede axes if provided
         mean=config.data.mean,
         std=config.data.std,
-        patch_size=config.prediction.tile_shape,
-        patch_overlap=config.prediction.overlaps,
+        patch_size=tile_shape,
+        patch_overlap=overlaps,
         patch_extraction_method=patch_extraction_method,
         patch_transform=None,
     )

@@ -10,7 +10,6 @@ import tifffile
 from careamics_restoration.config import Configuration
 from careamics_restoration.config.algorithm import Algorithm
 from careamics_restoration.config.data import Data
-from careamics_restoration.config.prediction import Prediction
 from careamics_restoration.config.training import LrScheduler, Optimizer, Training
 
 
@@ -105,7 +104,7 @@ def complete_config(minimum_config: dict) -> dict:
     complete_config["algorithm"]["masking_strategy"] = "median"
 
     complete_config["algorithm"]["masked_pixel_percentage"] = 0.6
-    complete_config["algorithm"]["roi_size"] = 5
+    complete_config["algorithm"]["roi_size"] = 13
     complete_config["algorithm"]["model_parameters"] = {
         "depth": 8,
         "num_channels_init": 32,
@@ -125,12 +124,6 @@ def complete_config(minimum_config: dict) -> dict:
     }
     complete_config["data"]["mean"] = 666.666
     complete_config["data"]["std"] = 42.420
-
-    complete_config["prediction"] = {
-        "use_tiling": True,
-        "tile_shape": [64, 64],
-        "overlaps": [32, 32],
-    }
 
     return complete_config
 
@@ -229,6 +222,5 @@ def base_configuration(temp_dir: Path, patch_size) -> Configuration:
             num_workers=0,
             use_wandb=False,
         ),
-        prediction=Prediction(use_tiling=False),
     )
     return configuration

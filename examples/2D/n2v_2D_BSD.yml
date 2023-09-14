@@ -1,12 +1,8 @@
 # Name, composed of letters, numbers, spaces, dashes and underscores
-experiment_name: N2V_BSD_test
+experiment_name: N2V_BSD
 
 # Working directory (logs, models, etc), its parent folder must exist
-working_directory: n2v_bsd_test
-
-# Optional
-# Absolute or relative (wrt working_directory) path to model
-# trained_model:
+working_directory: n2v_bsd
 
 algorithm:
   # Loss, currently only n2v is supported
@@ -18,20 +14,14 @@ algorithm:
   # Dimensions 2D (False) or 3D (True)
   is_3D: False
 
-  # Optional, masking strategy, currently only default is supported
-  # masking_strategy: default
-  # Optional, percentage of masked pixel per patch (between 0.1 and 20%)
-  # masked_pixel_percentage: 0.2
   # Optional, parameters of the model
-  # model_parameters:
-  #   # Depth betwen 1 and 10
-  #   depth: 2
-  #   # Number of filters of the first level, must be divisible by 2
-  #   num_filter_base: 96
+  model_parameters:
+    # Number of filters of the first level, must be divisible by 2
+    num_channels_init: 32
 
 training:
   # Number of epochs, greater or equal than 1
-  num_epochs: 10
+  num_epochs: 50
 
   # Patch size, 2D or 3D, divisible by 2
   patch_size: [64, 64]
@@ -43,7 +33,6 @@ training:
   optimizer:
     # Name, one of Adam or SGD
     name: Adam
-
     # Optional, parameters of the optimizer
     # see https://pytorch.org/docs/stable/optim.html#algorithms
     parameters:
@@ -53,11 +42,10 @@ training:
   lr_scheduler:
     # Name, one of ReduceLROnPlateau or StepLR
     name: ReduceLROnPlateau
-
     # Optional, parameters of the learning rate scheduler
     # see https://pytorch.org/docs/stable/optim.html#how-to-adjust-learning-rate
-    # parameters:
-    #   mode: min
+    parameters:
+      factor: 0.5
 
   # Extraction strategy, one of random or sequential
   extraction_strategy: random
@@ -66,38 +54,19 @@ training:
   augmentation: True
 
   # Optional, use WandB (True or False), must be installed in your conda environment
-  # use_wandb: True
+  use_wandb: False
 
   # Optional, number of workers for data loading, greater or equal than 0
-  num_workers: 0
+  num_workers: 4
 
   # Optional, automatic mixed precision
   amp:
-    #   # Use (True or False)
-    use: True
-
-  #   # Optional, scaling parameter for mixed precision training, power of 2 recommended.
-  #   # minimum is 512, maximum is 65536
-  #   # init_scale: 1024
+    # Use (True or False)
+    use: False
 
 data:
   # Extension of the data, one of npy, tiff and tif
-  data_format: npy
+  data_format: tiff
 
   # Axes, among STCZYX with constraints on order
   axes: SYX
-
-  # Optional, mean/std of the dataset
-  # mean = Null
-  # std = Null
-# Optional
-prediction:
-  # Whether to use tiling or not (True or False).
-  # If True, then tile_shape and overlaps must be specified
-  use_tiling: True
-
-  # Tile shape for tiled prediction, 2D or 3D, divisible by 2
-  tile_shape: [64, 64]
-
-  # Overlap for tiled prediction, 2D or 3D, divisible by 2, smaller than tile shape
-  overlaps: [48, 48]

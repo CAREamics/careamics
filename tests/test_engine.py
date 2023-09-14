@@ -24,12 +24,12 @@ def test_engine_predict_errors(minimum_config: dict):
     engine = Engine(config=config)
 
     with pytest.raises(ValueError):
-        engine.predict(external_input=None, pred_path=None)
+        engine.predict(input=None)
 
     config.data.mean = None
     config.data.std = None
     with pytest.raises(ValueError):
-        engine.predict(external_input=None, pred_path="None")
+        engine.predict(input="some/path")
 
 
 @pytest.mark.parametrize(

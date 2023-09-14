@@ -173,7 +173,7 @@ def test_algorithm_to_dict_complete(complete_config: dict):
 
 
 def test_algorithm_to_dict_optionals(complete_config: dict):
-    """ "Test that export to dict does not include optional values."""
+    """Test that export to dict does not include optional values."""
     # change optional value to the default
     algo_config = complete_config["algorithm"]
     algo_config["model_parameters"] = {
