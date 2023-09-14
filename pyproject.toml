@@ -48,6 +48,7 @@ dependencies = [
     'zarr',
     'rich',
     'rich-pixels',
+    'ipython'
 ]
 
 [project.optional-dependencies]
