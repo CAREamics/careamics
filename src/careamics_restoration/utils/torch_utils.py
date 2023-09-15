@@ -4,8 +4,6 @@ from typing import Optional
 
 import torch
 
-# TODO instantiate logging?
-
 
 def get_device() -> torch.device:
     """Selects the device to use for training."""

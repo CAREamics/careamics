@@ -7,8 +7,6 @@ from careamics_restoration.metrics import (
     zero_mean,
 )
 
-# TODO tests fix and fix_range
-
 
 @pytest.mark.parametrize(
     "x",

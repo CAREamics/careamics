@@ -17,11 +17,6 @@ from .config_filter import paths_to_str
 from .data import Data
 from .training import Training
 
-# TODO: test if parameter parent_config at the top of the config could work
-# TODO: config version?
-# TODO: for the working directory to work it should probably be set globally when
-# starting the engine
-
 
 class Configuration(BaseModel):
     """Main configuration class.

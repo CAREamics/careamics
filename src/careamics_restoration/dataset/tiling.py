@@ -162,7 +162,6 @@ def compute_reshaped_view(
     window_shape: Tuple[int, ...],
     step: Tuple[int, ...],
     output_shape: Tuple[int, ...],
-    seed: int = 42,
 ) -> np.ndarray:
     """Compute the reshaped views of an array.
 
@@ -211,7 +210,6 @@ def patches_sanity_check(
         )
 
 
-# TODO: this function does not ensure full coverage (see tests)
 # formerly :
 # https://github.com/juglab-torch/n2v/blob/00d536cdc5f5cd4bb34c65a777940e6e453f4a93/src/n2v/dataloader.py#L52
 def extract_patches_sequential(
@@ -230,8 +228,6 @@ def extract_patches_sequential(
         input image array
     patch_size : Tuple[int]
         tuple of patch sizes in each dimension
-    seed : int, optional
-        _description_, by default 42
 
     Yields
     ------
@@ -267,7 +263,6 @@ def extract_patches_sequential(
     # Generate a view of the input array containing pre-calculated number of patches
     # in each dimension with overlap.
     # Resulting array is resized to (n_patches, C, Z, Y, X) or (n_patches,C, Y, X)
-    # TODO add possibility to remove empty or almost empty patches ?
     patches = compute_reshaped_view(
         arr, window_shape=window_shape, step=window_steps, output_shape=output_shape
     )
@@ -278,9 +273,8 @@ def extract_patches_sequential(
         yield patch
 
 
-# TODO: extract patches random but with the possibility to remove (almost) empty patches
 def extract_patches_random(
-    arr: np.ndarray, patch_size: Union[List[int], Tuple[int]], seed: int = 42
+    arr: np.ndarray, patch_size: Union[List[int], Tuple[int]]
 ) -> Generator[np.ndarray, None, None]:
     """Extracts random patches.
 
@@ -293,8 +287,6 @@ def extract_patches_random(
         input image array
     patch_size : Tuple[int]
         tuple of patch sizes in each dimension
-    seed : int, optional
-        _description_, by default 42
 
     Yields
     ------
@@ -313,7 +305,6 @@ def extract_patches_random(
     for sample_idx in range(arr.shape[0]):
         sample = arr[sample_idx]
         # calculate how many number of patches can image area be divided into
-        # TODO add possibility to remove empty or almost empty patches ? Recalculate?
         n_patches = np.ceil(np.prod(sample.shape) / np.prod(patch_size)).astype(int)
         for _ in range(n_patches):
             crop_coords = [
