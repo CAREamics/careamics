@@ -2,10 +2,6 @@ import pytest
 
 from careamics_restoration.models.unet import UNet
 
-# TODO mode tests
-# TODO: test n2v2 and skip_skipone
-# TODO: test various parameters
-
 
 @pytest.mark.parametrize("depth", [1, 3, 5])
 def test_unet_depth(depth):

@@ -94,7 +94,6 @@ def test_compute_crop_and_stitch_coords_1d(axis_size, patch_size, overlap):
         all((group[0][0] == 0, group[-1][1] == axis_size))
         for group in [crop_coords, stitch_coords]
     )
-    # TODO Joran non si piaciono perche questo e molto complicato
     # check if neighboring stitch coordinates are equal
     assert all(
         stitch_coords[i][1] == stitch_coords[i + 1][0]

@@ -206,7 +206,7 @@ class Engine:
             # loop over the dataset multiple times
             for epoch in range(self.cfg.training.num_epochs):
                 try:
-                    epoch_size = epoch_size  # FIXME
+                    epoch_size = epoch_size
                 except NameError:
                     epoch_size = None
 
@@ -419,7 +419,6 @@ class Engine:
         stitching_data = []
 
         with torch.no_grad():
-            # TODO tiled prediction slow af, profile and optimize
             for i, (tile, *auxillary) in enumerate(pred_loader):
                 # Unpack auxillary data into last tile indicator and data, required to
                 # stitch tiles together
@@ -592,7 +591,6 @@ class Engine:
 
             # Validate tiles and overlaps
             if tiled:
-                # TODO is tiling possible with TensorDataset?
                 raise NotImplementedError(
                     "Tiling with in memory array is currently not implemented."
                 )
@@ -622,7 +620,6 @@ class Engine:
                 and dataset.patch_extraction_method is not None
             )
         return (
-            # TODO batch_size and num_workers hardocded for now
             DataLoader(
                 dataset,
                 batch_size=1,
@@ -771,7 +768,6 @@ class Engine:
 
     def _get_sample_io_files(self) -> Tuple[List[str], List[str]]:
         """Create numpy files for each model's input and outputs."""
-        # TODO: Right now this just creates random arrays.
         # input:
         if self.cfg is not None and self.cfg.training is not None:
             sample_input = np.random.randn(*self.cfg.training.patch_size)
@@ -784,7 +780,6 @@ class Engine:
                 )
             # finally add the batch dim
             sample_input = np.expand_dims(sample_input, axis=0)
-            # TODO: output, I guess this is the same as input.
             sample_output = np.random.randn(*sample_input.shape)
             # save numpy files
             workdir = self.cfg.working_directory

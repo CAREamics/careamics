@@ -19,8 +19,6 @@ def model_registry(model_name: str) -> torch.nn.Module:
     -------
     model
     """
-    # TODO make this a dict, not a function
-    # TODO: add more models
     if model_name == Models.UNET:
         return UNet
     else:

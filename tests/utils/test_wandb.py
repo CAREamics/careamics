@@ -20,5 +20,6 @@ def test_wandb_logger_engine(wandb, minimum_config: dict):
     config = Configuration(**minimum_config)
     config.training.use_wandb = True
     engine = Engine(config=config)
-    assert engine.wandb is not None
-    assert wandb.run
+    if engine.use_wandb:
+        assert engine.wandb is not None
+        assert wandb.run

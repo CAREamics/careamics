@@ -3,7 +3,6 @@ from typing import Tuple
 import numpy as np
 
 
-# TODO refactor to be used with just a single tensor. Use 3rd party lib for augments?
 def augment_batch(
     patch: np.ndarray,
     original_image: np.ndarray,

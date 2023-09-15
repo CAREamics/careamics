@@ -27,7 +27,8 @@ def odd_jitter_func(step: float, rng: np.random.Generator) -> np.ndarray:
 
 
 def get_stratified_coords(
-    mask_pixel_perc: float, shape: Tuple[int, ...], seed: int = 42
+    mask_pixel_perc: float,
+    shape: Tuple[int, ...],
 ) -> np.ndarray:
     """Get coordinates of the pixels to mask.
 
@@ -86,7 +87,6 @@ def default_manipulate(
     mask_pixel_percentage: float,
     roi_size: int = 11,
     augmentations: Optional[Callable] = None,
-    seed: int = 42,  # TODO seed is not used
 ) -> Tuple[np.ndarray, ...]:
     """Manipulate pixel in a patch with N2V algorithm.
 
