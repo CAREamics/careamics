@@ -17,7 +17,7 @@ def is_notebook() -> bool:
             return True  # Jupyter notebook or qtconsole
         else:
             return False
-    except NameError:
+    except (NameError, ModuleNotFoundError):
         return False
 
 
