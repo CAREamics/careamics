@@ -58,7 +58,7 @@ dev = ["pre-commit", "pytest", "pytest-cov"]
 test = ["pytest", "pytest-cov", "wandb"]
 
 # use wandb for logging
-wandb = ["wandb""]
+wandb = ["wandb"]
 
 # notebooks
 notebooks = ["jupyter", "careamics-portfolio", "itkwidgets", "torchsummary", "ipython"]
