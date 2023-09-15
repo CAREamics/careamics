@@ -4,7 +4,6 @@ from typing import Dict, Optional
 
 import torch
 import wandb
-from IPython import get_ipython
 
 from careamics_restoration.config import Configuration
 
@@ -12,6 +11,7 @@ from careamics_restoration.config import Configuration
 def is_notebook() -> bool:
     """Check if the code is exectuted from a notebook."""
     try:
+        from IPython import get_ipython
         shell = get_ipython().__class__.__name__
         if shell == "ZMQInteractiveShell":
             return True  # Jupyter notebook or qtconsole
