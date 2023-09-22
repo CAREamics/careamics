@@ -7,7 +7,9 @@ from ..bioimage import import_bioimage_model
 from ..config import Configuration
 from ..config.algorithm import Models
 from ..utils.logging import get_logger
+from ..utils.torch_utils import compile_model
 from .unet import UNet
+
 
 logger = get_logger(__name__)
 
@@ -118,7 +120,7 @@ def create_model(
 
     else:
         raise ValueError("Either config or model_path must be provided")
-
+    # model = compile_model(model)
     return model, optimizer, scheduler, scaler, config
 
 

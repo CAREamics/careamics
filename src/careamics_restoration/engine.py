@@ -216,6 +216,7 @@ class Engine:
                     num_epochs=self.cfg.training.num_epochs,
                     mode="train",
                 )
+                # train_epoch = train_op(self._train_single_epoch,)
                 # Perform training step
                 train_outputs, epoch_size = self._train_single_epoch(
                     train_loader,
@@ -287,14 +288,14 @@ class Engine:
             epoch_size = 0
 
             for i, (batch, *auxillary) in enumerate(loader):
-                self.optimizer.zero_grad()
+                self.optimizer.zero_grad(set_to_none=True)
 
                 with torch.cuda.amp.autocast(enabled=amp):
                     outputs = self.model(batch.to(self.device))
 
                 loss = self.loss_func(outputs, *auxillary, self.device)
                 self.scaler.scale(loss).backward()
-                avg_loss.update(loss, batch.shape[0])
+                avg_loss.update(loss.detach(), batch.shape[0])
 
                 progress_bar.update(
                     current_step=i,
@@ -328,7 +329,7 @@ class Engine:
             for patch, *auxillary in eval_loader:
                 outputs = self.model(patch.to(self.device))
                 loss = self.loss_func(outputs, *auxillary, self.device)
-                avg_loss.update(loss, patch.shape[0])
+                avg_loss.update(loss.detach(), patch.shape[0])
         return {"loss": avg_loss.avg}
 
     def predict(

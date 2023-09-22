@@ -10,10 +10,11 @@ __all__ = [
     "check_axes_validity",
     "check_tiling_validity",
     "cwd",
+    "compile_model",
 ]
 
 
 from .context import cwd
 from .normalization import denormalize, normalize
-from .torch_utils import get_device, setup_cudnn_reproducibility
+from .torch_utils import get_device, setup_cudnn_reproducibility, compile_model
 from .validators import check_array_validity, check_axes_validity, check_tiling_validity

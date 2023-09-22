@@ -128,7 +128,7 @@ class ProgressBar:
         for k, v in values:
             # if torch tensor, convert it to numpy
             if str(type(v)) == "<class 'torch.Tensor'>":
-                v = v.cpu().numpy()
+                v = v.detach().cpu().numpy()
 
             if k not in self._values_order:
                 self._values_order.append(k)

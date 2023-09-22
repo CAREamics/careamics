@@ -1,6 +1,7 @@
 import logging
 import os
-from typing import Optional
+import sys
+from typing import Callable, Optional
 
 import torch
 
@@ -14,6 +15,14 @@ def get_device() -> torch.device:
         logging.info("CUDA not available. Using CPU.")
         device = torch.device("cpu")
     return device
+
+
+def compile_model(model: torch.nn.Module) -> torch.nn.Module:
+    """Torch.compile wrapper."""
+    if hasattr(torch, "compile") and sys.version_info.minor <= 9:
+        return torch.compile(model, mode="reduce-overhead")
+    else:
+        return model
 
 
 def setup_cudnn_reproducibility(
