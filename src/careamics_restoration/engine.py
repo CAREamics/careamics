@@ -15,7 +15,7 @@ from careamics_restoration.bioimage import (
 from careamics_restoration.utils.logging import ProgressBar, get_logger
 
 from .config import Configuration, load_configuration
-from .dataset.tiff_dataset import (
+from .dataset.prepare_dataset import (
     get_prediction_dataset,
     get_train_dataset,
     get_validation_dataset,
@@ -157,7 +157,7 @@ class Engine:
                 self.use_wandb = False
 
         # seeding
-        setup_cudnn_reproducibility(deterministic=True, benchmark=False)
+        setup_cudnn_reproducibility(deterministic=False, benchmark=False)
         seed_everything(seed=42)
 
     def train(
@@ -205,9 +205,9 @@ class Engine:
 
             # loop over the dataset multiple times
             for epoch in range(self.cfg.training.num_epochs):
-                try:
-                    epoch_size = epoch_size
-                except NameError:
+                if hasattr(train_loader, "__len__"):
+                    epoch_size = train_loader.__len__()
+                else:
                     epoch_size = None
 
                 progress_bar = ProgressBar(
@@ -216,20 +216,29 @@ class Engine:
                     num_epochs=self.cfg.training.num_epochs,
                     mode="train",
                 )
-
+                # Perform training step
                 train_outputs, epoch_size = self._train_single_epoch(
                     train_loader,
                     progress_bar,
                     self.cfg.training.amp.use,
                 )
+
                 # Perform validation step
                 eval_outputs = self.evaluate(eval_loader)
+                val_losses.append(eval_outputs["loss"])
+                learning_rate = self.optimizer.param_groups[0]["lr"]
 
+                progress_bar.add(
+                    1,
+                    values=[
+                        ("train_loss", train_outputs["loss"]),
+                        ("val loss", eval_outputs["loss"]),
+                        ("lr", learning_rate),
+                    ],
+                )
                 # Add update scheduler rule based on type
                 self.lr_scheduler.step(eval_outputs["loss"])
-                val_losses.append(eval_outputs["loss"])
 
-                learning_rate = self.optimizer.param_groups[0]["lr"]
                 if self.use_wandb:
                     metrics = {
                         "train": train_outputs,
@@ -238,10 +247,6 @@ class Engine:
                     }
                     self.wandb.log_metrics(metrics)
 
-                progress_bar.add(
-                    1,
-                    values=[("val loss", eval_outputs["loss"]), ("lr", learning_rate)],
-                )
                 train_stats.append(train_outputs)
                 eval_stats.append(eval_outputs)
 
@@ -279,7 +284,6 @@ class Engine:
         """
         if self.cfg is not None:
             avg_loss = MetricTracker()
-            self.model.to(self.device)
             self.model.train()
             epoch_size = 0
 
@@ -291,13 +295,11 @@ class Engine:
 
                 loss = self.loss_func(outputs, *auxillary, self.device)
                 self.scaler.scale(loss).backward()
-
-                avg_loss.update(loss.item(), batch.shape[0])
+                avg_loss.update(loss.detach(), batch.shape[0])
 
                 progress_bar.update(
                     current_step=i,
                     batch_size=self.cfg.training.batch_size,
-                    values=[("train loss", avg_loss.avg)],
                 )
 
                 self.optimizer.step()
@@ -605,6 +607,7 @@ class Engine:
 
             # Create dataset
             dataset = TensorDataset(torch.from_numpy(normalized_input))
+
         elif isinstance(input, str) or isinstance(input, Path):  # path
             # Create dataset
             dataset = get_prediction_dataset(

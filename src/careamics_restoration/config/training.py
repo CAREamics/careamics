@@ -303,7 +303,6 @@ class Training(BaseModel):
         - batch_size: batch size, greater than 0.
         - optimizer: optimizer, see `Optimizer`.
         - lr_scheduler: learning rate scheduler, see `LrScheduler`.
-        - extraction_strategy: extraction strategy, see `ExtractionStrategies`.
         - augmentation: whether to use data augmentation or not (True or False).
 
     The other fields are optional:
@@ -323,8 +322,6 @@ class Training(BaseModel):
         Optimizer.
     lr_scheduler : LrScheduler
         Learning rate scheduler.
-    extraction_strategy : ExtractionStrategies
-        Extraction strategy.
     augmentation : bool
         Whether to use data augmentation or not.
     use_wandb : bool
@@ -348,8 +345,6 @@ class Training(BaseModel):
 
     optimizer: Optimizer
     lr_scheduler: LrScheduler
-
-    extraction_strategy: ExtractionStrategies
 
     augmentation: bool
 

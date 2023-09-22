@@ -4,8 +4,6 @@ import time
 from pathlib import Path
 from typing import Any, Dict, Generator, List, Optional, Union
 
-import numpy as np
-
 LOGGERS: dict = {}
 
 
@@ -106,14 +104,12 @@ class ProgressBar:
         self._start = time.time()
         self._last_update = 0.0
         self.spin = self.spinning_cursor() if self.max_value is None else None
-        if mode == "train":
+        if mode == "train" and self.max_value is None:
             self.message = "Estimating dataset size"
         elif mode == "val":
             self.message = "Validating"
         elif mode == "predict":
             self.message = "Denoising"
-        else:
-            raise ValueError(f"Unknown mode: {mode}")
 
     def update(
         self, current_step: int, batch_size: int = 1, values: Optional[List] = None
@@ -132,7 +128,7 @@ class ProgressBar:
         for k, v in values:
             # if torch tensor, convert it to numpy
             if str(type(v)) == "<class 'torch.Tensor'>":
-                v = v.detach().cpu().numpy()
+                v = v.cpu().numpy()
 
             if k not in self._values_order:
                 self._values_order.append(k)
@@ -199,7 +195,7 @@ class ProgressBar:
         for k in self._values_order:
             info += f" - {k}:"
             if isinstance(self._values[k], list):
-                avg = np.mean(self._values[k][0] / max(1, self._values[k][1]))
+                avg = self._values[k][0] / max(1, self._values[k][1])
                 if abs(avg) > 1e-3:
                     info += f" {avg:.4f}"
                 else:

@@ -24,7 +24,6 @@ class SupportedExtensions(str, Enum):
 
     TIFF = "tiff"
     TIF = "tif"
-    NPY = "npy"
 
     @classmethod
     def _missing_(cls, value: object) -> str:
@@ -81,6 +80,7 @@ class Data(BaseModel):
     )
 
     # Mandatory fields
+    in_memory: bool
     data_format: SupportedExtensions
     axes: str
 
