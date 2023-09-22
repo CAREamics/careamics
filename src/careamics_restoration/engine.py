@@ -222,7 +222,6 @@ class Engine:
                     progress_bar,
                     self.cfg.training.amp.use,
                 )
-
                 # Perform validation step
                 eval_outputs = self.evaluate(eval_loader)
                 val_losses.append(eval_outputs["loss"])
@@ -295,7 +294,7 @@ class Engine:
 
                 loss = self.loss_func(outputs, *auxillary, self.device)
                 self.scaler.scale(loss).backward()
-                avg_loss.update(loss.detach(), batch.shape[0])
+                avg_loss.update(loss, batch.shape[0])
 
                 progress_bar.update(
                     current_step=i,
@@ -329,7 +328,7 @@ class Engine:
             for patch, *auxillary in eval_loader:
                 outputs = self.model(patch.to(self.device))
                 loss = self.loss_func(outputs, *auxillary, self.device)
-                avg_loss.update(loss.item(), patch.shape[0])
+                avg_loss.update(loss, patch.shape[0])
         return {"loss": avg_loss.avg}
 
     def predict(
