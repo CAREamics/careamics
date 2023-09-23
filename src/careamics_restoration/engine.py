@@ -707,8 +707,15 @@ class Engine:
                     "bioimage.io format is not possible."
                 )
 
+            # set in/out axes from config
+            axes = self.cfg.data.axes.lower().replace("s", "")
+            if "c" not in axes:
+                axes = "c" + axes
+            if "b" not in axes:
+                axes = "b" + axes
+
             # get in/out samples' files
-            test_inputs, test_outputs = self._get_sample_io_files()
+            test_inputs, test_outputs = self._get_sample_io_files(axes)
 
             specs = get_default_model_specs(
                 "Noise2Void",
@@ -718,13 +725,6 @@ class Engine:
             )
             if model_specs is not None:
                 specs.update(model_specs)
-
-            # set in/out axes from config
-            axes = self.cfg.data.axes.lower().replace("s", "")
-            if "c" not in axes:
-                axes = "c" + axes
-            if "b" not in axes:
-                axes = "b" + axes
 
             specs.update(
                 {
@@ -766,20 +766,18 @@ class Engine:
         else:
             raise ValueError("Configuration is not defined.")
 
-    def _get_sample_io_files(self) -> Tuple[List[str], List[str]]:
+    def _get_sample_io_files(self, axes: str) -> Tuple[List[str], List[str]]:
         """Create numpy files for each model's input and outputs."""
         # input:
         if self.cfg is not None and self.cfg.training is not None:
             sample_input = np.random.randn(*self.cfg.training.patch_size)
             # if there are more input axes (like channel, ...),
             # then expand the sample dimensions.
-            len_diff = len(self.cfg.data.axes) - len(self.cfg.training.patch_size)
+            len_diff = len(axes) - len(self.cfg.training.patch_size)
             if len_diff > 0:
                 sample_input = np.expand_dims(
                     sample_input, axis=tuple(i for i in range(len_diff))
                 )
-            # finally add the batch dim
-            sample_input = np.expand_dims(sample_input, axis=0)
             sample_output = np.random.randn(*sample_input.shape)
             # save numpy files
             workdir = self.cfg.working_directory
