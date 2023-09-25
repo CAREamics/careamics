@@ -208,6 +208,7 @@ def base_configuration(temp_dir: Path, patch_size) -> Configuration:
         working_directory=temp_dir,
         algorithm=Algorithm(loss="n2v", model="UNet", is_3D="False"),
         data=Data(
+            in_memory=True,
             data_format="tif",
             axes="YX",
         ),
