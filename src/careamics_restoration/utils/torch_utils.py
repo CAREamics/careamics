@@ -1,7 +1,7 @@
 import logging
 import os
 import sys
-from typing import Callable, Optional
+from typing import Optional
 
 import torch
 

@@ -161,29 +161,16 @@ def get_prediction_dataset(
         patch_extraction_method = None
 
     # Create dataset
-    if config.data.in_memory:
-        dataset = InMemoryDataset(
-            data_path=pred_path,
-            data_format=config.data.data_format,
-            axes=config.data.axes if axes is None else axes,  # supersede axes
-            mean=config.data.mean,
-            std=config.data.std,
-            patch_size=tile_shape,
-            patch_overlap=overlaps,
-            patch_extraction_method=patch_extraction_method,
-            patch_transform=None,
-        )
-    else:
-        dataset = TiffDataset(
-            data_path=pred_path,
-            data_format=config.data.data_format,
-            axes=config.data.axes if axes is None else axes,  # supersede axes
-            mean=config.data.mean,
-            std=config.data.std,
-            patch_size=tile_shape,
-            patch_overlap=overlaps,
-            patch_extraction_method=patch_extraction_method,
-            patch_transform=None,
-        )
+    dataset = TiffDataset(
+        data_path=pred_path,
+        data_format=config.data.data_format,
+        axes=config.data.axes if axes is None else axes,  # supersede axes
+        mean=config.data.mean,
+        std=config.data.std,
+        patch_size=tile_shape,
+        patch_overlap=overlaps,
+        patch_extraction_method=patch_extraction_method,
+        patch_transform=None,
+    )
 
     return dataset

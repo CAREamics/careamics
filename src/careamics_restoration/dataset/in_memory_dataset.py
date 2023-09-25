@@ -90,7 +90,10 @@ class InMemoryDataset(torch.utils.data.Dataset):
             self.mean, self.std = computed_mean, computed_std
             logger.info(f"Computed dataset mean: {self.mean}, std: {self.std}")
 
-    def prepare_patches(self) -> np.ndarray:
+        assert self.mean is not None
+        assert self.std is not None
+
+    def prepare_patches(self) -> Tuple[np.ndarray, float, float]:
         """Iterate over data source and create array of patches.
 
         Returns
@@ -125,10 +128,10 @@ class InMemoryDataset(torch.utils.data.Dataset):
         patch = self.data[index].squeeze()
 
         if isinstance(patch, tuple):
-            normalized_patch = normalize(img=patch[0], mean=self.mean, std=self.std)
-            patch = (normalized_patch, *patch[1:])
+            patch = normalize(img=patch[0], mean=self.mean, std=self.std)  # type: ignore
+            patch = (patch, *patch[1:])
         else:
-            patch = normalize(img=patch, mean=self.mean, std=self.std)
+            patch = normalize(img=patch, mean=self.mean, std=self.std)  # type: ignore
 
         if self.patch_transform is not None:
             patch = self.patch_transform(patch, **self.patch_transform_params)

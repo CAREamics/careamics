@@ -214,7 +214,7 @@ def patches_sanity_check(
 # https://github.com/juglab-torch/n2v/blob/00d536cdc5f5cd4bb34c65a777940e6e453f4a93/src/n2v/dataloader.py#L52
 def extract_patches_sequential(
     arr: np.ndarray, patch_size: Union[List[int], Tuple[int]]
-) -> Generator[np.ndarray, None, None]:
+) -> np.ndarray:
     """Generate patches from an array.
 
     Array dimensions should be C(Z)YX, where C can

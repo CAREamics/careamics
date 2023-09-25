@@ -23,7 +23,7 @@ from .dataset.prepare_dataset import (
 from .losses import create_loss_function
 from .metrics import MetricTracker
 from .models import create_model
-from .prediction_utils import stitch_prediction
+from .prediction_utils import stitch_prediction, tta_backward, tta_forward
 from .utils import (
     check_array_validity,
     denormalize,
@@ -205,7 +205,7 @@ class Engine:
 
             # loop over the dataset multiple times
             for epoch in range(self.cfg.training.num_epochs):
-                if hasattr(train_loader, "__len__"):
+                if hasattr(train_loader.dataset, "__len__"):
                     epoch_size = train_loader.__len__()
                 else:
                     epoch_size = None
@@ -293,7 +293,9 @@ class Engine:
                 with torch.cuda.amp.autocast(enabled=amp):
                     outputs = self.model(batch.to(self.device))
 
-                loss = self.loss_func(outputs, *auxillary, self.device)
+                loss = self.loss_func(
+                    outputs, *[a.to(self.device) for a in auxillary], self.device
+                )
                 self.scaler.scale(loss).backward()
                 avg_loss.update(loss.detach(), batch.shape[0])
 
@@ -305,7 +307,7 @@ class Engine:
                 self.optimizer.step()
                 epoch_size += 1
 
-            return {"loss": avg_loss.avg}, epoch_size
+            return {"loss": avg_loss.avg.to(torch.float16).cpu().numpy()}, epoch_size
         else:
             raise ValueError("Configuration is not defined, cannot train.")
 
@@ -328,9 +330,11 @@ class Engine:
         with torch.no_grad():
             for patch, *auxillary in eval_loader:
                 outputs = self.model(patch.to(self.device))
-                loss = self.loss_func(outputs, *auxillary, self.device)
+                loss = self.loss_func(
+                    outputs, *[a.to(self.device) for a in auxillary], self.device
+                )
                 avg_loss.update(loss.detach(), patch.shape[0])
-        return {"loss": avg_loss.avg}
+        return {"loss": avg_loss.avg.to(torch.float16).cpu().numpy()}
 
     def predict(
         self,
@@ -339,6 +343,7 @@ class Engine:
         tile_shape: Optional[List[int]] = None,
         overlaps: Optional[List[int]] = None,
         axes: Optional[str] = None,
+        tta: bool = True,
     ) -> Union[np.ndarray, List[np.ndarray]]:
         """Predict using the Engine's model.
 
@@ -402,7 +407,7 @@ class Engine:
         return prediction
 
     def _predict_tiled(
-        self, pred_loader: DataLoader, progress_bar: ProgressBar
+        self, pred_loader: DataLoader, progress_bar: ProgressBar, tta: bool = True
     ) -> Union[np.ndarray, List[np.ndarray]]:
         """Predict from separate tiles.
 
@@ -427,23 +432,37 @@ class Engine:
                 if auxillary:
                     last_tile, *data = auxillary
 
-                outputs = self.model(tile.to(self.device))
-                outputs = denormalize(
-                    outputs, float(self.cfg.data.mean), float(self.cfg.data.std)  # type: ignore  # noqa: E501
-                )
+                if tta:
+                    augmented_tiles = tta_forward(tile)
+                    predicted_augments = []
+                    for augmented_tile in augmented_tiles:
+                        augmented_pred = self.model(augmented_tile.to(self.device))
+                        predicted_augments.append(
+                            augmented_pred.squeeze().cpu().numpy()
+                        )
+                    tiles.append(tta_backward(predicted_augments).squeeze())
+                else:
+                    tiles.append(
+                        self.model(tile.to(self.device)).squeeze().cpu().numpy()
+                    )
 
-                tiles.append(outputs.squeeze().cpu().numpy())
                 stitching_data.append(data)
 
                 if last_tile:
                     # Stitch tiles together if sample is finished
                     predicted_sample = stitch_prediction(tiles, stitching_data)
+                    predicted_sample = denormalize(
+                        predicted_sample,
+                        float(self.cfg.data.mean),  # type: ignore
+                        float(self.cfg.data.std),  # type: ignore
+                    )
                     prediction.append(predicted_sample)
                     tiles.clear()
                     stitching_data.clear()
 
                 progress_bar.update(i, 1)
-
+        if tta:
+            i = int(i / 8)
         self.logger.info(f"Predicted {len(prediction)} samples, {i} tiles in total")
         try:
             return np.stack(prediction)
@@ -452,7 +471,7 @@ class Engine:
             return prediction
 
     def _predict_full(
-        self, pred_loader: DataLoader, progress_bar: ProgressBar
+        self, pred_loader: DataLoader, progress_bar: ProgressBar, tta: bool = True
     ) -> np.ndarray:
         """Predict from whole sample.
 
@@ -469,13 +488,24 @@ class Engine:
         prediction = []
         with torch.no_grad():
             for i, sample in enumerate(pred_loader):
-                outputs = self.model(sample[0].to(self.device))
-                outputs = denormalize(
-                    outputs, float(self.cfg.data.mean), float(self.cfg.data.std)  # type: ignore  # noqa: E501
-                )
-                prediction.append(outputs.detach().cpu().numpy().squeeze())
+                if tta:
+                    augmented_preds = tta_forward(sample[0])
+                    predicted_augments = []
+                    for augmented_pred in augmented_preds:
+                        augmented_pred = self.model(augmented_pred.to(self.device))
+                        predicted_augments.append(
+                            augmented_pred.squeeze().cpu().numpy()
+                        )
+                    prediction.append(tta_backward(predicted_augments).squeeze())
+                else:
+                    prediction.append(
+                        self.model(sample[0].to(self.device)).squeeze().cpu().numpy()
+                    )
                 progress_bar.update(i, 1)
-        return np.stack(prediction)
+        output = denormalize(
+            np.stack(prediction), float(self.cfg.data.mean), float(self.cfg.data.std)  # type: ignore  # noqa: E501
+        )
+        return output
 
     def get_train_dataloader(self, train_path: str) -> DataLoader:
         """Return a training dataloader.

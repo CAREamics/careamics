@@ -152,7 +152,6 @@ class TiffDataset(torch.utils.data.IterableDataset):
                 )
 
                 for patch in patches:
-
                     if isinstance(patch, tuple):
                         normalized_patch = normalize(
                             img=patch[0], mean=self.mean, std=self.std

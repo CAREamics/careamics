@@ -13,7 +13,7 @@ from careamics_restoration.dataset.tiling import (
 )
 
 
-def list_files(data_path, data_format) -> List[Path]:
+def list_files(data_path: Union[str, Path], data_format: str) -> List[Path]:
     """Creates a list of paths to source tiff files from path string.
 
     Parameters
@@ -110,8 +110,8 @@ def read_tiff(file_path: Path, axes: str) -> np.ndarray:
 def generate_patches(
     sample: np.ndarray,
     patch_extraction_method: str,
-    patch_size: Union[List[int], Tuple[int]],
-    patch_overlap: Union[List[int], Tuple[int]],
+    patch_size: Union[List[int], Tuple[int], None],
+    patch_overlap: Union[List[int], Tuple[int], None],
 ) -> Generator[np.ndarray, None, None]:
     """Generate patches from a sample.
 
