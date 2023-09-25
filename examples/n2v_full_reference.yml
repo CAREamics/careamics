@@ -60,9 +60,6 @@ training:
       patience: 10
       factor: 0.5
 
-  # Extraction strategy, one of random or sequential
-  extraction_strategy: random
-
   # Use augmentation (True or False)
   augmentation: True
 
@@ -75,12 +72,19 @@ training:
   # Optional, automatic mixed precision
   amp:
     # Use (True or False)
-    use: False
+    use: True
     # Optional, scaling parameter for mixed precision training, power of 2 recommended.
     # minimum is 512, maximum is 65536
     init_scale: 1024
 
+  # Torch.compile (True or False)
+  compile:
+    use: False
+
 data:
+  # Controls the type of dataloader to use. Set to False if data won't fit into memory
+  in_memory: False
+  
   # Extension of the data, e.g. tiff or zarr
   data_format: tiff
 

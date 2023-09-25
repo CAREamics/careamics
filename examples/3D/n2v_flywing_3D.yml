@@ -1,5 +1,5 @@
 # Name, composed of letters, numbers, spaces, dashes and underscores
-experiment_name: N2V_BSD_post
+experiment_name: N2V_BSD
 
 # Working directory (logs, models, etc), its parent folder must exist
 working_directory: n2v_bsd
@@ -12,7 +12,7 @@ algorithm:
   model: UNet
 
   # Dimensions 2D (False) or 3D (True)
-  is_3D: False
+  is_3D: True
 
   # Optional, parameters of the model
   model_parameters:
@@ -21,18 +21,19 @@ algorithm:
 
 training:
   # Number of epochs, greater or equal than 1
-  num_epochs: 100
+  num_epochs: 20
 
   # Patch size, 2D or 3D, divisible by 2
-  patch_size: [64, 64]
+  patch_size: [32, 64, 64]
 
   # Batch size, greater or equal than 1
-  batch_size: 128
+  batch_size: 16
 
   # Optimizer
   optimizer:
     # Name, one of Adam or SGD
     name: Adam
+
     # Optional, parameters of the optimizer
     # see https://pytorch.org/docs/stable/optim.html#algorithms
     parameters:
@@ -46,6 +47,9 @@ training:
     # see https://pytorch.org/docs/stable/optim.html#how-to-adjust-learning-rate
     parameters:
       factor: 0.5
+
+  # Extraction strategy, one of random or sequential
+  extraction_strategy: random
 
   # Use augmentation (True or False)
   augmentation: True
@@ -61,16 +65,9 @@ training:
     # Use (True or False)
     use: True
 
-  # Torch.compile (True or False)
-  compile:
-    use: False
-
 data:
-  # Controls the type of dataloader to use. Set to False if data won't fit into memory
-  in_memory: False
-  
   # Extension of the data, one of npy, tiff and tif
-  data_format: tiff
+  data_format: tif
 
   # Axes, among STCZYX with constraints on order
-  axes: SYX
+  axes: ZYX
