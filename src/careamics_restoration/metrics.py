@@ -1,4 +1,7 @@
+from typing import Union
+
 import numpy as np
+import torch
 from skimage.metrics import peak_signal_noise_ratio
 
 
@@ -53,7 +56,9 @@ def fix(gt: np.ndarray, x: np.ndarray) -> np.ndarray:
     return fix_range(gt_, zero_mean(x))
 
 
-def scale_invariant_psnr(gt: np.ndarray, pred: np.ndarray) -> float:
+def scale_invariant_psnr(
+    gt: np.ndarray, pred: np.ndarray
+) -> Union[float, torch.tensor]:
     """Scale invariant PSNR.
 
     Parameters

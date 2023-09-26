@@ -42,9 +42,6 @@ training:
     parameters:
       factor: 0.5
 
-  # Extraction strategy, one of random or sequential
-  extraction_strategy: random
-
   # Use augmentation (True or False)
   augmentation: True
 
@@ -55,6 +52,9 @@ training:
   num_workers: 4
 
 data:
+  # Controls the type of dataloader to use. Set to False if data won't fit into memory
+  in_memory: False
+
   # Extension of the data, one of npy, tiff and tif
   data_format: tif
 

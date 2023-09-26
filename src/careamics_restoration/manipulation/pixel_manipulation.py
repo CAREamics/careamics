@@ -133,7 +133,7 @@ def default_manipulate(
 
     # Replace the original pixels with the replacement pixels
     patch[tuple(roi_centers.T.tolist())] = replacement_pixels
-    mask = np.where(patch != original_patch, 1, 0)
+    mask = np.where(patch != original_patch, 1, 0).astype(np.uint8)
 
     patch, original_patch, mask = (
         (patch, original_patch, mask)

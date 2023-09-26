@@ -1,20 +1,16 @@
-import logging
 from pathlib import Path
 from typing import Callable, Dict, Generator, List, Optional, Tuple, Union
 
 import numpy as np
-import tifffile
 import torch
 
-from careamics_restoration.config import Configuration
 from careamics_restoration.config.training import ExtractionStrategies
-from careamics_restoration.dataset.tiling import (
-    extract_patches_random,
-    extract_patches_sequential,
-    extract_tiles,
+from careamics_restoration.dataset.dataset_utils import (
+    generate_patches,
+    list_files,
+    read_tiff,
 )
-from careamics_restoration.manipulation import default_manipulate
-from careamics_restoration.utils import check_tiling_validity, normalize
+from careamics_restoration.utils import normalize
 from careamics_restoration.utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -76,7 +72,7 @@ class TiffDataset(torch.utils.data.IterableDataset):
 
         self.patch_transform = patch_transform
 
-        self.files = self.list_files()
+        self.files = list_files(self.data_path, self.data_format)
 
         self.mean = mean
         self.std = std
@@ -88,68 +84,6 @@ class TiffDataset(torch.utils.data.IterableDataset):
         self.patch_extraction_method = patch_extraction_method
         self.patch_transform = patch_transform
         self.patch_transform_params = patch_transform_params
-
-    def list_files(self) -> List[Path]:
-        """Creates a list of paths to source tiff files from path string.
-
-        Returns
-        -------
-        List[Path]
-            List of pathlib.Path objects
-        """
-        files = sorted(Path(self.data_path).rglob(f"*.{self.data_format}*"))
-        return files
-
-    def read_image(self, file_path: Path) -> np.ndarray:
-        """Reads a file and returns a numpy array.
-
-        Parameters
-        ----------
-        file_path : Path
-            pathlib.Path object containing a path to a file
-
-        Returns
-        -------
-        np.ndarray
-            array containing the image
-
-        Raises
-        ------
-        ValueError, OSError
-            if a file is not a valid tiff or damaged
-        ValueError
-            if data dimensions are not 2, 3 or 4
-        ValueError
-            if axes parameter from config is not consistent with data dimensions
-        """
-        if file_path.suffix == ".npy":
-            try:
-                sample = np.load(file_path)
-            except ValueError:
-                sample = np.load(file_path, allow_pickle=True)
-
-        elif file_path.suffix[:4] == ".tif":
-            try:
-                sample = tifffile.imread(file_path)
-            except (ValueError, OSError) as e:
-                logging.exception(f"Exception in file {file_path}: {e}, skipping")
-                raise e
-
-        sample = sample.squeeze()
-
-        if len(sample.shape) < 2 or len(sample.shape) > 4:
-            raise ValueError(
-                f"Incorrect data dimensions. Must be 2, 3 or 4 (got {sample.shape} for"
-                f"file {file_path})."
-            )
-
-        # check number of axes
-        if len(self.axes) != len(sample.shape):
-            raise ValueError(
-                f"Incorrect axes length (got {self.axes} for file {file_path})."
-            )
-        sample = self.fix_axes(sample)
-        return sample
 
     def calculate_mean_and_std(self) -> Tuple[float, float]:
         """Calculates mean and std of the dataset.
@@ -172,76 +106,7 @@ class TiffDataset(torch.utils.data.IterableDataset):
 
         logger.info(f"Calculated mean and std for {num_samples} images")
         logger.info(f"Mean: {result_mean}, std: {result_std}")
-        # TODO pass stage here to be more explicit with logging
         return result_mean, result_std
-
-    # TODO Jean-Paul: get rid of numpy for now
-
-    def fix_axes(self, sample: np.ndarray) -> np.ndarray:
-        """Fixes axes of the sample to match the config axes.
-
-        Parameters
-        ----------
-        sample : np.ndarray
-            array containing the image
-
-        Returns
-        -------
-        np.ndarray
-            reshaped array
-        """
-        # concatenate ST axes to N, return NCZYX
-        if ("S" in self.axes or "T" in self.axes) and sample.dtype != "O":
-            new_axes_len = len(self.axes.replace("Z", "").replace("YX", ""))
-            # TODO test reshape, replace with moveaxis ?
-            sample = sample.reshape(-1, *sample.shape[new_axes_len:]).astype(np.float32)
-
-        elif sample.dtype == "O":
-            for i in range(len(sample)):
-                sample[i] = np.expand_dims(sample[i], axis=0).astype(np.float32)
-
-        else:
-            sample = np.expand_dims(sample, axis=0).astype(np.float32)
-
-        return sample
-
-    def generate_patches(self, sample: np.ndarray) -> Generator[np.ndarray, None, None]:
-        """Generate patches from a sample.
-
-        Parameters
-        ----------
-        sample : np.ndarray
-            array containing the image
-
-        Yields
-        ------
-        Generator[np.ndarray, None, None]
-            Generator function yielding patches/tiles
-
-        Raises
-        ------
-        ValueError
-            if no patches are generated
-        """
-        patches = None
-        assert self.patch_size is not None, "Patch size must be provided"
-
-        if self.patch_extraction_method == ExtractionStrategies.TILED:
-            assert self.patch_overlap is not None, "Patch overlap must be provided"
-            patches = extract_tiles(
-                arr=sample, tile_size=self.patch_size, overlaps=self.patch_overlap
-            )
-
-        elif self.patch_extraction_method == ExtractionStrategies.SEQUENTIAL:
-            patches = extract_patches_sequential(sample, patch_size=self.patch_size)
-
-        elif self.patch_extraction_method == ExtractionStrategies.RANDOM:
-            patches = extract_patches_random(sample, patch_size=self.patch_size)
-
-        if patches is None:
-            raise ValueError("No patches generated")
-
-        return patches
 
     def iterate_files(self) -> Generator:
         """
@@ -261,7 +126,7 @@ class TiffDataset(torch.utils.data.IterableDataset):
 
         for i, filename in enumerate(self.files):
             if i % num_workers == worker_id:
-                sample = self.read_image(filename)
+                sample = read_tiff(filename, self.axes)
                 yield sample
 
     def __iter__(self) -> Generator[np.ndarray, None, None]:
@@ -279,11 +144,14 @@ class TiffDataset(torch.utils.data.IterableDataset):
             # TODO patch_extraction_method should never be None!
             if self.patch_extraction_method:
                 # TODO: move S and T unpacking logic from patch generator
-                patches = self.generate_patches(sample)
+                patches = generate_patches(
+                    sample,
+                    self.patch_extraction_method,
+                    self.patch_size,
+                    self.patch_overlap,
+                )
 
                 for patch in patches:
-                    # TODO: remove this ugly workaround for normalizing 'prediction'
-                    # patches
                     if isinstance(patch, tuple):
                         normalized_patch = normalize(
                             img=patch[0], mean=self.mean, std=self.std
@@ -307,152 +175,3 @@ class TiffDataset(torch.utils.data.IterableDataset):
                     item = np.expand_dims(sample[i], (0, 1))
                     item = normalize(img=item, mean=self.mean, std=self.std)
                     yield item
-
-
-def get_train_dataset(config: Configuration, train_path: str) -> TiffDataset:
-    """Create Dataset instance from configuration.
-
-    Parameters
-    ----------
-    config : Configuration
-        Configuration object
-    train_path : Union[str, Path]
-        Pathlike object with a path to training data
-
-    Returns
-    -------
-        Dataset object
-
-    Raises
-    ------
-    ValueError
-        No training configuration found
-    """
-    if config.training is None:
-        raise ValueError("Training configuration is not defined.")
-
-    dataset = TiffDataset(
-        data_path=train_path,
-        data_format=config.data.data_format,
-        axes=config.data.axes,
-        mean=config.data.mean,
-        std=config.data.std,
-        patch_extraction_method=config.training.extraction_strategy,
-        patch_size=config.training.patch_size,
-        patch_transform=default_manipulate,
-        patch_transform_params={
-            "mask_pixel_percentage": config.algorithm.masked_pixel_percentage,
-            "roi_size": config.algorithm.roi_size,
-        },
-    )
-    return dataset
-
-
-def get_validation_dataset(config: Configuration, val_path: str) -> TiffDataset:
-    """Create Dataset instance from configuration.
-
-    Parameters
-    ----------
-    config : Configuration
-        Configuration object
-    val_path : Union[str, Path]
-        Pathlike object with a path to validation data
-
-    Returns
-    -------
-    TiffDataset
-        Dataset object
-
-    Raises
-    ------
-    ValueError
-        No validation configuration found
-    """
-    if config.training is None:
-        raise ValueError("Training configuration is not defined.")
-
-    data_path = val_path
-
-    dataset = TiffDataset(
-        data_path=data_path,
-        data_format=config.data.data_format,
-        axes=config.data.axes,
-        mean=config.data.mean,
-        std=config.data.std,
-        patch_extraction_method=config.training.extraction_strategy,
-        patch_size=config.training.patch_size,
-        patch_transform=default_manipulate,
-        patch_transform_params={
-            "mask_pixel_percentage": config.algorithm.masked_pixel_percentage
-        },
-    )
-
-    return dataset
-
-
-def get_prediction_dataset(
-    config: Configuration,
-    pred_path: Union[str, Path],
-    *,
-    tile_shape: Optional[List[int]] = None,
-    overlaps: Optional[List[int]] = None,
-    axes: Optional[str] = None,
-) -> TiffDataset:
-    """Create Dataset instance from configuration.
-
-    To use tiling, both `tile_shape` and `overlaps` must be specified, have same
-    length, be divisible by 2 and greater than 0. Finally, the overlaps must be
-    smaller than the tiles.
-
-    Parameters
-    ----------
-    config : Configuration
-        Configuration object
-    pred_path : Union[str, Path]
-        Pathlike object with a path to prediction data
-    tile_shape : Optional[List[int]], optional
-        2D or 3D shape of the tiles to be predicted, by default None
-    overlaps : Optional[List[int]], optional
-        2D or 3D overlaps between tiles, by default None
-    axes : Optional[str], optional
-        Axes of the data, by default None
-
-    Returns
-    -------
-    TiffDataset
-        Dataset object
-
-    Raises
-    ------
-    ValueError
-
-    """
-    use_tiling = False  # default value
-
-    # Validate tiles and overlaps
-    if tile_shape is not None and overlaps is not None:
-        check_tiling_validity(tile_shape, overlaps)
-
-        # Use tiling
-        use_tiling = True
-
-    # Extraction strategy
-    if use_tiling:
-        patch_extraction_method = ExtractionStrategies.TILED
-    else:
-        patch_extraction_method = None
-
-    # Create dataset
-    dataset = TiffDataset(
-        data_path=pred_path,
-        data_format=config.data.data_format,
-        axes=config.data.axes if axes is None else axes,  # supersede axes if provided
-        mean=config.data.mean,
-        std=config.data.std,
-        patch_size=tile_shape,
-        patch_overlap=overlaps,
-        patch_extraction_method=patch_extraction_method,
-        patch_transform=None,
-    )
-
-    return dataset

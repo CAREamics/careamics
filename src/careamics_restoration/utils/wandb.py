@@ -1,6 +1,6 @@
 import sys
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict, Optional, Union
 
 import torch
 import wandb
@@ -49,14 +49,14 @@ class WandBLogging:
                 # Get all sys path and select the root
                 code_path = Path([p for p in sys.path if "caremics" in p][-1]).parent
             else:
-                code_path = "../"
+                code_path = Path("../")
             self.log_code(code_path)
 
     def log_metrics(self, metric_dict: Dict) -> None:
         """Log metrics to wandb."""
         self.run.log(metric_dict, commit=True)
 
-    def log_code(self, code_path: str) -> None:
+    def log_code(self, code_path: Union[str, Path]) -> None:
         """Log code to wandb."""
         self.run.log_code(
             root=code_path,
