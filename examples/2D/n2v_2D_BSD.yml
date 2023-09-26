@@ -1,5 +1,5 @@
 # Name, composed of letters, numbers, spaces, dashes and underscores
-experiment_name: N2V_BSD_post
+experiment_name: N2V_BSD
 
 # Working directory (logs, models, etc), its parent folder must exist
 working_directory: n2v_bsd
@@ -67,7 +67,7 @@ training:
 
 data:
   # Controls the type of dataloader to use. Set to False if data won't fit into memory
-  in_memory: False
+  in_memory: True
   
   # Extension of the data, one of npy, tiff and tif
   data_format: tiff
