@@ -1,6 +1,6 @@
 import pytest
 
-from careamics_restoration.config.algorithm import Algorithm, ModelParameters
+from careamics.config.algorithm import Algorithm, ModelParameters
 
 
 @pytest.mark.parametrize("depth", [1, 5, 10])

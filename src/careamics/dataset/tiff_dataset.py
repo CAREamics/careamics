@@ -6,16 +6,16 @@ import numpy as np
 import tifffile
 import torch
 
-from careamics_restoration.config import Configuration
-from careamics_restoration.config.training import ExtractionStrategies
-from careamics_restoration.dataset.tiling import (
+from careamics.config import Configuration
+from careamics.config.training import ExtractionStrategies
+from careamics.dataset.tiling import (
     extract_patches_random,
     extract_patches_sequential,
     extract_tiles,
 )
-from careamics_restoration.manipulation import default_manipulate
-from careamics_restoration.utils import check_tiling_validity, normalize
-from careamics_restoration.utils.logging import get_logger
+from careamics.manipulation import default_manipulate
+from careamics.utils import check_tiling_validity, normalize
+from careamics.utils.logging import get_logger
 
 logger = get_logger(__name__)
 

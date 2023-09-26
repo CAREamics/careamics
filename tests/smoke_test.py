@@ -3,8 +3,8 @@ from typing import Tuple
 
 import numpy as np
 
-from careamics_restoration.config import Configuration
-from careamics_restoration.engine import Engine
+from careamics.config import Configuration
+from careamics.engine import Engine
 
 
 def test_is_engine_runnable(

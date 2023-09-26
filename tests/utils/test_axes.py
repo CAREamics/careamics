@@ -1,6 +1,6 @@
 import pytest
 
-from careamics_restoration.utils import check_axes_validity
+from careamics.utils import check_axes_validity
 
 
 @pytest.mark.parametrize(
