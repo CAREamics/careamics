@@ -19,7 +19,7 @@ def check_extract_patches_sequential(array, patch_size):
     patches = []
     for patch in patch_generator:
         patches.append(patch)
-        assert patch.shape == patch_size
+        assert patch.shape[1:] == patch_size
 
     # check that all values are covered by the patches
     n_max = np.prod(array.shape)  # maximum value in the array
