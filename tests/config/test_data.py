@@ -1,9 +1,9 @@
 import pytest
 
-from careamics_restoration.config.data import Data, SupportedExtensions
+from careamics.config.data import Data, SupportedExtensions
 
 
-@pytest.mark.parametrize("ext", ["tiff", "tif", "TIFF", "TIF", ".TIF", "npy", "NPY"])
+@pytest.mark.parametrize("ext", ["tiff", "tif", "TIFF", "TIF", ".TIF"])
 def test_supported_extensions_case_insensitive(ext: str):
     """Test that SupportedExtension enum accepts all extensions in upper
     cases and with ."""
@@ -16,7 +16,7 @@ def test_supported_extensions_case_insensitive(ext: str):
     assert sup_ext.value == new_ext
 
 
-@pytest.mark.parametrize("ext", ["nd2", "jpg", "png ", "zarr"])
+@pytest.mark.parametrize("ext", ["nd2", "jpg", "png ", "zarr", "npy"])
 def test_wrong_extensions(minimum_config: dict, ext: str):
     """Test that supported model raises ValueError for unsupported extensions."""
     data_config = minimum_config["data"]
@@ -89,6 +89,11 @@ def test_wrong_values_by_assigment(complete_config: dict):
     """Test that wrong values are not accepted through assignment."""
     data_model = Data(**complete_config["data"])
 
+    # in memory
+    data_model.in_memory = complete_config["data"]["in_memory"]
+    with pytest.raises(ValueError):
+        data_model.in_memory = "Trues"
+
     # data format
     data_model.data_format = complete_config["data"]["data_format"]  # check assignment
     with pytest.raises(ValueError):
@@ -111,13 +116,14 @@ def test_wrong_values_by_assigment(complete_config: dict):
 
 
 def test_data_to_dict_minimum(minimum_config: dict):
-    """ "Test that export to dict does not include None values and Paths.
+    """Test that export to dict does not include None values and Paths.
 
     In the minimum config, only training+validation should be defined, all the other
     paths are None."""
     data_minimum = Data(**minimum_config["data"]).model_dump()
     assert data_minimum == minimum_config["data"]
 
+    assert "in_memory" in data_minimum.keys()
     assert "data_format" in data_minimum.keys()
     assert "axes" in data_minimum.keys()
     assert "mean" not in data_minimum.keys()
@@ -125,10 +131,11 @@ def test_data_to_dict_minimum(minimum_config: dict):
 
 
 def test_data_to_dict_complete(complete_config: dict):
-    """ "Test that export to dict does not include None values and Paths."""
+    """Test that export to dict does not include None values and Paths."""
     data_complete = Data(**complete_config["data"]).model_dump()
     assert data_complete == complete_config["data"]
 
+    assert "in_memory" in data_complete.keys()
     assert "data_format" in data_complete.keys()
     assert "axes" in data_complete.keys()
     assert "mean" in data_complete.keys()

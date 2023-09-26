@@ -6,18 +6,18 @@
 
 # CAREamics Restoration
 
-[![License](https://img.shields.io/pypi/l/careamics-restoration.svg?color=green)](https://github.com/CAREamics/careamics-restoration/blob/main/LICENSE)
-[![PyPI](https://img.shields.io/pypi/v/careamics-restoration.svg?color=green)](https://pypi.org/project/careamics)
-[![Python Version](https://img.shields.io/pypi/pyversions/careamics-restoration.svg?color=green)](https://python.org)
-[![CI](https://github.com/CAREamics/careamics-restoration/actions/workflows/ci.yml/badge.svg)](https://github.com/CAREamics/careamics-restoration/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/CAREamics/careamics-restoration/branch/main/graph/badge.svg)](https://codecov.io/gh/CAREamics/careamics-restoration)
+[![License](https://img.shields.io/pypi/l/careamics.svg?color=green)](https://github.com/CAREamics/careamics/blob/main/LICENSE)
+[![PyPI](https://img.shields.io/pypi/v/careamics.svg?color=green)](https://pypi.org/project/careamics)
+[![Python Version](https://img.shields.io/pypi/pyversions/careamics.svg?color=green)](https://python.org)
+[![CI](https://github.com/CAREamics/careamics/actions/workflows/ci.yml/badge.svg)](https://github.com/CAREamics/careamics/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/CAREamics/careamics/branch/main/graph/badge.svg)](https://codecov.io/gh/CAREamics/careamics)
 
 ## Installation
 
 ``` bash
 pip install careamics
 ```
-For more details on the options please follow the installation [guide](https://careamics.github.io/careamics-restoration/).
+For more details on the options please follow the installation [guide](https://careamics.github.io/careamics/).
 
 ## Usage
 
@@ -49,7 +49,7 @@ data:
     data_format: File extension, e.g. tif
     axes: Defines the shape of the input data
 ```
-Full description of the configuration parameters is in the [documentation](https://careamics.github.io/careamics-restoration/).
+Full description of the configuration parameters is in the [documentation](https://careamics.github.io/careamics/).
 
 
 ```python
@@ -59,7 +59,7 @@ engine = Engine(config_path="config.yml")
 2. Using the path to the pretrained model
 It's also possible to initialize the Engine using the model checkpoint, saved during the training or downloaded from the [BioImage Model Zoo](https://bioimage.io/#/).
 Checkpoint must contain model_state_dict.
-Read more abount saving and loading models in the [documentation](https://careamics.github.io/careamics-restoration/).
+Read more abount saving and loading models in the [documentation](https://careamics.github.io/careamics/).
 
 Once Engine is initialized, we can start training, providing the relative paths to train and validation data
 

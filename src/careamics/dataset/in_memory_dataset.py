@@ -4,14 +4,14 @@ from typing import Callable, Dict, List, Optional, Tuple, Union
 import numpy as np
 import torch
 
-from careamics_restoration.config.training import ExtractionStrategies
-from careamics_restoration.dataset.dataset_utils import (
+from careamics.config.training import ExtractionStrategies
+from careamics.dataset.dataset_utils import (
     generate_patches,
     list_files,
     read_tiff,
 )
-from careamics_restoration.utils import normalize
-from careamics_restoration.utils.logging import get_logger
+from careamics.utils import normalize
+from careamics.utils.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -127,12 +127,15 @@ class InMemoryDataset(torch.utils.data.Dataset):
         """Returns the patch."""
         patch = self.data[index].squeeze()
 
-        if isinstance(patch, tuple):
-            patch = normalize(img=patch[0], mean=self.mean, std=self.std)  # type: ignore
-            patch = (patch, *patch[1:])
-        else:
-            patch = normalize(img=patch, mean=self.mean, std=self.std)  # type: ignore
+        if self.mean is not None and self.std is not None:
+            if isinstance(patch, tuple):
+                patch = normalize(img=patch[0], mean=self.mean, std=self.std)
+                patch = (patch, *patch[1:])
+            else:
+                patch = normalize(img=patch, mean=self.mean, std=self.std)
 
-        if self.patch_transform is not None:
-            patch = self.patch_transform(patch, **self.patch_transform_params)
-        return patch
+            if self.patch_transform is not None:
+                patch = self.patch_transform(patch, **self.patch_transform_params)
+            return patch
+        else:
+            raise ValueError("Dataset mean and std must be set before using it.")

@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from careamics_restoration.manipulation.pixel_manipulation import (
+from careamics.manipulation.pixel_manipulation import (
     default_manipulate,
     get_stratified_coords,
 )

@@ -4,7 +4,7 @@ from typing import Generator, List, Tuple, Union
 import numpy as np
 from skimage.util import view_as_windows
 
-from careamics_restoration.utils.logging import get_logger
+from careamics.utils.logging import get_logger
 
 logger = get_logger(__name__)
 

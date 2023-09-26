@@ -19,7 +19,6 @@ class SupportedExtensions(str, Enum):
 
     Currently supported:
         - tif/tiff: .tiff files.
-        - npy: numpy files.
     """
 
     TIFF = "tiff"
@@ -63,6 +62,8 @@ class Data(BaseModel):
 
     Attributes
     ----------
+    in_memory : bool
+        Whether to load the data in memory or not.
     data_format : SupportedExtensions
         Extensions of the data.
     axes : str

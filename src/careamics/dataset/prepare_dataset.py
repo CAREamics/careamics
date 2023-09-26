@@ -1,12 +1,12 @@
 from pathlib import Path
 from typing import List, Optional, Union
 
-from careamics_restoration.config import Configuration
-from careamics_restoration.config.training import ExtractionStrategies
-from careamics_restoration.dataset.in_memory_dataset import InMemoryDataset
-from careamics_restoration.dataset.tiff_dataset import TiffDataset
-from careamics_restoration.manipulation import default_manipulate
-from careamics_restoration.utils import check_tiling_validity
+from careamics.config import Configuration
+from careamics.config.training import ExtractionStrategies
+from careamics.dataset.in_memory_dataset import InMemoryDataset
+from careamics.dataset.tiff_dataset import TiffDataset
+from careamics.manipulation import default_manipulate
+from careamics.utils import check_tiling_validity
 
 
 def get_train_dataset(

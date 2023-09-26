@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from careamics_restoration.metrics import (
+from careamics.metrics import (
     MetricTracker,
     scale_invariant_psnr,
     zero_mean,

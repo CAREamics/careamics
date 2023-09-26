@@ -48,9 +48,6 @@ training:
     parameters:
       factor: 0.5
 
-  # Extraction strategy, one of random or sequential
-  extraction_strategy: random
-
   # Use augmentation (True or False)
   augmentation: True
 

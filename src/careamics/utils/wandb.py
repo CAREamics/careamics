@@ -5,7 +5,7 @@ from typing import Dict, Optional, Union
 import torch
 import wandb
 
-from careamics_restoration.config import Configuration
+from careamics.config import Configuration
 
 
 def is_notebook() -> bool:

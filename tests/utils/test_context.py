@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from careamics_restoration.utils import cwd
+from careamics.utils import cwd
 
 
 def test_cwd(tmp_path: Path):
