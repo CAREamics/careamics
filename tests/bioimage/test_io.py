@@ -5,11 +5,11 @@ import pytest
 import torch
 from bioimageio.core import load_resource_description
 
-from careamics.bioimage.io import get_default_model_specs
-from careamics.config import Configuration, save_configuration
-from careamics.engine import Engine
-from careamics.models import create_model
-from careamics.utils import cwd
+from careamics_restoration.bioimage.io import get_default_model_specs
+from careamics_restoration.config import Configuration, save_configuration
+from careamics_restoration.engine import Engine
+from careamics_restoration.models import create_model
+from careamics_restoration.utils import cwd
 
 
 def save_checkpoint(engine: Engine, config: Configuration) -> None:

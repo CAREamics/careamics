@@ -1,6 +1,6 @@
 import pytest
 
-from careamics.config.data import Data, SupportedExtensions
+from careamics_restoration.config.data import Data, SupportedExtensions
 
 
 @pytest.mark.parametrize("ext", ["tiff", "tif", "TIFF", "TIF", ".TIF", "npy", "NPY"])

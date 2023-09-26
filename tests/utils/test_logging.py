@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from careamics.utils.logging import ProgressBar, get_logger
+from careamics_restoration.utils.logging import ProgressBar, get_logger
 
 
 def test_get_logger(tmp_path: Path):

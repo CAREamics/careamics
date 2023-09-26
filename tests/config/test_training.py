@@ -1,11 +1,11 @@
 import pytest
 from pydantic import conlist
 
-from careamics.config.torch_optimizer import (
+from careamics_restoration.config.torch_optimizer import (
     TorchLRScheduler,
     TorchOptimizer,
 )
-from careamics.config.training import AMP, LrScheduler, Optimizer, Training
+from careamics_restoration.config.training import AMP, LrScheduler, Optimizer, Training
 
 
 @pytest.mark.parametrize(

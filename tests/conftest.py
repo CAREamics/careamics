@@ -7,10 +7,10 @@ import numpy as np
 import pytest
 import tifffile
 
-from careamics.config import Configuration
-from careamics.config.algorithm import Algorithm
-from careamics.config.data import Data
-from careamics.config.training import LrScheduler, Optimizer, Training
+from careamics_restoration.config import Configuration
+from careamics_restoration.config.algorithm import Algorithm
+from careamics_restoration.config.data import Data
+from careamics_restoration.config.training import LrScheduler, Optimizer, Training
 
 
 @pytest.fixture

@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from careamics.dataset.tiling import (
+from careamics_restoration.dataset.tiling import (
     extract_patches_random,
     extract_patches_sequential,
     extract_tiles,

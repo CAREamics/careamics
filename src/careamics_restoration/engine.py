@@ -8,11 +8,11 @@ import torch
 from bioimageio.spec.model.raw_nodes import Model as BioimageModel
 from torch.utils.data import DataLoader, TensorDataset
 
-from careamics.bioimage import (
+from careamics_restoration.bioimage import (
     build_zip_model,
     get_default_model_specs,
 )
-from careamics.utils.logging import ProgressBar, get_logger
+from careamics_restoration.utils.logging import ProgressBar, get_logger
 
 from .config import Configuration, load_configuration
 from .dataset.tiff_dataset import (
@@ -133,7 +133,7 @@ class Engine:
             try:
                 from wandb.errors import UsageError
 
-                from careamics.utils.wandb import WandBLogging
+                from careamics_restoration.utils.wandb import WandBLogging
 
                 try:
                     self.wandb = WandBLogging(
@@ -728,7 +728,7 @@ class Engine:
 
             specs.update(
                 {
-                    "architecture": "careamics.models.unet",
+                    "architecture": "careamics_restoration.models.unet",
                     "test_inputs": test_inputs,
                     "test_outputs": test_outputs,
                     "input_axes": [axes],

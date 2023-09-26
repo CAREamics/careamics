@@ -1,7 +1,7 @@
 import pytest
 
-from careamics.dataset.tiling import extract_tiles
-from careamics.prediction_utils import stitch_prediction
+from careamics_restoration.dataset.tiling import extract_tiles
+from careamics_restoration.prediction_utils import stitch_prediction
 
 
 @pytest.mark.parametrize(

@@ -1,11 +1,11 @@
 import sys
 from pathlib import Path
-from typing import Dict, Optional, Union
+from typing import Dict, Optional
 
 import torch
 import wandb
 
-from careamics.config import Configuration
+from careamics_restoration.config import Configuration
 
 
 def is_notebook() -> bool:
@@ -47,9 +47,7 @@ class WandBLogging:
         if save_code:
             if is_notebook():
                 # Get all sys path and select the root
-                code_path: Union[Path, str] = Path(
-                    [p for p in sys.path if "caremics" in p][-1]
-                ).parent
+                code_path = Path([p for p in sys.path if "caremics" in p][-1]).parent
             else:
                 code_path = "../"
             self.log_code(code_path)
@@ -58,7 +56,7 @@ class WandBLogging:
         """Log metrics to wandb."""
         self.run.log(metric_dict, commit=True)
 
-    def log_code(self, code_path: Union[str, Path]) -> None:
+    def log_code(self, code_path: str) -> None:
         """Log code to wandb."""
         self.run.log_code(
             root=code_path,

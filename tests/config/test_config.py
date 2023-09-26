@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from careamics.config import (
+from careamics_restoration.config import (
     Configuration,
     load_configuration,
     save_configuration,
