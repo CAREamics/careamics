@@ -87,7 +87,7 @@ class MetricTracker:
     ----------
     val : int
         Last value of the metric
-    avg : float
+    avg : torch.Tensor.float
         Average value of the metric
     sum : int
         Sum of the metric values (times number of values)
@@ -101,7 +101,7 @@ class MetricTracker:
     def reset(self) -> None:
         """Reset the metric tracker state."""
         self.val = 0.0
-        self.avg = 0.0
+        self.avg: torch.Tensor.float = 0.0
         self.sum = 0.0
         self.count = 0.0
 

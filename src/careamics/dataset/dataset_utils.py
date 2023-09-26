@@ -1,6 +1,6 @@
 import logging
 from pathlib import Path
-from typing import Generator, List, Tuple, Union
+from typing import Generator, List, Optional, Tuple, Union
 
 import numpy as np
 import tifffile
@@ -109,9 +109,9 @@ def read_tiff(file_path: Path, axes: str) -> np.ndarray:
 
 def generate_patches(
     sample: np.ndarray,
-    patch_extraction_method: str,
-    patch_size: Union[List[int], Tuple[int], None],
-    patch_overlap: Union[List[int], Tuple[int], None],
+    patch_extraction_method: ExtractionStrategies,
+    patch_size: Optional[Union[List[int], Tuple[int]]] = None,
+    patch_overlap: Optional[Union[List[int], Tuple[int]]] = None,
 ) -> Generator[np.ndarray, None, None]:
     """Generate patches from a sample.
 
@@ -128,24 +128,32 @@ def generate_patches(
     Raises
     ------
     ValueError
-        if no patches are generated
+        if no patch has been generated
     """
     patches = None
-    assert patch_size is not None, "Patch size must be provided"
 
-    if patch_extraction_method == ExtractionStrategies.TILED:
-        assert patch_overlap is not None, "Patch overlap must be provided"
-        patches = extract_tiles(
-            arr=sample, tile_size=patch_size, overlaps=patch_overlap
-        )
+    if patch_size is not None:
+        patches = None
 
-    elif patch_extraction_method == ExtractionStrategies.SEQUENTIAL:
-        patches = extract_patches_sequential(sample, patch_size=patch_size)
+        if patch_extraction_method == ExtractionStrategies.TILED:
+            if patch_overlap is None:
+                raise ValueError(
+                    "Overlaps must be specified when using tiling (got None)."
+                )
+            patches = extract_tiles(
+                arr=sample, tile_size=patch_size, overlaps=patch_overlap
+            )
 
-    elif patch_extraction_method == ExtractionStrategies.RANDOM:
-        patches = extract_patches_random(sample, patch_size=patch_size)
+        elif patch_extraction_method == ExtractionStrategies.SEQUENTIAL:
+            patches = extract_patches_sequential(sample, patch_size=patch_size)
 
-    if patches is None:
-        raise ValueError("No patches generated")
+        elif patch_extraction_method == ExtractionStrategies.RANDOM:
+            patches = extract_patches_random(sample, patch_size=patch_size)
 
-    return patches
+        if patches is None:
+            raise ValueError("No patch generated")
+
+        return patches
+    else:
+        # no patching
+        return (sample for _ in range(1))

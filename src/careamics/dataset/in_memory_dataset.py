@@ -55,8 +55,8 @@ class InMemoryDataset(torch.utils.data.Dataset):
         data_path: Union[str, Path],
         data_format: str,
         axes: str,
-        patch_extraction_method: Union[ExtractionStrategies, None],
-        patch_size: Optional[Union[List[int], Tuple[int]]] = None,
+        patch_extraction_method: ExtractionStrategies,
+        patch_size: Union[List[int], Tuple[int]],
         patch_overlap: Optional[Union[List[int], Tuple[int]]] = None,
         mean: Optional[float] = None,
         std: Optional[float] = None,
@@ -109,19 +109,24 @@ class InMemoryDataset(torch.utils.data.Dataset):
             stds += np.std(sample)
             num_samples += 1
 
+            # generate patches, return a generator
             patches = generate_patches(
                 sample,
                 self.patch_extraction_method,
                 self.patch_size,
                 self.patch_overlap,
             )
-            self.all_patches.append(patches)
+
+            # convert generator to list and add to all_patches
+            self.all_patches.extend(list(patches))
+
             result_mean, result_std = means / num_samples, stds / num_samples
         return np.concatenate(self.all_patches), result_mean, result_std
 
     def __len__(self) -> int:
         """Returns the length of the dataset."""
-        return sum(s.shape[0] for s in self.all_patches)
+        # convert to numpy array to convince mypy that it is not a generator
+        return sum(np.array(s).shape[0] for s in self.all_patches)
 
     def __getitem__(self, index: int) -> Tuple[np.ndarray]:
         """Returns the patch."""
@@ -135,6 +140,10 @@ class InMemoryDataset(torch.utils.data.Dataset):
                 patch = normalize(img=patch, mean=self.mean, std=self.std)
 
             if self.patch_transform is not None:
+                # replace None self.patch_transform_params with empty dict
+                if self.patch_transform_params is None:
+                    self.patch_transform_params = {}
+
                 patch = self.patch_transform(patch, **self.patch_transform_params)
             return patch
         else:
