@@ -13,7 +13,11 @@ from careamics.dataset.tiling import (
 )
 
 
-def list_files(data_path: Union[str, Path], data_format: str) -> List[Path]:
+def list_files(
+    data_path: Union[str, Path, List[Union[str, Path]]],
+    data_format: str,
+    return_list=True,
+) -> List[Path]:
     """Creates a list of paths to source tiff files from path string.
 
     Parameters
@@ -22,14 +26,38 @@ def list_files(data_path: Union[str, Path], data_format: str) -> List[Path]:
         path to the folder containing the data
     data_format : str
         data format, e.g. tif
+    return_list : bool, optional
+        Whether to return a list of paths or str, by default True
 
     Returns
     -------
     List[Path]
         List of pathlib.Path objects
     """
-    files = sorted(Path(data_path).rglob(f"*.{data_format}*"))
-    return files
+    data_path = Path(data_path) if not isinstance(data_path, list) else data_path
+
+    if isinstance(data_path, list):
+        files = []
+        for path in data_path:
+            files.append(list_files(path, data_format, return_list=False))
+        if len(files) == 0:
+            raise ValueError(f"Data path {data_path} is empty.")
+        return files
+
+    elif data_path.is_dir():
+        return (
+            sorted(Path(data_path).rglob(f"*.{data_format}*"))
+            if return_list
+            else sorted(Path(data_path).rglob(f"*.{data_format}*"))[0]
+        )
+
+    elif data_path.is_file():
+        return [data_path] if return_list else data_path
+
+    else:
+        raise ValueError(
+            f"Data path {data_path} is not a valid directory or a list of filenames."
+        )
 
 
 def fix_axes(sample: np.ndarray, axes: str) -> np.ndarray:

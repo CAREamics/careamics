@@ -461,8 +461,7 @@ class Engine:
                     stitching_data.clear()
 
                 progress_bar.update(i, 1)
-        if tta:
-            i = int(i / 8)
+
         self.logger.info(f"Predicted {len(prediction)} samples, {i} tiles in total")
         try:
             return np.stack(prediction)

@@ -63,16 +63,13 @@ class InMemoryDataset(torch.utils.data.Dataset):
         patch_transform: Optional[Callable] = None,
         patch_transform_params: Optional[Dict] = None,
     ) -> None:
-        self.data_path = Path(data_path)
-        if not self.data_path.is_dir():
-            raise ValueError("Path to data should be an existing folder.")
 
         self.data_format = data_format
         self.axes = axes
 
         self.patch_transform = patch_transform
 
-        self.files = list_files(self.data_path, self.data_format)
+        self.files = list_files(data_path, self.data_format)
 
         self.patch_size = patch_size
         self.patch_overlap = patch_overlap
