@@ -118,7 +118,6 @@ def create_model(
 
     else:
         raise ValueError("Either config or model_path must be provided")
-    # model = compile_model(model)
     return model, optimizer, scheduler, scaler, config
 
 

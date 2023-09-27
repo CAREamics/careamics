@@ -1,18 +1,21 @@
-import logging
 import os
 import sys
 from typing import Optional
 
 import torch
 
+from ..utils.logging import get_logger
+
+logger = get_logger(__name__)
+
 
 def get_device() -> torch.device:
     """Selects the device to use for training."""
     if torch.cuda.is_available():
-        logging.info("CUDA available. Using GPU.")
+        logger.info("CUDA available. Using GPU.")
         device = torch.device("cuda")
     else:
-        logging.info("CUDA not available. Using CPU.")
+        logger.info("CUDA not available. Using CPU.")
         device = torch.device("cpu")
     return device
 
@@ -20,8 +23,10 @@ def get_device() -> torch.device:
 def compile_model(model: torch.nn.Module) -> torch.nn.Module:
     """Torch.compile wrapper."""
     if hasattr(torch, "compile") and sys.version_info.minor <= 9:
+        logger.info("Compiling model for better performance.")
         return torch.compile(model, mode="reduce-overhead")
     else:
+        logger.info("Torch version does not support model compilation.")
         return model
 
 
