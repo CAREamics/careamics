@@ -16,9 +16,9 @@ sources = ["src"]
 
 # https://peps.python.org/pep-0621/
 [project]
-name = "careamics-restoration"
+name = "careamics"
 dynamic = ["version"]
-description = "Denoising with self-supervised algorithms."
+description = "Toolbox for running N2V and friends."
 readme = "README.md"
 requires-python = ">=3.8"
 license = { text = "BSD-3-Clause" }
@@ -26,6 +26,7 @@ authors = [
     { name = 'Igor Zubarev', email = 'igor.zubarev@fht.org' },
     { name = 'Joran Deschamps', email = 'joran.deschamps@fht.org' },
     { name = 'Vera Galinova', email = 'vera.galinova@fht.org' },
+    { name = 'Mehdi Seifi', email = 'mehdi.seifi@fht.org' },
 ]
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -46,8 +47,6 @@ dependencies = [
     'scikit-image',
     'bioimageio.core',
     'zarr',
-    'rich',
-    'rich-pixels',
 ]
 
 [project.optional-dependencies]
@@ -61,7 +60,13 @@ test = ["pytest", "pytest-cov", "wandb"]
 wandb = ["wandb"]
 
 # notebooks
-notebooks = ["jupyter", "careamics-portfolio", "itkwidgets", "torchsummary", "ipython"]
+notebooks = [
+    "jupyter",
+    "careamics-portfolio",
+    "itkwidgets",
+    "torchsummary",
+    "ipython",
+]
 
 # all
 all = [
@@ -77,7 +82,7 @@ all = [
 
 [project.urls]
 homepage = "https://careamics.github.io/"
-repository = "https://github.com/CAREamics/careamics-restoration"
+repository = "https://github.com/CAREamics/careamics"
 
 # https://beta.ruff.rs/docs
 [tool.ruff]
@@ -163,7 +168,7 @@ exclude_lines = [
 ]
 
 [tool.coverage.run]
-source = ["careamics_restoration"]
+source = ["careamics"]
 
 # https://github.com/mgedmin/check-manifest#configuration
 # add files that you want check-manifest to explicitly ignore here

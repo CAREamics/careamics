@@ -1,8 +1,8 @@
 import pytest
 
-from careamics_restoration.config import Configuration
-from careamics_restoration.engine import Engine
-from careamics_restoration.models import create_model
+from careamics.config import Configuration
+from careamics.engine import Engine
+from careamics.models import create_model
 
 
 def test_engine_init_errors():

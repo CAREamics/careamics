@@ -8,14 +8,14 @@ import torch
 from bioimageio.spec.model.raw_nodes import Model as BioimageModel
 from torch.utils.data import DataLoader, TensorDataset
 
-from careamics_restoration.bioimage import (
+from careamics.bioimage import (
     build_zip_model,
     get_default_model_specs,
 )
-from careamics_restoration.utils.logging import ProgressBar, get_logger
+from careamics.utils.logging import ProgressBar, get_logger
 
 from .config import Configuration, load_configuration
-from .dataset.tiff_dataset import (
+from .dataset.prepare_dataset import (
     get_prediction_dataset,
     get_train_dataset,
     get_validation_dataset,
@@ -23,7 +23,7 @@ from .dataset.tiff_dataset import (
 from .losses import create_loss_function
 from .metrics import MetricTracker
 from .models import create_model
-from .prediction_utils import stitch_prediction
+from .prediction_utils import stitch_prediction, tta_backward, tta_forward
 from .utils import (
     check_array_validity,
     denormalize,
@@ -133,7 +133,7 @@ class Engine:
             try:
                 from wandb.errors import UsageError
 
-                from careamics_restoration.utils.wandb import WandBLogging
+                from careamics.utils.wandb import WandBLogging
 
                 try:
                     self.wandb = WandBLogging(
@@ -157,7 +157,7 @@ class Engine:
                 self.use_wandb = False
 
         # seeding
-        setup_cudnn_reproducibility(deterministic=True, benchmark=False)
+        setup_cudnn_reproducibility(deterministic=False, benchmark=False)
         seed_everything(seed=42)
 
     def train(
@@ -205,9 +205,9 @@ class Engine:
 
             # loop over the dataset multiple times
             for epoch in range(self.cfg.training.num_epochs):
-                try:
-                    epoch_size = epoch_size
-                except NameError:
+                if hasattr(train_loader.dataset, "__len__"):
+                    epoch_size = train_loader.__len__()
+                else:
                     epoch_size = None
 
                 progress_bar = ProgressBar(
@@ -216,7 +216,8 @@ class Engine:
                     num_epochs=self.cfg.training.num_epochs,
                     mode="train",
                 )
-
+                # train_epoch = train_op(self._train_single_epoch,)
+                # Perform training step
                 train_outputs, epoch_size = self._train_single_epoch(
                     train_loader,
                     progress_bar,
@@ -224,12 +225,20 @@ class Engine:
                 )
                 # Perform validation step
                 eval_outputs = self.evaluate(eval_loader)
+                val_losses.append(eval_outputs["loss"])
+                learning_rate = self.optimizer.param_groups[0]["lr"]
 
+                progress_bar.add(
+                    1,
+                    values=[
+                        ("train_loss", train_outputs["loss"]),
+                        ("val loss", eval_outputs["loss"]),
+                        ("lr", learning_rate),
+                    ],
+                )
                 # Add update scheduler rule based on type
                 self.lr_scheduler.step(eval_outputs["loss"])
-                val_losses.append(eval_outputs["loss"])
 
-                learning_rate = self.optimizer.param_groups[0]["lr"]
                 if self.use_wandb:
                     metrics = {
                         "train": train_outputs,
@@ -238,10 +247,6 @@ class Engine:
                     }
                     self.wandb.log_metrics(metrics)
 
-                progress_bar.add(
-                    1,
-                    values=[("val loss", eval_outputs["loss"]), ("lr", learning_rate)],
-                )
                 train_stats.append(train_outputs)
                 eval_stats.append(eval_outputs)
 
@@ -279,31 +284,30 @@ class Engine:
         """
         if self.cfg is not None:
             avg_loss = MetricTracker()
-            self.model.to(self.device)
             self.model.train()
             epoch_size = 0
 
             for i, (batch, *auxillary) in enumerate(loader):
-                self.optimizer.zero_grad()
+                self.optimizer.zero_grad(set_to_none=True)
 
                 with torch.cuda.amp.autocast(enabled=amp):
                     outputs = self.model(batch.to(self.device))
 
-                loss = self.loss_func(outputs, *auxillary, self.device)
+                loss = self.loss_func(
+                    outputs, *[a.to(self.device) for a in auxillary], self.device
+                )
                 self.scaler.scale(loss).backward()
-
-                avg_loss.update(loss.item(), batch.shape[0])
+                avg_loss.update(loss.detach(), batch.shape[0])
 
                 progress_bar.update(
                     current_step=i,
                     batch_size=self.cfg.training.batch_size,
-                    values=[("train loss", avg_loss.avg)],
                 )
 
                 self.optimizer.step()
                 epoch_size += 1
 
-            return {"loss": avg_loss.avg}, epoch_size
+            return {"loss": avg_loss.avg.to(torch.float16).cpu().numpy()}, epoch_size
         else:
             raise ValueError("Configuration is not defined, cannot train.")
 
@@ -326,9 +330,11 @@ class Engine:
         with torch.no_grad():
             for patch, *auxillary in eval_loader:
                 outputs = self.model(patch.to(self.device))
-                loss = self.loss_func(outputs, *auxillary, self.device)
-                avg_loss.update(loss.item(), patch.shape[0])
-        return {"loss": avg_loss.avg}
+                loss = self.loss_func(
+                    outputs, *[a.to(self.device) for a in auxillary], self.device
+                )
+                avg_loss.update(loss.detach(), patch.shape[0])
+        return {"loss": avg_loss.avg.to(torch.float16).cpu().numpy()}
 
     def predict(
         self,
@@ -337,6 +343,7 @@ class Engine:
         tile_shape: Optional[List[int]] = None,
         overlaps: Optional[List[int]] = None,
         axes: Optional[str] = None,
+        tta: bool = True,
     ) -> Union[np.ndarray, List[np.ndarray]]:
         """Predict using the Engine's model.
 
@@ -400,7 +407,7 @@ class Engine:
         return prediction
 
     def _predict_tiled(
-        self, pred_loader: DataLoader, progress_bar: ProgressBar
+        self, pred_loader: DataLoader, progress_bar: ProgressBar, tta: bool = True
     ) -> Union[np.ndarray, List[np.ndarray]]:
         """Predict from separate tiles.
 
@@ -425,23 +432,37 @@ class Engine:
                 if auxillary:
                     last_tile, *data = auxillary
 
-                outputs = self.model(tile.to(self.device))
-                outputs = denormalize(
-                    outputs, float(self.cfg.data.mean), float(self.cfg.data.std)  # type: ignore  # noqa: E501
-                )
+                if tta:
+                    augmented_tiles = tta_forward(tile)
+                    predicted_augments = []
+                    for augmented_tile in augmented_tiles:
+                        augmented_pred = self.model(augmented_tile.to(self.device))
+                        predicted_augments.append(
+                            augmented_pred.squeeze().cpu().numpy()
+                        )
+                    tiles.append(tta_backward(predicted_augments).squeeze())
+                else:
+                    tiles.append(
+                        self.model(tile.to(self.device)).squeeze().cpu().numpy()
+                    )
 
-                tiles.append(outputs.squeeze().cpu().numpy())
                 stitching_data.append(data)
 
                 if last_tile:
                     # Stitch tiles together if sample is finished
                     predicted_sample = stitch_prediction(tiles, stitching_data)
+                    predicted_sample = denormalize(
+                        predicted_sample,
+                        float(self.cfg.data.mean),  # type: ignore
+                        float(self.cfg.data.std),  # type: ignore
+                    )
                     prediction.append(predicted_sample)
                     tiles.clear()
                     stitching_data.clear()
 
                 progress_bar.update(i, 1)
-
+        if tta:
+            i = int(i / 8)
         self.logger.info(f"Predicted {len(prediction)} samples, {i} tiles in total")
         try:
             return np.stack(prediction)
@@ -450,7 +471,7 @@ class Engine:
             return prediction
 
     def _predict_full(
-        self, pred_loader: DataLoader, progress_bar: ProgressBar
+        self, pred_loader: DataLoader, progress_bar: ProgressBar, tta: bool = True
     ) -> np.ndarray:
         """Predict from whole sample.
 
@@ -467,13 +488,24 @@ class Engine:
         prediction = []
         with torch.no_grad():
             for i, sample in enumerate(pred_loader):
-                outputs = self.model(sample[0].to(self.device))
-                outputs = denormalize(
-                    outputs, float(self.cfg.data.mean), float(self.cfg.data.std)  # type: ignore  # noqa: E501
-                )
-                prediction.append(outputs.detach().cpu().numpy().squeeze())
+                if tta:
+                    augmented_preds = tta_forward(sample[0])
+                    predicted_augments = []
+                    for augmented_pred in augmented_preds:
+                        augmented_pred = self.model(augmented_pred.to(self.device))
+                        predicted_augments.append(
+                            augmented_pred.squeeze().cpu().numpy()
+                        )
+                    prediction.append(tta_backward(predicted_augments).squeeze())
+                else:
+                    prediction.append(
+                        self.model(sample[0].to(self.device)).squeeze().cpu().numpy()
+                    )
                 progress_bar.update(i, 1)
-        return np.stack(prediction)
+        output = denormalize(
+            np.stack(prediction), float(self.cfg.data.mean), float(self.cfg.data.std)  # type: ignore  # noqa: E501
+        )
+        return output
 
     def get_train_dataloader(self, train_path: str) -> DataLoader:
         """Return a training dataloader.
@@ -605,6 +637,7 @@ class Engine:
 
             # Create dataset
             dataset = TensorDataset(torch.from_numpy(normalized_input))
+
         elif isinstance(input, str) or isinstance(input, Path):  # path
             # Create dataset
             dataset = get_prediction_dataset(
@@ -728,7 +761,7 @@ class Engine:
 
             specs.update(
                 {
-                    "architecture": "careamics_restoration.models.unet",
+                    "architecture": "careamics.models.unet",
                     "test_inputs": test_inputs,
                     "test_outputs": test_outputs,
                     "input_axes": [axes],

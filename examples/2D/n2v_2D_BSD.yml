@@ -21,7 +21,7 @@ algorithm:
 
 training:
   # Number of epochs, greater or equal than 1
-  num_epochs: 50
+  num_epochs: 100
 
   # Patch size, 2D or 3D, divisible by 2
   patch_size: [64, 64]
@@ -47,9 +47,6 @@ training:
     parameters:
       factor: 0.5
 
-  # Extraction strategy, one of random or sequential
-  extraction_strategy: random
-
   # Use augmentation (True or False)
   augmentation: True
 
@@ -62,9 +59,16 @@ training:
   # Optional, automatic mixed precision
   amp:
     # Use (True or False)
+    use: True
+
+  # Torch.compile (True or False)
+  compile:
     use: False
 
 data:
+  # Controls the type of dataloader to use. Set to False if data won't fit into memory
+  in_memory: True
+
   # Extension of the data, one of npy, tiff and tif
   data_format: tiff
 

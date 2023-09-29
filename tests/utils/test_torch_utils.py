@@ -1,7 +1,7 @@
 import pytest
 import torch
 
-from careamics_restoration.utils.torch_utils import (
+from careamics.utils.torch_utils import (
     get_device,
     setup_cudnn_reproducibility,
 )

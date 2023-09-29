@@ -22,9 +22,7 @@ def n2v_loss(
     torch.Tensor
         loss
     """
-    samples, labels, masks = samples.to(device), labels.to(device), masks.to(device)
     errors = (labels - samples) ** 2
-
     # Average over pixels and batch
     loss = torch.sum(errors * masks) / torch.sum(masks)
     return loss

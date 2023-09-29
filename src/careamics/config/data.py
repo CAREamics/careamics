@@ -19,12 +19,10 @@ class SupportedExtensions(str, Enum):
 
     Currently supported:
         - tif/tiff: .tiff files.
-        - npy: numpy files.
     """
 
     TIFF = "tiff"
     TIF = "tif"
-    NPY = "npy"
 
     @classmethod
     def _missing_(cls, value: object) -> str:
@@ -64,6 +62,8 @@ class Data(BaseModel):
 
     Attributes
     ----------
+    in_memory : bool
+        Whether to load the data in memory or not.
     data_format : SupportedExtensions
         Extensions of the data.
     axes : str
@@ -81,6 +81,7 @@ class Data(BaseModel):
     )
 
     # Mandatory fields
+    in_memory: bool
     data_format: SupportedExtensions
     axes: str
 

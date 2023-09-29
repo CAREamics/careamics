@@ -1,11 +1,11 @@
 import pytest
 from pydantic import conlist
 
-from careamics_restoration.config.torch_optimizer import (
+from careamics.config.torch_optimizer import (
     TorchLRScheduler,
     TorchOptimizer,
 )
-from careamics_restoration.config.training import AMP, LrScheduler, Optimizer, Training
+from careamics.config.training import AMP, LrScheduler, Optimizer, Training
 
 
 @pytest.mark.parametrize(
@@ -389,11 +389,6 @@ def test_training_wrong_values_by_assignments(complete_config: dict):
     with pytest.raises(ValueError):
         training.lr_scheduler = "Why don't you schedule it for once? :)"
 
-    # extraction_strategy
-    training.extraction_strategy = "random"
-    with pytest.raises(ValueError):
-        training.extraction_strategy = "Maybe we should just extract everything?"
-
     # augmentation
     training.augmentation = True
     with pytest.raises(ValueError):
@@ -436,7 +431,6 @@ def test_training_to_dict_minimum(minimum_config: dict):
     assert "parameters" not in training_minimum["lr_scheduler"].keys()
 
     assert "augmentation" in training_minimum.keys()
-    assert "extraction_strategy" in training_minimum.keys()
 
     # Optionals fields are absent
     assert "wandb" not in training_minimum.keys()
@@ -467,7 +461,6 @@ def test_training_to_dict_optionals(complete_config: dict):
     assert "parameters" in training_complete["lr_scheduler"].keys()
 
     assert "augmentation" in training_complete.keys()
-    assert "extraction_strategy" in training_complete.keys()
 
     # Optionals fields
     assert "use_wandb" not in training_complete.keys()

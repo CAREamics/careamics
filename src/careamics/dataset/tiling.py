@@ -4,7 +4,7 @@ from typing import Generator, List, Tuple, Union
 import numpy as np
 from skimage.util import view_as_windows
 
-from careamics_restoration.utils.logging import get_logger
+from careamics.utils.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -268,9 +268,8 @@ def extract_patches_sequential(
     )
     logger.info(f"Extracted {patches.shape[0]} patches from input array.")
 
-    for patch_ixd in range(patches.shape[0]):
-        patch = patches[patch_ixd].astype(np.float32).squeeze()
-        yield patch
+    # return a generator of patches
+    return (patches[i, ...] for i in range(patches.shape[0]))
 
 
 def extract_patches_random(

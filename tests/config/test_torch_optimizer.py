@@ -1,6 +1,6 @@
 from torch import optim
 
-from careamics_restoration.config.torch_optimizer import (
+from careamics.config.torch_optimizer import (
     TorchLRScheduler,
     TorchOptimizer,
     get_optimizers,

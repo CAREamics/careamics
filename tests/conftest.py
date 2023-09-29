@@ -7,10 +7,10 @@ import numpy as np
 import pytest
 import tifffile
 
-from careamics_restoration.config import Configuration
-from careamics_restoration.config.algorithm import Algorithm
-from careamics_restoration.config.data import Data
-from careamics_restoration.config.training import LrScheduler, Optimizer, Training
+from careamics.config import Configuration
+from careamics.config.algorithm import Algorithm
+from careamics.config.data import Data
+from careamics.config.training import LrScheduler, Optimizer, Training
 
 
 @pytest.fixture
@@ -70,10 +70,10 @@ def minimum_config(tmp_path: Path) -> dict:
                 "name": "Adam",
             },
             "lr_scheduler": {"name": "ReduceLROnPlateau"},
-            "extraction_strategy": "random",
             "augmentation": True,
         },
         "data": {
+            "in_memory": True,
             "data_format": "tif",
             "axes": "SYX",
         },
@@ -122,6 +122,7 @@ def complete_config(minimum_config: dict) -> dict:
         "use": True,
         "init_scale": 512,
     }
+    complete_config["data"]["in_memory"] = False
     complete_config["data"]["mean"] = 666.666
     complete_config["data"]["std"] = 42.420
 
@@ -208,6 +209,7 @@ def base_configuration(temp_dir: Path, patch_size) -> Configuration:
         working_directory=temp_dir,
         algorithm=Algorithm(loss="n2v", model="UNet", is_3D="False"),
         data=Data(
+            in_memory=True,
             data_format="tif",
             axes="YX",
         ),

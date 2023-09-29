@@ -3,8 +3,8 @@ from typing import Tuple
 
 import numpy as np
 
-from careamics_restoration.config import Configuration
-from careamics_restoration.engine import Engine
+from careamics.config import Configuration
+from careamics.engine import Engine
 
 
 def test_is_engine_runnable(
@@ -18,7 +18,6 @@ def test_is_engine_runnable(
     Test if basic workflow does not fail - train model and then predict
     """
     train_path, val_path, test_path = example_data_path
-
     engine = Engine(config=base_configuration)
     _ = engine.train(train_path, val_path)
 
@@ -44,6 +43,7 @@ def test_is_engine_runnable(
     # Create engine from checkpoint
     del engine
     second_engine = Engine(model_path=result_model_path)
+    second_engine.cfg.data.in_memory = False
     _ = second_engine.train(train_path, val_path)
 
     # Test prediction with pred_path with tiling

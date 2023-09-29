@@ -1,6 +1,6 @@
 import pytest
 
-from careamics_restoration.models.unet import UNet
+from careamics.models.unet import UNet
 
 
 @pytest.mark.parametrize("depth", [1, 3, 5])
