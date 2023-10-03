@@ -1,3 +1,8 @@
+"""
+Convenience functions using torch.
+
+These functions are used to control certain aspects and behaviours of PyTorch.
+"""
 import logging
 import os
 import sys
@@ -7,7 +12,14 @@ import torch
 
 
 def get_device() -> torch.device:
-    """Selects the device to use for training."""
+    """
+    Select the device to use for training.
+
+    Returns
+    -------
+    torch.device
+        CUDA or CPU device, depending on availability of CUDA devices.
+    """
     if torch.cuda.is_available():
         logging.info("CUDA available. Using GPU.")
         device = torch.device("cuda")
@@ -18,7 +30,19 @@ def get_device() -> torch.device:
 
 
 def compile_model(model: torch.nn.Module) -> torch.nn.Module:
-    """Torch.compile wrapper."""
+    """
+    Torch.compile wrapper.
+
+    Parameters
+    ----------
+    model : torch.nn.Module
+        Model.
+
+    Returns
+    -------
+    torch.nn.Module
+        Compiled model if compile is available, the model itself otherwise.
+    """
     if hasattr(torch, "compile") and sys.version_info.minor <= 9:
         return torch.compile(model, mode="reduce-overhead")
     else:
@@ -28,16 +52,18 @@ def compile_model(model: torch.nn.Module) -> torch.nn.Module:
 def setup_cudnn_reproducibility(
     deterministic: Optional[bool] = None, benchmark: Optional[bool] = None
 ) -> None:
-    """Prepares CuDNN benchmark and sets it to be deterministic/non-deterministic mode.
+    """
+    Prepare CuDNN benchmark and sets it to be deterministic/non-deterministic mode.
 
     https://pytorch.org/docs/stable/notes/randomness.html#cuda-convolution-benchmarking.
 
-    Args:
-        deterministic: deterministic mode if running in CuDNN backend.
-        benchmark: If ``True`` use CuDNN heuristics to figure out
-            which algorithm will be most performant
-            for your model architecture and input.
-            Setting it to ``False`` may slow down your training.
+    Parameters
+    ----------
+    deterministic : Optional[bool]
+        Deterministic mode if running in CuDNN backend.
+    benchmark : Optional[bool]
+        If True, uses CuDNN heuristics to figure out which algorithm will be most
+        performant for your model architecture and input. False may slow down training.
     """
     if torch.cuda.is_available():
         if deterministic is None:

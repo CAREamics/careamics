@@ -1,3 +1,8 @@
+"""
+Context submodule.
+
+A convenience function to change the working directory in order to save data.
+"""
 import os
 from contextlib import contextmanager
 from pathlib import Path
@@ -6,13 +11,26 @@ from typing import Iterator, Union
 
 @contextmanager
 def cwd(path: Union[str, Path]) -> Iterator[None]:
-    """Change the current working directory to the given path.
+    """
+    Change the current working directory to the given path.
 
-    Can be used to generate files in a specific directory:
-    ```
-    with cwd(path):
-        // do something
-    ```
+    This method can be used to generate files in a specific directory, once out of the
+    context, the working directory is set back to the original one.
+
+    Parameters
+    ----------
+    path : Union[str,Path]
+        New working directory path.
+
+    Returns
+    -------
+    Iterator[None]
+        None values.
+
+    Examples
+    --------
+    >>> with cwd(path):
+    ...     pass
     """
     path = Path(path)
 
