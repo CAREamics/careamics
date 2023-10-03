@@ -9,7 +9,7 @@ from careamics.config import Configuration
 
 
 def is_notebook() -> bool:
-    """Check if the code is exectuted from a notebook."""
+    """Check if the code is executed from a notebook."""
     try:
         from IPython import get_ipython
 

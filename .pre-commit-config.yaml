@@ -33,6 +33,12 @@ repos:
           - numpy
           - types-PyYAML
 
+  # check docstrings
+  # - repo: https://github.com/numpy/numpydoc
+  #   rev: v1.6.0
+  #   hooks:
+  #     - id: numpydoc-validation
+
   # jupyter linting and formatting
   - repo: https://github.com/nbQA-dev/nbQA
     rev: 1.7.0

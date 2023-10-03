@@ -8,7 +8,7 @@ from typing import Iterator, Union
 def cwd(path: Union[str, Path]) -> Iterator[None]:
     """Change the current working directory to the given path.
 
-    Can be useful to generate files in a specific directory:
+    Can be used to generate files in a specific directory:
     ```
     with cwd(path):
         // do something

@@ -14,8 +14,9 @@ def stitch_prediction(
     ----------
     tiles : List[Tuple[np.ndarray, List[int]]]
         Tuple of cropped tiles and their respective stitching coordinates
-    input_shape : Tuple[int]
-        Shape of the full image
+    stitching_data : List
+        List of coordinates obtained from
+        dataset.tiling.compute_crop_and_stitch_coords_1d
 
     Returns
     -------

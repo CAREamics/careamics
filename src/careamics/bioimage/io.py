@@ -183,7 +183,8 @@ def import_bioimage_model(model_path: Union[str, Path]) -> Path:
 
     Parameters
     ----------
-        model_path (Union[str, Path]): Path to the bioimage model
+    model_path: Union[str, Path]
+        Path to the bioimage model
 
     Return
     ------

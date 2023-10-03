@@ -69,9 +69,9 @@ class Data(BaseModel):
     axes : str
         Axes of the data.
     mean: Optional[float]
-       Expected data mean
+        Expected data mean
     std: Optional[float]
-       Expected data std
+        Expected data std
     """
 
     # Pydantic class configuration
@@ -109,8 +109,6 @@ class Data(BaseModel):
         ----------
         axes : str
             Axes of the training data
-        values : dict
-            Dictionary of other parameter values
 
         Returns
         -------

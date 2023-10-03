@@ -19,7 +19,7 @@ from .training import Training
 
 
 class Configuration(BaseModel):
-    """Main configuration class.
+    """CAREamics configuration.
 
     The minimum configuration is composed of the following fields:
     - experiment_name:
@@ -232,7 +232,7 @@ def save_configuration(config: Configuration, path: Union[str, Path]) -> Path:
     Raises
     ------
     ValueError
-       If the path does not point to an existing directory or .yml file.
+        If the path does not point to an existing directory or .yml file.
     """
     # make sure path is a Path object
     config_path = Path(path)

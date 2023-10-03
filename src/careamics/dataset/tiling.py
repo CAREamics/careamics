@@ -48,7 +48,7 @@ def compute_overlap(
     ----------
     arr : np.ndarray
         Input array 3 or 4 dimensions.
-    patche_sizes : Tuple[int]
+    patch_sizes : Tuple[int]
         Size of the patches
 
     Returns
@@ -140,7 +140,7 @@ def compute_patch_steps(
 
     Parameters
     ----------
-    patch_size : Tuple[int]
+    patch_sizes : Tuple[int]
         Size of the patches
     overlaps : Tuple[int]
         Overlap between patches
@@ -225,9 +225,9 @@ def extract_patches_sequential(
     Parameters
     ----------
     arr : np.ndarray
-        input image array
+        Input image array
     patch_size : Tuple[int]
-        tuple of patch sizes in each dimension
+        Patch sizes in each dimension
 
     Yields
     ------
@@ -337,11 +337,11 @@ def extract_tiles(
     ----------
     arr : np.ndarray
         Array of shape (S, (Z), Y, X)
-    patch_size : Tuple[int]
-        Tuple of tile sizes in each dimension, could be of size 2 or 3, depending on
+    tile_size : Union[List[int], Tuple[int]]
+        Tile sizes in each dimension, could be of size 2 or 3, depending on
         the input shape
-    overlaps : Tuple[int]
-        Tuple of overlap values in each dimension, could be of size 2 or 3, depending
+    overlaps : Union[List[int], Tuple[int]]
+        Overlap values in each dimension, could be of size 2 or 3, depending
         on the input shape
 
     Yields

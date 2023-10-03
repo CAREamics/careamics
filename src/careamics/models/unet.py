@@ -15,7 +15,7 @@ class UnetEncoder(nn.Module):
         controls the type of the convolution layers, 2 for 2D and 3 for 3D
     depth : int
         number of encoder blocks
-    num_filter_base : int
+    num_channels_init : int
         number of channels in the first encoder block
     use_batch_norm : bool
         whether to use batch normalization
@@ -89,7 +89,7 @@ class UnetDecoder(nn.Module):
         controls the type of the convolution layers, 2 for 2D and 3 for 3D
     depth : int
         number of encoder blocks
-    num_filter_base : int
+    num_channels_init : int
         number of channels in the first encoder block
     use_batch_norm : bool
         whether to use batch normalization

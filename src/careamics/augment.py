@@ -9,7 +9,7 @@ def augment_batch(
     mask: np.ndarray,
     seed: int = 42,
 ) -> Tuple[np.ndarray, ...]:
-    """Apply augmentation fucntion to patches and masks.
+    """Apply augmentation function to patches and masks.
 
     Parameters
     ----------

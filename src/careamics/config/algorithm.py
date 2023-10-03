@@ -11,6 +11,7 @@ class Losses(str, Enum):
     """Available loss functions.
 
     Currently supported:
+
         - n2v: Noise2Void loss.
     """
 
@@ -31,6 +32,7 @@ class MaskingStrategies(str, Enum):
     """Available masking strategies.
 
     Currently supported:
+
     - default: default masking strategy of Noise2Void (uniform sampling of neighbors).
     - median: median masking strategy of N2V2
     """
@@ -141,7 +143,7 @@ class Algorithm(BaseModel):
 
     @field_validator("roi_size")
     def greater_than_eight_and_power_of_two(cls, roi_size: int) -> int:
-        """Validate that roi_size is odd and whithin specified range."""
+        """Validate that roi_size is odd and within specified range."""
         # if even
         if roi_size % 2 == 0:
             raise ValueError(f"ROI size must be odd (got {roi_size}).")

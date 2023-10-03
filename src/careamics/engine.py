@@ -779,10 +779,11 @@ class Engine:
 
         Parameters
         ----------
-        output_zip (Union[Path, str]): Where to save the model zip file.
-        model_specs (Optional[dict]): a dictionary that keys are the bioimage-core
-        `build_model` parameters.
-        If None then it will be populated up by the model default specs.
+        output_zip (Union[Path, str]):
+            Where to save the model zip file.
+        model_specs (Optional[dict]):
+            a dictionary that keys are the bioimage-core build_model parameters. If
+            None then it will be populated up by the model default specs.
         """
         if self.cfg is not None:
             # Generate specs
