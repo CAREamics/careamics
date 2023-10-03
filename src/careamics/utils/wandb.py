@@ -1,6 +1,11 @@
+"""
+A WandB logger for CAREamics.
+
+Implements a WandB class for use within the Engine.
+"""
 import sys
 from pathlib import Path
-from typing import Dict, Optional, Union
+from typing import Dict, Union
 
 import torch
 import wandb
@@ -9,7 +14,14 @@ from careamics.config import Configuration
 
 
 def is_notebook() -> bool:
-    """Check if the code is executed from a notebook."""
+    """
+    Check if the code is executed from a notebook or a qtconsole.
+
+    Returns
+    -------
+    bool
+        True if the code is executed from a notebooks, False otherwise.
+    """
     try:
         from IPython import get_ipython
 
@@ -23,18 +35,47 @@ def is_notebook() -> bool:
 
 
 class WandBLogging:
-    """WandB logging class."""
+    """
+    WandB logging class.
+
+    Parameters
+    ----------
+    experiment_name : str
+        Name of the experiment.
+    log_path : Path
+        Path in which to save the WandB log.
+    config : Configuration
+        Configuration of the model.
+    model_to_watch : torch.nn.Module
+        Model.
+    save_code : bool, optional
+        Whether to save the code, by default True.
+    """
 
     def __init__(
         self,
         experiment_name: str,
         log_path: Path,
-        # TODO shouldn't it be always not None?
-        config: Optional[Configuration] = None,
-        # TODO same here
-        model_to_watch: Optional[torch.nn.Module] = None,
+        config: Configuration,
+        model_to_watch: torch.nn.Module,
         save_code: bool = True,
     ):
+        """
+        Constructor.
+
+        Parameters
+        ----------
+        experiment_name : str
+            Name of the experiment.
+        log_path : Path
+            Path in which to save the WandB log.
+        config : Configuration
+            Configuration of the model.
+        model_to_watch : torch.nn.Module
+            Model.
+        save_code : bool, optional
+            Whether to save the code, by default True.
+        """
         self.run = wandb.init(
             project="careamics-restoration",
             dir=log_path,
@@ -53,11 +94,25 @@ class WandBLogging:
             self.log_code(code_path)
 
     def log_metrics(self, metric_dict: Dict) -> None:
-        """Log metrics to wandb."""
+        """
+        Log metrics to wandb.
+
+        Parameters
+        ----------
+        metric_dict : Dict
+            New metrics entry.
+        """
         self.run.log(metric_dict, commit=True)
 
     def log_code(self, code_path: Union[str, Path]) -> None:
-        """Log code to wandb."""
+        """
+        Log code to wandb.
+
+        Parameters
+        ----------
+        code_path : Union[str, Path]
+            Path to the code.
+        """
         self.run.log_code(
             root=code_path,
             include_fn=lambda path: path.endswith(".py")
