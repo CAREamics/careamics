@@ -1,3 +1,8 @@
+"""
+Prediction convenience functions.
+
+These functions are used during prediction.
+"""
 from typing import List
 
 import numpy as np
@@ -8,20 +13,21 @@ def stitch_prediction(
     tiles: List[np.ndarray],
     stitching_data: List,
 ) -> np.ndarray:
-    """Stitches tiles back together to form a full image.
+    """
+    Stitch tiles back together to form a full image.
 
     Parameters
     ----------
     tiles : List[Tuple[np.ndarray, List[int]]]
-        Tuple of cropped tiles and their respective stitching coordinates
+        Cropped tiles and their respective stitching coordinates.
     stitching_data : List
         List of coordinates obtained from
-        dataset.tiling.compute_crop_and_stitch_coords_1d
+        dataset.tiling.compute_crop_and_stitch_coords_1d.
 
     Returns
     -------
     np.ndarray
-        Full image
+        Full image.
     """
     # Get whole sample shape
     input_shape = stitching_data[0][0]
@@ -42,16 +48,20 @@ def stitch_prediction(
 
 def tta_forward(x: np.ndarray) -> List:
     """
-    Augments x 8-fold: all 90 deg rotations plus lr flip of the four rotated versions.
+    Augment 8-fold an array.
+
+    The augmentation is performed using all 90 deg rotations and their flipped version,
+    as well as the original image flipped.
 
     Parameters
     ----------
-    x: torch.tensor
-        data to augment
+    x : torch.tensor
+        Data to augment.
 
     Returns
     -------
-    Stack of augmented x.
+    List
+        Stack of augmented images.
     """
     x_aug = [
         x,
@@ -67,16 +77,17 @@ def tta_forward(x: np.ndarray) -> List:
 
 def tta_backward(x_aug: List) -> np.ndarray:
     """
-    Inverts `tta_forward` and averages the 8 images.
+    Invert `tta_forward` and average the 8 images.
 
     Parameters
     ----------
-    x_aug: List
-        stack of 8-fold augmented images.
+    x_aug : List
+        Stack of 8-fold augmented images.
 
     Returns
     -------
-    average of de-augmented x_aug.
+    np.ndarray
+        Average of de-augmented x_aug.
     """
     x_deaug = [
         x_aug[0],
