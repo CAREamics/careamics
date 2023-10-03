@@ -503,7 +503,7 @@ class Engine:
                     )
                 progress_bar.update(i, 1)
         output = denormalize(
-            np.stack(prediction), float(self.cfg.data.mean), float(self.cfg.data.std)  # type: ignore  # noqa: E501
+            np.stack(prediction), float(self.cfg.data.mean), float(self.cfg.data.std)  # type: ignore
         )
         return output
 
