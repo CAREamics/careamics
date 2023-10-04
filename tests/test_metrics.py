@@ -3,8 +3,8 @@ import pytest
 
 from careamics.metrics import (
     MetricTracker,
+    _zero_mean,
     scale_invariant_psnr,
-    zero_mean,
 )
 
 
@@ -17,7 +17,7 @@ from careamics.metrics import (
     ],
 )
 def test_zero_mean(x):
-    assert np.allclose(zero_mean(x), x - np.mean(x))
+    assert np.allclose(_zero_mean(x), x - np.mean(x))
 
 
 @pytest.mark.parametrize(
