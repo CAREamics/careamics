@@ -1,26 +1,32 @@
+"""
+Loss submodule.
+
+This submodule contains the various losses used in CAREamics.
+"""
 import torch
 
 
 def n2v_loss(
     samples: torch.Tensor, labels: torch.Tensor, masks: torch.Tensor, device: str
 ) -> torch.Tensor:
-    """The loss function as described in Eq. 7 of the paper.
+    """
+    N2V Loss function (see Eq.7 in Krull et al).
 
     Parameters
     ----------
     samples : torch.Tensor
-        patches with masked pixels
+        Patches with manipulated pixels.
     labels : torch.Tensor
-        noisy patches
+        Noisy patches.
     masks : torch.Tensor
-        array containing masked pixel locations
+        Array containing masked pixel locations.
     device : str
-        The device to use
+        Device to use.
 
     Returns
     -------
     torch.Tensor
-        loss
+        Loss value.
     """
     errors = (labels - samples) ** 2
     # Average over pixels and batch
