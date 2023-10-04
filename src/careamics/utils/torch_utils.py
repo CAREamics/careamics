@@ -6,7 +6,6 @@ These functions are used to control certain aspects and behaviours of PyTorch.
 import logging
 import os
 import sys
-from typing import Optional
 
 import torch
 
@@ -50,7 +49,7 @@ def compile_model(model: torch.nn.Module) -> torch.nn.Module:
 
 
 def setup_cudnn_reproducibility(
-    deterministic: Optional[bool] = None, benchmark: Optional[bool] = None
+    deterministic: bool = True, benchmark: bool = True
 ) -> None:
     """
     Prepare CuDNN benchmark and sets it to be deterministic/non-deterministic mode.
@@ -59,17 +58,17 @@ def setup_cudnn_reproducibility(
 
     Parameters
     ----------
-    deterministic : Optional[bool]
-        Deterministic mode if running in CuDNN backend.
-    benchmark : Optional[bool]
+    deterministic : bool
+        Deterministic mode, if running CuDNN backend.
+    benchmark : bool
         If True, uses CuDNN heuristics to figure out which algorithm will be most
         performant for your model architecture and input. False may slow down training.
     """
     if torch.cuda.is_available():
-        if deterministic is None:
+        if deterministic:
             deterministic = os.environ.get("CUDNN_DETERMINISTIC", "True") == "True"
         torch.backends.cudnn.deterministic = deterministic
 
-        if benchmark is None:
+        if benchmark:
             benchmark = os.environ.get("CUDNN_BENCHMARK", "True") == "True"
         torch.backends.cudnn.benchmark = benchmark
