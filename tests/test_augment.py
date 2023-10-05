@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from careamics.augment import flip_and_rotate
+from careamics.utils.augment import _flip_and_rotate
 
 ARRAY_2D = np.array([[1, 2, 3], [4, 5, 6]])
 AUG_ARRAY_2D = [
@@ -39,7 +39,7 @@ def test_flip_and_rotate(array, possible_augmentations):
     """Test augmenting a single array with rotation and flips"""
     for i_rot90 in range(4):
         for j_flip in range(2):
-            aug_array = flip_and_rotate(array, i_rot90, j_flip)
+            aug_array = _flip_and_rotate(array, i_rot90, j_flip)
 
             assert np.array_equal(
                 aug_array, possible_augmentations[i_rot90 * 2 + j_flip]

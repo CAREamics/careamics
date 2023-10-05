@@ -1,3 +1,4 @@
+"""Training configuration."""
 from __future__ import annotations
 
 from typing import Dict, List
@@ -13,11 +14,12 @@ from pydantic import (
 from torch import optim
 
 from .config_filter import remove_default_optionals
-from .torch_optimizer import TorchLRScheduler, TorchOptimizer, get_parameters
+from .torch_optim import TorchLRScheduler, TorchOptimizer, get_parameters
 
 
 class Optimizer(BaseModel):
-    """Torch optimizer.
+    """
+    Torch optimizer.
 
     Only parameters supported by the corresponding torch optimizer will be taken
     into account. For more details, check:
@@ -48,7 +50,28 @@ class Optimizer(BaseModel):
 
     @field_validator("parameters")
     def filter_parameters(cls, user_params: dict, values: FieldValidationInfo) -> Dict:
-        """Validate optimizer parameters."""
+        """
+        Validate optimizer parameters.
+
+        This method filters out unknown parameters, given the optimizer name.
+
+        Parameters
+        ----------
+        user_params : dict
+            Parameters passed on to the torch optimizer.
+        values : FieldValidationInfo
+            Pydantic field validation info, used to get the optimizer name.
+
+        Returns
+        -------
+        Dict
+            Filtered optimizer parameters.
+
+        Raises
+        ------
+        ValueError
+            If the optimizer name is not specified.
+        """
         if "name" in values.data:
             optimizer_name = values.data["name"]
 
@@ -65,7 +88,8 @@ class Optimizer(BaseModel):
 
     @model_validator(mode="after")
     def sgd_lr_parameter(cls, optimizer: Optimizer) -> Optimizer:
-        """Check that SGD optimizer as `lr` parameter specified.
+        """
+        Check that SGD optimizer has the mandatory `lr` parameter specified.
 
         Parameters
         ----------
@@ -76,6 +100,11 @@ class Optimizer(BaseModel):
         -------
         Optimizer
             Validated optimizer.
+
+        Raises
+        ------
+        ValueError
+            If the optimizer is SGD and the lr parameter is not specified.
         """
         if optimizer.name == TorchOptimizer.SGD and "lr" not in optimizer.parameters:
             raise ValueError(
@@ -88,21 +117,27 @@ class Optimizer(BaseModel):
     def model_dump(
         self, exclude_optionals: bool = True, *args: List, **kwargs: Dict
     ) -> Dict:
-        """Override model_dump method.
+        """
+        Override model_dump method.
 
-        The purpose is to ensure export smooth import to yaml. It includes:
-            - remove entries with None value
-            - remove optional values if they have the default value
+        The purpose of this method is to ensure smooth export to yaml. It
+        includes:
+            - removing entries with None value.
+            - removing optional values if they have the default value.
 
         Parameters
         ----------
         exclude_optionals : bool, optional
             Whether to exclude optional arguments if they are default, by default True.
+        *args : List
+            Positional arguments, unused.
+        **kwargs : Dict
+            Keyword arguments, unused.
 
         Returns
         -------
         dict
-            Dictionary containing the model parameters
+            Dictionary containing the model parameters.
         """
         dictionary = super().model_dump(exclude_none=True)
 
@@ -116,7 +151,8 @@ class Optimizer(BaseModel):
 
 
 class LrScheduler(BaseModel):
-    """Torch learning rate scheduler.
+    """
+    Torch learning rate scheduler.
 
     Only parameters supported by the corresponding torch lr scheduler will be taken
     into account. For more details, check:
@@ -147,7 +183,28 @@ class LrScheduler(BaseModel):
 
     @field_validator("parameters")
     def filter_parameters(cls, user_params: dict, values: FieldValidationInfo) -> Dict:
-        """Validate lr scheduler parameters."""
+        """
+        Validate lr scheduler parameters.
+
+        This method filters out unknown parameters, given the lr scheduler name.
+
+        Parameters
+        ----------
+        user_params : dict
+            Parameters passed on to the torch lr scheduler.
+        values : FieldValidationInfo
+            Pydantic field validation info, used to get the lr scheduler name.
+
+        Returns
+        -------
+        Dict
+            Filtered lr scheduler parameters.
+
+        Raises
+        ------
+        ValueError
+            If the lr scheduler name is not specified.
+        """
         if "name" in values.data:
             lr_scheduler_name = values.data["name"]
 
@@ -164,7 +221,8 @@ class LrScheduler(BaseModel):
 
     @model_validator(mode="after")
     def step_lr_step_size_parameter(cls, lr_scheduler: LrScheduler) -> LrScheduler:
-        """Check that StepLR lr scheduler has `step_size` parameter specified.
+        """
+        Check that StepLR lr scheduler has `step_size` parameter specified.
 
         Parameters
         ----------
@@ -175,6 +233,11 @@ class LrScheduler(BaseModel):
         -------
         LrScheduler
             Validated lr scheduler.
+
+        Raises
+        ------
+        ValueError
+            If the lr scheduler is StepLR and the step_size parameter is not specified.
         """
         if (
             lr_scheduler.name == TorchLRScheduler.StepLR
@@ -188,23 +251,28 @@ class LrScheduler(BaseModel):
         return lr_scheduler
 
     def model_dump(
-        self, exclude_optionals: bool = True, *arg: List, **kwargs: Dict
+        self, exclude_optionals: bool = True, *args: List, **kwargs: Dict
     ) -> Dict:
-        """Override model_dump method.
+        """
+        Override model_dump method.
 
-        The purpose is to ensure export smooth import to yaml. It includes:
-            - remove entries with None value
-            - remove optional values if they have the default value
+        The purpose of this method is to ensure smooth export to yaml. It includes:
+            - removing entries with None value.
+            - removing optional values if they have the default value.
 
         Parameters
         ----------
         exclude_optionals : bool, optional
             Whether to exclude optional arguments if they are default, by default True.
+        *args : List
+            Positional arguments, unused.
+        **kwargs : Dict
+            Keyword arguments, unused.
 
         Returns
         -------
         dict
-            Dictionary containing the model parameters
+            Dictionary containing the model parameters.
         """
         dictionary = super().model_dump(exclude_none=True)
 
@@ -217,18 +285,17 @@ class LrScheduler(BaseModel):
 
 
 class AMP(BaseModel):
-    """Automatic mixed precision (AMP) parameters.
+    """
+    Automatic mixed precision (AMP) parameters.
 
-    See:
-    https://pytorch.org/docs/stable/amp.html
-
+    See: https://pytorch.org/docs/stable/amp.html.
 
     Attributes
     ----------
-    use : bool
-        Whether to use AMP or not.
-    init_scale : int
-        Initial scale used for loss scaling.
+    use : bool, optional
+        Whether to use AMP or not, default False.
+    init_scale : int, optional
+        Initial scale used for loss scaling, default 1024.
     """
 
     model_config = ConfigDict(
@@ -237,13 +304,29 @@ class AMP(BaseModel):
 
     use: bool = False
 
-    # Optional
     # TODO review init_scale and document better
     init_scale: int = Field(default=1024, ge=512, le=65536)
 
     @field_validator("init_scale")
     def power_of_two(cls, scale: int) -> int:
-        """Validate that init_scale is a power of two."""
+        """
+        Validate that init_scale is a power of two.
+
+        Parameters
+        ----------
+        scale : int
+            Initial scale used for loss scaling.
+
+        Returns
+        -------
+        int
+            Validated initial scale.
+
+        Raises
+        ------
+        ValueError
+            If the init_scale is not a power of two.
+        """
         if not scale & (scale - 1) == 0:
             raise ValueError(f"Init scale must be a power of two (got {scale}).")
 
@@ -252,27 +335,34 @@ class AMP(BaseModel):
     def model_dump(
         self, exclude_optionals: bool = True, *args: List, **kwargs: Dict
     ) -> Dict:
-        """Override model_dump method.
+        """
+        Override model_dump method.
 
         The purpose is to ensure export smooth import to yaml. It includes:
-            - remove entries with None value
-            - remove optional values if they have the default value
+            - remove entries with None value.
+            - remove optional values if they have the default value.
 
         Parameters
         ----------
         exclude_optionals : bool, optional
             Whether to exclude optional arguments if they are default, by default True.
+        *args : List
+            Positional arguments, unused.
+        **kwargs : Dict
+            Keyword arguments, unused.
 
         Returns
         -------
         dict
-            Dictionary containing the model parameters
+            Dictionary containing the model parameters.
         """
         dictionary = super().model_dump(exclude_none=True)
 
         if exclude_optionals:
             # remove optional arguments if they are default
-            defaults = {"init_scale": 1024}
+            defaults = {
+                "init_scale": 1024,
+            }
 
             remove_default_optionals(dictionary, defaults)
 
@@ -280,7 +370,8 @@ class AMP(BaseModel):
 
 
 class Training(BaseModel):
-    """Parameters related to the training.
+    """
+    Parameters related to the training.
 
     Mandatory parameters are:
         - num_epochs: number of epochs, greater than 0.
@@ -340,9 +431,25 @@ class Training(BaseModel):
 
     @field_validator("num_epochs", "batch_size")
     def greater_than_0(cls, val: int) -> int:
-        """Validate number of epochs.
+        """
+        Validate number of epochs.
 
         Number of epochs must be greater than 0.
+
+        Parameters
+        ----------
+        val : int
+            Number of epochs.
+
+        Returns
+        -------
+        int
+            Validated number of epochs.
+
+        Raises
+        ------
+        ValueError
+            If the number of epochs is 0.
         """
         if val < 1:
             raise ValueError(f"Number of epochs must be greater than 0 (got {val}).")
@@ -351,9 +458,27 @@ class Training(BaseModel):
 
     @field_validator("patch_size")
     def all_elements_non_zero_divisible_by_2(cls, patch_list: List[int]) -> List[int]:
-        """Validate patch size.
+        """
+        Validate patch size.
 
         Patch size must be non-zero, positive and divisible by 2.
+
+        Parameters
+        ----------
+        patch_list : List[int]
+            Patch size.
+
+        Returns
+        -------
+        List[int]
+            Validated patch size.
+
+        Raises
+        ------
+        ValueError
+            If the patch size is 0.
+        ValueError
+            If the patch size is not divisible by 2.
         """
         for dim in patch_list:
             if dim < 1:
@@ -367,21 +492,26 @@ class Training(BaseModel):
     def model_dump(
         self, exclude_optionals: bool = True, *args: List, **kwargs: Dict
     ) -> Dict:
-        """Override model_dump method.
+        """
+        Override model_dump method.
 
         The purpose is to ensure export smooth import to yaml. It includes:
-            - remove entries with None value
-            - remove optional values if they have the default value
+            - remove entries with None value.
+            - remove optional values if they have the default value.
 
         Parameters
         ----------
         exclude_optionals : bool, optional
             Whether to exclude optional arguments if they are default, by default True.
+        *args : List
+            Positional arguments, unused.
+        **kwargs : Dict
+            Keyword arguments, unused.
 
         Returns
         -------
         dict
-            Dictionary containing the model parameters
+            Dictionary containing the model parameters.
         """
         dictionary = super().model_dump(exclude_none=True)
 

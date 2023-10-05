@@ -8,4 +8,4 @@ from .config import (
     load_configuration,
     save_configuration,
 )
-from .torch_optimizer import get_parameters as get_parameters
+from .torch_optim import get_parameters as get_parameters

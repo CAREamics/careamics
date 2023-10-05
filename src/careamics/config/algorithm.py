@@ -1,3 +1,4 @@
+"""Algorithm configuration."""
 from enum import Enum
 from typing import Dict, List
 
@@ -7,10 +8,11 @@ from .config_filter import remove_default_optionals
 
 
 # python 3.11: https://docs.python.org/3/library/enum.html
-class Losses(str, Enum):
-    """Available loss functions.
+class Loss(str, Enum):
+    """
+    Available loss functions.
 
-    Currently supported:
+    Currently supported losses:
 
         - n2v: Noise2Void loss.
     """
@@ -19,22 +21,24 @@ class Losses(str, Enum):
 
 
 class Models(str, Enum):
-    """Available models.
+    """
+    Available models.
 
-    Currently supported:
+    Currently supported models:
         - UNet: U-Net model.
     """
 
     UNET = "UNet"
 
 
-class MaskingStrategies(str, Enum):
-    """Available masking strategies.
+class MaskingStrategy(str, Enum):
+    """
+    Available masking strategy.
 
-    Currently supported:
+    Currently supported strategies:
 
     - default: default masking strategy of Noise2Void (uniform sampling of neighbors).
-    - median: median masking strategy of N2V2
+    - median: median masking strategy of N2V2.
     """
 
     DEFAULT = "default"
@@ -42,7 +46,8 @@ class MaskingStrategies(str, Enum):
 
 
 class ModelParameters(BaseModel):
-    """Model parameters.
+    """
+    Deep-learning model parameters.
 
     The number of filters (base) must be even and minimum 8.
 
@@ -62,8 +67,25 @@ class ModelParameters(BaseModel):
 
     # TODO revisit the constraints on num_channels_init
     @field_validator("num_channels_init")
-    def greater_than_eight_and_even(cls, num_channels: int) -> int:
-        """Validate that num_channels_init is a power of two (minimum 8)."""
+    def even(cls, num_channels: int) -> int:
+        """
+        Validate that num_channels_init is even.
+
+        Parameters
+        ----------
+        num_channels : int
+            Number of channels.
+
+        Returns
+        -------
+        int
+            Validated number of channels.
+
+        Raises
+        ------
+        ValueError
+            If the number of channels is odd.
+        """
         # if odd
         if num_channels % 2 != 0:
             raise ValueError(
@@ -74,7 +96,8 @@ class ModelParameters(BaseModel):
 
 
 class Algorithm(BaseModel):
-    """Algorithm configuration used to configure the model and the loss.
+    """
+    Algorithm configuration.
 
     The minimum algorithm configuration is composed of the following fields:
         - loss:
@@ -108,7 +131,7 @@ class Algorithm(BaseModel):
     masked_pixel_percentage : float
         Percentage of pixels to be masked in each patch.
     roi_size : int
-        Size of the region of interest to use in the masking algorithm.
+        Size of the region of interest used in the masking scheme.
     model_parameters : ModelParameters
         Model parameters, see ModelParameters for more details.
     """
@@ -121,29 +144,47 @@ class Algorithm(BaseModel):
     )
 
     # Mandatory fields
-    loss: Losses
+    loss: Loss
     model: Models
     is_3D: bool
 
     # Optional fields, define a default value
-    masking_strategy: MaskingStrategies = MaskingStrategies.DEFAULT
+    masking_strategy: MaskingStrategy = MaskingStrategy.DEFAULT
     masked_pixel_percentage: float = Field(default=0.2, ge=0.1, le=20)
     roi_size: int = Field(default=11, ge=3, le=21)
     model_parameters: ModelParameters = ModelParameters()
 
     def get_conv_dim(self) -> int:
-        """Get the convolution layers dimension (2D or 3D).
+        """
+        Get the convolution layers dimension (2D or 3D).
 
         Returns
         -------
         int
-            Dimension (2 or 3)
+            Dimension (2 or 3).
         """
         return 3 if self.is_3D else 2
 
     @field_validator("roi_size")
-    def greater_than_eight_and_power_of_two(cls, roi_size: int) -> int:
-        """Validate that roi_size is odd and within specified range."""
+    def even(cls, roi_size: int) -> int:
+        """
+        Validate that roi_size is odd.
+
+        Parameters
+        ----------
+        roi_size : int
+            Size of the region of interest in the masking scheme.
+
+        Returns
+        -------
+        int
+            Validated size of the region of interest.
+
+        Raises
+        ------
+        ValueError
+            If the size of the region of interest is even.
+        """
         # if even
         if roi_size % 2 == 0:
             raise ValueError(f"ROI size must be odd (got {roi_size}).")
@@ -153,23 +194,33 @@ class Algorithm(BaseModel):
     def model_dump(
         self, exclude_optionals: bool = True, *args: List, **kwargs: Dict
     ) -> Dict:
-        """Override model_dump method.
+        """
+        Override model_dump method.
 
         The purpose is to ensure export smooth import to yaml. It includes:
-            - remove entries with None value
-            - remove optional values if they have the default value
+            - remove entries with None value.
+            - remove optional values if they have the default value.
 
         Parameters
         ----------
         exclude_optionals : bool, optional
             Whether to exclude optional arguments if they are default, by default True.
+        *args : List
+            Positional arguments, unused.
+        **kwargs : Dict
+            Keyword arguments, unused.
+
+        Returns
+        -------
+        Dict
+            Dictionary representation of the model.
         """
         dictionary = super().model_dump(exclude_none=True)
 
         if exclude_optionals is True:
             # remove optional arguments if they are default
             defaults = {
-                "masking_strategy": MaskingStrategies.DEFAULT.value,
+                "masking_strategy": MaskingStrategy.DEFAULT.value,
                 "masked_pixel_percentage": 0.2,
                 "roi_size": 11,
                 "model_parameters": ModelParameters().model_dump(exclude_none=True),
