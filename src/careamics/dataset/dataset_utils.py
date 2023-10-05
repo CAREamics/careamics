@@ -5,8 +5,8 @@ from typing import Generator, List, Optional, Tuple, Union
 import numpy as np
 import tifffile
 
-from careamics.config.training import ExtractionStrategies
-from careamics.dataset.tiling import (
+from .extraction_strategy import ExtractionStrategies
+from .tiling import (
     extract_patches_random,
     extract_patches_sequential,
     extract_tiles,

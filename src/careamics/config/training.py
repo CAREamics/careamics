@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from enum import Enum
 from typing import Dict, List
 
 from pydantic import (
@@ -15,20 +14,6 @@ from torch import optim
 
 from .config_filter import remove_default_optionals
 from .torch_optimizer import TorchLRScheduler, TorchOptimizer, get_parameters
-
-
-class ExtractionStrategies(str, Enum):
-    """Available extraction strategies.
-
-    Currently supported:
-        - random: random extraction.
-        - sequential: grid extraction, can miss edge values.
-        - tiled: tiled extraction, covers the whole image.
-    """
-
-    RANDOM = "random"
-    SEQUENTIAL = "sequential"
-    TILED = "tiled"
 
 
 class Optimizer(BaseModel):

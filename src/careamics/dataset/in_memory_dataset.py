@@ -4,14 +4,14 @@ from typing import Callable, Dict, List, Optional, Tuple, Union
 import numpy as np
 import torch
 
-from careamics.config.training import ExtractionStrategies
-from careamics.dataset.dataset_utils import (
+from ..utils import normalize
+from ..utils.logging import get_logger
+from .dataset_utils import (
     generate_patches,
     list_files,
     read_tiff,
 )
-from careamics.utils import normalize
-from careamics.utils.logging import get_logger
+from .extraction_strategy import ExtractionStrategies
 
 logger = get_logger(__name__)
 

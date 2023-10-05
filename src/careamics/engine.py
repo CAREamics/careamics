@@ -14,12 +14,10 @@ import torch
 from bioimageio.spec.model.raw_nodes import Model as BioimageModel
 from torch.utils.data import DataLoader, TensorDataset
 
-from careamics.bioimage import (
+from .bioimage import (
     build_zip_model,
     get_default_model_specs,
 )
-from careamics.utils.logging import ProgressBar, get_logger
-
 from .config import Configuration, load_configuration
 from .dataset.prepare_dataset import (
     get_prediction_dataset,
@@ -37,6 +35,7 @@ from .utils import (
     normalize,
     setup_cudnn_reproducibility,
 )
+from .utils.logging import ProgressBar, get_logger
 
 
 # TODO: move somewhere else

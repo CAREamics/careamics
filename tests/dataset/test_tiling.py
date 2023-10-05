@@ -2,10 +2,10 @@ import numpy as np
 import pytest
 
 from careamics.dataset.tiling import (
+    _patches_sanity_check,
     extract_patches_random,
     extract_patches_sequential,
     extract_tiles,
-    patches_sanity_check,
 )
 
 
@@ -78,7 +78,7 @@ def test_patches_sanity_check(arr_shape, patch_size):
     arr = np.zeros(arr_shape)
     is_3d_patch = len(patch_size) == 3
     # check if the patch is 2D or 3D. Subtract 1 because the first dimension is sample
-    patches_sanity_check(arr, patch_size, is_3d_patch)
+    _patches_sanity_check(arr, patch_size, is_3d_patch)
 
 
 @pytest.mark.parametrize(
@@ -107,7 +107,7 @@ def test_patches_sanity_check_invalid_cases(arr_shape, patch_size):
     is_3d_patch = len(patch_size) == 3
     # check if the patch is 2D or 3D. Subtract 1 because the first dimension is sample
     with pytest.raises(ValueError):
-        patches_sanity_check(arr, patch_size, is_3d_patch)
+        _patches_sanity_check(arr, patch_size, is_3d_patch)
 
 
 @pytest.mark.parametrize(
