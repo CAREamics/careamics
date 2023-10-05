@@ -1,14 +1,14 @@
 """
 Extraction strategy module.
 
-This module defines an enum class stating the various extraction strategies available
-in CAREamics.
+This module defines the various extraction strategies available in CAREamics.
 """
 from enum import Enum
 
 
-class ExtractionStrategies(str, Enum):
-    """Available extraction strategies.
+class ExtractionStrategy(str, Enum):
+    """
+    Available extraction strategies.
 
     Currently supported:
         - random: random extraction.

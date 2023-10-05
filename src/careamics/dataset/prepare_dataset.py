@@ -9,7 +9,7 @@ from typing import List, Optional, Union
 from ..config import Configuration
 from ..manipulation import default_manipulate
 from ..utils import check_tiling_validity
-from .extraction_strategy import ExtractionStrategies
+from .extraction_strategy import ExtractionStrategy
 from .in_memory_dataset import InMemoryDataset
 from .tiff_dataset import TiffDataset
 
@@ -42,7 +42,7 @@ def get_train_dataset(
             axes=config.data.axes,
             mean=config.data.mean,
             std=config.data.std,
-            patch_extraction_method=ExtractionStrategies.SEQUENTIAL,
+            patch_extraction_method=ExtractionStrategy.SEQUENTIAL,
             patch_size=config.training.patch_size,
             patch_transform=default_manipulate,
             patch_transform_params={
@@ -57,7 +57,7 @@ def get_train_dataset(
             axes=config.data.axes,
             mean=config.data.mean,
             std=config.data.std,
-            patch_extraction_method=ExtractionStrategies.RANDOM,
+            patch_extraction_method=ExtractionStrategy.RANDOM,
             patch_size=config.training.patch_size,
             patch_transform=default_manipulate,
             patch_transform_params={
@@ -94,7 +94,7 @@ def get_validation_dataset(config: Configuration, val_path: str) -> InMemoryData
         axes=config.data.axes,
         mean=config.data.mean,
         std=config.data.std,
-        patch_extraction_method=ExtractionStrategies.SEQUENTIAL,
+        patch_extraction_method=ExtractionStrategy.SEQUENTIAL,
         patch_size=config.training.patch_size,
         patch_transform=default_manipulate,
         patch_transform_params={
@@ -154,7 +154,7 @@ def get_prediction_dataset(
 
     # Extraction strategy
     if use_tiling:
-        patch_extraction_method = ExtractionStrategies.TILED
+        patch_extraction_method = ExtractionStrategy.TILED
     else:
         patch_extraction_method = None
 

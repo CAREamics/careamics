@@ -1,93 +1,100 @@
+"""Convenience methods for datasets."""
 import logging
 from pathlib import Path
-from typing import Generator, List, Optional, Tuple, Union
+from typing import List, Union
 
 import numpy as np
 import tifffile
 
-from .extraction_strategy import ExtractionStrategies
-from .tiling import (
-    extract_patches_random,
-    extract_patches_sequential,
-    extract_tiles,
-)
-
 
 def list_files(data_path: Union[str, Path], data_format: str) -> List[Path]:
-    """Creates a list of paths to source tiff files from path string.
+    """
+    Return a list of path to files in a directory.
 
     Parameters
     ----------
     data_path : str
-        path to the folder containing the data
+        Path to the folder containing the data.
     data_format : str
-        data format, e.g. tif
+        Extension of the files to load, without period, e.g. `tif`.
 
     Returns
     -------
     List[Path]
-        List of pathlib.Path objects
+        List of pathlib.Path objects.
     """
     files = sorted(Path(data_path).rglob(f"*.{data_format}*"))
     return files
 
 
-def fix_axes(sample: np.ndarray, axes: str) -> np.ndarray:
-    """Fixes axes of the sample to match the config axes.
+def _update_axes(array: np.ndarray, axes: str) -> np.ndarray:
+    """
+    Update axes of the sample to match the config axes.
+
+    This method concatenate the S and T axes.
 
     Parameters
     ----------
-    sample : np.ndarray
-        array containing the image
+    array : np.ndarray
+        Input array.
+    axes : str
+        Description of axes in format STCZYX.
 
     Returns
     -------
     np.ndarray
-        reshaped array
+        Updated array.
     """
     # concatenate ST axes to N, return NCZYX
-    if ("S" in axes or "T" in axes) and sample.dtype != "O":
+    if ("S" in axes or "T" in axes) and array.dtype != "O":
         new_axes_len = len(axes.replace("Z", "").replace("YX", ""))
-        # TODO test reshape, replace with moveaxis ?
-        sample = sample.reshape(-1, *sample.shape[new_axes_len:]).astype(np.float32)
+        # TODO test reshape as it can scramble data, moveaxis is probably better
+        array = array.reshape(-1, *array.shape[new_axes_len:]).astype(np.float32)
 
-    elif sample.dtype == "O":
-        for i in range(len(sample)):
-            sample[i] = np.expand_dims(sample[i], axis=0).astype(np.float32)
+    elif array.dtype == "O":
+        for i in range(len(array)):
+            array[i] = np.expand_dims(array[i], axis=0).astype(np.float32)
 
     else:
-        sample = np.expand_dims(sample, axis=0).astype(np.float32)
+        array = np.expand_dims(array, axis=0).astype(np.float32)
 
-    return sample
+    return array
 
 
 def read_tiff(file_path: Path, axes: str) -> np.ndarray:
-    """Reads a file and returns a numpy array.
+    """
+    Read a tiff file and return a numpy array.
 
     Parameters
     ----------
     file_path : Path
-        pathlib.Path object containing a path to a file
+        Path to a file.
+    axes : str
+        Description of axes in format STCZYX.
 
     Returns
     -------
     np.ndarray
-        array containing the image
+        Resulting array.
 
     Raises
     ------
-    ValueError, OSError
-        if a file is not a valid tiff or damaged
     ValueError
-        if data dimensions are not 2, 3 or 4
+        If the file failed to open.
+    OSError
+        If the file failed to open.
     ValueError
-        if axes parameter from config is not consistent with data dimensions
+        If the file is not a valid tiff.
+    ValueError
+        If the data dimensions are incorrect.
+    ValueError
+        If the axes length is incorrect.
     """
     if file_path.suffix[:4] == ".tif":
         try:
             sample = tifffile.imread(file_path)
         except (ValueError, OSError) as e:
-            logging.exception(f"Exception in file {file_path}: {e}, skipping")
+            logging.exception(f"Exception in file {file_path}: {e}, skipping it.")
             raise e
     else:
         raise ValueError(f"File {file_path} is not a valid tiff.")
@@ -103,57 +110,6 @@ def read_tiff(file_path: Path, axes: str) -> np.ndarray:
     # check number of axes
     if len(axes) != len(sample.shape):
         raise ValueError(f"Incorrect axes length (got {axes} for file {file_path}).")
-    sample = fix_axes(sample, axes)
+    sample = _update_axes(sample, axes)
+
     return sample
-
-
-def generate_patches(
-    sample: np.ndarray,
-    patch_extraction_method: ExtractionStrategies,
-    patch_size: Optional[Union[List[int], Tuple[int]]] = None,
-    patch_overlap: Optional[Union[List[int], Tuple[int]]] = None,
-) -> Generator[np.ndarray, None, None]:
-    """Generate patches from a sample.
-
-    Parameters
-    ----------
-    sample : np.ndarray
-        array containing the image
-
-    Yields
-    ------
-    Generator[np.ndarray, None, None]
-        Generator function yielding patches/tiles
-
-    Raises
-    ------
-    ValueError
-        if no patch has been generated
-    """
-    patches = None
-
-    if patch_size is not None:
-        patches = None
-
-        if patch_extraction_method == ExtractionStrategies.TILED:
-            if patch_overlap is None:
-                raise ValueError(
-                    "Overlaps must be specified when using tiling (got None)."
-                )
-            patches = extract_tiles(
-                arr=sample, tile_size=patch_size, overlaps=patch_overlap
-            )
-
-        elif patch_extraction_method == ExtractionStrategies.SEQUENTIAL:
-            patches = extract_patches_sequential(sample, patch_size=patch_size)
-
-        elif patch_extraction_method == ExtractionStrategies.RANDOM:
-            patches = extract_patches_random(sample, patch_size=patch_size)
-
-        if patches is None:
-            raise ValueError("No patch generated")
-
-        return patches
-    else:
-        # no patching
-        return (sample for _ in range(1))

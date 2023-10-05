@@ -1,11 +1,11 @@
 import numpy as np
 import pytest
 
-from careamics.dataset.tiling import (
+from careamics.dataset.patching import (
+    _extract_patches_random,
+    _extract_patches_sequential,
+    _extract_tiles,
     _patches_sanity_check,
-    extract_patches_random,
-    extract_patches_sequential,
-    extract_tiles,
 )
 
 
@@ -13,7 +13,7 @@ def check_extract_patches_sequential(array, patch_size):
     """Check that the patches are extracted correctly.
 
     The array should have been generated using np.arange and np.reshape."""
-    patch_generator = extract_patches_sequential(array, patch_size)
+    patch_generator = _extract_patches_sequential(array, patch_size)
 
     # check patch shape
     patches = []
@@ -31,7 +31,7 @@ def check_extract_patches_random(array, patch_size):
     """Check that the patches are extracted correctly.
 
     The array should have been generated using np.arange and np.reshape."""
-    patch_generator = extract_patches_random(array, patch_size)
+    patch_generator = _extract_patches_random(array, patch_size)
 
     # check patch shape
     patches = []
@@ -42,7 +42,7 @@ def check_extract_patches_random(array, patch_size):
 
 def check_extract_tiles(array, tile_size, overlaps):
     """Test extracting patches randomly."""
-    tile_data_generator = extract_tiles(array, tile_size, overlaps)
+    tile_data_generator = _extract_tiles(array, tile_size, overlaps)
 
     tiles = []
     all_overlap_crop_coords = []

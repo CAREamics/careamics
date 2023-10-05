@@ -13,11 +13,11 @@ import torch
 from ..utils import normalize
 from ..utils.logging import get_logger
 from .dataset_utils import (
-    generate_patches,
     list_files,
     read_tiff,
 )
-from .extraction_strategy import ExtractionStrategies
+from .extraction_strategy import ExtractionStrategy
+from .patching import generate_patches
 
 logger = get_logger(__name__)
 
@@ -41,9 +41,9 @@ class TiffDataset(torch.utils.data.IterableDataset):
     patch_overlap : Optional[Union[List[int], Tuple[int]]], optional
         Overlap of the patches in each dimension, by default None.
     mean : Optional[float], optional
-        Mean of the dataset, by default None.
+        Expected mean of the dataset, by default None.
     std : Optional[float], optional
-        Standard deviation of the dataset, by default None.
+        Expected standard deviation of the dataset, by default None.
     patch_transform : Optional[Callable], optional
         Patch transform callable, by default None.
     patch_transform_params : Optional[Dict], optional
@@ -55,7 +55,7 @@ class TiffDataset(torch.utils.data.IterableDataset):
         data_path: Union[str, Path],
         data_format: str,
         axes: str,
-        patch_extraction_method: Union[ExtractionStrategies, None],
+        patch_extraction_method: Union[ExtractionStrategy, None],
         patch_size: Optional[Union[List[int], Tuple[int]]] = None,
         patch_overlap: Optional[Union[List[int], Tuple[int]]] = None,
         mean: Optional[float] = None,

@@ -4,12 +4,13 @@ Tiling submodule.
 These functions are used to tile images into patches or tiles.
 """
 import itertools
-from typing import Generator, List, Tuple, Union
+from typing import Generator, List, Optional, Tuple, Union
 
 import numpy as np
 from skimage.util import view_as_windows
 
-from careamics.utils.logging import get_logger
+from ..utils.logging import get_logger
+from .extraction_strategy import ExtractionStrategy
 
 logger = get_logger(__name__)
 
@@ -250,7 +251,7 @@ def _patches_sanity_check(
 
 # formerly :
 # in dataloader.py#L52, 00d536c
-def extract_patches_sequential(
+def _extract_patches_sequential(
     arr: np.ndarray, patch_size: Union[List[int], Tuple[int]]
 ) -> Generator[np.ndarray, None, None]:
     """
@@ -303,7 +304,7 @@ def extract_patches_sequential(
     return (patches[i, ...] for i in range(patches.shape[0]))
 
 
-def extract_patches_random(
+def _extract_patches_random(
     arr: np.ndarray, patch_size: Union[List[int], Tuple[int]]
 ) -> Generator[np.ndarray, None, None]:
     """
@@ -358,7 +359,7 @@ def extract_patches_random(
             yield patch
 
 
-def extract_tiles(
+def _extract_tiles(
     arr: np.ndarray,
     tile_size: Union[List[int], Tuple[int]],
     overlaps: Union[List[int], Tuple[int]],
@@ -429,3 +430,64 @@ def extract_tiles(
                 overlap_crop_coords,
                 stitch_coords,
             )
+
+
+def generate_patches(
+    sample: np.ndarray,
+    patch_extraction_method: ExtractionStrategy,
+    patch_size: Optional[Union[List[int], Tuple[int]]] = None,
+    patch_overlap: Optional[Union[List[int], Tuple[int]]] = None,
+) -> Generator[np.ndarray, None, None]:
+    """
+    Generate patches from a sample.
+
+    Parameters
+    ----------
+    sample : np.ndarray
+        Input array.
+    patch_extraction_method : ExtractionStrategies
+        Patch extraction method, as defined in extraction_strategy.ExtractionStrategy.
+    patch_size : Optional[Union[List[int], Tuple[int]]]
+        Size of the patches along each dimension of the array, except the first.
+    patch_overlap : Optional[Union[List[int], Tuple[int]]]
+        Overlap between patches.
+
+    Returns
+    -------
+    Generator[np.ndarray, None, None]
+        Generator yielding patches/tiles.
+
+    Raises
+    ------
+    ValueError
+        If overlap is not specified when using tiling.
+    ValueError
+        If patches is None.
+    """
+    patches = None
+
+    if patch_size is not None:
+        patches = None
+
+        if patch_extraction_method == ExtractionStrategy.TILED:
+            if patch_overlap is None:
+                raise ValueError(
+                    "Overlaps must be specified when using tiling (got None)."
+                )
+            patches = _extract_tiles(
+                arr=sample, tile_size=patch_size, overlaps=patch_overlap
+            )
+
+        elif patch_extraction_method == ExtractionStrategy.SEQUENTIAL:
+            patches = _extract_patches_sequential(sample, patch_size=patch_size)
+
+        elif patch_extraction_method == ExtractionStrategy.RANDOM:
+            patches = _extract_patches_random(sample, patch_size=patch_size)
+
+        if patches is None:
+            raise ValueError("No patch generated")
+
+        return patches
+    else:
+        # no patching
+        return (sample for _ in range(1))
