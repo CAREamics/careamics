@@ -25,10 +25,14 @@ from .dataset.prepare_dataset import (
     get_validation_dataset,
 )
 from .losses import create_loss_function
-from .metrics import MetricTracker
 from .models import create_model
-from .prediction_utils import stitch_prediction, tta_backward, tta_forward
+from .prediction import (
+    stitch_prediction,
+    tta_backward,
+    tta_forward,
+)
 from .utils import (
+    MetricTracker,
     check_array_validity,
     denormalize,
     get_device,
