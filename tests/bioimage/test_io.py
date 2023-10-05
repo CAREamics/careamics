@@ -66,7 +66,8 @@ def test_bioimage_generate_rdf(minimum_config: dict):
     engine = Engine(config=config)
 
     # Sample files
-    test_inputs, test_outputs = engine._get_sample_io_files()
+    axes = "bcyx"
+    test_inputs, test_outputs = engine._get_sample_io_files(axes)
 
     # Export rdf
     rdf = engine._generate_rdf()
@@ -76,16 +77,18 @@ def test_bioimage_generate_rdf(minimum_config: dict):
     assert rdf["postprocessing"][0][0]["kwargs"]["gain"] == [std]
     assert rdf["test_inputs"] == test_inputs
     assert rdf["test_outputs"] == test_outputs
-    assert rdf["input_axes"] == ["bcyx"]
-    assert rdf["output_axes"] == ["bcyx"]
+    assert rdf["input_axes"] == [axes]
+    assert rdf["output_axes"] == [axes]
 
     # Change to 3D
     config.set_3D(True, "SZYX")
+    axes = "bczyx"
+
     engine = Engine(config=config)
-    test_inputs, test_outputs = engine._get_sample_io_files()
+    test_inputs, test_outputs = engine._get_sample_io_files(axes)
     rdf = engine._generate_rdf()
-    assert rdf["input_axes"] == ["bczyx"]
-    assert rdf["output_axes"] == ["bczyx"]
+    assert rdf["input_axes"] == [axes]
+    assert rdf["output_axes"] == [axes]
 
     # Test model specs
     model_specs = {"description": "Some description", "license": "to kill"}
