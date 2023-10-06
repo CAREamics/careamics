@@ -1,12 +1,12 @@
 import numpy as np
 import pytest
 
-from careamics.dataset.tiling import (
+from careamics.dataset.patching import (
+    _compute_crop_and_stitch_coords_1d,
     _compute_number_of_patches,
-    compute_crop_and_stitch_coords_1d,
-    compute_overlap,
-    compute_patch_steps,
-    compute_reshaped_view,
+    _compute_overlap,
+    _compute_patch_steps,
+    _compute_reshaped_view,
 )
 
 
@@ -38,7 +38,7 @@ def test_compute_overlap(shape, patch_sizes, expected):
     """Test computing overlap between patches"""
     arr = np.ones(shape)
 
-    assert compute_overlap(arr, patch_sizes) == expected
+    assert _compute_overlap(arr, patch_sizes) == expected
 
 
 @pytest.mark.parametrize("dims", [2, 3])
@@ -50,7 +50,7 @@ def test_compute_patch_steps(dims, patch_size, overlap):
     overlaps = (overlap,) * dims
     expected = (min(patch_size - overlap, patch_size),) * dims
 
-    assert compute_patch_steps(patch_sizes, overlaps) == expected
+    assert _compute_patch_steps(patch_sizes, overlaps) == expected
 
 
 def check_compute_reshaped_view(array, window_shape, steps):
@@ -61,7 +61,7 @@ def check_compute_reshaped_view(array, window_shape, steps):
     output_shape = (-1, *window_shape)
 
     # compute views
-    output = compute_reshaped_view(array, win, step, output_shape)
+    output = _compute_reshaped_view(array, win, step, output_shape)
 
     # check the number of patches
     n_patches = [
@@ -74,9 +74,11 @@ def check_compute_reshaped_view(array, window_shape, steps):
 @pytest.mark.parametrize("axis_size", [32, 35, 40])
 @pytest.mark.parametrize("patch_size, overlap", [(16, 4), (8, 6), (16, 8), (32, 24)])
 def test_compute_crop_and_stitch_coords_1d(axis_size, patch_size, overlap):
-    crop_coords, stitch_coords, overlap_crop_coords = compute_crop_and_stitch_coords_1d(
-        axis_size, patch_size, overlap
-    )
+    (
+        crop_coords,
+        stitch_coords,
+        overlap_crop_coords,
+    ) = _compute_crop_and_stitch_coords_1d(axis_size, patch_size, overlap)
 
     # check that the number of patches is sufficient to cover the whole axis and that
     # the number of coordinates is

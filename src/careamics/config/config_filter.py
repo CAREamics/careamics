@@ -1,9 +1,11 @@
+"""Convenience functions to filter dictionnaries resulting from a Pydantic export."""
 from pathlib import Path
 from typing import Dict
 
 
 def paths_to_str(dictionary: dict) -> dict:
-    """Replace Path objects in a dictionary by str.
+    """
+    Replace Path objects in a dictionary by str.
 
     Parameters
     ----------
@@ -14,7 +16,6 @@ def paths_to_str(dictionary: dict) -> dict:
     -------
     dict
         Modified dictionary.
-
     """
     for k in dictionary.keys():
         if isinstance(dictionary[k], Path):
@@ -24,9 +25,10 @@ def paths_to_str(dictionary: dict) -> dict:
 
 
 def remove_default_optionals(dictionary: Dict, default: Dict) -> None:
-    """Remove default arguments from a dictionary.
+    """
+    Remove default arguments from a dictionary.
 
-    Removes arguments if they are equal to the provided default ones in place
+    The method removes arguments if they are equal to the provided default ones.
 
     Parameters
     ----------

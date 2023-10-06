@@ -9,7 +9,9 @@ from careamics.utils.wandb import WandBLogging
 @mock.patch("careamics.utils.wandb.wandb")
 def test_wandb_logger(wandb, tmp_path: Path, minimum_config: dict):
     config = Configuration(**minimum_config)
-    logger = WandBLogging(experiment_name="test", log_path=tmp_path, config=config)
+    logger = WandBLogging(
+        experiment_name="test", log_path=tmp_path, config=config, model_to_watch=None
+    )
 
     logger.log_metrics({"acc": 0.0})
     wandb.init().log.assert_called_once_with({"acc": 0.0}, commit=True)

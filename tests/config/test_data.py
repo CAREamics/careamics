@@ -1,13 +1,13 @@
 import pytest
 
-from careamics.config.data import Data, SupportedExtensions
+from careamics.config.data import Data, SupportedExtension
 
 
 @pytest.mark.parametrize("ext", ["tiff", "tif", "TIFF", "TIF", ".TIF"])
 def test_supported_extensions_case_insensitive(ext: str):
     """Test that SupportedExtension enum accepts all extensions in upper
     cases and with ."""
-    sup_ext = SupportedExtensions(ext)
+    sup_ext = SupportedExtension(ext)
 
     new_ext = ext.lower()
     if ext.startswith("."):

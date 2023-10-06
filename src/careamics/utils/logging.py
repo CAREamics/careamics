@@ -1,3 +1,8 @@
+"""
+Loggin submodule.
+
+The methods are responsible for the in-console logger.
+"""
 import logging
 import sys
 import time
@@ -12,7 +17,23 @@ def get_logger(
     log_level: int = logging.INFO,
     log_path: Optional[Union[str, Path]] = None,
 ) -> logging.Logger:
-    """Creates a python logger instance with configured handlers."""
+    """
+    Create a python logger instance with configured handlers.
+
+    Parameters
+    ----------
+    name : str
+        Name of the logger.
+    log_level : int, optional
+        Log level (info, error etc.), by default logging.INFO.
+    log_path : Optional[Union[str, Path]], optional
+        Path in which to save the log, by default None.
+
+    Returns
+    -------
+    logging.Logger
+        Logger.
+    """
     logger = logging.getLogger(name)
     logger.propagate = False
 
@@ -49,23 +70,27 @@ def get_logger(
 
 
 class ProgressBar:
-    """Keras style progress bar.
+    """
+    Keras style progress bar.
 
-    Modified from https://github.com/yueyericardo/pkbar
+    Adapted from https://github.com/yueyericardo/pkbar.
 
-    Arguments:
-        max_value: Number of steps expected, None if unknown.
-        epoch: Zero-indexed current epoch.
-        num_epochs: Total epochs.
-        width: Progress bar width on screen.
-        verbose: Verbosity mode, 0 (silent), 1 (verbose), 2 (semi-verbose)
-        always_stateful: (Boolean) Whether to set all metrics to be stateful.
-        stateful_metrics: Iterable of string names of metrics that
-                should *not* be averaged over time. Metrics in this list
-                will be displayed as-is. All others will be averaged
-                by the progbar before display.
-        interval: Minimum visual progress update interval (in seconds).
-        unit_name: Display name for step counts (usually "step" or "sample").
+    Parameters
+    ----------
+    max_value : Optional[int], optional
+        Maximum progress bar value, by default None.
+    epoch : Optional[int], optional
+        Zero-indexed current epoch, by default None.
+    num_epochs : Optional[int], optional
+        Total number of epochs, by default None.
+    stateful_metrics : Optional[List], optional
+        Iterable of string names of metrics that should *not* be averaged over time.
+        Metrics in this list will be displayed as-is. All others will be averaged by
+        the progress bar before display, by default None.
+    always_stateful : bool, optional
+            Whether to set all metrics to be stateful, by default False.
+    mode : str, optional
+        Mode, one of "train", "val", or "predict", by default "train".
     """
 
     def __init__(
@@ -77,6 +102,26 @@ class ProgressBar:
         always_stateful: bool = False,
         mode: str = "train",
     ) -> None:
+        """
+        Constructor.
+
+        Parameters
+        ----------
+        max_value : Optional[int], optional
+            Maximum progress bar value, by default None.
+        epoch : Optional[int], optional
+            Zero-indexed current epoch, by default None.
+        num_epochs : Optional[int], optional
+            Total number of epochs, by default None.
+        stateful_metrics : Optional[List], optional
+            Iterable of string names of metrics that should *not* be averaged over time.
+            Metrics in this list will be displayed as-is. All others will be averaged by
+            the progress bar before display, by default None.
+        always_stateful : bool, optional
+             Whether to set all metrics to be stateful, by default False.
+        mode : str, optional
+            Mode, one of "train", "val", or "predict", by default "train".
+        """
         self.max_value = max_value
         # Width of the progress bar
         self.width = 30
@@ -114,15 +159,17 @@ class ProgressBar:
     def update(
         self, current_step: int, batch_size: int = 1, values: Optional[List] = None
     ) -> None:
-        """Updates the progress bar.
+        """
+        Update the progress bar.
 
-        Arguments:
-                current_step: Index of current step.
-                values: List of tuples:
-                        `(name, value_for_last_step)`.
-                        If `name` is in `stateful_metrics`,
-                        `value_for_last_step` will be displayed as-is.
-                        Else, an average of the metric over time will be displayed.
+        Parameters
+        ----------
+        current_step : int
+            Index of the current step.
+        batch_size : int, optional
+            Batch size, by default 1.
+        values : Optional[List], optional
+            Updated metrics values, by default None.
         """
         values = values or []
         for k, v in values:
@@ -216,13 +263,28 @@ class ProgressBar:
         self._last_update = now
 
     def add(self, n: int, values: Optional[List] = None) -> None:
-        """Adds progress."""
+        """
+        Update the progress bar by n steps.
+
+        Parameters
+        ----------
+        n : int
+            Number of steps to increase the progress bar with.
+        values : Optional[List], optional
+            Updated metrics values, by default None.
+        """
         self.update(self._seen_so_far + n, 1, values=values)
 
     def spinning_cursor(self) -> Generator:
-        """Generates a spinning cursor animation.
+        """
+        Generate a spinning cursor animation.
 
-        Taken from https://github.com/manrajgrover/py-spinners/tree/master
+        Taken from https://github.com/manrajgrover/py-spinners/tree/master.
+
+        Returns
+        -------
+        Generator
+            Generator of animation frames.
         """
         while True:
             yield from [

@@ -1,38 +1,40 @@
+"""
+Dataset preparation module.
+
+Methods to set up the datasets for training, validation and prediction.
+"""
 from pathlib import Path
 from typing import List, Optional, Union
 
-from careamics.config import Configuration
-from careamics.config.training import ExtractionStrategies
-from careamics.dataset.in_memory_dataset import InMemoryDataset
-from careamics.dataset.tiff_dataset import TiffDataset
-from careamics.manipulation import default_manipulate
-from careamics.utils import check_tiling_validity
+from ..config import Configuration
+from ..manipulation import default_manipulate
+from ..utils import check_tiling_validity
+from .extraction_strategy import ExtractionStrategy
+from .in_memory_dataset import InMemoryDataset
+from .tiff_dataset import TiffDataset
 
 
 def get_train_dataset(
     config: Configuration, train_path: str
 ) -> Union[TiffDataset, InMemoryDataset]:
-    """Create Dataset instance from configuration.
+    """
+    Create training dataset.
+
+    Depending on the configuration, this methods return either a TiffDataset or an
+    InMemoryDataset.
 
     Parameters
     ----------
     config : Configuration
-        Configuration object
+        Configuration.
     train_path : Union[str, Path]
-        Pathlike object with a path to training data
+        Path to training data.
 
     Returns
     -------
-        Dataset object
-
-    Raises
-    ------
-    ValueError
-        No training configuration found
+    Union[TiffDataset, InMemoryDataset]
+        Dataset.
     """
-    if config.training is None:
-        raise ValueError("Training configuration is not defined.")
-
     if config.data.in_memory:
         dataset = InMemoryDataset(
             data_path=train_path,
@@ -40,7 +42,7 @@ def get_train_dataset(
             axes=config.data.axes,
             mean=config.data.mean,
             std=config.data.std,
-            patch_extraction_method=ExtractionStrategies.SEQUENTIAL,
+            patch_extraction_method=ExtractionStrategy.SEQUENTIAL,
             patch_size=config.training.patch_size,
             patch_transform=default_manipulate,
             patch_transform_params={
@@ -55,7 +57,7 @@ def get_train_dataset(
             axes=config.data.axes,
             mean=config.data.mean,
             std=config.data.std,
-            patch_extraction_method=ExtractionStrategies.RANDOM,
+            patch_extraction_method=ExtractionStrategy.RANDOM,
             patch_size=config.training.patch_size,
             patch_transform=default_manipulate,
             patch_transform_params={
@@ -67,28 +69,23 @@ def get_train_dataset(
 
 
 def get_validation_dataset(config: Configuration, val_path: str) -> InMemoryDataset:
-    """Create Dataset instance from configuration.
+    """
+    Create validation dataset.
+
+    Validation dataset is kept in memory.
 
     Parameters
     ----------
     config : Configuration
-        Configuration object
+        Configuration.
     val_path : Union[str, Path]
-        Pathlike object with a path to validation data
+        Path to validation data.
 
     Returns
     -------
     TiffDataset
-        Dataset object
-
-    Raises
-    ------
-    ValueError
-        No validation configuration found
+        In memory dataset.
     """
-    if config.training is None:
-        raise ValueError("Training configuration is not defined.")
-
     data_path = val_path
 
     dataset = InMemoryDataset(
@@ -97,7 +94,7 @@ def get_validation_dataset(config: Configuration, val_path: str) -> InMemoryData
         axes=config.data.axes,
         mean=config.data.mean,
         std=config.data.std,
-        patch_extraction_method=ExtractionStrategies.SEQUENTIAL,
+        patch_extraction_method=ExtractionStrategy.SEQUENTIAL,
         patch_size=config.training.patch_size,
         patch_transform=default_manipulate,
         patch_transform_params={
@@ -116,34 +113,35 @@ def get_prediction_dataset(
     overlaps: Optional[List[int]] = None,
     axes: Optional[str] = None,
 ) -> TiffDataset:
-    """Create Dataset instance from configuration.
+    """
+    Create prediction dataset.
 
     To use tiling, both `tile_shape` and `overlaps` must be specified, have same
     length, be divisible by 2 and greater than 0. Finally, the overlaps must be
     smaller than the tiles.
 
+    By default, axes are extracted from the configuration. To use images with
+    different axes, set the `axes` parameter. Note that the difference between
+    configuration and parameter axes must be S or T, but not any of the spatial
+    dimensions (e.g. 2D vs 3D).
+
     Parameters
     ----------
     config : Configuration
-        Configuration object
+        Configuration.
     pred_path : Union[str, Path]
-        Pathlike object with a path to prediction data
+        Path to prediction data.
     tile_shape : Optional[List[int]], optional
-        2D or 3D shape of the tiles to be predicted, by default None
+        2D or 3D shape of the tiles, by default None.
     overlaps : Optional[List[int]], optional
-        2D or 3D overlaps between tiles, by default None
+        2D or 3D overlaps between tiles, by default None.
     axes : Optional[str], optional
-        Axes of the data, by default None
+        Axes of the data, by default None.
 
     Returns
     -------
     TiffDataset
-        Dataset object
-
-    Raises
-    ------
-    ValueError
-
+        Dataset.
     """
     use_tiling = False  # default value
 
@@ -156,7 +154,7 @@ def get_prediction_dataset(
 
     # Extraction strategy
     if use_tiling:
-        patch_extraction_method = ExtractionStrategies.TILED
+        patch_extraction_method = ExtractionStrategy.TILED
     else:
         patch_extraction_method = None
 
