@@ -1,5 +1,5 @@
 """
-Loggin submodule.
+Logging submodule.
 
 The methods are responsible for the in-console logger.
 """

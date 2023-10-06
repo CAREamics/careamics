@@ -133,7 +133,7 @@ class Conv_Block(nn.Module):
         Returns
         -------
         torch.Tensor
-            Ouput tensor.
+            Output tensor.
         """
         if self.use_batch_norm:
             x = self.conv1(x)

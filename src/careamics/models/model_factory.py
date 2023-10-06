@@ -151,7 +151,7 @@ def get_optimizer_and_scheduler(
     """
     Create optimizer and learning rate schedulers.
 
-    If a checkpoint state dictionnary is provided, the optimizer and scheduler are
+    If a checkpoint state dictionary is provided, the optimizer and scheduler are
     instantiated to the same state as the checkpoint's optimizer and scheduler.
 
     Parameters
@@ -161,7 +161,7 @@ def get_optimizer_and_scheduler(
     model : torch.nn.Module
         Model.
     state_dict : Optional[Dict], optional
-        Checkpoint state dictionnary, by default None.
+        Checkpoint state dictionary, by default None.
 
     Returns
     -------
@@ -208,7 +208,7 @@ def get_grad_scaler(
     """
     Instantiate gradscaler.
 
-    If a checkpoint state dictionnary is provided, the scaler is instantiated to the
+    If a checkpoint state dictionary is provided, the scaler is instantiated to the
     same state as the checkpoint's scaler.
 
     Parameters
@@ -216,7 +216,7 @@ def get_grad_scaler(
     config : Configuration
         Configuration.
     state_dict : Optional[Dict], optional
-        Checkpoint state dictionnary, by default None.
+        Checkpoint state dictionary, by default None.
 
     Returns
     -------
