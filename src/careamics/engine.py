@@ -4,7 +4,6 @@ Engine module.
 This module contains the main CAREamics class, the Engine. The Engine allows training
 a model and using it for prediction.
 """
-import random
 from logging import FileHandler
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
@@ -37,25 +36,8 @@ from .utils import (
     denormalize,
     get_device,
     normalize,
-    setup_cudnn_reproducibility,
 )
 from .utils.logging import ProgressBar, get_logger
-
-
-# TODO: move somewhere else
-def seed_everything(seed: int) -> None:
-    """
-    Seed all random number generators for reproducibility.
-
-    Parameters
-    ----------
-    seed : int
-        Seed.
-    """
-    random.seed(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)
 
 
 # TODO: refactor private methods and bioimage.io to other modules
@@ -222,14 +204,6 @@ class Engine:
                         "wandb"
                     )
                     self.use_wandb = False
-
-            # seeding
-            if seed is not None:
-                # TODO does it makes sense to seed but not set to deterministic?
-                setup_cudnn_reproducibility(deterministic=False, benchmark=False)
-                seed_everything(seed=42)
-            else:
-                setup_cudnn_reproducibility()
         else:
             raise ValueError("Configuration is not defined.")
 

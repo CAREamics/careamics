@@ -48,6 +48,25 @@ def compile_model(model: torch.nn.Module) -> torch.nn.Module:
         return model
 
 
+def seed_everything(seed: int) -> None:
+    """
+    Seed all random number generators for reproducibility.
+
+    Parameters
+    ----------
+    seed : int
+        Seed.
+    """
+    import random
+
+    import numpy as np
+
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+
+
 def setup_cudnn_reproducibility(
     deterministic: bool = True, benchmark: bool = True
 ) -> None:
