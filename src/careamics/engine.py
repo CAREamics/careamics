@@ -33,6 +33,11 @@ from .utils import (
 )
 
 
+from viztracer import VizTracer
+
+tracer = VizTracer()
+
+
 def seed_everything(seed: int) -> int:
     """Seed all random number generators for reproducibility."""
     random.seed(seed)
@@ -208,7 +213,10 @@ class Engine:
                 if hasattr(train_loader.dataset, "__len__"):
                     epoch_size = train_loader.__len__()
                 else:
-                    epoch_size = None
+                    try:
+                        epoch_size = epoch_size
+                    except NameError:
+                        epoch_size = None
 
                 progress_bar = ProgressBar(
                     max_value=epoch_size,
@@ -216,13 +224,15 @@ class Engine:
                     num_epochs=self.cfg.training.num_epochs,
                     mode="train",
                 )
-                # train_epoch = train_op(self._train_single_epoch,)
                 # Perform training step
+                tracer.start()
                 train_outputs, epoch_size = self._train_single_epoch(
                     train_loader,
                     progress_bar,
                     self.cfg.training.amp.use,
                 )
+                tracer.stop()
+                tracer.save("trace_gp_t.json")
                 # Perform validation step
                 eval_outputs = self.evaluate(eval_loader)
                 val_losses.append(eval_outputs["loss"])

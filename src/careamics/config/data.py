@@ -1,13 +1,12 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
-    field_validator,
     model_validator,
 )
 
@@ -19,10 +18,12 @@ class SupportedExtensions(str, Enum):
 
     Currently supported:
         - tif/tiff: .tiff files.
+        - zarr: zarr array.
     """
 
     TIFF = "tiff"
     TIF = "tif"
+    ZARR = "zarr"
 
     @classmethod
     def _missing_(cls, value: object) -> str:
@@ -98,34 +99,28 @@ class Data(BaseModel):
         self.mean = mean
         self.std = std
 
-    @field_validator("axes")
-    def valid_axes(cls, axes: str) -> str:
-        """Validate axes.
-
-        Axes must be a subset of STZYX, must contain YX, be in the right order
-        and not contain both S and T.
+    @model_validator(mode="before")
+    @classmethod
+    def validate_dataset_to_be_used(cls, data: Any) -> Any:
+        """Validate that in_memory dataset is used correctly.
 
         Parameters
         ----------
-        axes : str
-            Axes of the training data
-        values : dict
-            Dictionary of other parameter values
-
-        Returns
-        -------
-        str
-            Axes of the training data
+        data : Configuration
+            Configuration to validate.
 
         Raises
         ------
         ValueError
-            If axes are not valid
+            If in_memory dataset is used with Zarr storage.
+            If axes are not valid.
         """
-        # validate axes
-        check_axes_validity(axes)
+        if data["in_memory"] and data["data_format"] == SupportedExtensions.ZARR:
+            raise ValueError("Zarr storage can't be used with in_memory dataset.")
 
-        return axes
+        # Validate axes
+        check_axes_validity(data["axes"])
+        return data
 
     @model_validator(mode="after")
     def std_only_with_mean(cls, data_model: Data) -> Data:

@@ -4,6 +4,7 @@ from typing import Generator, List, Optional, Tuple, Union
 
 import numpy as np
 import tifffile
+import zarr
 
 from careamics.config.training import ExtractionStrategies
 from careamics.dataset.tiling import (
@@ -45,11 +46,14 @@ def list_files(
         return files
 
     elif data_path.is_dir():
-        return (
-            sorted(Path(data_path).rglob(f"*.{data_format}*"))
-            if return_list
-            else sorted(Path(data_path).rglob(f"*.{data_format}*"))[0]
-        )
+
+        if return_list:
+            files = sorted(Path(data_path).rglob(f"*.{data_format}*"))
+            if len(files) == 0:
+                raise ValueError(f"Data path {data_path} is empty.")
+        else:
+            files = sorted(Path(data_path).rglob(f"*.{data_format}*"))[0]
+        return files
 
     elif data_path.is_file():
         return [data_path] if return_list else data_path
@@ -76,7 +80,7 @@ def fix_axes(sample: np.ndarray, axes: str) -> np.ndarray:
     # concatenate ST axes to N, return NCZYX
     if ("S" in axes or "T" in axes) and sample.dtype != "O":
         new_axes_len = len(axes.replace("Z", "").replace("YX", ""))
-        # TODO test reshape, replace with moveaxis ?
+        # TODO This doesn't work for ZARR !
         sample = sample.reshape(-1, *sample.shape[new_axes_len:]).astype(np.float32)
 
     elif sample.dtype == "O":
@@ -131,8 +135,66 @@ def read_tiff(file_path: Path, axes: str) -> np.ndarray:
     # check number of axes
     if len(axes) != len(sample.shape):
         raise ValueError(f"Incorrect axes length (got {axes} for file {file_path}).")
+
     sample = fix_axes(sample, axes)
     return sample
+
+
+def read_zarr(
+    file_path: Path, axes: str
+) -> Union[zarr.core.Array, zarr.storage.DirectoryStore, zarr.hierarchy.Group]:
+    """Reads a file and returns a pointer.
+
+    Parameters
+    ----------
+    file_path : Path
+        pathlib.Path object containing a path to a file
+
+    Returns
+    -------
+    np.ndarray
+        Pointer to zarr storage
+
+    Raises
+    ------
+    ValueError, OSError
+        if a file is not a valid tiff or damaged
+    ValueError
+        if data dimensions are not 2, 3 or 4
+    ValueError
+        if axes parameter from config is not consistent with data dimensions
+    """
+    zarr_source = zarr.open(Path(file_path), mode="r")
+    if isinstance(zarr_source, zarr.hierarchy.Group):
+        raise NotImplementedError("Group not supported yet")
+
+    elif isinstance(zarr_source, zarr.storage.DirectoryStore):
+        raise NotImplementedError("DirectoryStore not supported yet")
+
+    elif isinstance(zarr_source, zarr.core.Array):
+        # array should be of shape (S, (C), (Z), Y, X), iterating over S ?
+        # TODO what if array is not of that shape and/or chunks aren't defined and
+        if zarr_source.dtype == "O":
+            raise NotImplementedError("Object type not supported yet")
+        else:
+            arr = zarr_source
+    else:
+        raise ValueError(f"Unsupported zarr object type {type(zarr_source)}")
+
+    # TODO how to fix dimensions? Or just raise error?
+    # sanity check on dimensions
+    if len(arr.shape) < 2 or len(arr.shape) > 4:
+        raise ValueError(
+            f"Incorrect data dimensions. Must be 2, 3 or 4 (got {arr.shape})."
+        )
+
+    # sanity check on axes length
+    if len(axes) != len(arr.shape):
+        raise ValueError(f"Incorrect axes length (got {axes}).")
+
+    # FIXME !
+    # arr = fix_axes(arr, axes)
+    return arr
 
 
 def generate_patches(

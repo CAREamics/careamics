@@ -3,6 +3,9 @@ from typing import Generator, List, Tuple, Union
 
 import numpy as np
 from skimage.util import view_as_windows
+from zarr.core import Array
+from zarr.hierarchy import Group
+from zarr.storage import DirectoryStore, MemoryStore
 
 from careamics.utils.logging import get_logger
 
@@ -299,10 +302,12 @@ def extract_patches_random(
 
     rng = np.random.default_rng()
     # shuffle the array along the first axis TODO do we need shuffling?
-    rng.shuffle(arr, axis=0)
+    if not isinstance(arr, (Array, DirectoryStore, MemoryStore, Group)):
+        rng.shuffle(arr, axis=0)
 
     for sample_idx in range(arr.shape[0]):
         sample = arr[sample_idx]
+        # TODO rewrite without for loop
         # calculate how many number of patches can image area be divided into
         n_patches = np.ceil(np.prod(sample.shape) / np.prod(patch_size)).astype(int)
         for _ in range(n_patches):
@@ -324,6 +329,24 @@ def extract_patches_random(
                 .astype(np.float32)
             )
             yield patch
+    # n_patches = np.ceil(np.prod(arr.shape) / np.prod(patch_size)).astype(int)
+    # for _ in range(n_patches):
+    #     sample_idx = rng.integers(0, arr.shape[0])
+    #     crop_coords = [
+    #         rng.integers(0, arr.shape[i + 1] - patch_size[i])
+    #         for i in range(len(patch_size))
+    #     ]
+    #     patch = (
+    #         arr[sample_idx][
+    #             (
+    #                 ...,
+    #                 *[slice(c, c + patch_size[i]) for i, c in enumerate(crop_coords)],
+    #             )
+    #         ]
+    #         .copy()
+    #         .astype(np.float32)
+    #     )
+    #     yield patch
 
 
 def extract_tiles(

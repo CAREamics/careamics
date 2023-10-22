@@ -5,6 +5,7 @@ from careamics.config import Configuration
 from careamics.config.training import ExtractionStrategies
 from careamics.dataset.in_memory_dataset import InMemoryDataset
 from careamics.dataset.tiff_dataset import TiffDataset
+from careamics.dataset.zarr_dataset import ZarrDataset
 from careamics.manipulation import default_manipulate
 from careamics.utils import check_tiling_validity
 
@@ -49,20 +50,35 @@ def get_train_dataset(
             },
         )
     else:
-        dataset = TiffDataset(
-            data_path=train_path,
-            data_format=config.data.data_format,
-            axes=config.data.axes,
-            mean=config.data.mean,
-            std=config.data.std,
-            patch_extraction_method=ExtractionStrategies.RANDOM,
-            patch_size=config.training.patch_size,
-            patch_transform=default_manipulate,
-            patch_transform_params={
-                "mask_pixel_percentage": config.algorithm.masked_pixel_percentage,
-                "roi_size": config.algorithm.roi_size,
-            },
-        )
+        if config.data.data_format in ["tif", "tiff"]:
+            dataset = TiffDataset(
+                data_path=train_path,
+                data_format=config.data.data_format,
+                axes=config.data.axes,
+                mean=config.data.mean,
+                std=config.data.std,
+                patch_extraction_method=ExtractionStrategies.RANDOM,
+                patch_size=config.training.patch_size,
+                patch_transform=default_manipulate,
+                patch_transform_params={
+                    "mask_pixel_percentage": config.algorithm.masked_pixel_percentage,
+                    "roi_size": config.algorithm.roi_size,
+                },
+            )
+        elif config.data.data_format == "zarr":
+            dataset = ZarrDataset(
+                data_path=train_path,
+                axes=config.data.axes,
+                patch_extraction_method=ExtractionStrategies.RANDOM,
+                patch_size=config.training.patch_size,
+                mean=config.data.mean,
+                std=config.data.std,
+                patch_transform=default_manipulate,
+                patch_transform_params={
+                    "mask_pixel_percentage": config.algorithm.masked_pixel_percentage,
+                    "roi_size": config.algorithm.roi_size,
+                },
+            )
     return dataset
 
 
@@ -91,19 +107,35 @@ def get_validation_dataset(config: Configuration, val_path: str) -> InMemoryData
 
     data_path = val_path
 
-    dataset = InMemoryDataset(
-        data_path=data_path,
-        data_format=config.data.data_format,
-        axes=config.data.axes,
-        mean=config.data.mean,
-        std=config.data.std,
-        patch_extraction_method=ExtractionStrategies.SEQUENTIAL,
-        patch_size=config.training.patch_size,
-        patch_transform=default_manipulate,
-        patch_transform_params={
-            "mask_pixel_percentage": config.algorithm.masked_pixel_percentage
-        },
-    )
+    if config.data.data_format in ["tif", "tiff"]:
+        dataset = InMemoryDataset(
+            data_path=data_path,
+            data_format=config.data.data_format,
+            axes=config.data.axes,
+            mean=config.data.mean,
+            std=config.data.std,
+            patch_extraction_method=ExtractionStrategies.SEQUENTIAL,
+            patch_size=config.training.patch_size,
+            patch_transform=default_manipulate,
+            patch_transform_params={
+                "mask_pixel_percentage": config.algorithm.masked_pixel_percentage
+            },
+        )
+    elif config.data.data_format == "zarr":
+        dataset = ZarrDataset(
+            data_path=data_path,
+            axes=config.data.axes,
+            patch_extraction_method=ExtractionStrategies.RANDOM,
+            patch_size=config.training.patch_size,
+            num_patches=10,
+            mean=config.data.mean,
+            std=config.data.std,
+            patch_transform=default_manipulate,
+            patch_transform_params={
+                "mask_pixel_percentage": config.algorithm.masked_pixel_percentage,
+                "roi_size": config.algorithm.roi_size,
+            },
+        )
 
     return dataset
 

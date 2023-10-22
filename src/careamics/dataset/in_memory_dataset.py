@@ -52,7 +52,7 @@ class InMemoryDataset(torch.utils.data.Dataset):
 
     def __init__(
         self,
-        data_path: Union[str, Path],
+        data_path: Union[str, Path, List[Union[str, Path]]],
         data_format: str,
         axes: str,
         patch_extraction_method: ExtractionStrategies,

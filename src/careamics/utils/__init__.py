@@ -4,6 +4,7 @@
 __all__ = [
     "denormalize",
     "normalize",
+    "RunningStats"
     "get_device",
     "setup_cudnn_reproducibility",
     "check_array_validity",
@@ -15,6 +16,6 @@ __all__ = [
 
 
 from .context import cwd
-from .normalization import denormalize, normalize
+from .normalization import RunningStats, denormalize, normalize
 from .torch_utils import compile_model, get_device, setup_cudnn_reproducibility
 from .validators import check_array_validity, check_axes_validity, check_tiling_validity
