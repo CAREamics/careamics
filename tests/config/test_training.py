@@ -1,7 +1,7 @@
 import pytest
 from pydantic import conlist
 
-from careamics.config.torch_optimizer import (
+from careamics.config.torch_optim import (
     TorchLRScheduler,
     TorchOptimizer,
 )

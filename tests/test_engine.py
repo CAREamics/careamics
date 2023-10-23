@@ -42,7 +42,7 @@ def test_engine_save_checkpoint(epoch, losses, minimum_config: dict):
     # Mock engine attributes to test save_checkpoint
     engine.optimizer.param_groups[0]["lr"] = 1
     engine.lr_scheduler.patience = 1
-    path = engine.save_checkpoint(epoch=epoch, losses=losses, save_method="state_dict")
+    path = engine._save_checkpoint(epoch=epoch, losses=losses, save_method="state_dict")
     assert path.exists()
 
     if epoch == 0:

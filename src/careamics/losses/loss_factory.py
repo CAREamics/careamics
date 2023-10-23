@@ -1,31 +1,37 @@
+"""
+Loss factory module.
+
+This module contains a factory function for creating loss functions.
+"""
 from typing import Callable
 
 from ..config import Configuration
-from ..config.algorithm import Losses
+from ..config.algorithm import Loss
 from .losses import n2v_loss
 
 
 def create_loss_function(config: Configuration) -> Callable:
-    """Creates loss function specified in config.
+    """
+    Create loss function based on Configuration.
 
     Parameters
     ----------
     config : Configuration
-        main configuration object
+        Configuration.
 
     Returns
     -------
     Callable
-        loss function
+        Loss function.
 
     Raises
     ------
     NotImplementedError
-        if the loss is not supported or incorrect parameter is provided in the config
+        If the loss is unknown.
     """
     loss_type = config.algorithm.loss
 
-    if loss_type == Losses.N2V:
+    if loss_type == Loss.N2V:
         return n2v_loss
     else:
         raise NotImplementedError(f"Loss {loss_type} is not yet supported.")

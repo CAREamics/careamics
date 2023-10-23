@@ -1,3 +1,8 @@
+"""
+Model factory.
+
+Model creation factory functions.
+"""
 from pathlib import Path
 from typing import Dict, Optional, Tuple, Union
 
@@ -13,11 +18,25 @@ logger = get_logger(__name__)
 
 
 def model_registry(model_name: str) -> torch.nn.Module:
-    """Returns a dictionary of models. WIP.
+    """
+    Model factory.
+
+    Supported models are defined in config.algorithm.Models.
+
+    Parameters
+    ----------
+    model_name : str
+        Name of the model.
 
     Returns
     -------
-    model
+    torch.nn.Module
+        Model class.
+
+    Raises
+    ------
+    NotImplementedError
+        If the requested model is not implemented.
     """
     if model_name == Models.UNET:
         return UNet
@@ -31,28 +50,33 @@ def create_model(
     config: Optional[Configuration] = None,
     device: Optional[torch.device] = None,
 ) -> torch.nn.Module:
-    """Creates a model from a configuration file or a checkpoint.
+    """
+    Instantiate a model from a checkpoint or configuration.
 
-    One of `config` or `model_path` must be provided. If both are provided, only
-    `model_path` is used.
+    If both checkpoint and configuration are provided, the checkpoint is used.
 
     Parameters
     ----------
     model_path : Optional[Union[str, Path]], optional
-        Path to a checkpoint, by default None
+        Path to a checkpoint, by default None.
     config : Optional[Configuration], optional
-        Configuration object, by default None
+        Configuration, by default None.
+    device : Optional[torch.device], optional
+        Torch device, by default None.
 
     Returns
     -------
     torch.nn.Module
-        Model object
-
+        Instantiated model.
 
     Raises
     ------
     ValueError
-        If neither config nor model_path is provided
+        If the checkpoint path is invalid.
+    ValueError
+        If the checkpoint is invalid.
+    ValueError
+        If neither checkpoint nor configuration are provided.
     """
     if model_path is not None:
         # Create model from checkpoint
@@ -111,7 +135,6 @@ def create_model(
             num_channels_init=model_config.num_channels_init,
         )
         model.to(device)
-        assert config is not None, "Configuration must be provided"  # mypy
         optimizer, scheduler = get_optimizer_and_scheduler(config, model)
         scaler = get_grad_scaler(config)
         logger.info("Engine initialized from configuration")
@@ -124,84 +147,85 @@ def create_model(
 def get_optimizer_and_scheduler(
     config: Configuration, model: torch.nn.Module, state_dict: Optional[Dict] = None
 ) -> Tuple[torch.optim.Optimizer, torch.optim.lr_scheduler.LRScheduler]:
-    """Creates optimizer and learning rate scheduler objects.
+    """
+    Create optimizer and learning rate schedulers.
+
+    If a checkpoint state dictionary is provided, the optimizer and scheduler are
+    instantiated to the same state as the checkpoint's optimizer and scheduler.
 
     Parameters
     ----------
     config : Configuration
-        Configuration object
+        Configuration.
     model : torch.nn.Module
-        Model object
+        Model.
     state_dict : Optional[Dict], optional
-        State dict of the checkpoint, by default None
+        Checkpoint state dictionary, by default None.
 
     Returns
     -------
     Tuple[torch.optim.Optimizer, torch.optim.lr_scheduler.LRScheduler]
-
-    Raises
-    ------
-    ValueError
-        If the entry is missing in the configuration file.
+        Optimizer and scheduler.
     """
-    if config.training is not None:
-        # retrieve optimizer name and parameters from config
-        optimizer_name = config.training.optimizer.name
-        optimizer_params = config.training.optimizer.parameters
+    # retrieve optimizer name and parameters from config
+    optimizer_name = config.training.optimizer.name
+    optimizer_params = config.training.optimizer.parameters
 
-        # then instantiate it
-        optimizer_func = getattr(torch.optim, optimizer_name)
-        optimizer = optimizer_func(model.parameters(), **optimizer_params)
+    # then instantiate it
+    optimizer_func = getattr(torch.optim, optimizer_name)
+    optimizer = optimizer_func(model.parameters(), **optimizer_params)
 
-        # same for learning rate scheduler
-        scheduler_name = config.training.lr_scheduler.name
-        scheduler_params = config.training.lr_scheduler.parameters
-        scheduler_func = getattr(torch.optim.lr_scheduler, scheduler_name)
-        scheduler = scheduler_func(optimizer, **scheduler_params)
+    # same for learning rate scheduler
+    scheduler_name = config.training.lr_scheduler.name
+    scheduler_params = config.training.lr_scheduler.parameters
+    scheduler_func = getattr(torch.optim.lr_scheduler, scheduler_name)
+    scheduler = scheduler_func(optimizer, **scheduler_params)
 
-        # load state from ther checkpoint if available
-        if state_dict is not None:
-            if "optimizer_state_dict" in state_dict:
-                optimizer.load_state_dict(state_dict["optimizer_state_dict"])
-                logger.info("Loaded optimizer state dict")
-            else:
-                logger.warning(
-                    "No optimizer state dict found in checkpoint. Optimizer not loaded."
-                )
-            if "scheduler_state_dict" in state_dict:
-                scheduler.load_state_dict(state_dict["scheduler_state_dict"])
-                logger.info("Loaded LR scheduler state dict")
-            else:
-                logger.warning(
-                    "No LR scheduler state dict found in checkpoint. "
-                    "LR scheduler not loaded."
-                )
-        return optimizer, scheduler
-    else:
-        raise ValueError("Missing training entry in configuration file.")
+    # load state from ther checkpoint if available
+    if state_dict is not None:
+        if "optimizer_state_dict" in state_dict:
+            optimizer.load_state_dict(state_dict["optimizer_state_dict"])
+            logger.info("Loaded optimizer state dict")
+        else:
+            logger.warning(
+                "No optimizer state dict found in checkpoint. Optimizer not loaded."
+            )
+        if "scheduler_state_dict" in state_dict:
+            scheduler.load_state_dict(state_dict["scheduler_state_dict"])
+            logger.info("Loaded LR scheduler state dict")
+        else:
+            logger.warning(
+                "No LR scheduler state dict found in checkpoint. "
+                "LR scheduler not loaded."
+            )
+    return optimizer, scheduler
 
 
 def get_grad_scaler(
-    cfg: Configuration, state_dict: Optional[Dict] = None
+    config: Configuration, state_dict: Optional[Dict] = None
 ) -> torch.cuda.amp.GradScaler:
-    """Create the gradscaler object.
+    """
+    Instantiate gradscaler.
+
+    If a checkpoint state dictionary is provided, the scaler is instantiated to the
+    same state as the checkpoint's scaler.
+
+    Parameters
+    ----------
+    config : Configuration
+        Configuration.
+    state_dict : Optional[Dict], optional
+        Checkpoint state dictionary, by default None.
 
     Returns
     -------
     torch.cuda.amp.GradScaler
-
-    Raises
-    ------
-    ValueError
-        If the entry is missing in the configuration file.
+        Instantiated gradscaler.
     """
-    if cfg.training is not None:
-        use = cfg.training.amp.use
-        scaling = cfg.training.amp.init_scale
-        scaler = torch.cuda.amp.GradScaler(init_scale=scaling, enabled=use)
-        if state_dict is not None and "scaler_state_dict" in state_dict:
-            scaler.load_state_dict(state_dict["scaler_state_dict"])
-            logger.info("Loaded GradScaler state dict")
-        return scaler
-    else:
-        raise ValueError("Missing training entry in configuration file.")
+    use = config.training.amp.use
+    scaling = config.training.amp.init_scale
+    scaler = torch.cuda.amp.GradScaler(init_scale=scaling, enabled=use)
+    if state_dict is not None and "scaler_state_dict" in state_dict:
+        scaler.load_state_dict(state_dict["scaler_state_dict"])
+        logger.info("Loaded GradScaler state dict")
+    return scaler

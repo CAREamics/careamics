@@ -1,20 +1,17 @@
+"""Data configuration."""
 from __future__ import annotations
 
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
-from pydantic import (
-    BaseModel,
-    ConfigDict,
-    Field,
-    model_validator,
-)
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from ..utils import check_axes_validity
 
 
-class SupportedExtensions(str, Enum):
-    """Supported extensions for input data.
+class SupportedExtension(str, Enum):
+    """
+    Supported extensions for input data.
 
     Currently supported:
         - tif/tiff: .tiff files.
@@ -27,11 +24,22 @@ class SupportedExtensions(str, Enum):
 
     @classmethod
     def _missing_(cls, value: object) -> str:
-        """Override default behaviour for missing values.
+        """
+        Override default behaviour for missing values.
 
-        This method is called when `value` is not found in the enum values. It convert
-        `value` to lowercase, remove "." if it is the first character and try to match
-        it with enum values.
+        This method is called when `value` is not found in the enum values. It converts
+        `value` to lowercase, removes "." if it is the first character and tries to
+        match it with enum values.
+
+        Parameters
+        ----------
+        value : object
+            Value to be matched with enum values.
+
+        Returns
+        -------
+        str
+            Matched enum value.
         """
         if isinstance(value, str):
             lower_value = value.lower()
@@ -49,30 +57,26 @@ class SupportedExtensions(str, Enum):
 
 
 class Data(BaseModel):
-    """Data configuration.
-
-    The data paths are individually optional, however, at least one of training +
-    validation or prediction must be specified.
-
-    The optional paths to the training, validation and prediction data should point to
-    the parent folder of the images.
+    """
+    Data configuration.
 
     If std is specified, mean must be specified as well. Note that setting the std first
     and then the mean (if they were both `None` before) will raise a validation error.
-    Prefer using the `set_mean_and_std` method instead.
+    Prefer instead the following:
+    >>> set_mean_and_std(mean, std)
 
     Attributes
     ----------
     in_memory : bool
         Whether to load the data in memory or not.
-    data_format : SupportedExtensions
-        Extensions of the data.
+    data_format : SupportedExtension
+        Extension of the data, without period.
     axes : str
         Axes of the data.
     mean: Optional[float]
-       Expected data mean
+        Expected data mean.
     std: Optional[float]
-       Expected data std
+        Expected data standard deviation.
     """
 
     # Pydantic class configuration
@@ -83,7 +87,7 @@ class Data(BaseModel):
 
     # Mandatory fields
     in_memory: bool
-    data_format: SupportedExtensions
+    data_format: SupportedExtension
     axes: str
 
     # Optional fields
@@ -91,10 +95,18 @@ class Data(BaseModel):
     std: Optional[float] = Field(default=None, gt=0)
 
     def set_mean_and_std(self, mean: float, std: float) -> None:
-        """Set mean and std of the data.
+        """
+        Set mean and standard deviation of the data.
 
-        This method is preferred to setting the field directly, as it ensures that the
+        This method is preferred to setting the fields directly, as it ensures that the
         mean is set first, then the std; thus avoiding a validation error to be thrown.
+
+        Parameters
+        ----------
+        mean : float
+            Mean of the data.
+        std : float
+            Standard deviation of the data.
         """
         self.mean = mean
         self.std = std
@@ -115,7 +127,7 @@ class Data(BaseModel):
             If in_memory dataset is used with Zarr storage.
             If axes are not valid.
         """
-        if data["in_memory"] and data["data_format"] == SupportedExtensions.ZARR:
+        if data["in_memory"] and data["data_format"] == SupportedExtension.ZARR:
             raise ValueError("Zarr storage can't be used with in_memory dataset.")
 
         # Validate axes
@@ -124,11 +136,27 @@ class Data(BaseModel):
 
     @model_validator(mode="after")
     def std_only_with_mean(cls, data_model: Data) -> Data:
-        """Check that mean and std are either both None, or both specified.
+        """
+        Check that mean and std are either both None, or both specified.
 
         If we enforce both None or both specified, we cannot set the values one by one
         due to the ConfDict enforcing the validation on assignment. Therefore, we check
         only when the std is not None and the mean is None.
+
+        Parameters
+        ----------
+        data_model : Data
+            Data model.
+
+        Returns
+        -------
+        Data
+            Validated data model.
+
+        Raises
+        ------
+        ValueError
+            If std is not None and mean is None.
         """
         if data_model.std is not None and data_model.mean is None:
             raise ValueError("Cannot have std non None if mean is None.")
@@ -136,14 +164,22 @@ class Data(BaseModel):
         return data_model
 
     def model_dump(self, *args: List, **kwargs: Dict) -> dict:
-        """Override model_dump method.
+        """
+        Override model_dump method.
 
         The purpose is to ensure export smooth import to yaml. It includes:
-            - remove entries with None value
+            - remove entries with None value.
+
+        Parameters
+        ----------
+        *args : List
+            Positional arguments, unused.
+        **kwargs : Dict
+            Keyword arguments, unused.
 
         Returns
         -------
         dict
-            Dictionary containing the model parameters
+            Dictionary containing the model parameters.
         """
         return super().model_dump(exclude_none=True)

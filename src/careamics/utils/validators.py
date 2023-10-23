@@ -1,3 +1,8 @@
+"""
+Validator functions.
+
+These functions are used to validate dimensions and axes of inputs.
+"""
 from typing import List
 
 import numpy as np
@@ -6,7 +11,8 @@ AXES = "STCZYX"
 
 
 def check_axes_validity(axes: str) -> bool:
-    """Sanity check on axes.
+    """
+    Sanity check on axes.
 
     The constraints on the axes are the following:
     - must be a combination of 'STCZYX'
@@ -18,7 +24,7 @@ def check_axes_validity(axes: str) -> bool:
 
     Parameters
     ----------
-    axes :
+    axes : str
         Axes to validate.
 
     Returns
@@ -77,14 +83,15 @@ def check_axes_validity(axes: str) -> bool:
 
 
 def check_array_validity(array: np.ndarray, axes: str) -> None:
-    """Check that the numpy array is compatible with the axes.
+    """
+    Check that the numpy array is compatible with the axes.
 
     Parameters
     ----------
     array : np.ndarray
-        Numpy array
+        Numpy array.
     axes : str
-        Valid axes (see check_axes_validity)
+        Valid axes (see check_axes_validity).
     """
     if len(array.shape) - 2 != len(axes):
         raise ValueError(
@@ -95,27 +102,28 @@ def check_array_validity(array: np.ndarray, axes: str) -> None:
 
 
 def check_tiling_validity(tile_shape: List[int], overlaps: List[int]) -> None:
-    """Check that the tiling parameters are valid.
+    """
+    Check that the tiling parameters are valid.
 
     Parameters
     ----------
     tile_shape : List[int]
-        Shape of the tiles
+        Shape of the tiles.
     overlaps : List[int]
-        Overlap between tiles
+        Overlap between tiles.
 
     Raises
     ------
     ValueError
-        If one of the parameters is None
+        If one of the parameters is None.
     ValueError
-        If one of the element is zero
+        If one of the element is zero.
     ValueError
-        If one of the element is non-divisible by 2
+        If one of the element is non-divisible by 2.
     ValueError
-        If the number of elements in `overlaps` and `tile_shape` is different
+        If the number of elements in `overlaps` and `tile_shape` is different.
     ValueError
-        If one of the overlaps is larger than the corresponding tile shape
+        If one of the overlaps is larger than the corresponding tile shape.
     """
     # cannot be None
     if tile_shape is None or overlaps is None:

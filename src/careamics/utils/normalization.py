@@ -1,47 +1,56 @@
+"""
+Normalization submodule.
+
+These methods are used to normalize and denormalize images.
+"""
 import numpy as np
 
 
 def normalize(img: np.ndarray, mean: float, std: float) -> np.ndarray:
-    """_summary_.
+    """
+    Normalize an image using mean and standard deviation.
 
-    _extended_summary_
+    Images are normalised by subtracting the mean and dividing by the standard
+    deviation.
 
     Parameters
     ----------
     img : np.ndarray
-        _description_
+        Image to normalize.
     mean : float
-        _description_
+        Mean.
     std : float
-        _description_
+        Standard deviation.
 
     Returns
     -------
     np.ndarray
-        _description_
+        Normalized array.
     """
     zero_mean = img - mean
     return zero_mean / std
 
 
 def denormalize(img: np.ndarray, mean: float, std: float) -> np.ndarray:
-    """_summary_.
+    """
+    Denormalize an image using mean and standard deviation.
 
-    _extended_summary_
+    Images are denormalised by multiplying by the standard deviation and adding the
+    mean.
 
     Parameters
     ----------
     img : np.ndarray
-        _description_
+        Image to denormalize.
     mean : float
-        _description_
+        Mean.
     std : float
-        _description_
+        Standard deviation.
 
     Returns
     -------
     np.ndarray
-        _description_
+        Denormalized array.
     """
     return img * std + mean
 

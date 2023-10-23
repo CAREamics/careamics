@@ -3,13 +3,12 @@ from typing import Callable, Dict, List, Optional, Tuple, Union
 
 import torch
 
-from careamics.config.training import ExtractionStrategies
-from careamics.dataset.dataset_utils import (
-    generate_patches,
-    read_zarr,
-)
 from careamics.utils import RunningStats, normalize
 from careamics.utils.logging import get_logger
+
+from .dataset_utils import read_zarr
+from .extraction_strategy import ExtractionStrategy
+from .patching import generate_patches
 
 logger = get_logger(__name__)
 
@@ -21,7 +20,7 @@ class ZarrDataset(torch.utils.data.IterableDataset):
         self,
         data_path: Union[str, Path],
         axes: str,
-        patch_extraction_method: Union[ExtractionStrategies, None],
+        patch_extraction_method: Union[ExtractionStrategy, None],
         patch_size: Optional[Union[List[int], Tuple[int]]] = None,
         num_patches: Optional[int] = None,
         mean: Optional[float] = None,

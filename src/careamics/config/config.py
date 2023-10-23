@@ -1,3 +1,4 @@
+"""Pydantic CAREamics configuration."""
 from __future__ import annotations
 
 import re
@@ -19,19 +20,11 @@ from .training import Training
 
 
 class Configuration(BaseModel):
-    """Main configuration class.
+    """
+    CAREamics configuration.
 
-    The minimum configuration is composed of the following fields:
-    - experiment_name:
-        name of the experiment, composed solely of letters, numbers, underscores,
-        dashes and spaces.
-    - working_directory:
-        path to the working directory, its parents folders must exist. If the working
-        directory does not exist itself, it is then created.
-    - algorithm:
-        algorithm configuration
-    - training:
-        training configuration.
+    To change the configuration from 2D to 3D, we recommend using the following method:
+    >>> set_3D(is_3D, axes)
 
     Attributes
     ----------
@@ -57,7 +50,8 @@ class Configuration(BaseModel):
     training: Training
 
     def set_3D(self, is_3D: bool, axes: str) -> None:
-        """Set 3D flag and axes.
+        """
+        Set 3D flag and axes.
 
         Parameters
         ----------
@@ -75,10 +69,26 @@ class Configuration(BaseModel):
 
     @field_validator("experiment_name")
     def no_symbol(cls, name: str) -> str:
-        """Validate experiment name.
+        """
+        Validate experiment name.
 
         A valid experiment name is a non-empty string with only contains letters,
         numbers, underscores, dashes and spaces.
+
+        Parameters
+        ----------
+        name : str
+            Name to validate.
+
+        Returns
+        -------
+        str
+            Validated name.
+
+        Raises
+        ------
+        ValueError
+            If the name is empty or contains invalid characters.
         """
         if len(name) == 0 or name.isspace():
             raise ValueError("Experiment name is empty.")
@@ -95,10 +105,27 @@ class Configuration(BaseModel):
 
     @field_validator("working_directory")
     def parent_directory_exists(cls, workdir: Union[str, Path]) -> Path:
-        """Validate working directory.
+        """
+        Validate working directory.
 
         A valid working directory is a directory whose parent directory exists. If the
         working directory does not exist itself, it is then created.
+
+        Parameters
+        ----------
+        workdir : Union[str, Path]
+            Working directory to validate.
+
+        Returns
+        -------
+        Path
+            Validated working directory.
+
+        Raises
+        ------
+        ValueError
+            If the working directory is not a directory, or if the parent directory does
+            not exist.
         """
         path = Path(workdir)
 
@@ -119,7 +146,8 @@ class Configuration(BaseModel):
 
     @model_validator(mode="after")
     def validate_3D(cls, config: Configuration) -> Configuration:
-        """Checks 3D flag validity.
+        """
+        Check 3D flag validity.
 
         Check that the algorithm is_3D flag is compatible with the axes in the
         data configuration.
@@ -155,22 +183,27 @@ class Configuration(BaseModel):
     def model_dump(
         self, exclude_optionals: bool = True, *args: List, **kwargs: Dict
     ) -> Dict:
-        """Override model_dump method.
+        """
+        Override model_dump method.
 
         The purpose is to ensure export smooth import to yaml. It includes:
-            - remove entries with None value
-            - remove optional values if they have the default value
+            - remove entries with None value.
+            - remove optional values if they have the default value.
 
         Parameters
         ----------
         exclude_optionals : bool, optional
             Whether to exclude optional fields with default values or not, by default
             True.
+        *args : List
+            Positional arguments, unused.
+        **kwargs : Dict
+            Keyword arguments, unused.
 
         Returns
         -------
         dict
-            Dictionary containing the model parameters
+            Dictionary containing the model parameters.
         """
         dictionary = super().model_dump(exclude_none=True)
 
@@ -190,17 +223,23 @@ class Configuration(BaseModel):
 
 
 def load_configuration(path: Union[str, Path]) -> Configuration:
-    """Load configuration from a yaml file.
+    """
+    Load configuration from a yaml file.
 
     Parameters
     ----------
     path : Union[str, Path]
-        Path to the configudation.
+        Path to the configuration.
 
     Returns
     -------
     Configuration
         Configuration.
+
+    Raises
+    ------
+    FileNotFoundError
+        If the configuration file does not exist.
     """
     # load dictionary from yaml
     if not Path(path).exists():
@@ -214,7 +253,8 @@ def load_configuration(path: Union[str, Path]) -> Configuration:
 
 
 def save_configuration(config: Configuration, path: Union[str, Path]) -> Path:
-    """Save configuration to path.
+    """
+    Save configuration to path.
 
     Parameters
     ----------
@@ -232,7 +272,7 @@ def save_configuration(config: Configuration, path: Union[str, Path]) -> Path:
     Raises
     ------
     ValueError
-       If the path does not point to an existing directory or .yml file.
+        If the path does not point to an existing directory or .yml file.
     """
     # make sure path is a Path object
     config_path = Path(path)

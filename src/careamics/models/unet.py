@@ -1,3 +1,8 @@
+"""
+UNet model.
+
+A UNet encoder, decoder and complete model.
+"""
 from typing import Callable, List, Optional
 
 import torch
@@ -7,22 +12,25 @@ from .layers import Conv_Block
 
 
 class UnetEncoder(nn.Module):
-    """Unet encoder pathway.
+    """
+    Unet encoder pathway.
 
     Parameters
     ----------
     conv_dim : int
-        controls the type of the convolution layers, 2 for 2D and 3 for 3D
-    depth : int
-        number of encoder blocks
-    num_filter_base : int
-        number of channels in the first encoder block
-    use_batch_norm : bool
-        whether to use batch normalization
-    dropout : float
-        dropout probability
-    pool_kernel : int
-        kernel size for the max pooling layers
+        Number of dimension of the convolution layers, 2 for 2D or 3 for 3D.
+    in_channels : int, optional
+        Number of input channels, by default 1.
+    depth : int, optional
+        Number of encoder blocks, by default 3.
+    num_channels_init : int, optional
+        Number of channels in the first encoder block, by default 64.
+    use_batch_norm : bool, optional
+        Whether to use batch normalization, by default True.
+    dropout : float, optional
+        Dropout probability, by default 0.0.
+    pool_kernel : int, optional
+        Kernel size for the max pooling layers, by default 2.
     """
 
     def __init__(
@@ -35,6 +43,26 @@ class UnetEncoder(nn.Module):
         dropout: float = 0.0,
         pool_kernel: int = 2,
     ) -> None:
+        """
+        Constructor.
+
+        Parameters
+        ----------
+        conv_dim : int
+            Number of dimension of the convolution layers, 2 for 2D or 3 for 3D.
+        in_channels : int, optional
+            Number of input channels, by default 1.
+        depth : int, optional
+            Number of encoder blocks, by default 3.
+        num_channels_init : int, optional
+            Number of channels in the first encoder block, by default 64.
+        use_batch_norm : bool, optional
+            Whether to use batch normalization, by default True.
+        dropout : float, optional
+            Dropout probability, by default 0.0.
+        pool_kernel : int, optional
+            Kernel size for the max pooling layers, by default 2.
+        """
         super().__init__()
 
         self.pooling = getattr(nn, f"MaxPool{conv_dim}d")(kernel_size=pool_kernel)
@@ -58,18 +86,19 @@ class UnetEncoder(nn.Module):
         self.encoder_blocks = nn.ModuleList(encoder_blocks)
 
     def forward(self, x: torch.Tensor) -> List[torch.Tensor]:
-        """Forward pass.
+        """
+        Forward pass.
 
         Parameters
         ----------
         x : torch.Tensor
-            input tensor
+            Input tensor.
 
         Returns
         -------
         List[torch.Tensor]
-            List containing the output of each encoder block(skip connections) and final
-            output of the encoder
+            Output of each encoder block (skip connections) and final output of the
+            encoder.
         """
         encoder_features = []
         for module in self.encoder_blocks:
@@ -81,20 +110,21 @@ class UnetEncoder(nn.Module):
 
 
 class UnetDecoder(nn.Module):
-    """Unet decoder pathway.
+    """
+    Unet decoder pathway.
 
     Parameters
     ----------
     conv_dim : int
-        controls the type of the convolution layers, 2 for 2D and 3 for 3D
-    depth : int
-        number of encoder blocks
-    num_filter_base : int
-        number of channels in the first encoder block
-    use_batch_norm : bool
-        whether to use batch normalization
-    dropout : float
-        dropout probability
+        Number of dimension of the convolution layers, 2 for 2D or 3 for 3D.
+    depth : int, optional
+        Number of decoder blocks, by default 3.
+    num_channels_init : int, optional
+        Number of channels in the first encoder block, by default 64.
+    use_batch_norm : bool, optional
+        Whether to use batch normalization, by default True.
+    dropout : float, optional
+        Dropout probability, by default 0.0.
     """
 
     def __init__(
@@ -105,6 +135,22 @@ class UnetDecoder(nn.Module):
         use_batch_norm: bool = True,
         dropout: float = 0.0,
     ) -> None:
+        """
+        Constructor.
+
+        Parameters
+        ----------
+        conv_dim : int
+            Number of dimension of the convolution layers, 2 for 2D or 3 for 3D.
+        depth : int, optional
+            Number of decoder blocks, by default 3.
+        num_channels_init : int, optional
+            Number of channels in the first encoder block, by default 64.
+        use_batch_norm : bool, optional
+            Whether to use batch normalization, by default True.
+        dropout : float, optional
+            Dropout probability, by default 0.0.
+        """
         super().__init__()
 
         upsampling = nn.Upsample(
@@ -140,18 +186,19 @@ class UnetDecoder(nn.Module):
         self.decoder_blocks = nn.ModuleList(decoder_blocks)
 
     def forward(self, *features: List[torch.Tensor]) -> torch.Tensor:
-        """Forward pass.
+        """
+        Forward pass.
 
         Parameters
         ----------
-        features :  List[torch.Tensor]
+        *features :  List[torch.Tensor]
             List containing the output of each encoder block(skip connections) and final
-            output of the encoder
+            output of the encoder.
 
         Returns
         -------
         torch.Tensor
-            output of the decoder
+            Output of the decoder.
         """
         x = features[0]
         skip_connections = features[1:][::-1]
@@ -164,39 +211,32 @@ class UnetDecoder(nn.Module):
 
 
 class UNet(nn.Module):
-    """UNet model.
+    """
+    UNet model.
 
-    Refactored from https://github.com/juglab/n2v/blob/main/n2v/nets/unet_blocks.py.
+    Adapted for PyTorch from
+    https://github.com/juglab/n2v/blob/main/n2v/nets/unet_blocks.py.
 
-    args:
-        conv_dim: int
-            Dimension of the convolution layers (2 or 3)
-        num_classes: int
-            Number of classes to predict
-        in_channels: int
-            Number of input channels
-        depth: int
-            Number of blocks in the encoder
-        num_filter_base: int
-            Number of filters in the first block of the encoder
-        num_conv_per_depth: int
-            Number of convolutional layers per block
-        activation: str
-            Activation function to use
-        use_batch_norm: bool
-            Whether to use batch normalization
-        dropout: float
-            Dropout probability
-        pool_kernel: int
-            Kernel size of the pooling layers
-        last_activation: str
-            Activation function to use for the last layer
-
-    Returns
-    -------
-    torch.nn.Module
-        UNet model
-
+    Parameters
+    ----------
+    conv_dim : int
+        Number of dimensions of the convolution layers (2 or 3).
+    num_classes : int, optional
+        Number of classes to predict, by default 1.
+    in_channels : int, optional
+        Number of input channels, by default 1.
+    depth : int, optional
+        Number of downsamplings, by default 3.
+    num_channels_init : int, optional
+        Number of filters in the first convolution layer, by default 64.
+    use_batch_norm : bool, optional
+        Whether to use batch normalization, by default True.
+    dropout : float, optional
+        Dropout probability, by default 0.0.
+    pool_kernel : int, optional
+        Kernel size of the pooling layers, by default 2.
+    last_activation : Optional[Callable], optional
+        Activation function to use for the last layer, by default None.
     """
 
     def __init__(
@@ -211,6 +251,30 @@ class UNet(nn.Module):
         pool_kernel: int = 2,
         last_activation: Optional[Callable] = None,
     ) -> None:
+        """
+        Constructor.
+
+        Parameters
+        ----------
+        conv_dim : int
+            Number of dimensions of the convolution layers (2 or 3).
+        num_classes : int, optional
+            Number of classes to predict, by default 1.
+        in_channels : int, optional
+            Number of input channels, by default 1.
+        depth : int, optional
+            Number of downsamplings, by default 3.
+        num_channels_init : int, optional
+            Number of filters in the first convolution layer, by default 64.
+        use_batch_norm : bool, optional
+            Whether to use batch normalization, by default True.
+        dropout : float, optional
+            Dropout probability, by default 0.0.
+        pool_kernel : int, optional
+            Kernel size of the pooling layers, by default 2.
+        last_activation : Optional[Callable], optional
+            Activation function to use for the last layer, by default None.
+        """
         super().__init__()
 
         self.encoder = UnetEncoder(
@@ -238,17 +302,18 @@ class UNet(nn.Module):
         self.last_activation = last_activation if last_activation else nn.Identity()
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """Forward pass.
+        """
+        Forward pass.
 
         Parameters
         ----------
         x :  torch.Tensor
-            input tensor
+            Input tensor.
 
         Returns
         -------
         torch.Tensor
-            final output of the model
+            Output of the model.
         """
         encoder_features = self.encoder(x)
         x = self.decoder(*encoder_features)

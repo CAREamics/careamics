@@ -1,3 +1,4 @@
+"""Export to bioimage.io format."""
 from pathlib import Path
 from typing import Union
 
@@ -14,7 +15,24 @@ PYTORCH_STATE_DICT = "pytorch_state_dict"
 
 
 def _get_model_doc(name: str) -> str:
-    """Return markdown documentation path for a given model."""
+    """
+    Return markdown documentation path for the provided model.
+
+    Parameters
+    ----------
+    name : str
+        Model's name.
+
+    Returns
+    -------
+    str
+        Path to the model's markdown documentation.
+
+    Raises
+    ------
+    FileNotFoundError
+        If the documentation file was not found.
+    """
     doc = Path(__file__).parent.joinpath("docs").joinpath(f"{name}.md")
     if doc.exists():
         return str(doc.absolute())
@@ -25,7 +43,8 @@ def _get_model_doc(name: str) -> str:
 def get_default_model_specs(
     name: str, mean: float, std: float, is_3D: bool = False
 ) -> dict:
-    """Return the default bioimage.io specs for given model's name.
+    """
+    Return the default bioimage.io specs for the provided model's name.
 
     Currently only supports `n2v` model.
 
@@ -103,7 +122,8 @@ def build_zip_model(
     config: Configuration,
     model_specs: dict,
 ) -> Model:
-    """Build bioimage model zip file from model specification data.
+    """
+    Build bioimage model zip file from model specification data.
 
     Parameters
     ----------
@@ -179,15 +199,25 @@ def build_zip_model(
 
 
 def import_bioimage_model(model_path: Union[str, Path]) -> Path:
-    """Load configs and weights from a bioimage zip model.
+    """
+    Load configuration and weights from a bioimage zip model.
 
     Parameters
     ----------
-        model_path (Union[str, Path]): Path to the bioimage model
+    model_path : Union[str, Path]
+        Path to the bioimage.io archive.
 
-    Return
+    Returns
+    -------
+    Path
+        Path to the checkpoint.
+
+    Raises
     ------
-        Path to the model's checkpoint file
+    ValueError
+        If the model format is invalid.
+    FileNotFoundError
+        If the checkpoint file was not found.
     """
     if isinstance(model_path, str):
         model_path = Path(model_path)

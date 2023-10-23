@@ -1,3 +1,4 @@
+"""Convenience functions to instantiate torch.optim optimizers and schedulers."""
 import inspect
 from enum import Enum
 from typing import Dict
@@ -6,7 +7,8 @@ from torch import optim
 
 
 class TorchOptimizer(str, Enum):
-    """List of all optimizers available in torch.optim.
+    """
+    Supported optimizers.
 
     Currently only supports Adam and SGD.
     """
@@ -29,7 +31,8 @@ class TorchOptimizer(str, Enum):
 # TODO: Test which schedulers are compatible and if not, how to make them compatible
 # (if we want to support them)
 class TorchLRScheduler(str, Enum):
-    """List of all schedulers available in torch.optim.lr_scheduler.
+    """
+    Supported learning rate schedulers.
 
     Currently only supports ReduceLROnPlateau and StepLR.
     """
@@ -55,14 +58,15 @@ def get_parameters(
     func: type,
     user_params: dict,
 ) -> dict:
-    """Filter parameters according to `func`'s signature.
+    """
+    Filter parameters according to the function signature.
 
     Parameters
     ----------
     func : type
-        Class object
+        Class object.
     user_params : Dict
-        User provided parameters
+        User provided parameters.
 
     Returns
     -------
@@ -79,7 +83,14 @@ def get_parameters(
 
 
 def get_optimizers() -> Dict[str, str]:
-    """Returns the list of all optimizers available in torch.optim."""
+    """
+    Return the list of all optimizers available in torch.optim.
+
+    Returns
+    -------
+    Dict
+        Optimizers available in torch.optim.
+    """
     optims = {}
     for name, obj in inspect.getmembers(optim):
         if inspect.isclass(obj) and issubclass(obj, optim.Optimizer):
@@ -89,7 +100,14 @@ def get_optimizers() -> Dict[str, str]:
 
 
 def get_schedulers() -> Dict[str, str]:
-    """Returns the list of all schedulers available in torch.optim.lr_scheduler."""
+    """
+    Return the list of all schedulers available in torch.optim.lr_scheduler.
+
+    Returns
+    -------
+    Dict
+        Schedulers available in torch.optim.lr_scheduler.
+    """
     schedulers = {}
     for name, obj in inspect.getmembers(optim.lr_scheduler):
         if inspect.isclass(obj) and issubclass(obj, optim.lr_scheduler.LRScheduler):

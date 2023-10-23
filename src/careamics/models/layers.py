@@ -1,38 +1,46 @@
+"""
+Layer module.
+
+This submodule contains layers used in the CAREamics models.
+"""
 import torch
 import torch.nn as nn
 
-# TODO finish docstrings
-
 
 class Conv_Block(nn.Module):
-    """_summary_.
+    """
+    Convolution block used in UNets.
 
-    _extended_summary_
+    Convolution block consist of two convolution layers with optional batch norm,
+    dropout and with a final activation function.
+
+    The parameters are directly mapped to PyTorch Conv2D and Conv3d parameters, see
+    PyTorch torch.nn.Conv2d and torch.nn.Conv3d for more information.
 
     Parameters
     ----------
-    conv_dim : _type_
-        _description_
-    in_channels : _type_
-        _description_
-    out_channels : _type_
-        _description_
+    conv_dim : int
+        Number of dimension of the convolutions, 2 or 3.
+    in_channels : int
+        Number of input channels.
+    out_channels : int
+        Number of output channels.
     intermediate_channel_multiplier : int, optional
-        _description_, by default 1
+        Multiplied for the number of output channels, by default 1.
     stride : int, optional
-        _description_, by default 1
+        Stride of the convolutions, by default 1.
     padding : int, optional
-        _description_, by default 1
+        Padding of the convolutions, by default 1.
     bias : bool, optional
-        _description_, by default True
+        Bias of the convolutions, by default True.
     groups : int, optional
-        _description_, by default 1
+        Controls the connections between inputs and outputs, by default 1.
     activation : str, optional
-        _description_, by default "ReLU"
+        Activation function, by default "ReLU".
     dropout_perc : float, optional
-        _description_, by default 0
+        Dropout percentage, by default 0.
     use_batch_norm : bool, optional
-        _description_, by default False
+        Use batch norm, by default False.
     """
 
     def __init__(
@@ -49,6 +57,34 @@ class Conv_Block(nn.Module):
         dropout_perc: float = 0,
         use_batch_norm: bool = False,
     ) -> None:
+        """
+        Constructor.
+
+        Parameters
+        ----------
+        conv_dim : int
+            Number of dimension of the convolutions, 2 or 3.
+        in_channels : int
+            Number of input channels.
+        out_channels : int
+            Number of output channels.
+        intermediate_channel_multiplier : int, optional
+            Multiplied for the number of output channels, by default 1.
+        stride : int, optional
+            Stride of the convolutions, by default 1.
+        padding : int, optional
+            Padding of the convolutions, by default 1.
+        bias : bool, optional
+            Bias of the convolutions, by default True.
+        groups : int, optional
+            Controls the connections between inputs and outputs, by default 1.
+        activation : str, optional
+            Activation function, by default "ReLU".
+        dropout_perc : float, optional
+            Dropout percentage, by default 0.
+        use_batch_norm : bool, optional
+            Use batch norm, by default False.
+        """
         super().__init__()
         self.use_batch_norm = use_batch_norm
         self.conv1 = getattr(nn, f"Conv{conv_dim}d")(
@@ -86,7 +122,19 @@ class Conv_Block(nn.Module):
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """Forward pass."""
+        """
+        Forward pass.
+
+        Parameters
+        ----------
+        x : torch.Tensor
+            Input tensor.
+
+        Returns
+        -------
+        torch.Tensor
+            Output tensor.
+        """
         if self.use_batch_norm:
             x = self.conv1(x)
             x = self.batch_norm1(x)

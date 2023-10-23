@@ -1,4 +1,9 @@
-import random
+"""
+Engine module.
+
+This module contains the main CAREamics class, the Engine. The Engine allows training
+a model and using it for prediction.
+"""
 from logging import FileHandler
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
@@ -8,12 +13,10 @@ import torch
 from bioimageio.spec.model.raw_nodes import Model as BioimageModel
 from torch.utils.data import DataLoader, TensorDataset
 
-from careamics.bioimage import (
+from .bioimage import (
     build_zip_model,
     get_default_model_specs,
 )
-from careamics.utils.logging import ProgressBar, get_logger
-
 from .config import Configuration, load_configuration
 from .dataset.prepare_dataset import (
     get_prediction_dataset,
@@ -21,55 +24,68 @@ from .dataset.prepare_dataset import (
     get_validation_dataset,
 )
 from .losses import create_loss_function
-from .metrics import MetricTracker
 from .models import create_model
-from .prediction_utils import stitch_prediction, tta_backward, tta_forward
+from .prediction import (
+    stitch_prediction,
+    tta_backward,
+    tta_forward,
+)
 from .utils import (
+    MetricTracker,
     check_array_validity,
     denormalize,
     get_device,
     normalize,
-    setup_cudnn_reproducibility,
 )
-
-
-from viztracer import VizTracer
-
-tracer = VizTracer()
-
-
-def seed_everything(seed: int) -> int:
-    """Seed all random number generators for reproducibility."""
-    random.seed(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)
-    return seed
+from .utils.logging import ProgressBar, get_logger
 
 
 class Engine:
-    """Class allowing training and prediction of a model.
+    """
+    Class allowing training of a model and subsequent prediction.
 
     There are three ways to instantiate an Engine:
-    1. With a CAREamics model (.pth), by passing a path
-    2. With a configuration object
-    3. With a configuration file, by passing a path
+    1. With a CAREamics model (.pth), by passing a path.
+    2. With a configuration object.
+    3. With a configuration file, by passing a path.
 
     In each case, the parameter name must be provided explicitly. For example:
-    ``` python
-    engine = Engine(config_path="path/to/config.yaml")
-    ```
-    Note that only one of these options can be used at a time, otherwise only one
-    of them will be used, in the order listed above.
+    >>> engine = Engine(config_path="path/to/config.yaml")
+
+    Note that only one of these options can be used at a time, in the order listed
+    above.
 
     Parameters
     ----------
-    model_path: Optional[Union[str, Path]], optional
-        Path to model file, by default None
     config : Optional[Configuration], optional
-        Configuration object, by default None
+        Configuration object, by default None.
     config_path : Optional[Union[str, Path]], optional
-        Path to configuration file, by default None
+        Path to configuration file, by default None.
+    model_path : Optional[Union[str, Path]], optional
+        Path to model file, by default None.
+    seed : int, optional
+        Seed for reproducibility, by default 42.
+
+    Attributes
+    ----------
+    cfg : Configuration
+        Configuration.
+    device : torch.device
+        Device (CPU or GPU).
+    model : torch.nn.Module
+        Model.
+    optimizer : torch.optim.Optimizer
+        Optimizer.
+    lr_scheduler : torch.optim.lr_scheduler._LRScheduler
+        Learning rate scheduler.
+    scaler : torch.cuda.amp.GradScaler
+        Gradient scaler.
+    loss_func : Callable
+        Loss function.
+    logger : logging.Logger
+        Logger.
+    use_wandb : bool
+        Whether to use wandb.
     """
 
     def __init__(
@@ -78,14 +94,39 @@ class Engine:
         config: Optional[Configuration] = None,
         config_path: Optional[Union[str, Path]] = None,
         model_path: Optional[Union[str, Path]] = None,
+        seed: Optional[int] = 42,
     ) -> None:
-        # Sanity checks
-        if config is None and config_path is None and model_path is None:
-            raise ValueError(
-                "No configuration or path provided. One of configuration "
-                "object, configuration path or model path must be provided."
-            )
+        """
+        Constructor.
 
+        To disable the seed, set it to None.
+
+        Parameters
+        ----------
+        config : Optional[Configuration], optional
+            Configuration object, by default None.
+        config_path : Optional[Union[str, Path]], optional
+            Path to configuration file, by default None.
+        model_path : Optional[Union[str, Path]], optional
+            Path to model file, by default None.
+        seed : int, optional
+            Seed for reproducibility, by default 42.
+
+        Raises
+        ------
+        ValueError
+            If all three parameters are None.
+        FileNotFoundError
+            If the model or configuration path is provided but does not exist.
+        TypeError
+            If the configuration is not a Configuration object.
+        UsageError
+            If wandb is not correctly installed.
+        ModuleNotFoundError
+            If wandb is not installed.
+        ValueError
+            If the configuration failed to configure.
+        """
         if model_path is not None:
             if not Path(model_path).exists():
                 raise FileNotFoundError(
@@ -103,9 +144,13 @@ class Engine:
                     f"config must be a Configuration object, got {type(config)}"
                 )
             self.cfg = config
-        else:
-            assert config_path is not None, "config_path is None"  # mypy
+        elif config_path is not None:
             self.cfg = load_configuration(config_path)
+        else:
+            raise ValueError(
+                "No configuration or path provided. One of configuration "
+                "object, configuration path or model path must be provided."
+            )
 
         # get device, CPU or GPU
         self.device = get_device()
@@ -121,77 +166,79 @@ class Engine:
         ) = create_model(config=self.cfg, model_path=model_path, device=self.device)
 
         # create loss function
-        assert self.cfg is not None, "Configuration is not defined"  # mypy
-        self.loss_func = create_loss_function(self.cfg)
+        if self.cfg is not None:
+            self.loss_func = create_loss_function(self.cfg)
 
-        # Set logging
-        log_path = self.cfg.working_directory / "log.txt"
-        self.logger = get_logger(__name__, log_path=log_path)
+            # Set logging
+            log_path = self.cfg.working_directory / "log.txt"
+            self.logger = get_logger(__name__, log_path=log_path)
 
-        # use wandb or not
-        if self.cfg.training is not None:
+            # wandb
             self.use_wandb = self.cfg.training.use_wandb
-        else:
-            self.use_wandb = False
 
-        if self.use_wandb:
-            try:
-                from wandb.errors import UsageError
-
-                from careamics.utils.wandb import WandBLogging
-
+            if self.use_wandb:
                 try:
-                    self.wandb = WandBLogging(
-                        experiment_name=self.cfg.experiment_name,
-                        log_path=self.cfg.working_directory,
-                        config=self.cfg,
-                        model_to_watch=self.model,
-                    )
-                except UsageError as e:
+                    from wandb.errors import UsageError
+
+                    from careamics.utils.wandb import WandBLogging
+
+                    try:
+                        self.wandb = WandBLogging(
+                            experiment_name=self.cfg.experiment_name,
+                            log_path=self.cfg.working_directory,
+                            config=self.cfg,
+                            model_to_watch=self.model,
+                        )
+                    except UsageError as e:
+                        self.logger.warning(
+                            f"Wandb usage error, using default logger. Check whether "
+                            f"wandb correctly configured:\n"
+                            f"{e}"
+                        )
+                        self.use_wandb = False
+
+                except ModuleNotFoundError:
                     self.logger.warning(
-                        f"Wandb usage error, using default logger. Check whether wandb "
-                        f"correctly configured:\n"
-                        f"{e}"
+                        "Wandb not installed, using default logger. Try pip install "
+                        "wandb"
                     )
                     self.use_wandb = False
-
-            except ModuleNotFoundError:
-                self.logger.warning(
-                    "Wandb not installed, using default logger. Try pip install wandb"
-                )
-                self.use_wandb = False
-
-        # seeding
-        setup_cudnn_reproducibility(deterministic=False, benchmark=False)
-        seed_everything(seed=42)
+        else:
+            raise ValueError("Configuration is not defined.")
 
     def train(
         self,
         train_path: str,
         val_path: str,
     ) -> Tuple[List[Any], List[Any]]:
-        """Train the network.
+        """
+        Train the network.
 
-        The training and validation data given by the paths must obey the axes and
-        data format used in the configuration.
+        The training and validation data given by the paths must be compatible with the
+        axes and data format provided in the configuration.
 
         Parameters
         ----------
         train_path : Union[str, Path]
-            Path to the training data
+            Path to the training data.
         val_path : Union[str, Path]
-            Path to the validation data
+            Path to the validation data.
+
+        Returns
+        -------
+        Tuple[List[Any], List[Any]]
+            Tuple of training and validation statistics.
 
         Raises
         ------
         ValueError
-            Raise a ValueError if the training configuration is missing
+            Raise a ValueError if the configuration is missing.
         """
         if self.cfg is None:
             raise ValueError("Configuration is not defined, cannot train.")
 
         # General func
-        train_loader = self.get_train_dataloader(train_path)
+        train_loader = self._get_train_dataloader(train_path)
 
         # Set mean and std from train dataset of none
         if self.cfg.data.mean is None or self.cfg.data.std is None:
@@ -199,7 +246,7 @@ class Engine:
                 train_loader.dataset.mean, train_loader.dataset.std
             )
 
-        eval_loader = self.get_val_dataloader(val_path)
+        eval_loader = self._get_val_dataloader(val_path)
         self.logger.info(f"Starting training for {self.cfg.training.num_epochs} epochs")
 
         val_losses = []
@@ -225,16 +272,13 @@ class Engine:
                     mode="train",
                 )
                 # Perform training step
-                tracer.start()
                 train_outputs, epoch_size = self._train_single_epoch(
                     train_loader,
                     progress_bar,
                     self.cfg.training.amp.use,
                 )
-                tracer.stop()
-                tracer.save("trace_gp_t.json")
                 # Perform validation step
-                eval_outputs = self.evaluate(eval_loader)
+                eval_outputs = self._evaluate(eval_loader)
                 val_losses.append(eval_outputs["loss"])
                 learning_rate = self.optimizer.param_groups[0]["lr"]
 
@@ -260,8 +304,8 @@ class Engine:
                 train_stats.append(train_outputs)
                 eval_stats.append(eval_outputs)
 
-                name = self.save_checkpoint(epoch, val_losses, "state_dict")
-                self.logger.info(f"Saved checkpoint to {name}")
+                checkpoint_path = self._save_checkpoint(epoch, val_losses, "state_dict")
+                self.logger.info(f"Saved checkpoint to {checkpoint_path}")
 
         except KeyboardInterrupt:
             self.logger.info("Training interrupted")
@@ -274,23 +318,27 @@ class Engine:
         progress_bar: ProgressBar,
         amp: bool,
     ) -> Tuple[Dict[str, float], int]:
-        """Runs a single epoch of training.
+        """
+        Train for a single epoch.
 
         Parameters
         ----------
         loader : torch.utils.data.DataLoader
-            dataloader object for training stage
-        optimizer : torch.optim.Optimizer
-            optimizer object
-        scaler : torch.cuda.amp.GradScaler
-            scaler object for mixed precision training
+            Training dataloader.
+        progress_bar : ProgressBar
+            Progress bar.
         amp : bool
-            whether to use automatic mixed precision
+            Whether to use automatic mixed precision.
 
         Returns
         -------
         Tuple[Dict[str, float], int]
-            Tuple of training metrics and epoch size
+            Tuple of training metrics and epoch size.
+
+        Raises
+        ------
+        ValueError
+            If the configuration is missing.
         """
         if self.cfg is not None:
             avg_loss = MetricTracker()
@@ -321,24 +369,25 @@ class Engine:
         else:
             raise ValueError("Configuration is not defined, cannot train.")
 
-    def evaluate(self, eval_loader: torch.utils.data.DataLoader) -> Dict[str, float]:
-        """Perform evaluation on the validation set.
+    def _evaluate(self, val_loader: torch.utils.data.DataLoader) -> Dict[str, float]:
+        """
+        Perform validation step.
 
         Parameters
         ----------
-        eval_loader : torch.utils.data.DataLoader
-            dataloader object for validation set
+        val_loader : torch.utils.data.DataLoader
+            Validation dataloader.
 
         Returns
         -------
-        metrics: Dict
-            validation metrics
+        Dict[str, float]
+            Loss value on the validation set.
         """
         self.model.eval()
         avg_loss = MetricTracker()
 
         with torch.no_grad():
-            for patch, *auxillary in eval_loader:
+            for patch, *auxillary in val_loader:
                 outputs = self.model(patch.to(self.device))
                 loss = self.loss_func(
                     outputs, *[a.to(self.device) for a in auxillary], self.device
@@ -355,9 +404,8 @@ class Engine:
         axes: Optional[str] = None,
         tta: bool = True,
     ) -> Union[np.ndarray, List[np.ndarray]]:
-        """Predict using the Engine's model.
-
-        Can be used with an input array or a path to data.
+        """
+        Predict using the current model on an input array or a path to data.
 
         The Engine must have previously been trained and mean/std be specified in
         its configuration.
@@ -368,21 +416,30 @@ class Engine:
 
         Parameters
         ----------
-        input : Optional[np.ndarray], optional
-            Image array or path to predict on
+        input : Union[np.ndarra, str, Path]
+            Input data, either an array or a path to the data.
         tile_shape : Optional[List[int]], optional
-            2D or 3D shape of the tiles to be predicted, by default None
+            2D or 3D shape of the tiles to be predicted, by default None.
         overlaps : Optional[List[int]], optional
-            2D or 3D overlaps between tiles, by default None
+            2D or 3D overlaps between tiles, by default None.
         axes : Optional[str], optional
-            Axes of the input array if different from the one in the
-            configuration, by default None
+            Axes of the input array if different from the one in the configuration, by
+            default None.
+        tta : bool, optional
+            Whether to use test time augmentation, by default True.
 
         Returns
         -------
         Union[np.ndarray, List[np.ndarray]]
-            predicted image array of the same shape as the input or list of arrays
-            if the arrays have inconsistent shapes
+            Predicted image array of the same shape as the input, or list of arrays
+            if the arrays have inconsistent shapes.
+
+        Raises
+        ------
+        ValueError
+            If the configuration is missing.
+        ValueError
+            If the mean or std are not specified in the configuration (untrained model).
         """
         if self.cfg is None:
             raise ValueError("Configuration is not defined, cannot predict.")
@@ -401,7 +458,7 @@ class Engine:
         progress_bar = ProgressBar(num_epochs=1, mode="predict")
 
         # Get dataloader
-        pred_loader, tiled = self.get_predict_dataloader(
+        pred_loader, tiled = self._get_predict_dataloader(
             input=input, tile_shape=tile_shape, overlaps=overlaps, axes=axes
         )
 
@@ -409,27 +466,37 @@ class Engine:
         self.logger.info("Starting prediction")
         if tiled:
             self.logger.info("Starting tiled prediction")
-            prediction = self._predict_tiled(pred_loader, progress_bar)
+            prediction = self._predict_tiled(pred_loader, progress_bar, tta)
         else:
             self.logger.info("Starting prediction on whole sample")
-            prediction = self._predict_full(pred_loader, progress_bar)
+            prediction = self._predict_full(pred_loader, progress_bar, tta)
 
         return prediction
 
     def _predict_tiled(
         self, pred_loader: DataLoader, progress_bar: ProgressBar, tta: bool = True
     ) -> Union[np.ndarray, List[np.ndarray]]:
-        """Predict from separate tiles.
+        """
+        Predict using tiling.
 
         Parameters
         ----------
         pred_loader : DataLoader
-            Prediction dataloader
+            Prediction dataloader.
+        progress_bar : ProgressBar
+            Progress bar.
+        tta : bool, optional
+            Whether to use test time augmentation, by default True.
 
         Returns
         -------
-        np.ndarray
-            Predicted image
+        Union[np.ndarray, List[np.ndarray]]
+            Predicted image, or list of predictions if the images have different sizes.
+
+        Warns
+        -----
+        UserWarning
+            If the samples have different shapes, the prediction then returns a list.
         """
         prediction = []
         tiles = []
@@ -482,17 +549,22 @@ class Engine:
     def _predict_full(
         self, pred_loader: DataLoader, progress_bar: ProgressBar, tta: bool = True
     ) -> np.ndarray:
-        """Predict from whole sample.
+        """
+        Predict whole image without tiling.
 
         Parameters
         ----------
         pred_loader : DataLoader
-            Prediction dataloader
+            Prediction dataloader.
+        progress_bar : ProgressBar
+            Progress bar.
+        tta : bool, optional
+            Whether to use test time augmentation, by default True.
 
         Returns
         -------
         np.ndarray
-            Predicted image
+            Predicted image.
         """
         prediction = []
         with torch.no_grad():
@@ -512,32 +584,31 @@ class Engine:
                     )
                 progress_bar.update(i, 1)
         output = denormalize(
-            np.stack(prediction), float(self.cfg.data.mean), float(self.cfg.data.std)  # type: ignore  # noqa: E501
+            np.stack(prediction), float(self.cfg.data.mean), float(self.cfg.data.std)  # type: ignore
         )
         return output
 
-    def get_train_dataloader(self, train_path: str) -> DataLoader:
-        """Return a training dataloader.
+    def _get_train_dataloader(self, train_path: str) -> DataLoader:
+        """
+        Return a training dataloader.
 
         Parameters
         ----------
-        train_path : Union[str, Path]
+        train_path : str
             Path to the training data.
 
         Returns
         -------
         DataLoader
-            Data loader
+            Training data loader.
 
         Raises
         ------
         ValueError
-            If the training configuration is None
+            If the training configuration is None.
         """
-        assert self.cfg is not None, "Missing configuration."  # mypy
-        assert (
-            self.cfg.training is not None
-        ), "Missing training entry in configuration."  # mypy
+        if self.cfg is None:
+            raise ValueError("Configuration is not defined.")
 
         dataset = get_train_dataset(self.cfg, train_path)
         dataloader = DataLoader(
@@ -548,28 +619,27 @@ class Engine:
         )
         return dataloader
 
-    def get_val_dataloader(self, val_path: str) -> DataLoader:
-        """Return a validation dataloader.
+    def _get_val_dataloader(self, val_path: str) -> DataLoader:
+        """
+        Return a validation dataloader.
 
         Parameters
         ----------
-        val_path : Union[str, Path]
+        val_path : str
             Path to the validation data.
 
         Returns
         -------
         DataLoader
-            Data loader
+            Validation data loader.
 
         Raises
         ------
         ValueError
-            If the training configuration is None
+            If the configuration is None.
         """
-        assert self.cfg is not None, "Missing configuration."  # mypy
-        assert (
-            self.cfg.training is not None
-        ), "Missing training entry in configuration."  # mypy
+        if self.cfg is None:
+            raise ValueError("Configuration is not defined.")
 
         dataset = get_validation_dataset(self.cfg, val_path)
         dataloader = DataLoader(
@@ -580,7 +650,7 @@ class Engine:
         )
         return dataloader
 
-    def get_predict_dataloader(
+    def _get_predict_dataloader(
         self,
         input: Union[np.ndarray, str, Path],
         *,
@@ -588,37 +658,45 @@ class Engine:
         overlaps: Optional[List[int]] = None,
         axes: Optional[str] = None,
     ) -> Tuple[DataLoader, bool]:
-        """Return a prediction dataloader.
+        """
+        Return a prediction dataloader.
 
         Parameters
         ----------
-        input : Union[np.ndarray, str, Path], optional
-            Input array or path to predict on, by default None
+        input : Union[np.ndarray, str, Path]
+            Input array or path to data.
         tile_shape : Optional[List[int]], optional
-            2D or 3D shape of the tiles to be predicted, by default None
+            2D or 3D shape of the tiles, by default None.
         overlaps : Optional[List[int]], optional
-            2D or 3D overlaps between tiles, by default None
+            2D or 3D overlaps between tiles, by default None.
         axes : Optional[str], optional
             Axes of the input array if different from the one in the configuration.
 
         Returns
         -------
-        DataLoader
-            Data loader
+        Tuple[DataLoader, bool]
+            Tuple of prediction data loader, and whether the data is tiled.
 
         Raises
         ------
         ValueError
-            If the training configuration is None
+            If the configuration is None.
+        ValueError
+            If the mean or std are not specified in the configuration.
+        ValueError
+            If the input is None.
         """
-        # Assertions for mypy
-        assert self.cfg is not None, "Missing configuration."
-        assert (
-            self.cfg.data.mean is not None and self.cfg.data.std is not None
-        ), "Missing data entry in configuration."
+        if self.cfg is None:
+            raise ValueError("Configuration is not defined.")
+
+        if self.cfg.data.mean is None or self.cfg.data.std is None:
+            raise ValueError(
+                "Mean or std are not specified in the configuration, prediction cannot "
+                "be performed. Was the model trained?"
+            )
 
         if input is None:
-            raise ValueError("Input is None, cannot predict.")
+            raise ValueError("Ccannot predict on None input.")
 
         # Create dataset
         if isinstance(input, np.ndarray):  # np.ndarray
@@ -671,10 +749,11 @@ class Engine:
             tiled,
         )
 
-    def save_checkpoint(
+    def _save_checkpoint(
         self, epoch: int, losses: List[float], save_method: str
-    ) -> Union[Path, Any]:
-        """Save the model to a checkpoint file.
+    ) -> Path:
+        """
+        Save checkpoint.
 
         Currently only supports saving using `save_method="state_dict"`.
 
@@ -685,9 +764,22 @@ class Engine:
         losses : List[float]
             List of losses.
         save_method : str
-            Method to save the model. Can be 'state_dict', or jit.
+            Method to save the model. Currently only supports `state_dict`.
+
+        Returns
+        -------
+        Path
+            Path to the saved checkpoint.
+
+        Raises
+        ------
+        ValueError
+            If the configuration is None.
+        NotImplementedError
+            If the requested save method is not supported.
         """
-        assert self.cfg is not None, "Missing configuration."  # mypy
+        if self.cfg is None:
+            raise ValueError("Configuration is not defined.")
 
         if epoch == 0 or losses[-1] == min(losses):
             name = f"{self.cfg.experiment_name}_best.pth"
@@ -713,7 +805,7 @@ class Engine:
         return self.cfg.working_directory.absolute() / name
 
     def __del__(self) -> None:
-        """Exits the logger."""
+        """Exit logger."""
         if hasattr(self, "logger"):
             for handler in self.logger.handlers:
                 if isinstance(handler, FileHandler):
@@ -721,19 +813,18 @@ class Engine:
                     handler.close()
 
     def _generate_rdf(self, model_specs: Optional[dict] = None) -> dict:
-        """Generate the rdf data for bioimage.io export.
+        """
+        Generate rdf data for bioimage.io format export.
 
         Parameters
         ----------
-        path : Union[Path, str]
-            Path to the output zip file.
         model_specs : Optional[dict], optional
-            Custom specs if different than the default ones, by default None
+            Custom specs if different than the default ones, by default None.
 
         Returns
         -------
         dict
-            RDF specs
+            RDF specs.
 
         Raises
         ------
@@ -749,8 +840,15 @@ class Engine:
                     "bioimage.io format is not possible."
                 )
 
+            # set in/out axes from config
+            axes = self.cfg.data.axes.lower().replace("s", "")
+            if "c" not in axes:
+                axes = "c" + axes
+            if "b" not in axes:
+                axes = "b" + axes
+
             # get in/out samples' files
-            test_inputs, test_outputs = self._get_sample_io_files()
+            test_inputs, test_outputs = self._get_sample_io_files(axes)
 
             specs = get_default_model_specs(
                 "Noise2Void",
@@ -760,13 +858,6 @@ class Engine:
             )
             if model_specs is not None:
                 specs.update(model_specs)
-
-            # set in/out axes from config
-            axes = self.cfg.data.axes.lower().replace("s", "")
-            if "c" not in axes:
-                axes = "c" + axes
-            if "b" not in axes:
-                axes = "b" + axes
 
             specs.update(
                 {
@@ -784,14 +875,26 @@ class Engine:
     def save_as_bioimage(
         self, output_zip: Union[Path, str], model_specs: Optional[dict] = None
     ) -> BioimageModel:
-        """Export the current model to BioImage.io model zoo format.
+        """
+        Export the current model to BioImage.io model zoo format.
 
         Parameters
         ----------
-        output_zip (Union[Path, str]): Where to save the model zip file.
-        model_specs (Optional[dict]): a dictionary that keys are the bioimage-core
-        `build_model` parameters.
-        If None then it will be populated up by the model default specs.
+        output_zip : Union[Path, str]
+            Where to save the model zip file.
+        model_specs : Optional[dict]
+            A dictionary with keys being the bioimage-core build_model parameters. If
+            None then it will be populated by the model default specs.
+
+        Returns
+        -------
+        BioimageModel
+            Bioimage.io model object.
+
+        Raises
+        ------
+        ValueError
+            If the configuration is not defined.
         """
         if self.cfg is not None:
             # Generate specs
@@ -808,21 +911,37 @@ class Engine:
         else:
             raise ValueError("Configuration is not defined.")
 
-    def _get_sample_io_files(self) -> Tuple[List[str], List[str]]:
-        """Create numpy files for each model's input and outputs."""
+    def _get_sample_io_files(self, axes: str) -> Tuple[List[str], List[str]]:
+        """
+        Create numpy format for use as inputs and outputs in the bioimage.io archive.
+
+        Parameters
+        ----------
+        axes : str
+            Input and output axes.
+
+        Returns
+        -------
+        Tuple[List[str], List[str]]
+            Tuple of input and output file paths.
+
+        Raises
+        ------
+        ValueError
+            If the configuration is not defined.
+        """
         # input:
-        if self.cfg is not None and self.cfg.training is not None:
+        if self.cfg is not None:
             sample_input = np.random.randn(*self.cfg.training.patch_size)
             # if there are more input axes (like channel, ...),
             # then expand the sample dimensions.
-            len_diff = len(self.cfg.data.axes) - len(self.cfg.training.patch_size)
+            len_diff = len(axes) - len(self.cfg.training.patch_size)
             if len_diff > 0:
                 sample_input = np.expand_dims(
                     sample_input, axis=tuple(i for i in range(len_diff))
                 )
-            # finally add the batch dim
-            sample_input = np.expand_dims(sample_input, axis=0)
             sample_output = np.random.randn(*sample_input.shape)
+
             # save numpy files
             workdir = self.cfg.working_directory
             in_file = workdir.joinpath("test_inputs.npy")
