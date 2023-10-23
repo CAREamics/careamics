@@ -10,7 +10,7 @@ import numpy as np
 AXES = "STCZYX"
 
 
-def check_axes_validity(axes: str) -> bool:
+def check_axes_validity(axes: str) -> None:
     """
     Sanity check on axes.
 
@@ -26,11 +26,6 @@ def check_axes_validity(axes: str) -> bool:
     ----------
     axes : str
         Axes to validate.
-
-    Returns
-    -------
-    bool
-        True if axes are valid, False otherwise.
     """
     _axes = axes.upper()
 
@@ -56,7 +51,7 @@ def check_axes_validity(axes: str) -> bool:
     if "C" in _axes:
         raise NotImplementedError("Currently, C axis is not supported.")
 
-    # prevent S and T axes together
+    # prevent S and T axes at the same time
     if "T" in _axes and "S" in _axes:
         raise NotImplementedError(
             f"Invalid axes {axes}. Cannot contain both S and T axes."
@@ -79,26 +74,40 @@ def check_axes_validity(axes: str) -> bool:
                     f"Invalid axes {axes}. Axes must be in the order {AXES}."
                 )
 
-    return True
 
-
-def check_array_validity(array: np.ndarray, axes: str) -> None:
+def add_axes(input_array: np.ndarray, axes: str) -> np.ndarray:
     """
-    Check that the numpy array is compatible with the axes.
+    Add missing axes to the input, typically batch and channel.
+
+    This method validates the axes first.
 
     Parameters
     ----------
-    array : np.ndarray
-        Numpy array.
+    input_array : np.ndarray
+        Input array.
     axes : str
-        Valid axes (see check_axes_validity).
+        Axes to add.
+
+    Returns
+    -------
+    np.ndarray
+        Array with new singleton axes.
     """
-    if len(array.shape) - 2 != len(axes):
-        raise ValueError(
-            f"Array has {len(array.shape)} dimensions, but axes are {len(axes)}."
-            f"Externally provided arrays must have extra dimensions for batch and"
-            f"channel to be compatible with the batchnorm layers."
-        )
+    # validate axes
+    check_axes_validity(axes)
+
+    # if "C" dim missing:
+    if "C" not in axes:
+        if "S" in axes or "T" in axes:
+            input_array = input_array[:, np.newaxis, ...]
+        else:
+            input_array = input_array[np.newaxis, ...]
+
+    # if "S" and "T" dim missing:
+    if "S" not in axes and "T" not in axes:
+        input_array = input_array[np.newaxis, ...]
+
+    return input_array
 
 
 def check_tiling_validity(tile_shape: List[int], overlaps: List[int]) -> None:

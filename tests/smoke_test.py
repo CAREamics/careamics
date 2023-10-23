@@ -28,9 +28,6 @@ def test_is_engine_runnable(
 
     # Test prediction with external input
     test_image = np.random.rand(*image_size)
-
-    # Predict only accepts 4D input for now
-    test_image = test_image[None, None, ...]
     test_result = engine.predict(input=test_image)
 
     assert test_result is not None
@@ -51,3 +48,5 @@ def test_is_engine_runnable(
         input=test_path, tile_shape=patch_size, overlaps=overlaps
     )
     assert test_result is not None
+
+    # TODO save bioimage

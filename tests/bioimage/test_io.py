@@ -1,11 +1,10 @@
 from pathlib import Path
 
 import bioimageio.spec.shared.raw_nodes as nodes
-import pytest
+import numpy as np
 import torch
 from bioimageio.core import load_resource_description
 
-from careamics.bioimage.io import get_default_model_specs
 from careamics.config import Configuration, save_configuration
 from careamics.engine import Engine
 from careamics.models import create_model
@@ -31,94 +30,12 @@ def save_checkpoint(engine: Engine, config: Configuration) -> None:
     torch.save(checkpoint, checkpoint_path)
 
 
-@pytest.mark.parametrize("name", ["Noise2Void"])
-@pytest.mark.parametrize("is_3D", [True, False])
-def test_default_model_specs(name, is_3D):
-    mean = 666.666
-    std = 42.420
-
-    if is_3D:
-        axes = "zyx"
-    else:
-        axes = "yx"
-
-    specs = get_default_model_specs(name, mean, std, is_3D=is_3D)
-    assert specs["name"] == name
-    assert specs["preprocessing"][0][0]["kwargs"]["mean"] == [mean]
-    assert specs["preprocessing"][0][0]["kwargs"]["std"] == [std]
-    assert specs["preprocessing"][0][0]["kwargs"]["axes"] == axes
-    assert specs["postprocessing"][0][0]["kwargs"]["offset"] == [mean]
-    assert specs["postprocessing"][0][0]["kwargs"]["gain"] == [std]
-    assert specs["postprocessing"][0][0]["kwargs"]["axes"] == axes
-
-
-def test_bioimage_generate_rdf(minimum_config: dict):
-    """Test model export to bioimage format by using default specs."""
-
-    # create configuration and save it to disk
-    mean = 666.666
-    std = 42.420
-    minimum_config["data"]["mean"] = mean
-    minimum_config["data"]["std"] = std
-    config = Configuration(**minimum_config)
-
-    # create an engine to export the model
-    engine = Engine(config=config)
-
-    # Sample files
-    axes = "bcyx"
-    test_inputs, test_outputs = engine._get_sample_io_files(axes)
-
-    # Export rdf
-    rdf = engine._generate_rdf()
-    assert rdf["preprocessing"][0][0]["kwargs"]["mean"] == [mean]
-    assert rdf["preprocessing"][0][0]["kwargs"]["std"] == [std]
-    assert rdf["postprocessing"][0][0]["kwargs"]["offset"] == [mean]
-    assert rdf["postprocessing"][0][0]["kwargs"]["gain"] == [std]
-    assert rdf["test_inputs"] == test_inputs
-    assert rdf["test_outputs"] == test_outputs
-    assert rdf["input_axes"] == [axes]
-    assert rdf["output_axes"] == [axes]
-
-    # Change to 3D
-    config.set_3D(True, "SZYX")
-    axes = "bczyx"
-
-    engine = Engine(config=config)
-    test_inputs, test_outputs = engine._get_sample_io_files(axes)
-    rdf = engine._generate_rdf()
-    assert rdf["input_axes"] == [axes]
-    assert rdf["output_axes"] == [axes]
-
-    # Test model specs
-    model_specs = {"description": "Some description", "license": "to kill"}
-    rdf = engine._generate_rdf(model_specs=model_specs)
-    assert rdf["description"] == model_specs["description"]
-    assert rdf["license"] == model_specs["license"]
-
-
-def test_generate_rdf_without_mean_std(minimum_config: dict):
-    """Test that generating rdf without specifying mean and std
-    raises an error."""
-    # create configuration and save it to disk
-    config = Configuration(**minimum_config)
-
-    # create an engine to export the model
-    engine = Engine(config=config)
-    with pytest.raises(ValueError):
-        engine._generate_rdf()
-
-    # test if error is raised when config is None
-    engine.config = None
-    with pytest.raises(ValueError):
-        engine._generate_rdf()
-
-
 def test_bioimage_export_default(minimum_config: dict, tmp_path: Path, request):
     """Test model export to bioimage format by using default specs."""
     # create configuration and save it to disk
     minimum_config["data"]["mean"] = 666.666
     minimum_config["data"]["std"] = 42.420
+    minimum_config["data"]["axes"] = "YX"
 
     config = Configuration(**minimum_config)
     config_file = tmp_path / "tmp_config.yml"
@@ -126,6 +43,9 @@ def test_bioimage_export_default(minimum_config: dict, tmp_path: Path, request):
 
     # create an engine to export the model
     engine = Engine(config=config)
+
+    # create a monkey patch for the input (array saved during first validation)
+    engine._input = np.random.randint(0, 255, minimum_config["training"]["patch_size"])
 
     # save fake checkpoint
     save_checkpoint(engine, minimum_config)

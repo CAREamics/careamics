@@ -10,12 +10,11 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import torch
-from bioimageio.spec.model.raw_nodes import Model as BioimageModel
 from torch.utils.data import DataLoader, TensorDataset
 
 from .bioimage import (
-    build_zip_model,
     get_default_model_specs,
+    save_bioimage_model,
 )
 from .config import Configuration, load_configuration
 from .dataset.prepare_dataset import (
@@ -32,7 +31,7 @@ from .prediction import (
 )
 from .utils import (
     MetricTracker,
-    check_array_validity,
+    add_axes,
     denormalize,
     get_device,
     normalize,
@@ -40,7 +39,6 @@ from .utils import (
 from .utils.logging import ProgressBar, get_logger
 
 
-# TODO: refactor private methods and bioimage.io to other modules
 class Engine:
     """
     Class allowing training of a model and subsequent prediction.
@@ -204,6 +202,10 @@ class Engine:
                         "wandb"
                     )
                     self.use_wandb = False
+
+            # BMZ inputs/outputs placeholders, filled during validation
+            self._input = None
+            self._outputs = None
         else:
             raise ValueError("Configuration is not defined.")
 
@@ -387,6 +389,11 @@ class Engine:
 
         with torch.no_grad():
             for patch, *auxillary in val_loader:
+                # if inputs is None, record a single patch
+                if self._input is None:
+                    self._input = patch.clone().detach().cpu().numpy()
+
+                # evaluate
                 outputs = self.model(patch.to(self.device))
                 loss = self.loss_func(
                     outputs, *[a.to(self.device) for a in auxillary], self.device
@@ -409,9 +416,17 @@ class Engine:
         The Engine must have previously been trained and mean/std be specified in
         its configuration.
 
+        Data should be compatible with the axes, either from the configuration or
+        as passed using the `axes` parameter. If the batch and channel dimensions are
+        missing, then singleton dimensions are added.
+
         To use tiling, both `tile_shape` and `overlaps` must be specified, have same
         length, be divisible by 2 and greater than 0. Finally, the overlaps must be
         smaller than the tiles.
+
+        By setting `tta` to `True`, the prediction is performed using test time
+        augmentation, meaning that the input is augmented and the prediction is averaged
+        over the augmentations.
 
         Parameters
         ----------
@@ -497,6 +512,18 @@ class Engine:
         UserWarning
             If the samples have different shapes, the prediction then returns a list.
         """
+        # checks are done here to satisfy mypy
+        # check that configuration exists
+        if self.cfg is None:
+            raise ValueError("Configuration is not defined, cannot predict.")
+
+        # Check that the mean and std are there (= has been trained)
+        if not self.cfg.data.mean or not self.cfg.data.std:
+            raise ValueError(
+                "Mean or std are not specified in the configuration, prediction cannot "
+                "be performed."
+            )
+
         prediction = []
         tiles = []
         stitching_data = []
@@ -529,10 +556,10 @@ class Engine:
                     predicted_sample = stitch_prediction(tiles, stitching_data)
                     predicted_sample = denormalize(
                         predicted_sample,
-                        float(self.cfg.data.mean),  # type: ignore
-                        float(self.cfg.data.std),  # type: ignore
+                        float(self.cfg.data.mean),
+                        float(self.cfg.data.std),
                     )
-                    prediction.append(predicted_sample)
+                    prediction.append(predicted_sample.squeeze())
                     tiles.clear()
                     stitching_data.clear()
 
@@ -696,14 +723,13 @@ class Engine:
             )
 
         if input is None:
-            raise ValueError("Ccannot predict on None input.")
+            raise ValueError("Input cannot be None.")
 
         # Create dataset
         if isinstance(input, np.ndarray):  # np.ndarray
-            # Check that the axes fit the input
+            # Validate axes and add missing dimensions (S)C
             img_axes = self.cfg.data.axes if axes is None else axes
-            # TODO are self.cfg.data.axes and axes compatible (same spatial dim)?
-            check_array_validity(input, img_axes)
+            input_expanded = add_axes(input, img_axes)
 
             # Check if tiling requested
             tiled = tile_shape is not None and overlaps is not None
@@ -718,7 +744,7 @@ class Engine:
 
             # Normalize input and cast to float32
             normalized_input = normalize(
-                img=input, mean=self.cfg.data.mean, std=self.cfg.data.std
+                img=input_expanded, mean=self.cfg.data.mean, std=self.cfg.data.std
             )
             normalized_input = normalized_input.astype(np.float32)
 
@@ -812,6 +838,35 @@ class Engine:
                     self.logger.removeHandler(handler)
                     handler.close()
 
+    def _get_sample_io_files(self) -> Tuple[List[str], List[str]]:
+        """
+        Create numpy format for use as inputs and outputs in the bioimage.io archive.
+
+        Returns
+        -------
+        Tuple[List[str], List[str]]
+            Tuple of input and output file paths.
+
+        Raises
+        ------
+        ValueError
+            If the configuration is not defined.
+        """
+        if self.cfg is not None and self._input is not None:
+            # predict
+            sample_output = self.predict(self._input)
+
+            # save numpy files
+            workdir = self.cfg.working_directory
+            in_file = workdir.joinpath("test_inputs.npy")
+            np.save(in_file, self._input)
+            out_file = workdir.joinpath("test_outputs.npy")
+            np.save(out_file, sample_output)
+
+            return [str(in_file.absolute())], [str(out_file.absolute())]
+        else:
+            raise ValueError("Configuration is not defined or model was not trained.")
+
     def _generate_rdf(self, model_specs: Optional[dict] = None) -> dict:
         """
         Generate rdf data for bioimage.io format export.
@@ -848,7 +903,7 @@ class Engine:
                 axes = "b" + axes
 
             # get in/out samples' files
-            test_inputs, test_outputs = self._get_sample_io_files(axes)
+            test_inputs, test_outputs = self._get_sample_io_files()
 
             specs = get_default_model_specs(
                 "Noise2Void",
@@ -874,7 +929,7 @@ class Engine:
 
     def save_as_bioimage(
         self, output_zip: Union[Path, str], model_specs: Optional[dict] = None
-    ) -> BioimageModel:
+    ) -> None:
         """
         Export the current model to BioImage.io model zoo format.
 
@@ -886,11 +941,6 @@ class Engine:
             A dictionary with keys being the bioimage-core build_model parameters. If
             None then it will be populated by the model default specs.
 
-        Returns
-        -------
-        BioimageModel
-            Bioimage.io model object.
-
         Raises
         ------
         ValueError
@@ -901,54 +951,10 @@ class Engine:
             specs = self._generate_rdf(model_specs)
 
             # Build model
-            raw_model = build_zip_model(
+            save_bioimage_model(
                 path=output_zip,
                 config=self.cfg,
                 model_specs=specs,
             )
-
-            return raw_model
-        else:
-            raise ValueError("Configuration is not defined.")
-
-    def _get_sample_io_files(self, axes: str) -> Tuple[List[str], List[str]]:
-        """
-        Create numpy format for use as inputs and outputs in the bioimage.io archive.
-
-        Parameters
-        ----------
-        axes : str
-            Input and output axes.
-
-        Returns
-        -------
-        Tuple[List[str], List[str]]
-            Tuple of input and output file paths.
-
-        Raises
-        ------
-        ValueError
-            If the configuration is not defined.
-        """
-        # input:
-        if self.cfg is not None:
-            sample_input = np.random.randn(*self.cfg.training.patch_size)
-            # if there are more input axes (like channel, ...),
-            # then expand the sample dimensions.
-            len_diff = len(axes) - len(self.cfg.training.patch_size)
-            if len_diff > 0:
-                sample_input = np.expand_dims(
-                    sample_input, axis=tuple(i for i in range(len_diff))
-                )
-            sample_output = np.random.randn(*sample_input.shape)
-
-            # save numpy files
-            workdir = self.cfg.working_directory
-            in_file = workdir.joinpath("test_inputs.npy")
-            np.save(in_file, sample_input)
-            out_file = workdir.joinpath("test_outputs.npy")
-            np.save(out_file, sample_output)
-
-            return [str(in_file.absolute())], [str(out_file.absolute())]
         else:
             raise ValueError("Configuration is not defined.")
