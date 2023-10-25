@@ -2,7 +2,6 @@
 from pathlib import Path
 from typing import Union
 
-import numpy as np
 import torch
 from bioimageio.core import load_resource_description
 from bioimageio.core.build_spec import build_model
@@ -17,7 +16,7 @@ PYTORCH_STATE_DICT = "pytorch_state_dict"
 def save_bioimage_model(
     path: Union[str, Path],
     config: Configuration,
-    model_specs: dict,
+    specs: dict,
 ) -> None:
     """
     Build bioimage model zip file from model specification data.
@@ -28,8 +27,8 @@ def save_bioimage_model(
         Path to the model zip file.
     config : Configuration
         Configuration object.
-    model_specs : dict
-        Model specification data.
+    specs : dict
+        Specification dict.
     """
     workdir = config.working_directory
 
@@ -53,15 +52,6 @@ def save_bioimage_model(
     config_path = workdir.joinpath("config.pth")
     torch.save(config.model_dump(), config_path)
 
-    # create cover
-    # TODO: this is a hack to avoid an export error in bioimage.io when the
-    # inputs/outputs have singleton dimensions.
-    # load .npy files
-    np.load(model_specs["test_inputs"][0]).squeeze()
-    np.load(model_specs["test_outputs"][0]).squeeze()
-
-    # create cover array
-
     # Create attachments
     attachments = [
         str(optim_path),
@@ -70,23 +60,32 @@ def save_bioimage_model(
         str(config_path),
     ]
 
-    model_specs.update(
+    # TODO save unet.py in the workdir
+    algo_config = config.algorithm
+    specs.update(
         {
             "weight_type": PYTORCH_STATE_DICT,
             "weight_uri": str(weight_path),
+            "architecture": "models/unet.py:UNet",
+            "pytorch_version": torch.__version__,
+            "model_kwargs": {
+                "conv_dim": algo_config.get_conv_dim(),
+                "depth": algo_config.model_parameters.depth,
+                "num_channels_init": algo_config.model_parameters.num_channels_init,
+            },
             "attachments": {"files": attachments},
         }
     )
 
     if config.algorithm.is_3D:
-        model_specs["tags"].append("3D")
+        specs["tags"].append("3D")
     else:
-        model_specs["tags"].append("2D")
+        specs["tags"].append("2D")
 
     # build model zip
     build_model(
         output_path=Path(path).absolute(),
-        **model_specs,
+        **specs,
     )
 
     # remove the temporary files

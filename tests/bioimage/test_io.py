@@ -1,11 +1,10 @@
 from pathlib import Path
 
-import bioimageio.spec.shared.raw_nodes as nodes
 import numpy as np
 import torch
-from bioimageio.core import load_resource_description
+from bioimageio.core.resource_tests import test_model
 
-from careamics.config import Configuration, save_configuration
+from careamics.config import Configuration
 from careamics.engine import Engine
 from careamics.models import create_model
 from careamics.utils import cwd
@@ -30,22 +29,21 @@ def save_checkpoint(engine: Engine, config: Configuration) -> None:
     torch.save(checkpoint, checkpoint_path)
 
 
-def test_bioimage_export_default(minimum_config: dict, tmp_path: Path, request):
-    """Test model export to bioimage format by using default specs."""
-    # create configuration and save it to disk
+def test_bioimage_io(minimum_config: dict, tmp_path: Path):
+    """Test model export/import to bioimage format."""
+    # create configuration
     minimum_config["data"]["mean"] = 666.666
     minimum_config["data"]["std"] = 42.420
     minimum_config["data"]["axes"] = "YX"
 
     config = Configuration(**minimum_config)
-    config_file = tmp_path / "tmp_config.yml"
-    save_configuration(config, config_file)
 
     # create an engine to export the model
     engine = Engine(config=config)
 
     # create a monkey patch for the input (array saved during first validation)
     engine._input = np.random.randint(0, 255, minimum_config["training"]["patch_size"])
+    engine._input = engine._input[np.newaxis, np.newaxis, ...]
 
     # save fake checkpoint
     save_checkpoint(engine, minimum_config)
@@ -53,28 +51,19 @@ def test_bioimage_export_default(minimum_config: dict, tmp_path: Path, request):
     # output zip file
     zip_file = tmp_path / "tmp_model.bioimage.io.zip"
 
-    # export the model (overriding the weight_uri)
+    # export the model, change context because of the spurious files creation from BMZ
     with cwd(tmp_path):
-        engine.save_as_bioimage(zip_file)
-
-        # put zip file in the cache for the import test
-        request.config.cache.set("bioimage_model", str(zip_file))
-
+        engine.save_as_bioimage(zip_file.absolute())
         assert zip_file.exists()
 
-        rdf = load_resource_description(zip_file)
-        assert isinstance(rdf, nodes.ResourceDescription)
+        # load model
+        _, _, _, _, loaded_config = create_model(model_path=zip_file)
+        assert isinstance(loaded_config, Configuration)
 
+        # check that the configuration is the same
+        assert loaded_config == config
 
-def test_bioimage_import(request):
-    """Test model import from bioimage format.
-
-    IMPORTANT: this test will only pass if `test_bioimage_export_default` passed.
-    """
-    zip_file = request.config.cache.get("bioimage_model", None)
-    if zip_file is not None and Path(zip_file).exists():
-        # checkpoint_path = import_bioimage_model(zip_file)
-        _, _, _, _, config = create_model(model_path=zip_file)
-        assert isinstance(config, Configuration)
-    else:
-        raise ValueError("No valid bioimage model zip provided.")
+        # validate model
+        results = test_model(zip_file)
+        for result in results:
+            assert result["status"] == "passed", f"Failed at {result['name']}"

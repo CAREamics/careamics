@@ -49,16 +49,27 @@ def create_model(
     model_path: Optional[Union[str, Path]] = None,
     config: Optional[Configuration] = None,
     device: Optional[torch.device] = None,
-) -> torch.nn.Module:
+) -> Tuple[
+    torch.nn.Module,
+    torch.optim.Optimizer,
+    Union[
+        torch.optim.lr_scheduler.LRScheduler,
+        torch.optim.lr_scheduler.ReduceLROnPlateau,  # not a subclass of LRScheduler
+    ],
+    torch.cuda.amp.GradScaler,
+    Configuration,
+]:
     """
-    Instantiate a model from a checkpoint or configuration.
+    Instantiate a model from a model path or configuration.
 
-    If both checkpoint and configuration are provided, the checkpoint is used.
+    If both path and configuration are provided, the model path is used. The model
+    path should point to either a checkpoint (created during training) or a model
+    exported to the bioimage.io format.
 
     Parameters
     ----------
     model_path : Optional[Union[str, Path]], optional
-        Path to a checkpoint, by default None.
+        Path to a checkpoint or bioimage.io archive, by default None.
     config : Optional[Configuration], optional
         Configuration, by default None.
     device : Optional[torch.device], optional
@@ -103,12 +114,13 @@ def create_model(
             raise ValueError("Invalid checkpoint format, no configuration found.")
 
         # Create model
-        model = model_registry(model_name)(
+        model: torch.nn.Module = model_registry(model_name)(
             depth=model_config.depth,
             conv_dim=algo_config.get_conv_dim(),
             num_channels_init=model_config.num_channels_init,
         )
         model.to(device)
+
         # Load the model state dict
         if "model_state_dict" in checkpoint:
             model.load_state_dict(checkpoint["model_state_dict"])
@@ -141,13 +153,19 @@ def create_model(
 
     else:
         raise ValueError("Either config or model_path must be provided")
-    # model = compile_model(model)
+
     return model, optimizer, scheduler, scaler, config
 
 
 def get_optimizer_and_scheduler(
     config: Configuration, model: torch.nn.Module, state_dict: Optional[Dict] = None
-) -> Tuple[torch.optim.Optimizer, torch.optim.lr_scheduler.LRScheduler]:
+) -> Tuple[
+    torch.optim.Optimizer,
+    Union[
+        torch.optim.lr_scheduler.LRScheduler,
+        torch.optim.lr_scheduler.ReduceLROnPlateau,  # not a subclass of LRScheduler
+    ],
+]:
     """
     Create optimizer and learning rate schedulers.
 

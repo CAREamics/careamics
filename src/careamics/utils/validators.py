@@ -79,7 +79,8 @@ def add_axes(input_array: np.ndarray, axes: str) -> np.ndarray:
     """
     Add missing axes to the input, typically batch and channel.
 
-    This method validates the axes first.
+    This method validates the axes first. Then it inspects the input array and add
+    missing dimensions if necessary.
 
     Parameters
     ----------
@@ -96,16 +97,20 @@ def add_axes(input_array: np.ndarray, axes: str) -> np.ndarray:
     # validate axes
     check_axes_validity(axes)
 
-    # if "C" dim missing:
-    if "C" not in axes:
-        if "S" in axes or "T" in axes:
-            input_array = input_array[:, np.newaxis, ...]
-        else:
+    # is 3D
+    is_3D = "Z" in axes
+
+    # number of dims
+    n_dims = 5 if is_3D else 4
+
+    # array of dim 2, 3 or 4
+    if len(input_array.shape) < n_dims:
+        if "S" not in axes and "T" not in axes:
             input_array = input_array[np.newaxis, ...]
 
-    # if "S" and "T" dim missing:
-    if "S" not in axes and "T" not in axes:
-        input_array = input_array[np.newaxis, ...]
+        # still missing C dimension
+        if len(input_array.shape) < n_dims:
+            input_array = input_array[:, np.newaxis, ...]
 
     return input_array
 

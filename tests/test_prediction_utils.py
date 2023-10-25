@@ -1,4 +1,3 @@
-import numpy as np
 import pytest
 from torch import from_numpy
 
@@ -48,10 +47,9 @@ def test_stitch_prediction(input_shape, ordered_array, tile_size, overlaps):
 
 
 @pytest.mark.parametrize("shape", [(1, 1, 8, 8), (1, 1, 8, 8, 8)])
-def test_tta_forward(shape):
+def test_tta_forward(ordered_array, shape):
     """Test TTA forward."""
-    n = np.prod(shape)
-    x = np.arange(n).reshape(shape)
+    x = ordered_array(shape)
 
     # tta forward
     x_aug = tta_forward(from_numpy(x))
@@ -74,10 +72,9 @@ def test_tta_forward(shape):
         # (1, 1, 4, 4, 4)
     ],
 )
-def test_tta_backward(shape):
+def test_tta_backward(ordered_array, shape):
     """Test TTA backward."""
-    n = np.prod(shape)
-    x = np.arange(n).reshape(shape)
+    x = ordered_array(shape)
 
     # tta forward
     x_aug = tta_forward(from_numpy(x))

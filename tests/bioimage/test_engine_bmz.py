@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import numpy as np
 import pytest
 
@@ -22,7 +24,7 @@ def test_generate_rdf_without_mean_std(minimum_config: dict):
 
 
 def test_bioimage_generate_rdf(minimum_config: dict):
-    """Test model export to bioimage format by using default specs."""
+    """Test generating rdf using default specs."""
     # create configuration and save it to disk
     mean = 666.666
     std = 42.420
@@ -39,7 +41,8 @@ def test_bioimage_generate_rdf(minimum_config: dict):
 
     # Sample files
     axes = "bcyx"
-    test_inputs, test_outputs = engine._get_sample_io_files()
+    test_inputs = Path(minimum_config["working_directory"]) / "test_inputs.npy"
+    test_outputs = Path(minimum_config["working_directory"]) / "test_outputs.npy"
 
     # Export rdf
     rdf = engine._generate_rdf()
@@ -47,8 +50,8 @@ def test_bioimage_generate_rdf(minimum_config: dict):
     assert rdf["preprocessing"][0][0]["kwargs"]["std"] == [std]
     assert rdf["postprocessing"][0][0]["kwargs"]["offset"] == [mean]
     assert rdf["postprocessing"][0][0]["kwargs"]["gain"] == [std]
-    assert rdf["test_inputs"] == test_inputs
-    assert rdf["test_outputs"] == test_outputs
+    assert rdf["test_inputs"] == [str(test_inputs)]
+    assert rdf["test_outputs"] == [str(test_outputs)]
     assert rdf["input_axes"] == [axes]
     assert rdf["output_axes"] == [axes]
 

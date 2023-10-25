@@ -206,6 +206,9 @@ class Engine:
             # BMZ inputs/outputs placeholders, filled during validation
             self._input = None
             self._outputs = None
+
+            # torch version
+            self.torch_version = torch.__version__
         else:
             raise ValueError("Configuration is not defined.")
 
@@ -391,6 +394,7 @@ class Engine:
             for patch, *auxillary in val_loader:
                 # if inputs is None, record a single patch
                 if self._input is None:
+                    # patch has dimension SC(Z)YX
                     self._input = patch.clone().detach().cpu().numpy()
 
                 # evaluate
@@ -540,9 +544,7 @@ class Engine:
                     predicted_augments = []
                     for augmented_tile in augmented_tiles:
                         augmented_pred = self.model(augmented_tile.to(self.device))
-                        predicted_augments.append(
-                            augmented_pred.squeeze().cpu().numpy()
-                        )
+                        predicted_augments.append(augmented_pred.cpu())
                     tiles.append(tta_backward(predicted_augments).squeeze())
                 else:
                     tiles.append(
@@ -559,7 +561,7 @@ class Engine:
                         float(self.cfg.data.mean),
                         float(self.cfg.data.std),
                     )
-                    prediction.append(predicted_sample.squeeze())
+                    prediction.append(predicted_sample)
                     tiles.clear()
                     stitching_data.clear()
 
@@ -593,6 +595,18 @@ class Engine:
         np.ndarray
             Predicted image.
         """
+        # checks are done here to satisfy mypy
+        # check that configuration exists
+        if self.cfg is None:
+            raise ValueError("Configuration is not defined, cannot predict.")
+
+        # Check that the mean and std are there (= has been trained)
+        if not self.cfg.data.mean or not self.cfg.data.std:
+            raise ValueError(
+                "Mean or std are not specified in the configuration, prediction cannot "
+                "be performed."
+            )
+
         prediction = []
         with torch.no_grad():
             for i, sample in enumerate(pred_loader):
@@ -601,9 +615,7 @@ class Engine:
                     predicted_augments = []
                     for augmented_pred in augmented_preds:
                         augmented_pred = self.model(augmented_pred.to(self.device))
-                        predicted_augments.append(
-                            augmented_pred.squeeze().cpu().numpy()
-                        )
+                        predicted_augments.append(augmented_pred.cpu())
                     prediction.append(tta_backward(predicted_augments).squeeze())
                 else:
                     prediction.append(
@@ -611,7 +623,9 @@ class Engine:
                     )
                 progress_bar.update(i, 1)
         output = denormalize(
-            np.stack(prediction), float(self.cfg.data.mean), float(self.cfg.data.std)  # type: ignore
+            np.stack(prediction).squeeze(),
+            float(self.cfg.data.mean),
+            float(self.cfg.data.std),
         )
         return output
 
@@ -727,7 +741,7 @@ class Engine:
 
         # Create dataset
         if isinstance(input, np.ndarray):  # np.ndarray
-            # Validate axes and add missing dimensions (S)C
+            # Validate axes and add missing dimensions (S)C if necessary
             img_axes = self.cfg.data.axes if axes is None else axes
             input_expanded = add_axes(input, img_axes)
 
@@ -739,8 +753,6 @@ class Engine:
                 raise NotImplementedError(
                     "Tiling with in memory array is currently not implemented."
                 )
-
-                # check_tiling_validity(tile_shape, overlaps)
 
             # Normalize input and cast to float32
             normalized_input = normalize(
@@ -853,13 +865,19 @@ class Engine:
             If the configuration is not defined.
         """
         if self.cfg is not None and self._input is not None:
-            # predict
-            sample_output = self.predict(self._input)
+            # predict (no tta since BMZ does not apply it)
+            sample_output = self.predict(self._input, tta=False)
+
+            # add singleton dimensions (for compatibility with model axes)
+            # indeed, BMZ applies the model but CAREamics function are meant
+            # to work on user data (potentially with no S or C axe)
+            sample_input = self._input
+            sample_output = sample_output[np.newaxis, np.newaxis, ...]
 
             # save numpy files
             workdir = self.cfg.working_directory
             in_file = workdir.joinpath("test_inputs.npy")
-            np.save(in_file, self._input)
+            np.save(in_file, sample_input)
             out_file = workdir.joinpath("test_outputs.npy")
             np.save(out_file, sample_output)
 
@@ -916,7 +934,6 @@ class Engine:
 
             specs.update(
                 {
-                    "architecture": "careamics.models.unet",
                     "test_inputs": test_inputs,
                     "test_outputs": test_outputs,
                     "input_axes": [axes],
@@ -954,7 +971,7 @@ class Engine:
             save_bioimage_model(
                 path=output_zip,
                 config=self.cfg,
-                model_specs=specs,
+                specs=specs,
             )
         else:
             raise ValueError("Configuration is not defined.")
