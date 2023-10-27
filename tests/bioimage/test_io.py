@@ -66,4 +66,4 @@ def test_bioimage_io(minimum_config: dict, tmp_path: Path):
         # validate model
         results = test_model(zip_file)
         for result in results:
-            assert result["status"] == "passed", f"Failed at {result['name']}"
+            assert result["status"] == "passed", f"Failed at {result['name']}."

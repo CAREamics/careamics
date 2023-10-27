@@ -52,7 +52,7 @@ def save_bioimage_model(
     config_path = workdir.joinpath("config.pth")
     torch.save(config.model_dump(), config_path)
 
-    # Create attachments
+    # create attachments
     attachments = [
         str(optim_path),
         str(scheduler_path),
@@ -60,13 +60,12 @@ def save_bioimage_model(
         str(config_path),
     ]
 
-    # TODO save unet.py in the workdir
     algo_config = config.algorithm
     specs.update(
         {
             "weight_type": PYTORCH_STATE_DICT,
             "weight_uri": str(weight_path),
-            "architecture": "models/unet.py:UNet",
+            "architecture": "unet.py:UNet",
             "pytorch_version": torch.__version__,
             "model_kwargs": {
                 "conv_dim": algo_config.get_conv_dim(),
