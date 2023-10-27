@@ -47,7 +47,7 @@ repos:
           - id: nbqa-ruff
             args: [--fix]
           - id: nbqa-black
-    #- id: nbqa-mypy
+  #- id: nbqa-mypy
 
   # strip out jupyter notebooks
     - repo: https://github.com/kynan/nbstripout
