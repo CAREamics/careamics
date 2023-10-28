@@ -1,3 +1,4 @@
+---
 # Name, composed of letters, numbers, spaces, dashes and underscores
 experiment_name: N2V_BSD
 
@@ -6,68 +7,68 @@ working_directory: n2v_bsd
 
 algorithm:
   # Loss, currently only n2v is supported
-  loss: n2v
+    loss: n2v
 
   # Model, currently only UNet is supported
-  model: UNet
+    model: UNet
 
   # Dimensions 2D (False) or 3D (True)
-  is_3D: True
+    is_3D: true
 
   # Optional, parameters of the model
-  model_parameters:
+    model_parameters:
     # Number of filters of the first level, must be divisible by 2
-    num_channels_init: 32
+        num_channels_init: 32
 
 training:
   # Number of epochs, greater or equal than 1
-  num_epochs: 20
+    num_epochs: 20
 
   # Patch size, 2D or 3D, divisible by 2
-  patch_size: [32, 64, 64]
+    patch_size: [32, 64, 64]
 
   # Batch size, greater or equal than 1
-  batch_size: 16
+    batch_size: 16
 
   # Optimizer
-  optimizer:
+    optimizer:
     # Name, one of Adam or SGD
-    name: Adam
+        name: Adam
 
     # Optional, parameters of the optimizer
     # see https://pytorch.org/docs/stable/optim.html#algorithms
-    parameters:
-      lr: 0.0004
+        parameters:
+            lr: 0.0004
 
   # Learning rate scheduler
-  lr_scheduler:
+    lr_scheduler:
     # Name, one of ReduceLROnPlateau or StepLR
-    name: ReduceLROnPlateau
+        name: ReduceLROnPlateau
     # Optional, parameters of the learning rate scheduler
     # see https://pytorch.org/docs/stable/optim.html#how-to-adjust-learning-rate
-    parameters:
-      factor: 0.5
+        parameters:
+            factor: 0.5
 
   # Extraction strategy, one of random or sequential
-  extraction_strategy: random
+    extraction_strategy: random
 
   # Use augmentation (True or False)
-  augmentation: True
+    augmentation: true
 
   # Optional, use WandB (True or False), must be installed in your conda environment
-  use_wandb: False
+    use_wandb: false
 
   # Optional, number of workers for data loading, greater or equal than 0
-  num_workers: 4
+    num_workers: 4
 
   # Optional, automatic mixed precision
-  amp:
+    amp:
     # Use (True or False)
-    use: True
+        use: true
 
 data:
   # Extension of the data, one of npy, tiff and tif
-  data_format: tif
+    data_format: tif
 
   # Axes, among STCZYX with constraints on order
-  axes: ZYX
+    axes: ZYX
