@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import Dict, List, Union
+from typing import TYPE_CHECKING, Dict, List, Union
 
 import yaml
 from pydantic import (
@@ -13,10 +13,12 @@ from pydantic import (
     model_validator,
 )
 
-from .algorithm import Algorithm
 from .config_filter import paths_to_str
-from .data import Data
-from .training import Training
+
+if TYPE_CHECKING:
+    from .algorithm import Algorithm
+    from .data import Data
+    from .training import Training
 
 
 class Configuration(BaseModel):

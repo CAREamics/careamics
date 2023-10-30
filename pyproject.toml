@@ -90,10 +90,10 @@ line-length = 88
 target-version = "py38"
 src = ["src"]
 select = [
-    "E",  # style errors
-    "W",  # style warnings
-    "F",  # flakes
-    "D",  # pydocstyle
+    "E", # style errors
+    "W", # style warnings
+    "F", # flakes
+    # "D",  # pydocstyle
     "I",  # isort
     "UP", # pyupgrade
     # "S",    # bandit
@@ -101,16 +101,17 @@ select = [
     "B",    # flake8-bugbear
     "A001", # flake8-builtins
     "RUF",  # ruff-specific rules
+    "TCH",  # flake8-type-checking
 ]
 ignore = [
-    "D100", # Missing docstring in public module
-    "D107", # Missing docstring in __init__
-    "D203", # 1 blank line required before class docstring
-    "D212", # Multi-line docstring summary should start at the first line
-    "D213", # Multi-line docstring summary should start at the second line
-    "D401", # First line should be in imperative mood
-    "D413", # Missing blank line after last section
-    "D416", # Section name should end with a colon
+    # "D100", # Missing docstring in public module
+    # "D107", # Missing docstring in __init__
+    # "D203", # 1 blank line required before class docstring
+    # "D212", # Multi-line docstring summary should start at the first line
+    # "D213", # Multi-line docstring summary should start at the second line
+    # "D401", # First line should be in imperative mood
+    # "D413", # Missing blank line after last section
+    # "D416", # Section name should end with a colon
 
     # incompatibility with mypy
     "RUF005", # collection-literal-concatenation, in prediction_utils.py:30
@@ -178,7 +179,6 @@ ignore = [
     ".github_changelog_generator",
     ".pre-commit-config.yaml",
     ".ruff_cache/**/*",
-    "setup.py",
     "tests/**/*",
 ]
 
