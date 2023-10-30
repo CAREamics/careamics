@@ -6,9 +6,7 @@ import torch
 from bioimageio.core import load_resource_description
 from bioimageio.core.build_spec import build_model
 
-from ..config.config import (
-    Configuration,
-)
+from careamics.config.config import Configuration
 
 PYTORCH_STATE_DICT = "pytorch_state_dict"
 
@@ -60,18 +58,24 @@ def save_bioimage_model(
         str(config_path),
     ]
 
+    # create requirements file
+    requirements = workdir.joinpath("requirements.txt")
+    with open(requirements, "w") as f:
+        f.write("--pre\n" "careamics")
+
     algo_config = config.algorithm
     specs.update(
         {
             "weight_type": PYTORCH_STATE_DICT,
             "weight_uri": str(weight_path),
-            "architecture": "unet.py:UNet",
+            "architecture": "careamics.models.unet.UNet",
             "pytorch_version": torch.__version__,
             "model_kwargs": {
                 "conv_dim": algo_config.get_conv_dim(),
                 "depth": algo_config.model_parameters.depth,
                 "num_channels_init": algo_config.model_parameters.num_channels_init,
             },
+            "dependencies": "pip:requirements.txt",
             "attachments": {"files": attachments},
         }
     )

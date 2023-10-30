@@ -102,6 +102,7 @@ select = [
     "A001", # flake8-builtins
     "RUF",  # ruff-specific rules
     "TCH",  # flake8-type-checking
+    "TID",  # flake8-tidy-imports
 ]
 ignore = [
     # "D100", # Missing docstring in public module

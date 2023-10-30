@@ -10,8 +10,9 @@ from typing import Callable, Dict, Generator, List, Optional, Tuple, Union
 import numpy as np
 import torch
 
-from ..utils import normalize
-from ..utils.logging import get_logger
+from careamics.utils import normalize
+from careamics.utils.logging import get_logger
+
 from .dataset_utils import (
     list_files,
     read_tiff,

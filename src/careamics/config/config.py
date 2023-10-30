@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import TYPE_CHECKING, Dict, List, Union
+from typing import Dict, List, Union
 
 import yaml
 from pydantic import (
@@ -13,12 +13,11 @@ from pydantic import (
     model_validator,
 )
 
+# ignore typing-only-first-party-import in this file (flake8)
+from .algorithm import Algorithm  # noqa: TCH001
 from .config_filter import paths_to_str
-
-if TYPE_CHECKING:
-    from .algorithm import Algorithm
-    from .data import Data
-    from .training import Training
+from .data import Data  # noqa: TCH001
+from .training import Training  # noqa: TCH001
 
 
 class Configuration(BaseModel):

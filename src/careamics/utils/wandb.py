@@ -10,7 +10,7 @@ from typing import Dict, Union
 import torch
 import wandb
 
-from ..config import Configuration
+from careamics.config import Configuration
 
 
 def is_notebook() -> bool:

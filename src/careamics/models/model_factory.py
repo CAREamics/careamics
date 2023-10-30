@@ -8,10 +8,11 @@ from typing import Dict, Optional, Tuple, Union
 
 import torch
 
-from ..bioimage import import_bioimage_model
-from ..config import Configuration
-from ..config.algorithm import Models
-from ..utils.logging import get_logger
+from careamics.bioimage import import_bioimage_model
+from careamics.config import Configuration
+from careamics.config.algorithm import Models
+from careamics.utils.logging import get_logger
+
 from .unet import UNet
 
 logger = get_logger(__name__)

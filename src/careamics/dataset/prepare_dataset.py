@@ -6,9 +6,10 @@ Methods to set up the datasets for training, validation and prediction.
 from pathlib import Path
 from typing import List, Optional, Union
 
-from ..config import Configuration
-from ..manipulation import default_manipulate
-from ..utils import check_tiling_validity
+from careamics.config import Configuration
+from careamics.manipulation import default_manipulate
+from careamics.utils import check_tiling_validity
+
 from .extraction_strategy import ExtractionStrategy
 from .in_memory_dataset import InMemoryDataset
 from .tiff_dataset import TiffDataset

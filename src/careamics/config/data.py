@@ -12,7 +12,7 @@ from pydantic import (
     model_validator,
 )
 
-from ..utils import check_axes_validity
+from careamics.utils import check_axes_validity
 
 
 class SupportedExtension(str, Enum):
