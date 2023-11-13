@@ -7,10 +7,8 @@ import itertools
 from typing import Generator, List, Optional, Tuple, Union
 
 import numpy as np
+import zarr
 from skimage.util import view_as_windows
-from zarr.core import Array
-from zarr.hierarchy import Group
-from zarr.storage import DirectoryStore, MemoryStore
 
 from ..utils.logging import get_logger
 from .extraction_strategy import ExtractionStrategy
@@ -334,14 +332,9 @@ def _extract_patches_random(
     _patches_sanity_check(arr, patch_size, is_3d_patch)
 
     rng = np.random.default_rng()
-    # shuffle the array along the first axis TODO do we need shuffling?
-    if not isinstance(arr, (Array, DirectoryStore, MemoryStore, Group)):
-        rng.shuffle(arr, axis=0)
 
     for sample_idx in range(arr.shape[0]):
         sample = arr[sample_idx]
-        # TODO rewrite without for loop
-        # calculate how many number of patches can image area be divided into
         n_patches = np.ceil(np.prod(sample.shape) / np.prod(patch_size)).astype(int)
         for _ in range(n_patches):
             crop_coords = [
@@ -362,24 +355,91 @@ def _extract_patches_random(
                 .astype(np.float32)
             )
             yield patch
-    # n_patches = np.ceil(np.prod(arr.shape) / np.prod(patch_size)).astype(int)
-    # for _ in range(n_patches):
-    #     sample_idx = rng.integers(0, arr.shape[0])
-    #     crop_coords = [
-    #         rng.integers(0, arr.shape[i + 1] - patch_size[i])
-    #         for i in range(len(patch_size))
-    #     ]
-    #     patch = (
-    #         arr[sample_idx][
-    #             (
-    #                 ...,
-    #                 *[slice(c, c + patch_size[i]) for i, c in enumerate(crop_coords)],
-    #             )
-    #         ]
-    #         .copy()
-    #         .astype(np.float32)
-    #     )
-    #     yield patch
+
+
+def _extract_patches_random_chunks(
+    arr: np.ndarray,
+    patch_size: Union[List[int], Tuple[int, ...]],
+    chunk_size: Union[List[int], Tuple[int, ...]],
+    chunk_limit: Optional[int] = None,
+) -> Generator[np.ndarray, None, None]:
+    """
+    Generate patches from an array in a random manner.
+
+    The method calculates how many patches the image can be divided into and then
+    extracts an equal number of random patches.
+
+    Parameters
+    ----------
+    arr : np.ndarray
+        Input image array.
+    patch_size : Tuple[int]
+        Patch sizes in each dimension.
+    chunk_size : Tuple[int]
+        Chunk sizes to load from the.
+
+    Yields
+    ------
+    Generator[np.ndarray, None, None]
+        Generator of patches.
+    """
+    is_3d_patch = len(patch_size) == 3
+
+    # Patches sanity check
+    _patches_sanity_check(arr, patch_size, is_3d_patch)
+
+    rng = np.random.default_rng()
+    num_chunks = chunk_limit if chunk_limit else np.prod(arr._cdata_shape)
+
+    # Iterate over num chunks in the array
+    for _ in range(num_chunks):
+        chunk_crop_coords = [
+            rng.integers(0, max(0, arr.shape[i] - chunk_size[i]), endpoint=True)
+            for i in range(len(chunk_size))
+        ]
+        chunk = arr[
+            (
+                ...,
+                *[slice(c, c + chunk_size[i]) for i, c in enumerate(chunk_crop_coords)],
+            )
+        ].squeeze()
+
+        # Add a singleton dimension if the chunk does not have a sample dimension
+        if len(chunk.shape) == len(patch_size):
+            chunk = np.expand_dims(chunk, axis=0)
+        # Iterate over num samples (S)
+        for sample_idx in range(chunk.shape[0]):
+            spatial_chunk = chunk[sample_idx]
+            assert len(spatial_chunk.shape) == len(
+                patch_size
+            ), "Requested chunk shape is not equal to patch size"
+
+            n_patches = np.ceil(
+                np.prod(spatial_chunk.shape) / np.prod(patch_size)
+            ).astype(int)
+
+            # Iterate over the number of patches
+            for _ in range(n_patches):
+                patch_crop_coords = [
+                    rng.integers(
+                        0, spatial_chunk.shape[i] - patch_size[i], endpoint=True
+                    )
+                    for i in range(len(patch_size))
+                ]
+                patch = (
+                    spatial_chunk[
+                        (
+                            ...,
+                            *[
+                                slice(c, c + patch_size[i])
+                                for i, c in enumerate(patch_crop_coords)
+                            ],
+                        )
+                    ]
+                    .copy()
+                    .astype(np.float32)
+                )
+                yield patch
 
 
 def _extract_tiles(
@@ -456,7 +516,7 @@ def _extract_tiles(
 
 
 def generate_patches(
-    sample: np.ndarray,
+    sample: Union[np.ndarray, zarr.Array],
     patch_extraction_method: ExtractionStrategy,
     patch_size: Optional[Union[List[int], Tuple[int]]] = None,
     patch_overlap: Optional[Union[List[int], Tuple[int]]] = None,
@@ -506,6 +566,11 @@ def generate_patches(
 
         elif patch_extraction_method == ExtractionStrategy.RANDOM:
             patches = _extract_patches_random(sample, patch_size=patch_size)
+
+        elif patch_extraction_method == ExtractionStrategy.RANDOM_ZARR:
+            patches = _extract_patches_random_chunks(
+                sample, patch_size=patch_size, chunk_size=sample.chunks
+            )
 
         if patches is None:
             raise ValueError("No patch generated")

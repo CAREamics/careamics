@@ -3,8 +3,11 @@ Dataset preparation module.
 
 Methods to set up the datasets for training, validation and prediction.
 """
+import os
 from pathlib import Path
 from typing import List, Optional, Union
+
+import zarr
 
 from ..config import Configuration
 from ..manipulation import default_manipulate
@@ -68,10 +71,14 @@ def get_train_dataset(
                 },
             )
         elif config.data.data_format == "zarr":
+            source = zarr.DirectoryStore(train_path)
+            cache = zarr.LRUStoreCache(source, max_size=None)
+            zarr_source = zarr.group(store=cache, overwrite=False)
+
             dataset = ZarrDataset(
-                data_path=train_path,
+                data_source=zarr_source,
                 axes=config.data.axes,
-                patch_extraction_method=ExtractionStrategy.RANDOM,
+                patch_extraction_method=ExtractionStrategy.RANDOM_ZARR,
                 patch_size=config.training.patch_size,
                 mean=config.data.mean,
                 std=config.data.std,
@@ -119,10 +126,17 @@ def get_validation_dataset(config: Configuration, val_path: str) -> InMemoryData
             },
         )
     elif config.data.data_format == "zarr":
+        if '.zarray' in os.listdir(val_path):
+            zarr_source = zarr.open(val_path, mode='r')
+        else:
+            source = zarr.DirectoryStore(val_path)
+            cache = zarr.LRUStoreCache(source, max_size=None)
+            zarr.group(store=cache, overwrite=False)
+
         dataset = ZarrDataset(
-            data_path=data_path,
+            data_source=zarr_source,
             axes=config.data.axes,
-            patch_extraction_method=ExtractionStrategy.RANDOM,
+            patch_extraction_method=ExtractionStrategy.RANDOM_ZARR,
             patch_size=config.training.patch_size,
             num_patches=10,
             mean=config.data.mean,

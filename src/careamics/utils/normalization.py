@@ -3,6 +3,8 @@ Normalization submodule.
 
 These methods are used to normalize and denormalize images.
 """
+from multiprocessing import Value
+
 import numpy as np
 
 
@@ -62,21 +64,21 @@ class RunningStats:
 
     def reset(self) -> None:
         """Reset the running stats."""
-        self.sum_mean = 0
-        self.count_mean = 0
-        self.avg_mean = 0
-        self.sum_std = 0
-        self.count_std = 0
-        self.avg_std = 0
+        self.sum_mean = Value('d', 0)
+        self.count_mean = Value('i', 0)
+        self.avg_mean = Value('d', 0)
+        self.sum_std = Value('d',0)
+        self.count_std = Value('d', 0)
+        self.avg_std = Value('d', 0)
 
     def update_mean(self, value: float, n: int = 1) -> None:
         """Update running mean."""
-        self.sum_mean += value * n
-        self.count_mean += n
-        self.avg_mean = self.sum_mean / self.count_mean
+        self.sum_mean.value += value#* n
+        self.count_mean.value += n
+        self.avg_mean.value = self.sum_mean.value / self.count_mean.value
 
     def update_std(self, value: float, n: int = 1) -> None:
         """Update running std."""
-        self.sum_std += value * n
-        self.count_std += n
-        self.avg_std = self.sum_std / self.count_std
+        self.sum_std.value += value * n
+        self.count_std.value += n
+        self.avg_std.value = self.sum_std.value / self.count_std.value

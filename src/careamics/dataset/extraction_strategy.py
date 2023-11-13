@@ -17,5 +17,6 @@ class ExtractionStrategy(str, Enum):
     """
 
     RANDOM = "random"
+    RANDOM_ZARR = "random_zarr"
     SEQUENTIAL = "sequential"
     TILED = "tiled"

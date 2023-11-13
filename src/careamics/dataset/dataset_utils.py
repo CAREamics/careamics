@@ -152,7 +152,7 @@ def read_tiff(file_path: Path, axes: str) -> np.ndarray:
 
 
 def read_zarr(
-    file_path: Path, axes: str
+    zarr_source: zarr.Group, axes: str
 ) -> Union[zarr.core.Array, zarr.storage.DirectoryStore, zarr.hierarchy.Group]:
     """Reads a file and returns a pointer.
 
@@ -175,16 +175,15 @@ def read_zarr(
     ValueError
         if axes parameter from config is not consistent with data dimensions
     """
-    zarr_source = zarr.open(Path(file_path), mode="r")
+    #TODO raise warning if chunk size is larger than image size. Validate chunk size
     if isinstance(zarr_source, zarr.hierarchy.Group):
-        raise NotImplementedError("Group not supported yet")
+        array = zarr_source[0]
 
     elif isinstance(zarr_source, zarr.storage.DirectoryStore):
         raise NotImplementedError("DirectoryStore not supported yet")
 
     elif isinstance(zarr_source, zarr.core.Array):
         # array should be of shape (S, (C), (Z), Y, X), iterating over S ?
-        # TODO what if array is not of that shape and/or chunks aren't defined and
         if zarr_source.dtype == "O":
             raise NotImplementedError("Object type not supported yet")
         else:
@@ -192,7 +191,6 @@ def read_zarr(
     else:
         raise ValueError(f"Unsupported zarr object type {type(zarr_source)}")
 
-    # TODO how to fix dimensions? Or just raise error?
     # sanity check on dimensions
     if len(array.shape) < 2 or len(array.shape) > 4:
         raise ValueError(

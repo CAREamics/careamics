@@ -1,9 +1,10 @@
-from pathlib import Path
+from itertools import islice
 from typing import Callable, Dict, List, Optional, Tuple, Union
 
 import torch
+import zarr
 
-from careamics.utils import RunningStats, normalize
+from careamics.utils import RunningStats
 from careamics.utils.logging import get_logger
 
 from .dataset_utils import read_zarr
@@ -18,7 +19,7 @@ class ZarrDataset(torch.utils.data.IterableDataset):
 
     def __init__(
         self,
-        data_path: Union[str, Path],
+        data_source: Union[zarr.Group, zarr.Array],
         axes: str,
         patch_extraction_method: Union[ExtractionStrategy, None],
         patch_size: Optional[Union[List[int], Tuple[int]]] = None,
@@ -28,7 +29,7 @@ class ZarrDataset(torch.utils.data.IterableDataset):
         patch_transform: Optional[Callable] = None,
         patch_transform_params: Optional[Dict] = None,
     ) -> None:
-        self.data_path = Path(data_path)
+        self.data_source = data_source
         self.axes = axes
         self.patch_extraction_method = patch_extraction_method
         self.patch_size = patch_size
@@ -38,7 +39,7 @@ class ZarrDataset(torch.utils.data.IterableDataset):
         self.patch_transform = patch_transform
         self.patch_transform_params = patch_transform_params
 
-        self.sample = read_zarr(self.data_path, self.axes)
+        self.sample = read_zarr(self.data_source, self.axes)
         self.running_stats = RunningStats()
 
     def _generate_patches(self):
@@ -52,20 +53,19 @@ class ZarrDataset(torch.utils.data.IterableDataset):
             if self.mean is None or self.std is None:
                 self.running_stats.update_mean(patch.mean())
                 self.running_stats.update_std(patch.std())
-
             if isinstance(patch, tuple):
-                normalized_patch = normalize(
-                    img=patch[0],
-                    mean=self.running_stats.avg_mean,
-                    std=self.running_stats.avg_std,
-                )
-                patch = (normalized_patch, *patch[1:])
+                # normalized_patch = normalize(
+                #     img=patch[0],
+                #     mean=self.running_stats.avg_mean,
+                #     std=self.running_stats.avg_std,
+                # )
+                patch = (patch, *patch[1:])
             else:
-                patch = normalize(
-                    img=patch,
-                    mean=self.running_stats.avg_mean,
-                    std=self.running_stats.avg_std,
-                )
+                patch = patch  # normalize(
+                #     img=patch,
+                #     mean=self.running_stats.avg_mean,
+                #     std=self.running_stats.avg_std,
+                # )
 
             if self.patch_transform is not None:
                 assert self.patch_transform_params is not None
@@ -74,7 +74,6 @@ class ZarrDataset(torch.utils.data.IterableDataset):
                 return
             else:
                 yield patch
-
         self.mean = self.running_stats.avg_mean
         self.std = self.running_stats.avg_std
 
@@ -87,5 +86,7 @@ class ZarrDataset(torch.utils.data.IterableDataset):
         np.ndarray
         """
         # TODO: add support for multiple files/zarr groups
-
-        yield from self._generate_patches()
+        worker_info = torch.utils.data.get_worker_info()
+        num_workers = worker_info.num_workers if worker_info is not None else 1
+        yield from islice(self._generate_patches(), 0, None, num_workers)
+        # yield from self._generate_patches()

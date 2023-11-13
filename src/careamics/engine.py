@@ -206,6 +206,13 @@ class Engine:
         else:
             raise ValueError("Configuration is not defined.")
 
+    def _prepare_for_training(self, batch, auxillary, *args) -> None:
+        """Apply normalization to batch and auxillary data."""
+        mean, std = args
+        batch = normalize(batch, mean=mean, std=std)
+        auxillary[0] = normalize(auxillary[0], mean=mean, std=mean)
+        return batch, auxillary
+
     def train(
         self,
         train_path: str,
@@ -272,11 +279,13 @@ class Engine:
                     mode="train",
                 )
                 # Perform training step
+                # tracer.start()
                 train_outputs, epoch_size = self._train_single_epoch(
                     train_loader,
                     progress_bar,
                     self.cfg.training.amp.use,
                 )
+
                 # Perform validation step
                 eval_outputs = self._evaluate(eval_loader)
                 val_losses.append(eval_outputs["loss"])
@@ -348,9 +357,16 @@ class Engine:
             for i, (batch, *auxillary) in enumerate(loader):
                 self.optimizer.zero_grad(set_to_none=True)
 
+                # Normalize batch and auxillary data
+                # batch, auxillary = self._prepare_for_training(
+                #     batch,
+                #     auxillary,
+                #     loader.dataset.running_stats.avg_mean.value,
+                #     loader.dataset.running_stats.avg_std.value,
+                # )
+                # #Get prediction and loss
                 with torch.cuda.amp.autocast(enabled=amp):
                     outputs = self.model(batch.to(self.device))
-
                 loss = self.loss_func(
                     outputs, *[a.to(self.device) for a in auxillary], self.device
                 )
@@ -388,6 +404,15 @@ class Engine:
 
         with torch.no_grad():
             for patch, *auxillary in val_loader:
+
+                # Normalize batch and auxillary data
+                # patch, auxillary = self._prepare_for_training(
+                #     patch,
+                #     auxillary,
+                #     val_loader.dataset.running_stats.avg_mean.value,
+                #     val_loader.dataset.running_stats.avg_std.value,
+                # )
+
                 outputs = self.model(patch.to(self.device))
                 loss = self.loss_func(
                     outputs, *[a.to(self.device) for a in auxillary], self.device
@@ -615,7 +640,7 @@ class Engine:
             dataset,
             batch_size=self.cfg.training.batch_size,
             num_workers=self.cfg.training.num_workers,
-            pin_memory=True,
+            pin_memory=False,
         )
         return dataloader
 

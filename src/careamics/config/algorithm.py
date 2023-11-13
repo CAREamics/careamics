@@ -18,6 +18,7 @@ class Loss(str, Enum):
     """
 
     N2V = "n2v"
+    N2N = "n2n"
 
 
 class Models(str, Enum):
