@@ -206,13 +206,6 @@ class Engine:
         else:
             raise ValueError("Configuration is not defined.")
 
-    def _prepare_for_training(self, batch, auxillary, *args) -> None:
-        """Apply normalization to batch and auxillary data."""
-        mean, std = args
-        batch = normalize(batch, mean=mean, std=std)
-        auxillary[0] = normalize(auxillary[0], mean=mean, std=mean)
-        return batch, auxillary
-
     def train(
         self,
         train_path: str,
@@ -244,16 +237,9 @@ class Engine:
         if self.cfg is None:
             raise ValueError("Configuration is not defined, cannot train.")
 
-        # General func
         train_loader = self._get_train_dataloader(train_path)
-
-        # Set mean and std from train dataset of none
-        if self.cfg.data.mean is None or self.cfg.data.std is None:
-            self.cfg.data.set_mean_and_std(
-                train_loader.dataset.mean, train_loader.dataset.std
-            )
-
         eval_loader = self._get_val_dataloader(val_path)
+
         self.logger.info(f"Starting training for {self.cfg.training.num_epochs} epochs")
 
         val_losses = []
@@ -316,6 +302,13 @@ class Engine:
                 checkpoint_path = self._save_checkpoint(epoch, val_losses, "state_dict")
                 self.logger.info(f"Saved checkpoint to {checkpoint_path}")
 
+            # Set mean and std from train dataset
+            self.cfg.data.set_mean_and_std(
+                train_loader.dataset.mean, train_loader.dataset.std
+            )
+            self.logger.info(
+                f"Set mean/std to {train_loader.dataset.mean}, {train_loader.dataset.std}"
+            )
         except KeyboardInterrupt:
             self.logger.info("Training interrupted")
 
@@ -357,14 +350,7 @@ class Engine:
             for i, (batch, *auxillary) in enumerate(loader):
                 self.optimizer.zero_grad(set_to_none=True)
 
-                # Normalize batch and auxillary data
-                # batch, auxillary = self._prepare_for_training(
-                #     batch,
-                #     auxillary,
-                #     loader.dataset.running_stats.avg_mean.value,
-                #     loader.dataset.running_stats.avg_std.value,
-                # )
-                # #Get prediction and loss
+                # Get prediction and loss
                 with torch.cuda.amp.autocast(enabled=amp):
                     outputs = self.model(batch.to(self.device))
                 loss = self.loss_func(
@@ -404,14 +390,6 @@ class Engine:
 
         with torch.no_grad():
             for patch, *auxillary in val_loader:
-
-                # Normalize batch and auxillary data
-                # patch, auxillary = self._prepare_for_training(
-                #     patch,
-                #     auxillary,
-                #     val_loader.dataset.running_stats.avg_mean.value,
-                #     val_loader.dataset.running_stats.avg_std.value,
-                # )
 
                 outputs = self.model(patch.to(self.device))
                 loss = self.loss_func(
@@ -641,6 +619,7 @@ class Engine:
             batch_size=self.cfg.training.batch_size,
             num_workers=self.cfg.training.num_workers,
             pin_memory=False,
+            # prefetch_factor=8,
         )
         return dataloader
 

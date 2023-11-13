@@ -4,7 +4,6 @@ from typing import Tuple
 import numpy as np
 
 
-# TODO: unused?
 def _flip_and_rotate(
     image: np.ndarray, rotate_state: int, flip_state: int
 ) -> np.ndarray:

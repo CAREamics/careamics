@@ -71,9 +71,12 @@ def get_train_dataset(
                 },
             )
         elif config.data.data_format == "zarr":
-            source = zarr.DirectoryStore(train_path)
-            cache = zarr.LRUStoreCache(source, max_size=None)
-            zarr_source = zarr.group(store=cache, overwrite=False)
+            if '.zarray' in os.listdir(train_path):
+                zarr_source = zarr.open(train_path, mode='r')
+            else:
+                source = zarr.DirectoryStore(train_path)
+                cache = zarr.LRUStoreCache(source, max_size=None)
+                zarr_source = zarr.group(store=cache, overwrite=False)
 
             dataset = ZarrDataset(
                 data_source=zarr_source,
@@ -131,7 +134,7 @@ def get_validation_dataset(config: Configuration, val_path: str) -> InMemoryData
         else:
             source = zarr.DirectoryStore(val_path)
             cache = zarr.LRUStoreCache(source, max_size=None)
-            zarr.group(store=cache, overwrite=False)
+            zarr_source = zarr.group(store=cache, overwrite=False)
 
         dataset = ZarrDataset(
             data_source=zarr_source,
@@ -205,16 +208,42 @@ def get_prediction_dataset(
         patch_extraction_method = None
 
     # Create dataset
-    dataset = TiffDataset(
-        data_path=pred_path,
-        data_format=config.data.data_format,
-        axes=config.data.axes if axes is None else axes,  # supersede axes
-        mean=config.data.mean,
-        std=config.data.std,
-        patch_size=tile_shape,
-        patch_overlap=overlaps,
-        patch_extraction_method=patch_extraction_method,
-        patch_transform=None,
-    )
+    if config.data.data_format in ["tif", "tiff"]:
+        dataset = TiffDataset(
+            data_path=pred_path,
+            data_format=config.data.data_format,
+            axes=config.data.axes if axes is None else axes,  # supersede axes
+            mean=config.data.mean,
+            std=config.data.std,
+            patch_size=tile_shape,
+            patch_overlap=overlaps,
+            patch_extraction_method=patch_extraction_method,
+            patch_transform=None,
+        )
+    elif config.data.data_format == "zarr":
+        if '.zarray' in os.listdir(pred_path):
+            zarr_source = zarr.open(pred_path, mode='r')
+        else:
+            source = zarr.DirectoryStore(pred_path)
+            cache = zarr.LRUStoreCache(source, max_size=None)
+            zarr_source = zarr.group(store=cache, overwrite=False)
+
+        dataset = ZarrDataset(
+            data_source=zarr_source,
+            axes=config.data.axes,
+            patch_extraction_method=ExtractionStrategy.RANDOM_ZARR,
+            patch_size=config.training.patch_size,
+            num_patches=10,
+            mean=config.data.mean,
+            std=config.data.std,
+            patch_transform=default_manipulate,
+            patch_transform_params={
+                "mask_pixel_percentage": config.algorithm.masked_pixel_percentage,
+                "roi_size": config.algorithm.roi_size,
+            },
+            mode="predict",
+        )
+
+    return dataset
 
     return dataset

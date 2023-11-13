@@ -357,8 +357,8 @@ def _extract_patches_random(
             yield patch
 
 
-def _extract_patches_random_chunks(
-    arr: np.ndarray,
+def _extract_patches_random_from_chunks(
+    arr: zarr.Array,
     patch_size: Union[List[int], Tuple[int, ...]],
     chunk_size: Union[List[int], Tuple[int, ...]],
     chunk_limit: Optional[int] = None,
@@ -568,7 +568,7 @@ def generate_patches(
             patches = _extract_patches_random(sample, patch_size=patch_size)
 
         elif patch_extraction_method == ExtractionStrategy.RANDOM_ZARR:
-            patches = _extract_patches_random_chunks(
+            patches = _extract_patches_random_from_chunks(
                 sample, patch_size=patch_size, chunk_size=sample.chunks
             )
 

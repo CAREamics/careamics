@@ -67,8 +67,8 @@ class RunningStats:
         self.sum_mean = Value('d', 0)
         self.count_mean = Value('i', 0)
         self.avg_mean = Value('d', 0)
-        self.sum_std = Value('d',0)
-        self.count_std = Value('d', 0)
+        self.sum_std = Value('d', 0)
+        self.count_std = Value('i', 0)
         self.avg_std = Value('d', 0)
 
     def update_mean(self, value: float, n: int = 1) -> None:
@@ -79,6 +79,6 @@ class RunningStats:
 
     def update_std(self, value: float, n: int = 1) -> None:
         """Update running std."""
-        self.sum_std.value += value * n
+        self.sum_std.value += value
         self.count_std.value += n
         self.avg_std.value = self.sum_std.value / self.count_std.value
