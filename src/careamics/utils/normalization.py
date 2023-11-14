@@ -4,6 +4,7 @@ Normalization submodule.
 These methods are used to normalize and denormalize images.
 """
 from multiprocessing import Value
+from typing import Tuple
 
 import numpy as np
 
@@ -64,21 +65,30 @@ class RunningStats:
 
     def reset(self) -> None:
         """Reset the running stats."""
-        self.sum_mean = Value('d', 0)
-        self.count_mean = Value('i', 0)
         self.avg_mean = Value('d', 0)
-        self.sum_std = Value('d', 0)
-        self.count_std = Value('i', 0)
         self.avg_std = Value('d', 0)
+        self.m2 = Value('d', 0)
+        self.count = Value('i', 0)
 
-    def update_mean(self, value: float, n: int = 1) -> None:
-        """Update running mean."""
-        self.sum_mean.value += value#* n
-        self.count_mean.value += n
-        self.avg_mean.value = self.sum_mean.value / self.count_mean.value
+    def init(self, mean: float, std: float) -> None:
+        """Initialize running stats."""
+        with self.avg_mean.get_lock():
+            self.avg_mean.value += mean
+        with self.avg_std.get_lock():
+            self.avg_std.value = std
 
-    def update_std(self, value: float, n: int = 1) -> None:
+    def compute_std(self) -> Tuple[float, float]:
+        """Compute mean and std."""
+        if self.count.value >= 2:
+            self.avg_std.value = np.sqrt(self.m2.value / self.count.value)
+
+    def update(self, value: float) -> None:
         """Update running std."""
-        self.sum_std.value += value
-        self.count_std.value += n
-        self.avg_std.value = self.sum_std.value / self.count_std.value
+        with self.count.get_lock():
+            self.count.value += 1
+        delta = value - self.avg_mean.value
+        with self.avg_mean.get_lock():
+            self.avg_mean.value += delta / self.count.value
+        delta2 = value - self.avg_mean.value
+        with self.m2.get_lock():
+            self.m2.value += delta * delta2

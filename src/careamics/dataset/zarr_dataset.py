@@ -30,7 +30,7 @@ class ZarrDataset(torch.utils.data.IterableDataset):
         std: Optional[float] = None,
         patch_transform: Optional[Callable] = None,
         patch_transform_params: Optional[Dict] = None,
-        running_stats_window: float = 0.01,
+        running_stats_window_perc: float = 0.01,
         mode: str = "train",
     ) -> None:
         self.data_source = data_source
@@ -42,10 +42,11 @@ class ZarrDataset(torch.utils.data.IterableDataset):
         self.std = std
         self.patch_transform = patch_transform
         self.patch_transform_params = patch_transform_params
-        self.running_stats_window = running_stats_window
-        self.mode = mode
-
         self.sample = read_zarr(self.data_source, self.axes)
+        self.running_stats_window = int(
+            np.prod(self.sample._cdata_shape) * running_stats_window_perc
+        )
+        self.mode = mode
         self.running_stats = RunningStats()
 
         self._calculate_initial_mean_std()
@@ -55,14 +56,14 @@ class ZarrDataset(torch.utils.data.IterableDataset):
             idxs = np.random.randint(
                 0,
                 np.prod(self.sample._cdata_shape),
-                size=max(
-                    1,
-                    int(np.prod(self.sample._cdata_shape) * self.running_stats_window),
-                ),
+                size=max(1, self.running_stats_window),
             )
             random_chunks = self.sample[idxs]
-            self.running_stats.update_mean(random_chunks.mean())
-            self.running_stats.update_std(random_chunks.std())
+            # self.running_stats.init(random_chunks.mean(), random_chunks.std())
+
+    def _update_mean_std(self, patch):
+        self.running_stats.update_mean(patch.mean())
+        self.running_stats.update_var(patch.var())
 
     def _generate_patches(self):
         patches = generate_patches(
@@ -71,10 +72,14 @@ class ZarrDataset(torch.utils.data.IterableDataset):
             self.patch_size,
         )
 
+        # num_patches = np.ceil(
+        #     np.prod(self.sample.chunks)
+        #     / (np.prod(self.patch_size) * self.running_stats_window)
+        # ).astype(int)
+
         for idx, patch in enumerate(patches):
             if self.mode != "predict":
-                self.running_stats.update_mean(patch.mean())
-                self.running_stats.update_std(patch.std())
+                self.running_stats.update(patch.mean())
             if isinstance(patch, tuple):
                 normalized_patch = normalize(
                     img=patch[0],
@@ -95,8 +100,13 @@ class ZarrDataset(torch.utils.data.IterableDataset):
             if self.num_patches is not None and idx >= self.num_patches:
                 return
             else:
-                print("mean", self.running_stats.avg_mean.value, "std", self.running_stats.avg_std.value)
                 yield patch
+        print(
+            "mean",
+            self.running_stats.avg_mean.value,
+            "std",
+            self.running_stats.avg_std.value,
+        )
         self.mean = self.running_stats.avg_mean.value
         self.std = self.running_stats.avg_std.value
 
