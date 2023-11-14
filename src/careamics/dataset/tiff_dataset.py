@@ -63,37 +63,6 @@ class TiffDataset(torch.utils.data.IterableDataset):
         patch_transform: Optional[Callable] = None,
         patch_transform_params: Optional[Dict] = None,
     ) -> None:
-        """
-        Constructor.
-
-        Parameters
-        ----------
-        data_path : Union[str, Path]
-            Path to the data, must be a directory.
-        data_format : str
-            Extension of the files to load, without the period.
-        axes : str
-            Description of axes in format STCZYX.
-        patch_extraction_method : Union[ExtractionStrategies, None]
-            Patch extraction strategy, as defined in extraction_strategy.
-        patch_size : Optional[Union[List[int], Tuple[int]]], optional
-            Size of the patches in each dimension, by default None.
-        patch_overlap : Optional[Union[List[int], Tuple[int]]], optional
-            Overlap of the patches in each dimension, by default None.
-        mean : Optional[float], optional
-            Mean of the dataset, by default None.
-        std : Optional[float], optional
-            Standard deviation of the dataset, by default None.
-        patch_transform : Optional[Callable], optional
-            Patch transform callable, by default None.
-        patch_transform_params : Optional[Dict], optional
-            Patch transform parameters, by default None.
-
-        Raises
-        ------
-        ValueError
-            If data_path is not a directory.
-        """
         self.data_path = Path(data_path)
         if not self.data_path.is_dir():
             raise ValueError("Path to data should be an existing folder.")

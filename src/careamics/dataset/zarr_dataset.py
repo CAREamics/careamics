@@ -17,7 +17,34 @@ logger = get_logger(__name__)
 
 
 class ZarrDataset(torch.utils.data.IterableDataset):
-    """Dataset to extract patches from a zarr storage."""
+    """Dataset to extract patches from a zarr storage.
+
+    Parameters
+    ----------
+    data_source : Union[zarr.Group, zarr.Array]
+        Zarr storage.
+    axes : str
+        Description of axes in format STCZYX.
+    patch_extraction_method : Union[ExtractionStrategies, None]
+        Patch extraction strategy, as defined in extraction_strategy.
+    patch_size : Optional[Union[List[int], Tuple[int]]], optional
+        Size of the patches in each dimension, by default None.
+    num_patches : Optional[int], optional
+        Number of patches to extract, by default None.
+    mean : Optional[float], optional
+        Expected mean of the dataset, by default None.
+    std : Optional[float], optional
+        Expected standard deviation of the dataset, by default None.
+    patch_transform : Optional[Callable], optional
+        Patch transform callable, by default None.
+    patch_transform_params : Optional[Dict], optional
+        Patch transform parameters, by default None.
+    running_stats_window_perc : float, optional
+        Percentage of the dataset to use for calculating the initial mean and standard
+        deviation, by default 0.01.
+    mode : str, optional
+        train/predict, controls running stats calculation.
+    """
 
     def __init__(
         self,
@@ -52,6 +79,7 @@ class ZarrDataset(torch.utils.data.IterableDataset):
         self._calculate_initial_mean_std()
 
     def _calculate_initial_mean_std(self):
+        """Calculate initial mean and std of the dataset."""
         if self.mean is None and self.std is None:
             idxs = np.random.randint(
                 0,
@@ -61,11 +89,14 @@ class ZarrDataset(torch.utils.data.IterableDataset):
             random_chunks = self.sample[idxs]
             self.running_stats.init(random_chunks.mean(), random_chunks.std())
 
-    def _update_mean_std(self, patch):
-        self.running_stats.update_mean(patch.mean())
-        self.running_stats.update_var(patch.var())
-
     def _generate_patches(self):
+        """Generate patches from the dataset and calculates running stats.
+
+        Yields
+        ------
+        np.ndarray
+            Patch.
+        """
         patches = generate_patches(
             self.sample,
             self.patch_extraction_method,

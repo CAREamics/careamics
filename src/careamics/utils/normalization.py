@@ -78,12 +78,12 @@ class RunningStats:
             self.avg_std.value = std
 
     def compute_std(self) -> Tuple[float, float]:
-        """Compute mean and std."""
+        """Compute std."""
         if self.count.value >= 2:
             self.avg_std.value = np.sqrt(self.m2.value / self.count.value)
 
     def update(self, value: float) -> None:
-        """Update running std."""
+        """Update running stats."""
         with self.count.get_lock():
             self.count.value += 1
         delta = value - self.avg_mean.value
