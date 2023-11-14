@@ -101,12 +101,6 @@ class ZarrDataset(torch.utils.data.IterableDataset):
                 return
             else:
                 yield patch
-        print(
-            "mean",
-            self.running_stats.avg_mean.value,
-            "std",
-            self.running_stats.avg_std.value,
-        )
         self.mean = self.running_stats.avg_mean.value
         self.std = self.running_stats.avg_std.value
 
