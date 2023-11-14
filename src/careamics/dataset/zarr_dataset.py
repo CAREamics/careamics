@@ -59,7 +59,7 @@ class ZarrDataset(torch.utils.data.IterableDataset):
                 size=max(1, self.running_stats_window),
             )
             random_chunks = self.sample[idxs]
-            # self.running_stats.init(random_chunks.mean(), random_chunks.std())
+            self.running_stats.init(random_chunks.mean(), random_chunks.std())
 
     def _update_mean_std(self, patch):
         self.running_stats.update_mean(patch.mean())
