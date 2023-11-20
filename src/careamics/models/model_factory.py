@@ -10,7 +10,7 @@ import torch
 
 from ..bioimage import import_bioimage_model
 from ..config import Configuration
-from ..config.algorithm import Models
+from ..config.algorithm import Model
 from ..utils.logging import get_logger
 from .unet import UNet
 
@@ -38,7 +38,7 @@ def model_registry(model_name: str) -> torch.nn.Module:
     NotImplementedError
         If the requested model is not implemented.
     """
-    if model_name == Models.UNET:
+    if model_name == Model.UNET:
         return UNet
     else:
         raise NotImplementedError(f"Model {model_name} is not implemented")

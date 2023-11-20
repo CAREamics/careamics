@@ -1,6 +1,16 @@
 import pytest
 
 from careamics.config.algorithm import Algorithm, ModelParameters
+from careamics.config.noise_models import NoiseModel
+
+
+def test_algorithm_noise_model():
+    d = {
+        "model_type": "hist",
+        "parameters": {"min_value": 324, "max_value": 3465},
+    }
+
+    NoiseModel(**d)
 
 
 @pytest.mark.parametrize("depth", [1, 5, 10])

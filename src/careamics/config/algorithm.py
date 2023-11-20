@@ -1,10 +1,12 @@
 """Algorithm configuration."""
 from enum import Enum
-from typing import Dict, List
+from typing import Dict, List, Optional
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, FieldValidationInfo, field_validator, computed_field
 
 from .config_filter import remove_default_optionals
+from .models import Model
+from .noise_models import NoiseModel
 
 
 # python 3.11: https://docs.python.org/3/library/enum.html
@@ -19,17 +21,7 @@ class Loss(str, Enum):
 
     N2V = "n2v"
     N2N = "n2n"
-
-
-class Models(str, Enum):
-    """
-    Available models.
-
-    Currently supported models:
-        - UNet: U-Net model.
-    """
-
-    UNET = "UNet"
+    PN2V = "pn2v"
 
 
 class MaskingStrategy(str, Enum):
@@ -146,10 +138,11 @@ class Algorithm(BaseModel):
 
     # Mandatory fields
     loss: Loss
-    model: Models
+    model: Model
     is_3D: bool
 
     # Optional fields, define a default value
+    noise_model: Optional[NoiseModel] = None
     masking_strategy: MaskingStrategy = MaskingStrategy.DEFAULT
     masked_pixel_percentage: float = Field(default=0.2, ge=0.1, le=20)
     roi_size: int = Field(default=11, ge=3, le=21)
@@ -165,6 +158,29 @@ class Algorithm(BaseModel):
             Dimension (2 or 3).
         """
         return 3 if self.is_3D else 2
+
+    @computed_field
+    def get_noise_model(
+        self, noise_model: Dict, info: FieldValidationInfo
+    ) -> Dict:
+        """
+        Validate noise model.
+
+        Returns
+        -------
+        Dict
+            Validated noise model.
+        """
+        # TODO validate noise model
+        if "noise_model_type" not in info.data:
+            raise ValueError("Noise model is missing.")
+
+        noise_model_type = info.data["noise_model_type"]
+
+        if noise_model is not None:
+            _ = NoiseModel.get_noise_model(noise_model_type, noise_model)
+
+        return noise_model
 
     @field_validator("roi_size")
     def even(cls, roi_size: int) -> int:
