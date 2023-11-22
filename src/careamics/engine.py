@@ -6,7 +6,7 @@ a model and using it for prediction.
 """
 from logging import FileHandler
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Type, Union
 
 import numpy as np
 import torch
@@ -23,7 +23,7 @@ from .dataset.prepare_dataset import (
     get_train_dataset,
     get_validation_dataset,
 )
-from .losses import create_loss_function
+from .losses import create_loss_function, create_noise_model
 from .models import create_model
 from .prediction import (
     stitch_prediction,
@@ -169,6 +169,8 @@ class Engine:
         if self.cfg is not None:
             self.loss_func = create_loss_function(self.cfg)
 
+            self.noise_model_blank = create_noise_model(self.cfg)
+
             # Set logging
             log_path = self.cfg.working_directory / "log.txt"
             self.logger = get_logger(__name__, log_path=log_path)
@@ -237,6 +239,11 @@ class Engine:
         if self.cfg is None:
             raise ValueError("Configuration is not defined, cannot train.")
 
+        if self.noise_model_blank is not None:
+            self.noise_model = self.noise_model_blank(
+                **self.cfg.algorithm.noise_model.parameters
+            )
+
         train_loader = self._get_train_dataloader(train_path)
         eval_loader = self._get_val_dataloader(val_path)
 
@@ -265,7 +272,6 @@ class Engine:
                     mode="train",
                 )
                 # Perform training step
-                # tracer.start()
                 train_outputs, epoch_size = self._train_single_epoch(
                     train_loader,
                     progress_bar,
@@ -317,7 +323,7 @@ class Engine:
     def _train_single_epoch(
         self,
         loader: torch.utils.data.DataLoader,
-        progress_bar: ProgressBar,
+        progress_bar: Type[ProgressBar],
         amp: bool,
     ) -> Tuple[Dict[str, float], int]:
         """
@@ -390,7 +396,6 @@ class Engine:
 
         with torch.no_grad():
             for patch, *auxillary in val_loader:
-
                 outputs = self.model(patch.to(self.device))
                 loss = self.loss_func(
                     outputs, *[a.to(self.device) for a in auxillary], self.device
@@ -477,7 +482,7 @@ class Engine:
         return prediction
 
     def _predict_tiled(
-        self, pred_loader: DataLoader, progress_bar: ProgressBar, tta: bool = True
+        self, pred_loader: DataLoader, progress_bar: Type[ProgressBar], tta: bool = True
     ) -> Union[np.ndarray, List[np.ndarray]]:
         """
         Predict using tiling.
@@ -550,7 +555,7 @@ class Engine:
             return prediction
 
     def _predict_full(
-        self, pred_loader: DataLoader, progress_bar: ProgressBar, tta: bool = True
+        self, pred_loader: DataLoader, progress_bar: type[ProgressBar], tta: bool = True
     ) -> np.ndarray:
         """
         Predict whole image without tiling.

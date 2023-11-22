@@ -3,6 +3,8 @@
 ############################################
 
 
+from abc import ABC, abstractmethod
+
 import numpy as np
 import torch
 
@@ -11,68 +13,24 @@ from ..utils.logging import get_logger
 logger = get_logger(__name__)
 
 
-def create_histogram(bins, min_value, max_value, observation, signal):
-    """
-    Creates a nD histogram from 'observation' and 'signal'.
+class NoiseModel(ABC):
+    """Base class for noise models."""
 
-    Parameters
-    ----------
-    bins: int
-        The number of bins in all dimensions. The total number of bins is
-        'bins' ** number_of_dimensions.
-    min_value: float
-        the lower bound of the lowest bin.
-    max_value: float
-        the highest bound of the highest bin.
-    observation: np.array
-        A stack of noisy images. The number has to be divisible by the number of images
-        in signal. N subsequent images in observation belong to one image in signal.
-    signal: np.array
-        A stack of clean images.
+    @abstractmethod
+    def instantiate(self):
+        """Instantiate the noise model.
 
-    Returns
-    -------
-    histogram: numpy array
-        A 3D array:
-        'histogram[0,...]' holds the normalized nD counts.
-        Each row sums to 1, describing p(x_i|s_i).
-        'histogram[1,...]' holds the lower boundaries of each bin in y.
-        'histogram[2,...]' holds the upper boundaries of each bin in y.
-        The values for x can be obtained by transposing 'histogram[1,...]'
-        and 'histogram[2,...]'.
-    """
-    img_factor = int(observation.shape[0] / signal.shape[0])
-    histogram = np.zeros((3, bins, bins))
-    value_range = [min_value, max_value]
+        Method that should produce ready to use noise model.
+        """
+        pass
 
-    for i in range(observation.shape[0]):
-        observation_i = observation[i].copy().ravel()
-
-        signal_i = (signal[i // img_factor].copy()).ravel()
-
-        histogram_i = np.histogramdd(
-            (signal_i, observation_i), bins=bins, range=[value_range, value_range]
-        )
-        # Adding a constant for numerical stability
-        histogram[0] = histogram[0] + histogram_i[0] + 1e-30
-
-    for i in range(bins):
-        # Exclude empty rows from normalization
-        if np.sum(histogram[0, i, :]) > 1e-20:
-            # Normalize each non-empty row
-            histogram[0, i, :] /= np.sum(histogram[0, i, :])
-
-    for i in range(bins):
-        # The lower boundaries of each bin in y are stored in dimension 1
-        histogram[1, :, i] = histogram_i[1][:-1]
-        # The upper boundaries of each bin in y are stored in dimension 2
-        histogram[2, :, i] = histogram_i[1][1:]
-        # The accordent numbers for x are just transposed.
-
-    return histogram
+    @abstractmethod
+    def likelihood(self, observations, signals):
+        """Function that returns the likelihood of observations given the signals."""
+        pass
 
 
-class HistogramNoiseModel:
+class HistogramNoiseModel(NoiseModel):
     """Creates a NoiseModel object.
 
     Parameters
@@ -83,23 +41,68 @@ class HistogramNoiseModel:
             The device your NoiseModel lives on, e.g. your GPU.
     """
 
-    def __init__(self, histogram, device):
-        self.device = device
+    def __init__(self, **kwargs):
+        a = kwargs
 
-        # The number of bins is the same in x and y
-        bins = histogram.shape[1]
+    def instantiate(self, bins, min_value, max_value, observation, signal):
+        """Creates a nD histogram from 'observation' and 'signal'.
 
-        # The lower boundaries of each bin in y are stored in dimension 1
-        self.minv = np.min(histogram[1, ...])
+        Parameters
+        ----------
+        bins: int
+            The number of bins in all dimensions. The total number of bins is
+            'bins' ** number_of_dimensions.
+        min_value: float
+            the lower bound of the lowest bin.
+        max_value: float
+            the highest bound of the highest bin.
+        observation: np.array
+            A stack of noisy images. The number has to be divisible by the number of
+            images in signal. N subsequent images in observation belong to one image
+            in the signal.
+        signal: np.array
+            A stack of clean images.
 
-        # The upper boundaries of each bin in y are stored in dimension 2
-        self.maxv = np.max(histogram[2, ...])
+        Returns
+        -------
+        histogram: numpy array
+            A 3D array:
+            'histogram[0,...]' holds the normalized nD counts.
+            Each row sums to 1, describing p(x_i|s_i).
+            'histogram[1,...]' holds the lower boundaries of each bin in y.
+            'histogram[2,...]' holds the upper boundaries of each bin in y.
+            The values for x can be obtained by transposing 'histogram[1,...]'
+            and 'histogram[2,...]'.
+        """
+        img_factor = int(observation.shape[0] / signal.shape[0])
+        histogram = np.zeros((3, bins, bins))
+        value_range = [min_value, max_value]
 
-        # move everything to GPU
-        self.bins = torch.Tensor(np.array(float(bins))).to(self.device)
-        self.fullHist = torch.Tensor(histogram[0, ...].astype(np.float32)).to(
-            self.device
-        )
+        for i in range(observation.shape[0]):
+            observation_i = observation[i].copy().ravel()
+
+            signal_i = (signal[i // img_factor].copy()).ravel()
+
+            histogram_i = np.histogramdd(
+                (signal_i, observation_i), bins=bins, range=[value_range, value_range]
+            )
+            # Adding a constant for numerical stability
+            histogram[0] = histogram[0] + histogram_i[0] + 1e-30
+
+        for i in range(bins):
+            # Exclude empty rows from normalization
+            if np.sum(histogram[0, i, :]) > 1e-20:
+                # Normalize each non-empty row
+                histogram[0, i, :] /= np.sum(histogram[0, i, :])
+
+        for i in range(bins):
+            # The lower boundaries of each bin in y are stored in dimension 1
+            histogram[1, :, i] = histogram_i[1][:-1]
+            # The upper boundaries of each bin in y are stored in dimension 2
+            histogram[2, :, i] = histogram_i[1][1:]
+            # The accordent numbers for x are just transposed.
+
+        return histogram
 
     def likelihood(self, observed, signal):
         """Calculate the likelihood using a histogram based noise model.
@@ -170,7 +173,7 @@ class HistogramNoiseModel:
         )
 
 
-class GaussianMixtureNoiseModel:
+class GaussianMixtureNoiseModel(NoiseModel):
     """Describes a noise model parameterized as a mixture of gaussians.
 
     If you would like to initialize a new object from scratch, then set `params` =  None

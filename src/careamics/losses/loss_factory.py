@@ -47,7 +47,7 @@ def create_loss_function(config: Configuration) -> Callable:
 
 def create_noise_model(
     config: Configuration,
-) -> Type[Union[HistogramNoiseModel, GaussianMixtureNoiseModel]]:
+) -> Type[Union[HistogramNoiseModel, GaussianMixtureNoiseModel, None]]:
     """Create loss model based on Configuration.
 
     Parameters
@@ -64,13 +64,20 @@ def create_noise_model(
     NotImplementedError
         If the noise model is unknown.
     """
-    noise_model_type = config.algorithm.noise_model.model_type
+    noise_model_type = (
+        config.algorithm.noise_model.model_type
+        if config.algorithm.noise_model
+        else None
+    )
 
     if noise_model_type == NoiseModelType.HIST:
         return HistogramNoiseModel
 
     elif noise_model_type == NoiseModelType.GMM:
         return GaussianMixtureNoiseModel
+
+    elif noise_model_type is None:
+        return None
 
     else:
         raise NotImplementedError(

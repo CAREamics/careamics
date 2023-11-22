@@ -5,12 +5,12 @@ from careamics.config.noise_models import NoiseModel
 
 
 def test_algorithm_noise_model():
-    d = {
+    d = {"noise_model": {
         "model_type": "hist",
         "parameters": {"min_value": 324, "max_value": 3465},
-    }
+    }, "loss": "n2v", "model": "unet", "is_3D": False}
 
-    NoiseModel(**d)
+    Algorithm(**d)
 
 
 @pytest.mark.parametrize("depth", [1, 5, 10])

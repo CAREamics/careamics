@@ -13,8 +13,21 @@ algorithm:
   loss: n2v
 
   # Model, currently only UNet is supported
-  model: UNet
-
+  model: 
+    architecture: UNet
+    # Depth betwen 1 and 10
+    depth: 2
+    # Number of filters of the first level, must be divisible by 2
+    num_filter_base: 32
+  
+  # Noise model, Histogram or GMM
+  noise_model: 
+    type: hist
+    parameters:
+      min_value: 350
+      max_value: 6500
+      bins: 256
+  
   # Dimensions 2D (False) or 3D (True)
   is_3D: False
 
@@ -23,11 +36,6 @@ algorithm:
   # Optional, percentage of masked pixel per patch (between 0.1 and 20%)
   masked_pixel_percentage: 0.2
   # Optional, parameters of the model
-  model_parameters:
-    # Depth betwen 1 and 10
-    depth: 2
-    # Number of filters of the first level, must be divisible by 2
-    num_filter_base: 32
 
 training:
   # Number of epochs, greater or equal than 1

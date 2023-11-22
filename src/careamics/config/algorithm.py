@@ -1,8 +1,17 @@
 """Algorithm configuration."""
+from __future__ import annotations
+
 from enum import Enum
 from typing import Dict, List, Optional
 
-from pydantic import BaseModel, ConfigDict, Field, FieldValidationInfo, field_validator, computed_field
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    ValidationInfo,
+    field_validator,
+    model_validator,
+)
 
 from .config_filter import remove_default_optionals
 from .models import Model
@@ -22,6 +31,7 @@ class Loss(str, Enum):
     N2V = "n2v"
     N2N = "n2n"
     PN2V = "pn2v"
+    HDN = "hdn"
 
 
 class MaskingStrategy(str, Enum):
@@ -159,10 +169,7 @@ class Algorithm(BaseModel):
         """
         return 3 if self.is_3D else 2
 
-    @computed_field
-    def get_noise_model(
-        self, noise_model: Dict, info: FieldValidationInfo
-    ) -> Dict:
+    def get_noise_model(self, noise_model: Dict, info: ValidationInfo) -> Dict:
         """
         Validate noise model.
 
@@ -181,6 +188,29 @@ class Algorithm(BaseModel):
             _ = NoiseModel.get_noise_model(noise_model_type, noise_model)
 
         return noise_model
+
+    @model_validator(mode="after")
+    def get_loss(cls, data: Algorithm) -> Algorithm:
+        """Validate loss.
+
+        Returns
+        -------
+        Loss
+            Validated loss.
+
+        Raises
+        ------
+        ValueError
+            If the loss is not supported or inconsistent with the noise model.
+        """
+        if (
+            data.loss == Loss.PN2V or data.loss == Loss.HDN
+        ) and data.noise_model is None:
+            raise ValueError(f"Loss {data.loss} requires a noise model.")
+        elif data.loss in [Loss.N2V, Loss.N2N] and data.noise_model is not None:
+            raise ValueError(f"Loss {data.loss} does not support a noise model.")
+
+        return data
 
     @field_validator("roi_size")
     def even(cls, roi_size: int) -> int:
