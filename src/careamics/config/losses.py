@@ -1,17 +1,11 @@
 from enum import Enum
-from typing import Dict, List, Optional
 
 from pydantic import (
     BaseModel,
     ConfigDict,
-    Field,
     ValidationInfo,
     field_validator,
 )
-
-from .config_filter import remove_default_optionals
-from .models import Model
-from .noise_models import NoiseModel
 
 
 # python 3.11: https://docs.python.org/3/library/enum.html
@@ -27,6 +21,7 @@ class LossType(str, Enum):
         - hdn: Hierarchical DivNoising loss.
     """
 
+    CARE = "care"
     N2V = "n2v"
     N2N = "n2n"
     PN2V = "pn2v"

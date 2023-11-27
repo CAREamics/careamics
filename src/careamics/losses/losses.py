@@ -6,9 +6,22 @@ This submodule contains the various losses used in CAREamics.
 from typing import Type
 
 import torch
-from torch.nn import L1Loss
+from torch.nn import L1Loss, MSELoss
 
 from .noise_models import HistogramNoiseModel
+
+
+def mse_loss(samples: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
+    """
+    Mean squared error loss.
+
+    Returns
+    -------
+    torch.Tensor
+        Loss value.
+    """
+    loss = MSELoss()
+    return loss(samples, labels)
 
 
 def n2v_loss(
@@ -37,7 +50,7 @@ def n2v_loss(
     return loss
 
 
-def n2n_loss(samples: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
+def mae_loss(samples: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
     """
     N2N Loss function described in to J Lehtinen et al 2018.
 

@@ -17,8 +17,29 @@ from .config_filter import remove_default_optionals
 from .models import Model
 from .noise_models import NoiseModel
 
-
 # python 3.11: https://docs.python.org/3/library/enum.html
+
+
+class AlgorithmType(str, Enum):
+    """
+    Available types of algorithms.
+
+    Currently supported algorithms:
+        - CARE: CARE. https://www.nature.com/articles/s41592-018-0216-7
+        - n2v: Noise2Void. https://arxiv.org/abs/1811.10980
+        - n2n: Noise2Noise. https://arxiv.org/abs/1803.04189
+        - pn2v: Probabilistic Noise2Void. https://arxiv.org/abs/1906.00651
+        - hdn: Hierarchical DivNoising. https://arxiv.org/abs/2104.01374
+    """
+
+    CARE = "care"
+    N2V = "n2v"
+    N2N = "n2n"
+    PN2V = "pn2v"
+    HDN = "hdn"
+    CUSTOM = "custom"
+
+
 class Loss(str, Enum):
     """
     Available loss functions.
@@ -26,12 +47,17 @@ class Loss(str, Enum):
     Currently supported losses:
 
         - n2v: Noise2Void loss.
+        - n2n: Noise2Noise loss.
+        - pn2v: Probabilistic Noise2Void loss.
+        - hdn: Hierarchical DivNoising loss.
     """
 
+    MSE = "mse"
+    MAE = "mae"
     N2V = "n2v"
-    N2N = "n2n"
     PN2V = "pn2v"
     HDN = "hdn"
+    CUSTOM = "custom"
 
 
 class MaskingStrategy(str, Enum):
@@ -44,6 +70,7 @@ class MaskingStrategy(str, Enum):
     - median: median masking strategy of N2V2.
     """
 
+    NONE = "none"
     DEFAULT = "default"
     MEDIAN = "median"
 
@@ -147,13 +174,14 @@ class Algorithm(BaseModel):
     )
 
     # Mandatory fields
+    algorithm_type: AlgorithmType
     loss: Loss
     model: Model
     is_3D: bool
 
     # Optional fields, define a default value
     noise_model: Optional[NoiseModel] = None
-    masking_strategy: MaskingStrategy = MaskingStrategy.DEFAULT
+    masking_strategy: MaskingStrategy = MaskingStrategy.NONE
     masked_pixel_percentage: float = Field(default=0.2, ge=0.1, le=20)
     roi_size: int = Field(default=11, ge=3, le=21)
     model_parameters: ModelParameters = ModelParameters()
@@ -190,7 +218,7 @@ class Algorithm(BaseModel):
         return noise_model
 
     @model_validator(mode="after")
-    def get_loss(cls, data: Algorithm) -> Algorithm:
+    def algorithm_loss_cross_validation(cls, data: Algorithm) -> Algorithm:
         """Validate loss.
 
         Returns
@@ -203,12 +231,37 @@ class Algorithm(BaseModel):
         ValueError
             If the loss is not supported or inconsistent with the noise model.
         """
+        if data.algorithm_type in [
+            AlgorithmType.CARE,
+            AlgorithmType.N2N,
+        ] and data.loss not in [
+            data.loss.MSE,
+            data.loss.MAE,
+            data.loss.CUSTOM,
+        ]:
+            raise ValueError(
+                f"Algorithm {data.type} does not support {data.loss} loss."
+            )
+
+        if (
+            data.algorithm_type in [AlgorithmType.CARE, AlgorithmType.N2N]
+            and data.noise_model is not None
+        ):
+            raise ValueError(f"Algorithm {data.type} does not support a noise model.")
+
         if (
             data.loss == Loss.PN2V or data.loss == Loss.HDN
         ) and data.noise_model is None:
             raise ValueError(f"Loss {data.loss} requires a noise model.")
-        elif data.loss in [Loss.N2V, Loss.N2N] and data.noise_model is not None:
+
+        if data.loss in [Loss.N2V, Loss.MAE, Loss.MSE] and data.noise_model is not None:
             raise ValueError(f"Loss {data.loss} does not support a noise model.")
+
+        if data.loss == Loss.N2V and data.masking_strategy != "none":
+            raise ValueError(
+                f"Algorithm {data.loss} does not require masking strategy "
+                f"{data.masking_strategy}."
+            )
 
         return data
 

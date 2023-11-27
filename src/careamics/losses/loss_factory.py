@@ -8,7 +8,7 @@ from typing import Callable, Type, Union
 from ..config import Configuration
 from ..config.algorithm import Loss
 from ..config.noise_models import NoiseModelType
-from .losses import n2n_loss, n2v_loss, pn2v_loss
+from .losses import mae_loss, mse_loss, n2v_loss, pn2v_loss
 from .noise_models import GaussianMixtureNoiseModel, HistogramNoiseModel
 
 
@@ -38,8 +38,11 @@ def create_loss_function(config: Configuration) -> Callable:
     elif loss_type == Loss.PN2V:
         return pn2v_loss
 
-    elif loss_type == Loss.N2N:
-        return n2n_loss
+    elif loss_type == Loss.MAE:
+        return mae_loss
+
+    elif loss_type == Loss.MSE:
+        return mse_loss
 
     else:
         raise NotImplementedError(f"Loss {loss_type} is not yet supported.")
