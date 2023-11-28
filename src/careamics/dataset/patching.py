@@ -253,7 +253,9 @@ def _patches_sanity_check(
 # formerly :
 # in dataloader.py#L52, 00d536c
 def _extract_patches_sequential(
-    arr: np.ndarray, patch_size: Union[List[int], Tuple[int]]
+    arr: np.ndarray,
+    patch_size: Union[List[int], Tuple[int]],
+    target: Optional[np.ndarray] = None,
 ) -> Generator[np.ndarray, None, None]:
     """
     Generate patches from an array in a sequential manner.
@@ -306,7 +308,9 @@ def _extract_patches_sequential(
 
 
 def _extract_patches_random(
-    arr: np.ndarray, patch_size: Union[List[int], Tuple[int]]
+    arr: np.ndarray,
+    patch_size: Union[List[int], Tuple[int]],
+    target: Optional[np.ndarray] = None,
 ) -> Generator[np.ndarray, None, None]:
     """
     Generate patches from an array in a random manner.
@@ -354,7 +358,24 @@ def _extract_patches_random(
                 .copy()
                 .astype(np.float32)
             )
-            yield patch
+            target_patch = (
+                (
+                    target[
+                        (
+                            ...,
+                            *[
+                                slice(c, c + patch_size[i])
+                                for i, c in enumerate(crop_coords)
+                            ],
+                        )
+                    ]
+                    .copy()
+                    .astype(np.float32)
+                )
+                if target is not None
+                else None
+            )
+            yield patch, target_patch
 
 
 def _extract_patches_random_from_chunks(
@@ -520,6 +541,7 @@ def generate_patches(
     patch_extraction_method: ExtractionStrategy,
     patch_size: Optional[Union[List[int], Tuple[int]]] = None,
     patch_overlap: Optional[Union[List[int], Tuple[int]]] = None,
+    target: Optional[Union[np.ndarray, zarr.Array]] = None,
 ) -> Generator[np.ndarray, None, None]:
     """
     Generate patches from a sample.
@@ -562,20 +584,24 @@ def generate_patches(
             )
 
         elif patch_extraction_method == ExtractionStrategy.SEQUENTIAL:
-            patches = _extract_patches_sequential(sample, patch_size=patch_size)
+            patches, targets = _extract_patches_sequential(
+                sample, patch_size=patch_size, target=target
+            )
 
         elif patch_extraction_method == ExtractionStrategy.RANDOM:
-            patches = _extract_patches_random(sample, patch_size=patch_size)
+            patches, targets = _extract_patches_random(
+                sample, patch_size=patch_size, target=target
+            )
 
         elif patch_extraction_method == ExtractionStrategy.RANDOM_ZARR:
-            patches = _extract_patches_random_from_chunks(
+            patches, targets = _extract_patches_random_from_chunks(
                 sample, patch_size=patch_size, chunk_size=sample.chunks
             )
 
         if patches is None:
             raise ValueError("No patch generated")
 
-        return patches
+        return patches, targets
     else:
         # no patching
-        return (sample for _ in range(1))
+        return (sample for _ in range(1)), target

@@ -212,6 +212,8 @@ class Engine:
         self,
         train_path: str,
         val_path: str,
+        train_target_path: Optional[str] = None,
+        val_target_path: Optional[str] = None,
     ) -> Tuple[List[Any], List[Any]]:
         """
         Train the network.
@@ -244,8 +246,8 @@ class Engine:
                 **self.cfg.algorithm.noise_model.parameters
             )
 
-        train_loader = self._get_train_dataloader(train_path)
-        eval_loader = self._get_val_dataloader(val_path)
+        train_loader = self._get_train_dataloader(train_path, train_target_path)
+        eval_loader = self._get_val_dataloader(val_path, val_target_path)
 
         self.logger.info(f"Starting training for {self.cfg.training.num_epochs} epochs")
 
@@ -596,7 +598,9 @@ class Engine:
         )
         return output
 
-    def _get_train_dataloader(self, train_path: str) -> DataLoader:
+    def _get_train_dataloader(
+        self, train_path: str, train_target_path: str
+    ) -> DataLoader:
         """
         Return a training dataloader.
 
@@ -628,7 +632,7 @@ class Engine:
         )
         return dataloader
 
-    def _get_val_dataloader(self, val_path: str) -> DataLoader:
+    def _get_val_dataloader(self, val_path: str, val_target_path) -> DataLoader:
         """
         Return a validation dataloader.
 

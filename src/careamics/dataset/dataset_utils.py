@@ -1,17 +1,20 @@
 """Convenience methods for datasets."""
 import logging
 from pathlib import Path
-from typing import List, Union
+from typing import List, Tuple, Union
 
 import numpy as np
 import tifffile
 import zarr
 
+from .extraction_strategy import ExtractionStrategy
+from .patching import generate_patches
+
 
 def list_files(
     data_path: Union[str, Path, List[Union[str, Path]]],
     data_format: str,
-    return_list=True,
+    return_list: bool = True,
 ) -> List[Path]:
     """Creates a list of paths to source tiff files from path string.
 
@@ -40,7 +43,6 @@ def list_files(
         return files
 
     elif data_path.is_dir():
-
         if return_list:
             files = sorted(Path(data_path).rglob(f"*.{data_format}*"))
             if len(files) == 0:
@@ -94,6 +96,31 @@ def _update_axes(array: np.ndarray, axes: str) -> np.ndarray:
         array = np.expand_dims(array, axis=0).astype(np.float32)
 
     return array
+
+
+def validate_files(train_files: List[Path], target_files: List[Path]) -> None:
+    """
+    Validate that the train and target folders are consistent.
+
+    Parameters
+    ----------
+    train_files : List[Path]
+        List of paths to train files.
+    target_files : List[Path]
+        List of paths to target files.
+
+    Raises
+    ------
+    ValueError
+        If the number of files in train and target folders is not the same.
+    """
+    if len(train_files) != len(target_files):
+        raise ValueError(
+            f"Number of train files ({len(train_files)}) is not equal to the number of"
+            f"target files ({len(target_files)})."
+        )
+    if set(train_files) != set(target_files):
+        raise ValueError("Some filenames in Train and target folders are not the same.")
 
 
 def read_tiff(file_path: Path, axes: str) -> np.ndarray:
@@ -175,7 +202,7 @@ def read_zarr(
     ValueError
         if axes parameter from config is not consistent with data dimensions
     """
-    #TODO raise warning if chunk size is larger than image size. Validate chunk size
+    # TODO raise warning if chunk size is larger than image size. Validate chunk size
     if isinstance(zarr_source, zarr.hierarchy.Group):
         array = zarr_source[0]
 
@@ -204,3 +231,91 @@ def read_zarr(
     # FIXME !
     # arr = fix_axes(arr, axes)
     return array
+
+
+def prepare_patches_supervised(
+    train_files: List[Path],
+    target_files: List[Path],
+    axes: str,
+    patch_extraction_method: ExtractionStrategy,
+    patch_size: Union[List[int], Tuple[int]],
+    patch_overlap: Union[List[int], Tuple[int]],
+) -> Tuple[np.ndarray, float, float]:
+    """
+    Iterate over data source and create an array of patches.
+
+    Returns
+    -------
+    np.ndarray
+        Array of patches.
+    """
+    train_files.sort()
+    target_files.sort()
+
+    means, stds, num_samples = 0, 0, 0
+    all_patches, all_targets = [], []
+    for train_filename, target_filename in zip(train_files, target_files):
+        sample = read_tiff(train_filename, axes)
+        target = read_tiff(target_filename, axes)
+        means += sample.mean()
+        stds += np.std(sample)
+        num_samples += 1
+        # TODO SHould patches be generated from concatenated train and target ?
+        # generate patches, return a generator
+        patches, targets = generate_patches(
+            sample,
+            patch_extraction_method,
+            patch_size,
+            patch_overlap,
+            target,
+        )
+
+        # convert generator to list and add to all_patches
+        all_patches.extend(list(patches))
+        all_targets.extend(list(targets))
+
+        result_mean, result_std = means / num_samples, stds / num_samples
+    return (
+        np.concatenate(all_patches),
+        np.concatenate(all_targets),
+        result_mean,
+        result_std,
+    )
+
+
+def prepare_patches_unsupervised(
+    train_files: List[Path],
+    axes: str,
+    patch_extraction_method: ExtractionStrategy,
+    patch_size: Union[List[int], Tuple[int]],
+    patch_overlap: Union[List[int], Tuple[int]],
+) -> Tuple[np.ndarray, float, float]:
+    """
+    Iterate over data source and create an array of patches.
+
+    Returns
+    -------
+    np.ndarray
+        Array of patches.
+    """
+    means, stds, num_samples = 0, 0, 0
+    all_patches = []
+    for filename in train_files:
+        sample = read_tiff(filename, axes)
+        means += sample.mean()
+        stds += np.std(sample)
+        num_samples += 1
+
+        # generate patches, return a generator
+        patches = generate_patches(
+            sample,
+            patch_extraction_method,
+            patch_size,
+            patch_overlap,
+        )
+
+        # convert generator to list and add to all_patches
+        all_patches.extend(list(patches))
+
+        result_mean, result_std = means / num_samples, stds / num_samples
+    return np.concatenate(all_patches), result_mean, result_std

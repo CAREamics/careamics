@@ -19,8 +19,8 @@ from .zarr_dataset import ZarrDataset
 
 
 def get_train_dataset(
-    config: Configuration, train_path: str
-) -> Union[TiffDataset, InMemoryDataset]:
+    config: Configuration, train_path: str, train_target_path: Optional[str] = None
+) -> Union[TiffDataset, InMemoryDataset, ZarrDataset]:
     """
     Create training dataset.
 
@@ -71,8 +71,8 @@ def get_train_dataset(
                 },
             )
         elif config.data.data_format == "zarr":
-            if '.zarray' in os.listdir(train_path):
-                zarr_source = zarr.open(train_path, mode='r')
+            if ".zarray" in os.listdir(train_path):
+                zarr_source = zarr.open(train_path, mode="r")
             else:
                 source = zarr.DirectoryStore(train_path)
                 cache = zarr.LRUStoreCache(source, max_size=None)
@@ -94,7 +94,9 @@ def get_train_dataset(
     return dataset
 
 
-def get_validation_dataset(config: Configuration, val_path: str) -> InMemoryDataset:
+def get_validation_dataset(
+    config: Configuration, val_path: str, val_target_path: Optional[str] = None
+) -> Union[InMemoryDataset, ZarrDataset]:
     """
     Create validation dataset.
 
@@ -129,8 +131,8 @@ def get_validation_dataset(config: Configuration, val_path: str) -> InMemoryData
             },
         )
     elif config.data.data_format == "zarr":
-        if '.zarray' in os.listdir(val_path):
-            zarr_source = zarr.open(val_path, mode='r')
+        if ".zarray" in os.listdir(val_path):
+            zarr_source = zarr.open(val_path, mode="r")
         else:
             source = zarr.DirectoryStore(val_path)
             cache = zarr.LRUStoreCache(source, max_size=None)
@@ -161,7 +163,7 @@ def get_prediction_dataset(
     tile_shape: Optional[List[int]] = None,
     overlaps: Optional[List[int]] = None,
     axes: Optional[str] = None,
-) -> TiffDataset:
+) -> Union[TiffDataset, ZarrDataset]:
     """
     Create prediction dataset.
 
@@ -221,8 +223,8 @@ def get_prediction_dataset(
             patch_transform=None,
         )
     elif config.data.data_format == "zarr":
-        if '.zarray' in os.listdir(pred_path):
-            zarr_source = zarr.open(pred_path, mode='r')
+        if ".zarray" in os.listdir(pred_path):
+            zarr_source = zarr.open(pred_path, mode="r")
         else:
             source = zarr.DirectoryStore(pred_path)
             cache = zarr.LRUStoreCache(source, max_size=None)

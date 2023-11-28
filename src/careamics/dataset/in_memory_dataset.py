@@ -9,10 +9,11 @@ from ..utils import normalize
 from ..utils.logging import get_logger
 from .dataset_utils import (
     list_files,
-    read_tiff,
+    prepare_patches_supervised,
+    prepare_patches_unsupervised,
+    validate_files,
 )
 from .extraction_strategy import ExtractionStrategy
-from .patching import generate_patches
 
 logger = get_logger(__name__)
 
@@ -57,6 +58,8 @@ class InMemoryDataset(torch.utils.data.Dataset):
         std: Optional[float] = None,
         patch_transform: Optional[Callable] = None,
         patch_transform_params: Optional[Dict] = None,
+        target_path: Optional[Union[str, Path, List[Union[str, Path]]]] = None,
+        target_format: Optional[str] = None,
     ) -> None:
         """
         Constructor.
@@ -94,11 +97,17 @@ class InMemoryDataset(torch.utils.data.Dataset):
             raise ValueError("Path to data should be an existing folder.")
 
         self.data_format = data_format
+        self.target_path = target_path
+        self.target_format = target_format
+
         self.axes = axes
 
         self.patch_transform = patch_transform
 
-        self.files = list_files(data_path, self.data_format)
+        self.train_files = list_files(data_path, self.data_format)
+        if self.target_path is not None:
+            self.target_files = list_files(self.target_path, self.target_format)
+            validate_files(self.train_files, self.target_files)
 
         self.patch_size = patch_size
         self.patch_overlap = patch_overlap
@@ -109,7 +118,7 @@ class InMemoryDataset(torch.utils.data.Dataset):
         self.mean = mean
         self.std = std
 
-        # Generate patches
+        # Generate patches(
         self.data, computed_mean, computed_std = self._prepare_patches()
 
         if not mean or not std:
@@ -119,36 +128,33 @@ class InMemoryDataset(torch.utils.data.Dataset):
         assert self.mean is not None
         assert self.std is not None
 
-    def _prepare_patches(self) -> Tuple[np.ndarray, float, float]:
+    def _prepare_patches(self) -> Callable:
         """
         Iterate over data source and create an array of patches.
+
+        Calls consecutive function for supervised and unsupervised learning.
 
         Returns
         -------
         np.ndarray
             Array of patches.
         """
-        means, stds, num_samples = 0, 0, 0
-        self.all_patches = []
-        for filename in self.files:
-            sample = read_tiff(filename, self.axes)
-            means += sample.mean()
-            stds += np.std(sample)
-            num_samples += 1
-
-            # generate patches, return a generator
-            patches = generate_patches(
-                sample,
+        if self.target_path is not None:
+            return prepare_patches_supervised(
+                self.train_files,
+                self.target_files,
+                self.axes,
+                self.patch_extraction_method,
+                self.patch_size,
+                self.patch_overlap,)
+        else:
+            return prepare_patches_unsupervised(
+                self.train_files,
+                self.axes,
                 self.patch_extraction_method,
                 self.patch_size,
                 self.patch_overlap,
             )
-
-            # convert generator to list and add to all_patches
-            self.all_patches.extend(list(patches))
-
-            result_mean, result_std = means / num_samples, stds / num_samples
-        return np.concatenate(self.all_patches), result_mean, result_std
 
     def __len__(self) -> int:
         """
@@ -184,11 +190,7 @@ class InMemoryDataset(torch.utils.data.Dataset):
         patch = self.data[index].squeeze()
 
         if self.mean is not None and self.std is not None:
-            if isinstance(patch, tuple):
-                patch = normalize(img=patch[0], mean=self.mean, std=self.std)
-                patch = (patch, *patch[1:])
-            else:
-                patch = normalize(img=patch, mean=self.mean, std=self.std)
+            patch = normalize(img=patch, mean=self.mean, std=self.std)
 
             if self.patch_transform is not None:
                 # replace None self.patch_transform_params with empty dict

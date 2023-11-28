@@ -4,12 +4,14 @@ Normalization submodule.
 These methods are used to normalize and denormalize images.
 """
 from multiprocessing import Value
-from typing import Tuple
+from typing import List, Tuple, Union
 
 import numpy as np
 
 
-def normalize(img: np.ndarray, mean: float, std: float) -> np.ndarray:
+def normalize(
+    img: Union[Tuple, np.ndarray], mean: float, std: float
+) -> Union[List, np.ndarray]:
     """
     Normalize an image using mean and standard deviation.
 
@@ -30,7 +32,13 @@ def normalize(img: np.ndarray, mean: float, std: float) -> np.ndarray:
     np.ndarray
         Normalized array.
     """
-    zero_mean = img - mean
+    out_img = []
+    for arr in img:
+        if arr is not None:
+            zero_mean = arr - mean
+            out_img.append(zero_mean / std)
+        else:
+            out_img.append(None)
     return zero_mean / std
 
 
@@ -57,6 +65,7 @@ def denormalize(img: np.ndarray, mean: float, std: float) -> np.ndarray:
     """
     return img * std + mean
 
+
 class RunningStats:
     """Calculates running mean and std."""
 
@@ -65,10 +74,10 @@ class RunningStats:
 
     def reset(self) -> None:
         """Reset the running stats."""
-        self.avg_mean = Value('d', 0)
-        self.avg_std = Value('d', 0)
-        self.m2 = Value('d', 0)
-        self.count = Value('i', 0)
+        self.avg_mean = Value("d", 0)
+        self.avg_std = Value("d", 0)
+        self.m2 = Value("d", 0)
+        self.count = Value("i", 0)
 
     def init(self, mean: float, std: float) -> None:
         """Initialize running stats."""
