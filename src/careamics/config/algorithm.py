@@ -182,8 +182,8 @@ class Algorithm(BaseModel):
     # Optional fields, define a default value
     noise_model: Optional[NoiseModel] = None
     masking_strategy: MaskingStrategy = MaskingStrategy.NONE
-    masked_pixel_percentage: float = Field(default=0.2, ge=0.1, le=20)
-    roi_size: int = Field(default=11, ge=3, le=21)
+    masked_pixel_percentage: float = Field(default=None, ge=0.1, le=20)
+    roi_size: int = Field(default=None, ge=3, le=21)
     model_parameters: ModelParameters = ModelParameters()
 
     def get_conv_dim(self) -> int:
@@ -235,9 +235,9 @@ class Algorithm(BaseModel):
             AlgorithmType.CARE,
             AlgorithmType.N2N,
         ] and data.loss not in [
-            data.loss.MSE,
-            data.loss.MAE,
-            data.loss.CUSTOM,
+            Loss.MSE,
+            Loss.MAE,
+            Loss.CUSTOM,
         ]:
             raise ValueError(
                 f"Algorithm {data.type} does not support {data.loss} loss."
@@ -263,6 +263,43 @@ class Algorithm(BaseModel):
                 f"{data.masking_strategy}."
             )
 
+        return data
+
+    @model_validator(mode="after")
+    def masking_strategy_validation(cls, data: Algorithm) -> Algorithm:
+        """Validate masking strategy and its parameters.
+
+        Returns
+        -------
+        MaskingStrategy
+            Validated masking strategy.
+
+        Raises
+        ------
+        ValueError
+            If the masking strategy is not supported.
+        """
+        if data.masking_strategy not in [
+            MaskingStrategy.NONE,
+            MaskingStrategy.DEFAULT,
+            MaskingStrategy.MEDIAN,
+        ]:
+            raise ValueError(
+                f"Masking strategy {data.masking_strategy} is not supported."
+            )
+        if (
+            data.masking_strategy
+            in [
+                MaskingStrategy.DEFAULT,
+                MaskingStrategy.MEDIAN,
+            ]
+            and data.masked_pixel_percentage is None
+            or data.roi_size is None
+        ):
+            raise ValueError(
+                f"Masking strategy {data.masking_strategy} requires a masked pixel "
+                f"percentage and a ROI size. Please refer to the documentation"
+            )  # TODO add link to documentation
         return data
 
     @field_validator("roi_size")
