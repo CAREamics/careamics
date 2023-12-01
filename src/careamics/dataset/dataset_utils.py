@@ -1,12 +1,13 @@
 """Convenience methods for datasets."""
 import logging
 from pathlib import Path
-from typing import List, Tuple, Union
+from typing import Callable, List, Tuple, Union
 
 import numpy as np
 import tifffile
 import zarr
 
+from ..manipulation.pixel_manipulation import default_manipulate
 from .extraction_strategy import ExtractionStrategy
 from .patching import generate_patches
 
@@ -119,8 +120,32 @@ def validate_files(train_files: List[Path], target_files: List[Path]) -> None:
             f"Number of train files ({len(train_files)}) is not equal to the number of"
             f"target files ({len(target_files)})."
         )
-    if set(train_files) != set(target_files):
+    if {f.name for f in train_files} != {f.name for f in target_files}:
         raise ValueError("Some filenames in Train and target folders are not the same.")
+
+
+def expand_dims(
+    arr: Union[np.ndarray, Tuple[np.ndarray]]
+) -> Union[np.ndarray, Tuple[np.ndarray]]:
+    """
+    Expand the dimensions of each array in the input.
+
+    Parameters
+    ----------
+    arr : Union[np.ndarray, Tuple[np.ndarray]]
+        Array to expand.
+
+    Returns
+    -------
+    Union[np.ndarray, Tuple[np.ndarray]]
+        Expanded array.
+    """
+    if isinstance(arr, np.ndarray):
+        return np.expand_dims(arr, axis=0)
+    elif isinstance(arr, tuple):
+        return tuple(np.expand_dims(a, axis=0) for a in arr)
+    else:
+        raise ValueError(f"Unsupported type {type(arr)}.")
 
 
 def read_tiff(file_path: Path, axes: str) -> np.ndarray:
@@ -233,6 +258,33 @@ def read_zarr(
     return array
 
 
+def get_patch_transform(patch_transform_type: str) -> Union[None, Callable]:
+    """Return a pixel manipulation function.
+
+    Used in N2V family of algorithms.
+
+    Parameters
+    ----------
+    patch_transform_type : str
+        Type of patch transform.
+
+    Returns
+    -------
+    Union[None, Callable]
+        Patch transform function.
+    """
+    if patch_transform_type == 'none':
+        return lambda x, *args: (x,) + args if args else x
+    elif patch_transform_type == "default":
+        return default_manipulate
+    else:
+        # TODO add link to documentation
+        raise ValueError(
+            f"Incorrect patch transform function {patch_transform_type}."
+            f"Please refer to the documentation."
+        )
+
+
 def prepare_patches_supervised(
     train_files: List[Path],
     target_files: List[Path],
@@ -271,13 +323,13 @@ def prepare_patches_supervised(
         )
 
         # convert generator to list and add to all_patches
-        all_patches.extend(list(patches))
-        all_targets.extend(list(targets))
+        all_patches.append(patches)
+        all_targets.append(targets)
 
         result_mean, result_std = means / num_samples, stds / num_samples
     return (
         np.concatenate(all_patches),
-        np.concatenate(all_targets),
+        np.concatenate(all_targets, axis=1),
         result_mean,
         result_std,
     )
@@ -307,7 +359,7 @@ def prepare_patches_unsupervised(
         num_samples += 1
 
         # generate patches, return a generator
-        patches = generate_patches(
+        patches, _ = generate_patches(
             sample,
             patch_extraction_method,
             patch_size,
@@ -315,7 +367,7 @@ def prepare_patches_unsupervised(
         )
 
         # convert generator to list and add to all_patches
-        all_patches.extend(list(patches))
+        all_patches.append(patches)
 
         result_mean, result_std = means / num_samples, stds / num_samples
-    return np.concatenate(all_patches), result_mean, result_std
+    return np.concatenate(all_patches), _, result_mean, result_std

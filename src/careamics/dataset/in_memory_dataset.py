@@ -8,6 +8,8 @@ import torch
 from ..utils import normalize
 from ..utils.logging import get_logger
 from .dataset_utils import (
+    expand_dims,
+    get_patch_transform,
     list_files,
     prepare_patches_supervised,
     prepare_patches_unsupervised,
@@ -83,7 +85,8 @@ class InMemoryDataset(torch.utils.data.Dataset):
         std : Optional[float], optional
             Expected standard deviation of the dataset, by default None.
         patch_transform : Optional[Callable], optional
-            Patch transform to apply, by default None.
+            Patch transform to apply, by default None. Could be any augmentation
+            function, or algorithm specific pixel manipulation (N2V family).
         patch_transform_params : Optional[Dict], optional
             Patch transform parameters, by default None.
 
@@ -101,25 +104,32 @@ class InMemoryDataset(torch.utils.data.Dataset):
         self.target_format = target_format
 
         self.axes = axes
-
-        self.patch_transform = patch_transform
-
+        # TODO Just 2 for now, add more later
+        self.patch_preparation_method = (
+            prepare_patches_unsupervised
+            if self.target_path is None
+            else prepare_patches_supervised
+        )
         self.train_files = list_files(data_path, self.data_format)
         if self.target_path is not None:
+            if not self.target_path.is_dir():
+                raise ValueError("Path to targets should be an existing folder.")
+            if self.target_format is None:
+                raise ValueError("Target format must be specified.")
             self.target_files = list_files(self.target_path, self.target_format)
             validate_files(self.train_files, self.target_files)
 
         self.patch_size = patch_size
         self.patch_overlap = patch_overlap
         self.patch_extraction_method = patch_extraction_method
-        self.patch_transform = patch_transform
+        self.patch_transform = get_patch_transform(patch_transform)
         self.patch_transform_params = patch_transform_params
 
         self.mean = mean
         self.std = std
 
-        # Generate patches(
-        self.data, computed_mean, computed_std = self._prepare_patches()
+        # Generate patches
+        self.data, self.targets, computed_mean, computed_std = self._prepare_patches()
 
         if not mean or not std:
             self.mean, self.std = computed_mean, computed_std
@@ -146,7 +156,8 @@ class InMemoryDataset(torch.utils.data.Dataset):
                 self.axes,
                 self.patch_extraction_method,
                 self.patch_size,
-                self.patch_overlap,)
+                self.patch_overlap,
+            )
         else:
             return prepare_patches_unsupervised(
                 self.train_files,
@@ -166,7 +177,7 @@ class InMemoryDataset(torch.utils.data.Dataset):
             Length of the dataset.
         """
         # convert to numpy array to convince mypy that it is not a generator
-        return sum(np.array(s).shape[0] for s in self.all_patches)
+        return self.data.shape[0]
 
     def __getitem__(self, index: int) -> Tuple[np.ndarray]:
         """
@@ -188,9 +199,14 @@ class InMemoryDataset(torch.utils.data.Dataset):
             If dataset mean and std are not set.
         """
         patch = self.data[index].squeeze()
+        if self.target_path is not None:
+            # Splitting targets into a list. 1st dim is the number of targets
+            target = self.targets[:, index, ...]
 
         if self.mean is not None and self.std is not None:
             patch = normalize(img=patch, mean=self.mean, std=self.std)
+            if self.target_path is not None:
+                target = normalize(img=target, mean=self.mean, std=self.std)
 
             if self.patch_transform is not None:
                 # replace None self.patch_transform_params with empty dict
@@ -198,6 +214,10 @@ class InMemoryDataset(torch.utils.data.Dataset):
                     self.patch_transform_params = {}
 
                 patch = self.patch_transform(patch, **self.patch_transform_params)
+
+            # Needed to add channel dimension in case input image is single channel
+            if len(patch.shape) == len(self.patch_size) + 1:
+                patch = expand_dims(patch)
             return patch
         else:
             raise ValueError("Dataset mean and std must be set before using it.")

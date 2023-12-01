@@ -48,11 +48,13 @@ def get_train_dataset(
             std=config.data.std,
             patch_extraction_method=ExtractionStrategy.SEQUENTIAL,
             patch_size=config.training.patch_size,
-            patch_transform=default_manipulate,
+            patch_transform=config.algorithm.masking_strategy,
             patch_transform_params={
                 "mask_pixel_percentage": config.algorithm.masked_pixel_percentage,
                 "roi_size": config.algorithm.roi_size,
             },
+            target_path=train_target_path,
+            target_format=config.data.data_format,
         )
     else:
         if config.data.data_format in ["tif", "tiff"]:
@@ -114,18 +116,16 @@ def get_validation_dataset(
     TiffDataset
         In memory dataset.
     """
-    data_path = val_path
-
     if config.data.data_format in ["tif", "tiff"]:
         dataset = InMemoryDataset(
-            data_path=data_path,
+            data_path=val_path,
             data_format=config.data.data_format,
             axes=config.data.axes,
             mean=config.data.mean,
             std=config.data.std,
             patch_extraction_method=ExtractionStrategy.SEQUENTIAL,
             patch_size=config.training.patch_size,
-            patch_transform=default_manipulate,
+            patch_transform=config.algorithm.masking_strategy,
             patch_transform_params={
                 "mask_pixel_percentage": config.algorithm.masked_pixel_percentage
             },

@@ -598,6 +598,28 @@ class Engine:
         )
         return output
 
+    def prepare_dataset():
+        """
+        Prepare dataset for training.
+
+        Returns
+        -------
+        Tuple[torch.utils.data.DataLoader, torch.utils.data.DataLoader]
+            Tuple of training and validation dataloaders.
+        """
+        pass
+
+    def create_noise_model(self):
+        """
+        Create noise model.
+
+        Returns
+        -------
+        Callable
+            Noise model.
+        """
+        pass
+
     def _get_train_dataloader(
         self, train_path: str, train_target_path: str
     ) -> DataLoader:
@@ -622,7 +644,7 @@ class Engine:
         if self.cfg is None:
             raise ValueError("Configuration is not defined.")
 
-        dataset = get_train_dataset(self.cfg, train_path)
+        dataset = get_train_dataset(self.cfg, train_path, train_target_path)
         dataloader = DataLoader(
             dataset,
             batch_size=self.cfg.training.batch_size,

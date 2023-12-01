@@ -170,6 +170,7 @@ def _compute_reshaped_view(
     window_shape: Tuple[int, ...],
     step: Tuple[int, ...],
     output_shape: Tuple[int, ...],
+    target: Optional[np.ndarray] = None,
 ) -> np.ndarray:
     """
     Compute reshaped views of an array, where views correspond to patches.
@@ -190,10 +191,18 @@ def _compute_reshaped_view(
     np.ndarray
         Array with views dimension.
     """
+    if target is not None:
+        arr = np.stack([arr, target], axis=0)
+        window_shape = (1, *window_shape)
+        step = (1, *step)
+        output_shape = (arr.shape[0], *output_shape)
+
     rng = np.random.default_rng()
     patches = view_as_windows(arr, window_shape=window_shape, step=step).reshape(
         *output_shape
     )
+    n_patches = patches.shape[0] if target is None else patches.shape[1]
+    logger.info(f"Extracted {n_patches} patches from input array.")
     rng.shuffle(patches, axis=0)
     return patches
 
@@ -299,12 +308,14 @@ def _extract_patches_sequential(
     # in each dimension with overlap.
     # Resulting array is resized to (n_patches, C, Z, Y, X) or (n_patches,C, Y, X)
     patches = _compute_reshaped_view(
-        arr, window_shape=window_shape, step=window_steps, output_shape=output_shape
+        arr,
+        window_shape=window_shape,
+        step=window_steps,
+        output_shape=output_shape,
+        target=target,
     )
-    logger.info(f"Extracted {patches.shape[0]} patches from input array.")
 
-    # return a generator of patches
-    return (patches[i, ...] for i in range(patches.shape[0]))
+    return patches[0], patches[1:] if target is not None else None
 
 
 def _extract_patches_random(
@@ -570,6 +581,7 @@ def generate_patches(
         If patches is None.
     """
     patches = None
+    targets = None
 
     if patch_size is not None:
         patches = None

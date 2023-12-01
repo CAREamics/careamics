@@ -32,13 +32,7 @@ def normalize(
     np.ndarray
         Normalized array.
     """
-    out_img = []
-    for arr in img:
-        if arr is not None:
-            zero_mean = arr - mean
-            out_img.append(zero_mean / std)
-        else:
-            out_img.append(None)
+    zero_mean = img - mean
     return zero_mean / std
 
 
