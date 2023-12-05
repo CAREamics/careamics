@@ -23,7 +23,7 @@ algorithm:
   
   # Noise model, Histogram or GMM
   noise_model: 
-    type: hist
+    model_type: hist
     parameters:
       min_value: 350
       max_value: 6500
@@ -32,13 +32,14 @@ algorithm:
   # Dimensions 2D (False) or 3D (True)
   is_3D: False
 
-  # Optional, masking strategy, currently only default is supported
-  masking_strategy_params: 
-    masking_strategy: default
+  # Optional, masking strategy for N2V family of algorithms
+  masking_strategy: 
+    strategy_type: default
     # Optional, percentage of masked pixel per patch (between 0.1 and 20%)
-    masked_pixel_percentage: 0.2
-    # Optional, size of the ROI used to select pixels to mask (between 5 and 21)
-    roi_size: 11
+    parameters:
+      masked_pixel_percentage: 0.2
+      # Optional, size of the ROI used to select pixels to mask (between 5 and 21)
+      roi_size: 11
 training:
   # Number of epochs, greater or equal than 1
   num_epochs: 100

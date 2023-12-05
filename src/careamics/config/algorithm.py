@@ -16,6 +16,7 @@ from pydantic import (
 from .config_filter import remove_default_optionals
 from .models import Model
 from .noise_models import NoiseModel
+from .pixel_masking import MaskingStrategy
 
 # python 3.11: https://docs.python.org/3/library/enum.html
 
@@ -58,21 +59,6 @@ class Loss(str, Enum):
     PN2V = "pn2v"
     HDN = "hdn"
     CUSTOM = "custom"
-
-
-class MaskingStrategy(str, Enum):
-    """
-    Available masking strategy.
-
-    Currently supported strategies:
-
-    - default: default masking strategy of Noise2Void (uniform sampling of neighbors).
-    - median: median masking strategy of N2V2.
-    """
-
-    NONE = "none"
-    DEFAULT = "default"
-    MEDIAN = "median"
 
 
 class ModelParameters(BaseModel):
@@ -181,9 +167,7 @@ class Algorithm(BaseModel):
 
     # Optional fields, define a default value
     noise_model: Optional[NoiseModel] = None
-    masking_strategy: MaskingStrategy = MaskingStrategy.NONE
-    masked_pixel_percentage: float = Field(default=None, ge=0.1, le=20)
-    roi_size: int = Field(default=None, ge=3, le=21)
+    masking_strategy: Optional[MaskingStrategy] = None
     model_parameters: ModelParameters = ModelParameters()
 
     def get_conv_dim(self) -> int:
@@ -240,93 +224,44 @@ class Algorithm(BaseModel):
             Loss.CUSTOM,
         ]:
             raise ValueError(
-                f"Algorithm {data.type} does not support {data.loss} loss."
+                f"Algorithm {data.algorithm_type} does not support"
+                f" {data.loss.upper()} loss. Please refer to the documentation"
+                # TODO add link to documentation
             )
 
         if (
             data.algorithm_type in [AlgorithmType.CARE, AlgorithmType.N2N]
             and data.noise_model is not None
         ):
-            raise ValueError(f"Algorithm {data.type} does not support a noise model.")
+            raise ValueError(
+                f"Algorithm {data.algorithm_type} isn't compatible with a noise model."
+            )
+
+        if (
+            data.algorithm_type in [AlgorithmType.CARE, AlgorithmType.N2N]
+            and data.masking_strategy is not None
+        ):
+            raise ValueError(
+                f"Algorithm {data.algorithm_type} doesn't require a masking strategy."
+            )
 
         if (
             data.loss == Loss.PN2V or data.loss == Loss.HDN
         ) and data.noise_model is None:
-            raise ValueError(f"Loss {data.loss} requires a noise model.")
+            raise ValueError(f"Loss {data.loss.upper()} requires a noise model.")
 
         if data.loss in [Loss.N2V, Loss.MAE, Loss.MSE] and data.noise_model is not None:
-            raise ValueError(f"Loss {data.loss} does not support a noise model.")
+            raise ValueError(
+                f"Loss {data.loss.upper()} does not support a noise model."
+            )
 
         if data.loss == Loss.N2V and data.masking_strategy != "none":
             raise ValueError(
-                f"Algorithm {data.loss} does not require masking strategy "
+                f"Algorithm {data.loss.upper()} does not require masking strategy "
                 f"{data.masking_strategy}."
             )
 
         return data
-
-    @model_validator(mode="after")
-    def masking_strategy_validation(cls, data: Algorithm) -> Algorithm:
-        """Validate masking strategy and its parameters.
-
-        Returns
-        -------
-        MaskingStrategy
-            Validated masking strategy.
-
-        Raises
-        ------
-        ValueError
-            If the masking strategy is not supported.
-        """
-        if data.masking_strategy not in [
-            MaskingStrategy.NONE,
-            MaskingStrategy.DEFAULT,
-            MaskingStrategy.MEDIAN,
-        ]:
-            raise ValueError(
-                f"Masking strategy {data.masking_strategy} is not supported."
-            )
-        if (
-            data.masking_strategy
-            in [
-                MaskingStrategy.DEFAULT,
-                MaskingStrategy.MEDIAN,
-            ]
-            and data.masked_pixel_percentage is None
-            or data.roi_size is None
-        ):
-            raise ValueError(
-                f"Masking strategy {data.masking_strategy} requires a masked pixel "
-                f"percentage and a ROI size. Please refer to the documentation"
-            )  # TODO add link to documentation
-        return data
-
-    @field_validator("roi_size")
-    def even(cls, roi_size: int) -> int:
-        """
-        Validate that roi_size is odd.
-
-        Parameters
-        ----------
-        roi_size : int
-            Size of the region of interest in the masking scheme.
-
-        Returns
-        -------
-        int
-            Validated size of the region of interest.
-
-        Raises
-        ------
-        ValueError
-            If the size of the region of interest is even.
-        """
-        # if even
-        if roi_size % 2 == 0:
-            raise ValueError(f"ROI size must be odd (got {roi_size}).")
-
-        return roi_size
 
     def model_dump(
         self, exclude_optionals: bool = True, *args: List, **kwargs: Dict

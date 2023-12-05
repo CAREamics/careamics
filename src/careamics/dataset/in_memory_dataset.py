@@ -123,7 +123,11 @@ class InMemoryDataset(torch.utils.data.Dataset):
         self.patch_overlap = patch_overlap
         self.patch_extraction_method = patch_extraction_method
         self.patch_transform = get_patch_transform(patch_transform)
-        self.patch_transform_params = patch_transform_params
+        self.patch_transform_params = (
+            {}
+            if any(v is None for k, v in patch_transform_params.items())
+            else patch_transform_params
+        )
 
         self.mean = mean
         self.std = std
@@ -198,7 +202,7 @@ class InMemoryDataset(torch.utils.data.Dataset):
         ValueError
             If dataset mean and std are not set.
         """
-        patch = self.data[index].squeeze()
+        patch = self.data[index]
         if self.target_path is not None:
             # Splitting targets into a list. 1st dim is the number of targets
             target = self.targets[:, index, ...]
@@ -208,15 +212,10 @@ class InMemoryDataset(torch.utils.data.Dataset):
             if self.target_path is not None:
                 target = normalize(img=target, mean=self.mean, std=self.std)
 
-            if self.patch_transform is not None:
-                # replace None self.patch_transform_params with empty dict
-                if self.patch_transform_params is None:
-                    self.patch_transform_params = {}
-
-                patch = self.patch_transform(patch, **self.patch_transform_params)
+            patch = self.patch_transform(patch, **self.patch_transform_params)
 
             # Needed to add channel dimension in case input image is single channel
-            if len(patch.shape) == len(self.patch_size) + 1:
+            if len(patch.shape) < len(self.patch_size) + 1:
                 patch = expand_dims(patch)
             return patch
         else:

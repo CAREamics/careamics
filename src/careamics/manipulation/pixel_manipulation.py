@@ -103,7 +103,7 @@ def default_manipulate(
     Parameters
     ----------
     patch : np.ndarray
-        Image patch, 2D or 3D, shape (y, x) or (z, y, x).
+        Image patch, 2D or 3D, shape (c, y, x) or (c, z, y, x).
     mask_pixel_percentage : floar
         Approximate percentage of pixels to be masked.
     roi_size : int
@@ -116,6 +116,7 @@ def default_manipulate(
     Tuple[np.ndarray]
         Tuple containing the manipulated patch, the original patch and the mask.
     """
+    # patch = patch.squeeze()
     original_patch = patch.copy()
 
     # Get the coordinates of the pixels to be replaced

@@ -278,7 +278,7 @@ def get_patch_transform(patch_transform_type: str) -> Union[None, Callable]:
     elif patch_transform_type == "default":
         return default_manipulate
     else:
-        # TODO add link to documentation
+        # TODO add link to documentation, add other transforms
         raise ValueError(
             f"Incorrect patch transform function {patch_transform_type}."
             f"Please refer to the documentation."

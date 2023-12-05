@@ -3,7 +3,7 @@ from __future__ import annotations
 from enum import Enum
 from typing import Dict, Union
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class NoiseModelType(str, Enum):
@@ -13,9 +13,10 @@ class NoiseModelType(str, Enum):
     Currently supported noise models:
 
         - hist: Histogram noise model.
-        - gmm: Gaussian mixture model noise model.
+        - gmm: Gaussian mixture model noise model.F
     """
 
+    NONE = "none"
     HIST = "hist"
     GMM = "gmm"
 
@@ -71,8 +72,8 @@ class NoiseModel(BaseModel):
     model_type: NoiseModelType
     parameters: Dict = {}
 
-    @field_validator("parameters")
-    def validate_parameters(cls, parameters: Dict, info: ValidationInfo) -> Dict:
+    @model_validator(mode="after")
+    def validate_parameters(cls, data: NoiseModel) -> NoiseModel:
         """_summary_.
 
         Parameters
@@ -85,14 +86,15 @@ class NoiseModel(BaseModel):
         Dict
             _description_
         """
-        if "model_type" not in info.data:
-            raise ValueError("Noise model type is missing.")
+        if data.model_type not in [NoiseModelType.GMM, NoiseModelType.HIST]:
+            raise ValueError(
+                f"Incorrect noise model {data.model_type}."
+                f"Please refer to the documentation"  # TODO add link to documentation
+            )
 
-        noise_model_type = info.data["model_type"]
+        NoiseModelType.validate_noise_model_type(data.model_type, data.parameters)
 
-        NoiseModelType.validate_noise_model_type(noise_model_type, parameters)
-
-        return parameters
+        return data
 
 
 class HistogramNoiseModel(BaseModel):
