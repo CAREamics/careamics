@@ -49,10 +49,6 @@ def get_train_dataset(
             patch_extraction_method=ExtractionStrategy.SEQUENTIAL,
             patch_size=config.training.patch_size,
             patch_transform=config.algorithm.masking_strategy,
-            patch_transform_params={
-                "mask_pixel_percentage": config.algorithm.masked_pixel_percentage,
-                "roi_size": config.algorithm.roi_size,
-            },
             target_path=train_target_path,
             target_format=config.data.data_format,
         )
@@ -126,9 +122,8 @@ def get_validation_dataset(
             patch_extraction_method=ExtractionStrategy.SEQUENTIAL,
             patch_size=config.training.patch_size,
             patch_transform=config.algorithm.masking_strategy,
-            patch_transform_params={
-                "mask_pixel_percentage": config.algorithm.masked_pixel_percentage
-            },
+            target_path=val_target_path,
+            target_format=config.data.data_format,
         )
     elif config.data.data_format == "zarr":
         if ".zarray" in os.listdir(val_path):

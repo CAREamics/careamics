@@ -291,10 +291,9 @@ class Algorithm(BaseModel):
 
         if exclude_optionals is True:
             # remove optional arguments if they are default
+            # TODO check if this saves args correctly
             defaults = {
-                "masking_strategy": MaskingStrategy.DEFAULT.value,
-                "masked_pixel_percentage": 0.2,
-                "roi_size": 11,
+                "masking_strategy": None,
                 "model_parameters": ModelParameters().model_dump(exclude_none=True),
             }
 

@@ -147,7 +147,7 @@ class TiffDataset(torch.utils.data.IterableDataset):
             # TODO patch_extraction_method should never be None!
             if self.patch_extraction_method:
                 # TODO: move S and T unpacking logic from patch generator
-                patches = generate_patches(
+                patches, targets = generate_patches(
                     sample,
                     self.patch_extraction_method,
                     self.patch_size,

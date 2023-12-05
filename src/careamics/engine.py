@@ -361,9 +361,7 @@ class Engine:
                 # Get prediction and loss
                 with torch.cuda.amp.autocast(enabled=amp):
                     outputs = self.model(batch.to(self.device))
-                loss = self.loss_func(
-                    outputs, *[a.to(self.device) for a in auxillary], self.device
-                )
+                loss = self.loss_func(outputs, *[a.to(self.device) for a in auxillary])
                 self.scaler.scale(loss).backward()
                 avg_loss.update(loss.detach(), batch.shape[0])
 
@@ -399,9 +397,7 @@ class Engine:
         with torch.no_grad():
             for patch, *auxillary in val_loader:
                 outputs = self.model(patch.to(self.device))
-                loss = self.loss_func(
-                    outputs, *[a.to(self.device) for a in auxillary], self.device
-                )
+                loss = self.loss_func(outputs, *[a.to(self.device) for a in auxillary])
                 avg_loss.update(loss.detach(), patch.shape[0])
         return {"loss": avg_loss.avg.to(torch.float16).cpu().numpy()}
 
@@ -676,7 +672,7 @@ class Engine:
         if self.cfg is None:
             raise ValueError("Configuration is not defined.")
 
-        dataset = get_validation_dataset(self.cfg, val_path)
+        dataset = get_validation_dataset(self.cfg, val_path, val_target_path)
         dataloader = DataLoader(
             dataset,
             batch_size=self.cfg.training.batch_size,

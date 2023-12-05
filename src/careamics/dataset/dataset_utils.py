@@ -273,7 +273,7 @@ def get_patch_transform(patch_transform_type: str) -> Union[None, Callable]:
     Union[None, Callable]
         Patch transform function.
     """
-    if patch_transform_type == 'none':
+    if patch_transform_type is None:
         return lambda x, *args: (x,) + args if args else x
     elif patch_transform_type == "default":
         return default_manipulate
@@ -312,7 +312,6 @@ def prepare_patches_supervised(
         means += sample.mean()
         stds += np.std(sample)
         num_samples += 1
-        # TODO SHould patches be generated from concatenated train and target ?
         # generate patches, return a generator
         patches, targets = generate_patches(
             sample,

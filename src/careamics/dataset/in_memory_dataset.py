@@ -1,6 +1,6 @@
 """In-memory dataset module."""
 from pathlib import Path
-from typing import Callable, Dict, List, Optional, Tuple, Union
+from typing import Callable, List, Optional, Tuple, Union
 
 import numpy as np
 import torch
@@ -43,9 +43,9 @@ class InMemoryDataset(torch.utils.data.Dataset):
     std : Optional[float], optional
         Expected standard deviation of the dataset, by default None.
     patch_transform : Optional[Callable], optional
-        Patch transform to apply, by default None.
-    patch_transform_params : Optional[Dict], optional
-        Patch transform parameters, by default None.
+        Patch transform to apply, by default None. Contains type and parameters in a
+        dict. Used in N2V family of algorithms, or any custom patch
+        manipulation/augmentation.
     """
 
     def __init__(
@@ -59,7 +59,6 @@ class InMemoryDataset(torch.utils.data.Dataset):
         mean: Optional[float] = None,
         std: Optional[float] = None,
         patch_transform: Optional[Callable] = None,
-        patch_transform_params: Optional[Dict] = None,
         target_path: Optional[Union[str, Path, List[Union[str, Path]]]] = None,
         target_format: Optional[str] = None,
     ) -> None:
@@ -87,8 +86,8 @@ class InMemoryDataset(torch.utils.data.Dataset):
         patch_transform : Optional[Callable], optional
             Patch transform to apply, by default None. Could be any augmentation
             function, or algorithm specific pixel manipulation (N2V family).
-        patch_transform_params : Optional[Dict], optional
-            Patch transform parameters, by default None.
+            Please refer to the documentation for more details.
+            # TODO add link
 
         Raises
         ------
@@ -124,9 +123,7 @@ class InMemoryDataset(torch.utils.data.Dataset):
         self.patch_extraction_method = patch_extraction_method
         self.patch_transform = get_patch_transform(patch_transform)
         self.patch_transform_params = (
-            {}
-            if any(v is None for k, v in patch_transform_params.items())
-            else patch_transform_params
+            {} if patch_transform is None else patch_transform["parameters"]
         )
 
         self.mean = mean
@@ -217,6 +214,6 @@ class InMemoryDataset(torch.utils.data.Dataset):
             # Needed to add channel dimension in case input image is single channel
             if len(patch.shape) < len(self.patch_size) + 1:
                 patch = expand_dims(patch)
-            return patch
+            return patch, target
         else:
             raise ValueError("Dataset mean and std must be set before using it.")
