@@ -98,4 +98,58 @@ class MaskingStrategy(BaseModel):
 
         if data.parameters["roi_size"] % 2 == 0:
             raise ValueError(f"ROI size must be odd, got {data.parameters['roi_size']}")
+        if data.parameters["roi_size"] < 3 or data.parameters["roi_size"] > 21:
+            raise ValueError(
+                f"ROI size must be between 3 and 21, got {data.parameters['roi_size']}"
+            )
+        if data.parameters["masked_pixel_percentage"] < 0.1:
+            raise ValueError(
+                "Masked pixel percentage must be at least 0.1"
+            )
         return data
+
+    #TODO finish modifying this class
+    def model_dump(
+        self, exclude_optionals: bool = True, *args: List, **kwargs: Dict
+    ) -> Dict:
+        """
+        Override model_dump method.
+
+        The purpose is to ensure export smooth import to yaml. It includes:
+            - remove entries with None value.
+            - remove optional values if they have the default value.
+
+        Parameters
+        ----------
+        exclude_optionals : bool, optional
+            Whether to exclude optional arguments if they are default, by default True.
+        *args : List
+            Positional arguments, unused.
+        **kwargs : Dict
+            Keyword arguments, unused.
+
+        Returns
+        -------
+        Dict
+            Dictionary representation of the model.
+        """
+        dictionary = super().model_dump(exclude_none=True)
+
+        if exclude_optionals is True:
+            # remove optional arguments if they are default
+            defaults = {
+                "model": {
+                    "architecture": "UNet",
+                    "parameters": {"depth": 2, "num_channels_init": 32},
+                },
+                # TODO don't kmow how to drop nested defaults and don't know why we need this ?!
+                MaskingStrategy()
+                "masking_strategy": {
+                    "strategy_type": "default",
+                    "parameters": {"masked_pixel_percentage": 0.2, "roi_size": 11},
+                },
+            }
+
+            remove_default_optionals(dictionary, defaults)
+
+        return dictionary

@@ -9,7 +9,7 @@ working_directory: path/to/working_directory
 trained_model: best_model.pth
 
 algorithm:
-  type: n2v
+  algorithm_type: n2v
   # Loss, currently only n2v is supported
   loss: n2v
 
@@ -17,9 +17,11 @@ algorithm:
   model: 
     architecture: UNet
     # Depth betwen 1 and 10
-    depth: 2
-    # Number of filters of the first level, must be divisible by 2
-    num_filter_base: 32
+    parameters:
+      # Depth betwen 1 and 10
+      depth: 2
+      # Number of filters of the first level, must be divisible by 2
+      num_channels_init: 32
   
   # Noise model, Histogram or GMM
   noise_model: 

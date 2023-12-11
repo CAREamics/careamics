@@ -3,7 +3,7 @@ from __future__ import annotations
 from enum import Enum
 from typing import Dict, Union
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class NoiseModelType(str, Enum):
@@ -40,8 +40,15 @@ class NoiseModelType(str, Enum):
         """
         if noise_model == NoiseModelType.HIST.value:
             HistogramNoiseModel(**parameters)
+            return HistogramNoiseModel().model_dump() if not parameters else parameters
+
         elif noise_model == NoiseModelType.GMM.value:
             GaussianMixtureNoiseModel(**parameters)
+            return (
+                GaussianMixtureNoiseModel().model_dump()
+                if not parameters
+                else parameters
+            )
 
 
 class NoiseModel(BaseModel):
@@ -70,10 +77,10 @@ class NoiseModel(BaseModel):
     )
 
     model_type: NoiseModelType
-    parameters: Dict = {}
+    parameters: Dict = Field(default_factory=dict, validate_default=True)
 
-    @model_validator(mode="after")
-    def validate_parameters(cls, data: NoiseModel) -> NoiseModel:
+    @field_validator("parameters")
+    def validate_parameters(cls, data, values) -> Dict:
         """_summary_.
 
         Parameters
@@ -86,15 +93,16 @@ class NoiseModel(BaseModel):
         Dict
             _description_
         """
-        if data.model_type not in [NoiseModelType.GMM, NoiseModelType.HIST]:
+        if values.data["model_type"] not in [NoiseModelType.GMM, NoiseModelType.HIST]:
             raise ValueError(
-                f"Incorrect noise model {data.model_type}."
+                f"Incorrect noise model {values.data['model_type']}."
                 f"Please refer to the documentation"  # TODO add link to documentation
             )
 
-        NoiseModelType.validate_noise_model_type(data.model_type, data.parameters)
-
-        return data
+        parameters = NoiseModelType.validate_noise_model_type(
+            values.data["model_type"], data
+        )
+        return parameters
 
 
 class HistogramNoiseModel(BaseModel):

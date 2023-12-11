@@ -5,25 +5,31 @@ experiment_name: N2N_SEM
 working_directory: n2n_sem
 
 algorithm:
-  type: n2n
+  algorithm_type: n2n
   # Loss, currently only n2v is supported
   loss: mae
 
   # Model, currently only UNet is supported
-  model: UNet
+  model: 
+    architecture: UNet
+    parameters:
+      # Depth betwen 1 and 10
+      depth: 2
+      # Number of filters of the first level, must be divisible by 2
+      num_channels_init: 32
 
   # Dimensions 2D (False) or 3D (True)
   is_3D: False
 
 training:
   # Number of epochs, greater or equal than 1
-  num_epochs: 100
+  num_epochs: 50
 
   # Patch size, 2D or 3D, divisible by 2
-  patch_size: [64, 64]
+  patch_size: [128, 128]
 
   # Batch size, greater or equal than 1
-  batch_size: 128
+  batch_size: 64
 
   # Optimizer
   optimizer:
@@ -54,10 +60,10 @@ training:
 
 data:
   # Controls the type of dataloader to use. Set to False if data won't fit into memory
-  in_memory: False
+  in_memory: True
 
   # Extension of the data, one of npy, tiff and tif
-  data_format: zarr
+  data_format: tif
 
   # Axes, among STCZYX with constraints on order
   axes: YX

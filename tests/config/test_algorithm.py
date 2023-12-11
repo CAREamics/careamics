@@ -1,88 +1,88 @@
 import pytest
 
-from careamics.config.algorithm import Algorithm, ModelParameters
+from careamics.config.algorithm import Algorithm
+from careamics.config.models import UNet
 from careamics.config.noise_models import NoiseModel
 
 
 def test_algorithm_noise_model():
-    d = {"noise_model": {
+    d = {
         "model_type": "hist",
         "parameters": {"min_value": 324, "max_value": 3465},
-    }, "loss": "n2v", "model": "unet", "is_3D": False}
-
-    Algorithm(**d)
+    }
+    NoiseModel(**d)
 
 
 @pytest.mark.parametrize("depth", [1, 5, 10])
-def test_model_parameters_depth(complete_config: dict, depth: int):
-    """Test that ModelParameters accepts depth between 1 and 10."""
-    model_params = complete_config["algorithm"]["model_parameters"]
+def test_unet_parameters_depth(complete_config: dict, depth: int):
+    """Test that UNet accepts depth between 1 and 10."""
+    model_params = complete_config["algorithm"]["model"]["parameters"]
     model_params["depth"] = depth
 
-    model = ModelParameters(**model_params)
+    model = UNet(**model_params)
     assert model.depth == depth
 
 
 @pytest.mark.parametrize("depth", [-1, 11])
-def test_model_parameters_wrong_depth(complete_config: dict, depth: int):
+def test_unet_parameters_wrong_depth(complete_config: dict, depth: int):
     """Test that wrong depth cause an error."""
-    model_params = complete_config["algorithm"]["model_parameters"]
+    model_params = complete_config["algorithm"]["model"]["parameters"]
     model_params["depth"] = depth
 
     with pytest.raises(ValueError):
-        ModelParameters(**model_params)
+        UNet(**model_params)
 
 
 @pytest.mark.parametrize("num_channels_init", [8, 16, 32, 96, 128])
-def test_model_parameters_num_channels_init(
+def test_unet_parameters_num_channels_init(
     complete_config: dict, num_channels_init: int
 ):
-    """Test that ModelParameters accepts num_channels_init as a power of two and
+    """Test that UNet accepts num_channels_init as a power of two and
     minimum 8."""
-    model_params = complete_config["algorithm"]["model_parameters"]
+    model_params = complete_config["algorithm"]["model"]["parameters"]
     model_params["num_channels_init"] = num_channels_init
 
-    model = ModelParameters(**model_params)
+    model = UNet(**model_params)
     assert model.num_channels_init == num_channels_init
 
 
 @pytest.mark.parametrize("num_channels_init", [2, 17, 127])
-def test_model_parameters_wrong_num_channels_init(
+def test_unet_parameters_wrong_num_channels_init(
     complete_config: dict, num_channels_init: int
 ):
     """Test that wrong num_channels_init cause an error."""
-    model_params = complete_config["algorithm"]["model_parameters"]
+    model_params = complete_config["algorithm"]["model"]["parameters"]
     model_params["num_channels_init"] = num_channels_init
 
     with pytest.raises(ValueError):
-        ModelParameters(**model_params)
+        UNet(**model_params)
 
 
 @pytest.mark.parametrize("roi_size", [5, 9, 15])
-def test_model_parameters_roi_size(complete_config: dict, roi_size: int):
+def test_parameters_roi_size(complete_config: dict, roi_size: int):
     """Test that Algorithm accepts roi_size as an even number within the
     range [3, 21]."""
-    params = complete_config["algorithm"]
-    params["roi_size"] = roi_size
-
-    algorithm = Algorithm(**params)
-    assert algorithm.roi_size == roi_size
+    complete_config["algorithm"]["masking_strategy"]["parameters"][
+        "roi_size"
+    ] = roi_size
+    algorithm = Algorithm(**complete_config["algorithm"])
+    assert algorithm.masking_strategy.parameters["roi_size"] == roi_size
 
 
 @pytest.mark.parametrize("roi_size", [2, 4, 23])
-def test_model_parameters_wrong_roi_size(complete_config: dict, roi_size: int):
+def test_parameters_wrong_roi_size(complete_config: dict, roi_size: int):
     """Test that wrong num_channels_init cause an error."""
-    params = complete_config["algorithm"]
-    params["roi_size"] = roi_size
-
+    complete_config["algorithm"]["masking_strategy"]["parameters"][
+        "roi_size"
+    ] = roi_size
     with pytest.raises(ValueError):
-        Algorithm(**params)
+        Algorithm(**complete_config["algorithm"])
 
 
-def test_model_parameters_wrong_values_by_assigment(complete_config: dict):
+def test_unet_parameters_wrong_values_by_assigment(complete_config: dict):
     """Test that wrong values are not accepted through assignment."""
-    model_params = complete_config["algorithm"]["model_parameters"]
-    model = ModelParameters(**model_params)
+    model_params = complete_config["algorithm"]["model"]["parameters"]
+    model = UNet(**model_params)
 
     # depth
     model.depth = model_params["depth"]
@@ -98,7 +98,7 @@ def test_model_parameters_wrong_values_by_assigment(complete_config: dict):
 @pytest.mark.parametrize("masked_pixel_percentage", [0.1, 0.2, 5, 20])
 def test_masked_pixel_percentage(complete_config: dict, masked_pixel_percentage: float):
     """Test that Algorithm accepts the minimum configuration."""
-    algorithm = complete_config["algorithm"]
+    algorithm = complete_config["algorithm"]["masking_strategy"]["parameters"]
     algorithm["masked_pixel_percentage"] = masked_pixel_percentage
 
     algo = Algorithm(**algorithm)
@@ -110,7 +110,7 @@ def test_wrong_masked_pixel_percentage(
     complete_config: dict, masked_pixel_percentage: float
 ):
     """Test that Algorithm accepts the minimum configuration."""
-    algorithm = complete_config["algorithm"]
+    algorithm = complete_config["algorithm"]["masking_strategy"]["parameters"]
     algorithm["masked_pixel_percentage"] = masked_pixel_percentage
 
     with pytest.raises(ValueError):
@@ -127,10 +127,12 @@ def test_wrong_values_by_assigment(complete_config: dict):
     with pytest.raises(ValueError):
         algo.loss = "mse"
 
+    algo.loss = algorithm["loss"]
+
     # model
     algo.model = algorithm["model"]
     with pytest.raises(ValueError):
-        algo.model = "unet"
+        algo.model.architecture = "Unet"
 
     # is_3D
     algo.is_3D = algorithm["is_3D"]
@@ -140,22 +142,22 @@ def test_wrong_values_by_assigment(complete_config: dict):
     # masking_strategy
     algo.masking_strategy = algorithm["masking_strategy"]
     with pytest.raises(ValueError):
-        algo.masking_strategy = "mean"
+        algo.masking_strategy.strategy_type = "mean"
 
     # masked_pixel_percentage
-    algo.masked_pixel_percentage = algorithm["masked_pixel_percentage"]
+    algo.masking_strategy = algorithm["masking_strategy"]
     with pytest.raises(ValueError):
-        algo.masked_pixel_percentage = 0.01
+        algo.masking_strategy.parameters["masked_pixel_percentage"] = 0.01
 
     # model_parameters
-    algo.model_parameters = algorithm["model_parameters"]
+    algo.model.parameters = algorithm["model"]["parameters"]
     with pytest.raises(ValueError):
-        algo.model_parameters = "params"
+        algo.model.parameters = "params"
 
 
 def test_algorithm_to_dict_minimum(minimum_config: dict):
     """ "Test that export to dict does not include optional values."""
-    algorithm_minimum = Algorithm(**minimum_config["algorithm"]).model_dump()
+    algorithm_minimum = Algorithm(**minimum_config["algorithm"])  # .model_dump()
     assert algorithm_minimum == minimum_config["algorithm"]
 
     assert "loss" in algorithm_minimum

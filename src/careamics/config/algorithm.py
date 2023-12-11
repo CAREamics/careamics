@@ -7,9 +7,7 @@ from typing import Dict, List, Optional
 from pydantic import (
     BaseModel,
     ConfigDict,
-    Field,
     ValidationInfo,
-    field_validator,
     model_validator,
 )
 
@@ -59,56 +57,6 @@ class Loss(str, Enum):
     PN2V = "pn2v"
     HDN = "hdn"
     CUSTOM = "custom"
-
-
-class ModelParameters(BaseModel):
-    """
-    Deep-learning model parameters.
-
-    The number of filters (base) must be even and minimum 8.
-
-    Attributes
-    ----------
-    depth : int
-        Depth of the model, between 1 and 10 (default 2).
-    num_channels_init : int
-        Number of filters of the first level of the network, should be even
-        and minimum 8 (default 96).
-    """
-
-    model_config = ConfigDict(validate_assignment=True)
-
-    depth: int = Field(default=2, ge=1, le=10)
-    num_channels_init: int = Field(default=32, ge=8)
-
-    # TODO revisit the constraints on num_channels_init
-    @field_validator("num_channels_init")
-    def even(cls, num_channels: int) -> int:
-        """
-        Validate that num_channels_init is even.
-
-        Parameters
-        ----------
-        num_channels : int
-            Number of channels.
-
-        Returns
-        -------
-        int
-            Validated number of channels.
-
-        Raises
-        ------
-        ValueError
-            If the number of channels is odd.
-        """
-        # if odd
-        if num_channels % 2 != 0:
-            raise ValueError(
-                f"Number of channels (init) must be even (got {num_channels})."
-            )
-
-        return num_channels
 
 
 class Algorithm(BaseModel):
@@ -168,7 +116,6 @@ class Algorithm(BaseModel):
     # Optional fields, define a default value
     noise_model: Optional[NoiseModel] = None
     masking_strategy: Optional[MaskingStrategy] = None
-    model_parameters: ModelParameters = ModelParameters()
 
     def get_conv_dim(self) -> int:
         """
@@ -254,11 +201,16 @@ class Algorithm(BaseModel):
             raise ValueError(
                 f"Loss {data.loss.upper()} does not support a noise model."
             )
-
-        if data.loss == Loss.N2V and data.masking_strategy != "none":
+        if data.loss == Loss.N2V and data.algorithm_type != AlgorithmType.N2V:
             raise ValueError(
-                f"Algorithm {data.loss.upper()} does not require masking strategy "
-                f"{data.masking_strategy}."
+                f"Loss {data.loss.upper()} is only supported by "
+                f"{AlgorithmType.N2V}."
+            )
+        if data.loss == Loss.N2V and data.masking_strategy is None:
+            raise ValueError(
+                f"Loss {data.loss.upper()} require a masking strategy."
+                f"Please refer to the documentation"
+                # TODO add link to documentation
             )
 
         return data
@@ -291,10 +243,16 @@ class Algorithm(BaseModel):
 
         if exclude_optionals is True:
             # remove optional arguments if they are default
-            # TODO check if this saves args correctly
             defaults = {
-                "masking_strategy": None,
-                "model_parameters": ModelParameters().model_dump(exclude_none=True),
+                "model": {
+                    "architecture": "UNet",
+                    "parameters": {"depth": 2, "num_channels_init": 32},
+                },
+                # TODO don't kmow how to drop nested defaults and don't know why we need this ?!
+                "masking_strategy": {
+                    "strategy_type": "default",
+                    "parameters": {"masked_pixel_percentage": 0.2, "roi_size": 11},
+                },
             }
 
             remove_default_optionals(dictionary, defaults)

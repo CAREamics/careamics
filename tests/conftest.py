@@ -58,9 +58,14 @@ def minimum_config(tmp_path: Path) -> dict:
         "experiment_name": "LevitatingFrog",
         "working_directory": str(tmp_path),
         "algorithm": {
+            "algorithm_type": "n2v",
             "loss": "n2v",
-            "model": "UNet",
+            "model": {"architecture": "UNet"},
             "is_3D": False,
+            "masking_strategy": {
+                "strategy_type": "default",
+                "parameters": {"masked_pixel_percentage": 0.2, "roi_size": 11},
+            },
         },
         "training": {
             "num_epochs": 666,
@@ -100,14 +105,29 @@ def complete_config(minimum_config: dict) -> dict:
     """
     # add to configuration
     complete_config = copy.deepcopy(minimum_config)
+    complete_config["algorithm"]["loss"] = "pn2v"
+    complete_config["algorithm"]["noise_model"] = {
+        "model_type": "hist",
+        "parameters": {
+            "min_value": 350,
+            "max_value": 6500,
+            "bins": 256,
+        },
+    }
+    complete_config["algorithm"]["masking_strategy"] = {
+        "strategy_type": "median",
+        "parameters": {
+            "masked_pixel_percentage": 0.6,
+            "roi_size": 13,
+        },
+    }
 
-    complete_config["algorithm"]["masking_strategy"] = "median"
-
-    complete_config["algorithm"]["masked_pixel_percentage"] = 0.6
-    complete_config["algorithm"]["roi_size"] = 13
-    complete_config["algorithm"]["model_parameters"] = {
-        "depth": 8,
-        "num_channels_init": 32,
+    complete_config["algorithm"]["model"] = {
+        "architecture": "UNet",
+        "parameters": {
+            "depth": 8,
+            "num_channels_init": 32,
+        },
     }
 
     complete_config["training"]["optimizer"]["parameters"] = {

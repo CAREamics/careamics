@@ -62,10 +62,10 @@ training:
 
 data:
   # Controls the type of dataloader to use. Set to False if data won't fit into memory
-  in_memory: False
+  in_memory: True
 
   # Extension of the data, one of npy, tiff and tif
-  data_format: zarr
+  data_format: tiff
 
   # Axes, among STCZYX with constraints on order
   axes: YX
