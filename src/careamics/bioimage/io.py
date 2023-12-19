@@ -70,7 +70,7 @@ def save_bioimage_model(
         # create requirements file
         requirements = workdir.joinpath("requirements.txt")
         with open(requirements, "w") as f:
-            f.write("git+https://github.com/CAREamics/careamics.git")
+            f.write("git+github.com/CAREamics/careamics.git")
 
         algo_config = config.algorithm
         specs.update(
