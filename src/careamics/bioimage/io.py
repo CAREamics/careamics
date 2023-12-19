@@ -7,6 +7,7 @@ from bioimageio.core import load_resource_description
 from bioimageio.core.build_spec import build_model
 
 from careamics.config.config import Configuration
+from careamics.utils.context import cwd
 
 PYTORCH_STATE_DICT = "pytorch_state_dict"
 
@@ -30,73 +31,88 @@ def save_bioimage_model(
     """
     workdir = config.working_directory
 
-    # load best checkpoint
-    checkpoint_path = workdir.joinpath(f"{config.experiment_name}_best.pth").absolute()
-    checkpoint = torch.load(checkpoint_path, map_location="cpu")
+    # temporary folder
+    temp_folder = Path.home().joinpath(".careamics", "bmz_tmp")
+    temp_folder.mkdir(exist_ok=True, parents=True)
 
-    # save chekpoint entries in separate files
-    weight_path = workdir.joinpath("model_weights.pth")
-    torch.save(checkpoint["model_state_dict"], weight_path)
+    # change working directory to the temp folder
+    with cwd(temp_folder):
+        # load best checkpoint
+        checkpoint_path = workdir.joinpath(
+            f"{config.experiment_name}_best.pth"
+        ).absolute()
+        checkpoint = torch.load(checkpoint_path, map_location="cpu")
 
-    optim_path = workdir.joinpath("optim.pth")
-    torch.save(checkpoint["optimizer_state_dict"], optim_path)
+        # save chekpoint entries in separate files
+        weight_path = workdir.joinpath("model_weights.pth")
+        torch.save(checkpoint["model_state_dict"], weight_path)
 
-    scheduler_path = workdir.joinpath("scheduler.pth")
-    torch.save(checkpoint["scheduler_state_dict"], scheduler_path)
+        optim_path = workdir.joinpath("optim.pth")
+        torch.save(checkpoint["optimizer_state_dict"], optim_path)
 
-    grad_path = workdir.joinpath("grad.pth")
-    torch.save(checkpoint["grad_scaler_state_dict"], grad_path)
+        scheduler_path = workdir.joinpath("scheduler.pth")
+        torch.save(checkpoint["scheduler_state_dict"], scheduler_path)
 
-    config_path = workdir.joinpath("config.pth")
-    torch.save(config.model_dump(), config_path)
+        grad_path = workdir.joinpath("grad.pth")
+        torch.save(checkpoint["grad_scaler_state_dict"], grad_path)
 
-    # create attachments
-    attachments = [
-        str(optim_path),
-        str(scheduler_path),
-        str(grad_path),
-        str(config_path),
-    ]
+        config_path = workdir.joinpath("config.pth")
+        torch.save(config.model_dump(), config_path)
 
-    # create requirements file
-    requirements = workdir.joinpath("requirements.txt")
-    with open(requirements, "w") as f:
-        f.write("git+https://github.com/CAREamics/careamics.git")
+        # create attachments
+        attachments = [
+            str(optim_path),
+            str(scheduler_path),
+            str(grad_path),
+            str(config_path),
+        ]
 
-    algo_config = config.algorithm
-    specs.update(
-        {
-            "weight_type": PYTORCH_STATE_DICT,
-            "weight_uri": str(weight_path),
-            "architecture": "careamics.models.unet.UNet",
-            "pytorch_version": torch.__version__,
-            "model_kwargs": {
-                "conv_dim": algo_config.get_conv_dim(),
-                "depth": algo_config.model_parameters.depth,
-                "num_channels_init": algo_config.model_parameters.num_channels_init,
-            },
-            "dependencies": "pip:" + str(requirements.absolute()),
-            "attachments": {"files": attachments},
-        }
-    )
+        # create requirements file
+        requirements = workdir.joinpath("requirements.txt")
+        with open(requirements, "w") as f:
+            f.write("git+https://github.com/CAREamics/careamics.git")
 
-    if config.algorithm.is_3D:
-        specs["tags"].append("3D")
-    else:
-        specs["tags"].append("2D")
+        algo_config = config.algorithm
+        specs.update(
+            {
+                "weight_type": PYTORCH_STATE_DICT,
+                "weight_uri": str(weight_path),
+                "architecture": "careamics.models.unet.UNet",
+                "pytorch_version": torch.__version__,
+                "model_kwargs": {
+                    "conv_dim": algo_config.get_conv_dim(),
+                    "depth": algo_config.model_parameters.depth,
+                    "num_channels_init": algo_config.model_parameters.num_channels_init,
+                },
+                "dependencies": "pip:" + str(requirements.absolute()),
+                "attachments": {"files": attachments},
+            }
+        )
 
-    # build model zip
-    build_model(
-        output_path=Path(path).absolute(),
-        **specs,
-    )
+        if config.algorithm.is_3D:
+            specs["tags"].append("3D")
+        else:
+            specs["tags"].append("2D")
 
-    # remove the temporary files
-    weight_path.unlink()
-    optim_path.unlink()
-    scheduler_path.unlink()
-    grad_path.unlink()
-    config_path.unlink()
+        # build model zip
+        build_model(
+            output_path=Path(path).absolute(),
+            **specs,
+        )
+
+        # remove the temporary files
+        weight_path.unlink()
+        optim_path.unlink()
+        scheduler_path.unlink()
+        grad_path.unlink()
+        config_path.unlink()
+
+        # BMZ creates spurious files (copied before zipping)
+        for file in temp_folder.glob("*"):
+            file.unlink()
+
+    # delete temporary folder
+    temp_folder.rmdir()
 
 
 def import_bioimage_model(model_path: Union[str, Path]) -> Path:

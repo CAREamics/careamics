@@ -7,7 +7,6 @@ from bioimageio.core import resource_tests
 from careamics.config import Configuration
 from careamics.engine import Engine
 from careamics.models import create_model
-from careamics.utils import cwd
 
 
 def save_checkpoint(engine: Engine, config: Configuration) -> None:
@@ -51,19 +50,17 @@ def test_bioimage_io(minimum_config: dict, tmp_path: Path):
     # output zip file
     zip_file = tmp_path / "tmp_model.bioimage.io.zip"
 
-    # export the model, change context because of the spurious files creation from BMZ
-    with cwd(tmp_path):
-        engine.save_as_bioimage(zip_file.absolute())
-        assert zip_file.exists()
+    engine.save_as_bioimage(zip_file.absolute())
+    assert zip_file.exists()
 
-        # load model
-        _, _, _, _, loaded_config = create_model(model_path=zip_file)
-        assert isinstance(loaded_config, Configuration)
+    # load model
+    _, _, _, _, loaded_config = create_model(model_path=zip_file)
+    assert isinstance(loaded_config, Configuration)
 
-        # check that the configuration is the same
-        assert loaded_config == config
+    # check that the configuration is the same
+    assert loaded_config == config
 
-        # validate model
-        results = resource_tests.test_model(zip_file)
-        for result in results:
-            assert result["status"] == "passed", f"Failed at {result['name']}."
+    # validate model
+    results = resource_tests.test_model(zip_file)
+    for result in results:
+        assert result["status"] == "passed", f"Failed at {result['name']}."
