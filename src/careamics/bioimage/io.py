@@ -44,19 +44,19 @@ def save_bioimage_model(
         checkpoint = torch.load(checkpoint_path, map_location="cpu")
 
         # save chekpoint entries in separate files
-        weight_path = workdir.joinpath("model_weights.pth")
+        weight_path = Path("model_weights.pth")
         torch.save(checkpoint["model_state_dict"], weight_path)
 
-        optim_path = workdir.joinpath("optim.pth")
+        optim_path = Path("optim.pth")
         torch.save(checkpoint["optimizer_state_dict"], optim_path)
 
-        scheduler_path = workdir.joinpath("scheduler.pth")
+        scheduler_path = Path("scheduler.pth")
         torch.save(checkpoint["scheduler_state_dict"], scheduler_path)
 
-        grad_path = workdir.joinpath("grad.pth")
+        grad_path = Path("grad.pth")
         torch.save(checkpoint["grad_scaler_state_dict"], grad_path)
 
-        config_path = workdir.joinpath("config.pth")
+        config_path = Path("config.pth")
         torch.save(config.model_dump(), config_path)
 
         # create attachments
@@ -68,7 +68,7 @@ def save_bioimage_model(
         ]
 
         # create requirements file
-        requirements = workdir.joinpath("requirements.txt")
+        requirements = Path("requirements.txt")
         with open(requirements, "w") as f:
             f.write("git+https://github.com/CAREamics/careamics.git")
 
@@ -100,14 +100,7 @@ def save_bioimage_model(
             **specs,
         )
 
-        # remove the temporary files
-        weight_path.unlink()
-        optim_path.unlink()
-        scheduler_path.unlink()
-        grad_path.unlink()
-        config_path.unlink()
-
-        # BMZ creates spurious files (copied before zipping)
+        # remove temporary files
         for file in temp_folder.glob("*"):
             file.unlink()
 
