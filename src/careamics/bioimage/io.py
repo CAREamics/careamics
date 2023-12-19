@@ -84,7 +84,7 @@ def save_bioimage_model(
                     "depth": algo_config.model_parameters.depth,
                     "num_channels_init": algo_config.model_parameters.num_channels_init,
                 },
-                "dependencies": "pip:" + str(requirements.absolute()),
+                "dependencies": "pip:" + str(requirements),
                 "attachments": {"files": attachments},
             }
         )
