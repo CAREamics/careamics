@@ -850,9 +850,20 @@ class Engine:
                     self.logger.removeHandler(handler)
                     handler.close()
 
-    def _get_sample_io_files(self) -> Tuple[List[str], List[str]]:
+    def _get_sample_io_files(
+        self,
+        input_array: Optional[np.ndarray] = None,
+        axes: Optional[str] = None,
+    ) -> Tuple[List[str], List[str]]:
         """
         Create numpy format for use as inputs and outputs in the bioimage.io archive.
+
+        Parameters
+        ----------
+        input_array : Optional[np.ndarray], optional
+            Input array to use for the bioimage.io model zoo, by default None.
+        axes : Optional[str], optional
+            Axes from the configuration.
 
         Returns
         -------
@@ -865,27 +876,40 @@ class Engine:
             If the configuration is not defined.
         """
         if self.cfg is not None and self._input is not None:
+            # use the input array if provided, otherwise use the first validation sample
+            if input_array is not None:
+                array_in = input_array
+
+                # add axes to be compatible with the axes declared in the RDF specs
+                add_axes(array_in, axes)
+            else:
+                array_in = self._input
+
             # predict (no tta since BMZ does not apply it)
-            sample_output = self.predict(self._input, tta=False)
+            array_out = self.predict(array_in, tta=False)
 
             # add singleton dimensions (for compatibility with model axes)
             # indeed, BMZ applies the model but CAREamics function are meant
             # to work on user data (potentially with no S or C axe)
-            sample_input = self._input
-            sample_output = sample_output[np.newaxis, np.newaxis, ...]
+            array_out = array_out[np.newaxis, np.newaxis, ...]
 
             # save numpy files
             workdir = self.cfg.working_directory
             in_file = workdir.joinpath("test_inputs.npy")
-            np.save(in_file, sample_input)
+            np.save(in_file, array_in)
             out_file = workdir.joinpath("test_outputs.npy")
-            np.save(out_file, sample_output)
+            np.save(out_file, array_out)
 
             return [str(in_file.absolute())], [str(out_file.absolute())]
         else:
             raise ValueError("Configuration is not defined or model was not trained.")
 
-    def _generate_rdf(self, model_specs: Optional[dict] = None) -> dict:
+    def _generate_rdf(
+        self,
+        *,
+        model_specs: Optional[dict] = None,
+        input_array: Optional[np.ndarray] = None,
+    ) -> dict:
         """
         Generate rdf data for bioimage.io format export.
 
@@ -893,6 +917,8 @@ class Engine:
         ----------
         model_specs : Optional[dict], optional
             Custom specs if different than the default ones, by default None.
+        input_array : Optional[np.ndarray], optional
+            Input array to use for the bioimage.io model zoo, by default None.
 
         Returns
         -------
@@ -921,7 +947,9 @@ class Engine:
                 axes = "b" + axes
 
             # get in/out samples' files
-            test_inputs, test_outputs = self._get_sample_io_files()
+            test_inputs, test_outputs = self._get_sample_io_files(
+                input_array, self.cfg.data.axes
+            )
 
             specs = get_default_model_specs(
                 "Noise2Void",
@@ -945,10 +973,17 @@ class Engine:
             raise ValueError("Configuration is not defined.")
 
     def save_as_bioimage(
-        self, output_zip: Union[Path, str], model_specs: Optional[dict] = None
+        self,
+        output_zip: Union[Path, str],
+        model_specs: Optional[dict] = None,
+        input_array: Optional[np.ndarray] = None,
     ) -> None:
         """
         Export the current model to BioImage.io model zoo format.
+
+        Custom specs can be passed in `model_specs (e.g. maintainers). For a description
+        of the model RDF, refer to
+        github.com/bioimage-io/spec-bioimage-io/blob/gh-pages/model_spec_latest.md.
 
         Parameters
         ----------
@@ -957,6 +992,10 @@ class Engine:
         model_specs : Optional[dict]
             A dictionary with keys being the bioimage-core build_model parameters. If
             None then it will be populated by the model default specs.
+        input_array : Optional[np.ndarray]
+            An array to use as input for the bioimage.io model zoo. If None then the
+            first validation sample will be used. Note that the array must have S and
+            C dimensions (e.g. SCYX), even if only singleton dimensions.
 
         Raises
         ------
@@ -965,7 +1004,7 @@ class Engine:
         """
         if self.cfg is not None:
             # Generate specs
-            specs = self._generate_rdf(model_specs)
+            specs = self._generate_rdf(model_specs=model_specs, input_array=input_array)
 
             # Build model
             save_bioimage_model(

@@ -77,3 +77,47 @@ def test_bioimage_generate_rdf_with_specs(minimum_config: dict):
     rdf = engine._generate_rdf(model_specs=model_specs)
     assert rdf["description"] == model_specs["description"]
     assert rdf["license"] == model_specs["license"]
+
+
+@pytest.mark.parametrize(
+    "axes, shape",
+    [
+        ("YX", (64, 128)),
+        ("ZYX", (8, 128, 64)),
+    ],
+)
+def test_bioimage_generate_rdf_with_input(
+    minimum_config: dict, ordered_array, axes, shape
+):
+    """Test generating rdf using default specs."""
+    # create configuration and save it to disk
+    mean = 666.666
+    std = 42.420
+    minimum_config["algorithm"]["is_3D"] = len(shape) == 3
+    minimum_config["training"]["patch_size"] = (
+        (64, 64) if len(shape) == 2 else (8, 64, 64)
+    )
+    minimum_config["data"]["mean"] = mean
+    minimum_config["data"]["std"] = std
+    minimum_config["data"]["axes"] = axes
+    config = Configuration(**minimum_config)
+
+    # create an engine to export the model
+    engine = Engine(config=config)
+
+    # create a monkey patch for the input
+    monkey_input = np.random.randint(0, 255, minimum_config["training"]["patch_size"])
+    engine._input = monkey_input
+
+    # create other input
+    other_input = ordered_array(shape=shape)
+
+    # create rdf
+    rdf = engine._generate_rdf(input_array=other_input)
+
+    # inspect input/output
+    array_in = np.load(rdf["test_inputs"][0])
+    assert (array_in.squeeze() == other_input).all()
+
+    array_out = np.load(rdf["test_outputs"][0])
+    assert array_out.max() != 0

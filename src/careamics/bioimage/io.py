@@ -17,7 +17,7 @@ def save_bioimage_model(
     specs: dict,
 ) -> None:
     """
-    Build bioimage model zip file from model specification data.
+    Build bioimage model zip file from model RDF data.
 
     Parameters
     ----------
@@ -26,7 +26,7 @@ def save_bioimage_model(
     config : Configuration
         Configuration object.
     specs : dict
-        Specification dict.
+        Model RDF dict.
     """
     workdir = config.working_directory
 
