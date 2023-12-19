@@ -2,7 +2,7 @@ from pathlib import Path
 
 import numpy as np
 import torch
-from bioimageio.core.resource_tests import test_model
+from bioimageio.core import resource_tests
 
 from careamics.config import Configuration
 from careamics.engine import Engine
@@ -64,6 +64,6 @@ def test_bioimage_io(minimum_config: dict, tmp_path: Path):
         assert loaded_config == config
 
         # validate model
-        results = test_model(zip_file)
+        results = resource_tests.test_model(zip_file)
         for result in results:
             assert result["status"] == "passed", f"Failed at {result['name']}."

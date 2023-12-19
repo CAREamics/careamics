@@ -118,13 +118,17 @@ def test_is_engine_runnable(
     assert zip_path.exists()
 
     # Create engine from checkpoint
-    del engine
     second_engine = Engine(model_path=result_model_path)
     second_engine.cfg.data.in_memory = False
     _ = second_engine.train(train_path, val_path)
 
+    # Create engine from bioimage model
+    third_engine = Engine(model_path=zip_path)
+    third_engine.cfg.data.in_memory = False
+    _ = third_engine.train(train_path, val_path)
+
     # Test prediction with pred_path with tiling
-    test_result = second_engine.predict(
+    test_result = third_engine.predict(
         input=test_path, tile_shape=patch_size, overlaps=overlaps
     )
     assert test_result is not None

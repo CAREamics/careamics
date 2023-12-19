@@ -61,7 +61,7 @@ def save_bioimage_model(
     # create requirements file
     requirements = workdir.joinpath("requirements.txt")
     with open(requirements, "w") as f:
-        f.write("--pre\n" "careamics")
+        f.write("git+https://github.com/CAREamics/careamics.git")
 
     algo_config = config.algorithm
     specs.update(
@@ -75,7 +75,7 @@ def save_bioimage_model(
                 "depth": algo_config.model_parameters.depth,
                 "num_channels_init": algo_config.model_parameters.num_channels_init,
             },
-            "dependencies": "pip:requirements.txt",
+            "dependencies": "pip:" + str(requirements.absolute()),
             "attachments": {"files": attachments},
         }
     )
