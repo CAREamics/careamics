@@ -359,7 +359,8 @@ class Engine:
                 self.optimizer.zero_grad(set_to_none=True)
 
                 # Get prediction and loss
-                with torch.cuda.amp.autocast(enabled=amp):
+                # TODO add support for changing the data type
+                with torch.cuda.amp.autocast(enabled=amp, dtype=torch.bfloat16):
                     outputs = self.model(batch.to(self.device))
                 loss = self.loss_func(outputs, *[a.to(self.device) for a in auxillary])
                 self.scaler.scale(loss).backward()

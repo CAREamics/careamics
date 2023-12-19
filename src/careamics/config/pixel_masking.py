@@ -109,47 +109,47 @@ class MaskingStrategy(BaseModel):
         return data
 
     #TODO finish modifying this class
-    def model_dump(
-        self, exclude_optionals: bool = True, *args: List, **kwargs: Dict
-    ) -> Dict:
-        """
-        Override model_dump method.
+    # def model_dump(
+    #     self, exclude_optionals: bool = True, *args: List, **kwargs: Dict
+    # ) -> Dict:
+    #     """
+    #     Override model_dump method.
 
-        The purpose is to ensure export smooth import to yaml. It includes:
-            - remove entries with None value.
-            - remove optional values if they have the default value.
+    #     The purpose is to ensure export smooth import to yaml. It includes:
+    #         - remove entries with None value.
+    #         - remove optional values if they have the default value.
 
-        Parameters
-        ----------
-        exclude_optionals : bool, optional
-            Whether to exclude optional arguments if they are default, by default True.
-        *args : List
-            Positional arguments, unused.
-        **kwargs : Dict
-            Keyword arguments, unused.
+    #     Parameters
+    #     ----------
+    #     exclude_optionals : bool, optional
+    #         Whether to exclude optional arguments if they are default, by default True.
+    #     *args : List
+    #         Positional arguments, unused.
+    #     **kwargs : Dict
+    #         Keyword arguments, unused.
 
-        Returns
-        -------
-        Dict
-            Dictionary representation of the model.
-        """
-        dictionary = super().model_dump(exclude_none=True)
+    #     Returns
+    #     -------
+    #     Dict
+    #         Dictionary representation of the model.
+    #     """
+    #     dictionary = super().model_dump(exclude_none=True)
 
-        if exclude_optionals is True:
-            # remove optional arguments if they are default
-            defaults = {
-                "model": {
-                    "architecture": "UNet",
-                    "parameters": {"depth": 2, "num_channels_init": 32},
-                },
-                # TODO don't kmow how to drop nested defaults and don't know why we need this ?!
-                MaskingStrategy()
-                "masking_strategy": {
-                    "strategy_type": "default",
-                    "parameters": {"masked_pixel_percentage": 0.2, "roi_size": 11},
-                },
-            }
+    #     if exclude_optionals is True:
+    #         # remove optional arguments if they are default
+    #         defaults = {
+    #             "model": {
+    #                 "architecture": "UNet",
+    #                 "parameters": {"depth": 2, "num_channels_init": 32},
+    #             },
+    #             # TODO don't kmow how to drop nested defaults and don't know why we need this ?!
+    #             # MaskingStrategy()
+    #             "masking_strategy": {
+    #                 "strategy_type": "default",
+    #                 "parameters": {"masked_pixel_percentage": 0.2, "roi_size": 11},
+    #             },
+    #         }
 
-            remove_default_optionals(dictionary, defaults)
+    #         remove_default_optionals(dictionary, defaults)
 
-        return dictionary
+    #     return dictionary

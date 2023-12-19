@@ -52,10 +52,6 @@ def check_axes_validity(axes: str) -> bool:
                 f" (got multiple {axes[i]})."
             )
 
-    # currently no implementation for C
-    if "C" in _axes:
-        raise NotImplementedError("Currently, C axis is not supported.")
-
     # prevent S and T axes together
     if "T" in _axes and "S" in _axes:
         raise NotImplementedError(

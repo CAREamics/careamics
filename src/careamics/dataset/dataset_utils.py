@@ -89,6 +89,15 @@ def _update_axes(array: np.ndarray, axes: str) -> np.ndarray:
         # TODO This doesn't work for ZARR !
         array.reshape(-1, *array.shape[new_axes_len:]).astype(np.float32)
 
+    elif "C" in axes:
+        # TODO should this be here or in a separate function outside ?
+        if len(axes) != len(array.shape):
+            array = np.expand_dims(array, axis=0)
+        if axes[-1] == "C":
+            array = np.moveaxis(array, -1, 0)
+        else:
+            array = array.astype(np.float32)
+
     elif array.dtype == "O":
         for i in range(len(array)):
             array[i] = np.expand_dims(array[i], axis=0).astype(np.float32)
@@ -195,9 +204,9 @@ def read_tiff(file_path: Path, axes: str) -> np.ndarray:
         )
 
     # check number of axes
-    if len(axes) != len(array.shape):
-        raise ValueError(f"Incorrect axes length (got {axes} for file {file_path}).")
-
+    # if len(axes) != len(array.shape):
+    #     raise ValueError(f"Incorrect axes length (got {axes} for file {file_path}).")
+    # TODO moved to _update_axes. Find better solution!
     array = _update_axes(array, axes)
 
     return array
@@ -327,8 +336,8 @@ def prepare_patches_supervised(
 
         result_mean, result_std = means / num_samples, stds / num_samples
     return (
-        np.concatenate(all_patches),
-        np.concatenate(all_targets, axis=1),
+        np.concatenate(all_patches, axis=0),
+        np.concatenate(all_targets, axis=0),
         result_mean,
         result_std,
     )

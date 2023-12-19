@@ -10,7 +10,7 @@ import torch
 
 from ..bioimage import import_bioimage_model
 from ..config import Configuration
-from ..config.algorithm import Model
+from ..config.models import Architecture
 from ..utils.logging import get_logger
 from .unet import UNet
 
@@ -38,7 +38,7 @@ def model_registry(model_name: str) -> torch.nn.Module:
     NotImplementedError
         If the requested model is not implemented.
     """
-    if model_name == Model.UNET:
+    if model_name == Architecture.UNET:
         return UNet
     else:
         raise NotImplementedError(f"Model {model_name} is not implemented")
@@ -125,14 +125,17 @@ def create_model(
     elif config is not None:
         # Create model from configuration
         algo_config = config.algorithm
-        model_config = algo_config.model_parameters
-        model_name = algo_config.model
+        model_config = algo_config.model.parameters
+        model_name = algo_config.model.architecture
 
         # Create model
         model = model_registry(model_name)(
-            depth=model_config.depth,
+            depth=model_config["depth"],
             conv_dim=algo_config.get_conv_dim(),
-            num_channels_init=model_config.num_channels_init,
+            num_classes=model_config["num_classes"],
+            in_channels=model_config["in_channels"], #TODO refactor this ugly hardcode
+            num_channels_init=model_config["num_channels_init"],
+            final_activation=model_config["final_activation"],
         )
         model.to(device)
         optimizer, scheduler = get_optimizer_and_scheduler(config, model)

@@ -135,7 +135,7 @@ class InMemoryDataset(torch.utils.data.Dataset):
         if not mean or not std:
             self.mean, self.std = computed_mean, computed_std
             logger.info(f"Computed dataset mean: {self.mean}, std: {self.std}")
-
+            #TODO calculate separate mean and std for each channel and target!
         assert self.mean is not None
         assert self.std is not None
 
@@ -202,12 +202,13 @@ class InMemoryDataset(torch.utils.data.Dataset):
         patch = self.data[index]
         if self.target_path is not None:
             # Splitting targets into a list. 1st dim is the number of targets
-            target = self.targets[:, index, ...]
+            target = self.targets[index, ...]
 
         if self.mean is not None and self.std is not None:
             patch = normalize(img=patch, mean=self.mean, std=self.std)
-            if self.target_path is not None:
-                target = normalize(img=target, mean=self.mean, std=self.std)
+            # if self.target_path is not None:
+            #     # TODO don't normalize target if it's not an image
+            #     target = normalize(img=target, mean=self.mean, std=self.std)
 
             patch = self.patch_transform(patch, **self.patch_transform_params)
 

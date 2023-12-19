@@ -37,6 +37,7 @@ class AlgorithmType(str, Enum):
     PN2V = "pn2v"
     HDN = "hdn"
     CUSTOM = "custom"
+    SEGM = "segmentation"
 
 
 class Loss(str, Enum):
@@ -56,6 +57,8 @@ class Loss(str, Enum):
     N2V = "n2v"
     PN2V = "pn2v"
     HDN = "hdn"
+    CE = "ce"
+    DICE = "dice"
     CUSTOM = "custom"
 
 

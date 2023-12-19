@@ -191,18 +191,18 @@ def _compute_reshaped_view(
     np.ndarray
         Array with views dimension.
     """
-    if target is not None:
-        arr = np.stack([arr, target], axis=0)
-        window_shape = (1, *window_shape)
-        step = (1, *step)
-        output_shape = (arr.shape[0], *output_shape)
-
     rng = np.random.default_rng()
+
+    if target is not None:
+        arr = np.concatenate([arr, target], axis=0)
+        window_shape = (arr.shape[0], *window_shape[1:])
+        step = (arr.shape[0], *step[1:])
+        output_shape = (-1, arr.shape[0], *output_shape[2:])
+
     patches = view_as_windows(arr, window_shape=window_shape, step=step).reshape(
         *output_shape
     )
-    n_patches = patches.shape[0] if target is None else patches.shape[1]
-    logger.info(f"Extracted {n_patches} patches from input array.")
+    logger.info(f"Extracted {patches.shape[0]} patches from input array.")
     rng.shuffle(patches, axis=0)
     return patches
 
@@ -295,9 +295,10 @@ def _extract_patches_sequential(
     # Create view window and overlaps
     window_steps = _compute_patch_steps(patch_sizes=patch_size, overlaps=overlaps)
 
-    # Correct for first dimension for computing windowed views
-    window_shape = (1, *patch_size)
-    window_steps = (1, *window_steps)
+    # Correct for first dimension for computing windowed views by adding a channel
+    # dimension. This assumes channel is correctly provided as first dimension.
+    window_shape = (arr.shape[0], *patch_size)
+    window_steps = (arr.shape[0], *window_steps)
 
     if is_3d_patch and patch_size[0] == 1:
         output_shape = (-1,) + window_shape[1:]
@@ -315,7 +316,10 @@ def _extract_patches_sequential(
         target=target,
     )
 
-    return patches[0], patches[1:] if target is not None else None
+    return (
+        patches[:, : arr.shape[0], ...],
+        patches[:, arr.shape[0] :, ...] if target is not None else None,
+    )
 
 
 def _extract_patches_random(

@@ -6,6 +6,7 @@ This submodule contains the various losses used in CAREamics.
 from typing import Type
 
 import torch
+from segmentation_models_pytorch.losses import DiceLoss
 from torch.nn import L1Loss, MSELoss
 
 from .noise_models import HistogramNoiseModel
@@ -83,3 +84,10 @@ def pn2v_loss(
     # Average over pixels and batch
     loss = -torch.sum(likelihoods_avg * masks) / torch.sum(masks)
     return loss
+
+
+def dice_loss(
+    samples: torch.Tensor, labels: torch.Tensor, mode: str = "multiclass"
+) -> torch.Tensor: # TODO remove hardcode loss mode
+    """Dice loss function."""
+    return DiceLoss(mode=mode)(samples, labels.long())

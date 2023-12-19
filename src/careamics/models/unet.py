@@ -11,6 +11,37 @@ import torch.nn as nn
 from .layers import Conv_Block
 
 
+def get_activation(activation: str) -> Callable:
+    """
+    Get activation function.
+
+    Parameters
+    ----------
+    activation : str
+        Activation function name.
+
+    Returns
+    -------
+    Callable
+        Activation function.
+    """
+    activation = activation.capitalize()
+
+    if activation == "ReLU":
+        return nn.ReLU()
+    elif activation == "LeakyReLU":
+        return nn.LeakyReLU()
+    elif activation == "Tanh":
+        return nn.Tanh()
+    elif activation == "Sigmoid":
+        return nn.Sigmoid()
+    elif activation == "Softmax":
+        return nn.Softmax(dim=1)
+    elif activation == "Identity":
+        return nn.Identity()
+    else:
+        raise ValueError(f"Activation {activation} not supported.")
+
 class UnetEncoder(nn.Module):
     """
     Unet encoder pathway.
@@ -249,7 +280,7 @@ class UNet(nn.Module):
         use_batch_norm: bool = True,
         dropout: float = 0.0,
         pool_kernel: int = 2,
-        last_activation: Optional[Callable] = None,
+        final_activation: Optional[Callable] = None,
     ) -> None:
         """
         Constructor.
@@ -299,7 +330,7 @@ class UNet(nn.Module):
             out_channels=num_classes,
             kernel_size=1,
         )
-        self.last_activation = last_activation if last_activation else nn.Identity()
+        self.final_activation = get_activation(final_activation)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -318,5 +349,5 @@ class UNet(nn.Module):
         encoder_features = self.encoder(x)
         x = self.decoder(*encoder_features)
         x = self.final_conv(x)
-        x = self.last_activation(x)
+        x = self.final_activation(x)
         return x
