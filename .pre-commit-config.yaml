@@ -10,23 +10,23 @@ ci:
 
 repos:
     - repo: https://github.com/abravalheri/validate-pyproject
-      rev: v0.14
+      rev: v0.15
       hooks:
           - id: validate-pyproject
 
     - repo: https://github.com/astral-sh/ruff-pre-commit
-      rev: v0.0.292
+      rev: v0.1.6
       hooks:
           - id: ruff
             args: [--fix, --target-version, py38]
 
     - repo: https://github.com/psf/black
-      rev: 23.9.1
+      rev: 23.11.0
       hooks:
           - id: black
 
     - repo: https://github.com/pre-commit/mirrors-mypy
-      rev: v1.5.1
+      rev: v1.7.1
       hooks:
           - id: mypy
             files: ^src/
@@ -42,7 +42,7 @@ repos:
 
   # jupyter linting and formatting
     - repo: https://github.com/nbQA-dev/nbQA
-      rev: 1.7.0
+      rev: 1.7.1
       hooks:
           - id: nbqa-ruff
             args: [--fix]
