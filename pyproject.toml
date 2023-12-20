@@ -141,6 +141,8 @@ exclude_lines = [
     "except ImportError",
     "\\.\\.\\.",
     "raise NotImplementedError()",
+    "except PackageNotFoundError:",
+    "if torch.cuda.is_available():",
 ]
 
 [tool.coverage.run]
