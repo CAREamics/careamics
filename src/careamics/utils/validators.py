@@ -131,7 +131,7 @@ def check_tiling_validity(tile_shape: List[int], overlaps: List[int]) -> None:
     # non-zero and divisible by two
     for dims_list in [tile_shape, overlaps]:
         for dim in dims_list:
-            if dim < 1:
+            if dim < 0:
                 raise ValueError(f"Entry must be non-null positive (got {dim}).")
 
             if dim % 2 != 0:

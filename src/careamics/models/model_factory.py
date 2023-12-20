@@ -97,16 +97,19 @@ def create_model(
         if "config" in checkpoint:
             config = Configuration(**checkpoint["config"])
             algo_config = config.algorithm
-            model_config = algo_config.model_parameters
-            model_name = algo_config.model
+            model_config = algo_config.model.parameters
+            model_name = algo_config.model.architecture
         else:
             raise ValueError("Invalid checkpoint format, no configuration found.")
 
         # Create model
         model = model_registry(model_name)(
-            depth=model_config.depth,
+            depth=model_config["depth"],
             conv_dim=algo_config.get_conv_dim(),
-            num_channels_init=model_config.num_channels_init,
+            num_classes=model_config["num_classes"],
+            in_channels=model_config["in_channels"], #TODO refactor this ugly hardcode
+            num_channels_init=model_config["num_channels_init"],
+            final_activation=model_config["final_activation"],
         )
         model.to(device)
         # Load the model state dict
