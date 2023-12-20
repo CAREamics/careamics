@@ -482,13 +482,11 @@ def generate_patches(
         elif patch_extraction_method == ExtractionStrategy.SEQUENTIAL:
             patches = _extract_patches_sequential(sample, patch_size=patch_size)
 
-        elif patch_extraction_method == ExtractionStrategy.RANDOM:
+        else:
+            # random patching
             patches = _extract_patches_random(sample, patch_size=patch_size)
-
-        if patches is None:
-            raise ValueError("No patch generated")
 
         return patches
     else:
-        # no patching
+        # no patching, return a generator for the sample
         return (sample for _ in range(1))
