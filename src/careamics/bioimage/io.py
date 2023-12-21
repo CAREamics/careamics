@@ -129,11 +129,12 @@ def import_bioimage_model(model_path: Union[str, Path]) -> Path:
     FileNotFoundError
         If the checkpoint file was not found.
     """
-    if isinstance(model_path, str):
-        model_path = Path(model_path)
+    model_path = Path(model_path)
+
     # check the model extension (should be a zip file).
     if model_path.suffix != ".zip":
         raise ValueError("Invalid model format. Expected bioimage model zip file.")
+
     # load the model
     rdf = load_resource_description(model_path)
 

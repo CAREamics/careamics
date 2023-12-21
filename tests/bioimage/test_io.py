@@ -1,9 +1,11 @@
 from pathlib import Path
 
 import numpy as np
+import pytest
 import torch
 from bioimageio.core import resource_tests
 
+from careamics.bioimage import import_bioimage_model
 from careamics.config import Configuration
 from careamics.engine import Engine
 from careamics.models import create_model
@@ -28,12 +30,21 @@ def save_checkpoint(engine: Engine, config: Configuration) -> None:
     torch.save(checkpoint, checkpoint_path)
 
 
-def test_bioimage_io(minimum_config: dict, tmp_path: Path):
+@pytest.mark.parametrize(
+    "axes, patch",
+    [
+        ("YX", [64, 64]),
+        ("ZYX", [32, 64, 64]),
+    ],
+)
+def test_bioimage_io(minimum_config: dict, tmp_path: Path, axes, patch):
     """Test model export/import to bioimage format."""
     # create configuration
     minimum_config["data"]["mean"] = 666.666
     minimum_config["data"]["std"] = 42.420
-    minimum_config["data"]["axes"] = "YX"
+    minimum_config["data"]["axes"] = axes
+    minimum_config["training"]["patch_size"] = patch
+    minimum_config["algorithm"]["is_3D"] = len(axes) == 3
 
     config = Configuration(**minimum_config)
 
@@ -64,3 +75,10 @@ def test_bioimage_io(minimum_config: dict, tmp_path: Path):
     results = resource_tests.test_model(zip_file)
     for result in results:
         assert result["status"] == "passed", f"Failed at {result['name']}."
+
+
+def test_bioimage_wrong_path(tmp_path: Path):
+    """Test that the model export fails if the path is wrong."""
+    path = tmp_path / "wrong_path.tiff"
+    with pytest.raises(ValueError):
+        import_bioimage_model(path)

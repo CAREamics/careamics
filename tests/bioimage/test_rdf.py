@@ -1,6 +1,19 @@
+from pathlib import Path
+
 import pytest
 
-from careamics.bioimage.rdf import get_default_model_specs
+from careamics.bioimage.rdf import _get_model_doc, get_default_model_specs
+
+
+@pytest.mark.parametrize("name", ["Noise2Void"])
+def test_get_model_doc(name):
+    doc = _get_model_doc(name)
+    assert Path(doc).exists()
+
+
+def test_get_model_doc_error():
+    with pytest.raises(FileNotFoundError):
+        _get_model_doc("NotAModel")
 
 
 @pytest.mark.parametrize("name", ["Noise2Void"])
