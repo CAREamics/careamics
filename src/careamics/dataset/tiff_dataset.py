@@ -54,7 +54,7 @@ class TiffDataset(torch.utils.data.IterableDataset):
     def __init__(
         self,
         data_path: Union[str, Path],
-        data_format: str,
+        data_format: str,  # TODO: TiffDataset should not know that they are tiff
         axes: str,
         patch_extraction_method: Union[ExtractionStrategy, None],
         patch_size: Optional[Union[List[int], Tuple[int]]] = None,

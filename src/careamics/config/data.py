@@ -23,7 +23,7 @@ class SupportedExtension(str, Enum):
         - tif/tiff: .tiff files.
     """
 
-    TIFF = "tiff"
+    TIFF = "tiff"  # TODO these should be a single one
     TIF = "tif"
 
     @classmethod

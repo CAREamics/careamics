@@ -4,7 +4,6 @@ Convenience functions using torch.
 These functions are used to control certain aspects and behaviours of PyTorch.
 """
 import logging
-import sys
 
 import torch
 
@@ -27,24 +26,24 @@ def get_device() -> torch.device:
     return device
 
 
-def compile_model(model: torch.nn.Module) -> torch.nn.Module:
-    """
-    Torch.compile wrapper.
+# def compile_model(model: torch.nn.Module) -> torch.nn.Module:
+#     """
+#     Torch.compile wrapper.
 
-    Parameters
-    ----------
-    model : torch.nn.Module
-        Model.
+#     Parameters
+#     ----------
+#     model : torch.nn.Module
+#         Model.
 
-    Returns
-    -------
-    torch.nn.Module
-        Compiled model if compile is available, the model itself otherwise.
-    """
-    if hasattr(torch, "compile") and sys.version_info.minor <= 9:
-        return torch.compile(model, mode="reduce-overhead")
-    else:
-        return model
+#     Returns
+#     -------
+#     torch.nn.Module
+#         Compiled model if compile is available, the model itself otherwise.
+#     """
+#     if hasattr(torch, "compile") and sys.version_info.minor <= 9:
+#         return torch.compile(model, mode="reduce-overhead")
+#     else:
+#         return model
 
 
 # def seed_everything(seed: int) -> None:

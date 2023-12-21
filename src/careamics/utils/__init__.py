@@ -9,7 +9,6 @@ __all__ = [
     "add_axes",
     "check_tiling_validity",
     "cwd",
-    "compile_model",
     "MetricTracker",
 ]
 
@@ -17,5 +16,5 @@ __all__ = [
 from .context import cwd
 from .metrics import MetricTracker
 from .normalization import denormalize, normalize
-from .torch_utils import compile_model, get_device
+from .torch_utils import get_device
 from .validators import add_axes, check_axes_validity, check_tiling_validity
