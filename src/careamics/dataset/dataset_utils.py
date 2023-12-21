@@ -8,8 +8,11 @@ import tifffile
 import zarr
 
 from ..manipulation.pixel_manipulation import default_manipulate
+from ..utils.logging import get_logger
 from .extraction_strategy import ExtractionStrategy
 from .patching import generate_patches
+
+logger = get_logger(__name__)
 
 
 def list_files(
@@ -91,6 +94,7 @@ def _update_axes(array: np.ndarray, axes: str) -> np.ndarray:
 
     elif "C" in axes:
         # TODO should this be here or in a separate function outside ?
+        # TODO REfactor, add proper C handling
         if len(axes) != len(array.shape):
             array = np.expand_dims(array, axis=0)
         if axes[-1] == "C":
@@ -324,6 +328,7 @@ def prepare_patches_supervised(
         # generate patches, return a generator
         patches, targets = generate_patches(
             sample,
+            axes,
             patch_extraction_method,
             patch_size,
             patch_overlap,
@@ -334,10 +339,15 @@ def prepare_patches_supervised(
         all_patches.append(patches)
         all_targets.append(targets)
 
-        result_mean, result_std = means / num_samples, stds / num_samples
+    result_mean, result_std = means / num_samples, stds / num_samples
+
+    all_patches = np.concatenate(all_patches, axis=0)
+    all_targets = np.concatenate(all_targets, axis=0)
+    logger.info(f"Extracted {all_patches.shape[0]} patches from input array.")
+
     return (
-        np.concatenate(all_patches, axis=0),
-        np.concatenate(all_targets, axis=0),
+        all_patches,
+        all_targets,
         result_mean,
         result_std,
     )
@@ -369,6 +379,7 @@ def prepare_patches_unsupervised(
         # generate patches, return a generator
         patches, _ = generate_patches(
             sample,
+            axes,
             patch_extraction_method,
             patch_size,
             patch_overlap,

@@ -149,6 +149,7 @@ class TiffDataset(torch.utils.data.IterableDataset):
                 # TODO: move S and T unpacking logic from patch generator
                 patches, targets = generate_patches(
                     sample,
+                    self.axes,
                     self.patch_extraction_method,
                     self.patch_size,
                     self.patch_overlap,

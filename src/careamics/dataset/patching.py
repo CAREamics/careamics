@@ -202,7 +202,6 @@ def _compute_reshaped_view(
     patches = view_as_windows(arr, window_shape=window_shape, step=step).reshape(
         *output_shape
     )
-    logger.info(f"Extracted {patches.shape[0]} patches from input array.")
     rng.shuffle(patches, axis=0)
     return patches
 
@@ -480,6 +479,7 @@ def _extract_patches_random_from_chunks(
 
 def _extract_tiles(
     arr: np.ndarray,
+    axes: str,
     tile_size: Union[List[int], Tuple[int]],
     overlaps: Union[List[int], Tuple[int]],
 ) -> Generator:
@@ -503,6 +503,12 @@ def _extract_tiles(
         Tile generator that yields the tile with corresponding coordinates to stitch
         back the tiles together.
     """
+    # TODO S dim should be added in _update_axes func !
+    # TODO: check overlap handling
+    if "S" not in axes and "C" in axes:
+        tile_size = (arr.shape[0], *tile_size)
+        overlaps = (0, *overlaps)
+        arr = np.expand_dims(arr, axis=0)
     # Iterate over num samples (S)
     for sample_idx in range(arr.shape[0]):
         sample = arr[sample_idx]
@@ -535,6 +541,7 @@ def _extract_tiles(
         ):
             tile = sample[(..., *[slice(c[0], c[1]) for c in list(crop_coords)])]
 
+            tile = np.expand_dims(tile, 0) if "S" in axes else tile
             # Check if we are at the end of the sample.
             # To check that we compute the length of the array that contains all the
             # tiles
@@ -543,7 +550,7 @@ def _extract_tiles(
             else:
                 last_tile = False
             yield (
-                np.expand_dims(tile.astype(np.float32), 0),
+                tile.astype(np.float32),
                 last_tile,
                 arr.shape[1:],
                 overlap_crop_coords,
@@ -553,6 +560,7 @@ def _extract_tiles(
 
 def generate_patches(
     sample: Union[np.ndarray, zarr.Array],
+    axes: str,
     patch_extraction_method: ExtractionStrategy,
     patch_size: Optional[Union[List[int], Tuple[int]]] = None,
     patch_overlap: Optional[Union[List[int], Tuple[int]]] = None,
@@ -596,7 +604,7 @@ def generate_patches(
                     "Overlaps must be specified when using tiling (got None)."
                 )
             patches = _extract_tiles(
-                arr=sample, tile_size=patch_size, overlaps=patch_overlap
+                arr=sample, axes=axes, tile_size=patch_size, overlaps=patch_overlap
             )
 
         elif patch_extraction_method == ExtractionStrategy.SEQUENTIAL:
