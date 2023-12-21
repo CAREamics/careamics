@@ -138,11 +138,14 @@ exclude_lines = [
     "pragma: no cover",
     "if TYPE_CHECKING:",
     "@overload",
-    "except ImportError",
     "\\.\\.\\.",
+    "except ImportError:",
     "raise NotImplementedError()",
     "except PackageNotFoundError:",
     "if torch.cuda.is_available():",
+    "except UsageError as e:",
+    "except ModuleNotFoundError:",
+    "except KeyboardInterrupt:",
 ]
 
 [tool.coverage.run]

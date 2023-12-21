@@ -163,54 +163,52 @@ class Engine:
             self.scaler,
             self.cfg,
         ) = create_model(config=self.cfg, model_path=model_path, device=self.device)
+        assert self.cfg is not None
 
         # create loss function
-        if self.cfg is not None:
-            self.loss_func = create_loss_function(self.cfg)
+        self.loss_func = create_loss_function(self.cfg)
 
-            # Set logging
-            log_path = self.cfg.working_directory / "log.txt"
-            self.logger = get_logger(__name__, log_path=log_path)
+        # Set logging
+        log_path = self.cfg.working_directory / "log.txt"
+        self.logger = get_logger(__name__, log_path=log_path)
 
-            # wandb
-            self.use_wandb = self.cfg.training.use_wandb
+        # wandb
+        self.use_wandb = self.cfg.training.use_wandb
 
-            if self.use_wandb:
+        if self.use_wandb:
+            try:
+                from wandb.errors import UsageError
+
+                from careamics.utils.wandb import WandBLogging
+
                 try:
-                    from wandb.errors import UsageError
-
-                    from careamics.utils.wandb import WandBLogging
-
-                    try:
-                        self.wandb = WandBLogging(
-                            experiment_name=self.cfg.experiment_name,
-                            log_path=self.cfg.working_directory,
-                            config=self.cfg,
-                            model_to_watch=self.model,
-                        )
-                    except UsageError as e:
-                        self.logger.warning(
-                            f"Wandb usage error, using default logger. Check whether "
-                            f"wandb correctly configured:\n"
-                            f"{e}"
-                        )
-                        self.use_wandb = False
-
-                except ModuleNotFoundError:
+                    self.wandb = WandBLogging(
+                        experiment_name=self.cfg.experiment_name,
+                        log_path=self.cfg.working_directory,
+                        config=self.cfg,
+                        model_to_watch=self.model,
+                    )
+                except UsageError as e:
                     self.logger.warning(
-                        "Wandb not installed, using default logger. Try pip install "
-                        "wandb"
+                        f"Wandb usage error, using default logger. Check whether "
+                        f"wandb correctly configured:\n"
+                        f"{e}"
                     )
                     self.use_wandb = False
 
-            # BMZ inputs/outputs placeholders, filled during validation
-            self._input = None
-            self._outputs = None
+            except ModuleNotFoundError:
+                self.logger.warning(
+                    "Wandb not installed, using default logger. Try pip install "
+                    "wandb"
+                )
+                self.use_wandb = False
 
-            # torch version
-            self.torch_version = torch.__version__
-        else:
-            raise ValueError("Configuration is not defined.")
+        # BMZ inputs/outputs placeholders, filled during validation
+        self._input = None
+        self._outputs = None
+
+        # torch version
+        self.torch_version = torch.__version__
 
     def train(
         self,
@@ -970,7 +968,7 @@ class Engine:
             )
             return specs
         else:
-            raise ValueError("Configuration is not defined.")
+            raise ValueError("Configuration is not defined or model was not trained.")
 
     def save_as_bioimage(
         self,
