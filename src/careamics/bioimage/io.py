@@ -5,125 +5,20 @@ from typing import Union
 import torch
 from bioimageio.core import load_resource_description
 from bioimageio.core.build_spec import build_model
-from bioimageio.spec.model.raw_nodes import Model
 
-from careamics.config.config import (
-    Configuration,
-)
+from careamics.config.config import Configuration
+from careamics.utils.context import cwd
 
 PYTORCH_STATE_DICT = "pytorch_state_dict"
 
 
-def _get_model_doc(name: str) -> str:
-    """
-    Return markdown documentation path for the provided model.
-
-    Parameters
-    ----------
-    name : str
-        Model's name.
-
-    Returns
-    -------
-    str
-        Path to the model's markdown documentation.
-
-    Raises
-    ------
-    FileNotFoundError
-        If the documentation file was not found.
-    """
-    doc = Path(__file__).parent.joinpath("docs").joinpath(f"{name}.md")
-    if doc.exists():
-        return str(doc.absolute())
-    else:
-        raise FileNotFoundError(f"Documentation for {name} was not found.")
-
-
-def get_default_model_specs(
-    name: str, mean: float, std: float, is_3D: bool = False
-) -> dict:
-    """
-    Return the default bioimage.io specs for the provided model's name.
-
-    Currently only supports `n2v` model.
-
-    Parameters
-    ----------
-    name : str
-        Algorithm's name.
-    mean : float
-        Mean of the dataset.
-    std : float
-        Std of the dataset.
-    is_3D : bool, optional
-        Whether the model is 3D or not, by default False.
-
-    Returns
-    -------
-    dict
-        Model specs compatible with bioimage.io export.
-    """
-    rdf = {
-        "name": "Noise2Void",
-        "description": "Self-supervised denoising.",
-        "license": "BSD-3-Clause",
-        "authors": [
-            {"name": "Alexander Krull"},
-            {"name": "Tim-Oliver Buchholz"},
-            {"name": "Florian Jug"},
-        ],
-        "cite": [
-            {
-                "doi": "10.48550/arXiv.1811.10980",
-                "text": 'A. Krull, T.-O. Buchholz and F. Jug, "Noise2Void - Learning '
-                'Denoising From Single Noisy Images," 2019 IEEE/CVF '
-                "Conference on Computer Vision and Pattern Recognition "
-                "(CVPR), 2019, pp. 2124-2132",
-            }
-        ],
-        # "input_axes": ["bcyx"], <- overriden in save_as_bioimage
-        "preprocessing": [  # for multiple inputs
-            [  # multiple processes per input
-                {
-                    "kwargs": {
-                        "axes": "zyx" if is_3D else "yx",
-                        "mean": [mean],
-                        "mode": "fixed",
-                        "std": [std],
-                    },
-                    "name": "zero_mean_unit_variance",
-                }
-            ]
-        ],
-        # "output_axes": ["bcyx"], <- overriden in save_as_bioimage
-        "postprocessing": [  # for multiple outputs
-            [  # multiple processes per input
-                {
-                    "kwargs": {
-                        "axes": "zyx" if is_3D else "yx",
-                        "gain": [std],
-                        "offset": [mean],
-                    },
-                    "name": "scale_linear",
-                }
-            ]
-        ],
-        "tags": ["unet", "denoising", "Noise2Void", "tensorflow", "napari"],
-    }
-
-    rdf["documentation"] = _get_model_doc(name)
-
-    return rdf
-
-
-def build_zip_model(
+def save_bioimage_model(
     path: Union[str, Path],
     config: Configuration,
-    model_specs: dict,
-) -> Model:
+    specs: dict,
+) -> None:
     """
-    Build bioimage model zip file from model specification data.
+    Build bioimage model zip file from model RDF data.
 
     Parameters
     ----------
@@ -131,71 +26,86 @@ def build_zip_model(
         Path to the model zip file.
     config : Configuration
         Configuration object.
-    model_specs : dict
-        Model specification data.
-
-    Returns
-    -------
-    Model
-        Bioimage model object.
+    specs : dict
+        Model RDF dict.
     """
     workdir = config.working_directory
 
-    # load best checkpoint
-    checkpoint_path = workdir.joinpath(f"{config.experiment_name}_best.pth").absolute()
-    checkpoint = torch.load(checkpoint_path, map_location="cpu")
+    # temporary folder
+    temp_folder = Path.home().joinpath(".careamics", "bmz_tmp")
+    temp_folder.mkdir(exist_ok=True, parents=True)
 
-    # save chekpoint entries in separate files
-    weight_path = workdir.joinpath("model_weights.pth")
-    torch.save(checkpoint["model_state_dict"], weight_path)
+    # change working directory to the temp folder
+    with cwd(temp_folder):
+        # load best checkpoint
+        checkpoint_path = workdir.joinpath(
+            f"{config.experiment_name}_best.pth"
+        ).absolute()
+        checkpoint = torch.load(checkpoint_path, map_location="cpu")
 
-    optim_path = workdir.joinpath("optim.pth")
-    torch.save(checkpoint["optimizer_state_dict"], optim_path)
+        # save chekpoint entries in separate files
+        weight_path = Path("model_weights.pth")
+        torch.save(checkpoint["model_state_dict"], weight_path)
 
-    scheduler_path = workdir.joinpath("scheduler.pth")
-    torch.save(checkpoint["scheduler_state_dict"], scheduler_path)
+        optim_path = Path("optim.pth")
+        torch.save(checkpoint["optimizer_state_dict"], optim_path)
 
-    grad_path = workdir.joinpath("grad.pth")
-    torch.save(checkpoint["grad_scaler_state_dict"], grad_path)
+        scheduler_path = Path("scheduler.pth")
+        torch.save(checkpoint["scheduler_state_dict"], scheduler_path)
 
-    config_path = workdir.joinpath("config.pth")
-    torch.save(config.model_dump(), config_path)
+        grad_path = Path("grad.pth")
+        torch.save(checkpoint["grad_scaler_state_dict"], grad_path)
 
-    # Create attachments
-    attachments = [
-        str(optim_path),
-        str(scheduler_path),
-        str(grad_path),
-        str(config_path),
-    ]
+        config_path = Path("config.pth")
+        torch.save(config.model_dump(), config_path)
 
-    model_specs.update(
-        {
-            "weight_type": PYTORCH_STATE_DICT,
-            "weight_uri": str(weight_path),
-            "attachments": {"files": attachments},
-        }
-    )
+        # create attachments
+        attachments = [
+            str(optim_path),
+            str(scheduler_path),
+            str(grad_path),
+            str(config_path),
+        ]
 
-    if config.algorithm.is_3D:
-        model_specs["tags"].append("3D")
-    else:
-        model_specs["tags"].append("2D")
+        # create requirements file
+        requirements = Path("requirements.txt")
+        with open(requirements, "w") as f:
+            f.write("git+https://github.com/CAREamics/careamics.git")
 
-    # build model zip
-    raw_model = build_model(
-        output_path=Path(path).absolute(),
-        **model_specs,
-    )
+        algo_config = config.algorithm
+        specs.update(
+            {
+                "weight_type": PYTORCH_STATE_DICT,
+                "weight_uri": str(weight_path),
+                "architecture": "careamics.models.unet.UNet",
+                "pytorch_version": torch.__version__,
+                "model_kwargs": {
+                    "conv_dim": algo_config.get_conv_dim(),
+                    "depth": algo_config.model_parameters.depth,
+                    "num_channels_init": algo_config.model_parameters.num_channels_init,
+                },
+                "dependencies": "pip:" + str(requirements),
+                "attachments": {"files": attachments},
+            }
+        )
 
-    # remove the temporary files
-    weight_path.unlink()
-    optim_path.unlink()
-    scheduler_path.unlink()
-    grad_path.unlink()
-    config_path.unlink()
+        if config.algorithm.is_3D:
+            specs["tags"].append("3D")
+        else:
+            specs["tags"].append("2D")
 
-    return raw_model
+        # build model zip
+        build_model(
+            output_path=Path(path).absolute(),
+            **specs,
+        )
+
+        # remove temporary files
+        for file in temp_folder.glob("*"):
+            file.unlink()
+
+    # delete temporary folder
+    temp_folder.rmdir()
 
 
 def import_bioimage_model(model_path: Union[str, Path]) -> Path:
@@ -219,11 +129,12 @@ def import_bioimage_model(model_path: Union[str, Path]) -> Path:
     FileNotFoundError
         If the checkpoint file was not found.
     """
-    if isinstance(model_path, str):
-        model_path = Path(model_path)
+    model_path = Path(model_path)
+
     # check the model extension (should be a zip file).
     if model_path.suffix != ".zip":
         raise ValueError("Invalid model format. Expected bioimage model zip file.")
+
     # load the model
     rdf = load_resource_description(model_path)
 

@@ -46,14 +46,10 @@ def _update_axes(array: np.ndarray, axes: str) -> np.ndarray:
         Updated array.
     """
     # concatenate ST axes to N, return NCZYX
-    if ("S" in axes or "T" in axes) and array.dtype != "O":
+    if "S" in axes or "T" in axes:
         new_axes_len = len(axes.replace("Z", "").replace("YX", ""))
         # TODO test reshape as it can scramble data, moveaxis is probably better
         array = array.reshape(-1, *array.shape[new_axes_len:]).astype(np.float32)
-
-    elif array.dtype == "O":
-        for i in range(len(array)):
-            array[i] = np.expand_dims(array[i], axis=0).astype(np.float32)
 
     else:
         array = np.expand_dims(array, axis=0).astype(np.float32)

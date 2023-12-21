@@ -5,8 +5,9 @@ This module contains a factory function for creating loss functions.
 """
 from typing import Callable
 
-from ..config import Configuration
-from ..config.algorithm import Loss
+from careamics.config import Configuration
+from careamics.config.algorithm import Loss
+
 from .losses import n2v_loss
 
 
