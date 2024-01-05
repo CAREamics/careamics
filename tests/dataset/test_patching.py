@@ -13,13 +13,10 @@ def check_extract_patches_sequential(array, patch_size):
     """Check that the patches are extracted correctly.
 
     The array should have been generated using np.arange and np.reshape."""
-    patch_generator = _extract_patches_sequential(array, patch_size)
+    patches, _ = _extract_patches_sequential(array, patch_size)
 
     # check patch shape
-    patches = []
-    for patch in patch_generator:
-        patches.append(patch)
-        assert patch.shape[1:] == patch_size
+    assert patches.shape[2:] == patch_size
 
     # check that all values are covered by the patches
     n_max = np.prod(array.shape)  # maximum value in the array
@@ -35,14 +32,14 @@ def check_extract_patches_random(array, patch_size):
 
     # check patch shape
     patches = []
-    for patch in patch_generator:
+    for patch, _ in patch_generator:
         patches.append(patch)
         assert patch.shape == patch_size
 
 
-def check_extract_tiles(array, tile_size, overlaps):
+def check_extract_tiles(array, axes, tile_size, overlaps):
     """Test extracting patches randomly."""
-    tile_data_generator = _extract_tiles(array, tile_size, overlaps)
+    tile_data_generator = _extract_tiles(array, axes, tile_size, overlaps)
 
     tiles = []
     all_overlap_crop_coords = []
@@ -55,7 +52,7 @@ def check_extract_tiles(array, tile_size, overlaps):
         all_stitch_coords.append(stitch_coords)
 
         # check tile shape, ignore sample dimension
-        assert tile.shape[1:] == tile_size
+        assert tile.shape == tile_size
         assert len(overlap_crop_coords) == len(stitch_coords) == len(tile_size)
 
     # check that each tile has a unique set of coordinates
@@ -173,26 +170,26 @@ def test_extract_patches_random_3d(array_3D, patch_size):
 
 
 @pytest.mark.parametrize(
-    "tile_size, overlaps",
+    "tile_size, axes, overlaps",
     [
-        ((4, 4), (2, 2)),
-        ((8, 8), (4, 4)),
-    ],
+        ((4, 4), "YX", (2, 2)),
+        ((8, 8), "YX", (4, 4)),
+    ],  # TODO add more test cases with axes
 )
-def test_extract_tiles_2d(array_2D, tile_size, overlaps):
+def test_extract_tiles_2d(array_2D, axes, tile_size, overlaps):
     """Test extracting tiles for prediction in 2D."""
-    check_extract_tiles(array_2D, tile_size, overlaps)
+    check_extract_tiles(array_2D, axes, tile_size, overlaps)
 
 
 @pytest.mark.parametrize(
-    "tile_size, overlaps",
+    "tile_size, axes, overlaps",
     [
-        ((4, 4, 4), (2, 2, 2)),
-        ((8, 8, 8), (4, 4, 4)),
+        ((4, 4, 4), "ZYX", (2, 2, 2)),
+        ((8, 8, 8), "ZYX", (4, 4, 4)),
     ],
 )
-def test_extract_tiles_3d(array_3D, tile_size, overlaps):
+def test_extract_tiles_3d(array_3D, axes, tile_size, overlaps):
     """Test extracting tiles for prediction in 3D.
 
     The 3D array is a fixture of shape (1, 8, 16, 16)."""
-    check_extract_tiles(array_3D, tile_size, overlaps)
+    check_extract_tiles(array_3D, axes, tile_size, overlaps)

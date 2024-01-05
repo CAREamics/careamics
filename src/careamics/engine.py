@@ -11,7 +11,7 @@ from typing import Any, Dict, List, Optional, Tuple, Type, Union
 import numpy as np
 import torch
 from bioimageio.spec.model.raw_nodes import Model as BioimageModel
-from torch.utils.data import DataLoader, TensorDataset
+from torch.utils.data import DataLoader
 
 from .bioimage import (
     build_zip_model,
@@ -32,10 +32,8 @@ from .prediction import (
 )
 from .utils import (
     MetricTracker,
-    check_array_validity,
     denormalize,
     get_device,
-    normalize,
 )
 from .utils.logging import ProgressBar, get_logger
 
@@ -404,12 +402,12 @@ class Engine:
 
     def predict(
         self,
-        input: Union[np.ndarray, str, Path],
+        inputs: Union[np.ndarray, str, Path],
+        axes: str,
         *,
         tile_shape: Optional[List[int]] = None,
         overlaps: Optional[List[int]] = None,
-        axes: Optional[str] = None,
-        tta: bool = True,
+        tta: bool = False,
     ) -> Union[np.ndarray, List[np.ndarray]]:
         """
         Predict using the current model on an input array or a path to data.
@@ -466,7 +464,7 @@ class Engine:
 
         # Get dataloader
         pred_loader, tiled = self._get_predict_dataloader(
-            input=input, tile_shape=tile_shape, overlaps=overlaps, axes=axes
+            inputs=inputs, tile_shape=tile_shape, overlaps=overlaps, axes=axes
         )
 
         # Start prediction
@@ -481,7 +479,10 @@ class Engine:
         return prediction
 
     def _predict_tiled(
-        self, pred_loader: DataLoader, progress_bar: Type[ProgressBar], tta: bool = True
+        self,
+        pred_loader: DataLoader,
+        progress_bar: Type[ProgressBar],
+        tta: bool = False,
     ) -> Union[np.ndarray, List[np.ndarray]]:
         """
         Predict using tiling.
@@ -514,7 +515,7 @@ class Engine:
                 # Unpack auxillary data into last tile indicator and data, required to
                 # stitch tiles together
                 if auxillary:
-                    last_tile, *data = auxillary
+                    last_tile, *data = auxillary # TODO check this, too strict?
 
                 if tta:
                     augmented_tiles = tta_forward(tile)
@@ -547,15 +548,18 @@ class Engine:
 
                 progress_bar.update(i, 1)
 
-        self.logger.info(f"Predicted {len(prediction)} samples, {i} tiles in total")
-        try:
-            return np.stack(prediction)
-        except ValueError:
-            self.logger.warning("Samples have different shapes, returning list.")
-            return prediction
+            self.logger.info(f"Predicted {len(prediction)} samples, {i} tiles in total")
+            try:
+                return np.stack(prediction)
+            except ValueError:
+                self.logger.warning("Samples have different shapes, returning list.")
+                return prediction
 
     def _predict_full(
-        self, pred_loader: DataLoader, progress_bar: type[ProgressBar], tta: bool = True
+        self,
+        pred_loader: DataLoader,
+        progress_bar: type[ProgressBar],
+        tta: bool = False,
     ) -> np.ndarray:
         """
         Predict whole image without tiling.
@@ -578,7 +582,7 @@ class Engine:
         with torch.no_grad():
             for i, sample in enumerate(pred_loader):
                 if tta:
-                    augmented_preds = tta_forward(sample[0])
+                    augmented_preds = tta_forward(sample)
                     predicted_augments = []
                     for augmented_pred in augmented_preds:
                         augmented_pred = self.model(augmented_pred.to(self.device))
@@ -588,7 +592,7 @@ class Engine:
                     prediction.append(tta_backward(predicted_augments).squeeze())
                 else:
                     prediction.append(
-                        self.model(sample[0].to(self.device)).squeeze().cpu().numpy()
+                        self.model(sample.to(self.device)).squeeze().cpu().numpy()
                     )
                 progress_bar.update(i, 1)
         output = denormalize(
@@ -685,7 +689,7 @@ class Engine:
 
     def _get_predict_dataloader(
         self,
-        input: Union[np.ndarray, str, Path],
+        inputs: Union[np.ndarray, str, Path],
         *,
         tile_shape: Optional[List[int]] = None,
         overlaps: Optional[List[int]] = None,
@@ -728,50 +732,27 @@ class Engine:
                 "be performed. Was the model trained?"
             )
 
-        if input is None:
-            raise ValueError("Ccannot predict on None input.")
+        if inputs is None:
+            raise ValueError("Cannot predict on None input.")
+
+        # Check if tiling requested
+        if (tile_shape is not None and overlaps is None) or (
+            tile_shape is None and overlaps is not None
+        ):
+            raise ValueError(
+                "Both tile_shape and overlaps must be specified for tiled prediction."
+            )
+        tiled = tile_shape is not None and overlaps is not None
 
         # Create dataset
-        if isinstance(input, np.ndarray):  # np.ndarray
-            # Check that the axes fit the input
-            img_axes = self.cfg.data.axes if axes is None else axes
-            # TODO are self.cfg.data.axes and axes compatible (same spatial dim)?
-            check_array_validity(input, img_axes)
+        dataset = get_prediction_dataset(
+            self.cfg,
+            pred_source=inputs,
+            tile_shape=tile_shape,
+            overlaps=overlaps,
+            axes=axes,
+        )
 
-            # Check if tiling requested
-            tiled = tile_shape is not None and overlaps is not None
-
-            # Validate tiles and overlaps
-            if tiled:
-                raise NotImplementedError(
-                    "Tiling with in memory array is currently not implemented."
-                )
-
-                # check_tiling_validity(tile_shape, overlaps)
-
-            # Normalize input and cast to float32
-            normalized_input = normalize(
-                img=input, mean=self.cfg.data.mean, std=self.cfg.data.std
-            )
-            normalized_input = normalized_input.astype(np.float32)
-
-            # Create dataset
-            dataset = TensorDataset(torch.from_numpy(normalized_input))
-
-        elif isinstance(input, str) or isinstance(input, Path):  # path
-            # Create dataset
-            dataset = get_prediction_dataset(
-                self.cfg,
-                pred_path=input,
-                tile_shape=tile_shape,
-                overlaps=overlaps,
-                axes=axes,
-            )
-
-            tiled = (
-                hasattr(dataset, "patch_extraction_method")
-                and dataset.patch_extraction_method is not None
-            )
         return (
             DataLoader(
                 dataset,

@@ -72,8 +72,11 @@ class UNet(BaseModel):
     model_config = ConfigDict(
         use_enum_values=True, protected_namespaces=(), validate_assignment=True
     )
+    num_classes: int = Field(default=1, ge=1)
+    in_channels: int = Field(default=1, ge=1)
     depth: int = Field(default=2, ge=1, le=10)
     num_channels_init: int = Field(default=32, ge=8, le=1024)
+    final_activation: str = Field(default='none', pattern="none|sigmoid|softmax")
 
     @validator("num_channels_init")
     def validate_num_channels_init(cls, num_channels_init: int) -> int:

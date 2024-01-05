@@ -11,7 +11,7 @@ from careamics.utils.logging import get_logger
 from ..utils import normalize
 from .dataset_utils import read_zarr
 from .extraction_strategy import ExtractionStrategy
-from .patching import generate_patches
+from .patching import generate_patches_supervised, generate_patches_unsupervised
 
 logger = get_logger(__name__)
 

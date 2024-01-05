@@ -3,14 +3,13 @@ import logging
 from pathlib import Path
 from typing import Callable, List, Tuple, Union
 
+import albumentations as A
 import numpy as np
 import tifffile
 import zarr
 
-from ..manipulation.pixel_manipulation import default_manipulate
+from ..config.transforms import ALL_TRANSFORMS
 from ..utils.logging import get_logger
-from .extraction_strategy import ExtractionStrategy
-from .patching import generate_patches
 
 logger = get_logger(__name__)
 
@@ -67,8 +66,6 @@ def list_files(
 def _update_axes(array: np.ndarray, axes: str) -> np.ndarray:
     """
     Update axes of the array to match the config axes.
-
-    This method concatenate the S and T axes.
 
     This method concatenate the S and T axes.
 
@@ -271,7 +268,7 @@ def read_zarr(
     return array
 
 
-def get_patch_transform(patch_transform_type: str) -> Union[None, Callable]:
+def get_patch_transform(patch_transform: str) -> Union[None, Callable]:
     """Return a pixel manipulation function.
 
     Used in N2V family of algorithms.
@@ -286,107 +283,20 @@ def get_patch_transform(patch_transform_type: str) -> Union[None, Callable]:
     Union[None, Callable]
         Patch transform function.
     """
-    if patch_transform_type is None:
-        return lambda x, *args: (x,) + args if args else x
-    elif patch_transform_type == "default":
-        return default_manipulate
+    if patch_transform is None:
+        # TODO return identity function in a better way?
+        return A.NoOp()
+    elif isinstance(patch_transform, dict):
+        return A.Compose(
+            [
+                ALL_TRANSFORMS[transform](**parameters)
+                if parameters
+                else ALL_TRANSFORMS[transform]()
+                for transform, parameters in patch_transform.items()
+            ]
+        )
     else:
-        # TODO add link to documentation, add other transforms
         raise ValueError(
-            f"Incorrect patch transform function {patch_transform_type}."
-            f"Please refer to the documentation."
+            f"Incorrect patch transform type {patch_transform}. "
+            f"Please refer to the documentation."  # TODO add link to documentation
         )
-
-
-def prepare_patches_supervised(
-    train_files: List[Path],
-    target_files: List[Path],
-    axes: str,
-    patch_extraction_method: ExtractionStrategy,
-    patch_size: Union[List[int], Tuple[int]],
-    patch_overlap: Union[List[int], Tuple[int]],
-) -> Tuple[np.ndarray, float, float]:
-    """
-    Iterate over data source and create an array of patches.
-
-    Returns
-    -------
-    np.ndarray
-        Array of patches.
-    """
-    train_files.sort()
-    target_files.sort()
-
-    means, stds, num_samples = 0, 0, 0
-    all_patches, all_targets = [], []
-    for train_filename, target_filename in zip(train_files, target_files):
-        sample = read_tiff(train_filename, axes)
-        target = read_tiff(target_filename, axes)
-        means += sample.mean()
-        stds += np.std(sample)
-        num_samples += 1
-        # generate patches, return a generator
-        patches, targets = generate_patches(
-            sample,
-            axes,
-            patch_extraction_method,
-            patch_size,
-            patch_overlap,
-            target,
-        )
-
-        # convert generator to list and add to all_patches
-        all_patches.append(patches)
-        all_targets.append(targets)
-
-    result_mean, result_std = means / num_samples, stds / num_samples
-
-    all_patches = np.concatenate(all_patches, axis=0)
-    all_targets = np.concatenate(all_targets, axis=0)
-    logger.info(f"Extracted {all_patches.shape[0]} patches from input array.")
-
-    return (
-        all_patches,
-        all_targets,
-        result_mean,
-        result_std,
-    )
-
-
-def prepare_patches_unsupervised(
-    train_files: List[Path],
-    axes: str,
-    patch_extraction_method: ExtractionStrategy,
-    patch_size: Union[List[int], Tuple[int]],
-    patch_overlap: Union[List[int], Tuple[int]],
-) -> Tuple[np.ndarray, float, float]:
-    """
-    Iterate over data source and create an array of patches.
-
-    Returns
-    -------
-    np.ndarray
-        Array of patches.
-    """
-    means, stds, num_samples = 0, 0, 0
-    all_patches = []
-    for filename in train_files:
-        sample = read_tiff(filename, axes)
-        means += sample.mean()
-        stds += np.std(sample)
-        num_samples += 1
-
-        # generate patches, return a generator
-        patches, _ = generate_patches(
-            sample,
-            axes,
-            patch_extraction_method,
-            patch_size,
-            patch_overlap,
-        )
-
-        # convert generator to list and add to all_patches
-        all_patches.append(patches)
-
-        result_mean, result_std = means / num_samples, stds / num_samples
-    return np.concatenate(all_patches), _, result_mean, result_std

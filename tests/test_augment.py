@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from careamics.utils.augment import _flip_and_rotate
+from careamics.utils.transforms import _flip_and_rotate
 
 ARRAY_2D = np.array([[1, 2, 3], [4, 5, 6]])
 AUG_ARRAY_2D = [

@@ -37,7 +37,7 @@ def get_activation(activation: str) -> Callable:
         return nn.Sigmoid()
     elif activation == "Softmax":
         return nn.Softmax(dim=1)
-    elif activation == "Identity":
+    elif activation == "None":
         return nn.Identity()
     else:
         raise ValueError(f"Activation {activation} not supported.")

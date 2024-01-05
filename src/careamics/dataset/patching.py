@@ -4,6 +4,7 @@ Tiling submodule.
 These functions are used to tile images into patches or tiles.
 """
 import itertools
+from pathlib import Path
 from typing import Generator, List, Optional, Tuple, Union
 
 import numpy as np
@@ -11,6 +12,7 @@ import zarr
 from skimage.util import view_as_windows
 
 from ..utils.logging import get_logger
+from .dataset_utils import read_tiff
 from .extraction_strategy import ExtractionStrategy
 
 logger = get_logger(__name__)
@@ -372,8 +374,8 @@ def _extract_patches_random(
                 .copy()
                 .astype(np.float32)
             )
-            target_patch = (
-                (
+            if target is not None:
+                target_patch = (
                     target[
                         (
                             ...,
@@ -386,10 +388,9 @@ def _extract_patches_random(
                     .copy()
                     .astype(np.float32)
                 )
-                if target is not None
-                else None
-            )
-            yield patch, target_patch
+                yield np.expand_dims(patch, 0), np.expand_dims(target_patch, 0)
+            else:
+                yield np.expand_dims(patch, 0)
 
 
 def _extract_patches_random_from_chunks(
@@ -505,10 +506,16 @@ def _extract_tiles(
     """
     # TODO S dim should be added in _update_axes func !
     # TODO: check overlap handling
+    # TODO Move this to  _update_axes
     if "S" not in axes and "C" in axes:
         tile_size = (arr.shape[0], *tile_size)
         overlaps = (0, *overlaps)
         arr = np.expand_dims(arr, axis=0)
+
+    # TODO C should be added before if not present !
+    elif ("S" not in axes and "C" not in axes) and (len(arr.shape) == len(tile_size)):
+        arr = np.expand_dims(arr, axis=0)
+
     # Iterate over num samples (S)
     for sample_idx in range(arr.shape[0]):
         sample = arr[sample_idx]
@@ -541,7 +548,9 @@ def _extract_tiles(
         ):
             tile = sample[(..., *[slice(c[0], c[1]) for c in list(crop_coords)])]
 
-            tile = np.expand_dims(tile, 0) if "S" in axes else tile
+            tile = (
+                np.expand_dims(tile, 0) if "S" in axes or len(tile.shape) == 2 else tile
+            )
             # Check if we are at the end of the sample.
             # To check that we compute the length of the array that contains all the
             # tiles
@@ -558,7 +567,86 @@ def _extract_tiles(
             )
 
 
-def generate_patches(
+def prepare_patches_supervised(
+    train_files: List[Path],
+    target_files: List[Path],
+    axes: str,
+    patch_size: Union[List[int], Tuple[int]],
+) -> Tuple[np.ndarray, float, float]:
+    """
+    Iterate over data source and create an array of patches and corresponding targets.
+
+    Returns
+    -------
+    np.ndarray
+        Array of patches.
+    """
+    train_files.sort()
+    target_files.sort()
+
+    means, stds, num_samples = 0, 0, 0
+    all_patches, all_targets = [], []
+    for train_filename, target_filename in zip(train_files, target_files):
+        sample = read_tiff(train_filename, axes)
+        target = read_tiff(target_filename, axes)
+        means += sample.mean()
+        stds += np.std(sample)
+        num_samples += 1
+        # generate patches, return a generator
+        patches, targets = _extract_patches_sequential(
+            sample, patch_size=patch_size, target=target
+        )
+
+        # convert generator to list and add to all_patches
+        all_patches.append(patches)
+        all_targets.append(targets)
+
+    result_mean, result_std = means / num_samples, stds / num_samples
+
+    all_patches = np.concatenate(all_patches, axis=0)
+    all_targets = np.concatenate(all_targets, axis=0)
+    logger.info(f"Extracted {all_patches.shape[0]} patches from input array.")
+
+    return (
+        all_patches,
+        all_targets,
+        result_mean,
+        result_std,
+    )
+
+
+def prepare_patches_unsupervised(
+    train_files: List[Path],
+    axes: str,
+    patch_size: Union[List[int], Tuple[int]],
+) -> Tuple[np.ndarray, float, float]:
+    """
+    Iterate over data source and create an array of patches.
+
+    Returns
+    -------
+    np.ndarray
+        Array of patches.
+    """
+    means, stds, num_samples = 0, 0, 0
+    all_patches = []
+    for filename in train_files:
+        sample = read_tiff(filename, axes)
+        means += sample.mean()
+        stds += np.std(sample)
+        num_samples += 1
+
+        # generate patches, return a generator
+        patches, _ = _extract_patches_sequential(sample, patch_size=patch_size)
+
+        # convert generator to list and add to all_patches
+        all_patches.append(patches)
+
+        result_mean, result_std = means / num_samples, stds / num_samples
+    return np.concatenate(all_patches), _, result_mean, result_std
+
+
+def generate_patches_supervised(
     sample: Union[np.ndarray, zarr.Array],
     axes: str,
     patch_extraction_method: ExtractionStrategy,
@@ -567,7 +655,7 @@ def generate_patches(
     target: Optional[Union[np.ndarray, zarr.Array]] = None,
 ) -> Generator[np.ndarray, None, None]:
     """
-    Generate patches from a sample.
+    Creates an iterator with patches and corresponding targets from a sample.
 
     Parameters
     ----------
@@ -613,12 +701,14 @@ def generate_patches(
             )
 
         elif patch_extraction_method == ExtractionStrategy.RANDOM:
-            patches, targets = _extract_patches_random(
+            # Returns a generator of patches and targets(if present)
+            patches = _extract_patches_random(
                 sample, patch_size=patch_size, target=target
             )
 
         elif patch_extraction_method == ExtractionStrategy.RANDOM_ZARR:
-            patches, targets = _extract_patches_random_from_chunks(
+            # Returns a generator of patches and targets(if present)
+            patches = _extract_patches_random_from_chunks(
                 sample, patch_size=patch_size, chunk_size=sample.chunks
             )
 
@@ -629,3 +719,99 @@ def generate_patches(
     else:
         # no patching
         return (sample for _ in range(1)), target
+
+
+def generate_patches_unsupervised(
+    sample: Union[np.ndarray, zarr.Array],
+    axes: str,
+    patch_extraction_method: ExtractionStrategy,
+    patch_size: Optional[Union[List[int], Tuple[int]]] = None,
+    patch_overlap: Optional[Union[List[int], Tuple[int]]] = None,
+) -> Generator[np.ndarray, None, None]:
+    """
+    Creates an iterator over patches from a sample.
+
+    Parameters
+    ----------
+    sample : np.ndarray
+        Input array.
+    patch_extraction_method : ExtractionStrategies
+        Patch extraction method, as defined in extraction_strategy.ExtractionStrategy.
+    patch_size : Optional[Union[List[int], Tuple[int]]]
+        Size of the patches along each dimension of the array, except the first.
+    patch_overlap : Optional[Union[List[int], Tuple[int]]]
+        Overlap between patches.
+
+    Returns
+    -------
+    Generator[np.ndarray, None, None]
+        Generator yielding patches/tiles.
+
+    Raises
+    ------
+    ValueError
+        If overlap is not specified when using tiling.
+    ValueError
+        If patches is None.
+    """
+    patches = None
+
+    if patch_extraction_method is not None:
+        patches = None
+
+        if patch_extraction_method == ExtractionStrategy.TILED:
+            if patch_overlap is None:
+                raise ValueError(
+                    "Overlaps must be specified when using tiling (got None)."
+                )
+            patches = _extract_tiles(
+                arr=sample, axes=axes, tile_size=patch_size, overlaps=patch_overlap
+            )
+
+        elif patch_extraction_method == ExtractionStrategy.RANDOM:
+            # Returns a generator of patches and targets(if present)
+            patches = _extract_patches_random(
+                sample, patch_size=patch_size
+            )
+
+        elif patch_extraction_method == ExtractionStrategy.RANDOM_ZARR:
+            # Returns a generator of patches and targets(if present)
+            patches = _extract_patches_random_from_chunks(
+                sample, patch_size=patch_size, chunk_size=sample.chunks
+            )
+
+        else:
+            raise ValueError("Invalid patch extraction method")
+
+        if patches is None:
+            raise ValueError("No patch generated")
+
+        return patches
+    else:
+        # no patching. sample should have channel dimension
+        return (sample for _ in range(1))
+
+
+def generate_patches_predict(
+    sample: np.ndarray,
+    axes: str,
+    tile_size: Union[List[int], Tuple[int]],
+    tile_overlap: Union[List[int], Tuple[int]],
+) -> Tuple[np.ndarray, float, float]:
+    """
+    Iterate over data source and create an array of patches.
+
+    Returns
+    -------
+    np.ndarray
+        Array of patches.
+    """
+    # generate patches, return a generator
+    patches = _extract_tiles(
+        arr=sample, axes=axes, tile_size=tile_size, overlaps=tile_overlap
+    )
+    patches_list = list(patches)
+    if len(patches_list) == 0:
+        raise ValueError("No patch generated")
+
+    return patches_list

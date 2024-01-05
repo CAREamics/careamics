@@ -3,12 +3,11 @@ from __future__ import annotations
 from enum import Enum
 from typing import Dict, Union
 
-from pydantic import BaseModel, ConfigDict, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class MaskingStrategyType(str, Enum):
-    """
-    Available masking strategy.
+    """Available masking strategy.
 
     Currently supported strategies:
 
@@ -45,17 +44,16 @@ class MaskingStrategyType(str, Enum):
                 f"Incorrect value for asking strategy {masking_strategy}."
                 f"Please refer to the documentation"  # TODO add link to documentation
             )
-        if masking_strategy in [
-            MaskingStrategyType.DEFAULT,
-            MaskingStrategyType.MEDIAN,
-        ] and (
-            parameters["masked_pixel_percentage"] is None
-            or parameters["roi_size"] is None
-        ):
-            raise ValueError(
-                f"Masking strategy {masking_strategy} requires a masked pixel "
-                f"percentage and a ROI size. Please refer to the documentation"
-            )  # TODO add link to documentation
+        if masking_strategy == MaskingStrategyType.DEFAULT:
+            DefaultMaskingStrategy(**parameters)
+            return (
+                DefaultMaskingStrategy().model_dump() if not parameters else parameters
+            )
+        elif masking_strategy == MaskingStrategyType.MEDIAN:
+            MedianMaskingStrategy(**parameters)
+            return (
+                MedianMaskingStrategy().model_dump() if not parameters else parameters
+            )
 
 
 class MaskingStrategy(BaseModel):
@@ -76,10 +74,10 @@ class MaskingStrategy(BaseModel):
     )
 
     strategy_type: MaskingStrategyType
-    parameters: Dict = {}
+    parameters: Dict = Field(default_factory=dict, validate_default=True)
 
-    @model_validator(mode="after")
-    def validate_parameters(cls, data: MaskingStrategy) -> MaskingStrategy:
+    @field_validator("parameters")
+    def validate_parameters(cls, data, values) -> Dict:
         """_summary_.
 
         Parameters
@@ -92,23 +90,20 @@ class MaskingStrategy(BaseModel):
         Dict
             _description_
         """
-        MaskingStrategyType.validate_masking_strategy_type(
-            data.strategy_type, data.parameters
+        if values.data["strategy_type"] not in [
+            MaskingStrategyType.DEFAULT,
+            MaskingStrategyType.MEDIAN,
+        ]:
+            raise ValueError(
+                f"Incorrect masking strategy {values.data['strategy_type']}."
+                f"Please refer to the documentation"  # TODO add link to documentation
+            )
+        parameters = MaskingStrategyType.validate_masking_strategy_type(
+            values.data["strategy_type"], data
         )
+        return parameters
 
-        if data.parameters["roi_size"] % 2 == 0:
-            raise ValueError(f"ROI size must be odd, got {data.parameters['roi_size']}")
-        if data.parameters["roi_size"] < 3 or data.parameters["roi_size"] > 21:
-            raise ValueError(
-                f"ROI size must be between 3 and 21, got {data.parameters['roi_size']}"
-            )
-        if data.parameters["masked_pixel_percentage"] < 0.1:
-            raise ValueError(
-                "Masked pixel percentage must be at least 0.1"
-            )
-        return data
-
-    #TODO finish modifying this class
+    # TODO finish modifying this class
     # def model_dump(
     #     self, exclude_optionals: bool = True, *args: List, **kwargs: Dict
     # ) -> Dict:
@@ -153,3 +148,33 @@ class MaskingStrategy(BaseModel):
     #         remove_default_optionals(dictionary, defaults)
 
     #     return dictionary
+
+
+class DefaultMaskingStrategy(BaseModel):
+    """Default masking strategy of Noise2Void.
+
+    Parameters
+    ----------
+    masked_pixel_percentage : float
+        Percentage of pixels to be masked.
+    roi_size : float
+        Size of the region of interest (ROI).
+    """
+
+    masked_pixel_percentage: float = Field(default=0.2, ge=0.01, le=21.0)
+    roi_size: float = Field(default=11, ge=3, le=21)
+
+
+class MedianMaskingStrategy(BaseModel):
+    """Median masking strategy of N2V2.
+
+    Parameters
+    ----------
+    masked_pixel_percentage : float
+        Percentage of pixels to be masked.
+    roi_size : float
+        Size of the region of interest (ROI).
+    """
+
+    masked_pixel_percentage: float = Field(default=0.2, ge=0.01, le=21.0)
+    roi_size: float = Field(default=11, ge=3, le=21)

@@ -146,14 +146,4 @@ def default_manipulate(
     patch[tuple(roi_centers.T.tolist())] = replacement_pixels
     mask = np.where(patch != original_patch, 1, 0).astype(np.uint8)
 
-    patch, original_patch, mask = (
-        (patch, original_patch, mask)
-        if augmentations is None
-        else augmentations(patch, original_patch, mask)
-    )
-
-    return (
-        np.expand_dims(patch, 0),
-        np.expand_dims(original_patch, 0),
-        np.expand_dims(mask, 0),
-    )
+    return patch, original_patch, mask

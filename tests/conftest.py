@@ -60,7 +60,10 @@ def minimum_config(tmp_path: Path) -> dict:
         "algorithm": {
             "algorithm_type": "n2v",
             "loss": "n2v",
-            "model": {"architecture": "UNet"},
+            "model": {
+                "architecture": "UNet",
+                "parameters": {"depth": 2, "num_channels_init": 32},
+            },
             "is_3D": False,
             "masking_strategy": {
                 "strategy_type": "default",
@@ -114,9 +117,9 @@ def complete_config(minimum_config: dict) -> dict:
             "bins": 256,
         },
     }
-    complete_config["algorithm"]["masking_strategy"] = {
-        "strategy_type": "median",
-        "parameters": {
+    complete_config["algorithm"]["transforms"] = {
+        "Flip": None,
+        "ManipulateN2V": {
             "masked_pixel_percentage": 0.6,
             "roi_size": 13,
         },
@@ -206,7 +209,6 @@ def example_data_path(
     temp_dir: Path, image_size: Tuple[int, int], patch_size: Tuple[int, int]
 ) -> Tuple[Path, Path]:
     test_image = np.random.rand(*image_size)
-    test_image_predict = test_image[None, None, ...]
 
     train_path = temp_dir / "train"
     val_path = temp_dir / "val"
@@ -217,7 +219,7 @@ def example_data_path(
 
     tifffile.imwrite(train_path / "train_image.tif", test_image)
     tifffile.imwrite(val_path / "val_image.tif", test_image)
-    tifffile.imwrite(test_path / "test_image.tif", test_image_predict)
+    tifffile.imwrite(test_path / "test_image.tif", test_image)
 
     return train_path, val_path, test_path
 
@@ -227,7 +229,13 @@ def base_configuration(temp_dir: Path, patch_size) -> Configuration:
     configuration = Configuration(
         experiment_name="smoke_test",
         working_directory=temp_dir,
-        algorithm=Algorithm(loss="n2v", model="UNet", is_3D="False"),
+        algorithm=Algorithm(
+            algorithm_type="n2v",
+            loss="n2v",
+            model={"architecture": "UNet"},
+            is_3D="False",
+            transforms={"Flip": None, "ManipulateN2V": None},
+        ),
         data=Data(
             in_memory=True,
             data_format="tif",
@@ -236,7 +244,39 @@ def base_configuration(temp_dir: Path, patch_size) -> Configuration:
         training=Training(
             num_epochs=1,
             patch_size=patch_size,
-            batch_size=1,
+            batch_size=2,
+            optimizer=Optimizer(name="Adam"),
+            lr_scheduler=LrScheduler(name="ReduceLROnPlateau"),
+            extraction_strategy="random",
+            augmentation=True,
+            num_workers=0,
+            use_wandb=False,
+        ),
+    )
+    return configuration
+
+
+@pytest.fixture
+def supervised_configuration(temp_dir: Path, patch_size) -> Configuration:
+    configuration = Configuration(
+        experiment_name="smoke_test",
+        working_directory=temp_dir,
+        algorithm=Algorithm(
+            algorithm_type="n2n",
+            loss="mae",
+            model={"architecture": "UNet"},
+            is_3D="False",
+            transforms={"Flip": None},
+        ),
+        data=Data(
+            in_memory=True,
+            data_format="tif",
+            axes="YX",
+        ),
+        training=Training(
+            num_epochs=1,
+            patch_size=patch_size,
+            batch_size=2,
             optimizer=Optimizer(name="Adam"),
             lr_scheduler=LrScheduler(name="ReduceLROnPlateau"),
             extraction_strategy="random",

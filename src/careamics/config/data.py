@@ -111,7 +111,7 @@ class Data(BaseModel):
         self.mean = mean
         self.std = std
 
-    @model_validator(mode="before")
+    @model_validator(mode="after")
     @classmethod
     def validate_dataset_to_be_used(cls, data: Any) -> Any:
         """Validate that in_memory dataset is used correctly.
@@ -127,11 +127,11 @@ class Data(BaseModel):
             If in_memory dataset is used with Zarr storage.
             If axes are not valid.
         """
-        if data["in_memory"] and data["data_format"] == SupportedExtension.ZARR:
+        if data.in_memory and data.data_format == SupportedExtension.ZARR:
             raise ValueError("Zarr storage can't be used with in_memory dataset.")
 
         # Validate axes
-        check_axes_validity(data["axes"])
+        check_axes_validity(data.axes)
         return data
 
     @model_validator(mode="after")

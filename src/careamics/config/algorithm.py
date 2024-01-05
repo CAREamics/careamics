@@ -118,7 +118,7 @@ class Algorithm(BaseModel):
 
     # Optional fields, define a default value
     noise_model: Optional[NoiseModel] = None
-    masking_strategy: Optional[MaskingStrategy] = None
+    transforms: Optional[Dict] = None
 
     def get_conv_dim(self) -> int:
         """
@@ -152,7 +152,7 @@ class Algorithm(BaseModel):
         return noise_model
 
     @model_validator(mode="after")
-    def algorithm_loss_cross_validation(cls, data: Algorithm) -> Algorithm:
+    def algorithm_cross_validation(cls, data: Algorithm) -> Algorithm:
         """Validate loss.
 
         Returns
@@ -187,14 +187,23 @@ class Algorithm(BaseModel):
                 f"Algorithm {data.algorithm_type} isn't compatible with a noise model."
             )
 
-        if (
-            data.algorithm_type in [AlgorithmType.CARE, AlgorithmType.N2N]
-            and data.masking_strategy is not None
-        ):
+        if data.algorithm_type in [AlgorithmType.N2V, AlgorithmType.PN2V]:
+            if data.transforms is None:
+                raise ValueError(
+                    f"Algorithm {data.algorithm_type} requires a masking strategy."
+                    "Please add ManipulateN2V to transforms."
+                )
+            else:
+                if "ManipulateN2V" not in data.transforms:
+                    raise ValueError(
+                        f"Algorithm {data.algorithm_type} requires a masking strategy."
+                        "Please add ManipulateN2V to transforms."
+                    )
+        elif "ManipulateN2V" in data.transforms:
             raise ValueError(
                 f"Algorithm {data.algorithm_type} doesn't require a masking strategy."
+                "Please remove ManipulateN2V from the image or patch_transform."
             )
-
         if (
             data.loss == Loss.PN2V or data.loss == Loss.HDN
         ) and data.noise_model is None:
@@ -209,12 +218,7 @@ class Algorithm(BaseModel):
                 f"Loss {data.loss.upper()} is only supported by "
                 f"{AlgorithmType.N2V}."
             )
-        if data.loss == Loss.N2V and data.masking_strategy is None:
-            raise ValueError(
-                f"Loss {data.loss.upper()} require a masking strategy."
-                f"Please refer to the documentation"
-                # TODO add link to documentation
-            )
+        # TODO Check conditions and add tests
 
         return data
 
@@ -248,12 +252,12 @@ class Algorithm(BaseModel):
             # remove optional arguments if they are default
             defaults = {
                 "model": {
-                    "architecture": "UNet",
+                    # "architecture": "UNet",
                     "parameters": {"depth": 2, "num_channels_init": 32},
                 },
                 # TODO don't kmow how to drop nested defaults and don't know why we need this ?!
                 "masking_strategy": {
-                    "strategy_type": "default",
+                    # "strategy_type": "default",
                     "parameters": {"masked_pixel_percentage": 0.2, "roi_size": 11},
                 },
             }
