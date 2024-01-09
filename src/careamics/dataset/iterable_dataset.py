@@ -184,7 +184,7 @@ class IterableDataset(torch.utils.data.IterableDataset):
                         patch = normalize(
                             img=patch_data[0], mean=self.mean, std=self.std
                         )
-                        target = patch_data[1:]  # TODO add multiple targets case
+                        target = patch_data[1:]
                         transformed = self.patch_transform(image=patch, mask=target)
                         yield (transformed["image"], transformed["mask"])
                     else:
@@ -317,6 +317,7 @@ class IterablePredictionDataset(torch.utils.data.IterableDataset):
             )
 
             for patch in patches:
+                # FIXME !
                 if not auxillary:
                     patch = normalize(img=patch, mean=self.mean, std=self.std)
                     transformed = self.patch_transform(image=patch)
@@ -325,7 +326,6 @@ class IterablePredictionDataset(torch.utils.data.IterableDataset):
                     if self.target_path is not None:
                         # Splitting targets into a list. 1st dim is the number
                         # of targets
-                        # TODO add multiple targets case
                         target = auxillary
                         transformed = self.patch_transform(image=patch, mask=target)
                         yield transformed["image"], transformed["mask"]

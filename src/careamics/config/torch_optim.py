@@ -28,8 +28,6 @@ class TorchOptimizer(str, Enum):
     # SparseAdam = "SparseAdam"
 
 
-# TODO: Test which schedulers are compatible and if not, how to make them compatible
-# (if we want to support them)
 class TorchLRScheduler(str, Enum):
     """
     Supported learning rate schedulers.

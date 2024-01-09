@@ -98,7 +98,6 @@ class InMemoryDataset(torch.utils.data.Dataset):
         self.target_format = target_format
 
         self.axes = axes
-        # TODO Just 2 for now, add more later
         self.patch_preparation_method = (
             prepare_patches_unsupervised
             if self.target_path is None
@@ -124,7 +123,6 @@ class InMemoryDataset(torch.utils.data.Dataset):
         if not mean or not std:
             self.mean, self.std = computed_mean, computed_std
             logger.info(f"Computed dataset mean: {self.mean}, std: {self.std}")
-            # TODO calculate separate mean and std for each channel and target!
         assert self.mean is not None
         assert self.std is not None
         self.patch_transform = get_patch_transform(patch_transform)
@@ -190,7 +188,6 @@ class InMemoryDataset(torch.utils.data.Dataset):
         if self.mean is not None and self.std is not None:
             patch = normalize(img=patch, mean=self.mean, std=self.std)
             # if self.target_path is not None:
-            #     # TODO don't normalize target if it's not an image
             #     target = normalize(img=target, mean=self.mean, std=self.std)
 
             if self.target_path is not None:

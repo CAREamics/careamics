@@ -88,6 +88,6 @@ def pn2v_loss(
 
 def dice_loss(
     samples: torch.Tensor, labels: torch.Tensor, mode: str = "multiclass"
-) -> torch.Tensor: # TODO remove hardcode loss mode
+) -> torch.Tensor:
     """Dice loss function."""
     return DiceLoss(mode=mode)(samples, labels.long())

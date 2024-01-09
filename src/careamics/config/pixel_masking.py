@@ -103,7 +103,6 @@ class MaskingStrategy(BaseModel):
         )
         return parameters
 
-    # TODO finish modifying this class
     # def model_dump(
     #     self, exclude_optionals: bool = True, *args: List, **kwargs: Dict
     # ) -> Dict:
@@ -137,7 +136,6 @@ class MaskingStrategy(BaseModel):
     #                 "architecture": "UNet",
     #                 "parameters": {"depth": 2, "num_channels_init": 32},
     #             },
-    #             # TODO don't kmow how to drop nested defaults and don't know why we need this ?!
     #             # MaskingStrategy()
     #             "masking_strategy": {
     #                 "strategy_type": "default",

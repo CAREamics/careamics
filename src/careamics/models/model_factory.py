@@ -107,7 +107,7 @@ def create_model(
             depth=model_config["depth"],
             conv_dim=algo_config.get_conv_dim(),
             num_classes=model_config["num_classes"],
-            in_channels=model_config["in_channels"], #TODO refactor this ugly hardcode
+            in_channels=model_config["in_channels"],
             num_channels_init=model_config["num_channels_init"],
             final_activation=model_config["final_activation"],
         )
@@ -136,7 +136,7 @@ def create_model(
             depth=model_config["depth"],
             conv_dim=algo_config.get_conv_dim(),
             num_classes=model_config["num_classes"],
-            in_channels=model_config["in_channels"], #TODO refactor this ugly hardcode
+            in_channels=model_config["in_channels"],
             num_channels_init=model_config["num_channels_init"],
             final_activation=model_config["final_activation"],
             n2v2=model_config["n2v2"],

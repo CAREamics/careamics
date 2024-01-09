@@ -304,7 +304,6 @@ class AMP(BaseModel):
 
     use: bool = False
 
-    # TODO review init_scale and document better
     init_scale: int = Field(default=1024, ge=512, le=65536)
 
     @field_validator("init_scale")

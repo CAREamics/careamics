@@ -507,15 +507,11 @@ def _extract_tiles(
         Tile generator that yields the tile with corresponding coordinates to stitch
         back the tiles together.
     """
-    # TODO S dim should be added in _update_axes func !
-    # TODO: check overlap handling
-    # TODO Move this to  _update_axes
     if "S" not in axes and "C" in axes:
         tile_size = (arr.shape[0], *tile_size)
         overlaps = (0, *overlaps)
         arr = np.expand_dims(arr, axis=0)
 
-    # TODO C should be added before if not present !
     elif ("S" not in axes and "C" not in axes) and (len(arr.shape) == len(tile_size)):
         arr = np.expand_dims(arr, axis=0)
 

@@ -84,14 +84,10 @@ def _update_axes(array: np.ndarray, axes: str) -> np.ndarray:
     # concatenate ST axes to N, return NCZYX
     if ("S" in axes or "T" in axes) and array.dtype != "O":
         new_axes_len = len(axes.replace("Z", "").replace("YX", ""))
-        # TODO test reshape as it can scramble data, moveaxis is probably better
         array = array.reshape(-1, *array.shape[new_axes_len:]).astype(np.float32)
-        # TODO This doesn't work for ZARR !
         array.reshape(-1, *array.shape[new_axes_len:]).astype(np.float32)
 
     elif "C" in axes:
-        # TODO should this be here or in a separate function outside ?
-        # TODO REfactor, add proper C handling
         if len(axes) != len(array.shape):
             array = np.expand_dims(array, axis=0)
         if axes[-1] == "C":
@@ -207,7 +203,6 @@ def read_tiff(file_path: Path, axes: str) -> np.ndarray:
     # check number of axes
     # if len(axes) != len(array.shape):
     #     raise ValueError(f"Incorrect axes length (got {axes} for file {file_path}).")
-    # TODO moved to _update_axes. Find better solution!
     array = _update_axes(array, axes)
 
     return array
@@ -237,7 +232,6 @@ def read_zarr(
     ValueError
         if axes parameter from config is not consistent with data dimensions
     """
-    # TODO raise warning if chunk size is larger than image size. Validate chunk size
     if isinstance(zarr_source, zarr.hierarchy.Group):
         array = zarr_source[0]
 
@@ -263,7 +257,6 @@ def read_zarr(
     if len(axes) != len(array.shape):
         raise ValueError(f"Incorrect axes length (got {axes}).")
 
-    # FIXME !
     # arr = fix_axes(arr, axes)
     return array
 
@@ -284,7 +277,6 @@ def get_patch_transform(patch_transform: str) -> Union[None, Callable]:
         Patch transform function.
     """
     if patch_transform is None:
-        # TODO return identity function in a better way?
         return A.NoOp()
     elif isinstance(patch_transform, dict):
         return A.Compose(

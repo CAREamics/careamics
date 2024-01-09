@@ -44,7 +44,6 @@ class Architecture(str, Enum):
             If the architecture is not supported.
         """
         if architecture == Architecture.UNET:
-            #TODO validate parameters
             UNet(**parameters)
             for k, v in UNet().model_dump().items():
                 if k not in parameters:

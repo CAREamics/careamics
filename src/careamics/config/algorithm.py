@@ -217,7 +217,6 @@ class Algorithm(BaseModel):
                 f"Loss {data.loss.upper()} is only supported by "
                 f"{AlgorithmType.N2V}."
             )
-        # TODO Check conditions and add tests
 
         return data
 
@@ -254,7 +253,6 @@ class Algorithm(BaseModel):
                     # "architecture": "UNet",
                     "parameters": {"depth": 2, "num_channels_init": 32},
                 },
-                # TODO don't kmow how to drop nested defaults and don't know why we need this ?!
                 "masking_strategy": {
                     # "strategy_type": "default",
                     "parameters": {"masked_pixel_percentage": 0.2, "roi_size": 11},
