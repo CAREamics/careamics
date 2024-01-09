@@ -8,7 +8,7 @@ from typing import Callable, List, Optional
 import torch
 import torch.nn as nn
 
-from .layers import Conv_Block, MaxBlurPool2D, MaxBlurPool3D
+from .layers import Conv_Block, MaxBlurPool
 
 
 def get_activation(activation: str) -> Callable:
@@ -103,7 +103,7 @@ class UnetEncoder(nn.Module):
         self.pooling = (
             getattr(nn, f"MaxPool{conv_dim}d")(kernel_size=pool_kernel)
             if not n2v2
-            else MaxBlurPool2D(kernel_size=3, max_pool_size=pool_kernel)
+            else MaxBlurPool(dim=conv_dim, kernel_size=3, max_pool_size=pool_kernel)
         )
 
         encoder_blocks = []

@@ -1,7 +1,7 @@
 import pytest
 import torch
 
-from careamics.models.layers import MaxBlurPool2D, MaxBlurPool3D
+from careamics.models.layers import MaxBlurPool
 from careamics.models.unet import UNet
 
 
@@ -43,13 +43,27 @@ def test_unet_depth(depth):
 )
 def test_blurpool2d(input_shape):
     """Test that the BlurPool2d layer works as expected."""
-    layer = MaxBlurPool2D(kernel_size=3)
+    layer = MaxBlurPool(dim=2, kernel_size=3)
     assert layer(torch.randn(input_shape)).shape == tuple(
         [1, 1] + [i // 2 for i in input_shape[2:]]
     )
 
-
-def test_blurpool3d():
+@pytest.mark.parametrize(
+    "input_shape",
+    [
+        (1, 1, 256, 256, 256),
+        (1, 1, 128, 128, 128),
+        (1, 1, 64, 128, 128),
+        (1, 1, 64, 64, 64),
+        (1, 1, 32, 64, 64),
+        (1, 1, 32, 32, 32),
+        (1, 1, 16, 16, 16),
+        (1, 1, 8, 8, 8),
+    ],
+)
+def test_blurpool3d(input_shape):
     """Test that the BlurPool3d layer works as expected."""
-    layer = MaxBlurPool3D(kernel_size=3)
-    assert layer(torch.randn(1, 1, 32, 32, 32)).shape == (1, 1, 16, 16, 16)
+    layer = MaxBlurPool(dim=3, kernel_size=3)
+    assert layer(torch.randn(input_shape)).shape == tuple(
+        [1, 1] + [i // 2 for i in input_shape[2:]]
+    )

@@ -330,7 +330,7 @@ def _max_blur_pool_by_kernel3d(
     return F.conv3d(x, kernel, padding=padding, stride=stride, groups=x.size(1))
 
 
-class MaxBlurPool2D(nn.Module):
+class MaxBlurPool(nn.Module):
     """Compute pools and blurs and downsample a given feature map.
 
     Inspired by Kornia MaxBlurPool implementation. Equivalent to
@@ -338,6 +338,7 @@ class MaxBlurPool2D(nn.Module):
 
     Parameters
     ----------
+    dim : Toggles between 2D and 3D
     kernel_size : the kernel size for max pooling. Tensor of shape (B, C, Y, X).
     stride: stride for pooling.
     max_pool_size: the kernel size for max pooling.
@@ -366,83 +367,33 @@ class MaxBlurPool2D(nn.Module):
 
     def __init__(
         self,
+        dim: int,
         kernel_size: Union[Tuple[int], int],
         stride: int = 2,
         max_pool_size: int = 2,
         ceil_mode: bool = False,
     ) -> None:
         super().__init__()
+        self.dim = dim
         self.kernel_size = kernel_size
         self.stride = stride
         self.max_pool_size = max_pool_size
         self.ceil_mode = ceil_mode
-        self.kernel = get_pascal_kernel_nd(kernel_size, norm=True, dim=2)
+        self.kernel = get_pascal_kernel_nd(kernel_size, norm=True, dim=self.dim)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Forward pass of the function."""
         self.kernel = torch.as_tensor(self.kernel, device=x.device, dtype=x.dtype)
-        return _max_blur_pool_by_kernel2d(
+        if self.dim == 2:
+            return _max_blur_pool_by_kernel2d(
             x,
             self.kernel.repeat((x.size(1), 1, 1, 1)),
             self.stride,
             self.max_pool_size,
             self.ceil_mode,
         )
-
-
-class MaxBlurPool3D(nn.Module):
-    """Compute pools and blurs and downsample a given feature map.
-
-    Inspired by Kornia MaxBlurPool implementation. Equivalent to
-    ```nn.Sequential(nn.MaxPool3d(...), BlurPool3D(...))```
-
-    Parameters
-    ----------
-    kernel_size : the kernel size for max pooling. Tensor of shape (B, C, Z, Y, X).
-    stride: stride for pooling.
-    max_pool_size: the kernel size for max pooling.
-    ceil_mode: should be true to match output size of conv3d with same kernel size.
-
-    Returns
-    -------
-    torch.Tensor: the transformed tensor of shape
-    (B, C, Z / stride, Y / stride, X / stride)
-
-    Examples
-    --------
-        >>> import torch.nn as nn
-        >>> from kornia.filters.blur_pool import BlurPool3D
-        >>> input = torch.eye(5)[None, None]
-        >>> mbp = MaxBlurPool3D(kernel_size=3, stride=2,
-        max_pool_size=2, ceil_mode=False)
-        >>> mbp(input)
-        tensor([[[[[0.5625, 0.3125],
-                   [0.3125, 0.8750]]]]])
-        >>> seq = nn.Sequential(nn.MaxPool3d(kernel_size=2, stride=1),
-        BlurPool3D(kernel_size=3, stride=2))
-        >>> seq(input)
-        tensor([[[[[0.5625, 0.3125],
-                   [0.3125, 0.8750]]]]])
-    """
-
-    def __init__(
-        self,
-        kernel_size: Union[Tuple[int], int],
-        stride: int = 2,
-        max_pool_size: int = 2,
-        ceil_mode: bool = False,
-    ) -> None:
-        super().__init__()
-        self.kernel_size = kernel_size
-        self.stride = stride
-        self.max_pool_size = max_pool_size
-        self.ceil_mode = ceil_mode
-        self.kernel = get_pascal_kernel_nd(kernel_size, norm=True, dim=3)
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """Forward pass of the function."""
-        self.kernel = torch.as_tensor(self.kernel, device=x.device, dtype=x.dtype)
-        return _max_blur_pool_by_kernel3d(
+        else:
+            return _max_blur_pool_by_kernel3d(
             x,
             self.kernel.repeat((x.size(1), 1, 1, 1, 1)),
             self.stride,
