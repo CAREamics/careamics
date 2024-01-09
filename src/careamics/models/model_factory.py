@@ -139,6 +139,7 @@ def create_model(
             in_channels=model_config["in_channels"], #TODO refactor this ugly hardcode
             num_channels_init=model_config["num_channels_init"],
             final_activation=model_config["final_activation"],
+            n2v2=model_config["n2v2"],
         )
         model.to(device)
         optimizer, scheduler = get_optimizer_and_scheduler(config, model)

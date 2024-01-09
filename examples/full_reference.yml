@@ -25,6 +25,7 @@ algorithm:
       # Number of filters of the first level, must be divisible by 2
       num_channels_init: 32
       final_activation: sigmoid
+      n2v2: False
   
   # Noise model, Histogram or GMM
   noise_model: 

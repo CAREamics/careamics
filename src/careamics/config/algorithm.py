@@ -14,7 +14,6 @@ from pydantic import (
 from .config_filter import remove_default_optionals
 from .models import Model
 from .noise_models import NoiseModel
-from .pixel_masking import MaskingStrategy
 
 # python 3.11: https://docs.python.org/3/library/enum.html
 
