@@ -73,6 +73,7 @@ class UnetEncoder(nn.Module):
         use_batch_norm: bool = True,
         dropout: float = 0.0,
         pool_kernel: int = 2,
+        n2v2: bool = False,
     ) -> None:
         """
         Constructor.
@@ -96,7 +97,9 @@ class UnetEncoder(nn.Module):
         """
         super().__init__()
 
-        self.pooling = getattr(nn, f"MaxPool{conv_dim}d")(kernel_size=pool_kernel)
+        pooling_op = "MaxBlurPool" if n2v2 else "MaxPool"
+
+        self.pooling = getattr(nn, f"{pooling_op}{conv_dim}d")(kernel_size=pool_kernel)
 
         encoder_blocks = []
 
@@ -113,7 +116,6 @@ class UnetEncoder(nn.Module):
                 )
             )
             encoder_blocks.append(self.pooling)
-
         self.encoder_blocks = nn.ModuleList(encoder_blocks)
 
     def forward(self, x: torch.Tensor) -> List[torch.Tensor]:

@@ -297,9 +297,12 @@ def _extract_patches_sequential(
     window_steps = _compute_patch_steps(patch_sizes=patch_size, overlaps=overlaps)
 
     # Correct for first dimension for computing windowed views by adding a channel
-    # dimension. This assumes channel is correctly provided as first dimension.
-    window_shape = (arr.shape[0], *patch_size)
-    window_steps = (arr.shape[0], *window_steps)
+    # dimension.
+    # TODO arr should be of shape (S, C, Z, Y, X) or (S, C, Y, X) !!
+    # window_shape = (1, arr.shape[0], *patch_size)
+    # window_steps = (1, arr.shape[0], *window_steps)
+    window_shape = (1, *patch_size)
+    window_steps = (1, *window_steps)
 
     if is_3d_patch and patch_size[0] == 1:
         output_shape = (-1,) + window_shape[1:]

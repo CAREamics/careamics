@@ -18,10 +18,13 @@ algorithm:
     architecture: UNet
     # Depth betwen 1 and 10
     parameters:
+      num_classes: 3
+      in_channels: 3 #TODO confusing with num_channels_init. Depends on the data
       # Depth betwen 1 and 10
       depth: 2
       # Number of filters of the first level, must be divisible by 2
       num_channels_init: 32
+      final_activation: sigmoid
   
   # Noise model, Histogram or GMM
   noise_model: 
@@ -34,14 +37,19 @@ algorithm:
   # Dimensions 2D (False) or 3D (True)
   is_3D: False
 
-  # Optional, masking strategy for N2V family of algorithms
-  masking_strategy: 
-    strategy_type: default
-    # Optional, percentage of masked pixel per patch (between 0.1 and 20%)
-    parameters:
-      masked_pixel_percentage: 0.2
-      # Optional, size of the ROI used to select pixels to mask (between 5 and 21)
-      roi_size: 11
+  # Optional, any augmentation/transformation that will be applied to the input image
+    # name: # Any augmentation function, see documentation #TODO add link
+      # parameters: # Parameters of the augmentation
+  transforms: 
+    Flip:
+    RandomRotate90:
+    # masking strategy for N2V family of algorithms. Must come last
+    ManipulateN2V:
+        # Optional, percentage of masked pixel per patch (between 0.1 and 20%)
+        masked_pixel_percentage: 0.2
+        # Optional, size of the ROI used to select pixels to mask (between 5 and 21)
+        roi_size: 11
+
 training:
   # Number of epochs, greater or equal than 1
   num_epochs: 100

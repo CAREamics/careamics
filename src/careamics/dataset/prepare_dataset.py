@@ -207,7 +207,7 @@ def get_prediction_dataset(
 
         dataset = InMemoryPredictionDataset(
             array=pred_source,
-            axes=axes,
+            axes=axes if axes is not None else config.data.axes,
             tile_size=tile_shape,
             tile_overlap=overlaps,
             mean=config.data.mean,
@@ -218,7 +218,7 @@ def get_prediction_dataset(
             dataset = IterableDataset(
                 data_path=pred_source,
                 data_format=config.data.data_format,
-                axes=config.data.axes,
+                axes=axes if axes is not None else config.data.axes,
                 mean=config.data.mean,
                 std=config.data.std,
                 patch_extraction_method=patch_extraction_method,
@@ -236,7 +236,7 @@ def get_prediction_dataset(
 
             dataset = ZarrDataset(
                 data_source=zarr_source,
-                axes=config.data.axes,
+                axes=axes if axes is not None else config.data.axes,
                 patch_extraction_method=ExtractionStrategy.RANDOM_ZARR,
                 patch_size=tile_shape,
                 num_patches=10,
