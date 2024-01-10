@@ -17,7 +17,7 @@ from .unet import UNet
 logger = get_logger(__name__)
 
 
-def model_registry(model_name: str) -> torch.nn.Module:
+def model_registry(model_name: str, conv_dim: int, parameters: Dict) -> torch.nn.Module:
     """
     Model factory.
 
@@ -27,6 +27,10 @@ def model_registry(model_name: str) -> torch.nn.Module:
     ----------
     model_name : str
         Name of the model.
+    conv_dim : int
+        Convolution dimension (2 or 3).
+    parameters : Dict
+        Model parameters.
 
     Returns
     -------
@@ -39,7 +43,7 @@ def model_registry(model_name: str) -> torch.nn.Module:
         If the requested model is not implemented.
     """
     if model_name == Architecture.UNET:
-        return UNet
+        return UNet(conv_dim=conv_dim, **parameters)
     else:
         raise NotImplementedError(f"Model {model_name} is not implemented")
 
@@ -103,14 +107,7 @@ def create_model(
             raise ValueError("Invalid checkpoint format, no configuration found.")
 
         # Create model
-        model = model_registry(model_name)(
-            depth=model_config["depth"],
-            conv_dim=algo_config.get_conv_dim(),
-            num_classes=model_config["num_classes"],
-            in_channels=model_config["in_channels"],
-            num_channels_init=model_config["num_channels_init"],
-            final_activation=model_config["final_activation"],
-        )
+        model = model_registry(model_name, algo_config.get_conv_dim(), model_config)
         model.to(device)
         # Load the model state dict
         if "model_state_dict" in checkpoint:
@@ -132,15 +129,7 @@ def create_model(
         model_name = algo_config.model.architecture
 
         # Create model
-        model = model_registry(model_name)(
-            depth=model_config["depth"],
-            conv_dim=algo_config.get_conv_dim(),
-            num_classes=model_config["num_classes"],
-            in_channels=model_config["in_channels"],
-            num_channels_init=model_config["num_channels_init"],
-            final_activation=model_config["final_activation"],
-            n2v2=model_config["n2v2"],
-        )
+        model = model_registry(model_name, algo_config.get_conv_dim(), model_config)
         model.to(device)
         optimizer, scheduler = get_optimizer_and_scheduler(config, model)
         scaler = get_grad_scaler(config)

@@ -303,6 +303,7 @@ class UNet(nn.Module):
         pool_kernel: int = 2,
         final_activation: Optional[Callable] = None,
         n2v2: bool = False,
+        **kwargs,
     ) -> None:
         """
         Constructor.
