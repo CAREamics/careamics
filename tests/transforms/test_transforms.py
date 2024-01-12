@@ -4,6 +4,7 @@ import pytest
 from careamics.manipulation.pixel_manipulation import (
     default_manipulate,
     get_stratified_coords,
+    apply_struct_mask,
 )
 
 
@@ -79,3 +80,11 @@ def test_default_manipulate_3d(array_3D):
 
     # Check that the manipulated patch is different from the original patch
     assert not np.array_equal(patch, original_patch)
+
+
+@pytest.mark.parametrize("mask", [[[0, 1, 1, 1, 1, 1, 0]]])
+def test_apply_struct_mask(mask):
+    patch = np.zeros((32,32))
+    coords = get_stratified_coords(0.4, patch.shape)
+    mask = np.array(mask)
+    apply_struct_mask(patch, coords, mask)

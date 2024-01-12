@@ -9,6 +9,37 @@ from typing import Callable, Optional, Tuple
 import numpy as np
 
 
+def apply_struct_mask(patch, coords, mask):
+    """Applies structN2V mask to patch.
+
+    Each point in coords corresponds to the center of the mask.
+    then for point in the mask with value=1 we assign a random value.
+
+    Parameters
+    ----------
+    patch : np.ndarray
+        Patch to be manipulated.
+    coords : np.ndarray
+        Coordinates of the pixels to be manipulated.
+    mask : np.ndarray
+        Mask to be applied.
+    """
+    ndim = mask.ndim
+    center = np.array(mask.shape) // 2
+    ## leave the center value alone
+    mask[tuple(center.T)] = 0
+    ## displacements from center
+    dx = np.indices(mask.shape)[:, mask == 1] - center[:, None]
+    ## combine all coords (ndim, npts,) with all displacements (ncoords,ndim,)
+    mix = (dx.T[None] + coords[None])
+    mix = mix.transpose([1, 0, 2]).reshape([ndim, -1]).T
+    ## stay within patch boundary
+    mix = mix.clip(min=np.zeros(ndim), max=np.array(patch.shape)-1).astype(np.uint8)
+    ## replace neighbouring pixels with random values from flat dist
+    patch[tuple(mix.T)] = np.random.rand(mix.shape[0]) * 4 - 2
+    return patch
+
+
 def _odd_jitter_func(step: float, rng: np.random.Generator) -> np.ndarray:
     """
     Randomly sample a jitter to be applied to the masking grid.
