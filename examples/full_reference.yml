@@ -50,6 +50,8 @@ algorithm:
         masked_pixel_percentage: 0.2
         # Optional, size of the ROI used to select pixels to mask (between 5 and 21)
         roi_size: 11
+        # Optional, mask used in structN2V algorithm.
+        struck_mask: [[0, 1, 1, 1, 1, 1, 0]]
 
 training:
   # Number of epochs, greater or equal than 1
@@ -81,9 +83,6 @@ training:
       mode: min
       patience: 10
       factor: 0.5
-
-  # Use augmentation (True or False)
-  augmentation: True
 
   # Optional, use WandB (True or False), must be installed in your conda environment
   use_wandb: False

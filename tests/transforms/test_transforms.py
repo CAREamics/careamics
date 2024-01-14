@@ -86,5 +86,4 @@ def test_default_manipulate_3d(array_3D):
 def test_apply_struct_mask(mask):
     patch = np.zeros((32,32))
     coords = get_stratified_coords(0.4, patch.shape)
-    mask = np.array(mask)
     apply_struct_mask(patch, coords, mask)

@@ -4,7 +4,7 @@ Pixel manipulation methods.
 Pixel manipulation is used in N2V and similar algorithm to replace the value of
 masked pixels.
 """
-from typing import Callable, Optional, Tuple
+from typing import Optional, Tuple
 
 import numpy as np
 
@@ -24,6 +24,7 @@ def apply_struct_mask(patch, coords, mask):
     mask : np.ndarray
         Mask to be applied.
     """
+    mask = np.array(mask)
     ndim = mask.ndim
     center = np.array(mask.shape) // 2
     ## leave the center value alone
@@ -126,7 +127,7 @@ def default_manipulate(
     patch: np.ndarray,
     mask_pixel_percentage: float,
     roi_size: int = 11,
-    augmentations: Optional[Callable] = None,
+    struct_mask: Optional[np.ndarray] = None,
 ) -> Tuple[np.ndarray, ...]:
     """
     Manipulate pixel in a patch, i.e. replace the masked value.
@@ -176,5 +177,8 @@ def default_manipulate(
     # Replace the original pixels with the replacement pixels
     patch[tuple(roi_centers.T.tolist())] = replacement_pixels
     mask = np.where(patch != original_patch, 1, 0).astype(np.uint8)
+
+    if struct_mask is not None:
+        patch = apply_struct_mask(patch, roi_centers, struct_mask)
 
     return patch, original_patch, mask

@@ -1,13 +1,15 @@
 """Algorithm configuration."""
 from __future__ import annotations
 
+import warnings
 from enum import Enum
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, OrderedDict
 
 from pydantic import (
     BaseModel,
     ConfigDict,
     ValidationInfo,
+    field_validator,
     model_validator,
 )
 
@@ -117,7 +119,7 @@ class Algorithm(BaseModel):
 
     # Optional fields, define a default value
     noise_model: Optional[NoiseModel] = None
-    transforms: Optional[Dict] = None
+    transforms: Optional[OrderedDict] = None
 
     def get_conv_dim(self) -> int:
         """
@@ -149,6 +151,34 @@ class Algorithm(BaseModel):
             _ = NoiseModel.get_noise_model(noise_model_type, noise_model)
 
         return noise_model
+
+    @field_validator("transforms")
+    def validate_transforms(
+        cls, data: OrderedDict, values: ValidationInfo
+    ) -> OrderedDict:
+        """Validate transforms.
+
+        Returns
+        -------
+        Dict
+            Validated transforms.
+
+        Raises
+        ------
+        ValueError
+            If the transforms are not supported.
+        """
+        if values.data["algorithm_type"] in [AlgorithmType.N2V, AlgorithmType.PN2V]:
+            if "ManipulateN2V" not in data.keys():
+                data["ManipulateN2V"] = {
+                    "masked_pixel_percentage": 0.2,
+                    "roi_size": 11,
+                }
+                warnings.warn("No masking strategy in transforms. Adding default.")
+            elif "struck_mask" in data.values():
+                # TODO validate mask
+                pass
+        return data
 
     @model_validator(mode="after")
     def algorithm_cross_validation(cls, data: Algorithm) -> Algorithm:
