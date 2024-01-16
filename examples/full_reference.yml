@@ -44,6 +44,7 @@ algorithm:
   transforms: 
     Flip:
     RandomRotate90:
+    Normalize:
     # masking strategy for N2V family of algorithms. Must come last
     ManipulateN2V:
         # Optional, percentage of masked pixel per patch (between 0.1 and 20%)

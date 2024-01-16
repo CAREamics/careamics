@@ -4,7 +4,7 @@ from typing import Tuple
 import albumentations as A
 import numpy as np
 
-from ..manipulation import apply_struct_mask, default_manipulate
+from ..manipulation import default_manipulate
 
 
 class ManipulateN2V(A.ImageOnlyTransform):

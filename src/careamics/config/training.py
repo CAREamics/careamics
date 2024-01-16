@@ -421,8 +421,6 @@ class Training(BaseModel):
     optimizer: Optimizer
     lr_scheduler: LrScheduler
 
-    augmentation: bool
-
     # Optional fields
     use_wandb: bool = False
     num_workers: int = Field(default=0, ge=0)

@@ -123,9 +123,18 @@ class InMemoryDataset(torch.utils.data.Dataset):
         if not mean or not std:
             self.mean, self.std = computed_mean, computed_std
             logger.info(f"Computed dataset mean: {self.mean}, std: {self.std}")
-        assert self.mean is not None
-        assert self.std is not None
-        self.patch_transform = get_patch_transform(patch_transform)
+        assert self.mean is not None, "Dataset mean must be set before using it."
+        assert self.std is not None, "Dataset std must be set before using it."
+        # We need to set the patch transform after computing the mean and std.
+        # Max value is set to 1 because we use raw statistics.
+        patch_transform["Normalize"] = {
+            "mean": self.mean,
+            "std": self.std,
+            "max_pixel_value": 1,
+        }
+        self.patch_transform = get_patch_transform(
+            patch_transform, self.target_path is not None
+        )
 
     def _prepare_patches(self) -> Callable:
         """
@@ -186,22 +195,20 @@ class InMemoryDataset(torch.utils.data.Dataset):
         patch = self.data[index]
 
         if self.mean is not None and self.std is not None:
-            patch = normalize(img=patch, mean=self.mean, std=self.std)
-            # if self.target_path is not None:
-            #     target = normalize(img=target, mean=self.mean, std=self.std)
-
             if self.target_path is not None:
                 # Splitting targets into a list. 1st dim is the number of targets
                 target = self.targets[index, ...]
-                transformed = self.patch_transform(image=patch, mask=target)
-                patch, target = transformed["image"], transformed["mask"]
+                # Move channels to the last dimension for the transform
+                transformed = self.patch_transform(
+                    image=np.moveaxis(patch, 0, -1), target=np.moveaxis(target, 0, -1)
+                )
+                patch, target = np.moveaxis(transformed["image"], -1, 0), np.moveaxis(
+                    transformed["target"], -1, 0
+                )
                 return patch, target
             else:
                 patch = self.patch_transform(image=patch)["image"]
                 return patch
-            # Needed to add channel dimension in case input image is single channel
-            # if len(patch.shape) < len(self.patch_size) + 1:
-            #     patch = expand_dims(patch)
         else:
             raise ValueError("Dataset mean and std must be set before using it.")
 

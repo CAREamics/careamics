@@ -32,10 +32,10 @@ def apply_struct_mask(patch, coords, mask):
     ## displacements from center
     dx = np.indices(mask.shape)[:, mask == 1] - center[:, None]
     ## combine all coords (ndim, npts,) with all displacements (ncoords,ndim,)
-    mix = (dx.T[None] + coords[None])
+    mix = dx.T[..., None] + coords.T[None]
     mix = mix.transpose([1, 0, 2]).reshape([ndim, -1]).T
     ## stay within patch boundary
-    mix = mix.clip(min=np.zeros(ndim), max=np.array(patch.shape)-1).astype(np.uint8)
+    mix = mix.clip(min=np.zeros(ndim), max=np.array(patch.shape) - 1).astype(np.uint8)
     ## replace neighbouring pixels with random values from flat dist
     patch[tuple(mix.T)] = np.random.rand(mix.shape[0]) * 4 - 2
     return patch
@@ -135,7 +135,7 @@ def default_manipulate(
     Parameters
     ----------
     patch : np.ndarray
-        Image patch, 2D or 3D, shape (c, y, x) or (c, z, y, x).
+        Image patch, 2D or 3D, shape (y, x) or (z, y, x).
     mask_pixel_percentage : floar
         Approximate percentage of pixels to be masked.
     roi_size : int
@@ -148,7 +148,8 @@ def default_manipulate(
     Tuple[np.ndarray]
         Tuple containing the manipulated patch, the original patch and the mask.
     """
-    # patch = patch.squeeze()
+    #TODO this assumes patch has no channel dimension. Is this correct?
+    patch = patch.squeeze()
     original_patch = patch.copy()
 
     # Get the coordinates of the pixels to be replaced
@@ -181,4 +182,9 @@ def default_manipulate(
     if struct_mask is not None:
         patch = apply_struct_mask(patch, roi_centers, struct_mask)
 
-    return patch, original_patch, mask
+    # Expand the dimensions of the arrays to return the channel dimension
+    return (
+        np.expand_dims(patch, 0),
+        np.expand_dims(original_patch, 0),
+        np.expand_dims(mask, 0),
+    )

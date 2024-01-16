@@ -84,6 +84,6 @@ def test_default_manipulate_3d(array_3D):
 
 @pytest.mark.parametrize("mask", [[[0, 1, 1, 1, 1, 1, 0]]])
 def test_apply_struct_mask(mask):
-    patch = np.zeros((32,32))
-    coords = get_stratified_coords(0.4, patch.shape)
-    apply_struct_mask(patch, coords, mask)
+    patch = np.zeros((64, 64))
+    coords = get_stratified_coords(0.2, patch.shape)
+    patch = apply_struct_mask(patch, coords, mask)
