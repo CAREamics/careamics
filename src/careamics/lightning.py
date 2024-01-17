@@ -1,9 +1,55 @@
-from typing import Any
+from typing import Any, Optional, Union
 
 import pytorch_lightning as L
 
+from careamics.config.algorithm import Algorithm, Loss
 from careamics.losses import create_loss_function
 from careamics.models import create_model
+from careamics.models.model_factory import model_registry
+
+"""
+CAREamist(configuration)
+    DataLoader(cfg.data)
+    Model(cfg.algorithm)
+        get_model(cfg.algorithm)
+        get_loss(cfg.algorithm.loss)
+        get_noise_model(cfg.algorithm.noise_model)?
+    Trainer(cfg.training)
+"""
+
+
+# TODO not easy solution to be able to pass either Algorithm or its members
+class CAREamicsModel(L.LightningModule):
+    def __init__(
+        self,
+        *,
+        algorithm_name: Union[Algorithm, str],
+        dimensions: int,
+        loss: Union[str, Loss],
+        model_parameters: Optional[dict] = None,
+    ) -> None:
+        super().__init__()
+
+        self.model = model_registry(algorithm_name, dimensions, **model_parameters)
+        self.loss_func = create_loss_function(loss)
+
+    def forward(self, x: Any) -> Any:
+        return self.model(x)
+
+    def training_step(self, batch, batch_idx) -> Any:
+        inputs, *targets = batch
+        out = self.model(inputs)
+        loss = self.loss_func(out, *targets)
+        return loss
+
+    def predict_step(self, batch, batch_idx) -> Any:
+        x, *aux = batch
+        out = self.model(x)
+        return out, aux
+
+    def configure_optimizers(self, parameters) -> Any:
+        # TODO
+        return None
 
 
 class LUNet(L.LightningModule):
@@ -19,7 +65,7 @@ class LUNet(L.LightningModule):
             self.scaler,
             self.cfg,
         ) = create_model(config=self.cfg)
-        self.loss_func = create_loss_function(self.cfg)
+        self.loss_func = create_loss_function(self.cfg.algorithm.loss)
 
     def forward(self, x: Any) -> Any:
         return self.model(x)
@@ -37,5 +83,3 @@ class LUNet(L.LightningModule):
 
     def configure_optimizers(self) -> Any:
         return self.optimizer
-
-

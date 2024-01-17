@@ -61,6 +61,7 @@ class Loss(str, Enum):
     CUSTOM = "custom"
 
 
+# TODO: validate model parameters for those that are fully CAREamics?
 class Algorithm(BaseModel):
     """
     Algorithm configuration.
@@ -117,6 +118,8 @@ class Algorithm(BaseModel):
 
     # Optional fields, define a default value
     noise_model: Optional[NoiseModel] = None
+
+    # TODO this belongs into the Data model
     transforms: Optional[Dict] = None
 
     def get_conv_dim(self) -> int:

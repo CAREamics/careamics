@@ -48,6 +48,7 @@ def model_registry(model_name: str, conv_dim: int, parameters: Dict) -> torch.nn
         raise NotImplementedError(f"Model {model_name} is not implemented")
 
 
+# TODO: split into two functions
 def create_model(
     *,
     model_path: Optional[Union[str, Path]] = None,
