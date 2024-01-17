@@ -8,7 +8,7 @@ from typing import Callable, Type, Union
 from ..config import Configuration
 from ..config.algorithm import Loss
 from ..config.noise_models import NoiseModelType
-from .losses import mae_loss, mse_loss, n2v_loss, pn2v_loss, dice_loss
+from .losses import dice_loss, mae_loss, mse_loss, n2v_loss, pn2v_loss
 from .noise_models import GaussianMixtureNoiseModel, HistogramNoiseModel
 
 

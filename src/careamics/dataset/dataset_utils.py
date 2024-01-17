@@ -261,7 +261,9 @@ def read_zarr(
     return array
 
 
-def get_patch_transform(patch_transform: str, target: bool) -> Union[None, Callable]:
+def get_patch_transform(
+    patch_transform: str, normalize_mask: bool, target: bool
+) -> Union[None, Callable]:
     """Return a pixel manipulation function.
 
     Used in N2V family of algorithms.
@@ -288,7 +290,9 @@ def get_patch_transform(patch_transform: str, target: bool) -> Union[None, Calla
                 else ALL_TRANSFORMS[transform]()
                 for transform, parameters in patch_transform.items()
             ],
-            additional_targets={"target": "image"} if target else {},
+            additional_targets={"target": "image"}
+            if (target and normalize_mask)
+            else {},
         )
     else:
         raise ValueError(

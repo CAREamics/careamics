@@ -7,6 +7,7 @@ import torch
 
 from ..utils import normalize
 from ..utils.logging import get_logger
+from ..config.algorithm import AlgorithmType
 from .dataset_utils import (
     get_patch_transform,
     list_files,
@@ -55,6 +56,7 @@ class InMemoryDataset(torch.utils.data.Dataset):
         data_format: str,
         axes: str,
         patch_size: Union[List[int], Tuple[int]],
+        algorithm: AlgorithmType = AlgorithmType.N2V,
         mean: Optional[float] = None,
         std: Optional[float] = None,
         patch_transform: Optional[Callable] = None,
@@ -123,17 +125,16 @@ class InMemoryDataset(torch.utils.data.Dataset):
         if not mean or not std:
             self.mean, self.std = computed_mean, computed_std
             logger.info(f"Computed dataset mean: {self.mean}, std: {self.std}")
-        assert self.mean is not None, "Dataset mean must be set before using it."
-        assert self.std is not None, "Dataset std must be set before using it."
-        # We need to set the patch transform after computing the mean and std.
-        # Max value is set to 1 because we use raw statistics.
+        assert self.mean is not None
+        assert self.std is not None
+
         patch_transform["Normalize"] = {
             "mean": self.mean,
             "std": self.std,
             "max_pixel_value": 1,
         }
         self.patch_transform = get_patch_transform(
-            patch_transform, self.target_path is not None
+            patch_transform, algorithm != AlgorithmType.SEGM, target_path is not None
         )
 
     def _prepare_patches(self) -> Callable:
