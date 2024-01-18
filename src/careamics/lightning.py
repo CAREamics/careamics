@@ -1,6 +1,7 @@
 from typing import Any, Optional, Union
 
 import pytorch_lightning as L
+import torch
 
 from careamics.config.algorithm import Algorithm, Loss
 from careamics.losses import create_loss_function
@@ -17,7 +18,7 @@ CAREamist(configuration)
     Trainer(cfg.training)
 """
 
-
+# TODO optimizer moves to Algorithm
 # TODO not easy solution to be able to pass either Algorithm or its members
 class CAREamicsModel(L.LightningModule):
     def __init__(
@@ -27,11 +28,21 @@ class CAREamicsModel(L.LightningModule):
         dimensions: int,
         loss: Union[str, Loss],
         model_parameters: Optional[dict] = None,
+        optimizer_name: Optional[str] = None,
+        optimizer_parameters: Optional[dict] = None,
+        lr_scheduler_name: Optional[str] = None,
+        lr_scheduler_parameters: Optional[dict] = None,
     ) -> None:
         super().__init__()
 
-        self.model = model_registry(algorithm_name, dimensions, **model_parameters)
+        # TODO: if the entry point is not with an Algorithm model, then we probably need to validate the parameters
+        self.model: torch.nn.Module = model_registry(algorithm_name, dimensions, **model_parameters)
         self.loss_func = create_loss_function(loss)
+
+        self.optimizer_name = optimizer_name
+        self.optimizer_params = optimizer_parameters
+        self.lr_scheduler_name = lr_scheduler_name
+        self.lr_scheduler_params = lr_scheduler_parameters
 
     def forward(self, x: Any) -> Any:
         return self.model(x)
@@ -47,9 +58,18 @@ class CAREamicsModel(L.LightningModule):
         out = self.model(x)
         return out, aux
 
-    def configure_optimizers(self, parameters) -> Any:
-        # TODO
-        return None
+    def configure_optimizers(self) -> Any:
+        # TODO what if they are None (mypy will fail)
+        optimizer_func = getattr(torch.optim, self.optimizer_name)
+        optimizer = optimizer_func(self.model.parameters(), **self.optimizer_params)
+
+        scheduler_func = getattr(torch.optim.lr_scheduler, self.lr_scheduler_name)
+        scheduler = scheduler_func(optimizer, **self.lr_scheduler_params)
+
+        return {
+            "optimizer": optimizer,
+            "lr_scheduler": scheduler
+        }
 
 
 class LUNet(L.LightningModule):
