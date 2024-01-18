@@ -14,7 +14,7 @@ algorithm:
   loss: n2v
 
   # Model, currently only UNet is supported
-  model: 
+  model:
     architecture: UNet
     # Depth betwen 1 and 10
     parameters:
@@ -26,30 +26,31 @@ algorithm:
       num_channels_init: 32
       final_activation: sigmoid
       n2v2: False
-  
+
   # Noise model, Histogram or GMM
-  noise_model: 
+  noise_model:
     model_type: hist
     parameters:
       min_value: 350
       max_value: 6500
       bins: 256
-  
+
   # Dimensions 2D (False) or 3D (True)
   is_3D: False
 
   # Optional, any augmentation/transformation that will be applied to the input image
-    # name: # Any augmentation function, see documentation #TODO add link
-      # parameters: # Parameters of the augmentation
-  transforms: 
+  # name: # Any augmentation function, see documentation #TODO add link
+  # parameters: # Parameters of the augmentation
+  transforms:
+    # TODO can't have parameters without values, as we also want to instantiate it with dict
     Flip:
     RandomRotate90:
     # masking strategy for N2V family of algorithms. Must come last
     ManipulateN2V:
-        # Optional, percentage of masked pixel per patch (between 0.1 and 20%)
-        masked_pixel_percentage: 0.2
-        # Optional, size of the ROI used to select pixels to mask (between 5 and 21)
-        roi_size: 11
+      # Optional, percentage of masked pixel per patch (between 0.1 and 20%)
+      masked_pixel_percentage: 0.2
+      # Optional, size of the ROI used to select pixels to mask (between 5 and 21)
+      roi_size: 11
 
 training:
   # Number of epochs, greater or equal than 1
@@ -83,6 +84,7 @@ training:
       factor: 0.5
 
   # Use augmentation (True or False)
+  # TODO: should be in transforms
   augmentation: True
 
   # Optional, use WandB (True or False), must be installed in your conda environment
@@ -106,7 +108,7 @@ training:
 data:
   # Controls the type of dataloader to use. Set to False if data won't fit into memory
   in_memory: False
-  
+
   # Extension of the data, e.g. tiff or zarr
   data_format: tiff
 

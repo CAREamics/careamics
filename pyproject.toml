@@ -43,6 +43,7 @@ dependencies = [
     'torchvision',
     'lightning',
     'segmentation_models_pytorch',
+    'albumentations',
     'tifffile',
     'pyyaml',
     'pydantic>=2.0',

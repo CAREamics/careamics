@@ -7,6 +7,12 @@ from torch.utils.data import DataLoader
 
 from careamics.config import Configuration, load_configuration
 from careamics.lightning import LUNet
+from careamics.dataset.prepare_dataset import (
+    get_train_dataset,
+    get_validation_dataset,
+    get_prediction_dataset,
+)
+
 
 
 # TODO: throughout the code, we need to pass the submodels of the configuration
@@ -50,7 +56,7 @@ class CAREamist:
 
         # TODO trainer in the train function
         self.trainer = Trainer(
-            inference_mode=False, max_epochs=self.cfg.training.num_epochs
+            inference_mode=False, max_epochs=2
         )
 
     # TODO: how to do AMP? How to continue training? How to load model from checkpoint?
@@ -71,9 +77,24 @@ class CAREamist:
         path_to_train_data: Union[Path, str],
         path_to_val_data: Optional[Union[Path, str]] = None,
     ) -> None:
-        # TODO create dataloader
-        # TODO call self.train
-        pass
+        train_dataset = get_train_dataset(self.cfg, path_to_train_data)
+        train_dataloader = DataLoader(
+            train_dataset,
+            batch_size=self.cfg.training.batch_size,
+            num_workers=0,
+            pin_memory=False,
+        )
+
+        val_dataset = get_validation_dataset(self.cfg, path_to_val_data)
+        val_dataloader = DataLoader(
+            val_dataset,
+            batch_size=self.cfg.training.batch_size,
+            num_workers=0,
+            pin_memory=False,
+        )
+
+        self.train(train_dataloader=train_dataloader, val_dataloader=val_dataloader)
+
 
     def train_on_array(
         self,
