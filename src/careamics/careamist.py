@@ -10,7 +10,7 @@ from careamics.lightning import LUNet
 
 
 # TODO: throughout the code, we need to pass the submodels of the configuration
-class Careamist:
+class CAREamist:
     def __init__(
         self,
         *,
