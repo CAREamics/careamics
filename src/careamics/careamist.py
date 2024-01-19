@@ -6,7 +6,7 @@ from pytorch_lightning import Trainer
 from torch.utils.data import DataLoader
 
 from careamics.config import Configuration, load_configuration
-from careamics.lightning import LUNet
+from careamics.lightning import LUNet, CAREamicsModel
 from careamics.dataset.prepare_dataset import (
     get_train_dataset,
     get_validation_dataset,
@@ -52,7 +52,13 @@ class CAREamist:
             )
 
         # TODO: load checkpoint
-        self.model = LUNet(self.cfg)
+        self.model = CAREamicsModel(
+            algorithm_config=self.cfg.algorithm,
+            optimizer_name=self.cfg.training.optimizer.name,
+            optimizer_parameters=self.cfg.training.optimizer.parameters,
+            lr_scheduler_name=self.cfg.training.lr_scheduler.name,
+            lr_scheduler_parameters=self.cfg.training.lr_scheduler.parameters,
+        )
 
         # TODO trainer in the train function
         self.trainer = Trainer(
@@ -68,7 +74,7 @@ class CAREamist:
         train_dataloader: DataLoader,
         val_dataloader: Optional[DataLoader] = None,
     ) -> None:
-        # TODO sanity check on configuration?
+        # TODO sanity check
         self.trainer.fit(self.model, train_dataloader, val_dataloader)
 
     def train_on_path(
@@ -77,6 +83,8 @@ class CAREamist:
         path_to_train_data: Union[Path, str],
         path_to_val_data: Optional[Union[Path, str]] = None,
     ) -> None:
+        # TODO sanity check
+
         train_dataset = get_train_dataset(self.cfg, path_to_train_data)
         train_dataloader = DataLoader(
             train_dataset,
@@ -102,6 +110,7 @@ class CAREamist:
         array_train: np.ndarray,
         array_val: Optional[np.ndarray] = None,
     ) -> None:
+        # TODO sanity check
         # TODO create dataloader
         # TODO call self.train
         pass

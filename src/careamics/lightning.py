@@ -24,20 +24,19 @@ class CAREamicsModel(L.LightningModule):
     def __init__(
         self,
         *,
-        algorithm_name: Union[Algorithm, str],
-        dimensions: int,
-        loss: Union[str, Loss],
-        model_parameters: Optional[dict] = None,
-        optimizer_name: Optional[str] = None,
-        optimizer_parameters: Optional[dict] = None,
-        lr_scheduler_name: Optional[str] = None,
-        lr_scheduler_parameters: Optional[dict] = None,
+        algorithm_config: Algorithm,
+        optimizer_name: str,
+        optimizer_parameters: dict,
+        lr_scheduler_name: str,
+        lr_scheduler_parameters: dict,
     ) -> None:
         super().__init__()
+        # TODO move config optim and scheduler to Algorithm
 
         # TODO: if the entry point is not with an Algorithm model, then we probably need to validate the parameters
-        self.model: torch.nn.Module = model_registry(algorithm_name, dimensions, **model_parameters)
-        self.loss_func = create_loss_function(loss)
+        dims = 3 if algorithm_config.is_3D else 2
+        self.model: torch.nn.Module = model_registry(algorithm_config.model.architecture, dims, algorithm_config.model.parameters)
+        self.loss_func = create_loss_function(algorithm_config.loss)
 
         self.optimizer_name = optimizer_name
         self.optimizer_params = optimizer_parameters
@@ -48,10 +47,17 @@ class CAREamicsModel(L.LightningModule):
         return self.model(x)
 
     def training_step(self, batch, batch_idx) -> Any:
-        inputs, *targets = batch
-        out = self.model(inputs)
-        loss = self.loss_func(out, *targets)
+        x, *aux = batch
+        out = self.model(x)
+        loss = self.loss_func(out, *aux)
         return loss
+
+    def validation_step(self, batch, batch_idx):
+        # this is the validation loop
+        x, *aux = batch
+        out = self.model(x)
+        val_loss = self.loss_func(out, *aux)
+        self.log("val_loss", val_loss)
 
     def predict_step(self, batch, batch_idx) -> Any:
         x, *aux = batch
@@ -68,7 +74,8 @@ class CAREamicsModel(L.LightningModule):
 
         return {
             "optimizer": optimizer,
-            "lr_scheduler": scheduler
+            "lr_scheduler": scheduler,
+            "monitor": "val_loss", # otherwise you get a MisconfigurationException
         }
 
 
