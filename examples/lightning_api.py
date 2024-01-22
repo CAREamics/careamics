@@ -39,4 +39,8 @@ careamist = CAREamist(configuration=config)
 train_data = "examples/2D/data/n2v_sem/train/"
 val_data = "examples/2D/data/n2v_sem/val/"
 
-careamist.train_on_path(path_to_train_data=train_data, path_to_val_data=val_data)
+careamist.train_on_path(train_data, val_data)
+
+pred = careamist.predict_on_path(val_data)
+
+print(pred.shape)

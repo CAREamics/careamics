@@ -35,7 +35,11 @@ class CAREamicsModel(L.LightningModule):
 
         # TODO: if the entry point is not with an Algorithm model, then we probably need to validate the parameters
         dims = 3 if algorithm_config.is_3D else 2
-        self.model: torch.nn.Module = model_registry(algorithm_config.model.architecture, dims, algorithm_config.model.parameters)
+        self.model: torch.nn.Module = model_registry(
+            algorithm_config.model.architecture, 
+            dims, 
+            algorithm_config.model.parameters
+        )
         self.loss_func = create_loss_function(algorithm_config.loss)
 
         self.optimizer_name = optimizer_name
@@ -53,7 +57,6 @@ class CAREamicsModel(L.LightningModule):
         return loss
 
     def validation_step(self, batch, batch_idx):
-        # this is the validation loop
         x, *aux = batch
         out = self.model(x)
         val_loss = self.loss_func(out, *aux)

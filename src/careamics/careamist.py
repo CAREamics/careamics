@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Optional, Union
+from typing import Dict, Optional, Union
 
 import numpy as np
 from pytorch_lightning import Trainer
@@ -12,7 +12,6 @@ from careamics.dataset.prepare_dataset import (
     get_validation_dataset,
     get_prediction_dataset,
 )
-
 
 
 # TODO: throughout the code, we need to pass the submodels of the configuration
@@ -70,7 +69,6 @@ class CAREamist:
     # TODO configure training parameters (scheduler, etc.)
     def train(
         self,
-        *,
         train_dataloader: DataLoader,
         val_dataloader: Optional[DataLoader] = None,
     ) -> None:
@@ -79,7 +77,6 @@ class CAREamist:
 
     def train_on_path(
         self,
-        *,
         path_to_train_data: Union[Path, str],
         path_to_val_data: Optional[Union[Path, str]] = None,
     ) -> None:
@@ -106,7 +103,6 @@ class CAREamist:
 
     def train_on_array(
         self,
-        *,
         array_train: np.ndarray,
         array_val: Optional[np.ndarray] = None,
     ) -> None:
@@ -117,35 +113,45 @@ class CAREamist:
 
     def predict(
         self,
-        *,
         test_dataloader: Optional[DataLoader] = None,
-    ):
+    ) -> Dict[str, np.ndarray]:
         # TODO checks on input
-        self.trainer.predict(self.model, test_dataloader)
+
+        return self.trainer.predict(self.model, test_dataloader)
 
         # TODO reassemble outputs by calling function
         # call stitch_prediction <- our dataloader, what happens if it is another?
 
+        # TODO return?
+
     def predict_on_path(
         self,
-        *,
         path_to_test_data: Union[Path, str],
         tile_shape: Optional[tuple] = None,
         overlap: Optional[tuple] = None,
-    ):
-        # TODO create dataloader
-        # TODO call self.predict
-        pass
+    ) -> Dict[str, np.ndarray]:
+        # TODO test path
+        pred_dataset = get_prediction_dataset(self.cfg, path_to_test_data)
+        pred_dataset = DataLoader(
+            pred_dataset,
+            batch_size=self.cfg.training.batch_size,
+            num_workers=0,
+            pin_memory=False,
+        )
+
+        return self.predict(test_dataloader=pred_dataset)
+
 
     def predict_on_array(
         self,
-        *,
         array: np.ndarray,
         tile_shape: Optional[tuple] = None,
         overlap: Optional[tuple] = None,
-    ):
+    ) -> Dict[str, np.ndarray]:
         # TODO create dataloader
         # TODO call self.predict
+
+        # TODO return?
         pass
 
     def save(

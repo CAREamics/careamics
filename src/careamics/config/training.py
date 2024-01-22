@@ -418,6 +418,7 @@ class Training(BaseModel):
     patch_size: List[int] = Field(..., min_length=2, max_length=3)
     batch_size: int
 
+    # TODO: these should be moved to Algorithm
     optimizer: Optimizer
     lr_scheduler: LrScheduler
 
