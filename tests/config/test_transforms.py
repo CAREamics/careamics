@@ -14,3 +14,13 @@ from careamics.config.transforms import Transform
 def test_transform(name, parameters):
     Transform(name=name, parameters=parameters)
 
+
+@pytest.mark.parametrize("name, parameters", 
+    [
+        ("flippy", {"p": 0.5}),
+        ("flip", {"ps": 0.5}),
+    ]
+)
+def test_transform_wrong_values(name, parameters):
+    with pytest.raises(ValueError):
+        Transform(name=name, parameters=parameters)

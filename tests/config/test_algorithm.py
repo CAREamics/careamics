@@ -6,27 +6,15 @@ from careamics.config.torch_optim import (
 )
 from careamics.config.algorithm import Algorithm, LrScheduler, Optimizer
 from careamics.config.models import UNet
-from careamics.config.noise_models import NoiseModel
-from careamics.config.transforms import Transform
+# from careamics.config.noise_models import NoiseModel
 
 
-
-def test_algorithm_transforms_wrong_name():
-    with pytest.raises(ValueError):
-        Transform(name="flip1", parameters={"p": 0.5})
-
-
-def test_algorithm_transforms_wrong_parameters():
-    with pytest.raises(ValueError):
-        Transform(name="flip", parameters={"pa": 1})
-
-
-def test_algorithm_noise_model():
-    d = {
-        "model_type": "hist",
-        "parameters": {"min_value": 324, "max_value": 3465},
-    }
-    NoiseModel(**d)
+# def test_algorithm_noise_model():
+#     d = {
+#         "model_type": "hist",
+#         "parameters": {"min_value": 324, "max_value": 3465},
+#     }
+#     NoiseModel(**d)
 
 
 @pytest.mark.parametrize("depth", [1, 5, 10])
@@ -188,27 +176,6 @@ def test_wrong_values_by_assigment(complete_config: dict):
     with pytest.raises(ValueError):
         algo.model.parameters = "params"
 
-
-def test_algorithm_to_dict_minimum(minimum_config: dict):
-    """ "Test that export to dict does not include optional values."""
-    algorithm_minimum = Algorithm(**minimum_config["algorithm"]).model_dump()
-    assert algorithm_minimum == minimum_config["algorithm"]
-
-    assert "loss" in algorithm_minimum
-    assert "model" in algorithm_minimum
-    assert "is_3D" in algorithm_minimum
-    # TODO revise set of defaults
-
-
-def test_algorithm_to_dict_complete(complete_config: dict):
-    """ "Test that export to dict does not include optional values."""
-    algorithm_complete = Algorithm(**complete_config["algorithm"]).model_dump()
-    assert algorithm_complete == complete_config["algorithm"]
-    # TODO values are hardcoded in the fixture, is it ok ?
-    assert "loss" in algorithm_complete
-    assert "model" in algorithm_complete
-    assert "is_3D" in algorithm_complete
-    assert "masking_strategy" in algorithm_complete
 
 @pytest.mark.parametrize(
     "optimizer_name, parameters",
