@@ -3,7 +3,7 @@ from typing import Dict, Optional, Union
 
 import numpy as np
 from pytorch_lightning import Trainer
-from torch.utils.data import DataLoader
+from torch.utils.data.dataloader import DataLoader
 
 from careamics.config import Configuration, load_configuration
 from careamics.lightning import CAREamicsModel
@@ -98,11 +98,6 @@ class CAREamist:
         train_dataloader: DataLoader,
         val_dataloader: Optional[DataLoader] = None,
     ) -> None:
-        if isinstance(train_dataloader, DataLoader):
-            raise TypeError(
-                f"`train_dataloader` must be a DataLoader, got {type(train_dataloader)}"
-            )
-
         self.trainer.fit(self.model, train_dataloader, val_dataloader)
 
     def train_on_path(
@@ -111,6 +106,7 @@ class CAREamist:
         path_to_val_data: Union[Path, str],
     ) -> None:
         # sanity check on train data
+        path_to_train_data = Path(path_to_train_data)
         if not path_to_train_data.exists():
             raise FileNotFoundError(
                 f"Data path {path_to_train_data} is incorrect or"
@@ -122,6 +118,7 @@ class CAREamist:
             )
         
         # sanity check on val data
+        path_to_val_data = Path(path_to_val_data)
         if not path_to_val_data.exists():
             raise FileNotFoundError(
                 f"Data path {path_to_val_data} is incorrect or"
@@ -132,20 +129,19 @@ class CAREamist:
                 f"Data path {path_to_val_data} is not a directory."
             )
 
-
         # create datasets and dataloaders
-        train_dataset = get_train_dataset(self.cfg, path_to_train_data)
+        train_dataset = get_train_dataset(self.cfg.data, path_to_train_data)
         train_dataloader = DataLoader(
             train_dataset,
             batch_size=self.cfg.training.batch_size,
-            num_workers=self.cfg.training.num_workers,
+            num_workers=0#self.cfg.training.num_workers,
         )
 
-        val_dataset = get_validation_dataset(self.cfg, path_to_val_data)
+        val_dataset = get_validation_dataset(self.cfg.data, path_to_val_data)
         val_dataloader = DataLoader(
             val_dataset,
-            batch_size=self.cfg.training.batch_size,
-            num_workers=self.cfg.training.num_workers,
+            batch_size=1,
+            num_workers=0,
         )
 
         # train
@@ -178,7 +174,7 @@ class CAREamist:
 
         # create dataset
         pred_dataset = get_prediction_dataset(
-            self.cfg, 
+            self.cfg.data, 
             path_to_data,
             tile_shape=tile_shape,
             overlaps=overlaps,
