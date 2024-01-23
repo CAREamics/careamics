@@ -95,6 +95,7 @@ def default_manipulate(
     patch: np.ndarray,
     mask_pixel_percentage: float,
     roi_size: int = 11,
+    # TODO: not used
     augmentations: Optional[Callable] = None,
 ) -> Tuple[np.ndarray, ...]:
     """

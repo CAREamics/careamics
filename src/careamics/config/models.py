@@ -79,7 +79,7 @@ class UNet(BaseModel):
     depth: int = Field(default=2, ge=1, le=10)
     num_channels_init: int = Field(default=32, ge=8, le=1024)
     final_activation: str = Field(default='none', pattern="none|sigmoid|softmax")
-    n2v2: bool = Field(default=False)
+    n2v2: bool = Field(default=False)  
 
     @validator("num_channels_init")
     def validate_num_channels_init(cls, num_channels_init: int) -> int:
@@ -120,11 +120,19 @@ class Model(BaseModel):
     """
 
     model_config = ConfigDict(use_enum_values=True, validate_assignment=True)
+
     architecture: Architecture
     parameters: Dict = Field(default_factory=dict, validate_default=True)
+    is_3D: bool
 
     @field_validator("parameters")
     def validate_model(cls, data, values: ValidationInfo) -> Dict:
         """Validate model parameters."""
         parameters = Architecture.select_architecture(values.data["architecture"], data)
         return parameters
+
+
+    def get_conv_dim(self) -> int:
+        return 3 if self.is_3D else 2
+
+    # TODO build_model?

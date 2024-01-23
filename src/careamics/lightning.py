@@ -23,29 +23,17 @@ CAREamist(configuration)
 class CAREamicsModel(L.LightningModule):
     def __init__(
         self,
-        *,
-        algorithm_config: Algorithm,
-        optimizer_name: str,
-        optimizer_parameters: dict,
-        lr_scheduler_name: str,
-        lr_scheduler_parameters: dict,
+        algorithm_config: Algorithm
     ) -> None:
         super().__init__()
-        # TODO move config optim and scheduler to Algorithm
-
         # TODO: if the entry point is not with an Algorithm model, then we probably need to validate the parameters
-        dims = 3 if algorithm_config.is_3D else 2
-        self.model: torch.nn.Module = model_registry(
-            algorithm_config.model.architecture, 
-            dims, 
-            algorithm_config.model.parameters
-        )
+        self.model: torch.nn.Module = model_registry(algorithm_config.model)
         self.loss_func = create_loss_function(algorithm_config.loss)
 
-        self.optimizer_name = optimizer_name
-        self.optimizer_params = optimizer_parameters
-        self.lr_scheduler_name = lr_scheduler_name
-        self.lr_scheduler_params = lr_scheduler_parameters
+        self.optimizer_name = algorithm_config.optimizer.name
+        self.optimizer_params = algorithm_config.optimizer.parameters
+        self.lr_scheduler_name = algorithm_config.lr_scheduler.name
+        self.lr_scheduler_params = algorithm_config.lr_scheduler.parameters
 
     def forward(self, x: Any) -> Any:
         return self.model(x)

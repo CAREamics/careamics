@@ -557,7 +557,7 @@ class Engine:
     def _predict_full(
         self,
         pred_loader: DataLoader,
-        progress_bar: type[ProgressBar],
+        progress_bar: Type[ProgressBar],
         tta: bool = False,
     ) -> np.ndarray:
         """

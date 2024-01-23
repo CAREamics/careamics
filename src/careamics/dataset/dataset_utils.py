@@ -3,7 +3,7 @@ import logging
 from pathlib import Path
 from typing import Callable, List, Tuple, Union
 
-import albumentations as A
+import albumentations as Aug
 import numpy as np
 import tifffile
 import zarr
@@ -277,9 +277,10 @@ def get_patch_transform(patch_transform: str) -> Union[None, Callable]:
         Patch transform function.
     """
     if patch_transform is None:
-        return A.NoOp()
+        return Aug.NoOp()
     elif isinstance(patch_transform, dict):
-        return A.Compose(
+        # TODO not very readable
+        return Aug.Compose(
             [
                 ALL_TRANSFORMS[transform](**parameters)
                 if parameters

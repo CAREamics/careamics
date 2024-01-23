@@ -10,14 +10,14 @@ import torch
 
 from ..bioimage import import_bioimage_model
 from ..config import Configuration
-from ..config.models import Architecture
+from ..config.models import Model, Architecture
 from ..utils.logging import get_logger
 from .unet import UNet
 
 logger = get_logger(__name__)
 
 
-def model_registry(model_name: str, conv_dim: int, parameters: Dict) -> torch.nn.Module:
+def model_registry(model_configuration: Model) -> torch.nn.Module:
     """
     Model factory.
 
@@ -42,10 +42,14 @@ def model_registry(model_name: str, conv_dim: int, parameters: Dict) -> torch.nn
     NotImplementedError
         If the requested model is not implemented.
     """
-    if model_name == Architecture.UNET:
-        return UNet(conv_dim=conv_dim, **parameters)
+    if model_configuration.architecture == Architecture.UNET:
+        return UNet(
+            conv_dim=model_configuration.get_conv_dim(), 
+            **model_configuration.parameters
+        )
     else:
-        raise NotImplementedError(f"Model {model_name} is not implemented")
+        # TODO does this work? or architecture.value()?
+        raise NotImplementedError(f"Model {model_configuration.architecture} is not implemented")
 
 
 # TODO: split into two functions

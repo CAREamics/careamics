@@ -8,9 +8,10 @@ import pytest
 import tifffile
 
 from careamics.config import Configuration
-from careamics.config.algorithm import Algorithm
+from careamics.config.algorithm import Algorithm, LrScheduler, Optimizer
 from careamics.config.data import Data
-from careamics.config.training import LrScheduler, Optimizer, Training
+from careamics.config.training import Training
+
 
 
 @pytest.fixture
