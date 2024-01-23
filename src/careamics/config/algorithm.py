@@ -15,11 +15,11 @@ from torch import optim
 
 from .config_filter import remove_default_optionals
 from .models import Model
+from .torch_optim import TorchLRScheduler, TorchOptimizer, get_parameters
+
 #from .noise_models import NoiseModel
 
 # python 3.11: https://docs.python.org/3/library/enum.html
-
-
 class AlgorithmType(str, Enum):
     """
     Available types of algorithms.
@@ -32,13 +32,13 @@ class AlgorithmType(str, Enum):
         - hdn: Hierarchical DivNoising. https://arxiv.org/abs/2104.01374
     """
 
-    CARE = "care"
+    # CARE = "care"
     N2V = "n2v"
-    N2N = "n2n"
-    PN2V = "pn2v"
-    HDN = "hdn"
-    CUSTOM = "custom"
-    SEGM = "segmentation"
+    # N2N = "n2n"
+    # PN2V = "pn2v"
+    # HDN = "hdn"
+    # CUSTOM = "custom"
+    # SEGM = "segmentation"
 
 
 class Loss(str, Enum):
@@ -53,16 +53,14 @@ class Loss(str, Enum):
         - hdn: Hierarchical DivNoising loss.
     """
 
-    MSE = "mse"
-    MAE = "mae"
+    # MSE = "mse"
+    # MAE = "mae"
     N2V = "n2v"
-    PN2V = "pn2v"
-    HDN = "hdn"
-    CE = "ce"
-    DICE = "dice"
-    CUSTOM = "custom"
-
-from .torch_optim import TorchLRScheduler, TorchOptimizer, get_parameters
+    # PN2V = "pn2v"
+    # HDN = "hdn"
+    # CE = "ce"
+    # DICE = "dice"
+    # CUSTOM = "custom"
 
 
 class Optimizer(BaseModel):

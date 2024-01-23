@@ -24,10 +24,10 @@ class Architecture(str, Enum):
     UNET = "UNet"
 
     @classmethod
-    def select_architecture(
+    def update_parameters(
         cls, architecture: Union[str, Model], parameters: dict
-    ) -> None:
-        """Validate architecture.
+    ) -> dict:
+        """Update parameters for the particular architecture.
 
         Parameters
         ----------
@@ -36,7 +36,7 @@ class Architecture(str, Enum):
 
         Returns
         -------
-        None
+        Updated parameters dictionary
 
         Raises
         ------
@@ -58,7 +58,7 @@ class Architecture(str, Enum):
 
 class UNet(BaseModel):
     """
-    Deep-learning model parameters.
+    Pydantic model for a N2V2-compatible UNet.
 
     The number of filters (base) must be even and minimum 8.
 
@@ -128,7 +128,7 @@ class Model(BaseModel):
     @field_validator("parameters")
     def validate_model(cls, data, values: ValidationInfo) -> Dict:
         """Validate model parameters."""
-        parameters = Architecture.select_architecture(values.data["architecture"], data)
+        parameters = Architecture.update_parameters(values.data["architecture"], data)
         return parameters
 
 

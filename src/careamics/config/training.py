@@ -145,8 +145,6 @@ class Training(BaseModel):
     num_epochs: int
     batch_size: int
 
-    augmentation: bool
-
     # Optional fields
     use_wandb: bool = False
     num_workers: int = Field(default=0, ge=0)

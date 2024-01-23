@@ -8,28 +8,19 @@ from careamics.losses import create_loss_function
 from careamics.models import create_model
 from careamics.models.model_factory import model_registry
 
-"""
-CAREamist(configuration)
-    DataLoader(cfg.data)
-    Model(cfg.algorithm)
-        get_model(cfg.algorithm)
-        get_loss(cfg.algorithm.loss)
-        get_noise_model(cfg.algorithm.noise_model)?
-    Trainer(cfg.training)
-"""
 
-# TODO optimizer moves to Algorithm
-# TODO not easy solution to be able to pass either Algorithm or its members
 class CAREamicsModel(L.LightningModule):
     def __init__(
         self,
         algorithm_config: Algorithm
     ) -> None:
         super().__init__()
-        # TODO: if the entry point is not with an Algorithm model, then we probably need to validate the parameters
+
+        # create model and loss function
         self.model: torch.nn.Module = model_registry(algorithm_config.model)
         self.loss_func = create_loss_function(algorithm_config.loss)
 
+        # save optimizer and lr_scheduler names and parameters
         self.optimizer_name = algorithm_config.optimizer.name
         self.optimizer_params = algorithm_config.optimizer.parameters
         self.lr_scheduler_name = algorithm_config.lr_scheduler.name
@@ -48,6 +39,8 @@ class CAREamicsModel(L.LightningModule):
         x, *aux = batch
         out = self.model(x)
         val_loss = self.loss_func(out, *aux)
+
+        # log validation loss
         self.log("val_loss", val_loss)
 
     def predict_step(self, batch, batch_idx) -> Any:
@@ -56,10 +49,11 @@ class CAREamicsModel(L.LightningModule):
         return out, aux
 
     def configure_optimizers(self) -> Any:
-        # TODO what if they are None (mypy will fail)
+        # instantiate optimizer
         optimizer_func = getattr(torch.optim, self.optimizer_name)
         optimizer = optimizer_func(self.model.parameters(), **self.optimizer_params)
 
+        # and scheduler
         scheduler_func = getattr(torch.optim.lr_scheduler, self.lr_scheduler_name)
         scheduler = scheduler_func(optimizer, **self.lr_scheduler_params)
 
@@ -68,36 +62,4 @@ class CAREamicsModel(L.LightningModule):
             "lr_scheduler": scheduler,
             "monitor": "val_loss", # otherwise you get a MisconfigurationException
         }
-
-
-class LUNet(L.LightningModule):
-    """."""
-
-    def __init__(self, cfg) -> None:
-        super().__init__()
-        self.cfg = cfg
-        (
-            self.model,
-            self.optimizer,
-            self.lr_scheduler,
-            self.scaler,
-            self.cfg,
-        ) = create_model(config=self.cfg)
-        self.loss_func = create_loss_function(self.cfg.algorithm.loss)
-
-    def forward(self, x: Any) -> Any:
-        return self.model(x)
-
-    def training_step(self, batch, batch_idx) -> Any:
-        x, *aux = batch
-        out = self.model(x)
-        loss = self.loss_func(out, *aux)
-        return loss
-
-    def predict_step(self, batch, batch_idx) -> Any:
-        x, *aux = batch
-        out = self.model(x)
-        return out, aux
-
-    def configure_optimizers(self) -> Any:
-        return self.optimizer
+    

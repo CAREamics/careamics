@@ -20,7 +20,7 @@ class SupportedExtension(str, Enum):
 
     TIFF = "tiff"
     TIF = "tif"
-    ZARR = "zarr"
+    # ZARR = "zarr"
 
     @classmethod
     def _missing_(cls, value: object) -> str:
@@ -87,7 +87,7 @@ class Data(BaseModel):
 
     # Mandatory fields
     in_memory: bool
-    data_format: SupportedExtension
+    data_format: SupportedExtension # TODO makes it a dataset = ArrayDataset | TiffDataset | ZarrDataset
     patch_size: List[int] = Field(..., min_length=2, max_length=3)
 
     axes: str
@@ -98,6 +98,39 @@ class Data(BaseModel):
 
     # TODO need better validation for that one
     transforms: Optional[List] = None
+
+
+    @field_validator("axes")
+    def axes_valid(cls, axes: str) -> str:
+        """
+        Validate axes.
+
+        Axes must:
+        - be a combination of 'STCZYX'
+        - not contain duplicates
+        - contain at least 2 contiguous axes: X and Y
+        - contain at most 4 axes
+        - not contain both S and T axes
+
+        Parameters
+        ----------
+        axes : str
+            Axes to validate.
+
+        Returns
+        -------
+        str
+            Validated axes.
+
+        Raises
+        ------
+        ValueError
+            If axes are not valid.
+        """
+        # Validate axes
+        check_axes_validity(axes)
+
+        return axes
 
     @field_validator("patch_size")
     def all_elements_non_zero_divisible_by_2(cls, patch_list: List[int]) -> List[int]:
@@ -150,28 +183,27 @@ class Data(BaseModel):
         self.mean = mean
         self.std = std
 
-    @model_validator(mode="after")
-    @classmethod
-    def validate_dataset_to_be_used(cls, data: Any) -> Any:
-        """Validate that in_memory dataset is used correctly.
+    # @model_validator(mode="after")
+    # @classmethod
+    # def validate_dataset_to_be_used(cls, data: Data) -> Any:
+    #     """Validate that in_memory dataset is used correctly.
 
-        Parameters
-        ----------
-        data : Configuration
-            Configuration to validate.
+    #     Parameters
+    #     ----------
+    #     data : Configuration
+    #         Configuration to validate.
 
-        Raises
-        ------
-        ValueError
-            If in_memory dataset is used with Zarr storage.
-            If axes are not valid.
-        """
-        if data.in_memory and data.data_format == SupportedExtension.ZARR:
-            raise ValueError("Zarr storage can't be used with in_memory dataset.")
+    #     Raises
+    #     ------
+    #     ValueError
+    #         If in_memory dataset is used with Zarr storage.
+    #         If axes are not valid.
+    #     """
+    #     # TODO: why not? What if it is a small Zarr...
+    #     if data.in_memory and data.data_format == SupportedExtension.ZARR:
+    #         raise ValueError("Zarr storage can't be used with in_memory dataset.")
 
-        # Validate axes
-        check_axes_validity(data.axes)
-        return data
+    #     return data
 
     @model_validator(mode="after")
     def std_only_with_mean(cls, data_model: Data) -> Data:

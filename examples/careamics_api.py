@@ -7,9 +7,9 @@ config_dict ={
         "algorithm_type": "n2v",
         "model": {
            "architecture": "UNet",
+            "is_3D": False,
         },
         "loss": "n2v",
-        "is_3D": False,
         "transforms": {
             "ManipulateN2V": ""
         }

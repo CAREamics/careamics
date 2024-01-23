@@ -12,23 +12,7 @@ from careamics.config.algorithm import Algorithm, LrScheduler, Optimizer
 from careamics.config.data import Data
 from careamics.config.training import Training
 
-
-
-@pytest.fixture
-def image_size() -> Tuple[int, int]:
-    return (128, 128)
-
-
-@pytest.fixture
-def patch_size() -> Tuple[int, int]:
-    return (64, 64)
-
-
-@pytest.fixture
-def overlaps() -> Tuple[int, int]:
-    return (32, 32)
-
-
+# TODO add details about where each of these fixture is used (e.g. smoke test)
 @pytest.fixture
 def create_tiff(path: Path, n_files: int):
     """Create tiff files for testing."""
@@ -41,13 +25,89 @@ def create_tiff(path: Path, n_files: int):
 
 
 @pytest.fixture
-def minimum_config(tmp_path: Path) -> dict:
+def minimum_algorithm() -> dict:
+    """Create a minimum algorithm.
+
+    Returns
+    -------
+    dict
+        A minimum algorithm example.
+    """
+    # create dictionary
+    algorithm = {
+        "algorithm_type": "n2v",
+        "loss": "n2v",
+        "model": {
+            "architecture": "UNet",
+            "is_3D": False,
+        },
+        "optimizer": {
+            "name": "Adam",
+        },
+        "lr_scheduler": {
+            "name": "ReduceLROnPlateau"
+        },
+    }
+
+    return algorithm
+
+
+@pytest.fixture
+def minimum_data() -> dict:
+    """Create a minimum data.
+
+    Returns
+    -------
+    dict
+        A minimum data example.
+    """
+    # create dictionary
+    data = {
+        "in_memory": True,
+        "data_format": "tif",
+        "patch_size": [64, 64],
+        "axes": "SYX",
+    }
+
+    return data
+
+
+@pytest.fixture
+def minimum_training() -> dict:
+    """Create a minimum training.
+
+    Returns
+    -------
+    dict
+        A minimum training example.
+    """
+    # create dictionary
+    training = {
+        "num_epochs": 666,
+        "batch_size": 42,
+    }
+
+    return training
+
+@pytest.fixture
+def minimum_configuration(
+    tmp_path: Path, 
+    minimum_algorithm: dict, 
+    minimum_data: dict, 
+    minimum_training: dict
+    ) -> dict:
     """Create a minimum configuration.
 
     Parameters
     ----------
     tmp_path : Path
         Temporary path for testing.
+    minimum_algorithm : dict
+        Minimum algorithm configuration.
+    minimum_data : dict
+        Minimum data configuration.
+    minimum_training : dict
+        Minimum training configuration.
 
     Returns
     -------
@@ -58,41 +118,16 @@ def minimum_config(tmp_path: Path) -> dict:
     configuration = {
         "experiment_name": "LevitatingFrog",
         "working_directory": str(tmp_path),
-        "algorithm": {
-            "algorithm_type": "n2v",
-            "loss": "n2v",
-            "model": {
-                "architecture": "UNet",
-                "parameters": {"depth": 2, "num_channels_init": 32},
-            },
-            "is_3D": False,
-            "masking_strategy": {
-                "strategy_type": "default",
-                "parameters": {"masked_pixel_percentage": 0.2, "roi_size": 11},
-            },
-        },
-        "training": {
-            "num_epochs": 666,
-            "batch_size": 42,
-            "patch_size": [64, 64],
-            "optimizer": {
-                "name": "Adam",
-            },
-            "lr_scheduler": {"name": "ReduceLROnPlateau"},
-            "augmentation": True,
-        },
-        "data": {
-            "in_memory": True,
-            "data_format": "tif",
-            "axes": "SYX",
-        },
+        "algorithm": minimum_algorithm,
+        "training": minimum_training,
+        "data": minimum_data,
     }
 
     return configuration
 
 
 @pytest.fixture
-def complete_config(minimum_config: dict) -> dict:
+def complete_configuration(minimum_config: dict) -> dict:
     """Create a complete configuration.
 
     This configuration should not be used for testing an Engine.
@@ -204,6 +239,19 @@ def temp_dir() -> Path:
     with tempfile.TemporaryDirectory() as temp_dir:
         yield Path(temp_dir)
 
+@pytest.fixture
+def image_size() -> Tuple[int, int]:
+    return (128, 128)
+
+
+@pytest.fixture
+def patch_size() -> Tuple[int, int]:
+    return (64, 64)
+
+
+@pytest.fixture
+def overlaps() -> Tuple[int, int]:
+    return (32, 32)
 
 @pytest.fixture
 def example_data_path(
