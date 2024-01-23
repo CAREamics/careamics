@@ -14,7 +14,7 @@ from pydantic import (
 from torch import optim
 
 from .config_filter import remove_default_optionals
-from .models import Model
+from .model import Model
 from .torch_optim import TorchLRScheduler, TorchOptimizer, get_parameters
 
 #from .noise_models import NoiseModel
@@ -390,16 +390,6 @@ class Algorithm(BaseModel):
     # Optional fields, define a default value
     #noise_model: Optional[NoiseModel] = None
 
-    def get_conv_dim(self) -> int:
-        """
-        Get the convolution layers dimension (2D or 3D).
-
-        Returns
-        -------
-        int
-            Dimension (2 or 3).
-        """
-        return 3 if self.model.is_3D else 2
 
     # def get_noise_model(self, noise_model: Dict, info: ValidationInfo) -> Dict:
     #     """

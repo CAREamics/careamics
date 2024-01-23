@@ -205,6 +205,7 @@ class Data(BaseModel):
 
     #     return data
 
+    # TODO is there a more elegant way? We could have an optional pydantic model with both specified!!
     @model_validator(mode="after")
     def std_only_with_mean(cls, data_model: Data) -> Data:
         """

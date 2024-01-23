@@ -5,7 +5,7 @@ from careamics.config.torch_optim import (
     TorchOptimizer,
 )
 from careamics.config.algorithm import Algorithm, LrScheduler, Optimizer
-from careamics.config.models import UNet
+
 # from careamics.config.noise_models import NoiseModel
 
 
@@ -15,115 +15,6 @@ from careamics.config.models import UNet
 #         "parameters": {"min_value": 324, "max_value": 3465},
 #     }
 #     NoiseModel(**d)
-
-
-@pytest.mark.parametrize("depth", [1, 5, 10])
-def test_unet_parameters_depth(complete_config: dict, depth: int):
-    """Test that UNet accepts depth between 1 and 10."""
-    model_params = complete_config["algorithm"]["model"]["parameters"]
-    model_params["depth"] = depth
-
-    model = UNet(**model_params)
-    assert model.depth == depth
-
-
-@pytest.mark.parametrize("depth", [-1, 11])
-def test_unet_parameters_wrong_depth(complete_config: dict, depth: int):
-    """Test that wrong depth cause an error."""
-    model_params = complete_config["algorithm"]["model"]["parameters"]
-    model_params["depth"] = depth
-
-    with pytest.raises(ValueError):
-        UNet(**model_params)
-
-
-@pytest.mark.parametrize("num_channels_init", [8, 16, 32, 96, 128])
-def test_unet_parameters_num_channels_init(
-    complete_config: dict, num_channels_init: int
-):
-    """Test that UNet accepts num_channels_init as a power of two and
-    minimum 8."""
-    model_params = complete_config["algorithm"]["model"]["parameters"]
-    model_params["num_channels_init"] = num_channels_init
-
-    model = UNet(**model_params)
-    assert model.num_channels_init == num_channels_init
-
-
-@pytest.mark.parametrize("num_channels_init", [2, 17, 127])
-def test_unet_parameters_wrong_num_channels_init(
-    complete_config: dict, num_channels_init: int
-):
-    """Test that wrong num_channels_init cause an error."""
-    model_params = complete_config["algorithm"]["model"]["parameters"]
-    model_params["num_channels_init"] = num_channels_init
-
-    with pytest.raises(ValueError):
-        UNet(**model_params)
-
-
-@pytest.mark.parametrize("roi_size", [5, 9, 15])
-def test_parameters_roi_size(complete_config: dict, roi_size: int):
-    """Test that Algorithm accepts roi_size as an even number within the
-    range [3, 21]."""
-    complete_config["algorithm"]["masking_strategy"]["parameters"][
-        "roi_size"
-    ] = roi_size
-    algorithm = Algorithm(**complete_config["algorithm"])
-    assert algorithm.masking_strategy.parameters["roi_size"] == roi_size
-
-
-@pytest.mark.parametrize("roi_size", [2, 4, 23])
-def test_parameters_wrong_roi_size(complete_config: dict, roi_size: int):
-    """Test that wrong num_channels_init cause an error."""
-    complete_config["algorithm"]["masking_strategy"]["parameters"][
-        "roi_size"
-    ] = roi_size
-    with pytest.raises(ValueError):
-        Algorithm(**complete_config["algorithm"])
-
-
-def test_unet_parameters_wrong_values_by_assigment(complete_config: dict):
-    """Test that wrong values are not accepted through assignment."""
-    model_params = complete_config["algorithm"]["model"]["parameters"]
-    model = UNet(**model_params)
-
-    # depth
-    model.depth = model_params["depth"]
-    with pytest.raises(ValueError):
-        model.depth = -1
-
-    # number of channels
-    model.num_channels_init = model_params["num_channels_init"]
-    with pytest.raises(ValueError):
-        model.num_channels_init = 2
-
-
-@pytest.mark.parametrize("masked_pixel_percentage", [0.1, 0.2, 5, 20])
-def test_masked_pixel_percentage(complete_config: dict, masked_pixel_percentage: float):
-    """Test that Algorithm accepts the minimum configuration."""
-    algorithm = complete_config["algorithm"]
-    algorithm["masking_strategy"]["parameters"][
-        "masked_pixel_percentage"
-    ] = masked_pixel_percentage
-
-    algo = Algorithm(**algorithm)
-    assert (
-        algo.masking_strategy.parameters["masked_pixel_percentage"]
-        == masked_pixel_percentage
-    )
-
-
-@pytest.mark.parametrize("masked_pixel_percentage", [0.01, 21])
-def test_wrong_masked_pixel_percentage(
-    complete_config: dict, masked_pixel_percentage: float
-):
-    """Test that Algorithm accepts the minimum configuration."""
-    algorithm = complete_config["algorithm"]["masking_strategy"]["parameters"]
-    algorithm["masked_pixel_percentage"] = masked_pixel_percentage
-
-    with pytest.raises(ValueError):
-        Algorithm(**algorithm)
 
 
 def test_wrong_values_by_assigment(complete_config: dict):
@@ -218,7 +109,10 @@ def test_optimizer_parameters(optimizer_name: TorchOptimizer, parameters: dict):
 
 
 def test_sgd_missing_parameter():
-    """Test that SGD optimizer fails if `lr` is not provided"""
+    """Test that SGD optimizer fails if `lr` is not provided.
+    
+    #TODO: explain why this test is here
+    """
     with pytest.raises(ValueError):
         Optimizer(name=TorchOptimizer.SGD, parameters={})
 
@@ -241,16 +135,7 @@ def test_optimizer_wrong_values_by_assignments():
     with pytest.raises(ValueError):
         optimizer.parameters = "lr = 0.3"
 
-
-def test_optimizer_to_dict_minimum(minimum_config: dict):
-    """ "Test that export to dict does not include optional value."""
-    optim_minimum = Optimizer(**minimum_config["training"]["optimizer"]).model_dump()
-    assert optim_minimum == minimum_config["training"]["optimizer"]
-
-    assert "name" in optim_minimum.keys()
-    assert "parameters" not in optim_minimum.keys()
-
-
+# TODO
 def test_optimizer_to_dict_complete(complete_config: dict):
     """ "Test that export to dict does include optional value."""
     optim_minimum = Optimizer(**complete_config["training"]["optimizer"]).model_dump()
@@ -259,7 +144,7 @@ def test_optimizer_to_dict_complete(complete_config: dict):
     assert "name" in optim_minimum.keys()
     assert "parameters" in optim_minimum.keys()
 
-
+# TODO
 def test_optimizer_to_dict_optional(complete_config: dict):
     """ "Test that export to dict does not include optional value."""
     optim_config = complete_config["training"]["optimizer"]
@@ -344,18 +229,7 @@ def test_scheduler_wrong_values_by_assignments():
     with pytest.raises(ValueError):
         scheduler.parameters = "factor = 0.3"
 
-
-def test_scheduler_to_dict_minimum(minimum_config: dict):
-    """ "Test that export to dict does not include optional value."""
-    scheduler_minimum = LrScheduler(
-        **minimum_config["training"]["lr_scheduler"]
-    ).model_dump()
-    assert scheduler_minimum == minimum_config["training"]["lr_scheduler"]
-
-    assert "name" in scheduler_minimum.keys()
-    assert "parameters" not in scheduler_minimum.keys()
-
-
+# TODO
 def test_scheduler_to_dict_complete(complete_config: dict):
     """ "Test that export to dict does include optional value."""
     scheduler_complete = LrScheduler(

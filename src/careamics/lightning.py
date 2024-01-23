@@ -1,11 +1,10 @@
-from typing import Any, Optional, Union
+from typing import Any
 
 import pytorch_lightning as L
 import torch
 
-from careamics.config.algorithm import Algorithm, Loss
+from careamics.config.algorithm import Algorithm
 from careamics.losses import create_loss_function
-from careamics.models import create_model
 from careamics.models.model_factory import model_registry
 
 

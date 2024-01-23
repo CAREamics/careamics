@@ -10,7 +10,7 @@ import torch
 
 from ..bioimage import import_bioimage_model
 from ..config import Configuration
-from ..config.models import Model, Architecture
+from ..config.model import Model, Architecture
 from ..utils.logging import get_logger
 from .unet import UNet
 
@@ -112,7 +112,7 @@ def create_model(
             raise ValueError("Invalid checkpoint format, no configuration found.")
 
         # Create model
-        model = model_registry(model_name, algo_config.get_conv_dim(), model_config)
+        model = model_registry(model_config)
         model.to(device)
         # Load the model state dict
         if "model_state_dict" in checkpoint:
