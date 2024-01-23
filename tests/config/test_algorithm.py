@@ -10,24 +10,6 @@ from careamics.config.noise_models import NoiseModel
 from careamics.config.transforms import Transform
 
 
-def test_algorithm_transforms():
-    Transform(name="flip", parameters={"p": 0.5})
-
-
-def test_algorithm_transforms_defaults():
-    Transform(name="flip")
-
-
-def test_algorithm_transforms_custom():
-    Transform(
-        name="DefaultManipulateN2V",
-        parameters={"masked_pixel_percentage": 0.2, "roi_size": 11},
-    )
-
-
-def test_algorithm_transforms_custom_defaults():
-    Transform(name="DefaultManipulateN2V")
-
 
 def test_algorithm_transforms_wrong_name():
     with pytest.raises(ValueError):

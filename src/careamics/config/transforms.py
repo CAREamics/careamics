@@ -3,12 +3,12 @@ from __future__ import annotations
 from inspect import getmembers, isclass, signature
 from typing import Dict
 
-import albumentations as A
+import albumentations as Aug
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 import careamics.utils.transforms as custom_transforms
 
-ALL_TRANSFORMS = dict(getmembers(A, isclass) + getmembers(custom_transforms, isclass))
+ALL_TRANSFORMS = dict(getmembers(Aug, isclass) + getmembers(custom_transforms, isclass))
 
 
 class TransformType:
