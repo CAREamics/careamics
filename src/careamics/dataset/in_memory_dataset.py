@@ -5,14 +5,10 @@ from typing import Callable, List, Optional, Tuple, Union
 import numpy as np
 import torch
 
+from ..config.algorithm import AlgorithmType
 from ..utils import normalize
 from ..utils.logging import get_logger
-from ..config.algorithm import AlgorithmType
-from .dataset_utils import (
-    get_patch_transform,
-    list_files,
-    validate_files,
-)
+from .dataset_utils import get_patch_transform, list_files, read_tiff, validate_files
 from .patching import (
     generate_patches_predict,
     prepare_patches_supervised,
@@ -62,6 +58,7 @@ class InMemoryDataset(torch.utils.data.Dataset):
         patch_transform: Optional[Callable] = None,
         target_path: Optional[Union[str, Path, List[Union[str, Path]]]] = None,
         target_format: Optional[str] = None,
+        read_source_func: Optional[Callable] = None,
     ) -> None:
         """
         Constructor.
@@ -100,11 +97,11 @@ class InMemoryDataset(torch.utils.data.Dataset):
         self.target_format = target_format
 
         self.axes = axes
-        self.patch_preparation_method = (
-            prepare_patches_unsupervised
-            if self.target_path is None
-            else prepare_patches_supervised
+
+        self.read_source_func = (
+            read_source_func if read_source_func is not None else read_tiff
         )
+
         self.train_files = list_files(data_path, self.data_format)
         if self.target_path is not None:
             if not self.target_path.is_dir():
@@ -154,12 +151,11 @@ class InMemoryDataset(torch.utils.data.Dataset):
                 self.target_files,
                 self.axes,
                 self.patch_size,
+                self.read_source_func,
             )
         else:
             return prepare_patches_unsupervised(
-                self.train_files,
-                self.axes,
-                self.patch_size,
+                self.train_files, self.axes, self.patch_size, self.read_source_func
             )
 
     def __len__(self) -> int:
@@ -208,8 +204,8 @@ class InMemoryDataset(torch.utils.data.Dataset):
                 )
                 return patch, target
             else:
-                patch = self.patch_transform(image=patch)["image"]
-                return patch
+                patch = self.patch_transform(image=np.moveaxis(patch, 0, -1))["image"]
+                return np.moveaxis(patch, -1, 0)
         else:
             raise ValueError("Dataset mean and std must be set before using it.")
 

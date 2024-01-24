@@ -58,6 +58,7 @@ class IterableDataset(torch.utils.data.IterableDataset):
         patch_transform: Optional[Callable] = None,
         target_path: Optional[Union[str, Path, List[Union[str, Path]]]] = None,
         target_format: Optional[str] = None,
+        read_source_func: Optional[Callable] = None,
     ) -> None:
         self.data_path = Path(data_path)
         if not self.data_path.is_dir():
@@ -82,6 +83,7 @@ class IterableDataset(torch.utils.data.IterableDataset):
         self.patch_size = patch_size
         self.patch_overlap = patch_overlap
         self.patch_extraction_method = patch_extraction_method
+        self.source_read_func = read_source_func if read_source_func else read_tiff
 
         self.mean = mean
         self.std = std
@@ -134,14 +136,14 @@ class IterableDataset(torch.utils.data.IterableDataset):
 
         for i, filename in enumerate(self.data_files):
             if i % num_workers == worker_id:
-                sample = read_tiff(filename, self.axes)
+                sample = self.source_read_func(filename, self.axes)
                 if self.target_path is not None:
                     if filename.name != self.target_files[i].name:
                         raise ValueError(
                             f"File {filename} does not match target file "
                             f"{self.target_files[i]}"
                         )
-                    target = read_tiff(self.target_files[i], self.axes)
+                    target = self.source_read_func(self.target_files[i], self.axes)
                     yield sample, target
                 else:
                     yield sample

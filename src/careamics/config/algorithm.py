@@ -170,6 +170,7 @@ class Algorithm(BaseModel):
         """
         if values.data["algorithm_type"] in [AlgorithmType.N2V, AlgorithmType.PN2V]:
             if "ManipulateN2V" not in data.keys():
+                # TODO add default parameters
                 data["ManipulateN2V"] = {
                     "masked_pixel_percentage": 0.2,
                     "roi_size": 11,

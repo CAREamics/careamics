@@ -5,7 +5,7 @@ Methods to set up the datasets for training, validation and prediction.
 """
 import os
 from pathlib import Path
-from typing import List, Optional, Union
+from typing import Callable, List, Optional, Union
 
 import numpy as np
 import zarr
@@ -20,7 +20,10 @@ from .zarr_dataset import ZarrDataset
 
 
 def get_train_dataset(
-    config: Configuration, train_path: str, train_target_path: Optional[str] = None
+    config: Configuration,
+    train_path: str,
+    train_target_path: Optional[str] = None,
+    read_source_func: Optional[Callable] = None,
 ) -> Union[IterableDataset, InMemoryDataset, ZarrDataset]:
     """
     Create training dataset.
@@ -52,6 +55,7 @@ def get_train_dataset(
             patch_transform=config.algorithm.transforms,
             target_path=train_target_path,
             target_format=config.data.data_format,
+            read_source_func=read_source_func,
         )
     else:
         if config.data.data_format in ["tif", "tiff"]:
@@ -66,6 +70,7 @@ def get_train_dataset(
                 patch_transform=config.algorithm.transforms,
                 target_path=train_target_path,
                 target_format=config.data.data_format,
+                read_source_func=read_source_func,
             )
         elif config.data.data_format == "zarr":
             if ".zarray" in os.listdir(train_path):
@@ -92,7 +97,10 @@ def get_train_dataset(
 
 
 def get_validation_dataset(
-    config: Configuration, val_path: str, val_target_path: Optional[str] = None
+    config: Configuration,
+    val_path: str,
+    val_target_path: Optional[str] = None,
+    read_source_func: Optional[Callable] = None,
 ) -> Union[InMemoryDataset, ZarrDataset]:
     """
     Create validation dataset.
@@ -123,6 +131,7 @@ def get_validation_dataset(
             patch_transform=config.algorithm.transforms,
             target_path=val_target_path,
             target_format=config.data.data_format,
+            read_source_func=read_source_func,
         )
     elif config.data.data_format == "zarr":
         if ".zarray" in os.listdir(val_path):
@@ -157,6 +166,7 @@ def get_prediction_dataset(
     tile_shape: Optional[List[int]] = None,
     overlaps: Optional[List[int]] = None,
     axes: Optional[str] = None,
+    read_source_func: Optional[Callable] = None,
 ) -> Union[IterableDataset, ZarrDataset]:
     """
     Create prediction dataset.
@@ -214,6 +224,7 @@ def get_prediction_dataset(
             tile_overlap=overlaps,
             mean=config.data.mean,
             std=config.data.std,
+            read_source_func=read_source_func,
         )
     elif isinstance(pred_source, str) or isinstance(pred_source, Path):
         if config.data.data_format in ["tif", "tiff"]:
@@ -227,6 +238,7 @@ def get_prediction_dataset(
                 patch_size=tile_shape,
                 patch_overlap=overlaps,
                 patch_transform=None,
+                read_source_func=read_source_func,
             )
         elif config.data.data_format == "zarr":
             if ".zarray" in os.listdir(pred_source):

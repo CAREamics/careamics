@@ -5,14 +5,14 @@ These functions are used to tile images into patches or tiles.
 """
 import itertools
 from pathlib import Path
-from typing import Generator, List, Optional, Tuple, Union
+from typing import Callable, Generator, List, Optional, Tuple, Union
 
 import numpy as np
 import zarr
 from skimage.util import view_as_windows
 
 from ..utils.logging import get_logger
-from .dataset_utils import read_tiff
+from .dataset_utils import reshape_data
 from .extraction_strategy import ExtractionStrategy
 
 logger = get_logger(__name__)
@@ -38,10 +38,15 @@ def _compute_number_of_patches(
     Tuple[int]
         Number of patches in each dimension.
     """
-    n_patches = [
-        np.ceil(arr.shape[i + 1] / patch_sizes[i]).astype(int)
-        for i in range(len(patch_sizes))
-    ]
+    try:
+        n_patches = [
+            np.ceil(arr.shape[i] / patch_sizes[i]).astype(int)
+            for i in range(len(patch_sizes))
+        ]
+    except IndexError as e:
+        raise(
+            f"Patch size {patch_sizes} is not compatible with array shape {arr.shape}"
+        ) from e
     return tuple(n_patches)
 
 
@@ -71,75 +76,12 @@ def _compute_overlap(
 
     overlap = [
         np.ceil(
-            np.clip(n_patches[i] * patch_sizes[i] - arr.shape[i + 1], 0, None)
+            np.clip(n_patches[i] * patch_sizes[i] - arr.shape[i], 0, None)
             / max(1, (n_patches[i] - 1))
         ).astype(int)
         for i in range(len(patch_sizes))
     ]
     return tuple(overlap)
-
-
-def _compute_crop_and_stitch_coords_1d(
-    axis_size: int, tile_size: int, overlap: int
-) -> Tuple[List[Tuple[int, int]], ...]:
-    """
-    Compute the coordinates of each tile along an axis, given the overlap.
-
-    Parameters
-    ----------
-    axis_size : int
-        Length of the axis.
-    tile_size : int
-        Size of the tile for the given axis.
-    overlap : int
-        Size of the overlap for the given axis.
-
-    Returns
-    -------
-    Tuple[Tuple[int]]
-        Tuple of all coordinates for given axis.
-    """
-    # Compute the step between tiles
-    step = tile_size - overlap
-    crop_coords = []
-    stitch_coords = []
-    overlap_crop_coords = []
-    # Iterate over the axis with a certain step
-    for i in range(0, axis_size - overlap, step):
-        # Check if the tile fits within the axis
-        if i + tile_size <= axis_size:
-            # Add the coordinates to crop one tile
-            crop_coords.append((i, i + tile_size))
-            # Add the pixel coordinates of the cropped tile in the original image space
-            stitch_coords.append(
-                (
-                    i + overlap // 2 if i > 0 else 0,
-                    i + tile_size - overlap // 2
-                    if crop_coords[-1][1] < axis_size
-                    else axis_size,
-                )
-            )
-            # Add the coordinates to crop the overlap from the prediction.
-            overlap_crop_coords.append(
-                (
-                    overlap // 2 if i > 0 else 0,
-                    tile_size - overlap // 2
-                    if crop_coords[-1][1] < axis_size
-                    else tile_size,
-                )
-            )
-        # If the tile does not fit within the axis, perform the abovementioned
-        # operations starting from the end of the axis
-        else:
-            # if (axis_size - tile_size, axis_size) not in crop_coords:
-            crop_coords.append((axis_size - tile_size, axis_size))
-            last_tile_end_coord = stitch_coords[-1][1]
-            stitch_coords.append((last_tile_end_coord, axis_size))
-            overlap_crop_coords.append(
-                (tile_size - (axis_size - last_tile_end_coord), tile_size)
-            )
-            break
-    return crop_coords, stitch_coords, overlap_crop_coords
 
 
 def _compute_patch_steps(
@@ -196,19 +138,22 @@ def _compute_reshaped_view(
     rng = np.random.default_rng()
 
     if target is not None:
-        arr = np.concatenate([arr, target], axis=0)
-        window_shape = (arr.shape[0], *window_shape[1:])
-        step = (arr.shape[0], *step[1:])
-        output_shape = (-1, arr.shape[0], *output_shape[2:])
+        arr = np.stack([arr, target], axis=0)
+        window_shape = (arr.shape[0], *window_shape)
+        step = (arr.shape[0], *step)
+        output_shape = (arr.shape[0], -1, arr.shape[2], *output_shape[2:])
 
     patches = view_as_windows(arr, window_shape=window_shape, step=step).reshape(
         *output_shape
     )
-    rng.shuffle(patches, axis=0)
+    if target is not None:
+        rng.shuffle(patches, axis=1)
+    else:
+        rng.shuffle(patches, axis=0)
     return patches
 
 
-def _patches_sanity_check(
+def _patches_check_and_update(
     arr: np.ndarray,
     patch_size: Union[List[int], Tuple[int, ...]],
     is_3d_patch: bool,
@@ -240,7 +185,7 @@ def _patches_sanity_check(
         If either of the patch sizes in X or Y is larger than the corresponding array
         dimension.
     """
-    if len(patch_size) != len(arr.shape[1:]):
+    if len(patch_size) != len(arr.shape[2:]):
         raise ValueError(
             f"There must be a patch size for each spatial dimensions "
             f"(got {patch_size} patches for dims {arr.shape})."
@@ -258,12 +203,15 @@ def _patches_sanity_check(
             f"At least one of YX patch dimensions is inconsistent with image shape "
             f"(got {patch_size} patches for dims {arr.shape[-2:]})."
         )
+    # Update patch size to SC(Z)YX format
+    return [1, arr.shape[1], *patch_size]
 
 
 # formerly :
 # in dataloader.py#L52, 00d536c
 def _extract_patches_sequential(
     arr: np.ndarray,
+    axes: str,
     patch_size: Union[List[int], Tuple[int]],
     target: Optional[np.ndarray] = None,
 ) -> Generator[np.ndarray, None, None]:
@@ -285,10 +233,13 @@ def _extract_patches_sequential(
     Generator[np.ndarray, None, None]
         Generator of patches.
     """
-    # Patches sanity check
     is_3d_patch = len(patch_size) == 3
 
-    _patches_sanity_check(arr, patch_size, is_3d_patch)
+    # Reshape data to SCZYX
+    arr, _ = reshape_data(arr, axes)
+
+    # Patches sanity check and update
+    patch_size = _patches_check_and_update(arr, patch_size, is_3d_patch)
 
     # Compute overlap
     overlaps = _compute_overlap(arr=arr, patch_sizes=patch_size)
@@ -296,38 +247,30 @@ def _extract_patches_sequential(
     # Create view window and overlaps
     window_steps = _compute_patch_steps(patch_sizes=patch_size, overlaps=overlaps)
 
-    # Correct for first dimension for computing windowed views by adding a channel
-    # dimension.
-    # TODO arr should be of shape (S, C, Z, Y, X) or (S, C, Y, X) !!
-    # window_shape = (1, arr.shape[0], *patch_size)
-    # window_steps = (1, arr.shape[0], *window_steps)
-    window_shape = (1, *patch_size)
-    window_steps = (1, *window_steps)
-
-    if is_3d_patch and patch_size[0] == 1:
-        output_shape = (-1,) + window_shape[1:]
-    else:
-        output_shape = (-1, *window_shape)
+    output_shape = [-1,] + patch_size[1:]
 
     # Generate a view of the input array containing pre-calculated number of patches
     # in each dimension with overlap.
-    # Resulting array is resized to (n_patches, C, Z, Y, X) or (n_patches,C, Y, X)
+    # Resulting array is resized to (n_patches, C, Z, Y, X) or (n_patches, C, Y, X)
     patches = _compute_reshaped_view(
         arr,
-        window_shape=window_shape,
+        window_shape=patch_size,
         step=window_steps,
         output_shape=output_shape,
         target=target,
     )
-
-    return (
-        patches[:, : arr.shape[0], ...],
-        patches[:, arr.shape[0] :, ...] if target is not None else None,
+    if target is not None:
+        return (
+        patches[0, ...],
+        patches[1, ...]
     )
+    else:
+        return patches, None
 
 
 def _extract_patches_random(
     arr: np.ndarray,
+    axes: str,
     patch_size: Union[List[int], Tuple[int]],
     target: Optional[np.ndarray] = None,
 ) -> Generator[np.ndarray, None, None]:
@@ -351,8 +294,9 @@ def _extract_patches_random(
     """
     is_3d_patch = len(patch_size) == 3
 
+    arr, _ = reshape_data(arr, axes)
     # Patches sanity check
-    _patches_sanity_check(arr, patch_size, is_3d_patch)
+    patch_size = _patches_check_and_update(arr, patch_size, is_3d_patch)
 
     rng = np.random.default_rng()
 
@@ -425,7 +369,7 @@ def _extract_patches_random_from_chunks(
     is_3d_patch = len(patch_size) == 3
 
     # Patches sanity check
-    _patches_sanity_check(arr, patch_size, is_3d_patch)
+    patch_size = _patches_check_and_update(arr, patch_size, is_3d_patch)
 
     rng = np.random.default_rng()
     num_chunks = chunk_limit if chunk_limit else np.prod(arr._cdata_shape)
@@ -481,6 +425,69 @@ def _extract_patches_random_from_chunks(
                 yield patch
 
 
+def _compute_crop_and_stitch_coords_1d(
+    axis_size: int, tile_size: int, overlap: int
+) -> Tuple[List[Tuple[int, int]], ...]:
+    """
+    Compute the coordinates of each tile along an axis, given the overlap.
+
+    Parameters
+    ----------
+    axis_size : int
+        Length of the axis.
+    tile_size : int
+        Size of the tile for the given axis.
+    overlap : int
+        Size of the overlap for the given axis.
+
+    Returns
+    -------
+    Tuple[Tuple[int]]
+        Tuple of all coordinates for given axis.
+    """
+    # Compute the step between tiles
+    step = tile_size - overlap
+    crop_coords = []
+    stitch_coords = []
+    overlap_crop_coords = []
+    # Iterate over the axis with a certain step
+    for i in range(0, axis_size - overlap, step):
+        # Check if the tile fits within the axis
+        if i + tile_size <= axis_size:
+            # Add the coordinates to crop one tile
+            crop_coords.append((i, i + tile_size))
+            # Add the pixel coordinates of the cropped tile in the original image space
+            stitch_coords.append(
+                (
+                    i + overlap // 2 if i > 0 else 0,
+                    i + tile_size - overlap // 2
+                    if crop_coords[-1][1] < axis_size
+                    else axis_size,
+                )
+            )
+            # Add the coordinates to crop the overlap from the prediction.
+            overlap_crop_coords.append(
+                (
+                    overlap // 2 if i > 0 else 0,
+                    tile_size - overlap // 2
+                    if crop_coords[-1][1] < axis_size
+                    else tile_size,
+                )
+            )
+        # If the tile does not fit within the axis, perform the abovementioned
+        # operations starting from the end of the axis
+        else:
+            # if (axis_size - tile_size, axis_size) not in crop_coords:
+            crop_coords.append((axis_size - tile_size, axis_size))
+            last_tile_end_coord = stitch_coords[-1][1]
+            stitch_coords.append((last_tile_end_coord, axis_size))
+            overlap_crop_coords.append(
+                (tile_size - (axis_size - last_tile_end_coord), tile_size)
+            )
+            break
+    return crop_coords, stitch_coords, overlap_crop_coords
+
+
 def _extract_tiles(
     arr: np.ndarray,
     axes: str,
@@ -507,13 +514,7 @@ def _extract_tiles(
         Tile generator that yields the tile with corresponding coordinates to stitch
         back the tiles together.
     """
-    if "S" not in axes and "C" in axes:
-        tile_size = (arr.shape[0], *tile_size)
-        overlaps = (0, *overlaps)
-        arr = np.expand_dims(arr, axis=0)
-
-    elif ("S" not in axes and "C" not in axes) and (len(arr.shape) == len(tile_size)):
-        arr = np.expand_dims(arr, axis=0)
+    arr, _ = reshape_data(arr, axes)
 
     # Iterate over num samples (S)
     for sample_idx in range(arr.shape[0]):
@@ -571,6 +572,7 @@ def prepare_patches_supervised(
     target_files: List[Path],
     axes: str,
     patch_size: Union[List[int], Tuple[int]],
+    read_source_func: Optional[Callable] = None,
 ) -> Tuple[np.ndarray, float, float]:
     """
     Iterate over data source and create an array of patches and corresponding targets.
@@ -586,14 +588,15 @@ def prepare_patches_supervised(
     means, stds, num_samples = 0, 0, 0
     all_patches, all_targets = [], []
     for train_filename, target_filename in zip(train_files, target_files):
-        sample = read_tiff(train_filename, axes)
-        target = read_tiff(target_filename, axes)
+        sample = read_source_func(train_filename, axes)
+        target = read_source_func(target_filename, axes)
         means += sample.mean()
         stds += np.std(sample)
         num_samples += 1
+
         # generate patches, return a generator
         patches, targets = _extract_patches_sequential(
-            sample, patch_size=patch_size, target=target
+            sample, axes, patch_size=patch_size, target=target
         )
 
         # convert generator to list and add to all_patches
@@ -618,6 +621,7 @@ def prepare_patches_unsupervised(
     train_files: List[Path],
     axes: str,
     patch_size: Union[List[int], Tuple[int]],
+    read_source_func: Optional[Callable] = None,
 ) -> Tuple[np.ndarray, float, float]:
     """
     Iterate over data source and create an array of patches.
@@ -630,13 +634,13 @@ def prepare_patches_unsupervised(
     means, stds, num_samples = 0, 0, 0
     all_patches = []
     for filename in train_files:
-        sample = read_tiff(filename, axes)
+        sample = read_source_func(filename, axes)
         means += sample.mean()
         stds += np.std(sample)
         num_samples += 1
 
         # generate patches, return a generator
-        patches, _ = _extract_patches_sequential(sample, patch_size=patch_size)
+        patches, _ = _extract_patches_sequential(sample, axes, patch_size=patch_size)
 
         # convert generator to list and add to all_patches
         all_patches.append(patches)
@@ -696,13 +700,13 @@ def generate_patches_supervised(
 
         elif patch_extraction_method == ExtractionStrategy.SEQUENTIAL:
             patches, targets = _extract_patches_sequential(
-                sample, patch_size=patch_size, target=target
+                arr=sample, axes=axes, patch_size=patch_size, target=target
             )
 
         elif patch_extraction_method == ExtractionStrategy.RANDOM:
             # Returns a generator of patches and targets(if present)
             patches = _extract_patches_random(
-                sample, patch_size=patch_size, target=target
+                arr=sample, axes=axes, patch_size=patch_size, target=target
             )
 
         elif patch_extraction_method == ExtractionStrategy.RANDOM_ZARR:
@@ -769,9 +773,7 @@ def generate_patches_unsupervised(
 
         elif patch_extraction_method == ExtractionStrategy.RANDOM:
             # Returns a generator of patches and targets(if present)
-            patches = _extract_patches_random(
-                sample, patch_size=patch_size
-            )
+            patches = _extract_patches_random(sample, patch_size=patch_size)
 
         elif patch_extraction_method == ExtractionStrategy.RANDOM_ZARR:
             # Returns a generator of patches and targets(if present)

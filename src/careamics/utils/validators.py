@@ -35,9 +35,9 @@ def check_axes_validity(axes: str) -> bool:
     _axes = axes.upper()
 
     # Minimum is 2 (XY) and maximum is 4 (TZYX)
-    if len(_axes) < 2 or len(_axes) > 4:
+    if len(_axes) < 2 or len(_axes) > 6:
         raise ValueError(
-            f"Invalid axes {axes}. Must contain at least 2 and at most 4 axes."
+            f"Invalid axes {axes}. Must contain at least 2 and at most 6 axes."
         )
 
     # all characters must be in REF_AXES = 'STCZYX'
@@ -51,18 +51,6 @@ def check_axes_validity(axes: str) -> bool:
                 f"Invalid axes {axes}. Cannot contain duplicate axes"
                 f" (got multiple {axes[i]})."
             )
-
-    # prevent S and T axes together
-    if "T" in _axes and "S" in _axes:
-        raise NotImplementedError(
-            f"Invalid axes {axes}. Cannot contain both S and T axes."
-        )
-
-    # prior: X and Y contiguous (#FancyComments)
-    # right now the next check is invalidating this, but in the future, we might
-    # allow random order of axes (or at least XY and YX)
-    if "XY" not in _axes and "YX" not in _axes:
-        raise ValueError(f"Invalid axes {axes}. X and Y must be contiguous.")
 
     # check that the axes are in the right order
     for i, s in enumerate(_axes):
