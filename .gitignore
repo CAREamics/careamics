@@ -3,3 +3,6 @@
 .pytest*
 *.DS_Store*
 **/.ipynb_checkpoints
+.coverage
+coverage.xml
+lightning_logs

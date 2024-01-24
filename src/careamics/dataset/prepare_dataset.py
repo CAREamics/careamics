@@ -10,7 +10,7 @@ from typing import Callable, List, Optional, Union
 import numpy as np
 import zarr
 
-from ..config import Configuration
+from ..config.data import Data
 from ..manipulation import default_manipulate
 from ..utils import check_external_array_validity, check_tiling_validity
 from .extraction_strategy import ExtractionStrategy
@@ -19,8 +19,10 @@ from .iterable_dataset import IterableDataset
 from .zarr_dataset import ZarrDataset
 
 
+# TODO what is the difference between train and val datasets??
+# TODO it could be from memory as well here, yet it only takes a str (and not even a Path)
 def get_train_dataset(
-    config: Configuration,
+    data_config: Data,
     train_path: str,
     train_target_path: Optional[str] = None,
     read_source_func: Optional[Callable] = None,
@@ -33,7 +35,7 @@ def get_train_dataset(
 
     Parameters
     ----------
-    config : Configuration
+    config : Data
         Configuration.
     train_path : Union[str, Path]
         Path to training data.
@@ -43,64 +45,58 @@ def get_train_dataset(
     Union[TiffDataset, InMemoryDataset]
         Dataset.
     """
-    if config.data.in_memory:
+    if data_config.in_memory:
         dataset = InMemoryDataset(
             data_path=train_path,
-            data_format=config.data.data_format,
-            axes=config.data.axes,
-            mean=config.data.mean,
-            std=config.data.std,
-            patch_size=config.training.patch_size,
-            algorithm=config.algorithm.algorithm_type,
-            patch_transform=config.algorithm.transforms,
+            data_format=data_config.data_format,
+            axes=data_config.axes,
+            mean=data_config.mean,
+            std=data_config.std,
+            patch_size=data_config.patch_size,
+            patch_transform=data_config.transforms,
             target_path=train_target_path,
-            target_format=config.data.data_format,
+            target_format=data_config.data_format,
             read_source_func=read_source_func,
         )
-    else:
-        if config.data.data_format in ["tif", "tiff"]:
-            dataset = IterableDataset(
-                data_path=train_path,
-                data_format=config.data.data_format,
-                axes=config.data.axes,
-                mean=config.data.mean,
-                std=config.data.std,
-                patch_extraction_method=ExtractionStrategy.RANDOM,
-                patch_size=config.training.patch_size,
-                patch_transform=config.algorithm.transforms,
-                target_path=train_target_path,
-                target_format=config.data.data_format,
-                read_source_func=read_source_func,
-            )
-        elif config.data.data_format == "zarr":
-            if ".zarray" in os.listdir(train_path):
-                zarr_source = zarr.open(train_path, mode="r")
-            else:
-                source = zarr.DirectoryStore(train_path)
-                cache = zarr.LRUStoreCache(source, max_size=None)
-                zarr_source = zarr.group(store=cache, overwrite=False)
+    elif data_config.data_format in ["tif", "tiff"]:
+        dataset = IterableDataset(
+            data_path=train_path,
+            data_format=data_config.data_format,
+            axes=data_config.axes,
+            mean=data_config.mean,
+            std=data_config.std,
+            patch_extraction_method=ExtractionStrategy.RANDOM,
+            patch_size=data_config.patch_size,
+            patch_transform=data_config.transforms,
+            target_path=train_target_path,
+            target_format=data_config.data_format,
+        )
+        # elif config.data.data_format == "zarr":
+        #     if ".zarray" in os.listdir(train_path):
+        #         zarr_source = zarr.open(train_path, mode="r")
+        #     else:
+        #         source = zarr.DirectoryStore(train_path)
+        #         cache = zarr.LRUStoreCache(source, max_size=None)
+        #         zarr_source = zarr.group(store=cache, overwrite=False)
 
-            dataset = ZarrDataset(
-                data_source=zarr_source,
-                axes=config.data.axes,
-                patch_extraction_method=ExtractionStrategy.RANDOM_ZARR,
-                patch_size=config.training.patch_size,
-                mean=config.data.mean,
-                std=config.data.std,
-                patch_transform=default_manipulate,
-                patch_transform_params={
-                    "mask_pixel_percentage": config.algorithm.masked_pixel_percentage,
-                    "roi_size": config.algorithm.roi_size,
-                },
-            )
+        #     dataset = ZarrDataset(
+        #         data_source=zarr_source,
+        #         axes=config.data.axes,
+        #         patch_extraction_method=ExtractionStrategy.RANDOM_ZARR,
+        #         patch_size=config.training.patch_size,
+        #         mean=config.data.mean,
+        #         std=config.data.std,
+        #         patch_transform=default_manipulate,
+        #         patch_transform_params={
+        #             "mask_pixel_percentage": config.algorithm.masked_pixel_percentage,
+        #             "roi_size": config.algorithm.roi_size,
+        #         },
+        #     )
     return dataset
 
 
 def get_validation_dataset(
-    config: Configuration,
-    val_path: str,
-    val_target_path: Optional[str] = None,
-    read_source_func: Optional[Callable] = None,
+    config: Configuration, val_path: str, val_target_path: Optional[str] = None
 ) -> Union[InMemoryDataset, ZarrDataset]:
     """
     Create validation dataset.
@@ -109,7 +105,7 @@ def get_validation_dataset(
 
     Parameters
     ----------
-    config : Configuration
+    config : Data
         Configuration.
     val_path : Union[str, Path]
         Path to validation data.
@@ -119,48 +115,48 @@ def get_validation_dataset(
     TiffDataset
         In memory dataset.
     """
-    if config.data.data_format in ["tif", "tiff"]:
+    # TODO what about iterable dataset for validation??
+    if data_config.data_format in ["tif", "tiff"]:
         dataset = InMemoryDataset(
             data_path=val_path,
-            data_format=config.data.data_format,
-            axes=config.data.axes,
-            mean=config.data.mean,
-            std=config.data.std,
-            patch_size=config.training.patch_size,
-            algorithm=config.algorithm.algorithm_type,
-            patch_transform=config.algorithm.transforms,
+            data_format=data_config.data_format,
+            axes=data_config.axes,
+            mean=data_config.mean,
+            std=data_config.std,
+            patch_size=data_config.patch_size,
+            patch_transform=data_config.transforms,
             target_path=val_target_path,
-            target_format=config.data.data_format,
+            target_format=data_config.data_format,
             read_source_func=read_source_func,
         )
-    elif config.data.data_format == "zarr":
-        if ".zarray" in os.listdir(val_path):
-            zarr_source = zarr.open(val_path, mode="r")
-        else:
-            source = zarr.DirectoryStore(val_path)
-            cache = zarr.LRUStoreCache(source, max_size=None)
-            zarr_source = zarr.group(store=cache, overwrite=False)
+    # elif data_config.data_format == "zarr":
+    #     if ".zarray" in os.listdir(val_path):
+    #         zarr_source = zarr.open(val_path, mode="r")
+    #     else:
+    #         source = zarr.DirectoryStore(val_path)
+    #         cache = zarr.LRUStoreCache(source, max_size=None)
+    #         zarr_source = zarr.group(store=cache, overwrite=False)
 
-        dataset = ZarrDataset(
-            data_source=zarr_source,
-            axes=config.data.axes,
-            patch_extraction_method=ExtractionStrategy.RANDOM_ZARR,
-            patch_size=config.training.patch_size,
-            num_patches=10,
-            mean=config.data.mean,
-            std=config.data.std,
-            patch_transform=default_manipulate,
-            patch_transform_params={
-                "mask_pixel_percentage": config.algorithm.masked_pixel_percentage,
-                "roi_size": config.algorithm.roi_size,
-            },
-        )
+    #     dataset = ZarrDataset(
+    #         data_source=zarr_source,
+    #         axes=data_config.axes,
+    #         patch_extraction_method=ExtractionStrategy.RANDOM_ZARR,
+    #         patch_size=data_config.patch_size,
+    #         num_patches=10,
+    #         mean=data_config.mean,
+    #         std=data_config.std,
+    #         patch_transform=default_manipulate,
+    #         patch_transform_params={
+    #             "mask_pixel_percentage": data_config.masked_pixel_percentage,
+    #             "roi_size": data_config.roi_size,
+    #         },
+    #     )
 
     return dataset
 
 
 def get_prediction_dataset(
-    config: Configuration,
+    data_config: Data,
     pred_source: Union[str, Path, np.ndarray],
     *,
     tile_shape: Optional[List[int]] = None,
@@ -182,7 +178,7 @@ def get_prediction_dataset(
 
     Parameters
     ----------
-    config : Configuration
+    config : Data
         Configuration.
     pred_path : Union[str, Path]
         Path to prediction data.
@@ -219,49 +215,50 @@ def get_prediction_dataset(
 
         dataset = InMemoryPredictionDataset(
             array=pred_source,
-            axes=axes if axes is not None else config.data.axes,
+            axes=axes if axes is not None else data_config.axes,
             tile_size=tile_shape,
             tile_overlap=overlaps,
-            mean=config.data.mean,
-            std=config.data.std,
+            mean=data_config.mean,
+            std=data_config.std,
             read_source_func=read_source_func,
         )
     elif isinstance(pred_source, str) or isinstance(pred_source, Path):
-        if config.data.data_format in ["tif", "tiff"]:
+        if data_config.data_format in ["tif", "tiff"]:
             dataset = IterableDataset(
                 data_path=pred_source,
-                data_format=config.data.data_format,
-                axes=axes if axes is not None else config.data.axes,
-                mean=config.data.mean,
-                std=config.data.std,
+                data_format=data_config.data_format,
+                axes=axes if axes is not None else data_config.axes,
+                mean=data_config.mean,
+                std=data_config.std,
                 patch_extraction_method=patch_extraction_method,
                 patch_size=tile_shape,
                 patch_overlap=overlaps,
                 patch_transform=None,
                 read_source_func=read_source_func,
             )
-        elif config.data.data_format == "zarr":
-            if ".zarray" in os.listdir(pred_source):
-                zarr_source = zarr.open(pred_source, mode="r")
-            else:
-                source = zarr.DirectoryStore(pred_source)
-                cache = zarr.LRUStoreCache(source, max_size=None)
-                zarr_source = zarr.group(store=cache, overwrite=False)
+        # elif data_config.data_format == "zarr":
+        #     if ".zarray" in os.listdir(pred_source):
+        #         zarr_source = zarr.open(pred_source, mode="r")
+        #     else:
+        #         source = zarr.DirectoryStore(pred_source)
+        #         cache = zarr.LRUStoreCache(source, max_size=None)
+        #         zarr_source = zarr.group(store=cache, overwrite=False)
 
-            dataset = ZarrDataset(
-                data_source=zarr_source,
-                axes=axes if axes is not None else config.data.axes,
-                patch_extraction_method=ExtractionStrategy.RANDOM_ZARR,
-                patch_size=tile_shape,
-                num_patches=10,
-                mean=config.data.mean,
-                std=config.data.std,
-                patch_transform=default_manipulate,
-                patch_transform_params={
-                    "mask_pixel_percentage": config.algorithm.masked_pixel_percentage,
-                    "roi_size": config.algorithm.roi_size,
-                },
-                mode="predict",
-            )
+        #     dataset = ZarrDataset(
+        #         data_source=zarr_source,
+        #         axes=axes if axes is not None else data_config.axes,
+        #         patch_extraction_method=ExtractionStrategy.RANDOM_ZARR,
+        #         patch_size=tile_shape,
+        #         num_patches=10,
+        #         mean=data_config.mean,
+        #         std=data_config.std,
+        #         patch_transform=default_manipulate,
+        #         patch_transform_params={
+        #             # TODO these parameters have disappeared from the config
+        #             "mask_pixel_percentage": data_config.algorithm.masked_pixel_percentage,
+        #             "roi_size": data_config.algorithm.roi_size,
+        #         },
+        #         mode="predict",
+        #     )
 
     return dataset

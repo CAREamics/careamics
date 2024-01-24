@@ -61,7 +61,7 @@ class Configuration(BaseModel):
             Axes of the data.
         """
         # set the flag and axes (this will not trigger validation at the config level)
-        self.algorithm.is_3D = is_3D
+        self.algorithm.model.is_3D = is_3D
         self.data.axes = axes
 
         # cheap hack: trigger validation
@@ -169,11 +169,11 @@ class Configuration(BaseModel):
             not 3D but the data axes are.
         """
         # check that is_3D and axes are compatible
-        if config.algorithm.is_3D and "Z" not in config.data.axes:
+        if config.algorithm.model.is_3D and "Z" not in config.data.axes:
             raise ValueError(
                 f"Algorithm is 3D but data axes are not (got axes {config.data.axes})."
             )
-        elif not config.algorithm.is_3D and "Z" in config.data.axes:
+        elif not config.algorithm.model.is_3D and "Z" in config.data.axes:
             raise ValueError(
                 f"Algorithm is not 3D but data axes are (got axes {config.data.axes})."
             )

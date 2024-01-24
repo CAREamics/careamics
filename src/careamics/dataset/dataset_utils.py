@@ -3,12 +3,12 @@ import logging
 from pathlib import Path
 from typing import Callable, List, Tuple, Union
 
-import albumentations as A
+import albumentations as Aug
 import numpy as np
 import tifffile
 import zarr
 
-from ..config.transforms import ALL_TRANSFORMS
+from ..config.transform import ALL_TRANSFORMS
 from ..utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -360,9 +360,10 @@ def get_patch_transform(
         Patch transform function.
     """
     if patch_transform is None:
-        return A.NoOp()
+        return Aug.NoOp()
     elif isinstance(patch_transform, dict):
-        return A.Compose(
+        # TODO not very readable
+        return Aug.Compose(
             [
                 ALL_TRANSFORMS[transform](**parameters)
                 if parameters

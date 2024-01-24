@@ -101,15 +101,14 @@ class InMemoryDataset(torch.utils.data.Dataset):
         self.read_source_func = (
             read_source_func if read_source_func is not None else read_tiff
         )
-
-        self.train_files = list_files(data_path, self.data_format)
+        self.files = list_files(data_path, self.data_format)
         if self.target_path is not None:
             if not self.target_path.is_dir():
                 raise ValueError("Path to targets should be an existing folder.")
             if self.target_format is None:
                 raise ValueError("Target format must be specified.")
             self.target_files = list_files(self.target_path, self.target_format)
-            validate_files(self.train_files, self.target_files)
+            validate_files(self.files, self.target_files)
 
         self.patch_size = patch_size
 
@@ -147,7 +146,7 @@ class InMemoryDataset(torch.utils.data.Dataset):
         """
         if self.target_path is not None:
             return prepare_patches_supervised(
-                self.train_files,
+                self.files,
                 self.target_files,
                 self.axes,
                 self.patch_size,
@@ -155,7 +154,9 @@ class InMemoryDataset(torch.utils.data.Dataset):
             )
         else:
             return prepare_patches_unsupervised(
-                self.train_files, self.axes, self.patch_size, self.read_source_func
+                self.files,
+                self.axes,
+                self.patch_size,
             )
 
     def __len__(self) -> int:

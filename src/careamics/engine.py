@@ -165,7 +165,7 @@ class Engine:
 
         # create loss function
         if self.cfg is not None:
-            self.loss_func = create_loss_function(self.cfg)
+            self.loss_func = create_loss_function(self.cfg.algorithm.loss)
 
             self.noise_model_blank = create_noise_model(self.cfg)
 
@@ -557,7 +557,7 @@ class Engine:
     def _predict_full(
         self,
         pred_loader: DataLoader,
-        progress_bar: type[ProgressBar],
+        progress_bar: Type[ProgressBar],
         tta: bool = False,
     ) -> np.ndarray:
         """
@@ -863,6 +863,7 @@ class Engine:
             # get in/out samples' files
             test_inputs, test_outputs = self._get_sample_io_files(axes)
 
+            # TODO redo now that there are other algorithms in the code
             specs = get_default_model_specs(
                 "Noise2Void",
                 self.cfg.data.mean,

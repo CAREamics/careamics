@@ -5,7 +5,7 @@ from typing import Dict, Union
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-
+# TODO where is all this used?
 class MaskingStrategyType(str, Enum):
     """Available masking strategy.
 

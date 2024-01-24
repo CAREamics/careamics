@@ -20,7 +20,6 @@ def check_axes_validity(axes: str) -> bool:
     - must contain at least 2 contiguous axes: X and Y
     - must contain at most 4 axes
     - cannot contain both S and T axes
-    - C is currently not allowed
 
     Parameters
     ----------

@@ -12,7 +12,8 @@ from .losses import dice_loss, mae_loss, mse_loss, n2v_loss, pn2v_loss
 from .noise_models import GaussianMixtureNoiseModel, HistogramNoiseModel
 
 
-def create_loss_function(config: Configuration) -> Callable:
+# TODO add tests
+def create_loss_function(loss_type: Loss) -> Callable:
     """Create loss function based on Configuration.
 
     Parameters
@@ -30,8 +31,6 @@ def create_loss_function(config: Configuration) -> Callable:
     NotImplementedError
         If the loss is unknown.
     """
-    loss_type = config.algorithm.loss
-
     if loss_type == Loss.N2V:
         return n2v_loss
 

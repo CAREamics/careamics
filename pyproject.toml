@@ -41,6 +41,9 @@ classifiers = [
 dependencies = [
     'torch',
     'torchvision',
+    'lightning',
+    'segmentation_models_pytorch',
+    'albumentations',
     'tifffile',
     'pyyaml',
     'pydantic>=2.0',
@@ -134,6 +137,8 @@ line-length = 88
 
 # https://mypy.readthedocs.io/en/stable/config_file.html
 [tool.mypy]
+plugins = ["pydantic.mypy"]
+
 files = "src/**/"
 strict = false
 allow_untyped_defs = false
@@ -141,10 +146,7 @@ allow_untyped_calls = false
 disallow_any_generics = false
 ignore_missing_imports = false
 
-# # module specific overrides
-# [[tool.mypy.overrides]]
-# module = ["numpy.*",]
-# ignore_errors = true
+
 # https://docs.pytest.org/en/6.2.x/customize.html
 [tool.pytest.ini_options]
 minversion = "6.0"
