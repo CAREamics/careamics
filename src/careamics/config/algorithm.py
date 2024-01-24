@@ -13,7 +13,7 @@ from pydantic import (
 )
 from torch import optim
 
-from .config_filter import remove_default_optionals
+from .filters import remove_default_optionals
 from .model import Model
 from .torch_optim import TorchLRScheduler, TorchOptimizer, get_parameters
 

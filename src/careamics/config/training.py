@@ -9,9 +9,10 @@ from pydantic import (
     Field,
     field_validator,
 )
-from .config_filter import remove_default_optionals
+from .filters import remove_default_optionals
 
-
+# TODO: adapt for lightning:
+# https://pytorch-lightning.readthedocs.io/en/1.8.6/api/pytorch_lightning.plugins.precision.PrecisionPlugin.html
 class AMP(BaseModel):
     """
     Automatic mixed precision (AMP) parameters.
@@ -102,10 +103,7 @@ class Training(BaseModel):
 
     Mandatory parameters are:
         - num_epochs: number of epochs, greater than 0.
-        - patch_size: patch size, 2D or 3D, non-zero and divisible by 2.
         - batch_size: batch size, greater than 0.
-        - optimizer: optimizer, see `Optimizer`.
-        - lr_scheduler: learning rate scheduler, see `LrScheduler`.
         - augmentation: whether to use data augmentation or not (True or False).
 
     The other fields are optional:
@@ -117,14 +115,8 @@ class Training(BaseModel):
     ----------
     num_epochs : int
         Number of epochs, greater than 0.
-    patch_size : conlist(int, min_length=2, max_length=3)
-        Patch size, 2D or 3D, non-zero and divisible by 2.
     batch_size : int
         Batch size, greater than 0.
-    optimizer : Optimizer
-        Optimizer.
-    lr_scheduler : LrScheduler
-        Learning rate scheduler.
     augmentation : bool
         Whether to use data augmentation or not.
     use_wandb : bool
@@ -203,9 +195,6 @@ class Training(BaseModel):
             Dictionary containing the model parameters.
         """
         dictionary = super().model_dump(exclude_none=True)
-
-        dictionary["optimizer"] = self.optimizer.model_dump(exclude_optionals)
-        dictionary["lr_scheduler"] = self.lr_scheduler.model_dump(exclude_optionals)
 
         if self.amp is not None:
             dictionary["amp"] = self.amp.model_dump(exclude_optionals)

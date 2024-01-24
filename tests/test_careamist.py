@@ -1,16 +1,25 @@
 import pytest
 
-from careamics import CAREamist, Configuration
+from careamics import CAREamist, Configuration, save_configuration
 
 
 def test_no_parameters():
     with pytest.raises(ValueError):
-        careamist = CAREamist()
+        CAREamist()
 
 
-def test_minimum_config(minimum_config):
+def test_minimum_configuration_object(minimum_configuration):
     # create configuration
-    config = Configuration(**minimum_config)
+    config = Configuration(**minimum_configuration)
 
     # instantiate CAREamist
-    CAREamist(config)
+    CAREamist(configuration=config)
+
+
+def test_minimum_configuration_path(tmp_path, minimum_configuration):
+    # create configuration
+    config = Configuration(**minimum_configuration)
+    path_to_config = save_configuration(config, tmp_path)
+
+    # instantiate CAREamist
+    CAREamist(path_to_config=path_to_config)

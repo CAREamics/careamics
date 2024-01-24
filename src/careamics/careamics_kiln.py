@@ -8,7 +8,7 @@ from careamics.losses import create_loss_function
 from careamics.models.model_factory import model_registry
 
 
-class CAREamicsModel(L.LightningModule):
+class CAREamicsKiln(L.LightningModule):
     def __init__(
         self,
         algorithm_config: Algorithm
@@ -59,6 +59,6 @@ class CAREamicsModel(L.LightningModule):
         return {
             "optimizer": optimizer,
             "lr_scheduler": scheduler,
-            "monitor": "val_loss", # otherwise you get a MisconfigurationException
+            "monitor": "val_loss", # otherwise one gets a MisconfigurationException
         }
     
