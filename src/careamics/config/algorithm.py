@@ -388,6 +388,7 @@ class Algorithm(BaseModel):
 
     optimizer: Optimizer
     lr_scheduler: LrScheduler
+    # transforms: Optional[OrderedDict] = None
 
     # Optional fields, define a default value
     #noise_model: Optional[NoiseModel] = None
@@ -420,38 +421,10 @@ class Algorithm(BaseModel):
     # def algorithm_cross_validation(cls, data: Algorithm) -> Algorithm:
     #     """Validate loss.
 
-    @field_validator("transforms")
-    def validate_transforms(
-        cls, data: OrderedDict, values: ValidationInfo
-    ) -> OrderedDict:
-        """Validate transforms.
-
-        Returns
-        -------
-        Dict
-            Validated transforms.
-
-        Raises
-        ------
-        ValueError
-            If the transforms are not supported.
-        """
-        if values.data["algorithm_type"] in [AlgorithmType.N2V, AlgorithmType.PN2V]:
-            if "ManipulateN2V" not in data.keys():
-                # TODO add default parameters
-                data["ManipulateN2V"] = {
-                    "masked_pixel_percentage": 0.2,
-                    "roi_size": 11,
-                }
-                warnings.warn("No masking strategy in transforms. Adding default.")
-            elif "struck_mask" in data.values():
-                # TODO validate mask
-                pass
-        return data
-
-    @model_validator(mode="after")
-    def algorithm_cross_validation(cls, data: Algorithm) -> Algorithm:
-        """Validate loss.
+    #     Returns
+    #     -------
+    #     Loss
+    #         Validated loss.
 
     #     Raises
     #     ------

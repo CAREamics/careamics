@@ -20,6 +20,7 @@ class SupportedExtension(str, Enum):
 
     TIFF = "tiff"
     TIF = "tif"
+    CUSTOM = "custom"
     # ZARR = "zarr"
 
     @classmethod

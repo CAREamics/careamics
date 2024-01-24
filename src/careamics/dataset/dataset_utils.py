@@ -341,7 +341,7 @@ def read_zarr(
 
 
 def get_patch_transform(
-    patch_transform: str, normalize_mask: bool, target: bool
+    patch_transform: str, target: bool, normalize_mask: bool = True
 ) -> Union[None, Callable]:
     """Return a pixel manipulation function.
 
@@ -361,14 +361,14 @@ def get_patch_transform(
     """
     if patch_transform is None:
         return Aug.NoOp()
-    elif isinstance(patch_transform, dict):
+    elif isinstance(patch_transform, list):
         # TODO not very readable
         return Aug.Compose(
             [
-                ALL_TRANSFORMS[transform](**parameters)
-                if parameters
-                else ALL_TRANSFORMS[transform]()
-                for transform, parameters in patch_transform.items()
+                ALL_TRANSFORMS[transform["name"]](**transform["parameters"])
+                if "parameters" in transform
+                else ALL_TRANSFORMS[transform["name"]]()
+                for transform in patch_transform
             ],
             additional_targets={"target": "image"}
             if (target and normalize_mask)

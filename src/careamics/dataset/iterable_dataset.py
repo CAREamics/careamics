@@ -10,10 +10,10 @@ from typing import Callable, Generator, List, Optional, Tuple, Union
 import numpy as np
 import torch
 
+from ..config.data import Data
 from ..utils import normalize
 from ..utils.logging import get_logger
 from .dataset_utils import get_patch_transform, list_files, read_tiff, validate_files
-from .extraction_strategy import ExtractionStrategy
 from .patching import generate_patches_supervised, generate_patches_unsupervised
 
 logger = get_logger(__name__)
@@ -47,26 +47,20 @@ class IterableDataset(torch.utils.data.IterableDataset):
 
     def __init__(
         self,
-        data_path: Union[str, Path],
-        data_format: str,
-        axes: str,
-        patch_extraction_method: Union[ExtractionStrategy, None],
-        patch_size: Optional[Union[List[int], Tuple[int]]] = None,
-        patch_overlap: Optional[Union[List[int], Tuple[int]]] = None,
-        mean: Optional[float] = None,
-        std: Optional[float] = None,
-        patch_transform: Optional[Callable] = None,
+        data_path: Union[str, Path, List[Union[str, Path]]],
+        data: Data,
         target_path: Optional[Union[str, Path, List[Union[str, Path]]]] = None,
         target_format: Optional[str] = None,
         read_source_func: Optional[Callable] = None,
+        **kwargs,
     ) -> None:
         self.data_path = Path(data_path)
         if not self.data_path.is_dir():
             raise ValueError("Path to data should be an existing folder.")
         self.target_path = target_path
-        self.data_format = data_format
+        self.data_format = data.data_format
         self.target_format = target_format
-        self.axes = axes
+        self.axes = data.axes
 
         if not self.data_path.is_dir():
             raise ValueError("Path to data should be an existing folder.")
@@ -80,18 +74,16 @@ class IterableDataset(torch.utils.data.IterableDataset):
             self.target_files = list_files(self.target_path, self.target_format)
             validate_files(self.data_files, self.target_files)
 
-        self.patch_size = patch_size
-        self.patch_overlap = patch_overlap
-        self.patch_extraction_method = patch_extraction_method
+        self.patch_size = data.patch_size
+        self.patch_extraction_method = "tiled" # FIXME
         self.source_read_func = read_source_func if read_source_func else read_tiff
 
-        self.mean = mean
-        self.std = std
-
-        if not mean or not std:
+        if not data.mean or not data.std:
             self.mean, self.std = self._calculate_mean_and_std()
 
-        self.patch_transform = get_patch_transform(patch_transform)
+        self.patch_transform = get_patch_transform(
+            patch_transform=data.transforms, target=target_path is not None
+        )
 
     def _calculate_mean_and_std(self) -> Tuple[float, float]:
         """
@@ -168,7 +160,6 @@ class IterableDataset(torch.utils.data.IterableDataset):
                     self.axes,
                     self.patch_extraction_method,
                     self.patch_size,
-                    self.patch_overlap,
                 )
 
             else:
@@ -177,7 +168,6 @@ class IterableDataset(torch.utils.data.IterableDataset):
                     self.axes,
                     self.patch_extraction_method,
                     self.patch_size,
-                    self.patch_overlap,
                 )
 
             for patch_data in patches:

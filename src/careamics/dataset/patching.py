@@ -514,7 +514,7 @@ def _extract_tiles(
         Tile generator that yields the tile with corresponding coordinates to stitch
         back the tiles together.
     """
-    arr, _ = reshape_data(arr, axes)
+    # arr, _ = reshape_data(arr, axes)
 
     # Iterate over num samples (S)
     for sample_idx in range(arr.shape[0]):
@@ -764,13 +764,11 @@ def generate_patches_unsupervised(
 
         if patch_extraction_method == ExtractionStrategy.TILED:
             if patch_overlap is None:
-                raise ValueError(
-                    "Overlaps must be specified when using tiling (got None)."
-                )
+                patch_overlap = [48] * len(patch_size) # TODO calculate overlap from model
             patches = _extract_tiles(
                 arr=sample, axes=axes, tile_size=patch_size, overlaps=patch_overlap
             )
-
+        # TODO split so there's no extraciton strat param
         elif patch_extraction_method == ExtractionStrategy.RANDOM:
             # Returns a generator of patches and targets(if present)
             patches = _extract_patches_random(sample, patch_size=patch_size)

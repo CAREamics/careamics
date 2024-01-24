@@ -5,7 +5,7 @@ from typing import Callable, List, Optional, Tuple, Union
 import numpy as np
 import torch
 
-from ..config.algorithm import AlgorithmType
+from ..config.data import Data
 from ..utils import normalize
 from ..utils.logging import get_logger
 from .dataset_utils import get_patch_transform, list_files, read_tiff, validate_files
@@ -49,16 +49,11 @@ class InMemoryDataset(torch.utils.data.Dataset):
     def __init__(
         self,
         data_path: Union[str, Path, List[Union[str, Path]]],
-        data_format: str,
-        axes: str,
-        patch_size: Union[List[int], Tuple[int]],
-        algorithm: AlgorithmType = AlgorithmType.N2V,
-        mean: Optional[float] = None,
-        std: Optional[float] = None,
-        patch_transform: Optional[Callable] = None,
+        data: Data,
         target_path: Optional[Union[str, Path, List[Union[str, Path]]]] = None,
         target_format: Optional[str] = None,
         read_source_func: Optional[Callable] = None,
+        **kwargs,
     ) -> None:
         """
         Constructor.
@@ -92,11 +87,12 @@ class InMemoryDataset(torch.utils.data.Dataset):
         if not self.data_path.is_dir():
             raise ValueError("Path to data should be an existing folder.")
 
-        self.data_format = data_format
+        self.data_format = data.data_format
         self.target_path = target_path
         self.target_format = target_format
 
-        self.axes = axes
+        self.axes = data.axes
+        self.algorithm = None  # TODO add algorithm type
 
         self.read_source_func = (
             read_source_func if read_source_func is not None else read_tiff
@@ -110,27 +106,27 @@ class InMemoryDataset(torch.utils.data.Dataset):
             self.target_files = list_files(self.target_path, self.target_format)
             validate_files(self.files, self.target_files)
 
-        self.patch_size = patch_size
-
-        self.mean = mean
-        self.std = std
+        self.patch_size = data.patch_size
 
         # Generate patches
         self.data, self.targets, computed_mean, computed_std = self._prepare_patches()
 
-        if not mean or not std:
+        if not data.mean or not data.std:
             self.mean, self.std = computed_mean, computed_std
             logger.info(f"Computed dataset mean: {self.mean}, std: {self.std}")
         assert self.mean is not None
         assert self.std is not None
 
-        patch_transform["Normalize"] = {
+        data.transforms[[t["name"] for t in data.transforms].index("Normalize")][
+            "parameters"
+        ] = {
             "mean": self.mean,
             "std": self.std,
             "max_pixel_value": 1,
         }
         self.patch_transform = get_patch_transform(
-            patch_transform, algorithm != AlgorithmType.SEGM, target_path is not None
+            patch_transform=data.transforms,
+            target=target_path is not None,
         )
 
     def _prepare_patches(self) -> Callable:
@@ -157,6 +153,7 @@ class InMemoryDataset(torch.utils.data.Dataset):
                 self.files,
                 self.axes,
                 self.patch_size,
+                self.read_source_func,
             )
 
     def __len__(self) -> int:
@@ -202,11 +199,11 @@ class InMemoryDataset(torch.utils.data.Dataset):
                 )
                 patch, target = np.moveaxis(transformed["image"], -1, 0), np.moveaxis(
                     transformed["target"], -1, 0
-                )
+                ) # TODO check if this is correct!
                 return patch, target
             else:
                 patch = self.patch_transform(image=np.moveaxis(patch, 0, -1))["image"]
-                return np.moveaxis(patch, -1, 0)
+                return patch
         else:
             raise ValueError("Dataset mean and std must be set before using it.")
 

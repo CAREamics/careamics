@@ -96,7 +96,10 @@ def get_train_dataset(
 
 
 def get_validation_dataset(
-    config: Configuration, val_path: str, val_target_path: Optional[str] = None
+    data_config: Data,
+    val_path: str,
+    val_target_path: Optional[str] = None,
+    read_source_func: Optional[Callable] = None,
 ) -> Union[InMemoryDataset, ZarrDataset]:
     """
     Create validation dataset.
