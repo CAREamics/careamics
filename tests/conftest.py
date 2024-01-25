@@ -8,7 +8,7 @@ import pytest
 import tifffile
 
 from careamics.config import Configuration
-from careamics.config.algorithm import Algorithm, LrScheduler, Optimizer
+from careamics.config.algorithm import Algorithm, LrSchedulerModel, OptimizerModel
 from careamics.config.data import Data
 from careamics.config.training import Training
 
@@ -39,7 +39,6 @@ def minimum_algorithm() -> dict:
         "loss": "n2v",
         "model": {
             "architecture": "UNet",
-            "is_3D": False,
         },
         "optimizer": {
             "name": "Adam",
@@ -294,8 +293,8 @@ def base_configuration(temp_dir: Path, patch_size) -> Configuration:
             num_epochs=1,
             patch_size=patch_size,
             batch_size=2,
-            optimizer=Optimizer(name="Adam"),
-            lr_scheduler=LrScheduler(name="ReduceLROnPlateau"),
+            optimizer=OptimizerModel(name="Adam"),
+            lr_scheduler=LrSchedulerModel(name="ReduceLROnPlateau"),
             extraction_strategy="random",
             augmentation=True,
             num_workers=0,
@@ -326,8 +325,8 @@ def supervised_configuration(temp_dir: Path, patch_size) -> Configuration:
             num_epochs=1,
             patch_size=patch_size,
             batch_size=2,
-            optimizer=Optimizer(name="Adam"),
-            lr_scheduler=LrScheduler(name="ReduceLROnPlateau"),
+            optimizer=OptimizerModel(name="Adam"),
+            lr_scheduler=LrSchedulerModel(name="ReduceLROnPlateau"),
             extraction_strategy="random",
             augmentation=True,
             num_workers=0,

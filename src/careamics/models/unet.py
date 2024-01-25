@@ -271,7 +271,7 @@ class UNet(nn.Module):
 
     Parameters
     ----------
-    conv_dim : int
+    conv_dims : int
         Number of dimensions of the convolution layers (2 or 3).
     num_classes : int, optional
         Number of classes to predict, by default 1.
@@ -293,7 +293,7 @@ class UNet(nn.Module):
 
     def __init__(
         self,
-        conv_dim: int,
+        conv_dims: int,
         num_classes: int = 1,
         in_channels: int = 1,
         depth: int = 3,
@@ -310,7 +310,7 @@ class UNet(nn.Module):
 
         Parameters
         ----------
-        conv_dim : int
+        conv_dims : int
             Number of dimensions of the convolution layers (2 or 3).
         num_classes : int, optional
             Number of classes to predict, by default 1.
@@ -332,7 +332,7 @@ class UNet(nn.Module):
         super().__init__()
 
         self.encoder = UnetEncoder(
-            conv_dim,
+            conv_dims,
             in_channels=in_channels,
             depth=depth,
             num_channels_init=num_channels_init,
@@ -343,14 +343,14 @@ class UNet(nn.Module):
         )
 
         self.decoder = UnetDecoder(
-            conv_dim,
+            conv_dims,
             depth=depth,
             num_channels_init=num_channels_init,
             use_batch_norm=use_batch_norm,
             dropout=dropout,
             n2v2=n2v2,
         )
-        self.final_conv = getattr(nn, f"Conv{conv_dim}d")(
+        self.final_conv = getattr(nn, f"Conv{conv_dims}d")(
             in_channels=num_channels_init,
             out_channels=num_classes,
             kernel_size=1,

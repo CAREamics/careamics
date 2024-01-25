@@ -13,7 +13,6 @@ from careamics.dataset.prepare_dataset import (
     get_prediction_dataset,
 )
 
-
 # TODO callbacks
 # TODO save as modelzoo, lightning and pytorch_dict
 # TODO load checkpoints
@@ -101,6 +100,7 @@ class CAREamist:
         # instantiate trainer
         self.trainer = Trainer(max_epochs=self.cfg.training.num_epochs)
 
+    # TODO: @functools single dispatch
     def train(
         self,
         train_dataloader: DataLoader,

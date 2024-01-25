@@ -1,9 +1,19 @@
-from typing import Any
+from typing import Any, Union
 
 import pytorch_lightning as L
 import torch
 
-from careamics.config.algorithm import Algorithm
+from careamics.config.algorithm import (
+    Algorithm, 
+    AlgorithmType, 
+    Loss
+)
+from careamics.config.torch_optim import (
+    TorchOptimizers, 
+    TorchLRSchedulers
+)
+from careamics.config.architectures import Architectures
+
 from careamics.losses import create_loss_function
 from careamics.models.model_factory import model_registry
 
@@ -62,3 +72,38 @@ class CAREamicsKiln(L.LightningModule):
             "monitor": "val_loss", # otherwise one gets a MisconfigurationException
         }
     
+# TODO tests
+class CAREamicsModule(CAREamicsKiln):
+
+    def __init__(
+        self,
+        algorithm_type: Union[AlgorithmType, str],
+        loss: Union[Loss, str],
+        model: Union[Architectures, str],
+        model_parameters: dict,
+        optimizer: Union[TorchOptimizers, str],
+        optimizer_parameters: dict,
+        lr_scheduler: Union[TorchLRSchedulers, str],
+        lr_scheduler_parameters: dict,
+    ) -> None:
+        
+        algorithm_configuration = {
+            "algorithm_type": algorithm_type,
+            "loss": loss,
+            "model": {
+                "architecture": model
+            },
+            "optimizer": {
+                "name": optimizer,
+                "parameters": optimizer_parameters
+            },
+            "lr_scheduler": {
+                "name": lr_scheduler,
+                "parameters": lr_scheduler_parameters
+            }
+        }
+
+        # add model parameters
+        algorithm_configuration["model"].update(model_parameters)
+
+        super().__init__(Algorithm(**algorithm_configuration))

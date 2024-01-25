@@ -9,7 +9,7 @@ from careamics.models.unet import UNet
 def test_unet_depth(depth):
     """Test that the UNet has the correct number of down and up convs
     with respect to the depth."""
-    model = UNet(conv_dim=2, depth=depth)
+    model = UNet(conv_dims=2, depth=depth)
 
     # check that encoder has the right number of down convs
     counter_down = 0

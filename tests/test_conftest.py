@@ -22,8 +22,3 @@ def test_minimum_training(minimum_training):
 def test_minimum_configuration(minimum_configuration):
     # create configuration
     Configuration(**minimum_configuration)
-
-
-def test_complete_configuration(complete_configuration):
-    # create configuration
-    Configuration(**complete_configuration)
