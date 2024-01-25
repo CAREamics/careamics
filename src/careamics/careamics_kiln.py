@@ -72,7 +72,6 @@ class CAREamicsKiln(L.LightningModule):
             "monitor": "val_loss", # otherwise one gets a MisconfigurationException
         }
     
-# TODO tests
 class CAREamicsModule(CAREamicsKiln):
 
     def __init__(

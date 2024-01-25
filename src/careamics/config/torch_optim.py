@@ -121,8 +121,15 @@ class OptimizerModel(BaseModel):
         ValueError
             If the optimizer name is not specified.
         """
+        # None value to default
         if user_params is None:
             user_params = {}
+
+        # since we are validating before type validation, enforce is here
+        if not isinstance(user_params, dict):
+            raise ValueError(
+                f"Optimizer parameters must be a dictionary, got {type(user_params)}."
+            )
 
         if "name" in values.data:
             optimizer_name = values.data["name"]
@@ -257,9 +264,16 @@ class LrSchedulerModel(BaseModel):
         ValueError
             If the lr scheduler name is not specified.
         """
+        # None value to default
         if user_params is None:
             user_params = {}
-
+        
+        # since we are validating before type validation, enforce is here
+        if not isinstance(user_params, dict):
+            raise ValueError(
+                f"Optimizer parameters must be a dictionary, got {type(user_params)}."
+            )
+        
         if "name" in values.data:
             lr_scheduler_name = values.data["name"]
 
