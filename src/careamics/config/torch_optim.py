@@ -18,7 +18,7 @@ from torch import optim
 from .filters import remove_default_optionals
 
 
-class TorchOptimizers(str, Enum):
+class TorchOptimizer(str, Enum):
     """
     Supported optimizers.
 
@@ -40,7 +40,7 @@ class TorchOptimizers(str, Enum):
     # SparseAdam = "SparseAdam"
 
 
-class TorchLRSchedulers(str, Enum):
+class TorchLRScheduler(str, Enum):
     """
     Supported learning rate schedulers.
 
@@ -92,12 +92,12 @@ class OptimizerModel(BaseModel):
     )
 
     # Mandatory field
-    name: TorchOptimizers
+    name: TorchOptimizer
 
-    # Optional parameters
+    # Optional parameters, empty dict default value to allow filtering dictionary
     parameters: dict = {}
 
-    @field_validator("parameters")
+    @field_validator("parameters", mode='before')
     def filter_parameters(cls, user_params: dict, values: ValidationInfo) -> Dict:
         """
         Validate optimizer parameters.
@@ -121,6 +121,9 @@ class OptimizerModel(BaseModel):
         ValueError
             If the optimizer name is not specified.
         """
+        if user_params is None:
+            user_params = {}
+
         if "name" in values.data:
             optimizer_name = values.data["name"]
 
@@ -155,7 +158,7 @@ class OptimizerModel(BaseModel):
         ValueError
             If the optimizer is SGD and the lr parameter is not specified.
         """
-        if optimizer.name == TorchOptimizers.SGD and "lr" not in optimizer.parameters:
+        if optimizer.name == TorchOptimizer.SGD and "lr" not in optimizer.parameters:
             raise ValueError(
                 "SGD optimizer requires `lr` parameter, check that it has correctly "
                 "been specified in `parameters`."
@@ -225,12 +228,12 @@ class LrSchedulerModel(BaseModel):
     )
 
     # Mandatory field
-    name: TorchLRSchedulers
+    name: TorchLRScheduler
 
     # Optional parameters
     parameters: dict = {}
 
-    @field_validator("parameters")
+    @field_validator("parameters", mode='before')
     def filter_parameters(cls, user_params: dict, values: ValidationInfo) -> Dict:
         """
         Validate lr scheduler parameters.
@@ -254,6 +257,9 @@ class LrSchedulerModel(BaseModel):
         ValueError
             If the lr scheduler name is not specified.
         """
+        if user_params is None:
+            user_params = {}
+
         if "name" in values.data:
             lr_scheduler_name = values.data["name"]
 
@@ -289,7 +295,7 @@ class LrSchedulerModel(BaseModel):
             If the lr scheduler is StepLR and the step_size parameter is not specified.
         """
         if (
-            lr_scheduler.name == TorchLRSchedulers.StepLR
+            lr_scheduler.name == TorchLRScheduler.StepLR
             and "step_size" not in lr_scheduler.parameters
         ):
             raise ValueError(

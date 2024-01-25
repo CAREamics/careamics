@@ -4,8 +4,8 @@ from torch import optim
 from careamics.config.torch_optim import (
     OptimizerModel,
     LrSchedulerModel,
-    TorchLRSchedulers,
-    TorchOptimizers,
+    TorchLRScheduler,
+    TorchOptimizer,
     get_optimizers,
     get_schedulers,
 )
@@ -22,7 +22,7 @@ def test_get_schedulers_exist():
 def test_torch_schedulers_exist():
     """Test that the enum `TorchLRScheduler` contains
     existing torch schedulers."""
-    for scheduler in TorchLRSchedulers:
+    for scheduler in TorchLRScheduler:
         assert hasattr(optim.lr_scheduler, scheduler)
 
 
@@ -37,7 +37,7 @@ def test_get_optimizers_exist():
 def test_optimizers_exist():
     """Test that the enum `TorchOptimizer` contains
     existing torch optimizers."""
-    for optimizer in TorchOptimizers:
+    for optimizer in TorchOptimizer:
         assert hasattr(optim, optimizer)
 
 
@@ -45,7 +45,7 @@ def test_optimizers_exist():
     "optimizer_name, parameters",
     [
         (
-            TorchOptimizers.Adam,
+            TorchOptimizer.Adam,
             {
                 "lr": 0.08,
                 "betas": (0.1, 0.11),
@@ -55,7 +55,7 @@ def test_optimizers_exist():
             },
         ),
         (
-            TorchOptimizers.SGD,
+            TorchOptimizer.SGD,
             {
                 "lr": 0.11,
                 "momentum": 5,
@@ -66,7 +66,7 @@ def test_optimizers_exist():
         ),
     ],
 )
-def test_optimizer_parameters(optimizer_name: TorchOptimizers, parameters: dict):
+def test_optimizer_parameters(optimizer_name: TorchOptimizer, parameters: dict):
     """Test optimizer parameters filtering.
 
     For parameters, see:
@@ -87,19 +87,19 @@ def test_sgd_missing_parameter():
     Note: The SGD optimizer requires the `lr` parameter.
     """
     with pytest.raises(ValueError):
-        OptimizerModel(name=TorchOptimizers.SGD, parameters={})
+        OptimizerModel(name=TorchOptimizer.SGD, parameters={})
 
     # test that it works if lr is provided
-    optimizer = OptimizerModel(name=TorchOptimizers.SGD, parameters={"lr": 0.1})
+    optimizer = OptimizerModel(name=TorchOptimizer.SGD, parameters={"lr": 0.1})
     assert optimizer.parameters == {"lr": 0.1}
 
 
 def test_optimizer_wrong_values_by_assignments():
     """Test that wrong values cause an error during assignment."""
-    optimizer = OptimizerModel(name=TorchOptimizers.Adam, parameters={"lr": 0.08})
+    optimizer = OptimizerModel(name=TorchOptimizer.Adam, parameters={"lr": 0.08})
 
     # name
-    optimizer.name = TorchOptimizers.SGD
+    optimizer.name = TorchOptimizer.SGD
     with pytest.raises(ValueError):
         optimizer.name = "MyOptim"
 
@@ -138,7 +138,7 @@ def test_optimizer_to_dict_default_optional():
     "lr_scheduler_name, parameters",
     [
         (
-            TorchLRSchedulers.ReduceLROnPlateau,
+            TorchLRScheduler.ReduceLROnPlateau,
             {
                 "mode": "max",
                 "factor": 0.3,
@@ -151,7 +151,7 @@ def test_optimizer_to_dict_default_optional():
             },
         ),
         (
-            TorchLRSchedulers.StepLR,
+            TorchLRScheduler.StepLR,
             {
                 "step_size": 2,
                 "gamma": 0.3,
@@ -160,7 +160,7 @@ def test_optimizer_to_dict_default_optional():
         ),
     ],
 )
-def test_scheduler_parameters(lr_scheduler_name: TorchLRSchedulers, parameters: dict):
+def test_scheduler_parameters(lr_scheduler_name: TorchLRScheduler, parameters: dict):
     """Test lr scheduler parameters filtering.
 
     For parameters, see:
@@ -178,11 +178,11 @@ def test_scheduler_parameters(lr_scheduler_name: TorchLRSchedulers, parameters: 
 def test_scheduler_missing_parameter():
     """Test that StepLR scheduler fails if `step_size` is not provided"""
     with pytest.raises(ValueError):
-        LrSchedulerModel(name=TorchLRSchedulers.StepLR, parameters={})
+        LrSchedulerModel(name=TorchLRScheduler.StepLR, parameters={})
 
     # test that it works if lr is provided
     lr_scheduler = LrSchedulerModel(
-        name=TorchLRSchedulers.StepLR, parameters={"step_size": "5"}
+        name=TorchLRScheduler.StepLR, parameters={"step_size": "5"}
     )
     assert lr_scheduler.parameters == {"step_size": "5"}
 
@@ -190,20 +190,20 @@ def test_scheduler_missing_parameter():
 def test_scheduler_wrong_values_by_assignments():
     """Test that wrong values cause an error during assignment."""
     scheduler = LrSchedulerModel(
-        name=TorchLRSchedulers.ReduceLROnPlateau, parameters={"factor": 0.3}
+        name=TorchLRScheduler.ReduceLROnPlateau, parameters={"factor": 0.3}
     )
 
     # name
-    scheduler.name = TorchLRSchedulers.ReduceLROnPlateau
+    scheduler.name = TorchLRScheduler.ReduceLROnPlateau
     with pytest.raises(ValueError):
         # this fails because the step parameter is missing
-        scheduler.name = TorchLRSchedulers.StepLR
+        scheduler.name = TorchLRScheduler.StepLR
 
     with pytest.raises(ValueError):
         scheduler.name = "Schedule it yourself!"
 
     # parameters
-    scheduler.name = TorchLRSchedulers.ReduceLROnPlateau
+    scheduler.name = TorchLRScheduler.ReduceLROnPlateau
     scheduler.parameters = {"factor": 0.1}
     with pytest.raises(ValueError):
         scheduler.parameters = "factor = 0.3"

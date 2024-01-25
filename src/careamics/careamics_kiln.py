@@ -1,4 +1,4 @@
-from typing import Any, Union
+from typing import Any, Optional, Union
 
 import pytorch_lightning as L
 import torch
@@ -9,10 +9,10 @@ from careamics.config.algorithm import (
     Loss
 )
 from careamics.config.torch_optim import (
-    TorchOptimizers, 
-    TorchLRSchedulers
+    TorchOptimizer, 
+    TorchLRScheduler
 )
-from careamics.config.architectures import Architectures
+from careamics.config.architectures import Architecture
 
 from careamics.losses import create_loss_function
 from careamics.models.model_factory import model_registry
@@ -79,19 +79,19 @@ class CAREamicsModule(CAREamicsKiln):
         self,
         algorithm_type: Union[AlgorithmType, str],
         loss: Union[Loss, str],
-        model: Union[Architectures, str],
+        architecture: Union[Architecture, str],
         model_parameters: dict,
-        optimizer: Union[TorchOptimizers, str],
-        optimizer_parameters: dict,
-        lr_scheduler: Union[TorchLRSchedulers, str],
-        lr_scheduler_parameters: dict,
+        optimizer: Union[TorchOptimizer, str],
+        lr_scheduler: Union[TorchLRScheduler, str],
+        optimizer_parameters: Optional[dict] = None,
+        lr_scheduler_parameters: Optional[dict] = None,
     ) -> None:
         
         algorithm_configuration = {
             "algorithm_type": algorithm_type,
             "loss": loss,
             "model": {
-                "architecture": model
+                "architecture": architecture
             },
             "optimizer": {
                 "name": optimizer,

@@ -1,6 +1,6 @@
 from enum import Enum
 
-class Architectures(str, Enum):
+class Architecture(str, Enum):
     
     UNET = "UNet"
     VAE = "VAE"

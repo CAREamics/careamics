@@ -9,7 +9,8 @@ except PackageNotFoundError:
 
 __all__ = [
     "CAREamist", 
-    "CAREamicsKiln", 
+    "CAREamicsKiln",
+    "CAREamicsModule", 
     "Configuration", 
     "load_configuration", 
     "save_configuration"
@@ -17,4 +18,4 @@ __all__ = [
 
 from .config import Configuration, load_configuration, save_configuration
 from .careamist import CAREamist
-from .careamics_kiln import CAREamicsKiln
+from .careamics_kiln import CAREamicsKiln, CAREamicsModule

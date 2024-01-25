@@ -4,8 +4,8 @@ from careamics.config.algorithm import Algorithm
 from careamics.config.torch_optim import (
     OptimizerModel,
     LrSchedulerModel,
-    TorchOptimizers,
-    TorchLRSchedulers,
+    TorchOptimizer,
+    TorchLRScheduler,
 )
 
 
@@ -51,13 +51,13 @@ def test_wrong_values_by_assigment(minimum_algorithm: dict):
         algo.model.architecture = "YouNet"
 
     # optimizer
-    algo.optimizer = OptimizerModel(name=TorchOptimizers.Adam, parameters={"lr": 0.1})
+    algo.optimizer = OptimizerModel(name=TorchOptimizer.Adam, parameters={"lr": 0.1})
     with pytest.raises(ValueError):
         algo.optimizer = "I'd rather not to."
 
     # lr_scheduler
     algo.lr_scheduler = LrSchedulerModel(
-        name=TorchLRSchedulers.ReduceLROnPlateau, parameters={"factor": 0.1}
+        name=TorchLRScheduler.ReduceLROnPlateau, parameters={"factor": 0.1}
     )
     with pytest.raises(ValueError):
         algo.lr_scheduler = "Why don't you schedule it for once? :)"
