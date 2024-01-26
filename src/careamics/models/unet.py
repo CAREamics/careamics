@@ -3,44 +3,14 @@ UNet model.
 
 A UNet encoder, decoder and complete model.
 """
-from typing import Callable, List, Optional
+from typing import List, Union
 
 import torch
 import torch.nn as nn
 
 from .layers import Conv_Block, MaxBlurPool
-
-
-def get_activation(activation: str) -> Callable:
-    """
-    Get activation function.
-
-    Parameters
-    ----------
-    activation : str
-        Activation function name.
-
-    Returns
-    -------
-    Callable
-        Activation function.
-    """
-    activation = activation.capitalize()
-
-    if activation == "ReLU":
-        return nn.ReLU()
-    elif activation == "LeakyReLU":
-        return nn.LeakyReLU()
-    elif activation == "Tanh":
-        return nn.Tanh()
-    elif activation == "Sigmoid":
-        return nn.Sigmoid()
-    elif activation == "Softmax":
-        return nn.Softmax(dim=1)
-    elif activation == "None":
-        return nn.Identity()
-    else:
-        raise ValueError(f"Activation {activation} not supported.")
+from .activation import get_activation
+from ..config.architectures.architectures import Activation
 
 
 class UnetEncoder(nn.Module):
@@ -98,6 +68,7 @@ class UnetEncoder(nn.Module):
         """
         super().__init__()
 
+        # TODO: what's this commented line?
         # pooling_op = "MaxBlurPool" if n2v2 else "MaxPool"
 
         self.pooling = (
@@ -266,12 +237,12 @@ class UNet(nn.Module):
     """
     UNet model.
 
-    Adapted for PyTorch from
+    Adapted for PyTorch from:
     https://github.com/juglab/n2v/blob/main/n2v/nets/unet_blocks.py.
 
     Parameters
     ----------
-    conv_dim : int
+    conv_dims : int
         Number of dimensions of the convolution layers (2 or 3).
     num_classes : int, optional
         Number of classes to predict, by default 1.
@@ -293,7 +264,7 @@ class UNet(nn.Module):
 
     def __init__(
         self,
-        conv_dim: int,
+        conv_dims: int,
         num_classes: int = 1,
         in_channels: int = 1,
         depth: int = 3,
@@ -301,7 +272,7 @@ class UNet(nn.Module):
         use_batch_norm: bool = True,
         dropout: float = 0.0,
         pool_kernel: int = 2,
-        final_activation: Optional[Callable] = None,
+        final_activation: Union[Activation, str] = Activation.NONE,
         n2v2: bool = False,
         **kwargs,
     ) -> None:
@@ -310,7 +281,7 @@ class UNet(nn.Module):
 
         Parameters
         ----------
-        conv_dim : int
+        conv_dims : int
             Number of dimensions of the convolution layers (2 or 3).
         num_classes : int, optional
             Number of classes to predict, by default 1.
@@ -332,7 +303,7 @@ class UNet(nn.Module):
         super().__init__()
 
         self.encoder = UnetEncoder(
-            conv_dim,
+            conv_dims,
             in_channels=in_channels,
             depth=depth,
             num_channels_init=num_channels_init,
@@ -343,14 +314,14 @@ class UNet(nn.Module):
         )
 
         self.decoder = UnetDecoder(
-            conv_dim,
+            conv_dims,
             depth=depth,
             num_channels_init=num_channels_init,
             use_batch_norm=use_batch_norm,
             dropout=dropout,
             n2v2=n2v2,
         )
-        self.final_conv = getattr(nn, f"Conv{conv_dim}d")(
+        self.final_conv = getattr(nn, f"Conv{conv_dims}d")(
             in_channels=num_channels_init,
             out_channels=num_classes,
             kernel_size=1,

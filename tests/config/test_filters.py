@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from careamics.config.config_filter import (
+from careamics.config.filters import (
     paths_to_str,
     remove_default_optionals,
 )

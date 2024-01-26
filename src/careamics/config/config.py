@@ -14,7 +14,7 @@ from pydantic import (
 )
 
 from .algorithm import Algorithm
-from .config_filter import paths_to_str
+from .filters import paths_to_str
 from .data import Data
 from .training import Training
 

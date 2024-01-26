@@ -1,14 +1,24 @@
-from typing import Any
+from typing import Any, Optional, Union
 
 import pytorch_lightning as L
 import torch
 
-from careamics.config.algorithm import Algorithm
+from careamics.config.algorithm import (
+    Algorithm, 
+    AlgorithmType, 
+    Loss
+)
+from careamics.config.torch_optim import (
+    TorchOptimizer, 
+    TorchLRScheduler
+)
+from careamics.config.architectures import Architecture
+
 from careamics.losses import create_loss_function
 from careamics.models.model_factory import model_registry
 
 
-class CAREamicsModel(L.LightningModule):
+class CAREamicsKiln(L.LightningModule):
     def __init__(
         self,
         algorithm_config: Algorithm
@@ -59,6 +69,40 @@ class CAREamicsModel(L.LightningModule):
         return {
             "optimizer": optimizer,
             "lr_scheduler": scheduler,
-            "monitor": "val_loss", # otherwise you get a MisconfigurationException
+            "monitor": "val_loss", # otherwise one gets a MisconfigurationException
         }
     
+class CAREamicsModule(CAREamicsKiln):
+
+    def __init__(
+        self,
+        algorithm_type: Union[AlgorithmType, str],
+        loss: Union[Loss, str],
+        architecture: Union[Architecture, str],
+        model_parameters: dict,
+        optimizer: Union[TorchOptimizer, str],
+        lr_scheduler: Union[TorchLRScheduler, str],
+        optimizer_parameters: Optional[dict] = None,
+        lr_scheduler_parameters: Optional[dict] = None,
+    ) -> None:
+        
+        algorithm_configuration = {
+            "algorithm_type": algorithm_type,
+            "loss": loss,
+            "model": {
+                "architecture": architecture
+            },
+            "optimizer": {
+                "name": optimizer,
+                "parameters": optimizer_parameters
+            },
+            "lr_scheduler": {
+                "name": lr_scheduler,
+                "parameters": lr_scheduler_parameters
+            }
+        }
+
+        # add model parameters
+        algorithm_configuration["model"].update(model_parameters)
+
+        super().__init__(Algorithm(**algorithm_configuration))

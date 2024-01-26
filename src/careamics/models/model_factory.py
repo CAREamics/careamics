@@ -10,27 +10,23 @@ import torch
 
 from ..bioimage import import_bioimage_model
 from ..config import Configuration
-from ..config.model import Model, Architecture
+from ..config.architectures import Architecture, UNetModel
 from ..utils.logging import get_logger
 from .unet import UNet
 
 logger = get_logger(__name__)
 
 
-def model_registry(model_configuration: Model) -> torch.nn.Module:
+def model_registry(model_configuration: UNetModel) -> torch.nn.Module:
     """
     Model factory.
 
-    Supported models are defined in config.algorithm.Models.
+    Supported models are defined in careamics.config.architectures.Architectures.
 
     Parameters
     ----------
-    model_name : str
-        Name of the model.
-    conv_dim : int
-        Convolution dimension (2 or 3).
-    parameters : Dict
-        Model parameters.
+    model_configuration : UNetModel
+        Model configuration
 
     Returns
     -------
@@ -44,12 +40,12 @@ def model_registry(model_configuration: Model) -> torch.nn.Module:
     """
     if model_configuration.architecture == Architecture.UNET:
         return UNet(
-            conv_dim=model_configuration.get_conv_dim(), 
-            **model_configuration.parameters
+            **dict(model_configuration)
         )
     else:
-        # TODO does this work? or architecture.value()?
-        raise NotImplementedError(f"Model {model_configuration.architecture} is not implemented")
+        raise NotImplementedError(
+            f"Model {model_configuration.architecture} is not implemented or unknown."
+        )
 
 
 # TODO: split into two functions

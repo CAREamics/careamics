@@ -1,10 +1,13 @@
 import pytest
 
+from careamics.config.algorithm import Algorithm
 from careamics.config.torch_optim import (
-    TorchLRScheduler,
+    OptimizerModel,
+    LrSchedulerModel,
     TorchOptimizer,
+    TorchLRScheduler,
 )
-from careamics.config.algorithm import Algorithm, LrScheduler, Optimizer
+
 
 # from careamics.config.noise_models import NoiseModel
 
@@ -17,236 +20,46 @@ from careamics.config.algorithm import Algorithm, LrScheduler, Optimizer
 #     NoiseModel(**d)
 
 
-def test_wrong_values_by_assigment(complete_config: dict):
+@pytest.mark.parametrize("model_name", ["VAE", "UNet"])
+def test_model_discriminator(model_name):
+    """Test that discriminator permits correct assignment."""
+    architecture_config = {
+        "algorithm_type": "n2v",
+        "loss": "n2v",
+        "model": {"architecture": model_name},
+        "optimizer": {"name": "Adam"},
+        "lr_scheduler": {"name": "ReduceLROnPlateau"},
+    }
+
+    algo = Algorithm(**architecture_config)
+    assert algo.model.architecture == model_name
+
+
+def test_wrong_values_by_assigment(minimum_algorithm: dict):
     """Test that wrong values are not accepted through assignment."""
-    algorithm = complete_config["algorithm"]
-    algo = Algorithm(**algorithm)
+    algo = Algorithm(**minimum_algorithm)
 
     # loss
-    algo.loss = algorithm["loss"]
+    algo.loss = minimum_algorithm["loss"]
     with pytest.raises(ValueError):
-        algo.loss = "mse"
-
-    algo.loss = algorithm["loss"]
+        algo.loss = "ms-meh"
+    assert algo.loss == minimum_algorithm["loss"]
 
     # model
-    algo.model = algorithm["model"]
+    algo.model = minimum_algorithm["model"]
     with pytest.raises(ValueError):
-        algo.model.architecture = "Unet"
-
-    # is_3D
-    algo.is_3D = algorithm["is_3D"]
-    with pytest.raises(ValueError):
-        algo.is_3D = 3
+        algo.model.architecture = "YouNet"
 
     # optimizer
-    algo.optimizer = Optimizer(name=TorchOptimizer.Adam, parameters={"lr": 0.1})
+    algo.optimizer = OptimizerModel(name=TorchOptimizer.Adam, parameters={"lr": 0.1})
     with pytest.raises(ValueError):
         algo.optimizer = "I'd rather not to."
 
     # lr_scheduler
-    algo.lr_scheduler = LrScheduler(
+    algo.lr_scheduler = LrSchedulerModel(
         name=TorchLRScheduler.ReduceLROnPlateau, parameters={"factor": 0.1}
     )
     with pytest.raises(ValueError):
         algo.lr_scheduler = "Why don't you schedule it for once? :)"
 
-    # masking_strategy
-    algo.masking_strategy = algorithm["masking_strategy"]
-    with pytest.raises(ValueError):
-        algo.masking_strategy.strategy_type = "mean"
-
-    # masked_pixel_percentage
-    # algo.masking_strategy = algorithm["masking_strategy"]
-    # with pytest.raises(ValueError):
-    #     algo.masking_strategy.parameters["masked_pixel_percentage"] = 0.01
-    # TODO fix https://github.com/pydantic/pydantic/issues/7105
-
-    # model_parameters
-    algo.model.parameters = algorithm["model"]["parameters"]
-    with pytest.raises(ValueError):
-        algo.model.parameters = "params"
-
-
-@pytest.mark.parametrize(
-    "optimizer_name, parameters",
-    [
-        (
-            TorchOptimizer.Adam,
-            {
-                "lr": 0.08,
-                "betas": (0.1, 0.11),
-                "eps": 6e-08,
-                "weight_decay": 0.2,
-                "amsgrad": True,
-            },
-        ),
-        (
-            TorchOptimizer.SGD,
-            {
-                "lr": 0.11,
-                "momentum": 5,
-                "dampening": 1,
-                "weight_decay": 8,
-                "nesterov": True,
-            },
-        ),
-    ],
-)
-def test_optimizer_parameters(optimizer_name: TorchOptimizer, parameters: dict):
-    """Test optimizer parameters filtering.
-
-    For parameters, see:
-    https://pytorch.org/docs/stable/optim.html#algorithms
-    """
-    # add non valid parameter
-    new_parameters = parameters.copy()
-    new_parameters["some_random_one"] = 42
-
-    # create optimizer and check that the parameters are filtered
-    optimizer = Optimizer(name=optimizer_name, parameters=new_parameters)
-    assert optimizer.parameters == parameters
-
-
-def test_sgd_missing_parameter():
-    """Test that SGD optimizer fails if `lr` is not provided.
     
-    #TODO: explain why this test is here
-    """
-    with pytest.raises(ValueError):
-        Optimizer(name=TorchOptimizer.SGD, parameters={})
-
-    # test that it works if lr is provided
-    optimizer = Optimizer(name=TorchOptimizer.SGD, parameters={"lr": 0.1})
-    assert optimizer.parameters == {"lr": 0.1}
-
-
-def test_optimizer_wrong_values_by_assignments():
-    """Test that wrong values cause an error during assignment."""
-    optimizer = Optimizer(name=TorchOptimizer.Adam, parameters={"lr": 0.08})
-
-    # name
-    optimizer.name = TorchOptimizer.SGD
-    with pytest.raises(ValueError):
-        optimizer.name = "MyOptim"
-
-    # parameters
-    optimizer.parameters = {"lr": 0.1}
-    with pytest.raises(ValueError):
-        optimizer.parameters = "lr = 0.3"
-
-# TODO
-def test_optimizer_to_dict_complete(complete_config: dict):
-    """ "Test that export to dict does include optional value."""
-    optim_minimum = Optimizer(**complete_config["training"]["optimizer"]).model_dump()
-    assert optim_minimum == complete_config["training"]["optimizer"]
-
-    assert "name" in optim_minimum.keys()
-    assert "parameters" in optim_minimum.keys()
-
-# TODO
-def test_optimizer_to_dict_optional(complete_config: dict):
-    """ "Test that export to dict does not include optional value."""
-    optim_config = complete_config["training"]["optimizer"]
-    optim_config["parameters"] = {}
-
-    optim_minimum = Optimizer(**optim_config).model_dump()
-    assert "name" in optim_minimum.keys()
-    assert "parameters" not in optim_minimum.keys()
-
-
-@pytest.mark.parametrize(
-    "lr_scheduler_name, parameters",
-    [
-        (
-            TorchLRScheduler.ReduceLROnPlateau,
-            {
-                "mode": "max",
-                "factor": 0.3,
-                "patience": 5,
-                "threshold": 0.003,
-                "threshold_mode": "abs",
-                "cooldown": 3,
-                "min_lr": 0.1,
-                "eps": 5e-08,
-            },
-        ),
-        (
-            TorchLRScheduler.StepLR,
-            {
-                "step_size": 2,
-                "gamma": 0.3,
-                "last_epoch": -5,
-            },
-        ),
-    ],
-)
-def test_scheduler_parameters(lr_scheduler_name: TorchLRScheduler, parameters: dict):
-    """Test lr scheduler parameters filtering.
-
-    For parameters, see:
-    https://pytorch.org/docs/stable/optim.html#how-to-adjust-learning-rate
-    """
-    # add non valid parameter
-    new_parameters = parameters.copy()
-    new_parameters["some_random_one"] = 42
-
-    # create optimizer and check that the parameters are filtered
-    lr_scheduler = LrScheduler(name=lr_scheduler_name, parameters=new_parameters)
-    assert lr_scheduler.parameters == parameters
-
-
-def test_scheduler_missing_parameter():
-    """Test that StepLR scheduler fails if `step_size` is not provided"""
-    with pytest.raises(ValueError):
-        LrScheduler(name=TorchLRScheduler.StepLR, parameters={})
-
-    # test that it works if lr is provided
-    lr_scheduler = LrScheduler(
-        name=TorchLRScheduler.StepLR, parameters={"step_size": "5"}
-    )
-    assert lr_scheduler.parameters == {"step_size": "5"}
-
-
-def test_scheduler_wrong_values_by_assignments():
-    """Test that wrong values cause an error during assignment."""
-    scheduler = LrScheduler(
-        name=TorchLRScheduler.ReduceLROnPlateau, parameters={"factor": 0.3}
-    )
-
-    # name
-    scheduler.name = TorchLRScheduler.ReduceLROnPlateau
-    with pytest.raises(ValueError):
-        # this fails because the step parameter is missing
-        scheduler.name = TorchLRScheduler.StepLR
-
-    with pytest.raises(ValueError):
-        scheduler.name = "Schedule it yourself!"
-
-    # parameters
-    scheduler.name = TorchLRScheduler.ReduceLROnPlateau
-    scheduler.parameters = {"factor": 0.1}
-    with pytest.raises(ValueError):
-        scheduler.parameters = "factor = 0.3"
-
-# TODO
-def test_scheduler_to_dict_complete(complete_config: dict):
-    """ "Test that export to dict does include optional value."""
-    scheduler_complete = LrScheduler(
-        **complete_config["training"]["lr_scheduler"]
-    ).model_dump()
-    assert scheduler_complete == complete_config["training"]["lr_scheduler"]
-
-    assert "name" in scheduler_complete.keys()
-    assert "parameters" in scheduler_complete.keys()
-
-
-def test_scheduler_to_dict_optional(complete_config: dict):
-    """ "Test that export to dict does not include optional value."""
-    scheduler_config = complete_config["training"]["lr_scheduler"]
-    scheduler_config["parameters"] = {}
-
-    scheduler_complete = LrScheduler(**scheduler_config).model_dump()
-
-    assert "name" in scheduler_complete.keys()
-    assert "parameters" not in scheduler_complete.keys()

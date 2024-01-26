@@ -6,13 +6,12 @@ from pytorch_lightning import Trainer
 from torch.utils.data.dataloader import DataLoader
 
 from careamics.config import Configuration, load_configuration
-from careamics.lightning import CAREamicsModel
+from careamics.careamics_kiln import CAREamicsKiln
 from careamics.dataset.prepare_dataset import (
     get_train_dataset,
     get_validation_dataset,
     get_prediction_dataset,
 )
-
 
 # TODO callbacks
 # TODO save as modelzoo, lightning and pytorch_dict
@@ -27,12 +26,14 @@ class CAREamist:
     def __init__(
         self,
         *,
+        path_to_model: Optional[Union[Path, str]] = None,
         configuration: Optional[Configuration] = None,
         path_to_config: Optional[Union[Path, str]] = None,
     ) -> None:
         """A class to train and predict with CAREamics models.
 
         There are three ways to instantiate the CAREamist class:
+            - with a path to a BioImage Model Zoo model (BMZ format)
             - with a Configuration object (see Configuration model)
             - with a path to a configuration file
 
@@ -41,6 +42,8 @@ class CAREamist:
 
         Parameters
         ----------
+        path_to_model : Optional[Union[Path, str]], optional
+            Path to a BioImge Model Zoo model on disk, by default None
         configuration : Optional[Configuration], optional
             Configuration object, by default None
         path_to_config : Optional[Union[Path, str]], optional
@@ -57,7 +60,11 @@ class CAREamist:
         ValueError
             If no configuration or path is provided
         """
-        if configuration is not None:
+        if path_to_model is not None:
+            raise NotImplementedError(
+                "Loading a model from BioImage Model Zoo is not implemented yet."
+            )
+        elif configuration is not None:
             # Check that config is a Configuration object
             if not isinstance(configuration, Configuration):
                 raise TypeError(
@@ -83,16 +90,17 @@ class CAREamist:
 
         else:
             raise ValueError(
-                "No configuration or path provided. One of configuration "
-                "object or path must be provided."
+                "One of `path_to_model`, `configuration` or `path_to_config` "
+                "must be provided to the CAREamist."
             )
 
         # instantiate model
-        self.model = CAREamicsModel(self.cfg.algorithm)
+        self.model = CAREamicsKiln(self.cfg.algorithm)
 
         # instantiate trainer
         self.trainer = Trainer(max_epochs=self.cfg.training.num_epochs)
 
+    # TODO: @functools single dispatch
     def train(
         self,
         train_dataloader: DataLoader,

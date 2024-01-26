@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic import (
     BaseModel,
     ConfigDict,
@@ -5,8 +7,10 @@ from pydantic import (
     validator
 )
 
+from .architectures import Activation
 
-class UNet(BaseModel):
+
+class UNetModel(BaseModel):
     """
     Pydantic model for a N2V2-compatible UNet.
 
@@ -24,11 +28,17 @@ class UNet(BaseModel):
     model_config = ConfigDict(
         use_enum_values=True, protected_namespaces=(), validate_assignment=True
     )
+
+    # discriminator used for choosing the pydantic model in Model
+    architecture: Literal["UNet"]
+
+    # parameters
+    conv_dims : int = Field(default=2, ge=2, le=3)
     num_classes: int = Field(default=1, ge=1)
     in_channels: int = Field(default=1, ge=1)
     depth: int = Field(default=2, ge=1, le=10)
     num_channels_init: int = Field(default=32, ge=8, le=1024)
-    final_activation: str = Field(default='none', pattern="none|sigmoid|softmax")
+    final_activation: Activation = Field(default=Activation.SIGMOID)
     n2v2: bool = Field(default=False)  
 
     @validator("num_channels_init")

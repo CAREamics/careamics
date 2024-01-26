@@ -134,11 +134,11 @@ class Data(BaseModel):
         return axes
 
     @field_validator("patch_size")
-    def all_elements_non_zero_divisible_by_2(cls, patch_list: List[int]) -> List[int]:
+    def all_elements_non_zero_even(cls, patch_list: List[int]) -> List[int]:
         """
         Validate patch size.
 
-        Patch size must be non-zero, positive and divisible by 2.
+        Patch size must be non-zero, positive and even.
 
         Parameters
         ----------
@@ -155,14 +155,14 @@ class Data(BaseModel):
         ValueError
             If the patch size is 0.
         ValueError
-            If the patch size is not divisible by 2.
+            If the patch size is not even.
         """
         for dim in patch_list:
             if dim < 1:
                 raise ValueError(f"Patch size must be non-zero positive (got {dim}).")
 
             if dim % 2 != 0:
-                raise ValueError(f"Patch size must be divisible by 2 (got {dim}).")
+                raise ValueError(f"Patch size must be even (got {dim}).")
 
         return patch_list
 
