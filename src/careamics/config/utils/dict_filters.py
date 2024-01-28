@@ -1,6 +1,7 @@
 """Convenience functions to filter dictionaries resulting from a Pydantic export."""
 from pathlib import Path
 from typing import Dict
+from enum import Enum
 
 
 def paths_to_str(dictionary: dict) -> dict:
@@ -42,3 +43,17 @@ def remove_default_optionals(dictionary: Dict, default: Dict) -> None:
         if k in default.keys():
             if dict_copy[k] == default[k]:
                 del dictionary[k]
+
+
+def replace_enum_by_values(dictionary: Dict) -> None:
+    """
+    Replace enum values by their values in place.
+
+    Parameters
+    ----------
+    dictionary : Dict
+        Dictionary to modify.
+    """
+    for k in dictionary.keys():
+        if isinstance(dictionary[k], Enum):
+            dictionary[k] = dictionary[k].value

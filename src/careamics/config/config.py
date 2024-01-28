@@ -13,11 +13,10 @@ from pydantic import (
     model_validator,
 )
 
-from .algorithm import Algorithm
-from .filters import paths_to_str
+from .algorithm import AlgorithmModel
 from .data import Data
 from .training import Training
-
+from .utils.dict_filters import paths_to_str
 
 class Configuration(BaseModel):
     """
@@ -42,10 +41,12 @@ class Configuration(BaseModel):
 
     # required parameters
     experiment_name: str
+
+    # TODO consider using DirectoryPath instead
     working_directory: Path
 
     # Sub-configurations
-    algorithm: Algorithm
+    algorithm: AlgorithmModel
     data: Data
     training: Training
 
@@ -61,7 +62,7 @@ class Configuration(BaseModel):
             Axes of the data.
         """
         # set the flag and axes (this will not trigger validation at the config level)
-        self.algorithm.model.is_3D = is_3D
+        self.algorithm.model.set_3D(is_3D)
         self.data.axes = axes
 
         # cheap hack: trigger validation
@@ -169,11 +170,11 @@ class Configuration(BaseModel):
             not 3D but the data axes are.
         """
         # check that is_3D and axes are compatible
-        if config.algorithm.model.is_3D and "Z" not in config.data.axes:
+        if config.algorithm.model.is_3D() and "Z" not in config.data.axes:
             raise ValueError(
                 f"Algorithm is 3D but data axes are not (got axes {config.data.axes})."
             )
-        elif not config.algorithm.model.is_3D and "Z" in config.data.axes:
+        elif not config.algorithm.model.is_3D() and "Z" in config.data.axes:
             raise ValueError(
                 f"Algorithm is not 3D but data axes are (got axes {config.data.axes})."
             )
@@ -291,6 +292,7 @@ def save_configuration(config: Configuration, path: Union[str, Path]) -> Path:
 
     # save configuration as dictionary to yaml
     with open(config_path, "w") as f:
+        # dump configuration
         yaml.dump(config.model_dump(), f, default_flow_style=False)
 
     return config_path

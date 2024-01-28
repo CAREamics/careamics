@@ -535,7 +535,7 @@ class Engine:
                 if last_tile:
                     # Stitch tiles together if sample is finished
                     predicted_sample = stitch_prediction(tiles, stitching_data)
-                    if not self.cfg.algorithm.algorithm_type == "segmentation":
+                    if not self.cfg.algorithm.algorithm == "segmentation":
                         predicted_sample = denormalize(
                             predicted_sample,
                             float(self.cfg.data.mean),  # type: ignore

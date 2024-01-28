@@ -10,7 +10,7 @@ import torch.nn as nn
 
 from .layers import Conv_Block, MaxBlurPool
 from .activation import get_activation
-from ..config.architectures.architectures import Activation
+from ..config.support import SupportedActivation
 
 
 class UnetEncoder(nn.Module):
@@ -272,7 +272,7 @@ class UNet(nn.Module):
         use_batch_norm: bool = True,
         dropout: float = 0.0,
         pool_kernel: int = 2,
-        final_activation: Union[Activation, str] = Activation.NONE,
+        final_activation: Union[SupportedActivation, str] = SupportedActivation.NONE,
         n2v2: bool = False,
         **kwargs,
     ) -> None:

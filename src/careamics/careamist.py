@@ -6,7 +6,7 @@ from pytorch_lightning import Trainer
 from torch.utils.data.dataloader import DataLoader
 
 from careamics.config import Configuration, load_configuration
-from careamics.careamics_kiln import CAREamicsKiln
+from careamics.lightning_module import CAREamicsKiln
 from careamics.dataset.prepare_dataset import (
     get_train_dataset,
     get_validation_dataset,

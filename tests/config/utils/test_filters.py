@@ -1,8 +1,10 @@
 from pathlib import Path
+from enum import Enum
 
-from careamics.config.filters import (
+from careamics.config.utils.dict_filters import (
     paths_to_str,
     remove_default_optionals,
+    replace_enum_by_values
 )
 
 
@@ -40,3 +42,23 @@ def test_remove_default_optionals():
     assert "key2" not in dictionary.keys()
     assert "key3" not in dictionary.keys()
     assert dictionary["key4"] == 5.5
+
+
+def test_replace_enum_by_values():
+    """Test replacing Enum in dictionnary by their values."""
+    class TestEnum(str, Enum):
+        """Test enum."""
+        VALUE1 = "value1"
+        VALUE2 = "value2"
+
+    dictionary = {
+        "key1": TestEnum.VALUE1,
+        "key2": TestEnum.VALUE2,
+        "key3": "value3",
+    }
+
+    # replace enum
+    replace_enum_by_values(dictionary)
+    assert dictionary["key1"] == "value1"
+    assert dictionary["key2"] == "value2"
+    assert dictionary["key3"] == "value3"

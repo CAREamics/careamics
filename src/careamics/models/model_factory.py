@@ -10,13 +10,15 @@ import torch
 
 from ..bioimage import import_bioimage_model
 from ..config import Configuration
-from ..config.architectures import Architecture, UNetModel
+from ..config.architectures import UNetModel
+from ..config.support import SupportedArchitecture
 from ..utils.logging import get_logger
 from .unet import UNet
 
 logger = get_logger(__name__)
 
 
+# TODO rename model factory
 def model_registry(model_configuration: UNetModel) -> torch.nn.Module:
     """
     Model factory.
@@ -38,7 +40,7 @@ def model_registry(model_configuration: UNetModel) -> torch.nn.Module:
     NotImplementedError
         If the requested model is not implemented.
     """
-    if model_configuration.architecture == Architecture.UNET:
+    if model_configuration.architecture == SupportedArchitecture.UNET:
         return UNet(
             **dict(model_configuration)
         )
@@ -47,7 +49,7 @@ def model_registry(model_configuration: UNetModel) -> torch.nn.Module:
             f"Model {model_configuration.architecture} is not implemented or unknown."
         )
 
-
+# TODO needs to go?
 # TODO: split into two functions
 def create_model(
     *,

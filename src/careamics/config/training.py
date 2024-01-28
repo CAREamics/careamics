@@ -9,7 +9,7 @@ from pydantic import (
     Field,
     field_validator,
 )
-from .filters import remove_default_optionals
+from .utils.dict_filters import remove_default_optionals
 
 # TODO: adapt for lightning:
 # https://pytorch-lightning.readthedocs.io/en/1.8.6/api/pytorch_lightning.plugins.precision.PrecisionPlugin.html

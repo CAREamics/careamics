@@ -1,6 +1,5 @@
 """Algorithm configuration."""
-from enum import Enum
-from typing import Dict, List, Union
+from typing import Literal, Union
 
 from pydantic import (
     BaseModel,
@@ -8,57 +7,13 @@ from pydantic import (
     Field,
 )
 
-from .torch_optim import OptimizerModel, LrSchedulerModel
-from .filters import remove_default_optionals
+from .optimizer import OptimizerModel
+from .lr_scheduler import LrSchedulerModel
 from .architectures import UNetModel, VAEModel
 
 #from .noise_models import NoiseModel
 
-# python 3.11: https://docs.python.org/3/library/enum.html
-class AlgorithmType(str, Enum):
-    """
-    Available types of algorithms.
-
-    Currently supported algorithms:
-        - CARE: CARE. https://www.nature.com/articles/s41592-018-0216-7
-        - n2v: Noise2Void. https://arxiv.org/abs/1811.10980
-        - n2n: Noise2Noise. https://arxiv.org/abs/1803.04189
-        - pn2v: Probabilistic Noise2Void. https://arxiv.org/abs/1906.00651
-        - hdn: Hierarchical DivNoising. https://arxiv.org/abs/2104.01374
-    """
-
-    # CARE = "care"
-    N2V = "n2v"
-    # N2N = "n2n"
-    # PN2V = "pn2v"
-    # HDN = "hdn"
-    # CUSTOM = "custom"
-    # SEGM = "segmentation"
-
-
-class Loss(str, Enum):
-    """
-    Available loss functions.
-
-    Currently supported losses:
-
-        - n2v: Noise2Void loss.
-        - n2n: Noise2Noise loss.
-        - pn2v: Probabilistic Noise2Void loss.
-        - hdn: Hierarchical DivNoising loss.
-    """
-
-    # MSE = "mse"
-    # MAE = "mae"
-    N2V = "n2v"
-    # PN2V = "pn2v"
-    # HDN = "hdn"
-    # CE = "ce"
-    # DICE = "dice"
-    # CUSTOM = "custom"
-
-
-class Algorithm(BaseModel):
+class AlgorithmModel(BaseModel):
     """
     Algorithm configuration.
 
@@ -107,8 +62,8 @@ class Algorithm(BaseModel):
     )
 
     # Mandatory fields
-    algorithm_type: AlgorithmType
-    loss: Loss
+    algorithm: Literal["n2v", "n2v2"]
+    loss: Literal["n2v", "mae", "mse"]
     model: Union[VAEModel, UNetModel] = Field(discriminator="architecture")
 
     optimizer: OptimizerModel
@@ -210,46 +165,3 @@ class Algorithm(BaseModel):
     #         )
 
     #     return data
-
-    def model_dump(
-        self, exclude_optionals: bool = True, *args: List, **kwargs: Dict
-    ) -> Dict:
-        """
-        Override model_dump method.
-
-        The purpose is to ensure export smooth import to yaml. It includes:
-            - remove entries with None value.
-            - remove optional values if they have the default value.
-
-        Parameters
-        ----------
-        exclude_optionals : bool, optional
-            Whether to exclude optional arguments if they are default, by default True.
-        *args : List
-            Positional arguments, unused.
-        **kwargs : Dict
-            Keyword arguments, unused.
-
-        Returns
-        -------
-        Dict
-            Dictionary representation of the model.
-        """
-        dictionary = super().model_dump(exclude_none=True)
-
-        if exclude_optionals is True:
-            # remove optional arguments if they are default
-            defaults = {
-                "model": {
-                    # "architecture": "UNet",
-                    "parameters": {"depth": 2, "num_channels_init": 32},
-                },
-                "masking_strategy": {
-                    # "strategy_type": "default",
-                    "parameters": {"masked_pixel_percentage": 0.2, "roi_size": 11},
-                },
-            }
-
-            remove_default_optionals(dictionary, defaults)
-
-        return dictionary

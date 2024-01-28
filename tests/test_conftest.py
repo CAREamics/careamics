@@ -1,12 +1,12 @@
 from careamics import Configuration
-from careamics.config.algorithm import Algorithm
+from careamics.config.algorithm import AlgorithmModel
 from careamics.config.data import Data
 from careamics.config.training import Training
 
 
 def test_minimum_algorithm(minimum_algorithm):
     # create algorithm configuration
-    Algorithm(**minimum_algorithm)
+    AlgorithmModel(**minimum_algorithm)
 
 
 def test_minimum_data(minimum_data):

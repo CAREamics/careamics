@@ -1,10 +1,11 @@
 import pytest
 
 from careamics.config.architectures import UNetModel
+from careamics.config.support import SupportedArchitecture, SupportedActivation
 
 
 def test_instantiation():
-    """Test that UNet can be instantiated."""
+    """Test that UNetModel can be instantiated."""
     model_params = {
         "architecture": "UNet",
         "conv_dim": 2,
@@ -16,7 +17,7 @@ def test_instantiation():
 
 
 def test_architecture_missing():
-    """Test that UNet requires architecture."""
+    """Test that UNetModel requires architecture."""
     model_params = {
         "depth": 2,
         "num_channels_init": 16,
@@ -30,7 +31,7 @@ def test_architecture_missing():
 def test_num_channels_init(
     num_channels_init: int
 ):
-    """Test that UNet accepts num_channels_init as an even number and
+    """Test that UNetModel accepts num_channels_init as an even number and
     minimum 8."""
     model_params = {
         "architecture": "UNet",
@@ -47,6 +48,7 @@ def test_wrong_num_channels_init(
 ):
     """Test that wrong num_channels_init causes an error."""
     model_params = {
+        "architecture": "UNet",
         "num_channels_init": num_channels_init
     }
 
@@ -54,19 +56,17 @@ def test_wrong_num_channels_init(
         UNetModel(**model_params)
 
 
-@pytest.mark.parametrize("acitvation", ["none", "sigmoid", "softmax"])
-def test_activation(
-    acitvation: str
-):
-    """Test that UNet accepts activation as none, sigmoid or softmax."""
-    model_params = {
-        "architecture": "UNet",
-        "num_channels_init": 16,
-        "final_activation": acitvation
-    }
+def test_activations():
+    """Test that UNetModel accepts all activations."""
+    for act in SupportedActivation:    
+        model_params = {
+            "architecture": "UNet",
+            "num_channels_init": 16,
+            "final_activation": act.value
+        }
 
-    # instantiate model
-    UNetModel(**model_params)
+        # instantiate model
+        UNetModel(**model_params)
 
 
 def test_activation_wrong_values():
@@ -99,3 +99,29 @@ def test_parameters_wrong_values_by_assigment():
     model.num_channels_init = model_params["num_channels_init"]
     with pytest.raises(ValueError):
         model.num_channels_init = 2
+
+
+def test_model_dump():
+    """Test that default values are excluded from model dump, and that the enum 
+    are replaced by their values."""
+    model_params = {
+        "architecture": "UNet",
+        "num_channels_init": 16, # non-default value
+        "final_activation": "ReLU", # non-default value
+    }
+    model = UNetModel(**model_params)
+
+    # dump model
+    model_dict = model.model_dump(exclude_defaults=True)
+
+    # check that default values are excluded except the architecture
+    assert "architecture" in model_dict
+    assert len(model_dict) == 3
+
+    # check that enum are not passed as enums but as their values
+    assert not isinstance(model_dict["architecture"], SupportedArchitecture)
+    assert not isinstance(model_dict["final_activation"], SupportedActivation)
+
+    # check that we get all the optional values with the exclude_defaults flag
+    model_dict = model.model_dump(exclude_defaults=False)
+    assert len(model_dict) == len(dict(model))

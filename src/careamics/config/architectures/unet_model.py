@@ -1,4 +1,5 @@
-from typing import Literal
+from __future__ import annotations
+from typing import Dict, Literal, List
 
 from pydantic import (
     BaseModel,
@@ -7,12 +8,11 @@ from pydantic import (
     validator
 )
 
-from .architectures import Activation
-
-
+# TODO tests activation <-> pydantic model, test the literals!
+# TODO annotations for the json schema?
 class UNetModel(BaseModel):
     """
-    Pydantic model for a N2V2-compatible UNet.
+    Pydantic model for a N2V(2)-compatible UNet.
 
     The number of filters (base) must be even and minimum 8.
 
@@ -24,22 +24,29 @@ class UNetModel(BaseModel):
         Number of filters of the first level of the network, should be even
         and minimum 8 (default 96).
     """
-
+    # pydantic model config
     model_config = ConfigDict(
-        use_enum_values=True, protected_namespaces=(), validate_assignment=True
+        validate_assignment=True
     )
 
     # discriminator used for choosing the pydantic model in Model
     architecture: Literal["UNet"]
 
     # parameters
-    conv_dims : int = Field(default=2, ge=2, le=3)
-    num_classes: int = Field(default=1, ge=1)
-    in_channels: int = Field(default=1, ge=1)
-    depth: int = Field(default=2, ge=1, le=10)
-    num_channels_init: int = Field(default=32, ge=8, le=1024)
-    final_activation: Activation = Field(default=Activation.SIGMOID)
-    n2v2: bool = Field(default=False)  
+    # validate_defaults allow ignoring default values in the dump if they were not set
+    conv_dims : int = Field(default=2, ge=2, le=3, validate_default=True)
+    num_classes: int = Field(default=1, ge=1, validate_default=True)
+    in_channels: int = Field(default=1, ge=1, validate_default=True)
+    depth: int = Field(default=2, ge=1, le=10, validate_default=True)
+    num_channels_init: int = Field(default=32, ge=8, le=1024, validate_default=True)
+    final_activation: Literal[
+        "None", 
+        "Sigmoid", 
+        "Softmax", 
+        "Tanh", 
+        "ReLU", 
+        "LeakyReLU"] = Field(default="None", validate_default=True)
+    n2v2: bool = Field(default=False, validate_default=True)  
 
     @validator("num_channels_init")
     def validate_num_channels_init(cls, num_channels_init: int) -> int:
@@ -69,3 +76,28 @@ class UNetModel(BaseModel):
             )
 
         return num_channels_init
+    
+    def set_3D(self, is_3D: bool) -> None:
+        """
+        Set 3D model by setting the `conv_dims` parameters.
+
+        Parameters
+        ----------
+        is_3D : bool
+            Whether the algorithm is 3D or not.
+        """
+        if is_3D:
+            self.conv_dims = 3
+        else:
+            self.conv_dims = 2
+
+    def is_3D(self) -> bool:
+        """
+        Return whether the model is 3D or not.
+
+        Returns
+        -------
+        bool
+            Whether the model is 3D or not.
+        """
+        return self.conv_dims == 3
