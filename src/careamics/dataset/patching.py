@@ -305,15 +305,15 @@ def _extract_patches_random(
         n_patches = np.ceil(np.prod(sample.shape) / np.prod(patch_size)).astype(int)
         for _ in range(n_patches):
             crop_coords = [
-                rng.integers(0, arr.shape[i + 1] - patch_size[i])
-                for i in range(len(patch_size))
+                rng.integers(0, sample.shape[i] - patch_size[1:][i], endpoint=True)
+                for i in range(len(patch_size[1:]))
             ]
             patch = (
                 sample[
                     (
                         ...,
                         *[
-                            slice(c, c + patch_size[i])
+                            slice(c, c + patch_size[1:][i])
                             for i, c in enumerate(crop_coords)
                         ],
                     )
@@ -327,7 +327,7 @@ def _extract_patches_random(
                         (
                             ...,
                             *[
-                                slice(c, c + patch_size[i])
+                                slice(c, c + patch_size[1:][i])
                                 for i, c in enumerate(crop_coords)
                             ],
                         )
@@ -337,7 +337,7 @@ def _extract_patches_random(
                 )
                 yield np.expand_dims(patch, 0), np.expand_dims(target_patch, 0)
             else:
-                yield np.expand_dims(patch, 0)
+                yield np.expand_dims(patch, 0), None
 
 
 def _extract_patches_random_from_chunks(
@@ -451,7 +451,7 @@ def _compute_crop_and_stitch_coords_1d(
     stitch_coords = []
     overlap_crop_coords = []
     # Iterate over the axis with a certain step
-    for i in range(0, axis_size - overlap, step):
+    for i in range(0, max(1, axis_size - overlap), step):
         # Check if the tile fits within the axis
         if i + tile_size <= axis_size:
             # Add the coordinates to crop one tile
@@ -478,8 +478,8 @@ def _compute_crop_and_stitch_coords_1d(
         # operations starting from the end of the axis
         else:
             # if (axis_size - tile_size, axis_size) not in crop_coords:
-            crop_coords.append((axis_size - tile_size, axis_size))
-            last_tile_end_coord = stitch_coords[-1][1]
+            crop_coords.append((max(0, axis_size - tile_size), axis_size))
+            last_tile_end_coord = stitch_coords[-1][1] if stitch_coords else 1
             stitch_coords.append((last_tile_end_coord, axis_size))
             overlap_crop_coords.append(
                 (tile_size - (axis_size - last_tile_end_coord), tile_size)
@@ -514,7 +514,7 @@ def _extract_tiles(
         Tile generator that yields the tile with corresponding coordinates to stitch
         back the tiles together.
     """
-    # arr, _ = reshape_data(arr, axes)
+    arr, _ = reshape_data(arr, axes)
 
     # Iterate over num samples (S)
     for sample_idx in range(arr.shape[0]):
@@ -524,7 +524,7 @@ def _extract_tiles(
         # Shape: (axes, type_of_coord, tile_num, start/end coord)
         crop_and_stitch_coords_list = [
             _compute_crop_and_stitch_coords_1d(
-                sample.shape[i], tile_size[i], overlaps[i]
+                sample.shape[i + 1], tile_size[i], overlaps[i]
             )
             for i in range(len(tile_size))
         ]
@@ -764,7 +764,7 @@ def generate_patches_unsupervised(
 
         if patch_extraction_method == ExtractionStrategy.TILED:
             if patch_overlap is None:
-                patch_overlap = [48] * len(patch_size) # TODO calculate overlap from model
+                patch_overlap = [48] * len(patch_size)# TODO calculate OL from model
             patches = _extract_tiles(
                 arr=sample, axes=axes, tile_size=patch_size, overlaps=patch_overlap
             )

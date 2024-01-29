@@ -8,9 +8,9 @@ from pydantic import (
     Field,
 )
 
-from .torch_optim import OptimizerModel, LrSchedulerModel
-from .filters import remove_default_optionals
 from .architectures import UNetModel, VAEModel
+from .filters import remove_default_optionals
+from .torch_optim import LrSchedulerModel, OptimizerModel
 
 #from .noise_models import NoiseModel
 

@@ -5,15 +5,15 @@ from careamics.dataset.patching import (
     _extract_patches_random,
     _extract_patches_sequential,
     _extract_tiles,
-    _patches_sanity_check,
+    _patches_check_and_update,
 )
 
 
-def check_extract_patches_sequential(array, patch_size):
+def check_extract_patches_sequential(array, axes, patch_size):
     """Check that the patches are extracted correctly.
 
     The array should have been generated using np.arange and np.reshape."""
-    patches, _ = _extract_patches_sequential(array, patch_size)
+    patches, _ = _extract_patches_sequential(array, axes=axes, patch_size=patch_size)
 
     # check patch shape
     assert patches.shape[2:] == patch_size
@@ -24,17 +24,20 @@ def check_extract_patches_sequential(array, patch_size):
     assert len(unique) == n_max
 
 
-def check_extract_patches_random(array, patch_size):
+def check_extract_patches_random(array, axes, patch_size, target=None):
     """Check that the patches are extracted correctly.
 
     The array should have been generated using np.arange and np.reshape."""
-    patch_generator = _extract_patches_random(array, patch_size)
+
+    patch_generator = _extract_patches_random(
+        array, axes=axes, patch_size=patch_size, target=target
+    )
 
     # check patch shape
-    patches = []
-    for patch, _ in patch_generator:
-        patches.append(patch)
-        assert patch.shape == patch_size
+    for patch, target in patch_generator:
+        assert patch.shape[2:] == patch_size
+        if target is not None:
+            assert target.shape[2:] == patch_size
 
 
 def check_extract_tiles(array, axes, tile_size, overlaps):
@@ -52,7 +55,7 @@ def check_extract_tiles(array, axes, tile_size, overlaps):
         all_stitch_coords.append(stitch_coords)
 
         # check tile shape, ignore sample dimension
-        assert tile.shape == tile_size
+        assert tile.shape[2:] == tile_size
         assert len(overlap_crop_coords) == len(stitch_coords) == len(tile_size)
 
     # check that each tile has a unique set of coordinates
@@ -67,15 +70,15 @@ def check_extract_tiles(array, axes, tile_size, overlaps):
 @pytest.mark.parametrize(
     "arr_shape, patch_size",
     [
-        ((1, 8, 8), (2, 2)),
-        ((1, 8, 8, 8), (2, 2, 2)),
+        ((1, 1, 8, 8), (2, 2)),
+        ((1, 1, 8, 8, 8), (2, 2, 2)),
     ],
 )
 def test_patches_sanity_check(arr_shape, patch_size):
     arr = np.zeros(arr_shape)
     is_3d_patch = len(patch_size) == 3
     # check if the patch is 2D or 3D. Subtract 1 because the first dimension is sample
-    _patches_sanity_check(arr, patch_size, is_3d_patch)
+    _patches_check_and_update(arr, patch_size, is_3d_patch)
 
 
 @pytest.mark.parametrize(
@@ -104,7 +107,7 @@ def test_patches_sanity_check_invalid_cases(arr_shape, patch_size):
     is_3d_patch = len(patch_size) == 3
     # check if the patch is 2D or 3D. Subtract 1 because the first dimension is sample
     with pytest.raises(ValueError):
-        _patches_sanity_check(arr, patch_size, is_3d_patch)
+        _patches_check_and_update(arr, patch_size, is_3d_patch)
 
 
 @pytest.mark.parametrize(
@@ -118,7 +121,7 @@ def test_patches_sanity_check_invalid_cases(arr_shape, patch_size):
 )
 def test_extract_patches_sequential_2d(array_2D, patch_size):
     """Test extracting patches sequentially in 2D."""
-    check_extract_patches_sequential(array_2D, patch_size)
+    check_extract_patches_sequential(array_2D, "SYX", patch_size)
 
 
 @pytest.mark.parametrize(
@@ -136,7 +139,7 @@ def test_extract_patches_sequential_3d(array_3D, patch_size):
     The 3D array is a fixture of shape (1, 8, 16, 16)."""
     # TODO changed the fixture to (1, 8, 16, 16), uneven shape doesnt work. We need to
     # discuss the function or the test cases
-    check_extract_patches_sequential(array_3D, patch_size)
+    check_extract_patches_sequential(array_3D, "SZYX", patch_size)
 
 
 @pytest.mark.parametrize(
@@ -150,7 +153,26 @@ def test_extract_patches_sequential_3d(array_3D, patch_size):
 )
 def test_extract_patches_random_2d(array_2D, patch_size):
     """Test extracting patches randomly in 2D."""
-    check_extract_patches_random(array_2D, patch_size)
+    check_extract_patches_random(array_2D, "SYX", patch_size)
+
+
+@pytest.mark.parametrize(
+    "patch_size",
+    [
+        (2, 2),
+        (4, 2),
+        (4, 8),
+        (8, 8),
+    ],
+)
+def test_extract_patches_random_supervised_2d(array_2D, patch_size):
+    """Test extracting patches randomly in 2D."""
+    check_extract_patches_random(
+        array_2D,
+        "SYX",
+        patch_size,
+        target=array_2D
+    )
 
 
 @pytest.mark.parametrize(
@@ -166,14 +188,14 @@ def test_extract_patches_random_3d(array_3D, patch_size):
     """Test extracting patches randomly in 3D.
 
     The 3D array is a fixture of shape (1, 8, 16, 16)."""
-    check_extract_patches_random(array_3D, patch_size)
+    check_extract_patches_random(array_3D, "SZYX", patch_size)
 
 
 @pytest.mark.parametrize(
     "tile_size, axes, overlaps",
     [
-        ((4, 4), "YX", (2, 2)),
-        ((8, 8), "YX", (4, 4)),
+        ((4, 4), "SYX", (2, 2)),
+        ((8, 8), "SYX", (4, 4)),
     ],  # TODO add more test cases with axes
 )
 def test_extract_tiles_2d(array_2D, axes, tile_size, overlaps):
@@ -184,8 +206,8 @@ def test_extract_tiles_2d(array_2D, axes, tile_size, overlaps):
 @pytest.mark.parametrize(
     "tile_size, axes, overlaps",
     [
-        ((4, 4, 4), "ZYX", (2, 2, 2)),
-        ((8, 8, 8), "ZYX", (4, 4, 4)),
+        ((4, 4, 4), "SZYX", (2, 2, 2)),
+        ((8, 8, 8), "SZYX", (4, 4, 4)),
     ],
 )
 def test_extract_tiles_3d(array_3D, axes, tile_size, overlaps):

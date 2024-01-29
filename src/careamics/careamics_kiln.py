@@ -3,17 +3,9 @@ from typing import Any, Optional, Union
 import pytorch_lightning as L
 import torch
 
-from careamics.config.algorithm import (
-    Algorithm, 
-    AlgorithmType, 
-    Loss
-)
-from careamics.config.torch_optim import (
-    TorchOptimizer, 
-    TorchLRScheduler
-)
+from careamics.config.algorithm import Algorithm, AlgorithmType, Loss
 from careamics.config.architectures import Architecture
-
+from careamics.config.torch_optim import TorchLRScheduler, TorchOptimizer
 from careamics.losses import create_loss_function
 from careamics.models.model_factory import model_registry
 
@@ -71,7 +63,7 @@ class CAREamicsKiln(L.LightningModule):
             "lr_scheduler": scheduler,
             "monitor": "val_loss", # otherwise one gets a MisconfigurationException
         }
-    
+
 class CAREamicsModule(CAREamicsKiln):
 
     def __init__(
@@ -85,7 +77,7 @@ class CAREamicsModule(CAREamicsKiln):
         optimizer_parameters: Optional[dict] = None,
         lr_scheduler_parameters: Optional[dict] = None,
     ) -> None:
-        
+
         algorithm_configuration = {
             "algorithm_type": algorithm_type,
             "loss": loss,
