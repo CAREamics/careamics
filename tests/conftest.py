@@ -8,7 +8,7 @@ import pytest
 import tifffile
 
 from careamics.config import Configuration
-from careamics.config.algorithm import Algorithm, LrSchedulerModel, OptimizerModel
+from careamics.config.algorithm import AlgorithmModel, LrSchedulerModel, OptimizerModel
 from careamics.config.data import Data
 from careamics.config.training import Training
 
@@ -35,7 +35,7 @@ def minimum_algorithm() -> dict:
     """
     # create dictionary
     algorithm = {
-        "algorithm_type": "n2v",
+        "algorithm": "n2v",
         "loss": "n2v",
         "model": {
             "architecture": "UNet",
@@ -277,8 +277,8 @@ def base_configuration(temp_dir: Path, patch_size) -> Configuration:
     configuration = Configuration(
         experiment_name="smoke_test",
         working_directory=temp_dir,
-        algorithm=Algorithm(
-            algorithm_type="n2v",
+        algorithm=AlgorithmModel(
+            algorithm="n2v",
             loss="n2v",
             model={"architecture": "UNet"},
             is_3D="False",
@@ -286,7 +286,7 @@ def base_configuration(temp_dir: Path, patch_size) -> Configuration:
         ),
         data=Data(
             in_memory=True,
-            data_format="tif",
+            extension="tif",
             axes="YX",
         ),
         training=Training(
@@ -309,8 +309,8 @@ def supervised_configuration(temp_dir: Path, patch_size) -> Configuration:
     configuration = Configuration(
         experiment_name="smoke_test",
         working_directory=temp_dir,
-        algorithm=Algorithm(
-            algorithm_type="n2n",
+        algorithm=AlgorithmModel(
+            algorithm="n2n",
             loss="mae",
             model={"architecture": "UNet"},
             is_3D="False",
@@ -318,7 +318,7 @@ def supervised_configuration(temp_dir: Path, patch_size) -> Configuration:
         ),
         data=Data(
             in_memory=True,
-            data_format="tif",
+            extension="tif",
             axes="YX",
         ),
         training=Training(

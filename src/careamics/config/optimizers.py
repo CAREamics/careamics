@@ -1,69 +1,22 @@
-"""Convenience functions to instantiate torch.optim optimizers and schedulers."""
 from __future__ import annotations
-
-import inspect
-from enum import Enum
-from typing import Dict, List
-
+from typing import Dict, Literal
 
 from pydantic import (
     BaseModel,
     ConfigDict,
+    Field,
     ValidationInfo,
     model_validator,
     field_validator
 )
 from torch import optim
 
-from .filters import remove_default_optionals
+from .support.supported_optimizers import (
+    SupportedOptimizer,
+    SupportedScheduler
+)
 
-
-class TorchOptimizer(str, Enum):
-    """
-    Supported optimizers.
-
-    Currently only supports Adam and SGD.
-    """
-
-    # ASGD = "ASGD"
-    # Adadelta = "Adadelta"
-    # Adagrad = "Adagrad"
-    Adam = "Adam"
-    # AdamW = "AdamW"
-    # Adamax = "Adamax"
-    # LBFGS = "LBFGS"
-    # NAdam = "NAdam"
-    # RAdam = "RAdam"
-    # RMSprop = "RMSprop"
-    # Rprop = "Rprop"
-    SGD = "SGD"
-    # SparseAdam = "SparseAdam"
-
-
-class TorchLRScheduler(str, Enum):
-    """
-    Supported learning rate schedulers.
-
-    Currently only supports ReduceLROnPlateau and StepLR.
-    """
-
-    # ChainedScheduler = "ChainedScheduler"
-    # ConstantLR = "ConstantLR"
-    # CosineAnnealingLR = "CosineAnnealingLR"
-    # CosineAnnealingWarmRestarts = "CosineAnnealingWarmRestarts"
-    # CyclicLR = "CyclicLR"
-    # ExponentialLR = "ExponentialLR"
-    # LambdaLR = "LambdaLR"
-    # LinearLR = "LinearLR"
-    # MultiStepLR = "MultiStepLR"
-    # MultiplicativeLR = "MultiplicativeLR"
-    # OneCycleLR = "OneCycleLR"
-    # PolynomialLR = "PolynomialLR"
-    ReduceLROnPlateau = "ReduceLROnPlateau"
-    # SequentialLR = "SequentialLR"
-    StepLR = "StepLR"
-
-
+from careamics.utils.torch_utils import get_parameters
 
 
 class OptimizerModel(BaseModel):
@@ -87,15 +40,14 @@ class OptimizerModel(BaseModel):
 
     # Pydantic class configuration
     model_config = ConfigDict(
-        use_enum_values=True,
         validate_assignment=True,
     )
 
     # Mandatory field
-    name: TorchOptimizer
+    name: Literal["Adam", "SGD"]
 
     # Optional parameters, empty dict default value to allow filtering dictionary
-    parameters: dict = {}
+    parameters: dict = Field(default={}, validate_default=True)
 
     @field_validator("parameters", mode='before')
     def filter_parameters(cls, user_params: dict, values: ValidationInfo) -> Dict:
@@ -131,7 +83,7 @@ class OptimizerModel(BaseModel):
                 f"Optimizer parameters must be a dictionary, got {type(user_params)}."
             )
 
-        if "name" in values.data:
+        if "name" in values.data: # TODO test if that clause if really necessary
             optimizer_name = values.data["name"]
 
             # retrieve the corresponding optimizer class
@@ -165,7 +117,7 @@ class OptimizerModel(BaseModel):
         ValueError
             If the optimizer is SGD and the lr parameter is not specified.
         """
-        if optimizer.name == TorchOptimizer.SGD and "lr" not in optimizer.parameters:
+        if optimizer.name == SupportedOptimizer.SGD and "lr" not in optimizer.parameters:
             raise ValueError(
                 "SGD optimizer requires `lr` parameter, check that it has correctly "
                 "been specified in `parameters`."
@@ -173,40 +125,6 @@ class OptimizerModel(BaseModel):
 
         return optimizer
 
-    def model_dump(
-        self, exclude_optionals: bool = True, *args: List, **kwargs: Dict
-    ) -> Dict:
-        """
-        Override model_dump method.
-
-        The purpose of this method is to ensure smooth export to yaml. It
-        includes:
-            - removing entries with None value.
-            - removing optional values if they have the default value.
-
-        Parameters
-        ----------
-        exclude_optionals : bool, optional
-            Whether to exclude optional arguments if they are default, by default True.
-        *args : List
-            Positional arguments, unused.
-        **kwargs : Dict
-            Keyword arguments, unused.
-
-        Returns
-        -------
-        dict
-            Dictionary containing the model parameters.
-        """
-        dictionary = super().model_dump(exclude_none=True)
-
-        if exclude_optionals:
-            # remove optional arguments if they are default
-            default_optionals: dict = {"parameters": {}}
-
-            remove_default_optionals(dictionary, default_optionals)
-
-        return dictionary
 
 
 class LrSchedulerModel(BaseModel):
@@ -230,15 +148,14 @@ class LrSchedulerModel(BaseModel):
 
     # Pydantic class configuration
     model_config = ConfigDict(
-        use_enum_values=True,
         validate_assignment=True,
     )
 
     # Mandatory field
-    name: TorchLRScheduler
+    name: Literal["ReduceLROnPlateau", "StepLR"]
 
     # Optional parameters
-    parameters: dict = {}
+    parameters: dict = Field(default={}, validate_default=True)
 
     @field_validator("parameters", mode='before')
     def filter_parameters(cls, user_params: dict, values: ValidationInfo) -> Dict:
@@ -309,7 +226,7 @@ class LrSchedulerModel(BaseModel):
             If the lr scheduler is StepLR and the step_size parameter is not specified.
         """
         if (
-            lr_scheduler.name == TorchLRScheduler.StepLR
+            lr_scheduler.name == SupportedScheduler.StepLR
             and "step_size" not in lr_scheduler.parameters
         ):
             raise ValueError(
@@ -318,102 +235,3 @@ class LrSchedulerModel(BaseModel):
             )
 
         return lr_scheduler
-
-    def model_dump(
-        self, exclude_optionals: bool = True, *args: List, **kwargs: Dict
-    ) -> Dict:
-        """
-        Override model_dump method.
-
-        The purpose of this method is to ensure smooth export to yaml. It includes:
-            - removing entries with None value.
-            - removing optional values if they have the default value.
-
-        Parameters
-        ----------
-        exclude_optionals : bool, optional
-            Whether to exclude optional arguments if they are default, by default True.
-        *args : List
-            Positional arguments, unused.
-        **kwargs : Dict
-            Keyword arguments, unused.
-
-        Returns
-        -------
-        dict
-            Dictionary containing the model parameters.
-        """
-        dictionary = super().model_dump(exclude_none=True)
-
-        if exclude_optionals:
-            # remove optional arguments if they are default
-            default_optionals: dict = {"parameters": {}}
-            remove_default_optionals(dictionary, default_optionals)
-
-        return dictionary
-
-
-
-
-def get_parameters(
-    func: type,
-    user_params: dict,
-) -> dict:
-    """
-    Filter parameters according to the function signature.
-
-    Parameters
-    ----------
-    func : type
-        Class object.
-    user_params : Dict
-        User provided parameters.
-
-    Returns
-    -------
-    Dict
-        Parameters matching `func`'s signature.
-    """
-    # Get the list of all default parameters
-    default_params = list(inspect.signature(func).parameters.keys())
-
-    # Filter matching parameters
-    params_to_be_used = set(user_params.keys()) & set(default_params)
-
-    return {key: user_params[key] for key in params_to_be_used}
-
-
-def get_optimizers() -> Dict[str, str]:
-    """
-    Return the list of all optimizers available in torch.optim.
-
-    Returns
-    -------
-    Dict
-        Optimizers available in torch.optim.
-    """
-    optims = {}
-    for name, obj in inspect.getmembers(optim):
-        if inspect.isclass(obj) and issubclass(obj, optim.Optimizer):
-            if name != "Optimizer":
-                optims[name] = name
-    return optims
-
-
-def get_schedulers() -> Dict[str, str]:
-    """
-    Return the list of all schedulers available in torch.optim.lr_scheduler.
-
-    Returns
-    -------
-    Dict
-        Schedulers available in torch.optim.lr_scheduler.
-    """
-    schedulers = {}
-    for name, obj in inspect.getmembers(optim.lr_scheduler):
-        if inspect.isclass(obj) and issubclass(obj, optim.lr_scheduler.LRScheduler):
-            if "LRScheduler" not in name:
-                schedulers[name] = name
-        elif name == "ReduceLROnPlateau":  # somewhat not a subclass of LRScheduler
-            schedulers[name] = name
-    return schedulers

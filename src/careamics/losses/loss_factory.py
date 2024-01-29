@@ -6,14 +6,15 @@ This module contains a factory function for creating loss functions.
 from typing import Callable, Type, Union
 
 from ..config import Configuration
-from ..config.algorithm import Loss
+from ..config.support import SupportedLoss
 from ..config.noise_models import NoiseModelType
 from .losses import dice_loss, mae_loss, mse_loss, n2v_loss, pn2v_loss
 from .noise_models import GaussianMixtureNoiseModel, HistogramNoiseModel
 
 
 # TODO add tests
-def create_loss_function(loss_type: Loss) -> Callable:
+# TODO add custom?
+def create_loss_function(loss_type: SupportedLoss) -> Callable:
     """Create loss function based on Configuration.
 
     Parameters
@@ -31,20 +32,20 @@ def create_loss_function(loss_type: Loss) -> Callable:
     NotImplementedError
         If the loss is unknown.
     """
-    if loss_type == Loss.N2V:
+    if loss_type == SupportedLoss.N2V:
         return n2v_loss
 
-    elif loss_type == Loss.PN2V:
-        return pn2v_loss
+    # elif loss_type == SupportedLoss.PN2V:
+    #     return pn2v_loss
 
-    elif loss_type == Loss.MAE:
+    elif loss_type == SupportedLoss.MAE:
         return mae_loss
 
-    elif loss_type == Loss.MSE:
+    elif loss_type == SupportedLoss.MSE:
         return mse_loss
 
-    elif loss_type == Loss.DICE:
-        return dice_loss
+    # elif loss_type == SupportedLoss.DICE:
+    #     return dice_loss
 
     else:
         raise NotImplementedError(f"Loss {loss_type} is not yet supported.")

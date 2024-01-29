@@ -1,11 +1,13 @@
 """Configuration module."""
 
 
-__all__ = ["Configuration", "load_configuration", "save_configuration"]
+__all__ = [
+    "AlgorithmModel", "Configuration", "load_configuration", "save_configuration"
+]
 
 from .config import (
     Configuration,
     load_configuration,
     save_configuration,
 )
-from .torch_optim import get_parameters as get_parameters
+from .algorithm import AlgorithmModel

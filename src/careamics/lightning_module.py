@@ -3,9 +3,15 @@ from typing import Any, Optional, Union
 import pytorch_lightning as L
 import torch
 
-from careamics.config.algorithm import Algorithm, AlgorithmType, Loss
-from careamics.config.architectures import Architecture
-from careamics.config.torch_optim import TorchLRScheduler, TorchOptimizer
+from careamics.config import AlgorithmModel
+from careamics.config.support import (
+    SupportedAlgorithm,
+    SupportedArchitecture,
+    SupportedLoss,
+    SupportedOptimizer, 
+    SupportedScheduler
+)
+
 from careamics.losses import create_loss_function
 from careamics.models.model_factory import model_registry
 
@@ -13,7 +19,7 @@ from careamics.models.model_factory import model_registry
 class CAREamicsKiln(L.LightningModule):
     def __init__(
         self,
-        algorithm_config: Algorithm
+        algorithm_config: AlgorithmModel
     ) -> None:
         super().__init__()
 
@@ -63,21 +69,23 @@ class CAREamicsKiln(L.LightningModule):
             "lr_scheduler": scheduler,
             "monitor": "val_loss", # otherwise one gets a MisconfigurationException
         }
-
+    
+    
+# TODO consider using a Literal[...] instead of the enums here?
 class CAREamicsModule(CAREamicsKiln):
 
     def __init__(
         self,
-        algorithm_type: Union[AlgorithmType, str],
-        loss: Union[Loss, str],
-        architecture: Union[Architecture, str],
+        algorithm_type: Union[SupportedAlgorithm, str],
+        loss: Union[SupportedLoss, str],
+        architecture: Union[SupportedArchitecture, str],
         model_parameters: dict,
-        optimizer: Union[TorchOptimizer, str],
-        lr_scheduler: Union[TorchLRScheduler, str],
+        optimizer: Union[SupportedOptimizer, str],
+        lr_scheduler: Union[SupportedScheduler, str],
         optimizer_parameters: Optional[dict] = None,
         lr_scheduler_parameters: Optional[dict] = None,
     ) -> None:
-
+        
         algorithm_configuration = {
             "algorithm_type": algorithm_type,
             "loss": loss,
@@ -97,4 +105,4 @@ class CAREamicsModule(CAREamicsKiln):
         # add model parameters
         algorithm_configuration["model"].update(model_parameters)
 
-        super().__init__(Algorithm(**algorithm_configuration))
+        super().__init__(AlgorithmModel(**algorithm_configuration))

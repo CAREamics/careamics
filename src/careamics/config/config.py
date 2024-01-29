@@ -13,8 +13,7 @@ from pydantic import (
     model_validator,
 )
 
-from .algorithm import Algorithm
-from .filters import paths_to_str
+from .algorithm import AlgorithmModel
 from .data import Data
 from .training import Training
 
@@ -42,10 +41,12 @@ class Configuration(BaseModel):
 
     # required parameters
     experiment_name: str
+
+    # TODO consider using DirectoryPath instead
     working_directory: Path
 
     # Sub-configurations
-    algorithm: Algorithm
+    algorithm: AlgorithmModel
     data: Data
     training: Training
 
@@ -61,7 +62,7 @@ class Configuration(BaseModel):
             Axes of the data.
         """
         # set the flag and axes (this will not trigger validation at the config level)
-        self.algorithm.model.is_3D = is_3D
+        self.algorithm.model.set_3D(is_3D)
         self.data.axes = axes
 
         # cheap hack: trigger validation
@@ -169,11 +170,11 @@ class Configuration(BaseModel):
             not 3D but the data axes are.
         """
         # check that is_3D and axes are compatible
-        if config.algorithm.model.is_3D and "Z" not in config.data.axes:
+        if config.algorithm.model.is_3D() and "Z" not in config.data.axes:
             raise ValueError(
                 f"Algorithm is 3D but data axes are not (got axes {config.data.axes})."
             )
-        elif not config.algorithm.model.is_3D and "Z" in config.data.axes:
+        elif not config.algorithm.model.is_3D() and "Z" in config.data.axes:
             raise ValueError(
                 f"Algorithm is not 3D but data axes are (got axes {config.data.axes})."
             )
@@ -181,42 +182,33 @@ class Configuration(BaseModel):
         return config
 
     def model_dump(
-        self, exclude_optionals: bool = True, *args: List, **kwargs: Dict
+        self, 
+        exclude_defaults: bool = True,
+        exclude_none: bool = True, 
+        **kwargs: Dict,
     ) -> Dict:
         """
-        Override model_dump method.
-
-        The purpose is to ensure export smooth import to yaml. It includes:
-            - remove entries with None value.
-            - remove optional values if they have the default value.
+        Override model_dump method in order to set default values for optional fields.
 
         Parameters
         ----------
-        exclude_optionals : bool, optional
-            Whether to exclude optional fields with default values or not, by default
+        exclude_defaults : bool, optional
+            Whether to exclude fields with default values or not, by default
             True.
-        *args : List
-            Positional arguments, unused.
+        exclude_none : bool, optional
+            Whether to exclude fields with None values or not, by default True.
         **kwargs : Dict
-            Keyword arguments, unused.
+            Keyword arguments.
 
         Returns
         -------
         dict
             Dictionary containing the model parameters.
         """
-        dictionary = super().model_dump(exclude_none=True)
-
-        # remove paths
-        dictionary = paths_to_str(dictionary)
-
-        dictionary["algorithm"] = self.algorithm.model_dump(
-            exclude_optionals=exclude_optionals
-        )
-        dictionary["data"] = self.data.model_dump()
-
-        dictionary["training"] = self.training.model_dump(
-            exclude_optionals=exclude_optionals
+        dictionary = super().model_dump(
+            exclude_none=exclude_none,
+            exclude_defaults=exclude_defaults,
+            **kwargs
         )
 
         return dictionary
@@ -291,6 +283,7 @@ def save_configuration(config: Configuration, path: Union[str, Path]) -> Path:
 
     # save configuration as dictionary to yaml
     with open(config_path, "w") as f:
+        # dump configuration
         yaml.dump(config.model_dump(), f, default_flow_style=False)
 
     return config_path

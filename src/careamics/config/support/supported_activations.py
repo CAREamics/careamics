@@ -1,12 +1,6 @@
 from enum import Enum
 
-class Architecture(str, Enum):
-    
-    UNET = "UNet"
-    VAE = "VAE"
-
-
-class Activation(str, Enum):
+class SupportedActivation(str, Enum):
 
     NONE = "None"
     SIGMOID = "Sigmoid"

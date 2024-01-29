@@ -3,96 +3,75 @@ Convenience functions using torch.
 
 These functions are used to control certain aspects and behaviours of PyTorch.
 """
-import os
-import sys
+import inspect
+from typing import Dict
 
-import torch
+from torch import optim
 
 from ..utils.logging import get_logger
 
 logger = get_logger(__name__)
 
 
-def get_device() -> torch.device:
+def get_parameters(
+    func: type,
+    user_params: dict,
+) -> dict:
     """
-    Select the device to use for training.
+    Filter parameters according to the function signature.
+
+    Parameters
+    ----------
+    func : type
+        Class object.
+    user_params : Dict
+        User provided parameters.
 
     Returns
     -------
-    torch.device
-        CUDA or CPU device, depending on availability of CUDA devices.
+    Dict
+        Parameters matching `func`'s signature.
     """
-    if torch.cuda.is_available():
-        logger.info("CUDA available. Using GPU.")
-        device = torch.device("cuda")
-    else:
-        logger.info("CUDA not available. Using CPU.")
-        device = torch.device("cpu")
-    return device
+    # Get the list of all default parameters
+    default_params = list(inspect.signature(func).parameters.keys())
+
+    # Filter matching parameters
+    params_to_be_used = set(user_params.keys()) & set(default_params)
+
+    return {key: user_params[key] for key in params_to_be_used}
 
 
-def compile_model(model: torch.nn.Module) -> torch.nn.Module:
+def get_optimizers() -> Dict[str, str]:
     """
-    Torch.compile wrapper.
-
-    Parameters
-    ----------
-    model : torch.nn.Module
-        Model.
+    Return the list of all optimizers available in torch.optim.
 
     Returns
     -------
-    torch.nn.Module
-        Compiled model if compile is available, the model itself otherwise.
+    Dict
+        Optimizers available in torch.optim.
     """
-    if hasattr(torch, "compile") and sys.version_info.minor <= 9:
-        logger.info("Compiling model for better performance.")
-        return torch.compile(model, mode="reduce-overhead")
-    else:
-        logger.info("Torch version does not support model compilation.")
-        return model
+    optims = {}
+    for name, obj in inspect.getmembers(optim):
+        if inspect.isclass(obj) and issubclass(obj, optim.Optimizer):
+            if name != "Optimizer":
+                optims[name] = name
+    return optims
 
 
-def seed_everything(seed: int) -> None:
+def get_schedulers() -> Dict[str, str]:
     """
-    Seed all random number generators for reproducibility.
+    Return the list of all schedulers available in torch.optim.lr_scheduler.
 
-    Parameters
-    ----------
-    seed : int
-        Seed.
+    Returns
+    -------
+    Dict
+        Schedulers available in torch.optim.lr_scheduler.
     """
-    import random
-
-    import numpy as np
-
-    random.seed(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)
-
-
-def setup_cudnn_reproducibility(
-    deterministic: bool = True, benchmark: bool = True
-) -> None:
-    """
-    Prepare CuDNN benchmark and sets it to be deterministic/non-deterministic mode.
-
-    https://pytorch.org/docs/stable/notes/randomness.html#cuda-convolution-benchmarking.
-
-    Parameters
-    ----------
-    deterministic : bool
-        Deterministic mode, if running CuDNN backend.
-    benchmark : bool
-        If True, uses CuDNN heuristics to figure out which algorithm will be most
-        performant for your model architecture and input. False may slow down training.
-    """
-    if torch.cuda.is_available():
-        if deterministic:
-            deterministic = os.environ.get("CUDNN_DETERMINISTIC", "True") == "True"
-        torch.backends.cudnn.deterministic = deterministic
-
-        if benchmark:
-            benchmark = os.environ.get("CUDNN_BENCHMARK", "True") == "True"
-        torch.backends.cudnn.benchmark = benchmark
+    schedulers = {}
+    for name, obj in inspect.getmembers(optim.lr_scheduler):
+        if inspect.isclass(obj) and issubclass(obj, optim.lr_scheduler.LRScheduler):
+            if "LRScheduler" not in name:
+                schedulers[name] = name
+        elif name == "ReduceLROnPlateau":  # somewhat not a subclass of LRScheduler
+            schedulers[name] = name
+    return schedulers

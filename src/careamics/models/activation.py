@@ -2,10 +2,10 @@ from typing import Callable, Union
 
 import torch.nn as nn
 
-from ..config.architectures.architectures import Activation
+from ..config.support import SupportedActivation
 
 
-def get_activation(activation: Union[Activation, str]) -> Callable:
+def get_activation(activation: Union[SupportedActivation, str]) -> Callable:
     """
     Get activation function.
 
@@ -19,17 +19,17 @@ def get_activation(activation: Union[Activation, str]) -> Callable:
     Callable
         Activation function.
     """
-    if activation == Activation.RELU:
+    if activation == SupportedActivation.RELU:
         return nn.ReLU()
-    elif activation == Activation.LEAKYRELU:
+    elif activation == SupportedActivation.LEAKYRELU:
         return nn.LeakyReLU()
-    elif activation == Activation.TANH:
+    elif activation == SupportedActivation.TANH:
         return nn.Tanh()
-    elif activation == Activation.SIGMOID:
+    elif activation == SupportedActivation.SIGMOID:
         return nn.Sigmoid()
-    elif activation == Activation.SOFTMAX:
+    elif activation == SupportedActivation.SOFTMAX:
         return nn.Softmax(dim=1)
-    elif activation == Activation.NONE:
+    elif activation == SupportedActivation.NONE:
         return nn.Identity()
     else:
         raise ValueError(f"Activation {activation} not supported.")
