@@ -286,7 +286,7 @@ def base_configuration(temp_dir: Path, patch_size) -> Configuration:
         ),
         data=Data(
             in_memory=True,
-            data_format="tif",
+            extension="tif",
             axes="YX",
         ),
         training=Training(
@@ -318,7 +318,7 @@ def supervised_configuration(temp_dir: Path, patch_size) -> Configuration:
         ),
         data=Data(
             in_memory=True,
-            data_format="tif",
+            extension="tif",
             axes="YX",
         ),
         training=Training(

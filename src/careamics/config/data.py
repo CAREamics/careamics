@@ -1,59 +1,11 @@
 """Data configuration."""
 from __future__ import annotations
 
-from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator, field_validator
 
 from ..utils import check_axes_validity
-
-
-class SupportedExtension(str, Enum):
-    """
-    Supported extensions for input data.
-
-    Currently supported:
-        - tif/tiff: .tiff files.
-        - zarr: zarr array.
-    """
-
-    TIFF = "tiff"
-    TIF = "tif"
-    # ZARR = "zarr"
-
-    @classmethod
-    def _missing_(cls, value: object) -> str:
-        """
-        Override default behaviour for missing values.
-
-        This method is called when `value` is not found in the enum values. It converts
-        `value` to lowercase, removes "." if it is the first character and tries to
-        match it with enum values.
-
-        Parameters
-        ----------
-        value : object
-            Value to be matched with enum values.
-
-        Returns
-        -------
-        str
-            Matched enum value.
-        """
-        if isinstance(value, str):
-            lower_value = value.lower()
-
-            if lower_value.startswith("."):
-                lower_value = lower_value[1:]
-
-            # attempt to match lowercase value with enum values
-            for member in cls:
-                if member.value == lower_value:
-                    return member
-
-        # still missing
-        return super()._missing_(value)
 
 
 class Data(BaseModel):
@@ -81,13 +33,12 @@ class Data(BaseModel):
 
     # Pydantic class configuration
     model_config = ConfigDict(
-        use_enum_values=True,
         validate_assignment=True,
     )
 
     # Mandatory fields
     in_memory: bool
-    data_format: SupportedExtension # TODO makes it a dataset = ArrayDataset | TiffDataset | ZarrDataset
+    data_format: Literal["Array", "Tiff", "Zarr"]
     patch_size: List[int] = Field(..., min_length=2, max_length=3)
 
     axes: str
@@ -234,24 +185,3 @@ class Data(BaseModel):
             raise ValueError("Cannot have std non None if mean is None.")
 
         return data_model
-
-    def model_dump(self, *args: List, **kwargs: Dict) -> dict:
-        """
-        Override model_dump method.
-
-        The purpose is to ensure export smooth import to yaml. It includes:
-            - remove entries with None value.
-
-        Parameters
-        ----------
-        *args : List
-            Positional arguments, unused.
-        **kwargs : Dict
-            Keyword arguments, unused.
-
-        Returns
-        -------
-        dict
-            Dictionary containing the model parameters.
-        """
-        return super().model_dump(exclude_none=True)

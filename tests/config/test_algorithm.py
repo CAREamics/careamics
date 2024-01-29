@@ -66,7 +66,7 @@ def test_model_discriminator(minimum_algorithm):
         minimum_algorithm["model"]["architecture"] = model_name.value
 
         algo = AlgorithmModel(**minimum_algorithm)
-        assert algo.model.architecture == model_name
+        assert algo.model.architecture == model_name.value
 
 
 def test_wrong_values_by_assigment(minimum_algorithm: dict):

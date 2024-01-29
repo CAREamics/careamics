@@ -45,19 +45,19 @@ def get_train_dataset(
     if data_config.in_memory:
         dataset = InMemoryDataset(
             data_path=train_path,
-            data_format=data_config.data_format,
+            data_format=data_config.extension,
             axes=data_config.axes,
             mean=data_config.mean,
             std=data_config.std,
             patch_size=data_config.patch_size,
             patch_transform=data_config.transforms,
             target_path=train_target_path,
-            target_format=data_config.data_format,
+            target_format=data_config.extension,
         )
-    elif data_config.data_format in ["tif", "tiff"]:
+    elif data_config.extension in ["tif", "tiff"]:
         dataset = IterableDataset(
             data_path=train_path,
-            data_format=data_config.data_format,
+            data_format=data_config.extension,
             axes=data_config.axes,
             mean=data_config.mean,
             std=data_config.std,
@@ -65,7 +65,7 @@ def get_train_dataset(
             patch_size=data_config.patch_size,
             patch_transform=data_config.transforms,
             target_path=train_target_path,
-            target_format=data_config.data_format,
+            target_format=data_config.extension,
         )
         # elif config.data.data_format == "zarr":
         #     if ".zarray" in os.listdir(train_path):
@@ -112,17 +112,17 @@ def get_validation_dataset(
         In memory dataset.
     """
     # TODO what about iterable dataset for validation??
-    if data_config.data_format in ["tif", "tiff"]:
+    if data_config.extension in ["tif", "tiff"]:
         dataset = InMemoryDataset(
             data_path=val_path,
-            data_format=data_config.data_format,
+            data_format=data_config.extension,
             axes=data_config.axes,
             mean=data_config.mean,
             std=data_config.std,
             patch_size=data_config.patch_size,
             patch_transform=data_config.transforms,
             target_path=val_target_path,
-            target_format=data_config.data_format,
+            target_format=data_config.extension,
         )
     # elif data_config.data_format == "zarr":
     #     if ".zarray" in os.listdir(val_path):
@@ -216,10 +216,10 @@ def get_prediction_dataset(
             std=data_config.std,
         )
     elif isinstance(pred_source, str) or isinstance(pred_source, Path):
-        if data_config.data_format in ["tif", "tiff"]:
+        if data_config.extension in ["tif", "tiff"]:
             dataset = IterableDataset(
                 data_path=pred_source,
-                data_format=data_config.data_format,
+                data_format=data_config.extension,
                 axes=axes if axes is not None else data_config.axes,
                 mean=data_config.mean,
                 std=data_config.std,

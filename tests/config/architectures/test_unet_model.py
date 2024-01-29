@@ -69,6 +69,19 @@ def test_activations():
         UNetModel(**model_params)
 
 
+def test_all_activations_are_supported():
+    """Test that all activations defined in the Literal are supported."""
+    # list of supported activations
+    activations = [act for act in SupportedActivation]
+
+    # Algorithm json schema
+    schema = UNetModel.schema()
+
+    # check that all activations are supported
+    for act in schema["properties"]["final_activation"]['enum']:
+       assert act in activations
+       
+
 def test_activation_wrong_values():
     """Test that wrong values are not accepted."""
     model_params = {
@@ -102,8 +115,7 @@ def test_parameters_wrong_values_by_assigment():
 
 
 def test_model_dump():
-    """Test that default values are excluded from model dump, and that the enum 
-    are replaced by their values."""
+    """Test that default values are excluded from model dump."""
     model_params = {
         "architecture": "UNet",
         "num_channels_init": 16, # non-default value
@@ -117,10 +129,6 @@ def test_model_dump():
     # check that default values are excluded except the architecture
     assert "architecture" in model_dict
     assert len(model_dict) == 3
-
-    # check that enum are not passed as enums but as their values
-    assert not isinstance(model_dict["architecture"], SupportedArchitecture)
-    assert not isinstance(model_dict["final_activation"], SupportedActivation)
 
     # check that we get all the optional values with the exclude_defaults flag
     model_dict = model.model_dump(exclude_defaults=False)

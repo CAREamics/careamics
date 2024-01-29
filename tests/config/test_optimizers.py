@@ -1,51 +1,17 @@
 import pytest
-from torch import optim
 
 from careamics.config.support.supported_optimizers import (
     SupportedScheduler,
-    SupportedOptimizer,
-    get_optimizers,
-    get_schedulers,
+    SupportedOptimizer
 )
-from careamics.config.optimizer import OptimizerModel
-from careamics.config.lr_scheduler import LrSchedulerModel
-
-
-def test_get_schedulers_exist():
-    """Test that the function `get_schedulers` return
-    existing torch schedulers.
-    """
-    for scheduler in get_schedulers():
-        assert hasattr(optim.lr_scheduler, scheduler)
-
-
-def test_torch_schedulers_exist():
-    """Test that the enum `TorchLRScheduler` contains
-    existing torch schedulers."""
-    for scheduler in SupportedScheduler:
-        assert hasattr(optim.lr_scheduler, scheduler)
-
-
-def test_get_optimizers_exist():
-    """Test that the function `get_optimizers` return
-    existing torch optimizers.
-    """
-    for optimizer in get_optimizers():
-        assert hasattr(optim, optimizer)
-
-
-def test_optimizers_exist():
-    """Test that the enum `TorchOptimizer` contains
-    existing torch optimizers."""
-    for optimizer in SupportedOptimizer:
-        assert hasattr(optim, optimizer)
+from careamics.config.optimizers import OptimizerModel, LrSchedulerModel
 
 
 @pytest.mark.parametrize(
     "optimizer_name, parameters",
     [
         (
-            SupportedOptimizer.Adam,
+            SupportedOptimizer.Adam.value,
             {
                 "lr": 0.08,
                 "betas": (0.1, 0.11),
@@ -55,7 +21,7 @@ def test_optimizers_exist():
             },
         ),
         (
-            SupportedOptimizer.SGD,
+            SupportedOptimizer.SGD.value,
             {
                 "lr": 0.11,
                 "momentum": 5,
@@ -87,19 +53,22 @@ def test_sgd_missing_parameter():
     Note: The SGD optimizer requires the `lr` parameter.
     """
     with pytest.raises(ValueError):
-        OptimizerModel(name=SupportedOptimizer.SGD, parameters={})
+        OptimizerModel(name=SupportedOptimizer.SGD.value, parameters={})
 
     # test that it works if lr is provided
-    optimizer = OptimizerModel(name=SupportedOptimizer.SGD, parameters={"lr": 0.1})
+    optimizer = OptimizerModel(
+        name=SupportedOptimizer.SGD.value, 
+        parameters={"lr": 0.1}
+    )
     assert optimizer.parameters == {"lr": 0.1}
 
 
 def test_optimizer_wrong_values_by_assignments():
     """Test that wrong values cause an error during assignment."""
-    optimizer = OptimizerModel(name=SupportedOptimizer.Adam, parameters={"lr": 0.08})
+    optimizer = OptimizerModel(name=SupportedOptimizer.Adam.value, parameters={"lr": 0.08})
 
     # name
-    optimizer.name = SupportedOptimizer.SGD
+    optimizer.name = SupportedOptimizer.SGD.value
     with pytest.raises(ValueError):
         optimizer.name = "MyOptim"
 
@@ -130,7 +99,7 @@ def test_optimizer_to_dict_default_optional():
         "parameters": {},
     }
 
-    optim_minimum = OptimizerModel(**config).model_dump()
+    optim_minimum = OptimizerModel(**config).model_dump(exclude_defaults=True)
     assert "parameters" not in optim_minimum.keys()
 
 
@@ -138,7 +107,7 @@ def test_optimizer_to_dict_default_optional():
     "lr_scheduler_name, parameters",
     [
         (
-            SupportedScheduler.ReduceLROnPlateau,
+            SupportedScheduler.ReduceLROnPlateau.value,
             {
                 "mode": "max",
                 "factor": 0.3,
@@ -151,7 +120,7 @@ def test_optimizer_to_dict_default_optional():
             },
         ),
         (
-            SupportedScheduler.StepLR,
+            SupportedScheduler.StepLR.value,
             {
                 "step_size": 2,
                 "gamma": 0.3,
@@ -178,11 +147,11 @@ def test_scheduler_parameters(lr_scheduler_name: SupportedScheduler, parameters:
 def test_scheduler_missing_parameter():
     """Test that StepLR scheduler fails if `step_size` is not provided"""
     with pytest.raises(ValueError):
-        LrSchedulerModel(name=SupportedScheduler.StepLR, parameters={})
+        LrSchedulerModel(name=SupportedScheduler.StepLR.value, parameters={})
 
     # test that it works if lr is provided
     lr_scheduler = LrSchedulerModel(
-        name=SupportedScheduler.StepLR, parameters={"step_size": "5"}
+        name=SupportedScheduler.StepLR.value, parameters={"step_size": "5"}
     )
     assert lr_scheduler.parameters == {"step_size": "5"}
 
@@ -190,20 +159,20 @@ def test_scheduler_missing_parameter():
 def test_scheduler_wrong_values_by_assignments():
     """Test that wrong values cause an error during assignment."""
     scheduler = LrSchedulerModel(
-        name=SupportedScheduler.ReduceLROnPlateau, parameters={"factor": 0.3}
+        name=SupportedScheduler.ReduceLROnPlateau.value, parameters={"factor": 0.3}
     )
 
     # name
-    scheduler.name = SupportedScheduler.ReduceLROnPlateau
+    scheduler.name = SupportedScheduler.ReduceLROnPlateau.value
     with pytest.raises(ValueError):
         # this fails because the step parameter is missing
-        scheduler.name = SupportedScheduler.StepLR
+        scheduler.name = SupportedScheduler.StepLR.value
 
     with pytest.raises(ValueError):
         scheduler.name = "Schedule it yourself!"
 
     # parameters
-    scheduler.name = SupportedScheduler.ReduceLROnPlateau
+    scheduler.name = SupportedScheduler.ReduceLROnPlateau.value
     scheduler.parameters = {"factor": 0.1}
     with pytest.raises(ValueError):
         scheduler.parameters = "factor = 0.3"
@@ -230,7 +199,9 @@ def test_scheduler_to_dict_default_optional():
         "parameters": {},
     }
 
-    scheduler_complete = LrSchedulerModel(**scheduler_config).model_dump()
+    scheduler_complete = LrSchedulerModel(**scheduler_config).model_dump(
+        exclude_defaults=True
+    )
     assert "parameters" not in scheduler_complete.keys()
 
 

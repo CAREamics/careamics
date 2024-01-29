@@ -118,9 +118,9 @@ def test_wrong_values_by_assigment(minimum_data: dict):
         data_model.in_memory = "Trues"
 
     # data format
-    data_model.data_format = "tiff"
+    data_model.extension = "tiff"
     with pytest.raises(ValueError):
-        data_model.data_format = "png"
+        data_model.extension = "png"
 
     # axes
     data_model.axes = "SZYX"

@@ -7,8 +7,7 @@ from pydantic import (
     Field,
 )
 
-from .optimizer import OptimizerModel
-from .lr_scheduler import LrSchedulerModel
+from .optimizers import OptimizerModel, LrSchedulerModel
 from .architectures import UNetModel, VAEModel
 
 #from .noise_models import NoiseModel
@@ -22,23 +21,10 @@ class AlgorithmModel(BaseModel):
             Loss to use, currently only supports n2v.
         - model:
             Model to use, currently only supports UNet.
-        - is_3D:
-            Whether to use a 3D model or not, this should be coherent with the
-            data configuration (axes).
-
-    Other optional fields are:
-        - masking_strategy:
-            Masking strategy to use, currently only supports default masking.
-        - masked_pixel_percentage:
-            Percentage of pixels to be masked in each patch.
-        - roi_size:
-            Size of the region of interest to use in the masking algorithm.
-        - model_parameters:
-            Model parameters, see ModelParameters for more details.
 
     Attributes
     ----------
-    loss : List[Losses]
+    loss : str
         List of losses to use, currently only supports n2v.
     model : Models
         Model to use, currently only supports UNet.
@@ -56,7 +42,6 @@ class AlgorithmModel(BaseModel):
 
     # Pydantic class configuration
     model_config = ConfigDict(
-        use_enum_values=True,
         protected_namespaces=(),  # allows to use model_* as a field name
         validate_assignment=True,
     )
