@@ -11,7 +11,7 @@ class SupportedAlgorithm(str, Enum):
 
     # CARE = "care"
     N2V = "n2v"
-    N2V2 = "n2v2"
+    N2V2 = "n2v2" # TODO to decide whether to remove this
     # N2N = "n2n"
     # PN2V = "pn2v"
     # HDN = "hdn"

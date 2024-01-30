@@ -13,9 +13,7 @@ from pydantic import (
 class UNetModel(BaseModel):
     """
     Pydantic model for a N2V(2)-compatible UNet.
-
-    The number of filters (base) must be even and minimum 8.
-
+    
     Attributes
     ----------
     depth : int
