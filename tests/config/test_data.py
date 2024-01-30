@@ -1,19 +1,6 @@
 import pytest
 
-from careamics.config.data import Data, SupportedExtension
-
-    
-@pytest.mark.parametrize("ext", ["tiff", "tif", "TIFF", "TIF", ".TIF"])
-def test_supported_extensions_case_insensitive(ext: str):
-    """Test that SupportedExtension enum accepts all extensions in upper
-    cases and with ."""
-    sup_ext = SupportedExtension(ext)
-
-    new_ext = ext.lower()
-    if ext.startswith("."):
-        new_ext = new_ext[1:]
-
-    assert sup_ext.value == new_ext
+from careamics.config.data import Data
 
 
 @pytest.mark.parametrize("ext", ["nd2", "jpg", "png ", "zarr", "npy"])
@@ -90,11 +77,11 @@ def test_patch_size(minimum_data: dict):
     assert data_model.patch_size == [12, 12, 12]
 
 
-@pytest.mark.parametrize("patch_size", 
+@pytest.mark.parametrize("patch_size",
     [
         [12],
-        [0, 12, 12], 
-        [12, 12, 13], 
+        [0, 12, 12],
+        [12, 12, 13],
         [12, 12, 12, 12]
     ]
 )

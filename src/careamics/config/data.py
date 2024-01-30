@@ -1,9 +1,9 @@
 """Data configuration."""
 from __future__ import annotations
 
-from typing import Dict, List, Literal, Optional
+from typing import List, Literal, Optional
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from ..utils import check_axes_validity
 

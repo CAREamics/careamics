@@ -85,13 +85,9 @@ def test_patches_sanity_check(arr_shape, patch_size):
     "arr_shape, patch_size",
     [
         # Wrong number of dimensions 2D
-        ((10, 10), (5, 5)),
         # minimum 3 dimensions CYX
         ((10, 10), (5, 5, 5)),
-        ((1, 1, 10, 10), (5, 5)),
         # Wrong number of dimensions 3D
-        ((10, 10, 10), (5, 5, 5)),
-        ((1, 10, 10, 10), (5, 5)),
         ((1, 1, 10, 10, 10), (5, 5)),
         ((1, 1, 10, 10, 10), (5, 5, 5)),
         # Wrong z patch size

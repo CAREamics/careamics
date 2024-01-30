@@ -3,15 +3,12 @@ Dataset preparation module.
 
 Methods to set up the datasets for training, validation and prediction.
 """
-import os
 from pathlib import Path
 from typing import Callable, List, Optional, Union
 
 import numpy as np
-import zarr
 
 from ..config.data import Data
-from ..manipulation import default_manipulate
 from ..utils import check_external_array_validity, check_tiling_validity
 from .extraction_strategy import ExtractionStrategy
 from .in_memory_dataset import InMemoryDataset, InMemoryPredictionDataset
