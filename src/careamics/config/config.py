@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import Dict, List, Union
+from typing import Dict, Literal, Union
 
 import yaml
 from pydantic import (
@@ -38,6 +38,9 @@ class Configuration(BaseModel):
     """
 
     model_config = ConfigDict(validate_assignment=True)
+
+    # version
+    version: Literal["0.1.0"] = "0.1.0"
 
     # required parameters
     experiment_name: str
