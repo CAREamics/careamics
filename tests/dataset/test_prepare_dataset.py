@@ -8,7 +8,7 @@ from careamics.dataset.dataset_utils import list_files, read_tiff, reshape_data
 
 
 def test_read_tiff(example_data_path):
-    read_tiff(example_data_path[0])
+    read_tiff(example_data_path[0], axes="SYX")
 
 
 def test_read_tiff_raises(example_data_path):

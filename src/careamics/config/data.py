@@ -37,8 +37,7 @@ class Data(BaseModel):
     )
 
     # Mandatory fields
-    in_memory: bool
-    data_format: Literal["Array", "Tiff", "Zarr"]
+    data_extension: Literal["Array", "Tiff", "Zarr", "Custom"]
     patch_size: List[int] = Field(..., min_length=2, max_length=3)
 
     axes: str
@@ -46,6 +45,9 @@ class Data(BaseModel):
     # Optional fields
     mean: Optional[float] = Field(default=None, ge=0)
     std: Optional[float] = Field(default=None, gt=0)
+
+    # TODO default to data_extension
+    target_extension: Optional[Literal["Array", "Tiff", "Zarr", "Custom"]] = None
 
     # TODO need better validation for that one
     transforms: Optional[List] = None

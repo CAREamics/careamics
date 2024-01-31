@@ -49,7 +49,7 @@ class InMemoryDataset(torch.utils.data.Dataset):
     def __init__(
         self,
         data_path: Union[str, Path, List[Union[str, Path]]],
-        data: Data,
+        config: Data,
         target_path: Optional[Union[str, Path, List[Union[str, Path]]]] = None,
         target_format: Optional[str] = None,
         read_source_func: Optional[Callable] = None,
@@ -87,11 +87,11 @@ class InMemoryDataset(torch.utils.data.Dataset):
         if not self.data_path.is_dir():
             raise ValueError("Path to data should be an existing folder.")
 
-        self.data_format = data.data_format
+        self.data_format = config.data_format
         self.target_path = target_path
         self.target_format = target_format
 
-        self.axes = data.axes
+        self.axes = config.axes
         self.algorithm = None  # TODO add algorithm type
 
         self.read_source_func = (
@@ -106,18 +106,18 @@ class InMemoryDataset(torch.utils.data.Dataset):
             self.target_files = list_files(self.target_path, self.target_format)
             validate_files(self.files, self.target_files)
 
-        self.patch_size = data.patch_size
+        self.patch_size = config.patch_size
 
         # Generate patches
         self.data, self.targets, computed_mean, computed_std = self._prepare_patches()
 
-        if not data.mean or not data.std:
+        if not config.mean or not config.std:
             self.mean, self.std = computed_mean, computed_std
             logger.info(f"Computed dataset mean: {self.mean}, std: {self.std}")
         assert self.mean is not None
         assert self.std is not None
 
-        data.transforms[[t["name"] for t in data.transforms].index("Normalize")][
+        config.transforms[[t["name"] for t in config.transforms].index("Normalize")][
             "parameters"
         ] = {
             "mean": self.mean,
@@ -125,7 +125,7 @@ class InMemoryDataset(torch.utils.data.Dataset):
             "max_pixel_value": 1,
         }
         self.patch_transform = get_patch_transform(
-            patch_transform=data.transforms,
+            patch_transform=config.transforms,
             target=target_path is not None,
         )
 
