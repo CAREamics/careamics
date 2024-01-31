@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 from typing import Dict, Literal
 
 from pydantic import (
@@ -6,17 +7,14 @@ from pydantic import (
     ConfigDict,
     Field,
     ValidationInfo,
+    field_validator,
     model_validator,
-    field_validator
 )
 from torch import optim
 
-from .support.supported_optimizers import (
-    SupportedOptimizer,
-    SupportedScheduler
-)
-
 from careamics.utils.torch_utils import get_parameters
+
+from .support.supported_optimizers import SupportedOptimizer, SupportedScheduler
 
 
 class OptimizerModel(BaseModel):
@@ -44,12 +42,40 @@ class OptimizerModel(BaseModel):
     )
 
     # Mandatory field
-    name: Literal["Adam", "SGD"]
+    name: Literal["Adam", "SGD"] = Field(default="Adam", validate_default=True)
 
     # Optional parameters, empty dict default value to allow filtering dictionary
     parameters: dict = Field(default={}, validate_default=True)
 
-    @field_validator("parameters", mode='before')
+    @field_validator("name", mode="before")
+    def validate_name(cls, name: str) -> str:
+        """
+        Validate optimizer name.
+
+        Parameters
+        ----------
+        name : str
+            Name of the optimizer.
+
+        Returns
+        -------
+        str
+            Validated optimizer name.
+
+        Raises
+        ------
+        ValueError
+            If the optimizer name is not supported.
+        """
+        if name != "custom" and name not in SupportedOptimizer.__members__.values():
+            raise ValueError(
+                f"Optimizer {name} is not supported, check that it has correctly "
+                "been specified."
+            )
+
+        return name
+
+    @field_validator("parameters", mode="before")
     def filter_parameters(cls, user_params: dict, values: ValidationInfo) -> Dict:
         """
         Validate optimizer parameters.
@@ -83,7 +109,7 @@ class OptimizerModel(BaseModel):
                 f"Optimizer parameters must be a dictionary, got {type(user_params)}."
             )
 
-        if "name" in values.data: # TODO test if that clause if really necessary
+        if "name" in values.data:  # TODO test if that clause if really necessary
             optimizer_name = values.data["name"]
 
             # retrieve the corresponding optimizer class
@@ -117,14 +143,16 @@ class OptimizerModel(BaseModel):
         ValueError
             If the optimizer is SGD and the lr parameter is not specified.
         """
-        if optimizer.name == SupportedOptimizer.SGD and "lr" not in optimizer.parameters:
+        if (
+            optimizer.name == SupportedOptimizer.SGD
+            and "lr" not in optimizer.parameters
+        ):
             raise ValueError(
                 "SGD optimizer requires `lr` parameter, check that it has correctly "
                 "been specified in `parameters`."
             )
 
         return optimizer
-
 
 
 class LrSchedulerModel(BaseModel):
@@ -152,12 +180,40 @@ class LrSchedulerModel(BaseModel):
     )
 
     # Mandatory field
-    name: Literal["ReduceLROnPlateau", "StepLR"]
+    name: str = Field(default="ReduceLROnPlateau")
 
     # Optional parameters
     parameters: dict = Field(default={}, validate_default=True)
 
-    @field_validator("parameters", mode='before')
+    @field_validator("name", mode="before")
+    def validate_name(cls, name: str) -> str:
+        """
+        Validate lr scheduler name.
+
+        Parameters
+        ----------
+        name : str
+            Name of the lr scheduler.
+
+        Returns
+        -------
+        str
+            Validated lr scheduler name.
+
+        Raises
+        ------
+        ValueError
+            If the lr scheduler name is not supported.
+        """
+        if name != "custom" and name not in SupportedScheduler.__members__.values():
+            raise ValueError(
+                f"Lr scheduler {name} is not supported, check that it has correctly "
+                "been specified."
+            )
+
+        return name
+
+    @field_validator("parameters", mode="before")
     def filter_parameters(cls, user_params: dict, values: ValidationInfo) -> Dict:
         """
         Validate lr scheduler parameters.
@@ -184,13 +240,13 @@ class LrSchedulerModel(BaseModel):
         # None value to default
         if user_params is None:
             user_params = {}
-        
+
         # since we are validating before type validation, enforce is here
         if not isinstance(user_params, dict):
             raise ValueError(
                 f"Optimizer parameters must be a dictionary, got {type(user_params)}."
             )
-        
+
         if "name" in values.data:
             lr_scheduler_name = values.data["name"]
 
@@ -206,7 +262,9 @@ class LrSchedulerModel(BaseModel):
             )
 
     @model_validator(mode="after")
-    def step_lr_step_size_parameter(cls, lr_scheduler: LrSchedulerModel) -> LrSchedulerModel:
+    def step_lr_step_size_parameter(
+        cls, lr_scheduler: LrSchedulerModel
+    ) -> LrSchedulerModel:
         """
         Check that StepLR lr scheduler has `step_size` parameter specified.
 
