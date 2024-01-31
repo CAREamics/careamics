@@ -4,7 +4,7 @@ Convenience functions using torch.
 These functions are used to control certain aspects and behaviours of PyTorch.
 """
 import inspect
-from typing import Dict
+from typing import Dict, Tuple
 
 import torch
 
@@ -34,7 +34,7 @@ def get_device() -> torch.device:
 def get_parameters(
     func: type,
     user_params: dict,
-) -> dict:
+) -> Tuple[dict, dict]:
     """
     Filter parameters according to the function signature.
 
@@ -50,13 +50,22 @@ def get_parameters(
     Dict
         Parameters matching `func`'s signature.
     """
-    # Get the list of all default parameters
-    default_params = list(inspect.signature(func).parameters.keys())
+    parameter_signature = inspect.signature(func).parameters
 
+    # Get the list of all parameters
+    possible_parameters = list(parameter_signature.keys())
+
+    # Get the list of mandatory parameters
+    mandatory_parameters = [
+        parameter_signature[p].default 
+        for p in parameter_signature
+        if parameter_signature[p].default is inspect._empty
+    ]
+    
     # Filter matching parameters
-    params_to_be_used = set(user_params.keys()) & set(default_params)
+    params_to_be_used = set(user_params.keys()) & set(possible_parameters)
 
-    return {key: user_params[key] for key in params_to_be_used}
+    return {key: user_params[key] for key in params_to_be_used}, mandatory_parameters
 
 
 def get_optimizers() -> Dict[str, str]:

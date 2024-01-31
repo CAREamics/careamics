@@ -116,7 +116,7 @@ class OptimizerModel(BaseModel):
             optimizer_class = getattr(optim, optimizer_name)
 
             # filter the user parameters according to the optimizer's signature
-            return get_parameters(optimizer_class, user_params)
+            return get_parameters(optimizer_class, user_params) # TODO now return a tuple
         else:
             raise ValueError(
                 "Cannot validate optimizer parameters without `name`, check that it "
@@ -254,7 +254,7 @@ class LrSchedulerModel(BaseModel):
             lr_scheduler_class = getattr(optim.lr_scheduler, lr_scheduler_name)
 
             # filter the user parameters according to the lr scheduler's signature
-            return get_parameters(lr_scheduler_class, user_params)
+            return get_parameters(lr_scheduler_class, user_params) # TODO now return a tuple
         else:
             raise ValueError(
                 "Cannot validate lr scheduler parameters without `name`, check that it "

@@ -143,6 +143,15 @@ class CAREamicsClay(L.LightningDataModule):
         self.num_workers = num_workers
         self.pin_memory = pin_memory
 
+        
+
+
+
+        # get file sizes
+        # get psutil memory size available
+        # if it is within 10 percent, then iterable, otherwise, in memory
+
+
     def setup(self, stage: Optional[str] = None) -> None:
         self.dataset = None
 

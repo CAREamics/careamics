@@ -5,6 +5,7 @@ from typing import List, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from .transform import TransformModel
 from ..utils import check_axes_validity
 
 
@@ -37,7 +38,7 @@ class Data(BaseModel):
     )
 
     # Mandatory fields
-    data_extension: Literal["Array", "Tiff", "Zarr", "Custom"]
+    data_type: Literal["Array", "Tiff", "Zarr", "Custom"]
     patch_size: List[int] = Field(..., min_length=2, max_length=3)
 
     axes: str
@@ -46,11 +47,8 @@ class Data(BaseModel):
     mean: Optional[float] = Field(default=None, ge=0)
     std: Optional[float] = Field(default=None, gt=0)
 
-    # TODO default to data_extension
-    target_extension: Optional[Literal["Array", "Tiff", "Zarr", "Custom"]] = None
-
     # TODO need better validation for that one
-    transforms: Optional[List] = None
+    transforms: Optional[List[TransformModel]] = None
 
 
     @field_validator("axes")

@@ -1,6 +1,13 @@
 import pytest
 
-from careamics.config.transform import Transform
+from careamics.config.transform import TransformModel, ALL_TRANSFORMS
+
+
+def test_all_transforms():
+    """Test that all transforms are can be instantiated."""
+    for name, func in ALL_TRANSFORMS.items():
+        print(name)
+        func()
 
 
 @pytest.mark.parametrize("name, parameters", 
@@ -12,7 +19,7 @@ from careamics.config.transform import Transform
     ]
 )
 def test_transform(name, parameters):
-    Transform(name=name, parameters=parameters)
+    TransformModel(name=name, parameters=parameters)
 
 
 @pytest.mark.parametrize("name, parameters", 
@@ -23,7 +30,7 @@ def test_transform(name, parameters):
 )
 def test_transform_wrong_values(name, parameters):
     with pytest.raises(ValueError):
-        Transform(name=name, parameters=parameters)
+        TransformModel(name=name, parameters=parameters)
 
 
 # TODO: tests for the ManipulateN2V transforms
