@@ -30,7 +30,7 @@ def approximate_file_size(filename: Path) -> int:
     """
     try:
         pointer = tifffile.TiffFile(filename)
-        return pointer.filehandle.size / 1024 ** 2
+        return pointer.filehandle.size / 1024**2
     except (tifffile.TiffFileError, StopIteration, FileNotFoundError):
         logger.warning(f"File {filename} is not a valid tiff file or is empty.")
         return 0
@@ -106,48 +106,6 @@ def list_files(
         raise ValueError(
             f"Data path {data_path} is not a valid directory or a list of filenames."
         )
-
-
-def _update_axes(array: np.ndarray, axes: str) -> np.ndarray:
-    """
-    Update axes of the array to match the config axes.
-
-    This method concatenate the S and T axes.
-
-    Parameters
-    ----------
-    array : np.ndarray
-        Input array.
-    axes : str
-        Description of axes in format STCZYX.
-
-    Returns
-    -------
-    np.ndarray
-        Updated array.
-    """
-    # concatenate ST axes to N, return NCZYX
-    if ("S" in axes or "T" in axes) and array.dtype != "O":
-        new_axes_len = len(axes.replace("Z", "").replace("YX", ""))
-        array = array.reshape(-1, *array.shape[new_axes_len:]).astype(np.float32)
-        array.reshape(-1, *array.shape[new_axes_len:]).astype(np.float32)
-
-    elif "C" in axes:
-        if len(axes) != len(array.shape):
-            array = np.expand_dims(array, axis=0)
-        if axes[-1] == "C":
-            array = np.moveaxis(array, -1, 0)
-        else:
-            array = array.astype(np.float32)
-
-    elif array.dtype == "O":
-        for i in range(len(array)):
-            array[i] = np.expand_dims(array[i], axis=0).astype(np.float32)
-
-    else:
-        array = np.expand_dims(array, axis=0).astype(np.float32)
-
-    return array
 
 
 def get_shape_order(shape_in: Tuple, axes_in: str, ref_axes: str = "STCZYX"):
@@ -253,7 +211,7 @@ def reshape_data(x: np.ndarray, axes: str):
     if "C" not in new_axes:
         # Add channel axis after S
         _x = np.expand_dims(_x, new_axes.index("S") + 1)
-        #get the location of the 1st spatial axis
+        # get the location of the 1st spatial axis
         c_coord = len(new_axes.replace("Z", "").replace("YX", ""))
         new_axes = new_axes[:c_coord] + "C" + new_axes[c_coord:]
 
