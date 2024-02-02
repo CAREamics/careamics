@@ -14,11 +14,50 @@ from ..utils.logging import get_logger
 logger = get_logger(__name__)
 
 
+def approximate_file_size(filename: Path) -> int:
+    """
+    Approximate file size.
+
+    Parameters
+    ----------
+    filename : Path
+        Path to a file.
+
+    Returns
+    -------
+    int
+        Approximate file size in mbytes.
+    """
+    try:
+        pointer = tifffile.TiffFile(filename)
+        return pointer.filehandle.size / 1024 ** 2
+    except (tifffile.TiffFileError, StopIteration, FileNotFoundError):
+        logger.warning(f"File {filename} is not a valid tiff file or is empty.")
+        return 0
+
+
+def get_file_sizes(files: List[Path]) -> List[int]:
+    """
+    Get file sizes.
+
+    Parameters
+    ----------
+    files : List[Path]
+        List of paths to files.
+
+    Returns
+    -------
+    List[int]
+        List of file sizes in mbytes.
+    """
+    return sum([approximate_file_size(file) for file in files])
+
+
 def list_files(
     data_path: Union[str, Path, List[Union[str, Path]]],
     data_format: str,
     return_list: bool = True,
-) -> List[Path]:
+) -> Tuple[List[Path], int]:
     """Creates a list of paths to source tiff files from path string.
 
     Parameters
@@ -34,6 +73,8 @@ def list_files(
     -------
     List[Path]
         List of pathlib.Path objects.
+    int
+        Approximate size of the files in mbytes.
     """
     data_path = Path(data_path) if not isinstance(data_path, list) else data_path
 
@@ -43,19 +84,23 @@ def list_files(
             files.append(list_files(path, data_format, return_list=False))
         if len(files) == 0:
             raise ValueError(f"Data path {data_path} is empty.")
-        return files
+        approx_size = get_file_sizes(files)
+        return files, approx_size
 
     elif data_path.is_dir():
         if return_list:
             files = sorted(Path(data_path).rglob(f"*.{data_format}*"))
             if len(files) == 0:
                 raise ValueError(f"Data path {data_path} is empty.")
+            approx_size = get_file_sizes(files)
+            return files, approx_size
         else:
             files = sorted(Path(data_path).rglob(f"*.{data_format}*"))[0]
         return files
 
     elif data_path.is_file():
-        return [data_path] if return_list else data_path
+        approx_size = approximate_file_size(data_path)
+        return [data_path] if return_list else data_path, approx_size
 
     else:
         raise ValueError(
