@@ -4,6 +4,7 @@ Tiff dataset module.
 This module contains the implementation of the TiffDataset class, which allows loading
 tiff files.
 """
+
 from pathlib import Path
 from typing import Callable, Dict, Generator, List, Optional, Tuple, Union
 

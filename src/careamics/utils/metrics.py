@@ -3,6 +3,7 @@ Metrics submodule.
 
 This module contains various metrics and a metrics tracking class.
 """
+
 from typing import Union
 
 import numpy as np

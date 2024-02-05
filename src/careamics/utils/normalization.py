@@ -3,6 +3,7 @@ Normalization submodule.
 
 These methods are used to normalize and denormalize images.
 """
+
 import numpy as np
 
 
