@@ -10,6 +10,40 @@ from careamics.utils.torch_utils import filter_parameters
 
 ALL_TRANSFORMS = dict(getmembers(Aug, isclass) + getmembers(custom_transforms, isclass))
 
+
+class TransformType:
+    """Available transforms.
+
+    Can be applied both to an image and to a patch
+
+    """
+
+    @classmethod
+    def validate_transform_type(cls, transform: str, parameters: dict) -> None:
+        """_summary_.
+
+        Parameters
+        ----------
+        transform : Union[str, Transform]
+            _description_
+        parameters : dict
+            _description_
+
+        Returns
+        -------
+        BaseModel
+            _description_
+        """
+        if transform not in ALL_TRANSFORMS.keys():
+            raise ValueError(
+                f"Incorrect transform name {transform}."
+                f"Please refer to the documentation"  # TODO add link to documentation
+            )
+        # TODO validate provided params against default params
+        # TODO validate no duplicates
+        return transform, parameters
+
+
 class TransformModel(BaseModel):
     """Whole image transforms.
 

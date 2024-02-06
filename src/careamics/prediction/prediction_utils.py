@@ -12,6 +12,7 @@ import torch
 def stitch_prediction(
     tiles: List[np.ndarray],
     stitching_data: List,
+    explicit_stitching: bool = False,
 ) -> np.ndarray:
     """
     Stitch tiles back together to form a full image.
@@ -23,12 +24,19 @@ def stitch_prediction(
     stitching_data : List
         List of coordinates obtained from
         dataset.tiling.compute_crop_and_stitch_coords_1d.
+    explicit_stitching : bool, optional
+        Whether this function is called explicitly after prediction(Lighting) or inside
+        the predict function. Removes the first element(last tile indicator)
 
     Returns
     -------
     np.ndarray
         Full image.
     """
+    # Remove first element of stitching_data if explicit_stitching
+    if explicit_stitching:
+        stitching_data = [d[1:] for d in stitching_data]
+
     # Get whole sample shape
     input_shape = stitching_data[0][0]
     predicted_image = np.zeros(input_shape, dtype=np.float32)

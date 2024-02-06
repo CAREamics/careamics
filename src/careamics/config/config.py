@@ -14,7 +14,7 @@ from pydantic import (
 )
 
 from .algorithm import AlgorithmModel
-from .data import Data
+from .data import DataModel
 from .training import Training
 
 
@@ -37,7 +37,10 @@ class Configuration(BaseModel):
         Training configuration.
     """
 
-    model_config = ConfigDict(validate_assignment=True)
+    model_config = ConfigDict(
+        validate_assignment=True,
+        set_arbitrary_types_allowed=True,
+    )
 
     # version
     version: Literal["0.1.0"] = "0.1.0"
@@ -50,7 +53,7 @@ class Configuration(BaseModel):
 
     # Sub-configurations
     algorithm: AlgorithmModel
-    data: Data
+    data: DataModel
     training: Training
 
     def set_3D(self, is_3D: bool, axes: str) -> None:
@@ -185,9 +188,9 @@ class Configuration(BaseModel):
         return config
 
     def model_dump(
-        self, 
+        self,
         exclude_defaults: bool = True,
-        exclude_none: bool = True, 
+        exclude_none: bool = True,
         **kwargs: Dict,
     ) -> Dict:
         """
@@ -209,9 +212,7 @@ class Configuration(BaseModel):
             Dictionary containing the model parameters.
         """
         dictionary = super().model_dump(
-            exclude_none=exclude_none,
-            exclude_defaults=exclude_defaults,
-            **kwargs
+            exclude_none=exclude_none, exclude_defaults=exclude_defaults, **kwargs
         )
 
         return dictionary

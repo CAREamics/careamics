@@ -32,26 +32,13 @@ def filter_parameters(
     Dict
         Parameters matching `func`'s signature.
     """
-    parameter_signature = inspect.signature(func).parameters
+    # Get the list of all default parameters
+    default_params = list(inspect.signature(func).parameters.keys())
 
-    # Get the list of all parameters
-    possible_parameters = list(parameter_signature.keys())
-    
-    # Filter parameters to keep only those accepted by the function signature
-    params_to_be_used = set(user_params.keys()) & set(possible_parameters)
-    parameters = {key: user_params[key] for key in params_to_be_used}
+    # Filter matching parameters
+    params_to_be_used = set(user_params.keys()) & set(default_params)
 
-    # Get the list of mandatory parameters
-    mandatory_parameters = [
-        str(parameter_signature[p])
-        for p in parameter_signature
-        if parameter_signature[p].default is inspect._empty
-    ]
-
-    # Find missing mandatory parameters
-    missing_parameters = set(mandatory_parameters) - params_to_be_used
-
-    return parameters, list(missing_parameters) 
+    return {key: user_params[key] for key in params_to_be_used}
 
 
 def get_optimizers() -> Dict[str, str]:

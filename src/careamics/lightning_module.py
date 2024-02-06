@@ -1,12 +1,13 @@
 from pathlib import Path
 from typing import Any, Callable, List, Optional, Union
 
+import numpy as np
 import pytorch_lightning as L
+from albumentations import Compose
 from torch import nn, optim
 from torch.utils.data import DataLoader
-from albumentations import Compose
 
-from careamics.config import AlgorithmModel
+from careamics.config import AlgorithmModel, DataModel
 from careamics.config.support import (
     SupportedAlgorithm,
     SupportedArchitecture,
@@ -14,15 +15,94 @@ from careamics.config.support import (
     SupportedOptimizer,
     SupportedScheduler,
 )
+from careamics.dataset.dataset_utils import (
+    data_type_validator,
+    list_files,
+    validate_files,
+)
+from careamics.dataset.in_memory_dataset import (
+    InMemoryDataset,
+    InMemoryPredictionDataset,
+)
+from careamics.dataset.iterable_dataset import (
+    IterableDataset,
+    IterablePredictionDataset,
+)
 from careamics.losses import create_loss_function
 from careamics.models.model_factory import model_registry
+from careamics.prediction import stitch_prediction
+from careamics.utils import denormalize, get_ram_size
+
+
+class CAREamicsFiring(L.loops._PredictionLoop):
+    """Predict loop for tiles-based prediction."""
+
+    def advance(self):
+        batch = next(self.prediction_dataloader)
+        self.prediction_step(batch, self.prediction_dataloader.batch_idx)
+
+    def on_advance_end(self):
+        self.prediction_dataloader.batch_idx += 1
+        self.prediction_dataloader.batch_idx %= len(self.prediction_dataloader)
+
+    def on_run_end(self):
+        self.prediction_dataloader.batch_idx = 0
+        self.prediction_dataloader.dataset.on_epoch_end()
+
+    def _predict_step(self, batch, batch_idx, dataloader_idx, dataloader_iter):
+        self.model.predict_step(batch, batch_idx)
+
+
+def predict_tiled_simple(
+    predictions: list,
+) -> Union[np.ndarray, List[np.ndarray]]:
+    """
+    Predict using tiling.
+
+    Parameters
+    ----------
+    pred_loader : DataLoader
+        Prediction dataloader.
+    progress_bar : ProgressBar
+        Progress bar.
+    tta : bool, optional
+        Whether to use test time augmentation, by default True.
+
+    Returns
+    -------
+    Union[np.ndarray, List[np.ndarray]]
+        Predicted image, or list of predictions if the images have different sizes.
+
+    Warns
+    -----
+    UserWarning
+        If the samples have different shapes, the prediction then returns a list.
+    """
+    prediction = []
+    tiles = []
+    stitching_data = []
+
+    for i, (_tile, *auxillary) in enumerate(predictions):
+        # Unpack auxillary data into last tile indicator and data, required to
+        # stitch tiles together
+        if auxillary:
+            last_tile, *data = auxillary
+
+        if last_tile:
+            # Stitch tiles together if sample is finished
+            predicted_sample = stitch_prediction(tiles, stitching_data)
+            prediction.append(predicted_sample)
+            tiles.clear()
+            stitching_data.clear()
+
+        try:
+            return np.stack(prediction)
+        except ValueError:
+            return prediction
 
 
 class CAREamicsKiln(L.LightningModule):
-    def __init__(
-        self,
-        algorithm_config: AlgorithmModel
-    ) -> None:
+    def __init__(self, algorithm_config: AlgorithmModel) -> None:
         super().__init__()
 
         # create model and loss function
@@ -69,39 +149,41 @@ class CAREamicsKiln(L.LightningModule):
         return {
             "optimizer": optimizer,
             "lr_scheduler": scheduler,
-            "monitor": "val_loss", # otherwise one gets a MisconfigurationException
+            "monitor": "val_loss",  # otherwise one gets a MisconfigurationException
         }
 
 
 # TODO consider using a Literal[...] instead of the enums here?
 class CAREamicsModule(CAREamicsKiln):
-
     def __init__(
         self,
         algorithm: Union[SupportedAlgorithm, str],
         loss: Union[SupportedLoss, str],
         architecture: Union[SupportedArchitecture, str],
-        model_parameters: Optional[dict],
-        optimizer: Optional[Union[SupportedOptimizer, str]] = None,
-        lr_scheduler: Optional[Union[SupportedScheduler, str]] = None,
+        model_parameters: Optional[dict] = None,
+        optimizer: Union[SupportedOptimizer, str] = "Adam",
+        lr: float = 1e-4,
+        lr_scheduler: Optional[Union[SupportedScheduler, str]] = "ReduceLROnPlateau",
         optimizer_parameters: Optional[dict] = None,
         lr_scheduler_parameters: Optional[dict] = None,
     ) -> None:
+        model_parameters = model_parameters if model_parameters is not None else {}
+        optimizer_parameters = optimizer_parameters if optimizer_parameters else {}
 
         algorithm_configuration = {
             "algorithm": algorithm,
             "loss": loss,
-            "model": {
-                "architecture": architecture
-            },
+            "model": {"architecture": architecture},
             "optimizer": {
                 "name": optimizer,
-                "parameters": optimizer_parameters
-            } if optimizer is not None else {},
+                "parameters": {"lr": lr, **optimizer_parameters},
+            },
             "lr_scheduler": {
                 "name": lr_scheduler,
-                "parameters": lr_scheduler_parameters
-            } if lr_scheduler is not None else {}
+                "parameters": lr_scheduler_parameters,
+            }
+            if lr_scheduler is not None
+            else {},
         }
 
         # add model parameters
@@ -110,56 +192,220 @@ class CAREamicsModule(CAREamicsKiln):
         super().__init__(AlgorithmModel(**algorithm_configuration))
 
 
+class CAREamicsWood(L.LightningDataModule):
+    def __init__(
+        self,
+        data_config: DataModel,
+        train_path: Union[Path, str],
+        val_path: Union[Path, str],
+        train_target_path: Optional[Union[Path, str]] = None,
+        val_target_path: Optional[Union[Path, str]] = None,
+        read_source_func: Optional[Callable] = None,
+    ) -> None:
+        super().__init__()
+
+        self.data_config = data_config
+        self.train_path = train_path
+        self.val_path = val_path
+        self.data_type = data_config.data_type
+        self.train_target_path = train_target_path
+        self.val_target_path = val_target_path
+        self.read_source_func = read_source_func
+        self.batch_size = data_config.batch_size
+        self.num_workers = data_config.num_workers
+        self.pin_memory = data_config.pin_memory
+
+    def prepare_data(self) -> None:
+        data_type_validator(self.data_type, self.read_source_func)
+        self.train_files, self.train_data_size = list_files(
+            self.train_path, self.data_type
+        )
+        self.val_files, _ = list_files(self.val_path, self.data_type)
+
+        if self.train_target_path is not None:
+            self.train_target_files, _ = list_files(
+                self.train_target_path, self.data_type
+            )
+            validate_files(self.data_files, self.target_files)
+
+    def setup(self, stage: Optional[str] = None) -> None:
+        if self.data_type == "zarr":
+            pass
+        elif self.data_type == "array":
+            self.train_dataset = InMemoryDataset(
+                files=self.train_files,
+                config=self.data_config,
+                target_files=self.train_target_files
+                if self.train_target_path
+                else None,
+                read_source_func=self.read_source_func,
+            )
+            self.val_dataset = InMemoryDataset(
+                files=self.val_files,
+                config=self.data_config,
+                target_files=self.val_target_files if self.val_target_path else None,
+                read_source_func=self.read_source_func,
+            )
+        else:
+            if self.train_data_size > get_ram_size() * 0.8:
+                self.train_dataset = IterableDataset(
+                    files=self.train_files,
+                    config=self.data_config,
+                    target_files=self.train_target_files
+                    if self.train_target_path
+                    else None,
+                    read_source_func=self.read_source_func,
+                )
+                self.val_dataset = IterableDataset(
+                    files=self.val_files,
+                    config=self.data_config,
+                    target_files=self.val_target_files
+                    if self.val_target_path
+                    else None,
+                    read_source_func=self.read_source_func,
+                )
+
+            else:
+                self.train_dataset = InMemoryDataset(
+                    files=self.train_files,
+                    config=self.data_config,
+                    target_files=self.train_target_files
+                    if self.train_target_path
+                    else None,
+                    read_source_func=self.read_source_func,
+                )
+                self.val_dataset = InMemoryDataset(
+                    files=self.val_files,
+                    config=self.data_config,
+                    target_files=self.val_target_files
+                    if self.val_target_path
+                    else None,
+                    read_source_func=self.read_source_func,
+                )
+
+    def train_dataloader(self) -> Any:
+        return DataLoader(
+            self.train_dataset,
+            batch_size=self.batch_size,
+            num_workers=self.num_workers,
+            pin_memory=self.pin_memory,
+        )
+
+    def val_dataloader(self) -> Any:
+        return DataLoader(
+            self.val_dataset,
+            batch_size=self.batch_size,
+            num_workers=self.num_workers,
+            pin_memory=self.pin_memory,
+        )
+
+
 class CAREamicsClay(L.LightningDataModule):
     def __init__(
         self,
-        data_path: Union[str, Path],
-        data_extension: str,
+        data_config: DataModel,
+        pred_path: Union[Path, str],
+        read_source_func: Optional[Callable] = None,
+    ) -> None:
+        super().__init__()
+
+        self.data_config = data_config
+        self.pred_path = pred_path
+        self.data_type = data_config.data_type
+        self.read_source_func = read_source_func
+        self.batch_size = data_config.batch_size
+        self.num_workers = data_config.num_workers
+        self.pin_memory = data_config.pin_memory
+
+    def prepare_data(self) -> None:
+        data_type_validator(self.data_type, self.read_source_func)
+        self.pred_files, _ = list_files(self.pred_path, self.data_type)
+
+    def setup(self, stage: Optional[str] = None) -> None:
+        if self.data_type == "Zarr":
+            pass
+        elif self.data_type == "Array":
+            self.predict_dataset = InMemoryPredictionDataset(
+                files=self.pred_files,
+                config=self.data_config,
+                read_source_func=self.read_source_func,
+            )
+        else:
+            self.predict_dataset = IterablePredictionDataset(
+                files=self.pred_files,
+                config=self.data_config,
+                read_source_func=self.read_source_func,
+            )
+
+    def predict_dataloader(self) -> Any:
+        return DataLoader(
+            self.predict_dataset,
+            batch_size=self.batch_size,
+            num_workers=self.num_workers,
+            pin_memory=self.pin_memory,
+        )
+
+
+class CAREamicsTrainValDataModule(CAREamicsWood):
+    def __init__(
+        self,
+        train_path: Union[str, Path],
+        val_path: Union[str, Path],
+        data_type: str,
         patch_size: List[int],
         axes: str,
         batch_size: int,
         transforms: Optional[Union[List, Compose]] = None,
-        target_path: Optional[Union[str, Path]] = None,
-        target_extension: Optional[str] = None,
+        train_target_path: Optional[Union[str, Path]] = None,
+        val_target_path: Optional[Union[str, Path]] = None,
         read_source_func: Optional[Callable] = None,
-        num_workers: Optional[int] = 0,
-        pin_memory: Optional[bool] = False,
-        **kwargs
+        data_loader_params: Optional[dict] = None,
+        **kwargs,
     ) -> None:
+        data_loader_params = data_loader_params if data_loader_params else {}
         data_config = {
-            "data_extension": data_extension,
+            "data_type": data_type.lower(),
             "patch_size": patch_size,
             "axes": axes,
             "transforms": transforms,
-            "target_path": target_path,
-            "target_extension": target_extension,
-            "read_source_func": read_source_func,
-            "mean": mean,
+            "batch_size": batch_size,
+            **data_loader_params,
         }
-        super().__init__()
-
-        self.data_path = data_path
-        self.batch_size = batch_size
-        self.num_workers = num_workers
-        self.pin_memory = pin_memory
-
-        
-
-
-
-        # get file sizes
-        # get psutil memory size available
-        # if it is within 10 percent, then iterable, otherwise, in memory
+        super().__init__(
+            data_config=DataModel(**data_config),
+            train_path=train_path,
+            val_path=val_path,
+            train_target_path=train_target_path,
+            val_target_path=val_target_path,
+            read_source_func=read_source_func,
+        )
 
 
-    def setup(self, stage: Optional[str] = None) -> None:
-        self.dataset = None
+class CAREamicsPredictDataModule(CAREamicsClay):
+    def __init__(
+        self,
+        pred_path: Union[str, Path],
+        data_type: str,
+        tile_size: List[int],
+        axes: str,
+        batch_size: int,
+        transforms: Optional[Union[List, Compose]] = None,
+        read_source_func: Optional[Callable] = None,
+        data_loader_params: Optional[dict] = None,
+        **kwargs,
+    ) -> None:
+        data_loader_params = data_loader_params if data_loader_params else {}
 
-    def train_dataloader(self) -> Any:
-        DataLoader()
-
-    def val_dataloader(self) -> Any:
-        DataLoader()
-
-    def predict_dataloader(self) -> Any:
-        DataLoader()
+        data_config = {
+            "data_type": data_type,
+            "patch_size": tile_size,
+            "axes": axes,
+            "transforms": transforms,
+            "batch_size": batch_size,
+            **data_loader_params,
+        }
+        super().__init__(
+            data_config=DataModel(**data_config),
+            pred_path=pred_path,
+            read_source_func=read_source_func,
+        )

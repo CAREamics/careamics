@@ -8,7 +8,7 @@ from typing import Callable, List, Optional, Union
 
 import numpy as np
 
-from ..config.data import Data
+from ..config.data import DataModel
 from ..utils import check_external_array_validity, check_tiling_validity
 from .extraction_strategy import ExtractionStrategy
 from .in_memory_dataset import InMemoryDataset, InMemoryPredictionDataset
@@ -19,7 +19,7 @@ from .zarr_dataset import ZarrDataset
 # TODO what is the difference between train and val datasets??
 # TODO it could be from memory as well here, yet it only takes a str (and not even a Path)
 def get_train_dataset(
-    data_config: Data,
+    data_config: DataModel,
     train_path: str,
     train_target_path: Optional[str] = None,
     read_source_func: Optional[Callable] = None,
@@ -93,7 +93,7 @@ def get_train_dataset(
 
 
 def get_validation_dataset(
-    data_config: Data,
+    data_config: DataModel,
     val_path: str,
     val_target_path: Optional[str] = None,
     read_source_func: Optional[Callable] = None,
@@ -156,7 +156,7 @@ def get_validation_dataset(
 
 
 def get_prediction_dataset(
-    data_config: Data,
+    data_config: DataModel,
     pred_source: Union[str, Path, np.ndarray],
     *,
     tile_shape: Optional[List[int]] = None,

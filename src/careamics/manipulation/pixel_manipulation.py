@@ -183,6 +183,7 @@ def default_manipulate(
         patch = apply_struct_mask(patch, roi_centers, struct_mask)
 
     # Expand the dimensions of the arrays to return the channel dimension
+    #TODO Should it be done here? done at all?
     return (
         np.expand_dims(patch, 0),
         np.expand_dims(original_patch, 0),
