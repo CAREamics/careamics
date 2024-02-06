@@ -3,7 +3,7 @@ Prediction convenience functions.
 
 These functions are used during prediction.
 """
-from typing import List
+from typing import List, Optional
 
 import numpy as np
 import torch
@@ -12,7 +12,7 @@ import torch
 def stitch_prediction(
     tiles: List[np.ndarray],
     stitching_data: List,
-    explicit_stitching: bool = False,
+    explicit_stitching: Optional[bool] = False,
 ) -> np.ndarray:
     """
     Stitch tiles back together to form a full image.
@@ -43,10 +43,8 @@ def stitch_prediction(
     for tile, (_, overlap_crop_coords, stitch_coords) in zip(tiles, stitching_data):
         # Compute coordinates for cropping predicted tile
         slices = tuple([slice(c[0], c[1]) for c in overlap_crop_coords])
-
         # Crop predited tile according to overlap coordinates
         cropped_tile = tile.squeeze()[slices]
-
         # Insert cropped tile into predicted image using stitch coordinates
         predicted_image[
             (..., *[slice(c[0], c[1]) for c in stitch_coords])
