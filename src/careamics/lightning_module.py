@@ -184,7 +184,6 @@ class CAREamicsModule(CAREamicsKiln):
         model_parameters: dict = {},
         optimizer: Union[SupportedOptimizer, str] = "Adam",
         optimizer_parameters: dict = {},
-        lr: float = 1e-4,
         lr_scheduler: Union[SupportedScheduler, str] = "ReduceLROnPlateau",
         lr_scheduler_parameters: dict = {},
     ) -> None:
@@ -195,14 +194,12 @@ class CAREamicsModule(CAREamicsKiln):
             "model": {"architecture": architecture},
             "optimizer": {
                 "name": optimizer,
-                "parameters": {"lr": lr, **optimizer_parameters},
+                "parameters": optimizer_parameters,
             },
             "lr_scheduler": {
                 "name": lr_scheduler,
                 "parameters": lr_scheduler_parameters,
             }
-            if lr_scheduler is not None
-            else {},
         }
 
         # add model parameters

@@ -44,7 +44,12 @@ class OptimizerModel(BaseModel):
     name: Literal["Adam", "SGD"] = Field(default="Adam", validate_default=True)
 
     # Optional parameters, empty dict default value to allow filtering dictionary
-    parameters: dict = Field(default={}, validate_default=True)
+    parameters: dict = Field(
+        default={
+            "lr": 1e-4,
+        }, 
+        validate_default=True
+    )
 
     @field_validator("parameters")
     def filter_parameters(cls, user_params: dict, values: ValidationInfo) -> Dict:
