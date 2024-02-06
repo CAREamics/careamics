@@ -362,7 +362,7 @@ class CAREamicsClay(L.LightningDataModule):
         )
 
 
-class CAREamicsTrainValDataModule(CAREamicsWood):
+class CAREamicsTrainDataModule(CAREamicsWood):
     def __init__(
         self,
         train_path: Union[str, Path],
