@@ -9,6 +9,7 @@ from .transform import TransformModel
 from ..utils import check_axes_validity
 
 
+# TODO: how to switch off the transforms? empty list []?
 class Data(BaseModel):
     """
     Data configuration.
@@ -46,8 +47,6 @@ class Data(BaseModel):
     # Optional fields
     mean: Optional[float] = Field(default=None, ge=0)
     std: Optional[float] = Field(default=None, gt=0)
-
-    # TODO need better validation for that one
     transforms: Optional[List[TransformModel]] = None
 
 

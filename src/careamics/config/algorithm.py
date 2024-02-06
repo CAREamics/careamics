@@ -7,7 +7,7 @@ from pydantic import (
     Field,
 )
 
-from .architectures import UNetModel, VAEModel
+from .architectures import UNetModel, VAEModel, CustomModel
 from .optimizers import LrSchedulerModel, OptimizerModel
 
 #from .noise_models import NoiseModel
@@ -49,7 +49,7 @@ class AlgorithmModel(BaseModel):
     # Mandatory fields
     algorithm: Literal["n2v", "n2v2"]
     loss: Literal["n2v", "mae", "mse"]
-    model: Union[VAEModel, UNetModel] = Field(discriminator="architecture")
+    model: Union[UNetModel, VAEModel, CustomModel] = Field(discriminator="architecture")
 
     optimizer: OptimizerModel
     lr_scheduler: LrSchedulerModel

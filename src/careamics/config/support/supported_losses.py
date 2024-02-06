@@ -1,5 +1,7 @@
 from enum import Enum
 
+
+# TODO register loss with custom_loss decorator?
 class SupportedLoss(str, Enum):
     """
     Available loss functions.
@@ -16,4 +18,4 @@ class SupportedLoss(str, Enum):
     # HDN = "hdn"
     # CE = "ce"
     # DICE = "dice"
-    # CUSTOM = "custom"
+    CUSTOM = "custom"

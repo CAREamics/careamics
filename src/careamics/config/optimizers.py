@@ -12,9 +12,7 @@ from pydantic import (
 )
 from torch import optim
 
-from careamics.utils.torch_utils import get_parameters
-
-from .support.supported_optimizers import SupportedOptimizer, SupportedScheduler
+from careamics.utils.torch_utils import filter_parameters
 
 
 class OptimizerModel(BaseModel):
@@ -47,35 +45,7 @@ class OptimizerModel(BaseModel):
     # Optional parameters, empty dict default value to allow filtering dictionary
     parameters: dict = Field(default={}, validate_default=True)
 
-    @field_validator("name", mode="before")
-    def validate_name(cls, name: str) -> str:
-        """
-        Validate optimizer name.
-
-        Parameters
-        ----------
-        name : str
-            Name of the optimizer.
-
-        Returns
-        -------
-        str
-            Validated optimizer name.
-
-        Raises
-        ------
-        ValueError
-            If the optimizer name is not supported.
-        """
-        if name != "custom" and name not in SupportedOptimizer.__members__.values():
-            raise ValueError(
-                f"Optimizer {name} is not supported, check that it has correctly "
-                "been specified."
-            )
-
-        return name
-
-    @field_validator("parameters", mode="before")
+    @field_validator("parameters")
     def filter_parameters(cls, user_params: dict, values: ValidationInfo) -> Dict:
         """
         Validate optimizer parameters.
@@ -99,29 +69,28 @@ class OptimizerModel(BaseModel):
         ValueError
             If the optimizer name is not specified.
         """
-        # None value to default
-        if user_params is None:
-            user_params = {}
+        optimizer_name = values.data["name"]
 
-        # since we are validating before type validation, enforce is here
-        if not isinstance(user_params, dict):
+        # retrieve the corresponding optimizer class
+        optimizer_class = getattr(optim, optimizer_name)
+
+        # filter the user parameters according to the optimizer's signature
+        parameters, missing_mandatory = filter_parameters(optimizer_class, user_params)
+
+        # remove `params` from missing mandatory parameters, see torch.optim docs
+        missing_mandatory = [
+            p for p in missing_mandatory if p != "params"
+        ]
+
+        # if there are missing parameters, raise an error
+        if len(missing_mandatory) > 0:
             raise ValueError(
-                f"Optimizer parameters must be a dictionary, got {type(user_params)}."
+                f"Optimizer {optimizer_name} requires the following parameters: "
+                f"{missing_mandatory}."
             )
 
-        if "name" in values.data:  # TODO test if that clause if really necessary
-            optimizer_name = values.data["name"]
-
-            # retrieve the corresponding optimizer class
-            optimizer_class = getattr(optim, optimizer_name)
-
-            # filter the user parameters according to the optimizer's signature
-            return get_parameters(optimizer_class, user_params) # TODO now return a tuple
-        else:
-            raise ValueError(
-                "Cannot validate optimizer parameters without `name`, check that it "
-                "has correctly been specified."
-            )
+        return parameters
+    
 
     @model_validator(mode="after")
     def sgd_lr_parameter(cls, optimizer: OptimizerModel) -> OptimizerModel:
@@ -154,6 +123,7 @@ class OptimizerModel(BaseModel):
 
         return optimizer
 
+    
 
 class LrSchedulerModel(BaseModel):
     """
@@ -180,116 +150,34 @@ class LrSchedulerModel(BaseModel):
     )
 
     # Mandatory field
-    name: str = Field(default="ReduceLROnPlateau")
+    name: Literal["ReduceLROnPlateau", "StepLR"] = Field(default="ReduceLROnPlateau")
 
     # Optional parameters
     parameters: dict = Field(default={}, validate_default=True)
 
-    @field_validator("name", mode="before")
-    def validate_name(cls, name: str) -> str:
-        """
-        Validate lr scheduler name.
-
-        Parameters
-        ----------
-        name : str
-            Name of the lr scheduler.
-
-        Returns
-        -------
-        str
-            Validated lr scheduler name.
-
-        Raises
-        ------
-        ValueError
-            If the lr scheduler name is not supported.
-        """
-        if name != "custom" and name not in SupportedScheduler.__members__.values():
-            raise ValueError(
-                f"Lr scheduler {name} is not supported, check that it has correctly "
-                "been specified."
-            )
-
-        return name
-
-    @field_validator("parameters", mode="before")
+    @field_validator("parameters")
     def filter_parameters(cls, user_params: dict, values: ValidationInfo) -> Dict:
-        """
-        Validate lr scheduler parameters.
 
-        This method filters out unknown parameters, given the lr scheduler name.
+        scheduler_name = values.data["name"]
 
-        Parameters
-        ----------
-        user_params : dict
-            Parameters passed on to the torch lr scheduler.
-        values : ValidationInfo
-            Pydantic field validation info, used to get the lr scheduler name.
+        # retrieve the corresponding scheduler class
+        scheduler_class = getattr(optim.lr_scheduler, values.data["name"])
 
-        Returns
-        -------
-        Dict
-            Filtered lr scheduler parameters.
+        # filter the user parameters according to the scheduler's signature
+        parameters, missing_mandatory = filter_parameters(scheduler_class, user_params)
 
-        Raises
-        ------
-        ValueError
-            If the lr scheduler name is not specified.
-        """
-        # None value to default
-        if user_params is None:
-            user_params = {}
+        # remove `optimizer` from missing mandatory parameters
+        # see torch.optim.lr_scheduler docs
+        missing_mandatory = [
+            p for p in missing_mandatory if p != "optimizer"
+        ]
 
-        # since we are validating before type validation, enforce is here
-        if not isinstance(user_params, dict):
+        # if there are missing parameters, raise an error
+        if len(missing_mandatory) > 0:
             raise ValueError(
-                f"Optimizer parameters must be a dictionary, got {type(user_params)}."
+                f"Optimizer {scheduler_name} requires the following parameters: "
+                f"{missing_mandatory}."
             )
 
-        if "name" in values.data:
-            lr_scheduler_name = values.data["name"]
-
-            # retrieve the corresponding lr scheduler class
-            lr_scheduler_class = getattr(optim.lr_scheduler, lr_scheduler_name)
-
-            # filter the user parameters according to the lr scheduler's signature
-            return get_parameters(lr_scheduler_class, user_params) # TODO now return a tuple
-        else:
-            raise ValueError(
-                "Cannot validate lr scheduler parameters without `name`, check that it "
-                "has correctly been specified."
-            )
-
-    @model_validator(mode="after")
-    def step_lr_step_size_parameter(
-        cls, lr_scheduler: LrSchedulerModel
-    ) -> LrSchedulerModel:
-        """
-        Check that StepLR lr scheduler has `step_size` parameter specified.
-
-        Parameters
-        ----------
-        lr_scheduler : LrScheduler
-            Lr scheduler to validate.
-
-        Returns
-        -------
-        LrScheduler
-            Validated lr scheduler.
-
-        Raises
-        ------
-        ValueError
-            If the lr scheduler is StepLR and the step_size parameter is not specified.
-        """
-        if (
-            lr_scheduler.name == SupportedScheduler.StepLR
-            and "step_size" not in lr_scheduler.parameters
-        ):
-            raise ValueError(
-                "StepLR lr scheduler requires `step_size` parameter, check that it has "
-                "correctly been specified in `parameters`."
-            )
-
-        return lr_scheduler
+        return parameters
+    

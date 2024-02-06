@@ -4,3 +4,4 @@ class SupportedArchitecture(str, Enum):
     
     UNET = "UNet"
     VAE = "VAE"
+    CUSTOM = "Custom"
