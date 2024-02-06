@@ -12,6 +12,7 @@ from careamics.config.algorithm import AlgorithmModel, LrSchedulerModel, Optimiz
 from careamics.config.data import DataModel
 from careamics.config.training import Training
 
+
 # TODO add details about where each of these fixture is used (e.g. smoke test)
 @pytest.fixture
 def create_tiff(path: Path, n_files: int):
@@ -90,9 +91,9 @@ def minimum_training() -> dict:
 
 @pytest.fixture
 def minimum_configuration(
-    tmp_path: Path, 
-    minimum_algorithm: dict, 
-    minimum_data: dict, 
+    tmp_path: Path,
+    minimum_algorithm: dict,
+    minimum_data: dict,
     minimum_training: dict
     ) -> dict:
     """Create a minimum configuration.
@@ -284,7 +285,7 @@ def base_configuration(temp_dir: Path, patch_size) -> Configuration:
             is_3D="False",
             transforms={"Flip": None, "ManipulateN2V": None},
         ),
-        data=Data(
+        data=DataModel(
             in_memory=True,
             extension="tif",
             axes="YX",
@@ -316,7 +317,7 @@ def supervised_configuration(temp_dir: Path, patch_size) -> Configuration:
             is_3D="False",
             transforms={"Flip": None},
         ),
-        data=Data(
+        data=DataModel(
             in_memory=True,
             extension="tif",
             axes="YX",
