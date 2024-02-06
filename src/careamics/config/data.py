@@ -1,15 +1,16 @@
 """Data configuration."""
 from __future__ import annotations
 
-from typing import List, Literal, Optional
+from typing import List, Literal, Optional, Union
 
+from albumentations import Compose
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from .transform import TransformModel
 from ..utils import check_axes_validity
+from .transform import TransformModel
 
 
-class Data(BaseModel):
+class DataModel(BaseModel):
     """
     Data configuration.
 
@@ -35,10 +36,11 @@ class Data(BaseModel):
     # Pydantic class configuration
     model_config = ConfigDict(
         validate_assignment=True,
+        arbitrary_types_allowed=True,
     )
-
+    # DATASET CONFIGURATION
     # Mandatory fields
-    data_type: Literal["Array", "Tiff", "Zarr", "Custom"]
+    data_type: Literal["array", "tiff", "zarr", "custom"]
     patch_size: List[int] = Field(..., min_length=2, max_length=3)
 
     axes: str
@@ -48,40 +50,14 @@ class Data(BaseModel):
     std: Optional[float] = Field(default=None, gt=0)
 
     # TODO need better validation for that one
-    transforms: Optional[List[TransformModel]] = None
+    transforms: Optional[Union[List[TransformModel], Compose]] = Field(
+        default=[], validate_default=True
+    )
 
-
-    @field_validator("axes")
-    def axes_valid(cls, axes: str) -> str:
-        """
-        Validate axes.
-
-        Axes must:
-        - be a combination of 'STCZYX'
-        - not contain duplicates
-        - contain at least 2 contiguous axes: X and Y
-        - contain at most 4 axes
-        - not contain both S and T axes
-
-        Parameters
-        ----------
-        axes : str
-            Axes to validate.
-
-        Returns
-        -------
-        str
-            Validated axes.
-
-        Raises
-        ------
-        ValueError
-            If axes are not valid.
-        """
-        # Validate axes
-        check_axes_validity(axes)
-
-        return axes
+    # DATA LOADER CONFIGURATION
+    batch_size: int = Field(default=1, ge=1)
+    num_workers: Optional[int] = Field(default=0, ge=0)
+    pin_memory: Optional[bool] = Field(default=False)
 
     @field_validator("patch_size")
     def all_elements_non_zero_even(cls, patch_list: List[int]) -> List[int]:
@@ -116,6 +92,37 @@ class Data(BaseModel):
 
         return patch_list
 
+    @field_validator("axes")
+    def axes_valid(cls, axes: str) -> str:
+        """
+        Validate axes.
+
+        Axes must:
+        - be a combination of 'STCZYX'
+        - not contain duplicates
+        - contain at least 2 contiguous axes: X and Y
+        - contain at most 4 axes
+        - not contain both S and T axes
+
+        Parameters
+        ----------
+        axes : str
+            Axes to validate.
+
+        Returns
+        -------
+        str
+            Validated axes.
+
+        Raises
+        ------
+        ValueError
+            If axes are not valid.
+        """
+        # Validate axes
+        check_axes_validity(axes)
+
+        return axes
 
     def set_mean_and_std(self, mean: float, std: float) -> None:
         """
@@ -158,7 +165,7 @@ class Data(BaseModel):
 
     # TODO is there a more elegant way? We could have an optional pydantic model with both specified!!
     @model_validator(mode="after")
-    def std_only_with_mean(cls, data_model: Data) -> Data:
+    def std_only_with_mean(cls, data_model: DataModel) -> DataModel:
         """
         Check that mean and std are either both None, or both specified.
 

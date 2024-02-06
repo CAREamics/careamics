@@ -1,19 +1,16 @@
 from __future__ import annotations
+
 from typing import Literal
 
-from pydantic import (
-    BaseModel,
-    ConfigDict,
-    Field,
-    validator
-)
+from pydantic import BaseModel, ConfigDict, Field, validator
+
 
 # TODO tests activation <-> pydantic model, test the literals!
 # TODO annotations for the json schema?
 class UNetModel(BaseModel):
     """
     Pydantic model for a N2V(2)-compatible UNet.
-    
+
     Attributes
     ----------
     depth : int
@@ -22,6 +19,7 @@ class UNetModel(BaseModel):
         Number of filters of the first level of the network, should be even
         and minimum 8 (default 96).
     """
+
     # pydantic model config
     model_config = ConfigDict(
         validate_assignment=True
@@ -38,13 +36,13 @@ class UNetModel(BaseModel):
     depth: int = Field(default=2, ge=1, le=10, validate_default=True)
     num_channels_init: int = Field(default=32, ge=8, le=1024, validate_default=True)
     final_activation: Literal[
-        "None", 
-        "Sigmoid", 
-        "Softmax", 
-        "Tanh", 
-        "ReLU", 
+        "None",
+        "Sigmoid",
+        "Softmax",
+        "Tanh",
+        "ReLU",
         "LeakyReLU"] = Field(default="None", validate_default=True)
-    n2v2: bool = Field(default=False, validate_default=True)  
+    n2v2: bool = Field(default=False, validate_default=True)
 
     @validator("num_channels_init")
     def validate_num_channels_init(cls, num_channels_init: int) -> int:
@@ -74,7 +72,7 @@ class UNetModel(BaseModel):
             )
 
         return num_channels_init
-    
+
     def set_3D(self, is_3D: bool) -> None:
         """
         Set 3D model by setting the `conv_dims` parameters.

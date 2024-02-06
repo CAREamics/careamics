@@ -40,7 +40,8 @@ class TransformType:
                 f"Incorrect transform name {transform}."
                 f"Please refer to the documentation"  # TODO add link to documentation
             )
-        # TOD) validate provided params against default params
+        # TODO validate provided params against default params
+        # TODO validate no duplicates
         return transform, parameters
 
 
@@ -101,7 +102,6 @@ class TransformModel(BaseModel):
                 f" {data.parameters.keys()}."
                 f"Please refer to the documentation"  # TODO add link to doc
             )
-        
         # check if all mandatory parameters are provided
         if len(set(mandatory_params) - filtered_params.keys()) > 0:
             missing_params = set(mandatory_params) - filtered_params.keys() 

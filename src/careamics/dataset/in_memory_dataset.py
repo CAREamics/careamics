@@ -5,10 +5,10 @@ from typing import Callable, List, Optional, Tuple, Union
 import numpy as np
 import torch
 
-from ..config.data import Data
+from ..config.data import DataModel
 from ..utils import normalize
 from ..utils.logging import get_logger
-from .dataset_utils import get_patch_transform, list_files, read_tiff, validate_files
+from .dataset_utils import get_patch_transform, read_tiff
 from .patching import (
     generate_patches_predict,
     prepare_patches_supervised,
@@ -26,8 +26,6 @@ class InMemoryDataset(torch.utils.data.Dataset):
     ----------
     data_path : Union[str, Path]
         Path to the data, must be a directory.
-    data_format : str
-        Extension of the data files, without period.
     axes : str
         Description of axes in format STCZYX.
     patch_extraction_method : ExtractionStrategies
@@ -48,10 +46,9 @@ class InMemoryDataset(torch.utils.data.Dataset):
 
     def __init__(
         self,
-        data_path: Union[str, Path, List[Union[str, Path]]],
-        config: Data,
-        target_path: Optional[Union[str, Path, List[Union[str, Path]]]] = None,
-        target_format: Optional[str] = None,
+        files: List[Path],
+        config: DataModel,
+        target_files: Optional[List[Path]] = None,
         read_source_func: Optional[Callable] = None,
         **kwargs,
     ) -> None:
@@ -62,8 +59,6 @@ class InMemoryDataset(torch.utils.data.Dataset):
         ----------
         data_path : Union[str, Path]
             Path to the data, must be a directory.
-        data_format : str
-            Extension of the data files, without period.
         axes : str
             Description of axes in format STCZYX.
         patch_size : Union[List[int], Tuple[int]]
@@ -83,28 +78,14 @@ class InMemoryDataset(torch.utils.data.Dataset):
         ValueError
             If data_path is not a directory.
         """
-        self.data_path = Path(data_path)
-        if not self.data_path.is_dir():
-            raise ValueError("Path to data should be an existing folder.")
-
-        self.data_format = config.data_format
-        self.target_path = target_path
-        self.target_format = target_format
-
+        self.files = files
+        self.target_files = target_files
         self.axes = config.axes
         self.algorithm = None  # TODO add algorithm type
 
         self.read_source_func = (
             read_source_func if read_source_func is not None else read_tiff
         )
-        self.files = list_files(data_path, self.data_format)
-        if self.target_path is not None:
-            if not self.target_path.is_dir():
-                raise ValueError("Path to targets should be an existing folder.")
-            if self.target_format is None:
-                raise ValueError("Target format must be specified.")
-            self.target_files = list_files(self.target_path, self.target_format)
-            validate_files(self.files, self.target_files)
 
         self.patch_size = config.patch_size
 
@@ -114,19 +95,15 @@ class InMemoryDataset(torch.utils.data.Dataset):
         if not config.mean or not config.std:
             self.mean, self.std = computed_mean, computed_std
             logger.info(f"Computed dataset mean: {self.mean}, std: {self.std}")
+
         assert self.mean is not None
         assert self.std is not None
 
-        config.transforms[[t["name"] for t in config.transforms].index("Normalize")][
-            "parameters"
-        ] = {
-            "mean": self.mean,
-            "std": self.std,
-            "max_pixel_value": 1,
-        }
         self.patch_transform = get_patch_transform(
-            patch_transform=config.transforms,
-            target=target_path is not None,
+            patch_transforms=config.transforms,
+            mean=self.mean,
+            std=self.std,
+            target=self.target_files is not None,
         )
 
     def _prepare_patches(self) -> Callable:
@@ -140,7 +117,7 @@ class InMemoryDataset(torch.utils.data.Dataset):
         np.ndarray
             Array of patches.
         """
-        if self.target_path is not None:
+        if self.target_files is not None:
             return prepare_patches_supervised(
                 self.files,
                 self.target_files,
@@ -190,7 +167,7 @@ class InMemoryDataset(torch.utils.data.Dataset):
         patch = self.data[index]
 
         if self.mean is not None and self.std is not None:
-            if self.target_path is not None:
+            if self.target_files is not None:
                 # Splitting targets into a list. 1st dim is the number of targets
                 target = self.targets[index, ...]
                 # Move channels to the last dimension for the transform
@@ -216,8 +193,6 @@ class InMemoryPredictionDataset(torch.utils.data.Dataset):
     ----------
     data_path : Union[str, Path]
         Path to the data, must be a directory.
-    data_format : str
-        Extension of the data files, without period.
     axes : str
         Description of axes in format STCZYX.
     patch_extraction_method : ExtractionStrategies

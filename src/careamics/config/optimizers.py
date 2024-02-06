@@ -116,6 +116,7 @@ class OptimizerModel(BaseModel):
             optimizer_class = getattr(optim, optimizer_name)
 
             # filter the user parameters according to the optimizer's signature
+            #TODO this don't store full list of defaults
             return get_parameters(optimizer_class, user_params) # TODO now return a tuple
         else:
             raise ValueError(

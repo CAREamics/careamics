@@ -11,11 +11,13 @@ __all__ = [
     "cwd",
     "compile_model",
     "MetricTracker",
+    "get_ram_size",
 ]
 
 
 from .context import cwd
 from .metrics import MetricTracker
+from .misc import get_ram_size
 from .normalization import RunningStats, denormalize, normalize
 from .torch_utils import get_device
 from .validators import (

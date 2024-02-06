@@ -14,6 +14,27 @@ from ..utils.logging import get_logger
 logger = get_logger(__name__)
 
 
+def data_type_validator(data_type: str, read_source_func) -> None:
+    """Validate the data type.
+
+    Parameters
+    ----------
+    data_type : str
+        Data type.
+    read_source_func : Callable
+        Function to read the data.
+
+    Raises
+    ------
+    ValueError
+        If the data type is not supported without a read_source_func.
+    """
+    if data_type == "custom" and read_source_func is None:
+        raise ValueError(
+            f"Data type {data_type} is not supported without a read_source_func."
+        )
+
+
 def approximate_file_size(filename: Path) -> int:
     """
     Approximate file size.
@@ -55,7 +76,7 @@ def get_file_sizes(files: List[Path]) -> List[int]:
 
 def list_files(
     data_path: Union[str, Path, List[Union[str, Path]]],
-    data_format: str,
+    data_type: str,
     return_list: bool = True,
 ) -> Tuple[List[Path], int]:
     """Creates a list of paths to source tiff files from path string.
@@ -64,7 +85,7 @@ def list_files(
     ----------
     data_path : str
         Path to the folder containing the data.
-    data_format : str
+    data_type : str
         data format, e.g. tif
     return_list : bool, optional
         Whether to return a list of paths or str, by default True
@@ -77,28 +98,41 @@ def list_files(
         Approximate size of the files in mbytes.
     """
     data_path = Path(data_path) if not isinstance(data_path, list) else data_path
-
+    data_type = data_type if data_type != "custom" else ""
     if isinstance(data_path, list):
         files = []
         for path in data_path:
-            files.append(list_files(path, data_format, return_list=False))
+            files.append(list_files(path, data_type, return_list=False))
         if len(files) == 0:
-            raise ValueError(f"Data path {data_path} is empty.")
+            raise ValueError(
+                f"Data path {data_path} is empty or files with extension {data_type}"
+                f" are not found."
+            )
         approx_size = get_file_sizes(files)
         return files, approx_size
 
     elif data_path.is_dir():
         if return_list:
-            files = sorted(Path(data_path).rglob(f"*.{data_format}*"))
+            files = sorted(Path(data_path).rglob(f"*.{data_type}*"))
             if len(files) == 0:
-                raise ValueError(f"Data path {data_path} is empty.")
-            approx_size = get_file_sizes(files)
-            return files, approx_size
+                raise ValueError(
+                    f"Data path {data_path} is empty or files with extension"
+                    f" {data_type} are not found."
+                )
+            return files, get_file_sizes(files)
         else:
-            files = sorted(Path(data_path).rglob(f"*.{data_format}*"))[0]
-        return files
+            files = sorted(Path(data_path).rglob(f"*.{data_type}*"))[0]
+            if len(files) == 0:
+                raise ValueError(
+                    f"Data path {data_path} is empty or files with extension"
+                    f" {data_type} are not found."
+                )
+
+        return files, get_file_sizes(files)
 
     elif data_path.is_file():
+        if not data_path.suffix == f".{data_type}":
+            raise ValueError(f"Wrong extension {data_type}.")
         approx_size = approximate_file_size(data_path)
         return [data_path] if return_list else data_path, approx_size
 
@@ -344,7 +378,11 @@ def read_zarr(
 
 
 def get_patch_transform(
-    patch_transforms: List, target: bool, normalize_mask: bool = True
+    patch_transforms: Union[List, Aug.Compose, None],
+    mean: float,
+    std: float,
+    target: bool,
+    normalize_mask: bool = True,
 ) -> Union[None, Callable]:
     """Return a pixel manipulation function.
 
@@ -356,6 +394,8 @@ def get_patch_transform(
         Type of patch transform.
     target : bool
         Whether the transform is applied to the target(if the target is present).
+    mode : str
+        Train or predict mode.
 
     Returns
     -------
@@ -363,8 +403,20 @@ def get_patch_transform(
         Patch transform function.
     """
     if patch_transforms is None:
-        return Aug.NoOp()
+        return Aug.Compose(
+            [Aug.NoOp()],
+            additional_targets={"target": "image"}
+            if (target and normalize_mask)
+            else {},
+        )
     elif isinstance(patch_transforms, list):
+        patch_transforms[[t["name"] for t in patch_transforms].index("Normalize")][
+            "parameters"
+        ] = {
+            "mean": mean,
+            "std": std,
+            "max_pixel_value": 1,
+        }
         # TODO not very readable
         return Aug.Compose(
             [
@@ -372,6 +424,98 @@ def get_patch_transform(
                 if "parameters" in transform
                 else ALL_TRANSFORMS[transform["name"]]()
                 for transform in patch_transforms
+            ],
+            additional_targets={"target": "image"}
+            if (target and normalize_mask)
+            else {},
+        )
+    elif isinstance(patch_transforms, Aug.Compose):
+        return Aug.Compose(
+            [
+                t
+                for t in patch_transforms.transforms[:-1]
+                if not isinstance(t, Aug.Normalize)
+            ]
+            + [
+                Aug.Normalize(mean=mean, std=std, max_pixel_value=1),
+                patch_transforms.transforms[-1]
+                if patch_transforms.transforms[-1].__class__.__name__ == "ManipulateN2V"
+                else Aug.NoOp(),
+            ],
+            additional_targets={"target": "image"}
+            if (target and normalize_mask)
+            else {},
+        )
+    else:
+        raise ValueError(
+            f"Incorrect patch transform type {patch_transforms}. "
+            f"Please refer to the documentation."  # TODO add link to documentation
+        )
+
+
+# TODO add tta
+def get_patch_transform_predict(
+    patch_transforms: Union[List, Aug.Compose, None],
+    mean: float,
+    std: float,
+    target: bool,
+    normalize_mask: bool = True,
+) -> Union[None, Callable]:
+    """Return a pixel manipulation function.
+
+    Used in N2V family of algorithms.
+
+    Parameters
+    ----------
+    patch_transform_type : str
+        Type of patch transform.
+    target : bool
+        Whether the transform is applied to the target(if the target is present).
+    mode : str
+        Train or predict mode.
+
+    Returns
+    -------
+    Union[None, Callable]
+        Patch transform function.
+    """
+    if patch_transforms is None:
+        return Aug.Compose(
+            [Aug.NoOp()],
+            additional_targets={"target": "image"}
+            if (target and normalize_mask)
+            else {},
+        )
+    elif isinstance(patch_transforms, list):
+        patch_transforms[[t["name"] for t in patch_transforms].index("Normalize")][
+            "parameters"
+        ] = {
+            "mean": mean,
+            "std": std,
+            "max_pixel_value": 1,
+        }
+        # TODO not very readable
+        return Aug.Compose(
+            [
+                ALL_TRANSFORMS[transform["name"]](**transform["parameters"])
+                if "parameters" in transform
+                else ALL_TRANSFORMS[transform["name"]]()
+                for transform in patch_transforms
+                if transform["name"] != "ManipulateN2V"
+            ],
+            additional_targets={"target": "image"}
+            if (target and normalize_mask)
+            else {},
+        )
+    elif isinstance(patch_transforms, Aug.Compose):
+        return Aug.Compose(
+            [
+                t
+                for t in patch_transforms.transforms[:-1]
+                if not isinstance(t, Aug.Normalize)
+            ]
+            + [
+                Aug.Normalize(mean=mean, std=std, max_pixel_value=1),
             ],
             additional_targets={"target": "image"}
             if (target and normalize_mask)
