@@ -5,7 +5,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, ValidationInfo
 import albumentations as Aug
-import careamics.utils.transforms as custom_transforms
+import careamics.transforms.normalize_without_target as custom_transforms
 from careamics.utils.torch_utils import filter_parameters
 
 ALL_TRANSFORMS = dict(getmembers(Aug, isclass) + getmembers(custom_transforms, isclass))

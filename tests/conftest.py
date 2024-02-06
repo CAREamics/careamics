@@ -9,7 +9,7 @@ import tifffile
 
 from careamics.config import Configuration
 from careamics.config.algorithm import AlgorithmModel, LrSchedulerModel, OptimizerModel
-from careamics.config.data import Data
+from careamics.config.data import DataModel
 from careamics.config.training import Training
 
 # TODO add details about where each of these fixture is used (e.g. smoke test)

@@ -1,10 +1,11 @@
 import numpy as np
 import pytest
 
-from careamics.manipulation.pixel_manipulation import (
+from careamics.transforms.pixel_manipulation import (
     default_manipulate,
-    get_stratified_coords,
-    apply_struct_mask,
+    _get_stratified_coords,
+    _apply_struct_mask,
+    median_manipulate
 )
 
 
@@ -26,7 +27,7 @@ def test_get_stratified_coords(mask_pixel_perc, shape, num_iterations):
     # biased towards any particular region.
     for _ in range(num_iterations):
         # Get the coordinates of the pixels to be masked
-        coords = get_stratified_coords(mask_pixel_perc, shape)
+        coords = _get_stratified_coords(mask_pixel_perc, shape)
         # Check every pair in the array of coordinates
         for coord_pair in coords:
             # Check that the coordinates are of the same shape as the patch
@@ -44,7 +45,7 @@ def test_get_stratified_coords(mask_pixel_perc, shape, num_iterations):
     assert np.sum(array == 0) < np.sum(shape)
 
 
-def test_default_manipulate_2d(array_2D):
+def test_default_manipulate_2d(array_2D: np.ndarray):
     """Test the default_manipulate function.
 
     Ensure that the function returns an array of the same shape as the input.
@@ -63,7 +64,7 @@ def test_default_manipulate_2d(array_2D):
     assert not np.array_equal(patch, original_patch)
 
 
-def test_default_manipulate_3d(array_3D):
+def test_default_manipulate_3d(array_3D: np.ndarray):
     """Test the default_manipulate function.
 
     Ensure that the function returns an array of the same shape as the input.
@@ -71,7 +72,7 @@ def test_default_manipulate_3d(array_3D):
     # Get manipulated patch, original patch and mask
     patch, original_patch, mask = default_manipulate(array_3D, 0.5)
 
-    # Add sample dimension to the moch input array
+    # Add sample dimension to the mock input array
     array_3D = array_3D[np.newaxis, ...]
     # Check that the shapes of the arrays are the same
     assert patch.shape == array_3D.shape
@@ -82,8 +83,28 @@ def test_default_manipulate_3d(array_3D):
     assert not np.array_equal(patch, original_patch)
 
 
+# TODO what is this testing?
 @pytest.mark.parametrize("mask", [[[0, 1, 1, 1, 1, 1, 0]]])
 def test_apply_struct_mask(mask):
     patch = np.zeros((64, 64))
-    coords = get_stratified_coords(0.2, patch.shape)
-    patch = apply_struct_mask(patch, coords, mask)
+    coords = _get_stratified_coords(0.2, patch.shape)
+    patch = _apply_struct_mask(patch, coords, mask)
+
+
+# TODO come up with better tests for that one
+@pytest.mark.parametrize("shape", 
+    [
+        (8, 8),
+        (8, 8, 8)
+    ]
+)
+def test_median_manipulate_ordered(ordered_array, shape):
+    array = ordered_array(shape)
+    patch, original_patch, mask = median_manipulate(array, 5, 0.5)
+
+    # masked array has at least one masked pixel
+    assert np.any(mask)
+
+    # check that the arrays are different
+    assert not np.array_equal(patch, original_patch)
+

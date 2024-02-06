@@ -9,7 +9,7 @@ from typing import Optional, Tuple
 import numpy as np
 
 
-def apply_struct_mask(patch, coords, mask):
+def _apply_struct_mask(patch, coords, mask):
     """Applies structN2V mask to patch.
 
     Each point in coords corresponds to the center of the mask.
@@ -27,16 +27,16 @@ def apply_struct_mask(patch, coords, mask):
     mask = np.array(mask)
     ndim = mask.ndim
     center = np.array(mask.shape) // 2
-    ## leave the center value alone
+    # leave the center value alone
     mask[tuple(center.T)] = 0
-    ## displacements from center
+    # displacements from center
     dx = np.indices(mask.shape)[:, mask == 1] - center[:, None]
-    ## combine all coords (ndim, npts,) with all displacements (ncoords,ndim,)
+    # combine all coords (ndim, npts,) with all displacements (ncoords,ndim,)
     mix = dx.T[..., None] + coords.T[None]
     mix = mix.transpose([1, 0, 2]).reshape([ndim, -1]).T
-    ## stay within patch boundary
+    # stay within patch boundary
     mix = mix.clip(min=np.zeros(ndim), max=np.array(patch.shape) - 1).astype(np.uint8)
-    ## replace neighbouring pixels with random values from flat dist
+    # replace neighbouring pixels with random values from flat dist
     patch[tuple(mix.T)] = np.random.rand(mix.shape[0]) * 4 - 2
     return patch
 
@@ -66,7 +66,7 @@ def _odd_jitter_func(step: float, rng: np.random.Generator) -> np.ndarray:
     return np.floor(step) if odd_jitter == 0 else np.ceil(step)
 
 
-def get_stratified_coords(
+def _get_stratified_coords(
     mask_pixel_perc: float,
     shape: Tuple[int, ...],
 ) -> np.ndarray:
@@ -123,6 +123,7 @@ def get_stratified_coords(
     return coordinate_grid
 
 
+# TODO channels: masking the same pixel across channels?
 def default_manipulate(
     patch: np.ndarray,
     mask_pixel_percentage: float,
@@ -152,14 +153,16 @@ def default_manipulate(
     patch = patch.squeeze()
     original_patch = patch.copy()
 
+    # TODO: struct mask could be generated from roi center and later removed from grid as well
     # Get the coordinates of the pixels to be replaced
-    roi_centers = get_stratified_coords(mask_pixel_percentage, patch.shape)
+    roi_centers = _get_stratified_coords(mask_pixel_percentage, patch.shape)
     rng = np.random.default_rng()
 
     # Generate coordinate grid for ROI
     roi_span_full = np.arange(-np.floor(roi_size / 2), np.ceil(roi_size / 2)).astype(
         np.int32
     )
+
     # Remove the center pixel from the grid
     roi_span_wo_center = roi_span_full[roi_span_full != 0]
 
@@ -167,7 +170,8 @@ def default_manipulate(
     random_increment = rng.choice(roi_span_wo_center, size=roi_centers.shape)
 
     # Clip the coordinates to the patch size
-    replacement_coords = np.clip(
+    # TODO: just to check, shouldn't the maximum be roi_center+patch.shape/2? rather than path.shape
+    replacement_coords: np.ndarray = np.clip(
         roi_centers + random_increment,
         0,
         [patch.shape[i] - 1 for i in range(len(patch.shape))],
@@ -177,15 +181,62 @@ def default_manipulate(
 
     # Replace the original pixels with the replacement pixels
     patch[tuple(roi_centers.T.tolist())] = replacement_pixels
+
+    # Create corresponding mask
     mask = np.where(patch != original_patch, 1, 0).astype(np.uint8)
 
     if struct_mask is not None:
-        patch = apply_struct_mask(patch, roi_centers, struct_mask)
+        patch = _apply_struct_mask(patch, roi_centers, struct_mask)
 
     # Expand the dimensions of the arrays to return the channel dimension
     #TODO Should it be done here? done at all?
     return (
         np.expand_dims(patch, 0),
+        np.expand_dims(original_patch, 0), # TODO is this necessary to return the original patch?
+        np.expand_dims(mask, 0),
+    )
+
+# TODO: fix
+# TODO: create tests
+# TODO: find an optimized way in np without for loop
+# TODO: add struct mask
+def median_manipulate(
+    patch: np.ndarray,
+    mask_pixel_percentage: float,
+    roi_size: int = 11,
+    struct_mask: Optional[np.ndarray] = None,
+) -> Tuple[np.ndarray, ...]:
+    """
+    works on the assumption that it is 2D or 3D image
+    """
+    #TODO this assumes patch has no channel dimension. Is this correct?
+    patch = patch.squeeze()
+    mask = np.zeros_like(patch)
+    original_patch = patch.copy()
+
+    # Get the coordinates of the pixels to be replaced
+    roi_centers = _get_stratified_coords(mask_pixel_percentage, patch.shape)
+
+    for center in roi_centers:
+        min_coord = [max(0, c - roi_size // 2) for c in center]
+        max_coord = [min(s, c + roi_size // 2 + 1) for s, c in zip(patch.shape, center)]
+
+        coords = [
+            slice(min_coord[i], max_coord[i])
+            for i in range(patch.ndim)   
+        ]
+
+        # extract roi around center
+        roi = patch[tuple(coords)]
+
+        # replace center pixel by median
+        patch[tuple(center)] = np.median(roi)
+        mask[tuple(center)] = 1
+
+    return (
+        np.expand_dims(patch, 0),
         np.expand_dims(original_patch, 0),
         np.expand_dims(mask, 0),
     )
+
+
