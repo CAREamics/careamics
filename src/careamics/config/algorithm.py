@@ -47,7 +47,7 @@ class AlgorithmModel(BaseModel):
     )
 
     # Mandatory fields
-    algorithm: Literal["n2v", "n2v2"]
+    algorithm: Literal["n2v", "n2v2"] 
     loss: Literal["n2v", "mae", "mse"]
     model: Union[UNetModel, VAEModel, CustomModel] = Field(discriminator="architecture")
 

@@ -181,15 +181,13 @@ class CAREamicsModule(CAREamicsKiln):
         algorithm: Union[SupportedAlgorithm, str],
         loss: Union[SupportedLoss, str],
         architecture: Union[SupportedArchitecture, str],
-        model_parameters: Optional[dict] = None,
+        model_parameters: dict = {},
         optimizer: Union[SupportedOptimizer, str] = "Adam",
+        optimizer_parameters: dict = {},
         lr: float = 1e-4,
-        lr_scheduler: Optional[Union[SupportedScheduler, str]] = "ReduceLROnPlateau",
-        optimizer_parameters: Optional[dict] = None,
-        lr_scheduler_parameters: Optional[dict] = None,
+        lr_scheduler: Union[SupportedScheduler, str] = "ReduceLROnPlateau",
+        lr_scheduler_parameters: dict = {},
     ) -> None:
-        model_parameters = model_parameters if model_parameters is not None else {}
-        optimizer_parameters = optimizer_parameters if optimizer_parameters else {}
 
         algorithm_configuration = {
             "algorithm": algorithm,

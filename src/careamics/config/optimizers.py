@@ -13,6 +13,7 @@ from pydantic import (
 from torch import optim
 
 from careamics.utils.torch_utils import filter_parameters
+from .support import SupportedOptimizer, SupportedScheduler
 
 
 class OptimizerModel(BaseModel):
@@ -75,23 +76,14 @@ class OptimizerModel(BaseModel):
         optimizer_class = getattr(optim, optimizer_name)
 
         # filter the user parameters according to the optimizer's signature
-        parameters, missing_mandatory = filter_parameters(optimizer_class, user_params)
+        parameters = filter_parameters(optimizer_class, user_params)
 
-        # remove `params` from missing mandatory parameters, see torch.optim docs
-        missing_mandatory = [
-            p for p in missing_mandatory if p != "params"
-        ]
-
-        # if there are missing parameters, raise an error
-        if len(missing_mandatory) > 0:
-            raise ValueError(
-                f"Optimizer {optimizer_name} requires the following parameters: "
-                f"{missing_mandatory}."
-            )
+        # TODO warn about unused parameters
 
         return parameters
     
 
+    # TODO in PyTorch 2.2 the lr is not necessary for SGD. Pin version and delete this validator?
     @model_validator(mode="after")
     def sgd_lr_parameter(cls, optimizer: OptimizerModel) -> OptimizerModel:
         """
@@ -158,26 +150,13 @@ class LrSchedulerModel(BaseModel):
     @field_validator("parameters")
     def filter_parameters(cls, user_params: dict, values: ValidationInfo) -> Dict:
 
-        scheduler_name = values.data["name"]
-
         # retrieve the corresponding scheduler class
         scheduler_class = getattr(optim.lr_scheduler, values.data["name"])
 
         # filter the user parameters according to the scheduler's signature
-        parameters, missing_mandatory = filter_parameters(scheduler_class, user_params)
+        parameters = filter_parameters(scheduler_class, user_params)
 
-        # remove `optimizer` from missing mandatory parameters
-        # see torch.optim.lr_scheduler docs
-        missing_mandatory = [
-            p for p in missing_mandatory if p != "optimizer"
-        ]
-
-        # if there are missing parameters, raise an error
-        if len(missing_mandatory) > 0:
-            raise ValueError(
-                f"Optimizer {scheduler_name} requires the following parameters: "
-                f"{missing_mandatory}."
-            )
+        # TODO warn about unused parameters
 
         return parameters
     

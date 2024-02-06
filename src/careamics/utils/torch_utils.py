@@ -12,7 +12,6 @@ from ..utils.logging import get_logger
 
 logger = get_logger(__name__) # TODO are logger still needed?
 
-# TODO remove the mandatory bc torch fails
 def filter_parameters(
     func: type,
     user_params: dict,
