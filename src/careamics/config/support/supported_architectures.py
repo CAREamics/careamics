@@ -1,6 +1,6 @@
-from enum import Enum
+from aenum import StrEnum
 
-class SupportedArchitecture(str, Enum):
+class SupportedArchitecture(StrEnum):
     
     UNET = "UNet"
     VAE = "VAE"

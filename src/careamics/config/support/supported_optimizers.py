@@ -1,8 +1,7 @@
-"""Convenience functions to instantiate torch.optim optimizers and schedulers."""
-from enum import Enum
+from aenum import StrEnum
 
 
-class SupportedOptimizer(str, Enum):
+class SupportedOptimizer(StrEnum):
     """
     Supported optimizers.
 

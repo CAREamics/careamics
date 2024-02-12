@@ -1,13 +1,8 @@
-from enum import Enum
+from aenum import StrEnum
 
 # python 3.11: https://docs.python.org/3/library/enum.html
-class SupportedAlgorithm(str, Enum):
-    """
-    Available types of algorithms.
+class SupportedAlgorithm(StrEnum):
 
-    Currently supported algorithms:
-        - n2v
-  """
 
     # CARE = "care"
     N2V = "n2v"

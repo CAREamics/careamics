@@ -45,6 +45,7 @@ dependencies = [
     'segmentation_models_pytorch',
     'albumentations',
     'tifffile',
+    'aenum',
     'pyyaml',
     'pydantic>=2.0',
     'scikit-image',

@@ -1,6 +1,6 @@
-from enum import Enum
+from aenum import StrEnum
 
-class SupportedActivation(str, Enum):
+class SupportedActivation(StrEnum):
 
     NONE = "None"
     SIGMOID = "Sigmoid"

@@ -1,8 +1,8 @@
-from enum import Enum
+from aenum import StrEnum
 
 
 # TODO register loss with custom_loss decorator?
-class SupportedLoss(str, Enum):
+class SupportedLoss(StrEnum):
     """
     Available loss functions.
 

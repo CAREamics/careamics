@@ -1,9 +1,9 @@
-from enum import Enum
+from aenum import StrEnum
 
 
 # TODO: custom?
 # TODO: add all transforms from albumentations?
-class SupportedTransform(str, Enum):
+class SupportedTransform(StrEnum):
     """Transforms currently supported by CAREamics.
     """
 

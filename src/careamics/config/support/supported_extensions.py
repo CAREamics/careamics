@@ -1,7 +1,7 @@
-from enum import Enum
+from aenum import StrEnum
 
 # TODO: change into supported_dataset?
-class SupportedExtension(str, Enum):
+class SupportedExtension(StrEnum):
     """
     Supported extensions for input data.
 
