@@ -18,6 +18,7 @@ from .data import DataModel
 from .training import Training
 
 
+# TODO what do we expect in terms of model dump, with or without the defaults?
 class Configuration(BaseModel):
     """
     CAREamics configuration.

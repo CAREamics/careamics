@@ -5,8 +5,8 @@ from pydantic import (
     ConfigDict
 )
 
-# TODO: decorator to register custom model 
-# https://stackoverflow.com/questions/3054372/auto-register-class-methods-using-decorator
+# TODO: decorator to register custom model, problem is the architecture Literal 
+# as it is used as a discriminator in algorithm
 class CustomModel(BaseModel):
 
     # pydantic model config
@@ -15,7 +15,7 @@ class CustomModel(BaseModel):
     )
 
     # discriminator used for choosing the pydantic model in Model
-    architecture: Literal["Custom"]
+    architecture: Literal["custom"]
 
     # parameters
     parameters: dict = {}

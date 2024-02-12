@@ -161,7 +161,12 @@ class LrSchedulerModel(BaseModel):
         # filter the user parameters according to the scheduler's signature
         parameters = filter_parameters(scheduler_class, user_params)
 
-        # TODO warn about unused parameters
+        if values.data["name"] == "StepLR" and "step_size" not in parameters:
+            raise ValueError(
+                "StepLR scheduler requires `step_size` parameter, check that it has "
+                "correctly been specified in `parameters`."
+            )
 
         return parameters
+    
     

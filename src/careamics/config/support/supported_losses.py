@@ -18,4 +18,4 @@ class SupportedLoss(str, Enum):
     # HDN = "hdn"
     # CE = "ce"
     # DICE = "dice"
-    CUSTOM = "custom"
+    # CUSTOM = "custom" # TODO create mechanism for that

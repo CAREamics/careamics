@@ -5,10 +5,10 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, ValidationInfo
 import albumentations as Aug
-import careamics.transforms.normalize_without_target as custom_transforms
+from  careamics import transforms
 from careamics.utils.torch_utils import filter_parameters
 
-ALL_TRANSFORMS = dict(getmembers(Aug, isclass) + getmembers(custom_transforms, isclass))
+ALL_TRANSFORMS = dict(getmembers(Aug, isclass) + getmembers(transforms, isclass))
 
 
 class TransformType:
@@ -57,34 +57,39 @@ class TransformModel(BaseModel):
         validate_assignment=True,
     )
 
-    name: Literal[
-        "FLIP",
-        "RANDOM_ROTATE90",
-        "NORMALIZE_WO_TARGET",
-        "MANIPULATE_N2V",
-        "CUSTOM"
-    ]
+    name: str
     parameters: dict = Field(default={}, validate_default=True)
 
 
-    # TODO remove this
+    @field_validator("name")
+    def validate_name(cls, transform_name: str) -> str:
+        """Validate transform name based on `ALL_TRANSFORMS`."""
+        if transform_name not in ALL_TRANSFORMS.keys():
+            raise ValueError(
+                f"Incorrect transform name {transform_name}. Accepted transforms "
+                f"are ManipulateN2V, NormalizeWithoutTarget, and all transformations "
+                f"in Albumentations (see https://albumentations.ai/)."
+            )
+        return transform_name
+
+
     @field_validator("parameters")
     def validate_transform(cls, params: dict, value: ValidationInfo) -> dict:
-        """Validate transform parameters."""
-
-
+        """Validate transform parameters based on the transform signature."""
         transform_name = value.data["name"]
 
         # filter the user parameters according to the scheduler's signature
-        parameters, missing_mandatory = filter_parameters(
+        parameters = filter_parameters(
             ALL_TRANSFORMS[transform_name], params
         )
 
-        # if there are missing parameters, raise an error
-        if len(missing_mandatory) > 0:
+        # try to instantiate the transform with the filtered parameters
+        try:
+            ALL_TRANSFORMS[transform_name](**parameters)
+        except Exception as e:
             raise ValueError(
-                f"Optimizer {transform_name} requires the following parameters: "
-                f"{missing_mandatory}."
+                f"Error while trying to instantiate the transform {transform_name} "
+                f"with the provided parameters: {parameters}. The error is: {e}."
             )
-
+        
         return parameters

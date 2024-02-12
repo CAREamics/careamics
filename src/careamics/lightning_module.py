@@ -6,7 +6,6 @@ import pytorch_lightning as L
 from albumentations import Compose
 from pytorch_lightning.loops.fetchers import _DataLoaderIterDataFetcher
 from pytorch_lightning.loops.utilities import _no_grad_context
-from pytorch_lightning.trainer import call
 from pytorch_lightning.utilities.types import _PREDICT_OUTPUT
 from torch import nn, optim
 from torch.utils.data import DataLoader

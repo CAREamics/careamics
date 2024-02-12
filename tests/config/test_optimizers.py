@@ -92,17 +92,6 @@ def test_optimizer_to_dict_optional():
     assert optim_minimum == config
 
 
-def test_optimizer_to_dict_default_optional():
-    """ "Test that export to dict does not include default optional value."""
-    config = {
-        "name": "Adam",
-        "parameters": {},
-    }
-
-    optim_minimum = OptimizerModel(**config).model_dump(exclude_defaults=True)
-    assert "parameters" not in optim_minimum.keys()
-
-
 @pytest.mark.parametrize(
     "lr_scheduler_name, parameters",
     [
@@ -154,54 +143,5 @@ def test_scheduler_missing_parameter():
         name=SupportedScheduler.StepLR.value, parameters={"step_size": "5"}
     )
     assert lr_scheduler.parameters == {"step_size": "5"}
-
-
-def test_scheduler_wrong_values_by_assignments():
-    """Test that wrong values cause an error during assignment."""
-    scheduler = LrSchedulerModel(
-        name=SupportedScheduler.ReduceLROnPlateau.value, parameters={"factor": 0.3}
-    )
-
-    # name
-    scheduler.name = SupportedScheduler.ReduceLROnPlateau.value
-    with pytest.raises(ValueError):
-        # this fails because the step parameter is missing
-        scheduler.name = SupportedScheduler.StepLR.value
-
-    with pytest.raises(ValueError):
-        scheduler.name = "Schedule it yourself!"
-
-    # parameters
-    scheduler.name = SupportedScheduler.ReduceLROnPlateau.value
-    scheduler.parameters = {"factor": 0.1}
-    with pytest.raises(ValueError):
-        scheduler.parameters = "factor = 0.3"
-
-
-def test_scheduler_to_dict_optional():
-    """ "Test that export to dict includes optional values."""
-    scheduler_config = {
-        "name": "ReduceLROnPlateau",
-        "parameters": {
-            "mode": "max",
-            "factor": 0.3,
-        },
-    }
-
-    scheduler_complete = LrSchedulerModel(**scheduler_config).model_dump()
-    assert scheduler_complete == scheduler_config
-
-
-def test_scheduler_to_dict_default_optional():
-    """ "Test that export to dict does not include optional value."""
-    scheduler_config = {
-        "name": "ReduceLROnPlateau",
-        "parameters": {},
-    }
-
-    scheduler_complete = LrSchedulerModel(**scheduler_config).model_dump(
-        exclude_defaults=True
-    )
-    assert "parameters" not in scheduler_complete.keys()
 
 

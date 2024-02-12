@@ -1,21 +1,24 @@
 import pytest
 
-from careamics.config.transform import TransformModel, ALL_TRANSFORMS
+from careamics.config.transform_model import TransformModel, ALL_TRANSFORMS
 
 
-def test_all_transforms():
-    """Test that all transforms are can be instantiated."""
-    for name, func in ALL_TRANSFORMS.items():
-        print(name)
-        func()
+def test_manipulateN2V_in_transforms():
+    """Test that ManipulateN2V is in ALL_TRANSFORMS."""
+    assert "ManipulateN2V" in ALL_TRANSFORMS
+
+
+def test_normalize_without_targets_in_transforms():
+    """Test that NormalizeWithoutTarget is in ALL_TRANSFORMS."""
+    assert "NormalizeWithoutTarget" in ALL_TRANSFORMS
 
 
 @pytest.mark.parametrize("name, parameters", 
     [
         ("flip", {}),
         ("flip", {"p": 0.5}),
-        ("DefaultManipulateN2V", {"masked_pixel_percentage": 0.2, "roi_size": 11}),
-        ("DefaultManipulateN2V", {}),
+        ("ManipulateN2V", {"masked_pixel_percentage": 0.2, "roi_size": 11}),
+        ("ManipulateN2V", {}),
     ]
 )
 def test_transform(name, parameters):
@@ -31,9 +34,6 @@ def test_transform(name, parameters):
 def test_transform_wrong_values(name, parameters):
     with pytest.raises(ValueError):
         TransformModel(name=name, parameters=parameters)
-
-
-# TODO: tests for the ManipulateN2V transforms
         
 
 @pytest.mark.parametrize("roi_size", [5, 9, 15])

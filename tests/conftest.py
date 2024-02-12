@@ -64,7 +64,7 @@ def minimum_data() -> dict:
     # create dictionary
     data = {
         "in_memory": True,
-        "data_format": "tif",
+        "data_type": "tiff",
         "patch_size": [64, 64],
         "axes": "SYX",
     }

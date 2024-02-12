@@ -16,28 +16,7 @@ class AlgorithmModel(BaseModel):
     """
     Algorithm configuration.
 
-    The minimum algorithm configuration is composed of the following fields:
-        - loss:
-            Loss to use, currently only supports n2v.
-        - model:
-            Model to use, currently only supports UNet.
-
-    Attributes
-    ----------
-    loss : str
-        List of losses to use, currently only supports n2v.
-    model : Models
-        Model to use, currently only supports UNet.
-    is_3D : bool
-        Whether to use a 3D model or not.
-    masking_strategy : MaskingStrategies
-        Masking strategy to use, currently only supports default masking.
-    masked_pixel_percentage : float
-        Percentage of pixels to be masked in each patch.
-    roi_size : int
-        Size of the region of interest used in the masking scheme.
-    model_parameters : ModelParameters
-        Model parameters, see ModelParameters for more details.
+    # TODO
     """
 
     # Pydantic class configuration
@@ -49,7 +28,7 @@ class AlgorithmModel(BaseModel):
     # Mandatory fields
     algorithm: Literal["n2v", "n2v2"] 
     loss: Literal["n2v", "mae", "mse"]
-    model: Union[UNetModel, VAEModel, CustomModel] = Field(discriminator="architecture")
+    model: Union[UNetModel, VAEModel] = Field(discriminator="architecture")
 
     optimizer: OptimizerModel
     lr_scheduler: LrSchedulerModel

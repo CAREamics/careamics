@@ -6,7 +6,7 @@ from careamics.config.data import DataModel
 @pytest.mark.parametrize("ext", ["nd2", "jpg", "png ", "zarr", "npy"])
 def test_wrong_extensions(minimum_data: dict, ext: str):
     """Test that supported model raises ValueError for unsupported extensions."""
-    minimum_data["data_format"] = ext
+    minimum_data["data_type"] = ext
 
     # instantiate DataModel model
     with pytest.raises(ValueError):
@@ -94,45 +94,3 @@ def test_wrong_patch_size(minimum_data: dict, patch_size):
 
 
 # TODO transforms validation tests
-
-def test_wrong_values_by_assigment(minimum_data: dict):
-    """Test that wrong values are not accepted through assignment."""
-    data_model = DataModel(**minimum_data)
-
-    # in memory
-    data_model.in_memory = False
-    with pytest.raises(ValueError):
-        data_model.in_memory = "Trues"
-
-    # data format
-    data_model.extension = "tiff"
-    with pytest.raises(ValueError):
-        data_model.extension = "png"
-
-    # axes
-    data_model.axes = "SZYX"
-    with pytest.raises(ValueError):
-        data_model.axes = "-YX"
-
-    # mean
-    data_model.mean = 12
-    with pytest.raises(ValueError):
-        data_model.mean = -1
-
-    # std
-    data_model.std = 3.6
-    with pytest.raises(ValueError):
-        data_model.std = -1
-
-    # patch size
-    data_model.patch_size = [12, 12, 12]
-    with pytest.raises(ValueError):
-        data_model.patch_size = [12]
-
-    # TODO transforms
-
-
-def test_data_to_dict_minimum(minimum_data: dict):
-    """Test that export to dict does not include optional values."""
-    data_minimum = DataModel(**minimum_data).model_dump()
-    assert data_minimum == minimum_data

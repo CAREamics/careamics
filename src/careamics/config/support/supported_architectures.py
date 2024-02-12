@@ -4,4 +4,4 @@ class SupportedArchitecture(str, Enum):
     
     UNET = "UNet"
     VAE = "VAE"
-    CUSTOM = "Custom"
+    # CUSTOM = "Custom" # TODO create mechanism for that

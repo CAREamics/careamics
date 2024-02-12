@@ -11,7 +11,7 @@ class SupportedExtension(str, Enum):
     """
 
     TIFF = "tiff"
-    TIF = "tif"
+    TIF = "tif" # TODO do we need both?
     # ZARR = "zarr"
 
     @classmethod

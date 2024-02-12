@@ -8,7 +8,7 @@ import numpy as np
 import tifffile
 import zarr
 
-from ..config.transform import ALL_TRANSFORMS
+from ..config.transform_model import ALL_TRANSFORMS
 from ..utils.logging import get_logger
 
 logger = get_logger(__name__)

@@ -7,7 +7,7 @@ from albumentations import Compose
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from ..utils import check_axes_validity
-from .transform import TransformModel
+from .transform_model import TransformModel
 
 
 class DataModel(BaseModel):
@@ -18,19 +18,6 @@ class DataModel(BaseModel):
     and then the mean (if they were both `None` before) will raise a validation error.
     Prefer instead the following:
     >>> set_mean_and_std(mean, std)
-
-    Attributes
-    ----------
-    in_memory : bool
-        Whether to load the data in memory or not.
-    data_format : SupportedExtension
-        Extension of the data, without period.
-    axes : str
-        Axes of the data.
-    mean: Optional[float]
-        Expected data mean.
-    std: Optional[float]
-        Expected data standard deviation.
     """
 
     # Pydantic class configuration
@@ -40,7 +27,7 @@ class DataModel(BaseModel):
     )
     # DATASET CONFIGURATION
     # Mandatory fields
-    data_type: Literal["array", "tiff", "zarr", "custom"]
+    data_type: Literal["tif", "tiff"]
     patch_size: List[int] = Field(..., min_length=2, max_length=3)
 
     axes: str
