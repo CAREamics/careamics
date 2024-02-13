@@ -1,9 +1,7 @@
-from aenum import StrEnum
+from enum import Enum
 
 
-class SupportedOptimizer(StrEnum):
-
-    # _init_ = 'value __doc__'
+class SupportedOptimizer(str, Enum):
 
     # ASGD = "ASGD"
     # Adadelta = "Adadelta"
@@ -20,9 +18,7 @@ class SupportedOptimizer(StrEnum):
     # SparseAdam = "SparseAdam"
 
 
-class SupportedScheduler(StrEnum):
-
-    # _init_ = 'value __doc__'
+class SupportedScheduler(str, Enum):
 
     # ChainedScheduler = "ChainedScheduler"
     # ConstantLR = "ConstantLR"

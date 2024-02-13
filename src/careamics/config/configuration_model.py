@@ -13,9 +13,11 @@ from pydantic import (
     model_validator,
 )
 
-from .algorithm import AlgorithmModel
-from .data import DataModel
-from .training import Training
+from .algorithm_model import AlgorithmModel
+from .data_model import DataModel
+from .support import SupportedAlgorithm, SupportedTransform
+from .training_model import Training
+from .transform_model import TransformModel
 
 
 # TODO what do we expect in terms of model dump, with or without the defaults?
@@ -54,24 +56,6 @@ class Configuration(BaseModel):
     algorithm: AlgorithmModel
     data: DataModel
     training: Training
-
-    def set_3D(self, is_3D: bool, axes: str) -> None:
-        """
-        Set 3D flag and axes.
-
-        Parameters
-        ----------
-        is_3D : bool
-            Whether the algorithm is 3D or not.
-        axes : str
-            Axes of the data.
-        """
-        # set the flag and axes (this will not trigger validation at the config level)
-        self.algorithm.model.set_3D(is_3D)
-        self.data.axes = axes
-
-        # cheap hack: trigger validation
-        self.algorithm = self.algorithm
 
     @field_validator("experiment_name")
     @classmethod
@@ -153,18 +137,12 @@ class Configuration(BaseModel):
         return path
 
     @model_validator(mode="after")
-    @classmethod
-    def validate_3D(cls, config: Configuration) -> Configuration:
+    def validate_3D(self) -> Configuration:
         """
         Check 3D flag validity.
 
         Check that the algorithm is_3D flag is compatible with the axes in the
         data configuration.
-
-        Parameters
-        ----------
-        config : Configuration
-            Configuration to validate.
 
         Returns
         -------
@@ -178,20 +156,78 @@ class Configuration(BaseModel):
             not 3D but the data axes are.
         """
         # check that is_3D and axes are compatible
-        if config.algorithm.model.is_3D() and "Z" not in config.data.axes:
+        if self.algorithm.model.is_3D() and "Z" not in self.data.axes:
             raise ValueError(
-                f"Algorithm is 3D but data axes are not (got axes {config.data.axes})."
+                f"Algorithm is 3D but data axes are not (got axes {self.data.axes})."
             )
-        elif not config.algorithm.model.is_3D() and "Z" in config.data.axes:
+        elif not self.algorithm.model.is_3D() and "Z" in self.data.axes:
             raise ValueError(
-                f"Algorithm is not 3D but data axes are (got axes {config.data.axes})."
+                f"Algorithm is not 3D but data axes are (got axes {self.data.axes})."
             )
 
-        return config
+        return self
+
+    @model_validator(mode="after")
+    def validate_algorithm_and_data(self) -> Configuration:
+        """Validate the algorithm and data configurations.
+
+        In particular, the choice of algorithm will influantiate the potential
+        transforms that can be applied to the data.
+
+        - (struct)N2V(2): requires ManipulateN2V to be the last transform.
+
+        Returns
+        -------
+        Configuration
+            Validated configuration
+        """
+        # TODO the first if will need to change once we have more than (struct)N2V(2)
+        if not self.algorithm.algorithm == SupportedAlgorithm.CUSTOM:
+            if isinstance(self.data.transforms, list):
+                transform_list = [t.name for t in self.data.transforms]
+
+                # missing MANIPULATE_N2V
+                if SupportedTransform.MANIPULATE_N2V not in transform_list:
+                    self.data.transforms.append(
+                        TransformModel(name=SupportedTransform.MANIPULATE_N2V)
+                    )
+
+                # multiple MANIPULATE_N2V
+                elif transform_list.count(SupportedTransform.MANIPULATE_N2V) > 1:
+                    raise ValueError(
+                        f"Multiple {SupportedTransform.MANIPULATE_N2V} transforms are not "
+                        f"allowed."
+                    )
+
+                # MANIPULATE_N2V not the last transform
+                elif transform_list[-1] != SupportedTransform.MANIPULATE_N2V:
+                    index = transform_list.index(SupportedTransform.MANIPULATE_N2V)
+                    transform = self.data.transforms.pop(index)
+                    self.data.transforms.append(transform)
+
+        return self
+
+    def set_3D(self, is_3D: bool, axes: str) -> None:
+        """
+        Set 3D flag and axes.
+
+        Parameters
+        ----------
+        is_3D : bool
+            Whether the algorithm is 3D or not.
+        axes : str
+            Axes of the data.
+        """
+        # set the flag and axes (this will not trigger validation at the config level)
+        self.algorithm.model.set_3D(is_3D)
+        self.data.axes = axes
+
+        # cheap hack: trigger validation
+        self.algorithm = self.algorithm
 
     def model_dump(
         self,
-        exclude_defaults: bool = False, # TODO is this what we want?
+        exclude_defaults: bool = False,  # TODO is this what we want?
         exclude_none: bool = True,
         **kwargs: Dict,
     ) -> Dict:

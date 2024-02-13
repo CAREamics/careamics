@@ -1,8 +1,7 @@
-from aenum import StrEnum
+from enum import Enum
 
 # TODO: change into supported_dataset?
-class SupportedExtension(StrEnum):
-    #_init_ = 'value __doc__'
+class SupportedExtension(str, Enum):
 
     TIFF = "tiff"
     TIF = "tif" # TODO do we need both?

@@ -1,9 +1,8 @@
-from aenum import StrEnum
+from enum import Enum
 
 
 # TODO register loss with custom_loss decorator?
-class SupportedLoss(StrEnum):
-    #_init_ = 'value __doc__'
+class SupportedLoss(str, Enum):
 
     MSE = "mse"
     MAE = "mae"

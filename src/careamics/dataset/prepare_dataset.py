@@ -8,7 +8,7 @@ from typing import Callable, List, Optional, Union
 
 import numpy as np
 
-from ..config.data import DataModel
+from ..config.data_model import DataModel
 from ..utils import check_external_array_validity, check_tiling_validity
 from .extraction_strategy import ExtractionStrategy
 from .in_memory_dataset import InMemoryDataset, InMemoryPredictionDataset
@@ -17,7 +17,7 @@ from .zarr_dataset import ZarrDataset
 
 
 # TODO what is the difference between train and val datasets??
-# TODO it could be from memory as well here, yet it only takes a str (and not even a Path)
+# TODO it could be from memory as well here, yet it only takes a str (and not even Path)
 def get_train_dataset(
     data_config: DataModel,
     train_path: str,
@@ -255,7 +255,8 @@ def get_prediction_dataset(
         #         patch_transform=default_manipulate,
         #         patch_transform_params={
         #             # TODO these parameters have disappeared from the config
-        #             "mask_pixel_percentage": data_config.algorithm.masked_pixel_percentage,
+        #             "mask_pixel_percentage":
+        #                  data_config.algorithm.masked_pixel_percentage,
         #             "roi_size": data_config.algorithm.roi_size,
         #         },
         #         mode="predict",

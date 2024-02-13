@@ -1,10 +1,10 @@
 import pytest
 
+from careamics.config.optimizer_models import LrSchedulerModel, OptimizerModel
 from careamics.config.support.supported_optimizers import (
+    SupportedOptimizer,
     SupportedScheduler,
-    SupportedOptimizer
 )
-from careamics.config.optimizers import OptimizerModel, LrSchedulerModel
 
 
 @pytest.mark.parametrize(
@@ -49,7 +49,7 @@ def test_optimizer_parameters(optimizer_name: SupportedOptimizer, parameters: di
 
 def test_sgd_missing_parameter():
     """Test that SGD optimizer fails if `lr` is not provided.
-    
+
     Note: The SGD optimizer requires the `lr` parameter.
     """
     with pytest.raises(ValueError):
@@ -57,15 +57,16 @@ def test_sgd_missing_parameter():
 
     # test that it works if lr is provided
     optimizer = OptimizerModel(
-        name=SupportedOptimizer.SGD.value, 
-        parameters={"lr": 0.1}
+        name=SupportedOptimizer.SGD.value, parameters={"lr": 0.1}
     )
     assert optimizer.parameters == {"lr": 0.1}
 
 
 def test_optimizer_wrong_values_by_assignments():
     """Test that wrong values cause an error during assignment."""
-    optimizer = OptimizerModel(name=SupportedOptimizer.Adam.value, parameters={"lr": 0.08})
+    optimizer = OptimizerModel(
+        name=SupportedOptimizer.Adam.value, parameters={"lr": 0.08}
+    )
 
     # name
     optimizer.name = SupportedOptimizer.SGD.value
@@ -143,5 +144,3 @@ def test_scheduler_missing_parameter():
         name=SupportedScheduler.StepLR.value, parameters={"step_size": "5"}
     )
     assert lr_scheduler.parameters == {"step_size": "5"}
-
-

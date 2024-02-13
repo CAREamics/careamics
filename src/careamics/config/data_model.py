@@ -6,7 +6,9 @@ from typing import List, Literal, Optional, Union
 from albumentations import Compose
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from ..utils import check_axes_validity
+from careamics.utils import check_axes_validity
+
+from .support import SupportedTransform
 from .transform_model import TransformModel
 
 
@@ -25,7 +27,8 @@ class DataModel(BaseModel):
         validate_assignment=True,
         arbitrary_types_allowed=True,
     )
-    # DATASET CONFIGURATION
+
+    # Dataset configuration
     # Mandatory fields
     data_type: Literal["tif", "tiff"]
     patch_size: List[int] = Field(..., min_length=2, max_length=3)
@@ -35,16 +38,28 @@ class DataModel(BaseModel):
     # Optional fields
     mean: Optional[float] = Field(default=None, ge=0)
     std: Optional[float] = Field(default=None, gt=0)
-
-    # TODO need better validation for that one
     transforms: Optional[Union[List[TransformModel], Compose]] = Field(
-        default=[], validate_default=True
+        default=[
+            {
+                "name": SupportedTransform.NORMALIZE_WO_TARGET.value,
+            },
+            {
+                "name": SupportedTransform.FLIP.value,
+            },
+            {
+                "name": SupportedTransform.RANDOM_ROTATE90.value,
+            },
+            {
+                "name": SupportedTransform.MANIPULATE_N2V.value,
+            },
+        ],
+        validate_default=True,
     )
 
-    # DATA LOADER CONFIGURATION
-    batch_size: int = Field(default=1, ge=1)
-    num_workers: Optional[int] = Field(default=0, ge=0)
-    pin_memory: Optional[bool] = Field(default=False)
+    # Dataloader configuration
+    batch_size: int = Field(default=1, ge=1, validate_default=True)
+    num_workers: Optional[int] = Field(default=0, ge=0, validate_default=True)
+    pin_memory: Optional[bool] = Field(default=False, validate_default=True)
 
     @field_validator("patch_size")
     @classmethod
@@ -130,31 +145,7 @@ class DataModel(BaseModel):
         self.mean = mean
         self.std = std
 
-    # @model_validator(mode="after")
-    # @classmethod
-    # def validate_dataset_to_be_used(cls, data: Data) -> Any:
-    #     """Validate that in_memory dataset is used correctly.
-
-    #     Parameters
-    #     ----------
-    #     data : Configuration
-    #         Configuration to validate.
-
-    #     Raises
-    #     ------
-    #     ValueError
-    #         If in_memory dataset is used with Zarr storage.
-    #         If axes are not valid.
-    #     """
-    #     # TODO: why not? What if it is a small Zarr...
-    #     if data.in_memory and data.data_format == SupportedExtension.ZARR:
-    #         raise ValueError("Zarr storage can't be used with in_memory dataset.")
-
-    #     return data
-
-    # TODO is there a more elegant way? We could have an optional pydantic model with both specified!!
     @model_validator(mode="after")
-    @classmethod
     def std_only_with_mean(cls, data_model: DataModel) -> DataModel:
         """
         Check that mean and std are either both None, or both specified.
@@ -179,6 +170,6 @@ class DataModel(BaseModel):
             If std is not None and mean is None.
         """
         if data_model.std is not None and data_model.mean is None:
-            raise ValueError("Cannot have std non None if mean is None.")
+            raise ValueError("Cannot have `std` field if `mean` is None.")
 
         return data_model

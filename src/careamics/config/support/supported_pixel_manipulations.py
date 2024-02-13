@@ -1,10 +1,14 @@
-from aenum import StrEnum
+from enum import Enum
 
 
-class SupportedPixelManipulation(StrEnum):
+class SupportedPixelManipulation(str, Enum):
+    """_summary_
+
+    - Uniform: Replace masked pixel value by a (uniformly) randomly selected neighbor 
+        pixel value.
+    - Median: Replace masked pixel value by the mean of the neighborhood.
+    """
     # TODO docs
-    _init_ = 'value __doc__'
 
-    UNIFORM = "Uniform", "Replace masked pixel value by a (uniformly) randomly "\
-        "selected neighbor pixel value."
-    MEDIAN = "Median", "Replace masked pixel value by the mean of the neighborhood."
+    UNIFORM = "Uniform"
+    MEDIAN = "Median"

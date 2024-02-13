@@ -7,7 +7,6 @@ from bioimageio.core import load_resource_description
 
 from careamics.bioimage.io import get_default_model_specs
 from careamics.config import Configuration, save_configuration
-from careamics.models import create_model
 from careamics.utils import cwd
 
 # @pytest.mark.parametrize("name", ["Noise2Void"])

@@ -2,6 +2,7 @@ from pytorch_lightning import LightningModule
 
 from careamics import CAREamicsModule
 
+
 def test_careamics_module(minimum_algorithm):
     """Test CAREamicsModule class as an intermediate layer."""
     # extract model parameters

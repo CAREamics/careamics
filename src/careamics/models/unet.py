@@ -8,9 +8,9 @@ from typing import List, Union
 import torch
 import torch.nn as nn
 
-from .layers import Conv_Block, MaxBlurPool
-from .activation import get_activation
 from ..config.support import SupportedActivation
+from .activation import get_activation
+from .layers import Conv_Block, MaxBlurPool
 
 
 class UnetEncoder(nn.Module):
@@ -217,8 +217,8 @@ class UnetDecoder(nn.Module):
         torch.Tensor
             Output of the decoder.
         """
-        x = features[0]
-        skip_connections = features[1:][::-1]
+        x: torch.Tensor = features[0]
+        skip_connections: torch.Tensor = features[1:][::-1]
 
         x = self.bottleneck(x)
 

@@ -9,7 +9,9 @@ from typing import Optional, Tuple
 import numpy as np
 
 
-def _apply_struct_mask(patch, coords, mask):
+def _apply_struct_mask(
+    patch: np.ndarray, coords: np.ndarray, mask: np.ndarray
+) -> np.ndarray:
     """Applies structN2V mask to patch.
 
     Each point in coords corresponds to the center of the mask.
@@ -23,21 +25,31 @@ def _apply_struct_mask(patch, coords, mask):
         Coordinates of the pixels to be manipulated.
     mask : np.ndarray
         Mask to be applied.
+
+    Returns
+    -------
+    TODO
     """
     mask = np.array(mask)
     ndim = mask.ndim
     center = np.array(mask.shape) // 2
+
     # leave the center value alone
     mask[tuple(center.T)] = 0
+
     # displacements from center
     dx = np.indices(mask.shape)[:, mask == 1] - center[:, None]
+
     # combine all coords (ndim, npts,) with all displacements (ncoords,ndim,)
     mix = dx.T[..., None] + coords.T[None]
     mix = mix.transpose([1, 0, 2]).reshape([ndim, -1]).T
+
     # stay within patch boundary
     mix = mix.clip(min=np.zeros(ndim), max=np.array(patch.shape) - 1).astype(np.uint8)
+
     # replace neighbouring pixels with random values from flat dist
     patch[tuple(mix.T)] = np.random.rand(mix.shape[0]) * 4 - 2
+
     return patch
 
 
@@ -149,11 +161,11 @@ def uniform_manipulate(
     Tuple[np.ndarray]
         Tuple containing the manipulated patch, the original patch and the mask.
     """
-    #TODO this assumes patch has no channel dimension. Is this correct?
+    # TODO this assumes patch has no channel dimension. Is this correct?
     patch = patch.squeeze()
     original_patch = patch.copy()
 
-    # TODO: struct mask could be generated from roi center and later removed from grid as well
+    # TODO: struct mask could be generated from roi center & removed from grid as well
     # Get the coordinates of the pixels to be replaced
     roi_centers = _get_stratified_coords(mask_pixel_percentage, patch.shape)
     rng = np.random.default_rng()
@@ -170,7 +182,7 @@ def uniform_manipulate(
     random_increment = rng.choice(roi_span_wo_center, size=roi_centers.shape)
 
     # Clip the coordinates to the patch size
-    # TODO: just to check, shouldn't the maximum be roi_center+patch.shape/2? rather than path.shape
+    # TODO: shouldn't the maximum be roi_center+patch.shape/2? rather than path.shape
     replacement_coords: np.ndarray = np.clip(
         roi_centers + random_increment,
         0,
@@ -189,12 +201,15 @@ def uniform_manipulate(
         patch = _apply_struct_mask(patch, roi_centers, struct_mask)
 
     # Expand the dimensions of the arrays to return the channel dimension
-    #TODO Should it be done here? done at all?
+    # TODO Should it be done here? done at all?
     return (
         np.expand_dims(patch, 0),
-        np.expand_dims(original_patch, 0), # TODO is this necessary to return the original patch?
+        np.expand_dims(
+            original_patch, 0
+        ),  # TODO is this necessary to return the original patch?
         np.expand_dims(mask, 0),
     )
+
 
 # TODO: fix
 # TODO: create tests
@@ -206,10 +221,8 @@ def median_manipulate(
     roi_size: int = 11,
     struct_mask: Optional[np.ndarray] = None,
 ) -> Tuple[np.ndarray, ...]:
-    """
-    works on the assumption that it is 2D or 3D image
-    """
-    #TODO this assumes patch has no channel dimension. Is this correct?
+    """Works on the assumption that it is 2D or 3D image."""
+    # TODO this assumes patch has no channel dimension. Is this correct?
     patch = patch.squeeze()
     mask = np.zeros_like(patch)
     original_patch = patch.copy()
@@ -221,10 +234,7 @@ def median_manipulate(
         min_coord = [max(0, c - roi_size // 2) for c in center]
         max_coord = [min(s, c + roi_size // 2 + 1) for s, c in zip(patch.shape, center)]
 
-        coords = [
-            slice(min_coord[i], max_coord[i])
-            for i in range(patch.ndim)   
-        ]
+        coords = [slice(min_coord[i], max_coord[i]) for i in range(patch.ndim)]
 
         # extract roi around center
         roi = patch[tuple(coords)]
@@ -238,5 +248,3 @@ def median_manipulate(
         np.expand_dims(original_patch, 0),
         np.expand_dims(mask, 0),
     )
-
-

@@ -1,8 +1,3 @@
-############################################
-#    The Noise Model
-############################################
-
-
 from abc import ABC, abstractmethod
 
 import numpy as np
@@ -13,6 +8,7 @@ from ..utils.logging import get_logger
 logger = get_logger(__name__)
 
 
+# TODO here "Model" clashes a bit with the naming convention of the Pydantic Models
 class NoiseModel(ABC):
     """Base class for noise models."""
 
@@ -42,7 +38,7 @@ class HistogramNoiseModel(NoiseModel):
     """
 
     def __init__(self, **kwargs):
-        a = kwargs
+        pass
 
     def instantiate(self, bins, min_value, max_value, observation, signal):
         """Creates a nD histogram from 'observation' and 'signal'.

@@ -5,7 +5,7 @@ from typing import Callable, List, Optional, Tuple, Union
 import numpy as np
 import torch
 
-from ..config.data import DataModel
+from ..config.data_model import DataModel
 from ..utils import normalize
 from ..utils.logging import get_logger
 from .dataset_utils import get_patch_transform, read_tiff
@@ -176,7 +176,7 @@ class InMemoryDataset(torch.utils.data.Dataset):
                 )
                 patch, target = np.moveaxis(transformed["image"], -1, 0), np.moveaxis(
                     transformed["target"], -1, 0
-                ) # TODO check if this is correct!
+                )  # TODO check if this is correct!
                 return patch, target
             else:
                 patch = self.patch_transform(image=np.moveaxis(patch, 0, -1))["image"]

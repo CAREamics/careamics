@@ -7,7 +7,7 @@ from bioimageio.core import load_resource_description
 from bioimageio.core.build_spec import build_model
 from bioimageio.spec.model.raw_nodes import Model
 
-from careamics.config.config import (
+from careamics.config.configuration_model import (
     Configuration,
 )
 

@@ -10,7 +10,7 @@ from typing import Callable, Generator, List, Optional, Tuple, Union
 import numpy as np
 import torch
 
-from ..config.data import DataModel
+from ..config.data_model import DataModel
 from ..utils.logging import get_logger
 from .dataset_utils import get_patch_transform, get_patch_transform_predict, read_tiff
 from .patching import generate_patches_supervised, generate_patches_unsupervised

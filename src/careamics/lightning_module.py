@@ -173,7 +173,6 @@ class CAREamicsKiln(L.LightningModule):
         }
 
 
-# TODO consider using a Literal[...] instead of the enums here?
 class CAREamicsModule(CAREamicsKiln):
     def __init__(
         self,

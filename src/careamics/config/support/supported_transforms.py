@@ -1,6 +1,6 @@
 from inspect import getmembers, isclass
 
-from aenum import StrEnum
+from enum import Enum
 import albumentations as Aug
 
 from  careamics import transforms
@@ -28,11 +28,13 @@ def get_all_transforms() -> dict:
     return ALL_TRANSFORMS
 
 
-class SupportedTransform(StrEnum):
+class SupportedTransform(str, Enum):
     """Transforms officially supported by CAREamics.
 
-    - Flip, from Albumentations
-    - RandomRotate90, from Albumentations
+    - Flip: from Albumentations, randomly flip the input horizontally, vertically or 
+        both, parameter `p` can be used to set the probability to apply the transform.
+    - RandomRotate90: from Albumentations, andomly rotate the input by 90 degrees, 
+        parameter `p` can be used to set the probability to apply the transform.
     - NormalizeWithoutTarget # TODO add details, in particular about the parameters
     - ManipulateN2V # TODO add details, in particular about the parameters
 
@@ -40,12 +42,9 @@ class SupportedTransform(StrEnum):
     used in CAREamics, no check are implemented to verify the compatibility of any other
     transforms than the ones officially supported. 
     """
-    _init_ = 'value __doc__'
 
-    FLIP = "Flip", "Randomly flip the input horizontally, vertically or both, "\
-        "parameter `p` can be used to set the probability to apply the transform."
-    RANDOM_ROTATE90 = "RandomRotate90", "Randomly rotate the input by 90 degrees, "\
-        "parameter `p` can be used to set the probability to apply the transform."
-    NORMALIZE_WO_TARGET = "NormalizeWithoutTarget", "" # TODO add docstring
-    MANIPULATE_N2V = "ManipulateN2V", "" # TODO add docstring
+    FLIP = "Flip"
+    RANDOM_ROTATE90 = "RandomRotate90"
+    NORMALIZE_WO_TARGET = "NormalizeWithoutTarget"
+    MANIPULATE_N2V = "ManipulateN2V"
     # CUSTOM = "Custom"

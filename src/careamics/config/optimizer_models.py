@@ -13,7 +13,8 @@ from pydantic import (
 from torch import optim
 
 from careamics.utils.torch_utils import filter_parameters
-from .support import SupportedOptimizer, SupportedScheduler
+
+from .support import SupportedOptimizer
 
 
 class OptimizerModel(BaseModel):
@@ -47,8 +48,8 @@ class OptimizerModel(BaseModel):
     parameters: dict = Field(
         default={
             "lr": 1e-4,
-        }, 
-        validate_default=True
+        },
+        validate_default=True,
     )
 
     @field_validator("parameters")
@@ -84,17 +85,15 @@ class OptimizerModel(BaseModel):
         # filter the user parameters according to the optimizer's signature
         parameters = filter_parameters(optimizer_class, user_params)
 
-        # TODO warn about unused parameters
-
         return parameters
-    
 
-    # TODO in PyTorch 2.2 the lr is not necessary for SGD. Pin version and delete this validator?
     @model_validator(mode="after")
     @classmethod
     def sgd_lr_parameter(cls, optimizer: OptimizerModel) -> OptimizerModel:
         """
         Check that SGD optimizer has the mandatory `lr` parameter specified.
+
+        This is specific for PyTorch < 2.2.
 
         Parameters
         ----------
@@ -122,7 +121,6 @@ class OptimizerModel(BaseModel):
 
         return optimizer
 
-    
 
 class LrSchedulerModel(BaseModel):
     """
@@ -157,7 +155,25 @@ class LrSchedulerModel(BaseModel):
     @field_validator("parameters")
     @classmethod
     def filter_parameters(cls, user_params: dict, values: ValidationInfo) -> Dict:
+        """Filter parameters based on the learning rate scheduler's signature.
 
+        Parameters
+        ----------
+        user_params : dict
+            User parameters.
+        values : ValidationInfo
+            Pydantic field validation info, used to get the scheduler name.
+
+        Returns
+        -------
+        Dict
+            Filtered scheduler parameters.
+
+        Raises
+        ------
+        ValueError
+            If the scheduler is StepLR and the step_size parameter is not specified.
+        """
         # retrieve the corresponding scheduler class
         scheduler_class = getattr(optim.lr_scheduler, values.data["name"])
 
@@ -171,5 +187,3 @@ class LrSchedulerModel(BaseModel):
             )
 
         return parameters
-    
-    
