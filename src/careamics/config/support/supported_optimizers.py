@@ -2,11 +2,8 @@ from aenum import StrEnum
 
 
 class SupportedOptimizer(StrEnum):
-    """
-    Supported optimizers.
 
-    Currently only supports Adam and SGD.
-    """
+    # _init_ = 'value __doc__'
 
     # ASGD = "ASGD"
     # Adadelta = "Adadelta"
@@ -23,12 +20,9 @@ class SupportedOptimizer(StrEnum):
     # SparseAdam = "SparseAdam"
 
 
-class SupportedScheduler(str, Enum):
-    """
-    Supported learning rate schedulers.
+class SupportedScheduler(StrEnum):
 
-    Currently only supports ReduceLROnPlateau and StepLR.
-    """
+    # _init_ = 'value __doc__'
 
     # ChainedScheduler = "ChainedScheduler"
     # ConstantLR = "ConstantLR"

@@ -45,6 +45,7 @@ class UNetModel(BaseModel):
     n2v2: bool = Field(default=False, validate_default=True)
 
     @validator("num_channels_init")
+    @classmethod
     def validate_num_channels_init(cls, num_channels_init: int) -> int:
         """
         Validate that num_channels_init is even.

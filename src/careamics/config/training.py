@@ -34,6 +34,7 @@ class AMP(BaseModel):
     init_scale: int = Field(default=1024, ge=512, le=65536)
 
     @field_validator("init_scale")
+    @classmethod
     def power_of_two(cls, scale: int) -> int:
         """
         Validate that init_scale is a power of two.

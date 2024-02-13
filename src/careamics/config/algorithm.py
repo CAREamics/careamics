@@ -7,17 +7,12 @@ from pydantic import (
     Field,
 )
 
-from .architectures import UNetModel, VAEModel, CustomModel
+from .architectures import UNetModel, VAEModel
 from .optimizers import LrSchedulerModel, OptimizerModel
 
 #from .noise_models import NoiseModel
 
 class AlgorithmModel(BaseModel):
-    """
-    Algorithm configuration.
-
-    # TODO
-    """
 
     # Pydantic class configuration
     model_config = ConfigDict(
@@ -26,7 +21,7 @@ class AlgorithmModel(BaseModel):
     )
 
     # Mandatory fields
-    algorithm: Literal["n2v", "n2v2"] 
+    algorithm: Literal["n2v", "n2v2", "structn2v"] 
     loss: Literal["n2v", "mae", "mse"]
     model: Union[UNetModel, VAEModel] = Field(discriminator="architecture")
 

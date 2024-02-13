@@ -124,7 +124,7 @@ def _get_stratified_coords(
 
 
 # TODO channels: masking the same pixel across channels?
-def default_manipulate(
+def uniform_manipulate(
     patch: np.ndarray,
     mask_pixel_percentage: float,
     roi_size: int = 11,

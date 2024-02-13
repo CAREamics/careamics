@@ -1,91 +1,47 @@
 import pytest
 
-from careamics.config.transform_model import TransformModel, ALL_TRANSFORMS
+from careamics.config.transform_model import TransformModel
+from careamics.config.support import SupportedTransform
 
 
-def test_manipulateN2V_in_transforms():
-    """Test that ManipulateN2V is in ALL_TRANSFORMS."""
-    assert "ManipulateN2V" in ALL_TRANSFORMS
 
-
-def test_normalize_without_targets_in_transforms():
-    """Test that NormalizeWithoutTarget is in ALL_TRANSFORMS."""
-    assert "NormalizeWithoutTarget" in ALL_TRANSFORMS
-
-
-@pytest.mark.parametrize("name, parameters", 
+@pytest.mark.parametrize("name, parameters",
     [
-        ("flip", {}),
-        ("flip", {"p": 0.5}),
-        ("ManipulateN2V", {"masked_pixel_percentage": 0.2, "roi_size": 11}),
-        ("ManipulateN2V", {}),
-    ]
+        (SupportedTransform.FLIP, {}),
+        (SupportedTransform.RANDOM_ROTATE90, {}),
+        (SupportedTransform.NORMALIZE_WO_TARGET, {"mean": 1.0, "std": 1.0}),
+        (SupportedTransform.MANIPULATE_N2V, {}),
+    ]   
 )
-def test_transform(name, parameters):
+def test_official_transforms(name, parameters):
+    """Test that officially supported transforms are accepted."""
     TransformModel(name=name, parameters=parameters)
 
 
-@pytest.mark.parametrize("name, parameters", 
-    [
-        ("flippy", {"p": 0.5}),
-        ("flip", {"ps": 0.5}),
-    ]
-)
-def test_transform_wrong_values(name, parameters):
+def test_nonexisting_transform():
+    """Test that non-existing transforms are not accepted."""
     with pytest.raises(ValueError):
-        TransformModel(name=name, parameters=parameters)
+        TransformModel(name="OptimusPrime")
         
 
-@pytest.mark.parametrize("roi_size", [5, 9, 15])
-def test_parameters_roi_size(roi_size: int):
-    """Test that Algorithm accepts roi_size as an even number within the
-    range [3, 21]."""
-    # complete_config["algorithm"]["masking_strategy"]["parameters"][
-    #     "roi_size"
-    # ] = roi_size
-    # algorithm = Algorithm(**complete_config["algorithm"])
-    # assert algorithm.masking_strategy.parameters["roi_size"] == roi_size
-    # TODO
-    pass
+def test_filtering_unknown_parameters():
+    """Test that unknown parameters are filtered out."""
+    parameters = {
+        "some_param": 42,
+        "p": 1.0
+    }
 
-@pytest.mark.parametrize("roi_size", [2, 4, 23])
-def test_parameters_wrong_roi_size(roi_size: int):
-    """Test that wrong num_channels_init cause an error."""
-    # complete_config["algorithm"]["masking_strategy"]["parameters"][
-    #     "roi_size"
-    # ] = roi_size
-    # with pytest.raises(ValueError):
-    #     Algorithm(**complete_config["algorithm"])
-    # TODO
-    pass
+    # create transform model
+    transform = TransformModel(
+        name=SupportedTransform.FLIP,
+        parameters=parameters
+    )
+
+    # check parameters
+    assert transform.parameters == {"p": 1.0}
 
 
-@pytest.mark.parametrize("masked_pixel_percentage", [0.1, 0.2, 5, 20])
-def test_masked_pixel_percentage(masked_pixel_percentage: float):
-    """Test that Algorithm accepts the minimum configuration."""
-    # algorithm = complete_config["algorithm"]
-    # algorithm["masking_strategy"]["parameters"][
-    #     "masked_pixel_percentage"
-    # ] = masked_pixel_percentage
-
-    # algo = Algorithm(**algorithm)
-    # assert (
-    #     algo.masking_strategy.parameters["masked_pixel_percentage"]
-    #     == masked_pixel_percentage
-    # )
-    # TODO
-    pass
-
-
-@pytest.mark.parametrize("masked_pixel_percentage", [0.01, 21])
-def test_wrong_masked_pixel_percentage(
-    masked_pixel_percentage: float
-):
-    """Test that Algorithm accepts the minimum configuration."""
-    # algorithm = complete_config["algorithm"]["masking_strategy"]["parameters"]
-    # algorithm["masked_pixel_percentage"] = masked_pixel_percentage
-
-    # with pytest.raises(ValueError):
-    #     Algorithm(**algorithm)
-    # TODO
-    pass
+def test_missing_parameters():
+    """Test that missing parameters trigger an error."""
+    with pytest.raises(ValueError):
+        TransformModel(name=SupportedTransform.NORMALIZE_WO_TARGET, parameters={})

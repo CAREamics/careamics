@@ -1,12 +1,16 @@
 from albumentations import ImageOnlyTransform
 import numpy as np
 
-from .pixel_manipulation import default_manipulate
+from .pixel_manipulation import uniform_manipulate
+from careamics.config.support import SupportedPixelManipulation
 
 
+# TODO add median vs random replace
 class ManipulateN2V(ImageOnlyTransform):
     """
     Default augmentation for the N2V model.
+
+    # TODO add more details
 
     Parameters
     ----------
@@ -20,11 +24,13 @@ class ManipulateN2V(ImageOnlyTransform):
         self,
         masked_pixel_percentage: float = 0.2,
         roi_size: int = 11,
+        strategy : str = SupportedPixelManipulation.UNIFORM,
         struct_mask: np.ndarray = None,
     ):
         super().__init__(p=1)
         self.masked_pixel_percentage = masked_pixel_percentage
         self.roi_size = roi_size
+        self.strategy = strategy
         self.struct_mask = struct_mask
 
     def apply(self, image, **params):
@@ -35,8 +41,16 @@ class ManipulateN2V(ImageOnlyTransform):
         image : np.ndarray
             Image or image patch, 2D or 3D, shape (c, y, x) or (c, z, y, x).
         """
-        masked, original, mask = default_manipulate(
-            image, self.masked_pixel_percentage, self.roi_size, self.struct_mask
-        )
+        if self.strategy == SupportedPixelManipulation.UNIFORM:
+            masked, original, mask = uniform_manipulate(
+                image, self.masked_pixel_percentage, self.roi_size, self.struct_mask
+            )
+        elif self: 
+            masked, original, mask = uniform_manipulate(
+                image, self.masked_pixel_percentage, self.roi_size, self.struct_mask
+            )
+        else:
+            raise ValueError(f"Strategy {self.strategy} not supported.")
+        
         return masked, original, mask
 

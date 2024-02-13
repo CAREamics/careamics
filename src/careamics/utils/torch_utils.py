@@ -15,7 +15,7 @@ logger = get_logger(__name__) # TODO are logger still needed?
 def filter_parameters(
     func: type,
     user_params: dict,
-) -> Tuple[dict, dict]:
+) -> dict:
     """
     Filter parameters according to the function signature.
 

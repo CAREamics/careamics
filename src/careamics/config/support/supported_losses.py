@@ -3,13 +3,7 @@ from aenum import StrEnum
 
 # TODO register loss with custom_loss decorator?
 class SupportedLoss(StrEnum):
-    """
-    Available loss functions.
-
-    Currently supported losses:
-
-        - n2v: Noise2Void loss.
-    """
+    #_init_ = 'value __doc__'
 
     MSE = "mse"
     MAE = "mae"

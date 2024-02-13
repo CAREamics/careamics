@@ -52,6 +52,7 @@ class OptimizerModel(BaseModel):
     )
 
     @field_validator("parameters")
+    @classmethod
     def filter_parameters(cls, user_params: dict, values: ValidationInfo) -> Dict:
         """
         Validate optimizer parameters.
@@ -90,6 +91,7 @@ class OptimizerModel(BaseModel):
 
     # TODO in PyTorch 2.2 the lr is not necessary for SGD. Pin version and delete this validator?
     @model_validator(mode="after")
+    @classmethod
     def sgd_lr_parameter(cls, optimizer: OptimizerModel) -> OptimizerModel:
         """
         Check that SGD optimizer has the mandatory `lr` parameter specified.
@@ -153,6 +155,7 @@ class LrSchedulerModel(BaseModel):
     parameters: dict = Field(default={}, validate_default=True)
 
     @field_validator("parameters")
+    @classmethod
     def filter_parameters(cls, user_params: dict, values: ValidationInfo) -> Dict:
 
         # retrieve the corresponding scheduler class

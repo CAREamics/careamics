@@ -8,7 +8,7 @@ import numpy as np
 import tifffile
 import zarr
 
-from ..config.transform_model import ALL_TRANSFORMS
+from ..config.support import get_all_transforms
 from ..utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -420,9 +420,9 @@ def get_patch_transform(
         # TODO not very readable
         return Aug.Compose(
             [
-                ALL_TRANSFORMS[transform["name"]](**transform["parameters"])
+                get_all_transforms()[transform["name"]](**transform["parameters"])
                 if "parameters" in transform
-                else ALL_TRANSFORMS[transform["name"]]()
+                else get_all_transforms()[transform["name"]]()
                 for transform in patch_transforms
             ],
             additional_targets={"target": "image"}
@@ -497,9 +497,9 @@ def get_patch_transform_predict(
         # TODO not very readable
         return Aug.Compose(
             [
-                ALL_TRANSFORMS[transform["name"]](**transform["parameters"])
+                get_all_transforms()[transform["name"]](**transform["parameters"])
                 if "parameters" in transform
-                else ALL_TRANSFORMS[transform["name"]]()
+                else get_all_transforms()[transform["name"]]()
                 for transform in patch_transforms
                 if transform["name"] != "ManipulateN2V"
             ],

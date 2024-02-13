@@ -2,13 +2,7 @@ from aenum import StrEnum
 
 # TODO: change into supported_dataset?
 class SupportedExtension(StrEnum):
-    """
-    Supported extensions for input data.
-
-    Currently supported:
-        - tif/tiff: .tiff files.
-        - zarr: zarr array.
-    """
+    #_init_ = 'value __doc__'
 
     TIFF = "tiff"
     TIF = "tif" # TODO do we need both?

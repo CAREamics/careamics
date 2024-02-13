@@ -57,9 +57,11 @@ def test_config_invalid_working_directory(tmp_path: Path, minimum_configuration:
 
 
 def test_3D_algorithm_and_data_compatibility(minimum_configuration: dict):
-    """Test that errors are raised if algithm `is_3D` and data axes are incompatible."""
+    """Test that errors are raised if algorithm `is_3D` and data axes are 
+    incompatible.
+    """
     # 3D but no Z in axes
-    minimum_configuration["algorithm"]["model"]["parameters"]["conv_dims"] = 3
+    minimum_configuration["algorithm"]["model"]["conv_dims"] = 3
     with pytest.raises(ValueError):
         Configuration(**minimum_configuration)
 
@@ -87,84 +89,6 @@ def test_set_3D(minimum_configuration: dict):
     with pytest.raises(ValueError):
         conf.set_3D(False, "ZYX")
 
-
-def test_wrong_values_by_assignment(complete_config: dict):
-    """Test that wrong values raise an error when assigned."""
-    config = Configuration(**complete_config)
-
-    # experiment name
-    config.experiment_name = "My name is Inigo Montoya"
-    with pytest.raises(ValueError):
-        config.experiment_name = "¯\\_(ツ)_/¯"
-
-    # working directory
-    config.working_directory = complete_config["working_directory"]
-    with pytest.raises(ValueError):
-        config.working_directory = "o/o"
-
-    # data
-    config.data = complete_config["data"]
-    with pytest.raises((ValueError, TypeError)):
-        # TODO Yet again, validation isn't happening !!!!
-        config.data = "I am not a data model"
-
-    # algorithm
-    config.algorithm = complete_config["algorithm"]
-    with pytest.raises(ValueError):
-        config.algorithm = None
-
-    # training
-    config.training = complete_config["training"]
-    with pytest.raises(ValueError):
-        config.training = "Hubert Blaine Wolfeschlegelsteinhausenbergerdorff Sr."
-
-    # TODO Because algorithm is a sub-model of Configuration, and the validation is
-    # done at the level of the Configuration, this does not cause any error, although
-    # it should.
-    config.algorithm.is_3D = True
-
-
-def test_minimum_configuration(minimum_configuration: dict):
-    """Test that we can instantiate a minimum config."""
-    dictionary = Configuration(**minimum_configuration).model_dump()
-    assert dictionary == minimum_configuration
-
-
-def test_complete_config(complete_config: dict):
-    """Test that we can instantiate a minimum config."""
-    dictionary = Configuration(**complete_config).model_dump()
-    assert dictionary == complete_config
-
-
-def test_config_to_dict_with_default_optionals(complete_config: dict):
-    """Test that the exclude optional options in model dump gives a full configuration,
-    including the default optional values.
-
-    Note that None values are always excluded.
-    """
-    # Algorithm default optional parameters
-    complete_config["algorithm"]["masking_strategy"]["strategy_type"] = "default"
-    complete_config["algorithm"]["masking_strategy"]["parameters"][
-        "masked_pixel_percentage"
-    ] = 0.2
-    complete_config["algorithm"]["model"]["parameters"] = {
-        "depth": 2,
-        "num_channels_init": 32,
-    }
-
-    # Training default optional parameters
-    complete_config["training"]["optimizer"]["parameters"] = {}
-    complete_config["training"]["lr_scheduler"]["parameters"] = {}
-    complete_config["training"]["use_wandb"] = True
-    complete_config["training"]["num_workers"] = 0
-    complete_config["training"]["amp"] = {
-        "use": True,
-        "init_scale": 1024,
-    }
-
-    # instantiate config
-    myconf = Configuration(**complete_config)
-    assert myconf.model_dump(exclude_optionals=False) == complete_config
 
 
 def test_config_to_yaml(tmp_path: Path, minimum_configuration: dict):

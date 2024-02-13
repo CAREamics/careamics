@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 
 from careamics.transforms.pixel_manipulation import (
-    default_manipulate,
+    uniform_manipulate,
     _get_stratified_coords,
     _apply_struct_mask,
     median_manipulate
@@ -51,7 +51,7 @@ def test_default_manipulate_2d(array_2D: np.ndarray):
     Ensure that the function returns an array of the same shape as the input.
     """
     # Get manipulated patch, original patch and mask
-    patch, original_patch, mask = default_manipulate(array_2D, 0.5)
+    patch, original_patch, mask = uniform_manipulate(array_2D, 0.5)
 
     # Add sample dimension to the moch input array
     array_2D = array_2D[np.newaxis, ...]
@@ -70,7 +70,7 @@ def test_default_manipulate_3d(array_3D: np.ndarray):
     Ensure that the function returns an array of the same shape as the input.
     """
     # Get manipulated patch, original patch and mask
-    patch, original_patch, mask = default_manipulate(array_3D, 0.5)
+    patch, original_patch, mask = uniform_manipulate(array_3D, 0.5)
 
     # Add sample dimension to the mock input array
     array_3D = array_3D[np.newaxis, ...]

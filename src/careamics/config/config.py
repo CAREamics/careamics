@@ -48,9 +48,7 @@ class Configuration(BaseModel):
 
     # required parameters
     experiment_name: str
-
-    # TODO consider using DirectoryPath instead
-    working_directory: Path
+    working_directory: Union[str, Path]
 
     # Sub-configurations
     algorithm: AlgorithmModel
@@ -76,6 +74,7 @@ class Configuration(BaseModel):
         self.algorithm = self.algorithm
 
     @field_validator("experiment_name")
+    @classmethod
     def no_symbol(cls, name: str) -> str:
         """
         Validate experiment name.
@@ -112,6 +111,7 @@ class Configuration(BaseModel):
         return name
 
     @field_validator("working_directory")
+    @classmethod
     def parent_directory_exists(cls, workdir: Union[str, Path]) -> Path:
         """
         Validate working directory.
@@ -153,6 +153,7 @@ class Configuration(BaseModel):
         return path
 
     @model_validator(mode="after")
+    @classmethod
     def validate_3D(cls, config: Configuration) -> Configuration:
         """
         Check 3D flag validity.
@@ -190,12 +191,12 @@ class Configuration(BaseModel):
 
     def model_dump(
         self,
-        exclude_defaults: bool = True,
+        exclude_defaults: bool = False, # TODO is this what we want?
         exclude_none: bool = True,
         **kwargs: Dict,
     ) -> Dict:
         """
-        Override model_dump method in order to set default values for optional fields.
+        Override model_dump method in order to set default values.
 
         Parameters
         ----------
@@ -215,6 +216,9 @@ class Configuration(BaseModel):
         dictionary = super().model_dump(
             exclude_none=exclude_none, exclude_defaults=exclude_defaults, **kwargs
         )
+
+        # change Path into str
+        dictionary["working_directory"] = str(dictionary["working_directory"])
 
         return dictionary
 

@@ -1,10 +1,12 @@
 """ module."""
 import albumentations as Aug
 
-
+# TODO maybe rename
+# TODO what is this doing exactly? it says without target, but a mask is a target...
 class NormalizeWithoutTarget(Aug.DualTransform):
     """
     Normalize the image with a mask.
+    # TODO: add more details
 
     Parameters
     ----------
@@ -28,9 +30,7 @@ class NormalizeWithoutTarget(Aug.DualTransform):
         self.max_pixel_value = max_pixel_value
 
     def apply(self, image, **params):
-        """Apply the transform to the mask."""
         return Aug.functional.normalize(image, self.mean, self.std, self.max_pixel_value)
 
     def apply_to_mask(self, target, **params):
-        """Apply the transform to the mask."""
         return Aug.functional.normalize(target, self.mean, self.std, self.max_pixel_value)

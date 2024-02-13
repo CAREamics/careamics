@@ -47,6 +47,7 @@ class DataModel(BaseModel):
     pin_memory: Optional[bool] = Field(default=False)
 
     @field_validator("patch_size")
+    @classmethod
     def all_elements_non_zero_even(cls, patch_list: List[int]) -> List[int]:
         """
         Validate patch size.
@@ -80,6 +81,7 @@ class DataModel(BaseModel):
         return patch_list
 
     @field_validator("axes")
+    @classmethod
     def axes_valid(cls, axes: str) -> str:
         """
         Validate axes.
@@ -152,6 +154,7 @@ class DataModel(BaseModel):
 
     # TODO is there a more elegant way? We could have an optional pydantic model with both specified!!
     @model_validator(mode="after")
+    @classmethod
     def std_only_with_mean(cls, data_model: DataModel) -> DataModel:
         """
         Check that mean and std are either both None, or both specified.
