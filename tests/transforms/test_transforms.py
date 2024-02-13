@@ -2,9 +2,9 @@ import numpy as np
 import pytest
 
 from careamics.manipulation.pixel_manipulation import (
-    default_manipulate,
+    uniform_manipulate,
+    median_manipulate,
     get_stratified_coords,
-    apply_struct_mask,
 )
 
 
@@ -44,16 +44,14 @@ def test_get_stratified_coords(mask_pixel_perc, shape, num_iterations):
     assert np.sum(array == 0) < np.sum(shape)
 
 
-def test_default_manipulate_2d(array_2D):
-    """Test the default_manipulate function.
+def test_uniform_manipulate_2d(array_2D):
+    """Test the uniform_manipulate function.
 
     Ensure that the function returns an array of the same shape as the input.
     """
     # Get manipulated patch, original patch and mask
-    patch, original_patch, mask = default_manipulate(array_2D, 0.5)
+    patch, original_patch, mask = uniform_manipulate(array_2D, 0.5)
 
-    # Add sample dimension to the moch input array
-    array_2D = array_2D[np.newaxis, ...]
     # Check that the shapes of the arrays are the same
     assert patch.shape == array_2D.shape
     assert original_patch.shape == array_2D.shape
@@ -63,16 +61,34 @@ def test_default_manipulate_2d(array_2D):
     assert not np.array_equal(patch, original_patch)
 
 
-def test_default_manipulate_3d(array_3D):
-    """Test the default_manipulate function.
+def test_uniform_manipulate_2d_multichannel(array_2D):
+    """Test the uniform_manipulate function.
+
+    Ensure that the function returns an array of the same shape as the input.
+    """
+    # Stack the 2D array to create multichannel input
+    array_2D = np.concatenate([array_2D, array_2D], axis=0)
+
+    # Get manipulated patch, original patch and mask
+    patch, original_patch, mask = uniform_manipulate(array_2D, 0.5)
+
+    # Check that the shapes of the arrays are the same
+    assert patch.shape == array_2D.shape
+    assert original_patch.shape == array_2D.shape
+    assert mask.shape == array_2D.shape
+
+    # Check that the manipulated patch is different from the original patch
+    assert not np.array_equal(patch, original_patch)
+
+
+def test_uniform_manipulate_3d(array_3D):
+    """Test the uniform_manipulate function.
 
     Ensure that the function returns an array of the same shape as the input.
     """
     # Get manipulated patch, original patch and mask
-    patch, original_patch, mask = default_manipulate(array_3D, 0.5)
+    patch, original_patch, mask = uniform_manipulate(array_3D, 0.5)
 
-    # Add sample dimension to the moch input array
-    array_3D = array_3D[np.newaxis, ...]
     # Check that the shapes of the arrays are the same
     assert patch.shape == array_3D.shape
     assert original_patch.shape == array_3D.shape
@@ -82,8 +98,52 @@ def test_default_manipulate_3d(array_3D):
     assert not np.array_equal(patch, original_patch)
 
 
+def test_uniform_manipulate_3d_multichannel(array_3D):
+    """Test the uniform_manipulate function.
+
+    Ensure that the function returns an array of the same shape as the input.
+    """
+    # Stack the 3D array to create multichannel input
+    array_3D = np.concatenate([array_3D, array_3D], axis=0)
+
+    # Get manipulated patch, original patch and mask
+    patch, original_patch, mask = uniform_manipulate(array_3D, 0.5)
+
+    # Check that the shapes of the arrays are the same
+    assert patch.shape == array_3D.shape
+    assert original_patch.shape == array_3D.shape
+    assert mask.shape == array_3D.shape
+
+    # Check that the manipulated patch is different from the original patch
+    assert not np.array_equal(patch, original_patch)
+
+
+def test_median_manipulate_2d(array_2D):
+    """Test the median_manipulate function.
+
+    Ensure that the function returns an array of the same shape as the input.
+    """
+    # Get manipulated patch, original patch and mask
+    patch, original_patch, mask = median_manipulate(array_2D, 0.5)
+
+    # Check that the shapes of the arrays are the same
+    assert patch.shape == array_2D.shape
+    assert original_patch.shape == array_2D.shape
+    assert mask.shape == array_2D.shape
+
+    # Check that the manipulated patch is different from the original patch
+    assert not np.array_equal(patch, original_patch)
+
+
 @pytest.mark.parametrize("mask", [[[0, 1, 1, 1, 1, 1, 0]]])
-def test_apply_struct_mask(mask):
-    patch = np.zeros((64, 64))
-    coords = get_stratified_coords(0.2, patch.shape)
-    patch = apply_struct_mask(patch, coords, mask)
+def test_apply_struct_mask(array_2D, mask):
+    patch, original_patch, mask = uniform_manipulate(array_2D, 0.5, struct_mask=mask)
+
+    # Check that the shapes of the arrays are the same
+    assert patch.shape == array_2D.shape
+    assert original_patch.shape == array_2D.shape
+    assert mask.shape == array_2D.shape
+
+    # Check that the manipulated patch is different from the original patch
+    assert not np.array_equal(patch, original_patch)
+

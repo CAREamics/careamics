@@ -123,10 +123,11 @@ def get_stratified_coords(
     return coordinate_grid
 
 
-def default_manipulate(
+def uniform_manipulate(
     patch: np.ndarray,
     mask_pixel_percentage: float,
-    roi_size: int = 11,
+    subpatch_size: int = 11,
+    remove_center: bool = False,
     struct_mask: Optional[np.ndarray] = None,
 ) -> Tuple[np.ndarray, ...]:
     """
@@ -138,54 +139,168 @@ def default_manipulate(
         Image patch, 2D or 3D, shape (y, x) or (z, y, x).
     mask_pixel_percentage : floar
         Approximate percentage of pixels to be masked.
-    roi_size : int
-        Size of the ROI the new pixel value is sampled from, by default 11.
-    augmentations : Callable, optional
-        Augmentations to apply, by default None.
+    subpatch_size : int
+        Size of the subpatch the new pixel value is sampled from, by default 11.
+    remove_center : bool
+        Whether to remove the center pixel from the subpatch, by default False. See uniform
+        with/without central pixel in the documentation. #TODO add link
+    struct_mask : Optional[np.ndarray], optional
+        StructN2V mask, by default None.
 
     Returns
     -------
     Tuple[np.ndarray]
         Tuple containing the manipulated patch, the original patch and the mask.
     """
-    #TODO this assumes patch has no channel dimension. Is this correct?
-    patch = patch.squeeze()
     original_patch = patch.copy()
 
     # Get the coordinates of the pixels to be replaced
-    roi_centers = get_stratified_coords(mask_pixel_percentage, patch.shape)
+    subpatch_centers = get_stratified_coords(mask_pixel_percentage, patch.shape)
     rng = np.random.default_rng()
 
-    # Generate coordinate grid for ROI
-    roi_span_full = np.arange(-np.floor(roi_size / 2), np.ceil(roi_size / 2)).astype(
-        np.int32
+    # Generate coordinate grid for subpatch
+    roi_span_full = np.arange(
+        -np.floor(subpatch_size / 2), np.ceil(subpatch_size / 2)
+    ).astype(np.int32)
+
+    # Remove the center pixel from the grid if needed
+    roi_span = (
+        roi_span_full[roi_span_full != 0]
+        if remove_center
+        else roi_span_full
     )
-    # Remove the center pixel from the grid
-    roi_span_wo_center = roi_span_full[roi_span_full != 0]
 
     # Randomly select coordinates from the grid
-    random_increment = rng.choice(roi_span_wo_center, size=roi_centers.shape)
+    random_increment = rng.choice(roi_span, size=subpatch_centers.shape)
 
     # Clip the coordinates to the patch size
     replacement_coords = np.clip(
-        roi_centers + random_increment,
+        subpatch_centers + random_increment,
         0,
         [patch.shape[i] - 1 for i in range(len(patch.shape))],
     )
-    # Get the replacement pixels from all rois
+    # Get the replacement pixels from all subpatchs
     replacement_pixels = patch[tuple(replacement_coords.T.tolist())]
 
     # Replace the original pixels with the replacement pixels
-    patch[tuple(roi_centers.T.tolist())] = replacement_pixels
+    patch[tuple(subpatch_centers.T.tolist())] = replacement_pixels
     mask = np.where(patch != original_patch, 1, 0).astype(np.uint8)
 
     if struct_mask is not None:
-        patch = apply_struct_mask(patch, roi_centers, struct_mask)
+        patch = apply_struct_mask(patch, subpatch_centers, struct_mask)
 
-    # Expand the dimensions of the arrays to return the channel dimension
-    #TODO Should it be done here? done at all?
     return (
-        np.expand_dims(patch, 0),
-        np.expand_dims(original_patch, 0),
-        np.expand_dims(mask, 0),
+        patch,
+        original_patch,
+        mask,
     )
+
+
+def mask_center(local_sub_patch_radius, ndims=2):
+    size = local_sub_patch_radius*2 + 1
+    patch_wo_center = np.ones((size, ) * ndims)
+    if ndims == 2:
+        patch_wo_center[local_sub_patch_radius, local_sub_patch_radius] = 0
+    elif ndims == 3:
+        patch_wo_center[local_sub_patch_radius,
+        local_sub_patch_radius, local_sub_patch_radius] = 0
+    else:
+        raise NotImplementedError()
+    return np.ma.make_mask(patch_wo_center)
+
+
+def median_manipulate(
+    patch: np.ndarray,
+    mask_pixel_percentage: float,
+    subpatch_size: int = 11,
+    struct_mask: Optional[np.ndarray] = None,
+) -> Tuple[np.ndarray, ...]:
+    """
+    Manipulate pixel in a patch, i.e. replace the masked value.
+
+    Parameters
+    ----------
+    patch : np.ndarray
+        Image patch, 2D or 3D, shape (y, x) or (z, y, x).
+    mask_pixel_percentage : floar
+        Approximate percentage of pixels to be masked.
+    subpatch_size : int
+        Size of the subpatch the new pixel value is sampled from, by default 11.
+    struct_mask : Optional[np.ndarray], optional
+        StructN2V mask, by default None.
+
+    Returns
+    -------
+    Tuple[np.ndarray]
+        Tuple containing the manipulated patch, the original patch and the mask.
+    """
+    original_patch = patch.copy()
+
+    # Get the coordinates of the pixels to be replaced
+    subpatch_centers = get_stratified_coords(mask_pixel_percentage, patch.shape)
+
+    rng = np.random.default_rng()
+
+    # Generate coordinate grid for subpatch
+    roi_span = np.array((
+        -np.floor(subpatch_size / 2), np.floor(subpatch_size / 2))
+    ).astype(np.int32)
+
+    subpatch_crop_full = subpatch_centers[np.newaxis, ...].T + roi_span
+    # Dimensions n dims, n centers, (min, max)
+    subpatch_crop_clipped = np.clip(subpatch_crop_full, a_min = np.zeros_like(patch.shape)[:, np.newaxis, np.newaxis], a_max=np.array(patch.shape)[:, np.newaxis, np.newaxis] - 1)
+    # slice(subpatch_crop_clipped[..., 0, np.newaxis], subpatch_crop_clipped[..., 1, np.newaxis])
+    cs = [slice(min(ct), max(ct)) if (max(ct) - min(ct)) > 0 else slice(0, 1) for ct in cr]
+    # ps[min(osp2[0]):max(osp2[0]), min(osp2[1]):max(osp2[1])]
+
+    # Clip the coordinates to the patch size
+    replacement_coords = np.clip(
+        subpatch_centers + random_increment,
+        0,
+        [patch.shape[i] - 1 for i in range(len(patch.shape))],
+    )
+    # Get the replacement pixels from all subpatchs
+    replacement_pixels = patch[tuple(replacement_coords.T.tolist())]
+
+    # Replace the original pixels with the replacement pixels
+    patch[tuple(subpatch_centers.T.tolist())] = replacement_pixels
+    mask = np.where(patch != original_patch, 1, 0).astype(np.uint8)
+
+    if struct_mask is not None:
+        patch = apply_struct_mask(patch, subpatch_centers, struct_mask)
+
+    return (
+        patch,
+        original_patch,
+        mask,
+    )
+
+
+# ccc = np.clip(cc, a_min = np.zeros_like(patch.shape)[np.newaxis, ...].T, a_max=np.array(patch.shape)[np.newaxis, ...].T - 1)
+
+# cs = [slice(min(ct), max(ct)) for ct in cr]
+
+
+
+'''
+import numpy as np
+
+# Example dimensions
+n_channels = 3
+n_images = 4
+coordinate_start = 0
+coordinate_stop = 10  # Exclusive
+
+# Generating indices for channels and images
+channels_indices, images_indices = np.ogrid[:n_channels, :n_images]
+
+# Assuming you want slices for the full coordinate range for each pair
+# Here, we'll simulate this by creating a list of slices for demonstration
+slices = [slice(coordinate_start, coordinate_stop) for _ in range(n_channels * n_images)]
+
+# The slices list now contains slice objects for each channel-image pair across the full coordinate range
+# This step doesn't use the indices directly but illustrates how you could proceed.
+
+# For actual multidimensional array manipulation, you'd typically use the indices directly with numpy's advanced indexing
+
+'''
