@@ -1,7 +1,7 @@
 import pytest
 
 from careamics.config.architectures import UNetModel
-from careamics.models.model_factory import model_registry
+from careamics.models.model_factory import model_factory
 
 
 # TODO generalize to other architecture
@@ -11,4 +11,4 @@ def test_model_registry_unet():
     }
 
     # instantiate model
-    model_registry(UNetModel(**model_config))
+    model_factory(UNetModel(**model_config))

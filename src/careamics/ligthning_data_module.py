@@ -21,7 +21,7 @@ from careamics.dataset.iterable_dataset import (
 )
 from careamics.utils import get_ram_size
 
-
+# TODO must be compatible with no validation, path to folder, path to image, and arrays!
 class CAREamicsWood(L.LightningDataModule):
     def __init__(
         self,

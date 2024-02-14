@@ -1,7 +1,7 @@
-from typing import Any, Optional, Union
+from typing import Any, Union
 
 import pytorch_lightning as L
-from torch import nn, optim
+from torch import nn
 
 from careamics.config import AlgorithmModel
 from careamics.config.support import (
@@ -11,17 +11,24 @@ from careamics.config.support import (
     SupportedOptimizer,
     SupportedScheduler,
 )
-from careamics.losses import create_loss_function
-from careamics.models.model_factory import model_registry
+from careamics.losses import loss_factory
+from careamics.models.model_factory import model_factory
+from careamics.utils.torch_utils import get_scheduler, get_optimizer
 
 
 class CAREamicsKiln(L.LightningModule):
+    """CAREamics internal Lightning module class.
+    
+    This class is configured using an AlgorithmModel instance, parameterizing the deep
+    learning model, and defining training and validation steps."""
+
+
     def __init__(self, algorithm_config: AlgorithmModel) -> None:
         super().__init__()
 
         # create model and loss function
-        self.model: nn.Module = model_registry(algorithm_config.model)
-        self.loss_func = create_loss_function(algorithm_config.loss)
+        self.model: nn.Module = model_factory(algorithm_config.model)
+        self.loss_func = loss_factory(algorithm_config.loss)
 
         # save optimizer and lr_scheduler names and parameters
         self.optimizer_name = algorithm_config.optimizer.name
@@ -53,42 +60,67 @@ class CAREamicsKiln(L.LightningModule):
 
     def configure_optimizers(self) -> Any:
         # instantiate optimizer
-        optimizer_func = getattr(optim, self.optimizer_name)
+        optimizer_func = get_optimizer(self.optimizer_name)
         optimizer = optimizer_func(self.model.parameters(), **self.optimizer_params)
 
         # and scheduler
-        scheduler_func = getattr(optim.lr_scheduler, self.lr_scheduler_name)
+        scheduler_func = get_scheduler(self.lr_scheduler_name)
         scheduler = scheduler_func(optimizer, **self.lr_scheduler_params)
 
         return {
             "optimizer": optimizer,
             "lr_scheduler": scheduler,
-            "monitor": "val_loss",  # otherwise one gets a MisconfigurationException
+            "monitor": "val_loss",  # otherwise triggers MisconfigurationException
         }
 
 
 class CAREamicsModule(CAREamicsKiln):
+    """Class defining the API for CAREamics Lightning layer.
+
+    This class exposes parameters used to create an AlgorithmModel instance, triggering
+    parameters validation.
+
+    Parameters
+    ----------
+    algorithm : Union[SupportedAlgorithm, str]
+        Algorithm to use for training (see SupportedAlgorithm).
+    loss : Union[SupportedLoss, str]
+        Loss function to use for training (see SupportedLoss).
+    architecture : Union[SupportedArchitecture, str]
+        Model architecture to use for training (see SupportedArchitecture).
+    model_parameters : dict, optional
+        Model parameters to use for training, by default {}. Model parameters are
+        defined in the relevant `torch.nn.Module` class, or Pyddantic model (see
+        `careamics.config.architectures`).
+    optimizer : Union[SupportedOptimizer, str], optional
+        Optimizer to use for training, by default "Adam" (see SupportedOptimizer).
+    optimizer_parameters : dict, optional
+        Optimizer parameters to use for training, as defined in `torch.optim`, by 
+        default {}.
+    lr_scheduler : Union[SupportedScheduler, str], optional
+        Learning rate scheduler to use for training, by default "ReduceLROnPlateau" 
+        (see SupportedScheduler).
+    lr_scheduler_parameters : dict, optional
+        Learning rate scheduler parameters to use for training, as defined in 
+        `torch.optim`, by default {}.
+    """
+
     def __init__(
         self,
         algorithm: Union[SupportedAlgorithm, str],
         loss: Union[SupportedLoss, str],
         architecture: Union[SupportedArchitecture, str],
-        model_parameters: Optional[dict] = None,
+        model_parameters: dict = {},
         optimizer: Union[SupportedOptimizer, str] = "Adam",
-        optimizer_parameters: Optional[dict] = None,
+        optimizer_parameters: dict = {},
         lr_scheduler: Union[SupportedScheduler, str] = "ReduceLROnPlateau",
-        lr_scheduler_parameters: Optional[dict] = None,
+        lr_scheduler_parameters: dict = {},
     ) -> None:
-        if lr_scheduler_parameters is None:
-            lr_scheduler_parameters = {}
-        if optimizer_parameters is None:
-            optimizer_parameters = {}
-        if model_parameters is None:
-            model_parameters = {}
+
+        # create a AlgorithmModel compatible dictionary
         algorithm_configuration = {
             "algorithm": algorithm,
             "loss": loss,
-            "model": {"architecture": architecture},
             "optimizer": {
                 "name": optimizer,
                 "parameters": optimizer_parameters,
@@ -98,8 +130,11 @@ class CAREamicsModule(CAREamicsKiln):
                 "parameters": lr_scheduler_parameters,
             },
         }
+        model_configuration = {"model": {"architecture": architecture}}
+        model_configuration["model"].update(model_parameters)
 
-        # add model parameters
-        algorithm_configuration["model"].update(model_parameters)
+        # add model parameters to algorithm configuration
+        algorithm_configuration["model"] = model_configuration
 
+        # call the parent init using an AlgorithmModel instance
         super().__init__(AlgorithmModel(**algorithm_configuration))

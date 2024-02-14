@@ -12,15 +12,19 @@ __all__ = [
     "compile_model",
     "MetricTracker",
     "get_ram_size",
+    "method_dispatch",
+    "check_path_exists"
 ]
 
 
 from .context import cwd
 from .metrics import MetricTracker
-from .misc import get_ram_size
+from .ram import get_ram_size
 from .normalization import RunningStats, denormalize, normalize
 from .validators import (
     check_axes_validity,
     check_external_array_validity,
     check_tiling_validity,
 )
+from .method_dispatch import method_dispatch
+from .path_utils import check_path_exists

@@ -1,9 +1,10 @@
-from careamics import CAREamicsModule
+from careamics.lightning_module import CAREamicsModule, CAREamicsKiln
 from careamics.config import AlgorithmModel
 
 
 def test_careamics_module(minimum_algorithm):
-    """Test CAREamicsModule class as an intermediate layer."""
+    """Test that the minimum algorithm allows isntantiating a the Lightning API 
+    intermediate layer."""
     algo_config = AlgorithmModel(**minimum_algorithm)
 
     # extract model parameters
@@ -21,3 +22,12 @@ def test_careamics_module(minimum_algorithm):
         lr_scheduler=algo_config.lr_scheduler.name,
         lr_scheduler_parameters=algo_config.lr_scheduler.parameters,
     )
+    
+
+def test_careamics_kiln(minimum_algorithm):
+    """Test that the minimum algorithm allows instantiating a CAREamicsKiln."""
+    algo_config = AlgorithmModel(**minimum_algorithm)
+
+    # instantiate CAREamicsKiln
+    CAREamicsKiln(algo_config)
+

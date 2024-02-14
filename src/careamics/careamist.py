@@ -5,13 +5,11 @@ import numpy as np
 from pytorch_lightning import Trainer
 from torch.utils.data.dataloader import DataLoader
 
-from careamics.config import Configuration, load_configuration
-from careamics.lightning_module import CAREamicsKiln
-from careamics.dataset.prepare_dataset import (
-    get_train_dataset,
-    get_validation_dataset,
-    get_prediction_dataset,
-)
+from .lightning_prediction import TiledPredictionLoop
+from .lightning_module import CAREamicsKiln
+from .ligthning_data_module import CAREamicsWood, CAREamicsClay
+from .config import Configuration, load_configuration
+from .utils import method_dispatch, check_path_exists
 
 # TODO callbacks
 # TODO save as modelzoo, lightning and pytorch_dict
@@ -100,111 +98,88 @@ class CAREamist:
         # instantiate trainer
         self.trainer = Trainer(max_epochs=self.cfg.training.num_epochs)
 
-    # TODO: @functools single dispatch
+        # change the prediction loop
+        self.trainer.predict_loop = TiledPredictionLoop(self.trainer)
+
+    @method_dispatch
     def train(
         self,
-        train_dataloader: DataLoader,
-        val_dataloader: Optional[DataLoader] = None,
+        datamodule: CAREamicsWood,
     ) -> None:
-        self.trainer.fit(self.model, train_dataloader, val_dataloader)
+        self.trainer.fit(self.model, datamodule=datamodule)
 
-    def train_on_path(
+    @train.register
+    def _train_on_path(
         self,
-        path_to_train_data: Union[Path, str],
-        path_to_val_data: Union[Path, str],
+        path_to_train_data: Path, # cannot use str annotation for the dispatch
+        path_to_val_data: Optional[Path] = None,
+        path_to_train_target: Optional[Path] = None,
+        path_to_val_target: Optional[Path] = None,
     ) -> None:
-        # sanity check on train data
-        path_to_train_data = Path(path_to_train_data)
-        if not path_to_train_data.exists():
-            raise FileNotFoundError(
-                f"Data path {path_to_train_data} is incorrect or"
-                f" does not exist."
-            )
-        elif not path_to_train_data.is_dir():
-            raise ValueError(
-                f"Data path {path_to_train_data} is not a directory."
-            )
+        # sanity check on data (path exists)
+        path_to_train_data = check_path_exists(path_to_train_data)
         
-        # sanity check on val data
-        path_to_val_data = Path(path_to_val_data)
-        if not path_to_val_data.exists():
-            raise FileNotFoundError(
-                f"Data path {path_to_val_data} is incorrect or"
-                f" does not exist."
-            )
-        elif not path_to_val_data.is_dir():
-            raise ValueError(
-                f"Data path {path_to_val_data} is not a directory."
-            )
+        if path_to_val_data is not None:
+            path_to_val_data = check_path_exists(path_to_val_data)
 
-        # create datasets and dataloaders
-        train_dataset = get_train_dataset(self.cfg.data, path_to_train_data)
-        train_dataloader = DataLoader(
-            train_dataset,
-            batch_size=self.cfg.training.batch_size,
-            num_workers=0#self.cfg.training.num_workers,
-        )
+        if path_to_train_target is not None:
+            path_to_train_target = check_path_exists(path_to_train_target)
 
-        val_dataset = get_validation_dataset(self.cfg.data, path_to_val_data)
-        val_dataloader = DataLoader(
-            val_dataset,
-            batch_size=1,
-            num_workers=0,
+        if path_to_val_target is not None:
+            path_to_val_target = check_path_exists(path_to_val_target)
+        
+        # create datamodule
+        datamodule = CAREamicsWood(
+            data_config=self.cfg.data,
+            train_path=path_to_train_data,
+            val_path=path_to_val_data,
+            train_target_path=path_to_train_target,
+            val_target_path=path_to_val_target,
         )
 
         # train
-        self.train(train_dataloader=train_dataloader, val_dataloader=val_dataloader)
+        self.train(datamodule=datamodule)
 
-
-    def predict(
+    @train.register
+    def _train_on_array(
         self,
-        test_dataloader: Optional[DataLoader] = None,
-    ) -> Dict[str, np.ndarray]:
-
-        return self.trainer.predict(self.model, test_dataloader)
-
-    def predict_on_path(
-        self,
-        path_to_data: Union[Path, str],
-        tile_shape: Optional[tuple] = None,
-        overlaps: Optional[tuple] = None,
-    ) -> Dict[str, np.ndarray]:
-        path = Path(path_to_data)
-        if not path.exists():
-            raise FileNotFoundError(
-                f"Data path {path_to_data} is incorrect or"
-                f" does not exist."
-            )
-        elif not path.is_dir():
-            raise ValueError(
-                f"Data path {path_to_data} is not a directory."
-            )
-
-        # create dataset
-        pred_dataset = get_prediction_dataset(
-            self.cfg.data, 
-            path_to_data,
-            tile_shape=tile_shape,
-            overlaps=overlaps,
-            )
-        
-        # create dataloader
-        pred_dataloader = DataLoader(
-            pred_dataset,
-            batch_size=self.cfg.training.batch_size,
-            num_workers=self.cfg.training.num_workers,
+        train_data: np.ndarray,
+        val_data: Optional[np.ndarray] = None,
+        train_target: Optional[np.ndarray] = None,
+        val_target: Optional[np.ndarray] = None,
+    ) -> None:
+        raise NotImplementedError(
+            "Training on numpy arrays is not implemented yet."
         )
 
-        # TODO how to deal with stitching?
-
-        # predict
-        return self.predict(pred_dataloader)
-
-
-    def save(
+    @method_dispatch
+    def predict(
         self,
-        format: str = "modelzoo",  # TODO Enum
-    ):
+        datamodule: CAREamicsClay,
+    ) -> Dict[str, np.ndarray]:
+        return self.trainer.predict(self.model, datamodule=datamodule)
+
+    @predict.register
+    def _predict_on_path(
+        self,
+        path_to_data: Path,
+    ) -> Dict[str, np.ndarray]:
+        # sanity check (path exists)
+        path = check_path_exists(path_to_data)
+
+        # create datamodule
+        datamodule = CAREamicsClay(
+            data_config=self.cfg.data,
+            pred_path=path,
+        )
+
+        return self.predict(datamodule)
+
+    @predict.register
+    def _predict_on_array(
+        self,
+        data: np.ndarray
+    ) -> Dict[str, np.ndarray]:
         raise NotImplementedError(
-            "Saving is not implemented yet."
+            "Prediction on numpy arrays is not implemented yet."
         )
