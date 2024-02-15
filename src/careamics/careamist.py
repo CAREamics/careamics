@@ -178,6 +178,12 @@ class CAREamist:
         self,
         datamodule: CAREamicsClay,
     ) -> Dict[str, np.ndarray]:
+        if not isinstance(datamodule, CAREamicsClay):
+            raise TypeError(
+                f"`datamodule` must be a CAREamicsClay instance, "
+                f"got {type(datamodule)}."
+            )
+
         return self.trainer.predict(self.model, datamodule=datamodule)
 
     @predict.register
@@ -195,6 +201,17 @@ class CAREamist:
         )
 
         return self.predict(datamodule)
+    
+
+    @predict.register
+    def _predict_on_str(
+        self,
+        path_to_data: str,
+    ) -> Dict[str, np.ndarray]:
+        path_to_data = Path(path_to_data)
+
+        return self._predict_on_path(path_to_data)
+
 
     @predict.register
     def _predict_on_array(
