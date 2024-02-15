@@ -4,7 +4,7 @@ from typing import Literal, Union
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from .architectures import UNetModel, VAEModel
+from .architectures import UNetModel, VAEModel, CustomModel
 from .optimizer_models import LrSchedulerModel, OptimizerModel
 
 
@@ -23,7 +23,7 @@ class AlgorithmModel(BaseModel):
     # Mandatory fields
     algorithm: Literal["n2v", "n2v2", "structn2v", "custom"]
     loss: Literal["n2v", "mae", "mse"]
-    model: Union[UNetModel, VAEModel] = Field(discriminator="architecture")
+    model: Union[UNetModel, VAEModel, CustomModel] = Field(discriminator="architecture")
 
     # Optional fields
     optimizer: OptimizerModel = OptimizerModel()

@@ -129,7 +129,7 @@ class CAREamicsWood(L.LightningDataModule):
             pin_memory=self.pin_memory,
         )
 
-
+# TODO compatibility with arrays
 class CAREamicsClay(L.LightningDataModule):
     def __init__(
         self,

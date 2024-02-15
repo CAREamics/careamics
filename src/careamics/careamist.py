@@ -3,11 +3,10 @@ from typing import Dict, Optional, Union
 
 import numpy as np
 from pytorch_lightning import Trainer
-from torch.utils.data.dataloader import DataLoader
 
 from .lightning_prediction import TiledPredictionLoop
 from .lightning_module import CAREamicsKiln
-from .ligthning_data_module import CAREamicsWood, CAREamicsClay
+from .ligthning_datamodule import CAREamicsWood, CAREamicsClay
 from .config import Configuration, load_configuration
 from .utils import method_dispatch, check_path_exists
 
