@@ -105,12 +105,19 @@ class CAREamist:
         self,
         datamodule: CAREamicsWood,
     ) -> None:
+        
+        if not isinstance(datamodule, CAREamicsWood):
+            raise TypeError(
+                f"`datamodule` must be a CAREamicsWood instance, "
+                f"got {type(datamodule)}."
+            )
+
         self.trainer.fit(self.model, datamodule=datamodule)
 
     @train.register
     def _train_on_path(
         self,
-        path_to_train_data: Path, # cannot use str annotation for the dispatch
+        path_to_train_data: Path, # cannot use Union annotation for the dispatch
         path_to_val_data: Optional[Path] = None,
         path_to_train_target: Optional[Path] = None,
         path_to_val_target: Optional[Path] = None,
@@ -130,14 +137,29 @@ class CAREamist:
         # create datamodule
         datamodule = CAREamicsWood(
             data_config=self.cfg.data,
-            train_path=path_to_train_data,
-            val_path=path_to_val_data,
-            train_target_path=path_to_train_target,
-            val_target_path=path_to_val_target,
+            train_data=path_to_train_data,
+            val_data=path_to_val_data,
+            train_data_target=path_to_train_target,
+            val_data_target=path_to_val_target,
         )
 
         # train
         self.train(datamodule=datamodule)
+
+    @train.register
+    def _train_on_str(
+        self,
+        path_to_train_data: str,
+        path_to_val_data: Optional[str] = None,
+        path_to_train_target: Optional[str] = None,
+        path_to_val_target: Optional[str] = None,
+    ) -> None:
+        self._train_on_path(
+            Path(path_to_train_data),
+            Path(path_to_val_data) if path_to_val_data is not None else None,
+            Path(path_to_train_target) if path_to_train_target is not None else None,
+            Path(path_to_val_target) if path_to_val_target is not None else None,
+        )
 
     @train.register
     def _train_on_array(
