@@ -53,8 +53,6 @@ def test_default_manipulate_2d(array_2D: np.ndarray):
     # Get manipulated patch, original patch and mask
     patch, original_patch, mask = uniform_manipulate(array_2D, 0.5)
 
-    # Add sample dimension to the moch input array
-    array_2D = array_2D[np.newaxis, ...]
     # Check that the shapes of the arrays are the same
     assert patch.shape == array_2D.shape
     assert original_patch.shape == array_2D.shape
@@ -72,8 +70,6 @@ def test_default_manipulate_3d(array_3D: np.ndarray):
     # Get manipulated patch, original patch and mask
     patch, original_patch, mask = uniform_manipulate(array_3D, 0.5)
 
-    # Add sample dimension to the mock input array
-    array_3D = array_3D[np.newaxis, ...]
     # Check that the shapes of the arrays are the same
     assert patch.shape == array_3D.shape
     assert original_patch.shape == array_3D.shape

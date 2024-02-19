@@ -19,10 +19,10 @@ def test_get_files_size_tiff(tmp_path: Path):
 
     # save array to tiff
     path1 = tmp_path / "test1.tif"
-    tifffile.imsave(path1, image)
+    tifffile.imwrite(path1, image)
 
     path2 = tmp_path / "test2.tiff"
-    tifffile.imsave(path2, image)
+    tifffile.imwrite(path2, image)
 
     # save text file
     path3 = tmp_path / "test3.txt"
@@ -32,13 +32,13 @@ def test_get_files_size_tiff(tmp_path: Path):
     subdirectory = tmp_path / "subdir"
     subdirectory.mkdir()
     path4 = subdirectory / "test3.tif"
-    tifffile.imsave(path4, image)
+    tifffile.imwrite(path4, image)
 
     # create file list
     files = [path1, path2, path4]
 
     # get files size
-    size = get_files_size(files, SupportedData.TIFF)
+    size = get_files_size(files)
     assert size > 0
 
 
@@ -49,7 +49,7 @@ def test_list_single_file_tiff(tmp_path: Path):
 
     # save array to tiff
     path = tmp_path / "test.tif"
-    tifffile.imsave(path, image)
+    tifffile.imwrite(path, image)
 
     # list file using parent directory
     files = list_files(tmp_path, SupportedData.TIFF)
@@ -64,7 +64,25 @@ def test_list_single_file_tiff(tmp_path: Path):
 
 def test_list_multiple_files_tiff(tmp_path: Path):
     """Test listing multiple TIFF files in subdirectories with additional files."""
-    path1, path2, _, path4 = save_multiple_tiffs(tmp_path)
+    # create array
+    image = np.ones((10, 10))
+
+    # save array to /npy
+    path1 = tmp_path / "test1.tif"
+    tifffile.imwrite(path1, image)
+
+    path2 = tmp_path / "test2.tif"
+    tifffile.imwrite(path2, image)
+
+    # save text file
+    path3 = tmp_path / "test3.txt"
+    path3.write_text("test")
+
+    # save file in subdirectory
+    subdirectory = tmp_path / "subdir"
+    subdirectory.mkdir()
+    path4 = subdirectory / "test3.tif"
+    tifffile.imwrite(path4, image)
 
     # create file list
     ref_files = [path1, path2, path4]

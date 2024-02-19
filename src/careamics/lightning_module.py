@@ -130,8 +130,8 @@ class CAREamicsModule(CAREamicsKiln):
                 "parameters": lr_scheduler_parameters,
             },
         }
-        model_configuration = {"model": {"architecture": architecture}}
-        model_configuration["model"].update(model_parameters)
+        model_configuration = {"architecture": architecture}
+        model_configuration.update(model_parameters)
 
         # add model parameters to algorithm configuration
         algorithm_configuration["model"] = model_configuration
