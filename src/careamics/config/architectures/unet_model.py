@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 # TODO tests activation <-> pydantic model, test the literals!
@@ -44,7 +44,7 @@ class UNetModel(BaseModel):
         "LeakyReLU"] = Field(default="None", validate_default=True)
     n2v2: bool = Field(default=False, validate_default=True)
 
-    @validator("num_channels_init")
+    @field_validator("num_channels_init")
     @classmethod
     def validate_num_channels_init(cls, num_channels_init: int) -> int:
         """

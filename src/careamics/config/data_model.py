@@ -30,7 +30,7 @@ class DataModel(BaseModel):
 
     # Dataset configuration
     # Mandatory fields
-    data_type: Literal["tif", "tiff"]
+    data_type: Literal["array", "tiff"]
     patch_size: List[int] = Field(..., min_length=2, max_length=3)
 
     axes: str
@@ -38,7 +38,7 @@ class DataModel(BaseModel):
     # Optional fields
     mean: Optional[float] = Field(default=None, ge=0)
     std: Optional[float] = Field(default=None, gt=0)
-    transforms: Optional[Union[List[TransformModel], Compose]] = Field(
+    transforms: Union[List[TransformModel], Compose] = Field(
         default=[
             {
                 "name": SupportedTransform.NORMALIZE_WO_TARGET.value,
@@ -58,8 +58,8 @@ class DataModel(BaseModel):
 
     # Dataloader configuration
     batch_size: int = Field(default=1, ge=1, validate_default=True)
-    num_workers: Optional[int] = Field(default=0, ge=0, validate_default=True)
-    pin_memory: Optional[bool] = Field(default=False, validate_default=True)
+    num_workers: int = Field(default=0, ge=0, validate_default=True)
+    pin_memory: bool = Field(default=False, validate_default=True)
 
     @field_validator("patch_size")
     @classmethod
@@ -144,6 +144,12 @@ class DataModel(BaseModel):
         """
         self.mean = mean
         self.std = std
+
+        # search in the transforms for Normalize and update parameters
+        for transform in self.transforms:
+            if transform.name == SupportedTransform.NORMALIZE_WO_TARGET.value:
+                transform.parameters["mean"] = mean
+                transform.parameters["std"] = std
 
     @model_validator(mode="after")
     def std_only_with_mean(cls, data_model: DataModel) -> DataModel:

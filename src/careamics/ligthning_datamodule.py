@@ -1,15 +1,17 @@
 from pathlib import Path
-from typing import Any, Callable, List, Optional, Union
+from typing import Any, Callable, List, Optional, Union, Tuple
 
 import pytorch_lightning as L
 from albumentations import Compose
 from torch.utils.data import DataLoader
+import numpy as np
 
 from careamics.config import DataModel
+from careamics.config.support import SupportedData
 from careamics.dataset.dataset_utils import (
-    data_type_validator,
     list_files,
-    validate_files,
+    get_files_size,
+    validate_source_target_files
 )
 from careamics.dataset.in_memory_dataset import (
     InMemoryDataset,
@@ -21,94 +23,157 @@ from careamics.dataset.iterable_dataset import (
 )
 from careamics.utils import get_ram_size
 
-# TODO must be compatible with no validation, path to folder, path to image, and arrays!
+# TODO must be compatible with no validation being present
 class CAREamicsWood(L.LightningDataModule):
     def __init__(
         self,
         data_config: DataModel,
-        train_path: Union[Path, str],
-        val_path: Union[Path, str],
-        train_target_path: Optional[Union[Path, str]] = None,
-        val_target_path: Optional[Union[Path, str]] = None,
+        train_data: Union[Path, str, np.ndarray],
+        val_data: Union[Path, str, np.ndarray],
+        train_data_target: Optional[Union[Path, str, np.ndarray]] = None,
+        val_data_target: Optional[Union[Path, str, np.ndarray]] = None,
         read_source_func: Optional[Callable] = None,
     ) -> None:
         super().__init__()
 
+        # check input types coherence (no mixed types)
+        inputs = [
+            train_data, val_data, train_data_target, val_data_target
+        ]
+        types_set = set([type(i) for i in inputs])
+        if len(types_set) > 2: # None + expected type
+            raise ValueError(
+                f"Inputs for `train_data`, `val_data`, `train_data_target` and "
+                f"`val_data_target` must be of the same type or None. Got "
+                f"{types_set}."
+            )
+        
+        # check that a read source function is provided for custom types
+        if data_config.data_type == SupportedData.CUSTOM and read_source_func is None:
+            raise ValueError(
+                f"Data type {SupportedData.CUSTOM} is not allowed without "
+                f"specifying a `read_source_func`."
+            )
+        
+        # and that arrays are passed, if array type specified
+        elif data_config.data_type == SupportedData.ARRAY and not isinstance(train_data, np.ndarray):
+            raise ValueError(
+                f"Expected array input, but got {type(train_data)} instead."
+            )
+
+        # configuration
         self.data_config = data_config
-        self.train_path = train_path
-        self.val_path = val_path
         self.data_type = data_config.data_type
-        self.train_target_path = train_target_path
-        self.val_target_path = val_target_path
-        self.read_source_func = read_source_func
         self.batch_size = data_config.batch_size
         self.num_workers = data_config.num_workers
         self.pin_memory = data_config.pin_memory
 
+        # data
+        self.train_data = train_data
+        self.val_data = val_data
+        
+        self.train_data_target = train_data_target
+        self.val_data_target = val_data_target
+        
+        # read source function
+        self.read_source_func = read_source_func
+        
     def prepare_data(self) -> None:
-        data_type_validator(self.data_type, self.read_source_func)
-        self.train_files, self.train_data_size = list_files(
-            self.train_path, self.data_type
-        )
-        self.val_files, _ = list_files(self.val_path, self.data_type)
+        """Hook used to prepare the data before calling `setup` and creating
+        the dataloader.
 
-        if self.train_target_path is not None:
-            self.train_target_files, _ = list_files(
-                self.train_target_path, self.data_type
-            )
-            validate_files(self.data_files, self.target_files)
+        Here, we only need to examine the data if it was provided as a str or a Path.
+        """
+        # if the data is a Path or a str
+        if not isinstance(self.train_data, np.ndarray):
+            # list training files
+            self.train_files = list_files(self.train_data, self.data_type)
+            self.train_files_size = get_files_size(self.train_files, self.data_type)
+            
+            # list validation files
+            if self.val_data is not None:
+                self.val_files = list_files(self.val_data, self.data_type)
+
+            # same for target data
+            if self.train_data_target is not None:
+                self.train_target_files = list_files(
+                    self.train_data_target, self.data_type
+                )
+
+                # verify that they match the training data
+                validate_source_target_files(self.train_files, self.train_target_files)
+            
+            if self.val_data_target is not None:
+                self.val_target_files = list_files(self.val_data_target, self.data_type)
+
+                # verify that they match the validation data
+                validate_source_target_files(self.val_files, self.val_target_files)
+
 
     def setup(self, stage: Optional[str] = None) -> None:
-        if self.data_type == "zarr":
-            pass
-        elif self.data_type == "array":
+        """Hook called at the beginning of fit (train + validate), validate, test, or 
+        predict."""
+        # if numpy array
+        if self.data_type == SupportedData.ARRAY:
+            # train dataset
             self.train_dataset = InMemoryDataset(
-                files=self.train_files,
-                config=self.data_config,
-                target_files=self.train_target_files
-                if self.train_target_path
-                else None,
-                read_source_func=self.read_source_func,
+                data_config=self.data_config,
+                data=self.train_data,
+                data_target=self.train_data_target,
             )
+
+            # TODO: how to extract the validation data from the training data?
+
+            # validation dataset
             self.val_dataset = InMemoryDataset(
-                files=self.val_files,
-                config=self.data_config,
-                target_files=self.val_target_files if self.val_target_path else None,
-                read_source_func=self.read_source_func,
+                data_config=self.data_config,
+                data=self.val_data,
+                data_target=self.val_data_target,
             )
+        # else we read files
         else:
-            if self.train_data_size > get_ram_size() * 0.8:
+            # heuristics, if the file size is bigger than 80% of the RAM, we iterate
+            # through the files
+            if self.train_files_size > get_ram_size() * 0.8:
+                # TODO here if we don't have validation, we could reserve some files
+
+                # create training dataset
                 self.train_dataset = IterableDataset(
-                    files=self.train_files,
-                    config=self.data_config,
+                    data_config=self.data_config,
+                    src_files=self.train_files,
                     target_files=self.train_target_files
-                    if self.train_target_path
-                    else None,
-                    read_source_func=self.read_source_func,
-                )
-                self.val_dataset = IterableDataset(
-                    files=self.val_files,
-                    config=self.data_config,
-                    target_files=self.val_target_files
-                    if self.val_target_path
+                    if self.train_data_target
                     else None,
                     read_source_func=self.read_source_func,
                 )
 
-            else:
-                self.train_dataset = InMemoryDataset(
-                    files=self.train_files,
-                    config=self.data_config,
-                    target_files=self.train_target_files
-                    if self.train_target_path
+                # create validation dataset
+                self.val_dataset = IterableDataset(
+                    data_config=self.data_config,
+                    src_files=self.val_files,
+                    target_files=self.val_target_files
+                    if self.val_data_target
                     else None,
                     read_source_func=self.read_source_func,
                 )
+            # else, load everything in memory
+            else:
+                # train dataset
+                self.train_dataset = InMemoryDataset(
+                    data_config=self.data_config,
+                    data=self.train_files,
+                    data_target=self.train_target_files
+                    if self.train_data_target
+                    else None,
+                    read_source_func=self.read_source_func,
+                )
+
+                # validation dataset
                 self.val_dataset = InMemoryDataset(
-                    files=self.val_files,
-                    config=self.data_config,
-                    target_files=self.val_target_files
-                    if self.val_target_path
+                    data_config=self.data_config,
+                    data=self.val_files,
+                    data_target=self.val_target_files
+                    if self.val_data_target
                     else None,
                     read_source_func=self.read_source_func,
                 )
@@ -129,41 +194,62 @@ class CAREamicsWood(L.LightningDataModule):
             pin_memory=self.pin_memory,
         )
 
-# TODO compatibility with arrays
+
 class CAREamicsClay(L.LightningDataModule):
     def __init__(
         self,
         data_config: DataModel,
-        pred_path: Union[Path, str],
+        pred_data: Union[Path, str, np.ndarray],
+        tile_size: Union[List[int], Tuple[int]],
+        tile_overlap: Union[List[int], Tuple[int]],
         read_source_func: Optional[Callable] = None,
     ) -> None:
         super().__init__()
 
+        # check that a read source function is provided for custom types
+        if data_config.data_type == SupportedData.CUSTOM and read_source_func is None:
+            raise ValueError(
+                f"Data type {SupportedData.CUSTOM} is not allowed without "
+                f"specifying a `read_source_func`."
+            )
+        
+        # and that arrays are passed, if array type specified
+        elif data_config.data_type == SupportedData.ARRAY and not isinstance(pred_data, np.ndarray):
+            raise ValueError(
+                f"Expected array input, but got {type(pred_data)} instead."
+            )
+
+        # configuration data
         self.data_config = data_config
-        self.pred_path = pred_path
         self.data_type = data_config.data_type
-        self.read_source_func = read_source_func
         self.batch_size = data_config.batch_size
         self.num_workers = data_config.num_workers
         self.pin_memory = data_config.pin_memory
 
+        self.pred_data = pred_data
+        self.tile_size = tile_size
+        self.tile_overlap = tile_overlap
+        self.read_source_func = read_source_func
+
     def prepare_data(self) -> None:
-        data_type_validator(self.data_type, self.read_source_func)
-        self.pred_files, _ = list_files(self.pred_path, self.data_type)
+        # if the data is a Path or a str
+        if not isinstance(self.pred_data, np.ndarray):
+            self.pred_files = list_files(self.pred_data, self.data_type)
 
     def setup(self, stage: Optional[str] = None) -> None:
-        if self.data_type == "Zarr":
-            pass
-        elif self.data_type == "Array":
+        # if numpy array
+        if self.data_type == SupportedData.ARRAY:
+            # prediction dataset
             self.predict_dataset = InMemoryPredictionDataset(
-                files=self.pred_files,
-                config=self.data_config,
-                read_source_func=self.read_source_func,
+                data_config=self.data_config,
+                data=self.pred_data,
+                tile_size=self.tile_size,
+                tile_overlap=self.tile_overlap,
             )
         else:
             self.predict_dataset = IterablePredictionDataset(
                 files=self.pred_files,
-                config=self.data_config,
+                data_config=self.data_config,
                 read_source_func=self.read_source_func,
             )
 
@@ -203,10 +289,10 @@ class CAREamicsTrainDataModule(CAREamicsWood):
         }
         super().__init__(
             data_config=DataModel(**data_config),
-            train_path=train_path,
-            val_path=val_path,
-            train_target_path=train_target_path,
-            val_target_path=val_target_path,
+            train_data=train_path,
+            val_data=val_path,
+            train_data_target=train_target_path,
+            val_data_target=val_target_path,
             read_source_func=read_source_func,
         )
 
@@ -236,6 +322,6 @@ class CAREamicsPredictDataModule(CAREamicsClay):
         }
         super().__init__(
             data_config=DataModel(**data_config),
-            pred_path=pred_path,
+            pred_data=pred_path,
             read_source_func=read_source_func,
         )

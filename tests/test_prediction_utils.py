@@ -1,6 +1,6 @@
 import pytest
 
-from careamics.dataset.patching import _extract_tiles
+from careamics.dataset.patching.tiled_patching import extract_tiles
 from careamics.prediction.prediction_utils import stitch_prediction
 
 
@@ -23,7 +23,7 @@ def test_stitch_prediction(input_shape, axes, ordered_array, tile_size, overlaps
     stitching_data = []
 
     # extract tiles
-    tiling_outputs = _extract_tiles(arr, axes, tile_size, overlaps)
+    tiling_outputs = extract_tiles(arr, axes, tile_size, overlaps)
 
     # Assemble all tiles as it's done during the prediction stage
     for tile_data in tiling_outputs:

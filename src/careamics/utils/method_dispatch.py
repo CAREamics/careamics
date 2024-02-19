@@ -26,6 +26,10 @@ def method_dispatch(method: Callable) -> Callable:
     
     # define a wrapper to dispatch the function based on the second argument
     def wrapper(*args, **kw):
+
+        if len(args) < 2:
+            raise ValueError(f"Missing argument to {method}.")
+
         return dispatcher.dispatch(args[1].__class__)(*args, **kw)
     
     # copy the original method's registered methods to the wrapper

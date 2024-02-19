@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Dict, Optional, Union
+from typing import Dict, Optional, Union, Tuple
 
 import numpy as np
 from pytorch_lightning import Trainer
@@ -169,9 +169,17 @@ class CAREamist:
         train_target: Optional[np.ndarray] = None,
         val_target: Optional[np.ndarray] = None,
     ) -> None:
-        raise NotImplementedError(
-            "Training on numpy arrays is not implemented yet."
+        # create datamodule
+        datamodule = CAREamicsWood(
+            data_config=self.cfg.data,
+            train_data=train_data,
+            val_data=val_data,
+            train_data_target=train_target,
+            val_data_target=val_target,
         )
+
+        # train
+        self.train(datamodule=datamodule)
 
     @method_dispatch
     def predict(
@@ -197,7 +205,7 @@ class CAREamist:
         # create datamodule
         datamodule = CAREamicsClay(
             data_config=self.cfg.data,
-            pred_path=path,
+            pred_data=path,
         )
 
         return self.predict(datamodule)
@@ -216,8 +224,13 @@ class CAREamist:
     @predict.register
     def _predict_on_array(
         self,
-        data: np.ndarray
+        data: np.ndarray,
     ) -> Dict[str, np.ndarray]:
-        raise NotImplementedError(
-            "Prediction on numpy arrays is not implemented yet."
+        # create datamodule
+        datamodule = CAREamicsClay(
+            data_config=self.cfg.data,
+            pred_data=data,
         )
+
+        return self.predict(datamodule)
+    

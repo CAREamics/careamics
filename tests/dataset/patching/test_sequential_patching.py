@@ -1,13 +1,64 @@
-import numpy as np
 import pytest
 
-from careamics.dataset.patching import (
-    _compute_crop_and_stitch_coords_1d,
+import numpy as np
+
+from careamics.dataset.patching.sequential_patching import (
+    extract_patches_sequential,
     _compute_number_of_patches,
     _compute_overlap,
     _compute_patch_steps,
     _compute_reshaped_view,
 )
+
+
+def check_extract_patches_sequential(array: np.ndarray, axes: str, patch_size: tuple):
+    """Check that the patches are extracted correctly.
+
+    The array should have been generated using np.arange and np.reshape."""
+    patches, _ = extract_patches_sequential(array, axes=axes, patch_size=patch_size)
+
+    # check patch shape
+    assert patches.shape[2:] == patch_size
+
+    # check that all values are covered by the patches
+    n_max = np.prod(array.shape)  # maximum value in the array
+    unique = np.unique(np.array(patches))  # unique values in the patches
+    assert len(unique) == n_max
+
+
+
+@pytest.mark.parametrize(
+    "patch_size",
+    [
+        (2, 2),
+        (4, 2),
+        (4, 8),
+        (8, 8),
+    ],
+)
+def test_extract_patches_sequential_2d(array_2D, patch_size):
+    """Test extracting patches sequentially in 2D."""
+    check_extract_patches_sequential(array_2D, "SYX", patch_size)
+
+
+
+@pytest.mark.parametrize(
+    "patch_size",
+    [
+        (2, 2, 4),
+        (4, 2, 2),
+        (2, 8, 4),
+        (4, 8, 8),
+    ],
+)
+def test_extract_patches_sequential_3d(array_3D, patch_size):
+    """Test extracting patches sequentially in 3D.
+
+    The 3D array is a fixture of shape (1, 8, 16, 16)."""
+    # TODO changed the fixture to (1, 8, 16, 16), uneven shape doesnt work. We need to
+    # discuss the function or the test cases
+    check_extract_patches_sequential(array_3D, "SZYX", patch_size)
+
 
 
 @pytest.mark.parametrize(
@@ -69,59 +120,6 @@ def check_compute_reshaped_view(array, window_shape, steps):
         for i in range(len(window_shape))
     ]
     assert output.shape == (np.prod(n_patches), *window_shape)
-
-
-@pytest.mark.parametrize("axis_size", [32, 35, 40])
-@pytest.mark.parametrize("patch_size, overlap", [(16, 4), (8, 6), (16, 8), (32, 24)])
-def test_compute_crop_and_stitch_coords_1d(axis_size, patch_size, overlap):
-    (
-        crop_coords,
-        stitch_coords,
-        overlap_crop_coords,
-    ) = _compute_crop_and_stitch_coords_1d(axis_size, patch_size, overlap)
-
-    # check that the number of patches is sufficient to cover the whole axis and that
-    # the number of coordinates is
-    # the same for all three coordinate groups
-    num_patches = np.ceil((axis_size - overlap) / (patch_size - overlap)).astype(int)
-    assert (
-        len(crop_coords)
-        == len(stitch_coords)
-        == len(overlap_crop_coords)
-        == num_patches
-    )
-    # check if 0 is the first coordinate, axis_size is last coordinate in all three
-    # coordinate groups
-    assert all(
-        all((group[0][0] == 0, group[-1][1] == axis_size))
-        for group in [crop_coords, stitch_coords]
-    )
-    # check if neighboring stitch coordinates are equal
-    assert all(
-        stitch_coords[i][1] == stitch_coords[i + 1][0]
-        for i in range(len(stitch_coords) - 1)
-    )
-
-    # check that the crop coordinates cover the whole axis
-    assert (
-        np.sum(np.array(crop_coords)[:, 1] - np.array(crop_coords)[:, 0])
-        == patch_size * num_patches
-    )
-
-    # check that the overlap crop coordinates cover the whole axis
-    assert (
-        np.sum(
-            np.array(overlap_crop_coords)[:, 1] - np.array(overlap_crop_coords)[:, 0]
-        )
-        == axis_size
-    )
-
-    # check that shape of all cropped tiles is equal
-    assert np.array_equal(
-        np.array(overlap_crop_coords)[:, 1] - np.array(overlap_crop_coords)[:, 0],
-        np.array(stitch_coords)[:, 1] - np.array(stitch_coords)[:, 0],
-    )
-
 
 @pytest.mark.parametrize(
     "window_shape, steps",

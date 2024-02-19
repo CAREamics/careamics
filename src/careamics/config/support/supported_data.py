@@ -1,10 +1,12 @@
+from __future__ import annotations
 from enum import Enum
 
-# TODO: change into supported_dataset?
-class SupportedExtension(str, Enum):
 
+class SupportedData(str, Enum):
+
+    ARRAY = "array"
     TIFF = "tiff"
-    TIF = "tif" # TODO do we need both?
+    CUSTOM = "custom"
     # ZARR = "zarr"
 
     @classmethod
@@ -39,3 +41,32 @@ class SupportedExtension(str, Enum):
 
         # still missing
         return super()._missing_(value)
+    
+    @classmethod
+    def get_extension(cls, data_type: SupportedData) -> str:
+        """
+        Path.rglob and fnmatch compatible extension.
+
+        Parameters
+        ----------
+        data_type : SupportedData
+            Data type.
+
+        Returns
+        -------
+        str
+            Corresponding extension.
+        """
+        if data_type == cls.ARRAY:
+            raise NotImplementedError(
+                f"Data {data_type} are not loaded from file."
+            )
+        elif data_type == cls.TIFF:
+            return "*.tif*"
+        elif data_type == cls.CUSTOM:
+            return "*.*"
+        else:
+            raise ValueError(
+                f"Data type {data_type} is not supported."
+            )
+        

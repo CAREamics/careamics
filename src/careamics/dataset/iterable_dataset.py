@@ -8,17 +8,23 @@ from pathlib import Path
 from typing import Callable, Generator, List, Optional, Tuple, Union
 
 import numpy as np
-import torch
+from torch.utils.data import IterableDataset, get_worker_info
 
 from ..config.data_model import DataModel
+from ..config.support import SupportedExtractionStrategy
 from ..utils.logging import get_logger
-from .dataset_utils import get_patch_transform, get_patch_transform_predict, read_tiff
-from .patching import generate_patches_supervised, generate_patches_unsupervised
+from .dataset_utils import read_tiff
+from .patching import (
+    get_patch_transform, 
+    generate_patches_supervised, 
+    generate_patches_unsupervised,
+    generate_patches_predict
+)
 
 logger = get_logger(__name__)
 
 
-class IterableDataset(torch.utils.data.IterableDataset):
+class IterableDataset(IterableDataset):
     """
     Dataset allowing extracting patches w/o loading whole data into memory.
 
@@ -44,24 +50,29 @@ class IterableDataset(torch.utils.data.IterableDataset):
 
     def __init__(
         self,
-        files: List[Path],
-        config: DataModel,
-        target_files: Optional[Union[str, Path, List[Union[str, Path]]]] = None,
-        read_source_func: Optional[Callable] = None,
-        **kwargs,
+        data_config: DataModel,
+        src_files: List[Path],
+        target_files: Optional[List[Path]] = None,
+        read_source_func: Callable = read_tiff,
     ) -> None:
-        self.data_files = files
+        self.data_files = src_files
         self.target_files = target_files
-        self.axes = config.axes
-        self.patch_size = config.patch_size
-        self.patch_extraction_method = "random"
-        self.read_source_func = read_source_func if read_source_func else read_tiff
+        self.axes = data_config.axes
+        self.patch_size = data_config.patch_size
+        self.patch_extraction_method = SupportedExtractionStrategy.RANDOM
+        self.read_source_func = read_source_func
 
-        if not config.mean or not config.std:
+        # compute mean and std over the dataset
+        if not data_config.mean or not data_config.std:
             self.mean, self.std = self._calculate_mean_and_std()
 
+            # update mean and std in configuration
+            # the object is mutable and should then be recorded at the CAREamist level
+            data_config.set_mean_and_std(self.mean, self.std)
+
+        # get transforms
         self.patch_transform = get_patch_transform(
-            patch_transforms=config.transforms,
+            patch_transforms=data_config.transforms,
             mean=self.mean,
             std=self.std,
             target=target_files is not None,
@@ -79,9 +90,9 @@ class IterableDataset(torch.utils.data.IterableDataset):
         means, stds = 0, 0
         num_samples = 0
 
-        for sample in self._iterate_files():
+        for sample in self._iterate_over_files():
             means += sample.mean()
-            stds += np.std(sample)
+            stds += sample.std()
             num_samples += 1
 
         result_mean = means / num_samples
@@ -91,7 +102,7 @@ class IterableDataset(torch.utils.data.IterableDataset):
         logger.info(f"Mean: {result_mean}, std: {result_std}")
         return result_mean, result_std
 
-    def _iterate_files(self) -> Generator:
+    def _iterate_over_files(self) -> Generator[Tuple[np.ndarray, ...], None, None]:
         """
         Iterate over data source and yield whole image.
 
@@ -104,19 +115,26 @@ class IterableDataset(torch.utils.data.IterableDataset):
         # dataset object
         # Configuring each copy independently to avoid having duplicate data returned
         # from the workers
-        worker_info = torch.utils.data.get_worker_info()
+        worker_info = get_worker_info()
         worker_id = worker_info.id if worker_info is not None else 0
         num_workers = worker_info.num_workers if worker_info is not None else 1
 
+        # iterate over the files
         for i, filename in enumerate(self.data_files):
+            # retrieve file corresponding to the worker id
             if i % num_workers == worker_id:
+                # read data
                 sample = self.read_source_func(filename, self.axes)
+                
+                # read target if available
                 if self.target_files is not None:
                     if filename.name != self.target_files[i].name:
                         raise ValueError(
                             f"File {filename} does not match target file "
-                            f"{self.target_files[i]}"
+                            f"{self.target_files[i]}. Have you passed sorted arrays?"
                         )
+                    
+                    # read target
                     target = self.read_source_func(self.target_files[i], self.axes)
                     yield sample, target
                 else:
@@ -135,7 +153,8 @@ class IterableDataset(torch.utils.data.IterableDataset):
             self.mean is not None and self.std is not None
         ), "Mean and std must be provided"
 
-        for sample in self._iterate_files():
+        # iterate over files
+        for sample in self._iterate_over_files():
             if self.target_files is not None:
                 patches = generate_patches_supervised(
                     sample,
@@ -152,6 +171,7 @@ class IterableDataset(torch.utils.data.IterableDataset):
                     self.patch_size,
                 )
 
+            # iterate over patches
             for patch_data in patches:
                 if isinstance(patch_data, tuple):
                     if self.target_files is not None:
@@ -166,6 +186,7 @@ class IterableDataset(torch.utils.data.IterableDataset):
                         transformed = self.patch_transform(
                             image=np.moveaxis(patch_data[0], 0, -1)
                         )
+      
                         yield (transformed["image"], *patch_data[1:])
                 else:
                     yield self.patch_transform(image=patch_data)["image"]
@@ -179,6 +200,7 @@ class IterableDataset(torch.utils.data.IterableDataset):
             #         yield item
 
 
+# TODO: why was this calling transforms on prediction patches?
 class IterablePredictionDataset(IterableDataset):
     """
     Dataset allowing extracting patches w/o loading whole data into memory.
@@ -205,27 +227,31 @@ class IterablePredictionDataset(IterableDataset):
 
     def __init__(
         self,
+        data_config: DataModel,
         files: List[Path],
-        config: DataModel,
-        read_source_func: Optional[Callable] = None,
+        tile_size: Union[List[int], Tuple[int]],
+        tile_overlap: Optional[Union[List[int], Tuple[int]]] = None,
+        read_source_func: Callable = read_tiff,
         **kwargs,
     ) -> None:
-        super().__init__(files=files, config=config, read_source_func=read_source_func)
-        self.data_files = files
-        self.axes = config.axes
-        self.patch_size = config.patch_size
-        self.patch_extraction_method = "tiled"
-        self.read_source_func = read_source_func if read_source_func else read_tiff
-
-        if not config.mean or not config.std:
-            self.mean, self.std = self._calculate_mean_and_std()
-
-        self.patch_transform = get_patch_transform_predict(
-            patch_transforms=config.transforms,
-            mean=self.mean,
-            std=self.std,
-            target=False,
+        super().__init__(
+            data_config=data_config, 
+            src_files=files, 
+            read_source_func=read_source_func
         )
+        
+        self.patch_size = data_config.patch_size
+        self.tile_size = tile_size
+        self.tile_overlap = tile_overlap
+        self.read_source_func = read_source_func
+
+        # check that mean and std are provided
+        if not self.mean or not self.std:
+            raise ValueError(
+                f"Mean and std must be provided to the configuration in order to "
+                f" perform prediction."
+            )
+
 
     def __iter__(self) -> Generator[np.ndarray, None, None]:
         """
@@ -240,14 +266,12 @@ class IterablePredictionDataset(IterableDataset):
             self.mean is not None and self.std is not None
         ), "Mean and std must be provided"
 
-        for sample in self._iterate_files():
-            patches = generate_patches_unsupervised(
-                sample,
-                self.axes,
-                self.patch_extraction_method,
-                self.patch_size,
+        for sample in self._iterate_over_files():
+            patches =  generate_patches_predict(
+                sample, self.axes, self.tile_size, self.tile_overlap
             )
 
+            
             for patch_data in patches:
                 if isinstance(patch_data, tuple):
                     transformed = self.patch_transform(
