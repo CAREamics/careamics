@@ -1,8 +1,7 @@
-from enum import Enum
+from careamics.utils import BaseEnum
 
 
-# python 3.11: https://docs.python.org/3/library/enum.html
-class SupportedAlgorithm(str, Enum):
+class SupportedAlgorithm(str, BaseEnum):
     """Algorithms available in CAREamics.
 
     - n2v: a self-supervised algorithm using blind-spot training to denoise 

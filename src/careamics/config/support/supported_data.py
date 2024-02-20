@@ -1,14 +1,15 @@
 from __future__ import annotations
-from enum import Enum
+from careamics.utils import BaseEnum
 
 
-class SupportedData(str, Enum):
+class SupportedData(str, BaseEnum):
 
     ARRAY = "array"
     TIFF = "tiff"
     CUSTOM = "custom"
     # ZARR = "zarr"
 
+    # TODO remove?
     @classmethod
     def _missing_(cls, value: object) -> str:
         """

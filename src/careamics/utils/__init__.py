@@ -13,7 +13,8 @@ __all__ = [
     "MetricTracker",
     "get_ram_size",
     "method_dispatch",
-    "check_path_exists"
+    "check_path_exists",
+    "BaseEnum"
 ]
 
 
@@ -28,3 +29,4 @@ from .validators import (
 )
 from .method_dispatch import method_dispatch
 from .path_utils import check_path_exists
+from .base_enum import BaseEnum

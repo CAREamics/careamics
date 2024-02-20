@@ -1,8 +1,8 @@
-from enum import Enum
+from careamics.utils import BaseEnum
 
 
 # TODO register loss with custom_loss decorator?
-class SupportedLoss(str, Enum):
+class SupportedLoss(str, BaseEnum):
 
     MSE = "mse"
     MAE = "mae"

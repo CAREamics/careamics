@@ -3,10 +3,10 @@ Extraction strategy module.
 
 This module defines the various extraction strategies available in CAREamics.
 """
-from enum import Enum
+from careamics.utils import BaseEnum
 
 
-class SupportedExtractionStrategy(str, Enum):
+class SupportedExtractionStrategy(str, BaseEnum):
     """
     Available extraction strategies.
 

@@ -72,9 +72,7 @@ class InMemoryDataset(torch.utils.data.Dataset):
 
         self.patch_transform = get_patch_transform(
             patch_transforms=data_config.transforms,
-            mean=self.mean,
-            std=self.std,
-            target=self.data_target is not None,
+            with_target=self.data_target is not None,
         )
 
     def _prepare_patches(self, supervised: bool) -> Tuple[np.ndarray, float, float]:

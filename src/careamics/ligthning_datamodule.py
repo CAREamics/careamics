@@ -58,7 +58,18 @@ class CAREamicsWood(L.LightningDataModule):
         # and that arrays are passed, if array type specified
         elif data_config.data_type == SupportedData.ARRAY and not isinstance(train_data, np.ndarray):
             raise ValueError(
-                f"Expected array input, but got {type(train_data)} instead."
+                f"Expected array input (see configuration.data.data_type), but got "
+                f"{type(train_data)} instead."
+            )
+        
+        # and that Path or str are passed, if tiff file type specified
+        elif data_config.data_type == SupportedData.TIFF and (
+                not isinstance(train_data, Path) or
+                not isinstance(train_data, str)
+            ):
+            raise ValueError(
+                f"Expected Path or str input (see configuration.data.data_type), "
+                f"but got {type(train_data)} instead."
             )
 
         # configuration
@@ -216,7 +227,18 @@ class CAREamicsClay(L.LightningDataModule):
         # and that arrays are passed, if array type specified
         elif data_config.data_type == SupportedData.ARRAY and not isinstance(pred_data, np.ndarray):
             raise ValueError(
-                f"Expected array input, but got {type(pred_data)} instead."
+                f"Expected array input (see configuration.data.data_type), but got "
+                f"{type(pred_data)} instead."
+            )
+        
+        # and that Path or str are passed, if tiff file type specified
+        elif data_config.data_type == SupportedData.TIFF and (
+                not isinstance(pred_data, Path) or
+                not isinstance(pred_data, str)
+            ):
+            raise ValueError(
+                f"Expected Path or str input (see configuration.data.data_type), "
+                f"but got {type(pred_data)} instead."
             )
 
         # configuration data

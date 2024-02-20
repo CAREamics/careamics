@@ -1,7 +1,7 @@
-from enum import Enum
+from careamics.utils import BaseEnum
 
 
-class SupportedPixelManipulation(str, Enum):
+class SupportedPixelManipulation(str, BaseEnum):
     """_summary_
 
     - Uniform: Replace masked pixel value by a (uniformly) randomly selected neighbor 

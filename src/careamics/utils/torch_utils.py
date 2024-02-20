@@ -98,7 +98,7 @@ def get_scheduler(name: str) -> Union[
     if not name in SupportedScheduler:
         raise NotImplementedError(f"Scheduler {name} is not yet supported.")
 
-    return getattr(torch.optim, name)
+    return getattr(torch.optim.lr_scheduler, name)
 
 
 def get_schedulers() -> Dict[str, str]:

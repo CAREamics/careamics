@@ -30,14 +30,15 @@ class DataModel(BaseModel):
 
     # Dataset configuration
     # Mandatory fields
-    data_type: Literal["array", "tiff"]
+    data_type: Literal["array", "tiff", "custom"]
     patch_size: List[int] = Field(..., min_length=2, max_length=3)
 
     axes: str
 
     # Optional fields
-    mean: Optional[float] = Field(default=None, ge=0)
-    std: Optional[float] = Field(default=None, gt=0)
+    mean: Optional[float] = None
+    std: Optional[float] = None
+
     transforms: Union[List[TransformModel], Compose] = Field(
         default=[
             {

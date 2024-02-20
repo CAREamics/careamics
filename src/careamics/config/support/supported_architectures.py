@@ -1,7 +1,7 @@
-from enum import Enum
+from careamics.utils import BaseEnum
 
 
-class SupportedArchitecture(str, Enum):
+class SupportedArchitecture(str, BaseEnum):
     """Supported architectures.
     
     # TODO add details, in particular where to find the API for the models

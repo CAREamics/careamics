@@ -1,7 +1,6 @@
-from enum import Enum
+from careamics.utils import BaseEnum
 
-
-class SupportedOptimizer(str, Enum):
+class SupportedOptimizer(str, BaseEnum):
 
     # ASGD = "ASGD"
     # Adadelta = "Adadelta"
@@ -18,7 +17,7 @@ class SupportedOptimizer(str, Enum):
     # SparseAdam = "SparseAdam"
 
 
-class SupportedScheduler(str, Enum):
+class SupportedScheduler(str, BaseEnum):
 
     # ChainedScheduler = "ChainedScheduler"
     # ConstantLR = "ConstantLR"

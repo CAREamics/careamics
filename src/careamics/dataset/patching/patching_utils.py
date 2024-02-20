@@ -50,8 +50,8 @@ def validate_patch_dimensions(
 
     if patch_size[-2] > arr.shape[-2] or patch_size[-1] > arr.shape[-1]:
         raise ValueError(
-            f"At least one of YX patch dimensions is inconsistent with image shape "
-            f"(got {patch_size} patches for dims {arr.shape[-2:]})."
+            f"At least one of YX patch dimensions is larger than the corresponding "
+            f"image dimension (got {patch_size} patches for dims {arr.shape[-2:]})."
         )
     
     # Update patch size to SC(Z)YX format

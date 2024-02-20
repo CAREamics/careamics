@@ -1,6 +1,6 @@
 from inspect import getmembers, isclass
 
-from enum import Enum
+from careamics.utils import BaseEnum
 import albumentations as Aug
 
 from  careamics import transforms
@@ -28,7 +28,7 @@ def get_all_transforms() -> dict:
     return ALL_TRANSFORMS
 
 
-class SupportedTransform(str, Enum):
+class SupportedTransform(str, BaseEnum):
     """Transforms officially supported by CAREamics.
 
     - Flip: from Albumentations, randomly flip the input horizontally, vertically or 
