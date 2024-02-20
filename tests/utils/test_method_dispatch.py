@@ -26,7 +26,10 @@ class MyClass:
     @main_function.register
     def _main_function_with_array(self, arg: np.ndarray):
         mean = np.mean(arg)
-        return self.main_function(MyObject(mean))
+
+        # pass as keyword argument, important to test that the dispatch works
+        # with both args and kargs
+        return self.main_function(arg=MyObject(mean))
 
 
 

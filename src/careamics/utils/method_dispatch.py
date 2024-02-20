@@ -1,3 +1,4 @@
+import inspect
 from functools import singledispatch, update_wrapper
 from typing import Callable
 
@@ -19,7 +20,7 @@ def method_dispatch(method: Callable) -> Callable:
     Returns
     -------
     Callable
-        _description_
+        Wrapper around the method that dispatches the call based on the second argument.
     """
     # create single dispatch from the function
     dispatcher = singledispatch(method)
@@ -27,9 +28,22 @@ def method_dispatch(method: Callable) -> Callable:
     # define a wrapper to dispatch the function based on the second argument
     def wrapper(*args, **kw):
 
-        if len(args) < 2:
+        if len(args)+len(kw) < 2:
             raise ValueError(f"Missing argument to {method}.")
 
+        # if the second argument was passed as a keyword argument, we use its class
+        # for the dispatch
+        if len(args) == 1:
+            # get signature of the method
+            parameter = list(inspect.signature(method).parameters)[1]
+
+            # raise error if the parameter is not in the keyword arguments
+            if parameter not in kw:
+                raise ValueError(f"Missing argument {parameter} to {method}.")
+
+            return dispatcher.dispatch(kw[parameter].__class__)(*args, **kw)
+        
+        # else dispatch using the second argument
         return dispatcher.dispatch(args[1].__class__)(*args, **kw)
     
     # copy the original method's registered methods to the wrapper
