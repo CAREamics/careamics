@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Union
 
 import numpy as np
 from albumentations import ImageOnlyTransform
@@ -25,9 +25,10 @@ class ManipulateN2V(ImageOnlyTransform):
 
     def __init__(
         self,
-        masked_pixel_percentage: float = 0.2,
         roi_size: int = 11,
-        strategy: str = SupportedPixelManipulation.UNIFORM.value,
+        masked_pixel_percentage: float = 0.2,
+        strategy: Union[str, SupportedPixelManipulation]
+          = SupportedPixelManipulation.UNIFORM,
         struct_mask: Optional[np.ndarray] = None,
     ):
         super().__init__(p=1)
@@ -36,7 +37,7 @@ class ManipulateN2V(ImageOnlyTransform):
         self.strategy = strategy
         self.struct_mask = struct_mask
 
-    def apply(self, patch: np.ndarray) -> np.ndarray:
+    def apply(self, patch: np.ndarray, **kwargs: dict) -> np.ndarray:
         """Apply the transform to the image.
 
         Parameters

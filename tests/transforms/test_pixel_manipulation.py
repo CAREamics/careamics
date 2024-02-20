@@ -9,8 +9,8 @@ from careamics.transforms.pixel_manipulation import (
 )
 
 
-# TODO what if ROI size is larger than a spatial dimension (e.g. Z)
 
+# TODO: what is the minimum coords given? should make sure that there is at lea
 @pytest.mark.parametrize(
     "mask_pixel_perc, shape, num_iterations",
     [
@@ -32,12 +32,18 @@ def test_get_stratified_coords(mask_pixel_perc, shape, num_iterations):
     for _ in range(num_iterations):
         # Get the coordinates of the pixels to be masked
         coords = _get_stratified_coords(mask_pixel_perc, shape)
+        
+        # Check that there is at least one coordinate choosen
+        assert len(coords) > 0
+
         # Check every pair in the array of coordinates
         for coord_pair in coords:
-            # Check that the coordinates are of the same shape as the patch
+            # Check that the coordinates are of the same shape as the patch dims
             assert len(coord_pair) == len(shape)
+
             # Check that the coordinates are positive values
             assert all(coord_pair) >= 0
+            
             # Check that the coordinates are within the shape of the array
             assert [c <= s for c, s in zip(coord_pair, shape)]
 
