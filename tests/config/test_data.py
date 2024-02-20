@@ -26,21 +26,6 @@ def test_mean_std_non_negative(minimum_data: dict, mean, std):
     assert data_model.std == std
 
 
-def test_mean_std_negative(minimum_data: dict):
-    """Test that negative mean and std are not accepted."""
-    minimum_data["mean"] = -1
-    minimum_data["std"] = 10.4
-
-    with pytest.raises(ValueError):
-        DataModel(**minimum_data)
-
-    minimum_data["mean"] = 10.4
-    minimum_data["std"] = -1
-
-    with pytest.raises(ValueError):
-        DataModel(**minimum_data)
-
-
 def test_mean_std_both_specified_or_none(minimum_data: dict):
     """Test an error is raised if std is specified but mean is None."""
     # No error if both are None

@@ -3,6 +3,7 @@ import pytest
 import numpy as np
 
 from careamics import CAREamist, Configuration, save_configuration
+from careamics.config.support import SupportedData
 
 
 def test_no_parameters():
@@ -43,6 +44,9 @@ def test_train_array(minimum_configuration):
     config = Configuration(**minimum_configuration)
     config.training.num_epochs = 1
     config.training.batch_size = 1
+    config.data.axes = "YX"
+    config.data.data_type = SupportedData.ARRAY.value
+    config.data.patch_size = (8, 8)
 
     # instantiate CAREamist
     careamist = CAREamist(configuration=config)
