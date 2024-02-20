@@ -36,7 +36,7 @@ class ManipulateN2V(ImageOnlyTransform):
         self.strategy = strategy
         self.struct_mask = struct_mask
 
-    def apply(self, image: np.ndarray) -> np.ndarray:
+    def apply(self, patch: np.ndarray) -> np.ndarray:
         """Apply the transform to the image.
 
         Parameters
@@ -45,14 +45,10 @@ class ManipulateN2V(ImageOnlyTransform):
             Image or image patch, 2D or 3D, shape (c, y, x) or (c, z, y, x).
         """
         if self.strategy == SupportedPixelManipulation.UNIFORM:
-            masked, original, mask = uniform_manipulate(
-                image, self.masked_pixel_percentage, self.roi_size, self.struct_mask
-            )
-        elif self:
-            masked, original, mask = uniform_manipulate(
-                image, self.masked_pixel_percentage, self.roi_size, self.struct_mask
+            masked, mask = uniform_manipulate(
+                patch, self.roi_size, self.masked_pixel_percentage, self.struct_mask
             )
         else:
             raise ValueError(f"Strategy {self.strategy} not supported.")
 
-        return masked, original, mask
+        return masked, patch, mask

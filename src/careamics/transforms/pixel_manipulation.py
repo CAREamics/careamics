@@ -88,6 +88,8 @@ def _get_stratified_coords(
     Randomly selects the coordinates of the pixels to mask in a stratified way, i.e.
     the distance between masked pixels is approximately the same.
 
+    # TODO describe what happens to channels in this case
+
     Parameters
     ----------
     mask_pixel_perc : float
@@ -135,20 +137,24 @@ def _get_stratified_coords(
     return coordinate_grid
 
 
-# TODO channels: masking the same pixel across channels?
+# TODO how does this function deal with 3D and channels?
+# TODO different ROI size on Z?
 def uniform_manipulate(
     patch: np.ndarray,
-    mask_pixel_percentage: float,
     roi_size: int = 11,
+    mask_pixel_percentage: float = 0.2, # TODO use default?
     struct_mask: Optional[np.ndarray] = None,
-) -> Tuple[np.ndarray, ...]:
+) -> Tuple[np.ndarray, np.ndarray]:
     """
     Manipulate pixel in a patch, i.e. replace the masked value.
+
+    Channels are mixed: manipulation can take value from one channel and place
+    it in another.
 
     Parameters
     ----------
     patch : np.ndarray
-        Image patch, 2D or 3D, shape (y, x) or (z, y, x).
+        Image patch, with shape (C)(Z)YX.
     mask_pixel_percentage : floar
         Approximate percentage of pixels to be masked.
     roi_size : int
@@ -161,9 +167,7 @@ def uniform_manipulate(
     Tuple[np.ndarray]
         Tuple containing the manipulated patch, the original patch and the mask.
     """
-    # TODO this assumes patch has no channel dimension. Is this correct?
-    patch = patch.squeeze()
-    original_patch = patch.copy()
+    transformed_patch = patch.copy()
 
     # TODO: struct mask could be generated from roi center & removed from grid as well
     # Get the coordinates of the pixels to be replaced
@@ -186,27 +190,25 @@ def uniform_manipulate(
     replacement_coords: np.ndarray = np.clip(
         roi_centers + random_increment,
         0,
-        [patch.shape[i] - 1 for i in range(len(patch.shape))],
+        [transformed_patch.shape[i] - 1 for i in range(len(transformed_patch.shape))],
     )
     # Get the replacement pixels from all rois
-    replacement_pixels = patch[tuple(replacement_coords.T.tolist())]
+    replacement_pixels = transformed_patch[tuple(replacement_coords.T.tolist())]
 
     # Replace the original pixels with the replacement pixels
-    patch[tuple(roi_centers.T.tolist())] = replacement_pixels
+    transformed_patch[tuple(roi_centers.T.tolist())] = replacement_pixels
 
     # Create corresponding mask
-    mask = np.where(patch != original_patch, 1, 0).astype(np.uint8)
+    mask = np.where(transformed_patch != patch, 1, 0).astype(np.uint8)
 
     if struct_mask is not None:
-        patch = _apply_struct_mask(patch, roi_centers, struct_mask)
+        transformed_patch = _apply_struct_mask(transformed_patch, roi_centers, struct_mask)
 
     # Expand the dimensions of the arrays to return the channel dimension
-    # TODO Should it be done here? done at all?
+    # TODO Should it be done here? done at all? 
     return (
-        np.expand_dims(patch, 0),
-        np.expand_dims(
-            original_patch, 0
-        ),  # TODO is this necessary to return the original patch?
+        np.expand_dims(transformed_patch, 0), 
+        # TODO I removed the original mask from here, it had a np.expand dims, is this still necessary?
         np.expand_dims(mask, 0),
     )
 
