@@ -66,6 +66,7 @@ class InMemoryDataset(torch.utils.data.Dataset):
 
             # update mean and std in configuration
             # the object is mutable and should then be recorded at the CAREamist level
+            # TODO won't work if transforms are a Compose object
             data_config.set_mean_and_std(self.mean, self.std)
         else:
             self.mean, self.std = data_config.mean, data_config.std

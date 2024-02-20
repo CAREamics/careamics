@@ -134,6 +134,8 @@ class CAREamicsWood(L.LightningDataModule):
             )
 
             # TODO: how to extract the validation data from the training data?
+            # if no validation, then we create InMemorySplitDataset which reserves
+            # random 0aptches for validation
 
             # validation dataset
             self.val_dataset = InMemoryDataset(
@@ -147,6 +149,8 @@ class CAREamicsWood(L.LightningDataModule):
             # through the files
             if self.train_files_size > get_ram_size() * 0.8:
                 # TODO here if we don't have validation, we could reserve some files
+                # if no validation, split list_files into two, and create the dataset
+
 
                 # create training dataset
                 self.train_dataset = IterableDataset(

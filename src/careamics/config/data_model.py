@@ -42,13 +42,13 @@ class DataModel(BaseModel):
     transforms: Union[List[TransformModel], Compose] = Field(
         default=[
             {
-                "name": SupportedTransform.NORMALIZE_WO_TARGET.value,
-            },
-            {
                 "name": SupportedTransform.FLIP.value,
             },
             {
                 "name": SupportedTransform.RANDOM_ROTATE90.value,
+            },          
+            {
+                "name": SupportedTransform.NORMALIZE.value,
             },
             {
                 "name": SupportedTransform.MANIPULATE_N2V.value,
@@ -147,11 +147,16 @@ class DataModel(BaseModel):
         self.std = std
 
         # search in the transforms for Normalize and update parameters
-        for transform in self.transforms:
-            if transform.name == SupportedTransform.NORMALIZE_WO_TARGET.value:
-                transform.parameters["mean"] = mean
-                transform.parameters["std"] = std
-
+        if not isinstance(self.transforms, Compose):
+            for transform in self.transforms:
+                if transform.name == SupportedTransform.NORMALIZE.value:
+                    transform.parameters["mean"] = mean
+                    transform.parameters["std"] = std
+        else:
+            raise ValueError(
+                "Setting mean and std with Compose transforms is not allowed."
+            )
+        
     @model_validator(mode="after")
     def std_only_with_mean(cls, data_model: DataModel) -> DataModel:
         """

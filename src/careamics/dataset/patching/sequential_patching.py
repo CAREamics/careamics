@@ -5,7 +5,7 @@ import numpy as np
 from skimage.util import view_as_windows
 
 from ..dataset_utils import reshape_data
-from .patching_utils import validate_patch_dimensions
+from .validate_patch_dimension import validate_patch_dimensions
 
 
 def _compute_number_of_patches(

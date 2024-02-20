@@ -6,6 +6,7 @@ from careamics.config.transform_model import TransformModel
 from careamics.config.support import get_all_transforms
 
 
+# TODO add some explanations on how the additional_targets is used
 def get_patch_transform(
     patch_transforms: Union[List[TransformModel], Aug.Compose],
     with_target: bool,
@@ -21,7 +22,7 @@ def get_patch_transform(
 
         return Aug.Compose(
             [Aug.NoOp()],
-            additional_targets={},
+            additional_targets={}, # TODO this part need be checked again (wrt segmentation)
         )
     
     # else we have a list of transforms
@@ -37,7 +38,7 @@ def get_patch_transform(
 
         return Aug.Compose(
             transforms,
-            additional_targets={"target": "image"}
+            additional_targets={"target": "image"} # TODO write some explanation
             if (with_target and normalize_mask)
             else {},
         )

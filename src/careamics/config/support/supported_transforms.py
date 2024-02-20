@@ -35,7 +35,7 @@ class SupportedTransform(str, BaseEnum):
         both, parameter `p` can be used to set the probability to apply the transform.
     - RandomRotate90: from Albumentations, andomly rotate the input by 90 degrees, 
         parameter `p` can be used to set the probability to apply the transform.
-    - NormalizeWithoutTarget # TODO add details, in particular about the parameters
+    - Normalize # TODO add details, in particular about the parameters
     - ManipulateN2V # TODO add details, in particular about the parameters
 
     Note that while any Albumentations (see https://albumentations.ai/) transform can be
@@ -45,6 +45,6 @@ class SupportedTransform(str, BaseEnum):
 
     FLIP = "Flip"
     RANDOM_ROTATE90 = "RandomRotate90"
-    NORMALIZE_WO_TARGET = "NormalizeWithoutTarget"
+    NORMALIZE = "Normalize"
     MANIPULATE_N2V = "ManipulateN2V"
     # CUSTOM = "Custom"

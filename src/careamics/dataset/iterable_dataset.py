@@ -125,6 +125,8 @@ class IterableDataset(IterableDataset):
             if i % num_workers == worker_id:
                 # read data
                 sample = self.read_source_func(filename, self.axes)
+                # TODO read_func on the wrong file will give an error, how to deal with error
+                # maybe we can catch a certain type of error and log it
                 
                 # read target if available
                 if self.target_files is not None:
