@@ -1,4 +1,6 @@
 """In-memory dataset module."""
+from __future__ import annotations
+import copy
 from pathlib import Path
 from typing import Callable, List, Optional, Tuple, Union
 
@@ -23,8 +25,6 @@ logger = get_logger(__name__)
 
 
 # TODO dataset which sets appart some data for validation?
-
-
 class InMemoryDataset(torch.utils.data.Dataset):
     """
     Dataset storing data in memory and allowing generating patches from it.
@@ -45,6 +45,9 @@ class InMemoryDataset(torch.utils.data.Dataset):
 
         # TODO
         """
+        if data_target is not None:
+            raise NotImplementedError("Targets are not yet supported.")
+
         self.data = data
         self.data_target = data_target
         self.axes = data_config.axes
@@ -64,7 +67,7 @@ class InMemoryDataset(torch.utils.data.Dataset):
             self.mean, self.std = computed_mean, computed_std
             logger.info(f"Computed dataset mean: {self.mean}, std: {self.std}")
 
-            # if the transofrms are not an instance of Compose
+            # if the transforms are not an instance of Compose
             if data_config.has_tranform_list():
                 # update mean and std in configuration
                 # the object is mutable and should then be recorded in the CAREamist obj
@@ -166,6 +169,7 @@ class InMemoryDataset(torch.utils.data.Dataset):
             if self.data_target is not None:
                 # Splitting targets into a list. 1st dim is the number of targets
                 target = self.patch_targets[index, ...]
+
                 # Move channels to the last dimension for the transform
                 transformed = self.patch_transform(
                     image=np.moveaxis(patch, 0, -1), target=np.moveaxis(target, 0, -1)
@@ -173,6 +177,7 @@ class InMemoryDataset(torch.utils.data.Dataset):
                 patch, target = np.moveaxis(transformed["image"], -1, 0), np.moveaxis(
                     transformed["target"], -1, 0
                 )  # TODO check if this is correct!
+
                 return patch, target
             else:
                 patch = self.patch_transform(image=np.moveaxis(patch, 0, -1))["image"]
@@ -182,6 +187,84 @@ class InMemoryDataset(torch.utils.data.Dataset):
                 "Dataset mean and std must cannot be None."
             )
 
+    def get_number_of_patches(self) -> int:
+        """
+        Return the number of patches in the dataset.
+
+        Returns
+        -------
+        int
+            Number of patches in the dataset.
+        """
+        return self.patches.shape[0]
+
+    def split_dataset(
+            self, 
+            percentage: float = 0.1,
+            minimum_number: int = 5,
+        ) -> InMemoryDataset: 
+        """Split a new dataset away from the current one.
+
+        This method is used to extract random validation patches from the dataset.
+
+        Parameters
+        ----------
+        percentage : float, optional
+            Percentage of patches to extract, by default 0.1.
+        minimum_number : int, optional
+            Minimum number of patches to extract, by default 5.
+
+        Returns
+        -------
+        InMemoryDataset
+            New dataset with the extracted patches.
+
+        Raises
+        ------
+        ValueError
+            If `percentage` is not between 0 and 1.
+        ValueError
+            If `minimum_number` is not between 1 and the number of patches.
+        """
+        if percentage < 0 or percentage > 1:
+            raise ValueError(f"Percentage must be between 0 and 1, got {percentage}.")
+        
+        if minimum_number < 1 or minimum_number > self.get_number_of_patches():
+            raise ValueError(
+                f"Minimum number of patches must be between 1 and "
+                f"{self.get_number_of_patches()} (number of patches), got {minimum_number}."
+            )
+        
+        total_patches = self.get_number_of_patches()
+
+        # number of patches to extract (either percentage rounded or minimum number)
+        n_patches = max(round(total_patches*percentage), minimum_number)
+
+        # get random indices
+        indices = np.random.choice(total_patches, n_patches, replace=False)
+
+        # extract patches
+        val_patches = self.patches[indices]
+
+        # remove patches from self.patch
+        self.patches = np.delete(self.patches, indices, axis=0)
+
+        # same for targets
+        if self.patch_targets is not None:
+            val_targets = self.patch_targets[indices]
+            self.patch_targets = np.delete(self.patch_targets, indices, axis=0)
+
+        # clone the dataset
+        dataset = copy.deepcopy(self)
+
+        # reassign patches
+        dataset.patches = val_patches
+
+        # reassign targets
+        if self.patch_targets is not None:
+            dataset.patch_targets = val_targets
+
+        return dataset
 
 # TODO add tile size
 class InMemoryPredictionDataset(torch.utils.data.Dataset):

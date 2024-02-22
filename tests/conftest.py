@@ -14,6 +14,7 @@ from careamics.config.algorithm_model import (
 )
 from careamics.config.data_model import DataModel
 from careamics.config.training_model import Training
+from careamics.config.support import SupportedData
 
 
 # TODO add details about where each of these fixture is used (e.g. smoke test)
@@ -60,8 +61,7 @@ def minimum_data() -> dict:
     """
     # create dictionary
     data = {
-        "in_memory": True,
-        "data_type": "tiff",
+        "data_type": SupportedData.TIFF.value,
         "patch_size": [64, 64],
         "axes": "SYX",
     }

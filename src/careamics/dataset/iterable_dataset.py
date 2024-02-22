@@ -1,10 +1,6 @@
-"""
-Tiff dataset module.
-
-This module contains the implementation of the TiffDataset class, which allows loading
-tiff files.
-"""
+from __future__ import annotations
 from pathlib import Path
+import copy
 from typing import Callable, Generator, List, Optional, Tuple, Union
 
 import numpy as np
@@ -55,6 +51,10 @@ class IterableDataset(IterableDataset):
         target_files: Optional[List[Path]] = None,
         read_source_func: Callable = read_tiff,
     ) -> None:
+
+        if target_files is not None:
+            raise NotImplementedError("Targets are not yet supported.")
+
         self.data_files = src_files
         self.target_files = target_files
         self.axes = data_config.axes
@@ -66,7 +66,7 @@ class IterableDataset(IterableDataset):
         if not data_config.mean or not data_config.std:
             self.mean, self.std = self._calculate_mean_and_std()
 
-            # if the transofrms are not an instance of Compose
+            # if the transforms are not an instance of Compose
             if data_config.has_tranform_list():
                 # update mean and std in configuration
                 # the object is mutable and should then be recorded in the CAREamist obj
@@ -75,9 +75,7 @@ class IterableDataset(IterableDataset):
         # get transforms
         self.patch_transform = get_patch_transform(
             patch_transforms=data_config.transforms,
-            mean=self.mean,
-            std=self.std,
-            target=target_files is not None,
+            with_target=target_files is not None,
         )
 
     def _calculate_mean_and_std(self) -> Tuple[float, float]:
@@ -197,13 +195,71 @@ class IterableDataset(IterableDataset):
                 else:
                     yield self.patch_transform(image=patch_data)["image"]
 
-            # else:
-            #     # if S or T dims are not empty - assume every image is a separate
-            #     # sample in dim 0
-            #     for i in range(sample.shape[0]):
-            #         item = np.expand_dims(sample[i], (0, 1))
-            #         item = normalize(img=item, mean=self.mean, std=self.std)
-            #         yield item
+    def get_number_of_files(self) -> int:
+        """
+        Return the number of files in the dataset.
+
+        Returns
+        -------
+        int
+            Number of files in the dataset.
+        """
+        return len(self.data_files)
+
+    def split_dataset(
+            self, 
+            percentage: float = 0.1,
+            minimum_number: int = 5,
+        ) -> IterableDataset: 
+        
+        if percentage < 0 or percentage > 1:
+            raise ValueError(f"Percentage must be between 0 and 1, got {percentage}.")
+        
+        if minimum_number < 1 or minimum_number > self.get_number_of_files():
+            raise ValueError(
+                f"Minimum number of files must be between 1 and "
+                f"{self.get_number_of_files()} (number of files), got "
+                f"{minimum_number}."
+            )
+        
+        # compute number of files
+        total_files = self.get_number_of_files()
+        n_files = max(round(percentage*total_files), minimum_number)
+
+        # get random indices
+        indices = np.random.choice(total_files, n_files, replace=False)
+
+        # extract files
+        val_files = [self.data_files[i] for i in indices]
+
+        # remove patches from self.patch
+        data_files = []
+        for i, file in enumerate(self.data_files):
+            if i not in indices:
+                data_files.append(file)
+        self.data_files = data_files
+
+        # same for targets
+        if self.target_files is not None:
+            val_target_files = [self.target_files[i] for i in indices]
+
+            data_target_files = []
+            for i, file in enumerate(self.target_files):
+                if i not in indices:
+                    data_target_files.append(file)
+            self.target_files = data_target_files
+
+        # clone the dataset
+        dataset = copy.deepcopy(self)
+
+        # reassign patches
+        dataset.data_files = val_files
+
+        # reassign targets
+        if self.target_files is not None:
+            dataset.target_files = val_target_files
+
+        return dataset
 
 
 # TODO: why was this calling transforms on prediction patches?

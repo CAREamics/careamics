@@ -30,13 +30,82 @@ class CAREamicsWood(L.LightningDataModule):
         self,
         data_config: DataModel,
         train_data: Union[Path, str, np.ndarray],
-        val_data: Union[Path, str, np.ndarray],
+        val_data: Optional[Union[Path, str, np.ndarray]] = None,
         train_data_target: Optional[Union[Path, str, np.ndarray]] = None,
         val_data_target: Optional[Union[Path, str, np.ndarray]] = None,
         read_source_func: Optional[Callable] = None,
         extension_filter: str = "",
+        val_percentage: float = 0.1,
+        val_minimum_split: int = 5,
     ) -> None:
+        """LightningDataModule for CAREamics training, including training and validation
+        datasets.
+
+        The data module can be used with Path, str or numpy arrays. In the case of 
+        numpy arrays, it loads and computes all the patches in memory. For Path and str
+        inputs, it calculates the total file size and estimate whether it can fit in
+        memory. If it does not, it iterates through the files.
+
+        The data can be either a folder containing images or a single file.
+
+        Validation can be omitted, in which case the validation data is extracted from
+        the training data. The percentage of the training data to use for validation,
+        as well as the minimum number of patches or files to split from the training 
+        data can be set using `val_percentage` and `val_minimum_split`, respectively.
+
+        To read custom data types, you can set `data_type` to `custom` in `data_config` 
+        and provide a function that returns a numpy array from a path as 
+        `read_source_func` parameter. You can also provide a `fnmatch` and `Path.rglob`
+        compatible expression (e.g. "*.czi") to filter the files extension using 
+        `extension_filter`.
+
+        Parameters
+        ----------
+        data_config : DataModel
+            Pydantic model for CAREamics data configuration.
+        train_data : Union[Path, str, np.ndarray]
+            Training data, can be a path to a folder, a file or a numpy array.
+        val_data : Optional[Union[Path, str, np.ndarray]], optional
+            Validation data, can be a path to a folder, a file or a numpy array, by
+            default None.
+        train_data_target : Optional[Union[Path, str, np.ndarray]], optional
+            Training target data, can be a path to a folder, a file or a numpy array, by
+            default None.
+        val_data_target : Optional[Union[Path, str, np.ndarray]], optional
+            Validation target data, can be a path to a folder, a file or a numpy array,
+            by default None.
+        read_source_func : Optional[Callable], optional
+            Function to read the source data, by default None. Only used for `custom` 
+            data type (see DataModel).
+        extension_filter : str, optional
+            Filter for file extensions, by default "". Only used for `custom` data types
+            (see DataModel).
+        val_percentage : float, optional
+            Percentage of the training data to use for validation, by default 0.1. Only 
+            used if `val_data` is None.
+        val_minimum_split : int, optional
+            Minimum number of patches or files to split from the training data for 
+            validation, by default 5. Only used if `val_data` is None.
+
+        Raises
+        ------
+        NotImplementedError
+            Raised if target data is provided.
+        ValueError
+            If the input types are mixed (e.g. Path and np.ndarray).
+        ValueError
+            If the data type is `custom` and no `read_source_func` is provided.
+        ValueError
+            If the data type is `array` and the input is not a numpy array.
+        ValueError
+            If the data type is `tiff` and the input is neither a Path nor a str.
+        """
         super().__init__()
+
+        if train_data_target is not None:
+            raise NotImplementedError(
+                "Training with target data is not yet implemented."
+            )
 
         # check input types coherence (no mixed types)
         inputs = [
@@ -88,8 +157,10 @@ class CAREamicsWood(L.LightningDataModule):
         
         self.train_data_target = train_data_target
         self.val_data_target = val_data_target
+        self.val_percentage = val_percentage
+        self.val_minimum_split = val_minimum_split
         
-        # read source function
+        # read source function corresponding to the requested type
         if data_config.data_type == SupportedData.CUSTOM:
             self.read_source_func = read_source_func
         else:
@@ -152,25 +223,27 @@ class CAREamicsWood(L.LightningDataModule):
                 data_target=self.train_data_target,
             )
 
-            # TODO: how to extract the validation data from the training data?
-            # if no validation, then we create InMemorySplitDataset which reserves
-            # random 0aptches for validation
-
             # validation dataset
-            self.val_dataset = InMemoryDataset(
-                data_config=self.data_config,
-                data=self.val_data,
-                data_target=self.val_data_target,
-            )
+            if self.val_data is not None:
+                # create its own dataset
+                self.val_dataset = InMemoryDataset(
+                    data_config=self.data_config,
+                    data=self.val_data,
+                    data_target=self.val_data_target,
+                )
+            else:
+                # extract validation from the training patches
+                self.val_dataset = self.train_dataset.split_dataset(
+                    percentage=self.val_percentage, 
+                    minimum_patches=self.val_minimum_split
+                )
+
         # else we read files
         else:
+
             # heuristics, if the file size is bigger than 80% of the RAM, we iterate
             # through the files
             if self.train_files_size > get_ram_size() * 0.8:
-                # TODO here if we don't have validation, we could reserve some files
-                # if no validation, split list_files into two, and create the dataset
-
-
                 # create training dataset
                 self.train_dataset = IterableDataset(
                     data_config=self.data_config,
@@ -182,14 +255,29 @@ class CAREamicsWood(L.LightningDataModule):
                 )
 
                 # create validation dataset
-                self.val_dataset = IterableDataset(
-                    data_config=self.data_config,
-                    src_files=self.val_files,
-                    target_files=self.val_target_files
-                    if self.val_data_target
-                    else None,
-                    read_source_func=self.read_source_func,
-                )
+                if self.val_files is not None:
+                    # create its own dataset
+                    self.val_dataset = IterableDataset(
+                        data_config=self.data_config,
+                        src_files=self.val_files,
+                        target_files=self.val_target_files
+                        if self.val_data_target
+                        else None,
+                        read_source_func=self.read_source_func,
+                    )
+                elif len(self.train_files) <= self.val_minimum_split:
+                    raise ValueError(
+                        f"Not enough files to split a minimum of "
+                        f"{self.val_minimum_split} files, got {len(self.train_files)} "
+                        f"files."
+                    )
+                else:
+                    # extract validation from the training patches
+                    self.val_dataset = self.train_dataset.split_dataset(
+                        percentage=self.val_percentage, 
+                        minimum_files=self.val_minimum_split
+                    )
+
             # else, load everything in memory
             else:
                 # train dataset
@@ -335,6 +423,8 @@ class CAREamicsTrainDataModule(CAREamicsWood):
         val_target_path: Optional[Union[str, Path]] = None,
         read_source_func: Optional[Callable] = None,
         extension_filter: str = "",
+        val_percentage: float = 0.1,
+        val_minimum_patches: int = 5,
         num_workers: int = 0,
         pin_memory: bool = False,
         **kwargs,
@@ -361,11 +451,9 @@ class CAREamicsTrainDataModule(CAREamicsWood):
             val_data_target=val_target_path,
             read_source_func=read_source_func,
             extension_filter=extension_filter,
+            val_percentage=val_percentage,
+            val_minimum_split=val_minimum_patches,
         )
-
-        # if transforms are passed (otherwise it will use the default ones)
-        if transforms is not None:
-            data_config["transforms"] = transforms
 
 
 class CAREamicsPredictDataModule(CAREamicsClay):
