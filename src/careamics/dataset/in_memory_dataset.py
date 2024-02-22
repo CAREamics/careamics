@@ -64,10 +64,11 @@ class InMemoryDataset(torch.utils.data.Dataset):
             self.mean, self.std = computed_mean, computed_std
             logger.info(f"Computed dataset mean: {self.mean}, std: {self.std}")
 
-            # update mean and std in configuration
-            # the object is mutable and should then be recorded at the CAREamist level
-            # TODO won't work if transforms are a Compose object
-            data_config.set_mean_and_std(self.mean, self.std)
+            # if the transofrms are not an instance of Compose
+            if data_config.has_tranform_list():
+                # update mean and std in configuration
+                # the object is mutable and should then be recorded in the CAREamist obj
+                data_config.set_mean_and_std(self.mean, self.std)
         else:
             self.mean, self.std = data_config.mean, data_config.std
 
@@ -175,7 +176,9 @@ class InMemoryDataset(torch.utils.data.Dataset):
                 patch = self.patch_transform(image=np.moveaxis(patch, 0, -1))["image"]
                 return patch
         else:
-            raise ValueError("Dataset mean and std must be set before using it.")
+            raise ValueError(
+                "Dataset mean and std must cannot be None."
+            )
 
 
 # TODO add tile size

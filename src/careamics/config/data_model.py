@@ -129,34 +129,6 @@ class DataModel(BaseModel):
 
         return axes
 
-    def set_mean_and_std(self, mean: float, std: float) -> None:
-        """
-        Set mean and standard deviation of the data.
-
-        This method is preferred to setting the fields directly, as it ensures that the
-        mean is set first, then the std; thus avoiding a validation error to be thrown.
-
-        Parameters
-        ----------
-        mean : float
-            Mean of the data.
-        std : float
-            Standard deviation of the data.
-        """
-        self.mean = mean
-        self.std = std
-
-        # search in the transforms for Normalize and update parameters
-        if not isinstance(self.transforms, Compose):
-            for transform in self.transforms:
-                if transform.name == SupportedTransform.NORMALIZE.value:
-                    transform.parameters["mean"] = mean
-                    transform.parameters["std"] = std
-        else:
-            raise ValueError(
-                "Setting mean and std with Compose transforms is not allowed."
-            )
-        
     @model_validator(mode="after")
     def std_only_with_mean(cls, data_model: DataModel) -> DataModel:
         """
@@ -185,3 +157,44 @@ class DataModel(BaseModel):
             raise ValueError("Cannot have `std` field if `mean` is None.")
 
         return data_model
+
+    def has_tranform_list(self) -> bool:
+        """
+        Check if the transforms are a list, as opposed to a Compose object.
+
+        Returns
+        -------
+        bool
+            True if the transforms are a list, False otherwise.
+        """
+        return isinstance(self.transforms, list)
+
+    def set_mean_and_std(self, mean: float, std: float) -> None:
+        """
+        Set mean and standard deviation of the data.
+
+        This method is preferred to setting the fields directly, as it ensures that the
+        mean is set first, then the std; thus avoiding a validation error to be thrown.
+
+        Parameters
+        ----------
+        mean : float
+            Mean of the data.
+        std : float
+            Standard deviation of the data.
+        """
+        self.mean = mean
+        self.std = std
+
+        # search in the transforms for Normalize and update parameters
+        if not isinstance(self.transforms, Compose):
+            for transform in self.transforms:
+                if transform.name == SupportedTransform.NORMALIZE.value:
+                    transform.parameters["mean"] = mean
+                    transform.parameters["std"] = std
+        else:
+            raise ValueError(
+                "Setting mean and std with Compose transforms is not allowed."
+            )
+        
+        

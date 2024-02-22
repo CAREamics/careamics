@@ -66,9 +66,11 @@ class IterableDataset(IterableDataset):
         if not data_config.mean or not data_config.std:
             self.mean, self.std = self._calculate_mean_and_std()
 
-            # update mean and std in configuration
-            # the object is mutable and should then be recorded at the CAREamist level
-            data_config.set_mean_and_std(self.mean, self.std)
+            # if the transofrms are not an instance of Compose
+            if data_config.has_tranform_list():
+                # update mean and std in configuration
+                # the object is mutable and should then be recorded in the CAREamist obj
+                data_config.set_mean_and_std(self.mean, self.std)
 
         # get transforms
         self.patch_transform = get_patch_transform(

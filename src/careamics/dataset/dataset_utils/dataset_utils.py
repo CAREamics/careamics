@@ -1,14 +1,10 @@
 """Convenience methods for datasets."""
-import logging
 from pathlib import Path
 from typing import Callable, List, Tuple, Optional, Union
 
-import albumentations as Aug
 import numpy as np
-import tifffile
-import zarr
 
-from careamics.config.support import get_all_transforms, SupportedData
+from careamics.config.support import SupportedData
 from careamics.utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -170,103 +166,3 @@ def validate_files(train_files: List[Path], target_files: List[Path]) -> None:
         )
     if {f.name for f in train_files} != {f.name for f in target_files}:
         raise ValueError("Some filenames in Train and target folders are not the same.")
-
-
-def read_tiff(file_path: Path, axes: str) -> np.ndarray:
-    """
-    Read a tiff file and return a numpy array.
-
-    Parameters
-    ----------
-    file_path : Path
-        Path to a file.
-    axes : str
-        Description of axes in format STCZYX.
-
-    Returns
-    -------
-    np.ndarray
-        Resulting array.
-
-    Raises
-    ------
-    ValueError
-        If the file failed to open.
-    OSError
-        If the file failed to open.
-    ValueError
-        If the file is not a valid tiff.
-    ValueError
-        If the data dimensions are incorrect.
-    ValueError
-        If the axes length is incorrect.
-    """
-    if file_path.suffix[:4] == ".tif":
-        try:
-            array = tifffile.imread(file_path)
-        except (ValueError, OSError) as e:
-            logging.exception(f"Exception in file {file_path}: {e}, skipping it.")
-            raise e
-    else:
-        raise ValueError(f"File {file_path} is not a valid tiff.")
-
-    if len(array.shape) < 2 or len(array.shape) > 6:
-        raise ValueError(
-            f"Incorrect data dimensions. Must be 2, 3 or 4 (got {array.shape} for"
-            f"file {file_path})."
-        )
-
-    return array
-
-
-def read_zarr(
-    zarr_source: zarr.Group, axes: str
-) -> Union[zarr.core.Array, zarr.storage.DirectoryStore, zarr.hierarchy.Group]:
-    """Reads a file and returns a pointer.
-
-    Parameters
-    ----------
-    file_path : Path
-        pathlib.Path object containing a path to a file
-
-    Returns
-    -------
-    np.ndarray
-        Pointer to zarr storage
-
-    Raises
-    ------
-    ValueError, OSError
-        if a file is not a valid tiff or damaged
-    ValueError
-        if data dimensions are not 2, 3 or 4
-    ValueError
-        if axes parameter from config is not consistent with data dimensions
-    """
-    if isinstance(zarr_source, zarr.hierarchy.Group):
-        array = zarr_source[0]
-
-    elif isinstance(zarr_source, zarr.storage.DirectoryStore):
-        raise NotImplementedError("DirectoryStore not supported yet")
-
-    elif isinstance(zarr_source, zarr.core.Array):
-        # array should be of shape (S, (C), (Z), Y, X), iterating over S ?
-        if zarr_source.dtype == "O":
-            raise NotImplementedError("Object type not supported yet")
-        else:
-            array = zarr_source
-    else:
-        raise ValueError(f"Unsupported zarr object type {type(zarr_source)}")
-
-    # sanity check on dimensions
-    if len(array.shape) < 2 or len(array.shape) > 4:
-        raise ValueError(
-            f"Incorrect data dimensions. Must be 2, 3 or 4 (got {array.shape})."
-        )
-
-    # sanity check on axes length
-    if len(axes) != len(array.shape):
-        raise ValueError(f"Incorrect axes length (got {axes}).")
-
-    # arr = fix_axes(arr, axes)
-    return array

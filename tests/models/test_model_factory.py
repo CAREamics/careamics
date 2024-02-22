@@ -12,20 +12,6 @@ from careamics.models import model_factory, UNet
 from careamics.config.support import SupportedArchitecture
 
 
-# TODO double use with the model registered in test_custom_model.py
-@register_model(name="linear_model")
-class LinearModel(nn.Module):
-    def __init__(self, in_features, out_features):
-        super().__init__()
-
-        self.in_features = in_features
-        self.out_features = out_features
-        self.weight = nn.Parameter(ones(in_features, out_features))
-        self.bias = nn.Parameter(ones(out_features))
-
-    def forward(self, input):
-        return (input @ self.weight) + self.bias
-
 
 def test_model_registry_unet():
     """Test that """
@@ -40,6 +26,21 @@ def test_model_registry_unet():
 
 def test_model_registry_custom():
     """Test that a custom model can be retrieved and instantiated."""
+    # create and register a custom model
+    @register_model(name="linear_model")
+    class LinearModel(nn.Module):
+        def __init__(self, in_features, out_features):
+            super().__init__()
+
+            self.in_features = in_features
+            self.out_features = out_features
+            self.weight = nn.Parameter(ones(in_features, out_features))
+            self.bias = nn.Parameter(ones(out_features))
+
+        def forward(self, input):
+            return (input @ self.weight) + self.bias
+
+
     model_config = {
         "architecture": SupportedArchitecture.CUSTOM.value,
         "name": "linear_model",

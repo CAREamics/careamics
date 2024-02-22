@@ -9,7 +9,7 @@ from careamics.config.transform_model import TransformModel
     [
         (SupportedTransform.FLIP, {}),
         (SupportedTransform.RANDOM_ROTATE90, {}),
-        (SupportedTransform.NORMALIZE_WO_TARGET, {"mean": 1.0, "std": 1.0}),
+        (SupportedTransform.NORMALIZE, {"mean": 1.0, "std": 1.0}),
         (SupportedTransform.MANIPULATE_N2V, {}),
     ],
 )
