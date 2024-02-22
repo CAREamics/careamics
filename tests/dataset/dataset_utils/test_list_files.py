@@ -143,6 +143,12 @@ def test_list_multiple_files_custom(tmp_path: Path):
     assert len(files) == 4
     assert set(files) == set(ref_files)
 
+    # list files using the file extension filter
+    files = list_files(tmp_path, SupportedData.CUSTOM, "*.npy")
+    assert len(files) == 3
+    assert set(files) == set([path1, path2, path4])
+
+
 
 def test_validate_source_target_files(tmp_path: Path):
     """Test that it passes for two folders with same number of files and same names."""

@@ -69,7 +69,7 @@ def check_axes_validity(axes: str) -> bool:
 
 
 def check_external_array_validity(
-    array: np.ndarray, axes: str, use_tiling: bool
+    array: np.ndarray, axes: str, use_tiling: bool = False
 ) -> None:
     """
     Check that the numpy array is compatible with the axes.

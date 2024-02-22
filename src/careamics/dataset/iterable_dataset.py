@@ -125,24 +125,26 @@ class IterableDataset(IterableDataset):
         for i, filename in enumerate(self.data_files):
             # retrieve file corresponding to the worker id
             if i % num_workers == worker_id:
-                # read data
-                sample = self.read_source_func(filename, self.axes)
-                # TODO read_func on the wrong file will give an error, how to deal with error
-                # maybe we can catch a certain type of error and log it
-                
-                # read target if available
-                if self.target_files is not None:
-                    if filename.name != self.target_files[i].name:
-                        raise ValueError(
-                            f"File {filename} does not match target file "
-                            f"{self.target_files[i]}. Have you passed sorted arrays?"
-                        )
-                    
-                    # read target
-                    target = self.read_source_func(self.target_files[i], self.axes)
-                    yield sample, target
-                else:
-                    yield sample
+                try: 
+                    # read data
+                    sample = self.read_source_func(filename, self.axes)
+
+                    # read target if available
+                    if self.target_files is not None:
+                        if filename.name != self.target_files[i].name:
+                            raise ValueError(
+                                f"File {filename} does not match target file "
+                                f"{self.target_files[i]}. Have you passed sorted "
+                                f"arrays?"
+                            )
+                        
+                        # read target
+                        target = self.read_source_func(self.target_files[i], self.axes)
+                        yield sample, target
+                    else:
+                        yield sample
+                except Exception as e:
+                    logger.error(f"Error reading file {filename}: {e}")                
 
     def __iter__(self) -> Generator[np.ndarray, None, None]:
         """

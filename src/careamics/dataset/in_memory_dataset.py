@@ -77,7 +77,9 @@ class InMemoryDataset(torch.utils.data.Dataset):
             with_target=self.data_target is not None,
         )
 
-    def _prepare_patches(self, supervised: bool) -> Tuple[np.ndarray, float, float]:
+    def _prepare_patches(
+            self, supervised: bool
+    ) -> Tuple[np.ndarray, Optional[np.ndarray], float, float]:
         """
         Iterate over data source and create an array of patches.
 

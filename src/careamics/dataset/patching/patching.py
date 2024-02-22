@@ -41,21 +41,32 @@ def prepare_patches_supervised(
     means, stds, num_samples = 0, 0, 0
     all_patches, all_targets = [], []
     for train_filename, target_filename in zip(train_files, target_files):
-        sample: np.ndarray = read_source_func(train_filename, axes)
-        target: np.ndarray = read_source_func(target_filename, axes)
-        means += sample.mean()
-        stds += sample.std()
-        num_samples += 1
+        try:
+            sample: np.ndarray = read_source_func(train_filename, axes)
+            target: np.ndarray = read_source_func(target_filename, axes)
+            means += sample.mean()
+            stds += sample.std()
+            num_samples += 1
 
-        # generate patches, return a generator
-        patches, targets = extract_patches_sequential(
-            sample, axes, patch_size=patch_size, target=target
+            # generate patches, return a generator
+            patches, targets = extract_patches_sequential(
+                sample, axes, patch_size=patch_size, target=target
+            )
+
+            # convert generator to list and add to all_patches
+            all_patches.append(patches)
+            all_targets.append(targets)
+        except Exception as e:
+            # emit warning and continue
+            logger.error(f"Failed to read {train_filename} or {target_filename}: {e}")
+
+    # raise error if no valid samples found        
+    if num_samples == 0:
+        raise ValueError(
+            f"No valid samples found in the input data: {train_files} and "
+            f"{target_files}."
         )
-
-        # convert generator to list and add to all_patches
-        all_patches.append(patches)
-        all_targets.append(targets)
-
+    
     result_mean, result_std = means / num_samples, stds / num_samples
 
     all_patches = np.concatenate(all_patches, axis=0)
@@ -68,6 +79,48 @@ def prepare_patches_supervised(
         result_mean,
         result_std,
     )
+
+
+def prepare_patches_unsupervised(
+    train_files: List[Path],
+    axes: str,
+    patch_size: Union[List[int], Tuple[int]],
+    read_source_func: Optional[Callable] = None,
+) -> Tuple[np.ndarray, float, float]:
+    """
+    Iterate over data source and create an array of patches.
+
+    Returns
+    -------
+    np.ndarray
+        Array of patches.
+    """
+    means, stds, num_samples = 0, 0, 0
+    all_patches = []
+    for filename in train_files:
+        try:
+            sample: np.ndarray = read_source_func(filename, axes)
+            means += sample.mean()
+            stds += sample.std()
+            num_samples += 1
+
+            # generate patches, return a generator
+            patches, _ = extract_patches_sequential(sample, axes, patch_size=patch_size)
+
+            # convert generator to list and add to all_patches
+            all_patches.append(patches)
+        except Exception as e:
+            # emit warning and continue
+            logger.error(f"Failed to read {filename}: {e}")
+
+    # raise error if no valid samples found
+    if num_samples == 0:
+        raise ValueError(f"No valid samples found in the input data: {train_files}.")
+    
+    result_mean, result_std = means / num_samples, stds / num_samples
+    
+    return np.concatenate(all_patches), _, result_mean, result_std
+
 
 def prepare_patches_supervised_array(
     data: np.ndarray,
@@ -93,38 +146,6 @@ def prepare_patches_supervised_array(
         mean,
         std,
     )
-
-
-def prepare_patches_unsupervised(
-    train_files: List[Path],
-    axes: str,
-    patch_size: Union[List[int], Tuple[int]],
-    read_source_func: Optional[Callable] = None,
-) -> Tuple[np.ndarray, float, float]:
-    """
-    Iterate over data source and create an array of patches.
-
-    Returns
-    -------
-    np.ndarray
-        Array of patches.
-    """
-    means, stds, num_samples = 0, 0, 0
-    all_patches = []
-    for filename in train_files:
-        sample = read_source_func(filename, axes)
-        means += sample.mean()
-        stds += np.std(sample)
-        num_samples += 1
-
-        # generate patches, return a generator
-        patches, _ = extract_patches_sequential(sample, axes, patch_size=patch_size)
-
-        # convert generator to list and add to all_patches
-        all_patches.append(patches)
-
-        result_mean, result_std = means / num_samples, stds / num_samples
-    return np.concatenate(all_patches), _, result_mean, result_std
 
 
 def prepare_patches_unsupervised_array(

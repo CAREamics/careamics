@@ -1,4 +1,7 @@
 from __future__ import annotations
+
+from typing import Callable
+
 from careamics.utils import BaseEnum
 
 
@@ -70,4 +73,4 @@ class SupportedData(str, BaseEnum):
             raise ValueError(
                 f"Data type {data_type} is not supported."
             )
-        
+    

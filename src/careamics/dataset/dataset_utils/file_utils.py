@@ -1,6 +1,6 @@
 from fnmatch import fnmatch
 from pathlib import Path
-from typing import List, Tuple, Union
+from typing import List, Union
 
 from tifffile import TiffFile, TiffFileError
 
@@ -55,8 +55,18 @@ def get_files_size(
 def list_files(
     data_path: Union[str, Path],
     data_type: Union[str, SupportedData],
+    extension_filter: str = "",
 ) -> List[Path]:
-    """Creates a list of paths to source tiff files from path string.
+    """Creates a recursive list of files in `data_path`.
+
+    If `data_path` is a file, its name is validated against the `data_type` using 
+    `fnmatch`, and the method returns `data_path` itself.
+
+    By default, if `data_type` is equal to `custom`, all files will be listed. To 
+    further filter the files, use `extension_filter`.
+
+    `extension_filter` must be compatible with `fnmatch` and `Path.rglob`, e.g. "*.npy"
+    or "*.czi".
 
     Parameters
     ----------
@@ -64,6 +74,8 @@ def list_files(
         Path to the folder containing the data.
     data_type : Union[str, SupportedData]
         One of the supported data type (e.g. tif, custom).
+    extension_filter : str, optional
+        Extension filter, by default "".
 
     Returns
     -------
@@ -88,7 +100,11 @@ def list_files(
 
     # get extension compatible with fnmatch and rglob search
     extension = SupportedData.get_extension(data_type)
+
+    if data_type == SupportedData.CUSTOM and extension_filter is not "":
+        extension = extension_filter
     
+    # search recurively
     if data_path.is_dir():
         # search recursively the path for files with the extension
         files = sorted([f for f in data_path.rglob(extension)])

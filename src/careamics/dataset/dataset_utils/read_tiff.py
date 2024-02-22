@@ -1,15 +1,17 @@
 import logging
+from fnmatch import fnmatch
 from pathlib import Path
 
 import numpy as np
 import tifffile
 
 from careamics.utils.logging import get_logger
+from careamics.config.support import SupportedData
 
 logger = get_logger(__name__)
 
 
-def read_tiff(file_path: Path, axes: str) -> np.ndarray:
+def read_tiff(file_path: Path, *args: list, **kwargs: dict) -> np.ndarray:
     """
     Read a tiff file and return a numpy array.
 
@@ -38,7 +40,7 @@ def read_tiff(file_path: Path, axes: str) -> np.ndarray:
     ValueError
         If the axes length is incorrect.
     """
-    if file_path.suffix[:4] == ".tif":
+    if fnmatch(file_path.suffix, SupportedData.get_extension(SupportedData.TIFF)):
         try:
             array = tifffile.imread(file_path)
         except (ValueError, OSError) as e:
@@ -47,6 +49,9 @@ def read_tiff(file_path: Path, axes: str) -> np.ndarray:
     else:
         raise ValueError(f"File {file_path} is not a valid tiff.")
 
+    # check dimensions
+    # TODO or should this really be done here? probably in the LightningDataModule
+    # TODO this should also be centralized somewhere else (validate_dimensions)
     if len(array.shape) < 2 or len(array.shape) > 6:
         raise ValueError(
             f"Incorrect data dimensions. Must be 2, 3 or 4 (got {array.shape} for"
