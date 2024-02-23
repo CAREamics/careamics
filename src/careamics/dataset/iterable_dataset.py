@@ -95,6 +95,9 @@ class IterableDataset(IterableDataset):
             stds += sample.std()
             num_samples += 1
 
+        if num_samples == 0:
+            raise ValueError("No samples found in the dataset.")
+        
         result_mean = means / num_samples
         result_std = stds / num_samples
 
@@ -126,6 +129,8 @@ class IterableDataset(IterableDataset):
                 try: 
                     # read data
                     sample = self.read_source_func(filename, self.axes)
+
+                    # TODO validation of the dimensions here
 
                     # read target if available
                     if self.target_files is not None:
@@ -187,8 +192,12 @@ class IterableDataset(IterableDataset):
                         yield (transformed["image"], transformed["mask"])
                         # TODO fix dimensions
                     else:
+                        # Albumentations expects the channel dimension to be last
+                        patch = np.moveaxis(patch_data[0], 0, -1)
+
+                        # apply transform
                         transformed = self.patch_transform(
-                            image=np.moveaxis(patch_data[0], 0, -1)
+                            image=patch
                         )
       
                         yield (transformed["image"], *patch_data[1:])

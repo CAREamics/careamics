@@ -36,7 +36,9 @@ def extract_patches_random(
     is_3d_patch = len(patch_size) == 3
 
     arr, _ = reshape_data(arr, axes)
+
     # Patches sanity check
+    # TODO is this necessary if the validation is done on the image already?
     patch_size = validate_patch_dimensions(arr, patch_size, is_3d_patch)
 
     rng = np.random.default_rng()

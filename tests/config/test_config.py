@@ -103,7 +103,7 @@ def test_algorithm_and_data_incompatibility(minimum_configuration: dict):
     minimum_configuration["algorithm"]["algorithm"] = "n2v"
 
     # missing ManipulateN2V
-    minimum_configuration["data"]["transforms"] = [{"name": SupportedTransform.FLIP}]
+    minimum_configuration["data"]["transforms"] = [{"name": SupportedTransform.NDFLIP}]
     config = Configuration(**minimum_configuration)
     assert len(config.data.transforms) == 2
     assert config.data.transforms[-1].name == SupportedTransform.MANIPULATE_N2V
@@ -116,7 +116,7 @@ def test_algorithm_and_data_incompatibility(minimum_configuration: dict):
                 "roi_size": 15,
             },
         },
-        {"name": SupportedTransform.FLIP},
+        {"name": SupportedTransform.NDFLIP},
     ]
     config = Configuration(**minimum_configuration)
     assert len(config.data.transforms) == 2

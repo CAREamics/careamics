@@ -33,18 +33,18 @@ class SupportedTransform(str, BaseEnum):
 
     - Flip: from Albumentations, randomly flip the input horizontally, vertically or 
         both, parameter `p` can be used to set the probability to apply the transform.
-    - RandomRotate90: from Albumentations, andomly rotate the input by 90 degrees, 
-        parameter `p` can be used to set the probability to apply the transform.
+    - XYRandomRotate90: #TODO
     - Normalize # TODO add details, in particular about the parameters
     - ManipulateN2V # TODO add details, in particular about the parameters
+    - NDFlip
 
     Note that while any Albumentations (see https://albumentations.ai/) transform can be
     used in CAREamics, no check are implemented to verify the compatibility of any other
     transforms than the ones officially supported. 
     """
 
-    FLIP = "Flip"
-    RANDOM_ROTATE90 = "RandomRotate90"
+    NDFLIP = "NDFlip"
+    XY_RANDOM_ROTATE90 = "XYRandomRotate90"
     NORMALIZE = "Normalize"
     MANIPULATE_N2V = "ManipulateN2V"
     # CUSTOM = "Custom"

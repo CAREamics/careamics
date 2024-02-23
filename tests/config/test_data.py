@@ -78,7 +78,7 @@ def test_wrong_patch_size(minimum_data: dict, patch_size):
 def test_passing_supported_transforms(minimum_data: dict):
     """Test that list of supported transforms can be passed."""
     minimum_data["transforms"] = [
-        {"name": SupportedTransform.FLIP},
+        {"name": SupportedTransform.NDFLIP},
         {"name": SupportedTransform.MANIPULATE_N2V},
     ]
     DataModel(**minimum_data)
@@ -93,7 +93,7 @@ def test_passing_empty_transforms(minimum_data: dict):
 def test_passing_incorrect_element(minimum_data: dict):
     """Test that incorrect element in the list of transforms raises an error."""
     minimum_data["transforms"] = [
-        {"name": get_all_transforms()[SupportedTransform.FLIP]()},
+        {"name": get_all_transforms()[SupportedTransform.NDFLIP]()},
     ]
     with pytest.raises(ValueError):
         DataModel(**minimum_data)
@@ -103,8 +103,34 @@ def test_passing_compose_transform(minimum_data: dict):
     """Test that Compose transform can be passed."""
     minimum_data["transforms"] = Compose(
         [
-            get_all_transforms()[SupportedTransform.FLIP](),
+            get_all_transforms()[SupportedTransform.NDFLIP](),
             get_all_transforms()[SupportedTransform.MANIPULATE_N2V](),
         ]
     )
     DataModel(**minimum_data)
+
+def test_3D_and_transforms(minimum_data:dict):
+    """Test that NDFlip is corrected if the data is 3D."""
+    minimum_data["transforms"] = [
+        {
+            "name": SupportedTransform.NDFLIP.value,
+            "parameters": {
+                "is_3D": True,
+                "flip_z": True,
+            },
+        },
+        {
+            "name": SupportedTransform.XY_RANDOM_ROTATE90.value,
+            "parameters": {
+                "is_3D": True,
+            },
+        },
+    ]
+    data = DataModel(**minimum_data)
+    assert data.transforms[0].parameters["is_3D"] == False
+    assert data.transforms[1].parameters["is_3D"] == False
+
+    # change to 3D
+    data.axes = "ZYX"
+    data.transforms[0].parameters["is_3D"] = True
+    data.transforms[1].parameters["is_3D"] = True

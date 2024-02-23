@@ -42,10 +42,10 @@ class DataModel(BaseModel):
     transforms: Union[List[TransformModel], Compose] = Field(
         default=[
             {
-                "name": SupportedTransform.FLIP.value,
+                "name": SupportedTransform.NDFLIP.value,
             },
             {
-                "name": SupportedTransform.RANDOM_ROTATE90.value,
+                "name": SupportedTransform.XY_RANDOM_ROTATE90.value,
             },          
             {
                 "name": SupportedTransform.NORMALIZE.value,
@@ -196,5 +196,41 @@ class DataModel(BaseModel):
             raise ValueError(
                 "Setting mean and std with Compose transforms is not allowed."
             )
-        
-        
+
+    @model_validator(mode="after")
+    def validate_transforms_and_axes(cls, data_model: DataModel) -> DataModel:
+        """
+        Validate the transforms with respect to the axes.
+
+        Parameters
+        ----------
+        data_model : DataModel
+            Data model.
+
+        Returns
+        -------
+        DataModel
+            Validated data model.
+
+        Raises
+        ------
+        ValueError
+            If the transforms are not valid.
+        """
+        # check that the transforms NDFLip is 3D
+        if "Z" in data_model.axes:
+            if data_model.has_tranform_list():
+                for transform in data_model.transforms:
+                    if transform.name == SupportedTransform.NDFLIP:
+                        transform.parameters["is_3D"] = True
+                    elif transform.name == SupportedTransform.XY_RANDOM_ROTATE90:
+                        transform.parameters["is_3D"] = True
+        else:
+            if data_model.has_tranform_list():
+                for transform in data_model.transforms:
+                    if transform.name == SupportedTransform.NDFLIP:
+                        transform.parameters["is_3D"] = False
+                    elif transform.name == SupportedTransform.XY_RANDOM_ROTATE90:
+                        transform.parameters["is_3D"] = False
+
+        return data_model

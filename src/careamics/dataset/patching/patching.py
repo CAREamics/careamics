@@ -281,6 +281,8 @@ def generate_patches_unsupervised(
     """
     Creates an iterator over patches from a sample.
 
+    # TODO what does it return? new shape?
+
     Parameters
     ----------
     sample : np.ndarray
@@ -311,26 +313,32 @@ def generate_patches_unsupervised(
 
         if patch_extraction_method == SupportedExtractionStrategy.TILED:
             if patch_overlap is None:
-                patch_overlap = [48] * len(patch_size)# TODO calculate OL from model
+                 # TODO calculate OL from model, instead of ad hoc value for overlap
+                patch_overlap = [48] * len(patch_size)
             patches = extract_tiles(
                 arr=sample, axes=axes, tile_size=patch_size, overlaps=patch_overlap
             )
         # TODO split so there's no extraciton strat param
         elif patch_extraction_method == SupportedExtractionStrategy.RANDOM:
             # Returns a generator of patches and targets(if present)
-            patches = extract_patches_random(sample, patch_size=patch_size)
-
-        elif patch_extraction_method == SupportedExtractionStrategy.RANDOM_ZARR:
-            # Returns a generator of patches and targets(if present)
-            patches = extract_patches_random_from_chunks(
-                sample, patch_size=patch_size, chunk_size=sample.chunks
+            patches = extract_patches_random(
+                sample, 
+                axes=axes,
+                patch_size=patch_size
             )
 
+        elif patch_extraction_method == SupportedExtractionStrategy.RANDOM_ZARR:
+            # # Returns a generator of patches and targets(if present)
+            # patches = extract_patches_random_from_chunks(
+            #     sample, patch_size=patch_size, chunk_size=sample.chunks
+            # )
+            raise NotImplementedError("Random zarr extraction not implemented yet.")
+
         else:
-            raise ValueError("Invalid patch extraction method")
+            raise ValueError("Invalid patch extraction method.")
 
         if patches is None:
-            raise ValueError("No patch generated")
+            raise ValueError("No patch generated.")
 
         return patches
     else:
