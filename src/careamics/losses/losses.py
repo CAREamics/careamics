@@ -3,10 +3,11 @@ Loss submodule.
 
 This submodule contains the various losses used in CAREamics.
 """
-from typing import Type
 
 import torch
-from segmentation_models_pytorch.losses import DiceLoss  # TODO if we are only using the DiceLoss, can we just implement it?
+
+# TODO if we are only using the DiceLoss, can we just implement it?
+from segmentation_models_pytorch.losses import DiceLoss
 from torch.nn import L1Loss, MSELoss
 
 from .noise_models import HistogramNoiseModel
@@ -75,9 +76,9 @@ def pn2v_loss(
     samples: torch.Tensor,
     labels: torch.Tensor,
     masks: torch.Tensor,
-    noise_model: Type[HistogramNoiseModel],
-):
-    """Probabilistic N2V loss function described in A Krull et al 2019."""
+    noise_model: HistogramNoiseModel,
+) -> torch.Tensor:
+    """Probabilistic N2V loss function described in A Krull et al., CVF (2019)."""
     likelihoods = noise_model.likelihood(labels, samples)
     likelihoods_avg = torch.log(torch.mean(likelihoods, dim=0, keepdim=True)[0, ...])
 

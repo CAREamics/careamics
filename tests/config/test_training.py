@@ -1,8 +1,6 @@
 import pytest
-from pydantic import conlist
 
-
-from careamics.config.training import AMP, Training
+from careamics.config.training_model import AMP, Training
 
 
 @pytest.mark.parametrize("init_scale", [512, 1024, 65536])

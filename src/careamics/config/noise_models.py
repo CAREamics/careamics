@@ -20,6 +20,7 @@ class NoiseModelType(str, Enum):
     HIST = "hist"
     GMM = "gmm"
 
+    # TODO add validator decorator
     @classmethod
     def validate_noise_model_type(
         cls, noise_model: Union[str, NoiseModel], parameters: dict
@@ -80,6 +81,7 @@ class NoiseModel(BaseModel):
     parameters: Dict = Field(default_factory=dict, validate_default=True)
 
     @field_validator("parameters")
+    @classmethod
     def validate_parameters(cls, data, values) -> Dict:
         """_summary_.
 

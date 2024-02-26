@@ -1,0 +1,168 @@
+
+from typing import Generator, List, Optional, Tuple, Union
+
+import numpy as np
+import zarr
+
+from ..dataset_utils import reshape_data
+from .validate_patch_dimension import validate_patch_dimensions
+
+
+
+def extract_patches_random(
+    arr: np.ndarray,
+    axes: str,
+    patch_size: Union[List[int], Tuple[int]],
+    target: Optional[np.ndarray] = None,
+) -> Generator[Tuple[np.ndarray, ...], None, None]:
+    """
+    Generate patches from an array in a random manner.
+
+    The method calculates how many patches the image can be divided into and then
+    extracts an equal number of random patches.
+
+    Parameters
+    ----------
+    arr : np.ndarray
+        Input image array.
+    patch_size : Tuple[int]
+        Patch sizes in each dimension.
+
+    Yields
+    ------
+    Generator[np.ndarray, None, None]
+        Generator of patches.
+    """
+    is_3d_patch = len(patch_size) == 3
+
+    arr, _ = reshape_data(arr, axes)
+
+    # Patches sanity check
+    # TODO is this necessary if the validation is done on the image already?
+    patch_size = validate_patch_dimensions(arr, patch_size, is_3d_patch)
+
+    rng = np.random.default_rng()
+
+    for sample_idx in range(arr.shape[0]):
+        sample = arr[sample_idx]
+        n_patches = np.ceil(np.prod(sample.shape) / np.prod(patch_size)).astype(int)
+        for _ in range(n_patches):
+            crop_coords = [
+                rng.integers(0, sample.shape[i] - patch_size[1:][i], endpoint=True)
+                for i in range(len(patch_size[1:]))
+            ]
+            patch = (
+                sample[
+                    (
+                        ...,
+                        *[
+                            slice(c, c + patch_size[1:][i])
+                            for i, c in enumerate(crop_coords)
+                        ],
+                    )
+                ]
+                .copy()
+                .astype(np.float32)
+            )
+            if target is not None:
+                target_patch = (
+                    target[
+                        (
+                            ...,
+                            *[
+                                slice(c, c + patch_size[1:][i])
+                                for i, c in enumerate(crop_coords)
+                            ],
+                        )
+                    ]
+                    .copy()
+                    .astype(np.float32)
+                )
+                yield np.expand_dims(patch, 0), np.expand_dims(target_patch, 0)
+            else:
+                yield np.expand_dims(patch, 0), None
+
+
+def extract_patches_random_from_chunks(
+    arr: zarr.Array,
+    patch_size: Union[List[int], Tuple[int, ...]],
+    chunk_size: Union[List[int], Tuple[int, ...]],
+    chunk_limit: Optional[int] = None,
+) -> Generator[np.ndarray, None, None]:
+    """
+    Generate patches from an array in a random manner.
+
+    The method calculates how many patches the image can be divided into and then
+    extracts an equal number of random patches.
+
+    Parameters
+    ----------
+    arr : np.ndarray
+        Input image array.
+    patch_size : Tuple[int]
+        Patch sizes in each dimension.
+    chunk_size : Tuple[int]
+        Chunk sizes to load from the.
+
+    Yields
+    ------
+    Generator[np.ndarray, None, None]
+        Generator of patches.
+    """
+    is_3d_patch = len(patch_size) == 3
+
+    # Patches sanity check
+    patch_size = validate_patch_dimensions(arr, patch_size, is_3d_patch)
+
+    rng = np.random.default_rng()
+    num_chunks = chunk_limit if chunk_limit else np.prod(arr._cdata_shape)
+
+    # Iterate over num chunks in the array
+    for _ in range(num_chunks):
+        chunk_crop_coords = [
+            rng.integers(0, max(0, arr.shape[i] - chunk_size[i]), endpoint=True)
+            for i in range(len(chunk_size))
+        ]
+        chunk = arr[
+            (
+                ...,
+                *[slice(c, c + chunk_size[i]) for i, c in enumerate(chunk_crop_coords)],
+            )
+        ].squeeze()
+
+        # Add a singleton dimension if the chunk does not have a sample dimension
+        if len(chunk.shape) == len(patch_size):
+            chunk = np.expand_dims(chunk, axis=0)
+        # Iterate over num samples (S)
+        for sample_idx in range(chunk.shape[0]):
+            spatial_chunk = chunk[sample_idx]
+            assert len(spatial_chunk.shape) == len(
+                patch_size
+            ), "Requested chunk shape is not equal to patch size"
+
+            n_patches = np.ceil(
+                np.prod(spatial_chunk.shape) / np.prod(patch_size)
+            ).astype(int)
+
+            # Iterate over the number of patches
+            for _ in range(n_patches):
+                patch_crop_coords = [
+                    rng.integers(
+                        0, spatial_chunk.shape[i] - patch_size[i], endpoint=True
+                    )
+                    for i in range(len(patch_size))
+                ]
+                patch = (
+                    spatial_chunk[
+                        (
+                            ...,
+                            *[
+                                slice(c, c + patch_size[i])
+                                for i, c in enumerate(patch_crop_coords)
+                            ],
+                        )
+                    ]
+                    .copy()
+                    .astype(np.float32)
+                )
+                yield patch

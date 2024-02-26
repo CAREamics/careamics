@@ -1,0 +1,127 @@
+import pytest
+
+import numpy as np
+import tifffile
+
+from careamics.config import DataModel
+from careamics.config.support import SupportedData
+from careamics.dataset import IterableDataset
+from careamics.dataset.dataset_utils import read_tiff
+
+
+def test_number_of_files(tmp_path, ordered_array):
+    """Test number of files in IterableDataset."""
+    # create array
+    array_size = 20
+    patch_size = 4
+    n_files = 3
+    array = ordered_array((array_size, array_size))
+    
+    # save three files
+    files = []
+    for i in range(n_files):
+        file = tmp_path / f"array{i}.tif"
+        tifffile.imwrite(file, array)
+        files.append(file)
+
+    # create config
+    config_dict =  {
+        "data_type": SupportedData.TIFF.value,
+        "patch_size": [patch_size, patch_size],
+        "axes": "YX",
+    }
+    config = DataModel(**config_dict)
+
+    # create dataset
+    dataset = IterableDataset(
+        data_config=config,
+        src_files=files,
+        read_source_func=read_tiff
+    )
+
+    # check number of files
+    assert dataset.data_files == files
+
+    # iterate over dataset
+    patches = [p for p in dataset]
+    assert len(patches) == n_files * array_size / patch_size
+
+
+def test_read_function(tmp_path, ordered_array):
+    """Test reading files in IterableDataset using a custom read function."""
+    # read function for .npy files
+    def read_npy(file_path, *args, **kwargs):
+        return np.load(file_path)
+    
+    # create array
+    array = ordered_array((5, 20, 20))
+    
+    # save each plane in a single .npy file
+    files = []
+    for i in range(array.shape[0]):
+        file_path = tmp_path / f"array{i}.npy"
+        np.save(file_path, array[i])
+        files.append(file_path)
+
+    # create config
+    config_dict =  {
+        "data_type": SupportedData.CUSTOM.value,
+        "patch_size": [4, 4],
+        "axes": "YX",
+    }
+    config = DataModel(**config_dict)
+
+    # create dataset
+    dataset = IterableDataset(
+        data_config=config,
+        src_files=files,
+        read_source_func=read_npy,
+    )
+    assert dataset.data_files == files
+
+    patches = [p for p in dataset]
+
+
+
+@pytest.mark.parametrize("percentage", [0.1, 0.6])
+def test_extracting_val_files(tmp_path, ordered_array, percentage):
+    """Test extracting a validation set patches from InMemoryDataset."""
+    # create array
+    array = ordered_array((20, 20))
+
+    # save array to 25 files
+    files = []
+    for i in range(25):
+        file_path = tmp_path / f"array{i}.tif"
+        tifffile.imwrite(file_path, array)
+        files.append(file_path)
+
+    # create config
+    config_dict =  {
+        "data_type": SupportedData.TIFF.value,
+        "patch_size": [4, 4],
+        "axes": "YX",
+    }
+    config = DataModel(**config_dict)
+
+    # create dataset
+    dataset = IterableDataset(
+        data_config=config,
+        src_files=files,
+        read_source_func=read_tiff
+    )
+
+    # compute number of patches
+    total_n_files = dataset.get_number_of_files()
+    minimum_files = 5
+    n_files = max(round(percentage*total_n_files), minimum_files)
+
+    # extract datset
+    valset = dataset.split_dataset(percentage, minimum_files)
+
+    # check number of patches
+    assert valset.get_number_of_files() == n_files
+    assert dataset.get_number_of_files() == total_n_files - n_files
+
+    # check that none of the validation files are in the original dataset
+    assert set(valset.data_files).isdisjoint(set(dataset.data_files))

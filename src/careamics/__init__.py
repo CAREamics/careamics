@@ -8,14 +8,19 @@ except PackageNotFoundError:
     __version__ = "uninstalled"
 
 __all__ = [
-    "CAREamist", 
+    "CAREamist",
     "CAREamicsKiln",
-    "CAREamicsModule", 
-    "Configuration", 
-    "load_configuration", 
-    "save_configuration"
+    "CAREamicsModule",
+    "Configuration",
+    "load_configuration",
+    "save_configuration",
 ]
 
-from .config import Configuration, load_configuration, save_configuration
 from .careamist import CAREamist
-from .lightning_module import CAREamicsKiln, CAREamicsModule
+from .config import Configuration, load_configuration, save_configuration
+from .lightning_module import CAREamicsModule
+from .lightning_prediction import TiledPredictionLoop
+from .ligthning_datamodule import (
+    CAREamicsPredictDataModule, 
+    CAREamicsTrainDataModule,
+)

@@ -4,37 +4,19 @@ Convenience functions using torch.
 These functions are used to control certain aspects and behaviours of PyTorch.
 """
 import inspect
-from typing import Dict, Tuple
+from typing import Dict, Union
 
 import torch
 
+from careamics.config.support import SupportedOptimizer, SupportedScheduler
 from ..utils.logging import get_logger
 
-logger = get_logger(__name__)
+logger = get_logger(__name__) # TODO are logger still needed?
 
-
-def get_device() -> torch.device:
-    """
-    Select the device to use for training.
-
-    Returns
-    -------
-    torch.device
-        CUDA or CPU device, depending on availability of CUDA devices.
-    """
-    if torch.cuda.is_available():
-        logger.info("CUDA available. Using GPU.")
-        device = torch.device("cuda")
-    else:
-        logger.info("CUDA not available. Using CPU.")
-        device = torch.device("cpu")
-    return device
-
-
-def get_parameters(
+def filter_parameters(
     func: type,
     user_params: dict,
-) -> Tuple[dict, dict]:
+) -> dict:
     """
     Filter parameters according to the function signature.
 
@@ -59,6 +41,26 @@ def get_parameters(
     return {key: user_params[key] for key in params_to_be_used}
 
 
+def get_optimizer(name: str) -> torch.optim.Optimizer:
+    """
+    Return the optimizer class given its name.
+
+    Parameters
+    ----------
+    name : str
+        Optimizer name.
+
+    Returns
+    -------
+    torch.nn.Optimizer
+        Optimizer class.
+    """
+    if not name in SupportedOptimizer:
+        raise NotImplementedError(f"Optimizer {name} is not yet supported.")
+
+    return getattr(torch.optim, name)
+
+
 def get_optimizers() -> Dict[str, str]:
     """
     Return the list of all optimizers available in torch.optim.
@@ -74,6 +76,29 @@ def get_optimizers() -> Dict[str, str]:
             if name != "Optimizer":
                 optims[name] = name
     return optims
+
+
+def get_scheduler(name: str) -> Union[
+    torch.optim.lr_scheduler.LRScheduler,
+    torch.optim.lr_scheduler.ReduceLROnPlateau,
+    ]:
+    """
+    Return the scheduler class given its name.
+
+    Parameters
+    ----------
+    name : str
+        Scheduler name.
+
+    Returns
+    -------
+    Union
+        Scheduler class.
+    """
+    if not name in SupportedScheduler:
+        raise NotImplementedError(f"Scheduler {name} is not yet supported.")
+
+    return getattr(torch.optim.lr_scheduler, name)
 
 
 def get_schedulers() -> Dict[str, str]:

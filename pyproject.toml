@@ -137,8 +137,6 @@ line-length = 88
 
 # https://mypy.readthedocs.io/en/stable/config_file.html
 [tool.mypy]
-plugins = ["pydantic.mypy"]
-
 files = "src/**/"
 strict = false
 allow_untyped_defs = false

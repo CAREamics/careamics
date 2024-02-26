@@ -39,6 +39,9 @@ def check_axes_validity(axes: str) -> bool:
             f"Invalid axes {axes}. Must contain at least 2 and at most 6 axes."
         )
 
+    if "YX" not in _axes:
+        raise ValueError(f"Invalid axes {axes}. Must contain at least X and Y axes.")
+
     # all characters must be in REF_AXES = 'STCZYX'
     if not all(s in AXES for s in _axes):
         raise ValueError(f"Invalid axes {axes}. Must be a combination of {AXES}.")
@@ -66,7 +69,7 @@ def check_axes_validity(axes: str) -> bool:
 
 
 def check_external_array_validity(
-    array: np.ndarray, axes: str, use_tiling: bool
+    array: np.ndarray, axes: str, use_tiling: bool = False
 ) -> None:
     """
     Check that the numpy array is compatible with the axes.

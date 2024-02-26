@@ -9,9 +9,12 @@ from careamics.utils import check_axes_validity
         # Passing
         ("yx", True),
         ("Yx", True),
-        ("Zyx", True),
+        ("Zyx", True), 
+        ("STYX", True),
+        ("CYX", True),
         ("TzYX", True),
         ("SZYX", True),
+        ("STZYX", True),
         # Failing due to order
         ("XY", False),
         ("YXZ", False),
@@ -20,14 +23,9 @@ from careamics.utils import check_axes_validity
         # too few axes
         ("", False),
         ("X", False),
-        # too many axes
-        ("STZYX", False),
         # no yx axes
         ("ZT", False),
         ("ZY", False),
-        # unsupported axes or axes pair
-        ("STYX", False),
-        ("CYX", False),
         # repeating characters
         ("YYX", False),
         ("YXY", False),
