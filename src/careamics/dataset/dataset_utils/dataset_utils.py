@@ -146,23 +146,3 @@ def validate_files(train_files: List[Path], target_files: List[Path]) -> None:
         )
     if {f.name for f in train_files} != {f.name for f in target_files}:
         raise ValueError("Some filenames in Train and target folders are not the same.")
-
-
-def validate_array_axes(
-        array: np.ndarray,
-        axes: str,
-) -> None:
-    """Validate an array dimensions against the expected axes.
-
-    Parameters
-    ----------
-    array : np.ndarray
-        Input array.
-    axes : str
-        Expected axes.
-    """
-    if len(array.shape) != len(axes):
-        raise ValueError(
-            f"Array shape {array.shape} is not consistent with the expected axes "
-            f"{axes}."
-        )

@@ -22,7 +22,7 @@ from careamics.dataset.iterable_dataset import (
     IterableDataset,
     IterablePredictionDataset,
 )
-from careamics.utils import get_ram_size, check_external_array_validity
+from careamics.utils import get_ram_size, validate_array_against_axes
 
 # TODO must be compatible with no validation being present
 class CAREamicsWood(L.LightningDataModule):
@@ -212,10 +212,10 @@ class CAREamicsWood(L.LightningDataModule):
                 validate_source_target_files(self.val_files, self.val_target_files)
         else:
             # check array validity
-            check_external_array_validity(self.train_data, self.data_config.axes)
+            validate_array_against_axes(self.train_data, self.data_config.axes)
 
             if self.val_data is not None:
-                check_external_array_validity(self.val_data, self.data_config.axes)
+                validate_array_against_axes(self.val_data, self.data_config.axes)
 
 
     def setup(self, stage: Optional[str] = None) -> None:
@@ -396,7 +396,7 @@ class CAREamicsClay(L.LightningDataModule):
             )
         else:
             # check array validity
-            check_external_array_validity(self.pred_data, self.data_config.axes)
+            validate_array_against_axes(self.pred_data, self.data_config.axes)
 
 
     def setup(self, stage: Optional[str] = None) -> None:

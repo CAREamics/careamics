@@ -9,7 +9,8 @@ from torch.utils.data import IterableDataset, get_worker_info
 from ..config.data_model import DataModel
 from ..config.support import SupportedExtractionStrategy
 from ..utils.logging import get_logger
-from .dataset_utils import read_tiff, validate_array_axes
+from ..utils.validators import validate_array_against_axes
+from .dataset_utils import read_tiff
 from .patching import (
     get_patch_transform, 
     generate_patches_supervised, 
@@ -130,7 +131,7 @@ class IterableDataset(IterableDataset):
                     sample = self.read_source_func(filename, self.axes)
 
                     # validate sample array against axes
-                    validate_array_axes(sample, self.axes)
+                    validate_array_against_axes(sample, self.axes)
 
                     # read target if available
                     if self.target_files is not None:

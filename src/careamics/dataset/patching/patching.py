@@ -17,7 +17,7 @@ from ...config.support.supported_extraction_strategies import (
 from .sequential_patching import extract_patches_sequential
 from .random_patching import extract_patches_random, extract_patches_random_from_chunks
 from .tiled_patching import extract_tiles
-from ..dataset_utils import validate_array_axes
+from ...utils.validators import validate_array_against_axes
 
 logger = get_logger(__name__)
 
@@ -52,7 +52,7 @@ def prepare_patches_supervised(
             num_samples += 1
 
             # validate sample array against axes
-            validate_array_axes(sample, axes)
+            validate_array_against_axes(sample, axes)
 
             # generate patches, return a generator
             patches, targets = extract_patches_sequential(
@@ -112,7 +112,7 @@ def prepare_patches_unsupervised(
             num_samples += 1
 
             # validate sample array against axes
-            validate_array_axes(sample, axes)
+            validate_array_against_axes(sample, axes)
 
             # generate patches, return a generator
             patches, _ = extract_patches_sequential(sample, axes, patch_size=patch_size)
@@ -166,19 +166,21 @@ def prepare_patches_unsupervised_array(
     """
     Iterate over data source and create an array of patches.
 
+    # TODO what dims does it return?
+
     Returns
     -------
     np.ndarray
         Array of patches.
     """
     # calculate mean and std
-    means = data.mean()
-    stds = data.std()
+    mean = data.mean()
+    std = data.std()
 
     # generate patches, return a generator
     patches, _ = extract_patches_sequential(data, axes, patch_size=patch_size)
 
-    return np.concatenate(patches), _, means, stds
+    return patches, _, mean, std
 
 
 def generate_patches_predict(
