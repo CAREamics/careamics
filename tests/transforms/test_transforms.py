@@ -124,7 +124,7 @@ def test_median_manipulate_2d(array_2D):
     Ensure that the function returns an array of the same shape as the input.
     """
     # Get manipulated patch, original patch and mask
-    patch, original_patch, mask = median_manipulate(array_2D, 0.5)
+    patch, original_patch, mask = median_manipulate(array_2D, 0.2)
 
     # Check that the shapes of the arrays are the same
     assert patch.shape == array_2D.shape

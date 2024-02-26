@@ -164,11 +164,7 @@ def uniform_manipulate(
     ).astype(np.int32)
 
     # Remove the center pixel from the grid if needed
-    roi_span = (
-        roi_span_full[roi_span_full != 0]
-        if remove_center
-        else roi_span_full
-    )
+    roi_span = roi_span_full[roi_span_full != 0] if remove_center else roi_span_full
 
     # Randomly select coordinates from the grid
     random_increment = rng.choice(roi_span, size=subpatch_centers.shape)
@@ -194,19 +190,6 @@ def uniform_manipulate(
         original_patch,
         mask,
     )
-
-
-def mask_center(local_sub_patch_radius, ndims=2):
-    size = local_sub_patch_radius*2 + 1
-    patch_wo_center = np.ones((size, ) * ndims)
-    if ndims == 2:
-        patch_wo_center[local_sub_patch_radius, local_sub_patch_radius] = 0
-    elif ndims == 3:
-        patch_wo_center[local_sub_patch_radius,
-        local_sub_patch_radius, local_sub_patch_radius] = 0
-    else:
-        raise NotImplementedError()
-    return np.ma.make_mask(patch_wo_center)
 
 
 def median_manipulate(
@@ -239,31 +222,32 @@ def median_manipulate(
     # Get the coordinates of the pixels to be replaced
     subpatch_centers = get_stratified_coords(mask_pixel_percentage, patch.shape)
 
-    rng = np.random.default_rng()
-
     # Generate coordinate grid for subpatch
-    roi_span = np.array((
-        -np.floor(subpatch_size / 2), np.floor(subpatch_size / 2))
+    roi_span = np.array(
+        [-np.floor(subpatch_size / 2), np.floor(subpatch_size / 2)]
     ).astype(np.int32)
 
-    subpatch_crop_full = subpatch_centers[np.newaxis, ...].T + roi_span
+    subpatch_crops_span_full = subpatch_centers[np.newaxis, ...].T + roi_span
     # Dimensions n dims, n centers, (min, max)
-    subpatch_crop_clipped = np.clip(subpatch_crop_full, a_min = np.zeros_like(patch.shape)[:, np.newaxis, np.newaxis], a_max=np.array(patch.shape)[:, np.newaxis, np.newaxis] - 1)
-    # slice(subpatch_crop_clipped[..., 0, np.newaxis], subpatch_crop_clipped[..., 1, np.newaxis])
-    cs = [slice(min(ct), max(ct)) if (max(ct) - min(ct)) > 0 else slice(0, 1) for ct in cr]
-    # ps[min(osp2[0]):max(osp2[0]), min(osp2[1]):max(osp2[1])]
-
-    # Clip the coordinates to the patch size
-    replacement_coords = np.clip(
-        subpatch_centers + random_increment,
-        0,
-        [patch.shape[i] - 1 for i in range(len(patch.shape))],
+    subpatch_crops_span_clipped = np.clip(
+        subpatch_crops_span_full,
+        a_min=np.zeros_like(patch.shape)[:, np.newaxis, np.newaxis],
+        a_max=np.array(patch.shape)[:, np.newaxis, np.newaxis] - 1,
     )
-    # Get the replacement pixels from all subpatchs
-    replacement_pixels = patch[tuple(replacement_coords.T.tolist())]
 
-    # Replace the original pixels with the replacement pixels
-    patch[tuple(subpatch_centers.T.tolist())] = replacement_pixels
+    for idx in range(subpatch_crops_span_clipped.shape[1]):
+        subpatch_coords = subpatch_crops_span_clipped[:, idx, ...]
+        idxs = [
+            slice(x[0], x[1]) if x[1] - x[0] > 0 else slice(0, 1)
+            for x in subpatch_coords
+        ]
+        subpatch = patch[tuple(idxs)]
+
+        mask = np.logical_not(
+            np.isclose(subpatch, patch[tuple(subpatch_centers[idx].tolist())])
+        )
+        patch[tuple(subpatch_centers[idx].tolist())] = np.median(subpatch[mask])
+
     mask = np.where(patch != original_patch, 1, 0).astype(np.uint8)
 
     if struct_mask is not None:
@@ -274,33 +258,3 @@ def median_manipulate(
         original_patch,
         mask,
     )
-
-
-# ccc = np.clip(cc, a_min = np.zeros_like(patch.shape)[np.newaxis, ...].T, a_max=np.array(patch.shape)[np.newaxis, ...].T - 1)
-
-# cs = [slice(min(ct), max(ct)) for ct in cr]
-
-
-
-'''
-import numpy as np
-
-# Example dimensions
-n_channels = 3
-n_images = 4
-coordinate_start = 0
-coordinate_stop = 10  # Exclusive
-
-# Generating indices for channels and images
-channels_indices, images_indices = np.ogrid[:n_channels, :n_images]
-
-# Assuming you want slices for the full coordinate range for each pair
-# Here, we'll simulate this by creating a list of slices for demonstration
-slices = [slice(coordinate_start, coordinate_stop) for _ in range(n_channels * n_images)]
-
-# The slices list now contains slice objects for each channel-image pair across the full coordinate range
-# This step doesn't use the indices directly but illustrates how you could proceed.
-
-# For actual multidimensional array manipulation, you'd typically use the indices directly with numpy's advanced indexing
-
-'''
