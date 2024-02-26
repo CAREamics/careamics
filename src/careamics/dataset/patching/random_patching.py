@@ -21,6 +21,12 @@ def extract_patches_random(
     The method calculates how many patches the image can be divided into and then
     extracts an equal number of random patches.
 
+    It returns a generator that yields the following:
+
+    - patch: np.ndarray, dimension C(Z)YX.
+    - target_patch: np.ndarray, dimension C(Z)YX, if the target is present, None 
+        otherwise.
+
     Parameters
     ----------
     arr : np.ndarray
@@ -37,20 +43,30 @@ def extract_patches_random(
 
     arr, _ = reshape_data(arr, axes)
 
-    # Patches sanity check
-    # TODO is this necessary if the validation is done on the image already?
+    # patches sanity check
     patch_size = validate_patch_dimensions(arr, patch_size, is_3d_patch)
 
+    # random generator
     rng = np.random.default_rng()
 
+    # iterate over the number of samples (S or T)
     for sample_idx in range(arr.shape[0]):
+        # get sample array
         sample = arr[sample_idx]
+
+        # calculate the number of patches
         n_patches = np.ceil(np.prod(sample.shape) / np.prod(patch_size)).astype(int)
+
+        # iterate over the number of patches
         for _ in range(n_patches):
+
+            # get crop coordinates
             crop_coords = [
                 rng.integers(0, sample.shape[i] - patch_size[1:][i], endpoint=True)
                 for i in range(len(patch_size[1:]))
             ]
+
+            # extract patch
             patch = (
                 sample[
                     (
@@ -64,6 +80,8 @@ def extract_patches_random(
                 .copy()
                 .astype(np.float32)
             )
+
+            # same for target
             if target is not None:
                 target_patch = (
                     target[
@@ -78,9 +96,11 @@ def extract_patches_random(
                     .copy()
                     .astype(np.float32)
                 )
-                yield np.expand_dims(patch, 0), np.expand_dims(target_patch, 0)
+                # return patch and target patch
+                yield patch, target_patch
             else:
-                yield np.expand_dims(patch, 0), None
+                # return patch
+                yield patch, None
 
 
 def extract_patches_random_from_chunks(

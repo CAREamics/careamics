@@ -8,7 +8,7 @@ from careamics.transforms import XYRandomRotate90
 def test_randomness(ordered_array):
     """Test randomness of the flipping using the `p` parameter."""
     # create array
-    array = ordered_array((2, 2))
+    array = ordered_array((1, 2, 2, 1))
 
     # create augmentation that never applies
     aug = XYRandomRotate90(p=0.)
@@ -34,8 +34,8 @@ def test_randomness(ordered_array):
     (2, 2, 2, 1),
     (2, 2, 2, 2),
 ])
-def test_flip_nd(ordered_array, shape):
-    """Test flipping for 2D and 3D arrays."""
+def test_xy_rotate(ordered_array, shape):
+    """Test rotation for 2D and 3D arrays."""
     np.random.seed(42)
 
     # create array
@@ -68,8 +68,8 @@ def test_flip_nd(ordered_array, shape):
     assert set(augs) == set((0, 1, 2))
 
 
-def test_flip_mask(ordered_array):
-    """Test flipping masks in 3D."""
+def test_mask_rotate(ordered_array):
+    """Test rotating masks in 3D."""
     np.random.seed(42)
 
     # create array

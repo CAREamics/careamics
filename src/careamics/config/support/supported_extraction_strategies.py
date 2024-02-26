@@ -21,3 +21,4 @@ class SupportedExtractionStrategy(str, BaseEnum):
     RANDOM_ZARR = "random_zarr"
     SEQUENTIAL = "sequential"
     TILED = "tiled"
+    NONE = "none"

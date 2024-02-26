@@ -10,28 +10,6 @@ from careamics.utils.logging import get_logger
 logger = get_logger(__name__)
 
 
-def validate_custom_type(data_type: str, read_source_func: Optional[Callable]) -> None:
-    """Check that the custom data type comes with a read_source_func, raises an error
-    otherwise.
-
-    Parameters
-    ----------
-    data_type : str
-        Data type.
-    read_source_func : Callable
-        Function to read the data.
-
-    Raises
-    ------
-    ValueError
-        If the `data_type` is custom and `read_source_func is None.
-    """
-    if data_type == SupportedData.CUSTOM and read_source_func is None:
-        raise ValueError(
-            f"Data type {data_type} is not supported without a read_source_func."
-        )
-
-
 
 def get_shape_order(shape_in: Tuple, axes_in: str, ref_axes: str = "STCZYX"):
     """Return the new shape and axes of x, ordered according to the reference axes.
@@ -136,6 +114,7 @@ def reshape_data(x: np.ndarray, axes: str):
     if "C" not in new_axes:
         # Add channel axis after S
         _x = np.expand_dims(_x, new_axes.index("S") + 1)
+        
         # get the location of the 1st spatial axis
         c_coord = len(new_axes.replace("Z", "").replace("YX", ""))
         new_axes = new_axes[:c_coord] + "C" + new_axes[c_coord:]
@@ -143,6 +122,7 @@ def reshape_data(x: np.ndarray, axes: str):
     return _x, new_axes
 
 
+# TOOD is this called anywhere?
 def validate_files(train_files: List[Path], target_files: List[Path]) -> None:
     """
     Validate that the train and target folders are consistent.
@@ -166,3 +146,23 @@ def validate_files(train_files: List[Path], target_files: List[Path]) -> None:
         )
     if {f.name for f in train_files} != {f.name for f in target_files}:
         raise ValueError("Some filenames in Train and target folders are not the same.")
+
+
+def validate_array_axes(
+        array: np.ndarray,
+        axes: str,
+) -> None:
+    """Validate an array dimensions against the expected axes.
+
+    Parameters
+    ----------
+    array : np.ndarray
+        Input array.
+    axes : str
+        Expected axes.
+    """
+    if len(array.shape) != len(axes):
+        raise ValueError(
+            f"Array shape {array.shape} is not consistent with the expected axes "
+            f"{axes}."
+        )

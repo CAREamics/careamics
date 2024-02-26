@@ -27,7 +27,9 @@ def mse_loss(samples: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
 
 
 def n2v_loss(
-    samples: torch.Tensor, labels: torch.Tensor, masks: torch.Tensor
+    manipulated_patches: torch.Tensor, 
+    original_patches: torch.Tensor, 
+    masks: torch.Tensor
 ) -> torch.Tensor:
     """
     N2V Loss function described in A Krull et al 2018.
@@ -46,7 +48,7 @@ def n2v_loss(
     torch.Tensor
         Loss value.
     """
-    errors = (labels - samples) ** 2
+    errors = (original_patches - manipulated_patches) ** 2
     # Average over pixels and batch
     loss = torch.sum(errors * masks) / torch.sum(masks)
     return loss

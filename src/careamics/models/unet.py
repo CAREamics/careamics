@@ -68,9 +68,6 @@ class UnetEncoder(nn.Module):
         """
         super().__init__()
 
-        # TODO: what's this commented line?
-        # pooling_op = "MaxBlurPool" if n2v2 else "MaxPool"
-
         self.pooling = (
             getattr(nn, f"MaxPool{conv_dim}d")(kernel_size=pool_kernel)
             if not n2v2

@@ -207,9 +207,9 @@ def uniform_manipulate(
     # Expand the dimensions of the arrays to return the channel dimension
     # TODO Should it be done here? done at all? 
     return (
-        np.expand_dims(transformed_patch, 0), 
+        transformed_patch, 
         # TODO I removed the original mask from here, it had a np.expand dims, is this still necessary?
-        np.expand_dims(mask, 0),
+        mask,
     )
 
 
