@@ -20,25 +20,27 @@ def _apply_struct_mask(patch: np.ndarray, coords: np.ndarray, mask_params: list[
     patch : np.ndarray
         Patch to be manipulated.
     coords : np.ndarray
-        Coordinates of the pixels to be manipulated.
+        Coordinates of the ROI(subpatch) centers.
     mask_params : list
         Axis and span across center for the structN2V mask.
     """
     struct_axis, struct_span = mask_params
+    # Create a mask array
     mask = np.expand_dims(np.ones(struct_span), axis=list(range(len(patch.shape) - 1)))
     ndim = mask.ndim
     center = np.array(mask.shape) // 2
-    ## leave the center value alone
+    # Mark the center
     mask[tuple(center.T)] = 0
+    # Move the struct axis to the first position for indexing
     mask = np.moveaxis(mask, 0, struct_axis)
-    ## displacements from center
+    # displacements from center
     dx = np.indices(mask.shape)[:, mask == 1] - center[:, None]
-    ## combine all coords (ndim, npts,) with all displacements (ncoords,ndim,)
+    # combine all coords (ndim, npts,) with all displacements (ncoords,ndim,)
     mix = dx.T[..., None] + coords.T[None]
     mix = mix.transpose([1, 0, 2]).reshape([ndim, -1]).T
-    ## stay within patch boundary
+    # stay within patch boundary
     mix = mix.clip(min=np.zeros(ndim), max=np.array(patch.shape) - 1).astype(np.uint8)
-    ## replace neighbouring pixels with random values from flat dist
+    # replace neighbouring pixels with random values from flat dist
     patch[tuple(mix.T)] = np.random.uniform(patch.min(), patch.max(), size=mix.shape[0])
     return patch
 
