@@ -17,12 +17,13 @@ from ...config.support.supported_extraction_strategies import (
 from .sequential_patching import extract_patches_sequential
 from .random_patching import extract_patches_random, extract_patches_random_from_chunks
 from .tiled_patching import extract_tiles
-from ...utils.validators import validate_array_against_axes
+from ..dataset_utils import reshape_array
 
 logger = get_logger(__name__)
 
-# TODO have a hard look at whether we can refactor all these functions
 
+
+# called by in memory dataset
 def prepare_patches_supervised(
     train_files: List[Path],
     target_files: List[Path],
@@ -51,12 +52,13 @@ def prepare_patches_supervised(
             stds += sample.std()
             num_samples += 1
 
-            # validate sample array against axes
-            validate_array_against_axes(sample, axes)
+            # reshape array
+            sample = reshape_array(sample, axes)
+            target = reshape_array(target, axes)
 
             # generate patches, return a generator
             patches, targets = extract_patches_sequential(
-                sample, axes, patch_size=patch_size, target=target
+                sample, patch_size=patch_size, target=target
             )
 
             # convert generator to list and add to all_patches
@@ -87,7 +89,7 @@ def prepare_patches_supervised(
         result_std,
     )
 
-
+# called by in memory dataset
 def prepare_patches_unsupervised(
     train_files: List[Path],
     axes: str,
@@ -110,12 +112,12 @@ def prepare_patches_unsupervised(
             means += sample.mean()
             stds += sample.std()
             num_samples += 1
-
-            # validate sample array against axes
-            validate_array_against_axes(sample, axes)
+            
+            # reshape array
+            sample = reshape_array(sample, axes)
 
             # generate patches, return a generator
-            patches, _ = extract_patches_sequential(sample, axes, patch_size=patch_size)
+            patches, _ = extract_patches_sequential(sample, patch_size=patch_size)
 
             # convert generator to list and add to all_patches
             all_patches.append(patches)
@@ -132,10 +134,11 @@ def prepare_patches_unsupervised(
     return np.concatenate(all_patches), _, result_mean, result_std
 
 
+# called on arrays by in memory dataset
 def prepare_patches_supervised_array(
     data: np.ndarray,
-    data_target: np.ndarray,
     axes: str,
+    data_target: np.ndarray,
     patch_size: Union[List[int], Tuple[int]],
 ) -> Tuple[np.ndarray, float, float]:
 
@@ -143,9 +146,12 @@ def prepare_patches_supervised_array(
     mean = data.mean()
     std = data.std()
 
+    # reshape array
+    sample = reshape_array(data, axes)
+
     # generate patches, return a generator
     patches, patch_targets = extract_patches_sequential(
-        data, axes, patch_size=patch_size, target=data_target
+        sample, patch_size=patch_size, target=data_target
     )
 
     logger.info(f"Extracted {patches.shape[0]} patches from input array.")
@@ -157,7 +163,7 @@ def prepare_patches_supervised_array(
         std,
     )
 
-
+# called by in memory dataset
 def prepare_patches_unsupervised_array(
     data: np.ndarray,
     axes: str,
@@ -165,6 +171,9 @@ def prepare_patches_unsupervised_array(
 ) -> Tuple[np.ndarray, float, float]:
     """
     Iterate over data source and create an array of patches.
+
+    This method expects an array of shape SC(Z)YX, where S and C can be singleton
+    dimensions.
 
     # TODO what dims does it return?
 
@@ -177,12 +186,16 @@ def prepare_patches_unsupervised_array(
     mean = data.mean()
     std = data.std()
 
+    # reshape array
+    sample = reshape_array(data, axes)
+
     # generate patches, return a generator
-    patches, _ = extract_patches_sequential(data, axes, patch_size=patch_size)
+    patches, _ = extract_patches_sequential(sample, patch_size=patch_size)
 
     return patches, _, mean, std
 
 
+# prediction, both in memory and iterable
 def generate_patches_predict(
     sample: np.ndarray,
     axes: str,
@@ -207,7 +220,7 @@ def generate_patches_predict(
 
     return patches_list
 
-
+# iterator over files
 def generate_patches_supervised(
     sample: Union[np.ndarray, zarr.Array],
     axes: str,
@@ -259,13 +272,13 @@ def generate_patches_supervised(
 
         elif patch_extraction_method == SupportedExtractionStrategy.SEQUENTIAL:
             patches, targets = extract_patches_sequential(
-                arr=sample, axes=axes, patch_size=patch_size, target=target
+                arr=sample, patch_size=patch_size, target=target
             )
 
         elif patch_extraction_method == SupportedExtractionStrategy.RANDOM:
             # Returns a generator of patches and targets(if present)
             patches = extract_patches_random(
-                arr=sample, axes=axes, patch_size=patch_size, target=target
+                arr=sample, patch_size=patch_size, target=target
             )
 
         elif patch_extraction_method == SupportedExtractionStrategy.RANDOM_ZARR:
@@ -282,8 +295,8 @@ def generate_patches_supervised(
         # no patching
         return (sample for _ in range(1)), target
 
-# TODO go over all the outpus of these functions, to make sure that they are the same
-# TODO split for clarity
+    
+# iterator over files
 def generate_patches_unsupervised(
     sample: Union[np.ndarray, zarr.Array],
     axes: str,
@@ -342,7 +355,6 @@ def generate_patches_unsupervised(
         # - target_patch: np.ndarray, dimension C(Z)YX, or None
         patches = extract_patches_random(
             sample, 
-            axes=axes,
             patch_size=patch_size
         )
 

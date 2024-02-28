@@ -48,6 +48,7 @@ class InMemoryDataset(torch.utils.data.Dataset):
         if data_target is not None:
             raise NotImplementedError("Targets are not yet supported.")
 
+
         self.data = data
         self.data_target = data_target
         self.axes = data_config.axes
@@ -102,15 +103,15 @@ class InMemoryDataset(torch.utils.data.Dataset):
             if supervised:
                 return prepare_patches_supervised_array(
                     self.data,
+                    self.axes, 
                     self.data_target,
-                    self.axes,
                     self.patch_size,
                 )
             # unsupervised: N2V, PN2V, etc.
             else:
                 return prepare_patches_unsupervised_array(
                     self.data,
-                    self.axes,
+                    self.axes, 
                     self.patch_size,
                 )
         # else it is a list of paths

@@ -9,8 +9,7 @@ from torch.utils.data import IterableDataset, get_worker_info
 from ..config.data_model import DataModel
 from ..config.support import SupportedExtractionStrategy
 from ..utils.logging import get_logger
-from ..utils.validators import validate_array_against_axes
-from .dataset_utils import read_tiff
+from .dataset_utils import read_tiff, reshape_array
 from .patching import (
     get_patch_transform, 
     generate_patches_supervised, 
@@ -130,10 +129,10 @@ class IterableDataset(IterableDataset):
                     # read data
                     sample = self.read_source_func(filename, self.axes)
 
-                    # validate sample array against axes
-                    validate_array_against_axes(sample, self.axes)
+                    # reshape data
+                    reshaped_sample = reshape_array(sample, self.axes)
 
-                    # read target if available
+                    # read target, if available
                     if self.target_files is not None:
                         if filename.name != self.target_files[i].name:
                             raise ValueError(
@@ -144,9 +143,13 @@ class IterableDataset(IterableDataset):
                         
                         # read target
                         target = self.read_source_func(self.target_files[i], self.axes)
-                        yield sample, target
+
+                        # reshape target
+                        reshaped_target = reshape_array(target, self.axes)
+
+                        yield reshaped_sample, reshaped_target
                     else:
-                        yield sample
+                        yield reshaped_sample
                 except Exception as e:
                     logger.error(f"Error reading file {filename}: {e}")                
 

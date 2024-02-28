@@ -13,6 +13,7 @@ from careamics.dataset.dataset_utils import (
     get_files_size,
     validate_source_target_files,
     get_read_func,
+    reshape_array
 )
 from careamics.dataset.in_memory_dataset import (
     InMemoryDataset,
@@ -22,7 +23,7 @@ from careamics.dataset.iterable_dataset import (
     IterableDataset,
     IterablePredictionDataset,
 )
-from careamics.utils import get_ram_size, validate_array_against_axes
+from careamics.utils import get_ram_size
 
 # TODO must be compatible with no validation being present
 class CAREamicsWood(L.LightningDataModule):
@@ -210,15 +211,26 @@ class CAREamicsWood(L.LightningDataModule):
 
                 # verify that they match the validation data
                 validate_source_target_files(self.val_files, self.val_target_files)
-        else:
-            # check array validity
-            validate_array_against_axes(self.train_data, self.data_config.axes)
+        # else:
+        #     # reshape array
+        #     self.train_data = reshape_array(self.train_data, self.data_config.axes)
 
-            if self.val_data is not None:
-                validate_array_against_axes(self.val_data, self.data_config.axes)
+        #     # validation
+        #     if self.val_data is not None:
+        #         self.val_data = reshape_array(self.val_data, self.data_config.axes)
 
+        #     # target arrays
+        #     if self.train_data_target is not None:
+        #         self.train_data_target = reshape_array(
+        #             self.train_data_target, self.data_config.axes
+        #         )
 
-    def setup(self, stage: Optional[str] = None) -> None:
+        #     if self.val_data_target is not None:
+        #         self.val_data_target = reshape_array(
+        #             self.val_data_target, self.data_config.axes
+        #         )
+
+    def setup(self, *args, **kwargs) -> None:
         """Hook called at the beginning of fit (train + validate), validate, test, or 
         predict."""
         # if numpy array
@@ -395,8 +407,8 @@ class CAREamicsClay(L.LightningDataModule):
                 self.pred_data, self.data_type, self.extension_filter
             )
         else:
-            # check array validity
-            validate_array_against_axes(self.pred_data, self.data_config.axes)
+            # reshape array
+            self.pred_data = reshape_array(self.pred_data, self.data_config.axes)
 
 
     def setup(self, stage: Optional[str] = None) -> None:

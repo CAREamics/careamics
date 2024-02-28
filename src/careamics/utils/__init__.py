@@ -5,7 +5,6 @@ __all__ = [
     "denormalize",
     "normalize",
     "RunningStats" "get_device",
-    "validate_array_against_axes",
     "check_axes_validity",
     "check_tiling_validity",
     "cwd",
@@ -24,7 +23,6 @@ from .ram import get_ram_size
 from .normalization import RunningStats, denormalize, normalize
 from .validators import (
     check_axes_validity,
-    validate_array_against_axes,
     check_tiling_validity,
 )
 from .method_dispatch import method_dispatch

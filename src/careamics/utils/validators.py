@@ -68,26 +68,6 @@ def check_axes_validity(axes: str) -> bool:
     return True
 
 
-def validate_array_against_axes(
-        array: np.ndarray,
-        axes: str,
-) -> None:
-    """Validate an array dimensions against the expected axes.
-
-    Parameters
-    ----------
-    array : np.ndarray
-        Input array.
-    axes : str
-        Expected axes.
-    """
-    if len(array.shape) != len(axes):
-        raise ValueError(
-            f"Array shape {array.shape} is not consistent with the expected axes "
-            f"{axes}."
-        )
-
-
 def check_tiling_validity(tile_shape: List[int], overlaps: List[int]) -> None:
     """
     Check that the tiling parameters are valid.

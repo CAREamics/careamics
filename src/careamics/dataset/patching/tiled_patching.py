@@ -3,8 +3,6 @@ from typing import Generator, List, Tuple, Union
 
 import numpy as np
 
-from ..dataset_utils import reshape_data
-
 
 def _compute_crop_and_stitch_coords_1d(
     axis_size: int, tile_size: int, overlap: int
@@ -105,8 +103,6 @@ def extract_tiles(
         Tile generator that yields the tile with corresponding coordinates to stitch
         back the tiles together.
     """
-    arr, _ = reshape_data(arr, axes)
-
     # Iterate over num samples (S)
     for sample_idx in range(arr.shape[0]):
         sample = arr[sample_idx]

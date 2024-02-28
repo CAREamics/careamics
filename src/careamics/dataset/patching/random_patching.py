@@ -4,14 +4,13 @@ from typing import Generator, List, Optional, Tuple, Union
 import numpy as np
 import zarr
 
-from ..dataset_utils import reshape_data
 from .validate_patch_dimension import validate_patch_dimensions
 
 
 
+# TODO this should not be responsible for reshaping, split into different functions
 def extract_patches_random(
     arr: np.ndarray,
-    axes: str,
     patch_size: Union[List[int], Tuple[int]],
     target: Optional[np.ndarray] = None,
 ) -> Generator[Tuple[np.ndarray, ...], None, None]:
@@ -40,8 +39,6 @@ def extract_patches_random(
         Generator of patches.
     """
     is_3d_patch = len(patch_size) == 3
-
-    arr, _ = reshape_data(arr, axes)
 
     # patches sanity check
     patch_size = validate_patch_dimensions(arr, patch_size, is_3d_patch)
