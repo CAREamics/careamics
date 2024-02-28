@@ -19,7 +19,7 @@ __all__ = [
 from .careamist import CAREamist
 from .config import Configuration, load_configuration, save_configuration
 from .lightning_module import CAREamicsModule
-from .lightning_prediction import TiledPredictionLoop
+from .lightning_prediction import CAREamicsFiring
 from .ligthning_datamodule import (
     CAREamicsPredictDataModule, 
     CAREamicsTrainDataModule,

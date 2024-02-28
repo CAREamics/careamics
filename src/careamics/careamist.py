@@ -1,14 +1,15 @@
 from pathlib import Path
-from typing import Dict, Optional, Union, Tuple
+from typing import Dict, Optional, Union
 
 import numpy as np
 from pytorch_lightning import Trainer
 
-from .lightning_prediction import TiledPredictionLoop
-from .lightning_module import CAREamicsKiln
-from .ligthning_datamodule import CAREamicsWood, CAREamicsClay
 from .config import Configuration, load_configuration
-from .utils import method_dispatch, check_path_exists
+from .lightning_module import CAREamicsKiln
+from .lightning_prediction import CAREamicsFiring
+from .ligthning_datamodule import CAREamicsClay, CAREamicsWood
+from .utils import check_path_exists, method_dispatch
+
 
 # TODO callbacks
 # TODO save as modelzoo, lightning and pytorch_dict
@@ -68,7 +69,7 @@ class CAREamist:
                     f"`config` must be a Configuration object, "
                     f"got {type(configuration)}"
                 )
-            
+
             self.cfg = configuration
 
         elif path_to_config is not None:
@@ -78,11 +79,9 @@ class CAREamist:
                     f"Configuration path {path_to_config} does not exist."
                 )
             elif not path_to_config.is_file():
-                raise ValueError(
-                    f"Configuration path {path_to_config} is not a file."
-                )
+                raise ValueError(f"Configuration path {path_to_config} is not a file.")
 
-            # load configuration            
+            # load configuration
             self.cfg = load_configuration(path_to_config)
 
         else:
@@ -98,14 +97,13 @@ class CAREamist:
         self.trainer = Trainer(max_epochs=self.cfg.training.num_epochs)
 
         # change the prediction loop
-        self.trainer.predict_loop = TiledPredictionLoop(self.trainer)
+        self.trainer.predict_loop = CAREamicsFiring(self.trainer)
 
     @method_dispatch
     def train(
         self,
         datamodule: CAREamicsWood,
     ) -> None:
-        
         if not isinstance(datamodule, CAREamicsWood):
             raise TypeError(
                 f"`datamodule` must be a CAREamicsWood instance, "
@@ -117,14 +115,14 @@ class CAREamist:
     @train.register
     def _train_on_path(
         self,
-        path_to_train_data: Path, # cannot use Union annotation for the dispatch
+        path_to_train_data: Path,  # cannot use Union annotation for the dispatch
         path_to_val_data: Optional[Path] = None,
         path_to_train_target: Optional[Path] = None,
         path_to_val_target: Optional[Path] = None,
     ) -> None:
         # sanity check on data (path exists)
         path_to_train_data = check_path_exists(path_to_train_data)
-        
+
         if path_to_val_data is not None:
             path_to_val_data = check_path_exists(path_to_val_data)
 
@@ -133,7 +131,7 @@ class CAREamist:
 
         if path_to_val_target is not None:
             path_to_val_target = check_path_exists(path_to_val_target)
-        
+
         # create datamodule
         datamodule = CAREamicsWood(
             data_config=self.cfg.data,
@@ -209,7 +207,6 @@ class CAREamist:
         )
 
         return self.predict(datamodule)
-    
 
     @predict.register
     def _predict_on_str(
@@ -219,7 +216,6 @@ class CAREamist:
         path_to_data = Path(path_to_data)
 
         return self._predict_on_path(path_to_data)
-
 
     @predict.register
     def _predict_on_array(
@@ -233,4 +229,3 @@ class CAREamist:
         )
 
         return self.predict(datamodule)
-    

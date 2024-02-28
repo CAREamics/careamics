@@ -2,20 +2,17 @@ import numpy as np
 import pytest
 
 from careamics.transforms.pixel_manipulation import (
-    uniform_manipulate,
-    _get_stratified_coords,
     _apply_struct_mask,
-    median_manipulate
+    _get_stratified_coords,
+    median_manipulate,
+    uniform_manipulate,
 )
-
 
 
 # TODO: what is the minimum coords given? should make sure that there is at lea
 @pytest.mark.parametrize(
     "mask_pixel_perc, shape, num_iterations",
-    [
-        (0.4, (32, 32), 1000), 
-        (0.4, (10, 10, 10), 1000)],
+    [(0.4, (32, 32), 1000), (0.4, (10, 10, 10), 1000)],
 )
 def test_get_stratified_coords(mask_pixel_perc, shape, num_iterations):
     """Test the get_stratified_coords function.
@@ -32,7 +29,7 @@ def test_get_stratified_coords(mask_pixel_perc, shape, num_iterations):
     for _ in range(num_iterations):
         # Get the coordinates of the pixels to be masked
         coords = _get_stratified_coords(mask_pixel_perc, shape)
-        
+
         # Check that there is at least one coordinate choosen
         assert len(coords) > 0
 
@@ -43,7 +40,7 @@ def test_get_stratified_coords(mask_pixel_perc, shape, num_iterations):
 
             # Check that the coordinates are positive values
             assert all(coord_pair) >= 0
-            
+
             # Check that the coordinates are within the shape of the array
             assert [c <= s for c, s in zip(coord_pair, shape)]
 
@@ -63,18 +60,11 @@ def test_apply_struct_mask(mask):
     patch = _apply_struct_mask(patch, coords, mask)
 
 
-@pytest.mark.parametrize("shape", 
-    [
-        (8, 8),
-        (3, 8, 8),
-        (8, 8, 8),
-        (3, 8, 8, 8)
-    ]
-)
+@pytest.mark.parametrize("shape", [(8, 8), (3, 8, 8), (8, 8, 8), (3, 8, 8, 8)])
 def test_uniform_manipulate(ordered_array, shape):
     """Test the uniform_manipulate function.
 
-    Ensures that the mask corresponds to the manipulated pixels, and that the 
+    Ensures that the mask corresponds to the manipulated pixels, and that the
     manipulated pixels have a value taken from a ROI surrounding them.
     """
     # create the array
@@ -82,9 +72,7 @@ def test_uniform_manipulate(ordered_array, shape):
 
     # manipulate the array
     transform_patch, mask = uniform_manipulate(
-        patch, 
-        roi_size=5, 
-        mask_pixel_percentage=10
+        patch, subpatch_size=5, mask_pixel_percentage=10
     )
 
     # find pixels that have different values between patch and transformed patch
@@ -104,11 +92,101 @@ def test_uniform_manipulate(ordered_array, shape):
         # get roi using slice in each dimension
         slices = tuple(
             [
-                slice(max(0, coords[i] - 2), min(shape[i], coords[i] + 3)) 
-                for i in range(-coords.shape[0]+1, 0) # range -4, -3, -2, -1
+                slice(max(0, coords[i] - 2), min(shape[i], coords[i] + 3))
+                for i in range(-coords.shape[0] + 1, 0)  # range -4, -3, -2, -1
             ]
         )
-        roi = patch[(...,) + slices] # TODO ellipsis needed bc singleton dim, might need to go away
+        roi = patch[
+            (...,) + slices
+        ]  # TODO ellipsis needed bc singleton dim, might need to go away
 
         # check that the pixel value comes from the actual roi
         assert transform_patch[tuple(coords)] in roi
+
+
+@pytest.mark.parametrize("shape", [(8, 8), (3, 8, 8), (8, 8, 8), (3, 8, 8, 8)])
+def test_median_manipulate(ordered_array, shape):
+    """Test the uniform_manipulate function.
+
+    Ensures that the mask corresponds to the manipulated pixels, and that the
+    manipulated pixels have a value taken from a ROI surrounding them.
+    """
+    # create the array
+    patch = ordered_array(shape)
+
+    # manipulate the array
+    transform_patch, mask = median_manipulate(
+        patch, subpatch_size=5, mask_pixel_percentage=10
+    )
+
+    # find pixels that have different values between patch and transformed patch
+    diff_coords = np.array(np.where(patch != transform_patch))
+
+    # find non-zero pixels in the mask
+    mask_coords = np.array(np.where(mask == 1))
+
+    # check that the transformed pixels correspond to the masked pixels
+    assert np.array_equal(diff_coords, mask_coords)
+
+    # for each pixel masked, check that the manipulated pixel value is within the roi
+    for i in range(mask_coords.shape[-1]):
+        # get coordinates
+        coords = mask_coords[..., i]
+
+        # get roi using slice in each dimension
+        slices = tuple(
+            [
+                slice(max(0, coords[i] - 2), min(shape[i], coords[i] + 3))
+                for i in range(-coords.shape[0] + 1, 0)  # range -4, -3, -2, -1
+            ]
+        )
+        roi = patch[
+            (...,) + slices
+        ]  # TODO ellipsis needed bc singleton dim, might need to go away
+
+        # check that the pixel value comes from the actual roi
+        assert transform_patch[tuple(coords)] == np.median(roi)
+
+
+@pytest.mark.parametrize("shape, struct_mask_params", [((10, 10), [1, 5])])
+def test_median_struct_manipulate(ordered_array, shape, struct_mask_params):
+    """Test the uniform_manipulate function.
+
+    Ensures that the mask corresponds to the manipulated pixels, and that the
+    manipulated pixels have a value taken from a ROI surrounding them.
+    """
+    # create the array
+    patch = ordered_array(shape)
+
+    # manipulate the array
+    transform_patch, mask = median_manipulate(
+        patch,
+        subpatch_size=5,
+        mask_pixel_percentage=10,
+        struct_mask_params=struct_mask_params,
+    )
+
+    # find pixels that have different values between patch and transformed patch
+    diff_coords = np.array(np.where(patch != transform_patch))
+
+    # find non-zero pixels in the mask
+    mask_coords = np.array(np.where(mask == 1))
+
+    # for each pixel masked, check that the manipulated pixel value is within the roi
+    for i in range(mask_coords.shape[-1]):
+        # get coordinates
+        coords = mask_coords[..., i]
+
+        # get roi using slice in each dimension
+        slices = tuple(
+            [
+                slice(max(0, coords[i] - 2), min(shape[i], coords[i] + 3))
+                for i in range(-coords.shape[0] + 1, 0)  # range -4, -3, -2, -1
+            ]
+        )
+        roi = patch[
+            (...,) + slices
+        ]  # TODO ellipsis needed bc singleton dim, might need to go away
+
+        # check that the pixel value comes from the actual roi
+        assert transform_patch[tuple(coords)] == np.median(roi)

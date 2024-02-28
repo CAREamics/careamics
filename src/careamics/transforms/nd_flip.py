@@ -6,15 +6,15 @@ from albumentations import DualTransform
 
 class NDFlip(DualTransform):
     """Flip ND arrays on a single axis.
-    
+
     This transform ignores singleton axes and randomly flips one of the other
     axes, to the exception of the last axis (channels).
     """
 
     def __init__(
             self, 
-            p: float = 0.5, 
-            is_3D: bool = False, 
+            p: float = 0.5,
+            is_3D: bool = False,
             flip_z: bool = True
         ):
         super().__init__(p=p)
@@ -48,7 +48,7 @@ class NDFlip(DualTransform):
                 "Incompatible patch shape and dimensionality. ZYXC patch shape "
                 "expected, but got YXC shape."
             )
-        
+
         return np.ascontiguousarray(np.flip(patch, axis=flip_axis))
 
     def apply_to_mask(
@@ -68,6 +68,6 @@ class NDFlip(DualTransform):
             )
 
         return np.ascontiguousarray(np.flip(mask, axis=flip_axis))
-   
+
     def get_transform_init_args_names(self) -> Tuple[str, ...]:
         return ("is_3D", "flip_z")

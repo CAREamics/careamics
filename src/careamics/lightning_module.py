@@ -11,109 +11,17 @@ from careamics.config.support import (
     SupportedOptimizer,
     SupportedScheduler,
 )
-from careamics.dataset.dataset_utils import (
-    data_type_validator,
-    list_files,
-    validate_files,
-)
-from careamics.dataset.in_memory_dataset import (
-    InMemoryDataset,
-    InMemoryPredictionDataset,
-)
-from careamics.dataset.iterable_dataset import (
-    IterableDataset,
-    IterablePredictionDataset,
-)
-from careamics.losses import create_loss_function
-from careamics.models.model_factory import model_registry
-from careamics.prediction import stitch_prediction
-from careamics.utils import denormalize, get_ram_size
-
-
-class CAREamicsFiring(L.loops._PredictionLoop):
-    """Predict loop for tiles-based prediction."""
-
-    # def _predict_step(self, batch, batch_idx, dataloader_idx, dataloader_iter):
-    #     self.model.predict_step(batch, batch_idx)
-
-    def _on_predict_epoch_end(self) -> Optional[_PREDICT_OUTPUT]:
-        """Calls ``on_predict_epoch_end`` hook.
-
-        Returns
-        -------
-            the results for all dataloaders
-
-        """
-        trainer = self.trainer
-        call._call_callback_hooks(trainer, "on_predict_epoch_end")
-        call._call_lightning_module_hook(trainer, "on_predict_epoch_end")
-
-        if self.return_predictions:
-            return self.predicted_array
-        return None
-
-    @_no_grad_context
-    def run(self) -> Optional[_PREDICT_OUTPUT]:
-        self.setup_data()
-        if self.skip:
-            return None
-        self.reset()
-        self.on_run_start()
-        data_fetcher = self._data_fetcher
-        assert data_fetcher is not None
-
-        self.predicted_array = []
-        self.tiles = []
-        self.stitching_data = []
-
-        while True:
-            try:
-                if isinstance(data_fetcher, _DataLoaderIterDataFetcher):
-                    dataloader_iter = next(data_fetcher)
-                    # hook's batch_idx and dataloader_idx arguments correctness cannot be guaranteed in this setting
-                    batch = data_fetcher._batch
-                    batch_idx = data_fetcher._batch_idx
-                    dataloader_idx = data_fetcher._dataloader_idx
-                else:
-                    dataloader_iter = None
-                    batch, batch_idx, dataloader_idx = next(data_fetcher)
-                self.batch_progress.is_last_batch = data_fetcher.done
-                # run step hooks
-                self._predict_step(batch, batch_idx, dataloader_idx, dataloader_iter)
-
-                # Stitching tiles together
-                last_tile, *data = self.predictions[batch_idx][1]
-                self.tiles.append(self.predictions[batch_idx][0])
-                self.stitching_data.append(data)
-                if last_tile:
-                    predicted_sample = stitch_prediction(
-                        self.tiles, self.stitching_data
-                    )
-                    denormalized_sample = denormalize(
-                        predicted_sample,
-                        self._data_source.instance.predict_dataset.mean,
-                        self._data_source.instance.predict_dataset.std,
-                    )
-                    self.predicted_array.append(denormalized_sample)
-                    self.tiles.clear()
-                    self.stitching_data.clear()
-            except StopIteration:
-                break
-            finally:
-                self._restarting = False
-        return self.on_run_end()
-
 from careamics.losses import loss_factory
 from careamics.models.model_factory import model_factory
-from careamics.utils.torch_utils import get_scheduler, get_optimizer
+from careamics.utils.torch_utils import get_optimizer, get_scheduler
 
 
 class CAREamicsKiln(L.LightningModule):
     """CAREamics internal Lightning module class.
-    
-    This class is configured using an AlgorithmModel instance, parameterizing the deep
-    learning model, and defining training and validation steps."""
 
+    This class is configured using an AlgorithmModel instance, parameterizing the deep
+    learning model, and defining training and validation steps.
+    """
 
     def __init__(self, algorithm_config: AlgorithmModel) -> None:
         super().__init__()
@@ -187,13 +95,13 @@ class CAREamicsModule(CAREamicsKiln):
     optimizer : Union[SupportedOptimizer, str], optional
         Optimizer to use for training, by default "Adam" (see SupportedOptimizer).
     optimizer_parameters : dict, optional
-        Optimizer parameters to use for training, as defined in `torch.optim`, by 
+        Optimizer parameters to use for training, as defined in `torch.optim`, by
         default {}.
     lr_scheduler : Union[SupportedScheduler, str], optional
-        Learning rate scheduler to use for training, by default "ReduceLROnPlateau" 
+        Learning rate scheduler to use for training, by default "ReduceLROnPlateau"
         (see SupportedScheduler).
     lr_scheduler_parameters : dict, optional
-        Learning rate scheduler parameters to use for training, as defined in 
+        Learning rate scheduler parameters to use for training, as defined in
         `torch.optim`, by default {}.
     """
 

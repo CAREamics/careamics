@@ -2,6 +2,7 @@ import inspect
 from functools import singledispatch, update_wrapper
 from typing import Callable
 
+
 def method_dispatch(method: Callable) -> Callable:
     """Single dispatch decorator for instance methods.
 
@@ -24,7 +25,7 @@ def method_dispatch(method: Callable) -> Callable:
     """
     # create single dispatch from the function
     dispatcher = singledispatch(method)
-    
+
     # define a wrapper to dispatch the function based on the second argument
     def wrapper(*args, **kw):
 
@@ -42,14 +43,14 @@ def method_dispatch(method: Callable) -> Callable:
                 raise ValueError(f"Missing argument {parameter} to {method}.")
 
             return dispatcher.dispatch(kw[parameter].__class__)(*args, **kw)
-        
+
         # else dispatch using the second argument
         return dispatcher.dispatch(args[1].__class__)(*args, **kw)
-    
+
     # copy the original method's registered methods to the wrapper
     wrapper.register = dispatcher.register
 
     # update wrapper to look like the original method
     update_wrapper(wrapper, method)
-    
+
     return wrapper
