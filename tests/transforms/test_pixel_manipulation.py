@@ -52,14 +52,6 @@ def test_get_stratified_coords(mask_pixel_perc, shape, num_iterations):
     assert np.sum(array == 0) < np.sum(shape)
 
 
-# TODO what is this testing?
-@pytest.mark.parametrize("mask", [[[0, 1, 1, 1, 1, 1, 0]]])
-def test_apply_struct_mask(mask):
-    patch = np.zeros((64, 64))
-    coords = _get_stratified_coords(0.2, patch.shape)
-    patch = _apply_struct_mask(patch, coords, mask)
-
-
 @pytest.mark.parametrize("shape", [(8, 8), (3, 8, 8), (8, 8, 8), (3, 8, 8, 8)])
 def test_uniform_manipulate(ordered_array, shape):
     """Test the uniform_manipulate function.
@@ -148,45 +140,63 @@ def test_median_manipulate(ordered_array, shape):
         assert transform_patch[tuple(coords)] == np.median(roi)
 
 
-@pytest.mark.parametrize("shape, struct_mask_params", [((10, 10), [1, 5])])
-def test_median_struct_manipulate(ordered_array, shape, struct_mask_params):
+@pytest.mark.parametrize(
+    "coords, struct_mask_params",
+    [((2, 2), [1, 5]), ((3, 4), [0, 5]), ((9, 0), [0, 5]), (((1, 2), (3, 4)), [1, 5])],
+)
+def test_apply_struct_mask(coords, struct_mask_params):
     """Test the uniform_manipulate function.
 
     Ensures that the mask corresponds to the manipulated pixels, and that the
     manipulated pixels have a value taken from a ROI surrounding them.
     """
-    # create the array
-    patch = ordered_array(shape)
-
+    # create the array of random integers. This is to ensurewe can compare exact values
+    patch = np.arange(
+        100,
+    ).reshape((10, 10))
+    # make a copy of the original patch for comparison
+    original_patch = patch.copy()
+    coords = np.array(coords)
+    # expand the coords if only one roi is given
+    if coords.ndim == 1:
+        coords = coords[None, :]
+    struct_axis, struct_span = struct_mask_params
     # manipulate the array
-    transform_patch, mask = median_manipulate(
+    transform_patch = _apply_struct_mask(
         patch,
-        subpatch_size=5,
-        mask_pixel_percentage=10,
-        struct_mask_params=struct_mask_params,
+        coords=coords,
+        mask_params=struct_mask_params,
     )
-
-    # find pixels that have different values between patch and transformed patch
-    diff_coords = np.array(np.where(patch != transform_patch))
-
-    # find non-zero pixels in the mask
-    mask_coords = np.array(np.where(mask == 1))
-
-    # for each pixel masked, check that the manipulated pixel value is within the roi
-    for i in range(mask_coords.shape[-1]):
-        # get coordinates
-        coords = mask_coords[..., i]
-
-        # get roi using slice in each dimension
-        slices = tuple(
-            [
-                slice(max(0, coords[i] - 2), min(shape[i], coords[i] + 3))
-                for i in range(-coords.shape[0] + 1, 0)  # range -4, -3, -2, -1
-            ]
+    changed_values = patch[np.where(original_patch != transform_patch)]
+    # check that the transformed pixels correspond to the masked pixels
+    transformed = []
+    if struct_axis == 0:
+        for i in range(coords.shape[0]):
+            column_coords_to_mask = [
+            c
+            for c in range(
+                max(0, coords[i, 1] - struct_span // 2),
+                min(transform_patch.shape[1], coords[i, 1] + struct_span // 2) + 1,
+            )
+            if c != coords[i, 1]
+        ]
+            transformed.append(transform_patch[coords[i, 0]][column_coords_to_mask])
+        assert np.array_equal(
+            np.sort(changed_values), np.sort(np.concatenate(transformed, axis=0))
         )
-        roi = patch[
-            (...,) + slices
-        ]  # TODO ellipsis needed bc singleton dim, might need to go away
 
-        # check that the pixel value comes from the actual roi
-        assert transform_patch[tuple(coords)] == np.median(roi)
+    else:
+        for i in range(coords.shape[0]):
+            row_coords_to_mask = [
+            c
+            for c in range(
+                max(0, coords[i, 0] - struct_span // 2),
+                min(transform_patch.shape[1], coords[i, 0] + struct_span // 2) + 1,
+            )
+            if c != coords[i, 0]
+        ]
+            transformed.append(transform_patch[:, coords[i, 1]][row_coords_to_mask])
+
+        assert np.array_equal(
+            np.sort(changed_values), np.sort(np.concatenate(transformed, axis=0))
+        )

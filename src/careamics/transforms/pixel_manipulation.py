@@ -27,19 +27,21 @@ def _apply_struct_mask(patch: np.ndarray, coords: np.ndarray, mask_params: list[
     struct_axis, struct_span = mask_params
     # Create a mask array
     mask = np.expand_dims(np.ones(struct_span), axis=list(range(len(patch.shape) - 1)))
-    ndim = mask.ndim
+    # Move the struct axis to the first position for indexing
+    mask = np.moveaxis(mask, 0, struct_axis)
     center = np.array(mask.shape) // 2
     # Mark the center
     mask[tuple(center.T)] = 0
-    # Move the struct axis to the first position for indexing
-    mask = np.moveaxis(mask, 0, struct_axis)
     # displacements from center
     dx = np.indices(mask.shape)[:, mask == 1] - center[:, None]
     # combine all coords (ndim, npts,) with all displacements (ncoords,ndim,)
     mix = dx.T[..., None] + coords.T[None]
-    mix = mix.transpose([1, 0, 2]).reshape([ndim, -1]).T
+    mix = mix.transpose([1, 0, 2]).reshape([mask.ndim, -1]).T
     # stay within patch boundary
-    mix = mix.clip(min=np.zeros(ndim), max=np.array(patch.shape) - 1).astype(np.uint8)
+    # TODO this will fail if center is on the edge!
+    mix = mix.clip(min=np.zeros(mask.ndim), max=np.array(patch.shape) - 1).astype(
+        np.uint8
+    )
     # replace neighbouring pixels with random values from flat dist
     patch[tuple(mix.T)] = np.random.uniform(patch.min(), patch.max(), size=mix.shape[0])
     return patch
