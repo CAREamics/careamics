@@ -13,6 +13,7 @@ from careamics.dataset.dataset_utils import (
     get_files_size,
     validate_source_target_files,
     get_read_func,
+    reshape_array
 )
 from careamics.dataset.in_memory_dataset import (
     InMemoryDataset,
@@ -22,7 +23,7 @@ from careamics.dataset.iterable_dataset import (
     IterableDataset,
     IterablePredictionDataset,
 )
-from careamics.utils import get_ram_size, check_external_array_validity
+from careamics.utils import get_ram_size
 
 # TODO must be compatible with no validation being present
 class CAREamicsWood(L.LightningDataModule):
@@ -37,6 +38,7 @@ class CAREamicsWood(L.LightningDataModule):
         extension_filter: str = "",
         val_percentage: float = 0.1,
         val_minimum_split: int = 5,
+        use_in_memory: bool = True,
     ) -> None:
         """LightningDataModule for CAREamics training, including training and validation
         datasets.
@@ -44,7 +46,9 @@ class CAREamicsWood(L.LightningDataModule):
         The data module can be used with Path, str or numpy arrays. In the case of 
         numpy arrays, it loads and computes all the patches in memory. For Path and str
         inputs, it calculates the total file size and estimate whether it can fit in
-        memory. If it does not, it iterates through the files.
+        memory. If it does not, it iterates through the files. This behaviour can be
+        deactivated by setting `use_in_memory` to False, in which case it will 
+        always use the iterating dataset to train on a Path or str.
 
         The data can be either a folder containing images or a single file.
 
@@ -153,6 +157,7 @@ class CAREamicsWood(L.LightningDataModule):
         self.batch_size = data_config.batch_size
         self.num_workers = data_config.num_workers
         self.pin_memory = data_config.pin_memory
+        self.use_in_memory = use_in_memory
 
         # data
         self.train_data = train_data
@@ -206,15 +211,26 @@ class CAREamicsWood(L.LightningDataModule):
 
                 # verify that they match the validation data
                 validate_source_target_files(self.val_files, self.val_target_files)
-        else:
-            # check array validity
-            check_external_array_validity(self.train_data, self.data_config.axes)
+        # else:
+        #     # reshape array
+        #     self.train_data = reshape_array(self.train_data, self.data_config.axes)
 
-            if self.val_data is not None:
-                check_external_array_validity(self.val_data, self.data_config.axes)
+        #     # validation
+        #     if self.val_data is not None:
+        #         self.val_data = reshape_array(self.val_data, self.data_config.axes)
 
+        #     # target arrays
+        #     if self.train_data_target is not None:
+        #         self.train_data_target = reshape_array(
+        #             self.train_data_target, self.data_config.axes
+        #         )
 
-    def setup(self, stage: Optional[str] = None) -> None:
+        #     if self.val_data_target is not None:
+        #         self.val_data_target = reshape_array(
+        #             self.val_data_target, self.data_config.axes
+        #         )
+
+    def setup(self, *args, **kwargs) -> None:
         """Hook called at the beginning of fit (train + validate), validate, test, or 
         predict."""
         # if numpy array
@@ -244,9 +260,39 @@ class CAREamicsWood(L.LightningDataModule):
         # else we read files
         else:
 
-            # heuristics, if the file size is bigger than 80% of the RAM, we iterate
-            # through the files
-            if self.train_files_size > get_ram_size() * 0.8:
+            # Heuristics, if the file size is smaller than 80% of the RAM,
+            # we run the training in memory, otherwise we switch to iterable dataset
+            # The switch is deactivated if use_in_memory is False
+            if self.use_in_memory and self.train_files_size < get_ram_size() * 0.8:
+                # train dataset
+                self.train_dataset = InMemoryDataset(
+                    data_config=self.data_config,
+                    data=self.train_files,
+                    data_target=self.train_target_files
+                    if self.train_data_target
+                    else None,
+                    read_source_func=self.read_source_func,
+                )
+
+                # validation dataset
+                if self.val_files is not None:
+                    self.val_dataset = InMemoryDataset(
+                        data_config=self.data_config,
+                        data=self.val_files,
+                        data_target=self.val_target_files
+                        if self.val_data_target
+                        else None,
+                        read_source_func=self.read_source_func,
+                    )
+                else:
+                    # split dataset
+                    self.val_dataset = self.train_dataset.split_dataset(
+                        percentage=self.val_percentage,
+                        minimum_patches=self.val_minimum_split
+                    )
+
+            # else if the data is too large, load file by file during training
+            else:
                 # create training dataset
                 self.train_dataset = IterableDataset(
                     data_config=self.data_config,
@@ -281,27 +327,6 @@ class CAREamicsWood(L.LightningDataModule):
                         minimum_files=self.val_minimum_split
                     )
 
-            # else, load everything in memory
-            else:
-                # train dataset
-                self.train_dataset = InMemoryDataset(
-                    data_config=self.data_config,
-                    data=self.train_files,
-                    data_target=self.train_target_files
-                    if self.train_data_target
-                    else None,
-                    read_source_func=self.read_source_func,
-                )
-
-                # validation dataset
-                self.val_dataset = InMemoryDataset(
-                    data_config=self.data_config,
-                    data=self.val_files,
-                    data_target=self.val_target_files
-                    if self.val_data_target
-                    else None,
-                    read_source_func=self.read_source_func,
-                )
 
     def train_dataloader(self) -> Any:
         return DataLoader(
@@ -382,8 +407,8 @@ class CAREamicsClay(L.LightningDataModule):
                 self.pred_data, self.data_type, self.extension_filter
             )
         else:
-            # check array validity
-            check_external_array_validity(self.pred_data, self.data_config.axes)
+            # reshape array
+            self.pred_data = reshape_array(self.pred_data, self.data_config.axes)
 
 
     def setup(self, stage: Optional[str] = None) -> None:

@@ -1,4 +1,4 @@
-from typing import Optional, Union
+from typing import Optional, Union, Tuple
 
 import numpy as np
 from albumentations import ImageOnlyTransform
@@ -13,11 +13,13 @@ class ManipulateN2V(ImageOnlyTransform):
     """
     Default augmentation for the N2V model.
 
-    # TODO add more details
+    This transform expects S(Z)YXC dimensions.
+
+    # TODO add more details, in paritcular what happens to channels and Z in the masking
 
     Parameters
     ----------
-    mask_pixel_percentage : floar
+    mask_pixel_percentage : float
         Approximate percentage of pixels to be masked.
     roi_size : int
         Size of the ROI the new pixel value is sampled from, by default 11.
@@ -43,7 +45,7 @@ class ManipulateN2V(ImageOnlyTransform):
         Parameters
         ----------
         image : np.ndarray
-            Image or image patch, 2D or 3D, shape (c, y, x) or (c, z, y, x).
+            Image or image patch, 2D or 3D, shape (y, x, c) or (z, y, x, c).
         """
         if self.strategy == SupportedPixelManipulation.UNIFORM:
             masked, mask = uniform_manipulate(
@@ -53,3 +55,6 @@ class ManipulateN2V(ImageOnlyTransform):
             raise ValueError(f"Strategy {self.strategy} not supported.")
 
         return masked, patch, mask
+
+    def get_transform_init_args_names(self) -> Tuple[str, ...]:
+        return ("roi_size", "masked_pixel_percentage", "strategy", "struct_mask")

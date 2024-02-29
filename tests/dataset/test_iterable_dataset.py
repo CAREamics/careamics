@@ -9,13 +9,25 @@ from careamics.dataset import IterableDataset
 from careamics.dataset.dataset_utils import read_tiff
 
 
-def test_number_of_files(tmp_path, ordered_array):
+@pytest.mark.parametrize("shape",
+    [
+        # 2D
+        (20, 20),
+
+        # 3D
+        (20, 20, 20),
+    ]
+)
+def test_number_of_files(tmp_path, ordered_array, shape):
     """Test number of files in IterableDataset."""
     # create array
     array_size = 20
     patch_size = 4
     n_files = 3
-    array = ordered_array((array_size, array_size))
+    factor = len(shape)
+    axes = "YX" if factor == 2 else "ZYX"
+    patch_sizes = [patch_size] * factor
+    array = ordered_array(shape)
     
     # save three files
     files = []
@@ -27,8 +39,8 @@ def test_number_of_files(tmp_path, ordered_array):
     # create config
     config_dict =  {
         "data_type": SupportedData.TIFF.value,
-        "patch_size": [patch_size, patch_size],
-        "axes": "YX",
+        "patch_size": patch_sizes,
+        "axes": axes,
     }
     config = DataModel(**config_dict)
 
@@ -44,7 +56,7 @@ def test_number_of_files(tmp_path, ordered_array):
 
     # iterate over dataset
     patches = [p for p in dataset]
-    assert len(patches) == n_files * array_size / patch_size
+    assert len(patches) == n_files * (array_size / patch_size)**factor
 
 
 def test_read_function(tmp_path, ordered_array):
@@ -53,8 +65,13 @@ def test_read_function(tmp_path, ordered_array):
     def read_npy(file_path, *args, **kwargs):
         return np.load(file_path)
     
+    array_size = 20
+    patch_size = 4
+    n_files = 3
+    patch_sizes = [patch_size] * 2
+
     # create array
-    array = ordered_array((5, 20, 20))
+    array = ordered_array((n_files, array_size, array_size))
     
     # save each plane in a single .npy file
     files = []
@@ -66,7 +83,7 @@ def test_read_function(tmp_path, ordered_array):
     # create config
     config_dict =  {
         "data_type": SupportedData.CUSTOM.value,
-        "patch_size": [4, 4],
+        "patch_size": patch_sizes,
         "axes": "YX",
     }
     config = DataModel(**config_dict)
@@ -79,7 +96,9 @@ def test_read_function(tmp_path, ordered_array):
     )
     assert dataset.data_files == files
 
+    # iterate over dataset
     patches = [p for p in dataset]
+    assert len(patches) == n_files * (array_size / patch_size)**2
 
 
 

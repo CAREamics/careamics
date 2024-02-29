@@ -7,8 +7,8 @@ from careamics.config.transform_model import TransformModel
 @pytest.mark.parametrize(
     "name, parameters",
     [
-        (SupportedTransform.FLIP, {}),
-        (SupportedTransform.RANDOM_ROTATE90, {}),
+        (SupportedTransform.NDFLIP, {}),
+        (SupportedTransform.XY_RANDOM_ROTATE90, {}),
         (SupportedTransform.NORMALIZE, {"mean": 1.0, "std": 1.0}),
         (SupportedTransform.MANIPULATE_N2V, {}),
     ],
@@ -29,7 +29,7 @@ def test_filtering_unknown_parameters():
     parameters = {"some_param": 42, "p": 1.0}
 
     # create transform model
-    transform = TransformModel(name=SupportedTransform.FLIP, parameters=parameters)
+    transform = TransformModel(name=SupportedTransform.NDFLIP, parameters=parameters)
 
     # check parameters
     assert transform.parameters == {"p": 1.0}

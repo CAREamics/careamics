@@ -10,28 +10,6 @@ from careamics.utils.logging import get_logger
 logger = get_logger(__name__)
 
 
-def validate_custom_type(data_type: str, read_source_func: Optional[Callable]) -> None:
-    """Check that the custom data type comes with a read_source_func, raises an error
-    otherwise.
-
-    Parameters
-    ----------
-    data_type : str
-        Data type.
-    read_source_func : Callable
-        Function to read the data.
-
-    Raises
-    ------
-    ValueError
-        If the `data_type` is custom and `read_source_func is None.
-    """
-    if data_type == SupportedData.CUSTOM and read_source_func is None:
-        raise ValueError(
-            f"Data type {data_type} is not supported without a read_source_func."
-        )
-
-
 
 def get_shape_order(shape_in: Tuple, axes_in: str, ref_axes: str = "STCZYX"):
     """Return the new shape and axes of x, ordered according to the reference axes.
@@ -84,7 +62,7 @@ def list_diff(list1: List, list2: List) -> List:
     return list(set(list1) - set(list2))
 
 
-def reshape_data(x: np.ndarray, axes: str):
+def reshape_array(x: np.ndarray, axes: str) -> np.ndarray:
     """Reshape the data to 'SZYXC' or 'SYXC', merging 'S' and 'T' channels if necessary.
 
     Parameters
@@ -98,15 +76,15 @@ def reshape_data(x: np.ndarray, axes: str):
     -------
     np.ndarray
         Reshaped array.
-    str
-        New axes string.
     """
     _x = x
     _axes = axes
 
     # sanity checks
     if len(_axes) != len(_x.shape):
-        raise ValueError(f"Incompatible data ({_x.shape}) and axes ({_axes}).")
+        raise ValueError(
+            f"Incompatible data shape ({_x.shape}) and axes ({_axes})."
+        )
 
     # get new x shape
     new_x_shape, new_axes, indices = get_shape_order(_x.shape, _axes)
@@ -136,33 +114,5 @@ def reshape_data(x: np.ndarray, axes: str):
     if "C" not in new_axes:
         # Add channel axis after S
         _x = np.expand_dims(_x, new_axes.index("S") + 1)
-        # get the location of the 1st spatial axis
-        c_coord = len(new_axes.replace("Z", "").replace("YX", ""))
-        new_axes = new_axes[:c_coord] + "C" + new_axes[c_coord:]
 
-    return _x, new_axes
-
-
-def validate_files(train_files: List[Path], target_files: List[Path]) -> None:
-    """
-    Validate that the train and target folders are consistent.
-
-    Parameters
-    ----------
-    train_files : List[Path]
-        List of paths to train files.
-    target_files : List[Path]
-        List of paths to target files.
-
-    Raises
-    ------
-    ValueError
-        If the number of files in train and target folders is not the same.
-    """
-    if len(train_files) != len(target_files):
-        raise ValueError(
-            f"Number of train files ({len(train_files)}) is not equal to the number of"
-            f"target files ({len(target_files)})."
-        )
-    if {f.name for f in train_files} != {f.name for f in target_files}:
-        raise ValueError("Some filenames in Train and target folders are not the same.")
+    return _x

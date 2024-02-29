@@ -119,6 +119,7 @@ class CAREamist:
         path_to_val_data: Optional[Path] = None,
         path_to_train_target: Optional[Path] = None,
         path_to_val_target: Optional[Path] = None,
+        use_in_memory: bool = True,
     ) -> None:
         # sanity check on data (path exists)
         path_to_train_data = check_path_exists(path_to_train_data)
@@ -127,6 +128,13 @@ class CAREamist:
             path_to_val_data = check_path_exists(path_to_val_data)
 
         if path_to_train_target is not None:
+            if self.cfg.algorithm.algorithm in \
+                SupportedAlgorithm.get_unsupervised_algorithms():
+                raise ValueError(
+                    f"Training target is not needed for unsupervised algorithms "
+                    f"({self.cfg.algorithm.algorithm})."
+                )
+
             path_to_train_target = check_path_exists(path_to_train_target)
 
         if path_to_val_target is not None:
@@ -139,6 +147,7 @@ class CAREamist:
             val_data=path_to_val_data,
             train_data_target=path_to_train_target,
             val_data_target=path_to_val_target,
+            use_in_memory=use_in_memory,
         )
 
         # train
@@ -151,12 +160,14 @@ class CAREamist:
         path_to_val_data: Optional[str] = None,
         path_to_train_target: Optional[str] = None,
         path_to_val_target: Optional[str] = None,
+        use_in_memory: bool = True,
     ) -> None:
         self._train_on_path(
             Path(path_to_train_data),
             Path(path_to_val_data) if path_to_val_data is not None else None,
             Path(path_to_train_target) if path_to_train_target is not None else None,
             Path(path_to_val_target) if path_to_val_target is not None else None,
+            use_in_memory=use_in_memory,
         )
 
     @train.register
@@ -167,6 +178,15 @@ class CAREamist:
         train_target: Optional[np.ndarray] = None,
         val_target: Optional[np.ndarray] = None,
     ) -> None:
+        
+        if train_target is not None:
+            if self.cfg.algorithm.algorithm in \
+                SupportedAlgorithm.get_unsupervised_algorithms():
+                raise ValueError(
+                    f"Training target is not needed for unsupervised algorithms "
+                    f"({self.cfg.algorithm.algorithm})."
+                )
+
         # create datamodule
         datamodule = CAREamicsWood(
             data_config=self.cfg.data,
@@ -229,3 +249,4 @@ class CAREamist:
         )
 
         return self.predict(datamodule)
+    

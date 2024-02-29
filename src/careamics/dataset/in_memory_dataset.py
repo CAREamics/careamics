@@ -48,6 +48,7 @@ class InMemoryDataset(torch.utils.data.Dataset):
         if data_target is not None:
             raise NotImplementedError("Targets are not yet supported.")
 
+
         self.data = data
         self.data_target = data_target
         self.axes = data_config.axes
@@ -102,15 +103,15 @@ class InMemoryDataset(torch.utils.data.Dataset):
             if supervised:
                 return prepare_patches_supervised_array(
                     self.data,
+                    self.axes, 
                     self.data_target,
-                    self.axes,
                     self.patch_size,
                 )
             # unsupervised: N2V, PN2V, etc.
             else:
                 return prepare_patches_unsupervised_array(
                     self.data,
-                    self.axes,
+                    self.axes, 
                     self.patch_size,
                 )
         # else it is a list of paths
@@ -165,27 +166,40 @@ class InMemoryDataset(torch.utils.data.Dataset):
         """
         patch = self.patches[index]
 
-        if self.mean is not None and self.std is not None:
-            if self.data_target is not None:
-                # Splitting targets into a list. 1st dim is the number of targets
-                target = self.patch_targets[index, ...]
+        # if there is a target
+        if self.data_target is not None:
+            # get target
+            target = self.patch_targets[index]
 
-                # Move channels to the last dimension for the transform
-                transformed = self.patch_transform(
-                    image=np.moveaxis(patch, 0, -1), target=np.moveaxis(target, 0, -1)
-                )
-                patch, target = np.moveaxis(transformed["image"], -1, 0), np.moveaxis(
-                    transformed["target"], -1, 0
-                )  # TODO check if this is correct!
+            # Albumentations requires Channel last
+            c_patch = np.moveaxis(patch, 0, -1)
+            c_target = np.moveaxis(target, 0, -1)
 
-                return patch, target
-            else:
-                patch = self.patch_transform(image=np.moveaxis(patch, 0, -1))["image"]
-                return patch
-        else:
-            raise ValueError(
-                "Dataset mean and std must cannot be None."
+            # Apply transforms
+            transformed = self.patch_transform(
+                image=c_patch, target=c_target
             )
+
+            # move axes back
+            patch = np.moveaxis(transformed["image"], -1, 0)
+            target = np.moveaxis(transformed["target"], -1, 0)  
+
+            return patch, target
+        else:
+            # Albumentations requires Channel last
+            patch = np.moveaxis(patch, 0, -1)
+
+            # Apply transforms
+            transformed_patch = self.patch_transform(image=patch)["image"]
+            manip_patch, patch, mask = transformed_patch
+
+            # move C axes back
+            manip_patch = np.moveaxis(manip_patch, -1, 0)
+            patch = np.moveaxis(patch, -1, 0)
+            mask = np.moveaxis(mask, -1, 0)
+
+            return (manip_patch, patch, mask)
+        
 
     def get_number_of_patches(self) -> int:
         """

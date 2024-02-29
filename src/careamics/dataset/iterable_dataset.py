@@ -9,7 +9,7 @@ from torch.utils.data import IterableDataset, get_worker_info
 from ..config.data_model import DataModel
 from ..config.support import SupportedExtractionStrategy
 from ..utils.logging import get_logger
-from .dataset_utils import read_tiff
+from .dataset_utils import read_tiff, reshape_array
 from .patching import (
     get_patch_transform, 
     generate_patches_supervised, 
@@ -59,7 +59,6 @@ class IterableDataset(IterableDataset):
         self.target_files = target_files
         self.axes = data_config.axes
         self.patch_size = data_config.patch_size
-        self.patch_extraction_method = SupportedExtractionStrategy.RANDOM
         self.read_source_func = read_source_func
 
         # compute mean and std over the dataset
@@ -130,9 +129,10 @@ class IterableDataset(IterableDataset):
                     # read data
                     sample = self.read_source_func(filename, self.axes)
 
-                    # TODO validation of the dimensions here
+                    # reshape data
+                    reshaped_sample = reshape_array(sample, self.axes)
 
-                    # read target if available
+                    # read target, if available
                     if self.target_files is not None:
                         if filename.name != self.target_files[i].name:
                             raise ValueError(
@@ -143,9 +143,13 @@ class IterableDataset(IterableDataset):
                         
                         # read target
                         target = self.read_source_func(self.target_files[i], self.axes)
-                        yield sample, target
+
+                        # reshape target
+                        reshaped_target = reshape_array(target, self.axes)
+
+                        yield reshaped_sample, reshaped_target
                     else:
-                        yield sample
+                        yield reshaped_sample
                 except Exception as e:
                     logger.error(f"Error reading file {filename}: {e}")                
 
@@ -165,44 +169,67 @@ class IterableDataset(IterableDataset):
         # iterate over files
         for sample in self._iterate_over_files():
             if self.target_files is not None:
+                sample_input, sample_target = sample
                 patches = generate_patches_supervised(
-                    sample,
-                    self.axes,
-                    self.patch_extraction_method,
-                    self.patch_size,
+                    sample = sample_input,
+                    axes = self.axes,
+                    patch_extraction_method = SupportedExtractionStrategy.RANDOM,
+                    patch_size = self.patch_size,
+                    target = sample_target,
                 )
 
             else:
                 patches = generate_patches_unsupervised(
-                    sample,
-                    self.axes,
-                    self.patch_extraction_method,
-                    self.patch_size,
+                    sample = sample,
+                    axes = self.axes,
+                    patch_extraction_method = SupportedExtractionStrategy.RANDOM,
+                    patch_size = self.patch_size,
                 )
 
             # iterate over patches
+            # patches are tuples of (patch, target) if target is available
+            # or (patch, None) only if no target is available 
+            # patch is of dimensions (C)ZYX
             for patch_data in patches:
-                if isinstance(patch_data, tuple):
-                    if self.target_files is not None:
-                        target = patch_data[1:]
-                        transformed = self.patch_transform(
-                            image=np.moveaxis(patch_data[0], 0, -1),
-                            target=np.moveaxis(target, 0, -1),
-                        )
-                        yield (transformed["image"], transformed["mask"])
-                        # TODO fix dimensions
-                    else:
-                        # Albumentations expects the channel dimension to be last
-                        patch = np.moveaxis(patch_data[0], 0, -1)
+                # if there is a target
+                if self.target_files is not None:
+                    # Albumentations expects the channel dimension to be last
+                    c_patch = np.moveaxis(patch_data[0], 0, -1)
+                    c_target = np.moveaxis(patch_data[1], 0, -1)
 
-                        # apply transform
-                        transformed = self.patch_transform(
-                            image=patch
-                        )
-      
-                        yield (transformed["image"], *patch_data[1:])
+                    # apply the transform to the patch and the target
+                    transformed = self.patch_transform(
+                        image=c_patch,
+                        target=c_target,
+                    )
+
+                    # TODO if ManipulateN2V, then we get a tuple not an array!
+                    # TODO if "target" string is used, then make it a co or enum
+
+                    # move the axes back to the original position
+                    c_patch = np.moveaxis(transformed["image"], -1, 0)
+                    c_target = np.moveaxis(transformed["target"], -1, 0)
+
+                    yield (c_patch, c_target)
                 else:
-                    yield self.patch_transform(image=patch_data)["image"]
+                    # Albumentations expects the channel dimension to be last
+                    patch = np.moveaxis(patch_data[0], 0, -1)
+
+                    # apply transform
+                    transformed = self.patch_transform(
+                        image=patch
+                    )
+
+                    # TODO is there a chance that ManipulateN2V is not in transforms?
+                    # retrieve the output of ManipulateN2V
+                    masked_patch, patch, mask = transformed["image"]
+
+                    # move C axes back
+                    masked_patch = np.moveaxis(masked_patch, -1, 0)
+                    patch = np.moveaxis(patch, -1, 0)
+                    mask = np.moveaxis(mask, -1, 0)
+    
+                    yield (masked_patch, patch, mask)
 
     def get_number_of_files(self) -> int:
         """
@@ -342,7 +369,6 @@ class IterablePredictionDataset(IterableDataset):
                 sample, self.axes, self.tile_size, self.tile_overlap
             )
 
-            
             for patch_data in patches:
                 if isinstance(patch_data, tuple):
                     transformed = self.patch_transform(

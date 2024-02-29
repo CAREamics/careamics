@@ -8,7 +8,9 @@ class NDFlip(DualTransform):
     """Flip ND arrays on a single axis.
 
     This transform ignores singleton axes and randomly flips one of the other
-    axes, to the exception of the last axis (channels).
+    axes, to the exception of the first and last axes (sample and channels).
+
+    This transform expects (Z)YXC dimensions.
     """
 
     def __init__(
@@ -68,6 +70,6 @@ class NDFlip(DualTransform):
             )
 
         return np.ascontiguousarray(np.flip(mask, axis=flip_axis))
-
-    def get_transform_init_args_names(self) -> Tuple[str, ...]:
+   
+    def get_transform_init_args_names(self, **kwargs) -> Tuple[str, ...]:
         return ("is_3D", "flip_z")

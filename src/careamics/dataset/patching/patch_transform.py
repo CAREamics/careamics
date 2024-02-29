@@ -38,9 +38,13 @@ def get_patch_transform(
 
         return Aug.Compose(
             transforms,
-            additional_targets={"target": "image"} # TODO write some explanation
-            if (with_target and normalize_mask)
-            else {},
+
+            # TODO add when will be supporting targets
+            # to apply image aug to the object passed to the transform as 
+            # keyword "target"
+            # additional_targets={"target": "image"}
+            # if (with_target and normalize_mask) # TODO check this
+            # else {},
         )
     
 

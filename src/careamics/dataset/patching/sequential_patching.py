@@ -4,7 +4,6 @@ from typing import  Generator, List, Optional, Tuple, Union
 import numpy as np
 from skimage.util import view_as_windows
 
-from ..dataset_utils import reshape_data
 from .validate_patch_dimension import validate_patch_dimensions
 
 
@@ -146,14 +145,13 @@ def _compute_reshaped_view(
 
 def extract_patches_sequential(
     arr: np.ndarray,
-    axes: str,
     patch_size: Union[List[int], Tuple[int]],
     target: Optional[np.ndarray] = None,
 ) -> Generator[Tuple[np.ndarray, ...], None, None]:
     """
     Generate patches from an array in a sequential manner.
 
-    Array dimensions should be C(Z)YX, where C can be a singleton dimension. The patches
+    Array dimensions should be SC(Z)YX, where C can be a singleton dimension. The patches
     are generated sequentially and cover the whole array.
 
     Parameters
@@ -169,9 +167,6 @@ def extract_patches_sequential(
         Generator of patches.
     """
     is_3d_patch = len(patch_size) == 3
-
-    # Reshape data to SCZYX
-    arr, _ = reshape_data(arr, axes)
 
     # Patches sanity check and update
     patch_size = validate_patch_dimensions(arr, patch_size, is_3d_patch)
@@ -194,7 +189,9 @@ def extract_patches_sequential(
         output_shape=output_shape,
         target=target,
     )
+
     if target is not None:
+        # target was concatenated to patches in _compute_reshaped_view
         return (
             patches[0, ...],
             patches[1, ...]

@@ -68,34 +68,6 @@ def check_axes_validity(axes: str) -> bool:
     return True
 
 
-def check_external_array_validity(
-    array: np.ndarray, axes: str, use_tiling: bool = False
-) -> None:
-    """
-    Check that the numpy array is compatible with the axes.
-
-    Parameters
-    ----------
-    array : np.ndarray
-        Numpy array.
-    axes : str
-        Valid axes (see check_axes_validity).
-    """
-    if use_tiling is False:
-        if len(array.shape) - 1 != len(axes):
-            raise ValueError(
-                f"Array has {len(array.shape)} dimensions, but axes are {len(axes)}."
-                f"When not tiling, externally provided arrays must have extra"
-                f" dimensions for batch and channel to be compatible with the"
-                f" batchnorm layers."
-            )
-    else:
-        if len(array.shape) != len(axes):
-            raise ValueError(
-                f"Array has {len(array.shape)} dimensions, but axes are {len(axes)}."
-            )
-
-
 def check_tiling_validity(tile_shape: List[int], overlaps: List[int]) -> None:
     """
     Check that the tiling parameters are valid.

@@ -4,22 +4,26 @@ Tiling submodule.
 These functions are used to tile images into patches or tiles.
 """
 from pathlib import Path
-from typing import Callable, Generator, List, Iterator, Optional, Tuple, Union
+from typing import Callable, Generator, List, Optional, Tuple, Union
 
 import numpy as np
 import zarr
 
 from ...utils.logging import get_logger
-from ...config.support.supported_extraction_strategies import SupportedExtractionStrategy
+from ...config.support.supported_extraction_strategies import (
+    SupportedExtractionStrategy
+)
 
 from .sequential_patching import extract_patches_sequential
 from .random_patching import extract_patches_random, extract_patches_random_from_chunks
 from .tiled_patching import extract_tiles
+from ..dataset_utils import reshape_array
 
 logger = get_logger(__name__)
 
-# TODO should we overload or singlepatch the functions?
 
+
+# called by in memory dataset
 def prepare_patches_supervised(
     train_files: List[Path],
     target_files: List[Path],
@@ -48,14 +52,19 @@ def prepare_patches_supervised(
             stds += sample.std()
             num_samples += 1
 
+            # reshape array
+            sample = reshape_array(sample, axes)
+            target = reshape_array(target, axes)
+
             # generate patches, return a generator
             patches, targets = extract_patches_sequential(
-                sample, axes, patch_size=patch_size, target=target
+                sample, patch_size=patch_size, target=target
             )
 
             # convert generator to list and add to all_patches
             all_patches.append(patches)
             all_targets.append(targets)
+
         except Exception as e:
             # emit warning and continue
             logger.error(f"Failed to read {train_filename} or {target_filename}: {e}")
@@ -80,7 +89,7 @@ def prepare_patches_supervised(
         result_std,
     )
 
-
+# called by in memory dataset
 def prepare_patches_unsupervised(
     train_files: List[Path],
     axes: str,
@@ -103,9 +112,12 @@ def prepare_patches_unsupervised(
             means += sample.mean()
             stds += sample.std()
             num_samples += 1
+            
+            # reshape array
+            sample = reshape_array(sample, axes)
 
             # generate patches, return a generator
-            patches, _ = extract_patches_sequential(sample, axes, patch_size=patch_size)
+            patches, _ = extract_patches_sequential(sample, patch_size=patch_size)
 
             # convert generator to list and add to all_patches
             all_patches.append(patches)
@@ -122,10 +134,11 @@ def prepare_patches_unsupervised(
     return np.concatenate(all_patches), _, result_mean, result_std
 
 
+# called on arrays by in memory dataset
 def prepare_patches_supervised_array(
     data: np.ndarray,
-    data_target: np.ndarray,
     axes: str,
+    data_target: np.ndarray,
     patch_size: Union[List[int], Tuple[int]],
 ) -> Tuple[np.ndarray, float, float]:
 
@@ -133,9 +146,12 @@ def prepare_patches_supervised_array(
     mean = data.mean()
     std = data.std()
 
+    # reshape array
+    sample = reshape_array(data, axes)
+
     # generate patches, return a generator
     patches, patch_targets = extract_patches_sequential(
-        data, axes, patch_size=patch_size, target=data_target
+        sample, patch_size=patch_size, target=data_target
     )
 
     logger.info(f"Extracted {patches.shape[0]} patches from input array.")
@@ -147,7 +163,7 @@ def prepare_patches_supervised_array(
         std,
     )
 
-
+# called by in memory dataset
 def prepare_patches_unsupervised_array(
     data: np.ndarray,
     axes: str,
@@ -156,21 +172,30 @@ def prepare_patches_unsupervised_array(
     """
     Iterate over data source and create an array of patches.
 
+    This method expects an array of shape SC(Z)YX, where S and C can be singleton
+    dimensions.
+
+    # TODO what dims does it return?
+
     Returns
     -------
     np.ndarray
         Array of patches.
     """
     # calculate mean and std
-    means = data.mean()
-    stds = data.std()
+    mean = data.mean()
+    std = data.std()
+
+    # reshape array
+    sample = reshape_array(data, axes)
 
     # generate patches, return a generator
-    patches, _ = extract_patches_sequential(data, axes, patch_size=patch_size)
+    patches, _ = extract_patches_sequential(sample, patch_size=patch_size)
 
-    return np.concatenate(patches), _, means, stds
+    return patches, _, mean, std
 
 
+# prediction, both in memory and iterable
 def generate_patches_predict(
     sample: np.ndarray,
     axes: str,
@@ -195,7 +220,7 @@ def generate_patches_predict(
 
     return patches_list
 
-
+# iterator over files
 def generate_patches_supervised(
     sample: Union[np.ndarray, zarr.Array],
     axes: str,
@@ -247,13 +272,13 @@ def generate_patches_supervised(
 
         elif patch_extraction_method == SupportedExtractionStrategy.SEQUENTIAL:
             patches, targets = extract_patches_sequential(
-                arr=sample, axes=axes, patch_size=patch_size, target=target
+                arr=sample, patch_size=patch_size, target=target
             )
 
         elif patch_extraction_method == SupportedExtractionStrategy.RANDOM:
             # Returns a generator of patches and targets(if present)
             patches = extract_patches_random(
-                arr=sample, axes=axes, patch_size=patch_size, target=target
+                arr=sample, patch_size=patch_size, target=target
             )
 
         elif patch_extraction_method == SupportedExtractionStrategy.RANDOM_ZARR:
@@ -270,7 +295,8 @@ def generate_patches_supervised(
         # no patching
         return (sample for _ in range(1)), target
 
-
+    
+# iterator over files
 def generate_patches_unsupervised(
     sample: Union[np.ndarray, zarr.Array],
     axes: str,
@@ -281,7 +307,8 @@ def generate_patches_unsupervised(
     """
     Creates an iterator over patches from a sample.
 
-    # TODO what does it return? new shape?
+    # TODO what dimensions does it return? Is there S?
+    # TODO if there might be S, then maybe we can split into different functions
 
     Parameters
     ----------
@@ -306,42 +333,45 @@ def generate_patches_unsupervised(
     ValueError
         If patches is None.
     """
-    patches = None
+    # if tiled (patches with overlaps)
+    if patch_extraction_method == SupportedExtractionStrategy.TILED:
+        if patch_overlap is None:
+            patch_overlap = [48] * len(patch_size) # TODO pass overlap instead
 
-    if patch_extraction_method is not None:
-        patches = None
+        # return a Generator of the following:
+        # - patch: np.ndarray, dims SC(Z)YX
+        # - last_tile: bool
+        # - shape: Tuple[int], shape of a tile, excluding the S dimension
+        # - overlap_crop_coords: coordinates used to crop the patch during stitching
+        # - stitch_coords: coordinates used to stitch the tiles back to the full image
+        patches = extract_tiles(
+            arr=sample, axes=axes, tile_size=patch_size, overlaps=patch_overlap
+        )
 
-        if patch_extraction_method == SupportedExtractionStrategy.TILED:
-            if patch_overlap is None:
-                 # TODO calculate OL from model, instead of ad hoc value for overlap
-                patch_overlap = [48] * len(patch_size)
-            patches = extract_tiles(
-                arr=sample, axes=axes, tile_size=patch_size, overlaps=patch_overlap
-            )
-        # TODO split so there's no extraciton strat param
-        elif patch_extraction_method == SupportedExtractionStrategy.RANDOM:
-            # Returns a generator of patches and targets(if present)
-            patches = extract_patches_random(
-                sample, 
-                axes=axes,
-                patch_size=patch_size
-            )
+    # random extraction
+    elif patch_extraction_method == SupportedExtractionStrategy.RANDOM:
+        # return a Generator that yields the following:
+        # - patch: np.ndarray, dimension C(Z)YX
+        # - target_patch: np.ndarray, dimension C(Z)YX, or None
+        patches = extract_patches_random(
+            sample, 
+            patch_size=patch_size
+        )
 
-        elif patch_extraction_method == SupportedExtractionStrategy.RANDOM_ZARR:
-            # # Returns a generator of patches and targets(if present)
-            # patches = extract_patches_random_from_chunks(
-            #     sample, patch_size=patch_size, chunk_size=sample.chunks
-            # )
-            raise NotImplementedError("Random zarr extraction not implemented yet.")
-
-        else:
-            raise ValueError("Invalid patch extraction method.")
-
-        if patches is None:
-            raise ValueError("No patch generated.")
-
-        return patches
+    # zarr specific random extraction
+    elif patch_extraction_method == SupportedExtractionStrategy.RANDOM_ZARR:
+        # # Returns a generator of patches and targets(if present)
+        # patches = extract_patches_random_from_chunks(
+        #     sample, patch_size=patch_size, chunk_size=sample.chunks
+        # )
+        raise NotImplementedError("Random zarr extraction not implemented yet.")
+    
+    # no patching, return sample
+    elif patch_extraction_method == SupportedExtractionStrategy.NONE:
+        patches = (sample for _ in range(1))
+    
+    # no extraction method
     else:
-        # no patching. sample should have channel dimension
-        return (sample for _ in range(1))
+        raise ValueError("Invalid patch extraction method.")
 
+    return patches 
