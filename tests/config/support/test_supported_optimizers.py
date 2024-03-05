@@ -1,8 +1,8 @@
 from torch import optim
 
 from careamics.config.support.supported_optimizers import (
+    SupportedOptimizer,
     SupportedScheduler,
-    SupportedOptimizer
 )
 
 

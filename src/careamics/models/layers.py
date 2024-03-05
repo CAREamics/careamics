@@ -3,7 +3,7 @@ Layer module.
 
 This submodule contains layers used in the CAREamics models.
 """
-from typing import Optional, Tuple, Union
+from typing import List, Optional, Tuple, Union
 
 import torch
 import torch.nn as nn
@@ -155,22 +155,26 @@ class Conv_Block(nn.Module):
         return x
 
 
-def _unpack_kernel_size(kernel_size: Union[Tuple[int], int], dim: int) -> Tuple[int]:
+def _unpack_kernel_size(
+    kernel_size: Union[Tuple[int, ...], int], dim: int
+) -> Tuple[int, ...]:
     """Unpack kernel_size to a tuple of ints.
 
-    Inspired by Kornia implementation.
+    Inspired by Kornia implementation. TODO: link
     """
     if isinstance(kernel_size, int):
-        kernel_dims = [kernel_size for _ in range(dim)]
+        kernel_dims = tuple([kernel_size for _ in range(dim)])
     else:
         kernel_dims = kernel_size
     return kernel_dims
 
 
-def _compute_zero_padding(kernel_size: Union[Tuple[int], int], dim: int) -> Tuple[int]:
+def _compute_zero_padding(
+    kernel_size: Union[Tuple[int, ...], int], dim: int
+) -> Tuple[int, ...]:
     """Utility function that computes zero padding tuple."""
     kernel_dims = _unpack_kernel_size(kernel_size, dim)
-    return [(kd - 1) // 2 for kd in kernel_dims]
+    return tuple([(kd - 1) // 2 for kd in kernel_dims])
 
 
 def get_pascal_kernel_1d(
@@ -180,9 +184,9 @@ def get_pascal_kernel_1d(
     device: Optional[torch.device] = None,
     dtype: Optional[torch.dtype] = None,
 ) -> torch.Tensor:
-    """Generate Yang Hui triangle (Pascal's triangle) by a given number.
+    """Generate Yang Hui triangle (Pascal's triangle) for a given number.
 
-    Inspired by Kornia implementation.
+    Inspired by Kornia implementation. TODO link
 
     Parameters
     ----------
@@ -210,8 +214,8 @@ def get_pascal_kernel_1d(
     >>> get_pascal_kernel_1d(6)
     tensor([ 1.,  5., 10., 10.,  5.,  1.])
     """
-    pre: list[float] = []
-    cur: list[float] = []
+    pre: List[float] = []
+    cur: List[float] = []
     for i in range(kernel_size):
         cur = [1.0] * (i + 1)
 
@@ -230,7 +234,7 @@ def get_pascal_kernel_1d(
     return out
 
 
-def get_pascal_kernel_nd(
+def _get_pascal_kernel_nd(
     kernel_size: Union[Tuple[int, int], int],
     norm: bool = True,
     dim: int = 2,
@@ -368,7 +372,7 @@ class MaxBlurPool(nn.Module):
     def __init__(
         self,
         dim: int,
-        kernel_size: Union[Tuple[int], int],
+        kernel_size: Union[Tuple[int, int], int],
         stride: int = 2,
         max_pool_size: int = 2,
         ceil_mode: bool = False,
@@ -379,24 +383,24 @@ class MaxBlurPool(nn.Module):
         self.stride = stride
         self.max_pool_size = max_pool_size
         self.ceil_mode = ceil_mode
-        self.kernel = get_pascal_kernel_nd(kernel_size, norm=True, dim=self.dim)
+        self.kernel = _get_pascal_kernel_nd(kernel_size, norm=True, dim=self.dim)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Forward pass of the function."""
         self.kernel = torch.as_tensor(self.kernel, device=x.device, dtype=x.dtype)
         if self.dim == 2:
             return _max_blur_pool_by_kernel2d(
-            x,
-            self.kernel.repeat((x.size(1), 1, 1, 1)),
-            self.stride,
-            self.max_pool_size,
-            self.ceil_mode,
-        )
+                x,
+                self.kernel.repeat((x.size(1), 1, 1, 1)),
+                self.stride,
+                self.max_pool_size,
+                self.ceil_mode,
+            )
         else:
             return _max_blur_pool_by_kernel3d(
-            x,
-            self.kernel.repeat((x.size(1), 1, 1, 1, 1)),
-            self.stride,
-            self.max_pool_size,
-            self.ceil_mode,
-        )
+                x,
+                self.kernel.repeat((x.size(1), 1, 1, 1, 1)),
+                self.stride,
+                self.max_pool_size,
+                self.ceil_mode,
+            )

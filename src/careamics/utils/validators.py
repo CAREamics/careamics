@@ -5,8 +5,6 @@ These functions are used to validate dimensions and axes of inputs.
 """
 from typing import List
 
-import numpy as np
-
 AXES = "STCZYX"
 
 
@@ -39,6 +37,9 @@ def check_axes_validity(axes: str) -> bool:
             f"Invalid axes {axes}. Must contain at least 2 and at most 6 axes."
         )
 
+    if "YX" not in _axes:
+        raise ValueError(f"Invalid axes {axes}. Must contain at least X and Y axes.")
+
     # all characters must be in REF_AXES = 'STCZYX'
     if not all(s in AXES for s in _axes):
         raise ValueError(f"Invalid axes {axes}. Must be a combination of {AXES}.")
@@ -63,34 +64,6 @@ def check_axes_validity(axes: str) -> bool:
                 )
 
     return True
-
-
-def check_external_array_validity(
-    array: np.ndarray, axes: str, use_tiling: bool
-) -> None:
-    """
-    Check that the numpy array is compatible with the axes.
-
-    Parameters
-    ----------
-    array : np.ndarray
-        Numpy array.
-    axes : str
-        Valid axes (see check_axes_validity).
-    """
-    if use_tiling is False:
-        if len(array.shape) - 1 != len(axes):
-            raise ValueError(
-                f"Array has {len(array.shape)} dimensions, but axes are {len(axes)}."
-                f"When not tiling, externally provided arrays must have extra"
-                f" dimensions for batch and channel to be compatible with the"
-                f" batchnorm layers."
-            )
-    else:
-        if len(array.shape) != len(axes):
-            raise ValueError(
-                f"Array has {len(array.shape)} dimensions, but axes are {len(axes)}."
-            )
 
 
 def check_tiling_validity(tile_shape: List[int], overlaps: List[int]) -> None:

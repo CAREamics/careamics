@@ -1,14 +1,7 @@
-"""Convenience functions to instantiate torch.optim optimizers and schedulers."""
-from enum import Enum
+from careamics.utils import BaseEnum
 
 
-class SupportedOptimizer(str, Enum):
-    """
-    Supported optimizers.
-
-    Currently only supports Adam and SGD.
-    """
-
+class SupportedOptimizer(str, BaseEnum):
     # ASGD = "ASGD"
     # Adadelta = "Adadelta"
     # Adagrad = "Adagrad"
@@ -24,13 +17,7 @@ class SupportedOptimizer(str, Enum):
     # SparseAdam = "SparseAdam"
 
 
-class SupportedScheduler(str, Enum):
-    """
-    Supported learning rate schedulers.
-
-    Currently only supports ReduceLROnPlateau and StepLR.
-    """
-
+class SupportedScheduler(str, BaseEnum):
     # ChainedScheduler = "ChainedScheduler"
     # ConstantLR = "ConstantLR"
     # CosineAnnealingLR = "CosineAnnealingLR"

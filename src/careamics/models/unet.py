@@ -8,9 +8,9 @@ from typing import List, Union
 import torch
 import torch.nn as nn
 
-from .layers import Conv_Block, MaxBlurPool
-from .activation import get_activation
 from ..config.support import SupportedActivation
+from .activation import get_activation
+from .layers import Conv_Block, MaxBlurPool
 
 
 class UnetEncoder(nn.Module):
@@ -67,9 +67,6 @@ class UnetEncoder(nn.Module):
             Kernel size for the max pooling layers, by default 2.
         """
         super().__init__()
-
-        # TODO: what's this commented line?
-        # pooling_op = "MaxBlurPool" if n2v2 else "MaxPool"
 
         self.pooling = (
             getattr(nn, f"MaxPool{conv_dim}d")(kernel_size=pool_kernel)
@@ -217,8 +214,8 @@ class UnetDecoder(nn.Module):
         torch.Tensor
             Output of the decoder.
         """
-        x = features[0]
-        skip_connections = features[1:][::-1]
+        x: torch.Tensor = features[0]
+        skip_connections: torch.Tensor = features[1:][::-1]
 
         x = self.bottleneck(x)
 

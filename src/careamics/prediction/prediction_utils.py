@@ -48,7 +48,7 @@ def stitch_prediction(
         # Insert cropped tile into predicted image using stitch coordinates
         predicted_image[
             (..., *[slice(c[0], c[1]) for c in stitch_coords])
-        ] = cropped_tile
+        ] = cropped_tile.to(torch.float32)
     return predicted_image
 
 

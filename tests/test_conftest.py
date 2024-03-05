@@ -1,7 +1,7 @@
 from careamics import Configuration
-from careamics.config.algorithm import AlgorithmModel
-from careamics.config.data import DataModel
-from careamics.config.training import Training
+from careamics.config.algorithm_model import AlgorithmModel
+from careamics.config.data_model import DataModel
+from careamics.config.training_model import Training
 
 
 def test_minimum_algorithm(minimum_algorithm):

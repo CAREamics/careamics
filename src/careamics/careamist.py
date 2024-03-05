@@ -3,15 +3,14 @@ from typing import Dict, Optional, Union
 
 import numpy as np
 from pytorch_lightning import Trainer
-from torch.utils.data.dataloader import DataLoader
 
-from careamics.config import Configuration, load_configuration
-from careamics.lightning_module import CAREamicsKiln
-from careamics.dataset.prepare_dataset import (
-    get_train_dataset,
-    get_validation_dataset,
-    get_prediction_dataset,
-)
+from .config import Configuration, load_configuration
+from .config.support import SupportedAlgorithm
+from .lightning_module import CAREamicsKiln
+from .lightning_prediction import CAREamicsFiring
+from .ligthning_datamodule import CAREamicsClay, CAREamicsWood
+from .utils import check_path_exists, method_dispatch
+
 
 # TODO callbacks
 # TODO save as modelzoo, lightning and pytorch_dict
@@ -71,7 +70,7 @@ class CAREamist:
                     f"`config` must be a Configuration object, "
                     f"got {type(configuration)}"
                 )
-            
+
             self.cfg = configuration
 
         elif path_to_config is not None:
@@ -81,11 +80,9 @@ class CAREamist:
                     f"Configuration path {path_to_config} does not exist."
                 )
             elif not path_to_config.is_file():
-                raise ValueError(
-                    f"Configuration path {path_to_config} is not a file."
-                )
+                raise ValueError(f"Configuration path {path_to_config} is not a file.")
 
-            # load configuration            
+            # load configuration
             self.cfg = load_configuration(path_to_config)
 
         else:
@@ -100,111 +97,159 @@ class CAREamist:
         # instantiate trainer
         self.trainer = Trainer(max_epochs=self.cfg.training.num_epochs)
 
-    # TODO: @functools single dispatch
+        # change the prediction loop
+        self.trainer.predict_loop = CAREamicsFiring(self.trainer)
+
+    @method_dispatch
     def train(
         self,
-        train_dataloader: DataLoader,
-        val_dataloader: Optional[DataLoader] = None,
+        datamodule: CAREamicsWood,
     ) -> None:
-        self.trainer.fit(self.model, train_dataloader, val_dataloader)
+        if not isinstance(datamodule, CAREamicsWood):
+            raise TypeError(
+                f"`datamodule` must be a CAREamicsWood instance, "
+                f"got {type(datamodule)}."
+            )
 
-    def train_on_path(
+        self.trainer.fit(self.model, datamodule=datamodule)
+
+    @train.register
+    def _train_on_path(
         self,
-        path_to_train_data: Union[Path, str],
-        path_to_val_data: Union[Path, str],
+        path_to_train_data: Path,  # cannot use Union annotation for the dispatch
+        path_to_val_data: Optional[Path] = None,
+        path_to_train_target: Optional[Path] = None,
+        path_to_val_target: Optional[Path] = None,
+        use_in_memory: bool = True,
     ) -> None:
-        # sanity check on train data
-        path_to_train_data = Path(path_to_train_data)
-        if not path_to_train_data.exists():
-            raise FileNotFoundError(
-                f"Data path {path_to_train_data} is incorrect or"
-                f" does not exist."
-            )
-        elif not path_to_train_data.is_dir():
-            raise ValueError(
-                f"Data path {path_to_train_data} is not a directory."
-            )
-        
-        # sanity check on val data
-        path_to_val_data = Path(path_to_val_data)
-        if not path_to_val_data.exists():
-            raise FileNotFoundError(
-                f"Data path {path_to_val_data} is incorrect or"
-                f" does not exist."
-            )
-        elif not path_to_val_data.is_dir():
-            raise ValueError(
-                f"Data path {path_to_val_data} is not a directory."
-            )
+        # sanity check on data (path exists)
+        path_to_train_data = check_path_exists(path_to_train_data)
 
-        # create datasets and dataloaders
-        train_dataset = get_train_dataset(self.cfg.data, path_to_train_data)
-        train_dataloader = DataLoader(
-            train_dataset,
-            batch_size=self.cfg.training.batch_size,
-            num_workers=0#self.cfg.training.num_workers,
-        )
+        if path_to_val_data is not None:
+            path_to_val_data = check_path_exists(path_to_val_data)
 
-        val_dataset = get_validation_dataset(self.cfg.data, path_to_val_data)
-        val_dataloader = DataLoader(
-            val_dataset,
-            batch_size=1,
-            num_workers=0,
+        if path_to_train_target is not None:
+            if (
+                self.cfg.algorithm.algorithm
+                in SupportedAlgorithm.get_unsupervised_algorithms()
+            ):
+                raise ValueError(
+                    f"Training target is not needed for unsupervised algorithms "
+                    f"({self.cfg.algorithm.algorithm})."
+                )
+
+            path_to_train_target = check_path_exists(path_to_train_target)
+
+        if path_to_val_target is not None:
+            path_to_val_target = check_path_exists(path_to_val_target)
+
+        # create datamodule
+        datamodule = CAREamicsWood(
+            data_config=self.cfg.data,
+            train_data=path_to_train_data,
+            val_data=path_to_val_data,
+            train_data_target=path_to_train_target,
+            val_data_target=path_to_val_target,
+            use_in_memory=use_in_memory,
         )
 
         # train
-        self.train(train_dataloader=train_dataloader, val_dataloader=val_dataloader)
+        self.train(datamodule=datamodule)
 
+    @train.register
+    def _train_on_str(
+        self,
+        path_to_train_data: str,
+        path_to_val_data: Optional[str] = None,
+        path_to_train_target: Optional[str] = None,
+        path_to_val_target: Optional[str] = None,
+        use_in_memory: bool = True,
+    ) -> None:
+        self._train_on_path(
+            Path(path_to_train_data),
+            Path(path_to_val_data) if path_to_val_data is not None else None,
+            Path(path_to_train_target) if path_to_train_target is not None else None,
+            Path(path_to_val_target) if path_to_val_target is not None else None,
+            use_in_memory=use_in_memory,
+        )
 
+    @train.register
+    def _train_on_array(
+        self,
+        train_data: np.ndarray,
+        val_data: Optional[np.ndarray] = None,
+        train_target: Optional[np.ndarray] = None,
+        val_target: Optional[np.ndarray] = None,
+    ) -> None:
+        if train_target is not None:
+            if (
+                self.cfg.algorithm.algorithm
+                in SupportedAlgorithm.get_unsupervised_algorithms()
+            ):
+                raise ValueError(
+                    f"Training target is not needed for unsupervised algorithms "
+                    f"({self.cfg.algorithm.algorithm})."
+                )
+
+        # create datamodule
+        datamodule = CAREamicsWood(
+            data_config=self.cfg.data,
+            train_data=train_data,
+            val_data=val_data,
+            train_data_target=train_target,
+            val_data_target=val_target,
+        )
+
+        # train
+        self.train(datamodule=datamodule)
+
+    @method_dispatch
     def predict(
         self,
-        test_dataloader: Optional[DataLoader] = None,
+        datamodule: CAREamicsClay,
     ) -> Dict[str, np.ndarray]:
+        if not isinstance(datamodule, CAREamicsClay):
+            raise TypeError(
+                f"`datamodule` must be a CAREamicsClay instance, "
+                f"got {type(datamodule)}."
+            )
 
-        return self.trainer.predict(self.model, test_dataloader)
+        return self.trainer.predict(self.model, datamodule=datamodule)
 
-    def predict_on_path(
+    @predict.register
+    def _predict_on_path(
         self,
-        path_to_data: Union[Path, str],
-        tile_shape: Optional[tuple] = None,
-        overlaps: Optional[tuple] = None,
+        path_to_data: Path,
     ) -> Dict[str, np.ndarray]:
-        path = Path(path_to_data)
-        if not path.exists():
-            raise FileNotFoundError(
-                f"Data path {path_to_data} is incorrect or"
-                f" does not exist."
-            )
-        elif not path.is_dir():
-            raise ValueError(
-                f"Data path {path_to_data} is not a directory."
-            )
+        # sanity check (path exists)
+        path = check_path_exists(path_to_data)
 
-        # create dataset
-        pred_dataset = get_prediction_dataset(
-            self.cfg.data, 
-            path_to_data,
-            tile_shape=tile_shape,
-            overlaps=overlaps,
-            )
-        
-        # create dataloader
-        pred_dataloader = DataLoader(
-            pred_dataset,
-            batch_size=self.cfg.training.batch_size,
-            num_workers=self.cfg.training.num_workers,
+        # create datamodule
+        datamodule = CAREamicsClay(
+            data_config=self.cfg.data,
+            pred_data=path,
         )
 
-        # TODO how to deal with stitching?
+        return self.predict(datamodule)
 
-        # predict
-        return self.predict(pred_dataloader)
-
-
-    def save(
+    @predict.register
+    def _predict_on_str(
         self,
-        format: str = "modelzoo",  # TODO Enum
-    ):
-        raise NotImplementedError(
-            "Saving is not implemented yet."
+        path_to_data: str,
+    ) -> Dict[str, np.ndarray]:
+        path_to_data = Path(path_to_data)
+
+        return self._predict_on_path(path_to_data)
+
+    @predict.register
+    def _predict_on_array(
+        self,
+        data: np.ndarray,
+    ) -> Dict[str, np.ndarray]:
+        # create datamodule
+        datamodule = CAREamicsClay(
+            data_config=self.cfg.data,
+            pred_data=data,
         )
+
+        return self.predict(datamodule)

@@ -8,10 +8,12 @@ import zarr
 from careamics.utils import RunningStats
 from careamics.utils.logging import get_logger
 
+from ..config.support.supported_extraction_strategies import SupportedExtractionStrategy
 from ..utils import normalize
-from .dataset_utils import read_zarr
-from .extraction_strategy import ExtractionStrategy
-from .patching import generate_patches_supervised, generate_patches_unsupervised
+from .dataset_utils.dataset_utils import read_zarr
+from .patching.patching import (
+    generate_patches_unsupervised,
+)
 
 logger = get_logger(__name__)
 
@@ -50,7 +52,7 @@ class ZarrDataset(torch.utils.data.IterableDataset):
         self,
         data_source: Union[zarr.Group, zarr.Array],
         axes: str,
-        patch_extraction_method: Union[ExtractionStrategy, None],
+        patch_extraction_method: Union[SupportedExtractionStrategy, None],
         patch_size: Optional[Union[List[int], Tuple[int]]] = None,
         num_patches: Optional[int] = None,
         mean: Optional[float] = None,
@@ -97,7 +99,7 @@ class ZarrDataset(torch.utils.data.IterableDataset):
         np.ndarray
             Patch.
         """
-        patches = generate_patches(
+        patches = generate_patches_unsupervised(
             self.sample,
             self.patch_extraction_method,
             self.patch_size,

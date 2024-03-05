@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 # TODO tests activation <-> pydantic model, test the literals!
@@ -21,30 +21,25 @@ class UNetModel(BaseModel):
     """
 
     # pydantic model config
-    model_config = ConfigDict(
-        validate_assignment=True
-    )
+    model_config = ConfigDict(validate_assignment=True)
 
     # discriminator used for choosing the pydantic model in Model
     architecture: Literal["UNet"]
 
     # parameters
     # validate_defaults allow ignoring default values in the dump if they were not set
-    conv_dims : int = Field(default=2, ge=2, le=3, validate_default=True)
+    conv_dims: int = Field(default=2, ge=2, le=3, validate_default=True)
     num_classes: int = Field(default=1, ge=1, validate_default=True)
     in_channels: int = Field(default=1, ge=1, validate_default=True)
     depth: int = Field(default=2, ge=1, le=10, validate_default=True)
     num_channels_init: int = Field(default=32, ge=8, le=1024, validate_default=True)
     final_activation: Literal[
-        "None",
-        "Sigmoid",
-        "Softmax",
-        "Tanh",
-        "ReLU",
-        "LeakyReLU"] = Field(default="None", validate_default=True)
+        "None", "Sigmoid", "Softmax", "Tanh", "ReLU", "LeakyReLU"
+    ] = Field(default="None", validate_default=True)
     n2v2: bool = Field(default=False, validate_default=True)
 
-    @validator("num_channels_init")
+    @field_validator("num_channels_init")
+    @classmethod
     def validate_num_channels_init(cls, num_channels_init: int) -> int:
         """
         Validate that num_channels_init is even.

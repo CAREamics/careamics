@@ -1,16 +1,8 @@
-from enum import Enum
+from careamics.utils import BaseEnum
 
 
 # TODO register loss with custom_loss decorator?
-class SupportedLoss(str, Enum):
-    """
-    Available loss functions.
-
-    Currently supported losses:
-
-        - n2v: Noise2Void loss.
-    """
-
+class SupportedLoss(str, BaseEnum):
     MSE = "mse"
     MAE = "mae"
     N2V = "n2v"
@@ -18,4 +10,4 @@ class SupportedLoss(str, Enum):
     # HDN = "hdn"
     # CE = "ce"
     # DICE = "dice"
-    CUSTOM = "custom"
+    # CUSTOM = "custom" # TODO create mechanism for that

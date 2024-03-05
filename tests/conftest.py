@@ -1,16 +1,20 @@
-import copy
 import tempfile
 from pathlib import Path
-from typing import Callable, Tuple
+from typing import Callable, Generator, Tuple
 
 import numpy as np
 import pytest
 import tifffile
 
 from careamics.config import Configuration
-from careamics.config.algorithm import AlgorithmModel, LrSchedulerModel, OptimizerModel
-from careamics.config.data import DataModel
-from careamics.config.training import Training
+from careamics.config.algorithm_model import (
+    AlgorithmModel,
+    LrSchedulerModel,
+    OptimizerModel,
+)
+from careamics.config.data_model import DataModel
+from careamics.config.support import SupportedData
+from careamics.config.training_model import Training
 
 
 # TODO add details about where each of these fixture is used (e.g. smoke test)
@@ -36,16 +40,10 @@ def minimum_algorithm() -> dict:
     """
     # create dictionary
     algorithm = {
-        "algorithm": "n2v",
+        "algorithm": "custom",
         "loss": "n2v",
         "model": {
             "architecture": "UNet",
-        },
-        "optimizer": {
-            "name": "Adam",
-        },
-        "lr_scheduler": {
-            "name": "ReduceLROnPlateau"
         },
     }
 
@@ -63,8 +61,7 @@ def minimum_data() -> dict:
     """
     # create dictionary
     data = {
-        "in_memory": True,
-        "data_format": "tif",
+        "data_type": SupportedData.TIFF.value,
         "patch_size": [64, 64],
         "axes": "SYX",
     }
@@ -89,13 +86,11 @@ def minimum_training() -> dict:
 
     return training
 
+
 @pytest.fixture
 def minimum_configuration(
-    tmp_path: Path,
-    minimum_algorithm: dict,
-    minimum_data: dict,
-    minimum_training: dict
-    ) -> dict:
+    tmp_path: Path, minimum_algorithm: dict, minimum_data: dict, minimum_training: dict
+) -> dict:
     """Create a minimum configuration.
 
     Parameters
@@ -124,68 +119,6 @@ def minimum_configuration(
     }
 
     return configuration
-
-
-@pytest.fixture
-def complete_configuration(minimum_config: dict) -> dict:
-    """Create a complete configuration.
-
-    This configuration should not be used for testing an Engine.
-
-    Parameters
-    ----------
-    minimum_config : dict
-        A minimum configuration.
-
-    Returns
-    -------
-    dict
-        A complete configuration example.
-    """
-    # add to configuration
-    complete_config = copy.deepcopy(minimum_config)
-    complete_config["algorithm"]["loss"] = "pn2v"
-    complete_config["algorithm"]["noise_model"] = {
-        "model_type": "hist",
-        "parameters": {
-            "min_value": 350,
-            "max_value": 6500,
-            "bins": 256,
-        },
-    }
-    complete_config["algorithm"]["transforms"] = {
-        "Flip": None,
-        "ManipulateN2V": {
-            "masked_pixel_percentage": 0.6,
-            "roi_size": 13,
-        },
-    }
-
-    complete_config["algorithm"]["model"] = {
-        "architecture": "UNet",
-        "parameters": {
-            "depth": 8,
-            "num_channels_init": 32,
-        },
-    }
-
-    complete_config["training"]["optimizer"]["parameters"] = {
-        "lr": 0.00999,
-    }
-    complete_config["training"]["lr_scheduler"]["parameters"] = {
-        "patience": 22,
-    }
-    complete_config["training"]["use_wandb"] = True
-    complete_config["training"]["num_workers"] = 6
-    complete_config["training"]["amp"] = {
-        "use": True,
-        "init_scale": 512,
-    }
-    complete_config["data"]["in_memory"] = False
-    complete_config["data"]["mean"] = 666.666
-    complete_config["data"]["std"] = 42.420
-
-    return complete_config
 
 
 @pytest.fixture
@@ -235,9 +168,10 @@ def array_3D() -> np.ndarray:
 
 
 @pytest.fixture
-def temp_dir() -> Path:
+def temp_dir() -> Generator[Path, None, None]:
     with tempfile.TemporaryDirectory() as temp_dir:
         yield Path(temp_dir)
+
 
 @pytest.fixture
 def image_size() -> Tuple[int, int]:
@@ -252,6 +186,7 @@ def patch_size() -> Tuple[int, int]:
 @pytest.fixture
 def overlaps() -> Tuple[int, int]:
     return (32, 32)
+
 
 @pytest.fixture
 def example_data_path(
