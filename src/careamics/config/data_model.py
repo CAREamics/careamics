@@ -30,6 +30,7 @@ class DataModel(BaseModel):
 
     # Dataset configuration
     # Mandatory fields
+    mode: Literal["train", "predict"]
     data_type: Literal["array", "tiff", "custom"]
     patch_size: List[int] = Field(..., min_length=2, max_length=3)
 
@@ -46,16 +47,16 @@ class DataModel(BaseModel):
             },
             {
                 "name": SupportedTransform.XY_RANDOM_ROTATE90.value,
-            },          
+            },
             {
                 "name": SupportedTransform.NORMALIZE.value,
             },
             {
-                "name": SupportedTransform.MANIPULATE_N2V.value,
+                "name": SupportedTransform.N2V_MANIPULATE_UNIFORM.value,
             },
         ],
         validate_default=True,
-    )
+    ) # TODO defaults should change based on the train/predict and on the algorithm
 
     # Dataloader configuration
     batch_size: int = Field(default=1, ge=1, validate_default=True)
@@ -192,6 +193,7 @@ class DataModel(BaseModel):
                 if transform.name == SupportedTransform.NORMALIZE.value:
                     transform.parameters["mean"] = mean
                     transform.parameters["std"] = std
+                    transform.parameters["max_pixel_value"] = 1.0
         else:
             raise ValueError(
                 "Setting mean and std with Compose transforms is not allowed."
@@ -218,6 +220,7 @@ class DataModel(BaseModel):
             If the transforms are not valid.
         """
         # check that the transforms NDFLip is 3D
+
         if "Z" in data_model.axes:
             if data_model.has_tranform_list():
                 for transform in data_model.transforms:
@@ -233,4 +236,18 @@ class DataModel(BaseModel):
                     elif transform.name == SupportedTransform.XY_RANDOM_ROTATE90:
                         transform.parameters["is_3D"] = False
 
+        if data_model.mode == "predict":
+             for transform in data_model.transforms:
+                if transform.name == "Normalize":
+                    transform.parameters["mean"] = data_model.mean
+                    transform.parameters["std"] = data_model.std
+                    transform.parameters["max_pixel_value"] = 1.0
+                else:
+                    data_model.transforms.remove(transform)
+        else:
+            for transform in data_model.transforms:
+                if transform.name == "Normalize":
+                    transform.parameters["mean"] = data_model.mean
+                    transform.parameters["std"] = data_model.std
+                    transform.parameters["max_pixel_value"] = 1.0
         return data_model

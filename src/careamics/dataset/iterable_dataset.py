@@ -1,6 +1,7 @@
 from __future__ import annotations
-from pathlib import Path
+
 import copy
+from pathlib import Path
 from typing import Callable, Generator, List, Optional, Tuple, Union
 
 import numpy as np
@@ -11,10 +12,10 @@ from ..config.support import SupportedExtractionStrategy
 from ..utils.logging import get_logger
 from .dataset_utils import read_tiff, reshape_array
 from .patching import (
-    get_patch_transform, 
-    generate_patches_supervised, 
+    generate_patches_predict,
+    generate_patches_supervised,
     generate_patches_unsupervised,
-    generate_patches_predict
+    get_patch_transform,
 )
 
 logger = get_logger(__name__)
@@ -96,7 +97,7 @@ class IterableDataset(IterableDataset):
 
         if num_samples == 0:
             raise ValueError("No samples found in the dataset.")
-        
+
         result_mean = means / num_samples
         result_std = stds / num_samples
 
@@ -125,7 +126,7 @@ class IterableDataset(IterableDataset):
         for i, filename in enumerate(self.data_files):
             # retrieve file corresponding to the worker id
             if i % num_workers == worker_id:
-                try: 
+                try:
                     # read data
                     sample = self.read_source_func(filename, self.axes)
 
@@ -140,7 +141,7 @@ class IterableDataset(IterableDataset):
                                 f"{self.target_files[i]}. Have you passed sorted "
                                 f"arrays?"
                             )
-                        
+
                         # read target
                         target = self.read_source_func(self.target_files[i], self.axes)
 
@@ -151,7 +152,7 @@ class IterableDataset(IterableDataset):
                     else:
                         yield reshaped_sample
                 except Exception as e:
-                    logger.error(f"Error reading file {filename}: {e}")                
+                    logger.error(f"Error reading file {filename}: {e}")
 
     def __iter__(self) -> Generator[np.ndarray, None, None]:
         """
@@ -188,7 +189,7 @@ class IterableDataset(IterableDataset):
 
             # iterate over patches
             # patches are tuples of (patch, target) if target is available
-            # or (patch, None) only if no target is available 
+            # or (patch, None) only if no target is available
             # patch is of dimensions (C)ZYX
             for patch_data in patches:
                 # if there is a target
@@ -228,7 +229,7 @@ class IterableDataset(IterableDataset):
                     masked_patch = np.moveaxis(masked_patch, -1, 0)
                     patch = np.moveaxis(patch, -1, 0)
                     mask = np.moveaxis(mask, -1, 0)
-    
+
                     yield (masked_patch, patch, mask)
 
     def get_number_of_files(self) -> int:
@@ -243,21 +244,21 @@ class IterableDataset(IterableDataset):
         return len(self.data_files)
 
     def split_dataset(
-            self, 
+            self,
             percentage: float = 0.1,
             minimum_number: int = 5,
-        ) -> IterableDataset: 
-        
+        ) -> IterableDataset:
+
         if percentage < 0 or percentage > 1:
             raise ValueError(f"Percentage must be between 0 and 1, got {percentage}.")
-        
+
         if minimum_number < 1 or minimum_number > self.get_number_of_files():
             raise ValueError(
                 f"Minimum number of files must be between 1 and "
                 f"{self.get_number_of_files()} (number of files), got "
                 f"{minimum_number}."
             )
-        
+
         # compute number of files
         total_files = self.get_number_of_files()
         n_files = max(round(percentage*total_files), minimum_number)
@@ -333,8 +334,8 @@ class IterablePredictionDataset(IterableDataset):
         **kwargs,
     ) -> None:
         super().__init__(
-            data_config=data_config, 
-            src_files=files, 
+            data_config=data_config,
+            src_files=files,
             read_source_func=read_source_func
         )
 
@@ -346,8 +347,8 @@ class IterablePredictionDataset(IterableDataset):
         # check that mean and std are provided
         if not self.mean or not self.std:
             raise ValueError(
-                f"Mean and std must be provided to the configuration in order to "
-                f" perform prediction."
+                "Mean and std must be provided to the configuration in order to "
+                " perform prediction."
             )
 
 

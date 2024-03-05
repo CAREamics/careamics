@@ -2,8 +2,8 @@ from typing import Callable, List, Union
 
 import albumentations as Aug
 
-from careamics.config.transform_model import TransformModel
 from careamics.config.support import get_all_transforms
+from careamics.config.transform_model import TransformModel
 
 
 # TODO add some explanations on how the additional_targets is used
@@ -16,7 +16,7 @@ def get_patch_transform(
     # if we passed a Compose, we just return it
     if isinstance(patch_transforms, Aug.Compose):
         return patch_transforms
-    
+
     # empty list of transforms is a NoOp
     elif len(patch_transforms) == 0:
 
@@ -24,7 +24,7 @@ def get_patch_transform(
             [Aug.NoOp()],
             additional_targets={}, # TODO this part need be checked again (wrt segmentation)
         )
-    
+
     # else we have a list of transforms
     else:
         # retrieve all transforms
@@ -40,13 +40,13 @@ def get_patch_transform(
             transforms,
 
             # TODO add when will be supporting targets
-            # to apply image aug to the object passed to the transform as 
+            # to apply image aug to the object passed to the transform as
             # keyword "target"
             # additional_targets={"target": "image"}
             # if (with_target and normalize_mask) # TODO check this
             # else {},
         )
-    
+
 
 # TODO clarify this function
 def _get_patch_transform(
