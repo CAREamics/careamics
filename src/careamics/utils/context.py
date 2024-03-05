@@ -3,6 +3,7 @@ Context submodule.
 
 A convenience function to change the working directory in order to save data.
 """
+
 import os
 from contextlib import contextmanager
 from pathlib import Path

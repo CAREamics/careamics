@@ -3,6 +3,7 @@ A WandB logger for CAREamics.
 
 Implements a WandB class for use within the Engine.
 """
+
 import sys
 from pathlib import Path
 from typing import Dict, Union

@@ -4,6 +4,7 @@ Engine module.
 This module contains the main CAREamics class, the Engine. The Engine allows training
 a model and using it for prediction.
 """
+
 from logging import FileHandler
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union

@@ -4,6 +4,7 @@ Pixel manipulation methods.
 Pixel manipulation is used in N2V and similar algorithm to replace the value of
 masked pixels.
 """
+
 from typing import Callable, Optional, Tuple
 
 import numpy as np

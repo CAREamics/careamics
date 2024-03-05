@@ -1,4 +1,5 @@
 """RDF related methods."""
+
 from pathlib import Path
 
 

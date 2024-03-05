@@ -3,6 +3,7 @@ Tiling submodule.
 
 These functions are used to tile images into patches or tiles.
 """
+
 import itertools
 from typing import Generator, List, Optional, Tuple, Union
 
@@ -112,18 +113,22 @@ def _compute_crop_and_stitch_coords_1d(
             stitch_coords.append(
                 (
                     i + overlap // 2 if i > 0 else 0,
-                    i + tile_size - overlap // 2
-                    if crop_coords[-1][1] < axis_size
-                    else axis_size,
+                    (
+                        i + tile_size - overlap // 2
+                        if crop_coords[-1][1] < axis_size
+                        else axis_size
+                    ),
                 )
             )
             # Add the coordinates to crop the overlap from the prediction.
             overlap_crop_coords.append(
                 (
                     overlap // 2 if i > 0 else 0,
-                    tile_size - overlap // 2
-                    if crop_coords[-1][1] < axis_size
-                    else tile_size,
+                    (
+                        tile_size - overlap // 2
+                        if crop_coords[-1][1] < axis_size
+                        else tile_size
+                    ),
                 )
             )
         # If the tile does not fit within the axis, perform the abovementioned

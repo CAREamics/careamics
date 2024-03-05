@@ -1,4 +1,5 @@
 """In-memory dataset module."""
+
 from pathlib import Path
 from typing import Callable, Dict, List, Optional, Tuple, Union
 
