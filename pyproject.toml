@@ -53,7 +53,7 @@ dependencies = [
 dev = ["pre-commit", "pytest", "pytest-cov"]
 
 # test for ci
-test = ["pytest", "pytest-cov", "wandb"]
+test = ["pytest", "pytest-cov", "wandb", "pytorch_lightning"]
 
 # use wandb for logging
 wandb = ["wandb"]
