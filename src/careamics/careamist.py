@@ -5,6 +5,7 @@ import numpy as np
 from pytorch_lightning import Trainer
 
 from .config import Configuration, load_configuration
+from .config.support import SupportedAlgorithm
 from .lightning_module import CAREamicsKiln
 from .lightning_prediction import CAREamicsFiring
 from .ligthning_datamodule import CAREamicsClay, CAREamicsWood

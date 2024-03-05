@@ -5,7 +5,7 @@ from albumentations import ImageOnlyTransform
 
 from careamics.config.support import SupportedPixelManipulation
 
-from .pixel_manipulation import uniform_manipulate
+from .pixel_manipulation import uniform_manipulate, median_manipulate 
 
 
 # TODO add median vs random replace
@@ -48,13 +48,17 @@ class ManipulateN2V(ImageOnlyTransform):
             Image or image patch, 2D or 3D, shape (y, x, c) or (z, y, x, c).
         """
         if self.strategy == SupportedPixelManipulation.UNIFORM:
-            masked, mask = uniform_manipulate(
-                patch, self.roi_size, self.masked_pixel_percentage, self.struct_mask
+            manipulated, mask = uniform_manipulate(
+                patch, self.masked_pixel_percentage, self.roi_size, self.struct_mask
+            )
+        elif self.strategy == SupportedPixelManipulation.MEDIAN:
+            manipulated, mask = median_manipulate(
+                patch, self.masked_pixel_percentage, self.roi_size, self.struct_mask
             )
         else:
             raise ValueError(f"Strategy {self.strategy} not supported.")
 
-        return masked, patch, mask
+        return manipulated, patch, mask
 
     def get_transform_init_args_names(self) -> Tuple[str, ...]:
         return ("roi_size", "masked_pixel_percentage", "strategy", "struct_mask")
