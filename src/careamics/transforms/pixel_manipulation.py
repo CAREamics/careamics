@@ -9,7 +9,7 @@ from typing import List, Optional, Tuple
 import numpy as np
 
 
-def _apply_struct_mask(patch: np.ndarray, coords: np.ndarray, mask_params: list[int]):
+def _apply_struct_mask(patch: np.ndarray, coords: np.ndarray, mask_params: List[int]):
     """Applies structN2V mask to patch.
 
     Each point in coords corresponds to the center of the mask.

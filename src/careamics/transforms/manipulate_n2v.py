@@ -58,7 +58,7 @@ class N2VManipulateUniform(ImageOnlyTransform):
         else:
             raise ValueError(f"Strategy {self.strategy} not supported.")
 
-        return masked, patch, mask
+        return manipulated, patch, mask
 
     def get_transform_init_args_names(self) -> Tuple[str, ...]:
         return ("roi_size", "masked_pixel_percentage", "strategy", "struct_mask")

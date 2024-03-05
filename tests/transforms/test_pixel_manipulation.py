@@ -64,7 +64,7 @@ def test_uniform_manipulate(ordered_array, shape):
 
     # manipulate the array
     transform_patch, mask = uniform_manipulate(
-        patch, subpatch_size=5, mask_pixel_percentage=10
+        patch, mask_pixel_percentage=10, subpatch_size=5
     )
 
     # find pixels that have different values between patch and transformed patch
