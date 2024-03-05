@@ -51,7 +51,8 @@ class CAREamicsFiring(L.loops._PredictionLoop):
             try:
                 if isinstance(data_fetcher, _DataLoaderIterDataFetcher):
                     dataloader_iter = next(data_fetcher)
-                    # hook's batch_idx and dataloader_idx arguments correctness cannot be guaranteed in this setting
+                    # hook's batch_idx and dataloader_idx arguments correctness cannot
+                    # be guaranteed in this setting
                     batch = data_fetcher._batch
                     batch_idx = data_fetcher._batch_idx
                     dataloader_idx = data_fetcher._dataloader_idx

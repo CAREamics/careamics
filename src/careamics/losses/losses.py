@@ -7,7 +7,7 @@ This submodule contains the various losses used in CAREamics.
 import torch
 
 # TODO if we are only using the DiceLoss, can we just implement it?
-from segmentation_models_pytorch.losses import DiceLoss
+# from segmentation_models_pytorch.losses import DiceLoss
 from torch.nn import L1Loss, MSELoss
 
 from .noise_models import HistogramNoiseModel

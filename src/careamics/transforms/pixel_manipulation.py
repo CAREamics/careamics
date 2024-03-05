@@ -97,13 +97,15 @@ def _get_stratified_coords(
     """
     rng = np.random.default_rng()
 
-    # Define the approximate distance between masked pixels
-    mask_pixel_distance = np.round((100 / mask_pixel_perc) ** (1 / len(shape))).astype(
-        np.int32
-    )
+    # Define the approximate distance between masked pixels. Subtracts 1 form the shape
+    # to account for the channel dimension
+    mask_pixel_distance = np.round(
+        (100 / mask_pixel_perc) ** (1 / (len(shape) - 1))
+    ).astype(np.int32)
 
     # Define a grid of coordinates for each axis in the input patch and the step size
     pixel_coords = []
+    steps = []
     for axis_size in shape:
         # make sure axis size is evenly divisible by box size
         num_pixels = int(np.ceil(axis_size / mask_pixel_distance))
@@ -112,13 +114,14 @@ def _get_stratified_coords(
         )
         # explain
         pixel_coords.append(axis_pixel_coords.T)
+        steps.append(step)
 
     # Create a meshgrid of coordinates for each axis in the input patch
     coordinate_grid_list = np.meshgrid(*pixel_coords)
     coordinate_grid = np.array(coordinate_grid_list).reshape(len(shape), -1).T
 
     grid_random_increment = rng.integers(
-        _odd_jitter_func(float(step), rng)
+        _odd_jitter_func(float(max(steps)), rng)
         * np.ones_like(coordinate_grid).astype(np.int32)
         - 1,
         size=coordinate_grid.shape,
@@ -193,7 +196,7 @@ def uniform_manipulate(
     patch: np.ndarray,
     mask_pixel_percentage: float,
     subpatch_size: int = 11,
-    remove_center: bool = False,
+    remove_center: bool = True,
     struct_mask_params: Optional[List[int]] = None,
 ) -> Tuple[np.ndarray, ...]:
     """

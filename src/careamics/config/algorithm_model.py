@@ -4,7 +4,7 @@ from typing import Literal, Union
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from .architectures import UNetModel, VAEModel, CustomModel
+from .architectures import CustomModel, UNetModel, VAEModel
 from .optimizer_models import LrSchedulerModel, OptimizerModel
 
 

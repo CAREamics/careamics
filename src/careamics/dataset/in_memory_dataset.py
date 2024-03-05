@@ -103,7 +103,7 @@ class InMemoryDataset(torch.utils.data.Dataset):
             if supervised:
                 return prepare_patches_supervised_array(
                     self.data,
-                    self.axes, 
+                    self.axes,
                     self.data_target,
                     self.patch_size,
                 )
@@ -111,7 +111,7 @@ class InMemoryDataset(torch.utils.data.Dataset):
             else:
                 return prepare_patches_unsupervised_array(
                     self.data,
-                    self.axes, 
+                    self.axes,
                     self.patch_size,
                 )
         # else it is a list of paths
@@ -133,7 +133,7 @@ class InMemoryDataset(torch.utils.data.Dataset):
                     self.patch_size,
                     self.read_source_func,
                 )
-        
+
     def __len__(self) -> int:
         """
         Return the length of the dataset.
@@ -182,7 +182,7 @@ class InMemoryDataset(torch.utils.data.Dataset):
 
             # move axes back
             patch = np.moveaxis(transformed["image"], -1, 0)
-            target = np.moveaxis(transformed["target"], -1, 0)  
+            target = np.moveaxis(transformed["target"], -1, 0)
 
             return patch, target
         else:
@@ -199,7 +199,6 @@ class InMemoryDataset(torch.utils.data.Dataset):
             mask = np.moveaxis(mask, -1, 0)
 
             return (manip_patch, patch, mask)
-        
 
     def get_number_of_patches(self) -> int:
         """
@@ -242,13 +241,13 @@ class InMemoryDataset(torch.utils.data.Dataset):
         """
         if percentage < 0 or percentage > 1:
             raise ValueError(f"Percentage must be between 0 and 1, got {percentage}.")
-        
+
         if minimum_number < 1 or minimum_number > self.get_number_of_patches():
             raise ValueError(
                 f"Minimum number of patches must be between 1 and "
                 f"{self.get_number_of_patches()} (number of patches), got {minimum_number}."
             )
-        
+
         total_patches = self.get_number_of_patches()
 
         # number of patches to extract (either percentage rounded or minimum number)

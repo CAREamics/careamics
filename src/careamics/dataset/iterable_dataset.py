@@ -337,7 +337,7 @@ class IterablePredictionDataset(IterableDataset):
             src_files=files, 
             read_source_func=read_source_func
         )
-        
+
         self.patch_size = data_config.patch_size
         self.tile_size = tile_size
         self.tile_overlap = tile_overlap

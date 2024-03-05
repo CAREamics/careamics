@@ -39,10 +39,6 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
-    'torch',
-    'torchvision',
-    'lightning',
-    'segmentation_models_pytorch',
     'albumentations',
     'tifffile',
     'pyyaml',

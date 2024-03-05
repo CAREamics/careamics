@@ -5,6 +5,7 @@ import numpy as np
 from pytorch_lightning import Trainer
 
 from .config import Configuration, load_configuration
+from .config.support import SupportedAlgorithm
 from .lightning_module import CAREamicsKiln
 from .lightning_prediction import CAREamicsFiring
 from .ligthning_datamodule import CAREamicsClay, CAREamicsWood
@@ -178,7 +179,7 @@ class CAREamist:
         train_target: Optional[np.ndarray] = None,
         val_target: Optional[np.ndarray] = None,
     ) -> None:
-        
+
         if train_target is not None:
             if self.cfg.algorithm.algorithm in \
                 SupportedAlgorithm.get_unsupervised_algorithms():
@@ -249,4 +250,4 @@ class CAREamist:
         )
 
         return self.predict(datamodule)
-    
+

@@ -363,7 +363,7 @@ class CAREamicsClay(L.LightningDataModule):
                 f"Data type {SupportedData.CUSTOM} is not allowed without "
                 f"specifying a `read_source_func`."
             )
-        
+
         # and that arrays are passed, if array type specified
         elif data_config.data_type == SupportedData.ARRAY and \
             not isinstance(pred_data, np.ndarray):
@@ -371,11 +371,11 @@ class CAREamicsClay(L.LightningDataModule):
                 f"Expected array input (see configuration.data.data_type), but got "
                 f"{type(pred_data)} instead."
             )
-        
+
         # and that Path or str are passed, if tiff file type specified
-        elif data_config.data_type == SupportedData.TIFF and (
-                not isinstance(pred_data, Path) or
-                not isinstance(pred_data, str)
+        elif data_config.data_type == SupportedData.TIFF and not (
+                isinstance(pred_data, Path) or
+                isinstance(pred_data, str)
             ):
             raise ValueError(
                 f"Expected Path or str input (see configuration.data.data_type), "
@@ -426,6 +426,8 @@ class CAREamicsClay(L.LightningDataModule):
                 files=self.pred_files,
                 data_config=self.data_config,
                 read_source_func=self.read_source_func,
+                tile_size=self.tile_size,
+                tile_overlap=self.tile_overlap,
             )
 
     def predict_dataloader(self) -> Any:
@@ -518,6 +520,8 @@ class CAREamicsPredictDataModule(CAREamicsClay):
         super().__init__(
             data_config=DataModel(**data_config),
             pred_data=pred_path,
+            tile_size=tile_size,
+            tile_overlap=(48, 48),
             read_source_func=read_source_func,
             extension_filter=extension_filter,
         )
