@@ -33,4 +33,3 @@ def get_activation(activation: Union[SupportedActivation, str]) -> Callable:
         return nn.Identity()
     else:
         raise ValueError(f"Activation {activation} not supported.")
-

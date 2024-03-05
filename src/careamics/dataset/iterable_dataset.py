@@ -52,7 +52,6 @@ class IterableDataset(IterableDataset):
         target_files: Optional[List[Path]] = None,
         read_source_func: Callable = read_tiff,
     ) -> None:
-
         if target_files is not None:
             raise NotImplementedError("Targets are not yet supported.")
 
@@ -172,19 +171,19 @@ class IterableDataset(IterableDataset):
             if self.target_files is not None:
                 sample_input, sample_target = sample
                 patches = generate_patches_supervised(
-                    sample = sample_input,
-                    axes = self.axes,
-                    patch_extraction_method = SupportedExtractionStrategy.RANDOM,
-                    patch_size = self.patch_size,
-                    target = sample_target,
+                    sample=sample_input,
+                    axes=self.axes,
+                    patch_extraction_method=SupportedExtractionStrategy.RANDOM,
+                    patch_size=self.patch_size,
+                    target=sample_target,
                 )
 
             else:
                 patches = generate_patches_unsupervised(
-                    sample = sample,
-                    axes = self.axes,
-                    patch_extraction_method = SupportedExtractionStrategy.RANDOM,
-                    patch_size = self.patch_size,
+                    sample=sample,
+                    axes=self.axes,
+                    patch_extraction_method=SupportedExtractionStrategy.RANDOM,
+                    patch_size=self.patch_size,
                 )
 
             # iterate over patches
@@ -217,9 +216,7 @@ class IterableDataset(IterableDataset):
                     patch = np.moveaxis(patch_data[0], 0, -1)
 
                     # apply transform
-                    transformed = self.patch_transform(
-                        image=patch
-                    )
+                    transformed = self.patch_transform(image=patch)
 
                     # TODO is there a chance that ManipulateN2V is not in transforms?
                     # retrieve the output of ManipulateN2V
@@ -244,11 +241,10 @@ class IterableDataset(IterableDataset):
         return len(self.data_files)
 
     def split_dataset(
-            self,
-            percentage: float = 0.1,
-            minimum_number: int = 5,
-        ) -> IterableDataset:
-
+        self,
+        percentage: float = 0.1,
+        minimum_number: int = 5,
+    ) -> IterableDataset:
         if percentage < 0 or percentage > 1:
             raise ValueError(f"Percentage must be between 0 and 1, got {percentage}.")
 
@@ -261,7 +257,7 @@ class IterableDataset(IterableDataset):
 
         # compute number of files
         total_files = self.get_number_of_files()
-        n_files = max(round(percentage*total_files), minimum_number)
+        n_files = max(round(percentage * total_files), minimum_number)
 
         # get random indices
         indices = np.random.choice(total_files, n_files, replace=False)
@@ -334,9 +330,7 @@ class IterablePredictionDataset(IterableDataset):
         **kwargs,
     ) -> None:
         super().__init__(
-            data_config=data_config,
-            src_files=files,
-            read_source_func=read_source_func
+            data_config=data_config, src_files=files, read_source_func=read_source_func
         )
 
         self.patch_size = data_config.patch_size
@@ -350,7 +344,6 @@ class IterablePredictionDataset(IterableDataset):
                 "Mean and std must be provided to the configuration in order to "
                 " perform prediction."
             )
-
 
     def __iter__(self) -> Generator[np.ndarray, None, None]:
         """
@@ -366,7 +359,7 @@ class IterablePredictionDataset(IterableDataset):
         ), "Mean and std must be provided"
 
         for sample in self._iterate_over_files():
-            patches =  generate_patches_predict(
+            patches = generate_patches_predict(
                 sample, self.axes, self.tile_size, self.tile_overlap
             )
 

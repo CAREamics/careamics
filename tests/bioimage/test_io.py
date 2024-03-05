@@ -1,14 +1,3 @@
-from pathlib import Path
-
-import bioimageio.spec.shared.raw_nodes as nodes
-import pytest
-import torch
-from bioimageio.core import load_resource_description
-
-from careamics.bioimage.io import get_default_model_specs
-from careamics.config import Configuration, save_configuration
-from careamics.utils import cwd
-
 # @pytest.mark.parametrize("name", ["Noise2Void"])
 # @pytest.mark.parametrize("is_3D", [True, False])
 # def test_default_model_specs(name, is_3D):

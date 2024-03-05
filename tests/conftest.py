@@ -13,8 +13,8 @@ from careamics.config.algorithm_model import (
     OptimizerModel,
 )
 from careamics.config.data_model import DataModel
-from careamics.config.training_model import Training
 from careamics.config.support import SupportedData
+from careamics.config.training_model import Training
 
 
 # TODO add details about where each of these fixture is used (e.g. smoke test)

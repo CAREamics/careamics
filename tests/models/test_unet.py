@@ -48,6 +48,7 @@ def test_blurpool2d(input_shape):
         [1, 1] + [i // 2 for i in input_shape[2:]]
     )
 
+
 @pytest.mark.parametrize(
     "input_shape",
     [

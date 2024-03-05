@@ -1,10 +1,3 @@
-from pathlib import Path
-from unittest import mock
-
-from careamics.config import Configuration
-from careamics.utils.wandb import WandBLogging
-
-
 # @mock.patch("careamics.utils.wandb.wandb")
 # def test_wandb_logger(wandb, tmp_path: Path, minimum_config: dict):
 #     config = Configuration(**minimum_config)

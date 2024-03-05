@@ -44,27 +44,27 @@ class CAREamicsWood(L.LightningDataModule):
         """LightningDataModule for CAREamics training, including training and validation
         datasets.
 
-        The data module can be used with Path, str or numpy arrays. In the case of 
+        The data module can be used with Path, str or numpy arrays. In the case of
         numpy arrays, it loads and computes all the patches in memory. For Path and str
         inputs, it calculates the total file size and estimate whether it can fit in
         memory. If it does not, it iterates through the files. This behaviour can be
-        deactivated by setting `use_in_memory` to False, in which case it will 
+        deactivated by setting `use_in_memory` to False, in which case it will
         always use the iterating dataset to train on a Path or str.
 
         The data can be either a folder containing images or a single file.
 
         Validation can be omitted, in which case the validation data is extracted from
         the training data. The percentage of the training data to use for validation,
-        as well as the minimum number of patches or files to split from the training 
+        as well as the minimum number of patches or files to split from the training
         data can be set using `val_percentage` and `val_minimum_split`, respectively.
 
-        To read custom data types, you can set `data_type` to `custom` in `data_config` 
-        and provide a function that returns a numpy array from a path as 
+        To read custom data types, you can set `data_type` to `custom` in `data_config`
+        and provide a function that returns a numpy array from a path as
         `read_source_func` parameter. The function will receive a Path object and
         an axies string as arguments, the axes being derived from the `data_config`.
         # TODO is this necessary to pass the axes?
 
-        You can also provide a `fnmatch` and `Path.rglob` compatible expression (e.g. 
+        You can also provide a `fnmatch` and `Path.rglob` compatible expression (e.g.
         "*.czi") to filter the files extension using `extension_filter`.
 
         Parameters
@@ -83,16 +83,16 @@ class CAREamicsWood(L.LightningDataModule):
             Validation target data, can be a path to a folder, a file or a numpy array,
             by default None.
         read_source_func : Optional[Callable], optional
-            Function to read the source data, by default None. Only used for `custom` 
+            Function to read the source data, by default None. Only used for `custom`
             data type (see DataModel).
         extension_filter : str, optional
             Filter for file extensions, by default "". Only used for `custom` data types
             (see DataModel).
         val_percentage : float, optional
-            Percentage of the training data to use for validation, by default 0.1. Only 
+            Percentage of the training data to use for validation, by default 0.1. Only
             used if `val_data` is None.
         val_minimum_split : int, optional
-            Minimum number of patches or files to split from the training data for 
+            Minimum number of patches or files to split from the training data for
             validation, by default 5. Only used if `val_data` is None.
 
         Raises
@@ -116,11 +116,9 @@ class CAREamicsWood(L.LightningDataModule):
             )
 
         # check input types coherence (no mixed types)
-        inputs = [
-            train_data, val_data, train_data_target, val_data_target
-        ]
-        types_set = set([type(i) for i in inputs])
-        if len(types_set) > 2: # None + expected type
+        inputs = [train_data, val_data, train_data_target, val_data_target]
+        types_set = {type(i) for i in inputs}
+        if len(types_set) > 2:  # None + expected type
             raise ValueError(
                 f"Inputs for `train_data`, `val_data`, `train_data_target` and "
                 f"`val_data_target` must be of the same type or None. Got "
@@ -135,8 +133,9 @@ class CAREamicsWood(L.LightningDataModule):
             )
 
         # and that arrays are passed, if array type specified
-        elif data_config.data_type == SupportedData.ARRAY and \
-              not isinstance(train_data, np.ndarray):
+        elif data_config.data_type == SupportedData.ARRAY and not isinstance(
+            train_data, np.ndarray
+        ):
             raise ValueError(
                 f"Expected array input (see configuration.data.data_type), but got "
                 f"{type(train_data)} instead."
@@ -144,9 +143,8 @@ class CAREamicsWood(L.LightningDataModule):
 
         # and that Path or str are passed, if tiff file type specified
         elif data_config.data_type == SupportedData.TIFF and (
-                not isinstance(train_data, Path) and
-                not isinstance(train_data, str)
-            ):
+            not isinstance(train_data, Path) and not isinstance(train_data, str)
+        ):
             raise ValueError(
                 f"Expected Path or str input (see configuration.data.data_type), "
                 f"but got {type(train_data)} instead."
@@ -256,12 +254,11 @@ class CAREamicsWood(L.LightningDataModule):
                 # extract validation from the training patches
                 self.val_dataset = self.train_dataset.split_dataset(
                     percentage=self.val_percentage,
-                    minimum_patches=self.val_minimum_split
+                    minimum_patches=self.val_minimum_split,
                 )
 
         # else we read files
         else:
-
             # Heuristics, if the file size is smaller than 80% of the RAM,
             # we run the training in memory, otherwise we switch to iterable dataset
             # The switch is deactivated if use_in_memory is False
@@ -290,7 +287,7 @@ class CAREamicsWood(L.LightningDataModule):
                     # split dataset
                     self.val_dataset = self.train_dataset.split_dataset(
                         percentage=self.val_percentage,
-                        minimum_patches=self.val_minimum_split
+                        minimum_patches=self.val_minimum_split,
                     )
 
             # else if the data is too large, load file by file during training
@@ -326,9 +323,8 @@ class CAREamicsWood(L.LightningDataModule):
                     # extract validation from the training patches
                     self.val_dataset = self.train_dataset.split_dataset(
                         percentage=self.val_percentage,
-                        minimum_files=self.val_minimum_split
+                        minimum_files=self.val_minimum_split,
                     )
-
 
     def train_dataloader(self) -> Any:
         return DataLoader(
@@ -367,8 +363,9 @@ class CAREamicsClay(L.LightningDataModule):
             )
 
         # and that arrays are passed, if array type specified
-        elif data_config.data_type == SupportedData.ARRAY and \
-            not isinstance(pred_data, np.ndarray):
+        elif data_config.data_type == SupportedData.ARRAY and not isinstance(
+            pred_data, np.ndarray
+        ):
             raise ValueError(
                 f"Expected array input (see configuration.data.data_type), but got "
                 f"{type(pred_data)} instead."
@@ -376,9 +373,8 @@ class CAREamicsClay(L.LightningDataModule):
 
         # and that Path or str are passed, if tiff file type specified
         elif data_config.data_type == SupportedData.TIFF and not (
-                isinstance(pred_data, Path) or
-                isinstance(pred_data, str)
-            ):
+            isinstance(pred_data, Path) or isinstance(pred_data, str)
+        ):
             raise ValueError(
                 f"Expected Path or str input (see configuration.data.data_type), "
                 f"but got {type(pred_data)} instead."
@@ -411,7 +407,6 @@ class CAREamicsClay(L.LightningDataModule):
         else:
             # reshape array
             self.pred_data = reshape_array(self.pred_data, self.data_config.axes)
-
 
     def setup(self, stage: Optional[str] = None) -> None:
         # if numpy array
@@ -461,7 +456,6 @@ class CAREamicsTrainDataModule(CAREamicsWood):
         pin_memory: bool = False,
         **kwargs,
     ) -> None:
-
         data_config = {
             "mode": "train",
             "data_type": data_type,

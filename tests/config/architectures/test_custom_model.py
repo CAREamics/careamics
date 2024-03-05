@@ -1,7 +1,7 @@
 import pytest
-
 from torch import nn, ones
-from careamics.config.architectures import CustomModel, register_model, get_custom_model
+
+from careamics.config.architectures import CustomModel, get_custom_model, register_model
 from careamics.config.support import SupportedArchitecture
 
 
@@ -21,7 +21,6 @@ class LinearModel(nn.Module):
 
 @register_model(name="not_a_model")
 class NotAModel:
-
     def __init__(self, id):
         self.id = id
 
@@ -47,12 +46,9 @@ def test_custom_model():
     model_dict = {
         "architecture": SupportedArchitecture.CUSTOM.value,
         "name": "linear",
-        "parameters": {
-            "in_features": 10,
-            "out_features": 5
-        }
-    }   
-    
+        "parameters": {"in_features": 10, "out_features": 5},
+    }
+
     # create Pydantic model
     pydantic_model = CustomModel(**model_dict)
 
@@ -66,17 +62,15 @@ def test_custom_model():
 
 
 def test_custom_model_wrong_class():
-    """Test that the Pydantic custom model raises an error if the model is not a 
+    """Test that the Pydantic custom model raises an error if the model is not a
     torch.nn.Module subclass."""
     # prepare model dictionary
     model_dict = {
         "architecture": "Custom",
         "name": "not_a_model",
-        "parameters": {
-            "id": 3
-        }
-    }   
-    
+        "parameters": {"id": 3},
+    }
+
     # create Pydantic model
     with pytest.raises(ValueError):
         CustomModel(**model_dict)

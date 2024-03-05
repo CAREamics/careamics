@@ -1,16 +1,18 @@
 import pytest
 
 from careamics.config.architectures import (
-    register_model, get_custom_model, clear_custom_models
+    clear_custom_models,
+    get_custom_model,
+    register_model,
 )
+
 
 # register a model
 @register_model(name="mymodel")
 class MyModel:
-    
     model_name: str
     model_id: int
-        
+
 
 def test_register_model():
     """Test the register_model decorator."""
@@ -34,7 +36,7 @@ def test_clear_custom_models():
     """Test that the custom models are cleared."""
     # retrieve model
     get_custom_model("mymodel")
-    
+
     # clear custom models
     clear_custom_models()
 

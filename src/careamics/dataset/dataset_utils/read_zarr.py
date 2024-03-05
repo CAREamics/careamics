@@ -1,6 +1,7 @@
 from typing import Union
 
-from zarr import Group, core, storage, hierarchy
+from zarr import Group, core, hierarchy, storage
+
 
 def read_zarr(
     zarr_source: Group, axes: str

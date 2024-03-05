@@ -1,11 +1,9 @@
-
 from typing import Generator, List, Optional, Tuple, Union
 
 import numpy as np
 import zarr
 
 from .validate_patch_dimension import validate_patch_dimensions
-
 
 
 # TODO this should not be responsible for reshaping, split into different functions
@@ -23,7 +21,7 @@ def extract_patches_random(
     It returns a generator that yields the following:
 
     - patch: np.ndarray, dimension C(Z)YX.
-    - target_patch: np.ndarray, dimension C(Z)YX, if the target is present, None 
+    - target_patch: np.ndarray, dimension C(Z)YX, if the target is present, None
         otherwise.
 
     Parameters
@@ -56,7 +54,6 @@ def extract_patches_random(
 
         # iterate over the number of patches
         for _ in range(n_patches):
-
             # get crop coordinates
             crop_coords = [
                 rng.integers(0, sample.shape[i] - patch_size[1:][i], endpoint=True)

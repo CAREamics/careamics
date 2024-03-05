@@ -1,7 +1,8 @@
 from careamics import CAREamist, Configuration
 
+
 def main():
-    config_dict ={
+    config_dict = {
         "experiment_name": "ConfigTest",
         "working_directory": ".",
         "algorithm": {
@@ -14,9 +15,7 @@ def main():
             "optimizer": {
                 "name": "Adam",
             },
-            "lr_scheduler": {
-                "name": "ReduceLROnPlateau"
-            },
+            "lr_scheduler": {"name": "ReduceLROnPlateau"},
         },
         "training": {
             "num_epochs": 1,
@@ -42,5 +41,5 @@ def main():
     # print(pred.shape)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

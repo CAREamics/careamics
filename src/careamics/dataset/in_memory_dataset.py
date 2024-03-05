@@ -1,5 +1,6 @@
 """In-memory dataset module."""
 from __future__ import annotations
+
 import copy
 from pathlib import Path
 from typing import Callable, List, Optional, Tuple, Union
@@ -15,22 +16,17 @@ from .patching.patch_transform import get_patch_transform
 from .patching.patching import (
     generate_patches_predict,
     prepare_patches_supervised,
-    prepare_patches_unsupervised,
     prepare_patches_supervised_array,
+    prepare_patches_unsupervised,
     prepare_patches_unsupervised_array,
 )
 
 logger = get_logger(__name__)
 
 
-
 # TODO dataset which sets appart some data for validation?
 class InMemoryDataset(torch.utils.data.Dataset):
-    """
-    Dataset storing data in memory and allowing generating patches from it.
-
-
-    """
+    """Dataset storing data in memory and allowing generating patches from it."""
 
     def __init__(
         self,
@@ -47,7 +43,6 @@ class InMemoryDataset(torch.utils.data.Dataset):
         """
         if data_target is not None:
             raise NotImplementedError("Targets are not yet supported.")
-
 
         self.data = data
         self.data_target = data_target
@@ -82,7 +77,7 @@ class InMemoryDataset(torch.utils.data.Dataset):
         )
 
     def _prepare_patches(
-            self, supervised: bool
+        self, supervised: bool
     ) -> Tuple[np.ndarray, Optional[np.ndarray], float, float]:
         """
         Iterate over data source and create an array of patches.
@@ -176,9 +171,7 @@ class InMemoryDataset(torch.utils.data.Dataset):
             c_target = np.moveaxis(target, 0, -1)
 
             # Apply transforms
-            transformed = self.patch_transform(
-                image=c_patch, target=c_target
-            )
+            transformed = self.patch_transform(image=c_patch, target=c_target)
 
             # move axes back
             patch = np.moveaxis(transformed["image"], -1, 0)
@@ -212,10 +205,10 @@ class InMemoryDataset(torch.utils.data.Dataset):
         return self.patches.shape[0]
 
     def split_dataset(
-            self, 
-            percentage: float = 0.1,
-            minimum_number: int = 5,
-        ) -> InMemoryDataset: 
+        self,
+        percentage: float = 0.1,
+        minimum_number: int = 5,
+    ) -> InMemoryDataset:
         """Split a new dataset away from the current one.
 
         This method is used to extract random validation patches from the dataset.
@@ -251,7 +244,7 @@ class InMemoryDataset(torch.utils.data.Dataset):
         total_patches = self.get_number_of_patches()
 
         # number of patches to extract (either percentage rounded or minimum number)
-        n_patches = max(round(total_patches*percentage), minimum_number)
+        n_patches = max(round(total_patches * percentage), minimum_number)
 
         # get random indices
         indices = np.random.choice(total_patches, n_patches, replace=False)
@@ -278,6 +271,7 @@ class InMemoryDataset(torch.utils.data.Dataset):
             dataset.patch_targets = val_targets
 
         return dataset
+
 
 # TODO add tile size
 class InMemoryPredictionDataset(torch.utils.data.Dataset):
@@ -324,10 +318,9 @@ class InMemoryPredictionDataset(torch.utils.data.Dataset):
         # check that mean and std are provided
         if not self.mean or not self.std:
             raise ValueError(
-                f"Mean and std must be provided to the configuration in order to "
-                f" perform prediction."
+                "Mean and std must be provided to the configuration in order to "
+                " perform prediction."
             )
-
 
         self.input_array = data
         self.tile = tile_size and tile_overlap

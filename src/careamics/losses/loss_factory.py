@@ -6,7 +6,7 @@ This module contains a factory function for creating loss functions.
 from typing import Callable
 
 from ..config.support import SupportedLoss
-from .losses import dice_loss, mae_loss, mse_loss, n2v_loss, pn2v_loss
+from .losses import mae_loss, mse_loss, n2v_loss
 
 
 # TODO add tests

@@ -28,8 +28,7 @@ def method_dispatch(method: Callable) -> Callable:
 
     # define a wrapper to dispatch the function based on the second argument
     def wrapper(*args, **kw):
-
-        if len(args)+len(kw) < 2:
+        if len(args) + len(kw) < 2:
             raise ValueError(f"Missing argument to {method}.")
 
         # if the second argument was passed as a keyword argument, we use its class

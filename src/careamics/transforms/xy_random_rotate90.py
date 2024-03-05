@@ -6,7 +6,7 @@ from albumentations import DualTransform
 
 class XYRandomRotate90(DualTransform):
     """Applies random 90 degree rotations to the YX axis.
-    
+
     This transform expects (Z)YXC dimensions.
     """
 
@@ -22,9 +22,7 @@ class XYRandomRotate90(DualTransform):
             self.axes = (0, 1)
 
     def get_params(self, **kwargs: Any) -> Dict[str, int]:
-        return {
-            "n_rotations": np.random.randint(1, 4)
-        }    
+        return {"n_rotations": np.random.randint(1, 4)}
 
     def apply(self, patch: np.ndarray, n_rotations: int, **kwargs: Any) -> np.ndarray:
         """Apply the transform to the image.
@@ -41,12 +39,12 @@ class XYRandomRotate90(DualTransform):
                 "Incompatible patch shape and dimensionality. ZYXC patch shape "
                 "expected, but got YXC shape."
             )
-        
+
         return np.ascontiguousarray(np.rot90(patch, k=n_rotations, axes=self.axes))
 
     def apply_to_mask(
-            self, mask: np.ndarray, n_rotations: int, **kwargs: Any
-        ) -> np.ndarray:
+        self, mask: np.ndarray, n_rotations: int, **kwargs: Any
+    ) -> np.ndarray:
         """Apply the transform to the mask.
 
         Parameters
@@ -61,6 +59,6 @@ class XYRandomRotate90(DualTransform):
             )
 
         return np.ascontiguousarray(np.rot90(mask, k=n_rotations, axes=self.axes))
-   
+
     def get_transform_init_args_names(self) -> Tuple[str]:
-        return ("is_3D")
+        return "is_3D"

@@ -55,5 +55,3 @@ class TransformModel(BaseModel):
         self.parameters.update(parameters)
 
         return self
-
-    

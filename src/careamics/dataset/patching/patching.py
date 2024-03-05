@@ -9,18 +9,16 @@ from typing import Callable, Generator, List, Optional, Tuple, Union
 import numpy as np
 import zarr
 
-from ...utils.logging import get_logger
 from ...config.support.supported_extraction_strategies import (
-    SupportedExtractionStrategy
+    SupportedExtractionStrategy,
 )
-
-from .sequential_patching import extract_patches_sequential
-from .random_patching import extract_patches_random, extract_patches_random_from_chunks
-from .tiled_patching import extract_tiles
+from ...utils.logging import get_logger
 from ..dataset_utils import reshape_array
+from .random_patching import extract_patches_random, extract_patches_random_from_chunks
+from .sequential_patching import extract_patches_sequential
+from .tiled_patching import extract_tiles
 
 logger = get_logger(__name__)
-
 
 
 # called by in memory dataset
@@ -69,13 +67,13 @@ def prepare_patches_supervised(
             # emit warning and continue
             logger.error(f"Failed to read {train_filename} or {target_filename}: {e}")
 
-    # raise error if no valid samples found        
+    # raise error if no valid samples found
     if num_samples == 0:
         raise ValueError(
             f"No valid samples found in the input data: {train_files} and "
             f"{target_files}."
         )
-    
+
     result_mean, result_std = means / num_samples, stds / num_samples
 
     all_patches = np.concatenate(all_patches, axis=0)
@@ -88,6 +86,7 @@ def prepare_patches_supervised(
         result_mean,
         result_std,
     )
+
 
 # called by in memory dataset
 def prepare_patches_unsupervised(
@@ -112,7 +111,7 @@ def prepare_patches_unsupervised(
             means += sample.mean()
             stds += sample.std()
             num_samples += 1
-            
+
             # reshape array
             sample = reshape_array(sample, axes)
 
@@ -128,9 +127,9 @@ def prepare_patches_unsupervised(
     # raise error if no valid samples found
     if num_samples == 0:
         raise ValueError(f"No valid samples found in the input data: {train_files}.")
-    
+
     result_mean, result_std = means / num_samples, stds / num_samples
-    
+
     return np.concatenate(all_patches), _, result_mean, result_std
 
 
@@ -141,7 +140,6 @@ def prepare_patches_supervised_array(
     data_target: np.ndarray,
     patch_size: Union[List[int], Tuple[int]],
 ) -> Tuple[np.ndarray, float, float]:
-
     # compute statistics
     mean = data.mean()
     std = data.std()
@@ -162,6 +160,7 @@ def prepare_patches_supervised_array(
         mean,
         std,
     )
+
 
 # called by in memory dataset
 def prepare_patches_unsupervised_array(
@@ -219,6 +218,7 @@ def generate_patches_predict(
         raise ValueError("No patch generated")
 
     return patches_list
+
 
 # iterator over files
 def generate_patches_supervised(
@@ -295,7 +295,7 @@ def generate_patches_supervised(
         # no patching
         return (sample for _ in range(1)), target
 
-    
+
 # iterator over files
 def generate_patches_unsupervised(
     sample: Union[np.ndarray, zarr.Array],
@@ -336,7 +336,7 @@ def generate_patches_unsupervised(
     # if tiled (patches with overlaps)
     if patch_extraction_method == SupportedExtractionStrategy.TILED:
         if patch_overlap is None:
-            patch_overlap = [48] * len(patch_size) # TODO pass overlap instead
+            patch_overlap = [48] * len(patch_size)  # TODO pass overlap instead
 
         # return a Generator of the following:
         # - patch: np.ndarray, dims SC(Z)YX
@@ -353,10 +353,7 @@ def generate_patches_unsupervised(
         # return a Generator that yields the following:
         # - patch: np.ndarray, dimension C(Z)YX
         # - target_patch: np.ndarray, dimension C(Z)YX, or None
-        patches = extract_patches_random(
-            sample, 
-            patch_size=patch_size
-        )
+        patches = extract_patches_random(sample, patch_size=patch_size)
 
     # zarr specific random extraction
     elif patch_extraction_method == SupportedExtractionStrategy.RANDOM_ZARR:
@@ -365,13 +362,13 @@ def generate_patches_unsupervised(
         #     sample, patch_size=patch_size, chunk_size=sample.chunks
         # )
         raise NotImplementedError("Random zarr extraction not implemented yet.")
-    
+
     # no patching, return sample
     elif patch_extraction_method == SupportedExtractionStrategy.NONE:
         patches = (sample for _ in range(1))
-    
+
     # no extraction method
     else:
         raise ValueError("Invalid patch extraction method.")
 
-    return patches 
+    return patches

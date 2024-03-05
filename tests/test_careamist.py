@@ -1,10 +1,9 @@
-import pytest
-
 import numpy as np
+import pytest
 import tifffile
 
 from careamics import CAREamist, Configuration, save_configuration
-from careamics.config.support import SupportedData, SupportedAlgorithm
+from careamics.config.support import SupportedAlgorithm, SupportedData
 
 
 def test_no_parameters():

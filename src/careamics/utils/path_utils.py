@@ -4,14 +4,14 @@ from typing import Union
 
 def check_path_exists(path: Union[str, Path]) -> Path:
     """Check if a path exists. If not, raise an error.
-    
+
     Note that it returns `path` as a Path object.
-    
+
     Parameters
     ----------
     path : Union[str, Path]
         Path to check.
-        
+
     Returns
     -------
     Path
@@ -19,8 +19,6 @@ def check_path_exists(path: Union[str, Path]) -> Path:
     """
     path = Path(path)
     if not path.exists():
-        raise FileNotFoundError(
-            f"Data path {path} is incorrect or does not exist."
-        )
-    
+        raise FileNotFoundError(f"Data path {path} is incorrect or does not exist.")
+
     return path

@@ -8,10 +8,12 @@ import zarr
 from careamics.utils import RunningStats
 from careamics.utils.logging import get_logger
 
+from ..config.support.supported_extraction_strategies import SupportedExtractionStrategy
 from ..utils import normalize
 from .dataset_utils.dataset_utils import read_zarr
-from ..config.support.supported_extraction_strategies import SupportedExtractionStrategy
-from .patching.patching import generate_patches_supervised, generate_patches_unsupervised
+from .patching.patching import (
+    generate_patches_unsupervised,
+)
 
 logger = get_logger(__name__)
 

@@ -1,14 +1,11 @@
 """Convenience methods for datasets."""
-from pathlib import Path
-from typing import Callable, List, Tuple, Optional, Union
+from typing import List, Tuple
 
 import numpy as np
 
-from careamics.config.support import SupportedData
 from careamics.utils.logging import get_logger
 
 logger = get_logger(__name__)
-
 
 
 def get_shape_order(shape_in: Tuple, axes_in: str, ref_axes: str = "STCZYX"):
@@ -82,9 +79,7 @@ def reshape_array(x: np.ndarray, axes: str) -> np.ndarray:
 
     # sanity checks
     if len(_axes) != len(_x.shape):
-        raise ValueError(
-            f"Incompatible data shape ({_x.shape}) and axes ({_axes})."
-        )
+        raise ValueError(f"Incompatible data shape ({_x.shape}) and axes ({_axes}).")
 
     # get new x shape
     new_x_shape, new_axes, indices = get_shape_order(_x.shape, _axes)

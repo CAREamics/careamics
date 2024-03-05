@@ -1,7 +1,7 @@
 import pytest
 
 from careamics.config.architectures import UNetModel
-from careamics.config.support import SupportedArchitecture, SupportedActivation
+from careamics.config.support import SupportedActivation
 
 
 def test_instantiation():
@@ -28,29 +28,19 @@ def test_architecture_missing():
 
 
 @pytest.mark.parametrize("num_channels_init", [8, 16, 32, 96, 128])
-def test_num_channels_init(
-    num_channels_init: int
-):
+def test_num_channels_init(num_channels_init: int):
     """Test that UNetModel accepts num_channels_init as an even number and
     minimum 8."""
-    model_params = {
-        "architecture": "UNet",
-        "num_channels_init": num_channels_init
-    }
+    model_params = {"architecture": "UNet", "num_channels_init": num_channels_init}
 
     # instantiate model
     UNetModel(**model_params)
 
 
 @pytest.mark.parametrize("num_channels_init", [2, 17, 127])
-def test_wrong_num_channels_init(
-    num_channels_init: int
-):
+def test_wrong_num_channels_init(num_channels_init: int):
     """Test that wrong num_channels_init causes an error."""
-    model_params = {
-        "architecture": "UNet",
-        "num_channels_init": num_channels_init
-    }
+    model_params = {"architecture": "UNet", "num_channels_init": num_channels_init}
 
     with pytest.raises(ValueError):
         UNetModel(**model_params)
@@ -58,11 +48,11 @@ def test_wrong_num_channels_init(
 
 def test_activations():
     """Test that UNetModel accepts all activations."""
-    for act in SupportedActivation:    
+    for act in SupportedActivation:
         model_params = {
             "architecture": "UNet",
             "num_channels_init": 16,
-            "final_activation": act.value
+            "final_activation": act.value,
         }
 
         # instantiate model
@@ -72,22 +62,22 @@ def test_activations():
 def test_all_activations_are_supported():
     """Test that all activations defined in the Literal are supported."""
     # list of supported activations
-    activations = [act for act in SupportedActivation]
+    activations = list(SupportedActivation)
 
     # Algorithm json schema
     schema = UNetModel.schema()
 
     # check that all activations are supported
-    for act in schema["properties"]["final_activation"]['enum']:
-       assert act in activations
-       
+    for act in schema["properties"]["final_activation"]["enum"]:
+        assert act in activations
+
 
 def test_activation_wrong_values():
     """Test that wrong values are not accepted."""
     model_params = {
         "architecture": "UNet",
         "num_channels_init": 16,
-        "final_activation": "wrong"
+        "final_activation": "wrong",
     }
 
     with pytest.raises(ValueError):
@@ -96,11 +86,7 @@ def test_activation_wrong_values():
 
 def test_parameters_wrong_values_by_assigment():
     """Test that wrong values are not accepted through assignment."""
-    model_params = {
-        "architecture": "UNet",
-        "num_channels_init": 16,
-        "depth": 2
-    }
+    model_params = {"architecture": "UNet", "num_channels_init": 16, "depth": 2}
     model = UNetModel(**model_params)
 
     # depth
@@ -118,8 +104,8 @@ def test_model_dump():
     """Test that default values are excluded from model dump."""
     model_params = {
         "architecture": "UNet",
-        "num_channels_init": 16, # non-default value
-        "final_activation": "ReLU", # non-default value
+        "num_channels_init": 16,  # non-default value
+        "final_activation": "ReLU",  # non-default value
     }
     model = UNetModel(**model_params)
 

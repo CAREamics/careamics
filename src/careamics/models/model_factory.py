@@ -7,7 +7,7 @@ from typing import Union
 
 import torch
 
-from ..config.architectures import UNetModel, VAEModel, CustomModel, get_custom_model
+from ..config.architectures import CustomModel, UNetModel, VAEModel, get_custom_model
 from ..config.support import SupportedArchitecture
 from ..utils.logging import get_logger
 from .unet import UNet
@@ -16,8 +16,8 @@ logger = get_logger(__name__)
 
 
 def model_factory(
-        model_configuration: Union[UNetModel, VAEModel, CustomModel]
-    ) -> torch.nn.Module:
+    model_configuration: Union[UNetModel, VAEModel, CustomModel]
+) -> torch.nn.Module:
     """
     Deep learning model factory.
 
@@ -39,18 +39,12 @@ def model_factory(
         If the requested architecture is not implemented.
     """
     if model_configuration.architecture == SupportedArchitecture.UNET:
-        return UNet(
-            **dict(model_configuration)
-        )
+        return UNet(**dict(model_configuration))
     elif model_configuration.architecture == SupportedArchitecture.CUSTOM:
         assert isinstance(model_configuration, CustomModel)
-        model = get_custom_model(
-            model_configuration.name
-        )
+        model = get_custom_model(model_configuration.name)
 
-        return model(
-            **model_configuration.parameters
-        )
+        return model(**model_configuration.parameters)
     else:
         raise NotImplementedError(
             f"Model {model_configuration.architecture} is not implemented or unknown."

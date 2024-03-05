@@ -109,7 +109,8 @@ def test_passing_compose_transform(minimum_data: dict):
     )
     DataModel(**minimum_data)
 
-def test_3D_and_transforms(minimum_data:dict):
+
+def test_3D_and_transforms(minimum_data: dict):
     """Test that NDFlip is corrected if the data is 3D."""
     minimum_data["transforms"] = [
         {
@@ -127,8 +128,8 @@ def test_3D_and_transforms(minimum_data:dict):
         },
     ]
     data = DataModel(**minimum_data)
-    assert data.transforms[0].parameters["is_3D"] == False
-    assert data.transforms[1].parameters["is_3D"] == False
+    assert data.transforms[0].parameters["is_3D"] is False
+    assert data.transforms[1].parameters["is_3D"] is False
 
     # change to 3D
     data.axes = "ZYX"

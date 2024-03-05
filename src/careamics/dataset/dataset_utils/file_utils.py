@@ -7,8 +7,8 @@ from tifffile import TiffFile, TiffFileError
 from careamics.config.support import SupportedData
 from careamics.utils.logging import get_logger
 
-
 logger = get_logger(__name__)
+
 
 # TODO no difference with the normal way to get file size
 def _approximate_tiff_file_size(filename: Path) -> int:
@@ -33,9 +33,7 @@ def _approximate_tiff_file_size(filename: Path) -> int:
         return 0
 
 
-def get_files_size(
-        files: List[Path]
-    ) -> int:
+def get_files_size(files: List[Path]) -> int:
     """
     Get files size in MB.
 
@@ -59,10 +57,10 @@ def list_files(
 ) -> List[Path]:
     """Creates a recursive list of files in `data_path`.
 
-    If `data_path` is a file, its name is validated against the `data_type` using 
+    If `data_path` is a file, its name is validated against the `data_type` using
     `fnmatch`, and the method returns `data_path` itself.
 
-    By default, if `data_type` is equal to `custom`, all files will be listed. To 
+    By default, if `data_type` is equal to `custom`, all files will be listed. To
     further filter the files, use `extension_filter`.
 
     `extension_filter` must be compatible with `fnmatch` and `Path.rglob`, e.g. "*.npy"
@@ -101,37 +99,35 @@ def list_files(
     # get extension compatible with fnmatch and rglob search
     extension = SupportedData.get_extension(data_type)
 
-    if data_type == SupportedData.CUSTOM and extension_filter is not "":
+    if data_type == SupportedData.CUSTOM and extension_filter != "":
         extension = extension_filter
-    
+
     # search recurively
     if data_path.is_dir():
         # search recursively the path for files with the extension
-        files = sorted([f for f in data_path.rglob(extension)])
+        files = sorted(data_path.rglob(extension))
     else:
         # raise error if it has the wrong extension
         if not fnmatch(data_path, extension):
             raise ValueError(
                 f"File {data_path} does not match the requested extension "
-                f"\"{extension}\"."
+                f'"{extension}".'
             )
 
         # save in list
         files = [data_path]
-    
+
     # raise error if no files were found
     if len(files) == 0:
         raise ValueError(
-            f"Data path {data_path} is empty or files with extension \"{extension}\" "
+            f'Data path {data_path} is empty or files with extension "{extension}" '
             f"were not found."
         )
 
     return files
 
 
-def validate_source_target_files(
-        src_files: List[Path], tar_files: List[Path]
-    ) -> None:
+def validate_source_target_files(src_files: List[Path], tar_files: List[Path]) -> None:
     """
     Validate source and target path lists.
 
@@ -157,14 +153,11 @@ def validate_source_target_files(
             f"The number of source files ({len(src_files)}) is not equal to the number "
             f"of target files ({len(tar_files)})."
         )
-    
+
     # check identical names
-    src_names = set([f.name for f in src_files])
-    tar_names = set([f.name for f in tar_files])
+    src_names = {f.name for f in src_files}
+    tar_names = {f.name for f in tar_files}
     difference = src_names.symmetric_difference(tar_names)
-    
+
     if len(difference) > 0:
-        raise ValueError(
-            f"Source and target files have different names: {difference}."
-        )
-    
+        raise ValueError(f"Source and target files have different names: {difference}.")

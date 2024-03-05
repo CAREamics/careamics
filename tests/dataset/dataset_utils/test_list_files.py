@@ -1,13 +1,13 @@
 from pathlib import Path
-import pytest
 
 import numpy as np
+import pytest
 import tifffile
 
 from careamics.config.support import SupportedData
 from careamics.dataset.dataset_utils import (
-    list_files,
     get_files_size,
+    list_files,
     validate_source_target_files,
 )
 
@@ -97,7 +97,7 @@ def test_list_single_file_custom(tmp_path):
     """Test listing a single custom file."""
     # create array
     image = np.ones((10, 10))
-    
+
     # save as .npy
     path = tmp_path / "custom.npy"
     np.save(path, image)
@@ -146,8 +146,7 @@ def test_list_multiple_files_custom(tmp_path: Path):
     # list files using the file extension filter
     files = list_files(tmp_path, SupportedData.CUSTOM, "*.npy")
     assert len(files) == 3
-    assert set(files) == set([path1, path2, path4])
-
+    assert set(files) == {path1, path2, path4}
 
 
 def test_validate_source_target_files(tmp_path: Path):
@@ -162,7 +161,7 @@ def test_validate_source_target_files(tmp_path: Path):
     # populate with files
     filename_1 = "test1.txt"
     filename_2 = "test2.txt"
-    
+
     (tmp_path / "src" / filename_1).write_text("test")
     (tmp_path / "tar" / filename_1).write_text("test")
 
@@ -179,7 +178,7 @@ def test_validate_source_target_files(tmp_path: Path):
 
 def test_validate_source_target_files_wrong_names(tmp_path: Path):
     """Test that an error is raised if filenames are different."""
-        # create two subfolders
+    # create two subfolders
     src = tmp_path / "src"
     src.mkdir()
 
@@ -190,7 +189,7 @@ def test_validate_source_target_files_wrong_names(tmp_path: Path):
     filename_1 = "test1.txt"
     filename_2 = "test2.txt"
     filename_3 = "test3.txt"
-    
+
     (tmp_path / "src" / filename_1).write_text("test")
     (tmp_path / "tar" / filename_1).write_text("test")
 
@@ -208,7 +207,7 @@ def test_validate_source_target_files_wrong_names(tmp_path: Path):
 
 def test_validate_source_target_files_wrong_number(tmp_path: Path):
     """Test that an error is raised if filenames are different."""
-        # create two subfolders
+    # create two subfolders
     src = tmp_path / "src"
     src.mkdir()
 
@@ -218,7 +217,7 @@ def test_validate_source_target_files_wrong_number(tmp_path: Path):
     # populate with files
     filename_1 = "test1.txt"
     filename_2 = "test2.txt"
-    
+
     (tmp_path / "src" / filename_1).write_text("test")
     (tmp_path / "tar" / filename_1).write_text("test")
 
@@ -231,4 +230,3 @@ def test_validate_source_target_files_wrong_number(tmp_path: Path):
     # validate files
     with pytest.raises(ValueError):
         validate_source_target_files(src_files, tar_files)
-        

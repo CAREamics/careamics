@@ -1,5 +1,5 @@
-from pathlib import Path
 from fnmatch import fnmatch
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -31,7 +31,7 @@ def test_extension_tiff_rglob(tmp_path: Path):
     tifffile.imsave(path, image)
 
     # search for files
-    files = [f for f in tmp_path.rglob(SupportedData.get_extension(SupportedData.TIFF))]
+    files = list(tmp_path.rglob(SupportedData.get_extension(SupportedData.TIFF)))
     assert len(files) == 1
     assert files[0] == path
 
@@ -59,11 +59,9 @@ def test_extension_custom_rglob(tmp_path: Path):
     np.save(path, image)
 
     # search for files
-    files = [f for f in tmp_path.rglob(
-        SupportedData.get_extension(SupportedData.CUSTOM)
-    )]
+    files = list(tmp_path.rglob(SupportedData.get_extension(SupportedData.CUSTOM)))
     assert len(files) == 2
-    assert set(files) == set([path, text_path])
+    assert set(files) == {path, text_path}
 
 
 def test_extension_array_error():

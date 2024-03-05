@@ -53,6 +53,6 @@ def validate_patch_dimensions(
             f"At least one of YX patch dimensions is larger than the corresponding "
             f"image dimension (got {patch_size} patches for dims {arr.shape[-2:]})."
         )
-    
+
     # Update patch size to SC(Z)YX format
     return [1, arr.shape[1], *patch_size]

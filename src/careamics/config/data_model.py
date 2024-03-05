@@ -56,7 +56,7 @@ class DataModel(BaseModel):
             },
         ],
         validate_default=True,
-    ) # TODO defaults should change based on the train/predict and on the algorithm
+    )  # TODO defaults should change based on the train/predict and on the algorithm
 
     # Dataloader configuration
     batch_size: int = Field(default=1, ge=1, validate_default=True)
@@ -237,7 +237,7 @@ class DataModel(BaseModel):
                         transform.parameters["is_3D"] = False
 
         if data_model.mode == "predict":
-             for transform in data_model.transforms:
+            for transform in data_model.transforms:
                 if transform.name == "Normalize":
                     transform.parameters["mean"] = data_model.mean
                     transform.parameters["std"] = data_model.std

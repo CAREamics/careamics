@@ -1,6 +1,5 @@
-import pytest
-
 import numpy as np
+import pytest
 
 from careamics.transforms import XYRandomRotate90
 
@@ -11,29 +10,31 @@ def test_randomness(ordered_array):
     array = ordered_array((1, 2, 2, 1))
 
     # create augmentation that never applies
-    aug = XYRandomRotate90(p=0.)
+    aug = XYRandomRotate90(p=0.0)
 
     # apply augmentation
     augmented = aug(image=array)["image"]
     assert np.array_equal(augmented, array)
 
     # create augmentation that always applies
-    aug = XYRandomRotate90(p=1.)
+    aug = XYRandomRotate90(p=1.0)
 
     # apply augmentation
     augmented = aug(image=array)["image"]
     assert not np.array_equal(augmented, array)
 
 
-@pytest.mark.parametrize("shape", [
-    # 2D
-    (2, 2, 1),
-    (2, 2, 2),
-
-    # 3D
-    (2, 2, 2, 1),
-    (2, 2, 2, 2),
-])
+@pytest.mark.parametrize(
+    "shape",
+    [
+        # 2D
+        (2, 2, 1),
+        (2, 2, 2),
+        # 3D
+        (2, 2, 2, 1),
+        (2, 2, 2, 2),
+    ],
+)
 def test_xy_rotate(ordered_array, shape):
     """Test rotation for 2D and 3D arrays."""
     np.random.seed(42)
@@ -60,12 +61,12 @@ def test_xy_rotate(ordered_array, shape):
 
         # check that the augmented array is one of the potential rots
         which_number = [np.array_equal(augmented, rot) for rot in rots]
-        
+
         assert any(which_number)
         augs.append(which_number.index(True))
 
     # check that all rots were applied (indices of rots)
-    assert set(augs) == set((0, 1, 2))
+    assert set(augs) == {0, 1, 2}
 
 
 def test_mask_rotate(ordered_array):
@@ -76,7 +77,6 @@ def test_mask_rotate(ordered_array):
     array: np.ndarray = ordered_array((2, 2, 2, 4))
     mask = array[..., 2:]
     array = array[..., :2]
-
 
     # create augmentation
     is_3D = len(array.shape) == 4
@@ -103,16 +103,15 @@ def test_mask_rotate(ordered_array):
 
         # check that the augmented array is one of the potential rots
         which_number = [np.array_equal(aug_array, rot) for rot in array_rots]
-        
+
         assert any(which_number)
         img_n_rots = which_number.index(True)
 
         # same for the masks
         which_number = [np.array_equal(aug_mask, rot) for rot in mask_rots]
-        
+
         assert any(which_number)
         mask_n_rots = which_number.index(True)
 
         # same rot for array and mask
         assert img_n_rots == mask_n_rots
-        

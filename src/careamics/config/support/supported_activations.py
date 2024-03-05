@@ -1,8 +1,9 @@
 from careamics.utils import BaseEnum
 
+
 class SupportedActivation(str, BaseEnum):
     """Supported activation functions.
-    
+
     - None, no activation will be used.
     - Sigmoid
     - Softmax

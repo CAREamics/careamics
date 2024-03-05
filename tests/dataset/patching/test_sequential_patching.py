@@ -1,13 +1,12 @@
+import numpy as np
 import pytest
 
-import numpy as np
-
 from careamics.dataset.patching.sequential_patching import (
-    extract_patches_sequential,
     _compute_number_of_patches,
     _compute_overlap,
     _compute_patch_steps,
     _compute_reshaped_view,
+    extract_patches_sequential,
 )
 
 
@@ -26,7 +25,6 @@ def check_extract_patches_sequential(array: np.ndarray, axes: str, patch_size: t
     assert len(unique) == n_max
 
 
-
 @pytest.mark.parametrize(
     "patch_size",
     [
@@ -39,7 +37,6 @@ def check_extract_patches_sequential(array: np.ndarray, axes: str, patch_size: t
 def test_extract_patches_sequential_2d(array_2D, patch_size):
     """Test extracting patches sequentially in 2D."""
     check_extract_patches_sequential(array_2D, "SYX", patch_size)
-
 
 
 @pytest.mark.parametrize(
@@ -58,7 +55,6 @@ def test_extract_patches_sequential_3d(array_3D, patch_size):
     # TODO changed the fixture to (1, 8, 16, 16), uneven shape doesnt work. We need to
     # discuss the function or the test cases
     check_extract_patches_sequential(array_3D, "SZYX", patch_size)
-
 
 
 @pytest.mark.parametrize(
@@ -120,6 +116,7 @@ def check_compute_reshaped_view(array, window_shape, steps):
         for i in range(len(window_shape))
     ]
     assert output.shape == (np.prod(n_patches), *window_shape)
+
 
 @pytest.mark.parametrize(
     "window_shape, steps",
