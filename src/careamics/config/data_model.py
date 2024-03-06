@@ -137,7 +137,7 @@ class DataModel(BaseModel):
         check_axes_validity(axes)
 
         return axes
-    
+
     @field_validator("tta_transforms")
     @classmethod
     def validate_tta_transforms(
@@ -165,10 +165,10 @@ class DataModel(BaseModel):
             for transform in tta_transforms:
                 if transform.name == SupportedTransform.N2V_MANIPULATE.value:
                     raise ValueError(
-                        f"N2V pixel manipulate transforms are not allowed in "
-                        f"tta transforms."
+                        "N2V pixel manipulate transforms are not allowed in "
+                        "tta transforms."
                     )
-                
+
         return tta_transforms
 
 
@@ -301,10 +301,10 @@ class DataModel(BaseModel):
                     transform.parameters["max_pixel_value"] = 1.0
         else:
             raise ValueError(
-                f"Setting mean and std with Compose transforms is not allowed. Add "
-                f"mean and std parameters directly to the transform in the Compose."
+                "Setting mean and std with Compose transforms is not allowed. Add "
+                "mean and std parameters directly to the transform in the Compose."
             )
-        
+
         # search in the tta transforms for Normalize and update parameters
         if not isinstance(self.tta_transforms, Compose):
             for transform in self.tta_transforms:
@@ -314,7 +314,6 @@ class DataModel(BaseModel):
                     transform.parameters["max_pixel_value"] = 1.0
         else:
             raise ValueError(
-                f"Setting mean and std with Compose tta transforms is not allowed. Add "
-                f"mean and std parameters directly to the transform in the Compose."
+                "Setting mean and std with Compose tta transforms is not allowed. Add "
+                "mean and std parameters directly to the transform in the Compose."
             )
-        

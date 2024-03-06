@@ -1,4 +1,4 @@
-from typing import Optional, Tuple, Literal
+from typing import Literal, Optional, Tuple
 
 import numpy as np
 from albumentations import ImageOnlyTransform
@@ -29,12 +29,14 @@ class N2VManipulate(ImageOnlyTransform):
         strategy: Literal[
             "uniform", "median"
         ] = SupportedPixelManipulation.UNIFORM.value,
+        remove_center: bool = True,
         struct_mask: Optional[np.ndarray] = None,
     ):
         super().__init__(p=1)
         self.masked_pixel_percentage = masked_pixel_percentage
         self.roi_size = roi_size
         self.strategy = strategy
+        self.remove_center = remove_center
         self.struct_mask = struct_mask
 
     def apply(
@@ -47,13 +49,28 @@ class N2VManipulate(ImageOnlyTransform):
         image : np.ndarray
             Image or image patch, 2D or 3D, shape (y, x, c) or (z, y, x, c).
         """
+        masked = np.zeros_like(patch)
+        mask = np.zeros_like(patch)
+
         if self.strategy == SupportedPixelManipulation.UNIFORM:
-            masked, mask = uniform_manipulate(
-                patch=patch,
-                mask_pixel_percentage=self.masked_pixel_percentage,
-                subpatch_size=self.roi_size,
-                struct_mask_params=self.struct_mask,  # TODO add remove center param
-            )
+            # Iterate over the channels to apply manipulation separately
+            for c in range(patch.shape[-1]):
+                masked[..., c], mask[..., c] = uniform_manipulate(
+                    patch=patch[..., c],
+                    mask_pixel_percentage=self.masked_pixel_percentage,
+                    subpatch_size=self.roi_size,
+                    remove_center=self.remove_center,
+                    struct_mask_params=self.struct_mask,
+                )
+        elif self.strategy == SupportedPixelManipulation.MEDIAN:
+            # Iterate over the channels to apply manipulation separately
+            for c in range(patch.shape[-1]):
+                masked[..., c], mask[..., c] = median_manipulate(
+                    patch=patch[..., c],
+                    mask_pixel_percentage=self.masked_pixel_percentage,
+                    subpatch_size=self.roi_size,
+                    struct_mask_params=self.struct_mask,
+                )
         else:
             raise ValueError(f"Unknown masking strategy ({self.strategy}).")
 
