@@ -48,13 +48,18 @@ class N2VManipulateUniform(ImageOnlyTransform):
         image : np.ndarray
             Image or image patch, 2D or 3D, shape (y, x, c) or (z, y, x, c).
         """
+        masked = np.zeros_like(patch)
+        mask = np.zeros_like(patch)
+
         if self.strategy == SupportedPixelManipulation.UNIFORM:
-            masked, mask = uniform_manipulate(
-                patch=patch,
-                mask_pixel_percentage=self.masked_pixel_percentage,
-                subpatch_size=self.roi_size,
-                struct_mask_params=self.struct_mask,  # TODO add remove center param
-            )
+            # Iterate over the channels to apply manipulation separately
+            for c in range(patch.shape[-1]):
+                masked[..., c], mask[..., c] = uniform_manipulate(
+                    patch=patch[..., c],
+                    mask_pixel_percentage=self.masked_pixel_percentage,
+                    subpatch_size=self.roi_size,
+                    struct_mask_params=self.struct_mask,  # TODO add remove center param
+                )
         else:
             raise ValueError(f"Strategy {self.strategy} not supported.")
 

@@ -97,10 +97,8 @@ def _get_stratified_coords(
     """
     rng = np.random.default_rng()
 
-    # Define the approximate distance between masked pixels. Subtracts 1 form the shape
-    # to account for the channel dimension
     mask_pixel_distance = np.round(
-        (100 / mask_pixel_perc) ** (1 / (len(shape) - 1))
+        (100 / mask_pixel_perc) ** (1 / len(shape))
     ).astype(np.int32)
 
     # Define a grid of coordinates for each axis in the input patch and the step size

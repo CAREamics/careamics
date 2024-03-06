@@ -1,11 +1,9 @@
-import pytest
-
 import numpy as np
+import pytest
 from albumentations import Compose
 
-from careamics.transforms import ManipulateN2V
 from careamics.config.support import SupportedPixelManipulation
-
+from careamics.transforms import N2VManipulateUniform
 
 
 @pytest.mark.parametrize("strategy",
@@ -22,7 +20,7 @@ def test_manipulate_n2v(strategy):
 
     # create augmentation
     aug = Compose([
-        ManipulateN2V(
+        N2VManipulateUniform(
             roi_size=5,
             masked_pixel_percentage=5,
             strategy=strategy
@@ -34,7 +32,7 @@ def test_manipulate_n2v(strategy):
     assert "image" in augmented
     assert len(augmented["image"]) == 3 # transformed_patch, original_patch, mask
 
-    # assert that the difference between the original and transformed patch are the 
+    # assert that the difference between the original and transformed patch are the
     # same pixels that are selected by the mask
     tr_path, orig_patch, mask = augmented["image"]
     diff_coords = np.array(np.where(tr_path != orig_patch))
