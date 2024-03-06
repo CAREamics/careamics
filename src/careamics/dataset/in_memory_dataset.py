@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Callable, List, Optional, Tuple, Union
 
 import numpy as np
-import torch
+from torch.utils.data import Dataset
 
 from ..config.data_model import DataModel
 from ..utils import normalize
@@ -25,7 +25,7 @@ logger = get_logger(__name__)
 
 
 # TODO dataset which sets appart some data for validation?
-class InMemoryDataset(torch.utils.data.Dataset):
+class InMemoryDataset(Dataset):
     """Dataset storing data in memory and allowing generating patches from it."""
 
     def __init__(
@@ -63,14 +63,15 @@ class InMemoryDataset(torch.utils.data.Dataset):
             self.mean, self.std = computed_mean, computed_std
             logger.info(f"Computed dataset mean: {self.mean}, std: {self.std}")
 
-            # # if the transforms are not an instance of Compose
-            # if data_config.has_tranform_list():
-            #     # update mean and std in configuration
-            #     # the object is mutable and should then be recorded in the CAREamist obj
-            data_config.set_mean_and_std(self.mean, self.std)
+            # if the transforms are not an instance of Compose
+            if data_config.has_transform_list():
+                # update mean and std in configuration
+                # the object is mutable and should then be recorded in the CAREamist obj
+                data_config.set_mean_and_std(self.mean, self.std)
         else:
             self.mean, self.std = data_config.mean, data_config.std
 
+        # get transforms
         self.patch_transform = get_patch_transform(
             patch_transforms=data_config.transforms,
             with_target=self.data_target is not None,
@@ -273,8 +274,7 @@ class InMemoryDataset(torch.utils.data.Dataset):
         return dataset
 
 
-# TODO add tile size
-class InMemoryPredictionDataset(torch.utils.data.Dataset):
+class InMemoryPredictionDataset(Dataset):
     """
     Dataset storing data in memory and allowing generating patches from it.
 
@@ -287,6 +287,7 @@ class InMemoryPredictionDataset(torch.utils.data.Dataset):
         data: np.ndarray,
         tile_size: Union[List[int], Tuple[int]],
         tile_overlap: Optional[Union[List[int], Tuple[int]]] = None,
+        data_target: Optional[np.ndarray] = None,
     ) -> None:
         """Constructor.
 
@@ -314,6 +315,7 @@ class InMemoryPredictionDataset(torch.utils.data.Dataset):
         self.tile_overlap = tile_overlap
         self.mean = data_config.mean
         self.std = data_config.std
+        self.data_target = data_target
 
         # check that mean and std are provided
         if not self.mean or not self.std:
@@ -327,6 +329,12 @@ class InMemoryPredictionDataset(torch.utils.data.Dataset):
 
         # Generate patches
         self.data = self._prepare_patches()
+
+        # get tta transforms
+        self.patch_transform = get_patch_transform(
+            patch_transforms=data_config.prediction_transforms,
+            with_target=self.data_target is not None,
+        )
 
     def _prepare_patches(self) -> Callable:
         """
@@ -386,14 +394,24 @@ class InMemoryPredictionDataset(torch.utils.data.Dataset):
                 stitch_coords,
             ) = self.data[index]
 
+            # Albumentations requires Channel last
+            tile = np.moveaxis(tile, 0, -1)
+
+            # Apply transforms
+            transformed_tile = self.patch_transform(image=tile)["image"]
+            tile = transformed_tile
+
+            # move C axes back
+            tile = np.moveaxis(tile, -1, 0)
+
             return (
-                normalize(img=tile, mean=self.mean, std=self.std),
+                tile,
                 last_tile,
                 arr_shape,
                 overlap_crop_coords,
                 stitch_coords,
             )
-        else:
-            return normalize(img=self.data, mean=self.mean, std=self.std).astype(
-                np.float32
-            )
+        # else:
+        #     return normalize(img=self.data, mean=self.mean, std=self.std).astype(
+        #         np.float32
+        #     )
