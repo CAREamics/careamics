@@ -66,7 +66,7 @@ class IterableDataset(IterableDataset):
             self.mean, self.std = self._calculate_mean_and_std()
 
             # if the transforms are not an instance of Compose
-            if data_config.has_tranform_list():
+            if data_config.has_transform_list():
                 # update mean and std in configuration
                 # the object is mutable and should then be recorded in the CAREamist obj
                 data_config.set_mean_and_std(self.mean, self.std)
@@ -245,6 +245,28 @@ class IterableDataset(IterableDataset):
         percentage: float = 0.1,
         minimum_number: int = 5,
     ) -> IterableDataset:
+        """Split up dataset in two using a percentage of the data (files) to extract, or 
+        the minimum number of the percentage is less than the minimum number.
+
+        Parameters
+        ----------
+        percentage : float, optional
+            Percentage of files to split up, by default 0.1
+        minimum_number : int, optional
+            Minimum number of files to split up, by default 5
+
+        Returns
+        -------
+        IterableDataset
+            Dataset containing the split data.
+
+        Raises
+        ------
+        ValueError
+            If the percentage is smaller than 0 or larger than 1.
+        ValueError
+            If the minimum number is smaller than 1 or larger than the number of files.
+        """
         if percentage < 0 or percentage > 1:
             raise ValueError(f"Percentage must be between 0 and 1, got {percentage}.")
 
@@ -295,7 +317,7 @@ class IterableDataset(IterableDataset):
         return dataset
 
 
-# TODO: why was this calling transforms on prediction patches?
+# TODO TTA
 class IterablePredictionDataset(IterableDataset):
     """
     Dataset allowing extracting patches w/o loading whole data into memory.
@@ -323,14 +345,17 @@ class IterablePredictionDataset(IterableDataset):
     def __init__(
         self,
         data_config: DataModel,
-        files: List[Path],
+        src_files: List[Path],
         tile_size: Union[List[int], Tuple[int]],
         tile_overlap: Optional[Union[List[int], Tuple[int]]] = None,
         read_source_func: Callable = read_tiff,
+        target_files: Optional[List[Path]] = None,
         **kwargs,
     ) -> None:
         super().__init__(
-            data_config=data_config, src_files=files, read_source_func=read_source_func
+            data_config=data_config, 
+            src_files=src_files, 
+            read_source_func=read_source_func
         )
 
         self.patch_size = data_config.patch_size
@@ -344,6 +369,12 @@ class IterablePredictionDataset(IterableDataset):
                 "Mean and std must be provided to the configuration in order to "
                 " perform prediction."
             )
+        
+        # get tta transforms
+        self.patch_transform = get_patch_transform(
+            patch_transforms=data_config.prediction_transforms,
+            with_target=target_files is not None,
+        )
 
     def __iter__(self) -> Generator[np.ndarray, None, None]:
         """
@@ -364,10 +395,26 @@ class IterablePredictionDataset(IterableDataset):
             )
 
             for patch_data in patches:
-                if isinstance(patch_data, tuple):
-                    transformed = self.patch_transform(
-                        image=np.moveaxis(patch_data[0], 0, -1)
-                    )
-                    yield (np.moveaxis(transformed["image"], -1, 0), *patch_data[1:])
-                else:
-                    yield self.patch_transform(image=patch_data)["image"]
+                # TODO for TTA you would want to iterate here with p=1?
+
+                # Albumentations expects the channel dimension to be last
+                patch = np.moveaxis(patch_data[0], 0, -1)
+
+                # apply transform
+                transformed = self.patch_transform(image=patch)
+
+                # retrieve the output
+                patch = transformed["image"]
+
+                # move C axes back
+                patch = np.moveaxis(patch, -1, 0)
+
+                yield patch
+
+                # if isinstance(patch_data, tuple):
+                #     transformed = self.patch_transform(
+                #         image=np.moveaxis(patch_data[0], 0, -1)
+                #     )
+                #     yield (np.moveaxis(transformed["image"], -1, 0), *patch_data[1:])
+                # else:
+                #     yield self.patch_transform(image=patch_data)["image"]

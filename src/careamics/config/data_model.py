@@ -57,7 +57,7 @@ class DataModel(BaseModel):
         validate_default=True,
     )
 
-    tta_transforms: Union[List[TransformModel], Compose] = Field(
+    prediction_transforms: Union[List[TransformModel], Compose] = Field(
         default=[
             {
                 "name": SupportedTransform.NORMALIZE.value,
@@ -138,11 +138,11 @@ class DataModel(BaseModel):
 
         return axes
     
-    @field_validator("tta_transforms")
+    @field_validator("prediction_transforms")
     @classmethod
-    def validate_tta_transforms(
+    def validate_prediction_transforms(
         cls, 
-        tta_transforms: Union[List[TransformModel], Compose]
+        prediction_transforms: Union[List[TransformModel], Compose]
     ) -> Union[List[TransformModel], Compose]:
         """Validate that tta transforms do not have N2V pixel manipulate transforms.
 
@@ -161,15 +161,15 @@ class DataModel(BaseModel):
         ValueError
             If tta transforms contain N2V pixel manipulate transforms.
         """
-        if not isinstance(tta_transforms, Compose):
-            for transform in tta_transforms:
+        if not isinstance(prediction_transforms, Compose):
+            for transform in prediction_transforms:
                 if transform.name == SupportedTransform.N2V_MANIPULATE.value:
                     raise ValueError(
                         f"N2V pixel manipulate transforms are not allowed in "
                         f"tta transforms."
                     )
                 
-        return tta_transforms
+        return prediction_transforms
 
 
     @model_validator(mode="after")
@@ -230,7 +230,7 @@ class DataModel(BaseModel):
                         transform.parameters["is_3D"] = True
 
             if data_model.has_tta_transform_list():
-                for transform in data_model.tta_transforms:
+                for transform in data_model.prediction_transforms:
                     if transform.name == SupportedTransform.NDFLIP:
                         transform.parameters["is_3D"] = True
                     elif transform.name == SupportedTransform.XY_RANDOM_ROTATE90:
@@ -244,7 +244,7 @@ class DataModel(BaseModel):
                         transform.parameters["is_3D"] = False
 
             if data_model.has_tta_transform_list():
-                for transform in data_model.tta_transforms:
+                for transform in data_model.prediction_transforms:
                     if transform.name == SupportedTransform.NDFLIP:
                         transform.parameters["is_3D"] = False
                     elif transform.name == SupportedTransform.XY_RANDOM_ROTATE90:
@@ -273,7 +273,7 @@ class DataModel(BaseModel):
         bool
             True if the transforms are a list, False otherwise.
         """
-        return isinstance(self.tta_transforms, list)
+        return isinstance(self.prediction_transforms, list)
 
     def set_mean_and_std(self, mean: float, std: float) -> None:
         """
@@ -306,8 +306,8 @@ class DataModel(BaseModel):
             )
         
         # search in the tta transforms for Normalize and update parameters
-        if not isinstance(self.tta_transforms, Compose):
-            for transform in self.tta_transforms:
+        if not isinstance(self.prediction_transforms, Compose):
+            for transform in self.prediction_transforms:
                 if transform.name == SupportedTransform.NORMALIZE.value:
                     transform.parameters["mean"] = mean
                     transform.parameters["std"] = std
