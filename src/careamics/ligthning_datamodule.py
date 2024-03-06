@@ -23,7 +23,7 @@ from careamics.dataset.iterable_dataset import (
     IterableDataset,
     IterablePredictionDataset,
 )
-from careamics.utils import get_ram_size, get_logger
+from careamics.utils import get_logger, get_ram_size
 
 logger = get_logger(__name__)
 
@@ -473,6 +473,7 @@ class CAREamicsPredictDataModule(CAREamicsClay):
         tile_size: List[int],
         axes: str,
         batch_size: int,
+        prediction_transforms: Optional[Union[List, Compose]] = None,
         tta_transforms: Optional[Union[List, Compose]] = None,
         norm_mean: Optional[float] = None,
         norm_std: Optional[float] = None,
@@ -495,8 +496,8 @@ class CAREamicsPredictDataModule(CAREamicsClay):
         if tta_transforms is not None and \
             (norm_mean is not None or norm_std is not None):
             raise ValueError(
-                f"You cannot use both test time augmentation (in wich you might define "
-                f"normalization) and mean/std normalization for prediction."
+                "You cannot use both test time augmentation (in which you might define "
+                "normalization) and mean/std normalization for prediction."
             )
 
         # if transforms are passed
@@ -512,10 +513,13 @@ class CAREamicsPredictDataModule(CAREamicsClay):
                     },
                 },
             ]
+        elif prediction_transforms is not None:
+            data_config["transforms"] = prediction_transforms
+
         else:
-            logger.log(
-                f"No tta transform or mean/std normalization defined for prediction. "
-                f"Prediction will not apply augmentations or normalization."
+            logger.info(
+                "No tta transform or mean/std normalization defined for prediction. "
+                "Prediction will apply default normalization only."
             )
             data_config["transforms"] = []
 

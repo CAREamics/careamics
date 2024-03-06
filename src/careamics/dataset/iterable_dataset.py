@@ -353,8 +353,8 @@ class IterablePredictionDataset(IterableDataset):
         **kwargs,
     ) -> None:
         super().__init__(
-            data_config=data_config, 
-            src_files=src_files, 
+            data_config=data_config,
+            src_files=src_files,
             read_source_func=read_source_func
         )
 
@@ -369,7 +369,7 @@ class IterablePredictionDataset(IterableDataset):
                 "Mean and std must be provided to the configuration in order to "
                 " perform prediction."
             )
-        
+
         # get tta transforms
         self.patch_transform = get_patch_transform(
             patch_transforms=data_config.prediction_transforms,
@@ -393,28 +393,15 @@ class IterablePredictionDataset(IterableDataset):
             patches = generate_patches_predict(
                 sample, self.axes, self.tile_size, self.tile_overlap
             )
+            #TODO AttributeError: 'IterablePredictionDataset' object has no attribute 'mean' message appears if the predict func is run more than once 
 
             for patch_data in patches:
                 # TODO for TTA you would want to iterate here with p=1?
-
-                # Albumentations expects the channel dimension to be last
-                patch = np.moveaxis(patch_data[0], 0, -1)
-
-                # apply transform
-                transformed = self.patch_transform(image=patch)
-
-                # retrieve the output
-                patch = transformed["image"]
-
-                # move C axes back
-                patch = np.moveaxis(patch, -1, 0)
-
-                yield patch
-
-                # if isinstance(patch_data, tuple):
-                #     transformed = self.patch_transform(
-                #         image=np.moveaxis(patch_data[0], 0, -1)
-                #     )
-                #     yield (np.moveaxis(transformed["image"], -1, 0), *patch_data[1:])
-                # else:
-                #     yield self.patch_transform(image=patch_data)["image"]
+                if isinstance(patch_data, tuple):
+                    # Albumentations expects the channel dimension to be last
+                    transformed = self.patch_transform(
+                        image=np.moveaxis(patch_data[0], 0, -1)
+                    )
+                    yield (np.moveaxis(transformed["image"], -1, 0), *patch_data[1:])
+                else:
+                    yield self.patch_transform(image=patch_data)["image"]
