@@ -1,9 +1,9 @@
-import pytest
 import numpy as np
+import pytest
 
 from careamics.dataset.patching.tiled_patching import (
+    _compute_crop_and_stitch_coords_1d,
     extract_tiles,
-    _compute_crop_and_stitch_coords_1d
 )
 
 
@@ -34,9 +34,6 @@ def check_extract_tiles(array: np.ndarray, axes, tile_size, overlaps):
     assert len(unique) >= n_max
 
 
-
-
-
 @pytest.mark.parametrize(
     "tile_size, axes, overlaps",
     [
@@ -61,7 +58,6 @@ def test_extract_tiles_3d(array_3D, axes, tile_size, overlaps):
 
     The 3D array is a fixture of shape (1, 8, 16, 16)."""
     check_extract_tiles(array_3D, axes, tile_size, overlaps)
-
 
 
 @pytest.mark.parametrize("axis_size", [32, 35, 40])

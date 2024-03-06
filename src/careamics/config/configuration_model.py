@@ -187,21 +187,21 @@ class Configuration(BaseModel):
                 transform_list = [t.name for t in self.data.transforms]
 
                 # missing MANIPULATE_N2V
-                if SupportedTransform.MANIPULATE_N2V not in transform_list:
+                if SupportedTransform.N2V_MANIPULATE not in transform_list:
                     self.data.transforms.append(
-                        TransformModel(name=SupportedTransform.MANIPULATE_N2V)
+                        TransformModel(name=SupportedTransform.N2V_MANIPULATE)
                     )
 
                 # multiple MANIPULATE_N2V
-                elif transform_list.count(SupportedTransform.MANIPULATE_N2V) > 1:
+                elif transform_list.count(SupportedTransform.N2V_MANIPULATE) > 1:
                     raise ValueError(
-                        f"Multiple {SupportedTransform.MANIPULATE_N2V} transforms are not "
-                        f"allowed."
+                        f"Multiple {SupportedTransform.N2V_MANIPULATE} transforms are "
+                        f"not allowed."
                     )
 
                 # MANIPULATE_N2V not the last transform
-                elif transform_list[-1] != SupportedTransform.MANIPULATE_N2V:
-                    index = transform_list.index(SupportedTransform.MANIPULATE_N2V)
+                elif transform_list[-1] != SupportedTransform.N2V_MANIPULATE:
+                    index = transform_list.index(SupportedTransform.N2V_MANIPULATE)
                     transform = self.data.transforms.pop(index)
                     self.data.transforms.append(transform)
 

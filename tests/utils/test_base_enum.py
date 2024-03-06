@@ -1,5 +1,6 @@
 from careamics.utils.base_enum import BaseEnum
 
+
 class MyEnum(str, BaseEnum):
     A = "a"
     B = "b"

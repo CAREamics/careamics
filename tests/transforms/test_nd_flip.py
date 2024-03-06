@@ -1,6 +1,5 @@
-import pytest
-
 import numpy as np
+import pytest
 
 from careamics.transforms import NDFlip
 
@@ -11,29 +10,31 @@ def test_randomness(ordered_array):
     array = ordered_array((2, 2))
 
     # create augmentation that never applies
-    aug = NDFlip(p=0.)
+    aug = NDFlip(p=0.0)
 
     # apply augmentation
     augmented = aug(image=array)["image"]
     assert np.array_equal(augmented, array)
 
     # create augmentation that always applies
-    aug = NDFlip(p=1.)
+    aug = NDFlip(p=1.0)
 
     # apply augmentation
     augmented = aug(image=array)["image"]
     assert not np.array_equal(augmented, array)
 
 
-@pytest.mark.parametrize("shape", [
-    # 2D
-    (2, 2, 1),
-    (2, 2, 2),
-
-    # 3D
-    (2, 2, 2, 1),
-    (2, 2, 2, 2),
-])
+@pytest.mark.parametrize(
+    "shape",
+    [
+        # 2D
+        (2, 2, 1),
+        (2, 2, 2),
+        # 3D
+        (2, 2, 2, 1),
+        (2, 2, 2, 2),
+    ],
+)
 def test_flip_nd(ordered_array, shape):
     """Test flipping for 2D and 3D arrays."""
     np.random.seed(42)
@@ -56,7 +57,7 @@ def test_flip_nd(ordered_array, shape):
 
         # check that the augmented array is one of the potential flips
         which_axes = [np.array_equal(augmented, flip) for flip in flips]
-        
+
         assert any(which_axes)
         augs.append(which_axes.index(True))
 
@@ -118,7 +119,7 @@ def test_flip_mask(ordered_array):
         which_axes = [np.array_equal(aug_array, flip) for flip in array_flips]
         assert any(which_axes)
         img_axis = which_axes.index(True)
-        
+
         # same for the masks
         which_axes = [np.array_equal(aug_mask, flip) for flip in mask_flips]
         assert any(which_axes)

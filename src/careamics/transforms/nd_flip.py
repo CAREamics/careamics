@@ -13,12 +13,7 @@ class NDFlip(DualTransform):
     This transform expects (Z)YXC dimensions.
     """
 
-    def __init__(
-            self, 
-            p: float = 0.5,
-            is_3D: bool = False,
-            flip_z: bool = True
-        ):
+    def __init__(self, p: float = 0.5, is_3D: bool = False, flip_z: bool = True):
         super().__init__(p=p)
 
         self.is_3D = is_3D
@@ -31,9 +26,7 @@ class NDFlip(DualTransform):
             self.axis_indices = [0, 1]
 
     def get_params(self, **kwargs: Any) -> Dict[str, int]:
-        return {
-            "flip_axis": np.random.choice(self.axis_indices)
-        }    
+        return {"flip_axis": np.random.choice(self.axis_indices)}
 
     def apply(self, patch: np.ndarray, flip_axis: int, **kwargs: Any) -> np.ndarray:
         """Apply the transform to the image.
@@ -54,8 +47,8 @@ class NDFlip(DualTransform):
         return np.ascontiguousarray(np.flip(patch, axis=flip_axis))
 
     def apply_to_mask(
-            self, mask: np.ndarray, flip_axis: int, **kwargs: Any
-        ) -> np.ndarray:
+        self, mask: np.ndarray, flip_axis: int, **kwargs: Any
+    ) -> np.ndarray:
         """Apply the transform to the mask.
 
         Parameters
@@ -70,6 +63,6 @@ class NDFlip(DualTransform):
             )
 
         return np.ascontiguousarray(np.flip(mask, axis=flip_axis))
-   
+
     def get_transform_init_args_names(self, **kwargs) -> Tuple[str, ...]:
         return ("is_3D", "flip_z")

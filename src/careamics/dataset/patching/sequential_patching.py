@@ -1,5 +1,4 @@
-
-from typing import  Generator, List, Optional, Tuple, Union
+from typing import Generator, List, Optional, Tuple, Union
 
 import numpy as np
 from skimage.util import view_as_windows
@@ -33,7 +32,7 @@ def _compute_number_of_patches(
             for i in range(len(patch_sizes))
         ]
     except IndexError as e:
-        raise(
+        raise (
             f"Patch size {patch_sizes} is not compatible with array shape {arr.shape}"
         ) from e
     return tuple(n_patches)
@@ -177,7 +176,9 @@ def extract_patches_sequential(
     # Create view window and overlaps
     window_steps = _compute_patch_steps(patch_sizes=patch_size, overlaps=overlaps)
 
-    output_shape = [-1,] + patch_size[1:]
+    output_shape = [
+        -1,
+    ] + patch_size[1:]
 
     # Generate a view of the input array containing pre-calculated number of patches
     # in each dimension with overlap.
@@ -192,9 +193,6 @@ def extract_patches_sequential(
 
     if target is not None:
         # target was concatenated to patches in _compute_reshaped_view
-        return (
-            patches[0, ...],
-            patches[1, ...]
-        )
+        return (patches[0, ...], patches[1, ...])
     else:
         return patches, None

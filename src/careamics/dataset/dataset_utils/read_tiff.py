@@ -5,8 +5,8 @@ from pathlib import Path
 import numpy as np
 import tifffile
 
-from careamics.utils.logging import get_logger
 from careamics.config.support import SupportedData
+from careamics.utils.logging import get_logger
 
 logger = get_logger(__name__)
 

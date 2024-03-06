@@ -173,13 +173,13 @@ def test_apply_struct_mask(coords, struct_mask_params):
     if struct_axis == 0:
         for i in range(coords.shape[0]):
             column_coords_to_mask = [
-            c
-            for c in range(
-                max(0, coords[i, 1] - struct_span // 2),
-                min(transform_patch.shape[1], coords[i, 1] + struct_span // 2) + 1,
-            )
-            if c != coords[i, 1]
-        ]
+                c
+                for c in range(
+                    max(0, coords[i, 1] - struct_span // 2),
+                    min(transform_patch.shape[1], coords[i, 1] + struct_span // 2) + 1,
+                )
+                if c != coords[i, 1]
+            ]
             transformed.append(transform_patch[coords[i, 0]][column_coords_to_mask])
         assert np.array_equal(
             np.sort(changed_values), np.sort(np.concatenate(transformed, axis=0))
@@ -188,13 +188,13 @@ def test_apply_struct_mask(coords, struct_mask_params):
     else:
         for i in range(coords.shape[0]):
             row_coords_to_mask = [
-            c
-            for c in range(
-                max(0, coords[i, 0] - struct_span // 2),
-                min(transform_patch.shape[1], coords[i, 0] + struct_span // 2) + 1,
-            )
-            if c != coords[i, 0]
-        ]
+                c
+                for c in range(
+                    max(0, coords[i, 0] - struct_span // 2),
+                    min(transform_patch.shape[1], coords[i, 0] + struct_span // 2) + 1,
+                )
+                if c != coords[i, 0]
+            ]
             transformed.append(transform_patch[:, coords[i, 1]][row_coords_to_mask])
 
         assert np.array_equal(

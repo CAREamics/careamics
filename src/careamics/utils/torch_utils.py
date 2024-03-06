@@ -9,9 +9,11 @@ from typing import Dict, Union
 import torch
 
 from careamics.config.support import SupportedOptimizer, SupportedScheduler
+
 from ..utils.logging import get_logger
 
-logger = get_logger(__name__) # TODO are logger still needed?
+logger = get_logger(__name__)  # TODO are logger still needed?
+
 
 def filter_parameters(
     func: type,
@@ -55,7 +57,7 @@ def get_optimizer(name: str) -> torch.optim.Optimizer:
     torch.nn.Optimizer
         Optimizer class.
     """
-    if not name in SupportedOptimizer:
+    if name not in SupportedOptimizer:
         raise NotImplementedError(f"Optimizer {name} is not yet supported.")
 
     return getattr(torch.optim, name)
@@ -78,10 +80,12 @@ def get_optimizers() -> Dict[str, str]:
     return optims
 
 
-def get_scheduler(name: str) -> Union[
+def get_scheduler(
+    name: str,
+) -> Union[
     torch.optim.lr_scheduler.LRScheduler,
     torch.optim.lr_scheduler.ReduceLROnPlateau,
-    ]:
+]:
     """
     Return the scheduler class given its name.
 
@@ -95,7 +99,7 @@ def get_scheduler(name: str) -> Union[
     Union
         Scheduler class.
     """
-    if not name in SupportedScheduler:
+    if name not in SupportedScheduler:
         raise NotImplementedError(f"Scheduler {name} is not yet supported.")
 
     return getattr(torch.optim.lr_scheduler, name)

@@ -1,6 +1,5 @@
-import pytest
-
 import numpy as np
+import pytest
 
 from careamics.dataset.patching.validate_patch_dimension import (
     validate_patch_dimensions,

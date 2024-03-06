@@ -129,8 +129,10 @@ class CAREamist:
             path_to_val_data = check_path_exists(path_to_val_data)
 
         if path_to_train_target is not None:
-            if self.cfg.algorithm.algorithm in \
-                SupportedAlgorithm.get_unsupervised_algorithms():
+            if (
+                self.cfg.algorithm.algorithm
+                in SupportedAlgorithm.get_unsupervised_algorithms()
+            ):
                 raise ValueError(
                     f"Training target is not needed for unsupervised algorithms "
                     f"({self.cfg.algorithm.algorithm})."
@@ -179,10 +181,11 @@ class CAREamist:
         train_target: Optional[np.ndarray] = None,
         val_target: Optional[np.ndarray] = None,
     ) -> None:
-
         if train_target is not None:
-            if self.cfg.algorithm.algorithm in \
-                SupportedAlgorithm.get_unsupervised_algorithms():
+            if (
+                self.cfg.algorithm.algorithm
+                in SupportedAlgorithm.get_unsupervised_algorithms()
+            ):
                 raise ValueError(
                     f"Training target is not needed for unsupervised algorithms "
                     f"({self.cfg.algorithm.algorithm})."
@@ -250,4 +253,3 @@ class CAREamist:
         )
 
         return self.predict(datamodule)
-

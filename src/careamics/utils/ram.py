@@ -10,4 +10,4 @@ def get_ram_size() -> int:
     int
         RAM size in mbytes.
     """
-    return psutil.virtual_memory().total / 1024 ** 2
+    return psutil.virtual_memory().total / 1024**2

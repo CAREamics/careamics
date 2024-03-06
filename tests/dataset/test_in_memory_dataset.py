@@ -1,6 +1,5 @@
-import pytest
-
 import numpy as np
+import pytest
 import tifffile
 
 from careamics.config import DataModel
@@ -14,7 +13,7 @@ def test_number_of_patches(ordered_array):
     array = ordered_array((20, 20))
 
     # create config
-    config_dict =  {
+    config_dict = {
         "data_type": SupportedData.ARRAY.value,
         "patch_size": [4, 4],
         "axes": "YX",
@@ -31,6 +30,15 @@ def test_number_of_patches(ordered_array):
     assert dataset.get_number_of_patches() == dataset.patches.shape[0]
 
 
+
+def test_compute_mean_std_transform(ordered_array):
+    """Test that mean and std are computed and correctly added to the configuration
+    and transform."""
+    pass
+
+
+
+
 @pytest.mark.parametrize("percentage", [0.1, 0.6])
 def test_extracting_val_array(ordered_array, percentage):
     """Test extracting a validation set patches from InMemoryDataset."""
@@ -38,7 +46,7 @@ def test_extracting_val_array(ordered_array, percentage):
     array = ordered_array((20, 20))
 
     # create config
-    config_dict =  {
+    config_dict = {
         "data_type": SupportedData.ARRAY.value,
         "patch_size": [4, 4],
         "axes": "YX",
@@ -54,7 +62,7 @@ def test_extracting_val_array(ordered_array, percentage):
     # compute number of patches
     total_n_patches = dataset.get_number_of_patches()
     minimum_patches = 5
-    n_patches = max(round(percentage*total_n_patches), minimum_patches)
+    n_patches = max(round(percentage * total_n_patches), minimum_patches)
 
     # extract datset
     valset = dataset.split_dataset(percentage, minimum_patches)
@@ -78,7 +86,7 @@ def test_extracting_val_files(tmp_path, ordered_array, percentage):
     tifffile.imwrite(file_path, array)
 
     # create config
-    config_dict =  {
+    config_dict = {
         "data_type": SupportedData.ARRAY.value,
         "patch_size": [4, 4],
         "axes": "YX",
@@ -94,7 +102,7 @@ def test_extracting_val_files(tmp_path, ordered_array, percentage):
     # compute number of patches
     total_n_patches = dataset.get_number_of_patches()
     minimum_patches = 5
-    n_patches = max(round(percentage*total_n_patches), minimum_patches)
+    n_patches = max(round(percentage * total_n_patches), minimum_patches)
 
     # extract datset
     valset = dataset.split_dataset(percentage, minimum_patches)

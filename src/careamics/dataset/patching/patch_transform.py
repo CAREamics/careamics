@@ -12,17 +12,15 @@ def get_patch_transform(
     with_target: bool,
     normalize_mask: bool = True,
 ) -> Aug.Compose:
-
     # if we passed a Compose, we just return it
     if isinstance(patch_transforms, Aug.Compose):
         return patch_transforms
 
     # empty list of transforms is a NoOp
     elif len(patch_transforms) == 0:
-
         return Aug.Compose(
             [Aug.NoOp()],
-            additional_targets={}, # TODO this part need be checked again (wrt segmentation)
+            additional_targets={},  # TODO this part need be checked again (wrt segmentation)
         )
 
     # else we have a list of transforms
@@ -38,7 +36,6 @@ def get_patch_transform(
 
         return Aug.Compose(
             transforms,
-
             # TODO add when will be supporting targets
             # to apply image aug to the object passed to the transform as
             # keyword "target"
@@ -78,7 +75,7 @@ def _get_patch_transform(
         return Aug.Compose(
             [Aug.NoOp()],
             additional_targets={"target": "image"}
-            if (target and normalize_mask) # TODO why? there is no normalization here?
+            if (target and normalize_mask)  # TODO why? there is no normalization here?
             else {},
         )
     elif isinstance(patch_transforms, list):
@@ -87,7 +84,7 @@ def _get_patch_transform(
         ] = {
             "mean": mean,
             "std": std,
-            "max_pixel_value": 1, # TODO why? mean/std normalization will not be lead to [-1,1] range
+            "max_pixel_value": 1,  # TODO why? mean/std normalization will not be lead to [-1,1] range
         }
         # TODO not very readable
         return Aug.Compose(

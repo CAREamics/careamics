@@ -1,8 +1,7 @@
 from typing import Type, Union
 
+from ..config.noise_models import NoiseModel, NoiseModelType
 from .noise_models import GaussianMixtureNoiseModel, HistogramNoiseModel
-from ..config.noise_models import NoiseModelType, NoiseModel
-
 
 
 def noise_model_factory(
@@ -24,11 +23,7 @@ def noise_model_factory(
     NotImplementedError
         If the noise model is unknown.
     """
-    noise_model_type = (
-        noise_config.model_type
-        if noise_config
-        else None
-    )
+    noise_model_type = noise_config.model_type if noise_config else None
 
     if noise_model_type == NoiseModelType.HIST:
         return HistogramNoiseModel

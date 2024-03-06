@@ -9,7 +9,7 @@ from careamics.utils import check_axes_validity
         # Passing
         ("yx", True),
         ("Yx", True),
-        ("Zyx", True), 
+        ("Zyx", True),
         ("STYX", True),
         ("CYX", True),
         ("TzYX", True),

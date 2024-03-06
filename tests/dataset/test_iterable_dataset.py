@@ -1,6 +1,5 @@
-import pytest
-
 import numpy as np
+import pytest
 import tifffile
 
 from careamics.config import DataModel
@@ -9,14 +8,14 @@ from careamics.dataset import IterableDataset
 from careamics.dataset.dataset_utils import read_tiff
 
 
-@pytest.mark.parametrize("shape",
+@pytest.mark.parametrize(
+    "shape",
     [
         # 2D
         (20, 20),
-
         # 3D
         (20, 20, 20),
-    ]
+    ],
 )
 def test_number_of_files(tmp_path, ordered_array, shape):
     """Test number of files in IterableDataset."""
@@ -28,7 +27,7 @@ def test_number_of_files(tmp_path, ordered_array, shape):
     axes = "YX" if factor == 2 else "ZYX"
     patch_sizes = [patch_size] * factor
     array = ordered_array(shape)
-    
+
     # save three files
     files = []
     for i in range(n_files):
@@ -37,7 +36,7 @@ def test_number_of_files(tmp_path, ordered_array, shape):
         files.append(file)
 
     # create config
-    config_dict =  {
+    config_dict = {
         "data_type": SupportedData.TIFF.value,
         "patch_size": patch_sizes,
         "axes": axes,
@@ -46,25 +45,24 @@ def test_number_of_files(tmp_path, ordered_array, shape):
 
     # create dataset
     dataset = IterableDataset(
-        data_config=config,
-        src_files=files,
-        read_source_func=read_tiff
+        data_config=config, src_files=files, read_source_func=read_tiff
     )
 
     # check number of files
     assert dataset.data_files == files
 
     # iterate over dataset
-    patches = [p for p in dataset]
-    assert len(patches) == n_files * (array_size / patch_size)**factor
+    patches = list(dataset)
+    assert len(patches) == n_files * (array_size / patch_size) ** factor
 
 
 def test_read_function(tmp_path, ordered_array):
     """Test reading files in IterableDataset using a custom read function."""
+
     # read function for .npy files
     def read_npy(file_path, *args, **kwargs):
         return np.load(file_path)
-    
+
     array_size = 20
     patch_size = 4
     n_files = 3
@@ -72,7 +70,7 @@ def test_read_function(tmp_path, ordered_array):
 
     # create array
     array = ordered_array((n_files, array_size, array_size))
-    
+
     # save each plane in a single .npy file
     files = []
     for i in range(array.shape[0]):
@@ -81,7 +79,7 @@ def test_read_function(tmp_path, ordered_array):
         files.append(file_path)
 
     # create config
-    config_dict =  {
+    config_dict = {
         "data_type": SupportedData.CUSTOM.value,
         "patch_size": patch_sizes,
         "axes": "YX",
@@ -97,9 +95,8 @@ def test_read_function(tmp_path, ordered_array):
     assert dataset.data_files == files
 
     # iterate over dataset
-    patches = [p for p in dataset]
-    assert len(patches) == n_files * (array_size / patch_size)**2
-
+    patches = list(dataset)
+    assert len(patches) == n_files * (array_size / patch_size) ** 2
 
 
 @pytest.mark.parametrize("percentage", [0.1, 0.6])
@@ -116,7 +113,7 @@ def test_extracting_val_files(tmp_path, ordered_array, percentage):
         files.append(file_path)
 
     # create config
-    config_dict =  {
+    config_dict = {
         "data_type": SupportedData.TIFF.value,
         "patch_size": [4, 4],
         "axes": "YX",
@@ -125,15 +122,13 @@ def test_extracting_val_files(tmp_path, ordered_array, percentage):
 
     # create dataset
     dataset = IterableDataset(
-        data_config=config,
-        src_files=files,
-        read_source_func=read_tiff
+        data_config=config, src_files=files, read_source_func=read_tiff
     )
 
     # compute number of patches
     total_n_files = dataset.get_number_of_files()
     minimum_files = 5
-    n_files = max(round(percentage*total_n_files), minimum_files)
+    n_files = max(round(percentage * total_n_files), minimum_files)
 
     # extract datset
     valset = dataset.split_dataset(percentage, minimum_files)

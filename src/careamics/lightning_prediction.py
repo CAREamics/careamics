@@ -71,7 +71,7 @@ class CAREamicsFiring(L.loops._PredictionLoop):
                     predicted_sample = stitch_prediction(
                         self.tiles, self.stitching_data
                     )
-                    #TODO replace with Albu class
+                    # TODO replace with Albu class
                     denormalized_sample = denormalize(
                         predicted_sample,
                         self._data_source.instance.predict_dataset.mean,

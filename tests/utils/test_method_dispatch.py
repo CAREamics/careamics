@@ -1,14 +1,16 @@
-from pathlib import Path
 from dataclasses import dataclass
+from pathlib import Path
 
 import numpy as np
 
 from careamics.utils import method_dispatch
 
+
 @dataclass
 class MyObject:
     """Simple data class"""
-    value: int     
+
+    value: int
 
 
 class MyClass:
@@ -30,7 +32,6 @@ class MyClass:
         # pass as keyword argument, important to test that the dispatch works
         # with both args and kargs
         return self.main_function(arg=MyObject(mean))
-
 
 
 def test_method_dispatch():

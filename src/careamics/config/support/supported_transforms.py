@@ -45,6 +45,5 @@ class SupportedTransform(str, BaseEnum):
     NDFLIP = "NDFlip"
     XY_RANDOM_ROTATE90 = "XYRandomRotate90"
     NORMALIZE = "Normalize"
-    N2V_MANIPULATE_UNIFORM = "N2VManipulateUniform"
-    N2V_MANIPULATE_MEDIAN = "N2VManipulateMedian"
+    N2V_MANIPULATE = "N2VManipulate"
     # CUSTOM = "Custom"

@@ -1,20 +1,18 @@
 import pytest
-
 from torch import nn, ones
 
 from careamics.config.architectures import (
-    UNetModel, 
+    CustomModel,
+    UNetModel,
     VAEModel,
-    CustomModel, 
-    register_model
+    register_model,
 )
-from careamics.models import model_factory, UNet
 from careamics.config.support import SupportedArchitecture
-
+from careamics.models import UNet, model_factory
 
 
 def test_model_registry_unet():
-    """Test that """
+    """Test that"""
     model_config = {
         "architecture": "UNet",
     }
@@ -26,6 +24,7 @@ def test_model_registry_unet():
 
 def test_model_registry_custom():
     """Test that a custom model can be retrieved and instantiated."""
+
     # create and register a custom model
     @register_model(name="linear_model")
     class LinearModel(nn.Module):
@@ -40,14 +39,10 @@ def test_model_registry_custom():
         def forward(self, input):
             return (input @ self.weight) + self.bias
 
-
     model_config = {
         "architecture": SupportedArchitecture.CUSTOM.value,
         "name": "linear_model",
-        "parameters": {
-            "in_features": 10,
-            "out_features": 5
-        }
+        "parameters": {"in_features": 10, "out_features": 5},
     }
 
     # instantiate model

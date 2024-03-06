@@ -6,11 +6,12 @@ from careamics.prediction.prediction_utils import stitch_prediction
 
 @pytest.mark.parametrize(
     "input_shape, axes, tile_size, overlaps",
-    [   ((8, 8), "YX", (4, 4), (2, 2)),
+    [
+        ((8, 8), "YX", (4, 4), (2, 2)),
         ((1, 8, 8), "SYX", (4, 4), (2, 2)),
         ((1, 7, 9), "SYX", (4, 4), (2, 2)),
         ((1, 9, 7, 8), "SZYX", (4, 4, 4), (2, 2, 2)),
-        ((321, 481), 'YX', (256, 256), (48, 48))
+        ((321, 481), "YX", (256, 256), (48, 48)),
     ],
 )
 def test_stitch_prediction(input_shape, axes, ordered_array, tile_size, overlaps):

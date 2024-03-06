@@ -1,4 +1,4 @@
-from typing import Any, Union
+from typing import Any, Optional, Union
 
 import pytorch_lightning as L
 from torch import nn
@@ -110,14 +110,19 @@ class CAREamicsModule(CAREamicsKiln):
         algorithm: Union[SupportedAlgorithm, str],
         loss: Union[SupportedLoss, str],
         architecture: Union[SupportedArchitecture, str],
-        model_parameters: dict = {},
+        model_parameters: Optional[dict] = None,
         optimizer: Union[SupportedOptimizer, str] = "Adam",
-        optimizer_parameters: dict = {},
+        optimizer_parameters: Optional[dict] = None,
         lr_scheduler: Union[SupportedScheduler, str] = "ReduceLROnPlateau",
-        lr_scheduler_parameters: dict = {},
+        lr_scheduler_parameters: Optional[dict] = None,
     ) -> None:
-
         # create a AlgorithmModel compatible dictionary
+        if lr_scheduler_parameters is None:
+            lr_scheduler_parameters = {}
+        if optimizer_parameters is None:
+            optimizer_parameters = {}
+        if model_parameters is None:
+            model_parameters = {}
         algorithm_configuration = {
             "algorithm": algorithm,
             "loss": loss,

@@ -77,13 +77,13 @@ def extract_tiles(
     """
     Generate tiles from the input array with specified overlap.
 
-    The tiles cover the whole array. The method returns a generator that yields the 
+    The tiles cover the whole array. The method returns a generator that yields the
     following:
 
     - tile: np.ndarray, dimension SC(Z)YX.
     - last_tile: bool, whether this is the last tile.
     - shape: Tuple[int], shape of a tile, excluding the S dimension.
-    - overlap_crop_coords: Tuple[int], coordinates uset to crop the patch during 
+    - overlap_crop_coords: Tuple[int], coordinates uset to crop the patch during
         stitching.
     - stitch_coords: Tuple[int], coordinates used to stitch the tiles back to the full
         image.
@@ -152,4 +152,3 @@ def extract_tiles(
                 overlap_crop_coords,
                 stitch_coords,
             )
-            

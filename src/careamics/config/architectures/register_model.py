@@ -2,8 +2,7 @@ from typing import Callable
 
 from torch.nn import Module
 
-
-CUSTOM_MODELS = {} # dictionary of custom models {"name": __class__}
+CUSTOM_MODELS = {}  # dictionary of custom models {"name": __class__}
 
 
 def register_model(name: str) -> Callable:
@@ -39,13 +38,12 @@ def register_model(name: str) -> Callable:
             return (input @ self.weight) + self.bias
     ```
     """
-    
     if name in CUSTOM_MODELS:
         raise ValueError(
             f"Model {name} already exists. Choose a different name or run "
-            f"`clear_custom_models()` to empty the registry." 
+            f"`clear_custom_models()` to empty the registry."
         )
-        
+
     def add_custom_model(model: Module) -> Module:
         """Add a custom model to the registry and return it.
 
@@ -85,18 +83,16 @@ def get_custom_model(name: str) -> Module:
     ValueError
         If the model is not registered.
     """
-
-    if not name in CUSTOM_MODELS:
+    if name not in CUSTOM_MODELS:
         raise ValueError(
             f"Model {name} is unknown. Have you registered it using "
-            f"@register_model(\"{name}\") as decorator?"
+            f'@register_model("{name}") as decorator?'
         )
 
     return CUSTOM_MODELS[name]
-        
+
 
 def clear_custom_models() -> None:
-    """Clear the custom models registry.
-    """
+    """Clear the custom models registry."""
     # clear dictionary
     CUSTOM_MODELS.clear()

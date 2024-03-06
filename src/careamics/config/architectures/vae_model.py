@@ -7,13 +7,11 @@ from pydantic import (
 
 
 class VAEModel(BaseModel):
-
     model_config = ConfigDict(
         use_enum_values=True, protected_namespaces=(), validate_assignment=True
     )
 
     architecture: Literal["VAE"]
-
 
     def set_3D(self, is_3D: bool) -> None:
         """
@@ -25,7 +23,6 @@ class VAEModel(BaseModel):
             Whether the algorithm is 3D or not.
         """
         raise NotImplementedError("VAE is not implemented yet.")
-
 
     def is_3D(self) -> bool:
         """

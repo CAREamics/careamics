@@ -3,7 +3,6 @@ from careamics.utils import BaseEnum
 
 # TODO register loss with custom_loss decorator?
 class SupportedLoss(str, BaseEnum):
-
     MSE = "mse"
     MAE = "mae"
     N2V = "n2v"

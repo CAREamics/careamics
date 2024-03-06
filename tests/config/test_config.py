@@ -106,12 +106,12 @@ def test_algorithm_and_data_incompatibility(minimum_configuration: dict):
     minimum_configuration["data"]["transforms"] = [{"name": SupportedTransform.NDFLIP}]
     config = Configuration(**minimum_configuration)
     assert len(config.data.transforms) == 2
-    assert config.data.transforms[-1].name == SupportedTransform.MANIPULATE_N2V
+    assert config.data.transforms[-1].name == SupportedTransform.N2V_MANIPULATE
 
     # ManipulateN2V not the last transform
     minimum_configuration["data"]["transforms"] = [
         {
-            "name": SupportedTransform.MANIPULATE_N2V,
+            "name": SupportedTransform.N2V_MANIPULATE,
             "parameters": {
                 "roi_size": 15,
             },
@@ -120,13 +120,13 @@ def test_algorithm_and_data_incompatibility(minimum_configuration: dict):
     ]
     config = Configuration(**minimum_configuration)
     assert len(config.data.transforms) == 2
-    assert config.data.transforms[-1].name == SupportedTransform.MANIPULATE_N2V
+    assert config.data.transforms[-1].name == SupportedTransform.N2V_MANIPULATE
     assert config.data.transforms[-1].parameters["roi_size"] == 15
 
     # multiple ManipulateN2V raises an error
     minimum_configuration["data"]["transforms"] = [
-        {"name": SupportedTransform.MANIPULATE_N2V},
-        {"name": SupportedTransform.MANIPULATE_N2V},
+        {"name": SupportedTransform.N2V_MANIPULATE},
+        {"name": SupportedTransform.N2V_MANIPULATE},
     ]
     with pytest.raises(ValueError):
         Configuration(**minimum_configuration)

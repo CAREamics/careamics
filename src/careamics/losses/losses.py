@@ -27,9 +27,9 @@ def mse_loss(samples: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
 
 
 def n2v_loss(
-    manipulated_patches: torch.Tensor, 
-    original_patches: torch.Tensor, 
-    masks: torch.Tensor
+    manipulated_patches: torch.Tensor,
+    original_patches: torch.Tensor,
+    masks: torch.Tensor,
 ) -> torch.Tensor:
     """
     N2V Loss function described in A Krull et al 2018.
