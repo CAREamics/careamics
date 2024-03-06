@@ -14,6 +14,7 @@ __all__ = [
     "method_dispatch",
     "check_path_exists",
     "BaseEnum",
+    "get_logger",
 ]
 
 
@@ -28,3 +29,4 @@ from .validators import (
     check_axes_validity,
     check_tiling_validity,
 )
+from .logging import get_logger

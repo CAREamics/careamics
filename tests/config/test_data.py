@@ -79,7 +79,7 @@ def test_passing_supported_transforms(minimum_data: dict):
     """Test that list of supported transforms can be passed."""
     minimum_data["transforms"] = [
         {"name": SupportedTransform.NDFLIP},
-        {"name": SupportedTransform.MANIPULATE_N2V},
+        {"name": SupportedTransform.N2V_MANIPULATE},
     ]
     DataModel(**minimum_data)
 
@@ -104,7 +104,7 @@ def test_passing_compose_transform(minimum_data: dict):
     minimum_data["transforms"] = Compose(
         [
             get_all_transforms()[SupportedTransform.NDFLIP](),
-            get_all_transforms()[SupportedTransform.MANIPULATE_N2V](),
+            get_all_transforms()[SupportedTransform.N2V_MANIPULATE](),
         ]
     )
     DataModel(**minimum_data)

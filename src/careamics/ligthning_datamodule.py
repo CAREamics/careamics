@@ -7,7 +7,7 @@ from albumentations import Compose
 from torch.utils.data import DataLoader
 
 from careamics.config import DataModel
-from careamics.config.support import SupportedData
+from careamics.config.support import SupportedData, SupportedTransform
 from careamics.dataset.dataset_utils import (
     get_files_size,
     get_read_func,
@@ -23,10 +23,10 @@ from careamics.dataset.iterable_dataset import (
     IterableDataset,
     IterablePredictionDataset,
 )
-from careamics.utils import get_ram_size
+from careamics.utils import get_ram_size, get_logger
 
+logger = get_logger(__name__)
 
-# TODO must be compatible with no validation being present
 class CAREamicsWood(L.LightningDataModule):
     def __init__(
         self,
@@ -210,24 +210,6 @@ class CAREamicsWood(L.LightningDataModule):
 
                 # verify that they match the validation data
                 validate_source_target_files(self.val_files, self.val_target_files)
-        # else:
-        #     # reshape array
-        #     self.train_data = reshape_array(self.train_data, self.data_config.axes)
-
-        #     # validation
-        #     if self.val_data is not None:
-        #         self.val_data = reshape_array(self.val_data, self.data_config.axes)
-
-        #     # target arrays
-        #     if self.train_data_target is not None:
-        #         self.train_data_target = reshape_array(
-        #             self.train_data_target, self.data_config.axes
-        #         )
-
-        #     if self.val_data_target is not None:
-        #         self.val_data_target = reshape_array(
-        #             self.val_data_target, self.data_config.axes
-        #         )
 
     def setup(self, *args, **kwargs) -> None:
         """Hook called at the beginning of fit (train + validate), validate, test, or
@@ -420,7 +402,7 @@ class CAREamicsClay(L.LightningDataModule):
             )
         else:
             self.predict_dataset = IterablePredictionDataset(
-                files=self.pred_files,
+                src_files=self.pred_files,
                 data_config=self.data_config,
                 read_source_func=self.read_source_func,
                 tile_size=self.tile_size,
@@ -491,7 +473,9 @@ class CAREamicsPredictDataModule(CAREamicsClay):
         tile_size: List[int],
         axes: str,
         batch_size: int,
-        transforms: Optional[Union[List, Compose]] = None,
+        tta_transforms: Optional[Union[List, Compose]] = None,
+        norm_mean: Optional[float] = None,
+        norm_std: Optional[float] = None,
         read_source_func: Optional[Callable] = None,
         extension_filter: str = "",
         num_workers: int = 0,
@@ -508,12 +492,32 @@ class CAREamicsPredictDataModule(CAREamicsClay):
             "pin_memory": pin_memory,
         }
 
-        # TODO different default for prediction transforms?? Should not have
-        # ManipulateN2V
+        if tta_transforms is not None and \
+            (norm_mean is not None or norm_std is not None):
+            raise ValueError(
+                f"You cannot use both test time augmentation (in wich you might define "
+                f"normalization) and mean/std normalization for prediction."
+            )
 
-        # if transforms are passed (otherwise it will use the default ones)
-        if transforms is not None:
-            data_config["transforms"] = transforms
+        # if transforms are passed
+        if tta_transforms is not None:
+            data_config["tta_transforms"] = tta_transforms
+        elif norm_mean is not None and norm_std is not None:
+            data_config["tta_transforms"] = [
+                {
+                    "name": SupportedTransform.NORMALIZE.value,
+                    "parameters": {
+                        "mean": norm_mean,
+                        "std": norm_std,
+                    },
+                },
+            ]
+        else:
+            logger.log(
+                f"No tta transform or mean/std normalization defined for prediction. "
+                f"Prediction will not apply augmentations or normalization."
+            )
+            data_config["transforms"] = []
 
         super().__init__(
             data_config=DataModel(**data_config),

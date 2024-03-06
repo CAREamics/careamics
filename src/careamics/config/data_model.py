@@ -30,7 +30,6 @@ class DataModel(BaseModel):
 
     # Dataset configuration
     # Mandatory fields
-    mode: Literal["train", "predict"]
     data_type: Literal["array", "tiff", "custom"]
     patch_size: List[int] = Field(..., min_length=2, max_length=3)
 
@@ -52,11 +51,20 @@ class DataModel(BaseModel):
                 "name": SupportedTransform.NORMALIZE.value,
             },
             {
-                "name": SupportedTransform.N2V_MANIPULATE_UNIFORM.value,
+                "name": SupportedTransform.N2V_MANIPULATE.value,
             },
         ],
         validate_default=True,
-    )  # TODO defaults should change based on the train/predict and on the algorithm
+    )
+
+    tta_transforms: Union[List[TransformModel], Compose] = Field(
+        default=[
+            {
+                "name": SupportedTransform.NORMALIZE.value,
+            },
+        ],
+        validate_default=True,
+    )
 
     # Dataloader configuration
     batch_size: int = Field(default=1, ge=1, validate_default=True)
@@ -129,6 +137,40 @@ class DataModel(BaseModel):
         check_axes_validity(axes)
 
         return axes
+    
+    @field_validator("tta_transforms")
+    @classmethod
+    def validate_tta_transforms(
+        cls, 
+        tta_transforms: Union[List[TransformModel], Compose]
+    ) -> Union[List[TransformModel], Compose]:
+        """Validate that tta transforms do not have N2V pixel manipulate transforms.
+
+        Parameters
+        ----------
+        tta_transforms : Union[List[TransformModel], Compose]
+            tta transforms.
+
+        Returns
+        -------
+        Union[List[TransformModel], Compose]
+            Validated tta transforms.
+
+        Raises
+        ------
+        ValueError
+            If tta transforms contain N2V pixel manipulate transforms.
+        """
+        if not isinstance(tta_transforms, Compose):
+            for transform in tta_transforms:
+                if transform.name == SupportedTransform.N2V_MANIPULATE.value:
+                    raise ValueError(
+                        f"N2V pixel manipulate transforms are not allowed in "
+                        f"tta transforms."
+                    )
+                
+        return tta_transforms
+
 
     @model_validator(mode="after")
     def std_only_with_mean(cls, data_model: DataModel) -> DataModel:
@@ -159,7 +201,59 @@ class DataModel(BaseModel):
 
         return data_model
 
-    def has_tranform_list(self) -> bool:
+    @model_validator(mode="after")
+    def validate_transforms_and_axes(cls, data_model: DataModel) -> DataModel:
+        """
+        Validate the transforms with respect to the axes.
+
+        Parameters
+        ----------
+        data_model : DataModel
+            Data model.
+
+        Returns
+        -------
+        DataModel
+            Validated data model.
+
+        Raises
+        ------
+        ValueError
+            If the transforms are not valid.
+        """
+        if "Z" in data_model.axes:
+            if data_model.has_transform_list():
+                for transform in data_model.transforms:
+                    if transform.name == SupportedTransform.NDFLIP:
+                        transform.parameters["is_3D"] = True
+                    elif transform.name == SupportedTransform.XY_RANDOM_ROTATE90:
+                        transform.parameters["is_3D"] = True
+
+            if data_model.has_tta_transform_list():
+                for transform in data_model.tta_transforms:
+                    if transform.name == SupportedTransform.NDFLIP:
+                        transform.parameters["is_3D"] = True
+                    elif transform.name == SupportedTransform.XY_RANDOM_ROTATE90:
+                        transform.parameters["is_3D"] = True
+        else:
+            if data_model.has_transform_list():
+                for transform in data_model.transforms:
+                    if transform.name == SupportedTransform.NDFLIP:
+                        transform.parameters["is_3D"] = False
+                    elif transform.name == SupportedTransform.XY_RANDOM_ROTATE90:
+                        transform.parameters["is_3D"] = False
+
+            if data_model.has_tta_transform_list():
+                for transform in data_model.tta_transforms:
+                    if transform.name == SupportedTransform.NDFLIP:
+                        transform.parameters["is_3D"] = False
+                    elif transform.name == SupportedTransform.XY_RANDOM_ROTATE90:
+                        transform.parameters["is_3D"] = False
+
+
+        return data_model
+
+    def has_transform_list(self) -> bool:
         """
         Check if the transforms are a list, as opposed to a Compose object.
 
@@ -169,6 +263,17 @@ class DataModel(BaseModel):
             True if the transforms are a list, False otherwise.
         """
         return isinstance(self.transforms, list)
+
+    def has_tta_transform_list(self) -> bool:
+        """
+        Check if the tta transforms are a list, as opposed to a Compose object.
+
+        Returns
+        -------
+        bool
+            True if the transforms are a list, False otherwise.
+        """
+        return isinstance(self.tta_transforms, list)
 
     def set_mean_and_std(self, mean: float, std: float) -> None:
         """
@@ -196,58 +301,20 @@ class DataModel(BaseModel):
                     transform.parameters["max_pixel_value"] = 1.0
         else:
             raise ValueError(
-                "Setting mean and std with Compose transforms is not allowed."
+                f"Setting mean and std with Compose transforms is not allowed. Add "
+                f"mean and std parameters directly to the transform in the Compose."
             )
-
-    @model_validator(mode="after")
-    def validate_transforms_and_axes(cls, data_model: DataModel) -> DataModel:
-        """
-        Validate the transforms with respect to the axes.
-
-        Parameters
-        ----------
-        data_model : DataModel
-            Data model.
-
-        Returns
-        -------
-        DataModel
-            Validated data model.
-
-        Raises
-        ------
-        ValueError
-            If the transforms are not valid.
-        """
-        # check that the transforms NDFLip is 3D
-
-        if "Z" in data_model.axes:
-            if data_model.has_tranform_list():
-                for transform in data_model.transforms:
-                    if transform.name == SupportedTransform.NDFLIP:
-                        transform.parameters["is_3D"] = True
-                    elif transform.name == SupportedTransform.XY_RANDOM_ROTATE90:
-                        transform.parameters["is_3D"] = True
-        else:
-            if data_model.has_tranform_list():
-                for transform in data_model.transforms:
-                    if transform.name == SupportedTransform.NDFLIP:
-                        transform.parameters["is_3D"] = False
-                    elif transform.name == SupportedTransform.XY_RANDOM_ROTATE90:
-                        transform.parameters["is_3D"] = False
-
-        if data_model.mode == "predict":
-            for transform in data_model.transforms:
-                if transform.name == "Normalize":
-                    transform.parameters["mean"] = data_model.mean
-                    transform.parameters["std"] = data_model.std
+        
+        # search in the tta transforms for Normalize and update parameters
+        if not isinstance(self.tta_transforms, Compose):
+            for transform in self.tta_transforms:
+                if transform.name == SupportedTransform.NORMALIZE.value:
+                    transform.parameters["mean"] = mean
+                    transform.parameters["std"] = std
                     transform.parameters["max_pixel_value"] = 1.0
-                else:
-                    data_model.transforms.remove(transform)
         else:
-            for transform in data_model.transforms:
-                if transform.name == "Normalize":
-                    transform.parameters["mean"] = data_model.mean
-                    transform.parameters["std"] = data_model.std
-                    transform.parameters["max_pixel_value"] = 1.0
-        return data_model
+            raise ValueError(
+                f"Setting mean and std with Compose tta transforms is not allowed. Add "
+                f"mean and std parameters directly to the transform in the Compose."
+            )
+        
