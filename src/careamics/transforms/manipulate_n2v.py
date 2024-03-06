@@ -47,14 +47,14 @@ class N2VManipulate(ImageOnlyTransform):
         image : np.ndarray
             Image or image patch, 2D or 3D, shape (y, x, c) or (z, y, x, c).
         """
-        if self.strategy == SupportedPixelManipulation.UNIFORM:
+        if self.strategy == SupportedPixelManipulation.UNIFORM.value:
             masked, mask = uniform_manipulate(
                 patch=patch,
                 mask_pixel_percentage=self.masked_pixel_percentage,
                 subpatch_size=self.roi_size,
                 struct_mask_params=self.struct_mask,
             )
-        elif self.strategy == SupportedPixelManipulation.MEDIAN:
+        elif self.strategy == SupportedPixelManipulation.MEDIAN.value:
             masked, mask = median_manipulate(
                 patch=patch,
                 mask_pixel_percentage=self.masked_pixel_percentage,
