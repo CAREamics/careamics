@@ -97,9 +97,9 @@ def _get_stratified_coords(
     """
     rng = np.random.default_rng()
 
-    mask_pixel_distance = np.round(
-        (100 / mask_pixel_perc) ** (1 / len(shape))
-    ).astype(np.int32)
+    mask_pixel_distance = np.round((100 / mask_pixel_perc) ** (1 / len(shape))).astype(
+        np.int32
+    )
 
     # Define a grid of coordinates for each axis in the input patch and the step size
     pixel_coords = []
@@ -148,7 +148,7 @@ def _create_subpatch_center_mask(
         Mask with the center of the subpatch masked.
     """
     mask = np.ones(subpatch.shape)
-    mask[tuple(center_coords.T)] = 0
+    mask[tuple(center_coords)] = 0
     return np.ma.make_mask(mask)
 
 
@@ -300,7 +300,7 @@ def median_manipulate(
     subpatch_crops_span_clipped = np.clip(
         subpatch_crops_span_full,
         a_min=np.zeros_like(patch.shape)[:, np.newaxis, np.newaxis],
-        a_max=np.array(patch.shape)[:, np.newaxis, np.newaxis] - 1,
+        a_max=np.array(patch.shape)[:, np.newaxis, np.newaxis],
     )
 
     for idx in range(subpatch_crops_span_clipped.shape[1]):
@@ -310,17 +310,20 @@ def median_manipulate(
             for x in subpatch_coords
         ]
         subpatch = patch[tuple(idxs)]
+        subpatch_center_adjusted = subpatch_centers[idx] - subpatch_coords[:, 0]
+
         if struct_mask_params is None:
             subpatch_mask = _create_subpatch_center_mask(
-                subpatch, subpatch_centers[idx]
+                subpatch, subpatch_center_adjusted
             )
         else:
             subpatch_mask = _create_subpatch_struct_mask(
-                subpatch, subpatch_centers[idx], struct_mask_params
+                subpatch, subpatch_center_adjusted, struct_mask_params
             )
-        transformed_patch[tuple(subpatch_centers[idx].tolist())] = np.median(
+        transformed_patch[tuple(subpatch_centers[idx])] = np.median(
             subpatch[subpatch_mask]
         )
+        print(np.median(subpatch[subpatch_mask]))
 
     mask = np.where(transformed_patch != patch, 1, 0).astype(np.uint8)
 

@@ -92,6 +92,7 @@ def test_uniform_manipulate(ordered_array, shape):
             (...,) + slices
         ]  # TODO ellipsis needed bc singleton dim, might need to go away
 
+        # TODO needs to be revisited !
         # check that the pixel value comes from the actual roi
         assert transform_patch[tuple(coords)] in roi
 
@@ -104,7 +105,7 @@ def test_median_manipulate(ordered_array, shape):
     manipulated pixels have a value taken from a ROI surrounding them.
     """
     # create the array
-    patch = ordered_array(shape)
+    patch = ordered_array(shape).astype(np.float32)
 
     # manipulate the array
     transform_patch, mask = median_manipulate(
@@ -129,12 +130,13 @@ def test_median_manipulate(ordered_array, shape):
         slices = tuple(
             [
                 slice(max(0, coords[i] - 2), min(shape[i], coords[i] + 3))
-                for i in range(-coords.shape[0] + 1, 0)  # range -4, -3, -2, -1
+                for i in range(coords.shape[0])  # range -4, -3, -2, -1
             ]
         )
-        roi = patch[
-            (...,) + slices
-        ]  # TODO ellipsis needed bc singleton dim, might need to go away
+        roi = patch[tuple(slices)]
+
+        # remove value of roi center from roi
+        roi = roi[roi != patch[tuple(coords)]]
 
         # check that the pixel value comes from the actual roi
         assert transform_patch[tuple(coords)] == np.median(roi)
