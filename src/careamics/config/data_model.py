@@ -66,6 +66,8 @@ class DataModel(BaseModel):
         validate_default=True,
     )
 
+    tta_transforms: Union[bool, Compose] = Field(default=True)
+
     # Dataloader configuration
     batch_size: int = Field(default=1, ge=1, validate_default=True)
     num_workers: int = Field(default=0, ge=0, validate_default=True)

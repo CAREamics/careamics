@@ -474,7 +474,7 @@ class CAREamicsPredictDataModule(CAREamicsClay):
         axes: str,
         batch_size: int,
         prediction_transforms: Optional[Union[List, Compose]] = None,
-        tta_transforms: Optional[Union[List, Compose]] = None,
+        tta_transforms: Optional[Union[bool, Compose]] = None,
         norm_mean: Optional[float] = None,
         norm_std: Optional[float] = None,
         read_source_func: Optional[Callable] = None,

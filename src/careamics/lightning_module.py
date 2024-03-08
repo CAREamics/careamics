@@ -13,6 +13,7 @@ from careamics.config.support import (
 )
 from careamics.losses import loss_factory
 from careamics.models.model_factory import model_factory
+from careamics.transforms import ImageRestorationTTA
 from careamics.utils.torch_utils import get_optimizer, get_scheduler
 
 
@@ -55,8 +56,20 @@ class CAREamicsKiln(L.LightningModule):
 
     def predict_step(self, batch, batch_idx) -> Any:
         x, *aux = batch
-        out = self.model(x)
-        return out, aux
+
+        # apply test-time augmentation if available
+        # TODO: probably wont work with batch size > 1
+        if self._trainer.datamodule.data_config.tta_transforms:
+            tta = ImageRestorationTTA()
+            augmented_batch = tta.forward(batch[0]) # list of augmented tensors
+            augmented_output = []
+            for augmented in augmented_batch:
+                augmented_pred = self.model(augmented)
+                augmented_output.append(augmented_pred)
+            output = tta.backward(augmented_output)
+        else:
+            output = self.model(x)
+        return output, aux
 
     def configure_optimizers(self) -> Any:
         # instantiate optimizer

@@ -60,8 +60,11 @@ class CAREamicsFiring(L.loops._PredictionLoop):
                     dataloader_iter = None
                     batch, batch_idx, dataloader_idx = next(data_fetcher)
                 self.batch_progress.is_last_batch = data_fetcher.done
+
                 # run step hooks
-                self._predict_step(batch, batch_idx, dataloader_idx, dataloader_iter)
+                self._predict_step(
+                        batch, batch_idx, dataloader_idx, dataloader_iter
+                    )
 
                 # Stitching tiles together
                 last_tile, *data = self.predictions[batch_idx][1]
