@@ -317,7 +317,6 @@ class IterableDataset(IterableDataset):
         return dataset
 
 
-# TODO TTA
 class IterablePredictionDataset(IterableDataset):
     """
     Dataset allowing extracting patches w/o loading whole data into memory.

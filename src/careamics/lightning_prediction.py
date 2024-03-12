@@ -88,6 +88,7 @@ class CAREamicsFiring(L.loops._PredictionLoop):
             finally:
                 self._restarting = False
         return self.on_run_end()
+    # TODO predictions aren't stacked, list returned 
 
 
 def predict_tiled_simple(

@@ -323,7 +323,7 @@ class InMemoryPredictionDataset(Dataset):
                 "Mean and std must be provided to the configuration in order to "
                 " perform prediction."
             )
-
+        #TODO this needs to be restructured
         self.input_array = data
         self.tile = tile_size and tile_overlap
 

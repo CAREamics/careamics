@@ -26,7 +26,6 @@ class CAREamicsKiln(L.LightningModule):
 
     def __init__(self, algorithm_config: AlgorithmModel) -> None:
         super().__init__()
-
         # create model and loss function
         self.model: nn.Module = model_factory(algorithm_config.model)
         self.loss_func = loss_factory(algorithm_config.loss)
@@ -61,7 +60,7 @@ class CAREamicsKiln(L.LightningModule):
         # TODO: probably wont work with batch size > 1
         if self._trainer.datamodule.data_config.tta_transforms:
             tta = ImageRestorationTTA()
-            augmented_batch = tta.forward(batch[0]) # list of augmented tensors
+            augmented_batch = tta.forward(batch[0])  # list of augmented tensors
             augmented_output = []
             for augmented in augmented_batch:
                 augmented_pred = self.model(augmented)
@@ -153,6 +152,6 @@ class CAREamicsModule(CAREamicsKiln):
 
         # add model parameters to algorithm configuration
         algorithm_configuration["model"] = model_configuration
-
+        self.save_hyperparameters({**model_configuration, **algorithm_configuration})
         # call the parent init using an AlgorithmModel instance
         super().__init__(AlgorithmModel(**algorithm_configuration))

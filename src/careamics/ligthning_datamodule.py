@@ -212,7 +212,8 @@ class CAREamicsWood(L.LightningDataModule):
                 validate_source_target_files(self.val_files, self.val_target_files)
 
     def setup(self, *args, **kwargs) -> None:
-        """Hook called at the beginning of fit (train + validate), validate, test, or
+        """
+        Hook called at the beginning of fit (train + validate), validate, test, or
         predict.
         """
         # if numpy array
@@ -488,28 +489,23 @@ class CAREamicsPredictDataModule(CAREamicsClay):
             "data_type": data_type,
             "patch_size": tile_size,
             "axes": axes,
+            "mean": norm_mean,
+            "std": norm_std,
             "batch_size": batch_size,
             "num_workers": num_workers,
             "pin_memory": pin_memory,
         }
 
-        if tta_transforms is not None and \
-            (norm_mean is not None or norm_std is not None):
-            raise ValueError(
-                "You cannot use both test time augmentation (in which you might define "
-                "normalization) and mean/std normalization for prediction."
-            )
-
+        # TODO this needs to be reorganized
         # if transforms are passed
-        if tta_transforms is not None:
-            data_config["tta_transforms"] = tta_transforms
-        elif norm_mean is not None and norm_std is not None:
-            data_config["tta_transforms"] = [
+        if norm_mean is not None and norm_std is not None:
+            data_config["prediction_transforms"] = [
                 {
                     "name": SupportedTransform.NORMALIZE.value,
                     "parameters": {
                         "mean": norm_mean,
                         "std": norm_std,
+                        "max_pixel_value": 1
                     },
                 },
             ]
