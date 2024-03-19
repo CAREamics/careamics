@@ -17,7 +17,7 @@ from .algorithm_model import AlgorithmModel
 from .data_model import DataModel
 from .support import SupportedAlgorithm, SupportedTransform
 from .training_model import Training
-from .transform_model import TransformModel
+from .transformations.transform_model import TransformModel
 
 
 # TODO what do we expect in terms of model dump, with or without the defaults?

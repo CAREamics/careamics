@@ -4,7 +4,8 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 from careamics.utils.torch_utils import filter_parameters
 
-from .support import get_all_transforms
+from ..support import get_all_transforms
+
 
 
 class TransformModel(BaseModel):

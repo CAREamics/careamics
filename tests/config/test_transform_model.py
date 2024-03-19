@@ -1,7 +1,7 @@
 import pytest
 
 from careamics.config.support import SupportedTransform
-from careamics.config.transform_model import TransformModel
+from careamics.config.transformations.transform_model import TransformModel
 
 
 @pytest.mark.parametrize(
@@ -10,7 +10,7 @@ from careamics.config.transform_model import TransformModel
         (SupportedTransform.NDFLIP, {}),
         (SupportedTransform.XY_RANDOM_ROTATE90, {}),
         (SupportedTransform.NORMALIZE, {"mean": 1.0, "std": 1.0}),
-        (SupportedTransform.MANIPULATE_N2V, {}),
+        (SupportedTransform.N2V_MANIPULATE, {}),
     ],
 )
 def test_official_transforms(name, parameters):

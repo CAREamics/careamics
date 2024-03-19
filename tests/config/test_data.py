@@ -78,8 +78,8 @@ def test_wrong_patch_size(minimum_data: dict, patch_size):
 def test_passing_supported_transforms(minimum_data: dict):
     """Test that list of supported transforms can be passed."""
     minimum_data["transforms"] = [
-        {"name": SupportedTransform.NDFLIP},
-        {"name": SupportedTransform.N2V_MANIPULATE},
+        {"name": SupportedTransform.NDFLIP.value},
+        {"name": SupportedTransform.N2V_MANIPULATE.value},
     ]
     DataModel(**minimum_data)
 
@@ -93,7 +93,7 @@ def test_passing_empty_transforms(minimum_data: dict):
 def test_passing_incorrect_element(minimum_data: dict):
     """Test that incorrect element in the list of transforms raises an error."""
     minimum_data["transforms"] = [
-        {"name": get_all_transforms()[SupportedTransform.NDFLIP]()},
+        {"name": get_all_transforms()[SupportedTransform.NDFLIP.value]()},
     ]
     with pytest.raises(ValueError):
         DataModel(**minimum_data)
@@ -128,10 +128,10 @@ def test_3D_and_transforms(minimum_data: dict):
         },
     ]
     data = DataModel(**minimum_data)
-    assert data.transforms[0].parameters["is_3D"] is False
-    assert data.transforms[1].parameters["is_3D"] is False
+    assert data.transforms[0].parameters.is_3D is False
+    assert data.transforms[1].parameters.is_3D is False
 
     # change to 3D
     data.axes = "ZYX"
-    data.transforms[0].parameters["is_3D"] = True
-    data.transforms[1].parameters["is_3D"] = True
+    data.transforms[0].parameters.is_3D = True
+    data.transforms[1].parameters.is_3D = True

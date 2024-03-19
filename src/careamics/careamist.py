@@ -100,6 +100,7 @@ class CAREamist:
         # change the prediction loop
         self.trainer.predict_loop = CAREamicsFiring(self.trainer)
 
+    
     @method_dispatch
     def train(
         self,
@@ -114,7 +115,7 @@ class CAREamist:
         self.trainer.fit(self.model, datamodule=datamodule)
 
     @train.register
-    def _train_on_path(
+    def train_on_path(
         self,
         path_to_train_data: Path,  # cannot use Union annotation for the dispatch
         path_to_val_data: Optional[Path] = None,
@@ -174,7 +175,7 @@ class CAREamist:
         )
 
     @train.register
-    def _train_on_array(
+    def train_on_array(
         self,
         train_data: np.ndarray,
         val_data: Optional[np.ndarray] = None,

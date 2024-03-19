@@ -349,7 +349,6 @@ class IterablePredictionDataset(IterableDataset):
         tile_size: Union[List[int], Tuple[int]],
         tile_overlap: Optional[Union[List[int], Tuple[int]]] = None,
         read_source_func: Callable = read_tiff,
-        target_files: Optional[List[Path]] = None,
         **kwargs,
     ) -> None:
         super().__init__(
@@ -373,7 +372,7 @@ class IterablePredictionDataset(IterableDataset):
         # get tta transforms
         self.patch_transform = get_patch_transform(
             patch_transforms=data_config.prediction_transforms,
-            with_target=target_files is not None,
+            with_target=False,
         )
 
     def __iter__(self) -> Generator[np.ndarray, None, None]:
