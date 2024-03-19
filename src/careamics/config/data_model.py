@@ -79,6 +79,8 @@ class DataModel(BaseModel):
         validate_default=True,
     )
 
+    tta_transforms: Union[bool, Compose] = Field(default=True)
+
     # Dataloader configuration
     batch_size: int = Field(default=1, ge=1, validate_default=True)
     num_workers: int = Field(default=0, ge=0, validate_default=True)
@@ -178,8 +180,8 @@ class DataModel(BaseModel):
             for transform in prediction_transforms:
                 if transform.name == SupportedTransform.N2V_MANIPULATE.value:
                     raise ValueError(
-                        f"N2V pixel manipulate transforms are not allowed in "
-                        f"tta transforms."
+                        "N2V pixel manipulate transforms are not allowed in "
+                        "tta transforms."
                     )
                 
         return prediction_transforms
@@ -313,10 +315,10 @@ class DataModel(BaseModel):
                     transform.parameters.std = std
         else:
             raise ValueError(
-                f"Setting mean and std with Compose transforms is not allowed. Add "
-                f"mean and std parameters directly to the transform in the Compose."
+                "Setting mean and std with Compose transforms is not allowed. Add "
+                "mean and std parameters directly to the transform in the Compose."
             )
-        
+
         # search in the tta transforms for Normalize and update parameters
         if not isinstance(self.prediction_transforms, Compose):
             for transform in self.prediction_transforms:
@@ -325,7 +327,6 @@ class DataModel(BaseModel):
                     transform.parameters.std = std
         else:
             raise ValueError(
-                f"Setting mean and std with Compose tta transforms is not allowed. Add "
-                f"mean and std parameters directly to the transform in the Compose."
+                "Setting mean and std with Compose tta transforms is not allowed. Add "
+                "mean and std parameters directly to the transform in the Compose."
             )
-        

@@ -13,6 +13,7 @@ from careamics.config.support import (
 )
 from careamics.losses import loss_factory
 from careamics.models.model_factory import model_factory
+from careamics.transforms import ImageRestorationTTA
 from careamics.utils.torch_utils import get_optimizer, get_scheduler
 
 
@@ -25,7 +26,6 @@ class CAREamicsKiln(L.LightningModule):
 
     def __init__(self, algorithm_config: AlgorithmModel) -> None:
         super().__init__()
-
         # create model and loss function
         self.model: nn.Module = model_factory(algorithm_config.model)
         self.loss_func = loss_factory(algorithm_config.loss)
@@ -55,8 +55,20 @@ class CAREamicsKiln(L.LightningModule):
 
     def predict_step(self, batch, batch_idx) -> Any:
         x, *aux = batch
-        out = self.model(x)
-        return out, aux
+
+        # apply test-time augmentation if available
+        # TODO: probably wont work with batch size > 1
+        if self._trainer.datamodule.data_config.tta_transforms:
+            tta = ImageRestorationTTA()
+            augmented_batch = tta.forward(batch[0])  # list of augmented tensors
+            augmented_output = []
+            for augmented in augmented_batch:
+                augmented_pred = self.model(augmented)
+                augmented_output.append(augmented_pred)
+            output = tta.backward(augmented_output)
+        else:
+            output = self.model(x)
+        return output, aux
 
     def configure_optimizers(self) -> Any:
         # instantiate optimizer
@@ -140,6 +152,6 @@ class CAREamicsModule(CAREamicsKiln):
 
         # add model parameters to algorithm configuration
         algorithm_configuration["model"] = model_configuration
-
+        self.save_hyperparameters({**model_configuration, **algorithm_configuration})
         # call the parent init using an AlgorithmModel instance
         super().__init__(AlgorithmModel(**algorithm_configuration))

@@ -3,8 +3,7 @@ from __future__ import annotations
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from careamics.utils.torch_utils import filter_parameters
-
-from ..support import get_all_transforms
+from careamics.transforms import get_all_transforms
 
 
 

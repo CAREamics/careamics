@@ -135,9 +135,10 @@ def extract_tiles(
         ):
             tile = sample[(..., *[slice(c[0], c[1]) for c in list(crop_coords)])]
 
-            tile = (
-                np.expand_dims(tile, 0) if "S" in axes or len(tile.shape) == 2 else tile
-            )
+            # TODO check why add dims ?
+            # tile = (
+            #     np.expand_dims(tile, 0) if "S" in axes or len(tile.shape) == 2 else tile
+            # )
             # Check if we are at the end of the sample.
             # To check that we compute the length of the array that contains all the
             # tiles

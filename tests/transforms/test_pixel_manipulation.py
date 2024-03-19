@@ -7,9 +7,10 @@ from careamics.transforms.pixel_manipulation import (
     median_manipulate,
     uniform_manipulate,
 )
+from careamics.transforms.struct_mask_parameters import StructMaskParameters
 
 
-# TODO: what is the minimum coords given? should make sure that there is at lea
+# TODO: what is the minimum coords given?
 @pytest.mark.parametrize(
     "mask_pixel_perc, shape, num_iterations",
     [(0.4, (32, 32), 1000), (0.4, (10, 10, 10), 1000)],
@@ -92,6 +93,7 @@ def test_uniform_manipulate(ordered_array, shape):
             (...,) + slices
         ]  # TODO ellipsis needed bc singleton dim, might need to go away
 
+        # TODO needs to be revisited !
         # check that the pixel value comes from the actual roi
         assert transform_patch[tuple(coords)] in roi
 
@@ -104,7 +106,7 @@ def test_median_manipulate(ordered_array, shape):
     manipulated pixels have a value taken from a ROI surrounding them.
     """
     # create the array
-    patch = ordered_array(shape)
+    patch = ordered_array(shape).astype(np.float32)
 
     # manipulate the array
     transform_patch, mask = median_manipulate(
@@ -129,45 +131,58 @@ def test_median_manipulate(ordered_array, shape):
         slices = tuple(
             [
                 slice(max(0, coords[i] - 2), min(shape[i], coords[i] + 3))
-                for i in range(-coords.shape[0] + 1, 0)  # range -4, -3, -2, -1
+                for i in range(coords.shape[0])  # range -4, -3, -2, -1
             ]
         )
-        roi = patch[
-            (...,) + slices
-        ]  # TODO ellipsis needed bc singleton dim, might need to go away
+        roi = patch[tuple(slices)]
+
+        # remove value of roi center from roi
+        roi = roi[roi != patch[tuple(coords)]]
 
         # check that the pixel value comes from the actual roi
         assert transform_patch[tuple(coords)] == np.median(roi)
 
 
 @pytest.mark.parametrize(
-    "coords, struct_mask_params",
-    [((2, 2), [1, 5]), ((3, 4), [0, 5]), ((9, 0), [0, 5]), (((1, 2), (3, 4)), [1, 5])],
+    "coords, struct_axis, struct_span",
+    [
+        ((2, 2), 1, 5), 
+        ((3, 4), 0, 5), 
+        ((9, 0), 0, 5), 
+        (((1, 2), (3, 4)), 1, 5)
+    ],
 )
-def test_apply_struct_mask(coords, struct_mask_params):
+def test_apply_struct_mask(coords, struct_axis, struct_span):
     """Test the uniform_manipulate function.
 
     Ensures that the mask corresponds to the manipulated pixels, and that the
     manipulated pixels have a value taken from a ROI surrounding them.
     """
+    struct_params = StructMaskParameters(
+        axis=struct_axis, span=struct_span
+    )
+
     # create the array of random integers. This is to ensurewe can compare exact values
     patch = np.arange(
         100,
     ).reshape((10, 10))
+
     # make a copy of the original patch for comparison
     original_patch = patch.copy()
     coords = np.array(coords)
+
     # expand the coords if only one roi is given
     if coords.ndim == 1:
         coords = coords[None, :]
-    struct_axis, struct_span = struct_mask_params
+
     # manipulate the array
     transform_patch = _apply_struct_mask(
         patch,
         coords=coords,
-        mask_params=struct_mask_params,
+        struct_params=struct_params,
     )
     changed_values = patch[np.where(original_patch != transform_patch)]
+
     # check that the transformed pixels correspond to the masked pixels
     transformed = []
     if struct_axis == 0:

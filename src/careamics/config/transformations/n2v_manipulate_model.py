@@ -1,6 +1,6 @@
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class N2VManipulationParameters(BaseModel):
@@ -14,12 +14,12 @@ class N2VManipulationParameters(BaseModel):
     roi_size: int = Field(default=11, ge=3, le=21)
     masked_pixel_percentage: float = Field(default=0.2, ge=0.05, le=1.0)
     strategy: Literal["uniform", "median"] = Field(default="uniform")
-    struct_mask_direction: Literal[
+    struct_mask_axis: Literal[
         "horizontal", "vertical", "none"
     ] = Field(default="none")
-    struct_mask_size: int = Field(default=3, ge=3, le=7)
+    struct_mask_span: int = Field(default=5, ge=3, le=15)
 
-    @field_validator("roi_size", "struct_mask_size")
+    @field_validator("roi_size", "struct_mask_span")
     @classmethod
     def odd_value(cls, v):
         if v % 2 == 0:

@@ -2,7 +2,7 @@ from typing import Callable, List, Union
 
 import albumentations as Aug
 
-from careamics.config.support import get_all_transforms
+from careamics.transforms import get_all_transforms
 from careamics.config.data_model import Transformations_Union
 
 

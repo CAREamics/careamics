@@ -8,12 +8,19 @@ from typing import List, Optional, Tuple
 
 import numpy as np
 
+from .struct_mask_parameters import StructMaskParameters
 
-def _apply_struct_mask(patch: np.ndarray, coords: np.ndarray, mask_params: List[int]):
-    """Applies structN2V mask to patch.
 
-    Each point in coords corresponds to the center of the mask.
-    then for point in the mask with value=1 we assign a random value.
+def _apply_struct_mask(
+        patch: np.ndarray, 
+        coords: np.ndarray, 
+        struct_params: StructMaskParameters
+    ):
+    """Applies structN2V masks to patch.
+
+    Each point in `coords` corresponds to the center of a mask, masks are paremeterized
+    by `struct_params` and pixels in the mask (with respect to `coords`) are replaced by
+    a random value.
 
     Parameters
     ----------
@@ -21,27 +28,34 @@ def _apply_struct_mask(patch: np.ndarray, coords: np.ndarray, mask_params: List[
         Patch to be manipulated.
     coords : np.ndarray
         Coordinates of the ROI(subpatch) centers.
-    mask_params : list
-        Axis and span across center for the structN2V mask.
+    struct_params : StructMaskParameters
+        Parameters for the structN2V mask (axis and span).
     """
-    struct_axis, struct_span = mask_params
     # Create a mask array
-    mask = np.expand_dims(np.ones(struct_span), axis=list(range(len(patch.shape) - 1)))
+    mask = np.expand_dims(
+        np.ones(struct_params.span), axis=list(range(len(patch.shape) - 1))
+    )
+
     # Move the struct axis to the first position for indexing
-    mask = np.moveaxis(mask, 0, struct_axis)
+    mask = np.moveaxis(mask, 0, struct_params.axis)
     center = np.array(mask.shape) // 2
+
     # Mark the center
     mask[tuple(center.T)] = 0
+
     # displacements from center
     dx = np.indices(mask.shape)[:, mask == 1] - center[:, None]
+
     # combine all coords (ndim, npts,) with all displacements (ncoords,ndim,)
     mix = dx.T[..., None] + coords.T[None]
     mix = mix.transpose([1, 0, 2]).reshape([mask.ndim, -1]).T
+
     # stay within patch boundary
     # TODO this will fail if center is on the edge!
     mix = mix.clip(min=np.zeros(mask.ndim), max=np.array(patch.shape) - 1).astype(
         np.uint8
     )
+
     # replace neighbouring pixels with random values from flat dist
     patch[tuple(mix.T)] = np.random.uniform(patch.min(), patch.max(), size=mix.shape[0])
     return patch
@@ -97,11 +111,9 @@ def _get_stratified_coords(
     """
     rng = np.random.default_rng()
 
-    # Define the approximate distance between masked pixels. Subtracts 1 form the shape
-    # to account for the channel dimension
-    mask_pixel_distance = np.round(
-        (100 / mask_pixel_perc) ** (1 / (len(shape) - 1))
-    ).astype(np.int32)
+    mask_pixel_distance = np.round((100 / mask_pixel_perc) ** (1 / len(shape))).astype(
+        np.int32
+    )
 
     # Define a grid of coordinates for each axis in the input patch and the step size
     pixel_coords = []
@@ -150,12 +162,14 @@ def _create_subpatch_center_mask(
         Mask with the center of the subpatch masked.
     """
     mask = np.ones(subpatch.shape)
-    mask[tuple(center_coords.T)] = 0
+    mask[tuple(center_coords)] = 0
     return np.ma.make_mask(mask)
 
 
 def _create_subpatch_struct_mask(
-    subpatch: np.ndarray, center_coords: np.ndarray, struct_mask_params: List[int]
+    subpatch: np.ndarray, 
+    center_coords: np.ndarray, 
+    struct_params: StructMaskParameters
 ) -> np.ndarray:
     """Create a structN2V mask for the subpatch.
 
@@ -165,8 +179,8 @@ def _create_subpatch_struct_mask(
         Subpatch to be manipulated.
     center_coords : np.ndarray
         Coordinates of the original center before possible crop.
-    struct_mask_params : list
-        Axis and span across center for the structN2V mask.
+    struct_params : StructMaskParameters
+        Parameters for the structN2V mask (axis and span).
 
     Returns
     -------
@@ -175,20 +189,23 @@ def _create_subpatch_struct_mask(
     """
     # Create a mask with the center of the subpatch masked
     mask_placeholder = np.ones(subpatch.shape)
-    struct_axis, struct_span = struct_mask_params
+
     # reshape to move the struct axis to the first position
-    mask_reshaped = np.moveaxis(mask_placeholder, struct_axis, 0)
+    mask_reshaped = np.moveaxis(mask_placeholder, struct_params.axis, 0)
+
     # create the mask index for the struct axis
     mask_index = slice(
-        max(0, center_coords.take(struct_axis) - (struct_span - 1) // 2),
+        max(0, center_coords.take(struct_params.axis) - (struct_params.span - 1) // 2),
         min(
-            1 + center_coords.take(struct_axis) + (struct_span - 1) // 2,
-            subpatch.shape[struct_axis],
+            1 + center_coords.take(struct_params.axis) + (struct_params.span - 1) // 2,
+            subpatch.shape[struct_params.axis],
         ),
     )
-    mask_reshaped[struct_axis][mask_index] = 0
+    mask_reshaped[struct_params.axis][mask_index] = 0
+
     # reshape back to the original shape
-    mask = np.moveaxis(mask_reshaped, 0, struct_axis)
+    mask = np.moveaxis(mask_reshaped, 0, struct_params.axis)
+
     return np.ma.make_mask(mask)
 
 
@@ -197,29 +214,37 @@ def uniform_manipulate(
     mask_pixel_percentage: float,
     subpatch_size: int = 11,
     remove_center: bool = True,
-    struct_mask_params: Optional[List[int]] = None,
-) -> Tuple[np.ndarray, ...]:
+    struct_params: Optional[StructMaskParameters] = None,
+) -> Tuple[np.ndarray, np.ndarray]:
     """
-    Manipulate pixel in a patch, i.e. replace the masked value.
+    Manipulate pixels by replacing them with a neighbor values, unformly selected 
+    in a subpatch (vanilla N2V).
+
+    Manipulated pixels are selected randomly away from a grid with an approximate 
+    uniform probability to be selected across the whole patch.
+
+    If `struct_params` is not None, an additional structN2V mask is applied to the data,
+    replacing the pixels in the mask with random values (excluding the pixel already
+    manipulated).
 
     Parameters
     ----------
     patch : np.ndarray
         Image patch, 2D or 3D, shape (y, x) or (z, y, x).
-    mask_pixel_percentage : floar
+    mask_pixel_percentage : float
         Approximate percentage of pixels to be masked.
     subpatch_size : int
         Size of the subpatch the new pixel value is sampled from, by default 11.
     remove_center : bool
         Whether to remove the center pixel from the subpatch, by default False. See
         uniform with/without central pixel in the documentation. #TODO add link
-    struct_mask_params : optional
-        Axis and span across center for the structN2V mask.
+    struct_params: Optional[StructMaskParameters]
+        Parameters for the structN2V mask (axis and span).
 
     Returns
     -------
     Tuple[np.ndarray]
-        Tuple containing the manipulated patch, the original patch and the mask.
+        Tuple containing the manipulated patch and the corresponding mask.
     """
     # Get the coordinates of the pixels to be replaced
     transformed_patch = patch.copy()
@@ -244,16 +269,17 @@ def uniform_manipulate(
         0,
         [patch.shape[i] - 1 for i in range(len(patch.shape))],
     )
+
     # Get the replacement pixels from all subpatchs
     replacement_pixels = patch[tuple(replacement_coords.T.tolist())]
-    struct_mask = None
+
     # Replace the original pixels with the replacement pixels
     transformed_patch[tuple(subpatch_centers.T.tolist())] = replacement_pixels
     mask = np.where(transformed_patch != patch, 1, 0).astype(np.uint8)
 
-    if struct_mask_params is not None:
+    if struct_params is not None:
         transformed_patch = _apply_struct_mask(
-            transformed_patch, subpatch_centers, struct_mask
+            transformed_patch, subpatch_centers, struct_params
         )
 
     return (
@@ -266,10 +292,18 @@ def median_manipulate(
     patch: np.ndarray,
     mask_pixel_percentage: float,
     subpatch_size: int = 11,
-    struct_mask_params: Optional[List[int]] = None,
-) -> Tuple[np.ndarray, ...]:
+    struct_params: Optional[StructMaskParameters] = None,
+) -> Tuple[np.ndarray, np.ndarray]:
     """
-    Manipulate pixel in a patch, i.e. replace the masked value.
+    Manipulate pixels by replacing them with the median of their surrounding subpatch
+    (N2V2).
+
+    Manipulated pixels are selected randomly away from a grid with an approximate 
+    uniform probability to be selected across the whole patch.
+
+    If `struct_params` is not None, an additional structN2V mask is applied to the data,
+    replacing the pixels in the mask with random values (excluding the pixel already
+    manipulated).
 
     Parameters
     ----------
@@ -279,8 +313,8 @@ def median_manipulate(
         Approximate percentage of pixels to be masked.
     subpatch_size : int
         Size of the subpatch the new pixel value is sampled from, by default 11.
-    struct_mask_params: optional,
-        Axis and span across center for the structN2V mask.
+    struct_params: Optional[StructMaskParameters]
+        Parameters for the structN2V mask (axis and span).
 
     Returns
     -------
@@ -288,6 +322,7 @@ def median_manipulate(
            Tuple containing the manipulated patch, the original patch and the mask.
     """
     transformed_patch = patch.copy()
+
     # Get the coordinates of the pixels to be replaced
     subpatch_centers = _get_stratified_coords(mask_pixel_percentage, patch.shape)
 
@@ -302,7 +337,7 @@ def median_manipulate(
     subpatch_crops_span_clipped = np.clip(
         subpatch_crops_span_full,
         a_min=np.zeros_like(patch.shape)[:, np.newaxis, np.newaxis],
-        a_max=np.array(patch.shape)[:, np.newaxis, np.newaxis] - 1,
+        a_max=np.array(patch.shape)[:, np.newaxis, np.newaxis],
     )
 
     for idx in range(subpatch_crops_span_clipped.shape[1]):
@@ -312,23 +347,26 @@ def median_manipulate(
             for x in subpatch_coords
         ]
         subpatch = patch[tuple(idxs)]
-        if struct_mask_params is None:
+        subpatch_center_adjusted = subpatch_centers[idx] - subpatch_coords[:, 0]
+
+        if struct_params is None:
             subpatch_mask = _create_subpatch_center_mask(
-                subpatch, subpatch_centers[idx]
+                subpatch, subpatch_center_adjusted
             )
         else:
             subpatch_mask = _create_subpatch_struct_mask(
-                subpatch, subpatch_centers[idx], struct_mask_params
+                subpatch, subpatch_center_adjusted, struct_params
             )
-        transformed_patch[tuple(subpatch_centers[idx].tolist())] = np.median(
+        transformed_patch[tuple(subpatch_centers[idx])] = np.median(
             subpatch[subpatch_mask]
         )
+        print(np.median(subpatch[subpatch_mask]))
 
     mask = np.where(transformed_patch != patch, 1, 0).astype(np.uint8)
 
-    if struct_mask_params is not None:
+    if struct_params is not None:
         transformed_patch = _apply_struct_mask(
-            transformed_patch, subpatch_centers, struct_mask_params
+            transformed_patch, subpatch_centers, struct_params
         )
 
     return (
