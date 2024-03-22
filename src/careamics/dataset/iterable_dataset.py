@@ -394,7 +394,7 @@ class IterablePredictionDataset(IterableDataset):
             #TODO AttributeError: 'IterablePredictionDataset' object has no attribute 'mean' message appears if the predict func is run more than once 
 
             for patch_data in patches:
-                # TODO for TTA you would want to iterate here with p=1?
+
                 if isinstance(patch_data, tuple):
                     # Albumentations expects the channel dimension to be last
                     transformed = self.patch_transform(

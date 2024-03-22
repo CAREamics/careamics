@@ -6,7 +6,7 @@ import zarr
 from .validate_patch_dimension import validate_patch_dimensions
 
 
-# TODO this should not be responsible for reshaping, split into different functions
+# TOOD split in testable functions
 def extract_patches_random(
     arr: np.ndarray,
     patch_size: Union[List[int], Tuple[int]],
@@ -39,7 +39,10 @@ def extract_patches_random(
     is_3d_patch = len(patch_size) == 3
 
     # patches sanity check
-    patch_size = validate_patch_dimensions(arr, patch_size, is_3d_patch)
+    validate_patch_dimensions(arr, patch_size, is_3d_patch)
+
+    # Update patch size to encompass S and C dimensions
+    patch_size = [1, arr.shape[1], *patch_size] 
 
     # random generator
     rng = np.random.default_rng()
@@ -47,7 +50,7 @@ def extract_patches_random(
     # iterate over the number of samples (S or T)
     for sample_idx in range(arr.shape[0]):
         # get sample array
-        sample = arr[sample_idx]
+        sample: np.ndarray = arr[sample_idx, ...]
 
         # calculate the number of patches
         n_patches = np.ceil(np.prod(sample.shape) / np.prod(patch_size)).astype(int)
@@ -126,7 +129,7 @@ def extract_patches_random_from_chunks(
     is_3d_patch = len(patch_size) == 3
 
     # Patches sanity check
-    patch_size = validate_patch_dimensions(arr, patch_size, is_3d_patch)
+    validate_patch_dimensions(arr, patch_size, is_3d_patch)
 
     rng = np.random.default_rng()
     num_chunks = chunk_limit if chunk_limit else np.prod(arr._cdata_shape)
@@ -147,6 +150,7 @@ def extract_patches_random_from_chunks(
         # Add a singleton dimension if the chunk does not have a sample dimension
         if len(chunk.shape) == len(patch_size):
             chunk = np.expand_dims(chunk, axis=0)
+            
         # Iterate over num samples (S)
         for sample_idx in range(chunk.shape[0]):
             spatial_chunk = chunk[sample_idx]

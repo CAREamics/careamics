@@ -174,8 +174,8 @@ def prepare_patches_unsupervised_array(
     This method expects an array of shape SC(Z)YX, where S and C can be singleton
     dimensions.
 
-    # TODO what dims does it return?
-
+    Patches returned are of shape SC(Z)YX, where S is now the patches dimension.
+    
     Returns
     -------
     np.ndarray
@@ -211,7 +211,7 @@ def generate_patches_predict(
     """
     # generate patches, return a generator
     patches = extract_tiles(
-        arr=sample, axes=axes, tile_size=tile_size, overlaps=tile_overlap
+        arr=sample, tile_size=tile_size, overlaps=tile_overlap
     )
     patches_list = list(patches)
     if len(patches_list) == 0:
@@ -267,7 +267,7 @@ def generate_patches_supervised(
                     "Overlaps must be specified when using tiling (got None)."
                 )
             patches = extract_tiles(
-                arr=sample, axes=axes, tile_size=patch_size, overlaps=patch_overlap
+                arr=sample, tile_size=patch_size, overlaps=patch_overlap
             )
 
         elif patch_extraction_method == SupportedExtractionStrategy.SEQUENTIAL:
@@ -307,15 +307,12 @@ def generate_patches_unsupervised(
     """
     Creates an iterator over patches from a sample.
 
-    # TODO what dimensions does it return? Is there S?
-    # TODO if there might be S, then maybe we can split into different functions
-
     Parameters
     ----------
     sample : np.ndarray
         Input array.
-    patch_extraction_method : ExtractionStrategies
-        Patch extraction method, as defined in extraction_strategy.ExtractionStrategy.
+    patch_extraction_method : SupportedExtractionStrategy
+        Patch extraction methods (see `config.support`).
     patch_size : Optional[Union[List[int], Tuple[int]]]
         Size of the patches along each dimension of the array, except the first.
     patch_overlap : Optional[Union[List[int], Tuple[int]]]
@@ -339,13 +336,13 @@ def generate_patches_unsupervised(
             patch_overlap = [48] * len(patch_size)  # TODO pass overlap instead
 
         # return a Generator of the following:
-        # - patch: np.ndarray, dims SC(Z)YX
+        # - patch: np.ndarray, dims C(Z)YX
         # - last_tile: bool
         # - shape: Tuple[int], shape of a tile, excluding the S dimension
         # - overlap_crop_coords: coordinates used to crop the patch during stitching
         # - stitch_coords: coordinates used to stitch the tiles back to the full image
         patches = extract_tiles(
-            arr=sample, axes=axes, tile_size=patch_size, overlaps=patch_overlap
+            arr=sample, tile_size=patch_size, overlaps=patch_overlap
         )
 
     # random extraction
