@@ -70,6 +70,9 @@ class IterableDataset(IterableDataset):
                 # update mean and std in configuration
                 # the object is mutable and should then be recorded in the CAREamist obj
                 data_config.set_mean_and_std(self.mean, self.std)
+        else:
+            self.mean = data_config.mean
+            self.std = data_config.std
 
         # get transforms
         self.patch_transform = get_patch_transform(
