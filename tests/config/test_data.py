@@ -2,7 +2,8 @@ import pytest
 from albumentations import Compose
 
 from careamics.config.data_model import DataModel
-from careamics.config.support import SupportedTransform, get_all_transforms
+from careamics.config.support import SupportedTransform
+from careamics.transforms import get_all_transforms
 
 
 @pytest.mark.parametrize("ext", ["nd2", "jpg", "png ", "zarr", "npy"])
@@ -75,12 +76,26 @@ def test_wrong_patch_size(minimum_data: dict, patch_size):
         DataModel(**minimum_data)
 
 
-def test_passing_supported_transforms(minimum_data: dict):
-    """Test that list of supported transforms can be passed."""
-    minimum_data["transforms"] = [
-        {"name": SupportedTransform.NDFLIP.value},
-        {"name": SupportedTransform.N2V_MANIPULATE.value},
+@pytest.mark.parametrize("transforms",
+    [
+        [
+            {"name": SupportedTransform.NDFLIP.value},
+            {"name": SupportedTransform.N2V_MANIPULATE.value},
+        ],
+        [
+            {"name": SupportedTransform.NDFLIP.value},
+        ],
+        [
+            {"name": SupportedTransform.NORMALIZE.value},
+            {"name": SupportedTransform.NDFLIP.value},
+            {"name": SupportedTransform.XY_RANDOM_ROTATE90.value},
+            {"name": SupportedTransform.N2V_MANIPULATE.value},
+        ],
     ]
+)
+def test_passing_supported_transforms(minimum_data: dict, transforms):
+    """Test that list of supported transforms can be passed."""
+    minimum_data["transforms"] = transforms
     DataModel(**minimum_data)
 
 
@@ -91,7 +106,8 @@ def test_passing_empty_transforms(minimum_data: dict):
 
 
 def test_passing_incorrect_element(minimum_data: dict):
-    """Test that incorrect element in the list of transforms raises an error."""
+    """Test that incorrect element in the list of transforms raises an error (
+    e.g. passing un object rather than a string)."""
     minimum_data["transforms"] = [
         {"name": get_all_transforms()[SupportedTransform.NDFLIP.value]()},
     ]

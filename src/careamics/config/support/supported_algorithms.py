@@ -16,8 +16,6 @@ class SupportedAlgorithm(str, BaseEnum):
     """
 
     N2V = "n2v"
-    N2V2 = "n2v2"
-    STRUCTN2V = "structn2v"
     CUSTOM = "custom"
     # CARE = "care"
     # N2N = "n2n"
@@ -28,4 +26,4 @@ class SupportedAlgorithm(str, BaseEnum):
     @classmethod
     def get_unsupervised_algorithms(cls) -> List[str]:
         """Return all unsupervised algorithms."""
-        return [cls.N2V.value, cls.N2V2.value, cls.STRUCTN2V.value]
+        return [cls.N2V.value]
