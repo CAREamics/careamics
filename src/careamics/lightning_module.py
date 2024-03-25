@@ -1,7 +1,7 @@
 from typing import Any, Optional, Union
 
 import pytorch_lightning as L
-from torch import nn
+from torch import nn, Tensor
 
 from careamics.config import AlgorithmModel
 from careamics.config.support import (
@@ -39,13 +39,13 @@ class CAREamicsKiln(L.LightningModule):
     def forward(self, x: Any) -> Any:
         return self.model(x)
 
-    def training_step(self, batch, batch_idx) -> Any:
+    def training_step(self, batch: Tensor, batch_idx: Any) -> Any:
         x, *aux = batch
         out = self.model(x)
         loss = self.loss_func(out, *aux)
         return loss
 
-    def validation_step(self, batch, batch_idx):
+    def validation_step(self, batch: Tensor, batch_idx: Any) -> None:
         x, *aux = batch
         out = self.model(x)
         val_loss = self.loss_func(out, *aux)
@@ -53,7 +53,7 @@ class CAREamicsKiln(L.LightningModule):
         # log validation loss
         self.log("val_loss", val_loss)
 
-    def predict_step(self, batch, batch_idx) -> Any:
+    def predict_step(self, batch: Tensor, batch_idx: Any) -> Any:
         x, *aux = batch
 
         # apply test-time augmentation if available

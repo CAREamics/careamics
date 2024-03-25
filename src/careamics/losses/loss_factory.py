@@ -3,7 +3,7 @@ Loss factory module.
 
 This module contains a factory function for creating loss functions.
 """
-from typing import Callable
+from typing import Callable, Union
 
 from ..config.support import SupportedLoss
 from .losses import mae_loss, mse_loss, n2v_loss
@@ -11,7 +11,7 @@ from .losses import mae_loss, mse_loss, n2v_loss
 
 # TODO add tests
 # TODO add custom?
-def loss_factory(loss: SupportedLoss) -> Callable:
+def loss_factory(loss: Union[SupportedLoss, str]) -> Callable:
     """Return loss function.
 
     Parameters

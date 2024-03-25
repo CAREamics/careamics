@@ -21,14 +21,19 @@ from .tiled_patching import extract_tiles
 logger = get_logger(__name__)
 
 
+# TODO: several issues that require refactoring
+# - some patching return array, others generator
+# - in iterable and in memory, the reshaping happens at different moment
+# - return type is not consistent (ndarray, ndarray or ndarray, None or just ndarray)
+
 # called by in memory dataset
 def prepare_patches_supervised(
     train_files: List[Path],
     target_files: List[Path],
     axes: str,
     patch_size: Union[List[int], Tuple[int]],
-    read_source_func: Optional[Callable] = None,
-) -> Tuple[np.ndarray, float, float]:
+    read_source_func: Callable,
+) -> Tuple[np.ndarray, np.ndarray, float, float]:
     """
     Iterate over data source and create an array of patches and corresponding targets.
 
@@ -61,14 +66,21 @@ def prepare_patches_supervised(
 
             # convert generator to list and add to all_patches
             all_patches.append(patches)
-            all_targets.append(targets)
+
+            # ensure targets are not None (type checking)
+            if targets is not None:
+                all_targets.append(targets)
+            else:
+                raise ValueError(
+                    f"No target found for {target_filename}."
+                )
 
         except Exception as e:
             # emit warning and continue
             logger.error(f"Failed to read {train_filename} or {target_filename}: {e}")
 
     # raise error if no valid samples found
-    if num_samples == 0:
+    if num_samples == 0 or len(all_patches) == 0:
         raise ValueError(
             f"No valid samples found in the input data: {train_files} and "
             f"{target_files}."
@@ -76,25 +88,25 @@ def prepare_patches_supervised(
 
     result_mean, result_std = means / num_samples, stds / num_samples
 
-    all_patches = np.concatenate(all_patches, axis=0)
-    all_targets = np.concatenate(all_targets, axis=0)
-    logger.info(f"Extracted {all_patches.shape[0]} patches from input array.")
+    patch_array: np.ndarray = np.concatenate(all_patches, axis=0)
+    target_array: np.ndarray = np.concatenate(all_targets, axis=0)
+    logger.info(f"Extracted {patch_array.shape[0]} patches from input array.")
 
     return (
-        all_patches,
-        all_targets,
+        patch_array,
+        target_array,
         result_mean,
         result_std,
     )
 
 
-# called by in memory dataset
+# called by in_memory_dataset
 def prepare_patches_unsupervised(
     train_files: List[Path],
     axes: str,
     patch_size: Union[List[int], Tuple[int]],
-    read_source_func: Optional[Callable] = None,
-) -> Tuple[np.ndarray, float, float]:
+    read_source_func: Callable,
+) -> Tuple[np.ndarray, None, float, float]:
     """
     Iterate over data source and create an array of patches.
 
@@ -130,7 +142,10 @@ def prepare_patches_unsupervised(
 
     result_mean, result_std = means / num_samples, stds / num_samples
 
-    return np.concatenate(all_patches), _, result_mean, result_std
+    patch_array: np.ndarray = np.concatenate(all_patches)
+    logger.info(f"Extracted {patch_array.shape[0]} patches from input array.")
+
+    return patch_array, _, result_mean, result_std # TODO return object?
 
 
 # called on arrays by in memory dataset
@@ -139,7 +154,7 @@ def prepare_patches_supervised_array(
     axes: str,
     data_target: np.ndarray,
     patch_size: Union[List[int], Tuple[int]],
-) -> Tuple[np.ndarray, float, float]:
+) -> Tuple[np.ndarray, np.ndarray, float, float]:
     # compute statistics
     mean = data.mean()
     std = data.std()
@@ -151,6 +166,9 @@ def prepare_patches_supervised_array(
     patches, patch_targets = extract_patches_sequential(
         sample, patch_size=patch_size, target=data_target
     )
+
+    if patch_targets is None:
+        raise ValueError("No target extracted.")
 
     logger.info(f"Extracted {patches.shape[0]} patches from input array.")
 
@@ -167,7 +185,7 @@ def prepare_patches_unsupervised_array(
     data: np.ndarray,
     axes: str,
     patch_size: Union[List[int], Tuple[int]],
-) -> Tuple[np.ndarray, float, float]:
+) -> Tuple[np.ndarray, None, float, float]:
     """
     Iterate over data source and create an array of patches.
 
@@ -191,16 +209,17 @@ def prepare_patches_unsupervised_array(
     # generate patches, return a generator
     patches, _ = extract_patches_sequential(sample, patch_size=patch_size)
 
-    return patches, _, mean, std
+    return patches, _, mean, std # TODO inelegant, replace  by dataclass?
 
 
 # prediction, both in memory and iterable
 def generate_patches_predict(
     sample: np.ndarray,
-    axes: str,
-    tile_size: Union[List[int], Tuple[int]],
-    tile_overlap: Union[List[int], Tuple[int]],
-) -> Tuple[np.ndarray, float, float]:
+    tile_size: Union[List[int], Tuple[int, ...]],
+    tile_overlap: Union[List[int], Tuple[int, ...]],
+) -> List[
+    Tuple[np.ndarray, bool, Tuple[int, ...], Tuple[int, ...], Tuple[int, ...]]
+]:
     """
     Iterate over data source and create an array of patches.
 
@@ -223,10 +242,9 @@ def generate_patches_predict(
 # iterator over files
 def generate_patches_supervised(
     sample: Union[np.ndarray, zarr.Array],
-    axes: str,
     patch_extraction_method: SupportedExtractionStrategy,
-    patch_size: Optional[Union[List[int], Tuple[int]]] = None,
-    patch_overlap: Optional[Union[List[int], Tuple[int]]] = None,
+    patch_size: Union[List[int], Tuple[int, ...]],
+    patch_overlap: Optional[Union[List[int], Tuple[int, ...]]] = None,
     target: Optional[Union[np.ndarray, zarr.Array]] = None,
 ) -> Generator[np.ndarray, None, None]:
     """
@@ -299,9 +317,8 @@ def generate_patches_supervised(
 # iterator over files
 def generate_patches_unsupervised(
     sample: Union[np.ndarray, zarr.Array],
-    axes: str,
     patch_extraction_method: SupportedExtractionStrategy,
-    patch_size: Optional[Union[List[int], Tuple[int]]] = None,
+    patch_size: Union[List[int], Tuple[int, ...]],
     patch_overlap: Optional[Union[List[int], Tuple[int]]] = None,
 ) -> Generator[np.ndarray, None, None]:
     """

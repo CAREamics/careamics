@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Dict, Optional, Union
+from typing import Dict, Optional, Union, Tuple
 
 import numpy as np
 from pytorch_lightning import Trainer
@@ -100,8 +100,7 @@ class CAREamist:
         # change the prediction loop
         self.trainer.predict_loop = CAREamicsFiring(self.trainer)
 
-    
-    @method_dispatch
+
     def train(
         self,
         datamodule: CAREamicsWood,
@@ -114,8 +113,7 @@ class CAREamist:
 
         self.trainer.fit(self.model, datamodule=datamodule)
 
-    @train.register
-    def train_on_path(
+    def _train_on_path(
         self,
         path_to_train_data: Path,  # cannot use Union annotation for the dispatch
         path_to_val_data: Optional[Path] = None,
@@ -157,7 +155,6 @@ class CAREamist:
         # train
         self.train(datamodule=datamodule)
 
-    @train.register
     def _train_on_str(
         self,
         path_to_train_data: str,
@@ -174,8 +171,7 @@ class CAREamist:
             use_in_memory=use_in_memory,
         )
 
-    @train.register
-    def train_on_array(
+    def _train_on_array(
         self,
         train_data: np.ndarray,
         val_data: Optional[np.ndarray] = None,
@@ -204,7 +200,6 @@ class CAREamist:
         # train
         self.train(datamodule=datamodule)
 
-    @method_dispatch
     def predict(
         self,
         datamodule: CAREamicsClay,
@@ -217,10 +212,11 @@ class CAREamist:
 
         return self.trainer.predict(self.model, datamodule=datamodule)
 
-    @predict.register
     def _predict_on_path(
         self,
         path_to_data: Path,
+        tile_size: Tuple[int, ...],
+        tile_overlap: Tuple[int, ...],
     ) -> Dict[str, np.ndarray]:
         # sanity check (path exists)
         path = check_path_exists(path_to_data)
@@ -229,28 +225,34 @@ class CAREamist:
         datamodule = CAREamicsClay(
             data_config=self.cfg.data,
             pred_data=path,
+            tile_size=tile_size,
+            tile_overlap=tile_overlap,
         )
 
         return self.predict(datamodule)
 
-    @predict.register
     def _predict_on_str(
         self,
-        path_to_data: str,
+        str_to_data: str,
+        tile_size: Tuple[int, ...],
+        tile_overlap: Tuple[int, ...],
     ) -> Dict[str, np.ndarray]:
-        path_to_data = Path(path_to_data)
+        path_to_data = Path(str_to_data)
 
-        return self._predict_on_path(path_to_data)
+        return self._predict_on_path(path_to_data, tile_size, tile_overlap)
 
-    @predict.register
     def _predict_on_array(
         self,
         data: np.ndarray,
+        tile_size: Tuple[int, ...],
+        tile_overlap: Tuple[int, ...],
     ) -> Dict[str, np.ndarray]:
         # create datamodule
         datamodule = CAREamicsClay(
             data_config=self.cfg.data,
             pred_data=data,
+            tile_size=tile_size,
+            tile_overlap=tile_overlap,
         )
 
         return self.predict(datamodule)

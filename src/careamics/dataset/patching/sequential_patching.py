@@ -37,7 +37,7 @@ def _compute_number_of_patches(
             for i in range(len(patch_sizes))
         ]
     except IndexError as e:
-        raise (
+        raise ValueError(
             f"Patch size {patch_sizes} is not compatible with array shape {arr_shape}"
         ) from e
     
@@ -105,9 +105,9 @@ def _compute_patch_steps(
 # TODO why stack the target here and not on a different dimension before calling this function?
 def _compute_patch_views(
     arr: np.ndarray,
-    window_shape: Tuple[int, ...],
+    window_shape: List[int],
     step: Tuple[int, ...],
-    output_shape: Tuple[int, ...],
+    output_shape: List[int],
     target: Optional[np.ndarray] = None,
 ) -> np.ndarray:
     """
@@ -133,9 +133,9 @@ def _compute_patch_views(
 
     if target is not None:
         arr = np.stack([arr, target], axis=0)
-        window_shape = (arr.shape[0], *window_shape)
+        window_shape = [arr.shape[0], *window_shape]
         step = (arr.shape[0], *step)
-        output_shape = (arr.shape[0], -1, arr.shape[2], *output_shape[2:])
+        output_shape = [arr.shape[0], -1, arr.shape[2], *output_shape[2:]]
 
     patches = view_as_windows(arr, window_shape=window_shape, step=step).reshape(
         *output_shape
@@ -149,9 +149,9 @@ def _compute_patch_views(
 
 def extract_patches_sequential(
     arr: np.ndarray,
-    patch_size: Union[List[int], Tuple[int]],
+    patch_size: Union[List[int], Tuple[int, ...]],
     target: Optional[np.ndarray] = None,
-) -> Generator[Tuple[np.ndarray, ...], None, None]:
+) -> Tuple[np.ndarray, Optional[np.ndarray]]:
     """
     Generate patches from an array in a sequential manner.
 

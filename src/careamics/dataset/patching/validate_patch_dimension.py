@@ -7,13 +7,18 @@ def validate_patch_dimensions(
     arr: np.ndarray,
     patch_size: Union[List[int], Tuple[int, ...]],
     is_3d_patch: bool,
-) -> Tuple[int, ...]:
+) -> None:
     """
     Check patch size and array compatibility.
 
     This method validates the patch sizes with respect to the array dimensions:
-    - The patch sizes must have one dimension fewer than the array (C dimension).
-    - Chack that patch sizes are smaller than array dimensions.
+    
+    - Patch must have two dimensions fewer than the array (S and C).
+    - Patch sizes are smaller than the corresponding array dimensions.
+
+    If one of these conditions is not met, a ValueError is raised.
+
+    This method should be called after inputs have been resized.
 
     Parameters
     ----------

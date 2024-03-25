@@ -75,9 +75,13 @@ def _compute_crop_and_stitch_coords_1d(
 
 def extract_tiles(
     arr: np.ndarray,
-    tile_size: Union[List[int], Tuple[int]],
-    overlaps: Union[List[int], Tuple[int]],
-) -> Generator[Tuple[np.ndarray, bool, Tuple[int], np.ndarray, np.ndarray], None, None]:
+    tile_size: Union[List[int], Tuple[int, ...]],
+    overlaps: Union[List[int], Tuple[int, ...]],
+) -> Generator[
+    Tuple[np.ndarray, bool, Tuple[int, ...], Tuple[int, ...], Tuple[int, ...]], 
+    None, 
+    None
+]:
     """
     Generate tiles from the input array with specified overlap.
 
@@ -141,7 +145,7 @@ def extract_tiles(
         ):
             # Extract tile from the sample
             tile: np.ndarray = sample[
-                (..., *[slice(c[0], c[1]) for c in list(crop_coords)])
+                (..., *[slice(c[0], c[1]) for c in list(crop_coords)]) # type: ignore
             ]
 
             # Check if we are at the end of the sample by computing the length of the 

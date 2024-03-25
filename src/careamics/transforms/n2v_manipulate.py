@@ -1,4 +1,4 @@
-from typing import Literal, Tuple
+from typing import Any, Literal, Tuple
 
 import numpy as np
 from albumentations import ImageOnlyTransform
@@ -48,7 +48,7 @@ class N2VManipulate(ImageOnlyTransform):
             )
 
     def apply(
-            self, patch: np.ndarray, **kwargs: dict
+            self, patch: np.ndarray, **kwargs: Any
         ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """Apply the transform to the image.
 
@@ -82,6 +82,7 @@ class N2VManipulate(ImageOnlyTransform):
         else:
             raise ValueError(f"Unknown masking strategy ({self.strategy}).")
 
+        # TODO why return patch?
         return masked, patch, mask
 
     def get_transform_init_args_names(self) -> Tuple[str, ...]:

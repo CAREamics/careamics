@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import copy
 from pathlib import Path
-from typing import Callable, List, Optional, Tuple, Union
+from typing import Any, Callable, List, Optional, Tuple, Union
 
 import numpy as np
 from torch.utils.data import Dataset
@@ -24,7 +24,6 @@ from .patching.patching import (
 logger = get_logger(__name__)
 
 
-# TODO dataset which sets appart some data for validation?
 class InMemoryDataset(Dataset):
     """Dataset storing data in memory and allowing generating patches from it."""
 
@@ -34,16 +33,13 @@ class InMemoryDataset(Dataset):
         data: Union[np.ndarray, List[Path]],
         data_target: Optional[Union[np.ndarray, List[Path]]] = None,
         read_source_func: Callable = read_tiff,
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         """
         Constructor.
 
         # TODO
         """
-        if data_target is not None:
-            raise NotImplementedError("Targets are not yet supported.")
-
         self.data = data
         self.data_target = data_target
         self.axes = data_config.axes
@@ -93,27 +89,17 @@ class InMemoryDataset(Dataset):
         np.ndarray
             Array of patches.
         """
-        # if numpy array
-        if isinstance(self.data, np.ndarray):
-            # supervised case: CARE, N2N, segmentation etc.
-            if supervised:
+        if supervised:
+            if isinstance(self.data, np.ndarray) and \
+                isinstance(self.data_target, np.ndarray):
                 return prepare_patches_supervised_array(
                     self.data,
                     self.axes,
                     self.data_target,
                     self.patch_size,
                 )
-            # unsupervised: N2V, PN2V, etc.
-            else:
-                return prepare_patches_unsupervised_array(
-                    self.data,
-                    self.axes,
-                    self.patch_size,
-                )
-        # else it is a list of paths
-        else:
-            # supervised case: CARE, N2N, segmentation etc.
-            if supervised:
+            elif isinstance(self.data, list) and \
+                isinstance(self.data_target, list):
                 return prepare_patches_supervised(
                     self.data,
                     self.data_target,
@@ -121,7 +107,19 @@ class InMemoryDataset(Dataset):
                     self.patch_size,
                     self.read_source_func,
                 )
-            # unsupervised: N2V, PN2V, etc.
+            else:
+                raise ValueError(
+                    f"Data and target must be of the same type, either both numpy "
+                    f"arrays or both lists of paths, got {type(self.data)} (data) and "
+                    f"{type(self.data_target)} (target)."
+                )
+        else:
+            if isinstance(self.data, np.ndarray):
+                return prepare_patches_unsupervised_array(
+                    self.data,
+                    self.axes,
+                    self.patch_size,
+                )
             else:
                 return prepare_patches_unsupervised(
                     self.data,
@@ -129,6 +127,7 @@ class InMemoryDataset(Dataset):
                     self.patch_size,
                     self.read_source_func,
                 )
+        
 
     def __len__(self) -> int:
         """
@@ -349,7 +348,7 @@ class InMemoryPredictionDataset(Dataset):
         """
         if self.tile:
             return generate_patches_predict(
-                self.input_array, self.axes, self.tile_size, self.tile_overlap
+                self.input_array, self.tile_size, self.tile_overlap
             )
         else:
             return self.input_array

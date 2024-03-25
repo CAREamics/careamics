@@ -9,9 +9,9 @@ from .validate_patch_dimension import validate_patch_dimensions
 # TOOD split in testable functions
 def extract_patches_random(
     arr: np.ndarray,
-    patch_size: Union[List[int], Tuple[int]],
+    patch_size: Union[List[int], Tuple[int, ...]],
     target: Optional[np.ndarray] = None,
-) -> Generator[Tuple[np.ndarray, ...], None, None]:
+) -> Generator[Tuple[np.ndarray, Optional[np.ndarray]], None, None]:
     """
     Generate patches from an array in a random manner.
 
@@ -64,11 +64,11 @@ def extract_patches_random(
             ]
 
             # extract patch
-            patch = (
+            patch = ( 
                 sample[
-                    (
-                        ...,
-                        *[
+                    ( 
+                        ..., # type: ignore
+                        *[ # type: ignore
                             slice(c, c + patch_size[1:][i])
                             for i, c in enumerate(crop_coords)
                         ],
@@ -83,8 +83,8 @@ def extract_patches_random(
                 target_patch = (
                     target[
                         (
-                            ...,
-                            *[
+                            ..., # type: ignore
+                            *[ # type: ignore
                                 slice(c, c + patch_size[1:][i])
                                 for i, c in enumerate(crop_coords)
                             ],
