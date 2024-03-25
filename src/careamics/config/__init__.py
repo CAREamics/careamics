@@ -10,6 +10,7 @@ __all__ = [
 ]
 
 from .algorithm_model import AlgorithmModel
+from .callback_model import CheckpointModel
 from .configuration_model import (
     Configuration,
     load_configuration,

@@ -208,7 +208,7 @@ class InMemoryDataset(Dataset):
     def split_dataset(
         self,
         percentage: float = 0.1,
-        minimum_number: int = 5,
+        minimum_patches: int = 5,
     ) -> InMemoryDataset:
         """Split a new dataset away from the current one.
 
@@ -218,7 +218,7 @@ class InMemoryDataset(Dataset):
         ----------
         percentage : float, optional
             Percentage of patches to extract, by default 0.1.
-        minimum_number : int, optional
+        minimum_patches : int, optional
             Minimum number of patches to extract, by default 5.
 
         Returns
@@ -236,16 +236,16 @@ class InMemoryDataset(Dataset):
         if percentage < 0 or percentage > 1:
             raise ValueError(f"Percentage must be between 0 and 1, got {percentage}.")
 
-        if minimum_number < 1 or minimum_number > self.get_number_of_patches():
+        if minimum_patches < 1 or minimum_patches > self.get_number_of_patches():
             raise ValueError(
                 f"Minimum number of patches must be between 1 and "
-                f"{self.get_number_of_patches()} (number of patches), got {minimum_number}."
+                f"{self.get_number_of_patches()} (number of patches), got {minimum_patches}."
             )
 
         total_patches = self.get_number_of_patches()
 
         # number of patches to extract (either percentage rounded or minimum number)
-        n_patches = max(round(total_patches * percentage), minimum_number)
+        n_patches = max(round(total_patches * percentage), minimum_patches)
 
         # get random indices
         indices = np.random.choice(total_patches, n_patches, replace=False)
@@ -323,7 +323,7 @@ class InMemoryPredictionDataset(Dataset):
                 "Mean and std must be provided to the configuration in order to "
                 " perform prediction."
             )
-        #TODO this needs to be restructured
+        # TODO this needs to be restructured
         self.input_array = data
         self.tile = tile_size and tile_overlap
 

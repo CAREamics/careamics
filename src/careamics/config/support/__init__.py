@@ -7,6 +7,7 @@ __all__ = [
     "SupportedAlgorithm",
     "SupportedPixelManipulation",
     "SupportedTransform",
+    "SupportedCallback",
     "SupportedData",
     "get_all_transforms",
 ]
@@ -15,6 +16,7 @@ __all__ = [
 from .supported_activations import SupportedActivation
 from .supported_algorithms import SupportedAlgorithm
 from .supported_architectures import SupportedArchitecture
+from .supported_callbacks import SupportedCallback
 from .supported_data import SupportedData
 from .supported_extraction_strategies import SupportedExtractionStrategy
 from .supported_losses import SupportedLoss

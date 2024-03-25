@@ -36,6 +36,8 @@ class CAREamicsKiln(L.LightningModule):
         self.lr_scheduler_name = algorithm_config.lr_scheduler.name
         self.lr_scheduler_params = algorithm_config.lr_scheduler.parameters
 
+        # self.save_hyperparameters(algorithm_config.model_dump())
+
     def forward(self, x: Any) -> Any:
         return self.model(x)
 
@@ -152,6 +154,8 @@ class CAREamicsModule(CAREamicsKiln):
 
         # add model parameters to algorithm configuration
         algorithm_configuration["model"] = model_configuration
-        self.save_hyperparameters({**model_configuration, **algorithm_configuration})
+        # self.save_hyperparameters({**model_configuration, **algorithm_configuration})
         # call the parent init using an AlgorithmModel instance
         super().__init__(AlgorithmModel(**algorithm_configuration))
+
+        # TODO add load_from_checkpoint wrapper

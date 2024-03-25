@@ -323,7 +323,6 @@ def median_manipulate(
         transformed_patch[tuple(subpatch_centers[idx])] = np.median(
             subpatch[subpatch_mask]
         )
-        print(np.median(subpatch[subpatch_mask]))
 
     mask = np.where(transformed_patch != patch, 1, 0).astype(np.uint8)
 

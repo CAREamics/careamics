@@ -51,7 +51,6 @@ class N2VManipulate(ImageOnlyTransform):
         """
         masked = np.zeros_like(patch)
         mask = np.zeros_like(patch)
-
         if self.strategy == SupportedPixelManipulation.UNIFORM:
             # Iterate over the channels to apply manipulation separately
             for c in range(patch.shape[-1]):

@@ -109,7 +109,7 @@ class CAREamicsWood(L.LightningDataModule):
             If the data type is `tiff` and the input is neither a Path nor a str.
         """
         super().__init__()
-
+        # self.save_hyperparameters(data_config.model_dump())
         if train_data_target is not None:
             raise NotImplementedError(
                 "Training with target data is not yet implemented."
@@ -257,7 +257,7 @@ class CAREamicsWood(L.LightningDataModule):
                 )
 
                 # validation dataset
-                if self.val_files is not None:
+                if self.val_data is not None:
                     self.val_dataset = InMemoryDataset(
                         data_config=self.data_config,
                         data=self.val_files,
@@ -423,11 +423,11 @@ class CAREamicsTrainDataModule(CAREamicsWood):
     def __init__(
         self,
         train_path: Union[str, Path],
-        val_path: Union[str, Path],
         data_type: Union[str, SupportedData],
         patch_size: List[int],
         axes: str,
         batch_size: int,
+        val_path: Optional[Union[str, Path]] = None,
         transforms: Optional[Union[List, Compose]] = None,
         train_target_path: Optional[Union[str, Path]] = None,
         val_target_path: Optional[Union[str, Path]] = None,
@@ -475,7 +475,7 @@ class CAREamicsPredictDataModule(CAREamicsClay):
         axes: str,
         batch_size: int,
         prediction_transforms: Optional[Union[List, Compose]] = None,
-        tta_transforms: Optional[Union[bool, Compose]] = None,
+        tta_transforms: Optional[bool] = True,
         norm_mean: Optional[float] = None,
         norm_std: Optional[float] = None,
         read_source_func: Optional[Callable] = None,
@@ -491,6 +491,7 @@ class CAREamicsPredictDataModule(CAREamicsClay):
             "axes": axes,
             "mean": norm_mean,
             "std": norm_std,
+            "tta": tta_transforms,
             "batch_size": batch_size,
             "num_workers": num_workers,
             "pin_memory": pin_memory,
@@ -514,7 +515,7 @@ class CAREamicsPredictDataModule(CAREamicsClay):
 
         else:
             logger.info(
-                "No tta transform or mean/std normalization defined for prediction. "
+                "No tta transform defined for prediction. "
                 "Prediction will apply default normalization only."
             )
             data_config["transforms"] = []
