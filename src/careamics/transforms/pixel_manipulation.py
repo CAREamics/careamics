@@ -22,22 +22,28 @@ def _apply_struct_mask(
     by `struct_params` and pixels in the mask (with respect to `coords`) are replaced by
     a random value.
 
+    Note that the structN2V mask is applied in 2D at the coordinates given by `coords`.
+
     Parameters
     ----------
     patch : np.ndarray
-        Patch to be manipulated.
+        Patch to be manipulated, 2D or 3D.
     coords : np.ndarray
         Coordinates of the ROI(subpatch) centers.
     struct_params : StructMaskParameters
         Parameters for the structN2V mask (axis and span).
     """
+    # relative axis
+    moving_axis = -1 - struct_params.axis
+
     # Create a mask array
     mask = np.expand_dims(
         np.ones(struct_params.span), axis=list(range(len(patch.shape) - 1))
-    )
+    ) # (1, 1, span) or (1, span)
 
-    # Move the struct axis to the first position for indexing
-    mask = np.moveaxis(mask, 0, struct_params.axis)
+    # Move the moving axis to the correct position
+    # i.e. the axis along which the coordinates should change
+    mask = np.moveaxis(mask, -1, moving_axis)
     center = np.array(mask.shape) // 2
 
     # Mark the center
@@ -50,14 +56,15 @@ def _apply_struct_mask(
     mix = dx.T[..., None] + coords.T[None]
     mix = mix.transpose([1, 0, 2]).reshape([mask.ndim, -1]).T
 
-    # stay within patch boundary
-    # TODO this will fail if center is on the edge!
-    mix = mix.clip(min=np.zeros(mask.ndim), max=np.array(patch.shape) - 1).astype(
-        np.uint8
-    )
+    # delete entries that are out of bounds
+    mix = np.delete(mix, mix[:, moving_axis] < 0, axis=0)
+    
+    max_bound = patch.shape[moving_axis] - 1
+    mix = np.delete(mix, mix[:, moving_axis] > max_bound, axis=0)
 
     # replace neighbouring pixels with random values from flat dist
     patch[tuple(mix.T)] = np.random.uniform(patch.min(), patch.max(), size=mix.shape[0])
+
     return patch
 
 
