@@ -11,5 +11,5 @@ class SupportedPixelManipulation(str, BaseEnum):
 
     # TODO docs
 
-    UNIFORM = "Uniform"
-    MEDIAN = "Median"
+    UNIFORM = "uniform"
+    MEDIAN = "median"

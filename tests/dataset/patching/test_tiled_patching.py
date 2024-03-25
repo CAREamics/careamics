@@ -7,13 +7,14 @@ from careamics.dataset.patching.tiled_patching import (
 )
 
 
-def check_extract_tiles(array: np.ndarray, axes, tile_size, overlaps):
+def check_extract_tiles(array: np.ndarray, tile_size, overlaps):
     """Test extracting patches randomly."""
-    tile_data_generator = extract_tiles(array, axes, tile_size, overlaps)
+    tile_data_generator = extract_tiles(array, tile_size, overlaps)
 
     tiles = []
     all_overlap_crop_coords = []
     all_stitch_coords = []
+
     # Assemble all tiles and their respective coordinates
     for tile_data in tile_data_generator:
         tile, _, _, overlap_crop_coords, stitch_coords = tile_data
@@ -22,7 +23,7 @@ def check_extract_tiles(array: np.ndarray, axes, tile_size, overlaps):
         all_stitch_coords.append(stitch_coords)
 
         # check tile shape, ignore sample dimension
-        assert tile.shape[2:] == tile_size
+        assert tile.shape[1:] == tile_size
         assert len(overlap_crop_coords) == len(stitch_coords) == len(tile_size)
 
     # check that each tile has a unique set of coordinates
@@ -35,29 +36,29 @@ def check_extract_tiles(array: np.ndarray, axes, tile_size, overlaps):
 
 
 @pytest.mark.parametrize(
-    "tile_size, axes, overlaps",
+    "tile_size, overlaps",
     [
-        ((4, 4), "SYX", (2, 2)),
-        ((8, 8), "SYX", (4, 4)),
-    ],  # TODO add more test cases with axes
+        ((4, 4), (2, 2)),
+        ((8, 8), (4, 4)),
+    ], 
 )
-def test_extract_tiles_2d(array_2D, axes, tile_size, overlaps):
+def test_extract_tiles_2d(array_2D, tile_size, overlaps):
     """Test extracting tiles for prediction in 2D."""
-    check_extract_tiles(array_2D, axes, tile_size, overlaps)
+    check_extract_tiles(array_2D, tile_size, overlaps)
 
 
 @pytest.mark.parametrize(
-    "tile_size, axes, overlaps",
+    "tile_size, overlaps",
     [
-        ((4, 4, 4), "SZYX", (2, 2, 2)),
-        ((8, 8, 8), "SZYX", (4, 4, 4)),
+        ((4, 4, 4), (2, 2, 2)),
+        ((8, 8, 8), (4, 4, 4)),
     ],
 )
-def test_extract_tiles_3d(array_3D, axes, tile_size, overlaps):
+def test_extract_tiles_3d(array_3D, tile_size, overlaps):
     """Test extracting tiles for prediction in 3D.
 
     The 3D array is a fixture of shape (1, 8, 16, 16)."""
-    check_extract_tiles(array_3D, axes, tile_size, overlaps)
+    check_extract_tiles(array_3D, tile_size, overlaps)
 
 
 @pytest.mark.parametrize("axis_size", [32, 35, 40])

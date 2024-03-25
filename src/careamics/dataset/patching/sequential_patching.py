@@ -7,51 +7,56 @@ from .validate_patch_dimension import validate_patch_dimensions
 
 
 def _compute_number_of_patches(
-    arr: np.ndarray, patch_sizes: Union[List[int], Tuple[int, ...]]
+    arr_shape: Tuple[int, ...], patch_sizes: Union[List[int], Tuple[int, ...]]
 ) -> Tuple[int, ...]:
     """
     Compute the number of patches that fit in each dimension.
 
-    Array must have one dimension more than the patches (C dimension).
-
     Parameters
     ----------
-    arr : np.ndarray
-        Input array.
+    arr : Tuple[int, ...]
+        Shape of the input array.
     patch_sizes : Tuple[int]
-        Size of the patches.
+        Shape of the patches.
 
     Returns
     -------
     Tuple[int]
         Number of patches in each dimension.
     """
+    if len(arr_shape) != len(patch_sizes):
+        raise ValueError(
+            f"Array shape {arr_shape} and patch size {patch_sizes} should have the "
+            f"same dimension, including singleton dimension for S and equal dimension "
+            f"for C."
+        )
+
     try:
         n_patches = [
-            np.ceil(arr.shape[i] / patch_sizes[i]).astype(int)
+            np.ceil(arr_shape[i] / patch_sizes[i]).astype(int)
             for i in range(len(patch_sizes))
         ]
     except IndexError as e:
-        raise (
-            f"Patch size {patch_sizes} is not compatible with array shape {arr.shape}"
+        raise ValueError(
+            f"Patch size {patch_sizes} is not compatible with array shape {arr_shape}"
         ) from e
+    
     return tuple(n_patches)
 
 
 def _compute_overlap(
-    arr: np.ndarray, patch_sizes: Union[List[int], Tuple[int, ...]]
+    arr_shape: Tuple[int, ...], patch_sizes: Union[List[int], Tuple[int, ...]]
 ) -> Tuple[int, ...]:
     """
     Compute the overlap between patches in each dimension.
 
-    Array must be of dimensions C(Z)YX, and patches must be of dimensions YX or ZYX.
-    If the array dimensions are divisible by the patch sizes, then the overlap is 0.
-    Otherwise, it is the result of the division rounded to the upper value.
+    If the array dimensions are divisible by the patch sizes, then the overlap is 
+    0. Otherwise, it is the result of the division rounded to the upper value.
 
     Parameters
     ----------
-    arr : np.ndarray
-        Input array 3 or 4 dimensions.
+    arr : Tuple[int, ...]
+        Input array shape.
     patch_sizes : Tuple[int]
         Size of the patches.
 
@@ -60,11 +65,11 @@ def _compute_overlap(
     Tuple[int]
         Overlap between patches in each dimension.
     """
-    n_patches = _compute_number_of_patches(arr, patch_sizes)
+    n_patches = _compute_number_of_patches(arr_shape, patch_sizes)
 
     overlap = [
         np.ceil(
-            np.clip(n_patches[i] * patch_sizes[i] - arr.shape[i], 0, None)
+            np.clip(n_patches[i] * patch_sizes[i] - arr_shape[i], 0, None)
             / max(1, (n_patches[i] - 1))
         ).astype(int)
         for i in range(len(patch_sizes))
@@ -98,15 +103,15 @@ def _compute_patch_steps(
 
 
 # TODO why stack the target here and not on a different dimension before calling this function?
-def _compute_reshaped_view(
+def _compute_patch_views(
     arr: np.ndarray,
-    window_shape: Tuple[int, ...],
+    window_shape: List[int],
     step: Tuple[int, ...],
-    output_shape: Tuple[int, ...],
+    output_shape: List[int],
     target: Optional[np.ndarray] = None,
 ) -> np.ndarray:
     """
-    Compute reshaped views of an array, where views correspond to patches.
+    Compute views of an array corresponding to patches.
 
     Parameters
     ----------
@@ -128,9 +133,9 @@ def _compute_reshaped_view(
 
     if target is not None:
         arr = np.stack([arr, target], axis=0)
-        window_shape = (arr.shape[0], *window_shape)
+        window_shape = [arr.shape[0], *window_shape]
         step = (arr.shape[0], *step)
-        output_shape = (arr.shape[0], -1, arr.shape[2], *output_shape[2:])
+        output_shape = [arr.shape[0], -1, arr.shape[2], *output_shape[2:]]
 
     patches = view_as_windows(arr, window_shape=window_shape, step=step).reshape(
         *output_shape
@@ -144,14 +149,14 @@ def _compute_reshaped_view(
 
 def extract_patches_sequential(
     arr: np.ndarray,
-    patch_size: Union[List[int], Tuple[int]],
+    patch_size: Union[List[int], Tuple[int, ...]],
     target: Optional[np.ndarray] = None,
-) -> Generator[Tuple[np.ndarray, ...], None, None]:
+) -> Tuple[np.ndarray, Optional[np.ndarray]]:
     """
     Generate patches from an array in a sequential manner.
 
-    Array dimensions should be SC(Z)YX, where C can be a singleton dimension. The patches
-    are generated sequentially and cover the whole array.
+    Array dimensions should be SC(Z)YX, where S and C can be singleton dimensions. The 
+    patches are generated sequentially and cover the whole array.
 
     Parameters
     ----------
@@ -167,11 +172,14 @@ def extract_patches_sequential(
     """
     is_3d_patch = len(patch_size) == 3
 
-    # Patches sanity check and update
-    patch_size = validate_patch_dimensions(arr, patch_size, is_3d_patch)
+    # Patches sanity check
+    validate_patch_dimensions(arr, patch_size, is_3d_patch)
+
+    # Update patch size to encompass S and C dimensions
+    patch_size = [1, arr.shape[1], *patch_size] 
 
     # Compute overlap
-    overlaps = _compute_overlap(arr=arr, patch_sizes=patch_size)
+    overlaps = _compute_overlap(arr_shape=arr.shape, patch_sizes=patch_size)
 
     # Create view window and overlaps
     window_steps = _compute_patch_steps(patch_sizes=patch_size, overlaps=overlaps)
@@ -183,7 +191,7 @@ def extract_patches_sequential(
     # Generate a view of the input array containing pre-calculated number of patches
     # in each dimension with overlap.
     # Resulting array is resized to (n_patches, C, Z, Y, X) or (n_patches, C, Y, X)
-    patches = _compute_reshaped_view(
+    patches = _compute_patch_views(
         arr,
         window_shape=patch_size,
         step=window_steps,
@@ -193,6 +201,6 @@ def extract_patches_sequential(
 
     if target is not None:
         # target was concatenated to patches in _compute_reshaped_view
-        return (patches[0, ...], patches[1, ...])
+        return (patches[0, ...], patches[1, ...]) # TODO do this in _compute_reshaped_view
     else:
         return patches, None

@@ -7,7 +7,10 @@ from careamics.transforms import N2VManipulate
 
 
 @pytest.mark.parametrize(
-    "strategy", [SupportedPixelManipulation.UNIFORM, SupportedPixelManipulation.MEDIAN]
+    "strategy", [
+        SupportedPixelManipulation.UNIFORM.value, 
+        SupportedPixelManipulation.MEDIAN.value
+    ]
 )
 def test_manipulate_n2v(strategy):
     """Test the N2V augmentation."""

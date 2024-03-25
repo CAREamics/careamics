@@ -93,40 +93,99 @@ def test_set_3D(minimum_configuration: dict):
 
 def test_algorithm_and_data_compatibility(minimum_configuration: dict):
     """Test that the default data transforms are comaptible with n2v."""
-    minimum_configuration["algorithm"]["algorithm"] = "n2v"
+    minimum_configuration["algorithm"] = {
+        "algorithm": "n2v",
+        "loss": "n2v",
+        "model": {
+            "architecture": "UNet",
+        },
+    }
     Configuration(**minimum_configuration)
+
+
+@pytest.mark.parametrize("algorithm, strategy", 
+    [
+        ("n2v", "uniform"),
+        ("n2v", "median"),
+        ("n2v2", "uniform"),
+        ("n2v2", "median"),
+    ]
+)
+def test_n2v2_and_transforms(minimum_configuration: dict, algorithm, strategy):
+    """Test that the manipulation strategy is corrected if the data transforms are 
+    incompatible with n2v2."""
+    use_n2v2 = algorithm == "n2v2"
+    minimum_configuration["algorithm"] = {
+        "algorithm": "n2v",
+        "loss": "n2v",
+        "model": {
+            "architecture": "UNet",
+            "n2v2": use_n2v2,
+        },
+    }
+
+    expected_strategy = "median" if use_n2v2 else "uniform"
+
+    # missing ManipulateN2V
+    minimum_configuration["data"]["transforms"] = [
+        {"name": SupportedTransform.NDFLIP.value}
+    ]
+    config = Configuration(**minimum_configuration)
+    assert len(config.data.transforms) == 2
+    assert config.data.transforms[-1].name == SupportedTransform.N2V_MANIPULATE.value
+    assert config.data.transforms[-1].parameters.strategy == expected_strategy
+
+    # passing ManipulateN2V with the wrong strategy
+    minimum_configuration["data"]["transforms"] = [
+        {
+            "name": SupportedTransform.N2V_MANIPULATE.value,
+            "parameters": {
+                "strategy": strategy,
+            },
+        }
+    ]
+    config = Configuration(**minimum_configuration)
+    assert config.data.transforms[-1].parameters.strategy == expected_strategy
 
 
 def test_algorithm_and_data_incompatibility(minimum_configuration: dict):
     """Test that errors are corrected if the data transforms are incompatible with
-    the algorithm."""
-    minimum_configuration["algorithm"]["algorithm"] = "n2v"
+    n2v."""
+    minimum_configuration["algorithm"] = {
+        "algorithm": "n2v",
+        "loss": "n2v",
+        "model": {
+            "architecture": "UNet",
+        },
+    }
 
     # missing ManipulateN2V
-    minimum_configuration["data"]["transforms"] = [{"name": SupportedTransform.NDFLIP}]
+    minimum_configuration["data"]["transforms"] = [
+        {"name": SupportedTransform.NDFLIP.value}
+    ]
     config = Configuration(**minimum_configuration)
     assert len(config.data.transforms) == 2
-    assert config.data.transforms[-1].name == SupportedTransform.N2V_MANIPULATE
+    assert config.data.transforms[-1].name == SupportedTransform.N2V_MANIPULATE.value
 
     # ManipulateN2V not the last transform
     minimum_configuration["data"]["transforms"] = [
         {
-            "name": SupportedTransform.N2V_MANIPULATE,
+            "name": SupportedTransform.N2V_MANIPULATE.value,
             "parameters": {
                 "roi_size": 15,
             },
         },
-        {"name": SupportedTransform.NDFLIP},
+        {"name": SupportedTransform.NDFLIP.value},
     ]
     config = Configuration(**minimum_configuration)
     assert len(config.data.transforms) == 2
     assert config.data.transforms[-1].name == SupportedTransform.N2V_MANIPULATE
-    assert config.data.transforms[-1].parameters["roi_size"] == 15
+    assert config.data.transforms[-1].parameters.roi_size == 15
 
     # multiple ManipulateN2V raises an error
     minimum_configuration["data"]["transforms"] = [
-        {"name": SupportedTransform.N2V_MANIPULATE},
-        {"name": SupportedTransform.N2V_MANIPULATE},
+        {"name": SupportedTransform.N2V_MANIPULATE.value},
+        {"name": SupportedTransform.N2V_MANIPULATE.value},
     ]
     with pytest.raises(ValueError):
         Configuration(**minimum_configuration)

@@ -17,7 +17,9 @@ from .algorithm_model import AlgorithmModel
 from .data_model import DataModel
 from .support import SupportedAlgorithm, SupportedTransform
 from .training_model import Training
-from .transform_model import TransformModel
+from .transformations.n2v_manipulate_model import (
+    N2VManipulationModel,
+)
 
 
 # TODO what do we expect in terms of model dump, with or without the defaults?
@@ -125,7 +127,7 @@ class Configuration(BaseModel):
         return self
 
     @model_validator(mode="after")
-    def validate_algorithm_and_data(self) -> Configuration:
+    def validate_algorithm_and_data(self: Configuration) -> Configuration:
         """Validate the algorithm and data configurations.
 
         In particular, the choice of algorithm will influantiate the potential
@@ -138,15 +140,21 @@ class Configuration(BaseModel):
         Configuration
             Validated configuration
         """
-        # TODO the first if will need to change once we have more than (struct)N2V(2)
-        if not self.algorithm.algorithm == SupportedAlgorithm.CUSTOM:
+        if self.algorithm.algorithm == SupportedAlgorithm.N2V:
+
+            # if we have a list of transform (as opposed to Compose)
             if isinstance(self.data.transforms, list):
                 transform_list = [t.name for t in self.data.transforms]
+
+                # whether we use n2v2
+                use_n2v2 = self.algorithm.model.n2v2
 
                 # missing N2V_MANIPULATE
                 if SupportedTransform.N2V_MANIPULATE not in transform_list:
                     self.data.transforms.append(
-                        TransformModel(name=SupportedTransform.N2V_MANIPULATE)
+                        N2VManipulationModel(
+                            name=SupportedTransform.N2V_MANIPULATE.value,                            
+                        )
                     )
 
                 # multiple N2V_MANIPULATE
@@ -161,6 +169,15 @@ class Configuration(BaseModel):
                     index = transform_list.index(SupportedTransform.N2V_MANIPULATE)
                     transform = self.data.transforms.pop(index)
                     self.data.transforms.append(transform)
+
+                # check that N2V_MANIPULATE has the right n2v2 parameter
+                n2v_manipulate = self.data.transforms[-1]
+                if use_n2v2:
+                    if n2v_manipulate.parameters.strategy != "median":
+                        n2v_manipulate.parameters.strategy = "median"
+                else:
+                    if n2v_manipulate.parameters.strategy != "uniform":
+                        n2v_manipulate.parameters.strategy = "uniform"        
 
         return self
 

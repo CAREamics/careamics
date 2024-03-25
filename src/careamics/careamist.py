@@ -302,6 +302,8 @@ class CAREamist(LightningModule):
     def _predict_on_path(
         self,
         path_to_data: Path,
+        tile_size: Tuple[int, ...],
+        tile_overlap: Tuple[int, ...],
     ) -> Dict[str, np.ndarray]:
         # sanity check (path exists)
         path = check_path_exists(path_to_data)
@@ -310,26 +312,34 @@ class CAREamist(LightningModule):
         datamodule = CAREamicsClay(
             data_config=self.cfg.data,
             pred_data=path,
+            tile_size=tile_size,
+            tile_overlap=tile_overlap,
         )
 
         return self.predict(datamodule)
 
     def _predict_on_str(
         self,
-        path_to_data: str,
+        str_to_data: str,
+        tile_size: Tuple[int, ...],
+        tile_overlap: Tuple[int, ...],
     ) -> Dict[str, np.ndarray]:
-        path_to_data = Path(path_to_data)
+        path_to_data = Path(str_to_data)
 
-        return self._predict_on_path(path_to_data)
+        return self._predict_on_path(path_to_data, tile_size, tile_overlap)
 
     def _predict_on_array(
         self,
         data: np.ndarray,
+        tile_size: Tuple[int, ...],
+        tile_overlap: Tuple[int, ...],
     ) -> Dict[str, np.ndarray]:
         # create datamodule
         datamodule = CAREamicsClay(
             data_config=self.cfg.data,
             pred_data=data,
+            tile_size=tile_size,
+            tile_overlap=tile_overlap,
         )
 
         return self.predict(datamodule)

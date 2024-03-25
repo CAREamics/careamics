@@ -56,8 +56,6 @@ def test_model_discriminator(minimum_algorithm):
     "algorithm, loss, model",
     [
         ("n2v", "n2v", {"architecture": "UNet", "n2v2": False}),
-        ("n2v2", "n2v", {"architecture": "UNet", "n2v2": True}),
-        ("structn2v", "n2v", {"architecture": "UNet", "n2v2": False}),
         ("custom", "mae", {"architecture": "UNet", "n2v2": True}),
     ],
 )

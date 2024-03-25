@@ -8,8 +8,9 @@ from careamics.utils.logging import get_logger
 logger = get_logger(__name__)
 
 
-def get_shape_order(shape_in: Tuple, axes_in: str, ref_axes: str = "STCZYX"):
-    """Return the new shape and axes of x, ordered according to the reference axes.
+def _get_shape_order(shape_in: Tuple, axes_in: str, ref_axes: str = "STCZYX"):
+    """
+    Compute a new shape for the array based on the reference axes.
 
     Parameters
     ----------
@@ -41,38 +42,23 @@ def get_shape_order(shape_in: Tuple, axes_in: str, ref_axes: str = "STCZYX"):
     return new_shape, "".join(new_axes), indices
 
 
-def list_diff(list1: List, list2: List) -> List:
-    """Return the difference between two lists.
-
-    Parameters
-    ----------
-    list1 : List
-        First list.
-    list2 : List
-        Second list.
-
-    Returns
-    -------
-    List
-        Difference between the two lists.
-    """
-    return list(set(list1) - set(list2))
-
-
 def reshape_array(x: np.ndarray, axes: str) -> np.ndarray:
-    """Reshape the data to 'SZYXC' or 'SYXC', merging 'S' and 'T' channels if necessary.
+    """Reshape the data to (S, C, (Z), Y, X) by moving axes.
+     
+    If the data has both S and T axes, the two axes will be merged. A singleton 
+    dimension is added if there are no C axis.
 
     Parameters
     ----------
     x : np.ndarray
         Input array.
     axes : str
-        Description of axes in format STCZYX.
+        Description of axes in format `STCZYX`.
 
     Returns
     -------
     np.ndarray
-        Reshaped array.
+        Reshaped array with shape (S, C, (Z), Y, X).
     """
     _x = x
     _axes = axes
@@ -82,7 +68,7 @@ def reshape_array(x: np.ndarray, axes: str) -> np.ndarray:
         raise ValueError(f"Incompatible data shape ({_x.shape}) and axes ({_axes}).")
 
     # get new x shape
-    new_x_shape, new_axes, indices = get_shape_order(_x.shape, _axes)
+    new_x_shape, new_axes, indices = _get_shape_order(_x.shape, _axes)
 
     # if S is not in the list of axes, then add a singleton S
     if "S" not in new_axes:

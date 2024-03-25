@@ -45,14 +45,14 @@ def test_train_error_target_unsupervised_algorithm(tmp_path, minimum_configurati
     config.data.data_type = SupportedData.TIFF.value
     careamics = CAREamist(configuration=config)
     with pytest.raises(ValueError):
-        careamics.train(
+        careamics._train_on_path(
             path_to_train_data=tmp_path,
             path_to_train_target=tmp_path,
         )
 
     # train error with strings
     with pytest.raises(ValueError):
-        careamics.train(
+        careamics._train_on_path(
             path_to_train_data=str(tmp_path),
             path_to_train_target=str(tmp_path),
         )
@@ -61,7 +61,7 @@ def test_train_error_target_unsupervised_algorithm(tmp_path, minimum_configurati
     config.data.data_type = SupportedData.ARRAY.value
     careamics = CAREamist(configuration=config)
     with pytest.raises(ValueError):
-        careamics.train(
+        careamics._train_on_array(
             train_data=np.ones((32, 32)),
             train_target=np.ones((32, 32)),
         )
@@ -85,7 +85,7 @@ def test_train_array(minimum_configuration):
     careamist = CAREamist(configuration=config)
 
     # train CAREamist
-    careamist.train(train_array, val_array)
+    careamist._train_on_array(train_array, val_array)
 
     # check that it recorded mean and std
     assert careamist.cfg.data.mean is not None
@@ -118,7 +118,7 @@ def test_train_tiff_files_in_memory(tmp_path, minimum_configuration):
     careamist = CAREamist(configuration=config)
 
     # train CAREamist
-    careamist.train(train_file, val_file)
+    careamist._train_on_path(train_file, val_file)
 
     # check that it recorded mean and std
     assert careamist.cfg.data.mean is not None
@@ -153,7 +153,7 @@ def test_train_tiff_files(tmp_path, minimum_configuration):
     careamist = CAREamist(configuration=config)
 
     # train CAREamist
-    careamist.train(train_file, val_file, use_in_memory=False)
+    careamist._train_on_path(train_file, val_file, use_in_memory=False)
 
     # check that it recorded mean and std
     assert careamist.cfg.data.mean is not None

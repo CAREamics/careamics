@@ -9,7 +9,8 @@ __all__ = [
     "SupportedTransform",
     "SupportedCallback",
     "SupportedData",
-    "get_all_transforms",
+    "SupportedExtractionStrategy",
+    "SupportedStructAxis",
 ]
 
 
@@ -22,4 +23,5 @@ from .supported_extraction_strategies import SupportedExtractionStrategy
 from .supported_losses import SupportedLoss
 from .supported_optimizers import SupportedOptimizer, SupportedScheduler
 from .supported_pixel_manipulations import SupportedPixelManipulation
-from .supported_transforms import SupportedTransform, get_all_transforms
+from .supported_transforms import SupportedTransform
+from .supported_struct_axis import SupportedStructAxis

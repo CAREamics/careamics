@@ -9,7 +9,20 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 from careamics.utils import check_axes_validity
 
 from .support import SupportedTransform
-from .transform_model import TransformModel
+from .transformations.transform_model import TransformModel
+from .transformations.nd_flip_model import NDFlipModel
+from .transformations.xy_random_rotate90_model import XYRandomRotate90Model
+from .transformations.normalize_model import NormalizeModel
+from .transformations.n2v_manipulate_model import N2VManipulationModel
+
+
+Transformations_Union = Union[
+    NDFlipModel,
+    XYRandomRotate90Model,
+    NormalizeModel,
+    N2VManipulationModel,
+    TransformModel
+]
 
 
 class DataModel(BaseModel):
@@ -39,7 +52,7 @@ class DataModel(BaseModel):
     mean: Optional[float] = None
     std: Optional[float] = None
 
-    transforms: Union[List[TransformModel], Compose] = Field(
+    transforms: Union[List[Transformations_Union], Compose] = Field(
         default=[
             {
                 "name": SupportedTransform.NDFLIP.value,
@@ -57,7 +70,7 @@ class DataModel(BaseModel):
         validate_default=True,
     )
 
-    prediction_transforms: Union[List[TransformModel], Compose] = Field(
+    prediction_transforms: Union[List[Transformations_Union], Compose] = Field(
         default=[
             {
                 "name": SupportedTransform.NORMALIZE.value,
@@ -144,8 +157,8 @@ class DataModel(BaseModel):
     @classmethod
     def validate_prediction_transforms(
         cls, 
-        prediction_transforms: Union[List[TransformModel], Compose]
-    ) -> Union[List[TransformModel], Compose]:
+        prediction_transforms: Union[List[Transformations_Union], Compose]
+    ) -> Union[List[Transformations_Union], Compose]:
         """Validate that tta transforms do not have N2V pixel manipulate transforms.
 
         Parameters
@@ -155,7 +168,7 @@ class DataModel(BaseModel):
 
         Returns
         -------
-        Union[List[TransformModel], Compose]
+        Union[List[Transformations_Union], Compose]
             Validated tta transforms.
 
         Raises
@@ -227,30 +240,30 @@ class DataModel(BaseModel):
             if data_model.has_transform_list():
                 for transform in data_model.transforms:
                     if transform.name == SupportedTransform.NDFLIP:
-                        transform.parameters["is_3D"] = True
+                        transform.parameters.is_3D = True
                     elif transform.name == SupportedTransform.XY_RANDOM_ROTATE90:
-                        transform.parameters["is_3D"] = True
+                        transform.parameters.is_3D = True
 
             if data_model.has_tta_transform_list():
                 for transform in data_model.prediction_transforms:
                     if transform.name == SupportedTransform.NDFLIP:
-                        transform.parameters["is_3D"] = True
+                        transform.parameters.is_3D = True
                     elif transform.name == SupportedTransform.XY_RANDOM_ROTATE90:
-                        transform.parameters["is_3D"] = True
+                        transform.parameters.is_3D = True
         else:
             if data_model.has_transform_list():
                 for transform in data_model.transforms:
                     if transform.name == SupportedTransform.NDFLIP:
-                        transform.parameters["is_3D"] = False
+                        transform.parameters.is_3D = False
                     elif transform.name == SupportedTransform.XY_RANDOM_ROTATE90:
-                        transform.parameters["is_3D"] = False
+                        transform.parameters.is_3D = False
 
             if data_model.has_tta_transform_list():
                 for transform in data_model.prediction_transforms:
                     if transform.name == SupportedTransform.NDFLIP:
-                        transform.parameters["is_3D"] = False
+                        transform.parameters.is_3D = False
                     elif transform.name == SupportedTransform.XY_RANDOM_ROTATE90:
-                        transform.parameters["is_3D"] = False
+                        transform.parameters.is_3D = False
 
 
         return data_model
@@ -298,9 +311,8 @@ class DataModel(BaseModel):
         if not isinstance(self.transforms, Compose):
             for transform in self.transforms:
                 if transform.name == SupportedTransform.NORMALIZE.value:
-                    transform.parameters["mean"] = mean
-                    transform.parameters["std"] = std
-                    transform.parameters["max_pixel_value"] = 1.0
+                    transform.parameters.mean = mean
+                    transform.parameters.std = std
         else:
             raise ValueError(
                 "Setting mean and std with Compose transforms is not allowed. Add "
@@ -311,9 +323,8 @@ class DataModel(BaseModel):
         if not isinstance(self.prediction_transforms, Compose):
             for transform in self.prediction_transforms:
                 if transform.name == SupportedTransform.NORMALIZE.value:
-                    transform.parameters["mean"] = mean
-                    transform.parameters["std"] = std
-                    transform.parameters["max_pixel_value"] = 1.0
+                    transform.parameters.mean = mean
+                    transform.parameters.std = std
         else:
             raise ValueError(
                 "Setting mean and std with Compose tta transforms is not allowed. Add "

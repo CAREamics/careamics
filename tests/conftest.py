@@ -145,26 +145,26 @@ def ordered_array() -> Callable:
 
 @pytest.fixture
 def array_2D() -> np.ndarray:
-    """A 2D array with shape (1, 10, 9).
+    """A 2D array with shape (1, 3, 10, 9).
 
     Returns
     -------
     np.ndarray
-        2D array with shape (1, 10, 9).
+        2D array with shape (1, 3, 10, 9).
     """
-    return np.arange(90).reshape((1, 10, 9))
+    return np.arange(90 * 3).reshape((1, 3, 10, 9))
 
 
 @pytest.fixture
 def array_3D() -> np.ndarray:
-    """A 3D array with shape (1, 5, 10, 9).
+    """A 3D array with shape (1, 3, 5, 10, 9).
 
     Returns
     -------
     np.ndarray
-        3D array with shape (1, 5, 10, 9).
+        3D array with shape (1, 3, 5, 10, 9).
     """
-    return np.arange(2048).reshape((1, 8, 16, 16))
+    return np.arange(2048 * 3).reshape((1, 3, 8, 16, 16))
 
 
 @pytest.fixture

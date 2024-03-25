@@ -4,7 +4,7 @@ import tifffile
 
 from careamics.config import DataModel
 from careamics.config.support import SupportedData
-from careamics.dataset import IterableDataset
+from careamics.dataset import PathIterableDataset
 from careamics.dataset.dataset_utils import read_tiff
 
 
@@ -18,7 +18,7 @@ from careamics.dataset.dataset_utils import read_tiff
     ],
 )
 def test_number_of_files(tmp_path, ordered_array, shape):
-    """Test number of files in IterableDataset."""
+    """Test number of files in PathIterableDataset."""
     # create array
     array_size = 20
     patch_size = 4
@@ -44,7 +44,7 @@ def test_number_of_files(tmp_path, ordered_array, shape):
     config = DataModel(**config_dict)
 
     # create dataset
-    dataset = IterableDataset(
+    dataset = PathIterableDataset(
         data_config=config, src_files=files, read_source_func=read_tiff
     )
 
@@ -57,7 +57,7 @@ def test_number_of_files(tmp_path, ordered_array, shape):
 
 
 def test_read_function(tmp_path, ordered_array):
-    """Test reading files in IterableDataset using a custom read function."""
+    """Test reading files in PathIterableDataset using a custom read function."""
 
     # read function for .npy files
     def read_npy(file_path, *args, **kwargs):
@@ -87,7 +87,7 @@ def test_read_function(tmp_path, ordered_array):
     config = DataModel(**config_dict)
 
     # create dataset
-    dataset = IterableDataset(
+    dataset = PathIterableDataset(
         data_config=config,
         src_files=files,
         read_source_func=read_npy,
@@ -101,7 +101,7 @@ def test_read_function(tmp_path, ordered_array):
 
 @pytest.mark.parametrize("percentage", [0.1, 0.6])
 def test_extracting_val_files(tmp_path, ordered_array, percentage):
-    """Test extracting a validation set patches from InMemoryDataset."""
+    """Test extracting a validation set patches from PathIterableDataset."""
     # create array
     array = ordered_array((20, 20))
 
@@ -121,7 +121,7 @@ def test_extracting_val_files(tmp_path, ordered_array, percentage):
     config = DataModel(**config_dict)
 
     # create dataset
-    dataset = IterableDataset(
+    dataset = PathIterableDataset(
         data_config=config, src_files=files, read_source_func=read_tiff
     )
 

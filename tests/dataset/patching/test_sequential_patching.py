@@ -5,16 +5,16 @@ from careamics.dataset.patching.sequential_patching import (
     _compute_number_of_patches,
     _compute_overlap,
     _compute_patch_steps,
-    _compute_reshaped_view,
+    _compute_patch_views,
     extract_patches_sequential,
 )
 
 
-def check_extract_patches_sequential(array: np.ndarray, axes: str, patch_size: tuple):
+def check_extract_patches_sequential(array: np.ndarray, patch_size: tuple):
     """Check that the patches are extracted correctly.
 
     The array should have been generated using np.arange and np.reshape."""
-    patches, _ = extract_patches_sequential(array, axes=axes, patch_size=patch_size)
+    patches, _ = extract_patches_sequential(array, patch_size=patch_size)
 
     # check patch shape
     assert patches.shape[2:] == patch_size
@@ -36,7 +36,7 @@ def check_extract_patches_sequential(array: np.ndarray, axes: str, patch_size: t
 )
 def test_extract_patches_sequential_2d(array_2D, patch_size):
     """Test extracting patches sequentially in 2D."""
-    check_extract_patches_sequential(array_2D, "SYX", patch_size)
+    check_extract_patches_sequential(array_2D, patch_size)
 
 
 @pytest.mark.parametrize(
@@ -54,38 +54,34 @@ def test_extract_patches_sequential_3d(array_3D, patch_size):
     The 3D array is a fixture of shape (1, 8, 16, 16)."""
     # TODO changed the fixture to (1, 8, 16, 16), uneven shape doesnt work. We need to
     # discuss the function or the test cases
-    check_extract_patches_sequential(array_3D, "SZYX", patch_size)
+    check_extract_patches_sequential(array_3D, patch_size)
 
 
 @pytest.mark.parametrize(
     "shape, patch_sizes, expected",
     [
-        ((1, 10, 10), (10, 5), (1, 2)),
-        ((1, 9, 9), (4, 3), (3, 3)),
-        ((1, 10, 9), (3, 5), (4, 2)),
-        ((1, 5, 9, 10), (2, 3, 5), (3, 3, 2)),
+        ((1, 3, 10, 10), (1, 3, 10, 5), (1, 1, 1, 2)),
+        ((1, 1, 9, 9), (1, 1, 4, 3), (1, 1, 3, 3)),
+        ((1, 3, 10, 9), (1, 3, 3, 5), (1, 1, 4, 2)),
+        ((1, 1, 5, 9, 10), (1, 1, 2, 3, 5), (1, 1, 3, 3, 2)),
     ],
 )
 def test_compute_number_of_patches(shape, patch_sizes, expected):
     """Test computing number of patches"""
-    arr = np.ones(shape)
-
-    assert _compute_number_of_patches(arr, patch_sizes) == expected
+    assert _compute_number_of_patches(shape, patch_sizes) == expected
 
 
 @pytest.mark.parametrize(
     "shape, patch_sizes, expected",
     [
-        ((1, 10, 10), (10, 5), (0, 0)),
-        ((1, 9, 9), (4, 3), (2, 0)),
-        ((1, 10, 9), (3, 5), (1, 1)),
+        ((1, 3, 10, 10), (1, 3, 10, 5), (0, 0, 0, 0)),
+        ((1, 1, 9, 9), (1, 1, 4, 3), (0, 0, 2, 0)),
+        ((1, 3, 10, 10, 9), (1, 3, 2, 3, 5), (0, 0, 0, 1, 1)),
     ],
 )
 def test_compute_overlap(shape, patch_sizes, expected):
     """Test computing overlap between patches"""
-    arr = np.ones(shape)
-
-    assert _compute_overlap(arr, patch_sizes) == expected
+    assert _compute_overlap(shape, patch_sizes) == expected
 
 
 @pytest.mark.parametrize("dims", [2, 3])
@@ -100,19 +96,17 @@ def test_compute_patch_steps(dims, patch_size, overlap):
     assert _compute_patch_steps(patch_sizes, overlaps) == expected
 
 
-def check_compute_reshaped_view(array, window_shape, steps):
+def check_compute_reshaped_view(array: np.ndarray, window_shape, steps):
     """Check the number of patches"""
 
-    win = (1, *window_shape)
-    step = (1, *steps)
     output_shape = (-1, *window_shape)
 
     # compute views
-    output = _compute_reshaped_view(array, win, step, output_shape)
+    output = _compute_patch_views(array, window_shape, steps, output_shape)
 
     # check the number of patches
     n_patches = [
-        np.ceil((array.shape[1 + i] - window_shape[i] + 1) / steps[i]).astype(int)
+        np.ceil((array.shape[i] - window_shape[i] + 1) / steps[i]).astype(int)
         for i in range(len(window_shape))
     ]
     assert output.shape == (np.prod(n_patches), *window_shape)
@@ -121,9 +115,9 @@ def check_compute_reshaped_view(array, window_shape, steps):
 @pytest.mark.parametrize(
     "window_shape, steps",
     [
-        ((5, 5), (1, 1)),
-        ((5, 5), (2, 3)),
-        ((5, 7), (1, 1)),
+        ((1, 3, 5, 5), (1, 1, 1, 1)),
+        ((1, 3, 5, 5), (1, 1, 2, 3)),
+        ((1, 3, 5, 7), (1, 1, 1, 1)),
     ],
 )
 def test_compute_reshaped_view_2d(array_2D, window_shape, steps):
@@ -134,9 +128,9 @@ def test_compute_reshaped_view_2d(array_2D, window_shape, steps):
 @pytest.mark.parametrize(
     "window_shape, steps",
     [
-        ((1, 5, 5), (2, 1, 2)),
-        ((2, 5, 5), (2, 3, 4)),
-        ((3, 7, 8), (1, 1, 3)),
+        ((1, 3, 1, 5, 5), (1, 1, 2, 1, 2)),
+        ((1, 3, 2, 5, 5), (1, 1, 2, 3, 4)),
+        ((1, 3, 3, 7, 8), (1, 1, 1, 1, 3)),
     ],
 )
 def test_compute_reshaped_view_3d(array_3D, window_shape, steps):

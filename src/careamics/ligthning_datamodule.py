@@ -20,10 +20,14 @@ from careamics.dataset.in_memory_dataset import (
     InMemoryPredictionDataset,
 )
 from careamics.dataset.iterable_dataset import (
-    IterableDataset,
+    PathIterableDataset,
     IterablePredictionDataset,
 )
 from careamics.utils import get_logger, get_ram_size
+
+
+DatasetType = Union[InMemoryDataset, PathIterableDataset]
+PredictDatasetType = Union[InMemoryPredictionDataset, IterablePredictionDataset]
 
 logger = get_logger(__name__)
 
@@ -62,7 +66,6 @@ class CAREamicsWood(L.LightningDataModule):
         and provide a function that returns a numpy array from a path as
         `read_source_func` parameter. The function will receive a Path object and
         an axies string as arguments, the axes being derived from the `data_config`.
-        # TODO is this necessary to pass the axes?
 
         You can also provide a `fnmatch` and `Path.rglob` compatible expression (e.g.
         "*.czi") to filter the files extension using `extension_filter`.
@@ -169,7 +172,7 @@ class CAREamicsWood(L.LightningDataModule):
 
         # read source function corresponding to the requested type
         if data_config.data_type == SupportedData.CUSTOM:
-            self.read_source_func = read_source_func
+            self.read_source_func: Callable = read_source_func
         else:
             self.read_source_func = get_read_func(data_config.data_type)
         self.extension_filter = extension_filter
@@ -181,7 +184,10 @@ class CAREamicsWood(L.LightningDataModule):
         Here, we only need to examine the data if it was provided as a str or a Path.
         """
         # if the data is a Path or a str
-        if not isinstance(self.train_data, np.ndarray):
+        if not isinstance(self.train_data, np.ndarray) and \
+            not isinstance(self.val_data, np.ndarray) and \
+                not isinstance(self.train_data_target, np.ndarray) and \
+                    not isinstance(self.val_data_target, np.ndarray):
             # list training files
             self.train_files = list_files(
                 self.train_data, self.data_type, self.extension_filter
@@ -196,7 +202,7 @@ class CAREamicsWood(L.LightningDataModule):
 
             # same for target data
             if self.train_data_target is not None:
-                self.train_target_files = list_files(
+                self.train_target_files: List[Path] = list_files(
                     self.train_data_target, self.data_type, self.extension_filter
                 )
 
@@ -211,7 +217,7 @@ class CAREamicsWood(L.LightningDataModule):
                 # verify that they match the validation data
                 validate_source_target_files(self.val_files, self.val_target_files)
 
-    def setup(self, *args, **kwargs) -> None:
+    def setup(self, *args: Any, **kwargs: Any) -> None:
         """
         Hook called at the beginning of fit (train + validate), validate, test, or
         predict.
@@ -219,7 +225,7 @@ class CAREamicsWood(L.LightningDataModule):
         # if numpy array
         if self.data_type == SupportedData.ARRAY:
             # train dataset
-            self.train_dataset = InMemoryDataset(
+            self.train_dataset: DatasetType = InMemoryDataset(
                 data_config=self.data_config,
                 data=self.train_data,
                 data_target=self.train_data_target,
@@ -228,7 +234,7 @@ class CAREamicsWood(L.LightningDataModule):
             # validation dataset
             if self.val_data is not None:
                 # create its own dataset
-                self.val_dataset = InMemoryDataset(
+                self.val_dataset: DatasetType = InMemoryDataset(
                     data_config=self.data_config,
                     data=self.val_data,
                     data_target=self.val_data_target,
@@ -276,7 +282,7 @@ class CAREamicsWood(L.LightningDataModule):
             # else if the data is too large, load file by file during training
             else:
                 # create training dataset
-                self.train_dataset = IterableDataset(
+                self.train_dataset = PathIterableDataset(
                     data_config=self.data_config,
                     src_files=self.train_files,
                     target_files=self.train_target_files
@@ -288,7 +294,7 @@ class CAREamicsWood(L.LightningDataModule):
                 # create validation dataset
                 if self.val_files is not None:
                     # create its own dataset
-                    self.val_dataset = IterableDataset(
+                    self.val_dataset = PathIterableDataset(
                         data_config=self.data_config,
                         src_files=self.val_files,
                         target_files=self.val_target_files
@@ -331,8 +337,8 @@ class CAREamicsClay(L.LightningDataModule):
         self,
         data_config: DataModel,
         pred_data: Union[Path, str, np.ndarray],
-        tile_size: Union[List[int], Tuple[int]],
-        tile_overlap: Union[List[int], Tuple[int]],
+        tile_size: Union[List[int], Tuple[int, ...]],
+        tile_overlap: Union[List[int], Tuple[int, ...]],
         read_source_func: Optional[Callable] = None,
         extension_filter: str = "",
     ) -> None:
@@ -376,7 +382,7 @@ class CAREamicsClay(L.LightningDataModule):
 
         # read source function
         if data_config.data_type == SupportedData.CUSTOM:
-            self.read_source_func = read_source_func
+            self.read_source_func: Callable = read_source_func
         else:
             self.read_source_func = get_read_func(data_config.data_type)
         self.extension_filter = extension_filter
@@ -395,7 +401,7 @@ class CAREamicsClay(L.LightningDataModule):
         # if numpy array
         if self.data_type == SupportedData.ARRAY:
             # prediction dataset
-            self.predict_dataset = InMemoryPredictionDataset(
+            self.predict_dataset: PredictDatasetType = InMemoryPredictionDataset(
                 data_config=self.data_config,
                 data=self.pred_data,
                 tile_size=self.tile_size,
@@ -410,7 +416,7 @@ class CAREamicsClay(L.LightningDataModule):
                 tile_overlap=self.tile_overlap,
             )
 
-    def predict_dataloader(self) -> Any:
+    def predict_dataloader(self) -> DataLoader:
         return DataLoader(
             self.predict_dataset,
             batch_size=self.batch_size,
@@ -437,7 +443,7 @@ class CAREamicsTrainDataModule(CAREamicsWood):
         val_minimum_patches: int = 5,
         num_workers: int = 0,
         pin_memory: bool = False,
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         data_config = {
             "mode": "train",
@@ -482,7 +488,7 @@ class CAREamicsPredictDataModule(CAREamicsClay):
         extension_filter: str = "",
         num_workers: int = 0,
         pin_memory: bool = False,
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         data_config = {
             "mode": "predict",

@@ -7,9 +7,9 @@ from careamics.transforms.pixel_manipulation import (
     median_manipulate,
     uniform_manipulate,
 )
+from careamics.transforms.struct_mask_parameters import StructMaskParameters
 
 
-# TODO: what is the minimum coords given? should make sure that there is at lea
 @pytest.mark.parametrize(
     "mask_pixel_perc, shape, num_iterations",
     [(0.4, (32, 32), 1000), (0.4, (10, 10, 10), 1000)],
@@ -143,62 +143,137 @@ def test_median_manipulate(ordered_array, shape):
 
 
 @pytest.mark.parametrize(
-    "coords, struct_mask_params",
-    [((2, 2), [1, 5]), ((3, 4), [0, 5]), ((9, 0), [0, 5]), (((1, 2), (3, 4)), [1, 5])],
+    "coords, struct_axis, struct_span",
+    [
+        ((2, 2), 1, 5), 
+        ((3, 4), 0, 5), 
+        ((9, 0), 0, 5), 
+        (((1, 2), (3, 4)), 1, 5)
+    ],
 )
-def test_apply_struct_mask(coords, struct_mask_params):
+def test_apply_struct_mask(coords, struct_axis, struct_span):
     """Test the uniform_manipulate function.
 
     Ensures that the mask corresponds to the manipulated pixels, and that the
     manipulated pixels have a value taken from a ROI surrounding them.
     """
-    # create the array of random integers. This is to ensurewe can compare exact values
+    struct_params = StructMaskParameters(
+        axis=struct_axis, span=struct_span
+    )
+
+    # create array
     patch = np.arange(
         100,
     ).reshape((10, 10))
+
     # make a copy of the original patch for comparison
     original_patch = patch.copy()
     coords = np.array(coords)
+
     # expand the coords if only one roi is given
     if coords.ndim == 1:
         coords = coords[None, :]
-    struct_axis, struct_span = struct_mask_params
+
     # manipulate the array
     transform_patch = _apply_struct_mask(
         patch,
         coords=coords,
-        mask_params=struct_mask_params,
+        struct_params=struct_params,
     )
     changed_values = patch[np.where(original_patch != transform_patch)]
+
     # check that the transformed pixels correspond to the masked pixels
     transformed = []
-    if struct_axis == 0:
-        for i in range(coords.shape[0]):
-            column_coords_to_mask = [
-                c
-                for c in range(
-                    max(0, coords[i, 1] - struct_span // 2),
-                    min(transform_patch.shape[1], coords[i, 1] + struct_span // 2) + 1,
-                )
-                if c != coords[i, 1]
-            ]
-            transformed.append(transform_patch[coords[i, 0]][column_coords_to_mask])
-        assert np.array_equal(
-            np.sort(changed_values), np.sort(np.concatenate(transformed, axis=0))
-        )
+    axis = 1 - struct_axis
+    for i in range(coords.shape[0]):
 
-    else:
-        for i in range(coords.shape[0]):
-            row_coords_to_mask = [
-                c
-                for c in range(
-                    max(0, coords[i, 0] - struct_span // 2),
-                    min(transform_patch.shape[1], coords[i, 0] + struct_span // 2) + 1,
-                )
-                if c != coords[i, 0]
-            ]
-            transformed.append(transform_patch[:, coords[i, 1]][row_coords_to_mask])
+        # get indices to mask
+        indices_to_mask = [
+            c
+            for c in range(
+                max(0, coords[i, axis] - struct_span // 2),
+                min(transform_patch.shape[1], coords[i, axis] + struct_span // 2) + 1,
+            )
+            if c != coords[i, axis]
+        ]
 
-        assert np.array_equal(
-            np.sort(changed_values), np.sort(np.concatenate(transformed, axis=0))
-        )
+        # add to transform
+        if struct_axis == 0:
+            transformed.append(transform_patch[coords[i, 0]][indices_to_mask])
+        else:
+            transformed.append(transform_patch[:, coords[i, 1]][indices_to_mask])
+    
+    assert np.array_equal(
+        np.sort(changed_values), np.sort(np.concatenate(transformed, axis=0))
+    )
+    
+
+@pytest.mark.parametrize(
+    "coords, struct_axis, struct_span",
+    [
+        ((1, 2, 2), 1, 5), 
+        ((2, 3, 4), 0, 5), 
+        ((0, 9, 0), 0, 5), 
+        (((2, 1, 2), (1, 9, 0), (0, 3, 4)), 1, 5)
+    ],
+)
+def test_apply_struct_mask_3D(coords, struct_axis, struct_span):
+    """Test the uniform_manipulate function.
+
+    Ensures that the mask corresponds to the manipulated pixels, and that the
+    manipulated pixels have a value taken from a ROI surrounding them.
+    """
+    struct_params = StructMaskParameters(
+        axis=struct_axis, span=struct_span
+    )
+
+    # create array
+    patch = np.arange(
+        100*3,
+    ).reshape((3, 10, 10))
+
+    # make a copy of the original patch for comparison
+    original_patch = patch.copy()
+    coords = np.array(coords)
+
+    # expand the coords if only one roi is given
+    if coords.ndim == 1:
+        coords = coords[None, :]
+
+    # manipulate the array
+    transform_patch = _apply_struct_mask(
+        patch,
+        coords=coords,
+        struct_params=struct_params,
+    )
+    changed_values = patch[np.where(original_patch != transform_patch)]
+
+    # check that the transformed pixels correspond to the masked pixels
+    transformed = []
+    axis = -2 + 1 - struct_axis
+    for i in range(coords.shape[0]):
+
+        # get indices to mask
+        indices_to_mask = [
+            c
+            for c in range(
+                max(0, coords[i, axis] - struct_span // 2),
+                min(transform_patch.shape[1]-1, coords[i, axis] + struct_span // 2) + 1,
+            )
+            if c != coords[i, axis]
+        ]
+
+        # add to transform
+        if struct_axis == 0:
+            transformed.append(
+                transform_patch[coords[i, 0], coords[i, 1]][indices_to_mask]
+            )
+        else:
+            transformed.append(
+                transform_patch[coords[i, 0], :, coords[i, 2]][indices_to_mask]
+            )
+    
+    assert np.array_equal(
+        np.sort(changed_values), np.sort(np.concatenate(transformed, axis=0))
+    )
+    
