@@ -62,7 +62,6 @@ class CAREamicsWood(L.LightningDataModule):
         and provide a function that returns a numpy array from a path as
         `read_source_func` parameter. The function will receive a Path object and
         an axies string as arguments, the axes being derived from the `data_config`.
-        # TODO is this necessary to pass the axes?
 
         You can also provide a `fnmatch` and `Path.rglob` compatible expression (e.g.
         "*.czi") to filter the files extension using `extension_filter`.

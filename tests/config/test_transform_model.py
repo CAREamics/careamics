@@ -4,18 +4,13 @@ from careamics.config.support import SupportedTransform
 from careamics.config.transformations.transform_model import TransformModel
 
 
-@pytest.mark.parametrize(
-    "name, parameters",
-    [
-        (SupportedTransform.NDFLIP, {}),
-        (SupportedTransform.XY_RANDOM_ROTATE90, {}),
-        (SupportedTransform.NORMALIZE, {"mean": 1.0, "std": 1.0}),
-        (SupportedTransform.N2V_MANIPULATE, {}),
-    ],
-)
-def test_official_transforms(name, parameters):
-    """Test that officially supported transforms are accepted."""
-    TransformModel(name=name, parameters=parameters)
+
+def test_official_transforms():
+    """Test that albumentation transforms are accepted."""
+    TransformModel(name="PixelDropout", parameters={
+        "dropout_prob": 0.05, 
+        "per_channel": True
+    })
 
 
 def test_nonexisting_transform():
@@ -26,13 +21,20 @@ def test_nonexisting_transform():
 
 def test_filtering_unknown_parameters():
     """Test that unknown parameters are filtered out."""
-    parameters = {"some_param": 42, "p": 1.0}
+    parameters = {
+        "dropout_prob": 0.05,
+        "babar_the_elephant": True, 
+        "per_channel": True,
+    }
 
     # create transform model
-    transform = TransformModel(name=SupportedTransform.NDFLIP, parameters=parameters)
+    transform = TransformModel(name="PixelDropout", parameters=parameters)
 
     # check parameters
-    assert transform.parameters == {"p": 1.0}
+    assert transform.parameters.model_dump() == {
+        "dropout_prob": 0.05,
+        "per_channel": True,
+    }
 
 
 def test_missing_parameters():

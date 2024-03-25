@@ -1,7 +1,11 @@
 import pytest
-from albumentations import Compose
+from albumentations import Compose, PixelDropout
 
 from careamics.config.data_model import DataModel
+from careamics.config.transformations.xy_random_rotate90_model import (
+    XYRandomRotate90Model
+)
+from careamics.config.transformations.transform_model import TransformModel
 from careamics.config.support import SupportedTransform
 from careamics.transforms import get_all_transforms
 
@@ -99,6 +103,43 @@ def test_passing_supported_transforms(minimum_data: dict, transforms):
     DataModel(**minimum_data)
 
 
+def test_correct_transform_parameters(minimum_data: dict):
+    """Test that the transforms have the correct parameters."""
+    minimum_data["transforms"] = [
+        {"name": SupportedTransform.NORMALIZE.value},
+        {"name": SupportedTransform.NDFLIP.value},
+        {"name": SupportedTransform.XY_RANDOM_ROTATE90.value},
+        {"name": SupportedTransform.N2V_MANIPULATE.value},
+    ]
+    model = DataModel(**minimum_data)
+
+    # Normalize
+    params = model.transforms[0].parameters.model_dump()
+    assert "mean" in params
+    assert "std" in params
+    assert "max_pixel_value" in params
+
+    # NDFlip
+    params = model.transforms[1].parameters.model_dump()
+    assert "p" in params
+    assert "is_3D" in params
+    assert "flip_z" in params
+
+    # XYRandomRotate90
+    params = model.transforms[2].parameters.model_dump()
+    assert "p" in params
+    assert "is_3D" in params
+    assert isinstance(model.transforms[2], XYRandomRotate90Model)
+
+    # N2VManipulate
+    params = model.transforms[3].parameters.model_dump()
+    assert "roi_size" in params
+    assert "masked_pixel_percentage" in params
+    assert "strategy" in params
+    assert "struct_mask_axis" in params
+    assert "struct_mask_span" in params
+
+
 def test_passing_empty_transforms(minimum_data: dict):
     """Test that empty list of transforms can be passed."""
     minimum_data["transforms"] = []
@@ -124,6 +165,28 @@ def test_passing_compose_transform(minimum_data: dict):
         ]
     )
     DataModel(**minimum_data)
+
+
+def test_passing_albumentations_transform(minimum_data: dict):
+    """Test passing an albumentation transform with parameters."""
+    minimum_data["transforms"] = [
+        {
+            "name": "PixelDropout",
+            "parameters": {
+                "dropout_prob": 0.05, 
+                "per_channel": True,
+            },
+        },
+    ]
+    model = DataModel(**minimum_data)
+    assert isinstance(model.transforms[0], TransformModel)
+    
+    params = model.transforms[0].parameters.model_dump()
+    assert params["dropout_prob"] == 0.05
+    assert params["per_channel"] is True
+
+    # check that we can instantiate the transform
+    get_all_transforms()[model.transforms[0].name](**params)
 
 
 def test_3D_and_transforms(minimum_data: dict):

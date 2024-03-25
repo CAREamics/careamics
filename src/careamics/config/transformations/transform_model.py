@@ -6,6 +6,12 @@ from careamics.utils.torch_utils import filter_parameters
 from careamics.transforms import get_all_transforms
 
 
+class TransformParameters(BaseModel):
+
+    model_config = ConfigDict(
+        extra="allow",
+    )
+
 
 class TransformModel(BaseModel):
     """Pydantic model used to represent an image transformation.
@@ -13,13 +19,8 @@ class TransformModel(BaseModel):
     Accepted transformations are ManipulateN2V, NormalizeWithoutTarget, and all
     transformations in Albumentations (see https://albumentations.ai/).
     """
-
-    model_config = ConfigDict(
-        validate_assignment=True,
-    )
-
     name: str
-    parameters: dict = Field(default={}, validate_default=True)
+    parameters: TransformParameters = TransformParameters()
 
     @field_validator("name", mode="plain")
     @classmethod
@@ -37,7 +38,9 @@ class TransformModel(BaseModel):
     def validate_transform(self) -> TransformModel:
         """Validate transform parameters based on the transform's signature."""
         # filter the user parameters according to the transform's signature
-        parameters = filter_parameters(get_all_transforms()[self.name], self.parameters)
+        parameters = filter_parameters(
+            get_all_transforms()[self.name], 
+            self.parameters.model_dump())
 
         # try to instantiate the transform with the filtered parameters
         try:
@@ -50,8 +53,6 @@ class TransformModel(BaseModel):
             ) from e
 
         # update the parameters with the filtered ones
-        # note: assigment would trigger an infinite recursion
-        self.parameters.clear()
-        self.parameters.update(parameters)
+        self.parameters = TransformParameters(**parameters)
 
         return self

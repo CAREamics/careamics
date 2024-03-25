@@ -21,7 +21,7 @@ class N2VManipulationParameters(BaseModel):
 
     @field_validator("roi_size", "struct_mask_span")
     @classmethod
-    def odd_value(cls, v):
+    def odd_value(cls, v: int) -> int:
         if v % 2 == 0:
             raise ValueError("Size must be an odd number.")
         return v
