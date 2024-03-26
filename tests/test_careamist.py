@@ -76,8 +76,8 @@ def test_train_array(minimum_configuration):
     # create configuration
     config = Configuration(**minimum_configuration)
     config.training.num_epochs = 1
-    config.training.batch_size = 2
     config.data.axes = "YX"
+    config.data.batch_size = 2
     config.data.data_type = SupportedData.ARRAY.value
     config.data.patch_size = (8, 8)
 
@@ -109,8 +109,8 @@ def test_train_tiff_files_in_memory(tmp_path, minimum_configuration):
     # create configuration
     config = Configuration(**minimum_configuration)
     config.training.num_epochs = 1
-    config.training.batch_size = 2
     config.data.axes = "YX"
+    config.data.batch_size = 2
     config.data.data_type = SupportedData.TIFF.value
     config.data.patch_size = (8, 8)
 
@@ -144,8 +144,8 @@ def test_train_tiff_files(tmp_path, minimum_configuration):
     # create configuration
     config = Configuration(**minimum_configuration)
     config.training.num_epochs = 1
-    config.training.batch_size = 2
     config.data.axes = "YX"
+    config.data.batch_size = 2
     config.data.data_type = SupportedData.TIFF.value
     config.data.patch_size = (8, 8)
 

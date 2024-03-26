@@ -45,7 +45,7 @@ class DataModel(BaseModel):
     # Mandatory fields
     data_type: Literal["array", "tiff", "custom"]
     patch_size: List[int] = Field(..., min_length=2, max_length=3)
-
+    batch_size: int = Field(default=1, ge=1, validate_default=True)
     axes: str
 
     # Optional fields
@@ -69,9 +69,6 @@ class DataModel(BaseModel):
         ],
         validate_default=True,
     )
-
-    # Dataloader configuration
-    batch_size: int = Field(default=1, ge=1, validate_default=True)
 
     @field_validator("patch_size")
     @classmethod

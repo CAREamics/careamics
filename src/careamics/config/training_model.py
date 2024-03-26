@@ -97,9 +97,4 @@ class TrainingModel(BaseModel):
 
     # Mandatory fields
     num_epochs: int = Field(..., ge=1)
-    batch_size: int = Field(..., ge=1)
 
-    # Optional fields
-    use_wandb: bool = False
-    num_workers: int = Field(default=0, ge=0)
-    amp: AMP = AMP()
