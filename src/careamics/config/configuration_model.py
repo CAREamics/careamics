@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import Dict, Literal, Union
+from typing import Dict, Literal, List, Union
 
 import yaml
 from pydantic import (
@@ -15,8 +15,8 @@ from pydantic import (
 
 from .algorithm_model import AlgorithmModel
 from .data_model import DataModel
-from .support import SupportedAlgorithm, SupportedTransform
-from .training_model import Training
+from .support import SupportedAlgorithm, SupportedTransform, SupportedPixelManipulation
+from .training_model import TrainingModel
 from .transformations.n2v_manipulate_model import (
     N2VManipulationModel,
 )
@@ -57,7 +57,7 @@ class Configuration(BaseModel):
     # Sub-configurations
     algorithm: AlgorithmModel
     data: DataModel
-    training: Training
+    training: TrainingModel
 
     @field_validator("experiment_name")
     @classmethod
@@ -171,12 +171,12 @@ class Configuration(BaseModel):
 
     @model_validator(mode="after")
     def validate_algorithm_and_data(self: Configuration) -> Configuration:
-        """Validate the algorithm and data configurations.
+        """Validate algorithm and data compatibility.
 
-        In particular, the choice of algorithm will influantiate the potential
-        transforms that can be applied to the data.
+        In particular, the validation does the following:
 
-        - (struct)N2V(2): requires ManipulateN2V to be the last transform.
+        - If N2V is used, it enforces the presence of N2V_Maniuplate in the transforms
+        - If N2V2 is used, it enforces the correct manipulation strategy
 
         Returns
         -------
@@ -200,31 +200,15 @@ class Configuration(BaseModel):
                         )
                     )
 
-                # multiple N2V_MANIPULATE
-                elif transform_list.count(SupportedTransform.N2V_MANIPULATE) > 1:
-                    raise ValueError(
-                        f"Multiple {SupportedTransform.N2V_MANIPULATE} transforms are "
-                        f"not allowed."
-                    )
-
-                # N2V_MANIPULATE not the last transform
-                elif transform_list[-1] != SupportedTransform.N2V_MANIPULATE:
-                    index = transform_list.index(SupportedTransform.N2V_MANIPULATE)
-                    transform = self.data.transforms.pop(index)
-                    self.data.transforms.append(transform)
-
-                # check that N2V_MANIPULATE has the right n2v2 parameter
-                n2v_manipulate = self.data.transforms[-1]
-                if use_n2v2:
-                    if n2v_manipulate.parameters.strategy != "median":
-                        n2v_manipulate.parameters.strategy = "median"
-                else:
-                    if n2v_manipulate.parameters.strategy != "uniform":
-                        n2v_manipulate.parameters.strategy = "uniform"        
+                # make sure that N2V_MANIPULATE has the correct strategy
+                median = SupportedPixelManipulation.MEDIAN.value
+                uniform = SupportedPixelManipulation.UNIFORM.value
+                strategy = median if use_n2v2 else uniform
+                self.data.set_N2V2_strategy(strategy)
 
         return self
 
-    def set_3D(self, is_3D: bool, axes: str) -> None:
+    def set_3D(self, is_3D: bool, axes: str, patch_size: List[int]) -> None:
         """
         Set 3D flag and axes.
 
@@ -237,10 +221,47 @@ class Configuration(BaseModel):
         """
         # set the flag and axes (this will not trigger validation at the config level)
         self.algorithm.model.set_3D(is_3D)
-        self.data.axes = axes
+        self.data.set_3D(axes, patch_size)
 
         # cheap hack: trigger validation
         self.algorithm = self.algorithm
+
+    def set_N2V2(self, use_n2v2: bool) -> None:
+        """Switch N2V algorithm between N2V and N2V2.
+
+        Parameters
+        ----------
+        use_n2v2 : bool
+            Whether to use N2V2 or not.
+
+        Raises
+        ------
+        ValueError
+            If the algorithm is not N2V.
+        """
+        if self.algorithm.algorithm == SupportedAlgorithm.N2V:
+            self.algorithm.model.n2v2 = use_n2v2
+            strategy = SupportedPixelManipulation.MEDIAN.value \
+                if use_n2v2 else SupportedPixelManipulation.UNIFORM.value
+            self.data.set_N2V2_strategy(strategy)            
+        else:
+            raise ValueError("N2V2 can only be set for N2V algorithm.")
+        
+    def set_structN2V(
+            self, 
+            mask_axis: Literal["horizontal", "vertical", "none"],
+            mask_span: int
+    ) -> None:
+        """Set StructN2V parameters.
+
+        Parameters
+        ----------
+        mask_axis : Literal["horizontal", "vertical", "none"]
+            Axis of the structural mask.
+        mask_span : int
+            Span of the structural mask.
+        """
+        self.data.set_structN2V(mask_axis, mask_span)
 
     def model_dump(
         self,

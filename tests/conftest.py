@@ -14,7 +14,7 @@ from careamics.config.algorithm_model import (
 )
 from careamics.config.data_model import DataModel
 from careamics.config.support import SupportedData
-from careamics.config.training_model import Training
+from careamics.config.training_model import TrainingModel
 
 
 # TODO add details about where each of these fixture is used (e.g. smoke test)
@@ -225,7 +225,7 @@ def base_configuration(temp_dir: Path, patch_size) -> Configuration:
             extension="tif",
             axes="YX",
         ),
-        training=Training(
+        training=TrainingModel(
             num_epochs=1,
             patch_size=patch_size,
             batch_size=2,
@@ -257,7 +257,7 @@ def supervised_configuration(temp_dir: Path, patch_size) -> Configuration:
             extension="tif",
             axes="YX",
         ),
-        training=Training(
+        training=TrainingModel(
             num_epochs=1,
             patch_size=patch_size,
             batch_size=2,

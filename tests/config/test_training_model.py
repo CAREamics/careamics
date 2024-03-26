@@ -1,6 +1,6 @@
 import pytest
 
-from careamics.config.training_model import AMP, Training
+from careamics.config.training_model import AMP, TrainingModel
 
 
 @pytest.mark.parametrize("init_scale", [512, 1024, 65536])
@@ -37,7 +37,7 @@ def test_amp_wrong_values_by_assignments():
 
 def test_training_wrong_values_by_assignments(minimum_training: dict):
     """Test that wrong values cause an error during assignment."""
-    training = Training(**minimum_training)
+    training = TrainingModel(**minimum_training)
 
     # num_epochs
     training.num_epochs = 2

@@ -16,3 +16,4 @@ from .configuration_model import (
     save_configuration,
 )
 from .data_model import DataModel
+from .configuration_factory import create_n2v_configuration

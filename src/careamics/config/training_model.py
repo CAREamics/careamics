@@ -60,7 +60,7 @@ class AMP(BaseModel):
         return scale
 
 
-class Training(BaseModel):
+class TrainingModel(BaseModel):
     """
     Parameters related to the training.
 
