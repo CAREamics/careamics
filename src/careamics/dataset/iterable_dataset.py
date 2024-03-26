@@ -57,8 +57,7 @@ class PathIterableDataset(IterableDataset):
 
         self.data_files = src_files
         self.target_files = target_files
-        self.axes = data_config.axes
-        self.patch_size = data_config.patch_size
+        self.data_config = data_config
         self.read_source_func = read_source_func
 
         # compute mean and std over the dataset
@@ -108,7 +107,7 @@ class PathIterableDataset(IterableDataset):
         return result_mean, result_std
 
     def _iterate_over_files(
-            self
+        self,
     ) -> Generator[Tuple[np.ndarray, Optional[np.ndarray]], None, None]:
         """
         Iterate over data source and yield whole image.
@@ -132,10 +131,10 @@ class PathIterableDataset(IterableDataset):
             if i % num_workers == worker_id:
                 try:
                     # read data
-                    sample = self.read_source_func(filename, self.axes)
+                    sample = self.read_source_func(filename, self.data_config.axes)
 
                     # reshape data
-                    reshaped_sample = reshape_array(sample, self.axes)
+                    reshaped_sample = reshape_array(sample, self.data_config.axes)
 
                     # read target, if available
                     if self.target_files is not None:
@@ -147,10 +146,12 @@ class PathIterableDataset(IterableDataset):
                             )
 
                         # read target
-                        target = self.read_source_func(self.target_files[i], self.axes)
+                        target = self.read_source_func(
+                            self.target_files[i], self.data_config.axes
+                        )
 
                         # reshape target
-                        reshaped_target = reshape_array(target, self.axes)
+                        reshaped_target = reshape_array(target, self.data_config.axes)
 
                         yield reshaped_sample, reshaped_target
                     else:
@@ -159,7 +160,7 @@ class PathIterableDataset(IterableDataset):
                     logger.error(f"Error reading file {filename}: {e}")
 
     def __iter__(
-            self
+        self,
     ) -> Generator[Tuple[np.ndarray, np.ndarray, Optional[np.ndarray]], None, None]:
         """
         Iterate over data source and yield single patch.
@@ -179,7 +180,7 @@ class PathIterableDataset(IterableDataset):
                 patches = generate_patches_supervised(
                     sample=sample_input,
                     patch_extraction_method=SupportedExtractionStrategy.RANDOM,
-                    patch_size=self.patch_size,
+                    patch_size=self.data_config.patch_size,
                     target=sample_target,
                 )
 
@@ -187,7 +188,7 @@ class PathIterableDataset(IterableDataset):
                 patches = generate_patches_unsupervised(
                     sample=sample_input,
                     patch_extraction_method=SupportedExtractionStrategy.RANDOM,
-                    patch_size=self.patch_size,
+                    patch_size=self.data_config.patch_size,
                 )
 
             # iterate over patches
@@ -205,7 +206,7 @@ class PathIterableDataset(IterableDataset):
                     transformed = self.patch_transform(
                         image=c_patch,
                         target=c_target,
-                    )              
+                    )
 
                     # move the axes back to the original position
                     c_patch = np.moveaxis(transformed["image"], -1, 0)
@@ -248,8 +249,10 @@ class PathIterableDataset(IterableDataset):
         percentage: float = 0.1,
         minimum_number: int = 5,
     ) -> PathIterableDataset:
-        """Split up dataset in two using a percentage of the data (files) to extract, or 
-        the minimum number of the percentage is less than the minimum number.
+        """Split up dataset in two.
+
+        Splits the datest sing a percentage of the data (files) to extract, or the
+        minimum number of the percentage is less than the minimum number.
 
         Parameters
         ----------
@@ -356,10 +359,9 @@ class IterablePredictionDataset(PathIterableDataset):
         super().__init__(
             data_config=data_config,
             src_files=src_files,
-            read_source_func=read_source_func
+            read_source_func=read_source_func,
         )
 
-        self.patch_size = data_config.patch_size
         self.tile_size = tile_size
         self.tile_overlap = tile_overlap
         self.read_source_func = read_source_func
@@ -373,11 +375,13 @@ class IterablePredictionDataset(PathIterableDataset):
 
         # get tta transforms
         self.patch_transform = get_patch_transform(
-            patch_transforms=data_config.prediction_transforms,
+            patch_transforms=data_config.transforms,
             with_target=False,
         )
 
-    def __iter__(self) -> Generator[Tuple[np.ndarray, np.ndarray, Optional[np.ndarray]], None, None]:
+    def __iter__(
+        self,
+    ) -> Generator[Tuple[np.ndarray, np.ndarray, Optional[np.ndarray]], None, None]:
         """
         Iterate over data source and yield single patch.
 
@@ -394,7 +398,7 @@ class IterablePredictionDataset(PathIterableDataset):
             patches = generate_patches_predict(
                 sample, self.tile_size, self.tile_overlap
             )
-            #TODO AttributeError: 'IterablePredictionDataset' object has no attribute 'mean' message appears if the predict func is run more than once 
+            # TODO AttributeError: 'IterablePredictionDataset' object has no attribute 'mean' message appears if the predict func is run more than once
 
             for patch_data in patches:
                 # Albumentations expects the channel dimension to be last

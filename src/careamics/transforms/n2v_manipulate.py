@@ -4,6 +4,7 @@ import numpy as np
 from albumentations import ImageOnlyTransform
 
 from careamics.config.support import SupportedPixelManipulation, SupportedStructAxis
+
 from .pixel_manipulation import median_manipulate, uniform_manipulate
 from .struct_mask_parameters import StructMaskParameters
 
@@ -43,7 +44,7 @@ class N2VManipulate(ImageOnlyTransform):
             self.struct_mask = None
         else:
             self.struct_mask = StructMaskParameters(
-                axis = 0 if struct_mask_axis == SupportedStructAxis.HORIZONTAL else 1, 
+                axis = 0 if struct_mask_axis == SupportedStructAxis.HORIZONTAL else 1,
                 span = struct_mask_span
             )
 

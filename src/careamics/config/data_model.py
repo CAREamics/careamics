@@ -9,14 +9,13 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 from careamics.utils import check_axes_validity
 
 from .support import SupportedTransform
-from .transformations.transform_model import TransformModel
-from .transformations.nd_flip_model import NDFlipModel
-from .transformations.xy_random_rotate90_model import XYRandomRotate90Model
-from .transformations.normalize_model import NormalizeModel
 from .transformations.n2v_manipulate_model import N2VManipulationModel
+from .transformations.nd_flip_model import NDFlipModel
+from .transformations.normalize_model import NormalizeModel
+from .transformations.transform_model import TransformModel
+from .transformations.xy_random_rotate90_model import XYRandomRotate90Model
 
-
-Transformations_Union = Union[
+TRANSFORMS_UNION = Union[
     NDFlipModel,
     XYRandomRotate90Model,
     NormalizeModel,
@@ -52,7 +51,7 @@ class DataModel(BaseModel):
     mean: Optional[float] = None
     std: Optional[float] = None
 
-    transforms: Union[List[Transformations_Union], Compose] = Field(
+    transforms: Union[List[TRANSFORMS_UNION], Compose] = Field(
         default=[
             {
                 "name": SupportedTransform.NDFLIP.value,
@@ -70,21 +69,8 @@ class DataModel(BaseModel):
         validate_default=True,
     )
 
-    prediction_transforms: Union[List[Transformations_Union], Compose] = Field(
-        default=[
-            {
-                "name": SupportedTransform.NORMALIZE.value,
-            },
-        ],
-        validate_default=True,
-    )
-
-    tta_transforms: Union[bool, Compose] = Field(default=True)
-
     # Dataloader configuration
     batch_size: int = Field(default=1, ge=1, validate_default=True)
-    num_workers: int = Field(default=0, ge=0, validate_default=True)
-    pin_memory: bool = Field(default=False, validate_default=True)
 
     @field_validator("patch_size")
     @classmethod
@@ -152,40 +138,6 @@ class DataModel(BaseModel):
         check_axes_validity(axes)
 
         return axes
-    
-    @field_validator("prediction_transforms")
-    @classmethod
-    def validate_prediction_transforms(
-        cls, 
-        prediction_transforms: Union[List[Transformations_Union], Compose]
-    ) -> Union[List[Transformations_Union], Compose]:
-        """Validate that tta transforms do not have N2V pixel manipulate transforms.
-
-        Parameters
-        ----------
-        tta_transforms : Union[List[TransformModel], Compose]
-            tta transforms.
-
-        Returns
-        -------
-        Union[List[Transformations_Union], Compose]
-            Validated tta transforms.
-
-        Raises
-        ------
-        ValueError
-            If tta transforms contain N2V pixel manipulate transforms.
-        """
-        if not isinstance(prediction_transforms, Compose):
-            for transform in prediction_transforms:
-                if transform.name == SupportedTransform.N2V_MANIPULATE.value:
-                    raise ValueError(
-                        "N2V pixel manipulate transforms are not allowed in "
-                        "tta transforms."
-                    )
-                
-        return prediction_transforms
-
 
     @model_validator(mode="after")
     def std_only_with_mean(cls, data_model: DataModel) -> DataModel:
@@ -244,12 +196,6 @@ class DataModel(BaseModel):
                     elif transform.name == SupportedTransform.XY_RANDOM_ROTATE90:
                         transform.parameters.is_3D = True
 
-            if data_model.has_tta_transform_list():
-                for transform in data_model.prediction_transforms:
-                    if transform.name == SupportedTransform.NDFLIP:
-                        transform.parameters.is_3D = True
-                    elif transform.name == SupportedTransform.XY_RANDOM_ROTATE90:
-                        transform.parameters.is_3D = True
         else:
             if data_model.has_transform_list():
                 for transform in data_model.transforms:
@@ -257,14 +203,6 @@ class DataModel(BaseModel):
                         transform.parameters.is_3D = False
                     elif transform.name == SupportedTransform.XY_RANDOM_ROTATE90:
                         transform.parameters.is_3D = False
-
-            if data_model.has_tta_transform_list():
-                for transform in data_model.prediction_transforms:
-                    if transform.name == SupportedTransform.NDFLIP:
-                        transform.parameters.is_3D = False
-                    elif transform.name == SupportedTransform.XY_RANDOM_ROTATE90:
-                        transform.parameters.is_3D = False
-
 
         return data_model
 
@@ -278,17 +216,6 @@ class DataModel(BaseModel):
             True if the transforms are a list, False otherwise.
         """
         return isinstance(self.transforms, list)
-
-    def has_tta_transform_list(self) -> bool:
-        """
-        Check if the tta transforms are a list, as opposed to a Compose object.
-
-        Returns
-        -------
-        bool
-            True if the transforms are a list, False otherwise.
-        """
-        return isinstance(self.prediction_transforms, list)
 
     def set_mean_and_std(self, mean: float, std: float) -> None:
         """
@@ -316,17 +243,5 @@ class DataModel(BaseModel):
         else:
             raise ValueError(
                 "Setting mean and std with Compose transforms is not allowed. Add "
-                "mean and std parameters directly to the transform in the Compose."
-            )
-
-        # search in the tta transforms for Normalize and update parameters
-        if not isinstance(self.prediction_transforms, Compose):
-            for transform in self.prediction_transforms:
-                if transform.name == SupportedTransform.NORMALIZE.value:
-                    transform.parameters.mean = mean
-                    transform.parameters.std = std
-        else:
-            raise ValueError(
-                "Setting mean and std with Compose tta transforms is not allowed. Add "
                 "mean and std parameters directly to the transform in the Compose."
             )

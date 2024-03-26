@@ -4,7 +4,7 @@ Pixel manipulation methods.
 Pixel manipulation is used in N2V and similar algorithm to replace the value of
 masked pixels.
 """
-from typing import List, Optional, Tuple
+from typing import Optional, Tuple
 
 import numpy as np
 
@@ -12,10 +12,8 @@ from .struct_mask_parameters import StructMaskParameters
 
 
 def _apply_struct_mask(
-        patch: np.ndarray, 
-        coords: np.ndarray, 
-        struct_params: StructMaskParameters
-    ):
+    patch: np.ndarray, coords: np.ndarray, struct_params: StructMaskParameters
+):
     """Applies structN2V masks to patch.
 
     Each point in `coords` corresponds to the center of a mask, masks are paremeterized
@@ -39,7 +37,7 @@ def _apply_struct_mask(
     # Create a mask array
     mask = np.expand_dims(
         np.ones(struct_params.span), axis=list(range(len(patch.shape) - 1))
-    ) # (1, 1, span) or (1, span)
+    )  # (1, 1, span) or (1, span)
 
     # Move the moving axis to the correct position
     # i.e. the axis along which the coordinates should change
@@ -58,7 +56,7 @@ def _apply_struct_mask(
 
     # delete entries that are out of bounds
     mix = np.delete(mix, mix[:, moving_axis] < 0, axis=0)
-    
+
     max_bound = patch.shape[moving_axis] - 1
     mix = np.delete(mix, mix[:, moving_axis] > max_bound, axis=0)
 
@@ -174,9 +172,7 @@ def _create_subpatch_center_mask(
 
 
 def _create_subpatch_struct_mask(
-    subpatch: np.ndarray, 
-    center_coords: np.ndarray, 
-    struct_params: StructMaskParameters
+    subpatch: np.ndarray, center_coords: np.ndarray, struct_params: StructMaskParameters
 ) -> np.ndarray:
     """Create a structN2V mask for the subpatch.
 
@@ -224,15 +220,13 @@ def uniform_manipulate(
     struct_params: Optional[StructMaskParameters] = None,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """
-    Manipulate pixels by replacing them with a neighbor values, unformly selected 
-    in a subpatch (vanilla N2V).
+    Manipulate pixels by replacing them with a neighbor values.
 
-    Manipulated pixels are selected randomly away from a grid with an approximate 
-    uniform probability to be selected across the whole patch.
-
-    If `struct_params` is not None, an additional structN2V mask is applied to the data,
-    replacing the pixels in the mask with random values (excluding the pixel already
-    manipulated).
+    Manipulated pixels are selected unformly selected in a subpatch, away from a grid
+    with an approximate uniform probability to be selected across the whole patch.
+    If `struct_params` is not None, an additional structN2V mask is applied to the
+    data, replacing the pixels in the mask with random values (excluding the pixel
+    already manipulated).
 
     Parameters
     ----------
@@ -302,11 +296,10 @@ def median_manipulate(
     struct_params: Optional[StructMaskParameters] = None,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """
-    Manipulate pixels by replacing them with the median of their surrounding subpatch
-    (N2V2).
+    Manipulate pixels by replacing them with the median of their surrounding subpatch.
 
-    Manipulated pixels are selected randomly away from a grid with an approximate 
-    uniform probability to be selected across the whole patch.
+    N2V2 version, manipulated pixels are selected randomly away from a grid with an
+    approximate uniform probability to be selected across the whole patch.
 
     If `struct_params` is not None, an additional structN2V mask is applied to the data,
     replacing the pixels in the mask with random values (excluding the pixel already

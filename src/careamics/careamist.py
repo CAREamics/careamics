@@ -1,9 +1,8 @@
 from pathlib import Path
-from typing import Dict, Literal, Optional, Union, overload
+from typing import Dict, Literal, Optional, Tuple, Union, overload
 
 import numpy as np
-from pytorch_lightning import Trainer, LightningModule
-from pytorch_lightning.core.mixins import HyperparametersMixin
+from pytorch_lightning import LightningModule, Trainer
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 from torch import load
 
@@ -14,7 +13,6 @@ from .lightning_module import CAREamicsKiln
 from .lightning_prediction import CAREamicsFiring
 from .ligthning_datamodule import CAREamicsClay, CAREamicsWood
 from .utils import check_path_exists
-
 
 # TODO callbacks
 # TODO save as modelzoo, lightning and pytorch_dict

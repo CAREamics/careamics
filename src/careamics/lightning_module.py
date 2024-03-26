@@ -1,7 +1,7 @@
 from typing import Any, Optional, Union
 
 import pytorch_lightning as L
-from torch import nn, Tensor
+from torch import Tensor, nn
 
 from careamics.config import AlgorithmModel
 from careamics.config.support import (

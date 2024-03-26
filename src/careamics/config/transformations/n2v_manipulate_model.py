@@ -4,8 +4,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class N2VManipulationParameters(BaseModel):
-    """Pydantic model used to validate N2V manipulation parameters.
-    """
+    """Pydantic model used to validate N2V manipulation parameters."""
 
     model_config = ConfigDict(
         validate_assignment=True,
@@ -28,8 +27,7 @@ class N2VManipulationParameters(BaseModel):
 
 
 class N2VManipulationModel(BaseModel):
-    """Pydantic model used to represent N2V manipulation.
-    """
+    """Pydantic model used to represent N2V manipulation."""
 
     model_config = ConfigDict(
         validate_assignment=True,

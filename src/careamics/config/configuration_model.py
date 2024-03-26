@@ -153,7 +153,7 @@ class Configuration(BaseModel):
                 if SupportedTransform.N2V_MANIPULATE not in transform_list:
                     self.data.transforms.append(
                         N2VManipulationModel(
-                            name=SupportedTransform.N2V_MANIPULATE.value,                            
+                            name=SupportedTransform.N2V_MANIPULATE.value,
                         )
                     )
 
@@ -177,7 +177,7 @@ class Configuration(BaseModel):
                         n2v_manipulate.parameters.strategy = "median"
                 else:
                     if n2v_manipulate.parameters.strategy != "uniform":
-                        n2v_manipulate.parameters.strategy = "uniform"        
+                        n2v_manipulate.parameters.strategy = "uniform"
 
         return self
 

@@ -4,6 +4,8 @@
 __all__ = [
     "AlgorithmModel",
     "DataModel",
+    "CheckpointModel"
+    "PredictionModel"
     "Configuration",
     "load_configuration",
     "save_configuration",
@@ -17,3 +19,4 @@ from .configuration_model import (
     save_configuration,
 )
 from .data_model import DataModel
+from .prediction_model import PredictionModel
