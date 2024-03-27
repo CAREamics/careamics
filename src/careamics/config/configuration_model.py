@@ -313,13 +313,15 @@ def save_configuration(config: Configuration, path: Union[str, Path]) -> Path:
     if config_path.exists():
         if config_path.is_dir():
             config_path = Path(config_path, "config.yml")
-        elif config_path.suffix != ".yml":
+        elif config_path.suffix != ".yml" and config_path.suffix != ".yaml":
             raise ValueError(
-                f"Path must be a directory or .yml file (got {config_path})."
+                f"Path must be a directory or .yml or .yaml file (got {config_path})."
             )
     else:
-        if config_path.suffix != ".yml":
-            raise ValueError(f"Path must be a .yml file (got {config_path}).")
+        if config_path.suffix != ".yml" and config_path.suffix != ".yaml":
+            raise ValueError(
+                f"Path must be a directory or .yml or .yaml file (got {config_path})."
+            )
 
     # save configuration as dictionary to yaml
     with open(config_path, "w") as f:

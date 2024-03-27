@@ -17,7 +17,6 @@ from .support import (
 
 def create_n2v_configuration(
     experiment_name: str,
-    working_directory: Union[str, Path],
     data_type: Literal["array", "tiff", "custom"],
     axes: str,
     patch_size: List[int],
@@ -50,8 +49,6 @@ def create_n2v_configuration(
     ----------
     experiment_name : str
         Name of the experiment.
-    working_directory : Union[str, Path]
-        Path to the working directory, where all checkpoints will be saved.
     data_type : Literal[&quot;array&quot;, &quot;tiff&quot;, &quot;custom&quot;]
         Type of the data.
     axes : str
@@ -154,7 +151,6 @@ def create_n2v_configuration(
     # create configuration
     configuration = Configuration(
         experiment_name=experiment_name,
-        working_directory=working_directory,
         algorithm=algorithm,
         data=data,
         training=training,

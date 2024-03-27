@@ -81,7 +81,6 @@ def minimum_training() -> dict:
     # create dictionary
     training = {
         "num_epochs": 666,
-        "batch_size": 42,
     }
 
     return training
@@ -89,7 +88,7 @@ def minimum_training() -> dict:
 
 @pytest.fixture
 def minimum_configuration(
-    tmp_path: Path, minimum_algorithm: dict, minimum_data: dict, minimum_training: dict
+    minimum_algorithm: dict, minimum_data: dict, minimum_training: dict
 ) -> dict:
     """Create a minimum configuration.
 
@@ -112,7 +111,6 @@ def minimum_configuration(
     # create dictionary
     configuration = {
         "experiment_name": "LevitatingFrog",
-        "working_directory": str(tmp_path),
         "algorithm": minimum_algorithm,
         "training": minimum_training,
         "data": minimum_data,
