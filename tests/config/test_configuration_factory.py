@@ -10,7 +10,6 @@ def test_n2v_configuration(tmp_path):
     """Test that N2V configuration can be created."""
     config = create_n2v_configuration(
         experiment_name="test",
-        working_directory=tmp_path,
         data_type="tiff",
         axes="YX",
         patch_size=[64, 64],
@@ -29,7 +28,6 @@ def test_n2v_3d_configuration(tmp_path):
     """Test that N2V configuration can be created in 3D."""
     config = create_n2v_configuration(
         experiment_name="test",
-        working_directory=tmp_path,
         data_type="tiff",
         axes="ZYX",
         patch_size=[64, 64, 64],
@@ -50,7 +48,6 @@ def test_n2v_3d_error(tmp_path):
     with pytest.raises(ValueError):
         create_n2v_configuration(
             experiment_name="test",
-            working_directory=tmp_path,
             data_type="tiff",
             axes="ZYX",
             patch_size=[64, 64],
@@ -61,7 +58,6 @@ def test_n2v_3d_error(tmp_path):
     with pytest.raises(ValueError):
         create_n2v_configuration(
             experiment_name="test",
-            working_directory=tmp_path,
             data_type="tiff",
             axes="YX",
             patch_size=[64, 64, 64],
@@ -75,7 +71,6 @@ def test_n2v_model_parameters(tmp_path):
     model_kwargs ones."""
     config = create_n2v_configuration(
         experiment_name="test",
-        working_directory=tmp_path,
         data_type="tiff",
         axes="YX",
         patch_size=[64, 64],
@@ -100,7 +95,6 @@ def test_n2v_no_aug(tmp_path):
     """Test that N2V configuration can be created without augmentation."""
     config = create_n2v_configuration(
         experiment_name="test",
-        working_directory=tmp_path,
         data_type="tiff",
         axes="YX",
         patch_size=[64, 64],
@@ -117,7 +111,6 @@ def test_n2v_augmentation_parameters(tmp_path):
     """Test that N2V configuration can be created with augmentation parameters."""
     config = create_n2v_configuration(
         experiment_name="test",
-        working_directory=tmp_path,
         data_type="tiff",
         axes="YX",
         patch_size=[64, 64],
@@ -134,7 +127,6 @@ def test_n2v2(tmp_path):
     """Test that N2V2 configuration can be created."""
     config = create_n2v_configuration(
         experiment_name="test",
-        working_directory=tmp_path,
         data_type="tiff",
         axes="YX",
         patch_size=[64, 64],
@@ -150,7 +142,6 @@ def test_structn2v(tmp_path):
     """Test that StructN2V configuration can be created."""
     config = create_n2v_configuration(
         experiment_name="test",
-        working_directory=tmp_path,
         data_type="tiff",
         axes="YX",
         patch_size=[64, 64],
