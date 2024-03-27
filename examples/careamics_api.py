@@ -35,7 +35,7 @@ def main():
     train_data = "examples/2D/data/n2v_sem/train/"
     val_data = "examples/2D/data/n2v_sem/val/"
 
-    careamist._train_on_path(train_data, val_data)
+    careamist.train_on_path(train_data, val_data)
 
     # pred = careamist.predict_on_path(val_data)
     # print(pred.shape)

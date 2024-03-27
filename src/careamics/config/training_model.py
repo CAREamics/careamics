@@ -62,7 +62,7 @@ class AMP(BaseModel):
         return scale
 
 
-class Training(BaseModel):
+class TrainingModel(BaseModel):
     """
     Parameters related to the training.
 
@@ -98,13 +98,12 @@ class Training(BaseModel):
     )
 
     # Mandatory fields
-    num_epochs: int = Field(..., ge=1)
-    batch_size: int = Field(..., ge=1)
+    num_epochs: int = Field(default=20, ge=1)
 
     # Optional fields
-    use_wandb: bool = False
+    # use_wandb: bool = False
     checkpoint_callback: CheckpointModel = CheckpointModel()
     early_stopping_callback: Optional[EarlyStoppingModel] = Field(
         default=None, validate_default=True
     )
-    amp: AMP = AMP()
+    # amp: AMP = AMP()

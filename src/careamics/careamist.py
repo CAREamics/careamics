@@ -1,18 +1,27 @@
 from pathlib import Path
-from typing import Dict, Literal, Optional, Tuple, Union, overload
+from typing import Dict, Literal, List, Optional, Tuple, Union, overload
 
 import numpy as np
 from pytorch_lightning import LightningModule, Trainer
-from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
+from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint, Callback
 from torch import load
 
 from .bioimage.io import save_bioimage_model
-from .config import AlgorithmModel, Configuration, load_configuration
+from .config import (
+    AlgorithmModel, 
+    Configuration, 
+    DataModel, 
+    load_configuration, 
+    TrainingModel,
+    PredictionModel
+)
 from .config.support import SupportedAlgorithm
 from .lightning_module import CAREamicsKiln
 from .lightning_prediction import CAREamicsFiring
 from .ligthning_datamodule import CAREamicsClay, CAREamicsWood
-from .utils import check_path_exists
+from .utils import check_path_exists, get_logger
+
+logger = get_logger(__name__)
 
 # TODO callbacks
 # TODO save as modelzoo, lightning and pytorch_dict
@@ -59,56 +68,162 @@ class CAREamist(LightningModule):
 
     @overload
     def __init__(
-        self, source: Union[Path, str], work_dir: Optional[str] = None
+        self, 
+        source: Union[Path, str], 
+        work_dir: Optional[str] = None, 
+        experiment_name: str = "CAREamics"
     ) -> None:
+        """Initialize CAREamist with a path to a configuration or a trained model.
+
+        Model can be either a checkpoint (saved during training by CAREamics) or a
+        model exported to the BioImage Model Zoo format.
+
+        If no working directory is provided, the current working directory is used.
+
+        Parameters
+        ----------
+        source : Union[Path, str]
+            Path to a configuration file or a trained model.
+        work_dir : Optional[str], optional
+            Directory in which to save checkpoints and logs, by default None
+        experiment_name : str, optional
+            Name of the experiment, used with checkpoints, by default "CAREamics"
+        """
         ...
 
     @overload
     def __init__(self, source: Configuration, work_dir: Optional[str] = None) -> None:
+        """Initialize CAREamist with a Configuration object.
+
+        A configuration object can be created using directly by calling `Configuration`,
+        using the configuration factory or loading a configuration from a yaml file.
+
+        If no working directory is provided, the current working directory is used.
+
+        Parameters
+        ----------
+        source : Configuration
+            Configuration object.
+        work_dir : Optional[str], optional
+            Directory in which to save checkpoints and logs, by default None.
+        """
         ...
 
     def __init__(
-        self, source: Union[Path, str], work_dir: Optional[str] = None
+        self, 
+        source: Union[Path, str, Configuration], 
+        work_dir: Optional[str] = None,
+        experiment_name: str = "CAREamics"
     ) -> None:
+        """Initialize CAREamist with a path to a configuration or a trained model.
+
+        A configuration object can be created using directly by calling `Configuration`,
+        using the configuration factory or loading a configuration from a yaml file.
+
+        Model can be either a checkpoint (saved during training by CAREamics) or a
+        model exported to the BioImage Model Zoo format.
+
+        If no working directory is provided, the current working directory is used.
+
+        If `source` is a checkpoint, then `experiment_name` is used to name the
+        checkpoint, and is recorded in the configuration.
+
+        Parameters
+        ----------
+        source : Union[Path, str, Configuration]
+            Path to a configuration file or a trained model.
+        work_dir : Optional[str], optional
+            Path to working directory in which to save checkpoints and logs, 
+            by default None
+        experiment_name : str, optional
+            Experiment name used for checkpoints, by default "CAREamics"
+
+        Raises
+        ------
+        NotImplementedError
+            _description_
+        ValueError
+            _description_
+        ValueError
+            _description_
+        """
         super().__init__()
-        self.work_dir = work_dir
+
+        # select current working directory if work_dir is None
+        if work_dir is None:
+            self.work_dir = Path.cwd()
+            logger.warning(
+                f"No working directory provided. Using current working directory: "
+                f"{self.work_dir}."
+            )
+        else:
+            self.work_dir = work_dir
+
+        # configuration object
         if isinstance(source, Configuration):
             self.cfg = source
+
+            # instantiate model
             self.model = CAREamicsKiln(self.cfg.algorithm)
 
+        # path to configuration file or model
         else:
             source = check_path_exists(source)
+
+            # configuration file
             if source.is_file() and (
                 source.suffix == ".yaml" or source.suffix == ".yml"
             ):
                 # load configuration
                 self.cfg = load_configuration(source)
+
+                # save configuration in the working directory
+                # TODO should be in train
                 self.save_hyperparameters(self.cfg.model_dump())
+
+                # instantiate model
                 self.model = CAREamicsKiln(self.cfg.algorithm)
 
+            # bmz model
             elif source.suffix == ".zip":
                 raise NotImplementedError(
                     "Loading a model from BioImage Model Zoo is not implemented yet."
                 )
+            
+            # checkpoint
             elif source.suffix == ".ckpt":
                 checkpoint = load(source)
 
-                self.cfg = Configuration()
+                # attempt to load algorithm parameters
                 try:
-                    self.model_params = checkpoint["hyper_parameters"]
+                    self.algo_params = checkpoint["hyper_parameters"]
                 except KeyError as e:
                     raise ValueError(
-                        "Invalid checkpoint file. No hyper_parameters found."
+                        "Invalid checkpoint file. No `hyper_parameters` found for the "
+                        "algorithm."
                     ) from e
 
+                # attempt to load data model parameters
                 try:
                     self.data_params = checkpoint["datamodule_hyper_parameters"]
                 except KeyError as e:
                     raise ValueError(
-                        "Invalid checkpoint file. No datamodule_hyper_parameters found."
-                    ) from e  # TODO should this be a warning?
+                        "Invalid checkpoint file. No `datamodule_hyper_parameters` "
+                        "found for the data."
+                    ) from e
 
-                self.cfg.algorithm = AlgorithmModel(**self.model_params)
+                # create configuration
+                algorithm = AlgorithmModel(**self.algo_params)
+                data = DataModel(**self.data_params)
+                training = TrainingModel()
+                self.cfg = Configuration(
+                    experiment_name=experiment_name,
+                    algorithm=algorithm, 
+                    data=data, 
+                    training=training
+                )
+            
+                # load weights    
                 self.load_pretrained(checkpoint)
 
         # define the checkpoint saving callback
@@ -121,22 +236,32 @@ class CAREamist(LightningModule):
             default_root_dir=self.work_dir,
         )
 
-        # change the prediction loop
+        # change the prediction loop, necessary for tiled prediction
         self.trainer.predict_loop = CAREamicsFiring(self.trainer)
 
-    def _define_callbacks(self) -> list:
-        self.callbacks = []
-        self.callbacks.append(
+    def _define_callbacks(self) -> List[Callback]:
+        """Define the callbacks for the training loop.
+
+        Returns
+        -------
+        List[Callback]
+            List of callbacks to be used during training.
+        """
+        # checkpoint callback saves checkpoints during training
+        self.callbacks = [
             ModelCheckpoint(
-                dirpath=self.work_dir / Path("checkpoints") if self.work_dir else None,
+                dirpath=self.work_dir / Path("checkpoints"),
                 filename=self.cfg.experiment_name,
                 **self.cfg.training.checkpoint_callback.model_dump(),
             )
-        )
+        ]
+
+        # early stopping callback
         if self.cfg.training.early_stopping_callback is not None:
             self.callbacks.append(
                 EarlyStopping(self.cfg.training.early_stopping_callback)
             )
+
         return self.callbacks
 
     def train(self, *args, **kwargs) -> None:
@@ -150,34 +275,34 @@ class CAREamist(LightningModule):
             except KeyError:
                 print("An instance of CAREamicsWood must be provided.")
 
-            self._train_on_datamodule(datamodule=datamodule)
+            self.train_on_datamodule(datamodule=datamodule)
 
         elif all(isinstance(p, Path) for p in kwargs.values()):
-            self._train_on_path(*args, **kwargs)
+            self.train_on_path(*args, **kwargs)
 
         elif all(isinstance(p, str) for p in kwargs.values()):
             self._train_on_str(*args, **kwargs)
 
         elif all(isinstance(p, np.ndarray) for p in kwargs.values()):
-            self._train_on_array(*args, **kwargs)
+            self.train_on_array(*args, **kwargs)
 
         else:
             raise ValueError(
                 "Invalid input. Expected a CAREamicsWood instance, paths or np.ndarray."
             )
 
-    def _train_on_datamodule(
+    def train_on_datamodule(
         self,
         datamodule: CAREamicsWood,
     ) -> None:
         self.trainer.fit(self.model, datamodule=datamodule)
 
-    def _train_on_path(
+    def train_on_path(
         self,
-        path_to_train_data: Path,  # cannot use Union annotation for the dispatch
-        path_to_val_data: Optional[Path] = None,
-        path_to_train_target: Optional[Path] = None,
-        path_to_val_target: Optional[Path] = None,
+        path_to_train_data: Union[Path, str], 
+        path_to_val_data: Optional[Union[Path, str]] = None,
+        path_to_train_target: Optional[Union[Path, str]] = None,
+        path_to_val_target: Optional[Union[Path, str]] = None,
         use_in_memory: bool = True,
     ) -> None:
         # sanity check on data (path exists)
@@ -214,23 +339,7 @@ class CAREamist(LightningModule):
         # train
         self.train(datamodule=datamodule)
 
-    def _train_on_str(
-        self,
-        path_to_train_data: str,
-        path_to_val_data: Optional[str] = None,
-        path_to_train_target: Optional[str] = None,
-        path_to_val_target: Optional[str] = None,
-        use_in_memory: bool = True,
-    ) -> None:
-        self._train_on_path(
-            Path(path_to_train_data),
-            Path(path_to_val_data) if path_to_val_data is not None else None,
-            Path(path_to_train_target) if path_to_train_target is not None else None,
-            Path(path_to_val_target) if path_to_val_target is not None else None,
-            use_in_memory=use_in_memory,
-        )
-
-    def _train_on_array(
+    def train_on_array(
         self,
         train_data: np.ndarray,
         val_data: Optional[np.ndarray] = None,
@@ -260,7 +369,10 @@ class CAREamist(LightningModule):
         self.train(datamodule=datamodule)
 
     @overload
-    def predict(self, source: CAREamicsClay, config) -> Union[list, np.ndarray]:
+    def predict(self, 
+                source: CAREamicsClay, 
+                prediction_config: PredictionModel
+    ) -> Union[list, np.ndarray]:
         ...
 
     @overload

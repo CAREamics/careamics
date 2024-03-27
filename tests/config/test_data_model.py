@@ -1,12 +1,14 @@
 import pytest
-from albumentations import Compose, PixelDropout
+from albumentations import Compose
 
 from careamics.config.data_model import DataModel
 from careamics.config.transformations.xy_random_rotate90_model import (
     XYRandomRotate90Model
 )
 from careamics.config.transformations.transform_model import TransformModel
-from careamics.config.support import SupportedTransform
+from careamics.config.support import (
+    SupportedTransform, SupportedStructAxis, SupportedPixelManipulation
+)
 from careamics.transforms import get_all_transforms
 
 
@@ -36,34 +38,50 @@ def test_mean_std_both_specified_or_none(minimum_data: dict):
     # No error if both are None
     DataModel(**minimum_data)
 
-    # No error if mean is defined
+    # Error if only mean is defined
     minimum_data["mean"] = 10.4
-    DataModel(**minimum_data)
+    with pytest.raises(ValueError):
+        DataModel(**minimum_data)
 
     # Error if only std is defined
     minimum_data.pop("mean")
     minimum_data["std"] = 10.4
-
     with pytest.raises(ValueError):
         DataModel(**minimum_data)
+
+    # No error if both are specified
+    minimum_data["mean"] = 10.4
+    minimum_data["std"] = 10.4
+    DataModel(**minimum_data)
 
 
 def test_set_mean_and_std(minimum_data: dict):
     """Test that mean and std can be set after initialization."""
-    # they can be set both, when they are already set
+    # they can be set both, when they None
+    mean = 4.07
+    std = 14.07
     data = DataModel(**minimum_data)
-    data.set_mean_and_std(4.07, 14.07)
+    data.set_mean_and_std(mean, std)
+    assert data.mean == mean
+    assert data.std == std
 
-    # and if they are both None
+    # and if they are already set
     minimum_data["mean"] = 10.4
     minimum_data["std"] = 3.2
     data = DataModel(**minimum_data)
-    data.set_mean_and_std(10.4, 0.5)
+    data.set_mean_and_std(mean, std)
+    assert data.mean == mean
+    assert data.std == std
 
 
 def test_patch_size(minimum_data: dict):
     """Test that non-zero even patch size are accepted."""
+    # 2D
+    data_model = DataModel(**minimum_data)
+
+    # 3D
     minimum_data["patch_size"] = [12, 12, 12]
+    minimum_data["axes"] = "ZYX"
 
     data_model = DataModel(**minimum_data)
     assert data_model.patch_size == [12, 12, 12]
@@ -74,10 +92,33 @@ def test_patch_size(minimum_data: dict):
 )
 def test_wrong_patch_size(minimum_data: dict, patch_size):
     """Test that wrong patch sizes are not accepted (zero or odd, dims 1 or > 3)."""
+    minimum_data["axes"] = "ZYX" if len(patch_size) == 3 else "YX"
     minimum_data["patch_size"] = patch_size
 
     with pytest.raises(ValueError):
         DataModel(**minimum_data)
+
+
+def test_set_3d(minimum_data: dict):
+    """Test that 3D can be set."""
+    data = DataModel(**minimum_data)
+    assert "Z" not in data.axes
+    assert len(data.patch_size) == 2
+
+    # error if changing Z manually
+    with pytest.raises(ValueError):
+        data.axes = "ZYX"
+
+    # or patch size
+    data = DataModel(**minimum_data)
+    with pytest.raises(ValueError):
+        data.patch_size = [64, 64, 64]
+
+    # set 3D
+    data = DataModel(**minimum_data)
+    data.set_3D("ZYX", [64, 64, 64])
+    assert "Z" in data.axes
+    assert len(data.patch_size) == 3
 
 
 @pytest.mark.parametrize("transforms",
@@ -103,8 +144,46 @@ def test_passing_supported_transforms(minimum_data: dict, transforms):
     DataModel(**minimum_data)
 
 
+@pytest.mark.parametrize("transforms",
+    [
+        [
+            {"name": SupportedTransform.N2V_MANIPULATE.value},
+            {"name": SupportedTransform.NDFLIP.value},
+        ],
+        [
+            {"name": SupportedTransform.N2V_MANIPULATE.value},
+        ],
+        [
+            {"name": SupportedTransform.NORMALIZE.value},
+            {"name": SupportedTransform.NDFLIP.value},
+            {"name": SupportedTransform.N2V_MANIPULATE.value},
+            {"name": SupportedTransform.XY_RANDOM_ROTATE90.value},
+        ],
+    ]
+)
+def test_n2vmanipulate_last_transform(minimum_data: dict, transforms):
+    """Test that N2V Manipulate is moved to the last position if it is not."""
+    minimum_data["transforms"] = transforms
+    model = DataModel(**minimum_data)
+    assert model.transforms[-1].name == SupportedTransform.N2V_MANIPULATE.value
+
+
+def test_multiple_n2v_manipulate(minimum_data: dict):
+    """Test that passing multiple n2v manipulate raises an error."""
+    minimum_data["transforms"] = [
+        {"name": SupportedTransform.N2V_MANIPULATE.value},
+        {"name": SupportedTransform.N2V_MANIPULATE.value},
+    ]
+    with pytest.raises(ValueError):
+        DataModel(**minimum_data)
+
+
 def test_correct_transform_parameters(minimum_data: dict):
-    """Test that the transforms have the correct parameters."""
+    """Test that the transforms have the correct parameters.
+    
+    This is important to know that the transforms are not all instantiated as
+    a generic transform.
+    """
     minimum_data["transforms"] = [
         {"name": SupportedTransform.NORMALIZE.value},
         {"name": SupportedTransform.NDFLIP.value},
@@ -211,6 +290,64 @@ def test_3D_and_transforms(minimum_data: dict):
     assert data.transforms[1].parameters.is_3D is False
 
     # change to 3D
-    data.axes = "ZYX"
+    data.set_3D("ZYX", [64, 64, 64])
     data.transforms[0].parameters.is_3D = True
     data.transforms[1].parameters.is_3D = True
+
+
+def test_set_n2v_strategy(minimum_data: dict):
+    """Test that the N2V strategy can be set."""
+    uniform = SupportedPixelManipulation.UNIFORM.value
+    median = SupportedPixelManipulation.MEDIAN.value
+
+    data = DataModel(**minimum_data)
+    assert data.transforms[-1].name == SupportedTransform.N2V_MANIPULATE.value
+    assert data.transforms[-1].parameters.strategy == uniform
+
+    data.set_N2V2_strategy(median)
+    assert data.transforms[-1].parameters.strategy == median
+
+    data.set_N2V2_strategy(uniform)
+    assert data.transforms[-1].parameters.strategy == uniform
+
+
+def test_set_n2v_strategy_wrong_value(minimum_data: dict):
+    """Test that passing a wrong strategy raises an error."""
+    data = DataModel(**minimum_data)
+    with pytest.raises(ValueError):
+        data.set_N2V2_strategy("wrong_value")
+
+
+def test_set_struct_mask(minimum_data: dict):
+    """Test that the struct mask can be set."""
+    none = SupportedStructAxis.NONE.value
+    vertical = SupportedStructAxis.VERTICAL.value
+    horizontal = SupportedStructAxis.HORIZONTAL.value
+
+    data = DataModel(**minimum_data)
+    assert data.transforms[-1].name == SupportedTransform.N2V_MANIPULATE.value
+    assert data.transforms[-1].parameters.struct_mask_axis == none
+    assert data.transforms[-1].parameters.struct_mask_span == 5
+
+    data.set_structN2V_mask(vertical, 3)
+    assert data.transforms[-1].parameters.struct_mask_axis == vertical
+    assert data.transforms[-1].parameters.struct_mask_span == 3
+
+    data.set_structN2V_mask(horizontal, 7)
+    assert data.transforms[-1].parameters.struct_mask_axis == horizontal
+    assert data.transforms[-1].parameters.struct_mask_span == 7
+
+    data.set_structN2V_mask(none, 11)
+    assert data.transforms[-1].parameters.struct_mask_axis == none
+    assert data.transforms[-1].parameters.struct_mask_span == 11
+
+
+def test_set_struct_mask_wrong_value(minimum_data: dict):
+    """Test that passing a wrong struct mask axis raises an error."""
+    data = DataModel(**minimum_data)
+    with pytest.raises(ValueError):
+        data.set_structN2V_mask("wrong_value", 3)
+
+    with pytest.raises(ValueError):
+        data.set_structN2V_mask(SupportedStructAxis.VERTICAL.value, 1)
+    

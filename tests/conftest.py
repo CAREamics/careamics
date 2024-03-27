@@ -14,7 +14,7 @@ from careamics.config.algorithm_model import (
 )
 from careamics.config.data_model import DataModel
 from careamics.config.support import SupportedData
-from careamics.config.training_model import Training
+from careamics.config.training_model import TrainingModel
 
 
 # TODO add details about where each of these fixture is used (e.g. smoke test)
@@ -81,7 +81,6 @@ def minimum_training() -> dict:
     # create dictionary
     training = {
         "num_epochs": 666,
-        "batch_size": 42,
     }
 
     return training
@@ -89,7 +88,7 @@ def minimum_training() -> dict:
 
 @pytest.fixture
 def minimum_configuration(
-    tmp_path: Path, minimum_algorithm: dict, minimum_data: dict, minimum_training: dict
+    minimum_algorithm: dict, minimum_data: dict, minimum_training: dict
 ) -> dict:
     """Create a minimum configuration.
 
@@ -112,7 +111,6 @@ def minimum_configuration(
     # create dictionary
     configuration = {
         "experiment_name": "LevitatingFrog",
-        "working_directory": str(tmp_path),
         "algorithm": minimum_algorithm,
         "training": minimum_training,
         "data": minimum_data,
@@ -225,7 +223,7 @@ def base_configuration(temp_dir: Path, patch_size) -> Configuration:
             extension="tif",
             axes="YX",
         ),
-        training=Training(
+        training=TrainingModel(
             num_epochs=1,
             patch_size=patch_size,
             batch_size=2,
@@ -257,7 +255,7 @@ def supervised_configuration(temp_dir: Path, patch_size) -> Configuration:
             extension="tif",
             axes="YX",
         ),
-        training=Training(
+        training=TrainingModel(
             num_epochs=1,
             patch_size=patch_size,
             batch_size=2,

@@ -7,7 +7,9 @@ from careamics.config import (
     load_configuration,
     save_configuration,
 )
-from careamics.config.support import SupportedTransform
+from careamics.config.support import (
+    SupportedTransform, SupportedPixelManipulation, SupportedAlgorithm
+)
 
 
 @pytest.mark.parametrize("name", ["Sn4K3", "C4_M e-L"])
@@ -22,37 +24,6 @@ def test_valid_names(minimum_configuration: dict, name: str):
 def test_invalid_names(minimum_configuration: dict, name: str):
     """Test that invalid names raise an error."""
     minimum_configuration["experiment_name"] = name
-    with pytest.raises(ValueError):
-        Configuration(**minimum_configuration)
-
-
-@pytest.mark.parametrize("path", ["", "tmp"])
-def test_valid_working_directory(
-    tmp_path: Path, minimum_configuration: dict, path: str
-):
-    """Test valid working directory.
-
-    A valid working directory exists or its direct parent exists.
-    """
-    path = tmp_path / path
-    minimum_configuration["working_directory"] = str(path)
-    myconf = Configuration(**minimum_configuration)
-    assert myconf.working_directory == path
-
-
-def test_invalid_working_directory(tmp_path: Path, minimum_configuration: dict):
-    """Test that invalid working directory raise an error.
-
-    Since its parent does not exist, this case is invalid.
-    """
-    path = tmp_path / "tmp" / "tmp"
-    minimum_configuration["working_directory"] = str(path)
-    with pytest.raises(ValueError):
-        Configuration(**minimum_configuration)
-
-    path = tmp_path / "tmp.txt"
-    path.touch()
-    minimum_configuration["working_directory"] = str(path)
     with pytest.raises(ValueError):
         Configuration(**minimum_configuration)
 
@@ -78,21 +49,21 @@ def test_set_3D(minimum_configuration: dict):
     conf = Configuration(**minimum_configuration)
 
     # set to 3D
-    conf.set_3D(True, "ZYX")
+    conf.set_3D(True, "ZYX", [64, 64, 64])
 
     # set to 2D
-    conf.set_3D(False, "SYX")
+    conf.set_3D(False, "SYX", [64, 64])
 
-    # fails if they are not compatible
+    # fails if 3D and axes are not compatible
     with pytest.raises(ValueError):
-        conf.set_3D(True, "SYX")
+        conf.set_3D(True, "SYX", [64, 64])
 
     with pytest.raises(ValueError):
-        conf.set_3D(False, "ZYX")
+        conf.set_3D(False, "ZYX", [64, 64, 64])
 
 
-def test_algorithm_and_data_compatibility(minimum_configuration: dict):
-    """Test that the default data transforms are comaptible with n2v."""
+def test_algorithm_and_data_default_transforms(minimum_configuration: dict):
+    """Test that the default data transforms are compatible with n2v."""
     minimum_configuration["algorithm"] = {
         "algorithm": "n2v",
         "loss": "n2v",
@@ -105,10 +76,10 @@ def test_algorithm_and_data_compatibility(minimum_configuration: dict):
 
 @pytest.mark.parametrize("algorithm, strategy", 
     [
-        ("n2v", "uniform"),
-        ("n2v", "median"),
-        ("n2v2", "uniform"),
-        ("n2v2", "median"),
+        ("n2v", SupportedPixelManipulation.UNIFORM.value),
+        ("n2v", SupportedPixelManipulation.MEDIAN.value),
+        ("n2v2", SupportedPixelManipulation.UNIFORM.value),
+        ("n2v2", SupportedPixelManipulation.MEDIAN.value),
     ]
 )
 def test_n2v2_and_transforms(minimum_configuration: dict, algorithm, strategy):
@@ -124,7 +95,8 @@ def test_n2v2_and_transforms(minimum_configuration: dict, algorithm, strategy):
         },
     }
 
-    expected_strategy = "median" if use_n2v2 else "uniform"
+    expected_strategy = SupportedPixelManipulation.MEDIAN.value \
+          if use_n2v2 else SupportedPixelManipulation.UNIFORM.value
 
     # missing ManipulateN2V
     minimum_configuration["data"]["transforms"] = [
@@ -148,47 +120,28 @@ def test_n2v2_and_transforms(minimum_configuration: dict, algorithm, strategy):
     assert config.data.transforms[-1].parameters.strategy == expected_strategy
 
 
-def test_algorithm_and_data_incompatibility(minimum_configuration: dict):
-    """Test that errors are corrected if the data transforms are incompatible with
-    n2v."""
-    minimum_configuration["algorithm"] = {
-        "algorithm": "n2v",
-        "loss": "n2v",
-        "model": {
-            "architecture": "UNet",
-        },
-    }
+def test_setting_n2v2(minimum_configuration: dict):
+    # make sure we use n2v
+    minimum_configuration["algorithm"]["algorithm"] = SupportedAlgorithm.N2V.value
 
-    # missing ManipulateN2V
-    minimum_configuration["data"]["transforms"] = [
-        {"name": SupportedTransform.NDFLIP.value}
-    ]
+    # test config
     config = Configuration(**minimum_configuration)
-    assert len(config.data.transforms) == 2
-    assert config.data.transforms[-1].name == SupportedTransform.N2V_MANIPULATE.value
-
-    # ManipulateN2V not the last transform
-    minimum_configuration["data"]["transforms"] = [
-        {
-            "name": SupportedTransform.N2V_MANIPULATE.value,
-            "parameters": {
-                "roi_size": 15,
-            },
-        },
-        {"name": SupportedTransform.NDFLIP.value},
-    ]
-    config = Configuration(**minimum_configuration)
-    assert len(config.data.transforms) == 2
-    assert config.data.transforms[-1].name == SupportedTransform.N2V_MANIPULATE
-    assert config.data.transforms[-1].parameters.roi_size == 15
-
-    # multiple ManipulateN2V raises an error
-    minimum_configuration["data"]["transforms"] = [
-        {"name": SupportedTransform.N2V_MANIPULATE.value},
-        {"name": SupportedTransform.N2V_MANIPULATE.value},
-    ]
-    with pytest.raises(ValueError):
-        Configuration(**minimum_configuration)
+    assert config.algorithm.algorithm == SupportedAlgorithm.N2V.value
+    assert not config.algorithm.model.n2v2
+    assert config.data.transforms[-1].parameters.strategy == \
+        SupportedPixelManipulation.UNIFORM.value
+    
+    # set N2V2
+    config.set_N2V2(True)
+    assert config.algorithm.model.n2v2
+    assert config.data.transforms[-1].parameters.strategy == \
+        SupportedPixelManipulation.MEDIAN.value
+    
+    # set back to N2V
+    config.set_N2V2(False)
+    assert not config.algorithm.model.n2v2
+    assert config.data.transforms[-1].parameters.strategy == \
+        SupportedPixelManipulation.UNIFORM.value
 
 
 def test_config_to_yaml(tmp_path: Path, minimum_configuration: dict):

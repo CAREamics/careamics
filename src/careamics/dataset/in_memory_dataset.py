@@ -9,7 +9,6 @@ import numpy as np
 from torch.utils.data import Dataset
 
 from ..config.data_model import DataModel
-from ..utils import normalize
 from ..utils.logging import get_logger
 from .dataset_utils import read_tiff
 from .patching.patch_transform import get_patch_transform

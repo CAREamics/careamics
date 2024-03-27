@@ -15,7 +15,10 @@ TRANSFORMS_UNION = Union[NormalizeModel, TransformModel]
 class PredictionModel(BaseModel):
     """Configuration class for the prediction model."""
 
-    model_config = ConfigDict(validate_assignment=True, arbitrary_types_allowed=True)
+    model_config = ConfigDict(
+        validate_assignment=True, 
+        arbitrary_types_allowed=True
+    )
 
     # Mandatory fields
     data_type: Literal["array", "tiff", "custom"]
