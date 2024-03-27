@@ -12,7 +12,7 @@ from .transformations.transform_model import TransformModel
 TRANSFORMS_UNION = Union[NormalizeModel, TransformModel]
 
 
-class PredictionModel(BaseModel):
+class InferenceConfiguration(BaseModel):
     """Configuration class for the prediction model."""
 
     model_config = ConfigDict(
@@ -26,6 +26,7 @@ class PredictionModel(BaseModel):
     axes: str
 
     # Optional fields
+    tile_overlap: Optional[List[int]] = Field(default=[48, 48])
     mean: Optional[float] = (None,)
     std: Optional[float] = (None,)
 

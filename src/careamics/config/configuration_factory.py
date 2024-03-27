@@ -1,21 +1,21 @@
-from pathlib import Path
-from typing import Literal, List, Union
+from typing import List, Literal, Optional
 
-from .configuration_model import Configuration
 from .algorithm_model import AlgorithmModel
-from .training_model import TrainingModel
-from .data_model import DataModel
 from .architectures import UNetModel
+from .configuration_model import Configuration
+from .data_model import DataModel
+from .prediction_model import InferenceConfiguration
 from .support import (
     SupportedAlgorithm,
-    SupportedLoss,
     SupportedArchitecture,
+    SupportedLoss,
     SupportedPixelManipulation,
-    SupportedTransform
+    SupportedTransform,
 )
+from .training_model import TrainingModel
 
 
-def create_n2v_configuration(
+def create_n2v_training_configuration(
     experiment_name: str,
     data_type: Literal["array", "tiff", "custom"],
     axes: str,
@@ -98,7 +98,7 @@ def create_n2v_configuration(
         loss=SupportedLoss.N2V.value,
         model=unet_model,
     )
-    
+
     # augmentations
     if use_augmentations:
         transforms = [
@@ -132,7 +132,7 @@ def create_n2v_configuration(
         }
     }
     transforms.append(nv2_transform)
-    
+
     # data model
     data = DataModel(
         data_type=data_type,
@@ -157,3 +157,65 @@ def create_n2v_configuration(
     )
 
     return configuration
+
+
+def create_n2v_inference_configuration(
+    training_configuration: Configuration,
+    tile_size: List[int],
+    tile_overlap: Optional[List[int]] = None,
+    data_type: Optional[Literal["array", "tiff", "custom"]] = None,
+    axes: Optional[str] = None,
+    batch_size: Optional[int] = 1,
+    extension_filter: Optional[str] = "",
+) -> InferenceConfiguration:
+    """Create a configuration for inference with N2V.
+
+    By default all parameters, except `tile_size`, `tile_overlap`, and
+    `extension_filter`, are taken from the training configuration.
+
+    Parameters
+    ----------
+    training_configuration : Configuration
+        Configuration used for training.
+    data_type : str, optional
+        Type of the data, by default "tiff".
+    axes : str, optional
+        Axes of the data, by default "YX".
+    tile_size : List[int], optional
+        Size of the tiles.
+    tile_overlap : List[int], optional
+        Overlap of the tiles.
+    batch_size : int, optional
+        Batch size, by default 1.
+    extension_filter : str, optional
+        Filter for the extensions, by default "".
+
+    Returns
+    -------
+    InferenceConfiguration
+        Configuration for inference with N2V.
+    """
+    if data_type is None:
+        try:
+            data_type = training_configuration.data.data_type
+        except AttributeError as e:
+            raise ValueError("data_type must be provided.") from e
+
+    if axes is None:
+        try:
+            axes = training_configuration.data.axes
+        except AttributeError as e:
+            raise ValueError("axes must be provided.") from e
+
+
+    return InferenceConfiguration(
+        data_type=data_type,
+        tile_size=tile_size,
+        tile_overlap=tile_overlap,
+        axes=axes,
+        batch_size=batch_size,
+        extension_filter=extension_filter,
+    )
+
+
+

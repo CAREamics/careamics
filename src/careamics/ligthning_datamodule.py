@@ -6,7 +6,7 @@ import pytorch_lightning as L
 from albumentations import Compose
 from torch.utils.data import DataLoader
 
-from careamics.config import DataModel, PredictionModel
+from careamics.config import DataModel, InferenceConfiguration
 from careamics.config.support import SupportedData, SupportedTransform
 from careamics.dataset.dataset_utils import (
     get_files_size,
@@ -30,6 +30,7 @@ PredictDatasetType = Union[InMemoryPredictionDataset, IterablePredictionDataset]
 
 logger = get_logger(__name__)
 
+
 class CAREamicsWood(L.LightningDataModule):
     def __init__(
         self,
@@ -44,7 +45,7 @@ class CAREamicsWood(L.LightningDataModule):
         val_minimum_split: int = 5,
         use_in_memory: bool = True,
         num_workers: int = 0,
-        #dataloader_params: Optional[Dict[str, Any]] = None,
+        # dataloader_params: Optional[Dict[str, Any]] = None,
     ) -> None:
         """LightningDataModule for CAREamics training, including training and validation
         datasets.
@@ -184,10 +185,12 @@ class CAREamicsWood(L.LightningDataModule):
         Here, we only need to examine the data if it was provided as a str or a Path.
         """
         # if the data is a Path or a str
-        if not isinstance(self.train_data, np.ndarray) and \
-            not isinstance(self.val_data, np.ndarray) and \
-                not isinstance(self.train_data_target, np.ndarray) and \
-                    not isinstance(self.val_data_target, np.ndarray):
+        if (
+            not isinstance(self.train_data, np.ndarray)
+            and not isinstance(self.val_data, np.ndarray)
+            and not isinstance(self.train_data_target, np.ndarray)
+            and not isinstance(self.val_data_target, np.ndarray)
+        ):
             # list training files
             self.train_files = list_files(
                 self.train_data, self.data_type, self.extension_filter
@@ -333,7 +336,7 @@ class CAREamicsWood(L.LightningDataModule):
 class CAREamicsClay(L.LightningDataModule):
     def __init__(
         self,
-        data_config: DataModel,
+        prediction_config: InferenceConfiguration,
         pred_data: Union[Path, str, np.ndarray],
         tile_size: Union[List[int], Tuple[int, ...]],
         tile_overlap: Union[List[int], Tuple[int, ...]],
@@ -344,14 +347,17 @@ class CAREamicsClay(L.LightningDataModule):
         super().__init__()
 
         # check that a read source function is provided for custom types
-        if data_config.data_type == SupportedData.CUSTOM and read_source_func is None:
+        if (
+            prediction_config.data_type == SupportedData.CUSTOM
+            and read_source_func is None
+        ):
             raise ValueError(
                 f"Data type {SupportedData.CUSTOM} is not allowed without "
                 f"specifying a `read_source_func`."
             )
 
         # and that arrays are passed, if array type specified
-        elif data_config.data_type == SupportedData.ARRAY and not isinstance(
+        elif prediction_config.data_type == SupportedData.ARRAY and not isinstance(
             pred_data, np.ndarray
         ):
             raise ValueError(
@@ -360,7 +366,7 @@ class CAREamicsClay(L.LightningDataModule):
             )
 
         # and that Path or str are passed, if tiff file type specified
-        elif data_config.data_type == SupportedData.TIFF and not (
+        elif prediction_config.data_type == SupportedData.TIFF and not (
             isinstance(pred_data, Path) or isinstance(pred_data, str)
         ):
             raise ValueError(
@@ -369,9 +375,9 @@ class CAREamicsClay(L.LightningDataModule):
             )
 
         # configuration data
-        self.data_config = data_config
-        self.data_type = data_config.data_type
-        self.batch_size = data_config.batch_size
+        self.data_config = prediction_config
+        self.data_type = prediction_config.data_type
+        self.batch_size = prediction_config.batch_size
         self.num_workers = num_workers
 
         self.pred_data = pred_data
@@ -379,10 +385,10 @@ class CAREamicsClay(L.LightningDataModule):
         self.tile_overlap = tile_overlap
 
         # read source function
-        if data_config.data_type == SupportedData.CUSTOM:
+        if prediction_config.data_type == SupportedData.CUSTOM:
             self.read_source_func: Callable = read_source_func
         else:
-            self.read_source_func = get_read_func(data_config.data_type)
+            self.read_source_func = get_read_func(prediction_config.data_type)
         self.extension_filter = extension_filter
 
     def prepare_data(self) -> None:
@@ -503,11 +509,7 @@ class CAREamicsPredictDataModule(CAREamicsClay):
             data_config["prediction_transforms"] = [
                 {
                     "name": SupportedTransform.NORMALIZE.value,
-                    "parameters": {
-                        "mean": mean,
-                        "std": std,
-                        "max_pixel_value": 1
-                    },
+                    "parameters": {"mean": mean, "std": std, "max_pixel_value": 1},
                 },
             ]
         elif prediction_transforms is not None:
@@ -519,9 +521,8 @@ class CAREamicsPredictDataModule(CAREamicsClay):
                 "Prediction will apply default normalization only."
             )
 
-
         super().__init__(
-            data_config=PredictionModel(**data_config),
+            prediction_config=InferenceConfiguration(**data_config),
             pred_data=pred_path,
             tile_size=tile_size,
             tile_overlap=(48, 48),
