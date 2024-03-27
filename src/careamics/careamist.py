@@ -305,7 +305,10 @@ class CAREamist(LightningModule):
     ) -> Dict[str, np.ndarray]:
         # sanity check (path exists)
         path = check_path_exists(path_to_data)
-
+        '''
+        create predict config, reuse the training config if parameters are not provided
+        remove all prediction specific parameters from data_config
+        '''
         # create datamodule
         datamodule = CAREamicsClay(
             data_config=self.cfg.data,
