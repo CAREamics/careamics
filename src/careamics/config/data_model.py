@@ -37,12 +37,11 @@ class DataModel(BaseModel):
     # Pydantic class configuration
     model_config = ConfigDict(
         validate_assignment=True,
-        arbitrary_types_allowed=True,
+        arbitrary_types_allowed=True, # Allow Compose declaration
     )
 
     # Dataset configuration
-    # Mandatory fields
-    data_type: Literal["array", "tiff", "custom"]
+    data_type: Literal["array", "tiff", "custom"] # As defined in SupportedData
     patch_size: List[int] = Field(..., min_length=2, max_length=3)
     batch_size: int = Field(default=1, ge=1, validate_default=True)
     axes: str
@@ -281,8 +280,8 @@ class DataModel(BaseModel):
         """
         Set mean and standard deviation of the data.
 
-        This method is preferred to setting the fields directly, as it ensures that the
-        mean is set first, then the std; thus avoiding a validation error to be thrown.
+        This method should be used instead setting the fields directly, as it would
+        otherwise trigger a validation error.
 
         Parameters
         ----------

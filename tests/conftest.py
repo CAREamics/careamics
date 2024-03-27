@@ -31,7 +31,7 @@ def create_tiff(path: Path, n_files: int):
 
 @pytest.fixture
 def minimum_algorithm() -> dict:
-    """Create a minimum algorithm.
+    """Create a minimum algorithm dictionary.
 
     Returns
     -------
@@ -52,7 +52,7 @@ def minimum_algorithm() -> dict:
 
 @pytest.fixture
 def minimum_data() -> dict:
-    """Create a minimum data.
+    """Create a minimum data dictionary.
 
     Returns
     -------
@@ -70,8 +70,27 @@ def minimum_data() -> dict:
 
 
 @pytest.fixture
+def minimum_prediction() -> dict:
+    """Create a minimum prediction dictionary.
+
+    Returns
+    -------
+    dict
+        A minimum data example.
+    """
+    # create dictionary
+    data = {
+        "data_type": SupportedData.TIFF.value,
+        "tile_size": [64, 64],
+        "axes": "SYX",
+    }
+
+    return data
+
+
+@pytest.fixture
 def minimum_training() -> dict:
-    """Create a minimum training.
+    """Create a minimum training dictionary.
 
     Returns
     -------
@@ -90,7 +109,7 @@ def minimum_training() -> dict:
 def minimum_configuration(
     minimum_algorithm: dict, minimum_data: dict, minimum_training: dict
 ) -> dict:
-    """Create a minimum configuration.
+    """Create a minimum configuration dictionary.
 
     Parameters
     ----------
