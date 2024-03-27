@@ -28,37 +28,6 @@ def test_invalid_names(minimum_configuration: dict, name: str):
         Configuration(**minimum_configuration)
 
 
-@pytest.mark.parametrize("path", ["", "tmp"])
-def test_valid_working_directory(
-    tmp_path: Path, minimum_configuration: dict, path: str
-):
-    """Test valid working directory.
-
-    A valid working directory exists or its direct parent exists.
-    """
-    path = tmp_path / path
-    minimum_configuration["working_directory"] = str(path)
-    myconf = Configuration(**minimum_configuration)
-    assert myconf.working_directory == path
-
-
-def test_invalid_working_directory(tmp_path: Path, minimum_configuration: dict):
-    """Test that invalid working directory raise an error.
-
-    Since its parent does not exist, this case is invalid.
-    """
-    path = tmp_path / "tmp" / "tmp"
-    minimum_configuration["working_directory"] = str(path)
-    with pytest.raises(ValueError):
-        Configuration(**minimum_configuration)
-
-    path = tmp_path / "tmp.txt"
-    path.touch()
-    minimum_configuration["working_directory"] = str(path)
-    with pytest.raises(ValueError):
-        Configuration(**minimum_configuration)
-
-
 def test_3D_algorithm_and_data_compatibility(minimum_configuration: dict):
     """Test that errors are raised if algorithm `is_3D` and data axes are
     incompatible.

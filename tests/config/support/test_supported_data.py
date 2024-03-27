@@ -28,7 +28,7 @@ def test_extension_tiff_rglob(tmp_path: Path):
     # create image
     path = tmp_path / "test.tif"
     image = np.ones((10, 10))
-    tifffile.imsave(path, image)
+    tifffile.imwrite(path, image)
 
     # search for files
     files = list(tmp_path.rglob(SupportedData.get_extension(SupportedData.TIFF)))

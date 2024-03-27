@@ -52,7 +52,6 @@ class Configuration(BaseModel):
 
     # required parameters
     experiment_name: str
-    working_directory: Union[str, Path]
 
     # Sub-configurations
     algorithm: AlgorithmModel
@@ -95,48 +94,6 @@ class Configuration(BaseModel):
             )
 
         return name
-
-    @field_validator("working_directory")
-    @classmethod
-    def parent_directory_exists(cls, workdir: Union[str, Path]) -> Path:
-        """
-        Validate working directory.
-
-        A valid working directory is a directory whose parent directory exists. If the
-        working directory does not exist itself, it is then created.
-
-        Parameters
-        ----------
-        workdir : Union[str, Path]
-            Working directory to validate.
-
-        Returns
-        -------
-        Path
-            Validated working directory.
-
-        Raises
-        ------
-        ValueError
-            If the working directory is not a directory, or if the parent directory does
-            not exist.
-        """
-        path = Path(workdir)
-
-        # check if it is a directory
-        if path.exists() and not path.is_dir():
-            raise ValueError(f"Working directory is not a directory (got {workdir}).")
-
-        # check if parent directory exists
-        if not path.parent.exists():
-            raise ValueError(
-                f"Parent directory of working directory does not exist (got {workdir})."
-            )
-
-        # create directory if it does not exist already
-        path.mkdir(exist_ok=True)
-
-        return path
 
     @model_validator(mode="after")
     def validate_3D(self) -> Configuration:
@@ -196,7 +153,7 @@ class Configuration(BaseModel):
                 if SupportedTransform.N2V_MANIPULATE not in transform_list:
                     self.data.transforms.append(
                         N2VManipulationModel(
-                            name=SupportedTransform.N2V_MANIPULATE.value,                            
+                            name=SupportedTransform.N2V_MANIPULATE.value,
                         )
                     )
 
@@ -292,7 +249,7 @@ class Configuration(BaseModel):
         )
 
         # change Path into str
-        dictionary["working_directory"] = str(dictionary["working_directory"])
+        # dictionary["working_directory"] = str(dictionary["working_directory"])
 
         return dictionary
 

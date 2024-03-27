@@ -7,6 +7,8 @@ from pydantic import (
     Field,
     field_validator,
 )
+from typing import Optional
+from .callback_model import CheckpointModel, EarlyStoppingModel
 
 
 # TODO: adapt for lightning:
@@ -96,5 +98,12 @@ class TrainingModel(BaseModel):
     )
 
     # Mandatory fields
-    num_epochs: int = Field(..., ge=1)
+    num_epochs: int = Field(default=20, ge=1)
 
+    # Optional fields
+    # use_wandb: bool = False
+    checkpoint_callback: CheckpointModel = CheckpointModel()
+    early_stopping_callback: Optional[EarlyStoppingModel] = Field(
+        default=None, validate_default=True
+    )
+    # amp: AMP = AMP()

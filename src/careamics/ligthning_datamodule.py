@@ -6,7 +6,7 @@ import pytorch_lightning as L
 from albumentations import Compose
 from torch.utils.data import DataLoader
 
-from careamics.config import DataModel
+from careamics.config import DataModel, PredictionModel
 from careamics.config.support import SupportedData, SupportedTransform
 from careamics.dataset.dataset_utils import (
     get_files_size,
@@ -20,11 +20,10 @@ from careamics.dataset.in_memory_dataset import (
     InMemoryPredictionDataset,
 )
 from careamics.dataset.iterable_dataset import (
-    PathIterableDataset,
     IterablePredictionDataset,
+    PathIterableDataset,
 )
 from careamics.utils import get_logger, get_ram_size
-
 
 DatasetType = Union[InMemoryDataset, PathIterableDataset]
 PredictDatasetType = Union[InMemoryPredictionDataset, IterablePredictionDataset]
@@ -44,6 +43,8 @@ class CAREamicsWood(L.LightningDataModule):
         val_percentage: float = 0.1,
         val_minimum_split: int = 5,
         use_in_memory: bool = True,
+        num_workers: int = 0,
+        #dataloader_params: Optional[Dict[str, Any]] = None,
     ) -> None:
         """LightningDataModule for CAREamics training, including training and validation
         datasets.
@@ -112,7 +113,7 @@ class CAREamicsWood(L.LightningDataModule):
             If the data type is `tiff` and the input is neither a Path nor a str.
         """
         super().__init__()
-
+        # self.save_hyperparameters(data_config.model_dump())
         if train_data_target is not None:
             raise NotImplementedError(
                 "Training with target data is not yet implemented."
@@ -157,8 +158,7 @@ class CAREamicsWood(L.LightningDataModule):
         self.data_config = data_config
         self.data_type = data_config.data_type
         self.batch_size = data_config.batch_size
-        self.num_workers = data_config.num_workers
-        self.pin_memory = data_config.pin_memory
+        self.num_workers = num_workers
         self.use_in_memory = use_in_memory
 
         # data
@@ -263,7 +263,7 @@ class CAREamicsWood(L.LightningDataModule):
                 )
 
                 # validation dataset
-                if self.val_files is not None:
+                if self.val_data is not None:
                     self.val_dataset = InMemoryDataset(
                         data_config=self.data_config,
                         data=self.val_files,
@@ -320,7 +320,6 @@ class CAREamicsWood(L.LightningDataModule):
             self.train_dataset,
             batch_size=self.batch_size,
             num_workers=self.num_workers,
-            pin_memory=self.pin_memory,
         )
 
     def val_dataloader(self) -> Any:
@@ -328,7 +327,6 @@ class CAREamicsWood(L.LightningDataModule):
             self.val_dataset,
             batch_size=self.batch_size,
             num_workers=self.num_workers,
-            pin_memory=self.pin_memory,
         )
 
 
@@ -341,6 +339,7 @@ class CAREamicsClay(L.LightningDataModule):
         tile_overlap: Union[List[int], Tuple[int, ...]],
         read_source_func: Optional[Callable] = None,
         extension_filter: str = "",
+        num_workers: int = 0,
     ) -> None:
         super().__init__()
 
@@ -373,8 +372,7 @@ class CAREamicsClay(L.LightningDataModule):
         self.data_config = data_config
         self.data_type = data_config.data_type
         self.batch_size = data_config.batch_size
-        self.num_workers = data_config.num_workers
-        self.pin_memory = data_config.pin_memory
+        self.num_workers = num_workers
 
         self.pred_data = pred_data
         self.tile_size = tile_size
@@ -421,7 +419,6 @@ class CAREamicsClay(L.LightningDataModule):
             self.predict_dataset,
             batch_size=self.batch_size,
             num_workers=self.num_workers,
-            pin_memory=self.pin_memory,
         )
 
 
@@ -429,11 +426,11 @@ class CAREamicsTrainDataModule(CAREamicsWood):
     def __init__(
         self,
         train_path: Union[str, Path],
-        val_path: Union[str, Path],
         data_type: Union[str, SupportedData],
         patch_size: List[int],
         axes: str,
         batch_size: int,
+        val_path: Optional[Union[str, Path]] = None,
         transforms: Optional[Union[List, Compose]] = None,
         train_target_path: Optional[Union[str, Path]] = None,
         val_target_path: Optional[Union[str, Path]] = None,
@@ -451,7 +448,6 @@ class CAREamicsTrainDataModule(CAREamicsWood):
             "patch_size": patch_size,
             "axes": axes,
             "batch_size": batch_size,
-            "num_workers": num_workers,
             "pin_memory": pin_memory,
         }
 
@@ -469,6 +465,7 @@ class CAREamicsTrainDataModule(CAREamicsWood):
             extension_filter=extension_filter,
             val_percentage=val_percentage,
             val_minimum_split=val_minimum_patches,
+            num_workers=num_workers,
         )
 
 
@@ -481,36 +478,34 @@ class CAREamicsPredictDataModule(CAREamicsClay):
         axes: str,
         batch_size: int,
         prediction_transforms: Optional[Union[List, Compose]] = None,
-        tta_transforms: Optional[Union[bool, Compose]] = None,
-        norm_mean: Optional[float] = None,
-        norm_std: Optional[float] = None,
+        tta_transforms: Optional[bool] = True,
+        mean: Optional[float] = None,
+        std: Optional[float] = None,
         read_source_func: Optional[Callable] = None,
         extension_filter: str = "",
         num_workers: int = 0,
-        pin_memory: bool = False,
         **kwargs: Any,
     ) -> None:
         data_config = {
             "mode": "predict",
             "data_type": data_type,
-            "patch_size": tile_size,
+            "tile_size": tile_size,
             "axes": axes,
-            "mean": norm_mean,
-            "std": norm_std,
+            "mean": mean,
+            "std": std,
+            "tta": tta_transforms,
             "batch_size": batch_size,
-            "num_workers": num_workers,
-            "pin_memory": pin_memory,
         }
-
+        # Pred
         # TODO this needs to be reorganized
         # if transforms are passed
-        if norm_mean is not None and norm_std is not None:
+        if mean is not None and std is not None:
             data_config["prediction_transforms"] = [
                 {
                     "name": SupportedTransform.NORMALIZE.value,
                     "parameters": {
-                        "mean": norm_mean,
-                        "std": norm_std,
+                        "mean": mean,
+                        "std": std,
                         "max_pixel_value": 1
                     },
                 },
@@ -520,16 +515,17 @@ class CAREamicsPredictDataModule(CAREamicsClay):
 
         else:
             logger.info(
-                "No tta transform or mean/std normalization defined for prediction. "
+                "No transform defined for prediction. "
                 "Prediction will apply default normalization only."
             )
-            data_config["transforms"] = []
+
 
         super().__init__(
-            data_config=DataModel(**data_config),
+            data_config=PredictionModel(**data_config),
             pred_data=pred_path,
             tile_size=tile_size,
             tile_overlap=(48, 48),
             read_source_func=read_source_func,
             extension_filter=extension_filter,
+            num_workers=num_workers,
         )

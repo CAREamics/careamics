@@ -9,14 +9,13 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 from careamics.utils import check_axes_validity
 
 from .support import SupportedTransform
-from .transformations.transform_model import TransformModel
-from .transformations.nd_flip_model import NDFlipModel
-from .transformations.xy_random_rotate90_model import XYRandomRotate90Model
-from .transformations.normalize_model import NormalizeModel
 from .transformations.n2v_manipulate_model import N2VManipulationModel
+from .transformations.nd_flip_model import NDFlipModel
+from .transformations.normalize_model import NormalizeModel
+from .transformations.transform_model import TransformModel
+from .transformations.xy_random_rotate90_model import XYRandomRotate90Model
 
-
-Transformations_Union = Union[
+TRANSFORMS_UNION = Union[
     NDFlipModel,
     XYRandomRotate90Model,
     NormalizeModel,
@@ -52,7 +51,7 @@ class DataModel(BaseModel):
     mean: Optional[float] = None
     std: Optional[float] = None
 
-    transforms: Union[List[Transformations_Union], Compose] = Field(
+    transforms: Union[List[TRANSFORMS_UNION], Compose] = Field(
         default=[
             {
                 "name": SupportedTransform.NORMALIZE.value,
