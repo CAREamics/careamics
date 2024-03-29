@@ -33,14 +33,28 @@ def create_n2v_configuration(
 ) -> Configuration:
     """Create a configuration for training N2V.
 
+    N2V uses a UNet model to denoise images in a self-supervised manner. To use its 
+    variants structN2V and N2V2, set the `struct_n2v_axis` and `struct_n2v_span`
+    (structN2V) parameters, or set `use_n2v2` to True (N2V2).
+
+    N2V2 modifies the UNet architecture by adding blur pool layers and removes the skip
+    connections, thus removing checkboard artefacts. StructN2V is used when vertical
+    or horizontal correlations are present in the noise; it applies an additional mask 
+    to the manipulated pixel neighbors. 
+
     If "Z" is present in `axes`, then `path_size` must be a list of length 3, otherwise
     2.
 
-    By setting `use_augmentations` to False, the only transformation applied will be
+    By setting `use_augmentations` to False, the only transformations applied will be
     normalization and N2V manipulation.
 
-    The parameter `use_n2v2` overrides the corresponding `n2v2` that can be passed
-    in `model_kwargs`.
+    The `roi_size` parameter specifies the size of the area around each pixel that will
+    be manipulated by N2V. The `masked_pixel_percentage` parameter specifies how many
+    pixels per patch will be manipulated.
+
+    The parameters of the UNet can be specified in the `model_kwargs` (passed as a
+    parameter-value dictionary). Note that `use_n2v2` and 'n_channels' override the 
+    corresponding parameters passed in `model_kwargs`.
 
     If you pass "horizontal" or "vertical" to `struct_n2v_axis`, then structN2V mask 
     will be applied to each manipulated pixel.
@@ -69,7 +83,7 @@ def create_n2v_configuration(
         N2V pixel manipulation area, by default 11.
     masked_pixel_percentage : float, optional
         Percentage of pixels masked in each patch, by default 0.2.
-    struct_n2v_axis : Literal[&quot;horizontal&quot;, &quot;vertical&quot;, &quot;none&quot;], optional
+    struct_n2v_axis : Literal["horizontal", "vertical", "none"], optional
         Axis along which to apply structN2V mask, by default "none"
     struct_n2v_span : int, optional
         Span of the structN2V mask, by default 5
