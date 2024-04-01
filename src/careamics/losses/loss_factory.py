@@ -3,6 +3,7 @@ Loss factory module.
 
 This module contains a factory function for creating loss functions.
 """
+
 from typing import Callable
 
 from careamics.config import Configuration

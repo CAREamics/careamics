@@ -1,6 +1,5 @@
 """Configuration module."""
 
-
 __all__ = ["Configuration", "load_configuration", "save_configuration"]
 
 from .config import (

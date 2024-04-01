@@ -3,6 +3,7 @@ Prediction convenience functions.
 
 These functions are used during prediction.
 """
+
 from typing import List
 
 import numpy as np
@@ -40,9 +41,9 @@ def stitch_prediction(
         cropped_tile = tile.squeeze()[slices]
 
         # Insert cropped tile into predicted image using stitch coordinates
-        predicted_image[
-            (..., *[slice(c[0], c[1]) for c in stitch_coords])
-        ] = cropped_tile
+        predicted_image[(..., *[slice(c[0], c[1]) for c in stitch_coords])] = (
+            cropped_tile
+        )
     return predicted_image
 
 

@@ -1,4 +1,5 @@
 """Augmentation module."""
+
 from typing import Tuple
 
 import numpy as np
