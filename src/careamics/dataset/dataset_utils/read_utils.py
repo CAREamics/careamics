@@ -1,11 +1,11 @@
-from typing import Callable
+from typing import Callable, Union
 
 from careamics.config.support import SupportedData
 
 from .read_tiff import read_tiff
 
 
-def get_read_func(data_type: SupportedData) -> Callable:
+def get_read_func(data_type: Union[SupportedData, str]) -> Callable:
     """
     Get the read function for the data type.
 

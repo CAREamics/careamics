@@ -1,12 +1,17 @@
 """Training configuration."""
 from __future__ import annotations
 
+from pprint import pformat
+from typing import Optional
+
 from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
     field_validator,
 )
+
+from .callback_model import CheckpointModel, EarlyStoppingModel
 
 
 # TODO: adapt for lightning:
@@ -60,7 +65,7 @@ class AMP(BaseModel):
         return scale
 
 
-class Training(BaseModel):
+class TrainingModel(BaseModel):
     """
     Parameters related to the training.
 
@@ -96,10 +101,22 @@ class Training(BaseModel):
     )
 
     # Mandatory fields
-    num_epochs: int = Field(..., ge=1)
-    batch_size: int = Field(..., ge=1)
+    num_epochs: int = Field(default=20, ge=1)
 
     # Optional fields
-    use_wandb: bool = False
-    num_workers: int = Field(default=0, ge=0)
-    amp: AMP = AMP()
+    # use_wandb: bool = False
+    checkpoint_callback: CheckpointModel = CheckpointModel()
+    early_stopping_callback: Optional[EarlyStoppingModel] = Field(
+        default=None, validate_default=True
+    )
+    # amp: AMP = AMP()
+
+    def __str__(self) -> str:
+        """Pretty string reprensenting the configuration.
+
+        Returns
+        -------
+        str
+            Pretty string.
+        """
+        return pformat(self.model_dump())

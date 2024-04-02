@@ -3,41 +3,113 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import Dict, Literal, Union
+from pprint import pformat
+from typing import Dict, List, Literal, Union
 
 import yaml
-from pydantic import (
-    BaseModel,
-    ConfigDict,
-    field_validator,
-    model_validator,
-)
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from .algorithm_model import AlgorithmModel
 from .data_model import DataModel
-from .support import SupportedAlgorithm, SupportedTransform
-from .training_model import Training
-from .transform_model import TransformModel
+from .support import SupportedAlgorithm, SupportedPixelManipulation, SupportedTransform
+from .training_model import TrainingModel
+from .transformations.n2v_manipulate_model import (
+    N2VManipulationModel,
+)
 
 
-# TODO what do we expect in terms of model dump, with or without the defaults?
 class Configuration(BaseModel):
     """
     CAREamics configuration.
 
-    To change the configuration from 2D to 3D, we recommend using the following method:
-    >>> set_3D(is_3D, axes)
+    The configuration defines all parameters used to build and train a CAREamics model.
+    These parameters are validated to ensure that they are compatible with each other.
+
+    It contains three sub-configurations:
+
+    - AlgorithmModel: configuration for the algorithm training, which includes the
+        architecture, loss function, optimizer, and other hyperparameters.
+    - DataModel: configuration for the dataloader, which includes the type of data,
+        transformations, mean/std and other parameters.
+    - TrainingModel: configuration for the training, which includes the number of
+        epochs or the callbacks.
 
     Attributes
     ----------
     experiment_name : str
-        Name of the experiment.
-    working_directory : Union[str, Path]
-        Path to the working directory.
-    algorithm : Algorithm
+        Name of the experiment, used when saving logs and checkpoints.
+    algorithm : AlgorithmModel
         Algorithm configuration.
-    training : Training
+    data : DataModel
+        Data configuration.
+    training : TrainingModel
         Training configuration.
+
+    Raises
+    ------
+    ValueError
+        Configuration parameter type validation errors.
+    ValueError
+        If the experiment name contains invalid characters or is empty.
+    ValueError
+        If the algorithm is 3D but there is not "Z" in the data axes, or 2D algorithm
+        with "Z" in data axes.
+    ValueError
+        Algorithm, data or training validation errors.
+
+    Methods
+    -------
+    set_3D(is_3D: bool, axes: str, patch_size: List[int]) -> None
+        Switch configuration between 2D and 3D.
+    set_N2V2(use_n2v2: bool) -> None
+        Switch N2V algorithm between N2V and N2V2.
+    set_structN2V(
+        mask_axis: Literal["horizontal", "vertical", "none"], mask_span: int) -> None
+        Set StructN2V parameters.
+    model_dump(
+        exclude_defaults: bool = False, exclude_none: bool = True, **kwargs: Dict
+        ) -> Dict
+        Export configuration to a dictionary.
+
+    Notes
+    -----
+    We provide convenience methods to create standards configurations, for instance
+    for N2V, in the `careamics.config.configuration_factory` module.
+    >>> from careamics.config.configuration_factory import create_N2V_configuration
+    >>> config = create_N2V_configuration(...)
+
+    The configuration can be exported to a dictionary using the model_dump method:
+    >>> config.model_dump()
+
+    Configurations can also be exported or imported from yaml files:
+    >>> from careamics.config import save_configuration, load_configuration
+    >>> save_configuration(config, "config.yml")
+    >>> config = load_configuration("config.yml")
+
+    Examples
+    --------
+    Minimum example:
+    >>> from careamics.config import Configuration
+    >>> config_dict = {
+    >>>         "experiment_name": "LevitatingFrog",
+    >>>         "algorithm": {
+    >>>             "algorithm": "custom",
+    >>>             "loss": "n2v",
+    >>>             "model": {
+    >>>                 "architecture": "UNet",
+    >>>             },
+    >>>         },
+    >>>         "training": {
+    >>>             "num_epochs": 666,
+    >>>         },
+    >>>         "data": {
+    >>>             "data_type": "tiff",
+    >>>             "patch_size": [64, 64],
+    >>>             "axes": "SYX",
+    >>>         },
+    >>>     }
+    >>> config = Configuration(**config_dict)
+    >>> print(config)
     """
 
     model_config = ConfigDict(
@@ -46,16 +118,19 @@ class Configuration(BaseModel):
     )
 
     # version
-    version: Literal["0.1.0"] = "0.1.0"
+    version: Literal["0.1.0"] = Field(
+        default="0.1.0", description="Version of the CAREamics configuration."
+    )
 
     # required parameters
-    experiment_name: str
-    working_directory: Union[str, Path]
+    experiment_name: str = Field(
+        ..., description="Name of the experiment, used to name logs and checkpoints."
+    )
 
     # Sub-configurations
     algorithm: AlgorithmModel
     data: DataModel
-    training: Training
+    training: TrainingModel
 
     @field_validator("experiment_name")
     @classmethod
@@ -94,50 +169,8 @@ class Configuration(BaseModel):
 
         return name
 
-    @field_validator("working_directory")
-    @classmethod
-    def parent_directory_exists(cls, workdir: Union[str, Path]) -> Path:
-        """
-        Validate working directory.
-
-        A valid working directory is a directory whose parent directory exists. If the
-        working directory does not exist itself, it is then created.
-
-        Parameters
-        ----------
-        workdir : Union[str, Path]
-            Working directory to validate.
-
-        Returns
-        -------
-        Path
-            Validated working directory.
-
-        Raises
-        ------
-        ValueError
-            If the working directory is not a directory, or if the parent directory does
-            not exist.
-        """
-        path = Path(workdir)
-
-        # check if it is a directory
-        if path.exists() and not path.is_dir():
-            raise ValueError(f"Working directory is not a directory (got {workdir}).")
-
-        # check if parent directory exists
-        if not path.parent.exists():
-            raise ValueError(
-                f"Parent directory of working directory does not exist (got {workdir})."
-            )
-
-        # create directory if it does not exist already
-        path.mkdir(exist_ok=True)
-
-        return path
-
     @model_validator(mode="after")
-    def validate_3D(self) -> Configuration:
+    def validate_3D(self: Configuration) -> Configuration:
         """
         Check 3D flag validity.
 
@@ -168,46 +201,54 @@ class Configuration(BaseModel):
         return self
 
     @model_validator(mode="after")
-    def validate_algorithm_and_data(self) -> Configuration:
-        """Validate the algorithm and data configurations.
+    def validate_algorithm_and_data(self: Configuration) -> Configuration:
+        """Validate algorithm and data compatibility.
 
-        In particular, the choice of algorithm will influantiate the potential
-        transforms that can be applied to the data.
+        In particular, the validation does the following:
 
-        - (struct)N2V(2): requires ManipulateN2V to be the last transform.
+        - If N2V is used, it enforces the presence of N2V_Maniuplate in the transforms
+        - If N2V2 is used, it enforces the correct manipulation strategy
 
         Returns
         -------
         Configuration
             Validated configuration
         """
-        # TODO the first if will need to change once we have more than (struct)N2V(2)
-        if not self.algorithm.algorithm == SupportedAlgorithm.CUSTOM:
+        if self.algorithm.algorithm == SupportedAlgorithm.N2V:
+            # if we have a list of transform (as opposed to Compose)
             if isinstance(self.data.transforms, list):
                 transform_list = [t.name for t in self.data.transforms]
 
-                # missing MANIPULATE_N2V
-                if SupportedTransform.MANIPULATE_N2V not in transform_list:
+                # whether we use n2v2
+                use_n2v2 = self.algorithm.model.n2v2
+
+                # missing N2V_MANIPULATE
+                if SupportedTransform.N2V_MANIPULATE not in transform_list:
                     self.data.transforms.append(
-                        TransformModel(name=SupportedTransform.MANIPULATE_N2V)
+                        N2VManipulationModel(
+                            name=SupportedTransform.N2V_MANIPULATE.value,
+                        )
                     )
 
-                # multiple MANIPULATE_N2V
-                elif transform_list.count(SupportedTransform.MANIPULATE_N2V) > 1:
-                    raise ValueError(
-                        f"Multiple {SupportedTransform.MANIPULATE_N2V} transforms are not "
-                        f"allowed."
-                    )
-
-                # MANIPULATE_N2V not the last transform
-                elif transform_list[-1] != SupportedTransform.MANIPULATE_N2V:
-                    index = transform_list.index(SupportedTransform.MANIPULATE_N2V)
-                    transform = self.data.transforms.pop(index)
-                    self.data.transforms.append(transform)
+                # make sure that N2V_MANIPULATE has the correct strategy
+                median = SupportedPixelManipulation.MEDIAN.value
+                uniform = SupportedPixelManipulation.UNIFORM.value
+                strategy = median if use_n2v2 else uniform
+                self.data.set_N2V2_strategy(strategy)
 
         return self
 
-    def set_3D(self, is_3D: bool, axes: str) -> None:
+    def __str__(self) -> str:
+        """Pretty string reprensenting the configuration.
+
+        Returns
+        -------
+        str
+            Pretty string.
+        """
+        return pformat(self.model_dump())
+
+    def set_3D(self, is_3D: bool, axes: str, patch_size: List[int]) -> None:
         """
         Set 3D flag and axes.
 
@@ -220,14 +261,240 @@ class Configuration(BaseModel):
         """
         # set the flag and axes (this will not trigger validation at the config level)
         self.algorithm.model.set_3D(is_3D)
-        self.data.axes = axes
+        self.data.set_3D(axes, patch_size)
 
         # cheap hack: trigger validation
         self.algorithm = self.algorithm
 
+    def set_N2V2(self, use_n2v2: bool) -> None:
+        """Switch N2V algorithm between N2V and N2V2.
+
+        Parameters
+        ----------
+        use_n2v2 : bool
+            Whether to use N2V2 or not.
+
+        Raises
+        ------
+        ValueError
+            If the algorithm is not N2V.
+        """
+        if self.algorithm.algorithm == SupportedAlgorithm.N2V:
+            self.algorithm.model.n2v2 = use_n2v2
+            strategy = (
+                SupportedPixelManipulation.MEDIAN.value
+                if use_n2v2
+                else SupportedPixelManipulation.UNIFORM.value
+            )
+            self.data.set_N2V2_strategy(strategy)
+        else:
+            raise ValueError("N2V2 can only be set for N2V algorithm.")
+
+    def set_structN2V(
+        self, mask_axis: Literal["horizontal", "vertical", "none"], mask_span: int
+    ) -> None:
+        """Set StructN2V parameters.
+
+        Parameters
+        ----------
+        mask_axis : Literal["horizontal", "vertical", "none"]
+            Axis of the structural mask.
+        mask_span : int
+            Span of the structural mask.
+        """
+        self.data.set_structN2V_mask(mask_axis, mask_span)
+
+    def get_algorithm_flavour(self) -> str:
+        """Get the algorithm name.
+
+        Returns
+        -------
+        str
+            Algorithm name.
+        """
+        if self.algorithm.algorithm == SupportedAlgorithm.N2V:
+            use_n2v2 = self.algorithm.model.n2v2
+            use_structN2V = (
+                self.data.transforms[-1].parameters.struct_mask_axis != "none"
+            )
+
+            # return the n2v flavour
+            if use_n2v2 and use_structN2V:
+                return "StructN2V2"
+            elif use_n2v2:
+                return "N2V2"
+            elif use_structN2V:
+                return "StructN2V"
+            else:
+                return "Noise2Void"
+
+        return self.algorithm.algorithm.capitalize()
+
+    def get_algorithm_description(self) -> str:
+        """Return a description of the algorithm.
+
+        Returns
+        -------
+        str
+            Description of the algorithm.
+        """
+        algorithm_flavour = self.get_algorithm_flavour()
+
+        if algorithm_flavour == "Custom":
+            return f"Custom algorithm, named {self.algorithm.model.name}"
+        else:  # currently only N2V flavours
+            if algorithm_flavour == "Noise2Void":
+                return (
+                    "Noise2Void is a UNet-based self-supervised algorithm that uses "
+                    "blind-spot training to denoise images. In short, in every "
+                    "patches during training, random pixels are selected and their "
+                    "value replaced by a neighboring pixel value. The network is then "
+                    "trained to predict the original pixel value. The algorithm "
+                    "relies on the continuity of the signal (neighboring pixels have "
+                    "similar values) and the pixel-wise independence of the noise "
+                    "(the noise in a pixel is not correlated with the noise in "
+                    "neighboring pixels)."
+                )
+            elif algorithm_flavour == "N2V2":
+                return (
+                    "N2V2 is an iteration of Noise2Void. "
+                    "Noise2Void is a UNet-based self-supervised algorithm that uses "
+                    "blind-spot training to denoise images. In short, in every "
+                    "patches during training, random pixels are selected and their "
+                    "value replaced by a neighboring pixel value. The network is then "
+                    "trained to predict the original pixel value. The algorithm "
+                    "relies on the continuity of the signal (neighboring pixels have "
+                    "similar values) and the pixel-wise independence of the noise "
+                    "(the noise in a pixel is not correlated with the noise in "
+                    "neighboring pixels). "
+                    "N2V2 introduces blur-pool layers and removed skip connections in "
+                    "the UNet architecture to remove checkboard artefacts, a common "
+                    "artefacts ocurring in Noise2Void."
+                )
+            elif algorithm_flavour == "StructN2V":
+                return (
+                    "StructN2V is an iteration of Noise2Void. "
+                    "Noise2Void is a UNet-based self-supervised algorithm that uses "
+                    "blind-spot training to denoise images. In short, in every "
+                    "patches during training, random pixels are selected and their "
+                    "value replaced by a neighboring pixel value. The network is then "
+                    "trained to predict the original pixel value. The algorithm "
+                    "relies on the continuity of the signal (neighboring pixels have "
+                    "similar values) and the pixel-wise independence of the noise "
+                    "(the noise in a pixel is not correlated with the noise in "
+                    "neighboring pixels). "
+                    "StructN2V uses a linear mask (horizontal or vertical) to replace "
+                    "the pixel values of neighbors of the masked pixels by a random "
+                    "value. Such masking allows removing 1D structured noise from the "
+                    "the images, the main failure case of the original N2V."
+                )
+            elif algorithm_flavour == "StructN2V2":
+                return (
+                    "StructN2V2 is an iteration of Noise2Void that uses both "
+                    "structN2V and N2V2 ."
+                    "Noise2Void is a UNet-based self-supervised algorithm that uses "
+                    "blind-spot training to denoise images. In short, in every "
+                    "patches during training, random pixels are selected and their "
+                    "value replaced by a neighboring pixel value. The network is then "
+                    "trained to predict the original pixel value. The algorithm "
+                    "relies on the continuity of the signal (neighboring pixels have "
+                    "similar values) and the pixel-wise independence of the noise "
+                    "(the noise in a pixel is not correlated with the noise in "
+                    "neighboring pixels). "
+                    "StructN2V uses a linear mask (horizontal or vertical) to replace "
+                    "the pixel values of neighbors of the masked pixels by a random "
+                    "value. Such masking allows removing 1D structured noise from the "
+                    "the images, the main failure case of the original N2V."
+                    "N2V2 introduces blur-pool layers and removed skip connections in "
+                    "the UNet architecture to remove checkboard artefacts, a common "
+                    "artefacts ocurring in Noise2Void."
+                )
+
+        return ""
+
+    def get_algorithm_references(self) -> str:
+        """Get the algorithm references.
+
+        Returns
+        -------
+        str
+            Algorithm references.
+        """
+        if self.algorithm.algorithm == SupportedAlgorithm.N2V:
+            use_n2v2 = self.algorithm.model.n2v2
+            use_structN2V = (
+                self.data.transforms[-1].parameters.struct_mask_axis != "none"
+            )
+
+            references = [
+                'Krull, A., Buchholz, T.O. and Jug, F., 2019. "Noise2Void - Learning '
+                'denoising from single noisy images". In Proceedings of the IEEE/CVF '
+                "conference on computer vision and pattern recognition (pp. "
+                "2129-2137). doi: "
+                "[10.1109/cvpr.2019.00223](https://doi.org/10.1109/cvpr.2019.00223)\n",
+                "Höck, E., Buchholz, T.O., Brachmann, A., Jug, F. and Freytag, A., "
+                '2022. "N2V2 - Fixing Noise2Void checkerboard artifacts with modified '
+                'sampling strategies and a tweaked network architecture". In European '
+                "Conference on Computer Vision (pp. 503-518). doi: "
+                "[10.1007/978-3-031-25069-9_33](https://doi.org/10.1007/978-3-031-"
+                "25069-9_33)\n",
+                "Broaddus, C., Krull, A., Weigert, M., Schmidt, U. and Myers, G., 2020"
+                '. "Removing structured noise with self-supervised blind-spot '
+                'networks". In 2020 IEEE 17th International Symposium on Biomedical '
+                "Imaging (ISBI) (pp. 159-163). doi: [10.1109/isbi45749.2020.9098336]("
+                "https://doi.org/10.1109/isbi45749.2020.9098336)\n",
+            ]
+
+            # return the (struct)N2V(2) references
+            if use_n2v2 and use_structN2V:
+                return "".join(references)
+            elif use_n2v2:
+                references.pop(-1)
+                return "".join(references)
+            elif use_structN2V:
+                references.pop(-2)
+                return "".join(references)
+            else:
+                return references[0]
+
+        return ""
+
+    def get_algorithm_keywords(self) -> List[str]:
+        """Get algorithm keywords.
+
+        Returns
+        -------
+        List[str]
+            List of keywords.
+        """
+        if self.algorithm.algorithm == SupportedAlgorithm.N2V:
+            use_n2v2 = self.algorithm.model.n2v2
+            use_structN2V = (
+                self.data.transforms[-1].parameters.struct_mask_axis != "none"
+            )
+
+            keywords = [
+                "denoising",
+                "restoration",
+                "UNet",
+                "3D" if "Z" in self.data.axes else "2D",
+                "CAREamics",
+                "pytorch",
+                "Noise2Void",
+            ]
+
+            if use_n2v2:
+                keywords.append("N2V2")
+            if use_structN2V:
+                keywords.append("StructN2V2")
+        else:
+            keywords = ["CAREamics"]
+
+        return keywords
+
     def model_dump(
         self,
-        exclude_defaults: bool = False,  # TODO is this what we want?
+        exclude_defaults: bool = False,
         exclude_none: bool = True,
         **kwargs: Dict,
     ) -> Dict:
@@ -254,7 +521,7 @@ class Configuration(BaseModel):
         )
 
         # change Path into str
-        dictionary["working_directory"] = str(dictionary["working_directory"])
+        # dictionary["working_directory"] = str(dictionary["working_directory"])
 
         return dictionary
 
@@ -318,13 +585,15 @@ def save_configuration(config: Configuration, path: Union[str, Path]) -> Path:
     if config_path.exists():
         if config_path.is_dir():
             config_path = Path(config_path, "config.yml")
-        elif config_path.suffix != ".yml":
+        elif config_path.suffix != ".yml" and config_path.suffix != ".yaml":
             raise ValueError(
-                f"Path must be a directory or .yml file (got {config_path})."
+                f"Path must be a directory or .yml or .yaml file (got {config_path})."
             )
     else:
-        if config_path.suffix != ".yml":
-            raise ValueError(f"Path must be a .yml file (got {config_path}).")
+        if config_path.suffix != ".yml" and config_path.suffix != ".yaml":
+            raise ValueError(
+                f"Path must be a directory or .yml or .yaml file (got {config_path})."
+            )
 
     # save configuration as dictionary to yaml
     with open(config_path, "w") as f:

@@ -14,7 +14,7 @@ from careamics.config.algorithm_model import (
 )
 from careamics.config.data_model import DataModel
 from careamics.config.support import SupportedData
-from careamics.config.training_model import Training
+from careamics.config.training_model import TrainingModel
 
 
 # TODO add details about where each of these fixture is used (e.g. smoke test)
@@ -31,7 +31,7 @@ def create_tiff(path: Path, n_files: int):
 
 @pytest.fixture
 def minimum_algorithm() -> dict:
-    """Create a minimum algorithm.
+    """Create a minimum algorithm dictionary.
 
     Returns
     -------
@@ -52,7 +52,7 @@ def minimum_algorithm() -> dict:
 
 @pytest.fixture
 def minimum_data() -> dict:
-    """Create a minimum data.
+    """Create a minimum data dictionary.
 
     Returns
     -------
@@ -70,8 +70,27 @@ def minimum_data() -> dict:
 
 
 @pytest.fixture
+def minimum_prediction() -> dict:
+    """Create a minimum prediction dictionary.
+
+    Returns
+    -------
+    dict
+        A minimum data example.
+    """
+    # create dictionary
+    predic = {
+        "data_type": SupportedData.TIFF.value,
+        "tile_size": [64, 64],
+        "axes": "SYX",
+    }
+
+    return predic
+
+
+@pytest.fixture
 def minimum_training() -> dict:
-    """Create a minimum training.
+    """Create a minimum training dictionary.
 
     Returns
     -------
@@ -81,7 +100,6 @@ def minimum_training() -> dict:
     # create dictionary
     training = {
         "num_epochs": 666,
-        "batch_size": 42,
     }
 
     return training
@@ -89,9 +107,9 @@ def minimum_training() -> dict:
 
 @pytest.fixture
 def minimum_configuration(
-    tmp_path: Path, minimum_algorithm: dict, minimum_data: dict, minimum_training: dict
+    minimum_algorithm: dict, minimum_data: dict, minimum_training: dict
 ) -> dict:
-    """Create a minimum configuration.
+    """Create a minimum configuration dictionary.
 
     Parameters
     ----------
@@ -112,7 +130,6 @@ def minimum_configuration(
     # create dictionary
     configuration = {
         "experiment_name": "LevitatingFrog",
-        "working_directory": str(tmp_path),
         "algorithm": minimum_algorithm,
         "training": minimum_training,
         "data": minimum_data,
@@ -145,26 +162,26 @@ def ordered_array() -> Callable:
 
 @pytest.fixture
 def array_2D() -> np.ndarray:
-    """A 2D array with shape (1, 10, 9).
+    """A 2D array with shape (1, 3, 10, 9).
 
     Returns
     -------
     np.ndarray
-        2D array with shape (1, 10, 9).
+        2D array with shape (1, 3, 10, 9).
     """
-    return np.arange(90).reshape((1, 10, 9))
+    return np.arange(90 * 3).reshape((1, 3, 10, 9))
 
 
 @pytest.fixture
 def array_3D() -> np.ndarray:
-    """A 3D array with shape (1, 5, 10, 9).
+    """A 3D array with shape (1, 3, 5, 10, 9).
 
     Returns
     -------
     np.ndarray
-        3D array with shape (1, 5, 10, 9).
+        3D array with shape (1, 3, 5, 10, 9).
     """
-    return np.arange(2048).reshape((1, 8, 16, 16))
+    return np.arange(2048 * 3).reshape((1, 3, 8, 16, 16))
 
 
 @pytest.fixture
@@ -225,7 +242,7 @@ def base_configuration(temp_dir: Path, patch_size) -> Configuration:
             extension="tif",
             axes="YX",
         ),
-        training=Training(
+        training=TrainingModel(
             num_epochs=1,
             patch_size=patch_size,
             batch_size=2,
@@ -257,7 +274,7 @@ def supervised_configuration(temp_dir: Path, patch_size) -> Configuration:
             extension="tif",
             axes="YX",
         ),
-        training=Training(
+        training=TrainingModel(
             num_epochs=1,
             patch_size=patch_size,
             batch_size=2,

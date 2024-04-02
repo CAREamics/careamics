@@ -3,11 +3,14 @@ import pytest
 from albumentations import Compose
 
 from careamics.config.support import SupportedPixelManipulation
-from careamics.transforms import ManipulateN2V
+from careamics.transforms import N2VManipulate
 
 
 @pytest.mark.parametrize(
-    "strategy", [SupportedPixelManipulation.UNIFORM, SupportedPixelManipulation.MEDIAN]
+    "strategy", [
+        SupportedPixelManipulation.UNIFORM.value, 
+        SupportedPixelManipulation.MEDIAN.value
+    ]
 )
 def test_manipulate_n2v(strategy):
     """Test the N2V augmentation."""
@@ -16,7 +19,7 @@ def test_manipulate_n2v(strategy):
 
     # create augmentation
     aug = Compose(
-        [ManipulateN2V(roi_size=5, masked_pixel_percentage=5, strategy=strategy)]
+        [N2VManipulate(roi_size=5, masked_pixel_percentage=5, strategy=strategy)]
     )
 
     # apply augmentation

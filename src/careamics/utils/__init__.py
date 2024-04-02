@@ -14,11 +14,13 @@ __all__ = [
     "method_dispatch",
     "check_path_exists",
     "BaseEnum",
+    "get_logger",
+    "get_careamics_home",
 ]
 
 
 from .base_enum import BaseEnum
-from .context import cwd
+from .context import cwd, get_careamics_home
 from .method_dispatch import method_dispatch
 from .metrics import MetricTracker
 from .normalization import RunningStats, denormalize, normalize
@@ -28,3 +30,4 @@ from .validators import (
     check_axes_validity,
     check_tiling_validity,
 )
+from .logging import get_logger

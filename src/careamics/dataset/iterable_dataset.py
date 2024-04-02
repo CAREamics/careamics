@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import copy
 from pathlib import Path
-from typing import Callable, Generator, List, Optional, Tuple, Union
+from typing import Any, Callable, Generator, List, Optional, Tuple, Union
 
 import numpy as np
 from torch.utils.data import IterableDataset, get_worker_info
 
-from ..config.data_model import DataModel
+from ..config import DataModel, InferenceModel
 from ..config.support import SupportedExtractionStrategy
 from ..utils.logging import get_logger
 from .dataset_utils import read_tiff, reshape_array
@@ -21,7 +21,7 @@ from .patching import (
 logger = get_logger(__name__)
 
 
-class IterableDataset(IterableDataset):
+class PathIterableDataset(IterableDataset):
     """
     Dataset allowing extracting patches w/o loading whole data into memory.
 
@@ -47,7 +47,7 @@ class IterableDataset(IterableDataset):
 
     def __init__(
         self,
-        data_config: DataModel,
+        data_config: Union[DataModel, InferenceModel],
         src_files: List[Path],
         target_files: Optional[List[Path]] = None,
         read_source_func: Callable = read_tiff,
@@ -57,8 +57,7 @@ class IterableDataset(IterableDataset):
 
         self.data_files = src_files
         self.target_files = target_files
-        self.axes = data_config.axes
-        self.patch_size = data_config.patch_size
+        self.data_config = data_config
         self.read_source_func = read_source_func
 
         # compute mean and std over the dataset
@@ -66,10 +65,19 @@ class IterableDataset(IterableDataset):
             self.mean, self.std = self._calculate_mean_and_std()
 
             # if the transforms are not an instance of Compose
-            if data_config.has_tranform_list():
-                # update mean and std in configuration
-                # the object is mutable and should then be recorded in the CAREamist obj
+            # Check if the data_config is an instance of DataModel or InferenceModel
+            # isinstance isn't working properly here
+            if hasattr(data_config, 'has_transform_list'):
+                if data_config.has_transform_list():
+                    # update mean and std in configuration
+                    # the object is mutable and should then be recorded in the CAREamist
+                    data_config.set_mean_and_std(self.mean, self.std)
+            else:
                 data_config.set_mean_and_std(self.mean, self.std)
+
+        else:
+            self.mean = data_config.mean
+            self.std = data_config.std
 
         # get transforms
         self.patch_transform = get_patch_transform(
@@ -89,7 +97,7 @@ class IterableDataset(IterableDataset):
         means, stds = 0, 0
         num_samples = 0
 
-        for sample in self._iterate_over_files():
+        for sample, _ in self._iterate_over_files():
             means += sample.mean()
             stds += sample.std()
             num_samples += 1
@@ -104,7 +112,9 @@ class IterableDataset(IterableDataset):
         logger.info(f"Mean: {result_mean}, std: {result_std}")
         return result_mean, result_std
 
-    def _iterate_over_files(self) -> Generator[Tuple[np.ndarray, ...], None, None]:
+    def _iterate_over_files(
+        self,
+    ) -> Generator[Tuple[np.ndarray, Optional[np.ndarray]], None, None]:
         """
         Iterate over data source and yield whole image.
 
@@ -127,10 +137,10 @@ class IterableDataset(IterableDataset):
             if i % num_workers == worker_id:
                 try:
                     # read data
-                    sample = self.read_source_func(filename, self.axes)
+                    sample = self.read_source_func(filename, self.data_config.axes)
 
                     # reshape data
-                    reshaped_sample = reshape_array(sample, self.axes)
+                    reshaped_sample = reshape_array(sample, self.data_config.axes)
 
                     # read target, if available
                     if self.target_files is not None:
@@ -142,18 +152,22 @@ class IterableDataset(IterableDataset):
                             )
 
                         # read target
-                        target = self.read_source_func(self.target_files[i], self.axes)
+                        target = self.read_source_func(
+                            self.target_files[i], self.data_config.axes
+                        )
 
                         # reshape target
-                        reshaped_target = reshape_array(target, self.axes)
+                        reshaped_target = reshape_array(target, self.data_config.axes)
 
                         yield reshaped_sample, reshaped_target
                     else:
-                        yield reshaped_sample
+                        yield reshaped_sample, None
                 except Exception as e:
                     logger.error(f"Error reading file {filename}: {e}")
 
-    def __iter__(self) -> Generator[np.ndarray, None, None]:
+    def __iter__(
+        self,
+    ) -> Generator[Tuple[np.ndarray, np.ndarray, Optional[np.ndarray]], None, None]:
         """
         Iterate over data source and yield single patch.
 
@@ -167,23 +181,20 @@ class IterableDataset(IterableDataset):
         ), "Mean and std must be provided"
 
         # iterate over files
-        for sample in self._iterate_over_files():
+        for sample_input, sample_target in self._iterate_over_files():
             if self.target_files is not None:
-                sample_input, sample_target = sample
                 patches = generate_patches_supervised(
                     sample=sample_input,
-                    axes=self.axes,
                     patch_extraction_method=SupportedExtractionStrategy.RANDOM,
-                    patch_size=self.patch_size,
+                    patch_size=self.data_config.patch_size,
                     target=sample_target,
                 )
 
             else:
                 patches = generate_patches_unsupervised(
-                    sample=sample,
-                    axes=self.axes,
+                    sample=sample_input,
                     patch_extraction_method=SupportedExtractionStrategy.RANDOM,
-                    patch_size=self.patch_size,
+                    patch_size=self.data_config.patch_size,
                 )
 
             # iterate over patches
@@ -203,14 +214,11 @@ class IterableDataset(IterableDataset):
                         target=c_target,
                     )
 
-                    # TODO if ManipulateN2V, then we get a tuple not an array!
-                    # TODO if "target" string is used, then make it a co or enum
-
                     # move the axes back to the original position
                     c_patch = np.moveaxis(transformed["image"], -1, 0)
                     c_target = np.moveaxis(transformed["target"], -1, 0)
 
-                    yield (c_patch, c_target)
+                    yield (c_patch, c_target, None)
                 else:
                     # Albumentations expects the channel dimension to be last
                     patch = np.moveaxis(patch_data[0], 0, -1)
@@ -218,16 +226,18 @@ class IterableDataset(IterableDataset):
                     # apply transform
                     transformed = self.patch_transform(image=patch)
 
-                    # TODO is there a chance that ManipulateN2V is not in transforms?
                     # retrieve the output of ManipulateN2V
-                    masked_patch, patch, mask = transformed["image"]
+                    results = transformed["image"]
+                    masked_patch: np.ndarray = results[0]
+                    original_patch: np.ndarray = results[1]
+                    mask: np.ndarray = results[2]
 
                     # move C axes back
                     masked_patch = np.moveaxis(masked_patch, -1, 0)
-                    patch = np.moveaxis(patch, -1, 0)
+                    original_patch = np.moveaxis(original_patch, -1, 0)
                     mask = np.moveaxis(mask, -1, 0)
 
-                    yield (masked_patch, patch, mask)
+                    yield (masked_patch, original_patch, mask)
 
     def get_number_of_files(self) -> int:
         """
@@ -244,7 +254,31 @@ class IterableDataset(IterableDataset):
         self,
         percentage: float = 0.1,
         minimum_number: int = 5,
-    ) -> IterableDataset:
+    ) -> PathIterableDataset:
+        """Split up dataset in two.
+
+        Splits the datest sing a percentage of the data (files) to extract, or the
+        minimum number of the percentage is less than the minimum number.
+
+        Parameters
+        ----------
+        percentage : float, optional
+            Percentage of files to split up, by default 0.1
+        minimum_number : int, optional
+            Minimum number of files to split up, by default 5
+
+        Returns
+        -------
+        IterableDataset
+            Dataset containing the split data.
+
+        Raises
+        ------
+        ValueError
+            If the percentage is smaller than 0 or larger than 1.
+        ValueError
+            If the minimum number is smaller than 1 or larger than the number of files.
+        """
         if percentage < 0 or percentage > 1:
             raise ValueError(f"Percentage must be between 0 and 1, got {percentage}.")
 
@@ -295,8 +329,7 @@ class IterableDataset(IterableDataset):
         return dataset
 
 
-# TODO: why was this calling transforms on prediction patches?
-class IterablePredictionDataset(IterableDataset):
+class IterablePredictionDataset(PathIterableDataset):
     """
     Dataset allowing extracting patches w/o loading whole data into memory.
 
@@ -322,18 +355,19 @@ class IterablePredictionDataset(IterableDataset):
 
     def __init__(
         self,
-        data_config: DataModel,
-        files: List[Path],
-        tile_size: Union[List[int], Tuple[int]],
-        tile_overlap: Optional[Union[List[int], Tuple[int]]] = None,
+        prediction_config: InferenceModel,
+        src_files: List[Path],
+        tile_size: Union[List[int], Tuple[int, ...]],
+        tile_overlap: Union[List[int], Tuple[int, ...]],
         read_source_func: Callable = read_tiff,
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         super().__init__(
-            data_config=data_config, src_files=files, read_source_func=read_source_func
+            data_config=prediction_config,
+            src_files=src_files,
+            read_source_func=read_source_func,
         )
 
-        self.patch_size = data_config.patch_size
         self.tile_size = tile_size
         self.tile_overlap = tile_overlap
         self.read_source_func = read_source_func
@@ -345,7 +379,15 @@ class IterablePredictionDataset(IterableDataset):
                 " perform prediction."
             )
 
-    def __iter__(self) -> Generator[np.ndarray, None, None]:
+        # get tta transforms
+        self.patch_transform = get_patch_transform(
+            patch_transforms=prediction_config.transforms,
+            with_target=False,
+        )
+
+    def __iter__(
+        self,
+    ) -> Generator[Tuple[np.ndarray, np.ndarray, Optional[np.ndarray]], None, None]:
         """
         Iterate over data source and yield single patch.
 
@@ -358,16 +400,15 @@ class IterablePredictionDataset(IterableDataset):
             self.mean is not None and self.std is not None
         ), "Mean and std must be provided"
 
-        for sample in self._iterate_over_files():
+        for sample, _ in self._iterate_over_files():
             patches = generate_patches_predict(
-                sample, self.axes, self.tile_size, self.tile_overlap
+                sample, self.tile_size, self.tile_overlap
             )
+            # TODO AttributeError: 'IterablePredictionDataset' object has no attribute 'mean' message appears if the predict func is run more than once
 
             for patch_data in patches:
-                if isinstance(patch_data, tuple):
-                    transformed = self.patch_transform(
-                        image=np.moveaxis(patch_data[0], 0, -1)
-                    )
-                    yield (np.moveaxis(transformed["image"], -1, 0), *patch_data[1:])
-                else:
-                    yield self.patch_transform(image=patch_data)["image"]
+                # Albumentations expects the channel dimension to be last
+                transformed = self.patch_transform(
+                    image=np.moveaxis(patch_data[0], 0, -1)
+                )
+                yield (np.moveaxis(transformed["image"], -1, 0), *patch_data[1:])

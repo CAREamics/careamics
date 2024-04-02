@@ -65,7 +65,7 @@ def test_all_activations_are_supported():
     activations = list(SupportedActivation)
 
     # Algorithm json schema
-    schema = UNetModel.schema()
+    schema = UNetModel.model_json_schema()
 
     # check that all activations are supported
     for act in schema["properties"]["final_activation"]["enum"]:

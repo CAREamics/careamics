@@ -1,7 +1,8 @@
 """Data configuration."""
 from __future__ import annotations
 
-from typing import List, Literal, Optional, Union
+from pprint import pformat
+from typing import Any, List, Literal, Optional, Union
 
 from albumentations import Compose
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -9,9 +10,22 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 from careamics.utils import check_axes_validity
 
 from .support import SupportedTransform
-from .transform_model import TransformModel
+from .transformations.n2v_manipulate_model import N2VManipulationModel
+from .transformations.nd_flip_model import NDFlipModel
+from .transformations.normalize_model import NormalizeModel
+from .transformations.transform_model import TransformModel
+from .transformations.xy_random_rotate90_model import XYRandomRotate90Model
+
+TRANSFORMS_UNION = Union[
+    NDFlipModel,
+    XYRandomRotate90Model,
+    NormalizeModel,
+    N2VManipulationModel,
+    TransformModel,
+]
 
 
+# TODO does patches need to be multiple of 8 with UNet?
 class DataModel(BaseModel):
     """
     Data configuration.
@@ -25,23 +39,24 @@ class DataModel(BaseModel):
     # Pydantic class configuration
     model_config = ConfigDict(
         validate_assignment=True,
-        arbitrary_types_allowed=True,
+        arbitrary_types_allowed=True,  # Allow Compose declaration
     )
 
     # Dataset configuration
-    # Mandatory fields
-    mode: Literal["train", "predict"]
-    data_type: Literal["array", "tiff", "custom"]
+    data_type: Literal["array", "tiff", "custom"]  # As defined in SupportedData
     patch_size: List[int] = Field(..., min_length=2, max_length=3)
-
+    batch_size: int = Field(default=1, ge=1, validate_default=True)
     axes: str
 
     # Optional fields
     mean: Optional[float] = None
     std: Optional[float] = None
 
-    transforms: Union[List[TransformModel], Compose] = Field(
+    transforms: Union[List[TRANSFORMS_UNION], Compose] = Field(
         default=[
+            {
+                "name": SupportedTransform.NORMALIZE.value,
+            },
             {
                 "name": SupportedTransform.NDFLIP.value,
             },
@@ -49,19 +64,11 @@ class DataModel(BaseModel):
                 "name": SupportedTransform.XY_RANDOM_ROTATE90.value,
             },
             {
-                "name": SupportedTransform.NORMALIZE.value,
-            },
-            {
-                "name": SupportedTransform.N2V_MANIPULATE_UNIFORM.value,
+                "name": SupportedTransform.N2V_MANIPULATE.value,
             },
         ],
         validate_default=True,
-    )  # TODO defaults should change based on the train/predict and on the algorithm
-
-    # Dataloader configuration
-    batch_size: int = Field(default=1, ge=1, validate_default=True)
-    num_workers: int = Field(default=0, ge=0, validate_default=True)
-    pin_memory: bool = Field(default=False, validate_default=True)
+    )
 
     @field_validator("patch_size")
     @classmethod
@@ -130,14 +137,52 @@ class DataModel(BaseModel):
 
         return axes
 
+    @field_validator("transforms")
+    @classmethod
+    def validate_prediction_transforms(
+        cls, transforms: Union[List[TRANSFORMS_UNION], Compose]
+    ) -> Union[List[TRANSFORMS_UNION], Compose]:
+        """Validate N2VManipulate transform position in the transform list.
+
+        Parameters
+        ----------
+        transforms : Union[List[Transformations_Union], Compose]
+            Transforms.
+
+        Returns
+        -------
+        Union[List[Transformations_Union], Compose]
+            Validated transforms.
+
+        Raises
+        ------
+        ValueError
+            If multiple instances of N2VManipulate are found.
+        """
+        if not isinstance(transforms, Compose):
+            transform_list = [t.name for t in transforms]
+
+            if SupportedTransform.N2V_MANIPULATE in transform_list:
+                # multiple N2V_MANIPULATE
+                if transform_list.count(SupportedTransform.N2V_MANIPULATE) > 1:
+                    raise ValueError(
+                        f"Multiple instances of "
+                        f"{SupportedTransform.N2V_MANIPULATE} transforms "
+                        f"are not allowed."
+                    )
+
+                # N2V_MANIPULATE not the last transform
+                elif transform_list[-1] != SupportedTransform.N2V_MANIPULATE:
+                    index = transform_list.index(SupportedTransform.N2V_MANIPULATE)
+                    transform = transforms.pop(index)
+                    transforms.append(transform)
+
+        return transforms
+
     @model_validator(mode="after")
     def std_only_with_mean(cls, data_model: DataModel) -> DataModel:
         """
         Check that mean and std are either both None, or both specified.
-
-        If we enforce both None or both specified, we cannot set the values one by one
-        due to the ConfDict enforcing the validation on assignment. Therefore, we check
-        only when the std is not None and the mean is None.
 
         Parameters
         ----------
@@ -154,55 +199,18 @@ class DataModel(BaseModel):
         ValueError
             If std is not None and mean is None.
         """
-        if data_model.std is not None and data_model.mean is None:
-            raise ValueError("Cannot have `std` field if `mean` is None.")
+        # check that mean and std are either both None, or both specified
+        if (data_model.mean is None) != (data_model.std is None):
+            raise ValueError(
+                "Mean and std must be either both None, or both specified."
+            )
 
         return data_model
 
-    def has_tranform_list(self) -> bool:
-        """
-        Check if the transforms are a list, as opposed to a Compose object.
-
-        Returns
-        -------
-        bool
-            True if the transforms are a list, False otherwise.
-        """
-        return isinstance(self.transforms, list)
-
-    def set_mean_and_std(self, mean: float, std: float) -> None:
-        """
-        Set mean and standard deviation of the data.
-
-        This method is preferred to setting the fields directly, as it ensures that the
-        mean is set first, then the std; thus avoiding a validation error to be thrown.
-
-        Parameters
-        ----------
-        mean : float
-            Mean of the data.
-        std : float
-            Standard deviation of the data.
-        """
-        self.mean = mean
-        self.std = std
-
-        # search in the transforms for Normalize and update parameters
-        if not isinstance(self.transforms, Compose):
-            for transform in self.transforms:
-                if transform.name == SupportedTransform.NORMALIZE.value:
-                    transform.parameters["mean"] = mean
-                    transform.parameters["std"] = std
-                    transform.parameters["max_pixel_value"] = 1.0
-        else:
-            raise ValueError(
-                "Setting mean and std with Compose transforms is not allowed."
-            )
-
     @model_validator(mode="after")
-    def validate_transforms_and_axes(cls, data_model: DataModel) -> DataModel:
+    def validate_dimensions(cls, data_model: DataModel) -> DataModel:
         """
-        Validate the transforms with respect to the axes.
+        Validate 2D/3D dimensions between axes, patch size and transforms.
 
         Parameters
         ----------
@@ -219,35 +227,178 @@ class DataModel(BaseModel):
         ValueError
             If the transforms are not valid.
         """
-        # check that the transforms NDFLip is 3D
-
         if "Z" in data_model.axes:
-            if data_model.has_tranform_list():
-                for transform in data_model.transforms:
-                    if transform.name == SupportedTransform.NDFLIP:
-                        transform.parameters["is_3D"] = True
-                    elif transform.name == SupportedTransform.XY_RANDOM_ROTATE90:
-                        transform.parameters["is_3D"] = True
-        else:
-            if data_model.has_tranform_list():
-                for transform in data_model.transforms:
-                    if transform.name == SupportedTransform.NDFLIP:
-                        transform.parameters["is_3D"] = False
-                    elif transform.name == SupportedTransform.XY_RANDOM_ROTATE90:
-                        transform.parameters["is_3D"] = False
+            if len(data_model.patch_size) != 3:
+                raise ValueError(
+                    f"Patch size must have 3 dimensions if the data is 3D "
+                    f"({data_model.axes})."
+                )
 
-        if data_model.mode == "predict":
-            for transform in data_model.transforms:
-                if transform.name == "Normalize":
-                    transform.parameters["mean"] = data_model.mean
-                    transform.parameters["std"] = data_model.std
-                    transform.parameters["max_pixel_value"] = 1.0
-                else:
-                    data_model.transforms.remove(transform)
+            if data_model.has_transform_list():
+                for transform in data_model.transforms:
+                    if transform.name == SupportedTransform.NDFLIP:
+                        transform.parameters.is_3D = True
+                    elif transform.name == SupportedTransform.XY_RANDOM_ROTATE90:
+                        transform.parameters.is_3D = True
+
         else:
-            for transform in data_model.transforms:
-                if transform.name == "Normalize":
-                    transform.parameters["mean"] = data_model.mean
-                    transform.parameters["std"] = data_model.std
-                    transform.parameters["max_pixel_value"] = 1.0
+            if len(data_model.patch_size) != 2:
+                raise ValueError(
+                    f"Patch size must have 3 dimensions if the data is 3D "
+                    f"({data_model.axes})."
+                )
+
+            if data_model.has_transform_list():
+                for transform in data_model.transforms:
+                    if transform.name == SupportedTransform.NDFLIP:
+                        transform.parameters.is_3D = False
+                    elif transform.name == SupportedTransform.XY_RANDOM_ROTATE90:
+                        transform.parameters.is_3D = False
+
         return data_model
+
+    def __str__(self) -> str:
+        """Pretty string reprensenting the configuration.
+
+        Returns
+        -------
+        str
+            Pretty string.
+        """
+        return pformat(self.model_dump())
+
+    def _update(self, **kwargs: Any) -> None:
+        """Update multiple arguments at once."""
+        self.__dict__.update(kwargs)
+        self.__class__.model_validate(self.__dict__)
+
+    def has_transform_list(self) -> bool:
+        """
+        Check if the transforms are a list, as opposed to a Compose object.
+
+        Returns
+        -------
+        bool
+            True if the transforms are a list, False otherwise.
+        """
+        return isinstance(self.transforms, list)
+
+    def set_mean_and_std(self, mean: float, std: float) -> None:
+        """
+        Set mean and standard deviation of the data.
+
+        This method should be used instead setting the fields directly, as it would
+        otherwise trigger a validation error.
+
+        Parameters
+        ----------
+        mean : float
+            Mean of the data.
+        std : float
+            Standard deviation of the data.
+        """
+        self._update(mean=mean, std=std)
+
+        # search in the transforms for Normalize and update parameters
+        if not isinstance(self.transforms, Compose):
+            for transform in self.transforms:
+                if transform.name == SupportedTransform.NORMALIZE.value:
+                    transform.parameters.mean = mean
+                    transform.parameters.std = std
+        else:
+            raise ValueError(
+                "Setting mean and std with Compose transforms is not allowed. Add "
+                "mean and std parameters directly to the transform in the Compose."
+            )
+
+    def set_3D(self, axes: str, patch_size: List[int]) -> None:
+        """
+        Set 3D parameters.
+
+        Parameters
+        ----------
+        axes : str
+            Axes.
+        patch_size : List[int]
+            Patch size.
+        """
+        self._update(axes=axes, patch_size=patch_size)
+
+    def set_N2V2_strategy(self, strategy: Literal["uniform", "median"]) -> None:
+        """Set N2V2 strategy.
+
+        Parameters
+        ----------
+        strategy : Literal["uniform", "median"]
+            Strategy to use for N2V2.
+
+        Raises
+        ------
+        ValueError
+            If the N2V pixel manipulate transform is not found in the transforms.
+        ValueError
+            If the transforms are a Compose object.
+        """
+        if isinstance(self.transforms, list):
+            found_n2v = False
+
+            for transform in self.transforms:
+                if transform.name == SupportedTransform.N2V_MANIPULATE.value:
+                    transform.parameters.strategy = strategy
+                    found_n2v = True
+
+            if not found_n2v:
+                transforms = [t.name for t in self.transforms]
+                raise ValueError(
+                    f"N2V_Manipulate transform not found in the transforms list "
+                    f"({transforms})."
+                )
+
+        else:
+            raise ValueError(
+                "Setting N2V2 strategy with Compose transforms is not allowed. Add "
+                "N2V2 strategy parameters directly to the transform in the Compose."
+            )
+
+    def set_structN2V_mask(
+        self, mask_axis: Literal["horizontal", "vertical", "none"], mask_span: int
+    ) -> None:
+        """Set structN2V mask parameters.
+
+        Setting `mask_axis` to `none` will disable structN2V.
+
+        Parameters
+        ----------
+        mask_axis : Literal["horizontal", "vertical", "none"]
+            Axis along which to apply the mask. `none` will disable structN2V.
+        mask_span : int
+            Total span of the mask in pixels.
+
+        Raises
+        ------
+        ValueError
+            If the N2V pixel manipulate transform is not found in the transforms.
+        ValueError
+            If the transforms are a Compose object.
+        """
+        if isinstance(self.transforms, list):
+            found_n2v = False
+
+            for transform in self.transforms:
+                if transform.name == SupportedTransform.N2V_MANIPULATE.value:
+                    transform.parameters.struct_mask_axis = mask_axis
+                    transform.parameters.struct_mask_span = mask_span
+                    found_n2v = True
+
+            if not found_n2v:
+                transforms = [t.name for t in self.transforms]
+                raise ValueError(
+                    f"N2V pixel manipulate transform not found in the transforms "
+                    f"({transforms})."
+                )
+
+        else:
+            raise ValueError(
+                "Setting structN2VMask with Compose transforms is not allowed. Add "
+                "structN2VMask parameters directly to the transform in the Compose."
+            )

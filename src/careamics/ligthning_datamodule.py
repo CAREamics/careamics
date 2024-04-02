@@ -1,13 +1,13 @@
 from pathlib import Path
-from typing import Any, Callable, List, Optional, Tuple, Union
+from typing import Any, Callable, List, Optional, Tuple, Union, Dict
 
 import numpy as np
 import pytorch_lightning as L
 from albumentations import Compose
 from torch.utils.data import DataLoader
 
-from careamics.config import DataModel
-from careamics.config.support import SupportedData
+from careamics.config import DataModel, InferenceModel
+from careamics.config.support import SupportedData, SupportedTransform
 from careamics.dataset.dataset_utils import (
     get_files_size,
     get_read_func,
@@ -20,13 +20,17 @@ from careamics.dataset.in_memory_dataset import (
     InMemoryPredictionDataset,
 )
 from careamics.dataset.iterable_dataset import (
-    IterableDataset,
     IterablePredictionDataset,
+    PathIterableDataset,
 )
-from careamics.utils import get_ram_size
+from careamics.utils import get_logger, get_ram_size
+
+DatasetType = Union[InMemoryDataset, PathIterableDataset]
+PredictDatasetType = Union[InMemoryPredictionDataset, IterablePredictionDataset]
+
+logger = get_logger(__name__)
 
 
-# TODO must be compatible with no validation being present
 class CAREamicsWood(L.LightningDataModule):
     def __init__(
         self,
@@ -40,9 +44,10 @@ class CAREamicsWood(L.LightningDataModule):
         val_percentage: float = 0.1,
         val_minimum_split: int = 5,
         use_in_memory: bool = True,
+        dataloader_params: Optional[Dict] = None,
+        # dataloader_params: Optional[Dict[str, Any]] = None,
     ) -> None:
-        """LightningDataModule for CAREamics training, including training and validation
-        datasets.
+        """LightningDataModule for training and validation datasets.
 
         The data module can be used with Path, str or numpy arrays. In the case of
         numpy arrays, it loads and computes all the patches in memory. For Path and str
@@ -62,7 +67,6 @@ class CAREamicsWood(L.LightningDataModule):
         and provide a function that returns a numpy array from a path as
         `read_source_func` parameter. The function will receive a Path object and
         an axies string as arguments, the axes being derived from the `data_config`.
-        # TODO is this necessary to pass the axes?
 
         You can also provide a `fnmatch` and `Path.rglob` compatible expression (e.g.
         "*.czi") to filter the files extension using `extension_filter`.
@@ -109,7 +113,7 @@ class CAREamicsWood(L.LightningDataModule):
             If the data type is `tiff` and the input is neither a Path nor a str.
         """
         super().__init__()
-
+        # self.save_hyperparameters(data_config.model_dump())
         if train_data_target is not None:
             raise NotImplementedError(
                 "Training with target data is not yet implemented."
@@ -154,8 +158,6 @@ class CAREamicsWood(L.LightningDataModule):
         self.data_config = data_config
         self.data_type = data_config.data_type
         self.batch_size = data_config.batch_size
-        self.num_workers = data_config.num_workers
-        self.pin_memory = data_config.pin_memory
         self.use_in_memory = use_in_memory
 
         # data
@@ -169,19 +171,26 @@ class CAREamicsWood(L.LightningDataModule):
 
         # read source function corresponding to the requested type
         if data_config.data_type == SupportedData.CUSTOM:
-            self.read_source_func = read_source_func
+            self.read_source_func: Callable = read_source_func
         else:
             self.read_source_func = get_read_func(data_config.data_type)
         self.extension_filter = extension_filter
 
+        # Pytorch dataloader parameters
+        self.dataloader_params = dataloader_params
+
     def prepare_data(self) -> None:
-        """Hook used to prepare the data before calling `setup` and creating
-        the dataloader.
+        """Hook used to prepare the data before calling `setup`.
 
         Here, we only need to examine the data if it was provided as a str or a Path.
         """
         # if the data is a Path or a str
-        if not isinstance(self.train_data, np.ndarray):
+        if (
+            not isinstance(self.train_data, np.ndarray)
+            and not isinstance(self.val_data, np.ndarray)
+            and not isinstance(self.train_data_target, np.ndarray)
+            and not isinstance(self.val_data_target, np.ndarray)
+        ):
             # list training files
             self.train_files = list_files(
                 self.train_data, self.data_type, self.extension_filter
@@ -196,7 +205,7 @@ class CAREamicsWood(L.LightningDataModule):
 
             # same for target data
             if self.train_data_target is not None:
-                self.train_target_files = list_files(
+                self.train_target_files: List[Path] = list_files(
                     self.train_data_target, self.data_type, self.extension_filter
                 )
 
@@ -210,33 +219,13 @@ class CAREamicsWood(L.LightningDataModule):
 
                 # verify that they match the validation data
                 validate_source_target_files(self.val_files, self.val_target_files)
-        # else:
-        #     # reshape array
-        #     self.train_data = reshape_array(self.train_data, self.data_config.axes)
 
-        #     # validation
-        #     if self.val_data is not None:
-        #         self.val_data = reshape_array(self.val_data, self.data_config.axes)
-
-        #     # target arrays
-        #     if self.train_data_target is not None:
-        #         self.train_data_target = reshape_array(
-        #             self.train_data_target, self.data_config.axes
-        #         )
-
-        #     if self.val_data_target is not None:
-        #         self.val_data_target = reshape_array(
-        #             self.val_data_target, self.data_config.axes
-        #         )
-
-    def setup(self, *args, **kwargs) -> None:
-        """Hook called at the beginning of fit (train + validate), validate, test, or
-        predict.
-        """
+    def setup(self, *args: Any, **kwargs: Any) -> None:
+        """Hook called at the beginning of fit, validate, or predict."""
         # if numpy array
         if self.data_type == SupportedData.ARRAY:
             # train dataset
-            self.train_dataset = InMemoryDataset(
+            self.train_dataset: DatasetType = InMemoryDataset(
                 data_config=self.data_config,
                 data=self.train_data,
                 data_target=self.train_data_target,
@@ -245,7 +234,7 @@ class CAREamicsWood(L.LightningDataModule):
             # validation dataset
             if self.val_data is not None:
                 # create its own dataset
-                self.val_dataset = InMemoryDataset(
+                self.val_dataset: DatasetType = InMemoryDataset(
                     data_config=self.data_config,
                     data=self.val_data,
                     data_target=self.val_data_target,
@@ -274,7 +263,7 @@ class CAREamicsWood(L.LightningDataModule):
                 )
 
                 # validation dataset
-                if self.val_files is not None:
+                if self.val_data is not None:
                     self.val_dataset = InMemoryDataset(
                         data_config=self.data_config,
                         data=self.val_files,
@@ -293,7 +282,7 @@ class CAREamicsWood(L.LightningDataModule):
             # else if the data is too large, load file by file during training
             else:
                 # create training dataset
-                self.train_dataset = IterableDataset(
+                self.train_dataset = PathIterableDataset(
                     data_config=self.data_config,
                     src_files=self.train_files,
                     target_files=self.train_target_files
@@ -305,7 +294,7 @@ class CAREamicsWood(L.LightningDataModule):
                 # create validation dataset
                 if self.val_files is not None:
                     # create its own dataset
-                    self.val_dataset = IterableDataset(
+                    self.val_dataset = PathIterableDataset(
                         data_config=self.data_config,
                         src_files=self.val_files,
                         target_files=self.val_target_files
@@ -330,40 +319,40 @@ class CAREamicsWood(L.LightningDataModule):
         return DataLoader(
             self.train_dataset,
             batch_size=self.batch_size,
-            num_workers=self.num_workers,
-            pin_memory=self.pin_memory,
+            num_workers=self.dataloader_params["num_workers"],
         )
 
     def val_dataloader(self) -> Any:
         return DataLoader(
             self.val_dataset,
             batch_size=self.batch_size,
-            num_workers=self.num_workers,
-            pin_memory=self.pin_memory,
         )
 
 
 class CAREamicsClay(L.LightningDataModule):
     def __init__(
         self,
-        data_config: DataModel,
+        prediction_config: InferenceModel,
         pred_data: Union[Path, str, np.ndarray],
-        tile_size: Union[List[int], Tuple[int]],
-        tile_overlap: Union[List[int], Tuple[int]],
         read_source_func: Optional[Callable] = None,
         extension_filter: str = "",
+        dataloader_params: Optional[Dict] = None,
+
     ) -> None:
         super().__init__()
 
         # check that a read source function is provided for custom types
-        if data_config.data_type == SupportedData.CUSTOM and read_source_func is None:
+        if (
+            prediction_config.data_type == SupportedData.CUSTOM
+            and read_source_func is None
+        ):
             raise ValueError(
                 f"Data type {SupportedData.CUSTOM} is not allowed without "
                 f"specifying a `read_source_func`."
             )
 
         # and that arrays are passed, if array type specified
-        elif data_config.data_type == SupportedData.ARRAY and not isinstance(
+        elif prediction_config.data_type == SupportedData.ARRAY and not isinstance(
             pred_data, np.ndarray
         ):
             raise ValueError(
@@ -372,7 +361,7 @@ class CAREamicsClay(L.LightningDataModule):
             )
 
         # and that Path or str are passed, if tiff file type specified
-        elif data_config.data_type == SupportedData.TIFF and not (
+        elif prediction_config.data_type == SupportedData.TIFF and not (
             isinstance(pred_data, Path) or isinstance(pred_data, str)
         ):
             raise ValueError(
@@ -381,21 +370,20 @@ class CAREamicsClay(L.LightningDataModule):
             )
 
         # configuration data
-        self.data_config = data_config
-        self.data_type = data_config.data_type
-        self.batch_size = data_config.batch_size
-        self.num_workers = data_config.num_workers
-        self.pin_memory = data_config.pin_memory
+        self.prediction_config = prediction_config
+        self.data_type = prediction_config.data_type
+        self.batch_size = prediction_config.batch_size
+        self.num_workers = dataloader_params["num_workers"] if dataloader_params else 0
 
         self.pred_data = pred_data
-        self.tile_size = tile_size
-        self.tile_overlap = tile_overlap
+        self.tile_size = prediction_config.tile_size
+        self.tile_overlap = prediction_config.tile_overlap
 
         # read source function
-        if data_config.data_type == SupportedData.CUSTOM:
-            self.read_source_func = read_source_func
+        if prediction_config.data_type == SupportedData.CUSTOM:
+            self.read_source_func: Callable = read_source_func
         else:
-            self.read_source_func = get_read_func(data_config.data_type)
+            self.read_source_func = get_read_func(prediction_config.data_type)
         self.extension_filter = extension_filter
 
     def prepare_data(self) -> None:
@@ -406,33 +394,32 @@ class CAREamicsClay(L.LightningDataModule):
             )
         else:
             # reshape array
-            self.pred_data = reshape_array(self.pred_data, self.data_config.axes)
+            self.pred_data = reshape_array(self.pred_data, self.prediction_config.axes)
 
     def setup(self, stage: Optional[str] = None) -> None:
         # if numpy array
         if self.data_type == SupportedData.ARRAY:
             # prediction dataset
-            self.predict_dataset = InMemoryPredictionDataset(
-                data_config=self.data_config,
+            self.predict_dataset: PredictDatasetType = InMemoryPredictionDataset(
+                prediction_config=self.prediction_config,
                 data=self.pred_data,
                 tile_size=self.tile_size,
                 tile_overlap=self.tile_overlap,
             )
         else:
             self.predict_dataset = IterablePredictionDataset(
-                files=self.pred_files,
-                data_config=self.data_config,
+                src_files=self.pred_files,
+                prediction_config=self.prediction_config,
                 read_source_func=self.read_source_func,
                 tile_size=self.tile_size,
                 tile_overlap=self.tile_overlap,
             )
 
-    def predict_dataloader(self) -> Any:
+    def predict_dataloader(self) -> DataLoader:
         return DataLoader(
             self.predict_dataset,
             batch_size=self.batch_size,
             num_workers=self.num_workers,
-            pin_memory=self.pin_memory,
         )
 
 
@@ -440,11 +427,11 @@ class CAREamicsTrainDataModule(CAREamicsWood):
     def __init__(
         self,
         train_path: Union[str, Path],
-        val_path: Union[str, Path],
         data_type: Union[str, SupportedData],
         patch_size: List[int],
         axes: str,
         batch_size: int,
+        val_path: Optional[Union[str, Path]] = None,
         transforms: Optional[Union[List, Compose]] = None,
         train_target_path: Optional[Union[str, Path]] = None,
         val_target_path: Optional[Union[str, Path]] = None,
@@ -452,9 +439,8 @@ class CAREamicsTrainDataModule(CAREamicsWood):
         extension_filter: str = "",
         val_percentage: float = 0.1,
         val_minimum_patches: int = 5,
-        num_workers: int = 0,
-        pin_memory: bool = False,
-        **kwargs,
+        dataloader_params: Optional[Dict] = None,
+        **kwargs: Any,
     ) -> None:
         data_config = {
             "mode": "train",
@@ -462,8 +448,6 @@ class CAREamicsTrainDataModule(CAREamicsWood):
             "patch_size": patch_size,
             "axes": axes,
             "batch_size": batch_size,
-            "num_workers": num_workers,
-            "pin_memory": pin_memory,
         }
 
         # if transforms are passed (otherwise it will use the default ones)
@@ -480,6 +464,7 @@ class CAREamicsTrainDataModule(CAREamicsWood):
             extension_filter=extension_filter,
             val_percentage=val_percentage,
             val_minimum_split=val_minimum_patches,
+            dataloader_params=dataloader_params,
         )
 
 
@@ -491,35 +476,48 @@ class CAREamicsPredictDataModule(CAREamicsClay):
         tile_size: List[int],
         axes: str,
         batch_size: int,
-        transforms: Optional[Union[List, Compose]] = None,
+        prediction_transforms: Optional[Union[List, Compose]] = None,
+        tta_transforms: Optional[bool] = True,
+        mean: Optional[float] = None,
+        std: Optional[float] = None,
         read_source_func: Optional[Callable] = None,
         extension_filter: str = "",
-        num_workers: int = 0,
-        pin_memory: bool = False,
-        **kwargs,
+        dataloader_params: Optional[Dict] = None,
+        **kwargs: Any,
     ) -> None:
-        data_config = {
+        prediction_config = {
             "mode": "predict",
             "data_type": data_type,
-            "patch_size": tile_size,
+            "tile_size": tile_size,
             "axes": axes,
+            "mean": mean,
+            "std": std,
+            "tta": tta_transforms,
             "batch_size": batch_size,
-            "num_workers": num_workers,
-            "pin_memory": pin_memory,
         }
+        # Pred
+        # TODO this needs to be reorganized
+        # if transforms are passed
+        if mean is not None and std is not None:
+            prediction_config["prediction_transforms"] = [
+                {
+                    "name": SupportedTransform.NORMALIZE.value,
+                    "parameters": {"mean": mean, "std": std, "max_pixel_value": 1},
+                },
+            ]
+        elif prediction_transforms is not None:
+            prediction_config["transforms"] = prediction_transforms
 
-        # TODO different default for prediction transforms?? Should not have
-        # ManipulateN2V
-
-        # if transforms are passed (otherwise it will use the default ones)
-        if transforms is not None:
-            data_config["transforms"] = transforms
+        else:
+            logger.info(
+                "No transform defined for prediction. "
+                "Prediction will apply default normalization only."
+            )
 
         super().__init__(
-            data_config=DataModel(**data_config),
+            prediction_config=InferenceModel(**prediction_config),
             pred_data=pred_path,
-            tile_size=tile_size,
-            tile_overlap=(48, 48),
             read_source_func=read_source_func,
             extension_filter=extension_filter,
+            dataloader_params=dataloader_params,
         )

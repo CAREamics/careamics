@@ -3,13 +3,12 @@ from __future__ import annotations
 
 import copy
 from pathlib import Path
-from typing import Callable, List, Optional, Tuple, Union
+from typing import Any, Callable, List, Optional, Tuple, Union
 
 import numpy as np
-import torch
+from torch.utils.data import Dataset
 
 from ..config.data_model import DataModel
-from ..utils import normalize
 from ..utils.logging import get_logger
 from .dataset_utils import read_tiff
 from .patching.patch_transform import get_patch_transform
@@ -24,8 +23,7 @@ from .patching.patching import (
 logger = get_logger(__name__)
 
 
-# TODO dataset which sets appart some data for validation?
-class InMemoryDataset(torch.utils.data.Dataset):
+class InMemoryDataset(Dataset):
     """Dataset storing data in memory and allowing generating patches from it."""
 
     def __init__(
@@ -34,16 +32,13 @@ class InMemoryDataset(torch.utils.data.Dataset):
         data: Union[np.ndarray, List[Path]],
         data_target: Optional[Union[np.ndarray, List[Path]]] = None,
         read_source_func: Callable = read_tiff,
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         """
         Constructor.
 
         # TODO
         """
-        if data_target is not None:
-            raise NotImplementedError("Targets are not yet supported.")
-
         self.data = data
         self.data_target = data_target
         self.axes = data_config.axes
@@ -64,13 +59,14 @@ class InMemoryDataset(torch.utils.data.Dataset):
             logger.info(f"Computed dataset mean: {self.mean}, std: {self.std}")
 
             # if the transforms are not an instance of Compose
-            if data_config.has_tranform_list():
+            if data_config.has_transform_list():
                 # update mean and std in configuration
                 # the object is mutable and should then be recorded in the CAREamist obj
                 data_config.set_mean_and_std(self.mean, self.std)
         else:
             self.mean, self.std = data_config.mean, data_config.std
 
+        # get transforms
         self.patch_transform = get_patch_transform(
             patch_transforms=data_config.transforms,
             with_target=self.data_target is not None,
@@ -92,27 +88,17 @@ class InMemoryDataset(torch.utils.data.Dataset):
         np.ndarray
             Array of patches.
         """
-        # if numpy array
-        if isinstance(self.data, np.ndarray):
-            # supervised case: CARE, N2N, segmentation etc.
-            if supervised:
+        if supervised:
+            if isinstance(self.data, np.ndarray) and \
+                isinstance(self.data_target, np.ndarray):
                 return prepare_patches_supervised_array(
                     self.data,
                     self.axes,
                     self.data_target,
                     self.patch_size,
                 )
-            # unsupervised: N2V, PN2V, etc.
-            else:
-                return prepare_patches_unsupervised_array(
-                    self.data,
-                    self.axes,
-                    self.patch_size,
-                )
-        # else it is a list of paths
-        else:
-            # supervised case: CARE, N2N, segmentation etc.
-            if supervised:
+            elif isinstance(self.data, list) and \
+                isinstance(self.data_target, list):
                 return prepare_patches_supervised(
                     self.data,
                     self.data_target,
@@ -120,7 +106,19 @@ class InMemoryDataset(torch.utils.data.Dataset):
                     self.patch_size,
                     self.read_source_func,
                 )
-            # unsupervised: N2V, PN2V, etc.
+            else:
+                raise ValueError(
+                    f"Data and target must be of the same type, either both numpy "
+                    f"arrays or both lists of paths, got {type(self.data)} (data) and "
+                    f"{type(self.data_target)} (target)."
+                )
+        else:
+            if isinstance(self.data, np.ndarray):
+                return prepare_patches_unsupervised_array(
+                    self.data,
+                    self.axes,
+                    self.patch_size,
+                )
             else:
                 return prepare_patches_unsupervised(
                     self.data,
@@ -128,6 +126,7 @@ class InMemoryDataset(torch.utils.data.Dataset):
                     self.patch_size,
                     self.read_source_func,
                 )
+        
 
     def __len__(self) -> int:
         """
@@ -207,7 +206,7 @@ class InMemoryDataset(torch.utils.data.Dataset):
     def split_dataset(
         self,
         percentage: float = 0.1,
-        minimum_number: int = 5,
+        minimum_patches: int = 5,
     ) -> InMemoryDataset:
         """Split a new dataset away from the current one.
 
@@ -217,7 +216,7 @@ class InMemoryDataset(torch.utils.data.Dataset):
         ----------
         percentage : float, optional
             Percentage of patches to extract, by default 0.1.
-        minimum_number : int, optional
+        minimum_patches : int, optional
             Minimum number of patches to extract, by default 5.
 
         Returns
@@ -235,16 +234,16 @@ class InMemoryDataset(torch.utils.data.Dataset):
         if percentage < 0 or percentage > 1:
             raise ValueError(f"Percentage must be between 0 and 1, got {percentage}.")
 
-        if minimum_number < 1 or minimum_number > self.get_number_of_patches():
+        if minimum_patches < 1 or minimum_patches > self.get_number_of_patches():
             raise ValueError(
                 f"Minimum number of patches must be between 1 and "
-                f"{self.get_number_of_patches()} (number of patches), got {minimum_number}."
+                f"{self.get_number_of_patches()} (number of patches), got {minimum_patches}."
             )
 
         total_patches = self.get_number_of_patches()
 
         # number of patches to extract (either percentage rounded or minimum number)
-        n_patches = max(round(total_patches * percentage), minimum_number)
+        n_patches = max(round(total_patches * percentage), minimum_patches)
 
         # get random indices
         indices = np.random.choice(total_patches, n_patches, replace=False)
@@ -273,8 +272,7 @@ class InMemoryDataset(torch.utils.data.Dataset):
         return dataset
 
 
-# TODO add tile size
-class InMemoryPredictionDataset(torch.utils.data.Dataset):
+class InMemoryPredictionDataset(Dataset):
     """
     Dataset storing data in memory and allowing generating patches from it.
 
@@ -287,6 +285,7 @@ class InMemoryPredictionDataset(torch.utils.data.Dataset):
         data: np.ndarray,
         tile_size: Union[List[int], Tuple[int]],
         tile_overlap: Optional[Union[List[int], Tuple[int]]] = None,
+        data_target: Optional[np.ndarray] = None,
     ) -> None:
         """Constructor.
 
@@ -314,6 +313,7 @@ class InMemoryPredictionDataset(torch.utils.data.Dataset):
         self.tile_overlap = tile_overlap
         self.mean = data_config.mean
         self.std = data_config.std
+        self.data_target = data_target
 
         # check that mean and std are provided
         if not self.mean or not self.std:
@@ -321,12 +321,18 @@ class InMemoryPredictionDataset(torch.utils.data.Dataset):
                 "Mean and std must be provided to the configuration in order to "
                 " perform prediction."
             )
-
+        # TODO this needs to be restructured
         self.input_array = data
         self.tile = tile_size and tile_overlap
 
         # Generate patches
         self.data = self._prepare_patches()
+
+        # get tta transforms
+        self.patch_transform = get_patch_transform(
+            patch_transforms=data_config.prediction_transforms,
+            with_target=self.data_target is not None,
+        )
 
     def _prepare_patches(self) -> Callable:
         """
@@ -341,7 +347,7 @@ class InMemoryPredictionDataset(torch.utils.data.Dataset):
         """
         if self.tile:
             return generate_patches_predict(
-                self.input_array, self.axes, self.tile_size, self.tile_overlap
+                self.input_array, self.tile_size, self.tile_overlap
             )
         else:
             return self.input_array
@@ -386,14 +392,24 @@ class InMemoryPredictionDataset(torch.utils.data.Dataset):
                 stitch_coords,
             ) = self.data[index]
 
+            # Albumentations requires Channel last
+            tile = np.moveaxis(tile, 0, -1)
+
+            # Apply transforms
+            transformed_tile = self.patch_transform(image=tile)["image"]
+            tile = transformed_tile
+
+            # move C axes back
+            tile = np.moveaxis(tile, -1, 0)
+
             return (
-                normalize(img=tile, mean=self.mean, std=self.std),
+                tile,
                 last_tile,
                 arr_shape,
                 overlap_crop_coords,
                 stitch_coords,
             )
-        else:
-            return normalize(img=self.data, mean=self.mean, std=self.std).astype(
-                np.float32
-            )
+        # else:
+        #     return normalize(img=self.data, mean=self.mean, std=self.std).astype(
+        #         np.float32
+        #     )

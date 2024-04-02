@@ -10,23 +10,23 @@ import torch
 
 
 def stitch_prediction(
-    tiles: List[np.ndarray],
+    tiles: List[torch.Tensor],
     stitching_data: List,
     explicit_stitching: Optional[bool] = False,
-) -> np.ndarray:
+) -> torch.Tensor:
     """
     Stitch tiles back together to form a full image.
 
     Parameters
     ----------
-    tiles : List[Tuple[np.ndarray, List[int]]]
+    tiles : List[torch.Tensor]
         Cropped tiles and their respective stitching coordinates.
     stitching_data : List
         List of coordinates obtained from
-        dataset.tiling.compute_crop_and_stitch_coords_1d.
+        `dataset.tiled_patching.extract_tiles`.
     explicit_stitching : bool, optional
         Whether this function is called explicitly after prediction(Lighting) or inside
-        the predict function. Removes the first element(last tile indicator)
+        the predict function. Removes the first element (last tile indicator).
 
     Returns
     -------
@@ -34,21 +34,27 @@ def stitch_prediction(
         Full image.
     """
     # Remove first element of stitching_data if explicit_stitching
+    # TODO revisit, no way around this?
     if explicit_stitching:
         stitching_data = [d[1:] for d in stitching_data]
 
     # Get whole sample shape
     input_shape = stitching_data[0][0]
     predicted_image = np.zeros(input_shape, dtype=np.float32)
+
     for tile, (_, overlap_crop_coords, stitch_coords) in zip(tiles, stitching_data):
+
         # Compute coordinates for cropping predicted tile
         slices = tuple([slice(c[0], c[1]) for c in overlap_crop_coords])
+
         # Crop predited tile according to overlap coordinates
         cropped_tile = tile.squeeze()[slices]
+
         # Insert cropped tile into predicted image using stitch coordinates
         predicted_image[
             (..., *[slice(c[0], c[1]) for c in stitch_coords])
         ] = cropped_tile.to(torch.float32)
+
     return predicted_image
 
 

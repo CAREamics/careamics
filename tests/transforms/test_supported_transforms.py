@@ -1,4 +1,5 @@
-from careamics.config.support import SupportedTransform, get_all_transforms
+from careamics.config.support import SupportedTransform
+from careamics.transforms import get_all_transforms
 
 
 def test_supported_transforms_in_accepted_transforms():
