@@ -4,6 +4,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 from typing import Dict, List, Literal, Union
+from pprint import pformat
 
 import yaml
 from pydantic import (
@@ -11,6 +12,7 @@ from pydantic import (
     ConfigDict,
     field_validator,
     model_validator,
+    Field
 )
 
 from .algorithm_model import AlgorithmModel
@@ -22,24 +24,98 @@ from .transformations.n2v_manipulate_model import (
 )
 
 
-# TODO what do we expect in terms of model dump, with or without the defaults?
 class Configuration(BaseModel):
     """
     CAREamics configuration.
 
-    To change the configuration from 2D to 3D, we recommend using the following method:
-    >>> set_3D(is_3D, axes)
+    The configuration defines all parameters used to build and train a CAREamics model.
+    These parameters are validated to ensure that they are compatible with each other.
+
+    It contains three sub-configurations:
+
+    - AlgorithmModel: configuration for the algorithm training, which includes the
+        architecture, loss function, optimizer, and other hyperparameters.
+    - DataModel: configuration for the dataloader, which includes the type of data,
+        transformations, mean/std and other parameters.
+    - TrainingModel: configuration for the training, which includes the number of
+        epochs or the callbacks.
 
     Attributes
     ----------
     experiment_name : str
-        Name of the experiment.
-    working_directory : Union[str, Path]
-        Path to the working directory.
-    algorithm : Algorithm
+        Name of the experiment, used when saving logs and checkpoints.
+    algorithm : AlgorithmModel
         Algorithm configuration.
-    training : Training
+    data : DataModel
+        Data configuration.
+    training : TrainingModel
         Training configuration.
+
+    Raises
+    ------
+    ValueError
+        Configuration parameter type validation errors.
+    ValueError
+        If the experiment name contains invalid characters or is empty.
+    ValueError
+        If the algorithm is 3D but there is not "Z" in the data axes, or 2D algorithm 
+        with "Z" in data axes.
+    ValueError
+        Algorithm, data or training validation errors.
+
+    Methods
+    -------
+    set_3D(is_3D: bool, axes: str, patch_size: List[int]) -> None
+        Switch configuration between 2D and 3D.
+    set_N2V2(use_n2v2: bool) -> None
+        Switch N2V algorithm between N2V and N2V2.
+    set_structN2V(
+        mask_axis: Literal["horizontal", "vertical", "none"], mask_span: int) -> None
+        Set StructN2V parameters.
+    model_dump(
+        exclude_defaults: bool = False, exclude_none: bool = True, **kwargs: Dict
+        ) -> Dict
+        Export configuration to a dictionary.
+
+    Notes
+    -----
+    We provide convenience methods to create standards configurations, for instance
+    for N2V, in the `careamics.config.configuration_factory` module.
+    >>> from careamics.config.configuration_factory import create_N2V_configuration
+    >>> config = create_N2V_configuration(...)
+
+    The configuration can be exported to a dictionary using the model_dump method:
+    >>> config.model_dump()
+
+    Configurations can also be exported or imported from yaml files:
+    >>> from careamics.config import save_configuration, load_configuration
+    >>> save_configuration(config, "config.yml")
+    >>> config = load_configuration("config.yml")
+    
+    Examples
+    --------
+    Minimum example:
+    >>> from careamics.config import Configuration
+    >>> config_dict = {
+    >>>         "experiment_name": "LevitatingFrog",
+    >>>         "algorithm": {
+    >>>             "algorithm": "custom",
+    >>>             "loss": "n2v",
+    >>>             "model": {
+    >>>                 "architecture": "UNet",
+    >>>             }, 
+    >>>         },
+    >>>         "training": {
+    >>>             "num_epochs": 666,
+    >>>         },
+    >>>         "data": {
+    >>>             "data_type": "tiff",
+    >>>             "patch_size": [64, 64],
+    >>>             "axes": "SYX",
+    >>>         },
+    >>>     }
+    >>> config = Configuration(**config_dict)
+    >>> print(config)
     """
 
     model_config = ConfigDict(
@@ -48,10 +124,15 @@ class Configuration(BaseModel):
     )
 
     # version
-    version: Literal["0.1.0"] = "0.1.0"
+    version: Literal["0.1.0"] = Field(
+        default="0.1.0", 
+        description="Version of the CAREamics configuration."
+    )
 
     # required parameters
-    experiment_name: str
+    experiment_name: str = Field(
+        ..., description="Name of the experiment, used to name logs and checkpoints."
+    )
 
     # Sub-configurations
     algorithm: AlgorithmModel
@@ -96,7 +177,7 @@ class Configuration(BaseModel):
         return name
 
     @model_validator(mode="after")
-    def validate_3D(self) -> Configuration:
+    def validate_3D(self: Configuration) -> Configuration:
         """
         Check 3D flag validity.
 
@@ -165,6 +246,17 @@ class Configuration(BaseModel):
 
         return self
 
+    def __str__(self) -> str:
+        """Pretty string reprensenting the configuration.
+
+        Returns
+        -------
+        str
+            Pretty string.
+        """
+        return pformat(self.model_dump())
+
+
     def set_3D(self, is_3D: bool, axes: str, patch_size: List[int]) -> None:
         """
         Set 3D flag and axes.
@@ -218,11 +310,11 @@ class Configuration(BaseModel):
         mask_span : int
             Span of the structural mask.
         """
-        self.data.set_structN2V(mask_axis, mask_span)
+        self.data.set_structN2V_mask(mask_axis, mask_span)
 
     def model_dump(
         self,
-        exclude_defaults: bool = False,  # TODO is this what we want?
+        exclude_defaults: bool = False, 
         exclude_none: bool = True,
         **kwargs: Dict,
     ) -> Dict:

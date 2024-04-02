@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from typing import Any, List, Literal, Optional, Union
+from pprint import pformat
 
 from albumentations import Compose
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -258,8 +259,18 @@ class DataModel(BaseModel):
 
 
         return data_model
+    
+    def __str__(self) -> str:
+        """Pretty string reprensenting the configuration.
 
-    def _update(self, **kwargs: Any):
+        Returns
+        -------
+        str
+            Pretty string.
+        """
+        return pformat(self.model_dump())
+
+    def _update(self, **kwargs: Any) -> None:
         """Update multiple arguments at once."""
         self.__dict__.update(kwargs)
         self.__class__.model_validate(self.__dict__)

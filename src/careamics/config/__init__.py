@@ -11,6 +11,8 @@ __all__ = [
     "save_configuration",
     "TrainingModel",
     "create_n2v_training_configuration",
+    "register_model",
+    "CustomModel",
     "create_inference_configuration"
 ]
 
@@ -28,3 +30,4 @@ from .configuration_model import (
 from .data_model import DataModel
 from .prediction_model import InferenceModel
 from .training_model import TrainingModel
+from .architectures import register_model, CustomModel

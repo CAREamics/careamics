@@ -79,13 +79,13 @@ def minimum_prediction() -> dict:
         A minimum data example.
     """
     # create dictionary
-    data = {
+    predic = {
         "data_type": SupportedData.TIFF.value,
         "tile_size": [64, 64],
         "axes": "SYX",
     }
 
-    return data
+    return predic
 
 
 @pytest.fixture

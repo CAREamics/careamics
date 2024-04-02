@@ -8,6 +8,8 @@ from pydantic import (
     field_validator,
 )
 from typing import Optional
+from pprint import pformat
+
 from .callback_model import CheckpointModel, EarlyStoppingModel
 
 
@@ -107,3 +109,13 @@ class TrainingModel(BaseModel):
         default=None, validate_default=True
     )
     # amp: AMP = AMP()
+
+    def __str__(self) -> str:
+        """Pretty string reprensenting the configuration.
+
+        Returns
+        -------
+        str
+            Pretty string.
+        """
+        return pformat(self.model_dump())

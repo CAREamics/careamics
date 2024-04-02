@@ -1,7 +1,10 @@
 import pytest
 from torch import nn, ones
 
-from careamics.config.architectures import CustomModel, get_custom_model, register_model
+from careamics.config.architectures import (
+    CustomModel, get_custom_model, register_model
+)
+from careamics.config.architectures.custom_model import CustomParametersModel
 from careamics.config.support import SupportedArchitecture
 
 
@@ -26,6 +29,16 @@ class NotAModel:
 
     def forward(self, input):
         return input
+
+
+def test_empty_parameters():
+    """Test that the custom model parameters does not require any fields."""
+    CustomParametersModel()
+
+
+def test_any_custom_parameters():
+    """Test that the custom model parameters can have any fields."""
+    CustomParametersModel(id=3, some_param= {"a": 1, "b": 2}, t="test")
 
 
 def test_linear_model():
@@ -54,7 +67,7 @@ def test_custom_model():
 
     # instantiate model
     model_class = get_custom_model(pydantic_model.name)
-    model = model_class(**pydantic_model.parameters)
+    model = model_class(**pydantic_model.parameters.model_dump())
 
     assert isinstance(model, LinearModel)
     assert model.in_features == 10
@@ -69,6 +82,20 @@ def test_custom_model_wrong_class():
         "architecture": "Custom",
         "name": "not_a_model",
         "parameters": {"id": 3},
+    }
+
+    # create Pydantic model
+    with pytest.raises(ValueError):
+        CustomModel(**model_dict)
+
+
+def test_wrong_parameters():
+    """Test that the custom model raises an error if the parameters are not valid."""
+    # prepare model dictionary
+    model_dict = {
+        "architecture": "Custom",
+        "name": "linear",
+        "parameters": {"in_features": 10},
     }
 
     # create Pydantic model

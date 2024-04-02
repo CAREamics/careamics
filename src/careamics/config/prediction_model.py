@@ -202,7 +202,7 @@ class InferenceModel(BaseModel):
 
         return pred_model
 
-    def _update(self, **kwargs: Any):
+    def _update(self, **kwargs: Any) -> None:
         """Update multiple arguments at once."""
         self.__dict__.update(kwargs)
         self.__class__.model_validate(self.__dict__)
