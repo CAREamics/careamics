@@ -1,12 +1,12 @@
 from pathlib import Path
-from typing import Any, Callable, List, Optional, Tuple, Union
+from typing import Any, Callable, List, Optional, Tuple, Union, Dict
 
 import numpy as np
 import pytorch_lightning as L
 from albumentations import Compose
 from torch.utils.data import DataLoader
 
-from careamics.config import DataModel, InferenceConfiguration
+from careamics.config import DataModel, InferenceModel
 from careamics.config.support import SupportedData, SupportedTransform
 from careamics.dataset.dataset_utils import (
     get_files_size,
@@ -336,13 +336,12 @@ class CAREamicsWood(L.LightningDataModule):
 class CAREamicsClay(L.LightningDataModule):
     def __init__(
         self,
-        prediction_config: InferenceConfiguration,
+        prediction_config: InferenceModel,
         pred_data: Union[Path, str, np.ndarray],
-        tile_size: Union[List[int], Tuple[int, ...]],
-        tile_overlap: Union[List[int], Tuple[int, ...]],
         read_source_func: Optional[Callable] = None,
         extension_filter: str = "",
-        num_workers: int = 0,
+        dataloader_params: Optional[Dict] = None,
+
     ) -> None:
         super().__init__()
 
@@ -378,11 +377,11 @@ class CAREamicsClay(L.LightningDataModule):
         self.data_config = prediction_config
         self.data_type = prediction_config.data_type
         self.batch_size = prediction_config.batch_size
-        self.num_workers = num_workers
+        self.num_workers = dataloader_params["num_workers"] if dataloader_params else 0
 
         self.pred_data = pred_data
-        self.tile_size = tile_size
-        self.tile_overlap = tile_overlap
+        self.tile_size = prediction_config.tile_size
+        self.tile_overlap = prediction_config.tile_overlap
 
         # read source function
         if prediction_config.data_type == SupportedData.CUSTOM:
@@ -522,7 +521,7 @@ class CAREamicsPredictDataModule(CAREamicsClay):
             )
 
         super().__init__(
-            prediction_config=InferenceConfiguration(**data_config),
+            prediction_config=InferenceModel(**data_config),
             pred_data=pred_path,
             tile_size=tile_size,
             tile_overlap=(48, 48),

@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Dict, List, Literal, Optional, Tuple, Union, overload
+from typing import Callable, Dict, List, Literal, Optional, Tuple, Union, overload
 
 import numpy as np
 from pytorch_lightning import LightningModule, Trainer
@@ -11,8 +11,9 @@ from .config import (
     AlgorithmModel,
     Configuration,
     DataModel,
-    InferenceConfiguration,
+    InferenceModel,
     TrainingModel,
+    create_inference_configuration,
     load_configuration,
 )
 from .config.support import SupportedAlgorithm
@@ -344,24 +345,36 @@ class CAREamist(LightningModule):
 
     @overload
     def predict(
-        self, source: CAREamicsClay, prediction_config: InferenceConfiguration
+        self, source: CAREamicsClay
     ) -> Union[list, np.ndarray]:
         ...
 
     @overload
     def predict(
-        self, source: Union[Path, str], prediction_config: InferenceConfiguration
+        self, source: Union[Path, str]
     ) -> Union[list, np.ndarray]:
         ...
 
     @overload
     def predict(
-        self, source: np.ndarray, prediction_config: InferenceConfiguration
+        self, source: np.ndarray
     ) -> Union[list, np.ndarray]:
         ...
 
     def predict(
-        self, source, prediction_config: InferenceConfiguration
+        self,
+        source,
+        *,
+        batch_size: int = 1,
+        tile_size: Optional[Tuple[int, ...]] = None,
+        tile_overlap: int = (48, 48),
+        axes: Optional[str] = None,
+        data_type: Optional[Literal["array", "tiff", "custom"]] = None,
+        read_source_func: Optional[Callable] = None,
+        transforms: Optional[List] = None,
+        tta_transforms: Optional[bool] = True,
+        extension_filter: Optional[str] = "",
+        dataloader_params: Optional[Dict] = None,
     ) -> Union[list, np.ndarray]:
         """Make predictions on the provided data.
 
@@ -383,19 +396,32 @@ class CAREamist(LightningModule):
             _description_
         """
         if isinstance(source, CAREamicsClay):
-            return self._predict_on_datamodule(
-                datamodule=source, prediction_config=prediction_config
+            return self.trainer.predict(datamodule=source)
+
+        elif isinstance(source, Path) or isinstance(source, str):
+            # Check the source
+            source_path = check_path_exists(source)
+
+            # create predict config, reuse training config if parameters are not provided
+            prediction_config = create_inference_configuration(
+                training_configuration=self.cfg,
+                tile_size=tile_size,
+                tile_overlap=tile_overlap,
+                data_type=data_type,
+                axes=axes,
+                transforms=transforms,
+                tta_transforms=tta_transforms
+            )
+            # create datamodule
+            datamodule = CAREamicsClay(
+                prediction_config=prediction_config,
+                pred_data=source_path,
+                read_source_func=read_source_func,
+                extension_filter=extension_filter,
+                dataloader_params=dataloader_params,
             )
 
-        elif isinstance(source, Path):
-            self._predict_on_path(
-                path_to_data=source, prediction_config=prediction_config
-            )
-
-        elif isinstance(source, str):
-            self._predict_on_str(
-                str_to_data=source, prediction_config=prediction_config
-            )
+            return self._predict_on_datamodule(datamodule)
 
         elif isinstance(source, np.ndarray):
             self._predict_on_array(data=source, prediction_config=prediction_config)
@@ -415,7 +441,7 @@ class CAREamist(LightningModule):
     def _predict_on_path(
         self,
         path_to_data: Path,
-        prediction_config: InferenceConfiguration,
+        prediction_config: InferenceModel,
     ) -> Dict[str, np.ndarray]:
         # sanity check (path exists)
         path = check_path_exists(path_to_data)
@@ -434,11 +460,11 @@ class CAREamist(LightningModule):
     def _predict_on_str(
         self,
         str_to_data: str,
-        prediction_config: InferenceConfiguration,
+        prediction_config: InferenceModel,
     ) -> Dict[str, np.ndarray]:
         path_to_data = Path(str_to_data)
 
-        return self._predict_on_path(path_to_data, tile_size, tile_overlap)
+        return self._predict_on_path(path_to_data, prediction_config)
 
     def _predict_on_array(
         self,
@@ -448,10 +474,8 @@ class CAREamist(LightningModule):
     ) -> Dict[str, np.ndarray]:
         # create datamodule
         datamodule = CAREamicsClay(
-            data_config=self.cfg.data,
+            prediction_config=self.cfg.data,
             pred_data=data,
-            tile_size=tile_size,
-            tile_overlap=tile_overlap,
         )
 
         return self.predict(datamodule)
