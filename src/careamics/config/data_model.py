@@ -135,7 +135,7 @@ class DataModel(BaseModel):
         check_axes_validity(axes)
 
         return axes
-    
+
     @field_validator("transforms")
     @classmethod
     def validate_prediction_transforms(
@@ -177,7 +177,7 @@ class DataModel(BaseModel):
                     index = transform_list.index(SupportedTransform.N2V_MANIPULATE)
                     transform = transforms.pop(index)
                     transforms.append(transform)
-                
+
         return transforms
 
 
@@ -249,7 +249,7 @@ class DataModel(BaseModel):
                     f"Patch size must have 3 dimensions if the data is 3D "
                     f"({data_model.axes})."
                 )
-            
+
             if data_model.has_transform_list():
                 for transform in data_model.transforms:
                     if transform.name == SupportedTransform.NDFLIP:
@@ -286,6 +286,7 @@ class DataModel(BaseModel):
         """
         return isinstance(self.transforms, list)
 
+
     def set_mean_and_std(self, mean: float, std: float) -> None:
         """
         Set mean and standard deviation of the data.
@@ -313,7 +314,7 @@ class DataModel(BaseModel):
                 "Setting mean and std with Compose transforms is not allowed. Add "
                 "mean and std parameters directly to the transform in the Compose."
             )
-        
+
     def set_3D(self, axes: str, patch_size: List[int]) -> None:
         """
         Set 3D parameters.
@@ -356,7 +357,7 @@ class DataModel(BaseModel):
                     f"N2V_Manipulate transform not found in the transforms list "
                     f"({transforms})."
                 )
-            
+
         else:
             raise ValueError(
                 "Setting N2V2 strategy with Compose transforms is not allowed. Add "
@@ -402,7 +403,7 @@ class DataModel(BaseModel):
                     f"N2V pixel manipulate transform not found in the transforms "
                     f"({transforms})."
                 )
-            
+
         else:
             raise ValueError(
                 "Setting structN2VMask with Compose transforms is not allowed. Add "

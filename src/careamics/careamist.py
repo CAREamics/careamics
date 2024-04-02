@@ -1,18 +1,19 @@
 from pathlib import Path
-from typing import Dict, Literal, List, Optional, Tuple, Union, overload
+from typing import Callable, Dict, List, Literal, Optional, Tuple, Union, overload
 
 import numpy as np
 from pytorch_lightning import LightningModule, Trainer
-from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint, Callback
+from pytorch_lightning.callbacks import Callback, EarlyStopping, ModelCheckpoint
 from torch import load
 
 from .config import (
-    AlgorithmModel, 
-    Configuration, 
-    DataModel, 
-    load_configuration, 
+    AlgorithmModel,
+    Configuration,
+    DataModel,
+    InferenceModel,
     TrainingModel,
-    PredictionModel
+    create_inference_configuration,
+    load_configuration,
 )
 from .config.support import SupportedAlgorithm
 from .lightning_module import CAREamicsKiln
@@ -67,60 +68,34 @@ class CAREamist(LightningModule):
 
     @overload
     def __init__(
-        self, 
-        source: Union[Path, str], 
-        work_dir: Optional[str] = None, 
-        experiment_name: str = "CAREamics"
+        self,
+        source: Union[Path, str],
+        work_dir: Optional[str] = None,
+        experiment_name: str = "CAREamics",
     ) -> None:
-        """Initialize CAREamist with a path to a configuration or a trained model.
-
-        Model can be either a checkpoint (saved during training by CAREamics) or a
-        model exported to the BioImage Model Zoo format.
-
-        If no working directory is provided, the current working directory is used.
-
-        Parameters
-        ----------
-        source : Union[Path, str]
-            Path to a configuration file or a trained model.
-        work_dir : Optional[str], optional
-            Directory in which to save checkpoints and logs, by default None
-        experiment_name : str, optional
-            Name of the experiment, used with checkpoints, by default "CAREamics"
-        """
         ...
 
     @overload
-    def __init__(self, source: Configuration, work_dir: Optional[str] = None) -> None:
-        """Initialize CAREamist with a Configuration object.
-
-        A configuration object can be created using directly by calling `Configuration`,
-        using the configuration factory or loading a configuration from a yaml file.
-
-        If no working directory is provided, the current working directory is used.
-
-        Parameters
-        ----------
-        source : Configuration
-            Configuration object.
-        work_dir : Optional[str], optional
-            Directory in which to save checkpoints and logs, by default None.
-        """
+    def __init__(
+        self,
+        source: Configuration,
+        work_dir: Optional[str] = None,
+        experiment_name: str = "CAREamics",
+    ) -> None:
         ...
 
     def __init__(
-        self, 
-        source: Union[Path, str, Configuration], 
+        self,
+        source: Union[Path, str, Configuration],
         work_dir: Optional[str] = None,
-        experiment_name: str = "CAREamics"
+        experiment_name: str = "CAREamics",
     ) -> None:
-        """Initialize CAREamist with a path to a configuration or a trained model.
+        """Initialize CAREamist with a configuration object or a path.
 
         A configuration object can be created using directly by calling `Configuration`,
         using the configuration factory or loading a configuration from a yaml file.
 
-        Model can be either a checkpoint (saved during training by CAREamics) or a
-        model exported to the BioImage Model Zoo format.
+        Path can contain either a yaml file with parameters, or a saved checkpoint.
 
         If no working directory is provided, the current working directory is used.
 
@@ -132,7 +107,7 @@ class CAREamist(LightningModule):
         source : Union[Path, str, Configuration]
             Path to a configuration file or a trained model.
         work_dir : Optional[str], optional
-            Path to working directory in which to save checkpoints and logs, 
+            Path to working directory in which to save checkpoints and logs,
             by default None
         experiment_name : str, optional
             Experiment name used for checkpoints, by default "CAREamics"
@@ -188,7 +163,7 @@ class CAREamist(LightningModule):
                 raise NotImplementedError(
                     "Loading a model from BioImage Model Zoo is not implemented yet."
                 )
-            
+
             # checkpoint
             elif source.suffix == ".ckpt":
                 checkpoint = load(source)
@@ -217,12 +192,12 @@ class CAREamist(LightningModule):
                 training = TrainingModel()
                 self.cfg = Configuration(
                     experiment_name=experiment_name,
-                    algorithm=algorithm, 
-                    data=data, 
-                    training=training
+                    algorithm=algorithm,
+                    data=data,
+                    training=training,
                 )
-            
-                # load weights    
+
+                # load weights
                 self.load_pretrained(checkpoint)
 
         # define the checkpoint saving callback
@@ -298,7 +273,7 @@ class CAREamist(LightningModule):
 
     def train_on_path(
         self,
-        path_to_train_data: Union[Path, str], 
+        path_to_train_data: Union[Path, str],
         path_to_val_data: Optional[Union[Path, str]] = None,
         path_to_train_target: Optional[Union[Path, str]] = None,
         path_to_val_target: Optional[Union[Path, str]] = None,
@@ -362,33 +337,87 @@ class CAREamist(LightningModule):
         self.train(datamodule=datamodule)
 
     @overload
-    def predict(self, 
-                source: CAREamicsClay, 
-                prediction_config: PredictionModel
+    def predict(
+        self, source: CAREamicsClay
     ) -> Union[list, np.ndarray]:
         ...
 
     @overload
-    def predict(self, source: Union[Path, str]) -> Union[list, np.ndarray]:
+    def predict(
+        self, source: Union[Path, str]
+    ) -> Union[list, np.ndarray]:
         ...
 
     @overload
-    def predict(self, source: np.ndarray) -> Union[list, np.ndarray]:
+    def predict(
+        self, source: np.ndarray
+    ) -> Union[list, np.ndarray]:
         ...
 
-    def predict(self, source) -> None:
+    def predict(
+        self,
+        source,
+        *,
+        batch_size: int = 1,
+        tile_size: Optional[Tuple[int, ...]] = None,
+        tile_overlap: int = (48, 48),
+        axes: Optional[str] = None,
+        data_type: Optional[Literal["array", "tiff", "custom"]] = None,
+        read_source_func: Optional[Callable] = None,
+        transforms: Optional[List] = None,
+        tta_transforms: Optional[bool] = True,
+        extension_filter: Optional[str] = "",
+        dataloader_params: Optional[Dict] = None,
+    ) -> Union[list, np.ndarray]:
+        """Make predictions on the provided data.
 
-        if isinstance(source, CAREamicsClay) :
-            return self._predict_on_datamodule(datamodule=source)
+        Input can be a CAREamicsClay instance, a path to a data file, or a numpy array.
 
-        elif isinstance(source, Path):
-            self._predict_on_path(source)
+        Parameters
+        ----------
+        source : _type_
+            _description_
 
-        elif isinstance(source, str):
-            self._predict_on_str(source)
+        Returns
+        -------
+        _type_
+            _description_
+
+        Raises
+        ------
+        ValueError
+            _description_
+        """
+        if isinstance(source, CAREamicsClay):
+            return self.trainer.predict(datamodule=source)
+
+        elif isinstance(source, Path) or isinstance(source, str):
+            # Check the source
+            source_path = check_path_exists(source)
+
+            # create predict config, reuse training config if parameters are not provided
+            prediction_config = create_inference_configuration(
+                training_configuration=self.cfg,
+                tile_size=tile_size,
+                tile_overlap=tile_overlap,
+                data_type=data_type,
+                axes=axes,
+                transforms=transforms,
+                tta_transforms=tta_transforms
+            )
+            # create datamodule
+            datamodule = CAREamicsClay(
+                prediction_config=prediction_config,
+                pred_data=source_path,
+                read_source_func=read_source_func,
+                extension_filter=extension_filter,
+                dataloader_params=dataloader_params,
+            )
+
+            return self._predict_on_datamodule(datamodule)
 
         elif isinstance(source, np.ndarray):
-            self._predict_on_array(source)
+            self._predict_on_array(data=source, prediction_config=prediction_config)
 
         else:
             raise ValueError(
@@ -405,31 +434,30 @@ class CAREamist(LightningModule):
     def _predict_on_path(
         self,
         path_to_data: Path,
-        tile_size: Tuple[int, ...],
-        tile_overlap: Tuple[int, ...],
+        prediction_config: InferenceModel,
     ) -> Dict[str, np.ndarray]:
         # sanity check (path exists)
         path = check_path_exists(path_to_data)
-
+        """
+        create predict config, reuse the training config if parameters are not provided
+        remove all prediction specific parameters from data_config
+        """
         # create datamodule
         datamodule = CAREamicsClay(
-            data_config=self.cfg.data,
+            data_config=prediction_config,
             pred_data=path,
-            tile_size=tile_size,
-            tile_overlap=tile_overlap,
         )
 
-        return self.predict(datamodule)
+        return self._predict_on_datamodule(datamodule)
 
     def _predict_on_str(
         self,
         str_to_data: str,
-        tile_size: Tuple[int, ...],
-        tile_overlap: Tuple[int, ...],
+        prediction_config: InferenceModel,
     ) -> Dict[str, np.ndarray]:
         path_to_data = Path(str_to_data)
 
-        return self._predict_on_path(path_to_data, tile_size, tile_overlap)
+        return self._predict_on_path(path_to_data, prediction_config)
 
     def _predict_on_array(
         self,
@@ -439,10 +467,8 @@ class CAREamist(LightningModule):
     ) -> Dict[str, np.ndarray]:
         # create datamodule
         datamodule = CAREamicsClay(
-            data_config=self.cfg.data,
+            prediction_config=self.cfg.data,
             pred_data=data,
-            tile_size=tile_size,
-            tile_overlap=tile_overlap,
         )
 
         return self.predict(datamodule)

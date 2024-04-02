@@ -14,12 +14,12 @@ from .transformations.transform_model import TransformModel
 TRANSFORMS_UNION = Union[NormalizeModel, TransformModel]
 
 
-class PredictionModel(BaseModel):
+class InferenceModel(BaseModel):
     """Configuration class for the prediction model."""
 
     model_config = ConfigDict(
-        validate_assignment=True, 
-        arbitrary_types_allowed=True # Allow Compose declaration
+        validate_assignment=True,
+        arbitrary_types_allowed=True
     )
 
     # Mandatory fields
@@ -30,10 +30,11 @@ class PredictionModel(BaseModel):
     axes: str
 
     # Optional fields
-    mean: Optional[float] = None
-    std: Optional[float] = None
+    tile_overlap: Optional[List[int]] = Field(default=[48, 48])
+    mean: Optional[float] = (None,)
+    std: Optional[float] = (None,)
 
-    transforms: Union[List[TRANSFORMS_UNION], Compose] = Field(
+    transforms: Optional[Union[List[TRANSFORMS_UNION], Compose]] = Field(
         default=[
             {
                 "name": SupportedTransform.NORMALIZE.value,
@@ -46,8 +47,8 @@ class PredictionModel(BaseModel):
     tta_transforms: bool = Field(default=True)
     # extension_filter: str = ""
 
-    # # Dataloader parameters
-    # batch_size: int
+    # Dataloader parameters
+    batch_size: int = Field(default=1, ge=1)
 
     @field_validator("tile_size")
     @classmethod
@@ -115,7 +116,7 @@ class PredictionModel(BaseModel):
         check_axes_validity(axes)
 
         return axes
-    
+
     @field_validator("transforms")
     @classmethod
     def validate_transforms(
@@ -138,7 +139,7 @@ class PredictionModel(BaseModel):
         ValueError
             If transforms contain N2V pixel manipulate transforms.
         """
-        if not isinstance(transforms, Compose):
+        if not isinstance(transforms, Compose) and transforms is not None:
             for transform in transforms:
                 if transform.name == SupportedTransform.N2V_MANIPULATE.value:
                     raise ValueError(
@@ -149,7 +150,7 @@ class PredictionModel(BaseModel):
         return transforms
 
     @model_validator(mode="after")
-    def validate_dimensions(cls, pred_model: PredictionModel) -> PredictionModel:
+    def validate_dimensions(cls, pred_model: InferenceModel) -> InferenceModel:
         """
         Validate 2D/3D dimensions between axes and tile size.
 
@@ -164,7 +165,7 @@ class PredictionModel(BaseModel):
             Validated prediction model.
         """
         expected_len = 3 if "Z" in pred_model.axes else 2
-        
+
         if len(pred_model.tile_size) != expected_len:
             raise ValueError(
                 f"Tile size must have {expected_len} dimensions given axes "
@@ -172,9 +173,9 @@ class PredictionModel(BaseModel):
             )
 
         return pred_model
-    
+
     @model_validator(mode="after")
-    def std_only_with_mean(cls, pred_model: PredictionModel) -> PredictionModel:
+    def std_only_with_mean(cls, pred_model: InferenceModel) -> InferenceModel:
         """
         Check that mean and std are either both None, or both specified.
 
@@ -212,7 +213,7 @@ class PredictionModel(BaseModel):
 
         This method should be used instead setting the fields directly, as it would
         otherwise trigger a validation error.
-        
+
         Parameters
         ----------
         mean : float
@@ -233,7 +234,7 @@ class PredictionModel(BaseModel):
                 "Setting mean and std with Compose transforms is not allowed. Add "
                 "mean and std parameters directly to the transform in the Compose."
             )
-        
+
     def set_3D(self, axes: str, tile_size: List[int]) -> None:
         """
         Set 3D parameters.

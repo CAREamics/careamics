@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import Dict, Literal, List, Union
+from typing import Dict, List, Literal, Union
 from pprint import pformat
 
 import yaml
@@ -17,7 +17,7 @@ from pydantic import (
 
 from .algorithm_model import AlgorithmModel
 from .data_model import DataModel
-from .support import SupportedAlgorithm, SupportedTransform, SupportedPixelManipulation
+from .support import SupportedAlgorithm, SupportedPixelManipulation, SupportedTransform
 from .training_model import TrainingModel
 from .transformations.n2v_manipulate_model import (
     N2VManipulationModel,
@@ -292,12 +292,12 @@ class Configuration(BaseModel):
             self.algorithm.model.n2v2 = use_n2v2
             strategy = SupportedPixelManipulation.MEDIAN.value \
                 if use_n2v2 else SupportedPixelManipulation.UNIFORM.value
-            self.data.set_N2V2_strategy(strategy)            
+            self.data.set_N2V2_strategy(strategy)
         else:
             raise ValueError("N2V2 can only be set for N2V algorithm.")
-        
+
     def set_structN2V(
-            self, 
+            self,
             mask_axis: Literal["horizontal", "vertical", "none"],
             mask_span: int
     ) -> None:
