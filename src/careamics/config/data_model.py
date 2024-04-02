@@ -1,8 +1,8 @@
 """Data configuration."""
 from __future__ import annotations
 
-from typing import Any, List, Literal, Optional, Union
 from pprint import pformat
+from typing import Any, List, Literal, Optional, Union
 
 from albumentations import Compose
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -21,8 +21,9 @@ TRANSFORMS_UNION = Union[
     XYRandomRotate90Model,
     NormalizeModel,
     N2VManipulationModel,
-    TransformModel
+    TransformModel,
 ]
+
 
 # TODO does patches need to be multiple of 8 with UNet?
 class DataModel(BaseModel):
@@ -38,11 +39,11 @@ class DataModel(BaseModel):
     # Pydantic class configuration
     model_config = ConfigDict(
         validate_assignment=True,
-        arbitrary_types_allowed=True, # Allow Compose declaration
+        arbitrary_types_allowed=True,  # Allow Compose declaration
     )
 
     # Dataset configuration
-    data_type: Literal["array", "tiff", "custom"] # As defined in SupportedData
+    data_type: Literal["array", "tiff", "custom"]  # As defined in SupportedData
     patch_size: List[int] = Field(..., min_length=2, max_length=3)
     batch_size: int = Field(default=1, ge=1, validate_default=True)
     axes: str
@@ -139,8 +140,7 @@ class DataModel(BaseModel):
     @field_validator("transforms")
     @classmethod
     def validate_prediction_transforms(
-        cls, 
-        transforms: Union[List[TRANSFORMS_UNION], Compose]
+        cls, transforms: Union[List[TRANSFORMS_UNION], Compose]
     ) -> Union[List[TRANSFORMS_UNION], Compose]:
         """Validate N2VManipulate transform position in the transform list.
 
@@ -163,7 +163,6 @@ class DataModel(BaseModel):
             transform_list = [t.name for t in transforms]
 
             if SupportedTransform.N2V_MANIPULATE in transform_list:
-
                 # multiple N2V_MANIPULATE
                 if transform_list.count(SupportedTransform.N2V_MANIPULATE) > 1:
                     raise ValueError(
@@ -179,7 +178,6 @@ class DataModel(BaseModel):
                     transforms.append(transform)
 
         return transforms
-
 
     @model_validator(mode="after")
     def std_only_with_mean(cls, data_model: DataModel) -> DataModel:
@@ -257,9 +255,8 @@ class DataModel(BaseModel):
                     elif transform.name == SupportedTransform.XY_RANDOM_ROTATE90:
                         transform.parameters.is_3D = False
 
-
         return data_model
-    
+
     def __str__(self) -> str:
         """Pretty string reprensenting the configuration.
 
@@ -285,7 +282,6 @@ class DataModel(BaseModel):
             True if the transforms are a list, False otherwise.
         """
         return isinstance(self.transforms, list)
-
 
     def set_mean_and_std(self, mean: float, std: float) -> None:
         """
@@ -352,7 +348,7 @@ class DataModel(BaseModel):
                     found_n2v = True
 
             if not found_n2v:
-                transforms  = [t.name for t in self.transforms]
+                transforms = [t.name for t in self.transforms]
                 raise ValueError(
                     f"N2V_Manipulate transform not found in the transforms list "
                     f"({transforms})."
@@ -364,12 +360,9 @@ class DataModel(BaseModel):
                 "N2V2 strategy parameters directly to the transform in the Compose."
             )
 
-
     def set_structN2V_mask(
-            self,
-            mask_axis: Literal["horizontal", "vertical", "none"], 
-            mask_span: int
-        ) -> None:
+        self, mask_axis: Literal["horizontal", "vertical", "none"], mask_span: int
+    ) -> None:
         """Set structN2V mask parameters.
 
         Setting `mask_axis` to `none` will disable structN2V.
@@ -398,7 +391,7 @@ class DataModel(BaseModel):
                     found_n2v = True
 
             if not found_n2v:
-                transforms  = [t.name for t in self.transforms]
+                transforms = [t.name for t in self.transforms]
                 raise ValueError(
                     f"N2V pixel manipulate transform not found in the transforms "
                     f"({transforms})."

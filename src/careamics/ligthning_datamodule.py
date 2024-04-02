@@ -44,11 +44,10 @@ class CAREamicsWood(L.LightningDataModule):
         val_percentage: float = 0.1,
         val_minimum_split: int = 5,
         use_in_memory: bool = True,
-        num_workers: int = 0,
+        dataloader_params: Optional[Dict] = None,
         # dataloader_params: Optional[Dict[str, Any]] = None,
     ) -> None:
-        """LightningDataModule for CAREamics training, including training and validation
-        datasets.
+        """LightningDataModule for training and validation datasets.
 
         The data module can be used with Path, str or numpy arrays. In the case of
         numpy arrays, it loads and computes all the patches in memory. For Path and str
@@ -159,7 +158,6 @@ class CAREamicsWood(L.LightningDataModule):
         self.data_config = data_config
         self.data_type = data_config.data_type
         self.batch_size = data_config.batch_size
-        self.num_workers = num_workers
         self.use_in_memory = use_in_memory
 
         # data
@@ -178,9 +176,11 @@ class CAREamicsWood(L.LightningDataModule):
             self.read_source_func = get_read_func(data_config.data_type)
         self.extension_filter = extension_filter
 
+        # Pytorch dataloader parameters
+        self.dataloader_params = dataloader_params
+
     def prepare_data(self) -> None:
-        """Hook used to prepare the data before calling `setup` and creating
-        the dataloader.
+        """Hook used to prepare the data before calling `setup`.
 
         Here, we only need to examine the data if it was provided as a str or a Path.
         """
@@ -221,10 +221,7 @@ class CAREamicsWood(L.LightningDataModule):
                 validate_source_target_files(self.val_files, self.val_target_files)
 
     def setup(self, *args: Any, **kwargs: Any) -> None:
-        """
-        Hook called at the beginning of fit (train + validate), validate, test, or
-        predict.
-        """
+        """Hook called at the beginning of fit, validate, or predict."""
         # if numpy array
         if self.data_type == SupportedData.ARRAY:
             # train dataset
@@ -322,14 +319,13 @@ class CAREamicsWood(L.LightningDataModule):
         return DataLoader(
             self.train_dataset,
             batch_size=self.batch_size,
-            num_workers=self.num_workers,
+            num_workers=self.dataloader_params["num_workers"],
         )
 
     def val_dataloader(self) -> Any:
         return DataLoader(
             self.val_dataset,
             batch_size=self.batch_size,
-            num_workers=self.num_workers,
         )
 
 
@@ -374,7 +370,7 @@ class CAREamicsClay(L.LightningDataModule):
             )
 
         # configuration data
-        self.data_config = prediction_config
+        self.prediction_config = prediction_config
         self.data_type = prediction_config.data_type
         self.batch_size = prediction_config.batch_size
         self.num_workers = dataloader_params["num_workers"] if dataloader_params else 0
@@ -398,14 +394,14 @@ class CAREamicsClay(L.LightningDataModule):
             )
         else:
             # reshape array
-            self.pred_data = reshape_array(self.pred_data, self.data_config.axes)
+            self.pred_data = reshape_array(self.pred_data, self.prediction_config.axes)
 
     def setup(self, stage: Optional[str] = None) -> None:
         # if numpy array
         if self.data_type == SupportedData.ARRAY:
             # prediction dataset
             self.predict_dataset: PredictDatasetType = InMemoryPredictionDataset(
-                data_config=self.data_config,
+                prediction_config=self.prediction_config,
                 data=self.pred_data,
                 tile_size=self.tile_size,
                 tile_overlap=self.tile_overlap,
@@ -413,7 +409,7 @@ class CAREamicsClay(L.LightningDataModule):
         else:
             self.predict_dataset = IterablePredictionDataset(
                 src_files=self.pred_files,
-                data_config=self.data_config,
+                prediction_config=self.prediction_config,
                 read_source_func=self.read_source_func,
                 tile_size=self.tile_size,
                 tile_overlap=self.tile_overlap,
@@ -443,8 +439,7 @@ class CAREamicsTrainDataModule(CAREamicsWood):
         extension_filter: str = "",
         val_percentage: float = 0.1,
         val_minimum_patches: int = 5,
-        num_workers: int = 0,
-        pin_memory: bool = False,
+        dataloader_params: Optional[Dict] = None,
         **kwargs: Any,
     ) -> None:
         data_config = {
@@ -453,7 +448,6 @@ class CAREamicsTrainDataModule(CAREamicsWood):
             "patch_size": patch_size,
             "axes": axes,
             "batch_size": batch_size,
-            "pin_memory": pin_memory,
         }
 
         # if transforms are passed (otherwise it will use the default ones)
@@ -470,7 +464,7 @@ class CAREamicsTrainDataModule(CAREamicsWood):
             extension_filter=extension_filter,
             val_percentage=val_percentage,
             val_minimum_split=val_minimum_patches,
-            num_workers=num_workers,
+            dataloader_params=dataloader_params,
         )
 
 
@@ -488,10 +482,10 @@ class CAREamicsPredictDataModule(CAREamicsClay):
         std: Optional[float] = None,
         read_source_func: Optional[Callable] = None,
         extension_filter: str = "",
-        num_workers: int = 0,
+        dataloader_params: Optional[Dict] = None,
         **kwargs: Any,
     ) -> None:
-        data_config = {
+        prediction_config = {
             "mode": "predict",
             "data_type": data_type,
             "tile_size": tile_size,
@@ -505,14 +499,14 @@ class CAREamicsPredictDataModule(CAREamicsClay):
         # TODO this needs to be reorganized
         # if transforms are passed
         if mean is not None and std is not None:
-            data_config["prediction_transforms"] = [
+            prediction_config["prediction_transforms"] = [
                 {
                     "name": SupportedTransform.NORMALIZE.value,
                     "parameters": {"mean": mean, "std": std, "max_pixel_value": 1},
                 },
             ]
         elif prediction_transforms is not None:
-            data_config["transforms"] = prediction_transforms
+            prediction_config["transforms"] = prediction_transforms
 
         else:
             logger.info(
@@ -521,11 +515,9 @@ class CAREamicsPredictDataModule(CAREamicsClay):
             )
 
         super().__init__(
-            prediction_config=InferenceModel(**data_config),
+            prediction_config=InferenceModel(**prediction_config),
             pred_data=pred_path,
-            tile_size=tile_size,
-            tile_overlap=(48, 48),
             read_source_func=read_source_func,
             extension_filter=extension_filter,
-            num_workers=num_workers,
+            dataloader_params=dataloader_params,
         )

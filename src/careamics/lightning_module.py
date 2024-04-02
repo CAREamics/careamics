@@ -60,7 +60,7 @@ class CAREamicsKiln(L.LightningModule):
 
         # apply test-time augmentation if available
         # TODO: probably wont work with batch size > 1
-        if self._trainer.datamodule.data_config.tta_transforms:
+        if self._trainer.datamodule.prediction_config.tta_transforms:
             tta = ImageRestorationTTA()
             augmented_batch = tta.forward(batch[0])  # list of augmented tensors
             augmented_output = []

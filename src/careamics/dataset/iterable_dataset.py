@@ -65,10 +65,16 @@ class PathIterableDataset(IterableDataset):
             self.mean, self.std = self._calculate_mean_and_std()
 
             # if the transforms are not an instance of Compose
-            if data_config.has_transform_list():
-                # update mean and std in configuration
-                # the object is mutable and should then be recorded in the CAREamist obj
+            # Check if the data_config is an instance of DataModel or InferenceModel
+            # isinstance isn't working properly here
+            if hasattr(data_config, 'has_transform_list'):
+                if data_config.has_transform_list():
+                    # update mean and std in configuration
+                    # the object is mutable and should then be recorded in the CAREamist
+                    data_config.set_mean_and_std(self.mean, self.std)
+            else:
                 data_config.set_mean_and_std(self.mean, self.std)
+
         else:
             self.mean = data_config.mean
             self.std = data_config.std

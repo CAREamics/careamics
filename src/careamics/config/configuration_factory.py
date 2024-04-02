@@ -28,7 +28,7 @@ def create_n2n_training_configuration(
     roi_size: int = 11,
     masked_pixel_percentage: float = 0.2,
     struct_n2v_axis: Literal["horizontal", "vertical", "none"] = "none",
-    struct_n2v_span: int= 5,
+    struct_n2v_span: int = 5,
     model_kwargs: dict = {},
 ) -> Configuration:
     """Create a configuration for training N2V.
@@ -123,13 +123,14 @@ def create_n2n_training_configuration(
     nv2_transform = {
         "name": SupportedTransform.N2V_MANIPULATE.value,
         "parameters": {
-            "strategy": SupportedPixelManipulation.MEDIAN.value if use_n2v2 \
-                        else SupportedPixelManipulation.UNIFORM.value,
+            "strategy": SupportedPixelManipulation.MEDIAN.value
+            if use_n2v2
+            else SupportedPixelManipulation.UNIFORM.value,
             "roi_size": roi_size,
             "masked_pixel_percentage": masked_pixel_percentage,
             "struct_mask_axis": struct_n2v_axis,
             "struct_mask_span": struct_n2v_span,
-        }
+        },
     }
     transforms.append(nv2_transform)
 
@@ -172,19 +173,19 @@ def create_n2v_training_configuration(
     roi_size: int = 11,
     masked_pixel_percentage: float = 0.2,
     struct_n2v_axis: Literal["horizontal", "vertical", "none"] = "none",
-    struct_n2v_span: int= 5,
+    struct_n2v_span: int = 5,
     model_kwargs: dict = {},
 ) -> Configuration:
     """Create a configuration for training N2V.
 
-    N2V uses a UNet model to denoise images in a self-supervised manner. To use its 
+    N2V uses a UNet model to denoise images in a self-supervised manner. To use its
     variants structN2V and N2V2, set the `struct_n2v_axis` and `struct_n2v_span`
     (structN2V) parameters, or set `use_n2v2` to True (N2V2).
 
     N2V2 modifies the UNet architecture by adding blur pool layers and removes the skip
     connections, thus removing checkboard artefacts. StructN2V is used when vertical
-    or horizontal correlations are present in the noise; it applies an additional mask 
-    to the manipulated pixel neighbors. 
+    or horizontal correlations are present in the noise; it applies an additional mask
+    to the manipulated pixel neighbors.
 
     If "Z" is present in `axes`, then `path_size` must be a list of length 3, otherwise
     2.
@@ -197,10 +198,10 @@ def create_n2v_training_configuration(
     pixels per patch will be manipulated.
 
     The parameters of the UNet can be specified in the `model_kwargs` (passed as a
-    parameter-value dictionary). Note that `use_n2v2` and 'n_channels' override the 
+    parameter-value dictionary). Note that `use_n2v2` and 'n_channels' override the
     corresponding parameters passed in `model_kwargs`.
 
-    If you pass "horizontal" or "vertical" to `struct_n2v_axis`, then structN2V mask 
+    If you pass "horizontal" or "vertical" to `struct_n2v_axis`, then structN2V mask
     will be applied to each manipulated pixel.
 
     Parameters
@@ -281,13 +282,14 @@ def create_n2v_training_configuration(
     nv2_transform = {
         "name": SupportedTransform.N2V_MANIPULATE.value,
         "parameters": {
-            "strategy": SupportedPixelManipulation.MEDIAN.value if use_n2v2 \
-                        else SupportedPixelManipulation.UNIFORM.value,
+            "strategy": SupportedPixelManipulation.MEDIAN.value
+            if use_n2v2
+            else SupportedPixelManipulation.UNIFORM.value,
             "roi_size": roi_size,
             "masked_pixel_percentage": masked_pixel_percentage,
             "struct_mask_axis": struct_n2v_axis,
             "struct_mask_span": struct_n2v_span,
-        }
+        },
     }
     transforms.append(nv2_transform)
 
@@ -367,7 +369,6 @@ def create_inference_configuration(
         except AttributeError as e:
             raise ValueError("axes must be provided.") from e
 
-
     return InferenceModel(
         data_type=data_type,
         tile_size=tile_size,
@@ -378,6 +379,3 @@ def create_inference_configuration(
         batch_size=batch_size,
         extension_filter=extension_filter,
     )
-
-
-

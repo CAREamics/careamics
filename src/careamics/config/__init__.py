@@ -17,6 +17,7 @@ __all__ = [
 ]
 
 from .algorithm_model import AlgorithmModel
+from .architectures import CustomModel, register_model
 from .callback_model import CheckpointModel
 from .configuration_factory import (
     create_inference_configuration,
@@ -30,4 +31,3 @@ from .configuration_model import (
 from .data_model import DataModel
 from .prediction_model import InferenceModel
 from .training_model import TrainingModel
-from .architectures import register_model, CustomModel

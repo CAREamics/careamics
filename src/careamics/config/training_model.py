@@ -1,14 +1,15 @@
 """Training configuration."""
 from __future__ import annotations
 
+from pprint import pformat
+from typing import Optional
+
 from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
     field_validator,
 )
-from typing import Optional
-from pprint import pformat
 
 from .callback_model import CheckpointModel, EarlyStoppingModel
 

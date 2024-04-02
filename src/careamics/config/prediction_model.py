@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, List, Literal, Optional, Union
+from typing import Any, List, Literal, Optional, Tuple, Union
 
 from albumentations import Compose
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -17,22 +17,20 @@ TRANSFORMS_UNION = Union[NormalizeModel, TransformModel]
 class InferenceModel(BaseModel):
     """Configuration class for the prediction model."""
 
-    model_config = ConfigDict(
-        validate_assignment=True,
-        arbitrary_types_allowed=True
-    )
+    model_config = ConfigDict(validate_assignment=True, arbitrary_types_allowed=True)
 
     # Mandatory fields
-    data_type: Literal["array", "tiff", "custom"] # As defined in SupportedData
-    tile_size: List[int] = Field(..., min_items=2, max_items=3)
-    # TODO Overlaps?
+    data_type: Literal["array", "tiff", "custom"]  # As defined in SupportedData
+    tile_size: Union[List[int], Tuple[int]] = Field(..., min_items=2, max_items=3)
 
     axes: str
 
     # Optional fields
-    tile_overlap: Optional[List[int]] = Field(default=[48, 48])
-    mean: Optional[float] = (None,)
-    std: Optional[float] = (None,)
+    tile_overlap: Optional[List[int]] = Field(
+        default=[48, 48]
+    )  # Will be calculated automatically soon
+    mean: Optional[float] = None
+    std: Optional[float] = None
 
     transforms: Optional[Union[List[TRANSFORMS_UNION], Compose]] = Field(
         default=[
