@@ -44,14 +44,14 @@ def test_train_error_target_unsupervised_algorithm(tmp_path, minimum_configurati
     # train error with Paths
     config.data.data_type = SupportedData.TIFF.value
     careamics = CAREamist(source=config)
-    with pytest.raises(ValueError):
+    with pytest.raises(NotImplementedError):
         careamics.train_on_path(
             path_to_train_data=tmp_path,
             path_to_train_target=tmp_path,
         )
 
     # train error with strings
-    with pytest.raises(ValueError):
+    with pytest.raises(NotImplementedError):
         careamics.train_on_path(
             path_to_train_data=str(tmp_path),
             path_to_train_target=str(tmp_path),
@@ -60,7 +60,7 @@ def test_train_error_target_unsupervised_algorithm(tmp_path, minimum_configurati
     # train error with arrays
     config.data.data_type = SupportedData.ARRAY.value
     careamics = CAREamist(source=config)
-    with pytest.raises(ValueError):
+    with pytest.raises(NotImplementedError):
         careamics.train_on_array(
             train_data=np.ones((32, 32)),
             train_target=np.ones((32, 32)),

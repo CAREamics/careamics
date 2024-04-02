@@ -24,7 +24,7 @@ TRANSFORMS_UNION = Union[
     TransformModel
 ]
 
-
+# TODO does patches need to be multiple of 8 with UNet?
 class DataModel(BaseModel):
     """
     Data configuration.

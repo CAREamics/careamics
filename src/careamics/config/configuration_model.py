@@ -312,6 +312,190 @@ class Configuration(BaseModel):
         """
         self.data.set_structN2V_mask(mask_axis, mask_span)
 
+    def get_algorithm_flavour(self) -> str:
+        """Get the algorithm name.
+
+        Returns
+        -------
+        str
+            Algorithm name.
+        """
+        if self.algorithm.algorithm == SupportedAlgorithm.N2V:
+            use_n2v2 = self.algorithm.model.n2v2
+            use_structN2V = self.data.transforms[-1].parameters.struct_mask_axis != "none"
+
+            # return the n2v flavour
+            if use_n2v2 and use_structN2V:
+                return "StructN2V2"
+            elif use_n2v2:
+                return "N2V2"
+            elif use_structN2V:
+                return "StructN2V"
+            else:
+                return "Noise2Void"
+        
+        return self.algorithm.algorithm.capitalize()
+    
+    def get_algorithm_description(self) -> str:
+        """Return a description of the algorithm.
+
+        Returns
+        -------
+        str
+            Description of the algorithm.
+        """
+        algorithm_flavour = self.get_algorithm_flavour()
+
+        if algorithm_flavour == "Custom":
+            return (
+                f"Custom algorithm, named {self.algorithm.model.name}"
+            )
+        else: # currently only N2V flavours
+            if algorithm_flavour == "Noise2Void":
+                return (
+                    f"Noise2Void is a UNet-based self-supervised algorithm that uses "
+                    f"blind-spot training to denoise images. In short, in every "
+                    f"patches during training, random pixels are selected and their "
+                    f"value replaced by a neighboring pixel value. The network is then "
+                    f"trained to predict the original pixel value. The algorithm "
+                    f"relies on the continuity of the signal (neighboring pixels have "
+                    f"similar values) and the pixel-wise independence of the noise "
+                    f"(the noise in a pixel is not correlated with the noise in "
+                    f"neighboring pixels)."
+                )
+            elif algorithm_flavour == "N2V2":
+                return (
+                    f"N2V2 is an iteration of Noise2Void. "
+                    f"Noise2Void is a UNet-based self-supervised algorithm that uses "
+                    f"blind-spot training to denoise images. In short, in every "
+                    f"patches during training, random pixels are selected and their "
+                    f"value replaced by a neighboring pixel value. The network is then "
+                    f"trained to predict the original pixel value. The algorithm "
+                    f"relies on the continuity of the signal (neighboring pixels have "
+                    f"similar values) and the pixel-wise independence of the noise "
+                    f"(the noise in a pixel is not correlated with the noise in "
+                    f"neighboring pixels). "
+                    f"N2V2 introduces blur-pool layers and removed skip connections in "
+                    f"the UNet architecture to remove checkboard artefacts, a common "
+                    f"artefacts ocurring in Noise2Void."
+                )
+            elif algorithm_flavour == "StructN2V":
+                return (
+                    f"StructN2V is an iteration of Noise2Void. "
+                    f"Noise2Void is a UNet-based self-supervised algorithm that uses "
+                    f"blind-spot training to denoise images. In short, in every "
+                    f"patches during training, random pixels are selected and their "
+                    f"value replaced by a neighboring pixel value. The network is then "
+                    f"trained to predict the original pixel value. The algorithm "
+                    f"relies on the continuity of the signal (neighboring pixels have "
+                    f"similar values) and the pixel-wise independence of the noise "
+                    f"(the noise in a pixel is not correlated with the noise in "
+                    f"neighboring pixels). "
+                    f"StructN2V uses a linear mask (horizontal or vertical) to replace "
+                    f"the pixel values of neighbors of the masked pixels by a random "
+                    f"value. Such masking allows removing 1D structured noise from the "
+                    f"the images, the main failure case of the original N2V."
+                )
+            elif algorithm_flavour == "StructN2V2":
+                return (
+                    f"StructN2V2 is an iteration of Noise2Void that uses both "
+                    f"structN2V and N2V2 ."
+                    f"Noise2Void is a UNet-based self-supervised algorithm that uses "
+                    f"blind-spot training to denoise images. In short, in every "
+                    f"patches during training, random pixels are selected and their "
+                    f"value replaced by a neighboring pixel value. The network is then "
+                    f"trained to predict the original pixel value. The algorithm "
+                    f"relies on the continuity of the signal (neighboring pixels have "
+                    f"similar values) and the pixel-wise independence of the noise "
+                    f"(the noise in a pixel is not correlated with the noise in "
+                    f"neighboring pixels). "
+                    f"StructN2V uses a linear mask (horizontal or vertical) to replace "
+                    f"the pixel values of neighbors of the masked pixels by a random "
+                    f"value. Such masking allows removing 1D structured noise from the "
+                    f"the images, the main failure case of the original N2V."
+                    f"N2V2 introduces blur-pool layers and removed skip connections in "
+                    f"the UNet architecture to remove checkboard artefacts, a common "
+                    f"artefacts ocurring in Noise2Void."
+                )
+        
+        return ""
+    
+    def get_algorithm_references(self) -> str:
+        """Get the algorithm references.
+
+        Returns
+        -------
+        str
+            Algorithm references.
+        """
+        if self.algorithm.algorithm == SupportedAlgorithm.N2V:
+            use_n2v2 = self.algorithm.model.n2v2
+            use_structN2V = self.data.transforms[-1].parameters.struct_mask_axis != "none"
+
+            references = [
+                "Krull, A., Buchholz, T.O. and Jug, F., 2019. \"Noise2Void - Learning "
+                "denoising from single noisy images\". In Proceedings of the IEEE/CVF "
+                "conference on computer vision and pattern recognition (pp. "
+                "2129-2137). doi: "
+                "[10.1109/cvpr.2019.00223](https://doi.org/10.1109/cvpr.2019.00223)\n",
+                "Höck, E., Buchholz, T.O., Brachmann, A., Jug, F. and Freytag, A., "
+                "2022. \"N2V2 - Fixing Noise2Void checkerboard artifacts with modified "
+                "sampling strategies and a tweaked network architecture\". In European "
+                "Conference on Computer Vision (pp. 503-518). doi: "
+                "[10.1007/978-3-031-25069-9_33](https://doi.org/10.1007/978-3-031-"
+                "25069-9_33)\n",
+                "Broaddus, C., Krull, A., Weigert, M., Schmidt, U. and Myers, G., 2020"
+                ". \"Removing structured noise with self-supervised blind-spot "
+                "networks\". In 2020 IEEE 17th International Symposium on Biomedical "
+                "Imaging (ISBI) (pp. 159-163). doi: [10.1109/isbi45749.2020.9098336]("
+                "https://doi.org/10.1109/isbi45749.2020.9098336)\n"
+            ]
+
+            # return the (struct)N2V(2) references
+            if use_n2v2 and use_structN2V:
+                return ''.join(references)
+            elif use_n2v2:
+                references.pop(-1)
+                return ''.join(references)
+            elif use_structN2V:
+                references.pop(-2)
+                return ''.join(references)
+            else:
+                return references[0]
+        
+        return ""
+    
+    def get_algorithm_keywords(self) -> List[str]:
+        """Get algorithm keywords.
+
+        Returns
+        -------
+        List[str]
+            List of keywords.
+        """
+        if self.algorithm.algorithm == SupportedAlgorithm.N2V:
+            use_n2v2 = self.algorithm.model.n2v2
+            use_structN2V = self.data.transforms[-1].parameters.struct_mask_axis != "none"
+
+            keywords = [
+                "denoising",
+                "restoration",
+                "UNet",
+                "3D" if "Z" in self.data.axes else "2D",
+                "CAREamics",
+                "pytorch",
+                "Noise2Void",
+            ]
+
+            if use_n2v2:
+                keywords.append("N2V2")
+            if use_structN2V:
+                keywords.append("StructN2V2")
+        else:
+            keywords = ["CAREamics"]
+
+        return keywords
+
     def model_dump(
         self,
         exclude_defaults: bool = False, 

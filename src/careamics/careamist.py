@@ -6,7 +6,6 @@ from pytorch_lightning import LightningModule, Trainer
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint, Callback
 from torch import load
 
-from .bioimage.io import save_bioimage_model
 from .config import (
     AlgorithmModel, 
     Configuration, 
@@ -312,10 +311,7 @@ class CAREamist(LightningModule):
             path_to_val_data = check_path_exists(path_to_val_data)
 
         if path_to_train_target is not None:
-            if (
-                self.cfg.algorithm.algorithm
-                in SupportedAlgorithm.get_unsupervised_algorithms()
-            ):
+            if self.cfg.algorithm.algorithm != SupportedAlgorithm.N2V.value:
                 raise ValueError(
                     f"Training target is not needed for unsupervised algorithms "
                     f"({self.cfg.algorithm.algorithm})."
@@ -347,10 +343,7 @@ class CAREamist(LightningModule):
         val_target: Optional[np.ndarray] = None,
     ) -> None:
         if train_target is not None:
-            if (
-                self.cfg.algorithm.algorithm
-                in SupportedAlgorithm.get_unsupervised_algorithms()
-            ):
+            if self.cfg.algorithm.algorithm != SupportedAlgorithm.N2V.value:
                 raise ValueError(
                     f"Training target is not needed for unsupervised algorithms "
                     f"({self.cfg.algorithm.algorithm})."
@@ -455,11 +448,13 @@ class CAREamist(LightningModule):
         return self.predict(datamodule)
 
     def export_checkpoint(
-        self, path: Union[Path, str], type: Literal["bmz", "script"]
+        self, path: Union[Path, str], type: Literal["bmz", "script"] = "bmz"
     ) -> None:
         path = Path(path)
         if type == "bmz":
-            save_bioimage_model(self.model, path)
+            raise NotImplementedError(
+                "Exporting a model to BioImage Model Zoo is not implemented yet."
+            )
         elif type == "script":
             self.model.to_torchscript(path)
 

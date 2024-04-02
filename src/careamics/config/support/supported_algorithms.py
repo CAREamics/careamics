@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import List
 
 from careamics.utils import BaseEnum
@@ -23,7 +25,4 @@ class SupportedAlgorithm(str, BaseEnum):
     # HDN = "hdn"
     # SEG = "segmentation"
 
-    @classmethod
-    def get_unsupervised_algorithms(cls) -> List[str]:
-        """Return all unsupervised algorithms."""
-        return [cls.N2V.value]
+    

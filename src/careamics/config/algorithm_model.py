@@ -124,7 +124,7 @@ class AlgorithmModel(BaseModel):
         if isinstance(self.model, VAEModel):
             raise ValueError("VAE are currently not implemented.")
 
-        return self
+        return self        
 
     def __str__(self) -> str:
         """Pretty string representing the configuration.
