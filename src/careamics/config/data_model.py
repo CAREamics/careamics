@@ -24,7 +24,7 @@ TRANSFORMS_UNION = Union[
     TransformModel,
 ]
 
-
+# TODO can we check whether N2V manipulate is in a Compose?
 # TODO does patches need to be multiple of 8 with UNet?
 class DataModel(BaseModel):
     """
@@ -282,6 +282,74 @@ class DataModel(BaseModel):
             True if the transforms are a list, False otherwise.
         """
         return isinstance(self.transforms, list)
+    
+    def has_n2v_manipulate(self) -> bool:
+        """
+        Check if the transforms contain N2VManipulate.
+
+        Use `has_transform_list` to check if the transforms are a list.
+
+        Returns
+        -------
+        bool
+            True if the transforms contain N2VManipulate, False otherwise.
+
+        Raises
+        ------
+        ValueError
+            If the transforms are a Compose object.
+        """
+        if self.has_transform_list():
+            return any(
+                transform.name == SupportedTransform.N2V_MANIPULATE.value
+                for transform in self.transforms
+            )
+        else:
+            raise ValueError(
+                "Checking for N2VManipulate with Compose transforms is not allowed. "
+                "Check directly in the Compose."
+            )
+        
+    def add_n2v_manipulate(self) -> None:
+        """
+        Add N2VManipulate to the transforms.
+
+        Use `has_transform_list` to check if the transforms are a list.
+        
+        Raises
+        ------
+        ValueError
+            If the transforms are a Compose object.
+        """
+        if self.has_transform_list(): 
+            if not self.has_n2v_manipulate():
+                self.transforms.append(
+                    N2VManipulationModel(name=SupportedTransform.N2V_MANIPULATE.value)
+                )    
+        else:
+            raise ValueError(
+                "Adding N2VManipulate with Compose transforms is not allowed. Add "
+                "N2VManipulate directly to the transform in the Compose."
+            )
+        
+    def remove_n2v_manipulate(self) -> None:
+        """
+        Remove N2VManipulate from the transforms.
+
+        Use `has_transform_list` to check if the transforms are a list.
+        
+        Raises
+        ------
+        ValueError
+            If the transforms are a Compose object.
+        """
+        if self.has_transform_list() and self.has_n2v_manipulate():
+            self.transforms.pop(-1)
+        else:
+            raise ValueError(
+                "Removing N2VManipulate with Compose transforms is not allowed. Remove "
+                "N2VManipulate directly from the transform in the Compose."
+            )
 
     def set_mean_and_std(self, mean: float, std: float) -> None:
         """
@@ -323,6 +391,28 @@ class DataModel(BaseModel):
             Patch size.
         """
         self._update(axes=axes, patch_size=patch_size)
+
+
+    def set_N2V2(self, use_n2v2: bool) -> None:
+        """Set N2V2.
+
+        Parameters
+        ----------
+        use_n2v2 : bool
+            Whether to use N2V2.
+
+        Raises
+        ------
+        ValueError
+            If the N2V pixel manipulate transform is not found in the transforms.
+        ValueError
+            If the transforms are a Compose object.
+        """
+        if use_n2v2:
+            self.set_N2V2_strategy("median")
+        else:
+            self.set_N2V2_strategy("uniform")
+
 
     def set_N2V2_strategy(self, strategy: Literal["uniform", "median"]) -> None:
         """Set N2V2 strategy.
