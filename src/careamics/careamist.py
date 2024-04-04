@@ -296,7 +296,7 @@ class CAREamist(LightningModule):
         val_target: Optional[np.ndarray] = None,
     ) -> None:
         if train_target is not None:
-            if self.cfg.algorithm.algorithm != SupportedAlgorithm.N2V.value:
+            if self.cfg.algorithm.algorithm == SupportedAlgorithm.N2V.value:
                 raise ValueError(
                     f"Training target is not needed for unsupervised algorithms "
                     f"({self.cfg.algorithm.algorithm})."

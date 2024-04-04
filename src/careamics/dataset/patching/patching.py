@@ -172,10 +172,11 @@ def prepare_patches_supervised_array(
 
     # reshape array
     sample = reshape_array(data, axes)
+    sample_target = reshape_array(data_target, axes)
 
     # generate patches, return a generator
     patches, patch_targets = extract_patches_sequential(
-        sample, patch_size=patch_size, target=data_target
+        sample, patch_size=patch_size, target=sample_target
     )
 
     if patch_targets is None:
