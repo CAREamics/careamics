@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Any, Callable, List, Optional, Tuple, Union, Dict
+from typing import Any, Callable, Dict, List, Optional, Union
 
 import numpy as np
 import pytorch_lightning as L
@@ -113,12 +113,6 @@ class CAREamicsWood(L.LightningDataModule):
             If the data type is `tiff` and the input is neither a Path nor a str.
         """
         super().__init__()
-        # self.save_hyperparameters(data_config.model_dump())
-        if train_data_target is not None:
-            raise NotImplementedError(
-                "Training with target data is not yet implemented."
-            )
-
         # check input types coherence (no mixed types)
         inputs = [train_data, val_data, train_data_target, val_data_target]
         types_set = {type(i) for i in inputs}
@@ -319,7 +313,9 @@ class CAREamicsWood(L.LightningDataModule):
         return DataLoader(
             self.train_dataset,
             batch_size=self.batch_size,
-            num_workers=self.dataloader_params["num_workers"],
+            num_workers=self.dataloader_params["num_workers"]
+            if self.dataloader_params
+            else 0,
         )
 
     def val_dataloader(self) -> Any:
@@ -337,7 +333,6 @@ class CAREamicsClay(L.LightningDataModule):
         read_source_func: Optional[Callable] = None,
         extension_filter: str = "",
         dataloader_params: Optional[Dict] = None,
-
     ) -> None:
         super().__init__()
 

@@ -26,6 +26,7 @@ logger = get_logger(__name__)
 # - in iterable and in memory, the reshaping happens at different moment
 # - return type is not consistent (ndarray, ndarray or ndarray, None or just ndarray)
 
+
 # called by in memory dataset
 def prepare_patches_supervised(
     train_files: List[Path],
@@ -71,9 +72,7 @@ def prepare_patches_supervised(
             if targets is not None:
                 all_targets.append(targets)
             else:
-                raise ValueError(
-                    f"No target found for {target_filename}."
-                )
+                raise ValueError(f"No target found for {target_filename}.")
 
         except Exception as e:
             # emit warning and continue
@@ -145,7 +144,7 @@ def prepare_patches_unsupervised(
     patch_array: np.ndarray = np.concatenate(all_patches)
     logger.info(f"Extracted {patch_array.shape[0]} patches from input array.")
 
-    return patch_array, _, result_mean, result_std # TODO return object?
+    return patch_array, _, result_mean, result_std  # TODO return object?
 
 
 # called on arrays by in memory dataset
@@ -155,6 +154,18 @@ def prepare_patches_supervised_array(
     data_target: np.ndarray,
     patch_size: Union[List[int], Tuple[int]],
 ) -> Tuple[np.ndarray, np.ndarray, float, float]:
+    """Iterate over data source and create an array of patches.
+
+    This method expects an array of shape SC(Z)YX, where S and C can be singleton
+    dimensions.
+
+    Patches returned are of shape SC(Z)YX, where S is now the patches dimension.
+
+    Returns
+    -------
+    np.ndarray
+        Array of patches.
+    """
     # compute statistics
     mean = data.mean()
     std = data.std()
@@ -193,7 +204,7 @@ def prepare_patches_unsupervised_array(
     dimensions.
 
     Patches returned are of shape SC(Z)YX, where S is now the patches dimension.
-    
+
     Returns
     -------
     np.ndarray
@@ -209,7 +220,7 @@ def prepare_patches_unsupervised_array(
     # generate patches, return a generator
     patches, _ = extract_patches_sequential(sample, patch_size=patch_size)
 
-    return patches, _, mean, std # TODO inelegant, replace  by dataclass?
+    return patches, _, mean, std  # TODO inelegant, replace  by dataclass?
 
 
 # prediction, both in memory and iterable
@@ -217,9 +228,7 @@ def generate_patches_predict(
     sample: np.ndarray,
     tile_size: Union[List[int], Tuple[int, ...]],
     tile_overlap: Union[List[int], Tuple[int, ...]],
-) -> List[
-    Tuple[np.ndarray, bool, Tuple[int, ...], Tuple[int, ...], Tuple[int, ...]]
-]:
+) -> List[Tuple[np.ndarray, bool, Tuple[int, ...], Tuple[int, ...], Tuple[int, ...]]]:
     """
     Iterate over data source and create an array of patches.
 
@@ -229,9 +238,7 @@ def generate_patches_predict(
         Array of patches.
     """
     # generate patches, return a generator
-    patches = extract_tiles(
-        arr=sample, tile_size=tile_size, overlaps=tile_overlap
-    )
+    patches = extract_tiles(arr=sample, tile_size=tile_size, overlaps=tile_overlap)
     patches_list = list(patches)
     if len(patches_list) == 0:
         raise ValueError("No patch generated")
@@ -305,10 +312,11 @@ def generate_patches_supervised(
                 sample, patch_size=patch_size, chunk_size=sample.chunks
             )
 
-        if patches is None:
-            raise ValueError("No patch generated")
+        if patch_extraction_method == SupportedExtractionStrategy.SEQUENTIAL:
+            return patches, targets
+        else:
+            return patches
 
-        return patches, targets
     else:
         # no patching
         return (sample for _ in range(1)), target

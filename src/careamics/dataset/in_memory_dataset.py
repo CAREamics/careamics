@@ -89,16 +89,16 @@ class InMemoryDataset(Dataset):
             Array of patches.
         """
         if supervised:
-            if isinstance(self.data, np.ndarray) and \
-                isinstance(self.data_target, np.ndarray):
+            if isinstance(self.data, np.ndarray) and isinstance(
+                self.data_target, np.ndarray
+            ):
                 return prepare_patches_supervised_array(
                     self.data,
                     self.axes,
                     self.data_target,
                     self.patch_size,
                 )
-            elif isinstance(self.data, list) and \
-                isinstance(self.data_target, list):
+            elif isinstance(self.data, list) and isinstance(self.data_target, list):
                 return prepare_patches_supervised(
                     self.data,
                     self.data_target,
@@ -126,7 +126,6 @@ class InMemoryDataset(Dataset):
                     self.patch_size,
                     self.read_source_func,
                 )
-        
 
     def __len__(self) -> int:
         """
@@ -237,7 +236,8 @@ class InMemoryDataset(Dataset):
         if minimum_patches < 1 or minimum_patches > self.get_number_of_patches():
             raise ValueError(
                 f"Minimum number of patches must be between 1 and "
-                f"{self.get_number_of_patches()} (number of patches), got {minimum_patches}."
+                f"{self.get_number_of_patches()} (number of patches), got "
+                f"{minimum_patches}."
             )
 
         total_patches = self.get_number_of_patches()

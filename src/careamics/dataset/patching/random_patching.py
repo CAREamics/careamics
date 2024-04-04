@@ -42,7 +42,7 @@ def extract_patches_random(
     validate_patch_dimensions(arr, patch_size, is_3d_patch)
 
     # Update patch size to encompass S and C dimensions
-    patch_size = [1, arr.shape[1], *patch_size] 
+    patch_size = [1, arr.shape[1], *patch_size]
 
     # random generator
     rng = np.random.default_rng()
@@ -51,6 +51,10 @@ def extract_patches_random(
     for sample_idx in range(arr.shape[0]):
         # get sample array
         sample: np.ndarray = arr[sample_idx, ...]
+
+        # same for target
+        if target is not None:
+            target_sample: np.ndarray = target[sample_idx, ...]
 
         # calculate the number of patches
         n_patches = np.ceil(np.prod(sample.shape) / np.prod(patch_size)).astype(int)
@@ -64,11 +68,11 @@ def extract_patches_random(
             ]
 
             # extract patch
-            patch = ( 
+            patch = (
                 sample[
-                    ( 
-                        ..., # type: ignore
-                        *[ # type: ignore
+                    (
+                        ...,  # type: ignore
+                        *[  # type: ignore
                             slice(c, c + patch_size[1:][i])
                             for i, c in enumerate(crop_coords)
                         ],
@@ -81,10 +85,10 @@ def extract_patches_random(
             # same for target
             if target is not None:
                 target_patch = (
-                    target[
+                    target_sample[
                         (
-                            ..., # type: ignore
-                            *[ # type: ignore
+                            ...,  # type: ignore
+                            *[  # type: ignore
                                 slice(c, c + patch_size[1:][i])
                                 for i, c in enumerate(crop_coords)
                             ],
@@ -150,7 +154,7 @@ def extract_patches_random_from_chunks(
         # Add a singleton dimension if the chunk does not have a sample dimension
         if len(chunk.shape) == len(patch_size):
             chunk = np.expand_dims(chunk, axis=0)
-            
+
         # Iterate over num samples (S)
         for sample_idx in range(chunk.shape[0]):
             spatial_chunk = chunk[sample_idx]

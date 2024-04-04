@@ -1,4 +1,4 @@
-from pathlib import Path
+from pathlib import Path, PosixPath
 from typing import Callable, Dict, List, Literal, Optional, Tuple, Union, overload
 
 import numpy as np
@@ -238,79 +238,57 @@ class CAREamist(LightningModule):
 
         return self.callbacks
 
-    def train(self, *args, **kwargs) -> None:
-        if len(args) > 0:
+    def train(
+        self,
+        *,
+        datamodule: Optional[CAREamicsWood] = None,
+        train_source: Optional[Union[Path, str, np.ndarray]] = None,
+        val_source: Optional[Union[Path, str, np.ndarray]] = None,
+        train_target: Optional[Union[Path, str, np.ndarray]] = None,
+        val_target: Optional[Union[Path, str, np.ndarray]] = None,
+        use_in_memory: bool = True,
+    ) -> None:
+        """Train the model on the provided data."""
+        if datamodule is not None and any(
+            [train_source, val_source, train_target, val_target]
+        ):
             raise ValueError(
-                "Only keyword arguments are allowed for the `train` method."
+                "Data paths or arrays should not be provided when using a datamodule."
             )
-        if any(isinstance(p, CAREamicsWood) for p in kwargs.values()):
-            try:
-                datamodule = kwargs["datamodule"]
-            except KeyError:
-                print("An instance of CAREamicsWood must be provided.")
 
-            self.train_on_datamodule(datamodule=datamodule)
+        source_types = {
+            type(s)
+            for s in (train_source, val_source, train_target, val_target)
+            if s is not None
+        }
 
-        elif all(isinstance(p, Path) for p in kwargs.values()):
-            self.train_on_path(*args, **kwargs)
+        if len(source_types) > 1:
+            raise ValueError("All sources should be of the same type.")
 
-        elif all(isinstance(p, str) for p in kwargs.values()):
-            self._train_on_str(*args, **kwargs)
+        if source_types == {list} or source_types == {tuple}:
+            raise ValueError("Expected paths or np.ndarray, got a list.")
 
-        elif all(isinstance(p, np.ndarray) for p in kwargs.values()):
-            self.train_on_array(*args, **kwargs)
+        if datamodule is not None:
+            self.trainer.fit(self.model, datamodule=datamodule)
+
+        elif source_types == {np.ndarray}:
+            self._train_on_array(train_source, val_source, train_target, val_target)
+
+        elif (
+            source_types == {Path}
+            or source_types == {PosixPath}
+            or source_types == {str}
+        ):
+            self._train_on_path(
+                train_source, val_source, train_target, val_target, use_in_memory
+            )
 
         else:
             raise ValueError(
-                "Invalid input. Expected a CAREamicsWood instance, paths or np.ndarray."
+                "Invalid input. Expected CAREamicsWood instance, paths or np.ndarray."
             )
 
-    def train_on_datamodule(
-        self,
-        datamodule: CAREamicsWood,
-    ) -> None:
-        self.trainer.fit(self.model, datamodule=datamodule)
-
-    def train_on_path(
-        self,
-        path_to_train_data: Union[Path, str],
-        path_to_val_data: Optional[Union[Path, str]] = None,
-        path_to_train_target: Optional[Union[Path, str]] = None,
-        path_to_val_target: Optional[Union[Path, str]] = None,
-        use_in_memory: bool = True,
-    ) -> None:
-        # sanity check on data (path exists)
-        path_to_train_data = check_path_exists(path_to_train_data)
-
-        if path_to_val_data is not None:
-            path_to_val_data = check_path_exists(path_to_val_data)
-
-        if path_to_train_target is not None:
-            if self.cfg.algorithm.algorithm != SupportedAlgorithm.N2V.value:
-                raise ValueError(
-                    f"Training target is not needed for unsupervised algorithms "
-                    f"({self.cfg.algorithm.algorithm})."
-                )
-
-            path_to_train_target = check_path_exists(path_to_train_target)
-
-        if path_to_val_target is not None:
-            path_to_val_target = check_path_exists(path_to_val_target)
-
-        # create datamodule
-        datamodule = CAREamicsWood(
-            data_config=self.cfg.data,
-            train_data=path_to_train_data,
-            val_data=path_to_val_data,
-            train_data_target=path_to_train_target,
-            val_data_target=path_to_val_target,
-            use_in_memory=use_in_memory,
-        )
-
-        # train
-        self.train(datamodule=datamodule)
-
-    def train_on_array(
+    def _train_on_array(
         self,
         train_data: np.ndarray,
         val_data: Optional[np.ndarray] = None,
@@ -336,22 +314,55 @@ class CAREamist(LightningModule):
         # train
         self.train(datamodule=datamodule)
 
+    def _train_on_path(
+        self,
+        path_to_train_data: Union[Path, str],
+        path_to_val_data: Optional[Union[Path, str]] = None,
+        path_to_train_target: Optional[Union[Path, str]] = None,
+        path_to_val_target: Optional[Union[Path, str]] = None,
+        use_in_memory: bool = True,
+    ) -> None:
+        # sanity check on data (path exists)
+        path_to_train_data = check_path_exists(path_to_train_data)
+
+        if path_to_val_data is not None:
+            path_to_val_data = check_path_exists(path_to_val_data)
+
+        if path_to_train_target is not None:
+            if self.cfg.algorithm.algorithm == SupportedAlgorithm.N2V.value:
+                raise ValueError(
+                    f"Training target is not needed for unsupervised algorithms"
+                    f"({self.cfg.algorithm.algorithm})."
+                )
+
+            path_to_train_target = check_path_exists(path_to_train_target)
+
+        if path_to_val_target is not None:
+            path_to_val_target = check_path_exists(path_to_val_target)
+
+        # create datamodule
+        datamodule = CAREamicsWood(
+            data_config=self.cfg.data,
+            train_data=path_to_train_data,
+            val_data=path_to_val_data,
+            train_data_target=path_to_train_target,
+            val_data_target=path_to_val_target,
+            use_in_memory=use_in_memory,
+        )
+
+        # train
+        self.train(datamodule=datamodule)
+
     @overload
-    def predict(
-        self, source: CAREamicsClay
-    ) -> Union[list, np.ndarray]:
+    def predict(self, source: CAREamicsClay) -> Union[list, np.ndarray]:
         ...
 
     @overload
-    def predict(
-        self, source: Union[Path, str]
-    ) -> Union[list, np.ndarray]:
+    def predict(self, source: Union[Path, str]) -> Union[list, np.ndarray]:
         ...
 
     @overload
-    def predict(
-        self, source: np.ndarray
-    ) -> Union[list, np.ndarray]:
+    def predict(self, source: np.ndarray) -> Union[list, np.ndarray]:
         ...
 
     def predict(
@@ -403,7 +414,7 @@ class CAREamist(LightningModule):
                 data_type=data_type,
                 axes=axes,
                 transforms=transforms,
-                tta_transforms=tta_transforms
+                tta_transforms=tta_transforms,
             )
             # create datamodule
             datamodule = CAREamicsClay(

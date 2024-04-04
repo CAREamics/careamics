@@ -67,6 +67,30 @@ def test_train_error_target_unsupervised_algorithm(tmp_path, minimum_configurati
         )
 
 
+def test_train_single_array_no_val(minimum_configuration):
+    """Test that CAREamics can be trained with arrays."""
+    # training data
+    train_array = np.ones((32, 32))
+
+    # create configuration
+    config = Configuration(**minimum_configuration)
+    config.training.num_epochs = 1
+    config.data.axes = "YX"
+    config.data.batch_size = 2
+    config.data.data_type = SupportedData.ARRAY.value
+    config.data.patch_size = (8, 8)
+
+    # instantiate CAREamist
+    careamist = CAREamist(source=config)
+
+    # train CAREamist
+    careamist.train(train_source=train_array)
+
+    # check that it recorded mean and std
+    assert careamist.cfg.data.mean is not None
+    assert careamist.cfg.data.std is not None
+
+
 def test_train_array(minimum_configuration):
     """Test that CAREamics can be trained with arrays."""
     # training data
@@ -85,12 +109,40 @@ def test_train_array(minimum_configuration):
     careamist = CAREamist(source=config)
 
     # train CAREamist
-    careamist.train_on_array(train_array, val_array)
+    careamist.train(train_source=train_array, val_source=val_array)
 
     # check that it recorded mean and std
     assert careamist.cfg.data.mean is not None
     assert careamist.cfg.data.std is not None
     # TODO somethign to check that it trained, maybe through callback
+
+
+def test_train_tiff_files_in_memory_no_val(tmp_path, minimum_configuration):
+    """Test that CAREamics can be trained with tiff files in memory."""
+    # training data
+    train_array = np.ones((32, 32))
+
+    # save files
+    train_file = tmp_path / "train.tiff"
+    tifffile.imwrite(train_file, train_array)
+
+    # create configuration
+    config = Configuration(**minimum_configuration)
+    config.training.num_epochs = 1
+    config.data.axes = "YX"
+    config.data.batch_size = 2
+    config.data.data_type = SupportedData.TIFF.value
+    config.data.patch_size = (8, 8)
+
+    # instantiate CAREamist
+    careamist = CAREamist(source=config)
+
+    # train CAREamist
+    careamist.train(train_source=train_file)
+
+    # check that it recorded mean and std
+    assert careamist.cfg.data.mean is not None
+    assert careamist.cfg.data.std is not None
 
 
 def test_train_tiff_files_in_memory(tmp_path, minimum_configuration):
@@ -118,7 +170,7 @@ def test_train_tiff_files_in_memory(tmp_path, minimum_configuration):
     careamist = CAREamist(source=config)
 
     # train CAREamist
-    careamist.train_on_path(train_file, val_file)
+    careamist.train(train_source=train_file, val_source=val_file)
 
     # check that it recorded mean and std
     assert careamist.cfg.data.mean is not None
@@ -153,7 +205,60 @@ def test_train_tiff_files(tmp_path, minimum_configuration):
     careamist = CAREamist(source=config)
 
     # train CAREamist
-    careamist.train_on_path(train_file, val_file, use_in_memory=False)
+    careamist.train(train_source=train_file, val_source=val_file, use_in_memory=False)
+
+    # check that it recorded mean and std
+    assert careamist.cfg.data.mean is not None
+    assert careamist.cfg.data.std is not None
+    # TODO somethign to check that it trained, maybe through callback
+
+
+def test_train_tiff_files_supervised(tmp_path, supervised_configuration):
+    """Test that CAREamics can be trained with tiff files by deactivating
+    the in memory dataset.
+    """
+    # training data
+    train_array = np.ones((32, 32))
+    val_array = np.ones((32, 32))
+    train_target = np.ones((32, 32))
+    val_target = np.ones((32, 32))
+
+    # save files
+    images = tmp_path / "images"
+    images.mkdir()
+    train_file = images / "train.tiff"
+    tifffile.imwrite(train_file, train_array)
+
+    val_file = tmp_path / "images" / "val.tiff"
+    tifffile.imwrite(val_file, val_array)
+
+    targets = tmp_path / "targets"
+    targets.mkdir()
+    train_target_file = targets / "train.tiff"
+    tifffile.imwrite(train_target_file, train_target)
+
+    val_target_file = targets / "val.tiff"
+    tifffile.imwrite(val_target_file, val_target)
+
+    # create configuration
+    config = Configuration(**supervised_configuration)
+    config.training.num_epochs = 1
+    config.data.axes = "YX"
+    config.data.batch_size = 2
+    config.data.data_type = SupportedData.TIFF.value
+    config.data.patch_size = (8, 8)
+
+    # instantiate CAREamist
+    careamist = CAREamist(source=config)
+
+    # train CAREamist
+    careamist.train(
+        train_source=train_file,
+        val_source=val_file,
+        train_target=train_target_file,
+        val_target=val_target_file,
+        use_in_memory=False,
+    )
 
     # check that it recorded mean and std
     assert careamist.cfg.data.mean is not None
