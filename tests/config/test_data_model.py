@@ -178,6 +178,34 @@ def test_multiple_n2v_manipulate(minimum_data: dict):
         DataModel(**minimum_data)
 
 
+def test_remove_n2v_manipulate(minimum_data: dict):
+    """Test that N2V Manipulate can be removed."""
+    minimum_data["transforms"] = [
+        {"name": SupportedTransform.NDFLIP.value},
+        {"name": SupportedTransform.N2V_MANIPULATE.value},
+    ]
+    model = DataModel(**minimum_data)
+    model.remove_n2v_manipulate()
+    assert len(model.transforms) == 1
+    assert model.transforms[-1].name == SupportedTransform.NDFLIP.value
+
+
+def test_add_n2v_manipulate(minimum_data: dict):
+    """Test that N2V Manipulate can be added."""
+    minimum_data["transforms"] = [
+        {"name": SupportedTransform.NDFLIP.value},
+    ]
+    model = DataModel(**minimum_data)
+    model.add_n2v_manipulate()
+    assert len(model.transforms) == 2
+    assert model.transforms[-1].name == SupportedTransform.N2V_MANIPULATE.value
+
+    # test that adding twice doesn't change anything
+    model.add_n2v_manipulate()
+    assert len(model.transforms) == 2
+    assert model.transforms[-1].name == SupportedTransform.N2V_MANIPULATE.value
+
+
 def test_correct_transform_parameters(minimum_data: dict):
     """Test that the transforms have the correct parameters.
     
