@@ -216,7 +216,7 @@ class PathIterableDataset(IterableDataset):
                     c_patch = np.moveaxis(transformed["image"], -1, 0)
                     c_target = np.moveaxis(transformed["target"], -1, 0)
 
-                    yield (c_patch, c_target, None)
+                    yield (c_patch, c_target)
                 else:
                     # Albumentations expects the channel dimension to be last
                     # Taking the first element because patch_data can include target
