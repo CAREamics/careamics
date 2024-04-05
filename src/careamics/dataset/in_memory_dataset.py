@@ -8,7 +8,7 @@ from typing import Any, Callable, List, Optional, Tuple, Union
 import numpy as np
 from torch.utils.data import Dataset
 
-from ..config.data_model import DataModel
+from ..config import DataModel, InferenceModel
 from ..utils.logging import get_logger
 from .dataset_utils import read_tiff
 from .patching.patch_transform import get_patch_transform
@@ -237,7 +237,9 @@ class InMemoryDataset(Dataset):
         if minimum_patches < 1 or minimum_patches > self.get_number_of_patches():
             raise ValueError(
                 f"Minimum number of patches must be between 1 and "
-                f"{self.get_number_of_patches()} (number of patches), got {minimum_patches}."
+                f"{self.get_number_of_patches()} (number of patches), got "
+                f"{minimum_patches}. Adjust the patch size or the minimum number of "
+                f"patches."
             )
 
         total_patches = self.get_number_of_patches()
@@ -281,10 +283,8 @@ class InMemoryPredictionDataset(Dataset):
 
     def __init__(
         self,
-        data_config: DataModel,
+        prediction_config: InferenceModel,
         data: np.ndarray,
-        tile_size: Union[List[int], Tuple[int]],
-        tile_overlap: Optional[Union[List[int], Tuple[int]]] = None,
         data_target: Optional[np.ndarray] = None,
     ) -> None:
         """Constructor.
@@ -295,24 +295,18 @@ class InMemoryPredictionDataset(Dataset):
             Array containing the data.
         axes : str
             Description of axes in format STCZYX.
-        patch_size : Union[List[int], Tuple[int]]
-            Size of the patches along each axis, must be of dimension 2 or 3.
-        mean : Optional[float], optional
-            Expected mean of the dataset, by default None.
-        std : Optional[float], optional
-            Expected standard deviation of the dataset, by default None.
 
         Raises
         ------
         ValueError
             If data_path is not a directory.
         """
-        self.data_config = data_config
-        self.axes = data_config.axes
-        self.tile_size = tile_size
-        self.tile_overlap = tile_overlap
-        self.mean = data_config.mean
-        self.std = data_config.std
+        self.pred_config = prediction_config
+        self.axes = self.pred_config.axes
+        self.tile_size = self.pred_config.tile_size
+        self.tile_overlap = self.pred_config.tile_overlap
+        self.mean = self.pred_config.mean
+        self.std = self.pred_config.std
         self.data_target = data_target
 
         # check that mean and std are provided
@@ -323,14 +317,14 @@ class InMemoryPredictionDataset(Dataset):
             )
         # TODO this needs to be restructured
         self.input_array = data
-        self.tile = tile_size and tile_overlap
+        self.tile = self.tile_size and self.tile_overlap
 
         # Generate patches
         self.data = self._prepare_patches()
 
-        # get tta transforms
+        # transforms
         self.patch_transform = get_patch_transform(
-            patch_transforms=data_config.prediction_transforms,
+            patch_transforms=self.pred_config.transforms,
             with_target=self.data_target is not None,
         )
 

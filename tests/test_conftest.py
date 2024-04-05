@@ -1,7 +1,7 @@
 from careamics import Configuration
 from careamics.config.algorithm_model import AlgorithmModel
 from careamics.config.data_model import DataModel
-from careamics.config.prediction_model import InferenceModel
+from careamics.config.inference_model import InferenceModel
 from careamics.config.training_model import TrainingModel
 
 
@@ -15,9 +15,9 @@ def test_minimum_data(minimum_data):
     DataModel(**minimum_data)
 
 
-def test_minimum_prediction(minimum_prediction):
+def test_minimum_prediction(minimum_inference):
     # create prediction configuration
-    InferenceModel(**minimum_prediction)
+    InferenceModel(**minimum_inference)
 
 
 def test_minimum_training(minimum_training):

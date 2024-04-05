@@ -28,7 +28,7 @@ class UNetModel(BaseModel):
 
     # parameters
     # validate_defaults allow ignoring default values in the dump if they were not set
-    conv_dims: int = Field(default=2, ge=2, le=3, validate_default=True)
+    conv_dims: Literal[2, 3] = Field(default=2, validate_default=True)
     num_classes: int = Field(default=1, ge=1, validate_default=True)
     in_channels: int = Field(default=1, ge=1, validate_default=True)
     depth: int = Field(default=2, ge=1, le=10, validate_default=True)

@@ -29,5 +29,5 @@ from .configuration_model import (
     save_configuration,
 )
 from .data_model import DataModel
-from .prediction_model import InferenceModel
+from .inference_model import InferenceModel
 from .training_model import TrainingModel

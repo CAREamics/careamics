@@ -4,7 +4,7 @@ from .algorithm_model import AlgorithmModel
 from .architectures import UNetModel
 from .configuration_model import Configuration
 from .data_model import DataModel
-from .prediction_model import InferenceModel
+from .inference_model import InferenceModel
 from .support import (
     SupportedAlgorithm,
     SupportedArchitecture,

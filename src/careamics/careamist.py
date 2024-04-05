@@ -18,7 +18,7 @@ from .config import (
 from .config.support import SupportedAlgorithm
 from .lightning_module import CAREamicsKiln
 from .lightning_prediction import CAREamicsFiring
-from .ligthning_datamodule import CAREamicsClay, CAREamicsWood
+from .lightning_datamodule import CAREamicsClay, CAREamicsWood
 from .utils import check_path_exists, get_logger
 
 logger = get_logger(__name__)

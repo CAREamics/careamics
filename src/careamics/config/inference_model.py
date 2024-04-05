@@ -21,18 +21,19 @@ class InferenceModel(BaseModel):
 
     # Mandatory fields
     data_type: Literal["array", "tiff", "custom"]  # As defined in SupportedData
-    tile_size: Union[List[int], Tuple[int]] = Field(..., min_items=2, max_items=3)
+    tile_size: Union[List[int], Tuple[int]] = Field(..., min_length=2, max_length=3)
+    tile_overlap: List[int] = Field(
+        default=[48, 48],
+        min_length=2, max_length=3
+    )  # TODO Will be calculated automatically
 
     axes: str
 
     # Optional fields
-    tile_overlap: Optional[List[int]] = Field(
-        default=[48, 48]
-    )  # Will be calculated automatically soon
     mean: Optional[float] = None
     std: Optional[float] = None
 
-    transforms: Optional[Union[List[TRANSFORMS_UNION], Compose]] = Field(
+    transforms: Union[List[TRANSFORMS_UNION], Compose] = Field(
         default=[
             {
                 "name": SupportedTransform.NORMALIZE.value,
@@ -43,12 +44,11 @@ class InferenceModel(BaseModel):
 
     # only default TTAs are supported for now
     tta_transforms: bool = Field(default=True)
-    # extension_filter: str = ""
 
     # Dataloader parameters
     batch_size: int = Field(default=1, ge=1)
 
-    @field_validator("tile_size")
+    @field_validator("tile_size", "tile_overlap")
     @classmethod
     def all_elements_non_zero_even(cls, patch_list: List[int]) -> List[int]:
         """
@@ -167,7 +167,13 @@ class InferenceModel(BaseModel):
         if len(pred_model.tile_size) != expected_len:
             raise ValueError(
                 f"Tile size must have {expected_len} dimensions given axes "
-                f"{pred_model.axes}."
+                f"{pred_model.axes} (got {pred_model.tile_size})."
+            )
+
+        if len(pred_model.tile_overlap) != expected_len:
+            raise ValueError(
+                f"Tile overlap must have {expected_len} dimensions given axes "
+                f"{pred_model.axes} (got {pred_model.tile_overlap})."
             )
 
         return pred_model
@@ -197,6 +203,33 @@ class InferenceModel(BaseModel):
             raise ValueError(
                 "Mean and std must be either both None, or both specified."
             )
+
+        return pred_model
+    
+    @model_validator(mode="after")
+    def add_std_and_mean_to_normalize(
+        cls, pred_model: InferenceModel
+    ) -> InferenceModel:
+        """
+        Add mean and std to the Normalize transform if it is present.
+
+        Parameters
+        ----------
+        pred_model : InferenceModel
+            Inference model.
+
+        Returns
+        -------
+        InferenceModel
+            Inference model with mean and std added to the Normalize transform.
+        """
+        if pred_model.mean is not None or pred_model.std is not None:
+            # search in the transforms for Normalize and update parameters
+            if not isinstance(pred_model.transforms, Compose):
+                for transform in pred_model.transforms:
+                    if transform.name == SupportedTransform.NORMALIZE.value:
+                        transform.parameters.mean = pred_model.mean
+                        transform.parameters.std = pred_model.std
 
         return pred_model
 
@@ -233,7 +266,12 @@ class InferenceModel(BaseModel):
                 "mean and std parameters directly to the transform in the Compose."
             )
 
-    def set_3D(self, axes: str, tile_size: List[int]) -> None:
+    def set_3D(
+            self, 
+            axes: str, 
+            tile_size: List[int],
+            tile_overlap: List[int]
+        ) -> None:
         """
         Set 3D parameters.
 
@@ -244,4 +282,4 @@ class InferenceModel(BaseModel):
         tile_size : List[int]
             Tile size.
         """
-        self._update(axes=axes, tile_size=tile_size)
+        self._update(axes=axes, tile_size=tile_size, tile_overlap=tile_overlap)

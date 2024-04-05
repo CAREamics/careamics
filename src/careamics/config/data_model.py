@@ -206,6 +206,35 @@ class DataModel(BaseModel):
             )
 
         return data_model
+    
+
+    @model_validator(mode="after")
+    def add_std_and_mean_to_normalize(
+        cls, data_model: DataModel
+    ) -> DataModel:
+        """
+        Add mean and std to the Normalize transform if it is present.
+
+        Parameters
+        ----------
+        data_model : DataModel
+            Data model.
+
+        Returns
+        -------
+        DataModel
+            Data model with mean and std added to the Normalize transform.
+        """
+        if data_model.mean is not None or data_model.std is not None:
+            # search in the transforms for Normalize and update parameters
+            if data_model.has_transform_list():
+                for transform in data_model.transforms:
+                    if transform.name == SupportedTransform.NORMALIZE.value:
+                        transform.parameters.mean = data_model.mean
+                        transform.parameters.std = data_model.std
+
+        return data_model
+
 
     @model_validator(mode="after")
     def validate_dimensions(cls, data_model: DataModel) -> DataModel:
@@ -368,7 +397,7 @@ class DataModel(BaseModel):
         self._update(mean=mean, std=std)
 
         # search in the transforms for Normalize and update parameters
-        if not isinstance(self.transforms, Compose):
+        if self.has_transform_list():
             for transform in self.transforms:
                 if transform.name == SupportedTransform.NORMALIZE.value:
                     transform.parameters.mean = mean

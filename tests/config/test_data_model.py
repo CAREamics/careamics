@@ -74,6 +74,18 @@ def test_set_mean_and_std(minimum_data: dict):
     assert data.std == std
 
 
+def test_mean_and_std_in_normalize(minimum_data: dict):
+    """Test that mean and std are added to the Normalize transform."""
+    minimum_data["mean"] = 10.4
+    minimum_data["std"] = 3.2
+    minimum_data["transforms"] = [
+        {"name": SupportedTransform.NORMALIZE.value},
+    ]
+    data = DataModel(**minimum_data)
+    assert data.transforms[0].parameters.mean == 10.4
+    assert data.transforms[0].parameters.std == 3.2
+
+
 def test_patch_size(minimum_data: dict):
     """Test that non-zero even patch size are accepted."""
     # 2D

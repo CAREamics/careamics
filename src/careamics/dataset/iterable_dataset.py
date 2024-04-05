@@ -339,12 +339,6 @@ class IterablePredictionDataset(PathIterableDataset):
         Path to the data, must be a directory.
     axes : str
         Description of axes in format STCZYX.
-    patch_extraction_method : Union[ExtractionStrategies, None]
-        Patch extraction strategy, as defined in extraction_strategy.
-    patch_size : Optional[Union[List[int], Tuple[int]]], optional
-        Size of the patches in each dimension, by default None.
-    patch_overlap : Optional[Union[List[int], Tuple[int]]], optional
-        Overlap of the patches in each dimension, by default None.
     mean : Optional[float], optional
         Expected mean of the dataset, by default None.
     std : Optional[float], optional
@@ -357,8 +351,6 @@ class IterablePredictionDataset(PathIterableDataset):
         self,
         prediction_config: InferenceModel,
         src_files: List[Path],
-        tile_size: Union[List[int], Tuple[int, ...]],
-        tile_overlap: Union[List[int], Tuple[int, ...]],
         read_source_func: Callable = read_tiff,
         **kwargs: Any,
     ) -> None:
@@ -368,8 +360,9 @@ class IterablePredictionDataset(PathIterableDataset):
             read_source_func=read_source_func,
         )
 
-        self.tile_size = tile_size
-        self.tile_overlap = tile_overlap
+        self.prediction_config = prediction_config
+        self.tile_size = self.prediction_config.tile_size
+        self.tile_overlap = self.prediction_config.tile_overlap
         self.read_source_func = read_source_func
 
         # check that mean and std are provided

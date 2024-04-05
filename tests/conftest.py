@@ -70,8 +70,8 @@ def minimum_data() -> dict:
 
 
 @pytest.fixture
-def minimum_prediction() -> dict:
-    """Create a minimum prediction dictionary.
+def minimum_inference() -> dict:
+    """Create a minimum inference dictionary.
 
     Returns
     -------
@@ -82,6 +82,7 @@ def minimum_prediction() -> dict:
     predic = {
         "data_type": SupportedData.TIFF.value,
         "tile_size": [64, 64],
+        "tile_overlap": [10, 10],
         "axes": "SYX",
     }
 
