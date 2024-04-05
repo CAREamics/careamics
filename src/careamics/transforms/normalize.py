@@ -4,6 +4,7 @@ import numpy as np
 from albumentations import DualTransform
 
 
+# TODO unused
 class Denormalize(DualTransform):
     """Denormalize an image or image patch.
 

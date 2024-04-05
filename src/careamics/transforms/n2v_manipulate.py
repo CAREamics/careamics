@@ -34,6 +34,23 @@ class N2VManipulate(ImageOnlyTransform):
         struct_mask_axis: Literal["horizontal", "vertical", "none"] = "none",
         struct_mask_span: int = 5,
     ):
+        """Constructor.
+
+        Parameters
+        ----------
+        roi_size : int, optional
+            Size of the replacement area, by default 11
+        masked_pixel_percentage : float, optional
+            Percentage of pixels to mask, by default 0.2
+        strategy : Literal[ "uniform", "median" ], optional
+            Replaccement strategy, uniform or median, by default uniform
+        remove_center : bool, optional
+            Whether to remove central pixel from patch, by default True
+        struct_mask_axis : Literal["horizontal", "vertical", "none"], optional
+            StructN2V mask axis, by default "none"
+        struct_mask_span : int, optional
+            StructN2V mask span, by default 5
+        """
         super().__init__(p=1)
         self.masked_pixel_percentage = masked_pixel_percentage
         self.roi_size = roi_size
@@ -86,4 +103,11 @@ class N2VManipulate(ImageOnlyTransform):
         return masked, patch, mask
 
     def get_transform_init_args_names(self) -> Tuple[str, ...]:
+        """Get the transform parameters.
+
+        Returns
+        -------
+        Tuple[str, ...]
+            Transform parameters.
+        """
         return ("roi_size", "masked_pixel_percentage", "strategy", "struct_mask")

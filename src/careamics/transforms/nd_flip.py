@@ -14,6 +14,17 @@ class NDFlip(DualTransform):
     """
 
     def __init__(self, p: float = 0.5, is_3D: bool = False, flip_z: bool = True):
+        """Constructor.
+
+        Parameters
+        ----------
+        p : float, optional
+            Probability to apply the transform, by default 0.5
+        is_3D : bool, optional
+            Whether the data is 3D, by default False
+        flip_z : bool, optional
+            Whether to flip Z dimension, by default True
+        """
         super().__init__(p=p)
 
         self.is_3D = is_3D
@@ -26,6 +37,13 @@ class NDFlip(DualTransform):
             self.axis_indices = [0, 1]
 
     def get_params(self, **kwargs: Any) -> Dict[str, int]:
+        """Get the transform parameters.
+
+        Returns
+        -------
+        Dict[str, int]
+            Transform parameters.
+        """
         return {"flip_axis": np.random.choice(self.axis_indices)}
 
     def apply(self, patch: np.ndarray, flip_axis: int, **kwargs: Any) -> np.ndarray:
@@ -65,4 +83,11 @@ class NDFlip(DualTransform):
         return np.ascontiguousarray(np.flip(mask, axis=flip_axis))
 
     def get_transform_init_args_names(self, **kwargs) -> Tuple[str, ...]:
+        """Get the transform arguments names.
+
+        Returns
+        -------
+        Tuple[str, ...]
+            Transform arguments names.
+        """
         return ("is_3D", "flip_z")

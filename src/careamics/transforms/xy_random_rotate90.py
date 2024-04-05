@@ -8,9 +8,25 @@ class XYRandomRotate90(DualTransform):
     """Applies random 90 degree rotations to the YX axis.
 
     This transform expects (Z)YXC dimensions.
+
+    Parameters
+    ----------
+    p : int, optional
+        Probability to apply the transform, by default 0.5
+    is_3D : bool, optional
+        Whether the patches are 3D, by default False
     """
 
     def __init__(self, p: int = 0.5, is_3D: bool = False):
+        """Constructor.
+
+        Parameters
+        ----------
+        p : int, optional
+            Probability to apply the transform, by default 0.5
+        is_3D : bool, optional
+            Whether the patches are 3D, by default False
+        """
         super().__init__(p=p)
 
         self.is_3D = is_3D
@@ -22,6 +38,13 @@ class XYRandomRotate90(DualTransform):
             self.axes = (0, 1)
 
     def get_params(self, **kwargs: Any) -> Dict[str, int]:
+        """Get the transform parameters.
+
+        Returns
+        -------
+        Dict[str, int]
+            Transform parameters.
+        """
         return {"n_rotations": np.random.randint(1, 4)}
 
     def apply(self, patch: np.ndarray, n_rotations: int, **kwargs: Any) -> np.ndarray:
@@ -61,4 +84,12 @@ class XYRandomRotate90(DualTransform):
         return np.ascontiguousarray(np.rot90(mask, k=n_rotations, axes=self.axes))
 
     def get_transform_init_args_names(self) -> Tuple[str]:
-        return "is_3D"
+        """
+        Get the transform arguments.
+
+        Returns
+        -------
+        Tuple[str]
+            Transform arguments.
+        """
+        return ("p", "is_3D")

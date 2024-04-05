@@ -35,6 +35,13 @@ class CAREamicsFiring(L.loops._PredictionLoop):
 
     @_no_grad_context
     def run(self) -> Optional[_PREDICT_OUTPUT]:
+        """Runs the prediction loop.
+
+        Returns
+        -------
+        Optional[_PREDICT_OUTPUT]
+            Prediction output
+        """
         self.setup_data()
         if self.skip:
             return None

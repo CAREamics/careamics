@@ -49,7 +49,7 @@ def create_n2n_training_configuration(
     ----------
     experiment_name : str
         Name of the experiment.
-    data_type : Literal[&quot;array&quot;, &quot;tiff&quot;, &quot;custom&quot;]
+    data_type : Literal["array", "tiff", "custom"]
         Type of the data.
     axes : str
         Axes of the data (e.g. SYX).
@@ -69,7 +69,7 @@ def create_n2n_training_configuration(
         N2V pixel manipulation area, by default 11.
     masked_pixel_percentage : float, optional
         Percentage of pixels masked in each patch, by default 0.2.
-    struct_n2v_axis : Literal[&quot;horizontal&quot;, &quot;vertical&quot;, &quot;none&quot;], optional
+    struct_n2v_axis : Literal["horizontal", "vertical", "none"], optional
         Axis along which to apply structN2V mask, by default "none"
     struct_n2v_span : int, optional
         Span of the structN2V mask, by default 5
@@ -210,7 +210,7 @@ def create_n2v_training_configuration(
     ----------
     experiment_name : str
         Name of the experiment.
-    data_type : Literal[&quot;array&quot;, &quot;tiff&quot;, &quot;custom&quot;]
+    data_type : Literal["array", "tiff", "custom"]
         Type of the data.
     axes : str
         Axes of the data (e.g. SYX).

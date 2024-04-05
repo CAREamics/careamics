@@ -7,6 +7,8 @@ from pydantic import (
 
 
 class VAEModel(BaseModel):
+    """VAE model placeholder."""
+
     model_config = ConfigDict(
         use_enum_values=True, protected_namespaces=(), validate_assignment=True
     )

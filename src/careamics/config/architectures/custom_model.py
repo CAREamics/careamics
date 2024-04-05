@@ -121,7 +121,7 @@ class CustomModel(BaseModel):
                 f"error while passing parameters to the model: {e}. Verify that all "
                 f"mandatory parameters are provided, and that either the model accepts "
                 f"*args and **kwargs, or that no additional parameter is provided."
-            )
+            ) from None
 
         return self
 

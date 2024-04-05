@@ -402,7 +402,8 @@ class IterablePredictionDataset(PathIterableDataset):
             patches = generate_patches_predict(
                 sample, self.tile_size, self.tile_overlap
             )
-            # TODO AttributeError: 'IterablePredictionDataset' object has no attribute 'mean' message appears if the predict func is run more than once
+            # TODO AttributeError: 'IterablePredictionDataset' object has no attribute
+            # 'mean' message appears if the predict func is run more than once
 
             for patch_data in patches:
                 # Albumentations expects the channel dimension to be last

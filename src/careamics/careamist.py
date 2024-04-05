@@ -23,16 +23,12 @@ from .utils import check_path_exists, get_logger
 
 logger = get_logger(__name__)
 
-# TODO callbacks
+# TODO napari callbacks
 # TODO save as modelzoo, lightning and pytorch_dict
 # TODO load checkpoints
-# TODO validation set from training set
-# TODO train and predict on np.ndarray
 # TODO how to do WandB
 # TODO: how to do AMP? How to continue training? How to load model from checkpoint?
 # TODO: how to save checkpoints?
-# TODO configure training parameters (epochs, etc.), potentially needs to be possible here
-
 
 class CAREamist(LightningModule):
     """A class to train and predict with CAREamics models.
@@ -454,7 +450,7 @@ class CAREamist(LightningModule):
         if dataloader_params is None:
             dataloader_params = {}
         if isinstance(source, CAREamicsClay):
-            return self.trainer.predict(datamodule=datamodule)
+            return self.trainer.predict(datamodule=source)
 
         else:
             # create predict config, reuse training config if parameters missing
@@ -507,6 +503,20 @@ class CAREamist(LightningModule):
     def export_checkpoint(
         self, path: Union[Path, str], type: Literal["bmz", "script"] = "bmz"
     ) -> None:
+        """Export the model to a checkpoint or a BioImage Model Zoo model.
+
+        Parameters
+        ----------
+        path : Union[Path, str]
+            Path to save the model.
+        type : Literal["bmz", "script"], optional
+            Export format, by default "bmz"
+
+        Raises
+        ------
+        NotImplementedError
+            If the export format is not implemented yet.
+        """
         path = Path(path)
         if type == "bmz":
             raise NotImplementedError(
@@ -514,8 +524,26 @@ class CAREamist(LightningModule):
             )
         elif type == "script":
             self.model.to_torchscript(path)
+        else:
+            raise ValueError(
+                f"Invalid export format. Expected 'bmz' or 'script', got {type}."
+            )
 
     def load_pretrained(self, path: Union[Path, str]) -> None:
+        """Load a pretrained model from a checkpoint or a BioImage Model Zoo model.
+
+        Expected formats are .ckpt, .zip, .pth or .pt files.
+
+        Parameters
+        ----------
+        path : Union[Path, str]
+            Path to the pretrained model.
+
+        Raises
+        ------
+        ValueError
+            If the model format is not supported.
+        """
         path = check_path_exists(path)
 
         if path.suffix == ".ckpt":
@@ -530,13 +558,32 @@ class CAREamist(LightningModule):
                 f"got {path.suffix}."
             )
 
-    def _load_from_checkpoint(self, path):
+    def _load_from_checkpoint(self, path: Union[Path, str]):
+        """Load a model from a checkpoint.
+
+        Parameters
+        ----------
+        path : Union[Path, str]
+            Path to the checkpoint.
+        """
         self.model.load_from_checkpoint(path)
 
     def _load_from_bmz(
         self,
         path: Union[Path, str],
     ):
+        """Load a model from BioImage Model Zoo.
+
+        Parameters
+        ----------
+        path : Union[Path, str]
+            Path to the BioImage Model Zoo model.
+
+        Raises
+        ------
+        NotImplementedError
+            If the method is not implemented yet.
+        """
         raise NotImplementedError(
             "Loading a model from BioImage Model Zoo is not implemented yet."
         )

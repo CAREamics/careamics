@@ -4,6 +4,18 @@ from careamics.utils import BaseEnum
 
 
 class SupportedData(str, BaseEnum):
+    """Supported data types.
+
+    Attributes
+    ----------
+    ARRAY : str
+        Array data.
+    TIFF : str
+        TIFF image data.
+    CUSTOM : str
+        Custom data.
+    """
+
     ARRAY = "array"
     TIFF = "tiff"
     CUSTOM = "custom"

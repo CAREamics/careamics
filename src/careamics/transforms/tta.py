@@ -13,9 +13,8 @@ class ImageRestorationTTA:
     Tensors should be of shape SC(Z)YX
     """
 
-    def __init__(self, is_3D: bool = False, flip_z: bool = True):
-        self.is_3D = is_3D
-        self.flip_z = flip_z
+    def __init__(self):
+        """Constructor."""
 
     def forward(self, x: Tensor) -> List[Tensor]:
         """Apply test-time augmentation to the input tensor.

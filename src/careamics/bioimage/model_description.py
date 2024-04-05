@@ -125,9 +125,9 @@ def _create_inputs_ouputs(
 
 
 def create_model_description(
+    careamist: CAREamist,
     name: str,
     general_description: str,
-    careamist: CAREamist,
     authors: List[Author],
     inputs: Union[Path, str],
     outputs: Union[Path, str],
@@ -135,6 +135,34 @@ def create_model_description(
     data_description: Optional[str] = None,
     custom_description: Optional[str] = None,
 ) -> ModelDescr:
+    """Create model description.
+
+    Parameters
+    ----------
+    careamist : CAREamist
+        CAREamist instance.
+    name : str
+        Name fo the model.
+    general_description : str
+        General description of the model.
+    authors : List[Author]
+        Authors of the model.
+    inputs : Union[Path, str]
+        Path to input .npy file.
+    outputs : Union[Path, str]
+        Path to output .npy file.
+    weights : Union[Path, str]
+        Path to model weights.
+    data_description : Optional[str], optional
+        Description of the data, by default None
+    custom_description : Optional[str], optional
+        Description of the custom algorithm, by default None
+
+    Returns
+    -------
+    ModelDescr
+        Model description.
+    """
     doc = readme_factory(
         careamist.cfg,
         data_description=data_description,

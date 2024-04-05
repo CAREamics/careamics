@@ -83,7 +83,7 @@ def _get_patch_transform(
         ] = {
             "mean": mean,
             "std": std,
-            "max_pixel_value": 1,  # TODO why? mean/std normalization will not be lead to [-1,1] range
+            "max_pixel_value": 1,
         }
         # TODO not very readable
         return Aug.Compose(

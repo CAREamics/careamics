@@ -7,6 +7,11 @@ from careamics.utils.torch_utils import filter_parameters
 
 
 class TransformParameters(BaseModel):
+    """Transform parameters Pydantic model.
+
+    This model accepts any parameter.
+    """
+
     model_config = ConfigDict(
         extra="allow",
     )

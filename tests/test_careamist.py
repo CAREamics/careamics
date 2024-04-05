@@ -12,7 +12,7 @@ def test_no_parameters():
         CAREamist()
 
 
-def test_minimum_configuration_via_object(minimum_configuration):
+def test_minimum_configuration_via_object(tmp_path, minimum_configuration):
     """Test that CAREamics can be instantiated with a minimum configuration object."""
     # create configuration
     config = Configuration(**minimum_configuration)
@@ -65,7 +65,7 @@ def test_train_error_target_unsupervised_algorithm(tmp_path, minimum_configurati
         )
 
 
-def test_train_single_array_no_val(minimum_configuration):
+def test_train_single_array_no_val(tmp_path, minimum_configuration):
     """Test that CAREamics can be trained with arrays."""
     # training data
     train_array = np.ones((32, 32))
@@ -89,7 +89,7 @@ def test_train_single_array_no_val(minimum_configuration):
     assert careamist.cfg.data.std is not None
 
 
-def test_train_array(minimum_configuration):
+def test_train_array(tmp_path, minimum_configuration):
     """Test that CAREamics can be trained with arrays."""
     # training data
     train_array = np.ones((32, 32))
@@ -211,7 +211,7 @@ def test_train_tiff_files(tmp_path, minimum_configuration):
     # TODO somethign to check that it trained, maybe through callback
 
 
-def test_train_array_supervised(supervised_configuration):
+def test_train_array_supervised(tmp_path, supervised_configuration):
     """Test that CAREamics can be trained with arrays."""
     # training data
     train_array = np.ones((32, 32))
