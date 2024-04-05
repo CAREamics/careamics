@@ -811,9 +811,9 @@ class CAREamicsPredictDataModule(CAREamicsClay):
         pred_data: Union[str, Path, np.ndarray],
         data_type: Union[Literal["array", "tiff", "custom"], SupportedData],
         tile_size: List[int],
-        tile_overlap: List[int],
         axes: str,
         batch_size: int,
+        tile_overlap: Optional[List[int]] = None,
         tta_transforms: bool = True,
         mean: Optional[float] = None,
         std: Optional[float] = None,
@@ -858,6 +858,8 @@ class CAREamicsPredictDataModule(CAREamicsClay):
         dataloader_params : dict, optional
             Pytorch dataloader parameters, by default {}.
         """
+        if tile_overlap is None:
+            tile_overlap = [48, 48]
         if dataloader_params is None:
             dataloader_params = {}
         prediction_dict = {
