@@ -811,9 +811,9 @@ class CAREamicsPredictDataModule(CAREamicsClay):
         pred_data: Union[str, Path, np.ndarray],
         data_type: Union[Literal["array", "tiff", "custom"], SupportedData],
         tile_size: List[int],
-        tile_overlap: List[int],
-        axes: str,
-        batch_size: int,
+        tile_overlap: List[int] = (48, 48), #TODO replace with calculator
+        axes: str = "YX",
+        batch_size: int = 1,
         tta_transforms: bool = True,
         mean: Optional[float] = None,
         std: Optional[float] = None,
