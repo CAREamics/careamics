@@ -1,18 +1,15 @@
 from pathlib import Path
-import pkg_resources
 from typing import Optional
 
+import pkg_resources
+import torch
 import yaml
-from bioimageio.spec.model.v0_5 import (
-    Version,
-    DocumentationSource
-)
+from bioimageio.spec.model.v0_5 import Version
 
 from careamics.config import Configuration
 from careamics.config.support import SupportedAlgorithm
 from careamics.utils import cwd, get_careamics_home
 
-import torch
 pytorch_version = Version(torch.__version__)
 
 
@@ -33,13 +30,13 @@ def _yaml_block(yaml_str: str) -> str:
 
 
 def readme_factory(
-        config: Configuration, 
-        data_description: Optional[str] = None,
-        custom_description: Optional[str] = None
-    ) -> Path:
+    config: Configuration,
+    data_description: Optional[str] = None,
+    custom_description: Optional[str] = None,
+) -> Path:
     """Create a README file for the model.
 
-    `data_description` can be used to add more information about the content of the 
+    `data_description` can be used to add more information about the content of the
     data the model was trained on.
 
     `custom_description` can be used to add a custom description of the algorithm, only
@@ -72,16 +69,14 @@ def readme_factory(
         algorithm_flavour = config.get_algorithm_flavour()
         algorithm_pretty_name = algorithm_flavour + " - CAREamics"
 
-        description = [
-            f"# {algorithm_pretty_name}\n\n"
-        ]
+        description = [f"# {algorithm_pretty_name}\n\n"]
 
         # algorithm description
-        description.append(
-            "Algorithm description:\n\n"
-        )
-        if algorithm.algorithm == SupportedAlgorithm.CUSTOM and \
-            custom_description is not None:
+        description.append("Algorithm description:\n\n")
+        if (
+            algorithm.algorithm == SupportedAlgorithm.CUSTOM
+            and custom_description is not None
+        ):
             description.append(custom_description)
         else:
             description.append(config.get_algorithm_description())
@@ -97,57 +92,35 @@ def readme_factory(
         description.append(
             _yaml_block(yaml.dump(algorithm.model_dump(exclude_none=True)))
         )
-        description.append(
-            "\n\n"
-        )
+        description.append("\n\n")
 
         # data description
-        description.append(
-            "## Data description\n\n"
-        )
+        description.append("## Data description\n\n")
         if data_description is not None:
             description.append(data_description)
-            description.append(
-                "\n\n"
-            )
+            description.append("\n\n")
 
-        description.append(
-            f"The data was processed using the following parameters:\n\n"
-        )
+        description.append("The data was processed using the following parameters:\n\n")
 
-        description.append(
-            _yaml_block(yaml.dump(data.model_dump(exclude_none=True)))
-        )
-        description.append(
-            "\n\n"
-        )
+        description.append(_yaml_block(yaml.dump(data.model_dump(exclude_none=True))))
+        description.append("\n\n")
 
         # training description
-        description.append(
-            "## Training description\n\n"
-        )
+        description.append("## Training description\n\n")
 
-        description.append(
-            f"The model was trained using the following parameters:\n\n"
-        )
+        description.append("The model was trained using the following parameters:\n\n")
 
         description.append(
             _yaml_block(yaml.dump(training.model_dump(exclude_none=True)))
         )
-        description.append(
-            "\n\n"
-        )
+        description.append("\n\n")
 
         # references
         reference = config.get_algorithm_references()
         if reference != "":
-            description.append(
-                "## References\n\n"
-            )
+            description.append("## References\n\n")
             description.append(reference)
-            description.append(
-                "\n\n"
-            )
+            description.append("\n\n")
 
         # links
         description.append(
@@ -155,10 +128,7 @@ def readme_factory(
             "- [CAREamics repository](https://github.com/CAREamics/careamics)\n"
             "- [CAREamics documentation](https://careamics.github.io/latest/)\n"
         )
-        
-        readme.write_text(
-            ''.join(description)
-        )
+
+        readme.write_text("".join(description))
 
     return readme
-

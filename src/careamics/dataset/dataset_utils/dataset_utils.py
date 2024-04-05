@@ -1,5 +1,5 @@
 """Convenience methods for datasets."""
-from typing import List, Tuple
+from typing import Tuple
 
 import numpy as np
 
@@ -44,8 +44,8 @@ def _get_shape_order(shape_in: Tuple, axes_in: str, ref_axes: str = "STCZYX"):
 
 def reshape_array(x: np.ndarray, axes: str) -> np.ndarray:
     """Reshape the data to (S, C, (Z), Y, X) by moving axes.
-     
-    If the data has both S and T axes, the two axes will be merged. A singleton 
+
+    If the data has both S and T axes, the two axes will be merged. A singleton
     dimension is added if there are no C axis.
 
     Parameters

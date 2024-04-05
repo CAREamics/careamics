@@ -5,9 +5,9 @@ from careamics.config.inference_model import InferenceModel
 from careamics.config.training_model import TrainingModel
 
 
-def test_minimum_algorithm(minimum_algorithm):
+def test_minimum_algorithm(minimum_algorithm_n2v):
     # create algorithm configuration
-    AlgorithmModel(**minimum_algorithm)
+    AlgorithmModel(**minimum_algorithm_n2v)
 
 
 def test_minimum_data(minimum_data):

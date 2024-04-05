@@ -30,7 +30,7 @@ def create_tiff(path: Path, n_files: int):
 
 
 @pytest.fixture
-def minimum_algorithm() -> dict:
+def minimum_algorithm_custom() -> dict:
     """Create a minimum algorithm dictionary.
 
     Returns
@@ -42,6 +42,48 @@ def minimum_algorithm() -> dict:
     algorithm = {
         "algorithm": "custom",
         "loss": "n2v",
+        "model": {
+            "architecture": "UNet",
+        },
+    }
+
+    return algorithm
+
+
+@pytest.fixture
+def minimum_algorithm_n2v() -> dict:
+    """Create a minimum algorithm dictionary.
+
+    Returns
+    -------
+    dict
+        A minimum algorithm example.
+    """
+    # create dictionary
+    algorithm = {
+        "algorithm": "n2v",
+        "loss": "n2v",
+        "model": {
+            "architecture": "UNet",
+        },
+    }
+
+    return algorithm
+
+
+@pytest.fixture
+def minimum_algorithm_supervised() -> dict:
+    """Create a minimum algorithm dictionary.
+
+    Returns
+    -------
+    dict
+        A minimum algorithm example.
+    """
+    # create dictionary
+    algorithm = {
+        "algorithm": "n2n",
+        "loss": "mae",
         "model": {
             "architecture": "UNet",
         },
@@ -108,7 +150,7 @@ def minimum_training() -> dict:
 
 @pytest.fixture
 def minimum_configuration(
-    minimum_algorithm: dict, minimum_data: dict, minimum_training: dict
+    minimum_algorithm_n2v: dict, minimum_data: dict, minimum_training: dict
 ) -> dict:
     """Create a minimum configuration dictionary.
 
@@ -131,7 +173,7 @@ def minimum_configuration(
     # create dictionary
     configuration = {
         "experiment_name": "LevitatingFrog",
-        "algorithm": minimum_algorithm,
+        "algorithm": minimum_algorithm_n2v,
         "training": minimum_training,
         "data": minimum_data,
     }
@@ -259,32 +301,14 @@ def base_configuration(temp_dir: Path, patch_size) -> Configuration:
 
 
 @pytest.fixture
-def supervised_configuration(temp_dir: Path, patch_size) -> Configuration:
-    configuration = Configuration(
-        experiment_name="smoke_test",
-        working_directory=temp_dir,
-        algorithm=AlgorithmModel(
-            algorithm="n2n",
-            loss="mae",
-            model={"architecture": "UNet"},
-            is_3D="False",
-            transforms={"Flip": None},
-        ),
-        data=DataModel(
-            in_memory=True,
-            extension="tif",
-            axes="YX",
-        ),
-        training=TrainingModel(
-            num_epochs=1,
-            patch_size=patch_size,
-            batch_size=2,
-            optimizer=OptimizerModel(name="Adam"),
-            lr_scheduler=LrSchedulerModel(name="ReduceLROnPlateau"),
-            extraction_strategy="random",
-            augmentation=True,
-            num_workers=0,
-            use_wandb=False,
-        ),
-    )
+def supervised_configuration(
+    minimum_algorithm_supervised: dict, minimum_data: dict, minimum_training: dict
+) -> dict:
+    configuration = {
+        "experiment_name": "LevitatingFrog",
+        "algorithm": minimum_algorithm_supervised,
+        "training": minimum_training,
+        "data": minimum_data,
+    }
+
     return configuration

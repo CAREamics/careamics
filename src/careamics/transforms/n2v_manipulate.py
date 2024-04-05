@@ -44,13 +44,13 @@ class N2VManipulate(ImageOnlyTransform):
             self.struct_mask = None
         else:
             self.struct_mask = StructMaskParameters(
-                axis = 0 if struct_mask_axis == SupportedStructAxis.HORIZONTAL else 1,
-                span = struct_mask_span
+                axis=0 if struct_mask_axis == SupportedStructAxis.HORIZONTAL else 1,
+                span=struct_mask_span,
             )
 
     def apply(
-            self, patch: np.ndarray, **kwargs: Any
-        ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        self, patch: np.ndarray, **kwargs: Any
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """Apply the transform to the image.
 
         Parameters

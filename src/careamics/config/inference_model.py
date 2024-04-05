@@ -23,8 +23,7 @@ class InferenceModel(BaseModel):
     data_type: Literal["array", "tiff", "custom"]  # As defined in SupportedData
     tile_size: Union[List[int], Tuple[int]] = Field(..., min_length=2, max_length=3)
     tile_overlap: List[int] = Field(
-        default=[48, 48],
-        min_length=2, max_length=3
+        default=[48, 48], min_length=2, max_length=3
     )  # TODO Will be calculated automatically
 
     axes: str
@@ -205,7 +204,7 @@ class InferenceModel(BaseModel):
             )
 
         return pred_model
-    
+
     @model_validator(mode="after")
     def add_std_and_mean_to_normalize(
         cls, pred_model: InferenceModel
@@ -266,12 +265,7 @@ class InferenceModel(BaseModel):
                 "mean and std parameters directly to the transform in the Compose."
             )
 
-    def set_3D(
-            self, 
-            axes: str, 
-            tile_size: List[int],
-            tile_overlap: List[int]
-        ) -> None:
+    def set_3D(self, axes: str, tile_size: List[int], tile_overlap: List[int]) -> None:
         """
         Set 3D parameters.
 

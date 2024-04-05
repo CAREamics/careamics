@@ -1,10 +1,10 @@
 from pathlib import Path
-from typing import List, Optional, Union, Tuple
+from typing import List, Optional, Tuple, Union
 
 from bioimageio.spec.model.v0_5 import (
     Author,
-    AxisId,
     AxisBase,
+    AxisId,
     BatchAxis,
     ChannelAxis,
     FileDescr,
@@ -16,20 +16,19 @@ from bioimageio.spec.model.v0_5 import (
     SpaceInputAxis,
     SpaceOutputAxis,
     TensorId,
-    DocumentationSource,
 )
 
-from .readme_factory import readme_factory
 from careamics import CAREamist
 from careamics.config import DataModel, save_configuration
 from careamics.utils import cwd, get_careamics_home
 
+from .readme_factory import readme_factory
 
 
 def _create_axes(
-        data_config: DataModel, 
-        is_input: bool = True,
-        channel_names: Optional[List[str]] = None,
+    data_config: DataModel,
+    is_input: bool = True,
+    channel_names: Optional[List[str]] = None,
 ) -> List[AxisBase]:
     """Create axes description.
 
@@ -58,7 +57,8 @@ def _create_axes(
     if "C" in data_config.axes:
         if channel_names is not None:
             axes_model.append(
-                ChannelAxis(channel_names=[Identifier(name) for name in channel_names]))
+                ChannelAxis(channel_names=[Identifier(name) for name in channel_names])
+            )
         else:
             raise ValueError(
                 f"Channel names must be provided if channel axis is present, axes: "
@@ -69,30 +69,31 @@ def _create_axes(
 
     # spatial axes
     for axes in data_config.axes:
-        if axes in ['X', 'Y', 'Z']:
-
+        if axes in ["X", "Y", "Z"]:
             if is_input:
                 axes_model.append(
                     SpaceInputAxis(
-                        id=AxisId(axes.lower()), 
-                        size=ParameterizedSize(min=16, step=8) # TODO check the min/step
+                        id=AxisId(axes.lower()),
+                        size=ParameterizedSize(
+                            min=16, step=8
+                        ),  # TODO check the min/step
                     )
                 )
             else:
                 axes_model.append(
                     SpaceOutputAxis(
-                        id=AxisId(axes.lower()), 
-                        size=ParameterizedSize(min=16, step=8)
+                        id=AxisId(axes.lower()), size=ParameterizedSize(min=16, step=8)
                     )
                 )
 
     return axes_model
 
+
 def _create_inputs_ouputs(
-        data_config: DataModel,
-        input_path: Union[Path, str],
-        output_path: Union[Path, str],
-    ) -> Tuple[InputTensorDescr, OutputTensorDescr]:
+    data_config: DataModel,
+    input_path: Union[Path, str],
+    output_path: Union[Path, str],
+) -> Tuple[InputTensorDescr, OutputTensorDescr]:
     """Create input and output tensor description.
 
     Input and output paths must point to a `.npy` file.
@@ -114,34 +115,30 @@ def _create_inputs_ouputs(
     input_axes = _create_axes(data_config)
     output_axes = _create_axes(data_config)
     input_descr = InputTensorDescr(
-        id=TensorId("raw"), 
-        axes=input_axes, 
-        test_tensor=FileDescr(source=input_path)
+        id=TensorId("raw"), axes=input_axes, test_tensor=FileDescr(source=input_path)
     )
     output_descr = OutputTensorDescr(
-        id=TensorId("pred"), 
-        axes=output_axes, 
-        test_tensor=FileDescr(source=output_path)
-        )
-    
+        id=TensorId("pred"), axes=output_axes, test_tensor=FileDescr(source=output_path)
+    )
+
     return input_descr, output_descr
 
 
 def create_model_description(
-        name: str,
-        general_description: str,
-        careamist: CAREamist,
-        authors: List[Author],
-        inputs: Union[Path, str],
-        outputs: Union[Path, str],
-        weights: Union[Path, str],
-        data_description: Optional[str] = None,
-        custom_description: Optional[str] = None
+    name: str,
+    general_description: str,
+    careamist: CAREamist,
+    authors: List[Author],
+    inputs: Union[Path, str],
+    outputs: Union[Path, str],
+    weights: Union[Path, str],
+    data_description: Optional[str] = None,
+    custom_description: Optional[str] = None,
 ) -> ModelDescr:
     doc = readme_factory(
         careamist.cfg,
         data_description=data_description,
-        custom_description=custom_description
+        custom_description=custom_description,
     )
 
     input_descr, output_descr = _create_inputs_ouputs(
@@ -154,7 +151,6 @@ def create_model_description(
     with cwd(get_careamics_home()):
         config_path = save_configuration(careamist.cfg, get_careamics_home())
 
-
     model = ModelDescr(
         name=name,
         authors=authors,
@@ -165,12 +161,12 @@ def create_model_description(
         tags=careamist.cfg.get_algorithm_keywords(),
         links=[
             "https://github.com/CAREamics/careamics",
-            "https://careamics.github.io/latest/"
+            "https://careamics.github.io/latest/",
         ],
         license="BSD-3-Clause",
-        version= '0.1.0',
+        version="0.1.0",
         weights=weights,
-        attachments=[config_path]
+        attachments=[config_path],
     )
 
     return model

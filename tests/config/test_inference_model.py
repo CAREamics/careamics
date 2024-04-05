@@ -113,7 +113,7 @@ def test_set_3d(minimum_inference: dict):
     pred = InferenceModel(**minimum_inference)
     with pytest.raises(ValueError):
         pred.tile_size = [64, 64, 64]
-    
+
     with pytest.raises(ValueError):
         pred.tile_overlap = [64, 64, 64]
 
@@ -125,9 +125,9 @@ def test_set_3d(minimum_inference: dict):
     assert len(pred.tile_overlap) == 3
 
 
-@pytest.mark.parametrize("transforms",
+@pytest.mark.parametrize(
+    "transforms",
     [
-
         [
             {"name": SupportedTransform.NORMALIZE.value},
         ],
@@ -136,7 +136,7 @@ def test_set_3d(minimum_inference: dict):
             {"name": SupportedTransform.NDFLIP.value},
             {"name": SupportedTransform.XY_RANDOM_ROTATE90.value},
         ],
-    ]
+    ],
 )
 def test_passing_supported_transforms(minimum_inference: dict, transforms):
     """Test that list of supported transforms can be passed."""
@@ -151,6 +151,7 @@ def test_cannot_pass_n2v_manipulate(minimum_inference: dict):
     ]
     with pytest.raises(ValueError):
         InferenceModel(**minimum_inference)
+
 
 def test_passing_empty_transforms(minimum_inference: dict):
     """Test that empty list of transforms can be passed."""

@@ -9,7 +9,6 @@ from pathlib import Path
 from typing import Iterator, Union
 
 
-
 def get_careamics_home() -> Path:
     """Return the CAREamics home directory.
 

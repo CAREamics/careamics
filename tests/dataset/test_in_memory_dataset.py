@@ -30,13 +30,10 @@ def test_number_of_patches(ordered_array):
     assert dataset.get_number_of_patches() == dataset.patches.shape[0]
 
 
-
 def test_compute_mean_std_transform(ordered_array):
     """Test that mean and std are computed and correctly added to the configuration
     and transform."""
     pass
-
-
 
 
 @pytest.mark.parametrize("percentage", [0.1, 0.6])

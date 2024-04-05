@@ -10,11 +10,14 @@ from .nd_flip import NDFlip
 from .tta import ImageRestorationTTA
 from .xy_random_rotate90 import XYRandomRotate90
 
-ALL_TRANSFORMS = dict(getmembers(Aug, isclass) + [
-    ("N2VManipulate", N2VManipulate),
-    ("NDFlip", NDFlip),
-    ("XYRandomRotate90", XYRandomRotate90),
-])
+ALL_TRANSFORMS = dict(
+    getmembers(Aug, isclass)
+    + [
+        ("N2VManipulate", N2VManipulate),
+        ("NDFlip", NDFlip),
+        ("XYRandomRotate90", XYRandomRotate90),
+    ]
+)
 
 
 def get_all_transforms() -> dict:

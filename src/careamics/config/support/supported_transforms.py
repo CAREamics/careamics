@@ -1,5 +1,6 @@
 from careamics.utils import BaseEnum
 
+
 class SupportedTransform(str, BaseEnum):
     """Transforms officially supported by CAREamics.
 

@@ -62,9 +62,7 @@ class CAREamicsFiring(L.loops._PredictionLoop):
                 self.batch_progress.is_last_batch = data_fetcher.done
 
                 # run step hooks
-                self._predict_step(
-                        batch, batch_idx, dataloader_idx, dataloader_iter
-                    )
+                self._predict_step(batch, batch_idx, dataloader_idx, dataloader_iter)
 
                 # Stitching tiles together
                 last_tile, *data = self.predictions[batch_idx][1]
@@ -88,7 +86,8 @@ class CAREamicsFiring(L.loops._PredictionLoop):
             finally:
                 self._restarting = False
         return self.on_run_end()
-    # TODO predictions aren't stacked, list returned 
+
+    # TODO predictions aren't stacked, list returned
 
 
 def predict_tiled_simple(

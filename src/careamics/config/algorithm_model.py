@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from typing import Literal, Union
 from pprint import pformat
+from typing import Literal, Union
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -12,13 +12,13 @@ from .optimizer_models import LrSchedulerModel, OptimizerModel
 class AlgorithmModel(BaseModel):
     """Algorithm configuration.
 
-    This Pydantic model validates the parameters governing the components of the 
+    This Pydantic model validates the parameters governing the components of the
     training algorithm: which algorithm, loss function, model architecture, optimizer,
     and learning rate scheduler to use.
 
-    Currently, we only support N2V and custom algorithms. The `n2v` algorithm is only 
+    Currently, we only support N2V and custom algorithms. The `n2v` algorithm is only
     compatible with `n2v` loss and `UNet` architecture. The `custom` algorithm allows
-    you to register your own architecture and select it using its name as 
+    you to register your own architecture and select it using its name as
     `name` in the custom pydantic model.
 
     Attributes
@@ -58,7 +58,7 @@ class AlgorithmModel(BaseModel):
     Using a custom model:
     >>> from torch import nn, ones
     >>> from careamics.config import AlgorithmModel, register_model
-    >>> 
+    >>>
     >>> @register_model(name="linear")
     >>> class LinearModel(nn.Module):
     >>>    def __init__(self, in_features, out_features, *args, **kwargs):
@@ -69,7 +69,7 @@ class AlgorithmModel(BaseModel):
     >>>        self.bias = nn.Parameter(ones(out_features))
     >>>    def forward(self, input):
     >>>        return (input @ self.weight) + self.bias
-    >>> 
+    >>>
     >>> config_dict = {
     >>>     "algorithm": "custom",
     >>>     "loss": "mse",
@@ -93,7 +93,7 @@ class AlgorithmModel(BaseModel):
     )
 
     # Mandatory fields
-    algorithm: Literal["n2v", "custom"]
+    algorithm: Literal["n2v", "care", "n2n", "custom"]  # defined in SupportedAlgorithm
     loss: Literal["n2v", "mae", "mse"]
     model: Union[UNetModel, VAEModel, CustomModel] = Field(discriminator="architecture")
 
@@ -120,11 +120,14 @@ class AlgorithmModel(BaseModel):
                 raise ValueError(
                     f"Model for algorithm {self.algorithm} must be a `UNetModel`."
                 )
+        if self.algorithm == "care" or self.algorithm == "n2n":
+            if self.loss == "n2v":
+                raise ValueError("Supervised algorithms do not support loss `n2v`.")
 
         if isinstance(self.model, VAEModel):
             raise ValueError("VAE are currently not implemented.")
 
-        return self        
+        return self
 
     def __str__(self) -> str:
         """Pretty string representing the configuration.

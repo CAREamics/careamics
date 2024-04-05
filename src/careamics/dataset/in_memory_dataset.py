@@ -39,6 +39,7 @@ class InMemoryDataset(Dataset):
 
         # TODO
         """
+        self.data_config = data_config
         self.data = data
         self.data_target = data_target
         self.axes = data_config.axes
@@ -89,16 +90,16 @@ class InMemoryDataset(Dataset):
             Array of patches.
         """
         if supervised:
-            if isinstance(self.data, np.ndarray) and \
-                isinstance(self.data_target, np.ndarray):
+            if isinstance(self.data, np.ndarray) and isinstance(
+                self.data_target, np.ndarray
+            ):
                 return prepare_patches_supervised_array(
                     self.data,
                     self.axes,
                     self.data_target,
                     self.patch_size,
                 )
-            elif isinstance(self.data, list) and \
-                isinstance(self.data_target, list):
+            elif isinstance(self.data, list) and isinstance(self.data_target, list):
                 return prepare_patches_supervised(
                     self.data,
                     self.data_target,
@@ -126,7 +127,6 @@ class InMemoryDataset(Dataset):
                     self.patch_size,
                     self.read_source_func,
                 )
-        
 
     def __len__(self) -> int:
         """
@@ -177,7 +177,7 @@ class InMemoryDataset(Dataset):
             target = np.moveaxis(transformed["target"], -1, 0)
 
             return patch, target
-        else:
+        elif self.data_config.has_n2v_manipulate():
             # Albumentations requires Channel last
             patch = np.moveaxis(patch, 0, -1)
 
@@ -191,6 +191,11 @@ class InMemoryDataset(Dataset):
             mask = np.moveaxis(mask, -1, 0)
 
             return (manip_patch, patch, mask)
+        else:
+            raise ValueError(
+                "Something went wrong! No target provided (not supervised training) "
+                "and no N2V manipulation (no N2V training)."
+            )
 
     def get_number_of_patches(self) -> int:
         """
@@ -206,7 +211,7 @@ class InMemoryDataset(Dataset):
     def split_dataset(
         self,
         percentage: float = 0.1,
-        minimum_patches: int = 5,
+        minimum_patches: int = 1,
     ) -> InMemoryDataset:
         """Split a new dataset away from the current one.
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
-from typing import Literal
+
 from pprint import pformat
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 from torch.nn import Module
@@ -13,12 +14,13 @@ class CustomParametersModel(BaseModel):
 
     model_config = ConfigDict(extra="allow")
 
+
 class CustomModel(BaseModel):
     """Custom model configuration.
-    
+
     This Pydantic model allows storing parameters for a custom model. In order for the
-    model to be valid, the specific model needs to be registered using the 
-    `register_model` decorator, and its name correctly passed to this model 
+    model to be valid, the specific model needs to be registered using the
+    `register_model` decorator, and its name correctly passed to this model
     configuration (see Examples).
 
     Attributes
@@ -43,7 +45,7 @@ class CustomModel(BaseModel):
     --------
     >>> from torch import nn, ones
     >>> from careamics.config import CustomModel, register_model
-    >>> 
+    >>>
     >>> @register_model(name="linear")
     >>> class LinearModel(nn.Module):
     >>>    def __init__(self, in_features, out_features, *args, **kwargs):
@@ -54,7 +56,7 @@ class CustomModel(BaseModel):
     >>>        self.bias = nn.Parameter(ones(out_features))
     >>>    def forward(self, input):
     >>>        return (input @ self.weight) + self.bias
-    >>> 
+    >>>
     >>> config_dict = {
     >>>     "architecture": "custom",
     >>>     "name": "linear",
@@ -105,14 +107,14 @@ class CustomModel(BaseModel):
     @model_validator(mode="after")
     def check_parameters(self: CustomModel) -> CustomModel:
         """Validate model by instantiating the model with the parameters.
-        
+
         Returns
         -------
         CustomModel
             The validated model.
         """
         # instantiate model
-        try: 
+        try:
             get_custom_model(self.name)(**self.parameters.model_dump())
         except Exception as e:
             raise ValueError(
@@ -132,4 +134,3 @@ class CustomModel(BaseModel):
             Pretty string.
         """
         return pformat(self.model_dump())
-

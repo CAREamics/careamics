@@ -2,12 +2,14 @@ import pytest
 from albumentations import Compose
 
 from careamics.config.data_model import DataModel
-from careamics.config.transformations.xy_random_rotate90_model import (
-    XYRandomRotate90Model
+from careamics.config.support import (
+    SupportedPixelManipulation,
+    SupportedStructAxis,
+    SupportedTransform,
 )
 from careamics.config.transformations.transform_model import TransformModel
-from careamics.config.support import (
-    SupportedTransform, SupportedStructAxis, SupportedPixelManipulation
+from careamics.config.transformations.xy_random_rotate90_model import (
+    XYRandomRotate90Model,
 )
 from careamics.transforms import get_all_transforms
 
@@ -133,7 +135,8 @@ def test_set_3d(minimum_data: dict):
     assert len(data.patch_size) == 3
 
 
-@pytest.mark.parametrize("transforms",
+@pytest.mark.parametrize(
+    "transforms",
     [
         [
             {"name": SupportedTransform.NDFLIP.value},
@@ -148,7 +151,7 @@ def test_set_3d(minimum_data: dict):
             {"name": SupportedTransform.XY_RANDOM_ROTATE90.value},
             {"name": SupportedTransform.N2V_MANIPULATE.value},
         ],
-    ]
+    ],
 )
 def test_passing_supported_transforms(minimum_data: dict, transforms):
     """Test that list of supported transforms can be passed."""
@@ -156,7 +159,8 @@ def test_passing_supported_transforms(minimum_data: dict, transforms):
     DataModel(**minimum_data)
 
 
-@pytest.mark.parametrize("transforms",
+@pytest.mark.parametrize(
+    "transforms",
     [
         [
             {"name": SupportedTransform.N2V_MANIPULATE.value},
@@ -171,7 +175,7 @@ def test_passing_supported_transforms(minimum_data: dict, transforms):
             {"name": SupportedTransform.N2V_MANIPULATE.value},
             {"name": SupportedTransform.XY_RANDOM_ROTATE90.value},
         ],
-    ]
+    ],
 )
 def test_n2vmanipulate_last_transform(minimum_data: dict, transforms):
     """Test that N2V Manipulate is moved to the last position if it is not."""
@@ -220,7 +224,7 @@ def test_add_n2v_manipulate(minimum_data: dict):
 
 def test_correct_transform_parameters(minimum_data: dict):
     """Test that the transforms have the correct parameters.
-    
+
     This is important to know that the transforms are not all instantiated as
     a generic transform.
     """
@@ -292,14 +296,14 @@ def test_passing_albumentations_transform(minimum_data: dict):
         {
             "name": "PixelDropout",
             "parameters": {
-                "dropout_prob": 0.05, 
+                "dropout_prob": 0.05,
                 "per_channel": True,
             },
         },
     ]
     model = DataModel(**minimum_data)
     assert isinstance(model.transforms[0], TransformModel)
-    
+
     params = model.transforms[0].parameters.model_dump()
     assert params["dropout_prob"] == 0.05
     assert params["per_channel"] is True
@@ -390,4 +394,3 @@ def test_set_struct_mask_wrong_value(minimum_data: dict):
 
     with pytest.raises(ValueError):
         data.set_structN2V_mask(SupportedStructAxis.VERTICAL.value, 1)
-    

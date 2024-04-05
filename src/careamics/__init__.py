@@ -18,9 +18,9 @@ __all__ = [
 
 from .careamist import CAREamist
 from .config import Configuration, load_configuration, save_configuration
-from .lightning_module import CAREamicsModule
-from .lightning_prediction import CAREamicsFiring
 from .lightning_datamodule import (
     CAREamicsPredictDataModule,
     CAREamicsTrainDataModule,
 )
+from .lightning_module import CAREamicsModule
+from .lightning_prediction import CAREamicsFiring

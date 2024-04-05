@@ -10,15 +10,15 @@ from .config import (
     AlgorithmModel,
     Configuration,
     DataModel,
-    InferenceModel,
     TrainingModel,
     create_inference_configuration,
     load_configuration,
 )
+from .config.inference_model import TRANSFORMS_UNION
 from .config.support import SupportedAlgorithm
+from .lightning_datamodule import CAREamicsClay, CAREamicsWood
 from .lightning_module import CAREamicsKiln
 from .lightning_prediction import CAREamicsFiring
-from .lightning_datamodule import CAREamicsClay, CAREamicsWood
 from .utils import check_path_exists, get_logger
 
 logger = get_logger(__name__)
@@ -115,7 +115,7 @@ class CAREamist(LightningModule):
         Raises
         ------
         NotImplementedError
-            _description_
+            _description_ #TODO
         ValueError
             _description_
         ValueError
@@ -238,46 +238,113 @@ class CAREamist(LightningModule):
 
         return self.callbacks
 
-    def train(self, *args, **kwargs) -> None:
-        if len(args) > 0:
+    def train(
+        self,
+        *,
+        datamodule: Optional[CAREamicsWood] = None,
+        train_source: Optional[Union[Path, str, np.ndarray]] = None,
+        val_source: Optional[Union[Path, str, np.ndarray]] = None,
+        train_target: Optional[Union[Path, str, np.ndarray]] = None,
+        val_target: Optional[Union[Path, str, np.ndarray]] = None,
+        use_in_memory: bool = True,
+        val_percentage: float = 0.1,
+        val_minimum_split: int = 1,
+    ) -> None:
+        """
+        Train the model on the provided data.
+
+        # TODO
+        """
+        #
+        if datamodule is not None and train_source:
             raise ValueError(
-                "Only keyword arguments are allowed for the `train` method."
+                "Only one of `datamodule` and `train_source` can be provided."
             )
-        if any(isinstance(p, CAREamicsWood) for p in kwargs.values()):
-            try:
-                datamodule = kwargs["datamodule"]
-            except KeyError:
-                print("An instance of CAREamicsWood must be provided.")
 
-            self.train_on_datamodule(datamodule=datamodule)
+        # check that inputs are the same type
+        source_types = {
+            type(s)
+            for s in (train_source, val_source, train_target, val_target)
+            if s is not None
+        }
+        if len(source_types) > 1:
+            raise ValueError("All sources should be of the same type.")
 
-        elif all(isinstance(p, Path) for p in kwargs.values()):
-            self.train_on_path(*args, **kwargs)
-
-        elif all(isinstance(p, str) for p in kwargs.values()):
-            self._train_on_str(*args, **kwargs)
-
-        elif all(isinstance(p, np.ndarray) for p in kwargs.values()):
-            self.train_on_array(*args, **kwargs)
+        # train
+        if datamodule is not None:
+            self._train_on_datamodule(datamodule=datamodule)
 
         else:
-            raise ValueError(
-                "Invalid input. Expected a CAREamicsWood instance, paths or np.ndarray."
-            )
+            # raise error if target is provided to N2V
+            if self.cfg.algorithm.algorithm == SupportedAlgorithm.N2V.value:
+                if train_target is not None:
+                    raise ValueError(
+                        "Training target not compatible with N2V training."
+                    )
 
-    def train_on_datamodule(
-        self,
-        datamodule: CAREamicsWood,
-    ) -> None:
+            # dispatch the training
+            if isinstance(train_source, np.ndarray):
+                self._train_on_array(
+                    train_source,
+                    val_source,
+                    train_target,
+                    val_target,
+                    val_percentage,
+                    val_minimum_split,
+                )
+
+            elif isinstance(train_source, Path) or isinstance(train_source, str):
+                self._train_on_path(
+                    train_source,
+                    val_source,
+                    train_target,
+                    val_target,
+                    use_in_memory,
+                    val_percentage,
+                    val_minimum_split,
+                )
+
+            else:
+                raise ValueError(
+                    f"Invalid input, expected a str, Path, array or CAREamicsWood "
+                    f"instance (got {type(train_source)})."
+                )
+
+    def _train_on_datamodule(self, datamodule: CAREamicsWood) -> None:
         self.trainer.fit(self.model, datamodule=datamodule)
 
-    def train_on_path(
+    def _train_on_array(
+        self,
+        train_data: np.ndarray,
+        val_data: Optional[np.ndarray] = None,
+        train_target: Optional[np.ndarray] = None,
+        val_target: Optional[np.ndarray] = None,
+        val_percentage: float = 0.1,
+        val_minimum_split: int = 1,
+    ) -> None:
+        # create datamodule
+        datamodule = CAREamicsWood(
+            data_config=self.cfg.data,
+            train_data=train_data,
+            val_data=val_data,
+            train_data_target=train_target,
+            val_data_target=val_target,
+            val_percentage=val_percentage,
+            val_minimum_split=val_minimum_split,
+        )
+
+        # train
+        self.train(datamodule=datamodule)
+
+    def _train_on_path(
         self,
         path_to_train_data: Union[Path, str],
         path_to_val_data: Optional[Union[Path, str]] = None,
         path_to_train_target: Optional[Union[Path, str]] = None,
         path_to_val_target: Optional[Union[Path, str]] = None,
         use_in_memory: bool = True,
+        val_percentage: float = 0.1,
+        val_minimum_split: int = 1,
     ) -> None:
         # sanity check on data (path exists)
         path_to_train_data = check_path_exists(path_to_train_data)
@@ -286,12 +353,6 @@ class CAREamist(LightningModule):
             path_to_val_data = check_path_exists(path_to_val_data)
 
         if path_to_train_target is not None:
-            if self.cfg.algorithm.algorithm != SupportedAlgorithm.N2V.value:
-                raise ValueError(
-                    f"Training target is not needed for unsupervised algorithms "
-                    f"({self.cfg.algorithm.algorithm})."
-                )
-
             path_to_train_target = check_path_exists(path_to_train_target)
 
         if path_to_val_target is not None:
@@ -305,58 +366,58 @@ class CAREamist(LightningModule):
             train_data_target=path_to_train_target,
             val_data_target=path_to_val_target,
             use_in_memory=use_in_memory,
-        )
-
-        # train
-        self.train(datamodule=datamodule)
-
-    def train_on_array(
-        self,
-        train_data: np.ndarray,
-        val_data: Optional[np.ndarray] = None,
-        train_target: Optional[np.ndarray] = None,
-        val_target: Optional[np.ndarray] = None,
-    ) -> None:
-        if train_target is not None:
-            if self.cfg.algorithm.algorithm != SupportedAlgorithm.N2V.value:
-                raise ValueError(
-                    f"Training target is not needed for unsupervised algorithms "
-                    f"({self.cfg.algorithm.algorithm})."
-                )
-
-        # create datamodule
-        datamodule = CAREamicsWood(
-            data_config=self.cfg.data,
-            train_data=train_data,
-            val_data=val_data,
-            train_data_target=train_target,
-            val_data_target=val_target,
+            val_percentage=val_percentage,
+            val_minimum_split=val_minimum_split,
         )
 
         # train
         self.train(datamodule=datamodule)
 
     @overload
-    def predict(
-        self, source: CAREamicsClay
-    ) -> Union[list, np.ndarray]:
+    def predict(self, source: CAREamicsClay) -> Union[list, np.ndarray]:
         ...
 
     @overload
     def predict(
-        self, source: Union[Path, str]
+        self,
+        source: Union[Path, str],
+        *,
+        batch_size: int = 1,
+        tile_size: Optional[Tuple[int, ...]] = None,
+        tile_overlap: int = (48, 48),
+        axes: Optional[str] = None,
+        data_type: Optional[Literal["tiff", "custom"]] = None,
+        read_source_func: Optional[Callable] = None,
+        extension_filter: str = "",
+        transforms: Optional[List[TRANSFORMS_UNION]] = None,
+        tta_transforms: bool = True,
+        dataloader_params: Optional[Dict] = None,
     ) -> Union[list, np.ndarray]:
+        if dataloader_params is None:
+            dataloader_params = {}
         ...
 
     @overload
     def predict(
-        self, source: np.ndarray
+        self,
+        source: np.ndarray,
+        *,
+        batch_size: int = 1,
+        tile_size: Optional[Tuple[int, ...]] = None,
+        tile_overlap: int = (48, 48),
+        axes: Optional[str] = None,
+        data_type: Optional[Literal["array"]] = None,
+        transforms: Optional[List[TRANSFORMS_UNION]] = None,
+        tta_transforms: bool = True,
+        dataloader_params: Optional[Dict] = None,
     ) -> Union[list, np.ndarray]:
+        if dataloader_params is None:
+            dataloader_params = {}
         ...
 
     def predict(
         self,
-        source,
+        source: Union[CAREamicsClay, Path, str, np.ndarray],
         *,
         batch_size: int = 1,
         tile_size: Optional[Tuple[int, ...]] = None,
@@ -364,38 +425,39 @@ class CAREamist(LightningModule):
         axes: Optional[str] = None,
         data_type: Optional[Literal["array", "tiff", "custom"]] = None,
         read_source_func: Optional[Callable] = None,
-        transforms: Optional[List] = None,
-        tta_transforms: Optional[bool] = True,
         extension_filter: Optional[str] = "",
+        transforms: Optional[List[TRANSFORMS_UNION]] = None,
+        tta_transforms: bool = True,
         dataloader_params: Optional[Dict] = None,
-    ) -> Union[list, np.ndarray]:
+    ) -> Union[List[np.ndarray], np.ndarray]:
         """Make predictions on the provided data.
 
         Input can be a CAREamicsClay instance, a path to a data file, or a numpy array.
 
+        # TODO
+
         Parameters
         ----------
-        source : _type_
-            _description_
+        source : Union[CAREamicsClay, Path, str, np.ndarray]
+            Data to predict on.
 
         Returns
         -------
-        _type_
-            _description_
+        Union[List[np.ndarray], np.ndarray]
+            Predictions made by the model.
 
         Raises
         ------
         ValueError
-            _description_
+            If the input is not a CAREamicsClay instance, a path or a numpy array.
         """
+        if dataloader_params is None:
+            dataloader_params = {}
         if isinstance(source, CAREamicsClay):
-            return self.trainer.predict(datamodule=source)
+            return self.trainer.predict(datamodule=datamodule)
 
-        elif isinstance(source, Path) or isinstance(source, str):
-            # Check the source
-            source_path = check_path_exists(source)
-
-            # create predict config, reuse training config if parameters are not provided
+        else:
+            # create predict config, reuse training config if parameters missing
             prediction_config = create_inference_configuration(
                 training_configuration=self.cfg,
                 tile_size=tile_size,
@@ -403,75 +465,44 @@ class CAREamist(LightningModule):
                 data_type=data_type,
                 axes=axes,
                 transforms=transforms,
-                tta_transforms=tta_transforms
-            )
-            # create datamodule
-            datamodule = CAREamicsClay(
-                prediction_config=prediction_config,
-                pred_data=source_path,
-                read_source_func=read_source_func,
-                extension_filter=extension_filter,
-                dataloader_params=dataloader_params,
+                tta_transforms=tta_transforms,
+                batch_size=batch_size,
             )
 
-            return self._predict_on_datamodule(datamodule)
+            # remove batch from dataloader parameters (priority given to config)
+            if "batch_size" in dataloader_params:
+                del dataloader_params["batch_size"]
 
-        elif isinstance(source, np.ndarray):
-            self._predict_on_array(data=source, prediction_config=prediction_config)
+            if isinstance(source, Path) or isinstance(source, str):
+                # Check the source
+                source_path = check_path_exists(source)
 
-        else:
-            raise ValueError(
-                "Invalid input. Expected a CAREamicsWood instance, paths or np.ndarray."
-            )
+                # create datamodule
+                datamodule = CAREamicsClay(
+                    prediction_config=prediction_config,
+                    pred_data=source_path,
+                    read_source_func=read_source_func,
+                    extension_filter=extension_filter,
+                    dataloader_params=dataloader_params,
+                )
 
-    def _predict_on_datamodule(
-        self,
-        datamodule: CAREamicsClay,
-    ) -> None:
-        preds = self.trainer.predict(datamodule=datamodule)
-        return preds
+                return self.trainer.predict(datamodule=datamodule)
 
-    def _predict_on_path(
-        self,
-        path_to_data: Path,
-        prediction_config: InferenceModel,
-    ) -> Dict[str, np.ndarray]:
-        # sanity check (path exists)
-        path = check_path_exists(path_to_data)
-        """
-        create predict config, reuse the training config if parameters are not provided
-        remove all prediction specific parameters from data_config
-        """
-        # create datamodule
-        datamodule = CAREamicsClay(
-            data_config=prediction_config,
-            pred_data=path,
-        )
+            elif isinstance(source, np.ndarray):
+                # create datamodule
+                datamodule = CAREamicsClay(
+                    prediction_config=prediction_config,
+                    pred_data=source,
+                    dataloader_params=dataloader_params,
+                )
 
-        return self._predict_on_datamodule(datamodule)
+                return self.trainer.predict(datamodule=datamodule)
 
-    def _predict_on_str(
-        self,
-        str_to_data: str,
-        prediction_config: InferenceModel,
-    ) -> Dict[str, np.ndarray]:
-        path_to_data = Path(str_to_data)
-
-        return self._predict_on_path(path_to_data, prediction_config)
-
-    def _predict_on_array(
-        self,
-        data: np.ndarray,
-        tile_size: Tuple[int, ...],
-        tile_overlap: Tuple[int, ...],
-    ) -> Dict[str, np.ndarray]:
-        # create datamodule
-        datamodule = CAREamicsClay(
-            prediction_config=self.cfg.data,
-            pred_data=data,
-        )
-
-        return self.predict(datamodule)
+            else:
+                raise ValueError(
+                    f"Invalid input. Expected a CAREamicsWood instance, paths or "
+                    f"np.ndarray (got {type(source)})."
+                )
 
     def export_checkpoint(
         self, path: Union[Path, str], type: Literal["bmz", "script"] = "bmz"

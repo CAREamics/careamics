@@ -29,7 +29,7 @@ def create_n2n_training_configuration(
     masked_pixel_percentage: float = 0.2,
     struct_n2v_axis: Literal["horizontal", "vertical", "none"] = "none",
     struct_n2v_span: int = 5,
-    model_kwargs: dict = {},
+    model_kwargs: Optional[dict] = None,
 ) -> Configuration:
     """Create a configuration for training N2V.
 
@@ -82,6 +82,8 @@ def create_n2n_training_configuration(
         Configuration for training N2V.
     """
     # model
+    if model_kwargs is None:
+        model_kwargs = {}
     model_kwargs["n2v2"] = use_n2v2
     model_kwargs["conv_dims"] = 3 if "Z" in axes else 2
     model_kwargs["in_channels"] = n_channels
@@ -174,7 +176,7 @@ def create_n2v_training_configuration(
     masked_pixel_percentage: float = 0.2,
     struct_n2v_axis: Literal["horizontal", "vertical", "none"] = "none",
     struct_n2v_span: int = 5,
-    model_kwargs: dict = {},
+    model_kwargs: Optional[dict] = None,
 ) -> Configuration:
     """Create a configuration for training N2V.
 
@@ -241,6 +243,8 @@ def create_n2v_training_configuration(
         Configuration for training N2V.
     """
     # model
+    if model_kwargs is None:
+        model_kwargs = {}
     model_kwargs["n2v2"] = use_n2v2
     model_kwargs["conv_dims"] = 3 if "Z" in axes else 2
     model_kwargs["in_channels"] = n_channels
@@ -319,6 +323,7 @@ def create_n2v_training_configuration(
     return configuration
 
 
+# TODO add tests
 def create_inference_configuration(
     training_configuration: Configuration,
     tile_size: List[int],
@@ -326,9 +331,8 @@ def create_inference_configuration(
     data_type: Optional[Literal["array", "tiff", "custom"]] = None,
     axes: Optional[str] = None,
     transforms: Optional[List] = None,
-    tta_transforms: Optional[bool] = True,
+    tta_transforms: bool = True,
     batch_size: Optional[int] = 1,
-    extension_filter: Optional[str] = "",
 ) -> InferenceModel:
     """Create a configuration for inference with N2V.
 
@@ -349,8 +353,6 @@ def create_inference_configuration(
         Overlap of the tiles.
     batch_size : int, optional
         Batch size, by default 1.
-    extension_filter : str, optional
-        Filter for the extensions, by default "".
 
     Returns
     -------
@@ -358,16 +360,19 @@ def create_inference_configuration(
         Configuration for inference with N2V.
     """
     if data_type is None:
-        try:
-            data_type = training_configuration.data.data_type
-        except AttributeError as e:
-            raise ValueError("data_type must be provided.") from e
+        data_type = training_configuration.data.data_type
 
     if axes is None:
-        try:
-            axes = training_configuration.data.axes
-        except AttributeError as e:
-            raise ValueError("axes must be provided.") from e
+        axes = training_configuration.data.axes
+
+    if transforms is None:
+        transforms = (
+            [
+                {
+                    "name": SupportedTransform.NORMALIZE.value,
+                },
+            ],
+        )
 
     return InferenceModel(
         data_type=data_type,
@@ -377,5 +382,4 @@ def create_inference_configuration(
         transforms=transforms,
         tta_transforms=tta_transforms,
         batch_size=batch_size,
-        extension_filter=extension_filter,
     )

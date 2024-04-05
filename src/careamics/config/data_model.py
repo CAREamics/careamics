@@ -24,6 +24,7 @@ TRANSFORMS_UNION = Union[
     TransformModel,
 ]
 
+
 # TODO can we check whether N2V manipulate is in a Compose?
 # TODO does patches need to be multiple of 8 with UNet?
 class DataModel(BaseModel):
@@ -206,12 +207,9 @@ class DataModel(BaseModel):
             )
 
         return data_model
-    
 
     @model_validator(mode="after")
-    def add_std_and_mean_to_normalize(
-        cls, data_model: DataModel
-    ) -> DataModel:
+    def add_std_and_mean_to_normalize(cls, data_model: DataModel) -> DataModel:
         """
         Add mean and std to the Normalize transform if it is present.
 
@@ -234,7 +232,6 @@ class DataModel(BaseModel):
                         transform.parameters.std = data_model.std
 
         return data_model
-
 
     @model_validator(mode="after")
     def validate_dimensions(cls, data_model: DataModel) -> DataModel:
@@ -311,7 +308,7 @@ class DataModel(BaseModel):
             True if the transforms are a list, False otherwise.
         """
         return isinstance(self.transforms, list)
-    
+
     def has_n2v_manipulate(self) -> bool:
         """
         Check if the transforms contain N2VManipulate.
@@ -338,35 +335,35 @@ class DataModel(BaseModel):
                 "Checking for N2VManipulate with Compose transforms is not allowed. "
                 "Check directly in the Compose."
             )
-        
+
     def add_n2v_manipulate(self) -> None:
         """
         Add N2VManipulate to the transforms.
 
         Use `has_transform_list` to check if the transforms are a list.
-        
+
         Raises
         ------
         ValueError
             If the transforms are a Compose object.
         """
-        if self.has_transform_list(): 
+        if self.has_transform_list():
             if not self.has_n2v_manipulate():
                 self.transforms.append(
                     N2VManipulationModel(name=SupportedTransform.N2V_MANIPULATE.value)
-                )    
+                )
         else:
             raise ValueError(
                 "Adding N2VManipulate with Compose transforms is not allowed. Add "
                 "N2VManipulate directly to the transform in the Compose."
             )
-        
+
     def remove_n2v_manipulate(self) -> None:
         """
         Remove N2VManipulate from the transforms.
 
         Use `has_transform_list` to check if the transforms are a list.
-        
+
         Raises
         ------
         ValueError
@@ -421,7 +418,6 @@ class DataModel(BaseModel):
         """
         self._update(axes=axes, patch_size=patch_size)
 
-
     def set_N2V2(self, use_n2v2: bool) -> None:
         """Set N2V2.
 
@@ -441,7 +437,6 @@ class DataModel(BaseModel):
             self.set_N2V2_strategy("median")
         else:
             self.set_N2V2_strategy("uniform")
-
 
     def set_N2V2_strategy(self, strategy: Literal["uniform", "median"]) -> None:
         """Set N2V2 strategy.

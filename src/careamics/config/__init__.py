@@ -13,7 +13,7 @@ __all__ = [
     "create_n2v_training_configuration",
     "register_model",
     "CustomModel",
-    "create_inference_configuration"
+    "create_inference_configuration",
 ]
 
 from .algorithm_model import AlgorithmModel

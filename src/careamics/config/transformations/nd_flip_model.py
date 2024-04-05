@@ -4,8 +4,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class NDFlipParameters(BaseModel):
-    """Pydantic model used to validate NDFlip parameters.
-    """
+    """Pydantic model used to validate NDFlip parameters."""
 
     model_config = ConfigDict(
         validate_assignment=True,
@@ -17,8 +16,7 @@ class NDFlipParameters(BaseModel):
 
 
 class NDFlipModel(BaseModel):
-    """Pydantic model used to represent NDFlip transformation.
-    """
+    """Pydantic model used to represent NDFlip transformation."""
 
     model_config = ConfigDict(
         validate_assignment=True,

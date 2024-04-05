@@ -32,13 +32,11 @@ def _compute_crop_and_stitch_coords_1d(
 
     # Iterate over the axis with step
     for i in range(0, max(1, axis_size - overlap), step):
-
         # Check if the tile fits within the axis
         if i + tile_size <= axis_size:
-            
             # Add the coordinates to crop one tile
             crop_coords.append((i, i + tile_size))
-            
+
             # Add the pixel coordinates of the cropped tile in the original image space
             stitch_coords.append(
                 (
@@ -48,7 +46,7 @@ def _compute_crop_and_stitch_coords_1d(
                     else axis_size,
                 )
             )
-            
+
             # Add the coordinates to crop the overlap from the prediction.
             overlap_crop_coords.append(
                 (
@@ -78,9 +76,9 @@ def extract_tiles(
     tile_size: Union[List[int], Tuple[int, ...]],
     overlaps: Union[List[int], Tuple[int, ...]],
 ) -> Generator[
-    Tuple[np.ndarray, bool, Tuple[int, ...], Tuple[int, ...], Tuple[int, ...]], 
-    None, 
-    None
+    Tuple[np.ndarray, bool, Tuple[int, ...], Tuple[int, ...], Tuple[int, ...]],
+    None,
+    None,
 ]:
     """
     Generate tiles from the input array with specified overlap.
@@ -107,8 +105,8 @@ def extract_tiles(
 
     Yields
     ------
-    Generator[Tuple[np.ndarray, bool, Tuple[int], np.ndarray, np.ndarray], None, None]        
-        Generator of tuple containing the tile, last tile boolean, array shape, 
+    Generator[Tuple[np.ndarray, bool, Tuple[int], np.ndarray, np.ndarray], None, None]
+        Generator of tuple containing the tile, last tile boolean, array shape,
         overlap_crop_coords, and stitching coords.
     """
     # Iterate over num samples (S)
@@ -145,20 +143,20 @@ def extract_tiles(
         ):
             # Extract tile from the sample
             tile: np.ndarray = sample[
-                (..., *[slice(c[0], c[1]) for c in list(crop_coords)]) # type: ignore
+                (..., *[slice(c[0], c[1]) for c in list(crop_coords)])  # type: ignore
             ]
 
-            # Check if we are at the end of the sample by computing the length of the 
+            # Check if we are at the end of the sample by computing the length of the
             # array that contains all the tiles
             if tile_idx == max_tile_idx:
                 last_tile = True
             else:
                 last_tile = False
-            
+
             yield (
                 tile.astype(np.float32),
                 last_tile,
-                arr.shape[1:], # TODO is this used anywhere??
+                arr.shape[1:],  # TODO is this used anywhere??
                 overlap_crop_coords,
                 stitch_coords,
             )

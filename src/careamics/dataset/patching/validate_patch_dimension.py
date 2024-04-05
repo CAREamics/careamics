@@ -12,7 +12,7 @@ def validate_patch_dimensions(
     Check patch size and array compatibility.
 
     This method validates the patch sizes with respect to the array dimensions:
-    
+
     - Patch must have two dimensions fewer than the array (S and C).
     - Patch sizes are smaller than the corresponding array dimensions.
 
@@ -58,4 +58,3 @@ def validate_patch_dimensions(
             f"At least one of YX patch dimensions is larger than the corresponding "
             f"image dimension (got {patch_size} patches for dims {arr.shape[-2:]})."
         )
-
