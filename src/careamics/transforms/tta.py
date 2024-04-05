@@ -4,6 +4,7 @@ import numpy as np
 from torch import Tensor, flip, mean, rot90, stack
 
 
+# TODO add tests
 class ImageRestorationTTA:
     """Test-time augmentation for image restoration tasks.
 
@@ -13,8 +14,9 @@ class ImageRestorationTTA:
     Tensors should be of shape SC(Z)YX
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Constructor."""
+        pass
 
     def forward(self, x: Tensor) -> List[Tensor]:
         """Apply test-time augmentation to the input tensor.

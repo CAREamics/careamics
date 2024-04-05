@@ -32,6 +32,7 @@ repos:
         additional_dependencies:
           - numpy
           - types-PyYAML
+          - types-setuptools
 
   # check docstrings
   - repo: https://github.com/numpy/numpydoc

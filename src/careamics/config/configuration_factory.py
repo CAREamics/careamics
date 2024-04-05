@@ -1,4 +1,6 @@
-from typing import List, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional, Union
+
+from albumentations import Compose
 
 from .algorithm_model import AlgorithmModel
 from .architectures import UNetModel
@@ -103,7 +105,7 @@ def create_n2n_training_configuration(
 
     # augmentations
     if use_augmentations:
-        transforms = [
+        transforms: List[Dict[str, Any]] = [
             {
                 "name": SupportedTransform.NORMALIZE.value,
             },
@@ -264,7 +266,7 @@ def create_n2v_training_configuration(
 
     # augmentations
     if use_augmentations:
-        transforms = [
+        transforms: List[Dict[str, Any]] = [
             {
                 "name": SupportedTransform.NORMALIZE.value,
             },
@@ -326,18 +328,18 @@ def create_n2v_training_configuration(
 # TODO add tests
 def create_inference_configuration(
     training_configuration: Configuration,
-    tile_size: List[int],
+    tile_size: Optional[List[int]] = None,
     tile_overlap: Optional[List[int]] = None,
     data_type: Optional[Literal["array", "tiff", "custom"]] = None,
     axes: Optional[str] = None,
-    transforms: Optional[List] = None,
+    transforms: Optional[Union[List[Dict[str, Any]], Compose]] = None,
     tta_transforms: bool = True,
     batch_size: Optional[int] = 1,
 ) -> InferenceModel:
     """Create a configuration for inference with N2V.
 
-    By default all parameters, except `tile_size`, `tile_overlap`, and
-    `extension_filter`, are taken from the training configuration.
+    If not provided, `data_type`, `tile_size`, and `axes` are taken from the training
+    configuration. If `transforms` are not provided, only normalization is applied.
 
     Parameters
     ----------
@@ -359,6 +361,8 @@ def create_inference_configuration(
     InferenceConfiguration
         Configuration for inference with N2V.
     """
+    if tile_overlap is None:
+        tile_overlap = [48, 48]
     if data_type is None:
         data_type = training_configuration.data.data_type
 
@@ -373,6 +377,9 @@ def create_inference_configuration(
                 },
             ],
         )
+
+    if tile_size is None:
+        tile_size = training_configuration.data.patch_size
 
     return InferenceModel(
         data_type=data_type,

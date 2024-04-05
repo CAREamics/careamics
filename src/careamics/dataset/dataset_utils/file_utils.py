@@ -2,7 +2,7 @@ from fnmatch import fnmatch
 from pathlib import Path
 from typing import List, Union
 
-from tifffile import TiffFile, TiffFileError
+import numpy as np
 
 from careamics.config.support import SupportedData
 from careamics.utils.logging import get_logger
@@ -10,30 +10,7 @@ from careamics.utils.logging import get_logger
 logger = get_logger(__name__)
 
 
-# TODO no difference with the normal way to get file size
-def _approximate_tiff_file_size(filename: Path) -> int:
-    """
-    Approximate TIFF file size in MB.
-
-    Parameters
-    ----------
-    filename : Path
-        Path to a TIFF file.
-
-    Returns
-    -------
-    int
-        Approximate file size in MB.
-    """
-    try:
-        pointer = TiffFile(filename)
-        return pointer.filehandle.size / 1024**2
-    except (TiffFileError, StopIteration, FileNotFoundError):
-        logger.warning(f"File {filename} is not a valid tiff file or is empty.")
-        return 0
-
-
-def get_files_size(files: List[Path]) -> int:
+def get_files_size(files: List[Path]) -> float:
     """
     Get files size in MB.
 
@@ -44,10 +21,10 @@ def get_files_size(files: List[Path]) -> int:
 
     Returns
     -------
-    int
+    float
         Total size of the files in MB.
     """
-    return sum(f.stat().st_size / 1024**2 for f in files)
+    return np.sum([f.stat().st_size / 1024**2 for f in files])
 
 
 def list_files(
@@ -108,7 +85,7 @@ def list_files(
         files = sorted(data_path.rglob(extension))
     else:
         # raise error if it has the wrong extension
-        if not fnmatch(data_path, extension):
+        if not fnmatch(str(data_path.absolute()), extension):
             raise ValueError(
                 f"File {data_path} does not match the requested extension "
                 f'"{extension}".'

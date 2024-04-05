@@ -82,7 +82,7 @@ class NDFlip(DualTransform):
 
         return np.ascontiguousarray(np.flip(mask, axis=flip_axis))
 
-    def get_transform_init_args_names(self, **kwargs) -> Tuple[str, ...]:
+    def get_transform_init_args_names(self, **kwargs: Any) -> Tuple[str, ...]:
         """Get the transform arguments names.
 
         Returns

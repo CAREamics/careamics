@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Any, Callable, List, Literal, Optional, Union
+from typing import Any, Callable, Dict, List, Literal, Optional, Union
 
 import numpy as np
 import pytorch_lightning as L
@@ -171,9 +171,13 @@ class CAREamicsWood(L.LightningDataModule):
 
         # read source function corresponding to the requested type
         if data_config.data_type == SupportedData.CUSTOM:
+            # mypy check
+            assert read_source_func is not None
+
             self.read_source_func: Callable = read_source_func
-        else:
+        elif data_config.data_type != SupportedData.ARRAY:
             self.read_source_func = get_read_func(data_config.data_type)
+
         self.extension_filter = extension_filter
 
         # Pytorch dataloader parameters
@@ -447,9 +451,13 @@ class CAREamicsClay(L.LightningDataModule):
 
         # read source function
         if prediction_config.data_type == SupportedData.CUSTOM:
+            # mypy check
+            assert read_source_func is not None
+
             self.read_source_func: Callable = read_source_func
-        else:
+        elif prediction_config.data_type != SupportedData.ARRAY:
             self.read_source_func = get_read_func(prediction_config.data_type)
+
         self.extension_filter = extension_filter
 
     def prepare_data(self) -> None:
@@ -715,7 +723,7 @@ class CAREamicsTrainDataModule(CAREamicsWood):
         """
         if dataloader_params is None:
             dataloader_params = {}
-        data_dict = {
+        data_dict: Dict[str, Any] = {
             "mode": "train",
             "data_type": data_type,
             "patch_size": patch_size,

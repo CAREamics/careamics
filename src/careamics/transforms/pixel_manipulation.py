@@ -13,7 +13,7 @@ from .struct_mask_parameters import StructMaskParameters
 
 def _apply_struct_mask(
     patch: np.ndarray, coords: np.ndarray, struct_params: StructMaskParameters
-):
+) -> np.ndarray:
     """Applies structN2V masks to patch.
 
     Each point in `coords` corresponds to the center of a mask, masks are paremeterized
@@ -30,6 +30,11 @@ def _apply_struct_mask(
         Coordinates of the ROI(subpatch) centers.
     struct_params : StructMaskParameters
         Parameters for the structN2V mask (axis and span).
+
+    Returns
+    -------
+    np.ndarray
+        Patch with the structN2V mask applied.
     """
     # relative axis
     moving_axis = -1 - struct_params.axis
@@ -168,7 +173,7 @@ def _create_subpatch_center_mask(
     """
     mask = np.ones(subpatch.shape)
     mask[tuple(center_coords)] = 0
-    return np.ma.make_mask(mask)
+    return np.ma.make_mask(mask)  # type: ignore
 
 
 def _create_subpatch_struct_mask(
@@ -209,7 +214,7 @@ def _create_subpatch_struct_mask(
     # reshape back to the original shape
     mask = np.moveaxis(mask_reshaped, 0, struct_params.axis)
 
-    return np.ma.make_mask(mask)
+    return np.ma.make_mask(mask)  # type: ignore
 
 
 def uniform_manipulate(

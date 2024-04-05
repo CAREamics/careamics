@@ -17,12 +17,12 @@ class XYRandomRotate90(DualTransform):
         Whether the patches are 3D, by default False
     """
 
-    def __init__(self, p: int = 0.5, is_3D: bool = False):
+    def __init__(self, p: float = 0.5, is_3D: bool = False):
         """Constructor.
 
         Parameters
         ----------
-        p : int, optional
+        p : float, optional
             Probability to apply the transform, by default 0.5
         is_3D : bool, optional
             Whether the patches are 3D, by default False
@@ -83,7 +83,7 @@ class XYRandomRotate90(DualTransform):
 
         return np.ascontiguousarray(np.rot90(mask, k=n_rotations, axes=self.axes))
 
-    def get_transform_init_args_names(self) -> Tuple[str]:
+    def get_transform_init_args_names(self) -> Tuple[str, str]:
         """
         Get the transform arguments.
 

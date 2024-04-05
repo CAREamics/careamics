@@ -1,5 +1,5 @@
 """Convenience methods for datasets."""
-from typing import Tuple
+from typing import List, Tuple
 
 import numpy as np
 
@@ -8,7 +8,9 @@ from careamics.utils.logging import get_logger
 logger = get_logger(__name__)
 
 
-def _get_shape_order(shape_in: Tuple, axes_in: str, ref_axes: str = "STCZYX"):
+def _get_shape_order(
+    shape_in: Tuple[int, ...], axes_in: str, ref_axes: str = "STCZYX"
+) -> Tuple[Tuple[int, ...], str, List[int]]:
     """
     Compute a new shape for the array based on the reference axes.
 
@@ -23,23 +25,19 @@ def _get_shape_order(shape_in: Tuple, axes_in: str, ref_axes: str = "STCZYX"):
 
     Returns
     -------
-    Tuple
-        New shape.
-    str
-        New axes.
-    Tuple
-        Indices of axes in the new axes order.
+    Tuple[Tuple[int, ...], str, List[int]]
+        New shape, new axes, indices of axes in the new axes order.
     """
     indices = [axes_in.find(k) for k in ref_axes]
 
     # remove all non-existing axes (index == -1)
-    indices = tuple(filter(lambda k: k != -1, indices))
+    new_indices = list(filter(lambda k: k != -1, indices))
 
     # find axes order and get new shape
-    new_axes = [axes_in[ind] for ind in indices]
-    new_shape = tuple([shape_in[ind] for ind in indices])
+    new_axes = [axes_in[ind] for ind in new_indices]
+    new_shape = tuple([shape_in[ind] for ind in new_indices])
 
-    return new_shape, "".join(new_axes), indices
+    return new_shape, "".join(new_axes), new_indices
 
 
 def reshape_array(x: np.ndarray, axes: str) -> np.ndarray:

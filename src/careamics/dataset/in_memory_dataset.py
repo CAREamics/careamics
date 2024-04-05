@@ -363,7 +363,7 @@ class InMemoryPredictionDataset(Dataset):
         # convert to numpy array to convince mypy that it is not a generator
         return len(self.data)
 
-    def __getitem__(self, index: int) -> Tuple[np.ndarray]:
+    def __getitem__(self, index: int) -> Tuple[np.ndarray, Any, Any, Any, Any]:
         """
         Return the patch corresponding to the provided index.
 
@@ -407,7 +407,8 @@ class InMemoryPredictionDataset(Dataset):
                 arr_shape,
                 overlap_crop_coords,
                 stitch_coords,
-            )
+            )  # TODO can we wrap this into an object?
+
         # else:
         #     return normalize(img=self.data, mean=self.mean, std=self.std).astype(
         #         np.float32

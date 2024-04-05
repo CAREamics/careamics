@@ -1,8 +1,9 @@
 from enum import Enum, EnumMeta
+from typing import Any
 
 
 class _ContainerEnum(EnumMeta):
-    def __contains__(cls, item) -> bool:
+    def __contains__(cls, item: Any) -> bool:
         try:
             cls(item)
         except ValueError:
@@ -10,14 +11,20 @@ class _ContainerEnum(EnumMeta):
         return True
 
     @classmethod
-    def has_value(cls, value):
+    def has_value(cls, value: Any) -> bool:
         return value in cls._value2member_map_
 
 
 class BaseEnum(Enum, metaclass=_ContainerEnum):
     """Base Enum class, allowing checking if a value is in the enum.
 
-    >>> "value" in BaseEnumExtension
+    Example
+    -------
+    >>> from careamics.utils.base_enum import BaseEnum
+    >>> class BaseEnumExtension(BaseEnum):
+    ...     VALUE = "value"
+    >>> assert "value" in BaseEnumExtension
+    True
     """
 
     pass

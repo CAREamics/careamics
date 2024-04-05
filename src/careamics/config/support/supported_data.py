@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Union
+
 from careamics.utils import BaseEnum
 
 
@@ -56,7 +58,7 @@ class SupportedData(str, BaseEnum):
         return super()._missing_(value)
 
     @classmethod
-    def get_extension(cls, data_type: SupportedData) -> str:
+    def get_extension(cls, data_type: Union[str, SupportedData]) -> str:
         """
         Path.rglob and fnmatch compatible extension.
 

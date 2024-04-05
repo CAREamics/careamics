@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Callable, Dict, List, Literal, Optional, Tuple, Union, overload
+from typing import Any, Callable, Dict, List, Literal, Optional, Union, overload
 
 import numpy as np
 from pytorch_lightning import LightningModule, Trainer
@@ -29,6 +29,7 @@ logger = get_logger(__name__)
 # TODO how to do WandB
 # TODO: how to do AMP? How to continue training? How to load model from checkpoint?
 # TODO: how to save checkpoints?
+
 
 class CAREamist(LightningModule):
     """A class to train and predict with CAREamics models.
@@ -83,7 +84,7 @@ class CAREamist(LightningModule):
     def __init__(
         self,
         source: Union[Path, str, Configuration],
-        work_dir: Optional[str] = None,
+        work_dir: Optional[Union[Path, str]] = None,
         experiment_name: str = "CAREamics",
     ) -> None:
         """Initialize CAREamist with a configuration object or a path.
@@ -127,7 +128,7 @@ class CAREamist(LightningModule):
                 f"{self.work_dir}."
             )
         else:
-            self.work_dir = work_dir
+            self.work_dir = Path(work_dir)
 
         # configuration object
         if isinstance(source, Configuration):
@@ -280,6 +281,11 @@ class CAREamist(LightningModule):
 
             # dispatch the training
             if isinstance(train_source, np.ndarray):
+                # mypy checks
+                assert isinstance(val_source, np.ndarray) or val_source is None
+                assert isinstance(train_target, np.ndarray) or train_target is None
+                assert isinstance(val_target, np.ndarray) or val_target is None
+
                 self._train_on_array(
                     train_source,
                     val_source,
@@ -290,6 +296,23 @@ class CAREamist(LightningModule):
                 )
 
             elif isinstance(train_source, Path) or isinstance(train_source, str):
+                # mypy checks
+                assert (
+                    isinstance(val_source, Path)
+                    or isinstance(val_source, str)
+                    or val_source is None
+                )
+                assert (
+                    isinstance(train_target, Path)
+                    or isinstance(train_target, str)
+                    or train_target is None
+                )
+                assert (
+                    isinstance(val_target, Path)
+                    or isinstance(val_target, str)
+                    or val_target is None
+                )
+
                 self._train_on_path(
                     train_source,
                     val_source,
@@ -379,18 +402,18 @@ class CAREamist(LightningModule):
         source: Union[Path, str],
         *,
         batch_size: int = 1,
-        tile_size: Optional[Tuple[int, ...]] = None,
-        tile_overlap: int = (48, 48),
+        tile_size: Optional[List[int]] = None,
+        tile_overlap: Optional[List[int]] = None,
         axes: Optional[str] = None,
         data_type: Optional[Literal["tiff", "custom"]] = None,
-        read_source_func: Optional[Callable] = None,
-        extension_filter: str = "",
         transforms: Optional[List[TRANSFORMS_UNION]] = None,
         tta_transforms: bool = True,
         dataloader_params: Optional[Dict] = None,
+        read_source_func: Optional[Callable] = None,
+        extension_filter: str = "",
     ) -> Union[list, np.ndarray]:
-        if dataloader_params is None:
-            dataloader_params = {}
+        if tile_overlap is None:
+            tile_overlap = [48, 48]
         ...
 
     @overload
@@ -399,16 +422,16 @@ class CAREamist(LightningModule):
         source: np.ndarray,
         *,
         batch_size: int = 1,
-        tile_size: Optional[Tuple[int, ...]] = None,
-        tile_overlap: int = (48, 48),
+        tile_size: Optional[List[int]] = None,
+        tile_overlap: Optional[List[int]] = None,
         axes: Optional[str] = None,
         data_type: Optional[Literal["array"]] = None,
         transforms: Optional[List[TRANSFORMS_UNION]] = None,
         tta_transforms: bool = True,
         dataloader_params: Optional[Dict] = None,
     ) -> Union[list, np.ndarray]:
-        if dataloader_params is None:
-            dataloader_params = {}
+        if tile_overlap is None:
+            tile_overlap = [48, 48]
         ...
 
     def predict(
@@ -416,15 +439,16 @@ class CAREamist(LightningModule):
         source: Union[CAREamicsClay, Path, str, np.ndarray],
         *,
         batch_size: int = 1,
-        tile_size: Optional[Tuple[int, ...]] = None,
-        tile_overlap: int = (48, 48),
+        tile_size: Optional[List[int]] = None,
+        tile_overlap: Optional[List[int]] = None,
         axes: Optional[str] = None,
         data_type: Optional[Literal["array", "tiff", "custom"]] = None,
-        read_source_func: Optional[Callable] = None,
-        extension_filter: Optional[str] = "",
         transforms: Optional[List[TRANSFORMS_UNION]] = None,
         tta_transforms: bool = True,
         dataloader_params: Optional[Dict] = None,
+        read_source_func: Optional[Callable] = None,
+        extension_filter: str = "",
+        **kwargs: Any,
     ) -> Union[List[np.ndarray], np.ndarray]:
         """Make predictions on the provided data.
 
@@ -447,6 +471,8 @@ class CAREamist(LightningModule):
         ValueError
             If the input is not a CAREamicsClay instance, a path or a numpy array.
         """
+        if tile_overlap is None:
+            tile_overlap = [48, 48]
         if dataloader_params is None:
             dataloader_params = {}
         if isinstance(source, CAREamicsClay):
@@ -558,7 +584,7 @@ class CAREamist(LightningModule):
                 f"got {path.suffix}."
             )
 
-    def _load_from_checkpoint(self, path: Union[Path, str]):
+    def _load_from_checkpoint(self, path: Union[Path, str]) -> None:
         """Load a model from a checkpoint.
 
         Parameters
@@ -571,7 +597,7 @@ class CAREamist(LightningModule):
     def _load_from_bmz(
         self,
         path: Union[Path, str],
-    ):
+    ) -> None:
         """Load a model from BioImage Model Zoo.
 
         Parameters
@@ -591,7 +617,7 @@ class CAREamist(LightningModule):
     def _load_from_state_dict(
         self,
         path: Union[Path, str],
-    ):
+    ) -> None:
         raise NotImplementedError(
             "Loading a model from a state dict is not implemented yet."
         )

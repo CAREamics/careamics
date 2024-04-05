@@ -1,4 +1,4 @@
-from typing import Any, Literal, Tuple
+from typing import Any, Literal, Optional, Tuple
 
 import numpy as np
 from albumentations import ImageOnlyTransform
@@ -58,7 +58,7 @@ class N2VManipulate(ImageOnlyTransform):
         self.remove_center = remove_center
 
         if struct_mask_axis == SupportedStructAxis.NONE:
-            self.struct_mask = None
+            self.struct_mask: Optional[StructMaskParameters] = None
         else:
             self.struct_mask = StructMaskParameters(
                 axis=0 if struct_mask_axis == SupportedStructAxis.HORIZONTAL else 1,
