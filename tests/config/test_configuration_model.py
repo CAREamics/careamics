@@ -8,7 +8,9 @@ from careamics.config import (
     save_configuration,
 )
 from careamics.config.support import (
-    SupportedTransform, SupportedPixelManipulation, SupportedAlgorithm
+    SupportedAlgorithm,
+    SupportedPixelManipulation,
+    SupportedTransform,
 )
 
 
@@ -74,16 +76,17 @@ def test_algorithm_and_data_default_transforms(minimum_configuration: dict):
     Configuration(**minimum_configuration)
 
 
-@pytest.mark.parametrize("algorithm, strategy", 
+@pytest.mark.parametrize(
+    "algorithm, strategy",
     [
         ("n2v", SupportedPixelManipulation.UNIFORM.value),
         ("n2v", SupportedPixelManipulation.MEDIAN.value),
         ("n2v2", SupportedPixelManipulation.UNIFORM.value),
         ("n2v2", SupportedPixelManipulation.MEDIAN.value),
-    ]
+    ],
 )
 def test_n2v2_and_transforms(minimum_configuration: dict, algorithm, strategy):
-    """Test that the manipulation strategy is corrected if the data transforms are 
+    """Test that the manipulation strategy is corrected if the data transforms are
     incompatible with n2v2."""
     use_n2v2 = algorithm == "n2v2"
     minimum_configuration["algorithm"] = {
@@ -95,8 +98,11 @@ def test_n2v2_and_transforms(minimum_configuration: dict, algorithm, strategy):
         },
     }
 
-    expected_strategy = SupportedPixelManipulation.MEDIAN.value \
-          if use_n2v2 else SupportedPixelManipulation.UNIFORM.value
+    expected_strategy = (
+        SupportedPixelManipulation.MEDIAN.value
+        if use_n2v2
+        else SupportedPixelManipulation.UNIFORM.value
+    )
 
     # missing ManipulateN2V
     minimum_configuration["data"]["transforms"] = [
@@ -128,20 +134,26 @@ def test_setting_n2v2(minimum_configuration: dict):
     config = Configuration(**minimum_configuration)
     assert config.algorithm.algorithm == SupportedAlgorithm.N2V.value
     assert not config.algorithm.model.n2v2
-    assert config.data.transforms[-1].parameters.strategy == \
-        SupportedPixelManipulation.UNIFORM.value
-    
+    assert (
+        config.data.transforms[-1].parameters.strategy
+        == SupportedPixelManipulation.UNIFORM.value
+    )
+
     # set N2V2
     config.set_N2V2(True)
     assert config.algorithm.model.n2v2
-    assert config.data.transforms[-1].parameters.strategy == \
-        SupportedPixelManipulation.MEDIAN.value
-    
+    assert (
+        config.data.transforms[-1].parameters.strategy
+        == SupportedPixelManipulation.MEDIAN.value
+    )
+
     # set back to N2V
     config.set_N2V2(False)
     assert not config.algorithm.model.n2v2
-    assert config.data.transforms[-1].parameters.strategy == \
-        SupportedPixelManipulation.UNIFORM.value
+    assert (
+        config.data.transforms[-1].parameters.strategy
+        == SupportedPixelManipulation.UNIFORM.value
+    )
 
 
 def test_config_to_yaml(tmp_path: Path, minimum_configuration: dict):

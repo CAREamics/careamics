@@ -2,6 +2,16 @@ from careamics.utils import BaseEnum
 
 
 class SupportedOptimizer(str, BaseEnum):
+    """Supported optimizers.
+
+    Attributes
+    ----------
+    Adam : str
+        Adam optimizer.
+    SGD : str
+        Stochastic Gradient Descent optimizer.
+    """
+
     # ASGD = "ASGD"
     # Adadelta = "Adadelta"
     # Adagrad = "Adagrad"
@@ -18,6 +28,16 @@ class SupportedOptimizer(str, BaseEnum):
 
 
 class SupportedScheduler(str, BaseEnum):
+    """Supported schedulers.
+
+    Attributes
+    ----------
+    ReduceLROnPlateau : str
+        Reduce learning rate on plateau.
+    StepLR : str
+        Step learning rate.
+    """
+
     # ChainedScheduler = "ChainedScheduler"
     # ConstantLR = "ConstantLR"
     # CosineAnnealingLR = "CosineAnnealingLR"

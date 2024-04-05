@@ -1,6 +1,5 @@
-from typing import List, Optional, Union
+from typing import Optional
 
-import numpy as np
 import pytorch_lightning as L
 from pytorch_lightning.loops.fetchers import _DataLoaderIterDataFetcher
 from pytorch_lightning.loops.utilities import _no_grad_context
@@ -11,7 +10,7 @@ from careamics.prediction import stitch_prediction
 from careamics.utils import denormalize
 
 
-class CAREamicsFiring(L.loops._PredictionLoop):
+class CAREamicsPredictionLoop(L.loops._PredictionLoop):
     """Predict loop for tiles-based prediction."""
 
     # def _predict_step(self, batch, batch_idx, dataloader_idx, dataloader_iter):
@@ -35,6 +34,13 @@ class CAREamicsFiring(L.loops._PredictionLoop):
 
     @_no_grad_context
     def run(self) -> Optional[_PREDICT_OUTPUT]:
+        """Runs the prediction loop.
+
+        Returns
+        -------
+        Optional[_PREDICT_OUTPUT]
+            Prediction output
+        """
         self.setup_data()
         if self.skip:
             return None
@@ -62,9 +68,7 @@ class CAREamicsFiring(L.loops._PredictionLoop):
                 self.batch_progress.is_last_batch = data_fetcher.done
 
                 # run step hooks
-                self._predict_step(
-                        batch, batch_idx, dataloader_idx, dataloader_iter
-                    )
+                self._predict_step(batch, batch_idx, dataloader_idx, dataloader_iter)
 
                 # Stitching tiles together
                 last_tile, *data = self.predictions[batch_idx][1]
@@ -88,52 +92,5 @@ class CAREamicsFiring(L.loops._PredictionLoop):
             finally:
                 self._restarting = False
         return self.on_run_end()
-    # TODO predictions aren't stacked, list returned 
 
-
-def predict_tiled_simple(
-    predictions: list,
-) -> Union[np.ndarray, List[np.ndarray]]:
-    """
-    Predict using tiling.
-
-    Parameters
-    ----------
-    pred_loader : DataLoader
-        Prediction dataloader.
-    progress_bar : ProgressBar
-        Progress bar.
-    tta : bool, optional
-        Whether to use test time augmentation, by default True.
-
-    Returns
-    -------
-    Union[np.ndarray, List[np.ndarray]]
-        Predicted image, or list of predictions if the images have different sizes.
-
-    Warns
-    -----
-    UserWarning
-        If the samples have different shapes, the prediction then returns a list.
-    """
-    prediction = []
-    tiles = []
-    stitching_data = []
-
-    for _i, (_tile, *auxillary) in enumerate(predictions):
-        # Unpack auxillary data into last tile indicator and data, required to
-        # stitch tiles together
-        if auxillary:
-            last_tile, *stitching_data = auxillary
-
-        if last_tile:
-            # Stitch tiles together if sample is finished
-            predicted_sample = stitch_prediction(tiles, stitching_data)
-            prediction.append(predicted_sample)
-            tiles.clear()
-            stitching_data.clear()
-
-        try:
-            return np.stack(prediction)
-        except ValueError:
-            return prediction
+    # TODO predictions aren't stacked, list returned

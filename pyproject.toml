@@ -42,42 +42,19 @@ dependencies = [
     'albumentations',
     'tifffile',
     'pyyaml',
-    'pydantic>=2.0',
+    'pydantic>=2.5',
     'scikit-image',
     'bioimageio.core',
     'zarr',
+    'pytorch_lightning',
 ]
 
 [project.optional-dependencies]
 # development dependencies and tooling
-dev = ["pre-commit", "pytest", "pytest-cov"]
-
-# test for ci
-test = ["pytest", "pytest-cov", "wandb", "pytorch_lightning"]
-
-# use wandb for logging
-wandb = ["wandb"]
+test = ["pre-commit", "pytest", "pytest-cov"]
 
 # notebooks
-notebooks = [
-    "jupyter",
-    "careamics-portfolio",
-    "itkwidgets",
-    "torchsummary",
-    "ipython",
-]
-
-# all
-all = [
-    "pre-commit",
-    "pytest",
-    "pytest-cov",
-    "wandb",
-    "jupyter",
-    "careamics-portfolio",
-    "itkwidgets",
-    "torchsummary",
-]
+examples = ["jupyter", "careamics-portfolio"]
 
 [project.urls]
 homepage = "https://careamics.github.io/"

@@ -3,7 +3,7 @@ UNet model.
 
 A UNet encoder, decoder and complete model.
 """
-from typing import List, Union
+from typing import Any, List, Union
 
 import torch
 import torch.nn as nn
@@ -271,7 +271,7 @@ class UNet(nn.Module):
         pool_kernel: int = 2,
         final_activation: Union[SupportedActivation, str] = SupportedActivation.NONE,
         n2v2: bool = False,
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         """
         Constructor.

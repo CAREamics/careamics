@@ -21,11 +21,11 @@ def test_all_algorithms_are_supported():
         assert algo in algorithms
 
 
-def test_supported_losses(minimum_algorithm):
+def test_supported_losses(minimum_algorithm_custom):
     """Test that all supported losses are accepted by the AlgorithmModel."""
     for loss in SupportedLoss:
-        minimum_algorithm["loss"] = loss.value
-        AlgorithmModel(**minimum_algorithm)
+        minimum_algorithm_custom["loss"] = loss.value
+        AlgorithmModel(**minimum_algorithm_custom)
 
 
 def test_all_losses_are_supported():
@@ -41,14 +41,14 @@ def test_all_losses_are_supported():
         assert loss in losses
 
 
-def test_model_discriminator(minimum_algorithm):
+def test_model_discriminator(minimum_algorithm_n2v):
     """Test that discriminator permits correct assignment."""
     for model_name in SupportedArchitecture:
         # TODO change once VAE are implemented
         if model_name.value == "UNet":
-            minimum_algorithm["model"]["architecture"] = model_name.value
+            minimum_algorithm_n2v["model"]["architecture"] = model_name.value
 
-            algo = AlgorithmModel(**minimum_algorithm)
+            algo = AlgorithmModel(**minimum_algorithm_n2v)
             assert algo.model.architecture == model_name.value
 
 

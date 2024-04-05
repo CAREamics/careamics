@@ -31,9 +31,7 @@ def get_patch_transform(
 
         # instantiate all transforms
         transforms = [
-            all_transforms[transform.name](
-                **transform.parameters.model_dump()
-            )
+            all_transforms[transform.name](**transform.parameters.model_dump())
             for transform in patch_transforms
         ]
 
@@ -41,7 +39,7 @@ def get_patch_transform(
             transforms,
             # apply image aug to "target"
             additional_targets={"target": "image"}
-            if (with_target and normalize_mask) # TODO check this
+            if (with_target and normalize_mask)  # TODO check this
             else {},
         )
 
@@ -85,7 +83,7 @@ def _get_patch_transform(
         ] = {
             "mean": mean,
             "std": std,
-            "max_pixel_value": 1,  # TODO why? mean/std normalization will not be lead to [-1,1] range
+            "max_pixel_value": 1,
         }
         # TODO not very readable
         return Aug.Compose(

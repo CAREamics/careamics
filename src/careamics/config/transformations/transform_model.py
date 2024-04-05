@@ -1,12 +1,16 @@
 from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 
-from careamics.utils.torch_utils import filter_parameters
 from careamics.transforms import get_all_transforms
+from careamics.utils.torch_utils import filter_parameters
 
 
 class TransformParameters(BaseModel):
+    """Transform parameters Pydantic model.
+
+    This model accepts any parameter.
+    """
 
     model_config = ConfigDict(
         extra="allow",
@@ -19,6 +23,7 @@ class TransformModel(BaseModel):
     Accepted transformations are ManipulateN2V, NormalizeWithoutTarget, and all
     transformations in Albumentations (see https://albumentations.ai/).
     """
+
     name: str
     parameters: TransformParameters = TransformParameters()
 
@@ -39,8 +44,8 @@ class TransformModel(BaseModel):
         """Validate transform parameters based on the transform's signature."""
         # filter the user parameters according to the transform's signature
         parameters = filter_parameters(
-            get_all_transforms()[self.name], 
-            self.parameters.model_dump())
+            get_all_transforms()[self.name], self.parameters.model_dump()
+        )
 
         # try to instantiate the transform with the filtered parameters
         try:

@@ -19,11 +19,7 @@ def get_read_func(data_type: Union[SupportedData, str]) -> Callable:
     Callable
         Read function.
     """
-    if data_type == SupportedData.ARRAY:
-        return None
-    elif data_type == SupportedData.TIFF:
+    if data_type == SupportedData.TIFF:
         return read_tiff
-    elif data_type == SupportedData.CUSTOM:
-        return None
     else:
         raise NotImplementedError(f"Data type {data_type} is not supported.")

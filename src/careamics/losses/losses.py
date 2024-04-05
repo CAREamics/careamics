@@ -10,8 +10,6 @@ import torch
 # from segmentation_models_pytorch.losses import DiceLoss
 from torch.nn import L1Loss, MSELoss
 
-from .noise_models import HistogramNoiseModel
-
 
 def mse_loss(samples: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
     """
@@ -74,23 +72,23 @@ def mae_loss(samples: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
     return loss(samples, labels)
 
 
-def pn2v_loss(
-    samples: torch.Tensor,
-    labels: torch.Tensor,
-    masks: torch.Tensor,
-    noise_model: HistogramNoiseModel,
-) -> torch.Tensor:
-    """Probabilistic N2V loss function described in A Krull et al., CVF (2019)."""
-    likelihoods = noise_model.likelihood(labels, samples)
-    likelihoods_avg = torch.log(torch.mean(likelihoods, dim=0, keepdim=True)[0, ...])
+# def pn2v_loss(
+#     samples: torch.Tensor,
+#     labels: torch.Tensor,
+#     masks: torch.Tensor,
+#     noise_model: HistogramNoiseModel,
+# ) -> torch.Tensor:
+#     """Probabilistic N2V loss function described in A Krull et al., CVF (2019)."""
+#     likelihoods = noise_model.likelihood(labels, samples)
+#     likelihoods_avg = torch.log(torch.mean(likelihoods, dim=0, keepdim=True)[0, ...])
 
-    # Average over pixels and batch
-    loss = -torch.sum(likelihoods_avg * masks) / torch.sum(masks)
-    return loss
+#     # Average over pixels and batch
+#     loss = -torch.sum(likelihoods_avg * masks) / torch.sum(masks)
+#     return loss
 
 
-def dice_loss(
-    samples: torch.Tensor, labels: torch.Tensor, mode: str = "multiclass"
-) -> torch.Tensor:
-    """Dice loss function."""
-    return DiceLoss(mode=mode)(samples, labels.long())
+# def dice_loss(
+#     samples: torch.Tensor, labels: torch.Tensor, mode: str = "multiclass"
+# ) -> torch.Tensor:
+#     """Dice loss function."""
+#     return DiceLoss(mode=mode)(samples, labels.long())

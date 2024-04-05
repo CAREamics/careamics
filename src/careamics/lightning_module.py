@@ -39,15 +39,50 @@ class CAREamicsKiln(L.LightningModule):
         # self.save_hyperparameters(algorithm_config.model_dump())
 
     def forward(self, x: Any) -> Any:
+        """Forward pass.
+
+        Parameters
+        ----------
+        x : Any
+            Input tensor.
+
+        Returns
+        -------
+        Any
+            Output tensor.
+        """
         return self.model(x)
 
     def training_step(self, batch: Tensor, batch_idx: Any) -> Any:
+        """Training step.
+
+        Parameters
+        ----------
+        batch : Tensor
+            Input batch.
+        batch_idx : Any
+            Batch index.
+
+        Returns
+        -------
+        Any
+            Loss value.
+        """
         x, *aux = batch
         out = self.model(x)
         loss = self.loss_func(out, *aux)
         return loss
 
     def validation_step(self, batch: Tensor, batch_idx: Any) -> None:
+        """Validation step.
+
+        Parameters
+        ----------
+        batch : Tensor
+            Input batch.
+        batch_idx : Any
+            Batch index.
+        """
         x, *aux = batch
         out = self.model(x)
         val_loss = self.loss_func(out, *aux)
@@ -56,6 +91,20 @@ class CAREamicsKiln(L.LightningModule):
         self.log("val_loss", val_loss)
 
     def predict_step(self, batch: Tensor, batch_idx: Any) -> Any:
+        """Prediction step.
+
+        Parameters
+        ----------
+        batch : Tensor
+            Input batch.
+        batch_idx : Any
+            Batch index.
+
+        Returns
+        -------
+        Any
+            Model output.
+        """
         x, *aux = batch
 
         # apply test-time augmentation if available
@@ -73,6 +122,13 @@ class CAREamicsKiln(L.LightningModule):
         return output, aux
 
     def configure_optimizers(self) -> Any:
+        """Configure optimizers and learning rate schedulers.
+
+        Returns
+        -------
+        Any
+            Optimizer and learning rate scheduler.
+        """
         # instantiate optimizer
         optimizer_func = get_optimizer(self.optimizer_name)
         optimizer = optimizer_func(self.model.parameters(), **self.optimizer_params)

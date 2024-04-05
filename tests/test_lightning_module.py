@@ -2,10 +2,10 @@ from careamics.config import AlgorithmModel
 from careamics.lightning_module import CAREamicsKiln, CAREamicsModule
 
 
-def test_careamics_module(minimum_algorithm):
+def test_careamics_module(minimum_algorithm_n2v):
     """Test that the minimum algorithm allows isntantiating a the Lightning API
     intermediate layer."""
-    algo_config = AlgorithmModel(**minimum_algorithm)
+    algo_config = AlgorithmModel(**minimum_algorithm_n2v)
 
     # extract model parameters
     model_parameters = algo_config.model.model_dump(exclude_none=True)
@@ -24,9 +24,9 @@ def test_careamics_module(minimum_algorithm):
     )
 
 
-def test_careamics_kiln(minimum_algorithm):
+def test_careamics_kiln(minimum_algorithm_n2v):
     """Test that the minimum algorithm allows instantiating a CAREamicsKiln."""
-    algo_config = AlgorithmModel(**minimum_algorithm)
+    algo_config = AlgorithmModel(**minimum_algorithm_n2v)
 
     # instantiate CAREamicsKiln
     CAREamicsKiln(algo_config)

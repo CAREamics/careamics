@@ -1,10 +1,12 @@
-from typing import List, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional, Union
+
+from albumentations import Compose
 
 from .algorithm_model import AlgorithmModel
 from .architectures import UNetModel
 from .configuration_model import Configuration
 from .data_model import DataModel
-from .prediction_model import InferenceModel
+from .inference_model import InferenceModel
 from .support import (
     SupportedAlgorithm,
     SupportedArchitecture,
@@ -29,7 +31,7 @@ def create_n2n_training_configuration(
     masked_pixel_percentage: float = 0.2,
     struct_n2v_axis: Literal["horizontal", "vertical", "none"] = "none",
     struct_n2v_span: int = 5,
-    model_kwargs: dict = {},
+    model_kwargs: Optional[dict] = None,
 ) -> Configuration:
     """Create a configuration for training N2V.
 
@@ -49,7 +51,7 @@ def create_n2n_training_configuration(
     ----------
     experiment_name : str
         Name of the experiment.
-    data_type : Literal[&quot;array&quot;, &quot;tiff&quot;, &quot;custom&quot;]
+    data_type : Literal["array", "tiff", "custom"]
         Type of the data.
     axes : str
         Axes of the data (e.g. SYX).
@@ -69,7 +71,7 @@ def create_n2n_training_configuration(
         N2V pixel manipulation area, by default 11.
     masked_pixel_percentage : float, optional
         Percentage of pixels masked in each patch, by default 0.2.
-    struct_n2v_axis : Literal[&quot;horizontal&quot;, &quot;vertical&quot;, &quot;none&quot;], optional
+    struct_n2v_axis : Literal["horizontal", "vertical", "none"], optional
         Axis along which to apply structN2V mask, by default "none"
     struct_n2v_span : int, optional
         Span of the structN2V mask, by default 5
@@ -82,6 +84,8 @@ def create_n2n_training_configuration(
         Configuration for training N2V.
     """
     # model
+    if model_kwargs is None:
+        model_kwargs = {}
     model_kwargs["n2v2"] = use_n2v2
     model_kwargs["conv_dims"] = 3 if "Z" in axes else 2
     model_kwargs["in_channels"] = n_channels
@@ -101,7 +105,7 @@ def create_n2n_training_configuration(
 
     # augmentations
     if use_augmentations:
-        transforms = [
+        transforms: List[Dict[str, Any]] = [
             {
                 "name": SupportedTransform.NORMALIZE.value,
             },
@@ -174,7 +178,7 @@ def create_n2v_training_configuration(
     masked_pixel_percentage: float = 0.2,
     struct_n2v_axis: Literal["horizontal", "vertical", "none"] = "none",
     struct_n2v_span: int = 5,
-    model_kwargs: dict = {},
+    model_kwargs: Optional[dict] = None,
 ) -> Configuration:
     """Create a configuration for training N2V.
 
@@ -208,7 +212,7 @@ def create_n2v_training_configuration(
     ----------
     experiment_name : str
         Name of the experiment.
-    data_type : Literal[&quot;array&quot;, &quot;tiff&quot;, &quot;custom&quot;]
+    data_type : Literal["array", "tiff", "custom"]
         Type of the data.
     axes : str
         Axes of the data (e.g. SYX).
@@ -241,6 +245,8 @@ def create_n2v_training_configuration(
         Configuration for training N2V.
     """
     # model
+    if model_kwargs is None:
+        model_kwargs = {}
     model_kwargs["n2v2"] = use_n2v2
     model_kwargs["conv_dims"] = 3 if "Z" in axes else 2
     model_kwargs["in_channels"] = n_channels
@@ -260,7 +266,7 @@ def create_n2v_training_configuration(
 
     # augmentations
     if use_augmentations:
-        transforms = [
+        transforms: List[Dict[str, Any]] = [
             {
                 "name": SupportedTransform.NORMALIZE.value,
             },
@@ -319,21 +325,21 @@ def create_n2v_training_configuration(
     return configuration
 
 
+# TODO add tests
 def create_inference_configuration(
     training_configuration: Configuration,
-    tile_size: List[int],
+    tile_size: Optional[List[int]] = None,
     tile_overlap: Optional[List[int]] = None,
     data_type: Optional[Literal["array", "tiff", "custom"]] = None,
     axes: Optional[str] = None,
-    transforms: Optional[List] = None,
-    tta_transforms: Optional[bool] = True,
+    transforms: Optional[Union[List[Dict[str, Any]], Compose]] = None,
+    tta_transforms: bool = True,
     batch_size: Optional[int] = 1,
-    extension_filter: Optional[str] = "",
 ) -> InferenceModel:
     """Create a configuration for inference with N2V.
 
-    By default all parameters, except `tile_size`, `tile_overlap`, and
-    `extension_filter`, are taken from the training configuration.
+    If not provided, `data_type`, `tile_size`, and `axes` are taken from the training
+    configuration. If `transforms` are not provided, only normalization is applied.
 
     Parameters
     ----------
@@ -349,25 +355,31 @@ def create_inference_configuration(
         Overlap of the tiles.
     batch_size : int, optional
         Batch size, by default 1.
-    extension_filter : str, optional
-        Filter for the extensions, by default "".
 
     Returns
     -------
     InferenceConfiguration
         Configuration for inference with N2V.
     """
+    if tile_overlap is None:
+        tile_overlap = [48, 48]
     if data_type is None:
-        try:
-            data_type = training_configuration.data.data_type
-        except AttributeError as e:
-            raise ValueError("data_type must be provided.") from e
+        data_type = training_configuration.data.data_type
 
     if axes is None:
-        try:
-            axes = training_configuration.data.axes
-        except AttributeError as e:
-            raise ValueError("axes must be provided.") from e
+        axes = training_configuration.data.axes
+
+    if transforms is None:
+        transforms = (
+            [
+                {
+                    "name": SupportedTransform.NORMALIZE.value,
+                },
+            ],
+        )
+
+    if tile_size is None:
+        tile_size = training_configuration.data.patch_size
 
     return InferenceModel(
         data_type=data_type,
@@ -377,5 +389,4 @@ def create_inference_configuration(
         transforms=transforms,
         tta_transforms=tta_transforms,
         batch_size=batch_size,
-        extension_filter=extension_filter,
     )

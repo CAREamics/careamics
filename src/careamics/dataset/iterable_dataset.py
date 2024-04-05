@@ -52,9 +52,7 @@ class PathIterableDataset(IterableDataset):
         target_files: Optional[List[Path]] = None,
         read_source_func: Callable = read_tiff,
     ) -> None:
-        if target_files is not None:
-            raise NotImplementedError("Targets are not yet supported.")
-
+        self.data_config = data_config
         self.data_files = src_files
         self.target_files = target_files
         self.data_config = data_config
@@ -67,7 +65,7 @@ class PathIterableDataset(IterableDataset):
             # if the transforms are not an instance of Compose
             # Check if the data_config is an instance of DataModel or InferenceModel
             # isinstance isn't working properly here
-            if hasattr(data_config, 'has_transform_list'):
+            if hasattr(data_config, "has_transform_list"):
                 if data_config.has_transform_list():
                     # update mean and std in configuration
                     # the object is mutable and should then be recorded in the CAREamist
@@ -205,6 +203,7 @@ class PathIterableDataset(IterableDataset):
                 # if there is a target
                 if self.target_files is not None:
                     # Albumentations expects the channel dimension to be last
+                    # Taking the first element because patch_data can include target
                     c_patch = np.moveaxis(patch_data[0], 0, -1)
                     c_target = np.moveaxis(patch_data[1], 0, -1)
 
@@ -218,9 +217,10 @@ class PathIterableDataset(IterableDataset):
                     c_patch = np.moveaxis(transformed["image"], -1, 0)
                     c_target = np.moveaxis(transformed["target"], -1, 0)
 
-                    yield (c_patch, c_target, None)
-                else:
+                    yield (c_patch, c_target)
+                elif self.data_config.has_n2v_manipulate():
                     # Albumentations expects the channel dimension to be last
+                    # Taking the first element because patch_data can include target
                     patch = np.moveaxis(patch_data[0], 0, -1)
 
                     # apply transform
@@ -238,6 +238,11 @@ class PathIterableDataset(IterableDataset):
                     mask = np.moveaxis(mask, -1, 0)
 
                     yield (masked_patch, original_patch, mask)
+                else:
+                    raise ValueError(
+                        "Something went wrong! Not target file (no supervised "
+                        "training) and no N2V transform (no n2v training either)."
+                    )
 
     def get_number_of_files(self) -> int:
         """
@@ -339,12 +344,6 @@ class IterablePredictionDataset(PathIterableDataset):
         Path to the data, must be a directory.
     axes : str
         Description of axes in format STCZYX.
-    patch_extraction_method : Union[ExtractionStrategies, None]
-        Patch extraction strategy, as defined in extraction_strategy.
-    patch_size : Optional[Union[List[int], Tuple[int]]], optional
-        Size of the patches in each dimension, by default None.
-    patch_overlap : Optional[Union[List[int], Tuple[int]]], optional
-        Overlap of the patches in each dimension, by default None.
     mean : Optional[float], optional
         Expected mean of the dataset, by default None.
     std : Optional[float], optional
@@ -357,8 +356,6 @@ class IterablePredictionDataset(PathIterableDataset):
         self,
         prediction_config: InferenceModel,
         src_files: List[Path],
-        tile_size: Union[List[int], Tuple[int, ...]],
-        tile_overlap: Union[List[int], Tuple[int, ...]],
         read_source_func: Callable = read_tiff,
         **kwargs: Any,
     ) -> None:
@@ -368,8 +365,9 @@ class IterablePredictionDataset(PathIterableDataset):
             read_source_func=read_source_func,
         )
 
-        self.tile_size = tile_size
-        self.tile_overlap = tile_overlap
+        self.prediction_config = prediction_config
+        self.tile_size = self.prediction_config.tile_size
+        self.tile_overlap = self.prediction_config.tile_overlap
         self.read_source_func = read_source_func
 
         # check that mean and std are provided
@@ -404,7 +402,8 @@ class IterablePredictionDataset(PathIterableDataset):
             patches = generate_patches_predict(
                 sample, self.tile_size, self.tile_overlap
             )
-            # TODO AttributeError: 'IterablePredictionDataset' object has no attribute 'mean' message appears if the predict func is run more than once
+            # TODO AttributeError: 'IterablePredictionDataset' object has no attribute
+            # 'mean' message appears if the predict func is run more than once
 
             for patch_data in patches:
                 # Albumentations expects the channel dimension to be last

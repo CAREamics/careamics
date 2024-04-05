@@ -216,25 +216,25 @@ class Configuration(BaseModel):
         """
         if self.algorithm.algorithm == SupportedAlgorithm.N2V:
             # if we have a list of transform (as opposed to Compose)
-            if isinstance(self.data.transforms, list):
-                transform_list = [t.name for t in self.data.transforms]
-
-                # whether we use n2v2
-                use_n2v2 = self.algorithm.model.n2v2
-
+            if self.data.has_transform_list():
                 # missing N2V_MANIPULATE
-                if SupportedTransform.N2V_MANIPULATE not in transform_list:
+                if not self.data.has_n2v_manipulate():
                     self.data.transforms.append(
                         N2VManipulationModel(
                             name=SupportedTransform.N2V_MANIPULATE.value,
                         )
                     )
 
-                # make sure that N2V_MANIPULATE has the correct strategy
+                # make sure that N2V has the correct pixel manipulate strategy
                 median = SupportedPixelManipulation.MEDIAN.value
                 uniform = SupportedPixelManipulation.UNIFORM.value
-                strategy = median if use_n2v2 else uniform
+                strategy = median if self.algorithm.model.n2v2 else uniform
                 self.data.set_N2V2_strategy(strategy)
+        else:
+            # if we have a list of transform, remove N2V manipulate if present
+            if self.data.has_transform_list():
+                if self.data.has_n2v_manipulate():
+                    self.data.remove_n2v_manipulate()
 
         return self
 

@@ -40,7 +40,7 @@ def check_extract_tiles(array: np.ndarray, tile_size, overlaps):
     [
         ((4, 4), (2, 2)),
         ((8, 8), (4, 4)),
-    ], 
+    ],
 )
 def test_extract_tiles_2d(array_2D, tile_size, overlaps):
     """Test extracting tiles for prediction in 2D."""

@@ -1,9 +1,7 @@
 import pytest
 from torch import nn, ones
 
-from careamics.config.architectures import (
-    CustomModel, get_custom_model, register_model
-)
+from careamics.config.architectures import CustomModel, get_custom_model, register_model
 from careamics.config.architectures.custom_model import CustomParametersModel
 from careamics.config.support import SupportedArchitecture
 
@@ -38,7 +36,7 @@ def test_empty_parameters():
 
 def test_any_custom_parameters():
     """Test that the custom model parameters can have any fields."""
-    CustomParametersModel(id=3, some_param= {"a": 1, "b": 2}, t="test")
+    CustomParametersModel(id=3, some_param={"a": 1, "b": 2}, t="test")
 
 
 def test_linear_model():

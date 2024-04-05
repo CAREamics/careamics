@@ -1,4 +1,4 @@
-from typing import Generator, List, Optional, Tuple, Union
+from typing import List, Optional, Tuple, Union
 
 import numpy as np
 from skimage.util import view_as_windows
@@ -40,7 +40,7 @@ def _compute_number_of_patches(
         raise ValueError(
             f"Patch size {patch_sizes} is not compatible with array shape {arr_shape}"
         ) from e
-    
+
     return tuple(n_patches)
 
 
@@ -50,7 +50,7 @@ def _compute_overlap(
     """
     Compute the overlap between patches in each dimension.
 
-    If the array dimensions are divisible by the patch sizes, then the overlap is 
+    If the array dimensions are divisible by the patch sizes, then the overlap is
     0. Otherwise, it is the result of the division rounded to the upper value.
 
     Parameters
@@ -102,7 +102,7 @@ def _compute_patch_steps(
     return tuple(steps)
 
 
-# TODO why stack the target here and not on a different dimension before calling this function?
+# TODO why stack the target here and not on a different dimension before this function?
 def _compute_patch_views(
     arr: np.ndarray,
     window_shape: List[int],
@@ -155,7 +155,7 @@ def extract_patches_sequential(
     """
     Generate patches from an array in a sequential manner.
 
-    Array dimensions should be SC(Z)YX, where S and C can be singleton dimensions. The 
+    Array dimensions should be SC(Z)YX, where S and C can be singleton dimensions. The
     patches are generated sequentially and cover the whole array.
 
     Parameters
@@ -176,7 +176,7 @@ def extract_patches_sequential(
     validate_patch_dimensions(arr, patch_size, is_3d_patch)
 
     # Update patch size to encompass S and C dimensions
-    patch_size = [1, arr.shape[1], *patch_size] 
+    patch_size = [1, arr.shape[1], *patch_size]
 
     # Compute overlap
     overlaps = _compute_overlap(arr_shape=arr.shape, patch_sizes=patch_size)
@@ -201,6 +201,6 @@ def extract_patches_sequential(
 
     if target is not None:
         # target was concatenated to patches in _compute_reshaped_view
-        return (patches[0, ...], patches[1, ...]) # TODO do this in _compute_reshaped_view
+        return (patches[0, ...], patches[1, ...])  # TODO  in _compute_reshaped_view?
     else:
         return patches, None

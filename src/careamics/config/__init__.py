@@ -13,7 +13,7 @@ __all__ = [
     "create_n2v_training_configuration",
     "register_model",
     "CustomModel",
-    "create_inference_configuration"
+    "create_inference_configuration",
 ]
 
 from .algorithm_model import AlgorithmModel
@@ -29,5 +29,5 @@ from .configuration_model import (
     save_configuration,
 )
 from .data_model import DataModel
-from .prediction_model import InferenceModel
+from .inference_model import InferenceModel
 from .training_model import TrainingModel

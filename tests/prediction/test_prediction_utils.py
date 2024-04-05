@@ -1,5 +1,4 @@
 import pytest
-
 from torch import from_numpy
 
 from careamics.dataset.patching.tiled_patching import extract_tiles
@@ -17,8 +16,7 @@ from careamics.prediction.prediction_utils import stitch_prediction
     ],
 )
 def test_stitch_prediction(ordered_array, input_shape, tile_size, overlaps):
-    """Test calculating stitching coordinates.
-    """
+    """Test calculating stitching coordinates."""
     arr = ordered_array(input_shape, dtype=int)
     tiles = []
     stitching_data = []
@@ -30,9 +28,7 @@ def test_stitch_prediction(ordered_array, input_shape, tile_size, overlaps):
     for tile_data in tiling_outputs:
         tile, _, input_shape, overlap_crop_coords, stitch_coords = tile_data
 
-        tiles.append(
-            from_numpy(tile) # need to convert to torch.Tensor
-        )
+        tiles.append(from_numpy(tile))  # need to convert to torch.Tensor
 
         stitching_data.append(
             (
@@ -41,7 +37,7 @@ def test_stitch_prediction(ordered_array, input_shape, tile_size, overlaps):
                 stitch_coords,
             )
         )
-        
+
     # compute stitching coordinates
     result = stitch_prediction(tiles, stitching_data)
 

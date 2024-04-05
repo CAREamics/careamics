@@ -8,7 +8,7 @@ from typing import Any, Callable, List, Optional, Tuple, Union
 import numpy as np
 from torch.utils.data import Dataset
 
-from ..config.data_model import DataModel
+from ..config import DataModel, InferenceModel
 from ..utils.logging import get_logger
 from .dataset_utils import read_tiff
 from .patching.patch_transform import get_patch_transform
@@ -39,6 +39,7 @@ class InMemoryDataset(Dataset):
 
         # TODO
         """
+        self.data_config = data_config
         self.data = data
         self.data_target = data_target
         self.axes = data_config.axes
@@ -89,16 +90,16 @@ class InMemoryDataset(Dataset):
             Array of patches.
         """
         if supervised:
-            if isinstance(self.data, np.ndarray) and \
-                isinstance(self.data_target, np.ndarray):
+            if isinstance(self.data, np.ndarray) and isinstance(
+                self.data_target, np.ndarray
+            ):
                 return prepare_patches_supervised_array(
                     self.data,
                     self.axes,
                     self.data_target,
                     self.patch_size,
                 )
-            elif isinstance(self.data, list) and \
-                isinstance(self.data_target, list):
+            elif isinstance(self.data, list) and isinstance(self.data_target, list):
                 return prepare_patches_supervised(
                     self.data,
                     self.data_target,
@@ -126,7 +127,6 @@ class InMemoryDataset(Dataset):
                     self.patch_size,
                     self.read_source_func,
                 )
-        
 
     def __len__(self) -> int:
         """
@@ -177,7 +177,7 @@ class InMemoryDataset(Dataset):
             target = np.moveaxis(transformed["target"], -1, 0)
 
             return patch, target
-        else:
+        elif self.data_config.has_n2v_manipulate():
             # Albumentations requires Channel last
             patch = np.moveaxis(patch, 0, -1)
 
@@ -191,6 +191,11 @@ class InMemoryDataset(Dataset):
             mask = np.moveaxis(mask, -1, 0)
 
             return (manip_patch, patch, mask)
+        else:
+            raise ValueError(
+                "Something went wrong! No target provided (not supervised training) "
+                "and no N2V manipulation (no N2V training)."
+            )
 
     def get_number_of_patches(self) -> int:
         """
@@ -206,7 +211,7 @@ class InMemoryDataset(Dataset):
     def split_dataset(
         self,
         percentage: float = 0.1,
-        minimum_patches: int = 5,
+        minimum_patches: int = 1,
     ) -> InMemoryDataset:
         """Split a new dataset away from the current one.
 
@@ -237,7 +242,9 @@ class InMemoryDataset(Dataset):
         if minimum_patches < 1 or minimum_patches > self.get_number_of_patches():
             raise ValueError(
                 f"Minimum number of patches must be between 1 and "
-                f"{self.get_number_of_patches()} (number of patches), got {minimum_patches}."
+                f"{self.get_number_of_patches()} (number of patches), got "
+                f"{minimum_patches}. Adjust the patch size or the minimum number of "
+                f"patches."
             )
 
         total_patches = self.get_number_of_patches()
@@ -281,10 +288,8 @@ class InMemoryPredictionDataset(Dataset):
 
     def __init__(
         self,
-        data_config: DataModel,
+        prediction_config: InferenceModel,
         data: np.ndarray,
-        tile_size: Union[List[int], Tuple[int]],
-        tile_overlap: Optional[Union[List[int], Tuple[int]]] = None,
         data_target: Optional[np.ndarray] = None,
     ) -> None:
         """Constructor.
@@ -295,24 +300,18 @@ class InMemoryPredictionDataset(Dataset):
             Array containing the data.
         axes : str
             Description of axes in format STCZYX.
-        patch_size : Union[List[int], Tuple[int]]
-            Size of the patches along each axis, must be of dimension 2 or 3.
-        mean : Optional[float], optional
-            Expected mean of the dataset, by default None.
-        std : Optional[float], optional
-            Expected standard deviation of the dataset, by default None.
 
         Raises
         ------
         ValueError
             If data_path is not a directory.
         """
-        self.data_config = data_config
-        self.axes = data_config.axes
-        self.tile_size = tile_size
-        self.tile_overlap = tile_overlap
-        self.mean = data_config.mean
-        self.std = data_config.std
+        self.pred_config = prediction_config
+        self.axes = self.pred_config.axes
+        self.tile_size = self.pred_config.tile_size
+        self.tile_overlap = self.pred_config.tile_overlap
+        self.mean = self.pred_config.mean
+        self.std = self.pred_config.std
         self.data_target = data_target
 
         # check that mean and std are provided
@@ -323,14 +322,14 @@ class InMemoryPredictionDataset(Dataset):
             )
         # TODO this needs to be restructured
         self.input_array = data
-        self.tile = tile_size and tile_overlap
+        self.tile = self.tile_size and self.tile_overlap
 
         # Generate patches
         self.data = self._prepare_patches()
 
-        # get tta transforms
+        # transforms
         self.patch_transform = get_patch_transform(
-            patch_transforms=data_config.prediction_transforms,
+            patch_transforms=self.pred_config.transforms,
             with_target=self.data_target is not None,
         )
 
@@ -364,7 +363,7 @@ class InMemoryPredictionDataset(Dataset):
         # convert to numpy array to convince mypy that it is not a generator
         return len(self.data)
 
-    def __getitem__(self, index: int) -> Tuple[np.ndarray]:
+    def __getitem__(self, index: int) -> Tuple[np.ndarray, Any, Any, Any, Any]:
         """
         Return the patch corresponding to the provided index.
 
@@ -408,7 +407,8 @@ class InMemoryPredictionDataset(Dataset):
                 arr_shape,
                 overlap_crop_coords,
                 stitch_coords,
-            )
+            )  # TODO can we wrap this into an object?
+
         # else:
         #     return normalize(img=self.data, mean=self.mean, std=self.std).astype(
         #         np.float32
