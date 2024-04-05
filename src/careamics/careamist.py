@@ -18,7 +18,7 @@ from .config.inference_model import TRANSFORMS_UNION
 from .config.support import SupportedAlgorithm
 from .lightning_datamodule import CAREamicsClay, CAREamicsWood
 from .lightning_module import CAREamicsKiln
-from .lightning_prediction import CAREamicsFiring
+from .lightning_prediction import CAREamicsPredictionLoop
 from .utils import check_path_exists, get_logger
 
 logger = get_logger(__name__)
@@ -208,7 +208,7 @@ class CAREamist(LightningModule):
         )
 
         # change the prediction loop, necessary for tiled prediction
-        self.trainer.predict_loop = CAREamicsFiring(self.trainer)
+        self.trainer.predict_loop = CAREamicsPredictionLoop(self.trainer)
 
     def _define_callbacks(self) -> List[Callback]:
         """Define the callbacks for the training loop.

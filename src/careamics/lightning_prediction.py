@@ -10,7 +10,7 @@ from careamics.prediction import stitch_prediction
 from careamics.utils import denormalize
 
 
-class CAREamicsFiring(L.loops._PredictionLoop):
+class CAREamicsPredictionLoop(L.loops._PredictionLoop):
     """Predict loop for tiles-based prediction."""
 
     # def _predict_step(self, batch, batch_idx, dataloader_idx, dataloader_iter):
