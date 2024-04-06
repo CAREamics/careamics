@@ -33,8 +33,44 @@ class DataModel(BaseModel):
 
     If std is specified, mean must be specified as well. Note that setting the std first
     and then the mean (if they were both `None` before) will raise a validation error.
-    Prefer instead the following:
-    >>> set_mean_and_std(mean, std)
+    Prefer instead `set_mean_and_std` to set both at once.
+
+    Examples
+    --------
+    Minimum example:
+    
+    >>> data = DataModel(
+    ...     data_type="array", # defined in SupportedData
+    ...     patch_size=[128, 128],
+    ...     batch_size=4,
+    ...     axes="YX"
+    ... )
+
+    To change the mean and std of the data:
+    >>> data.set_mean_and_std(mean=0., std=1.)
+
+    One can pass also a list of transformations, by keyword, using the 
+    SupportedTransform or the name of an Albumentation transform:
+    >>> from careamics.config.support import SupportedTransform
+    >>> data = DataModel(
+    ...     data_type="tiff",
+    ...     patch_size=[128, 128],
+    ...     batch_size=4,
+    ...     axes="YX",
+    ...     transforms=[
+    ...         {
+    ...             "name": SupportedTransform.NORMALIZE.value,
+    ...         },
+    ...         {
+    ...             "name": "NDFlip",
+    ...             "parameters": {"is_3D": True, "flip_Z": True}
+    ...         },
+    ...         {
+    ...             "name": "PixelDropout", # Albumentations transform
+    ...             "parameters": {"dropout_prob": 0.05}
+    ...         }
+    ...     ]
+    ... )
     """
 
     # Pydantic class configuration

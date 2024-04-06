@@ -169,6 +169,7 @@ class HistogramNoiseModel(NoiseModel):
         )
 
 
+# TODO refactor this into Pydantic model
 class GaussianMixtureNoiseModel(NoiseModel):
     """Describes a noise model parameterized as a mixture of gaussians.
 
@@ -206,12 +207,6 @@ class GaussianMixtureNoiseModel(NoiseModel):
     Use `params` if one wishes to load a model with trained weights.
     While initializing a new object of the class `GaussianMixtureNoiseModel` from
     scratch, set this to `None`.
-
-    Example
-    -------
-    >>> model = GaussianMixtureNoiseModel(min_signal = 484.85, max_signal = 3235.01,
-    path = '../../models/', weight = None, n_gaussian = 3, n_coeff = 2, min_sigma = 50,
-    device = torch.device("cuda:0"))
     """
 
     def __init__(self, **kwargs):

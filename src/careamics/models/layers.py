@@ -260,14 +260,14 @@ def _get_pascal_kernel_nd(
 
     Examples
     --------
-    >>> get_pascal_kernel_2d(1)
+    >>> _get_pascal_kernel_nd(1)
     tensor([[1.]])
-    >>> get_pascal_kernel_2d(4)
+    >>> _get_pascal_kernel_nd(4)
     tensor([[0.0156, 0.0469, 0.0469, 0.0156],
             [0.0469, 0.1406, 0.1406, 0.0469],
             [0.0469, 0.1406, 0.1406, 0.0469],
             [0.0156, 0.0469, 0.0469, 0.0156]])
-    >>> get_pascal_kernel_2d(4, norm=False)
+    >>> _get_pascal_kernel_nd(4, norm=False)
     tensor([[1., 3., 3., 1.],
             [3., 9., 9., 3.],
             [3., 9., 9., 3.],
@@ -342,31 +342,21 @@ class MaxBlurPool(nn.Module):
 
     Parameters
     ----------
-    dim : Toggles between 2D and 3D
-    kernel_size : the kernel size for max pooling. Tensor of shape (B, C, Y, X).
-    stride: stride for pooling.
-    max_pool_size: the kernel size for max pooling.
-    ceil_mode: should be true to match output size of conv2d with same kernel size.
+    dim: int
+        Toggles between 2D and 3D
+    kernel_size: Union[Tuple[int, int], int]
+        Kernel size for max pooling.
+    stride: int
+        Stride for pooling.
+    max_pool_size: int
+        Max kernel size for max pooling.
+    ceil_mode: bool
+        Should be true to match output size of conv2d with same kernel size.
 
     Returns
     -------
-    torch.Tensor: the transformed tensor of shape (B, C, Y / stride, X / stride)
-
-    Examples
-    --------
-        >>> import torch.nn as nn
-        >>> from kornia.filters.blur_pool import BlurPool2D
-        >>> input = torch.eye(5)[None, None]
-        >>> mbp = MaxBlurPool2D(kernel_size=3, stride=2,
-        max_pool_size=2, ceil_mode=False)
-        >>> mbp(input)
-        tensor([[[[0.5625, 0.3125],
-                  [0.3125, 0.8750]]]])
-        >>> seq = nn.Sequential(nn.MaxPool2d(kernel_size=2, stride=1),
-        BlurPool2D(kernel_size=3, stride=2))
-        >>> seq(input)
-        tensor([[[[0.5625, 0.3125],
-                  [0.3125, 0.8750]]]])
+    torch.Tensor
+        The pooled and blurred tensor.
     """
 
     def __init__(

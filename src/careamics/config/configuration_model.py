@@ -76,10 +76,18 @@ class Configuration(BaseModel):
     We provide convenience methods to create standards configurations, for instance
     for N2V, in the `careamics.config.configuration_factory` module.
     >>> from careamics.config.configuration_factory import create_N2V_configuration
-    >>> config = create_N2V_configuration(...)
+    >>> config = create_n2v_training_configuration(
+    ...     experiment_name="n2v_experiment",
+    ...     data_type="array",
+    ...     axes="YX",
+    ...     patch_size=[64, 64],
+    ...     batch_size=32,
+    ...     num_epochs=100
+    ... )
+
 
     The configuration can be exported to a dictionary using the model_dump method:
-    >>> config.model_dump()
+    >>> config_dict = config.model_dump()
 
     Configurations can also be exported or imported from yaml files:
     >>> from careamics.config import save_configuration, load_configuration
@@ -91,25 +99,24 @@ class Configuration(BaseModel):
     Minimum example:
     >>> from careamics.config import Configuration
     >>> config_dict = {
-    >>>         "experiment_name": "LevitatingFrog",
-    >>>         "algorithm": {
-    >>>             "algorithm": "custom",
-    >>>             "loss": "n2v",
-    >>>             "model": {
-    >>>                 "architecture": "UNet",
-    >>>             },
-    >>>         },
-    >>>         "training": {
-    >>>             "num_epochs": 666,
-    >>>         },
-    >>>         "data": {
-    >>>             "data_type": "tiff",
-    >>>             "patch_size": [64, 64],
-    >>>             "axes": "SYX",
-    >>>         },
-    >>>     }
+    ...         "experiment_name": "LevitatingFrog",
+    ...         "algorithm": {
+    ...             "algorithm": "custom",
+    ...             "loss": "n2v",
+    ...             "model": {
+    ...                 "architecture": "UNet",
+    ...             },
+    ...         },
+    ...         "training": {
+    ...             "num_epochs": 666,
+    ...         },
+    ...         "data": {
+    ...             "data_type": "tiff",
+    ...             "patch_size": [64, 64],
+    ...             "axes": "SYX",
+    ...         },
+    ...     }
     >>> config = Configuration(**config_dict)
-    >>> print(config)
     """
 
     model_config = ConfigDict(

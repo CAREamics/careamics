@@ -51,7 +51,7 @@ dependencies = [
 
 [project.optional-dependencies]
 # development dependencies and tooling
-test = ["pre-commit", "pytest", "pytest-cov"]
+dev = ["pre-commit", "pytest", "pytest-cov", "sybil"]
 
 # notebooks
 examples = ["jupyter", "careamics-portfolio"]
@@ -112,23 +112,23 @@ line-length = 88
 [tool.mypy]
 files = "src/**/"
 strict = false
-allow_untyped_defs = false
-allow_untyped_calls = false
-disallow_any_generics = false
-ignore_missing_imports = false
+# allow_untyped_defs = false
+# allow_untyped_calls = false
+# disallow_any_generics = false
+# ignore_missing_imports = false
 
 
 # https://docs.pytest.org/en/6.2.x/customize.html
 [tool.pytest.ini_options]
 minversion = "6.0"
-testpaths = ["tests"]
+testpaths = ["src/careamics", "tests"] # add src/careamics for doctest discovery
 filterwarnings = [
     # "error",
     # "ignore::UserWarning",
 ]
+addopts = "-p no:doctest"
+
 markers = ["gpu: marks tests as requiring gpu"]
-
-
 # https://coverage.readthedocs.io/en/6.4/config.html
 [tool.coverage.report]
 exclude_lines = [

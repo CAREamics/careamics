@@ -173,7 +173,7 @@ def create_n2v_training_configuration(
     num_epochs: int,
     use_augmentations: bool = True,
     use_n2v2: bool = False,
-    n_channels: int = 1,
+    n_channels: int = -1,
     roi_size: int = 11,
     masked_pixel_percentage: float = 0.2,
     struct_n2v_axis: Literal["horizontal", "vertical", "none"] = "none",
@@ -190,6 +190,9 @@ def create_n2v_training_configuration(
     connections, thus removing checkboard artefacts. StructN2V is used when vertical
     or horizontal correlations are present in the noise; it applies an additional mask
     to the manipulated pixel neighbors.
+
+    If "C" is present in `axes`, then you need to set `n_channels` to the number of
+    channels.
 
     If "Z" is present in `axes`, then `path_size` must be a list of length 3, otherwise
     2.
@@ -227,7 +230,7 @@ def create_n2v_training_configuration(
     use_n2v2 : bool, optional
         Whether to use N2V2, by default False
     n_channels : int, optional
-        Number of channels (in and out), by default 1.
+        Number of channels (in and out), by default -1.
     roi_size : int, optional
         N2V pixel manipulation area, by default 11.
     masked_pixel_percentage : float, optional
@@ -243,7 +246,76 @@ def create_n2v_training_configuration(
     -------
     Configuration
         Configuration for training N2V.
+
+    Example
+    -------
+    Minimum example:
+    >>> config = create_n2v_training_configuration(
+    ...     experiment_name="n2v_experiment",
+    ...     data_type="array",
+    ...     axes="YX",
+    ...     patch_size=[64, 64],
+    ...     batch_size=32,
+    ...     num_epochs=100
+    ... )
+
+    To use N2V2, simply pass the `use_n2v2` parameter:
+    >>> config = create_n2v_training_configuration(
+    ...     experiment_name="n2v2_experiment",
+    ...     data_type="tiff",
+    ...     axes="YX",
+    ...     patch_size=[64, 64],
+    ...     batch_size=32,
+    ...     num_epochs=100,
+    ...     use_n2v2=True
+    ... )
+
+    For structN2V, there are two parameters to set, `struct_n2v_axis` and
+    `struct_n2v_span`:
+    >>> config = create_n2v_training_configuration(
+    ...     experiment_name="structn2v_experiment",
+    ...     data_type="tiff",
+    ...     axes="YX",
+    ...     patch_size=[64, 64],
+    ...     batch_size=32,
+    ...     num_epochs=100,
+    ...     struct_n2v_axis="horizontal",
+    ...     struct_n2v_span=7
+    ... )
+
+    If you are training multiple channels together, then you need to specify the number
+    of channels:
+    >>> config = create_n2v_training_configuration(
+    ...     experiment_name="n2v_experiment",
+    ...     data_type="array",
+    ...     axes="YXC",
+    ...     patch_size=[64, 64],
+    ...     batch_size=32,
+    ...     num_epochs=100,
+    ...     n_channels=3
+    ... )
+
+    To turn off the augmentations, except normalization and N2V manipulation, use the
+    relevant keyword argument:
+    >>> config = create_n2v_training_configuration(
+    ...     experiment_name="n2v_experiment",
+    ...     data_type="array",
+    ...     axes="YX",
+    ...     patch_size=[64, 64],
+    ...     batch_size=32,
+    ...     num_epochs=100,
+    ...     use_augmentations=False
+    ... )
     """
+    # if there are channels, we need to specify their number
+    if "C" in axes and n_channels == -1:
+        raise ValueError(
+            f"Number of channels must be specified when using channels "
+            f"(got {n_channels} channel)."
+        )
+    else:
+        n_channels = 1
+
     # model
     if model_kwargs is None:
         model_kwargs = {}

@@ -14,10 +14,11 @@ __all__ = [
     "register_model",
     "CustomModel",
     "create_inference_configuration",
+    "clear_custom_models",
 ]
 
 from .algorithm_model import AlgorithmModel
-from .architectures import CustomModel, register_model
+from .architectures import CustomModel, register_model, clear_custom_models
 from .callback_model import CheckpointModel
 from .configuration_factory import (
     create_inference_configuration,
