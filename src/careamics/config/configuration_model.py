@@ -45,18 +45,6 @@ class Configuration(BaseModel):
     training : TrainingModel
         Training configuration.
 
-    Raises
-    ------
-    ValueError
-        Configuration parameter type validation errors.
-    ValueError
-        If the experiment name contains invalid characters or is empty.
-    ValueError
-        If the algorithm is 3D but there is not "Z" in the data axes, or 2D algorithm
-        with "Z" in data axes.
-    ValueError
-        Algorithm, data or training validation errors.
-
     Methods
     -------
     set_3D(is_3D: bool, axes: str, patch_size: List[int]) -> None
@@ -70,6 +58,18 @@ class Configuration(BaseModel):
         exclude_defaults: bool = False, exclude_none: bool = True, **kwargs: Dict
         ) -> Dict
         Export configuration to a dictionary.
+
+    Raises
+    ------
+    ValueError
+        Configuration parameter type validation errors.
+    ValueError
+        If the experiment name contains invalid characters or is empty.
+    ValueError
+        If the algorithm is 3D but there is not "Z" in the data axes, or 2D algorithm
+        with "Z" in data axes.
+    ValueError
+        Algorithm, data or training validation errors.
 
     Notes
     -----
@@ -178,37 +178,29 @@ class Configuration(BaseModel):
     @model_validator(mode="after")
     def validate_3D(self: Configuration) -> Configuration:
         """
-        Check 3D flag validity.
+        Change algorithm dimensions to match data.axes.
 
-        Check that the algorithm is_3D flag is compatible with the axes in the
-        data configuration.
+        Only for non-custom algorithms.
 
         Returns
         -------
         Configuration
             Validated configuration.
-
-        Raises
-        ------
-        ValueError
-            If the algorithm is 3D but the data axes are not, or if the algorithm is
-            not 3D but the data axes are.
         """
-        # check that is_3D and axes are compatible
-        if self.algorithm.model.is_3D() and "Z" not in self.data.axes:
-            raise ValueError(
-                f"Algorithm is 3D but data axes are not (got axes {self.data.axes})."
-            )
-        elif not self.algorithm.model.is_3D() and "Z" in self.data.axes:
-            raise ValueError(
-                f"Algorithm is not 3D but data axes are (got axes {self.data.axes})."
-            )
+        if self.algorithm.algorithm != SupportedAlgorithm.CUSTOM:
+            if "Z" in self.data.axes and not self.algorithm.model.is_3D():
+                # change algorithm to 3D
+                self.algorithm.model.set_3D(True)
+            elif "Z" not in self.data.axes and self.algorithm.model.is_3D():
+                # change algorithm to 2D
+                self.algorithm.model.set_3D(False)
 
         return self
 
     @model_validator(mode="after")
     def validate_algorithm_and_data(self: Configuration) -> Configuration:
-        """Validate algorithm and data compatibility.
+        """
+        Validate algorithm and data compatibility.
 
         In particular, the validation does the following:
 
@@ -218,7 +210,7 @@ class Configuration(BaseModel):
         Returns
         -------
         Configuration
-            Validated configuration
+            Validated configuration.
         """
         if self.algorithm.algorithm == SupportedAlgorithm.N2V:
             # if we have a list of transform (as opposed to Compose)
@@ -245,7 +237,8 @@ class Configuration(BaseModel):
         return self
 
     def __str__(self) -> str:
-        """Pretty string reprensenting the configuration.
+        """
+        Pretty string reprensenting the configuration.
 
         Returns
         -------
@@ -264,6 +257,8 @@ class Configuration(BaseModel):
             Whether the algorithm is 3D or not.
         axes : str
             Axes of the data.
+        patch_size : List[int]
+            Patch size.
         """
         # set the flag and axes (this will not trigger validation at the config level)
         self.algorithm.model.set_3D(is_3D)
@@ -273,7 +268,8 @@ class Configuration(BaseModel):
         self.algorithm = self.algorithm
 
     def set_N2V2(self, use_n2v2: bool) -> None:
-        """Switch N2V algorithm between N2V and N2V2.
+        """
+        Switch N2V algorithm between N2V and N2V2.
 
         Parameters
         ----------
@@ -299,7 +295,8 @@ class Configuration(BaseModel):
     def set_structN2V(
         self, mask_axis: Literal["horizontal", "vertical", "none"], mask_span: int
     ) -> None:
-        """Set StructN2V parameters.
+        """
+        Set StructN2V parameters.
 
         Parameters
         ----------
@@ -311,7 +308,8 @@ class Configuration(BaseModel):
         self.data.set_structN2V_mask(mask_axis, mask_span)
 
     def get_algorithm_flavour(self) -> str:
-        """Get the algorithm name.
+        """
+        Get the algorithm name.
 
         Returns
         -------
@@ -337,7 +335,8 @@ class Configuration(BaseModel):
         return self.algorithm.algorithm.capitalize()
 
     def get_algorithm_description(self) -> str:
-        """Return a description of the algorithm.
+        """
+        Return a description of the algorithm.
 
         Returns
         -------
@@ -419,7 +418,8 @@ class Configuration(BaseModel):
         return ""
 
     def get_algorithm_references(self) -> str:
-        """Get the algorithm references.
+        """
+        Get the algorithm references.
 
         Returns
         -------
@@ -466,7 +466,8 @@ class Configuration(BaseModel):
         return ""
 
     def get_algorithm_keywords(self) -> List[str]:
-        """Get algorithm keywords.
+        """
+        Get algorithm keywords.
 
         Returns
         -------

@@ -1,4 +1,6 @@
-from typing import Any, Dict, List, Literal, Optional, Union
+"""Convenience functions to create configurations for training and inference."""
+
+from typing import Any, Dict, List, Literal, Optional, Tuple, Union
 
 from albumentations import Compose
 
@@ -33,7 +35,8 @@ def create_n2n_configuration(
     struct_n2v_span: int = 5,
     model_kwargs: Optional[dict] = None,
 ) -> Configuration:
-    """Create a configuration for training N2V.
+    """
+    Create a configuration for training N2V.
 
     If "Z" is present in `axes`, then `path_size` must be a list of length 3, otherwise
     2.
@@ -64,7 +67,7 @@ def create_n2n_configuration(
     use_augmentations : bool, optional
         Whether to use augmentations, by default True.
     use_n2v2 : bool, optional
-        Whether to use N2V2, by default False
+        Whether to use N2V2, by default False.
     n_channels : int, optional
         Number of channels (in and out), by default 1.
     roi_size : int, optional
@@ -72,11 +75,11 @@ def create_n2n_configuration(
     masked_pixel_percentage : float, optional
         Percentage of pixels masked in each patch, by default 0.2.
     struct_n2v_axis : Literal["horizontal", "vertical", "none"], optional
-        Axis along which to apply structN2V mask, by default "none"
+        Axis along which to apply structN2V mask, by default "none".
     struct_n2v_span : int, optional
-        Span of the structN2V mask, by default 5
+        Span of the structN2V mask, by default 5.
     model_kwargs : dict, optional
-        UNetModel parameters, by default {}
+        UNetModel parameters, by default {}.
 
     Returns
     -------
@@ -180,7 +183,8 @@ def create_n2v_configuration(
     struct_n2v_span: int = 5,
     model_kwargs: Optional[dict] = None,
 ) -> Configuration:
-    """Create a configuration for training N2V.
+    """
+    Create a configuration for training N2V.
 
     N2V uses a UNet model to denoise images in a self-supervised manner. To use its
     variants structN2V and N2V2, set the `struct_n2v_axis` and `struct_n2v_span`
@@ -228,7 +232,7 @@ def create_n2v_configuration(
     use_augmentations : bool, optional
         Whether to use augmentations, by default True.
     use_n2v2 : bool, optional
-        Whether to use N2V2, by default False
+        Whether to use N2V2, by default False.
     n_channels : int, optional
         Number of channels (in and out), by default -1.
     roi_size : int, optional
@@ -236,19 +240,19 @@ def create_n2v_configuration(
     masked_pixel_percentage : float, optional
         Percentage of pixels masked in each patch, by default 0.2.
     struct_n2v_axis : Literal["horizontal", "vertical", "none"], optional
-        Axis along which to apply structN2V mask, by default "none"
+        Axis along which to apply structN2V mask, by default "none".
     struct_n2v_span : int, optional
-        Span of the structN2V mask, by default 5
+        Span of the structN2V mask, by default 5.
     model_kwargs : dict, optional
-        UNetModel parameters, by default {}
+        UNetModel parameters, by default {}.
 
     Returns
     -------
     Configuration
         Configuration for training N2V.
 
-    Example
-    -------
+    Examples
+    --------
     Minimum example:
     >>> config = create_n2v_configuration(
     ...     experiment_name="n2v_experiment",
@@ -405,15 +409,16 @@ def create_n2v_configuration(
 # TODO add tests
 def create_inference_configuration(
     training_configuration: Configuration,
-    tile_size: Optional[List[int]] = None,
-    tile_overlap: Optional[List[int]] = None,
+    tile_size: Optional[Tuple[int, ...]] = None,
+    tile_overlap: Tuple[int, ...] = (48, 48),
     data_type: Optional[Literal["array", "tiff", "custom"]] = None,
     axes: Optional[str] = None,
     transforms: Optional[Union[List[Dict[str, Any]], Compose]] = None,
     tta_transforms: bool = True,
     batch_size: Optional[int] = 1,
 ) -> InferenceModel:
-    """Create a configuration for inference with N2V.
+    """
+    Create a configuration for inference with N2V.
 
     If not provided, `data_type`, `tile_size`, and `axes` are taken from the training
     configuration. If `transforms` are not provided, only normalization is applied.
@@ -422,14 +427,18 @@ def create_inference_configuration(
     ----------
     training_configuration : Configuration
         Configuration used for training.
+    tile_size : Tuple[int, ...], optional
+        Size of the tiles.
+    tile_overlap : Tuple[int, ...], optional
+        Overlap of the tiles.
     data_type : str, optional
         Type of the data, by default "tiff".
     axes : str, optional
         Axes of the data, by default "YX".
-    tile_size : List[int], optional
-        Size of the tiles.
-    tile_overlap : List[int], optional
-        Overlap of the tiles.
+    transforms : List[Dict[str, Any]] or Compose, optional
+        Transformations to apply to the data, by default None.
+    tta_transforms : bool, optional
+        Whether to apply test-time augmentations, by default True.
     batch_size : int, optional
         Batch size, by default 1.
 
@@ -438,8 +447,6 @@ def create_inference_configuration(
     InferenceConfiguration
         Configuration for inference with N2V.
     """
-    if tile_overlap is None:
-        tile_overlap = [48, 48]
     if data_type is None:
         data_type = training_configuration.data.data_type
 

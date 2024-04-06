@@ -1,5 +1,7 @@
+"""Main class to train and predict with CAREamics models."""
+
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Literal, Optional, Union, overload
+from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, Union, overload
 
 import numpy as np
 from pytorch_lightning import LightningModule, Trainer
@@ -32,39 +34,25 @@ logger = get_logger(__name__)
 
 
 class CAREamist(LightningModule):
-    """A class to train and predict with CAREamics models.
+    """
+    A class to train and predict with CAREamics models.
 
-    There are three ways to instantiate the CAREamist class:
-        - with a path to a BioImage Model Zoo model (BMZ format)
-        - with a Configuration object (see Configuration model)
-        - with a path to a configuration file
-
-    One of these parameters must be provided. If multiple parameters are passed,
-    then the priority is set following the list above: model > configuration > path.
+    # TODO
 
     Parameters
     ----------
-    path_to_model : Optional[Union[Path, str]], optional
-        Path to a BioImge Model Zoo model on disk, by default None
-    configuration : Optional[Configuration], optional
-        Configuration object, by default None
-    path_to_config : Optional[Union[Path, str]], optional
-        Path to a configuration yaml file, by default None
+    source : Union[Path, str, Configuration]
+        Path to a configuration file or a trained model.
+    work_dir : Optional[str], optional
+        Path to working directory in which to save checkpoints and logs,
+        by default None.
+    experiment_name : str, optional
+        Experiment name used for checkpoints, by default "CAREamics".
 
-    Raises
-    ------
-    TypeError
-        If configuration is not a Configuration object
-    FileNotFoundError
-        If the path to the configuration file does not exist
-    ValueError
-        If the path is not pointing to a file
-    ValueError
-        If no configuration or path is provided
     """
 
     @overload
-    def __init__(
+    def __init__(  # numpydoc ignore=GL08
         self,
         source: Union[Path, str],
         work_dir: Optional[str] = None,
@@ -73,7 +61,7 @@ class CAREamist(LightningModule):
         ...
 
     @overload
-    def __init__(
+    def __init__(  # numpydoc ignore=GL08
         self,
         source: Configuration,
         work_dir: Optional[str] = None,
@@ -87,7 +75,8 @@ class CAREamist(LightningModule):
         work_dir: Optional[Union[Path, str]] = None,
         experiment_name: str = "CAREamics",
     ) -> None:
-        """Initialize CAREamist with a configuration object or a path.
+        """
+        Initialize CAREamist with a configuration object or a path.
 
         A configuration object can be created using directly by calling `Configuration`,
         using the configuration factory or loading a configuration from a yaml file.
@@ -105,18 +94,19 @@ class CAREamist(LightningModule):
             Path to a configuration file or a trained model.
         work_dir : Optional[str], optional
             Path to working directory in which to save checkpoints and logs,
-            by default None
+            by default None.
         experiment_name : str, optional
-            Experiment name used for checkpoints, by default "CAREamics"
+            Experiment name used for checkpoints, by default "CAREamics".
 
         Raises
         ------
         NotImplementedError
-            _description_ #TODO
+            If the model is loaded from BioImage Model Zoo.
         ValueError
-            _description_
+            If no hyper parameters are found in the checkpoint.
         ValueError
-            _description_
+            If no data module hyper parameters are found in the checkpoint.
+
         """
         super().__init__()
 
@@ -211,7 +201,8 @@ class CAREamist(LightningModule):
         self.trainer.predict_loop = CAREamicsPredictionLoop(self.trainer)
 
     def _define_callbacks(self) -> List[Callback]:
-        """Define the callbacks for the training loop.
+        """
+        Define the callbacks for the training loop.
 
         Returns
         -------
@@ -250,9 +241,51 @@ class CAREamist(LightningModule):
         """
         Train the model on the provided data.
 
-        # TODO
+        If a datamodule is provided, then training will be performed using it.
+        Alternatively, the training data can be provided as arrays or paths.
+
+        If `use_in_memory` is set to True, the source provided as Path or str will be
+        loaded in memory if it fits. Otherwise, training will be performed by loading
+        patches from the files one by one. Training on arrays is always performed
+        in memory.
+
+        If no validation source is provided, then the validation is extracted from
+        the training data using `val_percentage` and `val_minimum_split`. In the case
+        of data provided as Path or str, the percentage and minimum number are applied
+        to the number of files. For arrays, it is the number of patches.
+
+        Parameters
+        ----------
+        datamodule : Optional[CAREamicsWood], optional
+            Datamodule to train on, by default None.
+        train_source : Optional[Union[Path, str, np.ndarray]], optional
+            Train source, if no datamodule is provided, by default None.
+        val_source : Optional[Union[Path, str, np.ndarray]], optional
+            Validation source, if no datamodule is provided, by default None.
+        train_target : Optional[Union[Path, str, np.ndarray]], optional
+            Train target source, if no datamodule is provided, by default None.
+        val_target : Optional[Union[Path, str, np.ndarray]], optional
+            Validation target source, if no datamodule is provided, by default None.
+        use_in_memory : bool, optional
+            Use in memory dataset if possible, by default True.
+        val_percentage : float, optional
+            Percentage of validation extracted from training data, by default 0.1.
+        val_minimum_split : int, optional
+            Minimum number of validation (patch or file) extracted from training data,
+            by default 1.
+
+        Raises
+        ------
+        ValueError
+            If both `datamodule` and `train_source` are provided.
+        ValueError
+            If sources are not of the same type (e.g. train is an array and val is
+            a Path).
+        ValueError
+            If the training target is provided to N2V.
+        ValueError
+            If neither a datamodule nor a source is provided.
         """
-        #
         if datamodule is not None and train_source:
             raise ValueError(
                 "Only one of `datamodule` and `train_source` can be provided."
@@ -330,6 +363,14 @@ class CAREamist(LightningModule):
                 )
 
     def _train_on_datamodule(self, datamodule: CAREamicsWood) -> None:
+        """
+        Train the model on the provided datamodule.
+
+        Parameters
+        ----------
+        datamodule : CAREamicsWood
+            Datamodule to train on.
+        """
         self.trainer.fit(self.model, datamodule=datamodule)
 
     def _train_on_array(
@@ -339,8 +380,26 @@ class CAREamist(LightningModule):
         train_target: Optional[np.ndarray] = None,
         val_target: Optional[np.ndarray] = None,
         val_percentage: float = 0.1,
-        val_minimum_split: int = 1,
+        val_minimum_split: int = 5,
     ) -> None:
+        """
+        Train the model on the provided data arrays.
+
+        Parameters
+        ----------
+        train_data : np.ndarray
+            Training data.
+        val_data : Optional[np.ndarray], optional
+            Validation data, by default None.
+        train_target : Optional[np.ndarray], optional
+            Train target data, by default None.
+        val_target : Optional[np.ndarray], optional
+            Validation target data, by default None.
+        val_percentage : float, optional
+            Percentage of patches to use for validation, by default 0.1.
+        val_minimum_split : int, optional
+            Minimum number of patches to use for validation, by default 5.
+        """
         # create datamodule
         datamodule = CAREamicsWood(
             data_config=self.cfg.data,
@@ -365,6 +424,26 @@ class CAREamist(LightningModule):
         val_percentage: float = 0.1,
         val_minimum_split: int = 1,
     ) -> None:
+        """
+        Train the model on the provided data paths.
+
+        Parameters
+        ----------
+        path_to_train_data : Union[Path, str]
+            Path to the training data.
+        path_to_val_data : Optional[Union[Path, str]], optional
+            Path to validation data, by default None.
+        path_to_train_target : Optional[Union[Path, str]], optional
+            Path to train target data, by default None.
+        path_to_val_target : Optional[Union[Path, str]], optional
+            Path to validation target data, by default None.
+        use_in_memory : bool, optional
+            Use in memory dataset if possible, by default True.
+        val_percentage : float, optional
+            Percentage of files to use for validation, by default 0.1.
+        val_minimum_split : int, optional
+            Minimum number of files to use for validation, by default 1.
+        """
         # sanity check on data (path exists)
         path_to_train_data = check_path_exists(path_to_train_data)
 
@@ -393,17 +472,19 @@ class CAREamist(LightningModule):
         self.train(datamodule=datamodule)
 
     @overload
-    def predict(self, source: CAREamicsClay) -> Union[list, np.ndarray]:
+    def predict(  # numpydoc ignore=GL08
+        self, source: CAREamicsClay
+    ) -> Union[list, np.ndarray]:
         ...
 
     @overload
-    def predict(
+    def predict(  # numpydoc ignore=GL08
         self,
         source: Union[Path, str],
         *,
         batch_size: int = 1,
-        tile_size: Optional[List[int]] = None,
-        tile_overlap: Optional[List[int]] = None,
+        tile_size: Optional[Tuple[int, ...]] = None,
+        tile_overlap: Tuple[int, ...] = (48, 48),
         axes: Optional[str] = None,
         data_type: Optional[Literal["tiff", "custom"]] = None,
         transforms: Optional[List[TRANSFORMS_UNION]] = None,
@@ -412,26 +493,22 @@ class CAREamist(LightningModule):
         read_source_func: Optional[Callable] = None,
         extension_filter: str = "",
     ) -> Union[list, np.ndarray]:
-        if tile_overlap is None:
-            tile_overlap = [48, 48]
         ...
 
     @overload
-    def predict(
+    def predict(  # numpydoc ignore=GL08
         self,
         source: np.ndarray,
         *,
         batch_size: int = 1,
-        tile_size: Optional[List[int]] = None,
-        tile_overlap: Optional[List[int]] = None,
+        tile_size: Optional[Tuple[int, ...]] = None,
+        tile_overlap: Tuple[int, ...] = (48, 48),
         axes: Optional[str] = None,
         data_type: Optional[Literal["array"]] = None,
         transforms: Optional[List[TRANSFORMS_UNION]] = None,
         tta_transforms: bool = True,
         dataloader_params: Optional[Dict] = None,
     ) -> Union[list, np.ndarray]:
-        if tile_overlap is None:
-            tile_overlap = [48, 48]
         ...
 
     def predict(
@@ -439,8 +516,8 @@ class CAREamist(LightningModule):
         source: Union[CAREamicsClay, Path, str, np.ndarray],
         *,
         batch_size: int = 1,
-        tile_size: Optional[List[int]] = None,
-        tile_overlap: Optional[List[int]] = None,
+        tile_size: Optional[Tuple[int, ...]] = None,
+        tile_overlap: Tuple[int, ...] = (48, 48),
         axes: Optional[str] = None,
         data_type: Optional[Literal["array", "tiff", "custom"]] = None,
         transforms: Optional[List[TRANSFORMS_UNION]] = None,
@@ -450,16 +527,45 @@ class CAREamist(LightningModule):
         extension_filter: str = "",
         **kwargs: Any,
     ) -> Union[List[np.ndarray], np.ndarray]:
-        """Make predictions on the provided data.
+        """
+        Make predictions on the provided data.
 
         Input can be a CAREamicsClay instance, a path to a data file, or a numpy array.
 
-        # TODO
+        If `data_type`, `axes` and `tile_size` are not provided, the training
+        configuration parameters will be used, with the `patch_size` instead of
+        `tile_size`.
+
+        The default transforms are defined in the InferenceModel Pydantic model.
+
+        TTA transform can be switched off using the `tta_transforms` parameter.
 
         Parameters
         ----------
         source : Union[CAREamicsClay, Path, str, np.ndarray]
             Data to predict on.
+        batch_size : int, optional
+            Batch size for prediction, by default 1.
+        tile_size : Optional[Tuple[int, ...]], optional
+            Size of the tiles to use for prediction, by default None.
+        tile_overlap : Tuple[int, ...], optional
+            Overlap between tiles, by default (48, 48).
+        axes : Optional[str], optional
+            Axes of the input data, by default None.
+        data_type : Optional[Literal["array", "tiff", "custom"]], optional
+            Type of the input data, by default None.
+        transforms : Optional[List[TRANSFORMS_UNION]], optional
+            List of transforms to apply to the data, by default None.
+        tta_transforms : bool, optional
+            Whether to apply test-time augmentation, by default True.
+        dataloader_params : Optional[Dict], optional
+            Parameters to pass to the dataloader, by default None.
+        read_source_func : Optional[Callable], optional
+            Function to read the source data, by default None.
+        extension_filter : str, optional
+            Filter for the file extension, by default "".
+        **kwargs : Any
+            Unused.
 
         Returns
         -------
@@ -471,10 +577,6 @@ class CAREamist(LightningModule):
         ValueError
             If the input is not a CAREamicsClay instance, a path or a numpy array.
         """
-        if tile_overlap is None:
-            tile_overlap = [48, 48]
-        if dataloader_params is None:
-            dataloader_params = {}
         if isinstance(source, CAREamicsClay):
             return self.trainer.predict(datamodule=source)
 
@@ -492,6 +594,8 @@ class CAREamist(LightningModule):
             )
 
             # remove batch from dataloader parameters (priority given to config)
+            if dataloader_params is None:
+                dataloader_params = {}
             if "batch_size" in dataloader_params:
                 del dataloader_params["batch_size"]
 
@@ -529,14 +633,15 @@ class CAREamist(LightningModule):
     def export_checkpoint(
         self, path: Union[Path, str], type: Literal["bmz", "script"] = "bmz"
     ) -> None:
-        """Export the model to a checkpoint or a BioImage Model Zoo model.
+        """
+        Export the model to a checkpoint or a BioImage Model Zoo model.
 
         Parameters
         ----------
         path : Union[Path, str]
             Path to save the model.
         type : Literal["bmz", "script"], optional
-            Export format, by default "bmz"
+            Export format, by default "bmz".
 
         Raises
         ------
@@ -556,7 +661,8 @@ class CAREamist(LightningModule):
             )
 
     def load_pretrained(self, path: Union[Path, str]) -> None:
-        """Load a pretrained model from a checkpoint or a BioImage Model Zoo model.
+        """
+        Load a pretrained model from a checkpoint or a BioImage Model Zoo model.
 
         Expected formats are .ckpt, .zip, .pth or .pt files.
 
@@ -585,7 +691,8 @@ class CAREamist(LightningModule):
             )
 
     def _load_from_checkpoint(self, path: Union[Path, str]) -> None:
-        """Load a model from a checkpoint.
+        """
+        Load a model from a checkpoint.
 
         Parameters
         ----------
@@ -598,7 +705,8 @@ class CAREamist(LightningModule):
         self,
         path: Union[Path, str],
     ) -> None:
-        """Load a model from BioImage Model Zoo.
+        """
+        Load a model from BioImage Model Zoo.
 
         Parameters
         ----------
@@ -618,6 +726,19 @@ class CAREamist(LightningModule):
         self,
         path: Union[Path, str],
     ) -> None:
+        """
+        Load a model from a state dict.
+
+        Parameters
+        ----------
+        path : Union[Path, str]
+            Path to the state dict.
+
+        Raises
+        ------
+        NotImplementedError
+            This method is not implemented yet.
+        """
         raise NotImplementedError(
             "Loading a model from a state dict is not implemented yet."
         )

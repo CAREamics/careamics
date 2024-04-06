@@ -162,6 +162,8 @@ checks = [
     "EX01",
     "SA01",
     "ES01",
+    "GL02",
+    "GL03",
 ]
 exclude = [ # don't report on objects that match any of these regex
     "test_*",
