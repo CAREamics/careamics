@@ -17,7 +17,7 @@ from .support import (
 from .training_model import TrainingModel
 
 
-def create_n2n_training_configuration(
+def create_n2n_configuration(
     experiment_name: str,
     data_type: Literal["array", "tiff", "custom"],
     axes: str,
@@ -164,7 +164,7 @@ def create_n2n_training_configuration(
     return configuration
 
 
-def create_n2v_training_configuration(
+def create_n2v_configuration(
     experiment_name: str,
     data_type: Literal["array", "tiff", "custom"],
     axes: str,
@@ -250,7 +250,7 @@ def create_n2v_training_configuration(
     Example
     -------
     Minimum example:
-    >>> config = create_n2v_training_configuration(
+    >>> config = create_n2v_configuration(
     ...     experiment_name="n2v_experiment",
     ...     data_type="array",
     ...     axes="YX",
@@ -260,7 +260,7 @@ def create_n2v_training_configuration(
     ... )
 
     To use N2V2, simply pass the `use_n2v2` parameter:
-    >>> config = create_n2v_training_configuration(
+    >>> config = create_n2v_configuration(
     ...     experiment_name="n2v2_experiment",
     ...     data_type="tiff",
     ...     axes="YX",
@@ -272,7 +272,7 @@ def create_n2v_training_configuration(
 
     For structN2V, there are two parameters to set, `struct_n2v_axis` and
     `struct_n2v_span`:
-    >>> config = create_n2v_training_configuration(
+    >>> config = create_n2v_configuration(
     ...     experiment_name="structn2v_experiment",
     ...     data_type="tiff",
     ...     axes="YX",
@@ -285,7 +285,7 @@ def create_n2v_training_configuration(
 
     If you are training multiple channels together, then you need to specify the number
     of channels:
-    >>> config = create_n2v_training_configuration(
+    >>> config = create_n2v_configuration(
     ...     experiment_name="n2v_experiment",
     ...     data_type="array",
     ...     axes="YXC",
@@ -297,7 +297,7 @@ def create_n2v_training_configuration(
 
     To turn off the augmentations, except normalization and N2V manipulation, use the
     relevant keyword argument:
-    >>> config = create_n2v_training_configuration(
+    >>> config = create_n2v_configuration(
     ...     experiment_name="n2v_experiment",
     ...     data_type="array",
     ...     axes="YX",

@@ -13,6 +13,4 @@ class SupportedArchitecture(str, BaseEnum):
 
     UNET = "UNet"
     VAE = "VAE"
-    CUSTOM = "Custom"
-    # HVAE?
-    # CUSTOM = "Custom" # TODO create mechanism for that
+    CUSTOM = "Custom" # TODO all the others tags are small letters, except the architect

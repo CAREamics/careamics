@@ -75,8 +75,8 @@ class Configuration(BaseModel):
     -----
     We provide convenience methods to create standards configurations, for instance
     for N2V, in the `careamics.config.configuration_factory` module.
-    >>> from careamics.config.configuration_factory import create_N2V_configuration
-    >>> config = create_n2v_training_configuration(
+    >>> from careamics.config.configuration_factory import create_n2v_configuration
+    >>> config = create_n2v_configuration(
     ...     experiment_name="n2v_experiment",
     ...     data_type="array",
     ...     axes="YX",
@@ -85,30 +85,29 @@ class Configuration(BaseModel):
     ...     num_epochs=100
     ... )
 
-
     The configuration can be exported to a dictionary using the model_dump method:
     >>> config_dict = config.model_dump()
 
     Configurations can also be exported or imported from yaml files:
     >>> from careamics.config import save_configuration, load_configuration
-    >>> save_configuration(config, "config.yml")
-    >>> config = load_configuration("config.yml")
+    >>> path_to_config = save_configuration(config, my_path / "config.yml")
+    >>> other_config = load_configuration(path_to_config)
 
     Examples
     --------
     Minimum example:
     >>> from careamics.config import Configuration
     >>> config_dict = {
-    ...         "experiment_name": "LevitatingFrog",
+    ...         "experiment_name": "N2V_experiment",
     ...         "algorithm": {
-    ...             "algorithm": "custom",
+    ...             "algorithm": "n2v",
     ...             "loss": "n2v",
     ...             "model": {
     ...                 "architecture": "UNet",
     ...             },
     ...         },
     ...         "training": {
-    ...             "num_epochs": 666,
+    ...             "num_epochs": 200,
     ...         },
     ...         "data": {
     ...             "data_type": "tiff",

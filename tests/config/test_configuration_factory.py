@@ -1,6 +1,6 @@
 import pytest
 
-from careamics.config import create_n2v_training_configuration
+from careamics.config import create_n2v_configuration
 from careamics.config.support import (
     SupportedPixelManipulation,
     SupportedStructAxis,
@@ -10,7 +10,7 @@ from careamics.config.support import (
 
 def test_n2v_configuration():
     """Test that N2V configuration can be created."""
-    config = create_n2v_training_configuration(
+    config = create_n2v_configuration(
         experiment_name="test",
         data_type="tiff",
         axes="YX",
@@ -30,7 +30,7 @@ def test_n2v_configuration():
 
 def test_n2v_3d_configuration():
     """Test that N2V configuration can be created in 3D."""
-    config = create_n2v_training_configuration(
+    config = create_n2v_configuration(
         experiment_name="test",
         data_type="tiff",
         axes="ZYX",
@@ -52,7 +52,7 @@ def test_n2v_3d_error():
     """Test that errors are raised if algorithm `is_3D` and data axes are
     incompatible."""
     with pytest.raises(ValueError):
-        create_n2v_training_configuration(
+        create_n2v_configuration(
             experiment_name="test",
             data_type="tiff",
             axes="ZYX",
@@ -62,7 +62,7 @@ def test_n2v_3d_error():
         )
 
     with pytest.raises(ValueError):
-        create_n2v_training_configuration(
+        create_n2v_configuration(
             experiment_name="test",
             data_type="tiff",
             axes="YX",
@@ -75,7 +75,7 @@ def test_n2v_3d_error():
 def test_n2v_model_parameters():
     """Test passing N2V UNet parameters, and that explicit parameters override the
     model_kwargs ones."""
-    config = create_n2v_training_configuration(
+    config = create_n2v_configuration(
         experiment_name="test",
         data_type="tiff",
         axes="YX",
@@ -101,7 +101,7 @@ def test_n2v_model_parameters():
 def test_n2v_model_parameters_channels():
     """Test that the number of channels in the function call has priority over the
     model kwargs."""
-    config = create_n2v_training_configuration(
+    config = create_n2v_configuration(
         experiment_name="test",
         data_type="tiff",
         axes="YXC",
@@ -124,7 +124,7 @@ def test_n2v_model_parameters_channels_error():
     """Test that an error is raised if the number of channels is not specified and
     C in axes, or C in axes and number of channels not specified."""
     with pytest.raises(ValueError):
-        create_n2v_training_configuration(
+        create_n2v_configuration(
             experiment_name="test",
             data_type="tiff",
             axes="YXC",
@@ -134,7 +134,7 @@ def test_n2v_model_parameters_channels_error():
         )
 
     with pytest.raises(ValueError):
-        create_n2v_training_configuration(
+        create_n2v_configuration(
             experiment_name="test",
             data_type="tiff",
             axes="YX",
@@ -147,7 +147,7 @@ def test_n2v_model_parameters_channels_error():
 
 def test_n2v_no_aug():
     """Test that N2V configuration can be created without augmentation."""
-    config = create_n2v_training_configuration(
+    config = create_n2v_configuration(
         experiment_name="test",
         data_type="tiff",
         axes="YX",
@@ -163,7 +163,7 @@ def test_n2v_no_aug():
 
 def test_n2v_augmentation_parameters():
     """Test that N2V configuration can be created with augmentation parameters."""
-    config = create_n2v_training_configuration(
+    config = create_n2v_configuration(
         experiment_name="test",
         data_type="tiff",
         axes="YX",
@@ -179,7 +179,7 @@ def test_n2v_augmentation_parameters():
 
 def test_n2v2():
     """Test that N2V2 configuration can be created."""
-    config = create_n2v_training_configuration(
+    config = create_n2v_configuration(
         experiment_name="test",
         data_type="tiff",
         axes="YX",
@@ -196,7 +196,7 @@ def test_n2v2():
 
 def test_structn2v():
     """Test that StructN2V configuration can be created."""
-    config = create_n2v_training_configuration(
+    config = create_n2v_configuration(
         experiment_name="test",
         data_type="tiff",
         axes="YX",

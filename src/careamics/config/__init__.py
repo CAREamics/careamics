@@ -10,7 +10,7 @@ __all__ = [
     "load_configuration",
     "save_configuration",
     "TrainingModel",
-    "create_n2v_training_configuration",
+    "create_n2v_configuration",
     "register_model",
     "CustomModel",
     "create_inference_configuration",
@@ -22,7 +22,7 @@ from .architectures import CustomModel, register_model, clear_custom_models
 from .callback_model import CheckpointModel
 from .configuration_factory import (
     create_inference_configuration,
-    create_n2v_training_configuration,
+    create_n2v_configuration,
 )
 from .configuration_model import (
     Configuration,

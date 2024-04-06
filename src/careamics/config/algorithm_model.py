@@ -46,44 +46,42 @@ class AlgorithmModel(BaseModel):
     Minimum example:
     >>> from careamics.config import AlgorithmModel
     >>> config_dict = {
-    >>>     "algorithm": "n2v",
-    >>>     "loss": "n2v",
-    >>>     "model": {
-    >>>         "architecture": "UNet",
-    >>>     }
-    >>> }
+    ...     "algorithm": "n2v",
+    ...     "loss": "n2v",
+    ...     "model": {
+    ...         "architecture": "UNet",
+    ...     }
+    ... }
     >>> config = AlgorithmModel(**config_dict)
-    >>> print(config)
 
     Using a custom model:
     >>> from torch import nn, ones
     >>> from careamics.config import AlgorithmModel, register_model
-    >>>
-    >>> @register_model(name="linear")
-    >>> class LinearModel(nn.Module):
-    >>>    def __init__(self, in_features, out_features, *args, **kwargs):
-    >>>        super().__init__()
-    >>>        self.in_features = in_features
-    >>>        self.out_features = out_features
-    >>>        self.weight = nn.Parameter(ones(in_features, out_features))
-    >>>        self.bias = nn.Parameter(ones(out_features))
-    >>>    def forward(self, input):
-    >>>        return (input @ self.weight) + self.bias
-    >>>
+    ...
+    >>> @register_model(name="linear_model")
+    ... class LinearModel(nn.Module):
+    ...    def __init__(self, in_features, out_features, *args, **kwargs):
+    ...        super().__init__()
+    ...        self.in_features = in_features
+    ...        self.out_features = out_features
+    ...        self.weight = nn.Parameter(ones(in_features, out_features))
+    ...        self.bias = nn.Parameter(ones(out_features))
+    ...    def forward(self, input):
+    ...        return (input @ self.weight) + self.bias
+    ...
     >>> config_dict = {
-    >>>     "algorithm": "custom",
-    >>>     "loss": "mse",
-    >>>     "model": {
-    >>>         "architecture": "custom",
-    >>>         "name": "linear",
-    >>>         "parameters": {
-    >>>             "in_features": 10,
-    >>>             "out_features": 5,
-    >>>         },
-    >>>     }
-    >>> }
+    ...     "algorithm": "custom",
+    ...     "loss": "mse",
+    ...     "model": {
+    ...         "architecture": "Custom",
+    ...         "name": "linear_model",
+    ...         "parameters": {
+    ...             "in_features": 10,
+    ...             "out_features": 5,
+    ...         },
+    ...     }
+    ... }
     >>> config = AlgorithmModel(**config_dict)
-    >>> print(config)
     """
 
     # Pydantic class configuration
