@@ -313,7 +313,12 @@ def create_n2v_training_configuration(
             f"Number of channels must be specified when using channels "
             f"(got {n_channels} channel)."
         )
-    else:
+    elif "C" not in axes and n_channels != -1:
+        raise ValueError(
+            f"C is not present in the axes, but number of channels is specified "
+            f"(got {n_channels} channel)."
+        )
+    elif n_channels == -1:
         n_channels = 1
 
     # model
