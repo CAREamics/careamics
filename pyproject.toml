@@ -42,7 +42,7 @@ dependencies = [
     'albumentations',
     'bioimageio.core',
     'tifffile',
-    'psutils',
+    'psutil',
     'pydantic>=2.5',
     'pytorch_lightning',
     'pyyaml',
