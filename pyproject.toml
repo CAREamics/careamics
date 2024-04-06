@@ -40,13 +40,14 @@ classifiers = [
 ]
 dependencies = [
     'albumentations',
-    'tifffile',
-    'pyyaml',
-    'pydantic>=2.5',
-    'scikit-image',
     'bioimageio.core',
-    'zarr',
+    'tifffile',
+    'psutils',
+    'pydantic>=2.5',
     'pytorch_lightning',
+    'pyyaml',
+    'scikit-image',
+    'zarr',
 ]
 
 [project.optional-dependencies]
