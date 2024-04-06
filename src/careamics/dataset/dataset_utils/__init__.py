@@ -2,13 +2,13 @@
 
 
 __all__ = [
-    'reshape_array',
-    'get_files_size',
-    'list_files',
-    'validate_source_target_files',
-    'read_tiff',
-    'get_read_func',
-    'read_zarr',
+    "reshape_array",
+    "get_files_size",
+    "list_files",
+    "validate_source_target_files",
+    "read_tiff",
+    "get_read_func",
+    "read_zarr",
 ]
 
 

@@ -38,7 +38,7 @@ class DataModel(BaseModel):
     Examples
     --------
     Minimum example:
-    
+
     >>> data = DataModel(
     ...     data_type="array", # defined in SupportedData
     ...     patch_size=[128, 128],
@@ -49,7 +49,7 @@ class DataModel(BaseModel):
     To change the mean and std of the data:
     >>> data.set_mean_and_std(mean=0., std=1.)
 
-    One can pass also a list of transformations, by keyword, using the 
+    One can pass also a list of transformations, by keyword, using the
     SupportedTransform or the name of an Albumentation transform:
     >>> from careamics.config.support import SupportedTransform
     >>> data = DataModel(

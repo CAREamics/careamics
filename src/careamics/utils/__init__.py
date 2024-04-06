@@ -20,7 +20,7 @@ __all__ = [
 from .base_enum import BaseEnum
 from .context import cwd, get_careamics_home
 from .logging import get_logger
-from .normalization import denormalize, normalize, RunningStats
+from .normalization import RunningStats, denormalize, normalize
 from .path_utils import check_path_exists
 from .ram import get_ram_size
 from .validators import (

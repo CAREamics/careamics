@@ -1,6 +1,6 @@
 """Models package."""
 
-__all__ = ['model_factory', 'UNet']
+__all__ = ["model_factory", "UNet"]
 
 
 from .model_factory import model_factory

@@ -55,7 +55,7 @@ def check_axes_validity(axes: str) -> bool:
                 f"Invalid axes {axes}. Cannot contain duplicate axes"
                 f" (got multiple {axes[i]})."
             )
-        
+
     return True
 
 

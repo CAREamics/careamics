@@ -3,8 +3,8 @@ Normalization submodule.
 
 These methods are used to normalize and denormalize images.
 """
-from typing import List, Tuple, Union
 from multiprocessing import Value
+from typing import List, Tuple, Union
 
 import numpy as np
 
@@ -58,6 +58,7 @@ def denormalize(img: np.ndarray, mean: float, std: float) -> np.ndarray:
         Denormalized array.
     """
     return img * std + mean
+
 
 class RunningStats:
     """Calculates running mean and std."""
