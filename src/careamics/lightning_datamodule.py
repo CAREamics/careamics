@@ -13,7 +13,6 @@ from careamics.dataset.dataset_utils import (
     get_files_size,
     get_read_func,
     list_files,
-    reshape_array,
     validate_source_target_files,
 )
 from careamics.dataset.in_memory_dataset import (
@@ -231,7 +230,7 @@ class CAREamicsWood(L.LightningDataModule):
             # train dataset
             self.train_dataset: DatasetType = InMemoryDataset(
                 data_config=self.data_config,
-                data=self.train_data,
+                inputs=self.train_data,
                 data_target=self.train_data_target,
             )
 
@@ -240,7 +239,7 @@ class CAREamicsWood(L.LightningDataModule):
                 # create its own dataset
                 self.val_dataset: DatasetType = InMemoryDataset(
                     data_config=self.data_config,
-                    data=self.val_data,
+                    inputs=self.val_data,
                     data_target=self.val_data_target,
                 )
             else:
@@ -259,7 +258,7 @@ class CAREamicsWood(L.LightningDataModule):
                 # train dataset
                 self.train_dataset = InMemoryDataset(
                     data_config=self.data_config,
-                    data=self.train_files,
+                    inputs=self.train_files,
                     data_target=self.train_target_files
                     if self.train_data_target
                     else None,
@@ -270,7 +269,7 @@ class CAREamicsWood(L.LightningDataModule):
                 if self.val_data is not None:
                     self.val_dataset = InMemoryDataset(
                         data_config=self.data_config,
-                        data=self.val_files,
+                        inputs=self.val_files,
                         data_target=self.val_target_files
                         if self.val_data_target
                         else None,
@@ -467,9 +466,6 @@ class CAREamicsClay(L.LightningDataModule):
             self.pred_files = list_files(
                 self.pred_data, self.data_type, self.extension_filter
             )
-        else:
-            # reshape array
-            self.pred_data = reshape_array(self.pred_data, self.prediction_config.axes)
 
     def setup(self, stage: Optional[str] = None) -> None:
         """Hook called at the beginning of predict.
@@ -484,7 +480,7 @@ class CAREamicsClay(L.LightningDataModule):
             # prediction dataset
             self.predict_dataset: PredictDatasetType = InMemoryPredictionDataset(
                 prediction_config=self.prediction_config,
-                data=self.pred_data,
+                inputs=self.pred_data,
             )
         else:
             self.predict_dataset = IterablePredictionDataset(

@@ -29,7 +29,7 @@ class InMemoryDataset(Dataset):
     def __init__(
         self,
         data_config: DataModel,
-        data: Union[np.ndarray, List[Path]],
+        inputs: Union[np.ndarray, List[Path]],
         data_target: Optional[Union[np.ndarray, List[Path]]] = None,
         read_source_func: Callable = read_tiff,
         **kwargs: Any,
@@ -40,10 +40,10 @@ class InMemoryDataset(Dataset):
         # TODO
         """
         self.data_config = data_config
-        self.data = data
+        self.inputs = inputs
         self.data_target = data_target
-        self.axes = data_config.axes
-        self.patch_size = data_config.patch_size
+        self.axes = self.data_config.axes
+        self.patch_size = self.data_config.patch_size
 
         # read function
         self.read_source_func = read_source_func
@@ -53,23 +53,23 @@ class InMemoryDataset(Dataset):
         patches = self._prepare_patches(supervised)
 
         # Add results to members
-        self.patches, self.patch_targets, computed_mean, computed_std = patches
+        self.data, self.data_targets, computed_mean, computed_std = patches
 
-        if not data_config.mean or not data_config.std:
+        if not self.data_config.mean or not self.data_config.std:
             self.mean, self.std = computed_mean, computed_std
             logger.info(f"Computed dataset mean: {self.mean}, std: {self.std}")
 
             # if the transforms are not an instance of Compose
-            if data_config.has_transform_list():
+            if self.data_config.has_transform_list():
                 # update mean and std in configuration
                 # the object is mutable and should then be recorded in the CAREamist obj
-                data_config.set_mean_and_std(self.mean, self.std)
+                self.data_config.set_mean_and_std(self.mean, self.std)
         else:
-            self.mean, self.std = data_config.mean, data_config.std
+            self.mean, self.std = self.data_config.mean, self.data_config.std
 
         # get transforms
         self.patch_transform = get_patch_transform(
-            patch_transforms=data_config.transforms,
+            patch_transforms=self.data_config.transforms,
             with_target=self.data_target is not None,
         )
 
@@ -90,18 +90,18 @@ class InMemoryDataset(Dataset):
             Array of patches.
         """
         if supervised:
-            if isinstance(self.data, np.ndarray) and isinstance(
+            if isinstance(self.inputs, np.ndarray) and isinstance(
                 self.data_target, np.ndarray
             ):
                 return prepare_patches_supervised_array(
-                    self.data,
+                    self.inputs,
                     self.axes,
                     self.data_target,
                     self.patch_size,
                 )
-            elif isinstance(self.data, list) and isinstance(self.data_target, list):
+            elif isinstance(self.inputs, list) and isinstance(self.data_target, list):
                 return prepare_patches_supervised(
-                    self.data,
+                    self.inputs,
                     self.data_target,
                     self.axes,
                     self.patch_size,
@@ -110,19 +110,19 @@ class InMemoryDataset(Dataset):
             else:
                 raise ValueError(
                     f"Data and target must be of the same type, either both numpy "
-                    f"arrays or both lists of paths, got {type(self.data)} (data) and "
-                    f"{type(self.data_target)} (target)."
+                    f"arrays or both lists of paths, got {type(self.inputs)} (data) "
+                    f"and {type(self.data_target)} (target)."
                 )
         else:
-            if isinstance(self.data, np.ndarray):
+            if isinstance(self.inputs, np.ndarray):
                 return prepare_patches_unsupervised_array(
-                    self.data,
+                    self.inputs,
                     self.axes,
                     self.patch_size,
                 )
             else:
                 return prepare_patches_unsupervised(
-                    self.data,
+                    self.inputs,
                     self.axes,
                     self.patch_size,
                     self.read_source_func,
@@ -137,7 +137,7 @@ class InMemoryDataset(Dataset):
         int
             Length of the dataset.
         """
-        return self.patches.shape[0]
+        return len(self.data)
 
     def __getitem__(self, index: int) -> Tuple[np.ndarray]:
         """
@@ -158,12 +158,12 @@ class InMemoryDataset(Dataset):
         ValueError
             If dataset mean and std are not set.
         """
-        patch = self.patches[index]
+        patch = self.data[index]
 
         # if there is a target
         if self.data_target is not None:
             # get target
-            target = self.patch_targets[index]
+            target = self.data_targets[index]
 
             # Albumentations requires Channel last
             c_patch = np.moveaxis(patch, 0, -1)
@@ -177,6 +177,7 @@ class InMemoryDataset(Dataset):
             target = np.moveaxis(transformed["target"], -1, 0)
 
             return patch, target
+
         elif self.data_config.has_n2v_manipulate():
             # Albumentations requires Channel last
             patch = np.moveaxis(patch, 0, -1)
@@ -196,17 +197,6 @@ class InMemoryDataset(Dataset):
                 "Something went wrong! No target provided (not supervised training) "
                 "and no N2V manipulation (no N2V training)."
             )
-
-    def get_number_of_patches(self) -> int:
-        """
-        Return the number of patches in the dataset.
-
-        Returns
-        -------
-        int
-            Number of patches in the dataset.
-        """
-        return self.patches.shape[0]
 
     def split_dataset(
         self,
@@ -239,15 +229,15 @@ class InMemoryDataset(Dataset):
         if percentage < 0 or percentage > 1:
             raise ValueError(f"Percentage must be between 0 and 1, got {percentage}.")
 
-        if minimum_patches < 1 or minimum_patches > self.get_number_of_patches():
+        if minimum_patches < 1 or minimum_patches > len(self):
             raise ValueError(
                 f"Minimum number of patches must be between 1 and "
-                f"{self.get_number_of_patches()} (number of patches), got "
+                f"{len(self)} (number of patches), got "
                 f"{minimum_patches}. Adjust the patch size or the minimum number of "
                 f"patches."
             )
 
-        total_patches = self.get_number_of_patches()
+        total_patches = len(self)
 
         # number of patches to extract (either percentage rounded or minimum number)
         n_patches = max(round(total_patches * percentage), minimum_patches)
@@ -256,30 +246,30 @@ class InMemoryDataset(Dataset):
         indices = np.random.choice(total_patches, n_patches, replace=False)
 
         # extract patches
-        val_patches = self.patches[indices]
+        val_patches = self.data[indices]
 
         # remove patches from self.patch
-        self.patches = np.delete(self.patches, indices, axis=0)
+        self.patches = np.delete(self.data, indices, axis=0)
 
         # same for targets
-        if self.patch_targets is not None:
-            val_targets = self.patch_targets[indices]
-            self.patch_targets = np.delete(self.patch_targets, indices, axis=0)
+        if self.data_targets is not None:
+            val_targets = self.data_targets[indices]
+            self.data_targets = np.delete(self.data_targets, indices, axis=0)
 
         # clone the dataset
         dataset = copy.deepcopy(self)
 
         # reassign patches
-        dataset.patches = val_patches
+        dataset.data = val_patches
 
         # reassign targets
-        if self.patch_targets is not None:
-            dataset.patch_targets = val_targets
+        if self.data_targets is not None:
+            dataset.data_targets = val_targets
 
         return dataset
 
 
-class InMemoryPredictionDataset(Dataset):
+class InMemoryPredictionDataset(InMemoryDataset):
     """
     Dataset storing data in memory and allowing generating patches from it.
 
@@ -289,8 +279,9 @@ class InMemoryPredictionDataset(Dataset):
     def __init__(
         self,
         prediction_config: InferenceModel,
-        data: np.ndarray,
+        inputs: np.ndarray,
         data_target: Optional[np.ndarray] = None,
+        read_source_func: Optional[Callable] = read_tiff,
     ) -> None:
         """Constructor.
 
@@ -307,33 +298,46 @@ class InMemoryPredictionDataset(Dataset):
             If data_path is not a directory.
         """
         self.pred_config = prediction_config
+        self.input_array = inputs
         self.axes = self.pred_config.axes
         self.tile_size = self.pred_config.tile_size
         self.tile_overlap = self.pred_config.tile_overlap
+        self.tiling = self.tile_size and self.tile_overlap
         self.mean = self.pred_config.mean
         self.std = self.pred_config.std
         self.data_target = data_target
 
-        # check that mean and std are provided
-        if not self.mean or not self.std:
-            raise ValueError(
-                "Mean and std must be provided to the configuration in order to "
-                " perform prediction."
-            )
-        # TODO this needs to be restructured
-        self.input_array = data
-        self.tile = self.tile_size and self.tile_overlap
+        # read function
+        self.read_source_func = read_source_func
 
         # Generate patches
-        self.data = self._prepare_patches()
+        tiles = self._prepare_tiles()
 
-        # transforms
+        # Add results to members
+        self.data, computed_mean, computed_std = tiles
+
+        if not self.pred_config.mean or not self.pred_config.std:
+            self.mean, self.std = computed_mean, computed_std
+            logger.info(f"Computed dataset mean: {self.mean}, std: {self.std}")
+
+            # if the transforms are not an instance of Compose
+            if hasattr(self.pred_config, "has_transform_list"):
+                if self.pred_config.has_transform_list():
+                    # update mean and std in configuration
+                    # the object is mutable and should then be recorded in the CAREamist
+                    self.pred_config.set_mean_and_std(self.mean, self.std)
+            else:
+                self.pred_config.set_mean_and_std(self.mean, self.std)
+        else:
+            self.mean, self.std = self.pred_config.mean, self.pred_config.std
+
+        # get transforms
         self.patch_transform = get_patch_transform(
             patch_transforms=self.pred_config.transforms,
             with_target=self.data_target is not None,
         )
 
-    def _prepare_patches(self) -> Callable:
+    def _prepare_tiles(self) -> Callable:
         """
         Iterate over data source and create an array of patches.
 
@@ -344,24 +348,12 @@ class InMemoryPredictionDataset(Dataset):
         np.ndarray
             Array of patches.
         """
-        if self.tile:
+        if self.tiling:
             return generate_patches_predict(
-                self.input_array, self.tile_size, self.tile_overlap
+                self.input_array, self.axes, self.tile_size, self.tile_overlap
             )
         else:
             return self.input_array
-
-    def __len__(self) -> int:
-        """
-        Return the length of the dataset.
-
-        Returns
-        -------
-        int
-            Length of the dataset.
-        """
-        # convert to numpy array to convince mypy that it is not a generator
-        return len(self.data)
 
     def __getitem__(self, index: int) -> Tuple[np.ndarray, Any, Any, Any, Any]:
         """
@@ -382,7 +374,7 @@ class InMemoryPredictionDataset(Dataset):
         ValueError
             If dataset mean and std are not set.
         """
-        if self.tile:
+        if self.tiling:
             (
                 tile,
                 last_tile,
@@ -408,8 +400,3 @@ class InMemoryPredictionDataset(Dataset):
                 overlap_crop_coords,
                 stitch_coords,
             )  # TODO can we wrap this into an object?
-
-        # else:
-        #     return normalize(img=self.data, mean=self.mean, std=self.std).astype(
-        #         np.float32
-        #     )

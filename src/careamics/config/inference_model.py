@@ -175,6 +175,11 @@ class InferenceModel(BaseModel):
                 f"{pred_model.axes} (got {pred_model.tile_overlap})."
             )
 
+        if any(
+            (i >= j) for i, j in zip(pred_model.tile_overlap, pred_model.tile_size)
+        ):
+            raise ValueError("Tile overlap must be smaller than tile size.")
+
         return pred_model
 
     @model_validator(mode="after")

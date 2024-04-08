@@ -226,7 +226,8 @@ def prepare_patches_unsupervised_array(
 
 # prediction, both in memory and iterable
 def generate_patches_predict(
-    sample: np.ndarray,
+    data: np.ndarray,
+    axes: str,
     tile_size: Union[List[int], Tuple[int, ...]],
     tile_overlap: Union[List[int], Tuple[int, ...]],
 ) -> List[Tuple[np.ndarray, bool, Tuple[int, ...], Tuple[int, ...], Tuple[int, ...]]]:
@@ -238,13 +239,20 @@ def generate_patches_predict(
     np.ndarray
         Array of patches.
     """
+    # Calculate mean and std
+    mean = data.mean()
+    std = data.std() # TODO should this be here ?
+
+    # reshape array
+    sample = reshape_array(data, axes)
+
     # generate patches, return a generator
     patches = extract_tiles(arr=sample, tile_size=tile_size, overlaps=tile_overlap)
     patches_list = list(patches)
     if len(patches_list) == 0:
         raise ValueError("No patch generated")
 
-    return patches_list
+    return patches_list, mean, std
 
 
 # iterator over files

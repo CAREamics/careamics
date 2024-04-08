@@ -97,6 +97,18 @@ def test_wrong_tile_size(minimum_inference: dict, tile_size):
     with pytest.raises(ValueError):
         InferenceModel(**minimum_inference)
 
+@pytest.mark.parametrize(
+    "tile_size, tile_overlap", [([12, 12], [2, 2, 2]), ([12, 12, 12], [14, 2, 2])]
+)
+def test_wrong_tile_overlap(minimum_inference: dict, tile_size, tile_overlap):
+    """Test that wrong patch sizes are not accepted (zero or odd, dims 1 or > 3)."""
+    minimum_inference["axes"] = "ZYX" if len(tile_size) == 3 else "YX"
+    minimum_inference["tile_size"] = tile_size
+    minimum_inference["tile_overlap"] = tile_overlap
+
+    with pytest.raises(ValueError):
+        InferenceModel(**minimum_inference)
+
 
 def test_set_3d(minimum_inference: dict):
     """Test that 3D can be set."""
