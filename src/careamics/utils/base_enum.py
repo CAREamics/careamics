@@ -21,9 +21,11 @@ class BaseEnum(Enum, metaclass=_ContainerEnum):
     Example
     -------
     >>> from careamics.utils.base_enum import BaseEnum
+    >>> # Define a new enum
     >>> class BaseEnumExtension(BaseEnum):
     ...     VALUE = "value"
-    >>> assert "value" in BaseEnumExtension
+    >>> # Check if value is in the enum
+    >>> "value" in BaseEnumExtension
     True
     """
 

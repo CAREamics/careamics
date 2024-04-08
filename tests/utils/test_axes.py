@@ -12,14 +12,16 @@ from careamics.utils import check_axes_validity
         ("Zyx", True),
         ("STYX", True),
         ("CYX", True),
+        ("YXC", True),
         ("TzYX", True),
         ("SZYX", True),
         ("STZYX", True),
-        # Failing due to order
-        ("XY", False),
-        ("YXZ", False),
-        ("YXT", False),
-        ("ZTYX", False),
+        ("XY", True),
+        ("YXT", True),
+        ("ZTYX", True),
+        # non consecutive XY
+        ("YZX", False),
+        ("YZCXT", False),
         # too few axes
         ("", False),
         ("X", False),

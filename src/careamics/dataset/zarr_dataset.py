@@ -10,7 +10,7 @@ from careamics.utils.logging import get_logger
 
 from ..config.support.supported_extraction_strategies import SupportedExtractionStrategy
 from ..utils import normalize
-from .dataset_utils.dataset_utils import read_zarr
+from .dataset_utils import read_zarr
 from .patching.patching import (
     generate_patches_unsupervised,
 )

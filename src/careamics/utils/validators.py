@@ -19,6 +19,8 @@ def check_axes_validity(axes: str) -> bool:
     - must contain at most 4 axes
     - cannot contain both S and T axes
 
+    Axes do not need to be in the order 'STCZYX', as this depends on the user data.
+
     Parameters
     ----------
     axes : str
@@ -37,8 +39,10 @@ def check_axes_validity(axes: str) -> bool:
             f"Invalid axes {axes}. Must contain at least 2 and at most 6 axes."
         )
 
-    if "YX" not in _axes:
-        raise ValueError(f"Invalid axes {axes}. Must contain at least X and Y axes.")
+    if "YX" not in _axes and "XY" not in _axes:
+        raise ValueError(
+            f"Invalid axes {axes}. Must contain at least X and Y axes consecutively."
+        )
 
     # all characters must be in REF_AXES = 'STCZYX'
     if not all(s in AXES for s in _axes):
@@ -51,17 +55,6 @@ def check_axes_validity(axes: str) -> bool:
                 f"Invalid axes {axes}. Cannot contain duplicate axes"
                 f" (got multiple {axes[i]})."
             )
-
-    # check that the axes are in the right order
-    for i, s in enumerate(_axes):
-        if i < len(_axes) - 1:
-            index_s = AXES.find(s)
-            index_next = AXES.find(_axes[i + 1])
-
-            if index_s > index_next:
-                raise ValueError(
-                    f"Invalid axes {axes}. Axes must be in the order {AXES}."
-                )
 
     return True
 

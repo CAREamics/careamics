@@ -47,7 +47,9 @@ def cwd(path: Union[str, Path]) -> Iterator[None]:
 
     Examples
     --------
-    >>> with cwd(path):
+    The context is whcnaged within the block and then restored to the original one.
+
+    >>> with cwd(my_path):
     ...     pass # do something
     """
     path = Path(path)

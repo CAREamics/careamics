@@ -36,14 +36,15 @@ def test_3D_algorithm_and_data_compatibility(minimum_configuration: dict):
     """
     # 3D but no Z in axes
     minimum_configuration["algorithm"]["model"]["conv_dims"] = 3
-    with pytest.raises(ValueError):
-        Configuration(**minimum_configuration)
+    config = Configuration(**minimum_configuration)
+    assert config.algorithm.model.conv_dims == 2
 
     # 2D but Z in axes
     minimum_configuration["algorithm"]["model"]["conv_dims"] = 2
     minimum_configuration["data"]["axes"] = "ZYX"
-    with pytest.raises(ValueError):
-        Configuration(**minimum_configuration)
+    minimum_configuration["data"]["patch_size"] = [64, 64, 64]
+    config = Configuration(**minimum_configuration)
+    assert config.algorithm.model.conv_dims == 3
 
 
 def test_set_3D(minimum_configuration: dict):
@@ -52,16 +53,15 @@ def test_set_3D(minimum_configuration: dict):
 
     # set to 3D
     conf.set_3D(True, "ZYX", [64, 64, 64])
+    assert conf.data.axes == "ZYX"
+    assert conf.data.patch_size == [64, 64, 64]
+    assert conf.algorithm.model.conv_dims == 3
 
     # set to 2D
     conf.set_3D(False, "SYX", [64, 64])
-
-    # fails if 3D and axes are not compatible
-    with pytest.raises(ValueError):
-        conf.set_3D(True, "SYX", [64, 64])
-
-    with pytest.raises(ValueError):
-        conf.set_3D(False, "ZYX", [64, 64, 64])
+    assert conf.data.axes == "SYX"
+    assert conf.data.patch_size == [64, 64]
+    assert conf.algorithm.model.conv_dims == 2
 
 
 def test_algorithm_and_data_default_transforms(minimum_configuration: dict):
