@@ -45,28 +45,28 @@ class CustomModel(BaseModel):
     --------
     >>> from torch import nn, ones
     >>> from careamics.config import CustomModel, register_model
-    >>>
-    >>> @register_model(name="linear")
-    >>> class LinearModel(nn.Module):
-    >>>    def __init__(self, in_features, out_features, *args, **kwargs):
-    >>>        super().__init__()
-    >>>        self.in_features = in_features
-    >>>        self.out_features = out_features
-    >>>        self.weight = nn.Parameter(ones(in_features, out_features))
-    >>>        self.bias = nn.Parameter(ones(out_features))
-    >>>    def forward(self, input):
-    >>>        return (input @ self.weight) + self.bias
-    >>>
+    >>> # Register a custom model
+    >>> @register_model(name="my_linear")
+    ... class LinearModel(nn.Module):
+    ...    def __init__(self, in_features, out_features, *args, **kwargs):
+    ...        super().__init__()
+    ...        self.in_features = in_features
+    ...        self.out_features = out_features
+    ...        self.weight = nn.Parameter(ones(in_features, out_features))
+    ...        self.bias = nn.Parameter(ones(out_features))
+    ...    def forward(self, input):
+    ...        return (input @ self.weight) + self.bias
+    ...
+    >>> # Create a configuration
     >>> config_dict = {
-    >>>     "architecture": "custom",
-    >>>     "name": "linear",
-    >>>     "parameters": {
-    >>>         "in_features": 10,
-    >>>         "out_features": 5,
-    >>>     },
-    >>> }
+    ...     "architecture": "Custom",
+    ...     "name": "linear",
+    ...     "parameters": {
+    ...         "in_features": 10,
+    ...         "out_features": 5,
+    ...     },
+    ... }
     >>> config = CustomModel(**config_dict)
-    >>> print(config)
     """
 
     # pydantic model config
