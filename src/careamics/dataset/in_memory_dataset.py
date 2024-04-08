@@ -249,7 +249,7 @@ class InMemoryDataset(Dataset):
         val_patches = self.data[indices]
 
         # remove patches from self.patch
-        self.patches = np.delete(self.data, indices, axis=0)
+        self.data = np.delete(self.data, indices, axis=0)
 
         # same for targets
         if self.data_targets is not None:
