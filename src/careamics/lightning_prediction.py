@@ -29,7 +29,10 @@ class CAREamicsPredictionLoop(L.loops._PredictionLoop):
         call._call_lightning_module_hook(trainer, "on_predict_epoch_end")
 
         if self.return_predictions:
-            return self.predicted_array
+            if len(self.predicted_array) == 1:
+                return self.predicted_array[0]
+            else:
+                return self.predicted_array # TODO revisit logic
         return None
 
     @_no_grad_context
