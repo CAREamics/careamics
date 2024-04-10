@@ -581,6 +581,9 @@ class CAREamist(LightningModule):
             return self.trainer.predict(datamodule=source)
 
         else:
+            if self.cfg is None:
+                raise ValueError("No configuration found. Train a model or load from a "
+                                 "checkpoint before predicting.")
             # create predict config, reuse training config if parameters missing
             prediction_config = create_inference_configuration(
                 training_configuration=self.cfg,

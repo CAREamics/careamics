@@ -454,13 +454,11 @@ def create_inference_configuration(
         axes = training_configuration.data.axes
 
     if transforms is None:
-        transforms = (
-            [
+        transforms =  [
                 {
                     "name": SupportedTransform.NORMALIZE.value,
                 },
-            ],
-        )
+            ]
 
     if tile_size is None:
         tile_size = training_configuration.data.patch_size

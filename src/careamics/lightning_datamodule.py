@@ -69,7 +69,7 @@ class CAREamicsWood(L.LightningDataModule):
         val_percentage: float = 0.1,
         val_minimum_split: int = 5,
         use_in_memory: bool = True,
-        dataloader_params: Optional[dict] = None,
+        dataloader_params: Optional[dict] = None, # TODO should this be validated ?
     ) -> None:
         """Constructor.
 

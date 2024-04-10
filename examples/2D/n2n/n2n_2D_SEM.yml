@@ -45,7 +45,7 @@ training:
 
 data:
   # Extension of the data
-  data_type: tiff
+  data_type: array
 
   patch_size: [64, 64]
   
