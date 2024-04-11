@@ -7,7 +7,6 @@ from pytorch_lightning.trainer import call
 from pytorch_lightning.utilities.types import _PREDICT_OUTPUT
 
 from careamics.prediction import stitch_prediction
-from careamics.utils import denormalize
 
 
 class CAREamicsPredictionLoop(L.loops._PredictionLoop):
@@ -77,17 +76,11 @@ class CAREamicsPredictionLoop(L.loops._PredictionLoop):
                 last_tile, *data = self.predictions[batch_idx][1]
                 self.tiles.append(self.predictions[batch_idx][0])
                 self.stitching_data.append(data)
-                if last_tile:
-                    predicted_sample = stitch_prediction(
+                if any(last_tile):
+                    predicted_batches = stitch_prediction(
                         self.tiles, self.stitching_data
                     )
-                    # TODO replace with Albu class
-                    denormalized_sample = denormalize(
-                        predicted_sample,
-                        self._data_source.instance.predict_dataset.mean,
-                        self._data_source.instance.predict_dataset.std,
-                    )
-                    self.predicted_array.append(denormalized_sample)
+                    self.predicted_array.append(predicted_batches)
                     self.tiles.clear()
                     self.stitching_data.clear()
             except StopIteration:

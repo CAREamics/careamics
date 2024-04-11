@@ -38,21 +38,36 @@ def stitch_prediction(
     if explicit_stitching:
         stitching_data = [d[1:] for d in stitching_data]
 
-    # Get whole sample shape
-    input_shape = stitching_data[0][0]
+    # Get whole sample shape. Unique to get rid of batch dimension. Expects tensors
+    input_shape = [x.unique() for x in stitching_data[0][0]]
+
     predicted_image = np.zeros(input_shape, dtype=np.float32)
 
-    for tile, (_, overlap_crop_coords, stitch_coords) in zip(tiles, stitching_data):
-        # Compute coordinates for cropping predicted tile
-        slices = tuple([slice(c[0], c[1]) for c in overlap_crop_coords])
+    for tile_batch, (_, overlap_crop_coords_batch, stitch_coords_batch) in zip(
+        tiles, stitching_data
+    ):
+        for batch_idx in range(tile_batch.shape[0]):
+            # Compute coordinates for cropping predicted tile
+            slices = tuple(
+                [
+                    slice(c[0][batch_idx], c[1][batch_idx])
+                    for c in overlap_crop_coords_batch
+                ]
+            )
 
-        # Crop predited tile according to overlap coordinates
-        cropped_tile = tile.squeeze()[slices]
+            # Crop predited tile according to overlap coordinates
+            cropped_tile = tile_batch[batch_idx].squeeze()[slices]
 
-        # Insert cropped tile into predicted image using stitch coordinates
-        predicted_image[
-            (..., *[slice(c[0], c[1]) for c in stitch_coords])
-        ] = cropped_tile.to(torch.float32)
+            # Insert cropped tile into predicted image using stitch coordinates
+            predicted_image[
+                (
+                    ...,
+                    *[
+                        slice(c[0][batch_idx], c[1][batch_idx])
+                        for c in stitch_coords_batch
+                    ],
+                )
+            ] = cropped_tile.to(torch.float32)
 
     return predicted_image
 

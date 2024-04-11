@@ -501,7 +501,7 @@ class CAREamicsClay(L.LightningDataModule):
             self.predict_dataset,
             batch_size=self.batch_size,
             **self.dataloader_params,
-        )
+        ) # TODO check workers are used
 
 
 class CAREamicsTrainDataModule(CAREamicsWood):
