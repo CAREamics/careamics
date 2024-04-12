@@ -10,7 +10,7 @@ from torch.utils.data import IterableDataset, get_worker_info
 from ..config import DataModel, InferenceModel
 from ..config.support import SupportedExtractionStrategy
 from ..utils.logging import get_logger
-from .dataset_utils import read_tiff, reshape_array
+from .dataset_utils import read_tiff
 from .patching import (
     generate_patches_predict,
     generate_patches_supervised,
@@ -137,9 +137,6 @@ class PathIterableDataset(IterableDataset):
                     # read data
                     sample = self.read_source_func(filename, self.data_config.axes)
 
-                    # reshape data
-                    reshaped_sample = reshape_array(sample, self.data_config.axes)
-
                     # read target, if available
                     if self.target_files is not None:
                         if filename.name != self.target_files[i].name:
@@ -154,12 +151,10 @@ class PathIterableDataset(IterableDataset):
                             self.target_files[i], self.data_config.axes
                         )
 
-                        # reshape target
-                        reshaped_target = reshape_array(target, self.data_config.axes)
-
-                        yield reshaped_sample, reshaped_target
+                        yield sample, target
                     else:
-                        yield reshaped_sample, None
+                        yield sample, None
+
                 except Exception as e:
                     logger.error(f"Error reading file {filename}: {e}")
 
@@ -182,7 +177,8 @@ class PathIterableDataset(IterableDataset):
         for sample_input, sample_target in self._iterate_over_files():
             if self.target_files is not None:
                 patches = generate_patches_supervised(
-                    sample=sample_input,
+                    data=sample_input,
+                    axes=self.data_config.axes,
                     patch_extraction_method=SupportedExtractionStrategy.RANDOM,
                     patch_size=self.data_config.patch_size,
                     target=sample_target,
@@ -190,7 +186,8 @@ class PathIterableDataset(IterableDataset):
 
             else:
                 patches = generate_patches_unsupervised(
-                    sample=sample_input,
+                    data=sample_input,
+                    axes=self.data_config.axes,
                     patch_extraction_method=SupportedExtractionStrategy.RANDOM,
                     patch_size=self.data_config.patch_size,
                 )
@@ -366,6 +363,7 @@ class IterablePredictionDataset(PathIterableDataset):
         )
 
         self.prediction_config = prediction_config
+        self.axes = prediction_config.axes
         self.tile_size = self.prediction_config.tile_size
         self.tile_overlap = self.prediction_config.tile_overlap
         self.read_source_func = read_source_func
@@ -400,7 +398,10 @@ class IterablePredictionDataset(PathIterableDataset):
 
         for sample, _ in self._iterate_over_files():
             patches = generate_patches_predict(
-                sample, self.tile_size, self.tile_overlap
+                data=sample,
+                axes=self.axes,
+                tile_size=self.tile_size,
+                tile_overlap=self.tile_overlap,
             )
             # TODO AttributeError: 'IterablePredictionDataset' object has no attribute
             # 'mean' message appears if the predict func is run more than once

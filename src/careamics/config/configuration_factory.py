@@ -411,6 +411,8 @@ def create_inference_configuration(
     training_configuration: Configuration,
     tile_size: Optional[Tuple[int, ...]] = None,
     tile_overlap: Tuple[int, ...] = (48, 48),
+    mean: Optional[float] = None,
+    std: Optional[float] = None,
     data_type: Optional[Literal["array", "tiff", "custom"]] = None,
     axes: Optional[str] = None,
     transforms: Optional[Union[List[Dict[str, Any]], Compose]] = None,
@@ -447,12 +449,6 @@ def create_inference_configuration(
     InferenceConfiguration
         Configuration for inference with N2V.
     """
-    if data_type is None:
-        data_type = training_configuration.data.data_type
-
-    if axes is None:
-        axes = training_configuration.data.axes
-
     if transforms is None:
         transforms =  [
                 {
@@ -460,14 +456,13 @@ def create_inference_configuration(
                 },
             ]
 
-    if tile_size is None:
-        tile_size = training_configuration.data.patch_size
-
     return InferenceModel(
-        data_type=data_type,
-        tile_size=tile_size,
+        data_type=data_type or training_configuration.data.data_type,
+        tile_size=tile_size or training_configuration.data.patch_size,
         tile_overlap=tile_overlap,
-        axes=axes,
+        axes=axes or training_configuration.data.axes,
+        mean=mean or training_configuration.data.mean,
+        std=std or training_configuration.data.std,
         transforms=transforms,
         tta_transforms=tta_transforms,
         batch_size=batch_size,

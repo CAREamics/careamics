@@ -344,3 +344,72 @@ def test_train_tiff_files_supervised(tmp_path, supervised_configuration):
     assert careamist.cfg.data.mean is not None
     assert careamist.cfg.data.std is not None
     # TODO somethign to check that it trained, maybe through callback
+
+# TODO rewrite without training or with loading a trained model
+@pytest.mark.parametrize("batch_size", [1, 2])
+def test_predict_array(tmp_path, minimum_configuration, batch_size):
+    """Test that CAREamics can predict with arrays."""
+    # training data
+    train_array = np.random.rand(32, 32)
+
+    # create configuration
+    config = Configuration(**minimum_configuration)
+    config.training.num_epochs = 1
+    config.data.axes = "YX"
+    config.data.batch_size = 2
+    config.data.data_type = SupportedData.ARRAY.value
+    config.data.patch_size = (8, 8)
+
+    # instantiate CAREamist
+    careamist = CAREamist(source=config, work_dir=tmp_path)
+
+    # train CAREamist
+    careamist.train(train_source=train_array)
+
+    # predict CAREamist
+    predicted = careamist.predict(
+        train_array, batch_size=batch_size, tile_overlap=(4, 4)
+    )
+
+    # check thatmean/std were set properly
+    assert careamist.cfg.data.mean is not None
+    assert careamist.cfg.data.std is not None
+    assert careamist.cfg.data.mean == train_array.mean()
+    assert careamist.cfg.data.std == train_array.std()
+    # check prediction and its shape@pytest.mark.parametrize("batch_size", [1, 2])
+
+    assert predicted is not None
+    assert predicted.squeeze().shape == train_array.shape
+
+@pytest.mark.parametrize("batch_size", [1, 2])
+def test_predict_path(tmp_path, minimum_configuration, batch_size):
+    """Test that CAREamics can predict with tiff files."""
+    # training data
+    train_array = np.random.rand(32, 32)
+
+    # save files
+    train_file = tmp_path / "train.tiff"
+    tifffile.imwrite(train_file, train_array)
+
+    # create configuration
+    config = Configuration(**minimum_configuration)
+    config.training.num_epochs = 1
+    config.data.axes = "YX"
+    config.data.batch_size = 2
+    config.data.data_type = SupportedData.TIFF.value
+    config.data.patch_size = (8, 8)
+
+    # instantiate CAREamist
+    careamist = CAREamist(source=config, work_dir=tmp_path)
+
+    # train CAREamist
+    careamist.train(train_source=train_file)
+
+    # predict CAREamist
+    predicted = careamist.predict(
+        train_file, batch_size=batch_size, tile_overlap=(4, 4)
+    )
+
+    # check that it predicted
+    assert predicted is not None
+    assert predicted.squeeze().shape == train_array.shape

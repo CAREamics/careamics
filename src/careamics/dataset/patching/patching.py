@@ -171,12 +171,12 @@ def prepare_patches_supervised_array(
     std = data.std()
 
     # reshape array
-    sample = reshape_array(data, axes)
-    sample_target = reshape_array(data_target, axes)
+    reshaped_sample = reshape_array(data, axes)
+    reshaped_target = reshape_array(data_target, axes)
 
     # generate patches, return a generator
     patches, patch_targets = extract_patches_sequential(
-        sample, patch_size=patch_size, target=sample_target
+        reshaped_sample, patch_size=patch_size, target=reshaped_target
     )
 
     if patch_targets is None:
@@ -216,10 +216,10 @@ def prepare_patches_unsupervised_array(
     std = data.std()
 
     # reshape array
-    sample = reshape_array(data, axes)
+    reshaped_sample = reshape_array(data, axes)
 
     # generate patches, return a generator
-    patches, _ = extract_patches_sequential(sample, patch_size=patch_size)
+    patches, _ = extract_patches_sequential(reshaped_sample, patch_size=patch_size)
 
     return patches, _, mean, std  # TODO inelegant, replace  by dataclass?
 
@@ -239,25 +239,22 @@ def generate_patches_predict(
     np.ndarray
         Array of patches.
     """
-    # Calculate mean and std
-    mean = data.mean()
-    std = data.std() # TODO should this be here ?
-
     # reshape array
-    sample = reshape_array(data, axes)
-
+    reshaped_sample = reshape_array(data, axes)
     # generate patches, return a generator
-    patches = extract_tiles(arr=sample, tile_size=tile_size, overlaps=tile_overlap)
-    patches_list = list(patches)
+    patches = extract_tiles(
+        arr=reshaped_sample, tile_size=tile_size, overlaps=tile_overlap
+    )
+    patches_list = list(patches)  # TODO: refactor to use generator ?
     if len(patches_list) == 0:
-        raise ValueError("No patch generated")
+        raise ValueError("No tiles generated")
 
-    return patches_list, mean, std
-
+    return patches_list
 
 # iterator over files
 def generate_patches_supervised(
-    sample: Union[np.ndarray, zarr.Array],
+    data: Union[np.ndarray, zarr.Array],
+    axes: str,
     patch_extraction_method: SupportedExtractionStrategy,
     patch_size: Union[List[int], Tuple[int, ...]],
     patch_overlap: Optional[Union[List[int], Tuple[int, ...]]] = None,
@@ -292,6 +289,10 @@ def generate_patches_supervised(
     patches = None
     targets = None
 
+    # reshape target
+    reshaped_sample = reshape_array(data, axes)
+    reshaped_target = reshape_array(target, axes)
+
     if patch_size is not None:
         patches = None
 
@@ -301,24 +302,26 @@ def generate_patches_supervised(
                     "Overlaps must be specified when using tiling (got None)."
                 )
             patches = extract_tiles(
-                arr=sample, tile_size=patch_size, overlaps=patch_overlap
+                arr=reshaped_sample, tile_size=patch_size, overlaps=patch_overlap
             )
 
         elif patch_extraction_method == SupportedExtractionStrategy.SEQUENTIAL:
             patches, targets = extract_patches_sequential(
-                arr=sample, patch_size=patch_size, target=target
+                arr=reshaped_sample, patch_size=patch_size, target=reshaped_target
             )
 
         elif patch_extraction_method == SupportedExtractionStrategy.RANDOM:
             # Returns a generator of patches and targets(if present)
             patches = extract_patches_random(
-                arr=sample, patch_size=patch_size, target=target
+                arr=reshaped_sample, patch_size=patch_size, target=reshaped_target
             )
 
         elif patch_extraction_method == SupportedExtractionStrategy.RANDOM_ZARR:
             # Returns a generator of patches and targets(if present)
             patches = extract_patches_random_from_chunks(
-                sample, patch_size=patch_size, chunk_size=sample.chunks
+                reshaped_sample,
+                patch_size=patch_size,
+                chunk_size=reshaped_sample.chunks,
             )
 
         if patch_extraction_method == SupportedExtractionStrategy.SEQUENTIAL:
@@ -328,12 +331,13 @@ def generate_patches_supervised(
 
     else:
         # no patching
-        return (sample for _ in range(1)), target
+        return (reshaped_sample for _ in range(1)), reshaped_target
 
 
 # iterator over files
 def generate_patches_unsupervised(
-    sample: Union[np.ndarray, zarr.Array],
+    data: Union[np.ndarray, zarr.Array],
+    axes: str,
     patch_extraction_method: SupportedExtractionStrategy,
     patch_size: Union[List[int], Tuple[int, ...]],
     patch_overlap: Optional[Union[List[int], Tuple[int]]] = None,
@@ -364,6 +368,9 @@ def generate_patches_unsupervised(
     ValueError
         If patches is None.
     """
+    # reshape array
+    reshaped_sample = reshape_array(data, axes)
+
     # if tiled (patches with overlaps)
     if patch_extraction_method == SupportedExtractionStrategy.TILED:
         if patch_overlap is None:
@@ -376,7 +383,7 @@ def generate_patches_unsupervised(
         # - overlap_crop_coords: coordinates used to crop the patch during stitching
         # - stitch_coords: coordinates used to stitch the tiles back to the full image
         patches = extract_tiles(
-            arr=sample, tile_size=patch_size, overlaps=patch_overlap
+            arr=reshaped_sample, tile_size=patch_size, overlaps=patch_overlap
         )
 
     # random extraction
@@ -384,7 +391,7 @@ def generate_patches_unsupervised(
         # return a Generator that yields the following:
         # - patch: np.ndarray, dimension C(Z)YX
         # - target_patch: np.ndarray, dimension C(Z)YX, or None
-        patches = extract_patches_random(sample, patch_size=patch_size)
+        patches = extract_patches_random(reshaped_sample, patch_size=patch_size)
 
     # zarr specific random extraction
     elif patch_extraction_method == SupportedExtractionStrategy.RANDOM_ZARR:
@@ -396,7 +403,7 @@ def generate_patches_unsupervised(
 
     # no patching, return sample
     elif patch_extraction_method == SupportedExtractionStrategy.NONE:
-        patches = (sample for _ in range(1))
+        patches = (reshaped_sample for _ in range(1))
 
     # no extraction method
     else:

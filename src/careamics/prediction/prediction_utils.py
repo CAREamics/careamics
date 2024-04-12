@@ -39,7 +39,7 @@ def stitch_prediction(
         stitching_data = [d[1:] for d in stitching_data]
 
     # Get whole sample shape. Unique to get rid of batch dimension. Expects tensors
-    input_shape = [x.unique() for x in stitching_data[0][0]]
+    input_shape = [x.unique() for x in stitching_data[0][0]] #TODO refatcor unique() ?
 
     predicted_image = np.zeros(input_shape, dtype=np.float32)
 

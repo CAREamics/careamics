@@ -353,7 +353,7 @@ class InMemoryPredictionDataset(InMemoryDataset):
                 self.input_array, self.axes, self.tile_size, self.tile_overlap
             )
         else:
-            return self.input_array
+            return self.input_array, self.input_array.mean(), self.input_array.std()
 
     def __getitem__(self, index: int) -> Tuple[np.ndarray, Any, Any, Any, Any]:
         """
