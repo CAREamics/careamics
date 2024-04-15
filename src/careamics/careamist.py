@@ -5,10 +5,15 @@ from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, Union, o
 
 import numpy as np
 from pytorch_lightning import LightningModule, Trainer
-from pytorch_lightning.callbacks import Callback, EarlyStopping, ModelCheckpoint
+from pytorch_lightning.callbacks import (
+    Callback,
+    EarlyStopping,
+    ModelCheckpoint,
+)
 from torch import load
 
-from .config import (
+from careamics.callbacks import ProgressBarCallback
+from careamics.config import (
     AlgorithmModel,
     Configuration,
     DataModel,
@@ -16,12 +21,12 @@ from .config import (
     create_inference_configuration,
     load_configuration,
 )
-from .config.inference_model import TRANSFORMS_UNION
-from .config.support import SupportedAlgorithm
-from .lightning_datamodule import CAREamicsClay, CAREamicsWood
-from .lightning_module import CAREamicsKiln
-from .lightning_prediction import CAREamicsPredictionLoop
-from .utils import check_path_exists, get_logger
+from careamics.config.inference_model import TRANSFORMS_UNION
+from careamics.config.support import SupportedAlgorithm
+from careamics.lightning_datamodule import CAREamicsClay, CAREamicsWood
+from careamics.lightning_module import CAREamicsKiln
+from careamics.lightning_prediction import CAREamicsPredictionLoop
+from careamics.utils import check_path_exists, get_logger
 
 logger = get_logger(__name__)
 
@@ -190,11 +195,13 @@ class CAREamist(LightningModule):
         # define the checkpoint saving callback
         self.callbacks = self._define_callbacks()
 
+        # torch.set_float32_matmul_precision('medium')
         # instantiate trainer
         self.trainer = Trainer(
             max_epochs=self.cfg.training.num_epochs,
             callbacks=self.callbacks,
             default_root_dir=self.work_dir,
+            # precision="bf16"
         )
 
         # change the prediction loop, necessary for tiled prediction
@@ -215,7 +222,8 @@ class CAREamist(LightningModule):
                 dirpath=self.work_dir / Path("checkpoints"),
                 filename=self.cfg.experiment_name,
                 **self.cfg.training.checkpoint_callback.model_dump(),
-            )
+            ),
+            ProgressBarCallback(),
         ]
 
         # early stopping callback
@@ -582,8 +590,10 @@ class CAREamist(LightningModule):
 
         else:
             if self.cfg is None:
-                raise ValueError("No configuration found. Train a model or load from a "
-                                 "checkpoint before predicting.")
+                raise ValueError(
+                    "No configuration found. Train a model or load from a "
+                    "checkpoint before predicting."
+                )
             # create predict config, reuse training config if parameters missing
             prediction_config = create_inference_configuration(
                 training_configuration=self.cfg,

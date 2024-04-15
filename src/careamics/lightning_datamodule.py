@@ -115,7 +115,7 @@ class CAREamicsWood(L.LightningDataModule):
             If the data type is `tiff` and the input is neither a Path nor a str.
         """
         if dataloader_params is None:
-            dataloader_params = {}
+            dataloader_params = data_config.dataloader_params
         super().__init__()
 
         # check input types coherence (no mixed types)

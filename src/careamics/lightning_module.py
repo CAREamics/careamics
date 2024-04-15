@@ -72,6 +72,9 @@ class CAREamicsKiln(L.LightningModule):
         x, *aux = batch
         out = self.model(x)
         loss = self.loss_func(out, *aux)
+        self.log(
+            "train_loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True
+        )
         return loss
 
     def validation_step(self, batch: Tensor, batch_idx: Any) -> None:
@@ -89,7 +92,14 @@ class CAREamicsKiln(L.LightningModule):
         val_loss = self.loss_func(out, *aux)
 
         # log validation loss
-        self.log("val_loss", val_loss)
+        self.log(
+            "val_loss",
+            val_loss,
+            on_step=False,
+            on_epoch=True,
+            prog_bar=True,
+            logger=True,
+        )
 
     def predict_step(self, batch: Tensor, batch_idx: Any) -> Any:
         """Prediction step.

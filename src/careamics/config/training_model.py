@@ -109,7 +109,7 @@ class TrainingModel(BaseModel):
     early_stopping_callback: Optional[EarlyStoppingModel] = Field(
         default=None, validate_default=True
     )
-    # amp: AMP = AMP()
+    # precision: Literal["64", "32", "16", "bf16"] = 32
 
     def __str__(self) -> str:
         """Pretty string reprensenting the configuration.

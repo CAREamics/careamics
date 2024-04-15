@@ -107,6 +107,8 @@ class DataModel(BaseModel):
         validate_default=True,
     )
 
+    dataloader_params: Optional[dict] = None
+
     @field_validator("patch_size")
     @classmethod
     def all_elements_non_zero_even(cls, patch_list: List[int]) -> List[int]:
