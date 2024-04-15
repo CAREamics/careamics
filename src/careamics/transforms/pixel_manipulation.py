@@ -4,7 +4,7 @@ Pixel manipulation methods.
 Pixel manipulation is used in N2V and similar algorithm to replace the value of
 masked pixels.
 """
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Union
 
 import numpy as np
 
@@ -97,8 +97,7 @@ def _odd_jitter_func(step: float, rng: np.random.Generator) -> np.ndarray:
 
 
 def _get_stratified_coords(
-    mask_pixel_perc: float,
-    shape: Tuple[int, ...],
+    mask_pixel_perc: float, shape: Union[Tuple[int, int], Tuple[int, int, int]]
 ) -> np.ndarray:
     """
     Generate coordinates of the pixels to mask.
@@ -119,6 +118,11 @@ def _get_stratified_coords(
     np.ndarray
         Array of coordinates of the masked pixels.
     """
+    if len(shape) < 2 or len(shape) > 3:
+        raise ValueError(
+            "Calculating coordinates is only possible for 2D and 3D patches"
+        )
+
     rng = np.random.default_rng()
 
     mask_pixel_distance = np.round((100 / mask_pixel_perc) ** (1 / len(shape))).astype(
