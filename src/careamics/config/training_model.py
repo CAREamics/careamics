@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from pprint import pformat
-from typing import Optional
+from typing import Optional, Union
 
 from pydantic import (
     BaseModel,
@@ -12,6 +12,7 @@ from pydantic import (
 )
 
 from .callback_model import CheckpointModel, EarlyStoppingModel
+from .logger_model import TensorboardLoggerModel, WandbLoggerModel
 
 
 # TODO: adapt for lightning:
@@ -104,7 +105,9 @@ class TrainingModel(BaseModel):
     num_epochs: int = Field(default=20, ge=1)
 
     # Optional fields
-    # use_wandb: bool = False
+    logger: Optional[Union[TensorboardLoggerModel, WandbLoggerModel]] = Field(
+        discriminator="name", default=None
+    )
     checkpoint_callback: CheckpointModel = CheckpointModel()
     early_stopping_callback: Optional[EarlyStoppingModel] = Field(
         default=None, validate_default=True

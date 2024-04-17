@@ -9,6 +9,7 @@ from .architectures import UNetModel
 from .configuration_model import Configuration
 from .data_model import DataModel
 from .inference_model import InferenceModel
+from .logger_model import TensorboardLoggerModel, WandbLoggerModel
 from .support import (
     SupportedAlgorithm,
     SupportedArchitecture,
@@ -33,6 +34,7 @@ def create_n2n_configuration(
     masked_pixel_percentage: float = 0.2,
     struct_n2v_axis: Literal["horizontal", "vertical", "none"] = "none",
     struct_n2v_span: int = 5,
+    logger: Optional[Union[TensorboardLoggerModel, WandbLoggerModel]] = None,
     model_kwargs: Optional[dict] = None,
 ) -> Configuration:
     """
@@ -78,6 +80,7 @@ def create_n2n_configuration(
         Axis along which to apply structN2V mask, by default "none".
     struct_n2v_span : int, optional
         Span of the structN2V mask, by default 5.
+    logger : Union[TensorboardLoggerModel, WandbLoggerModel], optional
     model_kwargs : dict, optional
         UNetModel parameters, by default {}.
 
@@ -154,6 +157,7 @@ def create_n2n_configuration(
     training = TrainingModel(
         num_epochs=num_epochs,
         batch_size=batch_size,
+        logger=logger,
     )
 
     # create configuration
@@ -181,6 +185,7 @@ def create_n2v_configuration(
     masked_pixel_percentage: float = 0.2,
     struct_n2v_axis: Literal["horizontal", "vertical", "none"] = "none",
     struct_n2v_span: int = 5,
+    logger: Optional[Union[TensorboardLoggerModel, WandbLoggerModel]] = None,
     model_kwargs: Optional[dict] = None,
 ) -> Configuration:
     """
@@ -243,6 +248,7 @@ def create_n2v_configuration(
         Axis along which to apply structN2V mask, by default "none".
     struct_n2v_span : int, optional
         Span of the structN2V mask, by default 5.
+    logger : Union[TensorboardLoggerModel, WandbLoggerModel], optional
     model_kwargs : dict, optional
         UNetModel parameters, by default {}.
 
@@ -393,6 +399,7 @@ def create_n2v_configuration(
     training = TrainingModel(
         num_epochs=num_epochs,
         batch_size=batch_size,
+        logger=logger,
     )
 
     # create configuration
@@ -450,11 +457,11 @@ def create_inference_configuration(
         Configuration for inference with N2V.
     """
     if transforms is None:
-        transforms =  [
-                {
-                    "name": SupportedTransform.NORMALIZE.value,
-                },
-            ]
+        transforms = [
+            {
+                "name": SupportedTransform.NORMALIZE.value,
+            },
+        ]
 
     return InferenceModel(
         data_type=data_type or training_configuration.data_config.data_type,

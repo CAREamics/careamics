@@ -10,6 +10,7 @@ from pytorch_lightning.callbacks import (
     EarlyStopping,
     ModelCheckpoint,
 )
+from pytorch_lightning.loggers import TensorBoardLogger, WandbLogger
 from torch import load
 
 from careamics.callbacks import ProgressBarCallback
@@ -177,11 +178,26 @@ class CAREamist(LightningModule):
         self.callbacks = self._define_callbacks()
 
         # torch.set_float32_matmul_precision('medium')
+
+        # instantiate logger
+        if self.cfg.training_config.logger.name == "wandb":
+            self.logger = WandbLogger(
+                name=experiment_name,
+                save_dir=self.work_dir / Path("logs"),
+                #**self.cfg.logger.model_dump(),
+            )
+        elif self.cfg.training_config.logger.name == "tensorboard":
+            self.logger = TensorBoardLogger(
+                save_dir=self.work_dir / Path("logs"),
+                #**self.cfg.logger.model_dump(),
+            )
+
         # instantiate trainer
         self.trainer = Trainer(
             max_epochs=self.cfg.training_config.num_epochs,
             callbacks=self.callbacks,
             default_root_dir=self.work_dir,
+            logger=self.logger,
             # precision="bf16"
         )
 
