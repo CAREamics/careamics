@@ -134,9 +134,9 @@ class Configuration(BaseModel):
     )
 
     # Sub-configurations
-    algorithm: AlgorithmModel
-    data: DataModel
-    training: TrainingModel
+    algorithm_config: AlgorithmModel
+    data_config: DataModel
+    training_config: TrainingModel
 
     @field_validator("experiment_name")
     @classmethod
@@ -187,13 +187,15 @@ class Configuration(BaseModel):
         Configuration
             Validated configuration.
         """
-        if self.algorithm.algorithm != SupportedAlgorithm.CUSTOM:
-            if "Z" in self.data.axes and not self.algorithm.model.is_3D():
+        if self.algorithm_config.algorithm != SupportedAlgorithm.CUSTOM:
+            if "Z" in self.data_config.axes and not self.algorithm_config.model.is_3D():
                 # change algorithm to 3D
-                self.algorithm.model.set_3D(True)
-            elif "Z" not in self.data.axes and self.algorithm.model.is_3D():
+                self.algorithm_config.model.set_3D(True)
+            elif (
+                "Z" not in self.data_config.axes and self.algorithm_config.model.is_3D()
+            ):
                 # change algorithm to 2D
-                self.algorithm.model.set_3D(False)
+                self.algorithm_config.model.set_3D(False)
 
         return self
 
@@ -212,27 +214,27 @@ class Configuration(BaseModel):
         Configuration
             Validated configuration.
         """
-        if self.algorithm.algorithm == SupportedAlgorithm.N2V:
+        if self.algorithm_config.algorithm == SupportedAlgorithm.N2V:
             # if we have a list of transform (as opposed to Compose)
-            if self.data.has_transform_list():
+            if self.data_config.has_transform_list():
                 # missing N2V_MANIPULATE
-                if not self.data.has_n2v_manipulate():
-                    self.data.transforms.append(
+                if not self.data_config.has_n2v_manipulate():
+                    self.data_config.transforms.append(
                         N2VManipulationModel(
                             name=SupportedTransform.N2V_MANIPULATE.value,
                         )
                     )
-
+                # TODO Doesn't validate the parameters of N2VManipulate !!
                 # make sure that N2V has the correct pixel manipulate strategy
                 median = SupportedPixelManipulation.MEDIAN.value
                 uniform = SupportedPixelManipulation.UNIFORM.value
-                strategy = median if self.algorithm.model.n2v2 else uniform
-                self.data.set_N2V2_strategy(strategy)
+                strategy = median if self.algorithm_config.model.n2v2 else uniform
+                self.data_config.set_N2V2_strategy(strategy)
         else:
             # if we have a list of transform, remove N2V manipulate if present
-            if self.data.has_transform_list():
-                if self.data.has_n2v_manipulate():
-                    self.data.remove_n2v_manipulate()
+            if self.data_config.has_transform_list():
+                if self.data_config.has_n2v_manipulate():
+                    self.data_config.remove_n2v_manipulate()
 
         return self
 
@@ -261,11 +263,11 @@ class Configuration(BaseModel):
             Patch size.
         """
         # set the flag and axes (this will not trigger validation at the config level)
-        self.algorithm.model.set_3D(is_3D)
-        self.data.set_3D(axes, patch_size)
+        self.algorithm_config.model.set_3D(is_3D)
+        self.data_config.set_3D(axes, patch_size)
 
         # cheap hack: trigger validation
-        self.algorithm = self.algorithm
+        self.algorithm_config = self.algorithm_config
 
     def set_N2V2(self, use_n2v2: bool) -> None:
         """
@@ -281,14 +283,14 @@ class Configuration(BaseModel):
         ValueError
             If the algorithm is not N2V.
         """
-        if self.algorithm.algorithm == SupportedAlgorithm.N2V:
-            self.algorithm.model.n2v2 = use_n2v2
+        if self.algorithm_config.algorithm == SupportedAlgorithm.N2V:
+            self.algorithm_config.model.n2v2 = use_n2v2
             strategy = (
                 SupportedPixelManipulation.MEDIAN.value
                 if use_n2v2
                 else SupportedPixelManipulation.UNIFORM.value
             )
-            self.data.set_N2V2_strategy(strategy)
+            self.data_config.set_N2V2_strategy(strategy)
         else:
             raise ValueError("N2V2 can only be set for N2V algorithm.")
 
@@ -305,7 +307,7 @@ class Configuration(BaseModel):
         mask_span : int
             Span of the structural mask.
         """
-        self.data.set_structN2V_mask(mask_axis, mask_span)
+        self.data_config.set_structN2V_mask(mask_axis, mask_span)
 
     def get_algorithm_flavour(self) -> str:
         """
@@ -316,10 +318,10 @@ class Configuration(BaseModel):
         str
             Algorithm name.
         """
-        if self.algorithm.algorithm == SupportedAlgorithm.N2V:
-            use_n2v2 = self.algorithm.model.n2v2
+        if self.algorithm_config.algorithm == SupportedAlgorithm.N2V:
+            use_n2v2 = self.algorithm_config.model.n2v2
             use_structN2V = (
-                self.data.transforms[-1].parameters.struct_mask_axis != "none"
+                self.data_config.transforms[-1].parameters.struct_mask_axis != "none"
             )
 
             # return the n2v flavour
@@ -332,7 +334,7 @@ class Configuration(BaseModel):
             else:
                 return "Noise2Void"
 
-        return self.algorithm.algorithm.capitalize()
+        return self.algorithm_config.algorithm.capitalize()
 
     def get_algorithm_description(self) -> str:
         """
@@ -346,7 +348,7 @@ class Configuration(BaseModel):
         algorithm_flavour = self.get_algorithm_flavour()
 
         if algorithm_flavour == "Custom":
-            return f"Custom algorithm, named {self.algorithm.model.name}"
+            return f"Custom algorithm, named {self.algorithm_config.model.name}"
         else:  # currently only N2V flavours
             if algorithm_flavour == "Noise2Void":
                 return (
@@ -426,10 +428,10 @@ class Configuration(BaseModel):
         str
             Algorithm references.
         """
-        if self.algorithm.algorithm == SupportedAlgorithm.N2V:
-            use_n2v2 = self.algorithm.model.n2v2
+        if self.algorithm_config.algorithm == SupportedAlgorithm.N2V:
+            use_n2v2 = self.algorithm_config.model.n2v2
             use_structN2V = (
-                self.data.transforms[-1].parameters.struct_mask_axis != "none"
+                self.data_config.transforms[-1].parameters.struct_mask_axis != "none"
             )
 
             references = [
@@ -474,17 +476,17 @@ class Configuration(BaseModel):
         List[str]
             List of keywords.
         """
-        if self.algorithm.algorithm == SupportedAlgorithm.N2V:
-            use_n2v2 = self.algorithm.model.n2v2
+        if self.algorithm_config.algorithm == SupportedAlgorithm.N2V:
+            use_n2v2 = self.algorithm_config.model.n2v2
             use_structN2V = (
-                self.data.transforms[-1].parameters.struct_mask_axis != "none"
+                self.data_config.transforms[-1].parameters.struct_mask_axis != "none"
             )
 
             keywords = [
                 "denoising",
                 "restoration",
                 "UNet",
-                "3D" if "Z" in self.data.axes else "2D",
+                "3D" if "Z" in self.data_config.axes else "2D",
                 "CAREamics",
                 "pytorch",
                 "Noise2Void",

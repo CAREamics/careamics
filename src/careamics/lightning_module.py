@@ -25,8 +25,12 @@ class CAREamicsKiln(L.LightningModule):
     learning model, and defining training and validation steps.
     """
 
-    def __init__(self, algorithm_config: AlgorithmModel) -> None:
+    def __init__(self, algorithm_config: Union[AlgorithmModel, dict]) -> None:
         super().__init__()
+        # if loading from a checkpoint, AlgorithmModel needs to be instantiated
+        if isinstance(algorithm_config, dict):
+            algorithm_config = AlgorithmModel(**algorithm_config)
+
         # create model and loss function
         self.model: nn.Module = model_factory(algorithm_config.model)
         self.loss_func = loss_factory(algorithm_config.loss)

@@ -159,9 +159,9 @@ def create_n2n_configuration(
     # create configuration
     configuration = Configuration(
         experiment_name=experiment_name,
-        algorithm=algorithm,
-        data=data,
-        training=training,
+        algorithm_config=algorithm,
+        data_config=data,
+        training_config=training,
     )
 
     return configuration
@@ -398,9 +398,9 @@ def create_n2v_configuration(
     # create configuration
     configuration = Configuration(
         experiment_name=experiment_name,
-        algorithm=algorithm,
-        data=data,
-        training=training,
+        algorithm_config=algorithm,
+        data_config=data,
+        training_config=training,
     )
 
     return configuration
@@ -457,12 +457,12 @@ def create_inference_configuration(
             ]
 
     return InferenceModel(
-        data_type=data_type or training_configuration.data.data_type,
-        tile_size=tile_size or training_configuration.data.patch_size,
+        data_type=data_type or training_configuration.data_config.data_type,
+        tile_size=tile_size or training_configuration.data_config.patch_size,
         tile_overlap=tile_overlap,
-        axes=axes or training_configuration.data.axes,
-        mean=mean or training_configuration.data.mean,
-        std=std or training_configuration.data.std,
+        axes=axes or training_configuration.data_config.axes,
+        mean=mean or training_configuration.data_config.mean,
+        std=std or training_configuration.data_config.std,
         transforms=transforms,
         tta_transforms=tta_transforms,
         batch_size=batch_size,

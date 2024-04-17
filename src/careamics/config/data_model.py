@@ -82,7 +82,7 @@ class DataModel(BaseModel):
     # Dataset configuration
     data_type: Literal["array", "tiff", "custom"]  # As defined in SupportedData
     patch_size: List[int] = Field(..., min_length=2, max_length=3)
-    batch_size: int = Field(default=1, ge=1, validate_default=True)
+    batch_size: int = Field(default=1, ge=1, validate_default=True) # TODO Differentiate based on Train/inf ?
     axes: str
 
     # Optional fields
@@ -107,7 +107,7 @@ class DataModel(BaseModel):
         validate_default=True,
     )
 
-    dataloader_params: Optional[dict] = None
+    dataloader_params: Optional[dict] = None # TODO validate ?
 
     @field_validator("patch_size")
     @classmethod

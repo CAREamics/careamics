@@ -56,9 +56,9 @@ def readme_factory(
     Path
         Path to the README file
     """
-    algorithm = config.algorithm
-    training = config.training
-    data = config.data
+    algorithm = config.algorithm_config
+    training = config.training_config
+    data = config.data_config
 
     # create file
     with cwd(get_careamics_home()):

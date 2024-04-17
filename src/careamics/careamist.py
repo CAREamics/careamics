@@ -14,10 +14,7 @@ from torch import load
 
 from careamics.callbacks import ProgressBarCallback
 from careamics.config import (
-    AlgorithmModel,
     Configuration,
-    DataModel,
-    TrainingModel,
     create_inference_configuration,
     load_configuration,
 )
@@ -128,10 +125,10 @@ class CAREamist(LightningModule):
         # configuration object
         if isinstance(source, Configuration):
             self.cfg = source
-
+            self.save_hyperparameters(self.cfg.model_dump())
             # instantiate model
-            self.model = CAREamicsKiln(self.cfg.algorithm)
-
+            self.model = CAREamicsKiln(self.cfg.algorithm_config)
+            self.model.hparams.update(self.cfg.model_dump())
         # path to configuration file or model
         else:
             source = check_path_exists(source)
@@ -144,11 +141,11 @@ class CAREamist(LightningModule):
                 self.cfg = load_configuration(source)
 
                 # save configuration in the working directory
-                # TODO should be in train
+                # TODO Ugly, think of a better way to save the configuration
                 self.save_hyperparameters(self.cfg.model_dump())
 
                 # instantiate model
-                self.model = CAREamicsKiln(self.cfg.algorithm)
+                self.model = CAREamicsKiln(self.cfg.algorithm_config)
 
             # bmz model
             elif source.suffix == ".zip":
@@ -162,35 +159,19 @@ class CAREamist(LightningModule):
 
                 # attempt to load algorithm parameters
                 try:
-                    self.algo_params = checkpoint["hyper_parameters"]
+                    cfg_dict = checkpoint["hyper_parameters"]
                 except KeyError as e:
                     raise ValueError(
                         "Invalid checkpoint file. No `hyper_parameters` found for the "
                         "algorithm."
                     ) from e
 
-                # attempt to load data model parameters
-                try:
-                    self.data_params = checkpoint["datamodule_hyper_parameters"]
-                except KeyError as e:
-                    raise ValueError(
-                        "Invalid checkpoint file. No `datamodule_hyper_parameters` "
-                        "found for the data."
-                    ) from e
-
                 # create configuration
-                algorithm = AlgorithmModel(**self.algo_params)
-                data = DataModel(**self.data_params)
-                training = TrainingModel()
-                self.cfg = Configuration(
-                    experiment_name=experiment_name,
-                    algorithm=algorithm,
-                    data=data,
-                    training=training,
-                )
-
-                # load weights
-                self.load_pretrained(checkpoint)
+                self.cfg = Configuration(**cfg_dict)
+                # create model
+                self.model = CAREamicsKiln
+                # load weights # TODO in this way we have to load the file again
+                self.load_pretrained(source)
 
         # define the checkpoint saving callback
         self.callbacks = self._define_callbacks()
@@ -198,7 +179,7 @@ class CAREamist(LightningModule):
         # torch.set_float32_matmul_precision('medium')
         # instantiate trainer
         self.trainer = Trainer(
-            max_epochs=self.cfg.training.num_epochs,
+            max_epochs=self.cfg.training_config.num_epochs,
             callbacks=self.callbacks,
             default_root_dir=self.work_dir,
             # precision="bf16"
@@ -221,18 +202,22 @@ class CAREamist(LightningModule):
             ModelCheckpoint(
                 dirpath=self.work_dir / Path("checkpoints"),
                 filename=self.cfg.experiment_name,
-                **self.cfg.training.checkpoint_callback.model_dump(),
+                **self.cfg.training_config.checkpoint_callback.model_dump(),
             ),
             ProgressBarCallback(),
         ]
 
         # early stopping callback
-        if self.cfg.training.early_stopping_callback is not None:
+        if self.cfg.training_config.early_stopping_callback is not None:
             self.callbacks.append(
-                EarlyStopping(self.cfg.training.early_stopping_callback)
+                EarlyStopping(self.cfg.training_config.early_stopping_callback)
             )
 
         return self.callbacks
+
+    def on_save_checkpoint(self, checkpoint: Dict[str, Any]) -> None:
+        """Save the configuration in the checkpoint."""
+        checkpoint["cfg"] = self.cfg.model_dump()
 
     def train(
         self,
@@ -314,7 +299,7 @@ class CAREamist(LightningModule):
 
         else:
             # raise error if target is provided to N2V
-            if self.cfg.algorithm.algorithm == SupportedAlgorithm.N2V.value:
+            if self.cfg.algorithm_config.algorithm == SupportedAlgorithm.N2V.value:
                 if train_target is not None:
                     raise ValueError(
                         "Training target not compatible with N2V training."
@@ -410,7 +395,7 @@ class CAREamist(LightningModule):
         """
         # create datamodule
         datamodule = CAREamicsWood(
-            data_config=self.cfg.data,
+            data_config=self.cfg.data_config,
             train_data=train_data,
             val_data=val_data,
             train_data_target=train_target,
@@ -466,7 +451,7 @@ class CAREamist(LightningModule):
 
         # create datamodule
         datamodule = CAREamicsWood(
-            data_config=self.cfg.data,
+            data_config=self.cfg.data_config,
             train_data=path_to_train_data,
             val_data=path_to_val_data,
             train_data_target=path_to_train_target,

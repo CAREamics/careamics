@@ -69,7 +69,6 @@ class CAREamicsWood(L.LightningDataModule):
         val_percentage: float = 0.1,
         val_minimum_split: int = 5,
         use_in_memory: bool = True,
-        dataloader_params: Optional[dict] = None, # TODO should this be validated ?
     ) -> None:
         """Constructor.
 
@@ -114,8 +113,6 @@ class CAREamicsWood(L.LightningDataModule):
         ValueError
             If the data type is `tiff` and the input is neither a Path nor a str.
         """
-        if dataloader_params is None:
-            dataloader_params = data_config.dataloader_params
         super().__init__()
 
         # check input types coherence (no mixed types)
@@ -174,13 +171,16 @@ class CAREamicsWood(L.LightningDataModule):
             assert read_source_func is not None
 
             self.read_source_func: Callable = read_source_func
+
         elif data_config.data_type != SupportedData.ARRAY:
             self.read_source_func = get_read_func(data_config.data_type)
 
         self.extension_filter = extension_filter
 
         # Pytorch dataloader parameters
-        self.dataloader_params = dataloader_params
+        self.dataloader_params = (
+            data_config.dataloader_params if data_config.dataloader_params else {}
+        )
 
     def prepare_data(self) -> None:
         """Hook used to prepare the data before calling `setup`.
@@ -327,9 +327,7 @@ class CAREamicsWood(L.LightningDataModule):
             Training dataloader.
         """
         return DataLoader(
-            self.train_dataset,
-            batch_size=self.batch_size,
-            **self.dataloader_params,
+            self.train_dataset, batch_size=self.batch_size, **self.dataloader_params
         )
 
     def val_dataloader(self) -> Any:
@@ -501,7 +499,7 @@ class CAREamicsClay(L.LightningDataModule):
             self.predict_dataset,
             batch_size=self.batch_size,
             **self.dataloader_params,
-        ) # TODO check workers are used
+        )  # TODO check workers are used
 
 
 class CAREamicsTrainDataModule(CAREamicsWood):
@@ -725,6 +723,7 @@ class CAREamicsTrainDataModule(CAREamicsWood):
             "patch_size": patch_size,
             "axes": axes,
             "batch_size": batch_size,
+            "dataloader_params": dataloader_params,
         }
 
         # if transforms are passed (otherwise it will use the default ones)
@@ -765,7 +764,6 @@ class CAREamicsTrainDataModule(CAREamicsWood):
             extension_filter=extension_filter,
             val_percentage=val_percentage,
             val_minimum_split=val_minimum_patches,
-            dataloader_params=dataloader_params,
             use_in_memory=use_in_memory,
         )
 
@@ -807,7 +805,7 @@ class CAREamicsPredictDataModule(CAREamicsClay):
         pred_data: Union[str, Path, np.ndarray],
         data_type: Union[Literal["array", "tiff", "custom"], SupportedData],
         tile_size: List[int],
-        tile_overlap: List[int] = (48, 48), #TODO replace with calculator
+        tile_overlap: List[int] = (48, 48),  # TODO replace with calculator
         axes: str = "YX",
         batch_size: int = 1,
         tta_transforms: bool = True,

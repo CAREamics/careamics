@@ -170,7 +170,7 @@ def create_model_description(
     )
 
     input_descr, output_descr = _create_inputs_ouputs(
-        careamist.cfg.data,
+        careamist.cfg.data_config,
         input_path=inputs,
         output_path=outputs,
     )

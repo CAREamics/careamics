@@ -351,7 +351,7 @@ class InMemoryPredictionDataset(InMemoryDataset):
         if self.tiling:
             return generate_patches_predict(
                 self.input_array, self.axes, self.tile_size, self.tile_overlap
-            )
+            ), self.input_array.mean(), self.input_array.std()
         else:
             return self.input_array, self.input_array.mean(), self.input_array.std()
 
