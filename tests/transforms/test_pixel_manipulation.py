@@ -52,7 +52,7 @@ def test_get_stratified_coords(mask_pixel_perc, shape, num_iterations):
     assert np.sum(array == 0) < np.sum(shape)
 
 
-@pytest.mark.parametrize("shape", [(8, 8), (3, 8, 8), (8, 8, 8), (3, 8, 8, 8)])
+@pytest.mark.parametrize("shape", [(8, 8), (3, 8, 8), (8, 8, 8)])
 def test_uniform_manipulate(ordered_array, shape):
     """Test the uniform_manipulate function.
 

@@ -173,9 +173,9 @@ def minimum_configuration(
     # create dictionary
     configuration = {
         "experiment_name": "LevitatingFrog",
-        "algorithm": minimum_algorithm_n2v,
-        "training": minimum_training,
-        "data": minimum_data,
+        "algorithm_config": minimum_algorithm_n2v,
+        "training_config": minimum_training,
+        "data_config": minimum_data,
     }
 
     return configuration
@@ -273,19 +273,19 @@ def base_configuration(temp_dir: Path, patch_size) -> Configuration:
     configuration = Configuration(
         experiment_name="smoke_test",
         working_directory=temp_dir,
-        algorithm=AlgorithmModel(
+        algorithm_config=AlgorithmModel(
             algorithm="n2v",
             loss="n2v",
             model={"architecture": "UNet"},
             is_3D="False",
             transforms={"Flip": None, "ManipulateN2V": None},
         ),
-        data=DataModel(
+        data_config=DataModel(
             in_memory=True,
             extension="tif",
             axes="YX",
         ),
-        training=TrainingModel(
+        training_config=TrainingModel(
             num_epochs=1,
             patch_size=patch_size,
             batch_size=2,
@@ -306,9 +306,9 @@ def supervised_configuration(
 ) -> dict:
     configuration = {
         "experiment_name": "LevitatingFrog",
-        "algorithm": minimum_algorithm_supervised,
-        "training": minimum_training,
-        "data": minimum_data,
+        "algorithm_config": minimum_algorithm_supervised,
+        "training_config": minimum_training,
+        "data_config": minimum_data,
     }
 
     return configuration

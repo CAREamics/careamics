@@ -37,10 +37,10 @@ def test_train_error_target_unsupervised_algorithm(tmp_path, minimum_configurati
     """Test that an error is raised when a target is provided for N2V."""
     # create configuration
     config = Configuration(**minimum_configuration)
-    config.algorithm.algorithm = SupportedAlgorithm.N2V.value
+    config.algorithm_config.algorithm = SupportedAlgorithm.N2V.value
 
     # train error with Paths
-    config.data.data_type = SupportedData.TIFF.value
+    config.data_config.data_type = SupportedData.TIFF.value
     careamics = CAREamist(source=config, work_dir=tmp_path)
     with pytest.raises(ValueError):
         careamics.train(
@@ -56,7 +56,7 @@ def test_train_error_target_unsupervised_algorithm(tmp_path, minimum_configurati
         )
 
     # train error with arrays
-    config.data.data_type = SupportedData.ARRAY.value
+    config.data_config.data_type = SupportedData.ARRAY.value
     careamics = CAREamist(source=config, work_dir=tmp_path)
     with pytest.raises(ValueError):
         careamics.train(
@@ -72,11 +72,11 @@ def test_train_single_array_no_val(tmp_path, minimum_configuration):
 
     # create configuration
     config = Configuration(**minimum_configuration)
-    config.training.num_epochs = 1
-    config.data.axes = "YX"
-    config.data.batch_size = 2
-    config.data.data_type = SupportedData.ARRAY.value
-    config.data.patch_size = (8, 8)
+    config.training_config.num_epochs = 1
+    config.data_config.axes = "YX"
+    config.data_config.batch_size = 2
+    config.data_config.data_type = SupportedData.ARRAY.value
+    config.data_config.patch_size = (8, 8)
 
     # instantiate CAREamist
     careamist = CAREamist(source=config, work_dir=tmp_path)
@@ -85,8 +85,8 @@ def test_train_single_array_no_val(tmp_path, minimum_configuration):
     careamist.train(train_source=train_array)
 
     # check that it recorded mean and std
-    assert careamist.cfg.data.mean is not None
-    assert careamist.cfg.data.std is not None
+    assert careamist.cfg.data_config.mean is not None
+    assert careamist.cfg.data_config.std is not None
 
 
 def test_train_array(tmp_path, minimum_configuration):
@@ -97,11 +97,11 @@ def test_train_array(tmp_path, minimum_configuration):
 
     # create configuration
     config = Configuration(**minimum_configuration)
-    config.training.num_epochs = 1
-    config.data.axes = "YX"
-    config.data.batch_size = 2
-    config.data.data_type = SupportedData.ARRAY.value
-    config.data.patch_size = (8, 8)
+    config.training_config.num_epochs = 1
+    config.data_config.axes = "YX"
+    config.data_config.batch_size = 2
+    config.data_config.data_type = SupportedData.ARRAY.value
+    config.data_config.patch_size = (8, 8)
 
     # instantiate CAREamist
     careamist = CAREamist(source=config, work_dir=tmp_path)
@@ -110,8 +110,8 @@ def test_train_array(tmp_path, minimum_configuration):
     careamist.train(train_source=train_array, val_source=val_array)
 
     # check that it recorded mean and std
-    assert careamist.cfg.data.mean is not None
-    assert careamist.cfg.data.std is not None
+    assert careamist.cfg.data_config.mean is not None
+    assert careamist.cfg.data_config.std is not None
     # TODO somethign to check that it trained, maybe through callback
 
 
@@ -126,11 +126,11 @@ def test_train_tiff_files_in_memory_no_val(tmp_path, minimum_configuration):
 
     # create configuration
     config = Configuration(**minimum_configuration)
-    config.training.num_epochs = 1
-    config.data.axes = "YX"
-    config.data.batch_size = 2
-    config.data.data_type = SupportedData.TIFF.value
-    config.data.patch_size = (8, 8)
+    config.training_config.num_epochs = 1
+    config.data_config.axes = "YX"
+    config.data_config.batch_size = 2
+    config.data_config.data_type = SupportedData.TIFF.value
+    config.data_config.patch_size = (8, 8)
 
     # instantiate CAREamist
     careamist = CAREamist(source=config, work_dir=tmp_path)
@@ -139,8 +139,8 @@ def test_train_tiff_files_in_memory_no_val(tmp_path, minimum_configuration):
     careamist.train(train_source=train_file)
 
     # check that it recorded mean and std
-    assert careamist.cfg.data.mean is not None
-    assert careamist.cfg.data.std is not None
+    assert careamist.cfg.data_config.mean is not None
+    assert careamist.cfg.data_config.std is not None
 
 
 def test_train_tiff_files_in_memory(tmp_path, minimum_configuration):
@@ -158,11 +158,11 @@ def test_train_tiff_files_in_memory(tmp_path, minimum_configuration):
 
     # create configuration
     config = Configuration(**minimum_configuration)
-    config.training.num_epochs = 1
-    config.data.axes = "YX"
-    config.data.batch_size = 2
-    config.data.data_type = SupportedData.TIFF.value
-    config.data.patch_size = (8, 8)
+    config.training_config.num_epochs = 1
+    config.data_config.axes = "YX"
+    config.data_config.batch_size = 2
+    config.data_config.data_type = SupportedData.TIFF.value
+    config.data_config.patch_size = (8, 8)
 
     # instantiate CAREamist
     careamist = CAREamist(source=config, work_dir=tmp_path)
@@ -171,8 +171,8 @@ def test_train_tiff_files_in_memory(tmp_path, minimum_configuration):
     careamist.train(train_source=train_file, val_source=val_file)
 
     # check that it recorded mean and std
-    assert careamist.cfg.data.mean is not None
-    assert careamist.cfg.data.std is not None
+    assert careamist.cfg.data_config.mean is not None
+    assert careamist.cfg.data_config.std is not None
     # TODO somethign to check that it trained, maybe through callback
 
 
@@ -193,11 +193,11 @@ def test_train_tiff_files(tmp_path, minimum_configuration):
 
     # create configuration
     config = Configuration(**minimum_configuration)
-    config.training.num_epochs = 1
-    config.data.axes = "YX"
-    config.data.batch_size = 2
-    config.data.data_type = SupportedData.TIFF.value
-    config.data.patch_size = (8, 8)
+    config.training_config.num_epochs = 1
+    config.data_config.axes = "YX"
+    config.data_config.batch_size = 2
+    config.data_config.data_type = SupportedData.TIFF.value
+    config.data_config.patch_size = (8, 8)
 
     # instantiate CAREamist
     careamist = CAREamist(source=config, work_dir=tmp_path)
@@ -206,8 +206,8 @@ def test_train_tiff_files(tmp_path, minimum_configuration):
     careamist.train(train_source=train_file, val_source=val_file, use_in_memory=False)
 
     # check that it recorded mean and std
-    assert careamist.cfg.data.mean is not None
-    assert careamist.cfg.data.std is not None
+    assert careamist.cfg.data_config.mean is not None
+    assert careamist.cfg.data_config.std is not None
     # TODO somethign to check that it trained, maybe through callback
 
 
@@ -221,11 +221,11 @@ def test_train_array_supervised(tmp_path, supervised_configuration):
 
     # create configuration
     config = Configuration(**supervised_configuration)
-    config.training.num_epochs = 1
-    config.data.axes = "YX"
-    config.data.batch_size = 2
-    config.data.data_type = SupportedData.ARRAY.value
-    config.data.patch_size = (8, 8)
+    config.training_config.num_epochs = 1
+    config.data_config.axes = "YX"
+    config.data_config.batch_size = 2
+    config.data_config.data_type = SupportedData.ARRAY.value
+    config.data_config.patch_size = (8, 8)
 
     # instantiate CAREamist
     careamist = CAREamist(source=config, work_dir=tmp_path)
@@ -239,8 +239,8 @@ def test_train_array_supervised(tmp_path, supervised_configuration):
     )
 
     # check that it recorded mean and std
-    assert careamist.cfg.data.mean is not None
-    assert careamist.cfg.data.std is not None
+    assert careamist.cfg.data_config.mean is not None
+    assert careamist.cfg.data_config.std is not None
     # TODO somethign to check that it trained, maybe through callback
 
 
@@ -271,11 +271,11 @@ def test_train_tiff_files_in_memory_supervised(tmp_path, supervised_configuratio
 
     # create configuration
     config = Configuration(**supervised_configuration)
-    config.training.num_epochs = 1
-    config.data.axes = "YX"
-    config.data.batch_size = 2
-    config.data.data_type = SupportedData.TIFF.value
-    config.data.patch_size = (8, 8)
+    config.training_config.num_epochs = 1
+    config.data_config.axes = "YX"
+    config.data_config.batch_size = 2
+    config.data_config.data_type = SupportedData.TIFF.value
+    config.data_config.patch_size = (8, 8)
 
     # instantiate CAREamist
     careamist = CAREamist(source=config, work_dir=tmp_path)
@@ -289,8 +289,8 @@ def test_train_tiff_files_in_memory_supervised(tmp_path, supervised_configuratio
     )
 
     # check that it recorded mean and std
-    assert careamist.cfg.data.mean is not None
-    assert careamist.cfg.data.std is not None
+    assert careamist.cfg.data_config.mean is not None
+    assert careamist.cfg.data_config.std is not None
 
 
 def test_train_tiff_files_supervised(tmp_path, supervised_configuration):
@@ -322,11 +322,11 @@ def test_train_tiff_files_supervised(tmp_path, supervised_configuration):
 
     # create configuration
     config = Configuration(**supervised_configuration)
-    config.training.num_epochs = 1
-    config.data.axes = "YX"
-    config.data.batch_size = 2
-    config.data.data_type = SupportedData.TIFF.value
-    config.data.patch_size = (8, 8)
+    config.training_config.num_epochs = 1
+    config.data_config.axes = "YX"
+    config.data_config.batch_size = 2
+    config.data_config.data_type = SupportedData.TIFF.value
+    config.data_config.patch_size = (8, 8)
 
     # instantiate CAREamist
     careamist = CAREamist(source=config, work_dir=tmp_path)
@@ -341,8 +341,8 @@ def test_train_tiff_files_supervised(tmp_path, supervised_configuration):
     )
 
     # check that it recorded mean and std
-    assert careamist.cfg.data.mean is not None
-    assert careamist.cfg.data.std is not None
+    assert careamist.cfg.data_config.mean is not None
+    assert careamist.cfg.data_config.std is not None
     # TODO somethign to check that it trained, maybe through callback
 
 # TODO rewrite without training or with loading a trained model
@@ -354,11 +354,11 @@ def test_predict_array(tmp_path, minimum_configuration, batch_size):
 
     # create configuration
     config = Configuration(**minimum_configuration)
-    config.training.num_epochs = 1
-    config.data.axes = "YX"
-    config.data.batch_size = 2
-    config.data.data_type = SupportedData.ARRAY.value
-    config.data.patch_size = (8, 8)
+    config.training_config.num_epochs = 1
+    config.data_config.axes = "YX"
+    config.data_config.batch_size = 2
+    config.data_config.data_type = SupportedData.ARRAY.value
+    config.data_config.patch_size = (8, 8)
 
     # instantiate CAREamist
     careamist = CAREamist(source=config, work_dir=tmp_path)
@@ -372,10 +372,10 @@ def test_predict_array(tmp_path, minimum_configuration, batch_size):
     )
 
     # check thatmean/std were set properly
-    assert careamist.cfg.data.mean is not None
-    assert careamist.cfg.data.std is not None
-    assert careamist.cfg.data.mean == train_array.mean()
-    assert careamist.cfg.data.std == train_array.std()
+    assert careamist.cfg.data_config.mean is not None
+    assert careamist.cfg.data_config.std is not None
+    assert careamist.cfg.data_config.mean == train_array.mean()
+    assert careamist.cfg.data_config.std == train_array.std()
     # check prediction and its shape@pytest.mark.parametrize("batch_size", [1, 2])
 
     assert predicted is not None
@@ -393,11 +393,11 @@ def test_predict_path(tmp_path, minimum_configuration, batch_size):
 
     # create configuration
     config = Configuration(**minimum_configuration)
-    config.training.num_epochs = 1
-    config.data.axes = "YX"
-    config.data.batch_size = 2
-    config.data.data_type = SupportedData.TIFF.value
-    config.data.patch_size = (8, 8)
+    config.training_config.num_epochs = 1
+    config.data_config.axes = "YX"
+    config.data_config.batch_size = 2
+    config.data_config.data_type = SupportedData.TIFF.value
+    config.data_config.patch_size = (8, 8)
 
     # instantiate CAREamist
     careamist = CAREamist(source=config, work_dir=tmp_path)

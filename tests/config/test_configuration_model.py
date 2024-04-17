@@ -35,16 +35,16 @@ def test_3D_algorithm_and_data_compatibility(minimum_configuration: dict):
     incompatible.
     """
     # 3D but no Z in axes
-    minimum_configuration["algorithm"]["model"]["conv_dims"] = 3
+    minimum_configuration["algorithm_config"]["model"]["conv_dims"] = 3
     config = Configuration(**minimum_configuration)
-    assert config.algorithm.model.conv_dims == 2
+    assert config.algorithm_config.model.conv_dims == 2
 
     # 2D but Z in axes
-    minimum_configuration["algorithm"]["model"]["conv_dims"] = 2
-    minimum_configuration["data"]["axes"] = "ZYX"
-    minimum_configuration["data"]["patch_size"] = [64, 64, 64]
+    minimum_configuration["algorithm_config"]["model"]["conv_dims"] = 2
+    minimum_configuration["data_config"]["axes"] = "ZYX"
+    minimum_configuration["data_config"]["patch_size"] = [64, 64, 64]
     config = Configuration(**minimum_configuration)
-    assert config.algorithm.model.conv_dims == 3
+    assert config.algorithm_config.model.conv_dims == 3
 
 
 def test_set_3D(minimum_configuration: dict):
@@ -53,20 +53,20 @@ def test_set_3D(minimum_configuration: dict):
 
     # set to 3D
     conf.set_3D(True, "ZYX", [64, 64, 64])
-    assert conf.data.axes == "ZYX"
-    assert conf.data.patch_size == [64, 64, 64]
-    assert conf.algorithm.model.conv_dims == 3
+    assert conf.data_config.axes == "ZYX"
+    assert conf.data_config.patch_size == [64, 64, 64]
+    assert conf.algorithm_config.model.conv_dims == 3
 
     # set to 2D
     conf.set_3D(False, "SYX", [64, 64])
-    assert conf.data.axes == "SYX"
-    assert conf.data.patch_size == [64, 64]
-    assert conf.algorithm.model.conv_dims == 2
+    assert conf.data_config.axes == "SYX"
+    assert conf.data_config.patch_size == [64, 64]
+    assert conf.algorithm_config.model.conv_dims == 2
 
 
 def test_algorithm_and_data_default_transforms(minimum_configuration: dict):
     """Test that the default data transforms are compatible with n2v."""
-    minimum_configuration["algorithm"] = {
+    minimum_configuration["algorithm_config"] = {
         "algorithm": "n2v",
         "loss": "n2v",
         "model": {
@@ -89,7 +89,7 @@ def test_n2v2_and_transforms(minimum_configuration: dict, algorithm, strategy):
     """Test that the manipulation strategy is corrected if the data transforms are
     incompatible with n2v2."""
     use_n2v2 = algorithm == "n2v2"
-    minimum_configuration["algorithm"] = {
+    minimum_configuration["algorithm_config"] = {
         "algorithm": "n2v",
         "loss": "n2v",
         "model": {
@@ -105,16 +105,19 @@ def test_n2v2_and_transforms(minimum_configuration: dict, algorithm, strategy):
     )
 
     # missing ManipulateN2V
-    minimum_configuration["data"]["transforms"] = [
+    minimum_configuration["data_config"]["transforms"] = [
         {"name": SupportedTransform.NDFLIP.value}
     ]
     config = Configuration(**minimum_configuration)
-    assert len(config.data.transforms) == 2
-    assert config.data.transforms[-1].name == SupportedTransform.N2V_MANIPULATE.value
-    assert config.data.transforms[-1].parameters.strategy == expected_strategy
+    assert len(config.data_config.transforms) == 2
+    assert (
+        config.data_config.transforms[-1].name
+        == SupportedTransform.N2V_MANIPULATE.value
+    )
+    assert config.data_config.transforms[-1].parameters.strategy == expected_strategy
 
     # passing ManipulateN2V with the wrong strategy
-    minimum_configuration["data"]["transforms"] = [
+    minimum_configuration["data_config"]["transforms"] = [
         {
             "name": SupportedTransform.N2V_MANIPULATE.value,
             "parameters": {
@@ -123,35 +126,37 @@ def test_n2v2_and_transforms(minimum_configuration: dict, algorithm, strategy):
         }
     ]
     config = Configuration(**minimum_configuration)
-    assert config.data.transforms[-1].parameters.strategy == expected_strategy
+    assert config.data_config.transforms[-1].parameters.strategy == expected_strategy
 
 
 def test_setting_n2v2(minimum_configuration: dict):
     # make sure we use n2v
-    minimum_configuration["algorithm"]["algorithm"] = SupportedAlgorithm.N2V.value
+    minimum_configuration["algorithm_config"][
+        "algorithm"
+    ] = SupportedAlgorithm.N2V.value
 
     # test config
     config = Configuration(**minimum_configuration)
-    assert config.algorithm.algorithm == SupportedAlgorithm.N2V.value
-    assert not config.algorithm.model.n2v2
+    assert config.algorithm_config.algorithm == SupportedAlgorithm.N2V.value
+    assert not config.algorithm_config.model.n2v2
     assert (
-        config.data.transforms[-1].parameters.strategy
+        config.data_config.transforms[-1].parameters.strategy
         == SupportedPixelManipulation.UNIFORM.value
     )
 
     # set N2V2
     config.set_N2V2(True)
-    assert config.algorithm.model.n2v2
+    assert config.algorithm_config.model.n2v2
     assert (
-        config.data.transforms[-1].parameters.strategy
+        config.data_config.transforms[-1].parameters.strategy
         == SupportedPixelManipulation.MEDIAN.value
     )
 
     # set back to N2V
     config.set_N2V2(False)
-    assert not config.algorithm.model.n2v2
+    assert not config.algorithm_config.model.n2v2
     assert (
-        config.data.transforms[-1].parameters.strategy
+        config.data_config.transforms[-1].parameters.strategy
         == SupportedPixelManipulation.UNIFORM.value
     )
 
