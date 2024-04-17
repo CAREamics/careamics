@@ -25,8 +25,6 @@ license = { text = "BSD-3-Clause" }
 authors = [
     { name = 'Igor Zubarev', email = 'igor.zubarev@fht.org' },
     { name = 'Joran Deschamps', email = 'joran.deschamps@fht.org' },
-    { name = 'Vera Galinova', email = 'vera.galinova@fht.org' },
-    { name = 'Mehdi Seifi', email = 'mehdi.seifi@fht.org' },
 ]
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -52,10 +50,15 @@ dependencies = [
 
 [project.optional-dependencies]
 # development dependencies and tooling
-dev = ["pre-commit", "pytest", "pytest-cov", "sybil"]
+dev = [
+    "pre-commit",
+    "pytest",
+    "pytest-cov",
+    "sybil",      # doctesting
+]
 
 # notebooks
-examples = ["jupyter", "careamics-portfolio"]
+examples = ["jupyter", "careamics-portfolio", "matplotlib"]
 
 [project.urls]
 homepage = "https://careamics.github.io/"
