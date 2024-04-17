@@ -7,7 +7,6 @@ from careamics.config.support import (
     SupportedStructAxis,
     SupportedTransform,
 )
-from careamics.config.transformations.transform_model import TransformModel
 from careamics.config.transformations.xy_random_rotate90_model import (
     XYRandomRotate90Model,
 )
@@ -288,28 +287,6 @@ def test_passing_compose_transform(minimum_data: dict):
         ]
     )
     DataModel(**minimum_data)
-
-
-def test_passing_albumentations_transform(minimum_data: dict):
-    """Test passing an albumentation transform with parameters."""
-    minimum_data["transforms"] = [
-        {
-            "name": "PixelDropout",
-            "parameters": {
-                "dropout_prob": 0.05,
-                "per_channel": True,
-            },
-        },
-    ]
-    model = DataModel(**minimum_data)
-    assert isinstance(model.transforms[0], TransformModel)
-
-    params = model.transforms[0].parameters.model_dump()
-    assert params["dropout_prob"] == 0.05
-    assert params["per_channel"] is True
-
-    # check that we can instantiate the transform
-    get_all_transforms()[model.transforms[0].name](**params)
 
 
 def test_3D_and_transforms(minimum_data: dict):

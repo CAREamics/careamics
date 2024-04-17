@@ -32,7 +32,8 @@ logger = get_logger(__name__)
 
 
 class CAREamicsWood(L.LightningDataModule):
-    """LightningDataModule for training and validation datasets.
+    """
+    LightningDataModule for training and validation datasets.
 
     The data module can be used with Path, str or numpy arrays. In the case of
     numpy arrays, it loads and computes all the patches in memory. For Path and str
@@ -70,7 +71,8 @@ class CAREamicsWood(L.LightningDataModule):
         val_minimum_split: int = 5,
         use_in_memory: bool = True,
     ) -> None:
-        """Constructor.
+        """
+        Constructor.
 
         Parameters
         ----------
@@ -183,7 +185,8 @@ class CAREamicsWood(L.LightningDataModule):
         )
 
     def prepare_data(self) -> None:
-        """Hook used to prepare the data before calling `setup`.
+        """
+        Hook used to prepare the data before calling `setup`.
 
         Here, we only need to examine the data if it was provided as a str or a Path.
         """
@@ -319,7 +322,8 @@ class CAREamicsWood(L.LightningDataModule):
                     )
 
     def train_dataloader(self) -> Any:
-        """Create a dataloader for training.
+        """
+        Create a dataloader for training.
 
         Returns
         -------
@@ -331,7 +335,8 @@ class CAREamicsWood(L.LightningDataModule):
         )
 
     def val_dataloader(self) -> Any:
-        """Create a dataloader for validation.
+        """
+        Create a dataloader for validation.
 
         Returns
         -------
@@ -345,7 +350,8 @@ class CAREamicsWood(L.LightningDataModule):
 
 
 class CAREamicsClay(L.LightningDataModule):
-    """LightningDataModule for prediction dataset.
+    """
+    LightningDataModule for prediction dataset.
 
     The data module can be used with Path, str or numpy arrays. The data can be either
     a folder containing images or a single file.
@@ -357,6 +363,19 @@ class CAREamicsClay(L.LightningDataModule):
 
     You can also provide a `fnmatch` and `Path.rglob` compatible expression (e.g.
     "*.czi") to filter the files extension using `extension_filter`.
+
+    Parameters
+    ----------
+    prediction_config : InferenceModel
+        Pydantic model for CAREamics prediction configuration.
+    pred_data : Union[Path, str, np.ndarray]
+        Prediction data, can be a path to a folder, a file or a numpy array.
+    read_source_func : Optional[Callable], optional
+        Function to read custom types, by default None.
+    extension_filter : str, optional
+        Filter to filter file extensions for custom types, by default "".
+    dataloader_params : dict, optional
+        Dataloader parameters, by default {}.
     """
 
     def __init__(
@@ -367,7 +386,8 @@ class CAREamicsClay(L.LightningDataModule):
         extension_filter: str = "",
         dataloader_params: Optional[dict] = None,
     ) -> None:
-        """Constructor.
+        """
+        Constructor.
 
         The data module can be used with Path, str or numpy arrays. The data can be
         either a folder containing images or a single file.
@@ -387,11 +407,11 @@ class CAREamicsClay(L.LightningDataModule):
         pred_data : Union[Path, str, np.ndarray]
             Prediction data, can be a path to a folder, a file or a numpy array.
         read_source_func : Optional[Callable], optional
-            Function to read custom types, by default None
+            Function to read custom types, by default None.
         extension_filter : str, optional
-            Filter to filter file extensions for custom types, by default ""
+            Filter to filter file extensions for custom types, by default "".
         dataloader_params : dict, optional
-            Dataloader parameters, by default {}
+            Dataloader parameters, by default {}.
 
         Raises
         ------
@@ -466,12 +486,13 @@ class CAREamicsClay(L.LightningDataModule):
             )
 
     def setup(self, stage: Optional[str] = None) -> None:
-        """Hook called at the beginning of predict.
+        """
+        Hook called at the beginning of predict.
 
         Parameters
         ----------
         stage : Optional[str], optional
-            Stage, by default None
+            Stage, by default None.
         """
         # if numpy array
         if self.data_type == SupportedData.ARRAY:
@@ -488,7 +509,8 @@ class CAREamicsClay(L.LightningDataModule):
             )
 
     def predict_dataloader(self) -> DataLoader:
-        """Create a dataloader for prediction.
+        """
+        Create a dataloader for prediction.
 
         Returns
         -------
@@ -503,7 +525,8 @@ class CAREamicsClay(L.LightningDataModule):
 
 
 class CAREamicsTrainDataModule(CAREamicsWood):
-    """LightningDataModule wrapper for training and validation datasets.
+    """
+    LightningDataModule wrapper for training and validation datasets.
 
     Since the lightning datamodule has no access to the model, make sure that the
     parameters passed to the datamodule are consistent with the model's requirements and
@@ -543,6 +566,50 @@ class CAREamicsTrainDataModule(CAREamicsWood):
     use N2V2, and set the `struct_n2v_axis` and `struct_n2v_span` parameters to define
     the axis and span of the structN2V mask. These parameters are without effect if
     a `train_target_data` or if `transforms` are provided.
+
+    Parameters
+    ----------
+    train_data : Union[str, Path, np.ndarray]
+        Training data.
+    data_type : Union[str, SupportedData]
+        Data type, see `SupportedData` for available options.
+    patch_size : List[int]
+        Patch size, 2D or 3D patch size.
+    axes : str
+        Axes of the data, choosen amongst SCZYX.
+    batch_size : int
+        Batch size.
+    val_data : Optional[Union[str, Path]], optional
+        Validation data, by default None.
+    transforms : Optional[Union[List[TRANSFORMS_UNION], Compose]], optional
+        List of transforms to apply to training patches. If None, default transforms
+        are applied.
+    train_target_data : Optional[Union[str, Path]], optional
+        Training target data, by default None.
+    val_target_data : Optional[Union[str, Path]], optional
+        Validation target data, by default None.
+    read_source_func : Optional[Callable], optional
+        Function to read the source data, used if `data_type` is `custom`, by
+        default None.
+    extension_filter : str, optional
+        Filter for file extensions, used if `data_type` is `custom`, by default "".
+    val_percentage : float, optional
+        Percentage of the training data to use for validation if no validation data
+        is given, by default 0.1.
+    val_minimum_patches : int, optional
+        Minimum number of patches to split from the training data for validation if
+        no validation data is given, by default 5.
+    dataloader_params : dict, optional
+        Pytorch dataloader parameters, by default {}.
+    use_in_memory : bool, optional
+        Use in memory dataset if possible, by default True.
+    use_n2v2 : bool, optional
+        Use N2V2 transformation during training, by default False.
+    struct_n2v_axis : Literal["horizontal", "vertical", "none"], optional
+        Axis for the structN2V mask, only applied if `struct_n2v_axis` is `none`, by
+        default "none".
+    struct_n2v_span : int, optional
+        Span for the structN2V mask, by default 5.
 
     Examples
     --------
@@ -586,10 +653,6 @@ class CAREamicsTrainDataModule(CAREamicsWood):
     ...         "parameters": {"mean": 0, "std": 1},
     ...     },
     ...     {
-    ...         "name": "PixelDropout",
-    ...         "parameters": {"dropout_prob": 0.05, "per_channel": True},
-    ...     },
-    ...     {
     ...         "name": SupportedTransform.N2V_MANIPULATE.value,
     ...     }
     ... ]
@@ -623,9 +686,9 @@ class CAREamicsTrainDataModule(CAREamicsWood):
         use_n2v2: bool = False,
         struct_n2v_axis: Literal["horizontal", "vertical", "none"] = "none",
         struct_n2v_span: int = 5,
-        **kwargs: Any,
     ) -> None:
-        """LightningDataModule wrapper for training and validation datasets.
+        """
+        LightningDataModule wrapper for training and validation datasets.
 
         Since the lightning datamodule has no access to the model, make sure that the
         parameters passed to the datamodule are consistent with the model's requirements
@@ -702,13 +765,15 @@ class CAREamicsTrainDataModule(CAREamicsWood):
             no validation data is given, by default 5.
         dataloader_params : dict, optional
             Pytorch dataloader parameters, by default {}.
+        use_in_memory : bool, optional
+            Use in memory dataset if possible, by default True.
         use_n2v2 : bool, optional
             Use N2V2 transformation during training, by default False.
         struct_n2v_axis : Literal["horizontal", "vertical", "none"], optional
             Axis for the structN2V mask, only applied if `struct_n2v_axis` is `none`, by
             default "none".
         struct_n2v_span : int, optional
-        Span for the structN2V mask, by default 5.
+            Span for the structN2V mask, by default 5.
 
         Raises
         ------
@@ -769,7 +834,8 @@ class CAREamicsTrainDataModule(CAREamicsWood):
 
 
 class CAREamicsPredictDataModule(CAREamicsClay):
-    """LightningDataModule wrapper of an inference dataset.
+    """
+    LightningDataModule wrapper of an inference dataset.
 
     Since the lightning datamodule has no access to the model, make sure that the
     parameters passed to the datamodule are consistent with the model's requirements
@@ -798,6 +864,39 @@ class CAREamicsPredictDataModule(CAREamicsClay):
     In `dataloader_params`, you can pass any parameter accepted by PyTorch
     dataloaders, except for `batch_size`, which is set by the `batch_size`
     parameter.
+
+    Parameters
+    ----------
+    pred_data : Union[str, Path, np.ndarray]
+        Prediction data.
+    data_type : Union[Literal["array", "tiff", "custom"], SupportedData]
+        Data type, see `SupportedData` for available options.
+    tile_size : List[int]
+        Tile size, 2D or 3D tile size.
+    tile_overlap : List[int]
+        Tile overlap, 2D or 3D tile overlap.
+    axes : str
+        Axes of the data, choosen amongst SCZYX.
+    batch_size : int
+        Batch size.
+    tta_transforms : bool, optional
+        Use test time augmentation, by default True.
+    mean : Optional[float], optional
+        Mean value for normalization, only used if Normalization is defined, by
+        default None.
+    std : Optional[float], optional
+        Standard deviation value for normalization, only used if Normalization is
+        defined, by default None.
+    transforms : Optional[Union[List[TRANSFORMS_UNION], Compose]], optional
+        List of transforms to apply to prediction patches. If None, default
+        transforms are applied.
+    read_source_func : Optional[Callable], optional
+        Function to read the source data, used if `data_type` is `custom`, by
+        default None.
+    extension_filter : str, optional
+        Filter for file extensions, used if `data_type` is `custom`, by default "".
+    dataloader_params : dict, optional
+        Pytorch dataloader parameters, by default {}.
     """
 
     def __init__(
@@ -815,13 +914,13 @@ class CAREamicsPredictDataModule(CAREamicsClay):
         read_source_func: Optional[Callable] = None,
         extension_filter: str = "",
         dataloader_params: Optional[dict] = None,
-        **kwargs: Any,
     ) -> None:
-        """Constructor.
+        """
+        Constructor.
 
         Parameters
         ----------
-        pred_path : Union[str, Path, np.ndarray]
+        pred_data : Union[str, Path, np.ndarray]
             Prediction data.
         data_type : Union[Literal["array", "tiff", "custom"], SupportedData]
             Data type, see `SupportedData` for available options.

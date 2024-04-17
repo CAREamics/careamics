@@ -20,7 +20,7 @@ from careamics.config import (
     load_configuration,
 )
 from careamics.config.inference_model import TRANSFORMS_UNION
-from careamics.config.support import SupportedAlgorithm
+from careamics.config.support import SupportedAlgorithm, SupportedLogger
 from careamics.lightning_datamodule import CAREamicsClay, CAREamicsWood
 from careamics.lightning_module import CAREamicsKiln
 from careamics.lightning_prediction import CAREamicsPredictionLoop
@@ -30,10 +30,7 @@ logger = get_logger(__name__)
 
 # TODO napari callbacks
 # TODO save as modelzoo, lightning and pytorch_dict
-# TODO load checkpoints
-# TODO how to do WandB
-# TODO: how to do AMP? How to continue training? How to load model from checkpoint?
-# TODO: how to save checkpoints?
+# TODO: how to do AMP? How to continue training?
 
 
 class CAREamist(LightningModule):
@@ -180,17 +177,18 @@ class CAREamist(LightningModule):
         # torch.set_float32_matmul_precision('medium')
 
         # instantiate logger
-        if self.cfg.training_config.logger.name == "wandb":
-            self.logger = WandbLogger(
-                name=experiment_name,
-                save_dir=self.work_dir / Path("logs"),
-                #**self.cfg.logger.model_dump(),
-            )
-        elif self.cfg.training_config.logger.name == "tensorboard":
-            self.logger = TensorBoardLogger(
-                save_dir=self.work_dir / Path("logs"),
-                #**self.cfg.logger.model_dump(),
-            )
+        if self.cfg.training_config.has_logger():
+            if self.cfg.training_config.logger == SupportedLogger.WANDB:
+                self.logger = WandbLogger(
+                    name=experiment_name,
+                    save_dir=self.work_dir / Path("logs"),
+                    # **self.cfg.logger.model_dump(),
+                )
+            elif self.cfg.training_config.logger == SupportedLogger.TENSORBOARD:
+                self.logger = TensorBoardLogger(
+                    save_dir=self.work_dir / Path("logs"),
+                    # **self.cfg.logger.model_dump(),
+                )
 
         # instantiate trainer
         self.trainer = Trainer(

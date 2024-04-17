@@ -14,7 +14,7 @@ from .data_model import DataModel
 from .support import SupportedAlgorithm, SupportedPixelManipulation, SupportedTransform
 from .training_model import TrainingModel
 from .transformations.n2v_manipulate_model import (
-    N2VManipulationModel,
+    N2VManipulateModel,
 )
 
 
@@ -99,17 +99,17 @@ class Configuration(BaseModel):
     >>> from careamics.config import Configuration
     >>> config_dict = {
     ...         "experiment_name": "N2V_experiment",
-    ...         "algorithm": {
+    ...         "algorithm_config": {
     ...             "algorithm": "n2v",
     ...             "loss": "n2v",
     ...             "model": {
     ...                 "architecture": "UNet",
     ...             },
     ...         },
-    ...         "training": {
+    ...         "training_config": {
     ...             "num_epochs": 200,
     ...         },
-    ...         "data": {
+    ...         "data_config": {
     ...             "data_type": "tiff",
     ...             "patch_size": [64, 64],
     ...             "axes": "SYX",
@@ -220,7 +220,7 @@ class Configuration(BaseModel):
                 # missing N2V_MANIPULATE
                 if not self.data_config.has_n2v_manipulate():
                     self.data_config.transforms.append(
-                        N2VManipulationModel(
+                        N2VManipulateModel(
                             name=SupportedTransform.N2V_MANIPULATE.value,
                         )
                     )

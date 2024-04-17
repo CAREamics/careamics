@@ -41,7 +41,7 @@ class N2VManipulationParameters(BaseModel):
         return v
 
 
-class N2VManipulationModel(BaseModel):
+class N2VManipulateModel(BaseModel):
     """Pydantic model used to represent N2V manipulation."""
 
     model_config = ConfigDict(

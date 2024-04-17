@@ -5,7 +5,6 @@ from careamics.config.inference_model import InferenceModel
 from careamics.config.support import (
     SupportedTransform,
 )
-from careamics.config.transformations.transform_model import TransformModel
 from careamics.transforms import get_all_transforms
 
 
@@ -97,6 +96,7 @@ def test_wrong_tile_size(minimum_inference: dict, tile_size):
     with pytest.raises(ValueError):
         InferenceModel(**minimum_inference)
 
+
 @pytest.mark.parametrize(
     "tile_size, tile_overlap", [([12, 12], [2, 2, 2]), ([12, 12, 12], [14, 2, 2])]
 )
@@ -143,11 +143,6 @@ def test_set_3d(minimum_inference: dict):
         [
             {"name": SupportedTransform.NORMALIZE.value},
         ],
-        [
-            {"name": SupportedTransform.NORMALIZE.value},
-            {"name": SupportedTransform.NDFLIP.value},
-            {"name": SupportedTransform.XY_RANDOM_ROTATE90.value},
-        ],
     ],
 )
 def test_passing_supported_transforms(minimum_inference: dict, transforms):
@@ -190,28 +185,6 @@ def test_passing_compose_transform(minimum_inference: dict):
         ]
     )
     InferenceModel(**minimum_inference)
-
-
-def test_passing_albumentations_transform(minimum_inference: dict):
-    """Test passing an albumentation transform with parameters."""
-    minimum_inference["transforms"] = [
-        {
-            "name": "PixelDropout",
-            "parameters": {
-                "dropout_prob": 0.05,
-                "per_channel": True,
-            },
-        },
-    ]
-    model = InferenceModel(**minimum_inference)
-    assert isinstance(model.transforms[0], TransformModel)
-
-    params = model.transforms[0].parameters.model_dump()
-    assert params["dropout_prob"] == 0.05
-    assert params["per_channel"] is True
-
-    # check that we can instantiate the transform
-    get_all_transforms()[model.transforms[0].name](**params)
 
 
 def test_mean_and_std_in_normalize(minimum_inference: dict):

@@ -9,9 +9,8 @@ from careamics.utils import check_axes_validity
 
 from .support import SupportedTransform
 from .transformations.normalize_model import NormalizeModel
-from .transformations.transform_model import TransformModel
 
-TRANSFORMS_UNION = Union[NormalizeModel, TransformModel]
+TRANSFORMS_UNION = Union[NormalizeModel]
 
 
 class InferenceModel(BaseModel):
@@ -24,7 +23,7 @@ class InferenceModel(BaseModel):
     tile_size: Union[List[int], Tuple[int]] = Field(..., min_length=2, max_length=3)
     tile_overlap: List[int] = Field(
         default=[48, 48], min_length=2, max_length=3
-    )  # TODO Will be calculated automatically
+    )  # TODO Will be calculated automatically in the future
 
     axes: str
 
@@ -175,9 +174,7 @@ class InferenceModel(BaseModel):
                 f"{pred_model.axes} (got {pred_model.tile_overlap})."
             )
 
-        if any(
-            (i >= j) for i, j in zip(pred_model.tile_overlap, pred_model.tile_size)
-        ):
+        if any((i >= j) for i, j in zip(pred_model.tile_overlap, pred_model.tile_size)):
             raise ValueError("Tile overlap must be smaller than tile size.")
 
         return pred_model

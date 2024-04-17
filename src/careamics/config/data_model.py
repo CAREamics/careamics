@@ -5,23 +5,32 @@ from pprint import pformat
 from typing import Any, List, Literal, Optional, Union
 
 from albumentations import Compose
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Discriminator,
+    Field,
+    field_validator,
+    model_validator,
+)
+from typing_extensions import Annotated
 
 from careamics.utils import check_axes_validity
 
 from .support import SupportedTransform
-from .transformations.n2v_manipulate_model import N2VManipulationModel
+from .transformations.n2v_manipulate_model import N2VManipulateModel
 from .transformations.nd_flip_model import NDFlipModel
 from .transformations.normalize_model import NormalizeModel
-from .transformations.transform_model import TransformModel
 from .transformations.xy_random_rotate90_model import XYRandomRotate90Model
 
-TRANSFORMS_UNION = Union[
-    NDFlipModel,
-    XYRandomRotate90Model,
-    NormalizeModel,
-    N2VManipulationModel,
-    TransformModel,
+TRANSFORMS_UNION = Annotated[
+    Union[
+        NDFlipModel,
+        XYRandomRotate90Model,
+        NormalizeModel,
+        N2VManipulateModel,
+    ],
+    Discriminator("name"),  # used to tell the different transform models apart
 ]
 
 
@@ -64,10 +73,6 @@ class DataModel(BaseModel):
     ...         {
     ...             "name": "NDFlip",
     ...             "parameters": {"is_3D": True, "flip_Z": True}
-    ...         },
-    ...         {
-    ...             "name": "PixelDropout", # Albumentations transform
-    ...             "parameters": {"dropout_prob": 0.05}
     ...         }
     ...     ]
     ... )
@@ -82,7 +87,9 @@ class DataModel(BaseModel):
     # Dataset configuration
     data_type: Literal["array", "tiff", "custom"]  # As defined in SupportedData
     patch_size: List[int] = Field(..., min_length=2, max_length=3)
-    batch_size: int = Field(default=1, ge=1, validate_default=True) # TODO Differentiate based on Train/inf ?
+    batch_size: int = Field(
+        default=1, ge=1, validate_default=True
+    )  # TODO Differentiate based on Train/inf ?
     axes: str
 
     # Optional fields
@@ -107,7 +114,7 @@ class DataModel(BaseModel):
         validate_default=True,
     )
 
-    dataloader_params: Optional[dict] = None # TODO validate ?
+    dataloader_params: Optional[dict] = None  # TODO validate ?
 
     @field_validator("patch_size")
     @classmethod
@@ -388,7 +395,7 @@ class DataModel(BaseModel):
         if self.has_transform_list():
             if not self.has_n2v_manipulate():
                 self.transforms.append(
-                    N2VManipulationModel(name=SupportedTransform.N2V_MANIPULATE.value)
+                    N2VManipulateModel(name=SupportedTransform.N2V_MANIPULATE.value)
                 )
         else:
             raise ValueError(
