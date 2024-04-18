@@ -60,6 +60,10 @@ dev = [
 # notebooks
 examples = ["jupyter", "careamics-portfolio", "matplotlib"]
 
+# loggers
+wandb = ["wandb"]
+tensorboard = ["tensorboard"]
+
 [project.urls]
 homepage = "https://careamics.github.io/"
 repository = "https://github.com/CAREamics/careamics"

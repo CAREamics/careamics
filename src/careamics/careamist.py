@@ -179,13 +179,13 @@ class CAREamist(LightningModule):
         # instantiate logger
         if self.cfg.training_config.has_logger():
             if self.cfg.training_config.logger == SupportedLogger.WANDB:
-                self.logger = WandbLogger(
+                self.experiment_logger = WandbLogger(
                     name=experiment_name,
                     save_dir=self.work_dir / Path("logs"),
                     # **self.cfg.logger.model_dump(),
                 )
             elif self.cfg.training_config.logger == SupportedLogger.TENSORBOARD:
-                self.logger = TensorBoardLogger(
+                self.experiment_logger = TensorBoardLogger(
                     save_dir=self.work_dir / Path("logs"),
                     # **self.cfg.logger.model_dump(),
                 )
@@ -195,7 +195,7 @@ class CAREamist(LightningModule):
             max_epochs=self.cfg.training_config.num_epochs,
             callbacks=self.callbacks,
             default_root_dir=self.work_dir,
-            logger=self.logger,
+            logger=self.experiment_logger,
             # precision="bf16"
         )
 
@@ -642,11 +642,11 @@ class CAREamist(LightningModule):
                     f"np.ndarray (got {type(source)})."
                 )
 
-    def export_checkpoint(
+    def export_model(
         self, path: Union[Path, str], type: Literal["bmz", "script"] = "bmz"
     ) -> None:
         """
-        Export the model to a checkpoint or a BioImage Model Zoo model.
+        Export the model to the BioImage Model Zoo or torchscript format.
 
         Parameters
         ----------

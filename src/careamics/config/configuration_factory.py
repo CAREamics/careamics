@@ -154,18 +154,10 @@ def create_n2n_configuration(
     )
 
     # training model
-    logger_dict = (
-        None
-        if logger == "none"
-        else {
-            "name": logger,
-        }
-    )
-
     training = TrainingModel(
         num_epochs=num_epochs,
         batch_size=batch_size,
-        logger=logger_dict,
+        logger=None if logger == "none" else logger,
     )
 
     # create configuration
@@ -405,12 +397,10 @@ def create_n2v_configuration(
     )
 
     # training model
-    logger_dict = None if logger == "none" else {"name": logger}
-
     training = TrainingModel(
         num_epochs=num_epochs,
         batch_size=batch_size,
-        logger=logger_dict,
+        logger=None if logger == "none" else logger,
     )
 
     # create configuration

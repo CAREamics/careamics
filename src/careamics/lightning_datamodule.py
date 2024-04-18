@@ -189,7 +189,15 @@ class CAREamicsWood(L.LightningDataModule):
         Hook used to prepare the data before calling `setup`.
 
         Here, we only need to examine the data if it was provided as a str or a Path.
+        
+        TODO: from lightning doc: 
+        prepare_data is called from the main process. It is not recommended to assign
+        state here (e.g. self.x = y) since it is called on a single process and if you
+        assign states here then they won’t be available for other processes.
+
+        https://lightning.ai/docs/pytorch/stable/data/datamodule.html
         """
+
         # if the data is a Path or a str
         if (
             not isinstance(self.train_data, np.ndarray)
