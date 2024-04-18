@@ -168,10 +168,7 @@ class CAREamist(LightningModule):
                 self.cfg = Configuration(**cfg_dict)
                 
                 # create model
-                self.model = CAREamicsKiln(self.cfg.algorithm_config)
-
-                # load weights # TODO in this way we have to load the file again
-                self.load_pretrained(source)
+                self.model = CAREamicsKiln.load_pretrained(source)
 
         # define the checkpoint saving callback
         self.callbacks = self._define_callbacks()
