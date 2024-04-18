@@ -480,7 +480,7 @@ class CAREamist(LightningModule):
 
     @overload
     def predict(  # numpydoc ignore=GL08
-        self, source: CAREamicsClay
+        self, source: CAREamicsClay, checkpoint: Literal["best", "last"] = "last"
     ) -> Union[list, np.ndarray]:
         ...
 
@@ -499,6 +499,7 @@ class CAREamist(LightningModule):
         dataloader_params: Optional[Dict] = None,
         read_source_func: Optional[Callable] = None,
         extension_filter: str = "",
+        checkpoint: Literal["best", "last"] = "last"
     ) -> Union[list, np.ndarray]:
         ...
 
@@ -515,6 +516,7 @@ class CAREamist(LightningModule):
         transforms: Optional[List[TRANSFORMS_UNION]] = None,
         tta_transforms: bool = True,
         dataloader_params: Optional[Dict] = None,
+        checkpoint: Literal["best", "last"] = "last"
     ) -> Union[list, np.ndarray]:
         ...
 
@@ -532,6 +534,7 @@ class CAREamist(LightningModule):
         dataloader_params: Optional[Dict] = None,
         read_source_func: Optional[Callable] = None,
         extension_filter: str = "",
+        checkpoint: Literal["best", "last"] = "last",
         **kwargs: Any,
     ) -> Union[List[np.ndarray], np.ndarray]:
         """
@@ -571,6 +574,8 @@ class CAREamist(LightningModule):
             Function to read the source data, by default None.
         extension_filter : str, optional
             Filter for the file extension, by default "".
+        checkpoint : Literal["best", "last"], optional
+            Checkpoint to use for prediction, by default "last".
         **kwargs : Any
             Unused.
 
@@ -624,7 +629,9 @@ class CAREamist(LightningModule):
                     dataloader_params=dataloader_params,
                 )
 
-                return self.trainer.predict(datamodule=datamodule, ckpt_path='last')
+                return self.trainer.predict(
+                    datamodule=datamodule, ckpt_path=checkpoint
+                )
 
             elif isinstance(source, np.ndarray):
                 # create datamodule
