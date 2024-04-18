@@ -480,7 +480,7 @@ class CAREamist(LightningModule):
 
     @overload
     def predict(  # numpydoc ignore=GL08
-        self, source: CAREamicsClay, checkpoint: Literal["best", "last"] = "last"
+        self, source: CAREamicsClay
     ) -> Union[list, np.ndarray]:
         ...
 
@@ -546,9 +546,10 @@ class CAREamist(LightningModule):
         configuration parameters will be used, with the `patch_size` instead of
         `tile_size`.
 
-        The default transforms are defined in the InferenceModel Pydantic model.
+        The default transforms are defined in the `InferenceModel` Pydantic model.
 
-        TTA transform can be switched off using the `tta_transforms` parameter.
+        Test-time augmentation (TTA) can be switched off using the `tta_transforms` 
+        parameter.
 
         Parameters
         ----------
@@ -641,7 +642,7 @@ class CAREamist(LightningModule):
                     dataloader_params=dataloader_params,
                 )
 
-                return self.trainer.predict(datamodule=datamodule)
+                return self.trainer.predict(datamodule=datamodule, ckpt_path=checkpoint)
 
             else:
                 raise ValueError(
