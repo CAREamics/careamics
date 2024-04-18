@@ -62,7 +62,7 @@ examples = ["jupyter", "careamics-portfolio", "matplotlib"]
 
 # loggers
 wandb = ["wandb"]
-tensorboard = ["tensorboard"]
+tensorboard = ["tensorboard", "protobuf==3.20.3"]
 
 [project.urls]
 homepage = "https://careamics.github.io/"
