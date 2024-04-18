@@ -624,7 +624,7 @@ class CAREamist(LightningModule):
                     dataloader_params=dataloader_params,
                 )
 
-                return self.trainer.predict(datamodule=datamodule)
+                return self.trainer.predict(datamodule=datamodule, ckpt_path='last')
 
             elif isinstance(source, np.ndarray):
                 # create datamodule
