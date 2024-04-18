@@ -129,21 +129,6 @@ def create_n2n_configuration(
             },
         ]
 
-    # n2v2 and structn2v
-    nv2_transform = {
-        "name": SupportedTransform.N2V_MANIPULATE.value,
-        "parameters": {
-            "strategy": SupportedPixelManipulation.MEDIAN.value
-            if use_n2v2
-            else SupportedPixelManipulation.UNIFORM.value,
-            "roi_size": roi_size,
-            "masked_pixel_percentage": masked_pixel_percentage,
-            "struct_mask_axis": struct_n2v_axis,
-            "struct_mask_span": struct_n2v_span,
-        },
-    }
-    transforms.append(nv2_transform)
-
     # data model
     data = DataModel(
         data_type=data_type,
