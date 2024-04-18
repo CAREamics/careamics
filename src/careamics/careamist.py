@@ -166,8 +166,10 @@ class CAREamist(LightningModule):
 
                 # create configuration
                 self.cfg = Configuration(**cfg_dict)
+                
                 # create model
-                self.model = CAREamicsKiln
+                self.model = CAREamicsKiln(self.cfg.algorithm_config)
+
                 # load weights # TODO in this way we have to load the file again
                 self.load_pretrained(source)
 
