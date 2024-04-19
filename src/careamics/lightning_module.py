@@ -19,13 +19,43 @@ from careamics.utils.torch_utils import get_optimizer, get_scheduler
 
 
 class CAREamicsKiln(L.LightningModule):
-    """CAREamics internal Lightning module class.
+    """
+    CAREamics Lightning module.
 
-    This class is configured using an AlgorithmModel instance, parameterizing the deep
-    learning model, and defining training and validation steps.
+    This class encapsulates the a PyTorch model along with the training, validation,
+    and testing logic. It is configured using an `AlgorithmModel` Pydantic class.
+
+    Attributes
+    ----------
+    model : nn.Module
+        PyTorch model.
+    loss_func : nn.Module
+        Loss function.
+    optimizer_name : str
+        Optimizer name.
+    optimizer_params : dict
+        Optimizer parameters.
+    lr_scheduler_name : str
+        Learning rate scheduler name.
+
+    Parameters
+    ----------
+    algorithm_config : Union[AlgorithmModel, dict]
+        Algorithm configuration.
     """
 
     def __init__(self, algorithm_config: Union[AlgorithmModel, dict]) -> None:
+        """
+        CAREamics Lightning module.
+
+        This class encapsulates the a PyTorch model along with the training, validation,
+        and testing logic. It is configured using an `AlgorithmModel` Pydantic class.
+
+        Parameters
+        ----------
+        algorithm_config : Union[AlgorithmModel, dict]
+            Algorithm configuration.
+        """
         super().__init__()
         # if loading from a checkpoint, AlgorithmModel needs to be instantiated
         if isinstance(algorithm_config, dict):

@@ -1,9 +1,38 @@
+from pathlib import Path
+
 import numpy as np
 import pytest
 import tifffile
 
 from careamics import CAREamist, Configuration, save_configuration
 from careamics.config.support import SupportedAlgorithm, SupportedData
+
+
+@pytest.fixture
+def pre_trained(tmp_path, minimum_configuration):
+    """Fixture to create a pre-trained CAREamics model."""
+    # training data
+    train_array = np.ones((32, 32))
+
+    # create configuration
+    config = Configuration(**minimum_configuration)
+    config.training_config.num_epochs = 1
+    config.data_config.axes = "YX"
+    config.data_config.batch_size = 2
+    config.data_config.data_type = SupportedData.ARRAY.value
+    config.data_config.patch_size = (8, 8)
+
+    # instantiate CAREamist
+    careamist = CAREamist(source=config, work_dir=tmp_path)
+
+    # train CAREamist
+    careamist.train(train_source=train_array)
+
+    # check that it trained
+    pre_trained_path: Path = tmp_path / "checkpoints" / "last.ckpt"
+    assert pre_trained_path.exists()
+
+    return pre_trained_path
 
 
 def test_no_parameters():
@@ -84,9 +113,8 @@ def test_train_single_array_no_val(tmp_path, minimum_configuration):
     # train CAREamist
     careamist.train(train_source=train_array)
 
-    # check that it recorded mean and std
-    assert careamist.cfg.data_config.mean is not None
-    assert careamist.cfg.data_config.std is not None
+    # check that it trained
+    assert Path(tmp_path / "checkpoints" / "last.ckpt").exists()
 
 
 def test_train_array(tmp_path, minimum_configuration):
@@ -109,10 +137,8 @@ def test_train_array(tmp_path, minimum_configuration):
     # train CAREamist
     careamist.train(train_source=train_array, val_source=val_array)
 
-    # check that it recorded mean and std
-    assert careamist.cfg.data_config.mean is not None
-    assert careamist.cfg.data_config.std is not None
-    # TODO somethign to check that it trained, maybe through callback
+    # check that it trained
+    assert Path(tmp_path / "checkpoints" / "last.ckpt").exists()
 
 
 def test_train_tiff_files_in_memory_no_val(tmp_path, minimum_configuration):
@@ -138,9 +164,8 @@ def test_train_tiff_files_in_memory_no_val(tmp_path, minimum_configuration):
     # train CAREamist
     careamist.train(train_source=train_file)
 
-    # check that it recorded mean and std
-    assert careamist.cfg.data_config.mean is not None
-    assert careamist.cfg.data_config.std is not None
+    # check that it trained
+    assert Path(tmp_path / "checkpoints" / "last.ckpt").exists()
 
 
 def test_train_tiff_files_in_memory(tmp_path, minimum_configuration):
@@ -170,10 +195,8 @@ def test_train_tiff_files_in_memory(tmp_path, minimum_configuration):
     # train CAREamist
     careamist.train(train_source=train_file, val_source=val_file)
 
-    # check that it recorded mean and std
-    assert careamist.cfg.data_config.mean is not None
-    assert careamist.cfg.data_config.std is not None
-    # TODO somethign to check that it trained, maybe through callback
+    # check that it trained
+    assert Path(tmp_path / "checkpoints" / "last.ckpt").exists()
 
 
 def test_train_tiff_files(tmp_path, minimum_configuration):
@@ -205,10 +228,8 @@ def test_train_tiff_files(tmp_path, minimum_configuration):
     # train CAREamist
     careamist.train(train_source=train_file, val_source=val_file, use_in_memory=False)
 
-    # check that it recorded mean and std
-    assert careamist.cfg.data_config.mean is not None
-    assert careamist.cfg.data_config.std is not None
-    # TODO somethign to check that it trained, maybe through callback
+    # check that it trained
+    assert Path(tmp_path / "checkpoints" / "last.ckpt").exists()
 
 
 def test_train_array_supervised(tmp_path, supervised_configuration):
@@ -238,10 +259,8 @@ def test_train_array_supervised(tmp_path, supervised_configuration):
         val_target=val_target,
     )
 
-    # check that it recorded mean and std
-    assert careamist.cfg.data_config.mean is not None
-    assert careamist.cfg.data_config.std is not None
-    # TODO somethign to check that it trained, maybe through callback
+    # check that it trained
+    assert Path(tmp_path / "checkpoints" / "last.ckpt").exists()
 
 
 def test_train_tiff_files_in_memory_supervised(tmp_path, supervised_configuration):
@@ -288,9 +307,8 @@ def test_train_tiff_files_in_memory_supervised(tmp_path, supervised_configuratio
         val_target=val_target_file,
     )
 
-    # check that it recorded mean and std
-    assert careamist.cfg.data_config.mean is not None
-    assert careamist.cfg.data_config.std is not None
+    # check that it trained
+    assert Path(tmp_path / "checkpoints" / "last.ckpt").exists()
 
 
 def test_train_tiff_files_supervised(tmp_path, supervised_configuration):
@@ -340,12 +358,10 @@ def test_train_tiff_files_supervised(tmp_path, supervised_configuration):
         use_in_memory=False,
     )
 
-    # check that it recorded mean and std
-    assert careamist.cfg.data_config.mean is not None
-    assert careamist.cfg.data_config.std is not None
-    # TODO somethign to check that it trained, maybe through callback
+    # check that it trained
+    assert Path(tmp_path / "checkpoints" / "last.ckpt").exists()
 
-# TODO rewrite without training or with loading a trained model
+
 @pytest.mark.parametrize("batch_size", [1, 2])
 def test_predict_array(tmp_path, minimum_configuration, batch_size):
     """Test that CAREamics can predict with arrays."""
@@ -381,6 +397,7 @@ def test_predict_array(tmp_path, minimum_configuration, batch_size):
     assert predicted is not None
     assert predicted.squeeze().shape == train_array.shape
 
+
 @pytest.mark.parametrize("batch_size", [1, 2])
 def test_predict_path(tmp_path, minimum_configuration, batch_size):
     """Test that CAREamics can predict with tiff files."""
@@ -409,6 +426,23 @@ def test_predict_path(tmp_path, minimum_configuration, batch_size):
     predicted = careamist.predict(
         train_file, batch_size=batch_size, tile_overlap=(4, 4)
     )
+
+    # check that it predicted
+    assert predicted is not None
+    assert predicted.squeeze().shape == train_array.shape
+
+
+def test_predict_pretrained(tmp_path, pre_trained):
+    """Test that CAREamics can be instantiated with a pre-trained network and predict
+    on an array."""
+    # training data
+    train_array = np.ones((32, 32))
+
+    # instantiate CAREamist
+    careamist = CAREamist(source=pre_trained, work_dir=tmp_path)
+
+    # predict
+    predicted = careamist.predict(train_array, tile_overlap=(4, 4))
 
     # check that it predicted
     assert predicted is not None

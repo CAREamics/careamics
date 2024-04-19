@@ -11,7 +11,6 @@ from pytorch_lightning.callbacks import (
     ModelCheckpoint,
 )
 from pytorch_lightning.loggers import TensorBoardLogger, WandbLogger
-from torch import load
 
 from careamics.callbacks import ProgressBarCallback
 from careamics.config import (
@@ -21,12 +20,15 @@ from careamics.config import (
 )
 from careamics.config.inference_model import TRANSFORMS_UNION
 from careamics.config.support import SupportedAlgorithm, SupportedLogger
+from careamics.io import load_pretrained
 from careamics.lightning_datamodule import CAREamicsClay, CAREamicsWood
 from careamics.lightning_module import CAREamicsKiln
 from careamics.lightning_prediction import CAREamicsPredictionLoop
 from careamics.utils import check_path_exists, get_logger
 
 logger = get_logger(__name__)
+
+LOGGER_TYPES = Optional[Union[TensorBoardLogger, WandbLogger]]
 
 # TODO napari callbacks
 # TODO save as modelzoo, lightning and pytorch_dict
@@ -35,9 +37,20 @@ logger = get_logger(__name__)
 
 class CAREamist(LightningModule):
     """
-    A class to train and predict with CAREamics models.
+    Main CAREamics class, allowing training and prediction using various algorithms.
 
-    # TODO
+    Attributes
+    ----------
+    model : CAREamicsKiln
+        CAREamics model.
+    cfg : Configuration
+        CAREamics configuration.
+    trainer : Trainer
+        PyTorch Lightning trainer.
+    experiment_logger : Optional[Union[TensorBoardLogger, WandbLogger]]
+        Experiment logger, "wandb" or "tensorboard".
+    work_dir : Path
+        Working directory.
 
     Parameters
     ----------
@@ -48,7 +61,6 @@ class CAREamist(LightningModule):
         by default None.
     experiment_name : str, optional
         Experiment name used for checkpoints, by default "CAREamics".
-
     """
 
     @overload
@@ -124,9 +136,11 @@ class CAREamist(LightningModule):
         if isinstance(source, Configuration):
             self.cfg = source
             self.save_hyperparameters(self.cfg.model_dump())
+
             # instantiate model
             self.model = CAREamicsKiln(self.cfg.algorithm_config)
             self.model.hparams.update(self.cfg.model_dump())
+
         # path to configuration file or model
         else:
             source = check_path_exists(source)
@@ -145,30 +159,9 @@ class CAREamist(LightningModule):
                 # instantiate model
                 self.model = CAREamicsKiln(self.cfg.algorithm_config)
 
-            # bmz model
-            elif source.suffix == ".zip":
-                raise NotImplementedError(
-                    "Loading a model from BioImage Model Zoo is not implemented yet."
-                )
-
-            # checkpoint
-            elif source.suffix == ".ckpt":
-                checkpoint = load(source)
-
-                # attempt to load algorithm parameters
-                try:
-                    cfg_dict = checkpoint["hyper_parameters"]
-                except KeyError as e:
-                    raise ValueError(
-                        "Invalid checkpoint file. No `hyper_parameters` found for the "
-                        "algorithm."
-                    ) from e
-
-                # create configuration
-                self.cfg = Configuration(**cfg_dict)
-                
-                # create model
-                self.model = CAREamicsKiln.load_pretrained(source)
+            # attempt loading a pre-trained model
+            else:
+                self.model, self.cfg = load_pretrained(source)
 
         # define the checkpoint saving callback
         self.callbacks = self._define_callbacks()
@@ -178,7 +171,7 @@ class CAREamist(LightningModule):
         # instantiate logger
         if self.cfg.training_config.has_logger():
             if self.cfg.training_config.logger == SupportedLogger.WANDB:
-                self.experiment_logger = WandbLogger(
+                self.experiment_logger: LOGGER_TYPES = WandbLogger(
                     name=experiment_name,
                     save_dir=self.work_dir / Path("logs"),
                     # **self.cfg.logger.model_dump(),
@@ -188,6 +181,8 @@ class CAREamist(LightningModule):
                     save_dir=self.work_dir / Path("logs"),
                     # **self.cfg.logger.model_dump(),
                 )
+        else:
+            self.experiment_logger = None
 
         # instantiate trainer
         self.trainer = Trainer(
@@ -498,7 +493,7 @@ class CAREamist(LightningModule):
         dataloader_params: Optional[Dict] = None,
         read_source_func: Optional[Callable] = None,
         extension_filter: str = "",
-        checkpoint: Literal["best", "last"] = "last"
+        checkpoint: Optional[Literal["best", "last"]] = None,
     ) -> Union[list, np.ndarray]:
         ...
 
@@ -515,7 +510,7 @@ class CAREamist(LightningModule):
         transforms: Optional[List[TRANSFORMS_UNION]] = None,
         tta_transforms: bool = True,
         dataloader_params: Optional[Dict] = None,
-        checkpoint: Literal["best", "last"] = "last"
+        checkpoint: Optional[Literal["best", "last"]] = None,
     ) -> Union[list, np.ndarray]:
         ...
 
@@ -533,7 +528,7 @@ class CAREamist(LightningModule):
         dataloader_params: Optional[Dict] = None,
         read_source_func: Optional[Callable] = None,
         extension_filter: str = "",
-        checkpoint: Literal["best", "last"] = "last",
+        checkpoint: Optional[Literal["best", "last"]] = None,
         **kwargs: Any,
     ) -> Union[List[np.ndarray], np.ndarray]:
         """
@@ -547,7 +542,7 @@ class CAREamist(LightningModule):
 
         The default transforms are defined in the `InferenceModel` Pydantic model.
 
-        Test-time augmentation (TTA) can be switched off using the `tta_transforms` 
+        Test-time augmentation (TTA) can be switched off using the `tta_transforms`
         parameter.
 
         Parameters
@@ -574,8 +569,8 @@ class CAREamist(LightningModule):
             Function to read the source data, by default None.
         extension_filter : str, optional
             Filter for the file extension, by default "".
-        checkpoint : Literal["best", "last"], optional
-            Checkpoint to use for prediction, by default "last".
+        checkpoint : Optional[Literal["best", "last"]], optional
+            Checkpoint to use for prediction, by default None.
         **kwargs : Any
             Unused.
 
@@ -630,7 +625,7 @@ class CAREamist(LightningModule):
                 )
 
                 return self.trainer.predict(
-                    datamodule=datamodule, ckpt_path=checkpoint
+                    model=self.model, datamodule=datamodule, ckpt_path=checkpoint
                 )
 
             elif isinstance(source, np.ndarray):
@@ -641,7 +636,9 @@ class CAREamist(LightningModule):
                     dataloader_params=dataloader_params,
                 )
 
-                return self.trainer.predict(datamodule=datamodule, ckpt_path=checkpoint)
+                return self.trainer.predict(
+                    model=self.model, datamodule=datamodule, ckpt_path=checkpoint
+                )
 
             else:
                 raise ValueError(
@@ -678,86 +675,3 @@ class CAREamist(LightningModule):
             raise ValueError(
                 f"Invalid export format. Expected 'bmz' or 'script', got {type}."
             )
-
-    def load_pretrained(self, path: Union[Path, str]) -> None:
-        """
-        Load a pretrained model from a checkpoint or a BioImage Model Zoo model.
-
-        Expected formats are .ckpt, .zip, .pth or .pt files.
-
-        Parameters
-        ----------
-        path : Union[Path, str]
-            Path to the pretrained model.
-
-        Raises
-        ------
-        ValueError
-            If the model format is not supported.
-        """
-        path = check_path_exists(path)
-
-        if path.suffix == ".ckpt":
-            self._load_from_checkpoint(path)
-        elif path.suffix == ".zip":
-            self._load_from_bmz(path)
-        elif path.suffix == ".pth" or path.suffix == ".pt":
-            self._load_from_state_dict(path)
-        else:
-            raise ValueError(
-                f"Invalid model format. Expected .ckpt, .zip, .pth or .pt file, "
-                f"got {path.suffix}."
-            )
-
-    def _load_from_checkpoint(self, path: Union[Path, str]) -> None:
-        """
-        Load a model from a checkpoint.
-
-        Parameters
-        ----------
-        path : Union[Path, str]
-            Path to the checkpoint.
-        """
-        self.model.load_from_checkpoint(path)
-
-    def _load_from_bmz(
-        self,
-        path: Union[Path, str],
-    ) -> None:
-        """
-        Load a model from BioImage Model Zoo.
-
-        Parameters
-        ----------
-        path : Union[Path, str]
-            Path to the BioImage Model Zoo model.
-
-        Raises
-        ------
-        NotImplementedError
-            If the method is not implemented yet.
-        """
-        raise NotImplementedError(
-            "Loading a model from BioImage Model Zoo is not implemented yet."
-        )
-
-    def _load_from_state_dict(
-        self,
-        path: Union[Path, str],
-    ) -> None:
-        """
-        Load a model from a state dict.
-
-        Parameters
-        ----------
-        path : Union[Path, str]
-            Path to the state dict.
-
-        Raises
-        ------
-        NotImplementedError
-            This method is not implemented yet.
-        """
-        raise NotImplementedError(
-            "Loading a model from a state dict is not implemented yet."
-        )
