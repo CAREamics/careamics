@@ -20,7 +20,7 @@ from careamics.config import (
 )
 from careamics.config.inference_model import TRANSFORMS_UNION
 from careamics.config.support import SupportedAlgorithm, SupportedLogger
-from careamics.io import load_pretrained
+from careamics.model_io import load_pretrained
 from careamics.lightning_datamodule import CAREamicsClay, CAREamicsWood
 from careamics.lightning_module import CAREamicsKiln
 from careamics.lightning_prediction import CAREamicsPredictionLoop
