@@ -44,7 +44,7 @@ def model_factory(
         assert isinstance(model_configuration, CustomModel)
         model = get_custom_model(model_configuration.name)
 
-        return model(**model_configuration.parameters.model_dump())
+        return model(**model_configuration.model_dump())
     else:
         raise NotImplementedError(
             f"Model {model_configuration.architecture} is not implemented or unknown."

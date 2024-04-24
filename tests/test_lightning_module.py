@@ -3,13 +3,12 @@ from careamics.lightning_module import CAREamicsKiln, CAREamicsModule
 
 
 def test_careamics_module(minimum_algorithm_n2v):
-    """Test that the minimum algorithm allows isntantiating a the Lightning API
+    """Test that the minimum algorithm allows instantiating a the Lightning API
     intermediate layer."""
     algo_config = AlgorithmModel(**minimum_algorithm_n2v)
 
     # extract model parameters
     model_parameters = algo_config.model.model_dump(exclude_none=True)
-    model_parameters.pop("architecture")
 
     # instantiate CAREamicsModule
     CAREamicsModule(

@@ -645,33 +645,9 @@ class CAREamist(LightningModule):
                     f"Invalid input. Expected a CAREamicsWood instance, paths or "
                     f"np.ndarray (got {type(source)})."
                 )
-
+            
     def export_model(
-        self, path: Union[Path, str], type: Literal["bmz", "script"] = "bmz"
+            self, 
+            path: Union[Path, str]
     ) -> None:
-        """
-        Export the model to the BioImage Model Zoo or torchscript format.
-
-        Parameters
-        ----------
-        path : Union[Path, str]
-            Path to save the model.
-        type : Literal["bmz", "script"], optional
-            Export format, by default "bmz".
-
-        Raises
-        ------
-        NotImplementedError
-            If the export format is not implemented yet.
-        """
-        path = Path(path)
-        if type == "bmz":
-            raise NotImplementedError(
-                "Exporting a model to BioImage Model Zoo is not implemented yet."
-            )
-        elif type == "script":
-            self.model.to_torchscript(path)
-        else:
-            raise ValueError(
-                f"Invalid export format. Expected 'bmz' or 'script', got {type}."
-            )
+        pass
