@@ -37,13 +37,13 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
-    'pytorch==2.*',
+    # pytorch should be installed via conda/pip beforehand
     'albumentations',
-    'bioimageio.core>=0.6.*',
+    'bioimageio.core>=0.6.0',
     'tifffile',
     'psutil',
     'pydantic>=2.5',
-    'pytorch_lightning',
+    'pytorch_lightning>=2.2.0',
     'pyyaml',
     'scikit-image',
     'zarr',
