@@ -8,33 +8,6 @@ from careamics import CAREamist, Configuration, save_configuration
 from careamics.config.support import SupportedAlgorithm, SupportedData
 
 
-@pytest.fixture
-def pre_trained(tmp_path, minimum_configuration):
-    """Fixture to create a pre-trained CAREamics model."""
-    # training data
-    train_array = np.ones((32, 32))
-
-    # create configuration
-    config = Configuration(**minimum_configuration)
-    config.training_config.num_epochs = 1
-    config.data_config.axes = "YX"
-    config.data_config.batch_size = 2
-    config.data_config.data_type = SupportedData.ARRAY.value
-    config.data_config.patch_size = (8, 8)
-
-    # instantiate CAREamist
-    careamist = CAREamist(source=config, work_dir=tmp_path)
-
-    # train CAREamist
-    careamist.train(train_source=train_array)
-
-    # check that it trained
-    pre_trained_path: Path = tmp_path / "checkpoints" / "last.ckpt"
-    assert pre_trained_path.exists()
-
-    return pre_trained_path
-
-
 def test_no_parameters():
     """Test that CAREamics cannot be instantiated without parameters."""
     with pytest.raises(TypeError):
@@ -440,6 +413,8 @@ def test_predict_pretrained(tmp_path, pre_trained):
 
     # instantiate CAREamist
     careamist = CAREamist(source=pre_trained, work_dir=tmp_path)
+    assert careamist.cfg.data_config.mean is not None
+    assert careamist.cfg.data_config.std is not None
 
     # predict
     predicted = careamist.predict(train_array, tile_overlap=(4, 4))
@@ -447,36 +422,3 @@ def test_predict_pretrained(tmp_path, pre_trained):
     # check that it predicted
     assert predicted is not None
     assert predicted.squeeze().shape == train_array.shape
-
-
-# TODO move to test_export_bmz
-def test_export_bmz(tmp_path, pre_trained):
-    # training data
-    train_array = np.ones((32, 32), dtype=np.float32)
-
-    # instantiate CAREamist
-    careamist = CAREamist(source=pre_trained, work_dir=tmp_path)
-
-    # predict
-    predicted = careamist.predict(train_array, tile_overlap=(4, 4))
-
-    # save images
-    train_path = tmp_path / "train.npy"
-    np.save(train_path, train_array[np.newaxis, np.newaxis, ...])
-
-    predicted_path = tmp_path / "predicted.npy"
-    np.save(tmp_path / "predicted.npy", predicted[np.newaxis, ...])
-
-    from careamics.model_io.model_io_utils import export_bmz
-
-    # export to BioImage Model Zoo
-    export_bmz(
-        model=careamist.model,
-        config=careamist.cfg,
-        path=tmp_path / "model.zip",
-        name="TopModel",
-        general_description="A model that just walked in.",
-        authors=[{"name": "Amod", "affiliation": "El"}],
-        inputs=train_path,
-        outputs=predicted_path,
-    )

@@ -37,8 +37,9 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
+    'pytorch==2.*',
     'albumentations',
-    'bioimageio.core',
+    'bioimageio.core>=0.6.*',
     'tifffile',
     'psutil',
     'pydantic>=2.5',

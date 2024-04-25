@@ -7,10 +7,12 @@ from pprint import pformat
 from typing import Dict, List, Literal, Union
 
 import yaml
+from bioimageio.spec.generic.v0_3 import CiteEntry
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from .algorithm_model import AlgorithmModel
 from .data_model import DataModel
+from .references import N2V2_REF, N2V_REF, STRUCTN2V_REF
 from .support import SupportedAlgorithm, SupportedPixelManipulation, SupportedTransform
 from .training_model import TrainingModel
 from .transformations.n2v_manipulate_model import (
@@ -419,6 +421,34 @@ class Configuration(BaseModel):
 
         return ""
 
+    def get_algorithm_citations(self) -> List[CiteEntry]:
+        """
+        Return a list of citation entries corresponding to the algorithm
+        defined in the configuration.
+
+        Returns
+        -------
+        List[CiteEntry]
+            List of citation entries.
+        """
+        if self.algorithm_config.algorithm == SupportedAlgorithm.N2V:
+            use_n2v2 = self.algorithm_config.model.n2v2
+            use_structN2V = (
+                self.data_config.transforms[-1].parameters.struct_mask_axis != "none"
+            )
+
+            # return the (struct)N2V(2) references
+            if use_n2v2 and use_structN2V:
+                return [N2V_REF, N2V2_REF, STRUCTN2V_REF]
+            elif use_n2v2:
+                return [N2V_REF, N2V2_REF]
+            elif use_structN2V:
+                return [N2V_REF, STRUCTN2V_REF]
+            else:
+                return [N2V_REF]
+
+        raise ValueError("Citation not available for custom algorithm.")
+
     def get_algorithm_references(self) -> str:
         """
         Get the algorithm references.
@@ -435,22 +465,9 @@ class Configuration(BaseModel):
             )
 
             references = [
-                'Krull, A., Buchholz, T.O. and Jug, F., 2019. "Noise2Void - Learning '
-                'denoising from single noisy images". In Proceedings of the IEEE/CVF '
-                "conference on computer vision and pattern recognition (pp. "
-                "2129-2137). doi: "
-                "[10.1109/cvpr.2019.00223](https://doi.org/10.1109/cvpr.2019.00223)\n",
-                "Höck, E., Buchholz, T.O., Brachmann, A., Jug, F. and Freytag, A., "
-                '2022. "N2V2 - Fixing Noise2Void checkerboard artifacts with modified '
-                'sampling strategies and a tweaked network architecture". In European '
-                "Conference on Computer Vision (pp. 503-518). doi: "
-                "[10.1007/978-3-031-25069-9_33](https://doi.org/10.1007/978-3-031-"
-                "25069-9_33)\n",
-                "Broaddus, C., Krull, A., Weigert, M., Schmidt, U. and Myers, G., 2020"
-                '. "Removing structured noise with self-supervised blind-spot '
-                'networks". In 2020 IEEE 17th International Symposium on Biomedical '
-                "Imaging (ISBI) (pp. 159-163). doi: [10.1109/isbi45749.2020.9098336]("
-                "https://doi.org/10.1109/isbi45749.2020.9098336)\n",
+                N2V_REF.text + " doi: " + N2V_REF.doi,
+                N2V2_REF.text + " doi: " + N2V2_REF.doi,
+                STRUCTN2V_REF.text + " doi: " + STRUCTN2V_REF.doi,
             ]
 
             # return the (struct)N2V(2) references

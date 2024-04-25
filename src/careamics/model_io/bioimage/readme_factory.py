@@ -1,16 +1,11 @@
 from pathlib import Path
 from typing import Optional
 
-import pkg_resources
-import torch
 import yaml
-from bioimageio.spec.model.v0_5 import Version
 
 from careamics.config import Configuration
 from careamics.config.support import SupportedAlgorithm
 from careamics.utils import cwd, get_careamics_home
-
-pytorch_version = Version(torch.__version__)
 
 
 def _yaml_block(yaml_str: str) -> str:
@@ -31,6 +26,7 @@ def _yaml_block(yaml_str: str) -> str:
 
 def readme_factory(
     config: Configuration,
+    careamics_version: str,
     data_description: Optional[str] = None,
     custom_description: Optional[str] = None,
 ) -> Path:
@@ -46,6 +42,8 @@ def readme_factory(
     ----------
     config : Configuration
         CAREamics configuration
+    careamics_version : str
+        CAREamics version
     data_description : Optional[str], optional
         Description of the data, by default None
     custom_description : Optional[str], optional
@@ -83,7 +81,6 @@ def readme_factory(
         description.append("\n\n")
 
         # algorithm details
-        careamics_version = pkg_resources.get_distribution("careamics").version
         description.append(
             f"{algorithm_flavour} was trained using CAREamics (version "
             f"{careamics_version}) with the following algorithm "

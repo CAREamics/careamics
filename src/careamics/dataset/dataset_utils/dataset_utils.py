@@ -63,7 +63,10 @@ def reshape_array(x: np.ndarray, axes: str) -> np.ndarray:
 
     # sanity checks
     if len(_axes) != len(_x.shape):
-        raise ValueError(f"Incompatible data shape ({_x.shape}) and axes ({_axes}).")
+        raise ValueError(
+            f"Incompatible data shape ({_x.shape}) and axes ({_axes}). Are the axes "
+            f"correct?"
+        )
 
     # get new x shape
     new_x_shape, new_axes, indices = _get_shape_order(_x.shape, _axes)

@@ -71,8 +71,6 @@ class CAREamicsKiln(L.LightningModule):
         self.lr_scheduler_name = algorithm_config.lr_scheduler.name
         self.lr_scheduler_params = algorithm_config.lr_scheduler.parameters
 
-        # self.save_hyperparameters(algorithm_config.model_dump())
-
     def forward(self, x: Any) -> Any:
         """Forward pass.
 
@@ -239,6 +237,33 @@ class CAREamicsModule(CAREamicsKiln):
         lr_scheduler: Union[SupportedScheduler, str] = "ReduceLROnPlateau",
         lr_scheduler_parameters: Optional[dict] = None,
     ) -> None:
+        """
+        Wrapper for the CAREamics model, exposing all algorithm configuration arguments.
+
+        Parameters
+        ----------
+        algorithm : Union[SupportedAlgorithm, str]
+            Algorithm to use for training (see SupportedAlgorithm).
+        loss : Union[SupportedLoss, str]
+            Loss function to use for training (see SupportedLoss).
+        architecture : Union[SupportedArchitecture, str]
+            Model architecture to use for training (see SupportedArchitecture).
+        model_parameters : dict, optional
+            Model parameters to use for training, by default {}. Model parameters are
+            defined in the relevant `torch.nn.Module` class, or Pyddantic model (see
+            `careamics.config.architectures`).
+        optimizer : Union[SupportedOptimizer, str], optional
+            Optimizer to use for training, by default "Adam" (see SupportedOptimizer).
+        optimizer_parameters : dict, optional
+            Optimizer parameters to use for training, as defined in `torch.optim`, by
+            default {}.
+        lr_scheduler : Union[SupportedScheduler, str], optional
+            Learning rate scheduler to use for training, by default "ReduceLROnPlateau"
+            (see SupportedScheduler).
+        lr_scheduler_parameters : dict, optional
+            Learning rate scheduler parameters to use for training, as defined in
+            `torch.optim`, by default {}.
+        """
         # create a AlgorithmModel compatible dictionary
         if lr_scheduler_parameters is None:
             lr_scheduler_parameters = {}
@@ -263,7 +288,7 @@ class CAREamicsModule(CAREamicsKiln):
 
         # add model parameters to algorithm configuration
         algorithm_configuration["model"] = model_configuration
-        # self.save_hyperparameters({**model_configuration, **algorithm_configuration})
+
         # call the parent init using an AlgorithmModel instance
         super().__init__(AlgorithmModel(**algorithm_configuration))
 

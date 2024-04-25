@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 import tifffile
 
-from careamics.config import Configuration
+from careamics import CAREamist, Configuration
 from careamics.config.algorithm_model import (
     AlgorithmModel,
     LrSchedulerModel,
@@ -312,3 +312,30 @@ def supervised_configuration(
     }
 
     return configuration
+
+
+@pytest.fixture
+def pre_trained(tmp_path, minimum_configuration):
+    """Fixture to create a pre-trained CAREamics model."""
+    # training data
+    train_array = np.arange(32 * 32).reshape((32, 32))
+
+    # create configuration
+    config = Configuration(**minimum_configuration)
+    config.training_config.num_epochs = 1
+    config.data_config.axes = "YX"
+    config.data_config.batch_size = 2
+    config.data_config.data_type = SupportedData.ARRAY.value
+    config.data_config.patch_size = (8, 8)
+
+    # instantiate CAREamist
+    careamist = CAREamist(source=config, work_dir=tmp_path)
+
+    # train CAREamist
+    careamist.train(train_source=train_array)
+
+    # check that it trained
+    pre_trained_path: Path = tmp_path / "checkpoints" / "last.ckpt"
+    assert pre_trained_path.exists()
+
+    return pre_trained_path

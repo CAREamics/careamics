@@ -12,7 +12,7 @@ class ProgressBarCallback(TQDMProgressBar):
     def init_train_tqdm(self) -> tqdm:
         """Override this to customize the tqdm bar for training."""
         bar = tqdm(
-            desc='Training',
+            desc="Training",
             position=(2 * self.process_position),
             disable=self.is_disabled,
             leave=True,
@@ -27,12 +27,12 @@ class ProgressBarCallback(TQDMProgressBar):
         # The main progress bar doesn't exist in `trainer.validate()`
         has_main_bar = self.train_progress_bar is not None
         bar = tqdm(
-            desc='Validating',
+            desc="Validating",
             position=(2 * self.process_position + has_main_bar),
             disable=self.is_disabled,
             leave=False,
             dynamic_ncols=True,
-            file=sys.stdout
+            file=sys.stdout,
         )
         return bar
 
@@ -45,7 +45,7 @@ class ProgressBarCallback(TQDMProgressBar):
             leave=True,
             dynamic_ncols=False,
             ncols=100,
-            file=sys.stdout
+            file=sys.stdout,
         )
         return bar
 
@@ -55,4 +55,3 @@ class ProgressBarCallback(TQDMProgressBar):
         """Override this to customize the metrics displayed in the progress bar."""
         pbar_metrics = trainer.progress_bar_metrics
         return {**pbar_metrics}
-

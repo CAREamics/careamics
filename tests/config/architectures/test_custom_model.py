@@ -30,16 +30,11 @@ class NotAModel:
 
 def test_any_custom_parameters():
     """Test that the custom model can have any fields.
-    
-    Note that those fields are validated by instantiating the 
+
+    Note that those fields are validated by instantiating the
     model.
     """
-    CustomModel(
-        architecture="Custom", 
-        name="linear", 
-        in_features=10, 
-        out_features=5
-    )
+    CustomModel(architecture="Custom", name="linear", in_features=10, out_features=5)
 
 
 def test_linear_model():
@@ -60,7 +55,7 @@ def test_custom_model():
     model_dict = {
         "architecture": SupportedArchitecture.CUSTOM.value,
         "name": "linear",
-        "in_features": 10, 
+        "in_features": 10,
         "out_features": 5,
     }
 

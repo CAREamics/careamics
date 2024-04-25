@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, Union, overload
 
 import numpy as np
-from pytorch_lightning import LightningModule, Trainer
+from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import (
     Callback,
     EarlyStopping,
@@ -20,22 +20,23 @@ from careamics.config import (
 )
 from careamics.config.inference_model import TRANSFORMS_UNION
 from careamics.config.support import SupportedAlgorithm, SupportedLogger
-from careamics.model_io import load_pretrained
 from careamics.lightning_datamodule import CAREamicsClay, CAREamicsWood
 from careamics.lightning_module import CAREamicsKiln
 from careamics.lightning_prediction import CAREamicsPredictionLoop
+from careamics.model_io import load_pretrained
 from careamics.utils import check_path_exists, get_logger
+
+from .callbacks import HyperParametersCallback
 
 logger = get_logger(__name__)
 
 LOGGER_TYPES = Optional[Union[TensorBoardLogger, WandbLogger]]
 
 # TODO napari callbacks
-# TODO save as modelzoo, lightning and pytorch_dict
 # TODO: how to do AMP? How to continue training?
 
 
-class CAREamist(LightningModule):
+class CAREamist:
     """
     Main CAREamics class, allowing training and prediction using various algorithms.
 
@@ -118,7 +119,6 @@ class CAREamist(LightningModule):
             If no hyper parameters are found in the checkpoint.
         ValueError
             If no data module hyper parameters are found in the checkpoint.
-
         """
         super().__init__()
 
@@ -135,11 +135,11 @@ class CAREamist(LightningModule):
         # configuration object
         if isinstance(source, Configuration):
             self.cfg = source
-            self.save_hyperparameters(self.cfg.model_dump())
 
             # instantiate model
-            self.model = CAREamicsKiln(self.cfg.algorithm_config)
-            self.model.hparams.update(self.cfg.model_dump())
+            self.model = CAREamicsKiln(
+                algorithm_config=self.cfg.algorithm_config,
+            )
 
         # path to configuration file or model
         else:
@@ -152,12 +152,10 @@ class CAREamist(LightningModule):
                 # load configuration
                 self.cfg = load_configuration(source)
 
-                # save configuration in the working directory
-                # TODO Ugly, think of a better way to save the configuration
-                self.save_hyperparameters(self.cfg.model_dump())
-
                 # instantiate model
-                self.model = CAREamicsKiln(self.cfg.algorithm_config)
+                self.model = CAREamicsKiln(
+                    algorithm_config=self.cfg.algorithm_config,
+                )
 
             # attempt loading a pre-trained model
             else:
@@ -166,20 +164,16 @@ class CAREamist(LightningModule):
         # define the checkpoint saving callback
         self.callbacks = self._define_callbacks()
 
-        # torch.set_float32_matmul_precision('medium')
-
         # instantiate logger
         if self.cfg.training_config.has_logger():
             if self.cfg.training_config.logger == SupportedLogger.WANDB:
                 self.experiment_logger: LOGGER_TYPES = WandbLogger(
                     name=experiment_name,
                     save_dir=self.work_dir / Path("logs"),
-                    # **self.cfg.logger.model_dump(),
                 )
             elif self.cfg.training_config.logger == SupportedLogger.TENSORBOARD:
                 self.experiment_logger = TensorBoardLogger(
                     save_dir=self.work_dir / Path("logs"),
-                    # **self.cfg.logger.model_dump(),
                 )
         else:
             self.experiment_logger = None
@@ -190,7 +184,6 @@ class CAREamist(LightningModule):
             callbacks=self.callbacks,
             default_root_dir=self.work_dir,
             logger=self.experiment_logger,
-            # precision="bf16"
         )
 
         # change the prediction loop, necessary for tiled prediction
@@ -207,6 +200,7 @@ class CAREamist(LightningModule):
         """
         # checkpoint callback saves checkpoints during training
         self.callbacks = [
+            HyperParametersCallback(self.cfg),
             ModelCheckpoint(
                 dirpath=self.work_dir / Path("checkpoints"),
                 filename=self.cfg.experiment_name,
@@ -222,10 +216,6 @@ class CAREamist(LightningModule):
             )
 
         return self.callbacks
-
-    def on_save_checkpoint(self, checkpoint: Dict[str, Any]) -> None:
-        """Save the configuration in the checkpoint."""
-        checkpoint["cfg"] = self.cfg.model_dump()
 
     def train(
         self,
@@ -645,9 +635,6 @@ class CAREamist(LightningModule):
                     f"Invalid input. Expected a CAREamicsWood instance, paths or "
                     f"np.ndarray (got {type(source)})."
                 )
-            
-    def export_model(
-            self, 
-            path: Union[Path, str]
-    ) -> None:
+
+    def export_model(self, path: Union[Path, str]) -> None:
         pass
