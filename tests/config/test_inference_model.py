@@ -51,25 +51,6 @@ def test_mean_std_both_specified_or_none(minimum_inference: dict):
     InferenceModel(**minimum_inference)
 
 
-def test_set_mean_and_std(minimum_inference: dict):
-    """Test that mean and std can be set after initialization."""
-    # they can be set both, when they None
-    mean = 4.07
-    std = 14.07
-    pred = InferenceModel(**minimum_inference)
-    pred.set_mean_and_std(mean, std)
-    assert pred.mean == mean
-    assert pred.std == std
-
-    # and if they are already set
-    minimum_inference["mean"] = 10.4
-    minimum_inference["std"] = 3.2
-    pred = InferenceModel(**minimum_inference)
-    pred.set_mean_and_std(mean, std)
-    assert pred.mean == mean
-    assert pred.std == std
-
-
 def test_tile_size(minimum_inference: dict):
     """Test that non-zero even patch size are accepted."""
     # 2D

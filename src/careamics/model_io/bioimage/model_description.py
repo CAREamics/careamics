@@ -120,25 +120,37 @@ def _create_inputs_ouputs(
     """
     input_axes = _create_axes(input_array, data_config)
     output_axes = _create_axes(output_array, data_config, is_input=False)
+
+    # mean and std
+    mean = data_config.mean
+    std = data_config.std
+
+    # and the mean and std required to invert the normalization
+    inv_mean = -mean / std
+    inv_std = 1 / std
+
+    # create input/output descriptions
     input_descr = InputTensorDescr(
         id=TensorId("input"),
         axes=input_axes,
         test_tensor=FileDescr(source=input_path),
-        preprocessing=FixedZeroMeanUnitVarianceDescr(
-            kwargs=FixedZeroMeanUnitVarianceKwargs(
-                mean=data_config.mean, std=data_config.std
+        preprocessing=[
+            FixedZeroMeanUnitVarianceDescr(
+                kwargs=FixedZeroMeanUnitVarianceKwargs(mean=mean, std=std)
             )
-        ),
+        ],
     )
     output_descr = OutputTensorDescr(
         id=TensorId("prediction"),
         axes=output_axes,
         test_tensor=FileDescr(source=output_path),
-        postprocessing=FixedZeroMeanUnitVarianceDescr(
-            kwargs=FixedZeroMeanUnitVarianceKwargs(
-                mean=data_config.mean, std=data_config.std
+        postprocessing=[
+            FixedZeroMeanUnitVarianceDescr(
+                kwargs=FixedZeroMeanUnitVarianceKwargs(  # invert normalization
+                    mean=inv_mean, std=inv_std
+                )
             )
-        ),
+        ],
     )
 
     return input_descr, output_descr

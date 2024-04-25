@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, List, Literal, Optional, Tuple, Union
+from typing import List, Literal, Optional, Tuple, Union
 
 from albumentations import Compose
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -233,39 +233,6 @@ class InferenceModel(BaseModel):
                         transform.parameters.std = pred_model.std
 
         return pred_model
-
-    def _update(self, **kwargs: Any) -> None:
-        """Update multiple arguments at once."""
-        self.__dict__.update(kwargs)
-        self.__class__.model_validate(self.__dict__)
-
-    def set_mean_and_std(self, mean: float, std: float) -> None:
-        """
-        Set mean and standard deviation of the data.
-
-        This method should be used instead setting the fields directly, as it would
-        otherwise trigger a validation error.
-
-        Parameters
-        ----------
-        mean : float
-            Mean of the data.
-        std : float
-            Standard deviation of the data.
-        """
-        self._update(mean=mean, std=std)
-
-        # search in the transforms for Normalize and update parameters
-        if not isinstance(self.transforms, Compose):
-            for transform in self.transforms:
-                if transform.name == SupportedTransform.NORMALIZE.value:
-                    transform.parameters.mean = mean
-                    transform.parameters.std = std
-        else:
-            raise ValueError(
-                "Setting mean and std with Compose transforms is not allowed. Add "
-                "mean and std parameters directly to the transform in the Compose."
-            )
 
     def set_3D(self, axes: str, tile_size: List[int], tile_overlap: List[int]) -> None:
         """

@@ -404,8 +404,6 @@ def create_inference_configuration(
     training_configuration: Configuration,
     tile_size: Optional[Tuple[int, ...]] = None,
     tile_overlap: Tuple[int, ...] = (48, 48),
-    mean: Optional[float] = None,
-    std: Optional[float] = None,
     data_type: Optional[Literal["array", "tiff", "custom"]] = None,
     axes: Optional[str] = None,
     transforms: Optional[Union[List[Dict[str, Any]], Compose]] = None,
@@ -442,6 +440,12 @@ def create_inference_configuration(
     InferenceConfiguration
         Configuration for inference with N2V.
     """
+    if (
+        training_configuration.data_config.mean is None
+        or training_configuration.data_config.std is None
+    ):
+        raise ValueError("Mean and std must be provided in the training configuration.")
+
     if transforms is None:
         transforms = [
             {
@@ -454,8 +458,8 @@ def create_inference_configuration(
         tile_size=tile_size or training_configuration.data_config.patch_size,
         tile_overlap=tile_overlap,
         axes=axes or training_configuration.data_config.axes,
-        mean=mean or training_configuration.data_config.mean,
-        std=std or training_configuration.data_config.std,
+        mean=training_configuration.data_config.mean,
+        std=training_configuration.data_config.std,
         transforms=transforms,
         tta_transforms=tta_transforms,
         batch_size=batch_size,

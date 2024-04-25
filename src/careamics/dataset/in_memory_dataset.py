@@ -269,7 +269,7 @@ class InMemoryDataset(Dataset):
         return dataset
 
 
-class InMemoryPredictionDataset(InMemoryDataset):
+class InMemoryPredictionDataset(Dataset):
     """
     Dataset storing data in memory and allowing generating patches from it.
 
@@ -311,25 +311,8 @@ class InMemoryPredictionDataset(InMemoryDataset):
         self.read_source_func = read_source_func
 
         # Generate patches
-        tiles = self._prepare_tiles()
-
-        # Add results to members
-        self.data, computed_mean, computed_std = tiles
-
-        if not self.pred_config.mean or not self.pred_config.std:
-            self.mean, self.std = computed_mean, computed_std
-            logger.info(f"Computed dataset mean: {self.mean}, std: {self.std}")
-
-            # if the transforms are not an instance of Compose
-            if hasattr(self.pred_config, "has_transform_list"):
-                if self.pred_config.has_transform_list():
-                    # update mean and std in configuration
-                    # the object is mutable and should then be recorded in the CAREamist
-                    self.pred_config.set_mean_and_std(self.mean, self.std)
-            else:
-                self.pred_config.set_mean_and_std(self.mean, self.std)
-        else:
-            self.mean, self.std = self.pred_config.mean, self.pred_config.std
+        self.data = self._prepare_tiles()
+        self.mean, self.std = self.pred_config.mean, self.pred_config.std
 
         # get transforms
         self.patch_transform = get_patch_transform(
@@ -351,9 +334,20 @@ class InMemoryPredictionDataset(InMemoryDataset):
         if self.tiling:
             return generate_patches_predict(
                 self.input_array, self.axes, self.tile_size, self.tile_overlap
-            ), self.input_array.mean(), self.input_array.std()
+            )
         else:
-            return self.input_array, self.input_array.mean(), self.input_array.std()
+            return self.input_array
+
+    def __len__(self) -> int:
+        """
+        Return the length of the dataset.
+
+        Returns
+        -------
+        int
+            Length of the dataset.
+        """
+        return len(self.data)
 
     def __getitem__(self, index: int) -> Tuple[np.ndarray, Any, Any, Any, Any]:
         """

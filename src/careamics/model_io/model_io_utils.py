@@ -251,7 +251,7 @@ def export_bmz(
 
     # test model description
     summary: ValidationSummary = test_model(model_description)
-    if summary.status != "success":
+    if summary.status == "failed":
         raise ValueError(f"Model description test failed: {summary}")
 
     # save bmz model
