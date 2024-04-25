@@ -123,8 +123,8 @@ def minimum_inference() -> dict:
     # create dictionary
     predic = {
         "data_type": SupportedData.TIFF.value,
-        "tile_size": [64, 64],
-        "tile_overlap": [10, 10],
+        "mean": 0.0,
+        "std": 1.0,
         "axes": "SYX",
     }
 

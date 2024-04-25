@@ -10,33 +10,44 @@ from careamics.prediction import stitch_prediction
 
 
 class CAREamicsPredictionLoop(L.loops._PredictionLoop):
-    """Predict loop for tiles-based prediction."""
+    """
+    CAREamics prediction loop.
 
-    # def _predict_step(self, batch, batch_idx, dataloader_idx, dataloader_iter):
-    #     self.model.predict_step(batch, batch_idx)
+    This class extends the PyTorch Lightning `_PredictionLoop` class to include
+    the stitching of the tiles into a single prediction result.
+    """
 
     def _on_predict_epoch_end(self) -> Optional[_PREDICT_OUTPUT]:
-        """Calls ``on_predict_epoch_end`` hook.
+        """
+        Calls `on_predict_epoch_end` hook.
+
+        Adapted from the parent method.
 
         Returns
         -------
             the results for all dataloaders
-
         """
         trainer = self.trainer
         call._call_callback_hooks(trainer, "on_predict_epoch_end")
         call._call_lightning_module_hook(trainer, "on_predict_epoch_end")
 
         if self.return_predictions:
+            ########################################################
+            ################ CAREamics specific code ###############
             if len(self.predicted_array) == 1:
                 return self.predicted_array[0]
             else:
-                return self.predicted_array # TODO revisit logic
+                # TODO revisit logic
+                return self.predicted_array
+            ########################################################
         return None
 
     @_no_grad_context
     def run(self) -> Optional[_PREDICT_OUTPUT]:
-        """Runs the prediction loop.
+        """
+        Runs the prediction loop.
+
+        Adapted from the parent method in order to stitch the predictions.
 
         Returns
         -------
@@ -72,17 +83,29 @@ class CAREamicsPredictionLoop(L.loops._PredictionLoop):
                 # run step hooks
                 self._predict_step(batch, batch_idx, dataloader_idx, dataloader_iter)
 
-                # Stitching tiles together
-                last_tile, *data = self.predictions[batch_idx][1]
-                self.tiles.append(self.predictions[batch_idx][0])
-                self.stitching_data.append(data)
-                if any(last_tile):
-                    predicted_batches = stitch_prediction(
-                        self.tiles, self.stitching_data
-                    )
-                    self.predicted_array.append(predicted_batches)
-                    self.tiles.clear()
-                    self.stitching_data.clear()
+                ########################################################
+                ################ CAREamics specific code ###############
+                is_tiled = len(self.predictions[batch_idx]) == 2
+                if is_tiled:
+                    # extract the last tile flag and the coordinates (crop and stitch)
+                    last_tile, *stitch_data = self.predictions[batch_idx][1]
+
+                    # append the tile and the coordinates to the lists
+                    self.tiles.append(self.predictions[batch_idx][0])
+                    self.stitching_data.append(stitch_data)
+
+                    # if last tile, stitch the tiles and add array to the prediction
+                    if any(last_tile):
+                        predicted_batches = stitch_prediction(
+                            self.tiles, self.stitching_data
+                        )
+                        self.predicted_array.append(predicted_batches)
+                        self.tiles.clear()
+                        self.stitching_data.clear()
+                else:
+                    # simply add the prediction to the list
+                    self.predicted_array.append(self.predictions[batch_idx])
+                ########################################################
             except StopIteration:
                 break
             finally:

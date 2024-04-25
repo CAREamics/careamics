@@ -3,7 +3,7 @@ Prediction convenience functions.
 
 These functions are used during prediction.
 """
-from typing import List, Optional
+from typing import List
 
 import numpy as np
 import torch
@@ -11,8 +11,7 @@ import torch
 
 def stitch_prediction(
     tiles: List[torch.Tensor],
-    stitching_data: List,
-    explicit_stitching: Optional[bool] = False,
+    stitching_data: List[List[torch.Tensor]],
 ) -> torch.Tensor:
     """
     Stitch tiles back together to form a full image.
@@ -21,25 +20,26 @@ def stitch_prediction(
     ----------
     tiles : List[torch.Tensor]
         Cropped tiles and their respective stitching coordinates.
-    stitching_data : List
-        List of coordinates obtained from
+    stitching_coords : List
+        List of information and coordinates obtained from
         `dataset.tiled_patching.extract_tiles`.
-    explicit_stitching : bool, optional
-        Whether this function is called explicitly after prediction(Lighting) or inside
-        the predict function. Removes the first element (last tile indicator).
 
     Returns
     -------
     np.ndarray
         Full image.
     """
-    # Remove first element of stitching_data if explicit_stitching
-    # TODO revisit, no way around this?
-    if explicit_stitching:
-        stitching_data = [d[1:] for d in stitching_data]
-
-    # Get whole sample shape. Unique to get rid of batch dimension. Expects tensors
-    input_shape = [x.unique() for x in stitching_data[0][0]] #TODO refatcor unique() ?
+    # retrieve whole array size, there is two cases to consider:
+    # 1. the tiles are stored in a list
+    # 2. the tiles are stored in a list with batches along the first dim
+    if tiles[0].shape[0] > 1:
+        input_shape = np.array(
+            [el.numpy() for el in stitching_data[0][0][0]], dtype=int
+        ).squeeze()
+    else:
+        input_shape = np.array(
+            [el.numpy() for el in stitching_data[0][0]], dtype=int
+        ).squeeze()
 
     predicted_image = np.zeros(input_shape, dtype=np.float32)
 

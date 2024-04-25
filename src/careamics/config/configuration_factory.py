@@ -403,7 +403,7 @@ def create_n2v_configuration(
 def create_inference_configuration(
     training_configuration: Configuration,
     tile_size: Optional[Tuple[int, ...]] = None,
-    tile_overlap: Tuple[int, ...] = (48, 48),
+    tile_overlap: Optional[Tuple[int, ...]] = None,
     data_type: Optional[Literal["array", "tiff", "custom"]] = None,
     axes: Optional[str] = None,
     transforms: Optional[Union[List[Dict[str, Any]], Compose]] = None,
@@ -413,7 +413,7 @@ def create_inference_configuration(
     """
     Create a configuration for inference with N2V.
 
-    If not provided, `data_type`, `tile_size`, and `axes` are taken from the training
+    If not provided, `data_type` and `axes` are taken from the training
     configuration. If `transforms` are not provided, only normalization is applied.
 
     Parameters
@@ -455,7 +455,7 @@ def create_inference_configuration(
 
     return InferenceModel(
         data_type=data_type or training_configuration.data_config.data_type,
-        tile_size=tile_size or training_configuration.data_config.patch_size,
+        tile_size=tile_size,
         tile_overlap=tile_overlap,
         axes=axes or training_configuration.data_config.axes,
         mean=training_configuration.data_config.mean,

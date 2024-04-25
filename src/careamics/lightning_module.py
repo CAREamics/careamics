@@ -170,7 +170,11 @@ class CAREamicsKiln(L.LightningModule):
             self._trainer.datamodule.predict_dataset.mean,
             self._trainer.datamodule.predict_dataset.std,
         )
-        return denormalized_output, aux
+
+        if len(aux) > 0:
+            return denormalized_output, aux
+        else:
+            return denormalized_output
 
     def configure_optimizers(self) -> Any:
         """Configure optimizers and learning rate schedulers.

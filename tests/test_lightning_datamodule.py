@@ -101,40 +101,44 @@ def test_lightning_predict_datamodule_wrong_type(simple_array):
         CAREamicsPredictDataModule(
             pred_data=simple_array,
             data_type="wrong_type",
-            tile_size=(10, 10),
-            tile_overlap=(2, 2),
+            mean=0.5,
+            std=0.1,
             axes="YX",
             batch_size=2,
         )
 
 
-def test_lightning_pred_datamodule_error_no_mean(simple_array):
-    """Test that the data module is created correctly with an array."""
-    # create data module
-    CAREamicsPredictDataModule(
-        pred_data=simple_array,
-        data_type="array",
-        tile_size=(10, 10),
-        tile_overlap=(2, 2),
-        axes="YX",
-        batch_size=2,
-    )
-
-
-def test_lightning_pred_datamodule_array(simple_array):
+def test_lightning_pred_datamodule_tiling(simple_array):
     """Test that the data module is created correctly with an array."""
     # create data module
     data_module = CAREamicsPredictDataModule(
         pred_data=simple_array,
         data_type="array",
-        tile_size=(10, 10),
-        tile_overlap=(2, 2),
-        axes="YX",
-        batch_size=2,
         mean=0.5,
         std=0.1,
+        axes="YX",
+        batch_size=2,
+        tile_overlap=[2, 2],
+        tile_size=[4, 4],
     )
+
     data_module.prepare_data()
     data_module.setup()
+    assert len(list(data_module.predict_dataloader())) == 8
 
-    assert len(list(data_module.predict_dataloader())) > 0
+
+def test_lightning_pred_datamodule_no_tiling(simple_array):
+    """Test that the data module is created correctly with an array."""
+    # create data module
+    data_module = CAREamicsPredictDataModule(
+        pred_data=simple_array,
+        data_type="array",
+        mean=0.5,
+        std=0.1,
+        axes="YX",
+        batch_size=2,
+    )
+
+    data_module.prepare_data()
+    data_module.setup()
+    assert len(list(data_module.predict_dataloader())) == 1

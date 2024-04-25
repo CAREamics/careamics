@@ -20,9 +20,10 @@ from careamics.config import (
 )
 from careamics.config.inference_model import TRANSFORMS_UNION
 from careamics.config.support import SupportedAlgorithm, SupportedLogger
-from careamics.lightning_datamodule import CAREamicsClay, CAREamicsWood
+from careamics.lightning_datamodule import CAREamicsWood
 from careamics.lightning_module import CAREamicsKiln
-from careamics.lightning_prediction import CAREamicsPredictionLoop
+from careamics.lightning_prediction_datamodule import CAREamicsClay
+from careamics.lightning_prediction_loop import CAREamicsPredictionLoop
 from careamics.model_io import load_pretrained
 from careamics.utils import check_path_exists, get_logger
 
@@ -635,6 +636,3 @@ class CAREamist:
                     f"Invalid input. Expected a CAREamicsWood instance, paths or "
                     f"np.ndarray (got {type(source)})."
                 )
-
-    def export_model(self, path: Union[Path, str]) -> None:
-        pass

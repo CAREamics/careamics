@@ -336,8 +336,8 @@ def test_train_tiff_files_supervised(tmp_path, supervised_configuration):
 
 
 @pytest.mark.parametrize("batch_size", [1, 2])
-def test_predict_array(tmp_path, minimum_configuration, batch_size):
-    """Test that CAREamics can predict with arrays."""
+def test_predict_on_array_tiled(tmp_path, minimum_configuration, batch_size):
+    """Test that CAREamics can predict on arrays."""
     # training data
     train_array = np.random.rand(32, 32)
 
@@ -357,17 +357,34 @@ def test_predict_array(tmp_path, minimum_configuration, batch_size):
 
     # predict CAREamist
     predicted = careamist.predict(
-        train_array, batch_size=batch_size, tile_overlap=(4, 4)
+        train_array, batch_size=batch_size, tile_size=(16, 16), tile_overlap=(4, 4)
     )
 
-    # check thatmean/std were set properly
-    assert careamist.cfg.data_config.mean is not None
-    assert careamist.cfg.data_config.std is not None
-    assert careamist.cfg.data_config.mean == train_array.mean()
-    assert careamist.cfg.data_config.std == train_array.std()
-    # check prediction and its shape@pytest.mark.parametrize("batch_size", [1, 2])
+    assert predicted.squeeze().shape == train_array.shape
 
-    assert predicted is not None
+
+def test_predict_array_no_tiling(tmp_path, minimum_configuration):
+    """Test that CAREamics can predict on arrays without tiling."""
+    # training data
+    train_array = np.random.rand(4, 32, 32)
+
+    # create configuration
+    config = Configuration(**minimum_configuration)
+    config.training_config.num_epochs = 1
+    config.data_config.axes = "SYX"
+    config.data_config.batch_size = 2
+    config.data_config.data_type = SupportedData.ARRAY.value
+    config.data_config.patch_size = (8, 8)
+
+    # instantiate CAREamist
+    careamist = CAREamist(source=config, work_dir=tmp_path)
+
+    # train CAREamist
+    careamist.train(train_source=train_array)
+
+    # predict CAREamist
+    predicted = careamist.predict(train_array)
+
     assert predicted.squeeze().shape == train_array.shape
 
 
@@ -401,7 +418,6 @@ def test_predict_path(tmp_path, minimum_configuration, batch_size):
     )
 
     # check that it predicted
-    assert predicted is not None
     assert predicted.squeeze().shape == train_array.shape
 
 
@@ -420,5 +436,4 @@ def test_predict_pretrained(tmp_path, pre_trained):
     predicted = careamist.predict(train_array, tile_overlap=(4, 4))
 
     # check that it predicted
-    assert predicted is not None
     assert predicted.squeeze().shape == train_array.shape

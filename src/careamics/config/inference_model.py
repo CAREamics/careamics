@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import List, Literal, Optional, Tuple, Union
+from typing import Any, List, Literal, Optional, Tuple, Union
 
 from albumentations import Compose
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -20,16 +20,17 @@ class InferenceModel(BaseModel):
 
     # Mandatory fields
     data_type: Literal["array", "tiff", "custom"]  # As defined in SupportedData
-    tile_size: Union[List[int], Tuple[int]] = Field(..., min_length=2, max_length=3)
-    tile_overlap: List[int] = Field(
-        default=[48, 48], min_length=2, max_length=3
-    )  # TODO Will be calculated automatically in the future
+    tile_size: Optional[Union[List[int], Tuple[int]]] = Field(
+        default=None, min_length=2, max_length=3
+    )
+    tile_overlap: Optional[Union[List[int], Tuple[int]]] = Field(
+        default=None, min_length=2, max_length=3
+    )
 
     axes: str
 
-    # Optional fields
-    mean: Optional[float] = None
-    std: Optional[float] = None
+    mean: float
+    std: float = Field(..., ge=0.0)
 
     transforms: Union[List[TRANSFORMS_UNION], Compose] = Field(
         default=[
@@ -71,12 +72,15 @@ class InferenceModel(BaseModel):
         ValueError
             If the patch size is not even.
         """
-        for dim in patch_list:
-            if dim < 1:
-                raise ValueError(f"Patch size must be non-zero positive (got {dim}).")
+        if patch_list is not None:
+            for dim in patch_list:
+                if dim < 1:
+                    raise ValueError(
+                        f"Patch size must be non-zero positive (got {dim})."
+                    )
 
-            if dim % 2 != 0:
-                raise ValueError(f"Patch size must be even (got {dim}).")
+                if dim % 2 != 0:
+                    raise ValueError(f"Patch size must be even (got {dim}).")
 
         return patch_list
 
@@ -162,20 +166,23 @@ class InferenceModel(BaseModel):
         """
         expected_len = 3 if "Z" in pred_model.axes else 2
 
-        if len(pred_model.tile_size) != expected_len:
-            raise ValueError(
-                f"Tile size must have {expected_len} dimensions given axes "
-                f"{pred_model.axes} (got {pred_model.tile_size})."
-            )
+        if pred_model.tile_size is not None and pred_model.tile_overlap is not None:
+            if len(pred_model.tile_size) != expected_len:
+                raise ValueError(
+                    f"Tile size must have {expected_len} dimensions given axes "
+                    f"{pred_model.axes} (got {pred_model.tile_size})."
+                )
 
-        if len(pred_model.tile_overlap) != expected_len:
-            raise ValueError(
-                f"Tile overlap must have {expected_len} dimensions given axes "
-                f"{pred_model.axes} (got {pred_model.tile_overlap})."
-            )
+            if len(pred_model.tile_overlap) != expected_len:
+                raise ValueError(
+                    f"Tile overlap must have {expected_len} dimensions given axes "
+                    f"{pred_model.axes} (got {pred_model.tile_overlap})."
+                )
 
-        if any((i >= j) for i, j in zip(pred_model.tile_overlap, pred_model.tile_size)):
-            raise ValueError("Tile overlap must be smaller than tile size.")
+            if any(
+                (i >= j) for i, j in zip(pred_model.tile_overlap, pred_model.tile_size)
+            ):
+                raise ValueError("Tile overlap must be smaller than tile size.")
 
         return pred_model
 
@@ -233,6 +240,11 @@ class InferenceModel(BaseModel):
                         transform.parameters.std = pred_model.std
 
         return pred_model
+
+    def _update(self, **kwargs: Any) -> None:
+        """Update multiple arguments at once."""
+        self.__dict__.update(kwargs)
+        self.__class__.model_validate(self.__dict__)
 
     def set_3D(self, axes: str, tile_size: List[int], tile_overlap: List[int]) -> None:
         """
