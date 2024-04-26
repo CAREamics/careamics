@@ -7,7 +7,10 @@ from careamics.config.support import (
     SupportedStructAxis,
     SupportedTransform,
 )
-from careamics.config.transformations.xy_random_rotate90_model import (
+from careamics.config.transformations import (
+    N2VManipulateModel,
+    NDFlipModel,
+    NormalizeModel,
     XYRandomRotate90Model,
 )
 from careamics.transforms import get_all_transforms
@@ -83,8 +86,8 @@ def test_mean_and_std_in_normalize(minimum_data: dict):
         {"name": SupportedTransform.NORMALIZE.value},
     ]
     data = DataModel(**minimum_data)
-    assert data.transforms[0].parameters.mean == 10.4
-    assert data.transforms[0].parameters.std == 3.2
+    assert data.transforms[0].mean == 10.4
+    assert data.transforms[0].std == 3.2
 
 
 def test_patch_size(minimum_data: dict):
@@ -155,7 +158,18 @@ def test_set_3d(minimum_data: dict):
 def test_passing_supported_transforms(minimum_data: dict, transforms):
     """Test that list of supported transforms can be passed."""
     minimum_data["transforms"] = transforms
-    DataModel(**minimum_data)
+    model = DataModel(**minimum_data)
+
+    supported = {
+        "NDFlip": NDFlipModel,
+        "XYRandomRotate90": XYRandomRotate90Model,
+        "Normalize": NormalizeModel,
+        "N2VManipulate": N2VManipulateModel,
+    }
+
+    for ind, t in enumerate(transforms):
+        assert t["name"] == model.transforms[ind].name
+        assert isinstance(model.transforms[ind], supported[t["name"]])
 
 
 @pytest.mark.parametrize(
@@ -236,25 +250,24 @@ def test_correct_transform_parameters(minimum_data: dict):
     model = DataModel(**minimum_data)
 
     # Normalize
-    params = model.transforms[0].parameters.model_dump()
+    params = model.transforms[0].model_dump()
     assert "mean" in params
     assert "std" in params
-    assert "max_pixel_value" in params
 
     # NDFlip
-    params = model.transforms[1].parameters.model_dump()
+    params = model.transforms[1].model_dump()
     assert "p" in params
     assert "is_3D" in params
     assert "flip_z" in params
 
     # XYRandomRotate90
-    params = model.transforms[2].parameters.model_dump()
+    params = model.transforms[2].model_dump()
     assert "p" in params
     assert "is_3D" in params
     assert isinstance(model.transforms[2], XYRandomRotate90Model)
 
     # N2VManipulate
-    params = model.transforms[3].parameters.model_dump()
+    params = model.transforms[3].model_dump()
     assert "roi_size" in params
     assert "masked_pixel_percentage" in params
     assert "strategy" in params
@@ -307,13 +320,13 @@ def test_3D_and_transforms(minimum_data: dict):
         },
     ]
     data = DataModel(**minimum_data)
-    assert data.transforms[0].parameters.is_3D is False
-    assert data.transforms[1].parameters.is_3D is False
+    assert data.transforms[0].is_3D is False
+    assert data.transforms[1].is_3D is False
 
     # change to 3D
     data.set_3D("ZYX", [64, 64, 64])
-    data.transforms[0].parameters.is_3D = True
-    data.transforms[1].parameters.is_3D = True
+    data.transforms[0].is_3D = True
+    data.transforms[1].is_3D = True
 
 
 def test_set_n2v_strategy(minimum_data: dict):
@@ -323,13 +336,13 @@ def test_set_n2v_strategy(minimum_data: dict):
 
     data = DataModel(**minimum_data)
     assert data.transforms[-1].name == SupportedTransform.N2V_MANIPULATE.value
-    assert data.transforms[-1].parameters.strategy == uniform
+    assert data.transforms[-1].strategy == uniform
 
     data.set_N2V2_strategy(median)
-    assert data.transforms[-1].parameters.strategy == median
+    assert data.transforms[-1].strategy == median
 
     data.set_N2V2_strategy(uniform)
-    assert data.transforms[-1].parameters.strategy == uniform
+    assert data.transforms[-1].strategy == uniform
 
 
 def test_set_n2v_strategy_wrong_value(minimum_data: dict):
@@ -347,20 +360,20 @@ def test_set_struct_mask(minimum_data: dict):
 
     data = DataModel(**minimum_data)
     assert data.transforms[-1].name == SupportedTransform.N2V_MANIPULATE.value
-    assert data.transforms[-1].parameters.struct_mask_axis == none
-    assert data.transforms[-1].parameters.struct_mask_span == 5
+    assert data.transforms[-1].struct_mask_axis == none
+    assert data.transforms[-1].struct_mask_span == 5
 
     data.set_structN2V_mask(vertical, 3)
-    assert data.transforms[-1].parameters.struct_mask_axis == vertical
-    assert data.transforms[-1].parameters.struct_mask_span == 3
+    assert data.transforms[-1].struct_mask_axis == vertical
+    assert data.transforms[-1].struct_mask_span == 3
 
     data.set_structN2V_mask(horizontal, 7)
-    assert data.transforms[-1].parameters.struct_mask_axis == horizontal
-    assert data.transforms[-1].parameters.struct_mask_span == 7
+    assert data.transforms[-1].struct_mask_axis == horizontal
+    assert data.transforms[-1].struct_mask_span == 7
 
     data.set_structN2V_mask(none, 11)
-    assert data.transforms[-1].parameters.struct_mask_axis == none
-    assert data.transforms[-1].parameters.struct_mask_span == 11
+    assert data.transforms[-1].struct_mask_axis == none
+    assert data.transforms[-1].struct_mask_span == 11
 
 
 def test_set_struct_mask_wrong_value(minimum_data: dict):

@@ -13,8 +13,7 @@ from careamics.config.support import (
 )
 from careamics.losses import loss_factory
 from careamics.models.model_factory import model_factory
-from careamics.transforms import ImageRestorationTTA
-from careamics.utils import denormalize
+from careamics.transforms import Denormalize, ImageRestorationTTA
 from careamics.utils.torch_utils import get_optimizer, get_scheduler
 
 
@@ -37,11 +36,6 @@ class CAREamicsKiln(L.LightningModule):
         Optimizer parameters.
     lr_scheduler_name : str
         Learning rate scheduler name.
-
-    Parameters
-    ----------
-    algorithm_config : Union[AlgorithmModel, dict]
-        Algorithm configuration.
     """
 
     def __init__(self, algorithm_config: Union[AlgorithmModel, dict]) -> None:
@@ -164,12 +158,11 @@ class CAREamicsKiln(L.LightningModule):
             output = self.model(x)
 
         # Denormalize the output
-        # TODO replace with Albu class
-        denormalized_output = denormalize(
-            output,
-            self._trainer.datamodule.predict_dataset.mean,
-            self._trainer.datamodule.predict_dataset.std,
+        denorm = Denormalize(
+            mean=self._trainer.datamodule.predict_dataset.mean,
+            std=self._trainer.datamodule.predict_dataset.std,
         )
+        denormalized_output = denorm(image=output)["image"]
 
         if len(aux) > 0:
             return denormalized_output, aux

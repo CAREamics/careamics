@@ -165,7 +165,7 @@ def test_passing_compose_transform(minimum_inference: dict):
     """Test that Compose transform can be passed."""
     minimum_inference["transforms"] = Compose(
         [
-            get_all_transforms()[SupportedTransform.NORMALIZE](),
+            get_all_transforms()[SupportedTransform.NORMALIZE](mean=10.4, std=3.2),
             get_all_transforms()[SupportedTransform.NDFLIP](),
         ]
     )
@@ -181,5 +181,5 @@ def test_mean_and_std_in_normalize(minimum_inference: dict):
     ]
 
     data = InferenceModel(**minimum_inference)
-    assert data.transforms[0].parameters.mean == 10.4
-    assert data.transforms[0].parameters.std == 3.2
+    assert data.transforms[0].mean == 10.4
+    assert data.transforms[0].std == 3.2

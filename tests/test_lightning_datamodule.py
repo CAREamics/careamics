@@ -68,7 +68,7 @@ def test_lightning_train_datamodule_n2v2(simple_array, use_n2v2, strategy):
         batch_size=2,
         use_n2v2=use_n2v2,
     )
-    assert data_module.data_config.transforms[-1].parameters.strategy == strategy
+    assert data_module.data_config.transforms[-1].strategy == strategy
 
 
 def test_lightning_train_datamodule_structn2v(simple_array):
@@ -85,14 +85,8 @@ def test_lightning_train_datamodule_structn2v(simple_array):
         struct_n2v_axis=struct_axis,
         struct_n2v_span=struct_span,
     )
-    assert (
-        data_module.data_config.transforms[-1].parameters.struct_mask_axis
-        == struct_axis
-    )
-    assert (
-        data_module.data_config.transforms[-1].parameters.struct_mask_span
-        == struct_span
-    )
+    assert data_module.data_config.transforms[-1].struct_mask_axis == struct_axis
+    assert data_module.data_config.transforms[-1].struct_mask_span == struct_span
 
 
 def test_lightning_predict_datamodule_wrong_type(simple_array):

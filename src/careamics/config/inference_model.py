@@ -122,7 +122,8 @@ class InferenceModel(BaseModel):
     def validate_transforms(
         cls, transforms: Union[List[TRANSFORMS_UNION], Compose]
     ) -> Union[List[TRANSFORMS_UNION], Compose]:
-        """Validate that transforms do not have N2V pixel manipulate transforms.
+        """
+        Validate that transforms do not have N2V pixel manipulate transforms.
 
         Parameters
         ----------
@@ -236,13 +237,20 @@ class InferenceModel(BaseModel):
             if not isinstance(pred_model.transforms, Compose):
                 for transform in pred_model.transforms:
                     if transform.name == SupportedTransform.NORMALIZE.value:
-                        transform.parameters.mean = pred_model.mean
-                        transform.parameters.std = pred_model.std
+                        transform.mean = pred_model.mean
+                        transform.std = pred_model.std
 
         return pred_model
 
     def _update(self, **kwargs: Any) -> None:
-        """Update multiple arguments at once."""
+        """
+        Update multiple arguments at once.
+
+        Parameters
+        ----------
+        kwargs : Any
+            Key-value pairs of arguments to update.
+        """
         self.__dict__.update(kwargs)
         self.__class__.model_validate(self.__dict__)
 
@@ -256,5 +264,7 @@ class InferenceModel(BaseModel):
             Axes.
         tile_size : List[int]
             Tile size.
+        tile_overlap : List[int]
+            Tile overlap.
         """
         self._update(axes=axes, tile_size=tile_size, tile_overlap=tile_overlap)

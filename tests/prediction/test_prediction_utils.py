@@ -2,7 +2,7 @@ import pytest
 from torch import from_numpy, tensor
 
 from careamics.dataset.patching.tiled_patching import extract_tiles
-from careamics.prediction.prediction_utils import stitch_prediction
+from careamics.prediction.stitch_prediction import stitch_prediction
 
 
 @pytest.mark.parametrize(

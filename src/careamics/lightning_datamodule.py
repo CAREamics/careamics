@@ -479,7 +479,8 @@ class CAREamicsTrainDataModule(CAREamicsWood):
     >>> my_transforms = [
     ...     {
     ...         "name": SupportedTransform.NORMALIZE.value,
-    ...         "parameters": {"mean": 0, "std": 1},
+    ...         "mean": 0,
+    ...         "std": 1,
     ...     },
     ...     {
     ...         "name": SupportedTransform.N2V_MANIPULATE.value,

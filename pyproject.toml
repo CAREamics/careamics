@@ -167,11 +167,14 @@ ignore = [
 [tool.numpydoc_validation]
 checks = [
     "all",  # report on all checks, except the below
-    "EX01",
-    "SA01",
-    "ES01",
-    "GL02",
-    "GL03",
+    "EX01", # Example section not found
+    "SA01", # See Also section not found
+    "ES01", # Extended Summar not found
+    "GL01", # Docstring text (summary) should start in the line immediately
+    # after the opening quotes
+    "GL02", # Closing quotes should be placed in the line after the last text 
+    # in the docstring
+    "GL03", # Double line break found
 ]
 exclude = [ # don't report on objects that match any of these regex
     "test_*",

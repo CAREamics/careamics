@@ -11,7 +11,7 @@ def test_export_bmz(tmp_path, pre_trained):
     # instantiate CAREamist
     careamist = CAREamist(source=pre_trained, work_dir=tmp_path)
 
-    # predict
+    # predict (no tiling and no tta)
     predicted = careamist.predict(train_array, tta_transforms=False)
 
     # save images
@@ -19,7 +19,7 @@ def test_export_bmz(tmp_path, pre_trained):
     np.save(train_path, train_array[np.newaxis, np.newaxis, ...])
 
     predicted_path = tmp_path / "predicted.npy"
-    np.save(tmp_path / "predicted.npy", predicted[np.newaxis, ...])
+    np.save(tmp_path / "predicted.npy", predicted)
 
     # export to BioImage Model Zoo
     export_bmz(
