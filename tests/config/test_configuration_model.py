@@ -120,9 +120,7 @@ def test_n2v2_and_transforms(minimum_configuration: dict, algorithm, strategy):
     minimum_configuration["data_config"]["transforms"] = [
         {
             "name": SupportedTransform.N2V_MANIPULATE.value,
-            "parameters": {
-                "strategy": strategy,
-            },
+            "strategy": strategy,
         }
     ]
     config = Configuration(**minimum_configuration)

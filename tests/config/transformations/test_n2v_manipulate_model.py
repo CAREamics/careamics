@@ -16,3 +16,11 @@ def test_odd_roi_and_mask():
 
     with pytest.raises(ValueError):
         N2VManipulateModel(name="N2VManipulate", roi_size=3, struct_mask_span=6)
+
+
+def test_extra_parameters():
+    """Test that errors are thrown if we pass extra parameters."""
+    with pytest.raises(ValueError):
+        N2VManipulateModel(
+            name="N2VManipulate", roi_size=3, struct_mask_span=7, extra_param=1
+        )

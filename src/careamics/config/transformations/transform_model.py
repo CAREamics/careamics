@@ -1,7 +1,7 @@
 """Parent model for the transforms."""
 from typing import Any, Dict
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class TransformModel(BaseModel):
@@ -16,6 +16,10 @@ class TransformModel(BaseModel):
         Name of the transformation.
     """
 
+    model_config = ConfigDict(
+        extra="forbid",  # throw errors if the parameters are not properly passed
+    )
+
     name: str
 
     def model_dump(self, **kwargs) -> Dict[str, Any]:
@@ -26,6 +30,11 @@ class TransformModel(BaseModel):
         ----------
         **kwargs
             Pydantic BaseMode model_dump method keyword arguments.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Dictionary representation of the model.
         """
         model_dict = super().model_dump(**kwargs)
 

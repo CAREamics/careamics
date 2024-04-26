@@ -55,7 +55,7 @@ class DataModel(BaseModel):
     ... )
 
     To change the mean and std of the data:
-    >>> data.set_mean_and_std(mean=0., std=1.)
+    >>> data.set_mean_and_std(mean=214.3, std=84.5)
 
     One can pass also a list of transformations, by keyword, using the
     SupportedTransform or the name of an Albumentation transform:
@@ -68,10 +68,13 @@ class DataModel(BaseModel):
     ...     transforms=[
     ...         {
     ...             "name": SupportedTransform.NORMALIZE.value,
+    ...             "mean": 167.6,
+    ...             "std": 47.2,
     ...         },
     ...         {
     ...             "name": "NDFlip",
-    ...             "parameters": {"is_3D": True, "flip_Z": True}
+    ...             "is_3D": True,
+    ...             "flip_z": True,
     ...         }
     ...     ]
     ... )
@@ -343,7 +346,7 @@ class DataModel(BaseModel):
 
         Parameters
         ----------
-        kwargs : Any
+        **kwargs : Any
             Keyword arguments to update.
         """
         self.__dict__.update(kwargs)

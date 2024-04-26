@@ -307,16 +307,12 @@ def test_3D_and_transforms(minimum_data: dict):
     minimum_data["transforms"] = [
         {
             "name": SupportedTransform.NDFLIP.value,
-            "parameters": {
-                "is_3D": True,
-                "flip_z": True,
-            },
+            "is_3D": True,
+            "flip_z": True,
         },
         {
             "name": SupportedTransform.XY_RANDOM_ROTATE90.value,
-            "parameters": {
-                "is_3D": True,
-            },
+            "is_3D": True,
         },
     ]
     data = DataModel(**minimum_data)
