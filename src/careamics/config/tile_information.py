@@ -50,8 +50,7 @@ class TileInformation(BaseModel):
     @classmethod
     def only_if_tiled(cls, v: bool, values: ValidationInfo):
         """
-        Check that the last tile flag is only set to `True` if tiling is enabled,
-        otherwise set it to `False`.
+        Check that the last tile flag is only set if tiling is enabled.
 
         Parameters
         ----------
@@ -71,7 +70,9 @@ class TileInformation(BaseModel):
 
     @field_validator("overlap_crop_coords", "stitch_coords")
     @classmethod
-    def mandatory_if_tiled(cls, v: Optional[Tuple[int, ...]], values: ValidationInfo):
+    def mandatory_if_tiled(
+        cls, v: Optional[Tuple[int, ...]], values: ValidationInfo
+    ) -> Optional[Tuple[int, ...]]:
         """
         Check that the coordinates are not `None` if tiling is enabled.
 
@@ -97,5 +98,7 @@ class TileInformation(BaseModel):
         if values.data["tiled"]:
             if v is None:
                 raise ValueError("Value must be specified if tiling is enabled.")
+
+            return v
         else:
             return None
