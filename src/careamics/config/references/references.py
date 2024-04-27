@@ -18,21 +18,21 @@ N2V2Ref = CiteEntry(
 
 StructN2VRef = CiteEntry(
     text="Broaddus, C., Krull, A., Weigert, M., Schmidt, U. and Myers, G., 2020."
-    '\"Removing structured noise with self-supervised blind-spot '
-    'networks\". In 2020 IEEE 17th International Symposium on Biomedical '
+    '"Removing structured noise with self-supervised blind-spot '
+    'networks". In 2020 IEEE 17th International Symposium on Biomedical '
     "Imaging (ISBI) (pp. 159-163).",
     doi="10.1109/isbi45749.2020.9098336",
 )
 
 N2NRef = CiteEntry(
-    text='Lehtinen, J., Munkberg, J., Hasselgren, J., Laine, S., Karras, T., '
-    'Aittala, M. and Aila, T., 2018. \"Noise2Noise: Learning image restoration '
-    'without clean data\". arXiv preprint arXiv:1803.04189.',
+    text="Lehtinen, J., Munkberg, J., Hasselgren, J., Laine, S., Karras, T., "
+    'Aittala, M. and Aila, T., 2018. "Noise2Noise: Learning image restoration '
+    'without clean data". arXiv preprint arXiv:1803.04189.',
     doi="10.48550/arXiv.1803.04189",
 )
 
 CARERef = CiteEntry(
-    text='Weigert, Martin, et al. \"Content-aware image restoration: pushing the '
-    'limits of fluorescence microscopy.\" Nature methods 15.12 (2018): 1090-1097.',
+    text='Weigert, Martin, et al. "Content-aware image restoration: pushing the '
+    'limits of fluorescence microscopy." Nature methods 15.12 (2018): 1090-1097.',
     doi="10.1038/s41592-018-0216-7",
 )

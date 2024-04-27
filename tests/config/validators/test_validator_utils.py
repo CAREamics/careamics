@@ -1,8 +1,10 @@
 import pytest
 
 from careamics.config.validators import (
-    check_axes_validity, patch_size_ge_than_8_power_of_2
+    check_axes_validity,
+    patch_size_ge_than_8_power_of_2,
 )
+
 
 @pytest.mark.parametrize(
     "axes, valid",
@@ -46,7 +48,8 @@ def test_are_axes_valid(axes, valid):
             check_axes_validity(axes)
 
 
-@pytest.mark.parametrize("patch_size, error", 
+@pytest.mark.parametrize(
+    "patch_size, error",
     [
         ((2, 8, 8), True),
         ((10,), True),
@@ -56,8 +59,8 @@ def test_are_axes_valid(axes, valid):
         ((8,), False),
         ((8, 8), False),
         ((8, 64, 64), False),
-    ]   
-) 
+    ],
+)
 def test_patch_size(patch_size, error):
     """Test if patch size is valid."""
     if error:

@@ -34,12 +34,13 @@ def test_careamics_kiln(minimum_algorithm_n2v):
     CAREamicsKiln(algo_config)
 
 
-@pytest.mark.parametrize("shape", 
+@pytest.mark.parametrize(
+    "shape",
     [
         (8, 8),
         (16, 16),
         (32, 32),
-    ]
+    ],
 )
 def test_careamics_kiln_unet_2D_depth_2_shape(shape):
     algo_dict = {
@@ -64,7 +65,8 @@ def test_careamics_kiln_unet_2D_depth_2_shape(shape):
     assert y.shape == x.shape
 
 
-@pytest.mark.parametrize("shape", 
+@pytest.mark.parametrize(
+    "shape",
     [
         (8, 8),
         (16, 16),
@@ -72,7 +74,7 @@ def test_careamics_kiln_unet_2D_depth_2_shape(shape):
         (64, 64),
         (128, 128),
         (256, 256),
-    ]
+    ],
 )
 def test_careamics_kiln_unet_2D_depth_3_shape(shape):
     algo_dict = {
@@ -97,13 +99,14 @@ def test_careamics_kiln_unet_2D_depth_3_shape(shape):
     assert y.shape == x.shape
 
 
-@pytest.mark.parametrize("shape", 
+@pytest.mark.parametrize(
+    "shape",
     [
         (8, 32, 16),
         (16, 32, 16),
         (8, 32, 32),
         (32, 64, 64),
-    ]
+    ],
 )
 def test_careamics_kiln_unet_depth_2_3D(shape):
     algo_dict = {
@@ -128,13 +131,14 @@ def test_careamics_kiln_unet_depth_2_3D(shape):
     assert y.shape == x.shape
 
 
-@pytest.mark.parametrize("shape", 
+@pytest.mark.parametrize(
+    "shape",
     [
         (8, 64, 64),
         (16, 64, 64),
         (16, 128, 128),
         (32, 128, 128),
-    ]
+    ],
 )
 def test_careamics_kiln_unet_depth_3_3D(shape):
     algo_dict = {
@@ -252,4 +256,3 @@ def test_careamics_kiln_unet_depth_3_channels_3D(n_channels):
     x = torch.rand((1, n_channels, 16, 64, 64))
     y: torch.Tensor = model.forward(x)
     assert y.shape == x.shape
-

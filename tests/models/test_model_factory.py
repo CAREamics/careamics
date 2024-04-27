@@ -42,7 +42,7 @@ def test_model_registry_custom():
     model_config = {
         "architecture": SupportedArchitecture.CUSTOM.value,
         "name": "linear_model",
-        "in_features": 10, 
+        "in_features": 10,
         "out_features": 5,
     }
 

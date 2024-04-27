@@ -13,24 +13,24 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 from .algorithm_model import AlgorithmModel
 from .data_model import DataModel
 from .references import (
-    N2V2Ref, 
-    N2VRef, 
-    StructN2VRef,
-    N2NRef,
-    CARERef,
-    N2VDescription,
-    N2V2Description,
-    StructN2VDescription,
-    StructN2V2Description,
-    N2NDescription,
-    CAREDescription,
+    CARE,
+    CUSTOM,
+    N2N,
     N2V,
     N2V2,
     STRUCT_N2V,
     STRUCT_N2V2,
-    CUSTOM,
-    N2N,
-    CARE
+    CAREDescription,
+    CARERef,
+    N2NDescription,
+    N2NRef,
+    N2V2Description,
+    N2V2Ref,
+    N2VDescription,
+    N2VRef,
+    StructN2V2Description,
+    StructN2VDescription,
+    StructN2VRef,
 )
 from .support import SupportedAlgorithm, SupportedPixelManipulation, SupportedTransform
 from .training_model import TrainingModel
@@ -245,7 +245,7 @@ class Configuration(BaseModel):
                             name=SupportedTransform.N2V_MANIPULATE.value,
                         )
                     )
-                    
+
                 median = SupportedPixelManipulation.MEDIAN.value
                 uniform = SupportedPixelManipulation.UNIFORM.value
                 strategy = median if self.algorithm_config.model.n2v2 else uniform
@@ -340,9 +340,7 @@ class Configuration(BaseModel):
         """
         if self.algorithm_config.algorithm == SupportedAlgorithm.N2V:
             use_n2v2 = self.algorithm_config.model.n2v2
-            use_structN2V = (
-                self.data_config.transforms[-1].struct_mask_axis != "none"
-            )
+            use_structN2V = self.data_config.transforms[-1].struct_mask_axis != "none"
 
             # return the n2v flavour
             if use_n2v2 and use_structN2V:
@@ -359,7 +357,7 @@ class Configuration(BaseModel):
             return CARE
         else:
             return CUSTOM
-            
+
     def get_algorithm_description(self) -> str:
         """
         Return a description of the algorithm.
@@ -404,9 +402,7 @@ class Configuration(BaseModel):
         """
         if self.algorithm_config.algorithm == SupportedAlgorithm.N2V:
             use_n2v2 = self.algorithm_config.model.n2v2
-            use_structN2V = (
-                self.data_config.transforms[-1].struct_mask_axis != "none"
-            )
+            use_structN2V = self.data_config.transforms[-1].struct_mask_axis != "none"
 
             # return the (struct)N2V(2) references
             if use_n2v2 and use_structN2V:
@@ -437,9 +433,7 @@ class Configuration(BaseModel):
         """
         if self.algorithm_config.algorithm == SupportedAlgorithm.N2V:
             use_n2v2 = self.algorithm_config.model.n2v2
-            use_structN2V = (
-                self.data_config.transforms[-1].struct_mask_axis != "none"
-            )
+            use_structN2V = self.data_config.transforms[-1].struct_mask_axis != "none"
 
             references = [
                 N2VRef.text + " doi: " + N2VRef.doi,
@@ -472,9 +466,7 @@ class Configuration(BaseModel):
         """
         if self.algorithm_config.algorithm == SupportedAlgorithm.N2V:
             use_n2v2 = self.algorithm_config.model.n2v2
-            use_structN2V = (
-                self.data_config.transforms[-1].struct_mask_axis != "none"
-            )
+            use_structN2V = self.data_config.transforms[-1].struct_mask_axis != "none"
 
             keywords = [
                 "denoising",
