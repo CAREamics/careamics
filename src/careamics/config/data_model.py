@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from pprint import pformat
-from typing import Any, List, Literal, Optional, Union, Tuple
+from typing import Any, List, Literal, Optional, Tuple, Union
 
 from albumentations import Compose
 from pydantic import (
@@ -15,12 +15,12 @@ from pydantic import (
 )
 from typing_extensions import Annotated
 
-from .validators import check_axes_validity, patch_size_ge_than_8_power_of_2
 from .support import SupportedTransform
 from .transformations.n2v_manipulate_model import N2VManipulateModel
 from .transformations.nd_flip_model import NDFlipModel
 from .transformations.normalize_model import NormalizeModel
 from .transformations.xy_random_rotate90_model import XYRandomRotate90Model
+from .validators import check_axes_validity, patch_size_ge_than_8_power_of_2
 
 TRANSFORMS_UNION = Annotated[
     Union[
@@ -86,7 +86,9 @@ class DataModel(BaseModel):
 
     # Dataset configuration
     data_type: Literal["array", "tiff", "custom"]  # As defined in SupportedData
-    patch_size: Union[List[int], Tuple[int]] = Field(..., min_length=2, max_length=3)
+    patch_size: Union[List[int], Tuple[int, ...]] = Field(
+        ..., min_length=2, max_length=3
+    )
     batch_size: int = Field(default=1, ge=1, validate_default=True)
     axes: str
 
@@ -116,7 +118,9 @@ class DataModel(BaseModel):
 
     @field_validator("patch_size")
     @classmethod
-    def all_elements_power_of_2_minimum_8(cls, patch_list: List[int]) -> List[int]:
+    def all_elements_power_of_2_minimum_8(
+        cls, patch_list: Union[List[int], Tuple[int, ...]]
+    ) -> Union[List[int], Tuple[int, ...]]:
         """
         Validate patch size.
 
@@ -124,12 +128,12 @@ class DataModel(BaseModel):
 
         Parameters
         ----------
-        patch_list : List[int]
+        patch_list : Union[List[int], Tuple[int, ...]]
             Patch size.
 
         Returns
         -------
-        List[int]
+        Union[List[int], Tuple[int, ...]]
             Validated patch size.
 
         Raises
@@ -139,7 +143,10 @@ class DataModel(BaseModel):
         ValueError
             If the patch size is not a power of 2.
         """
-        return patch_size_ge_than_8_power_of_2(patch_list)
+        patch_validated = patch_size_ge_than_8_power_of_2(patch_list)
+        assert patch_validated is not None, "Patch cannot be None."
+
+        return patch_validated
 
     @field_validator("axes")
     @classmethod

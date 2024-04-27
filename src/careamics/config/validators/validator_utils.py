@@ -3,7 +3,7 @@ Validator functions.
 
 These functions are used to validate dimensions and axes of inputs.
 """
-from typing import Tuple, Optional, List, Union
+from typing import List, Optional, Tuple, Union
 
 _AXES = "STCZYX"
 
@@ -60,8 +60,8 @@ def check_axes_validity(axes: str) -> bool:
 
 
 def patch_size_ge_than_8_power_of_2(
-        patch_list: Optional[Union[List[int], Tuple[int]]]
-    ) -> Optional[Union[List[int], Tuple[int]]]:
+    patch_list: Optional[Union[List[int], Tuple[int, ...]]]
+) -> Optional[Union[List[int], Tuple[int, ...]]]:
     """
     Validate that each entry is greater or equal than 8 and a power of 2.
 
@@ -69,12 +69,12 @@ def patch_size_ge_than_8_power_of_2(
 
     Parameters
     ----------
-    patch_list : Optional[Union[List[int], Tuple[int]]]
+    patch_list : Optional[Union[List[int], Tuple[int, ...]]]
         Patch size.
 
     Returns
     -------
-    Optional[Union[List[int], Tuple[int]]]
+    Optional[Union[List[int], Tuple[int, ...]]]
         Validated patch size.
 
     Raises
@@ -87,14 +87,12 @@ def patch_size_ge_than_8_power_of_2(
     if patch_list is not None:
         for dim in patch_list:
             if dim < 8:
-                raise ValueError(
-                    f"Patch size must be non-zero positive (got {dim})."
-                )
+                raise ValueError(f"Patch size must be non-zero positive (got {dim}).")
 
             if (dim & (dim - 1)) != 0:
                 raise ValueError(
                     f"Patch size must be a power of 2 in all dimensions "
                     f"(got {dim})."
                 )
-            
+
     return patch_list

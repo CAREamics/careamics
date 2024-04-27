@@ -1,4 +1,4 @@
-"""Main class to train and predict with CAREamics models."""
+"""A class to train, predict and export models in CAREamics."""
 
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, Union, overload
@@ -19,12 +19,12 @@ from careamics.config import (
     load_configuration,
 )
 from careamics.config.inference_model import TRANSFORMS_UNION
-from careamics.config.support import SupportedAlgorithm, SupportedLogger, SupportedData
+from careamics.config.support import SupportedAlgorithm, SupportedData, SupportedLogger
 from careamics.lightning_datamodule import CAREamicsWood
 from careamics.lightning_module import CAREamicsKiln
 from careamics.lightning_prediction_datamodule import CAREamicsClay
 from careamics.lightning_prediction_loop import CAREamicsPredictionLoop
-from careamics.model_io import load_pretrained, export_to_bmz
+from careamics.model_io import export_to_bmz, load_pretrained
 from careamics.utils import check_path_exists, get_logger
 
 from .callbacks import HyperParametersCallback
@@ -33,11 +33,21 @@ logger = get_logger(__name__)
 
 LOGGER_TYPES = Optional[Union[TensorBoardLogger, WandbLogger]]
 
+
 # TODO napari callbacks
 # TODO: how to do AMP? How to continue training?
 class CAREamist:
-    """
-    Main CAREamics class, allowing training and prediction using various algorithms.
+    """Main CAREamics class, allowing training and prediction using various algorithms.
+
+    Parameters
+    ----------
+    source : Union[Path, str, Configuration]
+        Path to a configuration file or a trained model.
+    work_dir : Optional[str], optional
+        Path to working directory in which to save checkpoints and logs,
+        by default None.
+    experiment_name : str, optional
+        Experiment name used for checkpoints, by default "CAREamics".
 
     Attributes
     ----------
@@ -51,20 +61,10 @@ class CAREamist:
         Experiment logger, "wandb" or "tensorboard".
     work_dir : Path
         Working directory.
-
-    Parameters
-    ----------
-    source : Union[Path, str, Configuration]
-        Path to a configuration file or a trained model.
-    work_dir : Optional[str], optional
-        Path to working directory in which to save checkpoints and logs,
-        by default None.
-    experiment_name : str, optional
-        Experiment name used for checkpoints, by default "CAREamics".
-    train_datamodule : Optional[CAREamicsWood], optional
-        Training datamodule, by default None.
-    pred_datamodule : Optional[CAREamicsClay], optional
-        Prediction datamodule, by default None.
+    train_datamodule : Optional[CAREamicsWood]
+        Training datamodule.
+    pred_datamodule : Optional[CAREamicsClay]
+        Prediction datamodule.
     """
 
     @overload
@@ -474,7 +474,7 @@ class CAREamist:
 
     @overload
     def predict(  # numpydoc ignore=GL08
-        self, 
+        self,
         source: CAREamicsClay,
         *,
         checkpoint: Optional[Literal["best", "last"]] = None,
@@ -630,7 +630,7 @@ class CAREamist:
                     extension_filter=extension_filter,
                     dataloader_params=dataloader_params,
                 )
-                
+
                 # record datamodule
                 self.pred_datamodule = datamodule
 
@@ -645,7 +645,7 @@ class CAREamist:
                     pred_data=source,
                     dataloader_params=dataloader_params,
                 )
-                
+
                 # record datamodule
                 self.pred_datamodule = datamodule
 
@@ -660,15 +660,15 @@ class CAREamist:
                 )
 
     def export_to_bmz(
-            self,
-            path: Union[Path, str],
-            name: str,
-            authors: List[dict],
-            input_array: Optional[np.ndarray] = None,
-            general_description: str = "",
-            channel_names: Optional[List[str]] = None,
-            data_description: Optional[str] = None,
-        ) -> None:
+        self,
+        path: Union[Path, str],
+        name: str,
+        authors: List[dict],
+        input_array: Optional[np.ndarray] = None,
+        general_description: str = "",
+        channel_names: Optional[List[str]] = None,
+        data_description: Optional[str] = None,
+    ) -> None:
         """Export the model to the BioImage Model Zoo format.
 
         Input array must be of shape SC(Z)YX, with S and C singleton dimensions.
@@ -694,35 +694,54 @@ class CAREamist:
             # generate images, priority is given to the prediction data module
             if self.pred_datamodule is not None:
                 # unpack a batch, ignore masks or targets
-                input, *_ = next(iter(self.pred_datamodule.predict_dataloader()))
+                input_patch, *_ = next(iter(self.pred_datamodule.predict_dataloader()))
 
                 # convert torch.Tensor to numpy
-                input_array = input.numpy()
+                input_patch = input_patch.numpy()
             elif self.train_datamodule is not None:
-                input, *_ = next(iter(self.train_datamodule.train_dataloader()))
-                input_array = input.numpy()
+                input_patch, *_ = next(iter(self.train_datamodule.train_dataloader()))
+                input_patch = input_patch.numpy()
             else:
+                if (
+                    self.cfg.data_config.mean is None
+                    or self.cfg.data_config.std is None
+                ):
+                    raise ValueError(
+                        "Mean and std cannot be None in the configuration in order to"
+                        "export to the BMZ format. Was the model trained?"
+                    )
+
                 # create a random input array
-                input_array = np.random.normal(
-                    loc=self.cfg.data_config.mean, 
+                input_patch = np.random.normal(
+                    loc=self.cfg.data_config.mean,
                     scale=self.cfg.data_config.std,
-                    size=self.cfg.data_config.patch_size
-                ).astype(np.float32)[np.newaxis, np.newaxis, ...] # add S & C dimensions
+                    size=self.cfg.data_config.patch_size,
+                ).astype(np.float32)[
+                    np.newaxis, np.newaxis, ...
+                ]  # add S & C dimensions
+        else:
+            input_patch = input_array
 
         # if there is a batch dimension
-        if input_array.shape[0] > 1:
-            input_array = input_array[0:1, ...] # keep singleton dim
+        if input_patch.shape[0] > 1:
+            input_patch = input_patch[0:1, ...]  # keep singleton dim
 
         # axes need to be without S
         axes = self.cfg.data_config.axes.replace("S", "")
-        
+
         # predict output, remove extra dimensions for the purpose of the prediction
-        output_array = self.predict(
-            input_array.squeeze(), 
+        output_patch = self.predict(
+            input_patch.squeeze(),
             data_type=SupportedData.ARRAY.value,
             axes=axes,
-            tta_transforms=False
+            tta_transforms=False,
         )
+
+        if not isinstance(output_patch, np.ndarray):
+            raise ValueError(
+                f"Numpy array required for export to BioImage Model Zoo, got "
+                f"{type(output_patch)}."
+            )
 
         export_to_bmz(
             model=self.model,
@@ -731,8 +750,8 @@ class CAREamist:
             name=name,
             general_description=general_description,
             authors=authors,
-            input_array=input_array,
-            output_array=output_array,
-            channel_names= channel_names,
-            data_description=data_description
+            input_array=input_patch,
+            output_array=output_patch,
+            channel_names=channel_names,
+            data_description=data_description,
         )

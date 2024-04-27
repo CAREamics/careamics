@@ -1,3 +1,4 @@
+"""Module use to build BMZ model description."""
 from pathlib import Path
 from typing import List, Optional, Tuple, Union
 
@@ -27,7 +28,7 @@ from bioimageio.spec.model.v0_5 import (
 
 from careamics.config import Configuration, DataModel
 
-from .readme_factory import readme_factory
+from ._readme_factory import readme_factory
 
 
 def _create_axes(
@@ -44,22 +45,22 @@ def _create_axes(
     ----------
     array : np.ndarray
         Array.
-    config : DataModel
-        CAREamics data configuration
+    data_config : DataModel
+        CAREamics data configuration.
     channel_names : Optional[List[str]], optional
-        Channel names, by default None
+        Channel names, by default None.
     is_input : bool, optional
-        Whether the axes are input axes, by default True
+        Whether the axes are input axes, by default True.
 
     Returns
     -------
     List[AxisBase]
-        List of axes description
+        List of axes description.
 
     Raises
     ------
     ValueError
-        If channel names are not provided when channel axis is present
+        If channel names are not provided when channel axis is present.
     """
     # axes have to be SC(Z)YX
     spatial_axes = data_config.axes.replace("S", "").replace("C", "")
@@ -101,7 +102,7 @@ def _create_inputs_ouputs(
     output_array: np.ndarray,
     data_config: DataModel,
     input_path: Union[Path, str],
-    output_path: Union[Path, str],    
+    output_path: Union[Path, str],
     channel_names: Optional[List[str]] = None,
 ) -> Tuple[InputTensorDescr, OutputTensorDescr]:
     """Create input and output tensor description.
@@ -110,22 +111,30 @@ def _create_inputs_ouputs(
 
     Parameters
     ----------
+    input_array : np.ndarray
+        Input array.
+    output_array : np.ndarray
+        Output array.
     data_config : DataModel
-        CAREamics data configuration
+        CAREamics data configuration.
     input_path : Union[Path, str]
-        Path to input .npy file
+        Path to input .npy file.
     output_path : Union[Path, str]
-        Path to output .npy file
+        Path to output .npy file.
+    channel_names : Optional[List[str]], optional
+        Channel names, by default None.
 
     Returns
     -------
     Tuple[InputTensorDescr, OutputTensorDescr]
-        Input and output tensor descriptions
+        Input and output tensor descriptions.
     """
     input_axes = _create_axes(input_array, data_config, channel_names)
     output_axes = _create_axes(output_array, data_config, channel_names, False)
 
     # mean and std
+    assert data_config.mean is not None, "Mean cannot be None."
+    assert data_config.std is not None, "Std cannot be None."
     mean = data_config.mean
     std = data_config.std
 
@@ -183,8 +192,8 @@ def create_model_description(
 
     Parameters
     ----------
-    careamist : CAREamist
-        CAREamist instance.
+    config : Configuration
+        CAREamics configuration.
     name : str
         Name fo the model.
     general_description : str
@@ -199,6 +208,8 @@ def create_model_description(
         Path to model weights.
     torch_version : str
         Pytorch version.
+    careamics_version : str
+        CAREamics version.
     config_path : Union[Path, str]
         Path to model configuration.
     env_path : Union[Path, str]
@@ -264,15 +275,44 @@ def create_model_description(
         weights=weights_descr,
         attachments=[FileDescr(source=config_path)],
         cite=config.get_algorithm_citations(),
-        config={ # conversion from float32 to float64 creates small differences...
+        config={  # conversion from float32 to float64 creates small differences...
             "bioimageio": {
                 "test_kwargs": {
                     "pytorch_state_dict": {
-                        "decimals": 2, # ...so we relax the constraints on the decimals
+                        "decimals": 2,  # ...so we relax the constraints on the decimals
                     }
                 }
             }
-        }
+        },
     )
 
     return model
+
+
+def extract_model_path(model_desc: ModelDescr) -> Tuple[Path, Path]:
+    """Return the relative path to the weights and configuration files.
+
+    Parameters
+    ----------
+    model_desc : ModelDescr
+        Model description.
+
+    Returns
+    -------
+    Tuple[Path, Path]
+        Weights and configuration paths.
+    """
+    weights_path = model_desc.weights.pytorch_state_dict.source.path
+
+    if len(model_desc.attachments) == 1:
+        config_path = model_desc.attachments[0].source.path
+    else:
+        for file in model_desc.attachments:
+            if file.source.path.suffix == ".yml":
+                config_path = file.source.path
+                break
+
+        if config_path is None:
+            raise ValueError("Configuration file not found.")
+
+    return weights_path, config_path

@@ -8,14 +8,15 @@ from careamics import CAREamist, Configuration, save_configuration
 from careamics.config.support import SupportedAlgorithm, SupportedData
 
 # TODO test 3D and channels
- 
+
+
 def test_no_parameters():
     """Test that CAREamics cannot be instantiated without parameters."""
     with pytest.raises(TypeError):
         CAREamist()
 
 
-def test_minimum_configuration_via_object(tmp_path, minimum_configuration):
+def test_minimum_configuration_via_object(tmp_path: Path, minimum_configuration: dict):
     """Test that CAREamics can be instantiated with a minimum configuration object."""
     # create configuration
     config = Configuration(**minimum_configuration)
@@ -24,7 +25,7 @@ def test_minimum_configuration_via_object(tmp_path, minimum_configuration):
     CAREamist(source=config, work_dir=tmp_path)
 
 
-def test_minimum_configuration_via_path(tmp_path, minimum_configuration):
+def test_minimum_configuration_via_path(tmp_path: Path, minimum_configuration: dict):
     """Test that CAREamics can be instantiated with a path to a minimum
     configuration.
     """
@@ -36,7 +37,9 @@ def test_minimum_configuration_via_path(tmp_path, minimum_configuration):
     CAREamist(source=path_to_config)
 
 
-def test_train_error_target_unsupervised_algorithm(tmp_path, minimum_configuration):
+def test_train_error_target_unsupervised_algorithm(
+    tmp_path: Path, minimum_configuration: dict
+):
     """Test that an error is raised when a target is provided for N2V."""
     # create configuration
     config = Configuration(**minimum_configuration)
@@ -68,7 +71,7 @@ def test_train_error_target_unsupervised_algorithm(tmp_path, minimum_configurati
         )
 
 
-def test_train_single_array_no_val(tmp_path, minimum_configuration):
+def test_train_single_array_no_val(tmp_path: Path, minimum_configuration: dict):
     """Test that CAREamics can be trained with arrays."""
     # training data
     train_array = np.random.rand(32, 32)
@@ -95,12 +98,12 @@ def test_train_single_array_no_val(tmp_path, minimum_configuration):
         path=tmp_path / "model.zip",
         name="TopModel",
         general_description="A model that just walked in.",
-        authors=[{"name": "Amod", "affiliation": "El"}]
+        authors=[{"name": "Amod", "affiliation": "El"}],
     )
     assert (tmp_path / "model.zip").exists()
 
 
-def test_train_array(tmp_path, minimum_configuration):
+def test_train_array(tmp_path: Path, minimum_configuration: dict):
     """Test that CAREamics can be trained on arrays."""
     # training data
     train_array = np.random.rand(32, 32)
@@ -128,12 +131,12 @@ def test_train_array(tmp_path, minimum_configuration):
         path=tmp_path / "model.zip",
         name="TopModel",
         general_description="A model that just walked in.",
-        authors=[{"name": "Amod", "affiliation": "El"}]
+        authors=[{"name": "Amod", "affiliation": "El"}],
     )
     assert (tmp_path / "model.zip").exists()
 
 
-def test_train_array_channel(tmp_path, minimum_configuration):
+def test_train_array_channel(tmp_path: Path, minimum_configuration: dict):
     """Test that CAREamics can be trained on arrays with channels."""
     # training data
     train_array = np.random.rand(32, 32, 3)
@@ -162,12 +165,12 @@ def test_train_array_channel(tmp_path, minimum_configuration):
         name="TopModel",
         general_description="A model that just walked in.",
         authors=[{"name": "Amod", "affiliation": "El"}],
-        channel_names=["red", "green", "blue"]
+        channel_names=["red", "green", "blue"],
     )
     assert (tmp_path / "model.zip").exists()
 
 
-def test_train_array_3d(tmp_path, minimum_configuration):
+def test_train_array_3d(tmp_path: Path, minimum_configuration: dict):
     """Test that CAREamics can be trained on 3D arrays."""
     # training data
     train_array = np.random.rand(8, 32, 32)
@@ -195,12 +198,12 @@ def test_train_array_3d(tmp_path, minimum_configuration):
         path=tmp_path / "model.zip",
         name="TopModel",
         general_description="A model that just walked in.",
-        authors=[{"name": "Amod", "affiliation": "El"}]
+        authors=[{"name": "Amod", "affiliation": "El"}],
     )
     assert (tmp_path / "model.zip").exists()
 
 
-def test_train_tiff_files_in_memory_no_val(tmp_path, minimum_configuration):
+def test_train_tiff_files_in_memory_no_val(tmp_path: Path, minimum_configuration: dict):
     """Test that CAREamics can be trained with tiff files in memory."""
     # training data
     train_array = np.random.rand(32, 32)
@@ -231,12 +234,12 @@ def test_train_tiff_files_in_memory_no_val(tmp_path, minimum_configuration):
         path=tmp_path / "model.zip",
         name="TopModel",
         general_description="A model that just walked in.",
-        authors=[{"name": "Amod", "affiliation": "El"}]
+        authors=[{"name": "Amod", "affiliation": "El"}],
     )
     assert (tmp_path / "model.zip").exists()
 
 
-def test_train_tiff_files_in_memory(tmp_path, minimum_configuration):
+def test_train_tiff_files_in_memory(tmp_path: Path, minimum_configuration: dict):
     """Test that CAREamics can be trained with tiff files in memory."""
     # training data
     train_array = np.random.rand(32, 32)
@@ -271,12 +274,12 @@ def test_train_tiff_files_in_memory(tmp_path, minimum_configuration):
         path=tmp_path / "model.zip",
         name="TopModel",
         general_description="A model that just walked in.",
-        authors=[{"name": "Amod", "affiliation": "El"}]
+        authors=[{"name": "Amod", "affiliation": "El"}],
     )
     assert (tmp_path / "model.zip").exists()
 
 
-def test_train_tiff_files(tmp_path, minimum_configuration):
+def test_train_tiff_files(tmp_path: Path, minimum_configuration: dict):
     """Test that CAREamics can be trained with tiff files by deactivating
     the in memory dataset.
     """
@@ -313,12 +316,12 @@ def test_train_tiff_files(tmp_path, minimum_configuration):
         path=tmp_path / "model.zip",
         name="TopModel",
         general_description="A model that just walked in.",
-        authors=[{"name": "Amod", "affiliation": "El"}]
+        authors=[{"name": "Amod", "affiliation": "El"}],
     )
     assert (tmp_path / "model.zip").exists()
 
 
-def test_train_array_supervised(tmp_path, supervised_configuration):
+def test_train_array_supervised(tmp_path: Path, supervised_configuration: dict):
     """Test that CAREamics can be trained with arrays."""
     # training data
     train_array = np.random.rand(32, 32)
@@ -353,12 +356,14 @@ def test_train_array_supervised(tmp_path, supervised_configuration):
         path=tmp_path / "model.zip",
         name="TopModel",
         general_description="A model that just walked in.",
-        authors=[{"name": "Amod", "affiliation": "El"}]
+        authors=[{"name": "Amod", "affiliation": "El"}],
     )
     assert (tmp_path / "model.zip").exists()
 
 
-def test_train_tiff_files_in_memory_supervised(tmp_path, supervised_configuration):
+def test_train_tiff_files_in_memory_supervised(
+    tmp_path: Path, supervised_configuration: dict
+):
     """Test that CAREamics can be trained with tiff files in memory."""
     # training data
     train_array = np.random.rand(32, 32)
@@ -410,12 +415,12 @@ def test_train_tiff_files_in_memory_supervised(tmp_path, supervised_configuratio
         path=tmp_path / "model.zip",
         name="TopModel",
         general_description="A model that just walked in.",
-        authors=[{"name": "Amod", "affiliation": "El"}]
+        authors=[{"name": "Amod", "affiliation": "El"}],
     )
     assert (tmp_path / "model.zip").exists()
 
 
-def test_train_tiff_files_supervised(tmp_path, supervised_configuration):
+def test_train_tiff_files_supervised(tmp_path: Path, supervised_configuration: dict):
     """Test that CAREamics can be trained with tiff files by deactivating
     the in memory dataset.
     """
@@ -470,13 +475,15 @@ def test_train_tiff_files_supervised(tmp_path, supervised_configuration):
         path=tmp_path / "model.zip",
         name="TopModel",
         general_description="A model that just walked in.",
-        authors=[{"name": "Amod", "affiliation": "El"}]
+        authors=[{"name": "Amod", "affiliation": "El"}],
     )
     assert (tmp_path / "model.zip").exists()
 
 
 @pytest.mark.parametrize("batch_size", [1, 2])
-def test_predict_on_array_tiled(tmp_path, minimum_configuration, batch_size):
+def test_predict_on_array_tiled(
+    tmp_path: Path, minimum_configuration: dict, batch_size
+):
     """Test that CAREamics can predict on arrays."""
     # training data
     train_array = np.random.rand(32, 32)
@@ -507,12 +514,12 @@ def test_predict_on_array_tiled(tmp_path, minimum_configuration, batch_size):
         path=tmp_path / "model.zip",
         name="TopModel",
         general_description="A model that just walked in.",
-        authors=[{"name": "Amod", "affiliation": "El"}]
+        authors=[{"name": "Amod", "affiliation": "El"}],
     )
     assert (tmp_path / "model.zip").exists()
 
 
-def test_predict_arrays_no_tiling(tmp_path, minimum_configuration):
+def test_predict_arrays_no_tiling(tmp_path: Path, minimum_configuration: dict):
     """Test that CAREamics can predict on arrays without tiling."""
     # training data
     train_array = np.random.rand(4, 32, 32)
@@ -541,13 +548,13 @@ def test_predict_arrays_no_tiling(tmp_path, minimum_configuration):
         path=tmp_path / "model.zip",
         name="TopModel",
         general_description="A model that just walked in.",
-        authors=[{"name": "Amod", "affiliation": "El"}]
+        authors=[{"name": "Amod", "affiliation": "El"}],
     )
     assert (tmp_path / "model.zip").exists()
 
 
 @pytest.mark.parametrize("batch_size", [1, 2])
-def test_predict_path(tmp_path, minimum_configuration, batch_size):
+def test_predict_path(tmp_path: Path, minimum_configuration: dict, batch_size):
     """Test that CAREamics can predict with tiff files."""
     # training data
     train_array = np.random.rand(32, 32)
@@ -571,9 +578,7 @@ def test_predict_path(tmp_path, minimum_configuration, batch_size):
     careamist.train(train_source=train_file)
 
     # predict CAREamist
-    predicted = careamist.predict(
-        train_file, batch_size=batch_size, tile_overlap=(4, 4)
-    )
+    predicted = careamist.predict(train_file, batch_size=batch_size)
 
     # check that it predicted
     assert predicted.squeeze().shape == train_array.shape
@@ -583,16 +588,16 @@ def test_predict_path(tmp_path, minimum_configuration, batch_size):
         path=tmp_path / "model.zip",
         name="TopModel",
         general_description="A model that just walked in.",
-        authors=[{"name": "Amod", "affiliation": "El"}]
+        authors=[{"name": "Amod", "affiliation": "El"}],
     )
     assert (tmp_path / "model.zip").exists()
 
 
-def test_predict_pretrained(tmp_path, pre_trained):
+def test_predict_pretrained_checkpoint(tmp_path: Path, pre_trained: Path):
     """Test that CAREamics can be instantiated with a pre-trained network and predict
     on an array."""
-    # training data
-    train_array = np.random.rand(32, 32)
+    # prediction data
+    source_array = np.random.rand(32, 32)
 
     # instantiate CAREamist
     careamist = CAREamist(source=pre_trained, work_dir=tmp_path)
@@ -600,45 +605,87 @@ def test_predict_pretrained(tmp_path, pre_trained):
     assert careamist.cfg.data_config.std is not None
 
     # predict
-    predicted = careamist.predict(train_array, tile_overlap=(4, 4))
+    predicted = careamist.predict(source_array)
 
     # check that it predicted
-    assert predicted.squeeze().shape == train_array.shape
-
-    # export to BMZ
-    careamist.export_to_bmz(
-        path=tmp_path / "model.zip",
-        name="TopModel",
-        general_description="A model that just walked in.",
-        authors=[{"name": "Amod", "affiliation": "El"}]
-    )
-    assert (tmp_path / "model.zip").exists()
+    assert predicted.squeeze().shape == source_array.shape
 
 
-def test_expot_bmz_pretrained(tmp_path, pre_trained):
-    """Test that CAREamics can be instantiated with a pre-trained network and exported
-    to BMZ."""
-    # training data
-    train_array = np.random.rand(32, 32).astype(np.float32)
+def test_predict_pretrained_bmz(tmp_path: Path, pre_trained_bmz: Path):
+    """Test that CAREamics can be instantiated with a BMZ archive and predict."""
+    # prediction data
+    source_array = np.random.rand(32, 32)
 
     # instantiate CAREamist
+    careamist = CAREamist(source=pre_trained_bmz, work_dir=tmp_path)
+
+    # predict
+    predicted = careamist.predict(source_array)
+
+    # check that it predicted
+    assert predicted.squeeze().shape == source_array.shape
+
+
+def test_export_bmz_pretrained_prediction(tmp_path: Path, pre_trained: Path):
+    """Test that CAREamics can be instantiated with a pre-trained network and exported
+    to BMZ after prediction.
+
+    In this case, the careamist extracts the BMZ test data from the prediction
+    datamodule.
+    """
+    # instantiate CAREamist
     careamist = CAREamist(source=pre_trained, work_dir=tmp_path)
-    
+
+    # prediction data
+    source_array = np.random.rand(32, 32)
+    _ = careamist.predict(source_array)
+    assert len(careamist.pred_datamodule.predict_dataloader()) > 0
+
     # export to BMZ (random array created)
     careamist.export_to_bmz(
         path=tmp_path / "model.zip",
         name="TopModel",
         general_description="A model that just walked in.",
-        authors=[{"name": "Amod", "affiliation": "El"}]
+        authors=[{"name": "Amod", "affiliation": "El"}],
     )
     assert (tmp_path / "model.zip").exists()
 
-    # pass an array
+
+def test_export_bmz_pretrained_random_array(tmp_path: Path, pre_trained: Path):
+    """Test that CAREamics can be instantiated with a pre-trained network and exported
+    to BMZ.
+
+    In this case, the careamist creates a random array for the BMZ archive test.
+    """
+    # instantiate CAREamist
+    careamist = CAREamist(source=pre_trained, work_dir=tmp_path)
+
+    # export to BMZ (random array created)
+    careamist.export_to_bmz(
+        path=tmp_path / "model.zip",
+        name="TopModel",
+        general_description="A model that just walked in.",
+        authors=[{"name": "Amod", "affiliation": "El"}],
+    )
+    assert (tmp_path / "model.zip").exists()
+
+
+def test_export_bmz_pretrained_with_array(tmp_path: Path, pre_trained: Path):
+    """Test that CAREamics can be instantiated with a pre-trained network and exported
+    to BMZ.
+
+    In this case, we provide an array to the BMZ archive test.
+    """
+    # instantiate CAREamist
+    careamist = CAREamist(source=pre_trained, work_dir=tmp_path)
+
+    # alternatively we can pass an array
+    array = np.random.rand(32, 32).astype(np.float32)
     careamist.export_to_bmz(
         path=tmp_path / "model2.zip",
         name="TopModel",
-        input_array=train_array[np.newaxis, np.newaxis, ...],
+        input_array=array[np.newaxis, np.newaxis, ...],
         general_description="A model that just walked in.",
-        authors=[{"name": "Amod", "affiliation": "El"}]
+        authors=[{"name": "Amod", "affiliation": "El"}],
     )
     assert (tmp_path / "model2.zip").exists()

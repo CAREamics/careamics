@@ -1,10 +1,10 @@
+"""Functions used to create a README.md file for BMZ export."""
 from pathlib import Path
 from typing import Optional
 
 import yaml
 
 from careamics.config import Configuration
-from careamics.config.support import SupportedAlgorithm
 from careamics.utils import cwd, get_careamics_home
 
 
@@ -14,12 +14,12 @@ def _yaml_block(yaml_str: str) -> str:
     Parameters
     ----------
     yaml_str : str
-        YAML string
+        YAML string.
 
     Returns
     -------
     str
-        Markdown code block with the YAML string
+        Markdown code block with the YAML string.
     """
     return f"```yaml\n{yaml_str}\n```"
 
@@ -46,13 +46,14 @@ def readme_factory(
     Returns
     -------
     Path
-        Path to the README file
+        Path to the README file.
     """
     algorithm = config.algorithm_config
     training = config.training_config
     data = config.data_config
 
     # create file
+    # TODO use tempfile as in the bmz_io module
     with cwd(get_careamics_home()):
         readme = Path("README.md")
         readme.touch()

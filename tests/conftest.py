@@ -6,6 +6,7 @@ import pytest
 
 from careamics import CAREamist, Configuration
 from careamics.config.support import SupportedData
+from careamics.model_io import export_to_bmz
 
 
 # TODO add details about where each of these fixture is used (e.g. smoke test)
@@ -267,3 +268,32 @@ def pre_trained(tmp_path, minimum_configuration):
     assert pre_trained_path.exists()
 
     return pre_trained_path
+
+
+@pytest.fixture
+def pre_trained_bmz(tmp_path, pre_trained) -> Path:
+    """Fixture to create a BMZ model."""
+    # training data
+    train_array = np.ones((32, 32), dtype=np.float32)
+
+    # instantiate CAREamist
+    careamist = CAREamist(source=pre_trained, work_dir=tmp_path)
+
+    # predict (no tiling and no tta)
+    predicted = careamist.predict(train_array, tta_transforms=False)
+
+    # export to BioImage Model Zoo
+    path = tmp_path / "model.zip"
+    export_to_bmz(
+        model=careamist.model,
+        config=careamist.cfg,
+        path=path,
+        name="TopModel",
+        general_description="A model that just walked in.",
+        authors=[{"name": "Amod", "affiliation": "El"}],
+        input_array=train_array[np.newaxis, np.newaxis, ...],
+        output_array=predicted,
+    )
+    assert path.exists()
+
+    return path

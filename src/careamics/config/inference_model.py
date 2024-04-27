@@ -1,3 +1,4 @@
+"""Pydantic model representing CAREamics prediction configuration."""
 from __future__ import annotations
 
 from typing import Any, List, Literal, Optional, Tuple, Union
@@ -5,9 +6,9 @@ from typing import Any, List, Literal, Optional, Tuple, Union
 from albumentations import Compose
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from .validators import check_axes_validity, patch_size_ge_than_8_power_of_2
 from .support import SupportedTransform
 from .transformations.normalize_model import NormalizeModel
+from .validators import check_axes_validity, patch_size_ge_than_8_power_of_2
 
 TRANSFORMS_UNION = Union[NormalizeModel]
 
@@ -19,10 +20,10 @@ class InferenceModel(BaseModel):
 
     # Mandatory fields
     data_type: Literal["array", "tiff", "custom"]  # As defined in SupportedData
-    tile_size: Optional[Union[List[int], Tuple[int]]] = Field(
+    tile_size: Optional[Union[List[int], Tuple[int, ...]]] = Field(
         default=None, min_length=2, max_length=3
     )
-    tile_overlap: Optional[Union[List[int], Tuple[int]]] = Field(
+    tile_overlap: Optional[Union[List[int], Tuple[int, ...]]] = Field(
         default=None, min_length=2, max_length=3
     )
 
@@ -48,7 +49,9 @@ class InferenceModel(BaseModel):
 
     @field_validator("tile_overlap")
     @classmethod
-    def all_elements_non_zero_even(cls, patch_list: List[int]) -> List[int]:
+    def all_elements_non_zero_even(
+        cls, patch_list: Optional[Union[List[int], Tuple[int, ...]]]
+    ) -> Optional[Union[List[int], Tuple[int, ...]]]:
         """
         Validate patch size.
 
@@ -56,12 +59,12 @@ class InferenceModel(BaseModel):
 
         Parameters
         ----------
-        patch_list : List[int]
+        patch_list : Optional[Union[List[int], Tuple[int, ...]]]
             Patch size.
 
         Returns
         -------
-        List[int]
+        Optional[Union[List[int], Tuple[int, ...]]]
             Validated patch size.
 
         Raises
@@ -82,10 +85,12 @@ class InferenceModel(BaseModel):
                     raise ValueError(f"Patch size must be even (got {dim}).")
 
         return patch_list
-    
+
     @field_validator("tile_size")
     @classmethod
-    def tile_min_8_power_of_2(cls, tile_list: List[int]) -> List[int]:
+    def tile_min_8_power_of_2(
+        cls, tile_list: Optional[Union[List[int], Tuple[int, ...]]]
+    ) -> Optional[Union[List[int], Tuple[int, ...]]]:
         """
         Validate that each entry is greater or equal than 8 and a power of 2.
 
@@ -272,7 +277,7 @@ class InferenceModel(BaseModel):
 
         Parameters
         ----------
-        kwargs : Any
+        **kwargs : Any
             Key-value pairs of arguments to update.
         """
         self.__dict__.update(kwargs)
