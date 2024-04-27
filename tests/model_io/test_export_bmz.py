@@ -1,7 +1,7 @@
 import numpy as np
 
 from careamics import CAREamist
-from careamics.model_io.model_io_utils import export_bmz
+from careamics.model_io import export_to_bmz
 
 
 def test_export_bmz(tmp_path, pre_trained):
@@ -14,22 +14,15 @@ def test_export_bmz(tmp_path, pre_trained):
     # predict (no tiling and no tta)
     predicted = careamist.predict(train_array, tta_transforms=False)
 
-    # save images
-    train_path = tmp_path / "train.npy"
-    np.save(train_path, train_array[np.newaxis, np.newaxis, ...])
-
-    predicted_path = tmp_path / "predicted.npy"
-    np.save(tmp_path / "predicted.npy", predicted)
-
     # export to BioImage Model Zoo
-    export_bmz(
+    export_to_bmz(
         model=careamist.model,
         config=careamist.cfg,
         path=tmp_path / "model.zip",
         name="TopModel",
         general_description="A model that just walked in.",
         authors=[{"name": "Amod", "affiliation": "El"}],
-        inputs=train_path,
-        outputs=predicted_path,
+        input_array=train_array[np.newaxis, np.newaxis, ...],
+        output_array=predicted,
     )
     assert (tmp_path / "model.zip").exists()

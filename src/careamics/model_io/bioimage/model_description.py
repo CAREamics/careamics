@@ -33,8 +33,8 @@ from .readme_factory import readme_factory
 def _create_axes(
     array: np.ndarray,
     data_config: DataModel,
-    is_input: bool = True,
     channel_names: Optional[List[str]] = None,
+    is_input: bool = True,
 ) -> List[AxisBase]:
     """Create axes description.
 
@@ -46,10 +46,10 @@ def _create_axes(
         Array.
     config : DataModel
         CAREamics data configuration
-    is_input : bool, optional
-        Whether the axes are input axes, by default True
     channel_names : Optional[List[str]], optional
         Channel names, by default None
+    is_input : bool, optional
+        Whether the axes are input axes, by default True
 
     Returns
     -------
@@ -61,6 +61,9 @@ def _create_axes(
     ValueError
         If channel names are not provided when channel axis is present
     """
+    # axes have to be SC(Z)YX
+    spatial_axes = data_config.axes.replace("S", "").replace("C", "")
+
     # batch is always present
     axes_model = [BatchAxis()]
 
@@ -79,7 +82,7 @@ def _create_axes(
         axes_model.append(ChannelAxis(channel_names=[Identifier("channel")]))
 
     # spatial axes
-    for ind, axes in enumerate(data_config.axes):
+    for ind, axes in enumerate(spatial_axes):
         if axes in ["X", "Y", "Z"]:
             if is_input:
                 axes_model.append(
@@ -98,7 +101,8 @@ def _create_inputs_ouputs(
     output_array: np.ndarray,
     data_config: DataModel,
     input_path: Union[Path, str],
-    output_path: Union[Path, str],
+    output_path: Union[Path, str],    
+    channel_names: Optional[List[str]] = None,
 ) -> Tuple[InputTensorDescr, OutputTensorDescr]:
     """Create input and output tensor description.
 
@@ -118,8 +122,8 @@ def _create_inputs_ouputs(
     Tuple[InputTensorDescr, OutputTensorDescr]
         Input and output tensor descriptions
     """
-    input_axes = _create_axes(input_array, data_config)
-    output_axes = _create_axes(output_array, data_config, is_input=False)
+    input_axes = _create_axes(input_array, data_config, channel_names)
+    output_axes = _create_axes(output_array, data_config, channel_names, False)
 
     # mean and std
     mean = data_config.mean
@@ -172,8 +176,8 @@ def create_model_description(
     careamics_version: str,
     config_path: Union[Path, str],
     env_path: Union[Path, str],
+    channel_names: Optional[List[str]] = None,
     data_description: Optional[str] = None,
-    custom_description: Optional[str] = None,
 ) -> ModelDescr:
     """Create model description.
 
@@ -199,10 +203,10 @@ def create_model_description(
         Path to model configuration.
     env_path : Union[Path, str]
         Path to environment file.
+    channel_names : Optional[List[str]], optional
+        Channel names, by default None.
     data_description : Optional[str], optional
-        Description of the data, by default None
-    custom_description : Optional[str], optional
-        Description of the custom algorithm, by default None
+        Description of the data, by default None.
 
     Returns
     -------
@@ -214,7 +218,6 @@ def create_model_description(
         config,
         careamics_version=careamics_version,
         data_description=data_description,
-        custom_description=custom_description,
     )
 
     # inputs, outputs
@@ -224,6 +227,7 @@ def create_model_description(
         data_config=config.data_config,
         input_path=inputs,
         output_path=outputs,
+        channel_names=channel_names,
     )
 
     # weights description

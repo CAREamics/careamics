@@ -6,6 +6,8 @@ N2V = "Noise2Void"
 N2V2 = "N2V2"
 STRUCT_N2V = "StructN2V"
 STRUCT_N2V2 = "StructN2V2"
+N2N = "Noise2Noise"
+CARE = "CARE"
 
 
 N2V_DESCRIPTION = "Noise2Void is a UNet-based self-supervised algorithm that " \
@@ -91,3 +93,27 @@ class StructN2V2Description(AlgorithmDescription):
                 "\nN2V2 introduces blur-pool layers and removed skip connections in " \
                 "the UNet architecture to remove checkboard artefacts, a common " \
                 "artefacts ocurring in Noise2Void."
+    
+
+class N2NDescription(AlgorithmDescription):
+    """Description of Noise2Noise.
+
+    Attributes
+    ----------
+    description : str
+        Description of Noise2Noise.
+    """
+    
+    description: str = "Noise2Noise" # TODO
+
+
+class CAREDescription(AlgorithmDescription):
+    """Description of CARE.
+
+    Attributes
+    ----------
+    description : str
+        Description of CARE.
+    """
+    
+    description: str = "CARE" # TODO

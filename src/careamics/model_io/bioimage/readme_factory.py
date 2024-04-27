@@ -28,26 +28,20 @@ def readme_factory(
     config: Configuration,
     careamics_version: str,
     data_description: Optional[str] = None,
-    custom_description: Optional[str] = None,
 ) -> Path:
     """Create a README file for the model.
 
     `data_description` can be used to add more information about the content of the
     data the model was trained on.
 
-    `custom_description` can be used to add a custom description of the algorithm, only
-    used when the algorithm is set to `custom` in the configuration.
-
     Parameters
     ----------
     config : Configuration
-        CAREamics configuration
+        CAREamics configuration.
     careamics_version : str
-        CAREamics version
+        CAREamics version.
     data_description : Optional[str], optional
-        Description of the data, by default None
-    custom_description : Optional[str], optional
-        Description of custom algorithm, by default None
+        Description of the data, by default None.
 
     Returns
     -------
@@ -71,13 +65,7 @@ def readme_factory(
 
         # algorithm description
         description.append("Algorithm description:\n\n")
-        if (
-            algorithm.algorithm == SupportedAlgorithm.CUSTOM
-            and custom_description is not None
-        ):
-            description.append(custom_description)
-        else:
-            description.append(config.get_algorithm_description())
+        description.append(config.get_algorithm_description())
         description.append("\n\n")
 
         # algorithm details
