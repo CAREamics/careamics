@@ -35,10 +35,13 @@ class CAREamicsPredictionLoop(L.loops._PredictionLoop):
             ########################################################
             ################ CAREamics specific code ###############
             if len(self.predicted_array) == 1:
-                return self.predicted_array[0]
+                # TODO does this make sense to here? (force numpy array)
+                return self.predicted_array[0].numpy() 
             else:
                 # TODO revisit logic
-                return self.predicted_array
+                return [
+                    element.numpy() for element in self.predicted_array
+                ]
             ########################################################
         return None
 

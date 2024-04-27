@@ -16,15 +16,21 @@ from .references import (
     N2V2Ref, 
     N2VRef, 
     StructN2VRef,
+    N2NRef,
+    CARERef,
     N2VDescription,
     N2V2Description,
     StructN2VDescription,
     StructN2V2Description,
+    N2NDescription,
+    CAREDescription,
     N2V,
     N2V2,
     STRUCT_N2V,
     STRUCT_N2V2,
-    CUSTOM
+    CUSTOM,
+    N2N,
+    CARE
 )
 from .support import SupportedAlgorithm, SupportedPixelManipulation, SupportedTransform
 from .training_model import TrainingModel
@@ -239,8 +245,7 @@ class Configuration(BaseModel):
                             name=SupportedTransform.N2V_MANIPULATE.value,
                         )
                     )
-                # TODO Doesn't validate the parameters of N2VManipulate !!
-                # make sure that N2V has the correct pixel manipulate strategy
+                    
                 median = SupportedPixelManipulation.MEDIAN.value
                 uniform = SupportedPixelManipulation.UNIFORM.value
                 strategy = median if self.algorithm_config.model.n2v2 else uniform
@@ -348,9 +353,13 @@ class Configuration(BaseModel):
                 return STRUCT_N2V
             else:
                 return N2V
-
-        return self.algorithm_config.algorithm.capitalize()
-
+        elif self.algorithm_config.algorithm == SupportedAlgorithm.N2N:
+            return N2N
+        elif self.algorithm_config.algorithm == SupportedAlgorithm.CARE:
+            return CARE
+        else:
+            return CUSTOM
+            
     def get_algorithm_description(self) -> str:
         """
         Return a description of the algorithm.
@@ -375,6 +384,10 @@ class Configuration(BaseModel):
                 return StructN2VDescription().description
             elif algorithm_flavour == STRUCT_N2V2:
                 return StructN2V2Description().description
+            elif algorithm_flavour == N2N:
+                return N2NDescription().description
+            elif algorithm_flavour == CARE:
+                return CAREDescription().description
 
         return ""
 
@@ -404,6 +417,10 @@ class Configuration(BaseModel):
                 return [N2VRef, StructN2VRef]
             else:
                 return [N2VRef]
+        elif self.algorithm_config.algorithm == SupportedAlgorithm.N2N:
+            return [N2NRef]
+        elif self.algorithm_config.algorithm == SupportedAlgorithm.CARE:
+            return [CARERef]
 
         raise ValueError("Citation not available for custom algorithm.")
 

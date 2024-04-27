@@ -445,11 +445,11 @@ class CAREamicsTrainDataModule(CAREamicsWood):
     Create a CAREamicsTrainDataModule with default transforms with a numpy array:
     >>> import numpy as np
     >>> from careamics import CAREamicsTrainDataModule
-    >>> my_array = np.arange(100).reshape(10, 10)
+    >>> my_array = np.arange(256).reshape(16, 16)
     >>> data_module = CAREamicsTrainDataModule(
     ...     train_data=my_array,
     ...     data_type="array",
-    ...     patch_size=(2, 2),
+    ...     patch_size=(8, 8),
     ...     axes='YX',
     ...     batch_size=2,
     ... )
@@ -458,12 +458,14 @@ class CAREamicsTrainDataModule(CAREamicsWood):
     function and a filter for the files extension:
     >>> import numpy as np
     >>> from careamics import CAREamicsTrainDataModule
+    >>>
     >>> def read_npy(path):
     ...     return np.load(path)
+    >>>
     >>> data_module = CAREamicsTrainDataModule(
     ...     train_data="path/to/data",
     ...     data_type="custom",
-    ...     patch_size=(2, 2),
+    ...     patch_size=(8, 8),
     ...     axes='YX',
     ...     batch_size=2,
     ...     read_source_func=read_npy,
@@ -475,7 +477,7 @@ class CAREamicsTrainDataModule(CAREamicsWood):
     >>> import numpy as np
     >>> from careamics import CAREamicsTrainDataModule
     >>> from careamics.config.support import SupportedTransform
-    >>> my_array = np.arange(100).reshape(10, 10)
+    >>> my_array = np.arange(256).reshape(16, 16)
     >>> my_transforms = [
     ...     {
     ...         "name": SupportedTransform.NORMALIZE.value,
@@ -489,7 +491,7 @@ class CAREamicsTrainDataModule(CAREamicsWood):
     >>> data_module = CAREamicsTrainDataModule(
     ...     train_data=my_array,
     ...     data_type="array",
-    ...     patch_size=(2, 2),
+    ...     patch_size=(8, 8),
     ...     axes='YX',
     ...     batch_size=2,
     ...     transforms=my_transforms,
