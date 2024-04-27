@@ -1,20 +1,11 @@
-import tempfile
 from pathlib import Path
-from typing import Callable, Generator, Tuple
+from typing import Callable, Tuple
 
 import numpy as np
 import pytest
-import tifffile
 
 from careamics import CAREamist, Configuration
-from careamics.config.algorithm_model import (
-    AlgorithmModel,
-    LrSchedulerModel,
-    OptimizerModel,
-)
-from careamics.config.data_model import DataModel
 from careamics.config.support import SupportedData
-from careamics.config.training_model import TrainingModel
 
 
 # TODO add details about where each of these fixture is used (e.g. smoke test)
@@ -41,7 +32,7 @@ def minimum_algorithm_custom() -> dict:
     # create dictionary
     algorithm = {
         "algorithm": "custom",
-        "loss": "n2v",
+        "loss": "mae",
         "model": {
             "architecture": "UNet",
         },
@@ -103,9 +94,9 @@ def minimum_data() -> dict:
     """
     # create dictionary
     data = {
-        "data_type": SupportedData.TIFF.value,
-        "patch_size": [64, 64],
-        "axes": "SYX",
+        "data_type": SupportedData.ARRAY.value,
+        "patch_size": [8, 8],
+        "axes": "YX",
     }
 
     return data
@@ -122,10 +113,10 @@ def minimum_inference() -> dict:
     """
     # create dictionary
     predic = {
-        "data_type": SupportedData.TIFF.value,
-        "mean": 0.0,
+        "data_type": SupportedData.ARRAY.value,
+        "axes": "YX",
+        "mean": 2.0,
         "std": 1.0,
-        "axes": "SYX",
     }
 
     return predic
@@ -142,7 +133,7 @@ def minimum_training() -> dict:
     """
     # create dictionary
     training = {
-        "num_epochs": 666,
+        "num_epochs": 1,
     }
 
     return training
@@ -174,6 +165,20 @@ def minimum_configuration(
     configuration = {
         "experiment_name": "LevitatingFrog",
         "algorithm_config": minimum_algorithm_n2v,
+        "training_config": minimum_training,
+        "data_config": minimum_data,
+    }
+
+    return configuration
+
+
+@pytest.fixture
+def supervised_configuration(
+    minimum_algorithm_supervised: dict, minimum_data: dict, minimum_training: dict
+) -> dict:
+    configuration = {
+        "experiment_name": "LevitatingFrog",
+        "algorithm_config": minimum_algorithm_supervised,
         "training_config": minimum_training,
         "data_config": minimum_data,
     }
@@ -228,17 +233,6 @@ def array_3D() -> np.ndarray:
 
 
 @pytest.fixture
-def temp_dir() -> Generator[Path, None, None]:
-    with tempfile.TemporaryDirectory() as temp_dir:
-        yield Path(temp_dir)
-
-
-@pytest.fixture
-def image_size() -> Tuple[int, int]:
-    return (128, 128)
-
-
-@pytest.fixture
 def patch_size() -> Tuple[int, int]:
     return (64, 64)
 
@@ -246,72 +240,6 @@ def patch_size() -> Tuple[int, int]:
 @pytest.fixture
 def overlaps() -> Tuple[int, int]:
     return (32, 32)
-
-
-@pytest.fixture
-def example_data_path(
-    temp_dir: Path, image_size: Tuple[int, int], patch_size: Tuple[int, int]
-) -> Tuple[Path, Path]:
-    test_image = np.random.rand(*image_size)
-
-    train_path = temp_dir / "train"
-    val_path = temp_dir / "val"
-    test_path = temp_dir / "test"
-    train_path.mkdir()
-    val_path.mkdir()
-    test_path.mkdir()
-
-    tifffile.imwrite(train_path / "train_image.tif", test_image)
-    tifffile.imwrite(val_path / "val_image.tif", test_image)
-    tifffile.imwrite(test_path / "test_image.tif", test_image)
-
-    return train_path, val_path, test_path
-
-
-@pytest.fixture
-def base_configuration(temp_dir: Path, patch_size) -> Configuration:
-    configuration = Configuration(
-        experiment_name="smoke_test",
-        working_directory=temp_dir,
-        algorithm_config=AlgorithmModel(
-            algorithm="n2v",
-            loss="n2v",
-            model={"architecture": "UNet"},
-            is_3D="False",
-            transforms={"Flip": None, "ManipulateN2V": None},
-        ),
-        data_config=DataModel(
-            in_memory=True,
-            extension="tif",
-            axes="YX",
-        ),
-        training_config=TrainingModel(
-            num_epochs=1,
-            patch_size=patch_size,
-            batch_size=2,
-            optimizer=OptimizerModel(name="Adam"),
-            lr_scheduler=LrSchedulerModel(name="ReduceLROnPlateau"),
-            extraction_strategy="random",
-            augmentation=True,
-            num_workers=0,
-            use_wandb=False,
-        ),
-    )
-    return configuration
-
-
-@pytest.fixture
-def supervised_configuration(
-    minimum_algorithm_supervised: dict, minimum_data: dict, minimum_training: dict
-) -> dict:
-    configuration = {
-        "experiment_name": "LevitatingFrog",
-        "algorithm_config": minimum_algorithm_supervised,
-        "training_config": minimum_training,
-        "data_config": minimum_data,
-    }
-
-    return configuration
 
 
 @pytest.fixture

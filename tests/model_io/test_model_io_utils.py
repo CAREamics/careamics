@@ -32,3 +32,4 @@ def test_export_bmz(tmp_path, pre_trained):
         inputs=train_path,
         outputs=predicted_path,
     )
+    assert (tmp_path / "model.zip").exists()

@@ -2,8 +2,6 @@
 
 
 __all__ = [
-    "check_axes_validity",
-    "check_tiling_validity",
     "cwd",
     "MetricTracker",
     "get_ram_size",
@@ -21,7 +19,3 @@ from .logging import get_logger
 from .path_utils import check_path_exists
 from .ram import get_ram_size
 from .running_stats import RunningStats
-from .validators import (
-    check_axes_validity,
-    check_tiling_validity,
-)

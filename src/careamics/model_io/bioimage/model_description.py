@@ -126,8 +126,12 @@ def _create_inputs_ouputs(
     std = data_config.std
 
     # and the mean and std required to invert the normalization
-    inv_mean = -mean / std
-    inv_std = 1 / std
+    # CAREamics denormalization: x = y * (std + eps) + mean
+    # BMZ normalization : x = (y - mean') / (std' + eps)
+    # to apply the BMZ normalization as a denormalization step, we need:
+    eps = 1e-6
+    inv_mean = -mean / (std + eps)
+    inv_std = 1 / (std + eps) - eps
 
     # create input/output descriptions
     input_descr = InputTensorDescr(
@@ -256,6 +260,15 @@ def create_model_description(
         weights=weights_descr,
         attachments=[FileDescr(source=config_path)],
         cite=config.get_algorithm_citations(),
+        config={ # conversion from float32 to float64 creates small differences...
+            "bioimageio": {
+                "test_kwargs": {
+                    "pytorch_state_dict": {
+                        "decimals": 2, # ...so we relax the constraints on the decimals
+                    }
+                }
+            }
+        }
     )
 
     return model

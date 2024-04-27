@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from pprint import pformat
-from typing import Any, List, Literal, Optional, Union
+from typing import Any, List, Literal, Optional, Union, Tuple
 
 from albumentations import Compose
 from pydantic import (
@@ -15,8 +15,7 @@ from pydantic import (
 )
 from typing_extensions import Annotated
 
-from careamics.utils import check_axes_validity
-
+from .validators import check_axes_validity, patch_size_ge_than_8_power_of_2
 from .support import SupportedTransform
 from .transformations.n2v_manipulate_model import N2VManipulateModel
 from .transformations.nd_flip_model import NDFlipModel
@@ -34,7 +33,6 @@ TRANSFORMS_UNION = Annotated[
 ]
 
 
-# TODO does patches need to be multiple of 8 with UNet?
 class DataModel(BaseModel):
     """
     Data configuration.
@@ -88,7 +86,7 @@ class DataModel(BaseModel):
 
     # Dataset configuration
     data_type: Literal["array", "tiff", "custom"]  # As defined in SupportedData
-    patch_size: List[int] = Field(..., min_length=2, max_length=3)
+    patch_size: Union[List[int], Tuple[int]] = Field(..., min_length=2, max_length=3)
     batch_size: int = Field(default=1, ge=1, validate_default=True)
     axes: str
 
@@ -118,11 +116,11 @@ class DataModel(BaseModel):
 
     @field_validator("patch_size")
     @classmethod
-    def all_elements_non_zero_even(cls, patch_list: List[int]) -> List[int]:
+    def all_elements_power_of_2_minimum_8(cls, patch_list: List[int]) -> List[int]:
         """
         Validate patch size.
 
-        Patch size must be non-zero, positive and even.
+        Patch size must be powers of 2 and minimum 8.
 
         Parameters
         ----------
@@ -137,18 +135,11 @@ class DataModel(BaseModel):
         Raises
         ------
         ValueError
-            If the patch size is 0.
+            If the patch size is smaller than 8.
         ValueError
-            If the patch size is not even.
+            If the patch size is not a power of 2.
         """
-        for dim in patch_list:
-            if dim < 1:
-                raise ValueError(f"Patch size must be non-zero positive (got {dim}).")
-
-            if dim % 2 != 0:
-                raise ValueError(f"Patch size must be even (got {dim}).")
-
-        return patch_list
+        return patch_size_ge_than_8_power_of_2(patch_list)
 
     @field_validator("axes")
     @classmethod

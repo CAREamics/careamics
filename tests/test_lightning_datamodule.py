@@ -27,9 +27,10 @@ def test_lightning_train_datamodule_array(simple_array):
     data_module = CAREamicsTrainDataModule(
         train_data=simple_array,
         data_type="array",
-        patch_size=(2, 2),
+        patch_size=(8, 8),
         axes="YX",
         batch_size=2,
+        val_minimum_patches=2,
     )
     data_module.prepare_data()
     data_module.setup()
@@ -48,6 +49,7 @@ def test_lightning_train_datamodule_supervised_n2v_throws_error(simple_array):
             axes="YX",
             batch_size=2,
             train_target_data=simple_array,
+            val_minimum_patches=2,
         )
 
 
@@ -63,7 +65,7 @@ def test_lightning_train_datamodule_n2v2(simple_array, use_n2v2, strategy):
     data_module = CAREamicsTrainDataModule(
         train_data=simple_array,
         data_type="array",
-        patch_size=(10, 10),
+        patch_size=(16, 16),
         axes="YX",
         batch_size=2,
         use_n2v2=use_n2v2,
@@ -79,7 +81,7 @@ def test_lightning_train_datamodule_structn2v(simple_array):
     data_module = CAREamicsTrainDataModule(
         train_data=simple_array,
         data_type="array",
-        patch_size=(10, 10),
+        patch_size=(16, 16),
         axes="YX",
         batch_size=2,
         struct_n2v_axis=struct_axis,
@@ -113,12 +115,12 @@ def test_lightning_pred_datamodule_tiling(simple_array):
         axes="YX",
         batch_size=2,
         tile_overlap=[2, 2],
-        tile_size=[4, 4],
+        tile_size=[8, 8],
     )
 
     data_module.prepare_data()
     data_module.setup()
-    assert len(list(data_module.predict_dataloader())) == 8
+    assert len(list(data_module.predict_dataloader())) == 2
 
 
 def test_lightning_pred_datamodule_no_tiling(simple_array):

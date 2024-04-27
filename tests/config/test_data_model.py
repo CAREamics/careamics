@@ -96,15 +96,15 @@ def test_patch_size(minimum_data: dict):
     data_model = DataModel(**minimum_data)
 
     # 3D
-    minimum_data["patch_size"] = [12, 12, 12]
+    minimum_data["patch_size"] = [16, 8, 8]
     minimum_data["axes"] = "ZYX"
 
     data_model = DataModel(**minimum_data)
-    assert data_model.patch_size == [12, 12, 12]
+    assert data_model.patch_size == minimum_data["patch_size"]
 
 
 @pytest.mark.parametrize(
-    "patch_size", [[12], [0, 12, 12], [12, 12, 13], [12, 12, 12, 12]]
+    "patch_size", [[12], [0, 12, 12], [12, 12, 13], [16, 10, 16], [12, 12, 12, 12]]
 )
 def test_wrong_patch_size(minimum_data: dict, patch_size):
     """Test that wrong patch sizes are not accepted (zero or odd, dims 1 or > 3)."""

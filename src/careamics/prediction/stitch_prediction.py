@@ -41,7 +41,8 @@ def stitch_prediction(
             [el.numpy() for el in stitching_data[0][0]], dtype=int
         ).squeeze()
 
-    predicted_image = np.zeros(input_shape, dtype=np.float32)
+    # TODO should use torch.zeros instead of np.zeros
+    predicted_image = torch.Tensor(np.zeros(input_shape, dtype=np.float32))
 
     for tile_batch, (_, overlap_crop_coords_batch, stitch_coords_batch) in zip(
         tiles, stitching_data

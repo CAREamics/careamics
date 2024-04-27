@@ -35,7 +35,7 @@ def test_stitch_prediction(ordered_array, input_shape, tile_size, overlaps):
             )
         )
 
-    # compute stitching coordinates
+    # compute stitching coordinates, it returns a torch.Tensor
     result = stitch_prediction(tiles, stitching_data)
 
-    assert (result == arr).all()
+    assert (result.numpy() == arr).all()

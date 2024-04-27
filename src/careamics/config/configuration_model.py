@@ -12,7 +12,20 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 from .algorithm_model import AlgorithmModel
 from .data_model import DataModel
-from .references import N2V2_REF, N2V_REF, STRUCTN2V_REF
+from .references import (
+    N2V2Ref, 
+    N2VRef, 
+    StructN2VRef,
+    N2VDescription,
+    N2V2Description,
+    StructN2VDescription,
+    StructN2V2Description,
+    N2V,
+    N2V2,
+    STRUCT_N2V,
+    STRUCT_N2V2,
+    CUSTOM
+)
 from .support import SupportedAlgorithm, SupportedPixelManipulation, SupportedTransform
 from .training_model import TrainingModel
 from .transformations.n2v_manipulate_model import (
@@ -323,24 +336,26 @@ class Configuration(BaseModel):
         if self.algorithm_config.algorithm == SupportedAlgorithm.N2V:
             use_n2v2 = self.algorithm_config.model.n2v2
             use_structN2V = (
-                self.data_config.transforms[-1].parameters.struct_mask_axis != "none"
+                self.data_config.transforms[-1].struct_mask_axis != "none"
             )
 
             # return the n2v flavour
             if use_n2v2 and use_structN2V:
-                return "StructN2V2"
+                return STRUCT_N2V2
             elif use_n2v2:
-                return "N2V2"
+                return N2V2
             elif use_structN2V:
-                return "StructN2V"
+                return STRUCT_N2V
             else:
-                return "Noise2Void"
+                return N2V
 
         return self.algorithm_config.algorithm.capitalize()
 
     def get_algorithm_description(self) -> str:
         """
         Return a description of the algorithm.
+
+        This method is used to generate the README of the BioImage Model Zoo export.
 
         Returns
         -------
@@ -349,82 +364,25 @@ class Configuration(BaseModel):
         """
         algorithm_flavour = self.get_algorithm_flavour()
 
-        if algorithm_flavour == "Custom":
+        if algorithm_flavour == CUSTOM:
             return f"Custom algorithm, named {self.algorithm_config.model.name}"
         else:  # currently only N2V flavours
-            if algorithm_flavour == "Noise2Void":
-                return (
-                    "Noise2Void is a UNet-based self-supervised algorithm that uses "
-                    "blind-spot training to denoise images. In short, in every "
-                    "patches during training, random pixels are selected and their "
-                    "value replaced by a neighboring pixel value. The network is then "
-                    "trained to predict the original pixel value. The algorithm "
-                    "relies on the continuity of the signal (neighboring pixels have "
-                    "similar values) and the pixel-wise independence of the noise "
-                    "(the noise in a pixel is not correlated with the noise in "
-                    "neighboring pixels)."
-                )
-            elif algorithm_flavour == "N2V2":
-                return (
-                    "N2V2 is an iteration of Noise2Void. "
-                    "Noise2Void is a UNet-based self-supervised algorithm that uses "
-                    "blind-spot training to denoise images. In short, in every "
-                    "patches during training, random pixels are selected and their "
-                    "value replaced by a neighboring pixel value. The network is then "
-                    "trained to predict the original pixel value. The algorithm "
-                    "relies on the continuity of the signal (neighboring pixels have "
-                    "similar values) and the pixel-wise independence of the noise "
-                    "(the noise in a pixel is not correlated with the noise in "
-                    "neighboring pixels). "
-                    "N2V2 introduces blur-pool layers and removed skip connections in "
-                    "the UNet architecture to remove checkboard artefacts, a common "
-                    "artefacts ocurring in Noise2Void."
-                )
-            elif algorithm_flavour == "StructN2V":
-                return (
-                    "StructN2V is an iteration of Noise2Void. "
-                    "Noise2Void is a UNet-based self-supervised algorithm that uses "
-                    "blind-spot training to denoise images. In short, in every "
-                    "patches during training, random pixels are selected and their "
-                    "value replaced by a neighboring pixel value. The network is then "
-                    "trained to predict the original pixel value. The algorithm "
-                    "relies on the continuity of the signal (neighboring pixels have "
-                    "similar values) and the pixel-wise independence of the noise "
-                    "(the noise in a pixel is not correlated with the noise in "
-                    "neighboring pixels). "
-                    "StructN2V uses a linear mask (horizontal or vertical) to replace "
-                    "the pixel values of neighbors of the masked pixels by a random "
-                    "value. Such masking allows removing 1D structured noise from the "
-                    "the images, the main failure case of the original N2V."
-                )
-            elif algorithm_flavour == "StructN2V2":
-                return (
-                    "StructN2V2 is an iteration of Noise2Void that uses both "
-                    "structN2V and N2V2 ."
-                    "Noise2Void is a UNet-based self-supervised algorithm that uses "
-                    "blind-spot training to denoise images. In short, in every "
-                    "patches during training, random pixels are selected and their "
-                    "value replaced by a neighboring pixel value. The network is then "
-                    "trained to predict the original pixel value. The algorithm "
-                    "relies on the continuity of the signal (neighboring pixels have "
-                    "similar values) and the pixel-wise independence of the noise "
-                    "(the noise in a pixel is not correlated with the noise in "
-                    "neighboring pixels). "
-                    "StructN2V uses a linear mask (horizontal or vertical) to replace "
-                    "the pixel values of neighbors of the masked pixels by a random "
-                    "value. Such masking allows removing 1D structured noise from the "
-                    "the images, the main failure case of the original N2V."
-                    "N2V2 introduces blur-pool layers and removed skip connections in "
-                    "the UNet architecture to remove checkboard artefacts, a common "
-                    "artefacts ocurring in Noise2Void."
-                )
+            if algorithm_flavour == N2V:
+                return N2VDescription().description
+            elif algorithm_flavour == N2V2:
+                return N2V2Description().description
+            elif algorithm_flavour == STRUCT_N2V:
+                return StructN2VDescription().description
+            elif algorithm_flavour == STRUCT_N2V2:
+                return StructN2V2Description().description
 
         return ""
 
     def get_algorithm_citations(self) -> List[CiteEntry]:
         """
-        Return a list of citation entries corresponding to the algorithm
-        defined in the configuration.
+        Return a list of citation entries of the current algorithm.
+
+        This is used to generate the model description for the BioImage Model Zoo.
 
         Returns
         -------
@@ -434,24 +392,26 @@ class Configuration(BaseModel):
         if self.algorithm_config.algorithm == SupportedAlgorithm.N2V:
             use_n2v2 = self.algorithm_config.model.n2v2
             use_structN2V = (
-                self.data_config.transforms[-1].parameters.struct_mask_axis != "none"
+                self.data_config.transforms[-1].struct_mask_axis != "none"
             )
 
             # return the (struct)N2V(2) references
             if use_n2v2 and use_structN2V:
-                return [N2V_REF, N2V2_REF, STRUCTN2V_REF]
+                return [N2VRef, N2V2Ref, StructN2VRef]
             elif use_n2v2:
-                return [N2V_REF, N2V2_REF]
+                return [N2VRef, N2V2Ref]
             elif use_structN2V:
-                return [N2V_REF, STRUCTN2V_REF]
+                return [N2VRef, StructN2VRef]
             else:
-                return [N2V_REF]
+                return [N2VRef]
 
         raise ValueError("Citation not available for custom algorithm.")
 
     def get_algorithm_references(self) -> str:
         """
         Get the algorithm references.
+
+        This is used to generate the README of the BioImage Model Zoo export.
 
         Returns
         -------
@@ -461,13 +421,13 @@ class Configuration(BaseModel):
         if self.algorithm_config.algorithm == SupportedAlgorithm.N2V:
             use_n2v2 = self.algorithm_config.model.n2v2
             use_structN2V = (
-                self.data_config.transforms[-1].parameters.struct_mask_axis != "none"
+                self.data_config.transforms[-1].struct_mask_axis != "none"
             )
 
             references = [
-                N2V_REF.text + " doi: " + N2V_REF.doi,
-                N2V2_REF.text + " doi: " + N2V2_REF.doi,
-                STRUCTN2V_REF.text + " doi: " + STRUCTN2V_REF.doi,
+                N2VRef.text + " doi: " + N2VRef.doi,
+                N2V2Ref.text + " doi: " + N2V2Ref.doi,
+                StructN2VRef.text + " doi: " + StructN2VRef.doi,
             ]
 
             # return the (struct)N2V(2) references
@@ -496,7 +456,7 @@ class Configuration(BaseModel):
         if self.algorithm_config.algorithm == SupportedAlgorithm.N2V:
             use_n2v2 = self.algorithm_config.model.n2v2
             use_structN2V = (
-                self.data_config.transforms[-1].parameters.struct_mask_axis != "none"
+                self.data_config.transforms[-1].struct_mask_axis != "none"
             )
 
             keywords = [
@@ -506,13 +466,13 @@ class Configuration(BaseModel):
                 "3D" if "Z" in self.data_config.axes else "2D",
                 "CAREamics",
                 "pytorch",
-                "Noise2Void",
+                N2V,
             ]
 
             if use_n2v2:
-                keywords.append("N2V2")
+                keywords.append(N2V2)
             if use_structN2V:
-                keywords.append("StructN2V2")
+                keywords.append(STRUCT_N2V)
         else:
             keywords = ["CAREamics"]
 
@@ -545,9 +505,6 @@ class Configuration(BaseModel):
         dictionary = super().model_dump(
             exclude_none=exclude_none, exclude_defaults=exclude_defaults, **kwargs
         )
-
-        # change Path into str
-        # dictionary["working_directory"] = str(dictionary["working_directory"])
 
         return dictionary
 

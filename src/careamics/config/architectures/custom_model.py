@@ -55,7 +55,7 @@ class CustomModel(ArchitectureModel):
     >>> # Create a configuration
     >>> config_dict = {
     ...     "architecture": "Custom",
-    ...     "name": "linear",
+    ...     "name": "my_linear",
     ...     "in_features": 10,
     ...     "out_features": 5,
     ... }

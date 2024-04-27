@@ -5,8 +5,7 @@ from typing import Any, List, Literal, Optional, Tuple, Union
 from albumentations import Compose
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from careamics.utils import check_axes_validity
-
+from .validators import check_axes_validity, patch_size_ge_than_8_power_of_2
 from .support import SupportedTransform
 from .transformations.normalize_model import NormalizeModel
 
@@ -47,7 +46,7 @@ class InferenceModel(BaseModel):
     # Dataloader parameters
     batch_size: int = Field(default=1, ge=1)
 
-    @field_validator("tile_size", "tile_overlap")
+    @field_validator("tile_overlap")
     @classmethod
     def all_elements_non_zero_even(cls, patch_list: List[int]) -> List[int]:
         """
@@ -83,6 +82,31 @@ class InferenceModel(BaseModel):
                     raise ValueError(f"Patch size must be even (got {dim}).")
 
         return patch_list
+    
+    @field_validator("tile_size")
+    @classmethod
+    def tile_min_8_power_of_2(cls, tile_list: List[int]) -> List[int]:
+        """
+        Validate that each entry is greater or equal than 8 and a power of 2.
+
+        Parameters
+        ----------
+        tile_list : List[int]
+            Patch size.
+
+        Returns
+        -------
+        List[int]
+            Validated patch size.
+
+        Raises
+        ------
+        ValueError
+            If the patch size if smaller than 8.
+        ValueError
+            If the patch size is not a power of 2.
+        """
+        return patch_size_ge_than_8_power_of_2(tile_list)
 
     @field_validator("axes")
     @classmethod

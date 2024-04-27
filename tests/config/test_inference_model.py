@@ -49,22 +49,22 @@ def test_tile_size(minimum_inference: dict):
     prediction_model = InferenceModel(**minimum_inference)
 
     # 2D
-    minimum_inference["tile_size"] = [12, 12]
+    minimum_inference["tile_size"] = [16, 8]
     minimum_inference["tile_overlap"] = [2, 2]
     minimum_inference["axes"] = "YX"
 
     prediction_model = InferenceModel(**minimum_inference)
-    assert prediction_model.tile_size == [12, 12]
-    assert prediction_model.tile_overlap == [2, 2]
+    assert prediction_model.tile_size == minimum_inference["tile_size"]
+    assert prediction_model.tile_overlap == minimum_inference["tile_overlap"]
 
     # 3D
-    minimum_inference["tile_size"] = [12, 12, 12]
+    minimum_inference["tile_size"] = [16, 8, 32]
     minimum_inference["tile_overlap"] = [2, 2, 2]
     minimum_inference["axes"] = "ZYX"
 
     prediction_model = InferenceModel(**minimum_inference)
-    assert prediction_model.tile_size == [12, 12, 12]
-    assert prediction_model.tile_overlap == [2, 2, 2]
+    assert prediction_model.tile_size == minimum_inference["tile_size"]
+    assert prediction_model.tile_overlap == minimum_inference["tile_overlap"]
 
 
 @pytest.mark.parametrize(

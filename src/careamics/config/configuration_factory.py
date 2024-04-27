@@ -29,10 +29,6 @@ def create_n2n_configuration(
     use_augmentations: bool = True,
     use_n2v2: bool = False,
     n_channels: int = 1,
-    roi_size: int = 11,
-    masked_pixel_percentage: float = 0.2,
-    struct_n2v_axis: Literal["horizontal", "vertical", "none"] = "none",
-    struct_n2v_span: int = 5,
     logger: Literal["wandb", "tensorboard", "none"] = "none",
     model_kwargs: Optional[dict] = None,
 ) -> Configuration:

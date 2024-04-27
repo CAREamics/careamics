@@ -15,7 +15,7 @@ def test_number_of_patches(ordered_array):
     # create config
     config_dict = {
         "data_type": SupportedData.ARRAY.value,
-        "patch_size": [4, 4],
+        "patch_size": [8, 8],
         "axes": "YX",
     }
     config = DataModel(**config_dict)
@@ -40,12 +40,12 @@ def test_compute_mean_std_transform(ordered_array):
 def test_extracting_val_array(ordered_array, percentage):
     """Test extracting a validation set patches from InMemoryDataset."""
     # create array
-    array = ordered_array((20, 20))
+    array = ordered_array((32, 32))
 
     # create config
     config_dict = {
         "data_type": SupportedData.ARRAY.value,
-        "patch_size": [4, 4],
+        "patch_size": [8, 8],
         "axes": "YX",
     }
     config = DataModel(**config_dict)
@@ -76,7 +76,7 @@ def test_extracting_val_array(ordered_array, percentage):
 def test_extracting_val_files(tmp_path, ordered_array, percentage):
     """Test extracting a validation set patches from InMemoryDataset."""
     # create array
-    array = ordered_array((20, 20))
+    array = ordered_array((32, 32))
 
     # save array to file
     file_path = tmp_path / "array.tif"
@@ -85,7 +85,7 @@ def test_extracting_val_files(tmp_path, ordered_array, percentage):
     # create config
     config_dict = {
         "data_type": SupportedData.ARRAY.value,
-        "patch_size": [4, 4],
+        "patch_size": [8, 8],
         "axes": "YX",
     }
     config = DataModel(**config_dict)
