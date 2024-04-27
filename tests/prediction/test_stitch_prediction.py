@@ -2,7 +2,7 @@ import pytest
 from torch import from_numpy, tensor
 
 from careamics.dataset.patching.tiled_patching import extract_tiles
-from careamics.prediction.prediction_utils import stitch_prediction
+from careamics.prediction.stitch_prediction import stitch_prediction
 
 
 @pytest.mark.parametrize(
@@ -22,23 +22,20 @@ def test_stitch_prediction(ordered_array, input_shape, tile_size, overlaps):
     stitching_data = []
 
     # extract tiles
-    tiling_outputs = extract_tiles(arr, tile_size, overlaps)
+    tile_generator = extract_tiles(arr, tile_size, overlaps)
 
     # Assemble all tiles as it is done during the prediction stage
-    for tile_data in tiling_outputs:
-        tile, _, input_shape, overlap_crop_coords, stitch_coords = tile_data
-
-        tiles.append(from_numpy(tile))  # need to convert to torch.Tensor
+    for tile_data, tile_info in tile_generator:
+        tiles.append(from_numpy(tile_data))  # need to convert to torch.Tensor
         stitching_data.append(
             (  # this is way too wacky
                 [tensor(i) for i in input_shape],  # need to convert to torch.Tensor
-                [[tensor([j]) for j in i] for i in overlap_crop_coords],
-                [[tensor([j]) for j in i] for i in stitch_coords],
+                [[tensor([j]) for j in i] for i in tile_info.overlap_crop_coords],
+                [[tensor([j]) for j in i] for i in tile_info.stitch_coords],
             )
         )
 
-    # compute stitching coordinates
-
+    # compute stitching coordinates, it returns a torch.Tensor
     result = stitch_prediction(tiles, stitching_data)
 
-    assert (result == arr).all()
+    assert (result.numpy() == arr).all()

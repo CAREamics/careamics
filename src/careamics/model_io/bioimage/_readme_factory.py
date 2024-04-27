@@ -1,16 +1,11 @@
+"""Functions used to create a README.md file for BMZ export."""
 from pathlib import Path
 from typing import Optional
 
-import pkg_resources
-import torch
 import yaml
-from bioimageio.spec.model.v0_5 import Version
 
 from careamics.config import Configuration
-from careamics.config.support import SupportedAlgorithm
 from careamics.utils import cwd, get_careamics_home
-
-pytorch_version = Version(torch.__version__)
 
 
 def _yaml_block(yaml_str: str) -> str:
@@ -19,48 +14,46 @@ def _yaml_block(yaml_str: str) -> str:
     Parameters
     ----------
     yaml_str : str
-        YAML string
+        YAML string.
 
     Returns
     -------
     str
-        Markdown code block with the YAML string
+        Markdown code block with the YAML string.
     """
     return f"```yaml\n{yaml_str}\n```"
 
 
 def readme_factory(
     config: Configuration,
+    careamics_version: str,
     data_description: Optional[str] = None,
-    custom_description: Optional[str] = None,
 ) -> Path:
     """Create a README file for the model.
 
     `data_description` can be used to add more information about the content of the
     data the model was trained on.
 
-    `custom_description` can be used to add a custom description of the algorithm, only
-    used when the algorithm is set to `custom` in the configuration.
-
     Parameters
     ----------
     config : Configuration
-        CAREamics configuration
+        CAREamics configuration.
+    careamics_version : str
+        CAREamics version.
     data_description : Optional[str], optional
-        Description of the data, by default None
-    custom_description : Optional[str], optional
-        Description of custom algorithm, by default None
+        Description of the data, by default None.
 
     Returns
     -------
     Path
-        Path to the README file
+        Path to the README file.
     """
     algorithm = config.algorithm_config
     training = config.training_config
     data = config.data_config
 
     # create file
+    # TODO use tempfile as in the bmz_io module
     with cwd(get_careamics_home()):
         readme = Path("README.md")
         readme.touch()
@@ -73,17 +66,10 @@ def readme_factory(
 
         # algorithm description
         description.append("Algorithm description:\n\n")
-        if (
-            algorithm.algorithm == SupportedAlgorithm.CUSTOM
-            and custom_description is not None
-        ):
-            description.append(custom_description)
-        else:
-            description.append(config.get_algorithm_description())
+        description.append(config.get_algorithm_description())
         description.append("\n\n")
 
         # algorithm details
-        careamics_version = pkg_resources.get_distribution("careamics").version
         description.append(
             f"{algorithm_flavour} was trained using CAREamics (version "
             f"{careamics_version}) with the following algorithm "

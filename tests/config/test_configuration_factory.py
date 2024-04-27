@@ -18,13 +18,16 @@ def test_n2v_configuration():
         batch_size=8,
         num_epochs=100,
     )
-    assert config.data_config.transforms[-1].name == SupportedTransform.N2V_MANIPULATE.value
     assert (
-        config.data_config.transforms[-1].parameters.strategy
+        config.data_config.transforms[-1].name
+        == SupportedTransform.N2V_MANIPULATE.value
+    )
+    assert (
+        config.data_config.transforms[-1].strategy
         == SupportedPixelManipulation.UNIFORM.value
     )
-    assert not config.data_config.transforms[-2].parameters.is_3D  # XY_RANDOM_ROTATE90
-    assert not config.data_config.transforms[-3].parameters.is_3D  # NDFLIP
+    assert not config.data_config.transforms[-2].is_3D  # XY_RANDOM_ROTATE90
+    assert not config.data_config.transforms[-3].is_3D  # NDFLIP
     assert not config.algorithm_config.model.is_3D()
 
 
@@ -38,13 +41,16 @@ def test_n2v_3d_configuration():
         batch_size=8,
         num_epochs=100,
     )
-    assert config.data_config.transforms[-1].name == SupportedTransform.N2V_MANIPULATE.value
     assert (
-        config.data_config.transforms[-1].parameters.strategy
+        config.data_config.transforms[-1].name
+        == SupportedTransform.N2V_MANIPULATE.value
+    )
+    assert (
+        config.data_config.transforms[-1].strategy
         == SupportedPixelManipulation.UNIFORM.value
     )
-    assert config.data_config.transforms[-2].parameters.is_3D  # XY_RANDOM_ROTATE90
-    assert config.data_config.transforms[-3].parameters.is_3D  # NDFLIP
+    assert config.data_config.transforms[-2].is_3D  # XY_RANDOM_ROTATE90
+    assert config.data_config.transforms[-3].is_3D  # NDFLIP
     assert config.algorithm_config.model.is_3D()
 
 
@@ -157,7 +163,10 @@ def test_n2v_no_aug():
         use_augmentations=False,
     )
     assert len(config.data_config.transforms) == 2
-    assert config.data_config.transforms[-1].name == SupportedTransform.N2V_MANIPULATE.value
+    assert (
+        config.data_config.transforms[-1].name
+        == SupportedTransform.N2V_MANIPULATE.value
+    )
     assert config.data_config.transforms[-2].name == SupportedTransform.NORMALIZE.value
 
 
@@ -173,8 +182,8 @@ def test_n2v_augmentation_parameters():
         roi_size=17,
         masked_pixel_percentage=0.5,
     )
-    assert config.data_config.transforms[-1].parameters.roi_size == 17
-    assert config.data_config.transforms[-1].parameters.masked_pixel_percentage == 0.5
+    assert config.data_config.transforms[-1].roi_size == 17
+    assert config.data_config.transforms[-1].masked_pixel_percentage == 0.5
 
 
 def test_n2v2():
@@ -189,7 +198,7 @@ def test_n2v2():
         use_n2v2=True,
     )
     assert (
-        config.data_config.transforms[-1].parameters.strategy
+        config.data_config.transforms[-1].strategy
         == SupportedPixelManipulation.MEDIAN.value
     )
 
@@ -207,7 +216,7 @@ def test_structn2v():
         struct_n2v_span=7,
     )
     assert (
-        config.data_config.transforms[-1].parameters.struct_mask_axis
+        config.data_config.transforms[-1].struct_mask_axis
         == SupportedStructAxis.HORIZONTAL.value
     )
-    assert config.data_config.transforms[-1].parameters.struct_mask_span == 7
+    assert config.data_config.transforms[-1].struct_mask_span == 7

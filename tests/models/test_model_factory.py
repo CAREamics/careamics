@@ -42,7 +42,8 @@ def test_model_registry_custom():
     model_config = {
         "architecture": SupportedArchitecture.CUSTOM.value,
         "name": "linear_model",
-        "parameters": {"in_features": 10, "out_features": 5},
+        "in_features": 10,
+        "out_features": 5,
     }
 
     # instantiate model

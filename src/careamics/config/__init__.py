@@ -15,6 +15,7 @@ __all__ = [
     "CustomModel",
     "create_inference_configuration",
     "clear_custom_models",
+    "ConfigurationInformation",
 ]
 
 from .algorithm_model import AlgorithmModel

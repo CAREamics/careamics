@@ -1,20 +1,12 @@
-import tempfile
 from pathlib import Path
-from typing import Callable, Generator, Tuple
+from typing import Callable, Tuple
 
 import numpy as np
 import pytest
-import tifffile
 
-from careamics.config import Configuration
-from careamics.config.algorithm_model import (
-    AlgorithmModel,
-    LrSchedulerModel,
-    OptimizerModel,
-)
-from careamics.config.data_model import DataModel
+from careamics import CAREamist, Configuration
 from careamics.config.support import SupportedData
-from careamics.config.training_model import TrainingModel
+from careamics.model_io import export_to_bmz
 
 
 # TODO add details about where each of these fixture is used (e.g. smoke test)
@@ -41,7 +33,7 @@ def minimum_algorithm_custom() -> dict:
     # create dictionary
     algorithm = {
         "algorithm": "custom",
-        "loss": "n2v",
+        "loss": "mae",
         "model": {
             "architecture": "UNet",
         },
@@ -103,9 +95,9 @@ def minimum_data() -> dict:
     """
     # create dictionary
     data = {
-        "data_type": SupportedData.TIFF.value,
-        "patch_size": [64, 64],
-        "axes": "SYX",
+        "data_type": SupportedData.ARRAY.value,
+        "patch_size": [8, 8],
+        "axes": "YX",
     }
 
     return data
@@ -122,10 +114,10 @@ def minimum_inference() -> dict:
     """
     # create dictionary
     predic = {
-        "data_type": SupportedData.TIFF.value,
-        "tile_size": [64, 64],
-        "tile_overlap": [10, 10],
-        "axes": "SYX",
+        "data_type": SupportedData.ARRAY.value,
+        "axes": "YX",
+        "mean": 2.0,
+        "std": 1.0,
     }
 
     return predic
@@ -142,7 +134,7 @@ def minimum_training() -> dict:
     """
     # create dictionary
     training = {
-        "num_epochs": 666,
+        "num_epochs": 1,
     }
 
     return training
@@ -174,6 +166,20 @@ def minimum_configuration(
     configuration = {
         "experiment_name": "LevitatingFrog",
         "algorithm_config": minimum_algorithm_n2v,
+        "training_config": minimum_training,
+        "data_config": minimum_data,
+    }
+
+    return configuration
+
+
+@pytest.fixture
+def supervised_configuration(
+    minimum_algorithm_supervised: dict, minimum_data: dict, minimum_training: dict
+) -> dict:
+    configuration = {
+        "experiment_name": "LevitatingFrog",
+        "algorithm_config": minimum_algorithm_supervised,
         "training_config": minimum_training,
         "data_config": minimum_data,
     }
@@ -228,17 +234,6 @@ def array_3D() -> np.ndarray:
 
 
 @pytest.fixture
-def temp_dir() -> Generator[Path, None, None]:
-    with tempfile.TemporaryDirectory() as temp_dir:
-        yield Path(temp_dir)
-
-
-@pytest.fixture
-def image_size() -> Tuple[int, int]:
-    return (128, 128)
-
-
-@pytest.fixture
 def patch_size() -> Tuple[int, int]:
     return (64, 64)
 
@@ -249,66 +244,56 @@ def overlaps() -> Tuple[int, int]:
 
 
 @pytest.fixture
-def example_data_path(
-    temp_dir: Path, image_size: Tuple[int, int], patch_size: Tuple[int, int]
-) -> Tuple[Path, Path]:
-    test_image = np.random.rand(*image_size)
+def pre_trained(tmp_path, minimum_configuration):
+    """Fixture to create a pre-trained CAREamics model."""
+    # training data
+    train_array = np.arange(32 * 32).reshape((32, 32))
 
-    train_path = temp_dir / "train"
-    val_path = temp_dir / "val"
-    test_path = temp_dir / "test"
-    train_path.mkdir()
-    val_path.mkdir()
-    test_path.mkdir()
+    # create configuration
+    config = Configuration(**minimum_configuration)
+    config.training_config.num_epochs = 1
+    config.data_config.axes = "YX"
+    config.data_config.batch_size = 2
+    config.data_config.data_type = SupportedData.ARRAY.value
+    config.data_config.patch_size = (8, 8)
 
-    tifffile.imwrite(train_path / "train_image.tif", test_image)
-    tifffile.imwrite(val_path / "val_image.tif", test_image)
-    tifffile.imwrite(test_path / "test_image.tif", test_image)
+    # instantiate CAREamist
+    careamist = CAREamist(source=config, work_dir=tmp_path)
 
-    return train_path, val_path, test_path
+    # train CAREamist
+    careamist.train(train_source=train_array)
+
+    # check that it trained
+    pre_trained_path: Path = tmp_path / "checkpoints" / "last.ckpt"
+    assert pre_trained_path.exists()
+
+    return pre_trained_path
 
 
 @pytest.fixture
-def base_configuration(temp_dir: Path, patch_size) -> Configuration:
-    configuration = Configuration(
-        experiment_name="smoke_test",
-        working_directory=temp_dir,
-        algorithm_config=AlgorithmModel(
-            algorithm="n2v",
-            loss="n2v",
-            model={"architecture": "UNet"},
-            is_3D="False",
-            transforms={"Flip": None, "ManipulateN2V": None},
-        ),
-        data_config=DataModel(
-            in_memory=True,
-            extension="tif",
-            axes="YX",
-        ),
-        training_config=TrainingModel(
-            num_epochs=1,
-            patch_size=patch_size,
-            batch_size=2,
-            optimizer=OptimizerModel(name="Adam"),
-            lr_scheduler=LrSchedulerModel(name="ReduceLROnPlateau"),
-            extraction_strategy="random",
-            augmentation=True,
-            num_workers=0,
-            use_wandb=False,
-        ),
+def pre_trained_bmz(tmp_path, pre_trained) -> Path:
+    """Fixture to create a BMZ model."""
+    # training data
+    train_array = np.ones((32, 32), dtype=np.float32)
+
+    # instantiate CAREamist
+    careamist = CAREamist(source=pre_trained, work_dir=tmp_path)
+
+    # predict (no tiling and no tta)
+    predicted = careamist.predict(train_array, tta_transforms=False)
+
+    # export to BioImage Model Zoo
+    path = tmp_path / "model.zip"
+    export_to_bmz(
+        model=careamist.model,
+        config=careamist.cfg,
+        path=path,
+        name="TopModel",
+        general_description="A model that just walked in.",
+        authors=[{"name": "Amod", "affiliation": "El"}],
+        input_array=train_array[np.newaxis, np.newaxis, ...],
+        output_array=predicted,
     )
-    return configuration
+    assert path.exists()
 
-
-@pytest.fixture
-def supervised_configuration(
-    minimum_algorithm_supervised: dict, minimum_data: dict, minimum_training: dict
-) -> dict:
-    configuration = {
-        "experiment_name": "LevitatingFrog",
-        "algorithm_config": minimum_algorithm_supervised,
-        "training_config": minimum_training,
-        "data_config": minimum_data,
-    }
-
-    return configuration
+    return path

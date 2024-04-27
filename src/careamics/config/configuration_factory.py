@@ -29,10 +29,6 @@ def create_n2n_configuration(
     use_augmentations: bool = True,
     use_n2v2: bool = False,
     n_channels: int = 1,
-    roi_size: int = 11,
-    masked_pixel_percentage: float = 0.2,
-    struct_n2v_axis: Literal["horizontal", "vertical", "none"] = "none",
-    struct_n2v_span: int = 5,
     logger: Literal["wandb", "tensorboard", "none"] = "none",
     model_kwargs: Optional[dict] = None,
 ) -> Configuration:
@@ -360,15 +356,13 @@ def create_n2v_configuration(
     # n2v2 and structn2v
     nv2_transform = {
         "name": SupportedTransform.N2V_MANIPULATE.value,
-        "parameters": {
-            "strategy": SupportedPixelManipulation.MEDIAN.value
-            if use_n2v2
-            else SupportedPixelManipulation.UNIFORM.value,
-            "roi_size": roi_size,
-            "masked_pixel_percentage": masked_pixel_percentage,
-            "struct_mask_axis": struct_n2v_axis,
-            "struct_mask_span": struct_n2v_span,
-        },
+        "strategy": SupportedPixelManipulation.MEDIAN.value
+        if use_n2v2
+        else SupportedPixelManipulation.UNIFORM.value,
+        "roi_size": roi_size,
+        "masked_pixel_percentage": masked_pixel_percentage,
+        "struct_mask_axis": struct_n2v_axis,
+        "struct_mask_span": struct_n2v_span,
     }
     transforms.append(nv2_transform)
 
@@ -403,9 +397,7 @@ def create_n2v_configuration(
 def create_inference_configuration(
     training_configuration: Configuration,
     tile_size: Optional[Tuple[int, ...]] = None,
-    tile_overlap: Tuple[int, ...] = (48, 48),
-    mean: Optional[float] = None,
-    std: Optional[float] = None,
+    tile_overlap: Optional[Tuple[int, ...]] = None,
     data_type: Optional[Literal["array", "tiff", "custom"]] = None,
     axes: Optional[str] = None,
     transforms: Optional[Union[List[Dict[str, Any]], Compose]] = None,
@@ -415,7 +407,7 @@ def create_inference_configuration(
     """
     Create a configuration for inference with N2V.
 
-    If not provided, `data_type`, `tile_size`, and `axes` are taken from the training
+    If not provided, `data_type` and `axes` are taken from the training
     configuration. If `transforms` are not provided, only normalization is applied.
 
     Parameters
@@ -442,6 +434,12 @@ def create_inference_configuration(
     InferenceConfiguration
         Configuration for inference with N2V.
     """
+    if (
+        training_configuration.data_config.mean is None
+        or training_configuration.data_config.std is None
+    ):
+        raise ValueError("Mean and std must be provided in the training configuration.")
+
     if transforms is None:
         transforms = [
             {
@@ -451,11 +449,11 @@ def create_inference_configuration(
 
     return InferenceModel(
         data_type=data_type or training_configuration.data_config.data_type,
-        tile_size=tile_size or training_configuration.data_config.patch_size,
+        tile_size=tile_size,
         tile_overlap=tile_overlap,
         axes=axes or training_configuration.data_config.axes,
-        mean=mean or training_configuration.data_config.mean,
-        std=std or training_configuration.data_config.std,
+        mean=training_configuration.data_config.mean,
+        std=training_configuration.data_config.std,
         transforms=transforms,
         tta_transforms=tta_transforms,
         batch_size=batch_size,

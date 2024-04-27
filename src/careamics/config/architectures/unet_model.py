@@ -2,12 +2,14 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import ConfigDict, Field, field_validator
+
+from .architecture_model import ArchitectureModel
 
 
 # TODO tests activation <-> pydantic model, test the literals!
 # TODO annotations for the json schema?
-class UNetModel(BaseModel):
+class UNetModel(ArchitectureModel):
     """
     Pydantic model for a N2V(2)-compatible UNet.
 

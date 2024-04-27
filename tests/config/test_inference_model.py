@@ -18,21 +18,13 @@ def test_wrong_extensions(minimum_inference: dict, ext: str):
         InferenceModel(**minimum_inference)
 
 
-@pytest.mark.parametrize("mean, std", [(0, 124.5), (12.6, 0.1)])
-def test_mean_std_non_negative(minimum_inference: dict, mean, std):
-    """Test that non negative mean and std are accepted."""
-    minimum_inference["mean"] = mean
-    minimum_inference["std"] = std
-
-    prediction_model = InferenceModel(**minimum_inference)
-    assert prediction_model.mean == mean
-    assert prediction_model.std == std
-
-
 def test_mean_std_both_specified_or_none(minimum_inference: dict):
-    """Test an error is raised if std is specified but mean is None."""
-    # No error if both are None
-    InferenceModel(**minimum_inference)
+    """Test error raising when setting mean and std."""
+    # Errors if both are None
+    minimum_inference["mean"] = None
+    minimum_inference["std"] = None
+    with pytest.raises(ValueError):
+        InferenceModel(**minimum_inference)
 
     # Error if only mean is defined
     minimum_inference["mean"] = 10.4
@@ -51,38 +43,28 @@ def test_mean_std_both_specified_or_none(minimum_inference: dict):
     InferenceModel(**minimum_inference)
 
 
-def test_set_mean_and_std(minimum_inference: dict):
-    """Test that mean and std can be set after initialization."""
-    # they can be set both, when they None
-    mean = 4.07
-    std = 14.07
-    pred = InferenceModel(**minimum_inference)
-    pred.set_mean_and_std(mean, std)
-    assert pred.mean == mean
-    assert pred.std == std
-
-    # and if they are already set
-    minimum_inference["mean"] = 10.4
-    minimum_inference["std"] = 3.2
-    pred = InferenceModel(**minimum_inference)
-    pred.set_mean_and_std(mean, std)
-    assert pred.mean == mean
-    assert pred.std == std
-
-
 def test_tile_size(minimum_inference: dict):
     """Test that non-zero even patch size are accepted."""
-    # 2D
+    # no tiling
     prediction_model = InferenceModel(**minimum_inference)
 
+    # 2D
+    minimum_inference["tile_size"] = [16, 8]
+    minimum_inference["tile_overlap"] = [2, 2]
+    minimum_inference["axes"] = "YX"
+
+    prediction_model = InferenceModel(**minimum_inference)
+    assert prediction_model.tile_size == minimum_inference["tile_size"]
+    assert prediction_model.tile_overlap == minimum_inference["tile_overlap"]
+
     # 3D
-    minimum_inference["tile_size"] = [12, 12, 12]
+    minimum_inference["tile_size"] = [16, 8, 32]
     minimum_inference["tile_overlap"] = [2, 2, 2]
     minimum_inference["axes"] = "ZYX"
 
     prediction_model = InferenceModel(**minimum_inference)
-    assert prediction_model.tile_size == [12, 12, 12]
-    assert prediction_model.tile_overlap == [2, 2, 2]
+    assert prediction_model.tile_size == minimum_inference["tile_size"]
+    assert prediction_model.tile_overlap == minimum_inference["tile_overlap"]
 
 
 @pytest.mark.parametrize(
@@ -112,6 +94,9 @@ def test_wrong_tile_overlap(minimum_inference: dict, tile_size, tile_overlap):
 
 def test_set_3d(minimum_inference: dict):
     """Test that 3D can be set."""
+    minimum_inference["tile_size"] = [64, 64]
+    minimum_inference["tile_overlap"] = [32, 32]
+
     pred = InferenceModel(**minimum_inference)
     assert "Z" not in pred.axes
     assert len(pred.tile_size) == 2
@@ -180,7 +165,7 @@ def test_passing_compose_transform(minimum_inference: dict):
     """Test that Compose transform can be passed."""
     minimum_inference["transforms"] = Compose(
         [
-            get_all_transforms()[SupportedTransform.NORMALIZE](),
+            get_all_transforms()[SupportedTransform.NORMALIZE](mean=10.4, std=3.2),
             get_all_transforms()[SupportedTransform.NDFLIP](),
         ]
     )
@@ -196,5 +181,5 @@ def test_mean_and_std_in_normalize(minimum_inference: dict):
     ]
 
     data = InferenceModel(**minimum_inference)
-    assert data.transforms[0].parameters.mean == 10.4
-    assert data.transforms[0].parameters.std == 3.2
+    assert data.transforms[0].mean == 10.4
+    assert data.transforms[0].std == 3.2

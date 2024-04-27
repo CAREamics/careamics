@@ -16,7 +16,6 @@ def my_path(tmpdir_factory: TempPathFactory) -> Path:
     return tmpdir_factory.mktemp("my_path")
 
 
-
 pytest_collect_file = Sybil(
     parsers=[
         DocTestParser(),

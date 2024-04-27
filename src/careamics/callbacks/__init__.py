@@ -1,5 +1,6 @@
-"""Callback module."""
+"""Callbacks module."""
 
-__all__ = ["ProgressBarCallback"]
+__all__ = ["HyperParametersCallback", "ProgressBarCallback"]
 
-from .progress_bar import ProgressBarCallback
+from .hyperparameters_callback import HyperParametersCallback
+from .progress_bar_callback import ProgressBarCallback

@@ -2,7 +2,6 @@ import pytest
 from torch import nn, ones
 
 from careamics.config.architectures import CustomModel, get_custom_model, register_model
-from careamics.config.architectures.custom_model import CustomParametersModel
 from careamics.config.support import SupportedArchitecture
 
 
@@ -29,14 +28,13 @@ class NotAModel:
         return input
 
 
-def test_empty_parameters():
-    """Test that the custom model parameters does not require any fields."""
-    CustomParametersModel()
-
-
 def test_any_custom_parameters():
-    """Test that the custom model parameters can have any fields."""
-    CustomParametersModel(id=3, some_param={"a": 1, "b": 2}, t="test")
+    """Test that the custom model can have any fields.
+
+    Note that those fields are validated by instantiating the
+    model.
+    """
+    CustomModel(architecture="Custom", name="linear", in_features=10, out_features=5)
 
 
 def test_linear_model():
@@ -57,7 +55,8 @@ def test_custom_model():
     model_dict = {
         "architecture": SupportedArchitecture.CUSTOM.value,
         "name": "linear",
-        "parameters": {"in_features": 10, "out_features": 5},
+        "in_features": 10,
+        "out_features": 5,
     }
 
     # create Pydantic model
@@ -65,7 +64,7 @@ def test_custom_model():
 
     # instantiate model
     model_class = get_custom_model(pydantic_model.name)
-    model = model_class(**pydantic_model.parameters.model_dump())
+    model = model_class(**pydantic_model.model_dump())
 
     assert isinstance(model, LinearModel)
     assert model.in_features == 10

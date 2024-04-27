@@ -8,15 +8,14 @@ import numpy as np
 from torch.utils.data import IterableDataset, get_worker_info
 
 from ..config import DataModel, InferenceModel
-from ..config.support import SupportedExtractionStrategy
+from ..config.tile_information import TileInformation
 from ..utils.logging import get_logger
-from .dataset_utils import read_tiff
+from .dataset_utils import read_tiff, reshape_array
 from .patching import (
-    generate_patches_predict,
-    generate_patches_supervised,
-    generate_patches_unsupervised,
     get_patch_transform,
 )
+from .patching.random_patching import extract_patches_random
+from .patching.tiled_patching import extract_tiles
 
 logger = get_logger(__name__)
 
@@ -175,22 +174,18 @@ class PathIterableDataset(IterableDataset):
 
         # iterate over files
         for sample_input, sample_target in self._iterate_over_files():
-            if self.target_files is not None:
-                patches = generate_patches_supervised(
-                    data=sample_input,
-                    axes=self.data_config.axes,
-                    patch_extraction_method=SupportedExtractionStrategy.RANDOM,
-                    patch_size=self.data_config.patch_size,
-                    target=sample_target,
-                )
+            reshaped_sample = reshape_array(sample_input, self.data_config.axes)
+            reshaped_target = (
+                None
+                if sample_target is None
+                else reshape_array(sample_target, self.data_config.axes)
+            )
 
-            else:
-                patches = generate_patches_unsupervised(
-                    data=sample_input,
-                    axes=self.data_config.axes,
-                    patch_extraction_method=SupportedExtractionStrategy.RANDOM,
-                    patch_size=self.data_config.patch_size,
-                )
+            patches = extract_patches_random(
+                arr=reshaped_sample,
+                patch_size=self.data_config.patch_size,
+                target=reshaped_target,
+            )
 
             # iterate over patches
             # patches are tuples of (patch, target) if target is available
@@ -368,12 +363,8 @@ class IterablePredictionDataset(PathIterableDataset):
         self.tile_overlap = self.prediction_config.tile_overlap
         self.read_source_func = read_source_func
 
-        # check that mean and std are provided
-        if not self.mean or not self.std:
-            raise ValueError(
-                "Mean and std must be provided to the configuration in order to "
-                " perform prediction."
-            )
+        # tile only if both tile size and overlaps are provided
+        self.tile = self.tile_size is not None and self.tile_overlap is not None
 
         # get tta transforms
         self.patch_transform = get_patch_transform(
@@ -383,7 +374,7 @@ class IterablePredictionDataset(PathIterableDataset):
 
     def __iter__(
         self,
-    ) -> Generator[Tuple[np.ndarray, np.ndarray, Optional[np.ndarray]], None, None]:
+    ) -> Generator[Tuple[np.ndarray, TileInformation], None, None]:
         """
         Iterate over data source and yield single patch.
 
@@ -397,18 +388,29 @@ class IterablePredictionDataset(PathIterableDataset):
         ), "Mean and std must be provided"
 
         for sample, _ in self._iterate_over_files():
-            patches = generate_patches_predict(
-                data=sample,
-                axes=self.axes,
-                tile_size=self.tile_size,
-                tile_overlap=self.tile_overlap,
-            )
-            # TODO AttributeError: 'IterablePredictionDataset' object has no attribute
-            # 'mean' message appears if the predict func is run more than once
+            # reshape array
+            reshaped_sample = reshape_array(sample, self.axes)
 
-            for patch_data in patches:
-                # Albumentations expects the channel dimension to be last
-                transformed = self.patch_transform(
-                    image=np.moveaxis(patch_data[0], 0, -1)
+            if self.tile:
+                # generate patches, return a generator
+                patch_gen = extract_tiles(
+                    arr=reshaped_sample,
+                    tile_size=self.tile_size,
+                    overlaps=self.tile_overlap,
                 )
-                yield (np.moveaxis(transformed["image"], -1, 0), *patch_data[1:])
+            else:
+                # just wrap the sample in a generator with default tiling info
+                array_shape = reshaped_sample.squeeze().shape
+                patch_gen = (
+                    (reshaped_sample, TileInformation(array_shape=array_shape))
+                    for _ in range(1)
+                )
+
+            # apply transform to patches
+            for patch_array, tile_info in patch_gen:
+                # albumentations expects the channel dimension to be last
+                patch = np.moveaxis(patch_array, 0, -1)
+                transformed_patch = self.patch_transform(image=patch)
+                transformed_patch = np.moveaxis(transformed_patch["image"], -1, 0)
+
+                yield transformed_patch, tile_info

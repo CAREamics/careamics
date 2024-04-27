@@ -13,8 +13,7 @@ from careamics.config.support import (
 )
 from careamics.losses import loss_factory
 from careamics.models.model_factory import model_factory
-from careamics.transforms import ImageRestorationTTA
-from careamics.utils import denormalize
+from careamics.transforms import Denormalize, ImageRestorationTTA
 from careamics.utils.torch_utils import get_optimizer, get_scheduler
 
 
@@ -37,11 +36,6 @@ class CAREamicsKiln(L.LightningModule):
         Optimizer parameters.
     lr_scheduler_name : str
         Learning rate scheduler name.
-
-    Parameters
-    ----------
-    algorithm_config : Union[AlgorithmModel, dict]
-        Algorithm configuration.
     """
 
     def __init__(self, algorithm_config: Union[AlgorithmModel, dict]) -> None:
@@ -70,8 +64,6 @@ class CAREamicsKiln(L.LightningModule):
         self.optimizer_params = algorithm_config.optimizer.parameters
         self.lr_scheduler_name = algorithm_config.lr_scheduler.name
         self.lr_scheduler_params = algorithm_config.lr_scheduler.parameters
-
-        # self.save_hyperparameters(algorithm_config.model_dump())
 
     def forward(self, x: Any) -> Any:
         """Forward pass.
@@ -166,13 +158,16 @@ class CAREamicsKiln(L.LightningModule):
             output = self.model(x)
 
         # Denormalize the output
-        # TODO replace with Albu class
-        denormalized_output = denormalize(
-            output,
-            self._trainer.datamodule.predict_dataset.mean,
-            self._trainer.datamodule.predict_dataset.std,
+        denorm = Denormalize(
+            mean=self._trainer.datamodule.predict_dataset.mean,
+            std=self._trainer.datamodule.predict_dataset.std,
         )
-        return denormalized_output, aux
+        denormalized_output = denorm(image=output)["image"]
+
+        if len(aux) > 0:
+            return denormalized_output, aux
+        else:
+            return denormalized_output
 
     def configure_optimizers(self) -> Any:
         """Configure optimizers and learning rate schedulers.
@@ -239,6 +234,33 @@ class CAREamicsModule(CAREamicsKiln):
         lr_scheduler: Union[SupportedScheduler, str] = "ReduceLROnPlateau",
         lr_scheduler_parameters: Optional[dict] = None,
     ) -> None:
+        """
+        Wrapper for the CAREamics model, exposing all algorithm configuration arguments.
+
+        Parameters
+        ----------
+        algorithm : Union[SupportedAlgorithm, str]
+            Algorithm to use for training (see SupportedAlgorithm).
+        loss : Union[SupportedLoss, str]
+            Loss function to use for training (see SupportedLoss).
+        architecture : Union[SupportedArchitecture, str]
+            Model architecture to use for training (see SupportedArchitecture).
+        model_parameters : dict, optional
+            Model parameters to use for training, by default {}. Model parameters are
+            defined in the relevant `torch.nn.Module` class, or Pyddantic model (see
+            `careamics.config.architectures`).
+        optimizer : Union[SupportedOptimizer, str], optional
+            Optimizer to use for training, by default "Adam" (see SupportedOptimizer).
+        optimizer_parameters : dict, optional
+            Optimizer parameters to use for training, as defined in `torch.optim`, by
+            default {}.
+        lr_scheduler : Union[SupportedScheduler, str], optional
+            Learning rate scheduler to use for training, by default "ReduceLROnPlateau"
+            (see SupportedScheduler).
+        lr_scheduler_parameters : dict, optional
+            Learning rate scheduler parameters to use for training, as defined in
+            `torch.optim`, by default {}.
+        """
         # create a AlgorithmModel compatible dictionary
         if lr_scheduler_parameters is None:
             lr_scheduler_parameters = {}
@@ -263,7 +285,7 @@ class CAREamicsModule(CAREamicsKiln):
 
         # add model parameters to algorithm configuration
         algorithm_configuration["model"] = model_configuration
-        # self.save_hyperparameters({**model_configuration, **algorithm_configuration})
+
         # call the parent init using an AlgorithmModel instance
         super().__init__(AlgorithmModel(**algorithm_configuration))
 

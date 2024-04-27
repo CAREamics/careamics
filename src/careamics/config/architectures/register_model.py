@@ -38,6 +38,9 @@ def register_model(name: str) -> Callable:
             return (input @ self.weight) + self.bias
     ```
     """
+    if name is None or name == "":
+        raise ValueError("Model name cannot be empty.")
+
     if name in CUSTOM_MODELS:
         raise ValueError(
             f"Model {name} already exists. Choose a different name or run "

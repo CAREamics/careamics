@@ -1,4 +1,5 @@
 """Utility functions to load pretrained models."""
+
 from pathlib import Path
 from typing import Tuple, Union
 
@@ -6,6 +7,7 @@ from torch import load
 
 from careamics.config import Configuration
 from careamics.lightning_module import CAREamicsKiln
+from careamics.model_io.bmz_io import load_from_bmz
 from careamics.utils import check_path_exists
 
 
@@ -13,7 +15,7 @@ def load_pretrained(path: Union[Path, str]) -> Tuple[CAREamicsKiln, Configuratio
     """
     Load a pretrained model from a checkpoint or a BioImage Model Zoo model.
 
-    Expected formats are .ckpt, .zip, .pth or .pt files.
+    Expected formats are .ckpt or .zip files.
 
     Parameters
     ----------
@@ -22,8 +24,8 @@ def load_pretrained(path: Union[Path, str]) -> Tuple[CAREamicsKiln, Configuratio
 
     Returns
     -------
-    CAREamicsKiln
-        CAREamics model loaded from the checkpoint.
+    Tuple[CAREamicsKiln, Configuration]
+        Tuple of CAREamics model and its configuration.
 
     Raises
     ------
@@ -33,34 +35,18 @@ def load_pretrained(path: Union[Path, str]) -> Tuple[CAREamicsKiln, Configuratio
     path = check_path_exists(path)
 
     if path.suffix == ".ckpt":
-        # load checkpoint
-        checkpoint = load(path)
-
-        # attempt to load algorithm parameters
-        try:
-            cfg_dict = checkpoint["hyper_parameters"]
-        except KeyError as e:
-            raise ValueError(
-                "Invalid checkpoint file. No `hyper_parameters` found for the "
-                "algorithm."
-            ) from e
-
-        model = _load_from_checkpoint(path)
-
-        return model, Configuration(**cfg_dict)
-
-    elif path.suffix == "bioimage.io.zip":
-        return _load_from_bmz(path)
+        return _load_checkpoint(path)
+    elif path.suffix == ".zip":
+        return load_from_bmz(path)
     else:
         raise ValueError(
-            f"Invalid model format. Expected .ckpt or bioimage.io.zip, "
-            f"got {path.suffix}."
+            f"Invalid model format. Expected .ckpt or .zip, got {path.suffix}."
         )
 
 
-def _load_from_checkpoint(path: Union[Path, str]) -> CAREamicsKiln:
+def _load_checkpoint(path: Union[Path, str]) -> Tuple[CAREamicsKiln, Configuration]:
     """
-    Load a model from a checkpoint.
+    Load a model from a checkpoint and return both model and configuration.
 
     Parameters
     ----------
@@ -69,57 +55,26 @@ def _load_from_checkpoint(path: Union[Path, str]) -> CAREamicsKiln:
 
     Returns
     -------
-    CAREamicsKiln
-        CAREamics model loaded from the checkpoint.
-    """
-    return CAREamicsKiln.load_from_checkpoint(path)
-
-
-def _load_from_torch_dict(
-    path: Union[Path, str]
-) -> Tuple[CAREamicsKiln, Configuration]:
-    """
-    Load a model from a PyTorch dictionary.
-
-    Parameters
-    ----------
-    path : Union[Path, str]
-        Path to the PyTorch dictionary.
-
-    Returns
-    -------
     Tuple[CAREamicsKiln, Configuration]
-        CAREamics model and Configuration loaded from the BioImage Model Zoo.
-    """
-    raise NotImplementedError(
-        "Loading a model from a PyTorch dictionary is not implemented yet."
-    )
-
-
-def _load_from_bmz(
-    path: Union[Path, str],
-) -> Tuple[CAREamicsKiln, Configuration]:
-    """
-    Load a model from BioImage Model Zoo.
-
-    Parameters
-    ----------
-    path : Union[Path, str]
-        Path to the BioImage Model Zoo model.
-
-    Returns
-    -------
-    Tuple[CAREamicsKiln, Configuration]
-        CAREamics model and Configuration loaded from the BioImage Model Zoo.
+        Tuple of CAREamics model and its configuration.
 
     Raises
     ------
-    NotImplementedError
-        If the method is not implemented yet.
+    ValueError
+        If the checkpoint file does not contain hyper parameters (configuration).
     """
-    raise NotImplementedError(
-        "Loading a model from BioImage Model Zoo is not implemented yet."
-    )
+    # load checkpoint
+    checkpoint: dict = load(path)
 
-    # load BMZ archive
-    # extract model and call _load_from_torch_dict
+    # attempt to load configuration
+    try:
+        cfg_dict = checkpoint["hyper_parameters"]
+    except KeyError as e:
+        raise ValueError(
+            f"Invalid checkpoint file. No `hyper_parameters` found in the "
+            f"checkpoint: {checkpoint.keys()}"
+        ) from e
+
+    model = CAREamicsKiln.load_from_checkpoint(path)
+
+    return model, Configuration(**cfg_dict)

@@ -9,16 +9,17 @@ import numpy as np
 from torch.utils.data import Dataset
 
 from ..config import DataModel, InferenceModel
+from ..config.tile_information import TileInformation
 from ..utils.logging import get_logger
-from .dataset_utils import read_tiff
+from .dataset_utils import read_tiff, reshape_array
 from .patching.patch_transform import get_patch_transform
 from .patching.patching import (
-    generate_patches_predict,
     prepare_patches_supervised,
     prepare_patches_supervised_array,
     prepare_patches_unsupervised,
     prepare_patches_unsupervised_array,
 )
+from .patching.tiled_patching import extract_tiles
 
 logger = get_logger(__name__)
 
@@ -269,7 +270,7 @@ class InMemoryDataset(Dataset):
         return dataset
 
 
-class InMemoryPredictionDataset(InMemoryDataset):
+class InMemoryPredictionDataset(Dataset):
     """
     Dataset storing data in memory and allowing generating patches from it.
 
@@ -302,34 +303,19 @@ class InMemoryPredictionDataset(InMemoryDataset):
         self.axes = self.pred_config.axes
         self.tile_size = self.pred_config.tile_size
         self.tile_overlap = self.pred_config.tile_overlap
-        self.tiling = self.tile_size and self.tile_overlap
         self.mean = self.pred_config.mean
         self.std = self.pred_config.std
         self.data_target = data_target
+
+        # tiling only if both tile size and overlap are provided
+        self.tiling = self.tile_size is not None and self.tile_overlap is not None
 
         # read function
         self.read_source_func = read_source_func
 
         # Generate patches
-        tiles = self._prepare_tiles()
-
-        # Add results to members
-        self.data, computed_mean, computed_std = tiles
-
-        if not self.pred_config.mean or not self.pred_config.std:
-            self.mean, self.std = computed_mean, computed_std
-            logger.info(f"Computed dataset mean: {self.mean}, std: {self.std}")
-
-            # if the transforms are not an instance of Compose
-            if hasattr(self.pred_config, "has_transform_list"):
-                if self.pred_config.has_transform_list():
-                    # update mean and std in configuration
-                    # the object is mutable and should then be recorded in the CAREamist
-                    self.pred_config.set_mean_and_std(self.mean, self.std)
-            else:
-                self.pred_config.set_mean_and_std(self.mean, self.std)
-        else:
-            self.mean, self.std = self.pred_config.mean, self.pred_config.std
+        self.data = self._prepare_tiles()
+        self.mean, self.std = self.pred_config.mean, self.pred_config.std
 
         # get transforms
         self.patch_transform = get_patch_transform(
@@ -337,25 +323,47 @@ class InMemoryPredictionDataset(InMemoryDataset):
             with_target=self.data_target is not None,
         )
 
-    def _prepare_tiles(self) -> Callable:
+    def _prepare_tiles(self) -> List[Tuple[np.ndarray, TileInformation]]:
         """
         Iterate over data source and create an array of patches.
 
-        Calls consecutive function for supervised and unsupervised learning.
+        Returns
+        -------
+        List[XArrayTile]
+            List of tiles.
+        """
+        # reshape array
+        reshaped_sample = reshape_array(self.input_array, self.axes)
+
+        if self.tiling:
+            # generate patches, which returns a generator
+            patch_generator = extract_tiles(
+                arr=reshaped_sample,
+                tile_size=self.tile_size,
+                overlaps=self.tile_overlap,
+            )
+            patches_list = list(patch_generator)
+
+            if len(patches_list) == 0:
+                raise ValueError("No tiles generated, ")
+
+            return patches_list
+        else:
+            array_shape = reshaped_sample.squeeze().shape
+            return [(reshaped_sample, TileInformation(array_shape=array_shape))]
+
+    def __len__(self) -> int:
+        """
+        Return the length of the dataset.
 
         Returns
         -------
-        np.ndarray
-            Array of patches.
+        int
+            Length of the dataset.
         """
-        if self.tiling:
-            return generate_patches_predict(
-                self.input_array, self.axes, self.tile_size, self.tile_overlap
-            ), self.input_array.mean(), self.input_array.std()
-        else:
-            return self.input_array, self.input_array.mean(), self.input_array.std()
+        return len(self.data)
 
-    def __getitem__(self, index: int) -> Tuple[np.ndarray, Any, Any, Any, Any]:
+    def __getitem__(self, index: int) -> Tuple[np.ndarray, TileInformation]:
         """
         Return the patch corresponding to the provided index.
 
@@ -366,37 +374,18 @@ class InMemoryPredictionDataset(InMemoryDataset):
 
         Returns
         -------
-        Tuple[np.ndarray]
-            Patch.
-
-        Raises
-        ------
-        ValueError
-            If dataset mean and std are not set.
+        Tuple[np.ndarray, TileInformation]
+            Transformed patch.
         """
-        if self.tiling:
-            (
-                tile,
-                last_tile,
-                arr_shape,
-                overlap_crop_coords,
-                stitch_coords,
-            ) = self.data[index]
+        tile_array, tile_info = self.data[index]
 
-            # Albumentations requires Channel last
-            tile = np.moveaxis(tile, 0, -1)
+        # Albumentations requires channel last, use the XArrayTile array
+        patch = np.moveaxis(tile_array, 0, -1)
 
-            # Apply transforms
-            transformed_tile = self.patch_transform(image=tile)["image"]
-            tile = transformed_tile
+        # Apply transforms
+        transformed_patch = self.patch_transform(image=patch)["image"]
 
-            # move C axes back
-            tile = np.moveaxis(tile, -1, 0)
+        # move C axes back
+        transformed_patch = np.moveaxis(transformed_patch, -1, 0)
 
-            return (
-                tile,
-                last_tile,
-                arr_shape,
-                overlap_crop_coords,
-                stitch_coords,
-            )  # TODO can we wrap this into an object?
+        return transformed_patch, tile_info

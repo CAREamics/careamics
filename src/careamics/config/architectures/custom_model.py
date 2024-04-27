@@ -1,21 +1,16 @@
 from __future__ import annotations
 
 from pprint import pformat
-from typing import Literal
+from typing import Any, Dict, Literal
 
-from pydantic import BaseModel, ConfigDict, field_validator, model_validator
+from pydantic import ConfigDict, field_validator, model_validator
 from torch.nn import Module
 
+from .architecture_model import ArchitectureModel
 from .register_model import get_custom_model
 
 
-class CustomParametersModel(BaseModel):
-    """A Pydantic model that allows any parameter."""
-
-    model_config = ConfigDict(extra="allow")
-
-
-class CustomModel(BaseModel):
+class CustomModel(ArchitectureModel):
     """Custom model configuration.
 
     This Pydantic model allows storing parameters for a custom model. In order for the
@@ -60,26 +55,23 @@ class CustomModel(BaseModel):
     >>> # Create a configuration
     >>> config_dict = {
     ...     "architecture": "Custom",
-    ...     "name": "linear",
-    ...     "parameters": {
-    ...         "in_features": 10,
-    ...         "out_features": 5,
-    ...     },
+    ...     "name": "my_linear",
+    ...     "in_features": 10,
+    ...     "out_features": 5,
     ... }
     >>> config = CustomModel(**config_dict)
     """
 
     # pydantic model config
-    model_config = ConfigDict(validate_assignment=True)
+    model_config = ConfigDict(
+        extra="allow",
+    )
 
     # discriminator used for choosing the pydantic model in Model
     architecture: Literal["Custom"]
 
     # name of the custom model
     name: str
-
-    # parameters
-    parameters: CustomParametersModel
 
     @field_validator("name")
     @classmethod
@@ -115,12 +107,13 @@ class CustomModel(BaseModel):
         """
         # instantiate model
         try:
-            get_custom_model(self.name)(**self.parameters.model_dump())
+            get_custom_model(self.name)(**self.model_dump())
         except Exception as e:
             raise ValueError(
-                f"error while passing parameters to the model: {e}. Verify that all "
-                f"mandatory parameters are provided, and that either the model accepts "
-                f"*args and **kwargs, or that no additional parameter is provided."
+                f"error while passing parameters to the model {e}. Verify that all "
+                f"mandatory parameters are provided, and that either the {e} accepts "
+                f"*args and **kwargs in its __init__() method, or that no additional"
+                f"parameter is provided."
             ) from None
 
         return self
@@ -134,3 +127,23 @@ class CustomModel(BaseModel):
             Pretty string.
         """
         return pformat(self.model_dump())
+
+    def model_dump(self, **kwargs: Any) -> Dict[str, Any]:
+        """Dump the model configuration.
+
+        Parameters
+        ----------
+        kwargs : Any
+            Additional keyword arguments from Pydantic BaseModel model_dump method.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Model configuration.
+        """
+        model_dict = super().model_dump()
+
+        # remove the name key
+        model_dict.pop("name")
+
+        return model_dict

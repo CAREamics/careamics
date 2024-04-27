@@ -75,10 +75,8 @@ class AlgorithmModel(BaseModel):
     ...     "model": {
     ...         "architecture": "Custom",
     ...         "name": "linear_model",
-    ...         "parameters": {
-    ...             "in_features": 10,
-    ...             "out_features": 5,
-    ...         },
+    ...         "in_features": 10,
+    ...         "out_features": 5,
     ...     }
     ... }
     >>> config = AlgorithmModel(**config_dict)
