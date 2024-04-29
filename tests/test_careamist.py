@@ -146,6 +146,8 @@ def test_train_array_channel(tmp_path: Path, minimum_configuration: dict):
     config = Configuration(**minimum_configuration)
     config.training_config.num_epochs = 1
     config.data_config.axes = "YXC"
+    config.algorithm_config.model.in_channels = 3
+    config.algorithm_config.model.num_classes = 3
     config.data_config.batch_size = 2
     config.data_config.data_type = SupportedData.ARRAY.value
     config.data_config.patch_size = (8, 8)
