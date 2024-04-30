@@ -184,11 +184,11 @@ class UnetDecoder(nn.Module):
                 if (self.n2v2 and n == depth - 1)
                 else num_channels_init * 2 ** (depth - n)
             )
-            out_channels = num_channels_init
+            out_channels = in_channels // 2
             decoder_blocks.append(
                 Conv_Block(
                     conv_dim,
-                    in_channels=in_channels,
+                    in_channels=in_channels + in_channels // 2 if n > 0 else in_channels,
                     out_channels=out_channels,
                     intermediate_channel_multiplier=2,
                     dropout_perc=dropout,
