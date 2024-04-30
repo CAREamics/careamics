@@ -1,15 +1,12 @@
 """
 For creating networks that train independent models for each channel
 """
-from typing import Union, Type, Dict, Any
+from typing import Type, Dict, Any
 
 import torch
 import torch.nn as nn
 
-from ..config.architectures import CustomModel, UNetModel, VAEModel, get_custom_model
-from ..config.support import SupportedArchitecture
 from ..utils import get_logger
-from .model_factory import model_factory
 
 logger = get_logger(__name__)
 
@@ -42,8 +39,6 @@ class IndChannelModel(nn.Module):
             If the `in_channels_keyword` is not found in the 
             `model_kwargs`.
         """
-        # TODO: Change model_kwargs to pydantic model architecture ??
-        #           - Would need to pop the `ind_channels` attribute 
 
         # get the number of input channels
         try:
