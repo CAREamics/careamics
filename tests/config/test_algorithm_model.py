@@ -62,3 +62,41 @@ def test_model_discriminator(minimum_algorithm_n2v):
 def test_algorithm_constraints(algorithm: str, loss: str, model: dict):
     """Test that constraints are passed for each algorithm."""
     AlgorithmModel(algorithm=algorithm, loss=loss, model=model)
+
+
+@pytest.mark.parametrize("algorithm", ["n2v", "n2n"])
+def test_n_channels_n2v_and_n2n(algorithm):
+    """Check that an error is raised if n2v and n2n have different number of channels in
+    input and output."""
+    model = {
+        "architecture": "UNet",
+        "in_channels": 1,
+        "num_classes": 2,
+        "n2v2": False,
+    }
+    loss = "mae" if algorithm == "n2n" else "n2v"
+
+    with pytest.raises(ValueError):
+        AlgorithmModel(algorithm=algorithm, loss=loss, model=model)
+
+
+@pytest.mark.parametrize(
+    "algorithm, n_in, n_out",
+    [
+        ("n2v", 2, 2),
+        ("n2n", 3, 3),
+        ("care", 1, 2),
+    ],
+)
+def test_comaptiblity_of_number_of_channels(algorithm, n_in, n_out):
+    """Check that no error is thrown when instantiating the algorithm with a valid
+    number of in and out channels."""
+    model = {
+        "architecture": "UNet",
+        "in_channels": n_in,
+        "num_classes": n_out,
+        "n2v2": False,
+    }
+    loss = "n2v" if algorithm == "n2v" else "mae"
+
+    AlgorithmModel(algorithm=algorithm, loss=loss, model=model)

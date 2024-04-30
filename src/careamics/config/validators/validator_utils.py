@@ -8,7 +8,7 @@ from typing import List, Optional, Tuple, Union
 _AXES = "STCZYX"
 
 
-def check_axes_validity(axes: str) -> bool:
+def check_axes_validity(axes: str) -> None:
     """
     Sanity check on axes.
 
@@ -25,11 +25,6 @@ def check_axes_validity(axes: str) -> bool:
     ----------
     axes : str
         Axes to validate.
-
-    Returns
-    -------
-    bool
-        True if axes are valid, False otherwise.
     """
     _axes = axes.upper()
 
@@ -56,26 +51,42 @@ def check_axes_validity(axes: str) -> bool:
                 f" (got multiple {axes[i]})."
             )
 
-    return True
 
-
-def patch_size_ge_than_8_power_of_2(
-    patch_list: Optional[Union[List[int], Tuple[int, ...]]]
-) -> Optional[Union[List[int], Tuple[int, ...]]]:
+def value_ge_than_8_power_of_2(
+    value: int,
+) -> None:
     """
-    Validate that each entry is greater or equal than 8 and a power of 2.
-
-    If None is passed, the function will return None.
+    Validate that the value is greater or equal than 8 and a power of 2.
 
     Parameters
     ----------
-    patch_list : Optional[Union[List[int], Tuple[int, ...]]]
-        Patch size.
+    value : int
+        Value to validate.
 
-    Returns
-    -------
-    Optional[Union[List[int], Tuple[int, ...]]]
-        Validated patch size.
+    Raises
+    ------
+    ValueError
+        If the value is smaller than 8.
+    ValueError
+        If the value is not a power of 2.
+    """
+    if value < 8:
+        raise ValueError(f"Value must be non-zero positive (got {value}).")
+
+    if (value & (value - 1)) != 0:
+        raise ValueError(f"Value must be a power of 2 (got {value}).")
+
+
+def patch_size_ge_than_8_power_of_2(
+    patch_list: Optional[Union[List[int], Union[Tuple[int, ...]]]],
+) -> None:
+    """
+    Validate that each entry is greater or equal than 8 and a power of 2.
+
+    Parameters
+    ----------
+    patch_list : Optional[Union[List[int]]]
+        Patch size.
 
     Raises
     ------
@@ -86,13 +97,4 @@ def patch_size_ge_than_8_power_of_2(
     """
     if patch_list is not None:
         for dim in patch_list:
-            if dim < 8:
-                raise ValueError(f"Patch size must be non-zero positive (got {dim}).")
-
-            if (dim & (dim - 1)) != 0:
-                raise ValueError(
-                    f"Patch size must be a power of 2 in all dimensions "
-                    f"(got {dim})."
-                )
-
-    return patch_list
+            value_ge_than_8_power_of_2(dim)

@@ -729,7 +729,7 @@ class CAREamist:
         # axes need to be reformated for the export because reshaping was done in the
         # datamodule
         if "Z" in self.cfg.data_config.axes:
-            axes = "SZCYX"
+            axes = "SCZYX"
         else:
             axes = "SCYX"
 

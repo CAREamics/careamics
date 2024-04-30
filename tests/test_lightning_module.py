@@ -191,6 +191,7 @@ def test_careamics_kiln_unet_depth_2_channels_2D(n_channels):
     y: torch.Tensor = model.forward(x)
     assert y.shape == x.shape
 
+
 @pytest.mark.parametrize("n_channels", [1, 3, 4])
 def test_careamics_kiln_unet_depth_3_channels_2D(n_channels):
     algo_dict = {
