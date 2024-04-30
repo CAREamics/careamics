@@ -35,7 +35,7 @@ def test_engine_predict_errors(minimum_config: dict):
 @pytest.mark.parametrize(
     "epoch, losses", [(0, [1.0]), (1, [1.0, 0.5]), (2, [1.0, 0.5, 1.0])]
 )
-def test_engine_io_checkpoint(epoch, losses, minimum_config: dict):
+def test_engine_save_checkpoint(epoch, losses, minimum_config: dict):
     init_config = Configuration(**minimum_config)
     engine = Engine(config=init_config)
 

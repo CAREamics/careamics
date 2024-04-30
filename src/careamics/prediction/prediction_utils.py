@@ -46,18 +46,16 @@ def stitch_prediction(
     return predicted_image
 
 
-def tta_forward(x: torch.Tensor) -> List[torch.Tensor]:
+def tta_forward(x: np.ndarray) -> List:
     """
     Augment 8-fold an array.
 
     The augmentation is performed using all 90 deg rotations and their flipped version,
     as well as the original image flipped.
 
-    Tensors should be of shape SC(Z)YX, with S and C potentially singleton dimensions.
-
     Parameters
     ----------
-    x : torch.Tensor
+    x : torch.tensor
         Data to augment.
 
     Returns
@@ -77,15 +75,13 @@ def tta_forward(x: torch.Tensor) -> List[torch.Tensor]:
     return x_aug_flip
 
 
-def tta_backward(x_aug: List[torch.Tensor]) -> np.ndarray:
+def tta_backward(x_aug: List) -> np.ndarray:
     """
     Invert `tta_forward` and average the 8 images.
 
-    The function takes a list of torch tensors and returns a numpy array.
-
     Parameters
     ----------
-    x_aug : List[torch.Tensor]
+    x_aug : List
         Stack of 8-fold augmented images.
 
     Returns
@@ -94,13 +90,13 @@ def tta_backward(x_aug: List[torch.Tensor]) -> np.ndarray:
         Average of de-augmented x_aug.
     """
     x_deaug = [
-        x_aug[0].numpy(),
-        np.rot90(x_aug[1], -1, axes=(2, 3)),
-        np.rot90(x_aug[2], -2, axes=(2, 3)),
-        np.rot90(x_aug[3], -3, axes=(2, 3)),
-        np.flip(x_aug[4].numpy(), axis=(1, 3)),
-        np.rot90(np.flip(x_aug[5].numpy(), axis=(1, 3)), -1, axes=(2, 3)),
-        np.rot90(np.flip(x_aug[6].numpy(), axis=(1, 3)), -2, axes=(2, 3)),
-        np.rot90(np.flip(x_aug[7].numpy(), axis=(1, 3)), -3, axes=(2, 3)),
+        x_aug[0],
+        np.rot90(x_aug[1], -1),
+        np.rot90(x_aug[2], -2),
+        np.rot90(x_aug[3], -3),
+        np.fliplr(x_aug[4]),
+        np.rot90(np.fliplr(x_aug[5]), -1),
+        np.rot90(np.fliplr(x_aug[6]), -2),
+        np.rot90(np.fliplr(x_aug[7]), -3),
     ]
     return np.mean(x_deaug, 0)

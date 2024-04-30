@@ -2,24 +2,11 @@ import numpy as np
 import pytest
 
 from careamics.dataset.patching import (
-    ExtractionStrategy,
     _extract_patches_random,
     _extract_patches_sequential,
     _extract_tiles,
     _patches_sanity_check,
-    generate_patches,
 )
-
-
-def test_generate_patches_tiled_without_overlap():
-    """Check that generating tiled patches fails without overlap."""
-    with pytest.raises(ValueError):
-        generate_patches(
-            np.zeros((1, 32, 32)),
-            patch_extraction_method=ExtractionStrategy.TILED,
-            patch_size=(8, 8),
-            patch_overlap=None,
-        )
 
 
 def check_extract_patches_sequential(array, patch_size):

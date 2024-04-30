@@ -9,8 +9,7 @@ from typing import Generator, List, Optional, Tuple, Union
 import numpy as np
 from skimage.util import view_as_windows
 
-from careamics.utils.logging import get_logger
-
+from ..utils.logging import get_logger
 from .extraction_strategy import ExtractionStrategy
 
 logger = get_logger(__name__)
@@ -482,11 +481,13 @@ def generate_patches(
         elif patch_extraction_method == ExtractionStrategy.SEQUENTIAL:
             patches = _extract_patches_sequential(sample, patch_size=patch_size)
 
-        else:
-            # random patching
+        elif patch_extraction_method == ExtractionStrategy.RANDOM:
             patches = _extract_patches_random(sample, patch_size=patch_size)
+
+        if patches is None:
+            raise ValueError("No patch generated")
 
         return patches
     else:
-        # no patching, return a generator for the sample
+        # no patching
         return (sample for _ in range(1))

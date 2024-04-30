@@ -3,6 +3,7 @@ import torch
 
 from careamics.utils.torch_utils import (
     get_device,
+    setup_cudnn_reproducibility,
 )
 
 
@@ -13,10 +14,10 @@ def test_get_device(device):
     assert device.type == "cuda" if torch.cuda.is_available() else "cpu"
 
 
-# @pytest.mark.gpu
-# @pytest.mark.parametrize("deterministic", [True, False])
-# @pytest.mark.parametrize("benchmark", [True, False])
-# def test_setup_cudnn_reproducibility(deterministic, benchmark):
-#     setup_cudnn_reproducibility(deterministic=deterministic, benchmark=benchmark)
-#     assert torch.backends.cudnn.deterministic == deterministic
-#     assert torch.backends.cudnn.benchmark == benchmark
+@pytest.mark.gpu
+@pytest.mark.parametrize("deterministic", [True, False])
+@pytest.mark.parametrize("benchmark", [True, False])
+def test_setup_cudnn_reproducibility(deterministic, benchmark):
+    setup_cudnn_reproducibility(deterministic=deterministic, benchmark=benchmark)
+    assert torch.backends.cudnn.deterministic == deterministic
+    assert torch.backends.cudnn.benchmark == benchmark

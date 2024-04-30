@@ -13,11 +13,10 @@ from pydantic import (
     model_validator,
 )
 
-# ignore typing-only-first-party-import in this file (flake8)
-from .algorithm import Algorithm  # noqa: TCH001
+from .algorithm import Algorithm
 from .config_filter import paths_to_str
-from .data import Data  # noqa: TCH001
-from .training import Training  # noqa: TCH001
+from .data import Data
+from .training import Training
 
 
 class Configuration(BaseModel):

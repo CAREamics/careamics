@@ -10,7 +10,7 @@ import numpy as np
 AXES = "STCZYX"
 
 
-def check_axes_validity(axes: str) -> None:
+def check_axes_validity(axes: str) -> bool:
     """
     Sanity check on axes.
 
@@ -26,6 +26,11 @@ def check_axes_validity(axes: str) -> None:
     ----------
     axes : str
         Axes to validate.
+
+    Returns
+    -------
+    bool
+        True if axes are valid, False otherwise.
     """
     _axes = axes.upper()
 
@@ -51,7 +56,7 @@ def check_axes_validity(axes: str) -> None:
     if "C" in _axes:
         raise NotImplementedError("Currently, C axis is not supported.")
 
-    # prevent S and T axes at the same time
+    # prevent S and T axes together
     if "T" in _axes and "S" in _axes:
         raise NotImplementedError(
             f"Invalid axes {axes}. Cannot contain both S and T axes."
@@ -74,45 +79,26 @@ def check_axes_validity(axes: str) -> None:
                     f"Invalid axes {axes}. Axes must be in the order {AXES}."
                 )
 
+    return True
 
-def add_axes(input_array: np.ndarray, axes: str) -> np.ndarray:
+
+def check_array_validity(array: np.ndarray, axes: str) -> None:
     """
-    Add missing axes to the input, typically batch and channel.
-
-    This method validates the axes first. Then it inspects the input array and add
-    missing dimensions if necessary.
+    Check that the numpy array is compatible with the axes.
 
     Parameters
     ----------
-    input_array : np.ndarray
-        Input array.
+    array : np.ndarray
+        Numpy array.
     axes : str
-        Axes to add.
-
-    Returns
-    -------
-    np.ndarray
-        Array with new singleton axes.
+        Valid axes (see check_axes_validity).
     """
-    # validate axes
-    check_axes_validity(axes)
-
-    # is 3D
-    is_3D = "Z" in axes
-
-    # number of dims
-    n_dims = 5 if is_3D else 4
-
-    # array of dim 2, 3 or 4
-    if len(input_array.shape) < n_dims:
-        if "S" not in axes and "T" not in axes:
-            input_array = input_array[np.newaxis, ...]
-
-        # still missing C dimension
-        if len(input_array.shape) < n_dims:
-            input_array = input_array[:, np.newaxis, ...]
-
-    return input_array
+    if len(array.shape) - 2 != len(axes):
+        raise ValueError(
+            f"Array has {len(array.shape)} dimensions, but axes are {len(axes)}."
+            f"Externally provided arrays must have extra dimensions for batch and"
+            f"channel to be compatible with the batchnorm layers."
+        )
 
 
 def check_tiling_validity(tile_shape: List[int], overlaps: List[int]) -> None:

@@ -10,11 +10,12 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import torch
+from bioimageio.spec.model.raw_nodes import Model as BioimageModel
 from torch.utils.data import DataLoader, TensorDataset
 
 from .bioimage import (
+    build_zip_model,
     get_default_model_specs,
-    save_bioimage_model,
 )
 from .config import Configuration, load_configuration
 from .dataset.prepare_dataset import (
@@ -31,7 +32,7 @@ from .prediction import (
 )
 from .utils import (
     MetricTracker,
-    add_axes,
+    check_array_validity,
     denormalize,
     get_device,
     normalize,
@@ -39,6 +40,7 @@ from .utils import (
 from .utils.logging import ProgressBar, get_logger
 
 
+# TODO: refactor private methods and bioimage.io to other modules
 class Engine:
     """
     Class allowing training of a model and subsequent prediction.
@@ -163,52 +165,47 @@ class Engine:
             self.scaler,
             self.cfg,
         ) = create_model(config=self.cfg, model_path=model_path, device=self.device)
-        assert self.cfg is not None
 
         # create loss function
-        self.loss_func = create_loss_function(self.cfg)
+        if self.cfg is not None:
+            self.loss_func = create_loss_function(self.cfg)
 
-        # Set logging
-        log_path = self.cfg.working_directory / "log.txt"
-        self.logger = get_logger(__name__, log_path=log_path)
+            # Set logging
+            log_path = self.cfg.working_directory / "log.txt"
+            self.logger = get_logger(__name__, log_path=log_path)
 
-        # wandb
-        self.use_wandb = self.cfg.training.use_wandb
+            # wandb
+            self.use_wandb = self.cfg.training.use_wandb
 
-        if self.use_wandb:
-            try:
-                from wandb.errors import UsageError
-
-                from careamics.utils.wandb import WandBLogging
-
+            if self.use_wandb:
                 try:
-                    self.wandb = WandBLogging(
-                        experiment_name=self.cfg.experiment_name,
-                        log_path=self.cfg.working_directory,
-                        config=self.cfg,
-                        model_to_watch=self.model,
-                    )
-                except UsageError as e:
+                    from wandb.errors import UsageError
+
+                    from careamics.utils.wandb import WandBLogging
+
+                    try:
+                        self.wandb = WandBLogging(
+                            experiment_name=self.cfg.experiment_name,
+                            log_path=self.cfg.working_directory,
+                            config=self.cfg,
+                            model_to_watch=self.model,
+                        )
+                    except UsageError as e:
+                        self.logger.warning(
+                            f"Wandb usage error, using default logger. Check whether "
+                            f"wandb correctly configured:\n"
+                            f"{e}"
+                        )
+                        self.use_wandb = False
+
+                except ModuleNotFoundError:
                     self.logger.warning(
-                        f"Wandb usage error, using default logger. Check whether "
-                        f"wandb correctly configured:\n"
-                        f"{e}"
+                        "Wandb not installed, using default logger. Try pip install "
+                        "wandb"
                     )
                     self.use_wandb = False
-
-            except ModuleNotFoundError:
-                self.logger.warning(
-                    "Wandb not installed, using default logger. Try pip install "
-                    "wandb"
-                )
-                self.use_wandb = False
-
-        # BMZ inputs/outputs placeholders, filled during validation
-        self._input = None
-        self._outputs = None
-
-        # torch version
-        self.torch_version = torch.__version__
+        else:
+            raise ValueError("Configuration is not defined.")
 
     def train(
         self,
@@ -390,12 +387,6 @@ class Engine:
 
         with torch.no_grad():
             for patch, *auxillary in val_loader:
-                # if inputs is None, record a single patch
-                if self._input is None:
-                    # patch has dimension SC(Z)YX
-                    self._input = patch.clone().detach().cpu().numpy()
-
-                # evaluate
                 outputs = self.model(patch.to(self.device))
                 loss = self.loss_func(
                     outputs, *[a.to(self.device) for a in auxillary], self.device
@@ -418,17 +409,9 @@ class Engine:
         The Engine must have previously been trained and mean/std be specified in
         its configuration.
 
-        Data should be compatible with the axes, either from the configuration or
-        as passed using the `axes` parameter. If the batch and channel dimensions are
-        missing, then singleton dimensions are added.
-
         To use tiling, both `tile_shape` and `overlaps` must be specified, have same
         length, be divisible by 2 and greater than 0. Finally, the overlaps must be
         smaller than the tiles.
-
-        By setting `tta` to `True`, the prediction is performed using test time
-        augmentation, meaning that the input is augmented and the prediction is averaged
-        over the augmentations.
 
         Parameters
         ----------
@@ -514,18 +497,6 @@ class Engine:
         UserWarning
             If the samples have different shapes, the prediction then returns a list.
         """
-        # checks are done here to satisfy mypy
-        # check that configuration exists
-        if self.cfg is None:
-            raise ValueError("Configuration is not defined, cannot predict.")
-
-        # Check that the mean and std are there (= has been trained)
-        if not self.cfg.data.mean or not self.cfg.data.std:
-            raise ValueError(
-                "Mean or std are not specified in the configuration, prediction cannot "
-                "be performed."
-            )
-
         prediction = []
         tiles = []
         stitching_data = []
@@ -542,7 +513,9 @@ class Engine:
                     predicted_augments = []
                     for augmented_tile in augmented_tiles:
                         augmented_pred = self.model(augmented_tile.to(self.device))
-                        predicted_augments.append(augmented_pred.cpu())
+                        predicted_augments.append(
+                            augmented_pred.squeeze().cpu().numpy()
+                        )
                     tiles.append(tta_backward(predicted_augments).squeeze())
                 else:
                     tiles.append(
@@ -556,8 +529,8 @@ class Engine:
                     predicted_sample = stitch_prediction(tiles, stitching_data)
                     predicted_sample = denormalize(
                         predicted_sample,
-                        float(self.cfg.data.mean),
-                        float(self.cfg.data.std),
+                        float(self.cfg.data.mean),  # type: ignore
+                        float(self.cfg.data.std),  # type: ignore
                     )
                     prediction.append(predicted_sample)
                     tiles.clear()
@@ -593,18 +566,6 @@ class Engine:
         np.ndarray
             Predicted image.
         """
-        # checks are done here to satisfy mypy
-        # check that configuration exists
-        if self.cfg is None:
-            raise ValueError("Configuration is not defined, cannot predict.")
-
-        # Check that the mean and std are there (= has been trained)
-        if not self.cfg.data.mean or not self.cfg.data.std:
-            raise ValueError(
-                "Mean or std are not specified in the configuration, prediction cannot "
-                "be performed."
-            )
-
         prediction = []
         with torch.no_grad():
             for i, sample in enumerate(pred_loader):
@@ -613,7 +574,9 @@ class Engine:
                     predicted_augments = []
                     for augmented_pred in augmented_preds:
                         augmented_pred = self.model(augmented_pred.to(self.device))
-                        predicted_augments.append(augmented_pred.cpu())
+                        predicted_augments.append(
+                            augmented_pred.squeeze().cpu().numpy()
+                        )
                     prediction.append(tta_backward(predicted_augments).squeeze())
                 else:
                     prediction.append(
@@ -621,9 +584,7 @@ class Engine:
                     )
                 progress_bar.update(i, 1)
         output = denormalize(
-            np.stack(prediction).squeeze(),
-            float(self.cfg.data.mean),
-            float(self.cfg.data.std),
+            np.stack(prediction), float(self.cfg.data.mean), float(self.cfg.data.std)  # type: ignore
         )
         return output
 
@@ -735,13 +696,14 @@ class Engine:
             )
 
         if input is None:
-            raise ValueError("Input cannot be None.")
+            raise ValueError("Ccannot predict on None input.")
 
         # Create dataset
         if isinstance(input, np.ndarray):  # np.ndarray
-            # Validate axes and add missing dimensions (S)C if necessary
+            # Check that the axes fit the input
             img_axes = self.cfg.data.axes if axes is None else axes
-            input_expanded = add_axes(input, img_axes)
+            # TODO are self.cfg.data.axes and axes compatible (same spatial dim)?
+            check_array_validity(input, img_axes)
 
             # Check if tiling requested
             tiled = tile_shape is not None and overlaps is not None
@@ -752,9 +714,11 @@ class Engine:
                     "Tiling with in memory array is currently not implemented."
                 )
 
+                # check_tiling_validity(tile_shape, overlaps)
+
             # Normalize input and cast to float32
             normalized_input = normalize(
-                img=input_expanded, mean=self.cfg.data.mean, std=self.cfg.data.std
+                img=input, mean=self.cfg.data.mean, std=self.cfg.data.std
             )
             normalized_input = normalized_input.astype(np.float32)
 
@@ -848,66 +812,7 @@ class Engine:
                     self.logger.removeHandler(handler)
                     handler.close()
 
-    def _get_sample_io_files(
-        self,
-        input_array: Optional[np.ndarray] = None,
-        axes: Optional[str] = None,
-    ) -> Tuple[List[str], List[str]]:
-        """
-        Create numpy format for use as inputs and outputs in the bioimage.io archive.
-
-        Parameters
-        ----------
-        input_array : Optional[np.ndarray], optional
-            Input array to use for the bioimage.io model zoo, by default None.
-        axes : Optional[str], optional
-            Axes from the configuration.
-
-        Returns
-        -------
-        Tuple[List[str], List[str]]
-            Tuple of input and output file paths.
-
-        Raises
-        ------
-        ValueError
-            If the configuration is not defined.
-        """
-        if self.cfg is not None and self._input is not None:
-            # use the input array if provided, otherwise use the first validation sample
-            if input_array is not None:
-                array_in = input_array
-
-                # add axes to be compatible with the axes declared in the RDF specs
-                add_axes(array_in, axes)
-            else:
-                array_in = self._input
-
-            # predict (no tta since BMZ does not apply it)
-            array_out = self.predict(array_in, tta=False)
-
-            # add singleton dimensions (for compatibility with model axes)
-            # indeed, BMZ applies the model but CAREamics function are meant
-            # to work on user data (potentially with no S or C axe)
-            array_out = array_out[np.newaxis, np.newaxis, ...]
-
-            # save numpy files
-            workdir = self.cfg.working_directory
-            in_file = workdir.joinpath("test_inputs.npy")
-            np.save(in_file, array_in)
-            out_file = workdir.joinpath("test_outputs.npy")
-            np.save(out_file, array_out)
-
-            return [str(in_file.absolute())], [str(out_file.absolute())]
-        else:
-            raise ValueError("Configuration is not defined or model was not trained.")
-
-    def _generate_rdf(
-        self,
-        *,
-        model_specs: Optional[dict] = None,
-        input_array: Optional[np.ndarray] = None,
-    ) -> dict:
+    def _generate_rdf(self, model_specs: Optional[dict] = None) -> dict:
         """
         Generate rdf data for bioimage.io format export.
 
@@ -915,8 +820,6 @@ class Engine:
         ----------
         model_specs : Optional[dict], optional
             Custom specs if different than the default ones, by default None.
-        input_array : Optional[np.ndarray], optional
-            Input array to use for the bioimage.io model zoo, by default None.
 
         Returns
         -------
@@ -945,9 +848,7 @@ class Engine:
                 axes = "b" + axes
 
             # get in/out samples' files
-            test_inputs, test_outputs = self._get_sample_io_files(
-                input_array, self.cfg.data.axes
-            )
+            test_inputs, test_outputs = self._get_sample_io_files(axes)
 
             specs = get_default_model_specs(
                 "Noise2Void",
@@ -960,6 +861,7 @@ class Engine:
 
             specs.update(
                 {
+                    "architecture": "careamics.models.unet",
                     "test_inputs": test_inputs,
                     "test_outputs": test_outputs,
                     "input_axes": [axes],
@@ -968,20 +870,13 @@ class Engine:
             )
             return specs
         else:
-            raise ValueError("Configuration is not defined or model was not trained.")
+            raise ValueError("Configuration is not defined.")
 
     def save_as_bioimage(
-        self,
-        output_zip: Union[Path, str],
-        model_specs: Optional[dict] = None,
-        input_array: Optional[np.ndarray] = None,
-    ) -> None:
+        self, output_zip: Union[Path, str], model_specs: Optional[dict] = None
+    ) -> BioimageModel:
         """
         Export the current model to BioImage.io model zoo format.
-
-        Custom specs can be passed in `model_specs (e.g. maintainers). For a description
-        of the model RDF, refer to
-        github.com/bioimage-io/spec-bioimage-io/blob/gh-pages/model_spec_latest.md.
 
         Parameters
         ----------
@@ -990,10 +885,11 @@ class Engine:
         model_specs : Optional[dict]
             A dictionary with keys being the bioimage-core build_model parameters. If
             None then it will be populated by the model default specs.
-        input_array : Optional[np.ndarray]
-            An array to use as input for the bioimage.io model zoo. If None then the
-            first validation sample will be used. Note that the array must have S and
-            C dimensions (e.g. SCYX), even if only singleton dimensions.
+
+        Returns
+        -------
+        BioimageModel
+            Bioimage.io model object.
 
         Raises
         ------
@@ -1002,13 +898,57 @@ class Engine:
         """
         if self.cfg is not None:
             # Generate specs
-            specs = self._generate_rdf(model_specs=model_specs, input_array=input_array)
+            specs = self._generate_rdf(model_specs)
 
             # Build model
-            save_bioimage_model(
+            raw_model = build_zip_model(
                 path=output_zip,
                 config=self.cfg,
-                specs=specs,
+                model_specs=specs,
             )
+
+            return raw_model
+        else:
+            raise ValueError("Configuration is not defined.")
+
+    def _get_sample_io_files(self, axes: str) -> Tuple[List[str], List[str]]:
+        """
+        Create numpy format for use as inputs and outputs in the bioimage.io archive.
+
+        Parameters
+        ----------
+        axes : str
+            Input and output axes.
+
+        Returns
+        -------
+        Tuple[List[str], List[str]]
+            Tuple of input and output file paths.
+
+        Raises
+        ------
+        ValueError
+            If the configuration is not defined.
+        """
+        # input:
+        if self.cfg is not None:
+            sample_input = np.random.randn(*self.cfg.training.patch_size)
+            # if there are more input axes (like channel, ...),
+            # then expand the sample dimensions.
+            len_diff = len(axes) - len(self.cfg.training.patch_size)
+            if len_diff > 0:
+                sample_input = np.expand_dims(
+                    sample_input, axis=tuple(i for i in range(len_diff))
+                )
+            sample_output = np.random.randn(*sample_input.shape)
+
+            # save numpy files
+            workdir = self.cfg.working_directory
+            in_file = workdir.joinpath("test_inputs.npy")
+            np.save(in_file, sample_input)
+            out_file = workdir.joinpath("test_outputs.npy")
+            np.save(out_file, sample_output)
+
+            return [str(in_file.absolute())], [str(out_file.absolute())]
         else:
             raise ValueError("Configuration is not defined.")
