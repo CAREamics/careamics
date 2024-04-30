@@ -37,8 +37,14 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
-    'torch>=2.0.0',
-    'torchvision',
+    # windows and linux, macOS silicon
+    'torch>=2.0.0; platform_system!="Darwin"',
+    'torch>=2.0.0; platform_system=="Darwin" and platform_machine!="arm64"',
+
+    # potential issue with torch 2.3.0 using MPS on arm64 macOS
+    'torch>=2.0.0, <2.3.0; platform_system=="Darwin" and platform_machine=="arm64"',
+
+    # other dependencies
     'albumentations',
     'bioimageio.core>=0.6.0',
     'tifffile',
