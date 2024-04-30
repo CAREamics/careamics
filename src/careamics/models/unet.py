@@ -11,7 +11,7 @@ import torch.nn as nn
 from ..config.support import SupportedActivation
 from .activation import get_activation
 from .layers import Conv_Block, MaxBlurPool
-
+from .ind_channel_model import IndChannelModel
 
 class UnetEncoder(nn.Module):
     """
@@ -229,8 +229,121 @@ class UnetDecoder(nn.Module):
                     x = torch.cat([x, skip_connections[i // 2]], axis=1)
         return x
 
-
 class UNet(nn.Module):
+    """
+    UNet model. Option to train duplicated independent networks for each input 
+    channel.
+
+    Adapted for PyTorch from:
+    https://github.com/juglab/n2v/blob/main/n2v/nets/unet_blocks.py.
+
+    Parameters
+    ----------
+    conv_dims : int
+        Number of dimensions of the convolution layers (2 or 3).
+    num_classes : int, optional
+        Number of classes to predict, by default 1.
+    in_channels : int, optional
+        Number of input channels, by default 1.
+    depth : int, optional
+        Number of downsamplings, by default 3.
+    num_channels_init : int, optional
+        Number of filters in the first convolution layer, by default 64.
+    use_batch_norm : bool, optional
+        Whether to use batch normalization, by default True.
+    dropout : float, optional
+        Dropout probability, by default 0.0.
+    pool_kernel : int, optional
+        Kernel size of the pooling layers, by default 2.
+    last_activation : Optional[Callable], optional
+        Activation function to use for the last layer, by default None.
+    ind_channels: bool, optional
+        Whether to create independent models to be trained on each channel
+        seperately, by default True.
+    """
+
+    def __init__(
+        self,
+        conv_dims: int,
+        num_classes: int = 1,
+        in_channels: int = 1,
+        depth: int = 3,
+        num_channels_init: int = 64,
+        use_batch_norm: bool = True,
+        dropout: float = 0.0,
+        pool_kernel: int = 2,
+        final_activation: Union[SupportedActivation, str] = SupportedActivation.NONE,
+        n2v2: bool = False,
+        ind_channels: bool = True,
+        **kwargs: Any,
+    ) -> None:
+        """
+        Constructor.
+
+        Parameters
+        ----------
+        conv_dims : int
+            Number of dimensions of the convolution layers (2 or 3).
+        num_classes : int, optional
+            Number of classes to predict, by default 1.
+        in_channels : int, optional
+            Number of input channels, by default 1.
+        depth : int, optional
+            Number of downsamplings, by default 3.
+        num_channels_init : int, optional
+            Number of filters in the first convolution layer, by default 64.
+        use_batch_norm : bool, optional
+            Whether to use batch normalization, by default True.
+        dropout : float, optional
+            Dropout probability, by default 0.0.
+        pool_kernel : int, optional
+            Kernel size of the pooling layers, by default 2.
+        last_activation : Optional[Callable], optional
+            Activation function to use for the last layer, by default None.
+        ind_channels: bool, optional
+            Whether to create independent models to be trained on each channel
+            seperately, by default True.
+        """
+        super().__init__()
+
+        model_kwargs = {
+            "conv_dims": conv_dims,
+            "num_classes": num_classes,
+            "in_channels": in_channels,
+            "depth": depth,
+            "num_channels_init": num_channels_init,
+            "use_batch_norm": use_batch_norm,
+            "dropout": dropout,
+            "pool_kernel": pool_kernel,
+            "final_activation": final_activation,
+        }
+        # TODO: This could be part of the `model_factory` function
+        #   - would require more refactoring 
+        if ind_channels:
+            self.model = IndChannelModel(
+                model=BaseUNet, model_kwargs=model_kwargs
+            )
+        else:
+            self.model = BaseUNet(**model_kwargs)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Forward pass.
+
+        Parameters
+        ----------
+        x :  torch.Tensor
+            Input tensor.
+
+        Returns
+        -------
+        torch.Tensor
+            Output of the model.
+        """
+
+        return self.model(x)
+
+class BaseUNet(nn.Module):
     """
     UNet model.
 
