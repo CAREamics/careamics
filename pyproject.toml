@@ -182,13 +182,12 @@ ignore = [
     "tests/**/*",
 ]
 
-# https://numpydoc.readthedocs.io/en/latest/format.html
 [tool.numpydoc_validation]
 checks = [
-    "all",  # report on all checks, except the ones below
-    "EX01", # No examples section found
-    "SA01", # See Also section not found
-    "ES01", # No extended summary found
+    "all",  # report on all checks, except the below
+    "EX01",
+    "SA01",
+    "ES01",
 ]
 exclude = [ # don't report on objects that match any of these regex
     "test_*",

@@ -1,4 +1,3 @@
----
 # Name, composed of letters, numbers, spaces, dashes and underscores
 experiment_name: N2V_BSD
 
@@ -7,71 +6,71 @@ working_directory: n2v_bsd
 
 algorithm:
   # Loss, currently only n2v is supported
-    loss: n2v
+  loss: n2v
 
   # Model, currently only UNet is supported
-    model: UNet
+  model: UNet
 
   # Dimensions 2D (False) or 3D (True)
-    is_3D: false
+  is_3D: False
 
   # Optional, parameters of the model
-    model_parameters:
+  model_parameters:
     # Number of filters of the first level, must be divisible by 2
-        num_channels_init: 32
+    num_channels_init: 32
 
 training:
   # Number of epochs, greater or equal than 1
-    num_epochs: 100
+  num_epochs: 100
 
   # Patch size, 2D or 3D, divisible by 2
-    patch_size: [64, 64]
+  patch_size: [64, 64]
 
   # Batch size, greater or equal than 1
-    batch_size: 128
+  batch_size: 128
 
   # Optimizer
-    optimizer:
+  optimizer:
     # Name, one of Adam or SGD
-        name: Adam
+    name: Adam
     # Optional, parameters of the optimizer
     # see https://pytorch.org/docs/stable/optim.html#algorithms
-        parameters:
-            lr: 0.0004
+    parameters:
+      lr: 0.0004
 
   # Learning rate scheduler
-    lr_scheduler:
+  lr_scheduler:
     # Name, one of ReduceLROnPlateau or StepLR
-        name: ReduceLROnPlateau
+    name: ReduceLROnPlateau
     # Optional, parameters of the learning rate scheduler
     # see https://pytorch.org/docs/stable/optim.html#how-to-adjust-learning-rate
-        parameters:
-            factor: 0.5
+    parameters:
+      factor: 0.5
 
   # Use augmentation (True or False)
-    augmentation: true
+  augmentation: True
 
   # Optional, use WandB (True or False), must be installed in your conda environment
-    use_wandb: false
+  use_wandb: False
 
   # Optional, number of workers for data loading, greater or equal than 0
-    num_workers: 4
+  num_workers: 4
 
   # Optional, automatic mixed precision
-    amp:
+  amp:
     # Use (True or False)
-        use: true
+    use: True
 
   # Torch.compile (True or False)
-    compile:
-        use: false
+  compile:
+    use: False
 
 data:
   # Controls the type of dataloader to use. Set to False if data won't fit into memory
-    in_memory: true
+  in_memory: True
 
   # Extension of the data, one of npy, tiff and tif
-    data_format: tiff
+  data_format: tiff
 
   # Axes, among STCZYX with constraints on order
-    axes: SYX
+  axes: SYX
