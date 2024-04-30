@@ -1,6 +1,7 @@
 """
 For creating networks that train independent models for each channel
 """
+from operator import getitem, setitem
 from typing import Type, Dict, Any
 
 import torch
@@ -42,7 +43,7 @@ class IndChannelModel(nn.Module):
 
         # get the number of input channels
         try:
-            in_channels = getattr(model_kwargs, in_channels_keyword)
+            in_channels = getitem(model_kwargs, in_channels_keyword)
         except AttributeError as e:
             raise ValueError(
                 "Input channels keyword, '{}', not found in model_kwargs"
@@ -51,7 +52,7 @@ class IndChannelModel(nn.Module):
 
         # Create a copy of the model config but for a single channel
         model_config_single_channel = model_kwargs.copy()
-        setattr(model_config_single_channel, in_channels_keyword, 1)
+        setitem(model_config_single_channel, in_channels_keyword, 1)
 
         # Create a seperate model for each channel
         self.channel_models = [
