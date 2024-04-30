@@ -12,8 +12,12 @@
 [![CI](https://github.com/CAREamics/careamics/actions/workflows/ci.yml/badge.svg)](https://github.com/CAREamics/careamics/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/CAREamics/careamics/branch/main/graph/badge.svg)](https://codecov.io/gh/CAREamics/careamics)
 
+## Installation
 
-For details installation and usage, please refer to the [guide](https://careamics.github.io/).
+``` bash
+pip install careamics
+```
+For more details on the options please follow the installation [guide](https://careamics.github.io/installation/).
 
 <!-- 
 ## Contributing
