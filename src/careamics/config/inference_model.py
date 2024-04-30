@@ -1,7 +1,7 @@
 """Pydantic model representing CAREamics prediction configuration."""
 from __future__ import annotations
 
-from typing import Any, List, Literal, Optional, Tuple, Union
+from typing import Any, List, Literal, Optional, Union
 
 from albumentations import Compose
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -20,10 +20,10 @@ class InferenceModel(BaseModel):
 
     # Mandatory fields
     data_type: Literal["array", "tiff", "custom"]  # As defined in SupportedData
-    tile_size: Optional[Union[List[int], Tuple[int, ...]]] = Field(
+    tile_size: Optional[Union[List[int]]] = Field(
         default=None, min_length=2, max_length=3
     )
-    tile_overlap: Optional[Union[List[int], Tuple[int, ...]]] = Field(
+    tile_overlap: Optional[Union[List[int]]] = Field(
         default=None, min_length=2, max_length=3
     )
 
@@ -50,8 +50,8 @@ class InferenceModel(BaseModel):
     @field_validator("tile_overlap")
     @classmethod
     def all_elements_non_zero_even(
-        cls, patch_list: Optional[Union[List[int], Tuple[int, ...]]]
-    ) -> Optional[Union[List[int], Tuple[int, ...]]]:
+        cls, patch_list: Optional[Union[List[int]]]
+    ) -> Optional[Union[List[int]]]:
         """
         Validate patch size.
 
@@ -59,12 +59,12 @@ class InferenceModel(BaseModel):
 
         Parameters
         ----------
-        patch_list : Optional[Union[List[int], Tuple[int, ...]]]
+        patch_list : Optional[Union[List[int]]]
             Patch size.
 
         Returns
         -------
-        Optional[Union[List[int], Tuple[int, ...]]]
+        Optional[Union[List[int]]]
             Validated patch size.
 
         Raises
@@ -89,8 +89,8 @@ class InferenceModel(BaseModel):
     @field_validator("tile_size")
     @classmethod
     def tile_min_8_power_of_2(
-        cls, tile_list: Optional[Union[List[int], Tuple[int, ...]]]
-    ) -> Optional[Union[List[int], Tuple[int, ...]]]:
+        cls, tile_list: Optional[Union[List[int]]]
+    ) -> Optional[Union[List[int]]]:
         """
         Validate that each entry is greater or equal than 8 and a power of 2.
 

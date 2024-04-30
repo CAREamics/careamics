@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from pprint import pformat
-from typing import Any, List, Literal, Optional, Tuple, Union
+from typing import Any, List, Literal, Optional, Union
 
 from albumentations import Compose
 from pydantic import (
@@ -86,9 +86,7 @@ class DataModel(BaseModel):
 
     # Dataset configuration
     data_type: Literal["array", "tiff", "custom"]  # As defined in SupportedData
-    patch_size: Union[List[int], Tuple[int, ...]] = Field(
-        ..., min_length=2, max_length=3
-    )
+    patch_size: Union[List[int]] = Field(..., min_length=2, max_length=3)
     batch_size: int = Field(default=1, ge=1, validate_default=True)
     axes: str
 
@@ -119,8 +117,8 @@ class DataModel(BaseModel):
     @field_validator("patch_size")
     @classmethod
     def all_elements_power_of_2_minimum_8(
-        cls, patch_list: Union[List[int], Tuple[int, ...]]
-    ) -> Union[List[int], Tuple[int, ...]]:
+        cls, patch_list: Union[List[int]]
+    ) -> Union[List[int]]:
         """
         Validate patch size.
 
@@ -128,12 +126,12 @@ class DataModel(BaseModel):
 
         Parameters
         ----------
-        patch_list : Union[List[int], Tuple[int, ...]]
+        patch_list : Union[List[int]]
             Patch size.
 
         Returns
         -------
-        Union[List[int], Tuple[int, ...]]
+        Union[List[int]]
             Validated patch size.
 
         Raises
