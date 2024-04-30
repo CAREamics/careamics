@@ -344,3 +344,88 @@ class UNet(nn.Module):
         x = self.final_conv(x)
         x = self.final_activation(x)
         return x
+
+class UNetIndChannels(nn.Module):
+
+    def __init__(
+        self,
+        conv_dims: int,
+        num_classes: int = 1,
+        in_channels: int = 1,
+        depth: int = 3,
+        num_channels_init: int = 64,
+        use_batch_norm: bool = True,
+        dropout: float = 0.0,
+        pool_kernel: int = 2,
+        final_activation: Union[SupportedActivation, str] = SupportedActivation.NONE,
+        n2v2: bool = False,
+        **kwargs: Any,
+    ) -> None:
+        """
+        Constructor.
+
+        Parameters
+        ----------
+        conv_dims : int
+            Number of dimensions of the convolution layers (2 or 3).
+        num_classes : int, optional
+            Number of classes to predict, by default 1.
+        in_channels : int, optional
+            Number of input channels, by default 1.
+        depth : int, optional
+            Number of downsamplings, by default 3.
+        num_channels_init : int, optional
+            Number of filters in the first convolution layer, by default 64.
+        use_batch_norm : bool, optional
+            Whether to use batch normalization, by default True.
+        dropout : float, optional
+            Dropout probability, by default 0.0.
+        pool_kernel : int, optional
+            Kernel size of the pooling layers, by default 2.
+        last_activation : Optional[Callable], optional
+            Activation function to use for the last layer, by default None.
+        """
+
+        # create a seperate UNet model for each input channel
+        self.channel_models = [
+            UNet(
+                conv_dims,
+                num_classes,
+                in_channels=1,
+                depth=depth,
+                num_channels_init=num_channels_init,
+                use_batch_norm=use_batch_norm,
+                dropout=dropout,
+                pool_kernel=pool_kernel,
+                final_activation=final_activation,
+                n2v2=n2v2,
+                **kwargs
+            )
+            for _ in range(in_channels)
+        ]
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Forward pass.
+
+        Passes each channel to a seperate independent UNet model. Returns the
+        3 outputs stacked together.
+
+        Parameters
+        ----------
+        x :  torch.Tensor
+            Input tensor.
+
+        Returns
+        -------
+        torch.Tensor
+            Output of the model.
+        """
+
+        # Alternative: pre-initialise 0-tensor and populate each channel
+        y = []
+        for channel, model in zip(x, self.channel_models):
+            y_channel = model(channel)
+            y.append(y_channel)
+
+        return torch.stack(y)
