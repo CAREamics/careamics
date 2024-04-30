@@ -1,5 +1,4 @@
-"""Main module."""
-
+"""Main CAREamics module."""
 
 from importlib.metadata import PackageNotFoundError, version
 
@@ -8,7 +7,18 @@ try:
 except PackageNotFoundError:
     __version__ = "uninstalled"
 
-__all__ = ["Engine", "Configuration", "load_configuration", "save_configuration"]
+__all__ = [
+    "CAREamist",
+    "CAREamicsModule",
+    "Configuration",
+    "load_configuration",
+    "save_configuration",
+    "CAREamicsTrainDataModule",
+    "CAREamicsPredictDataModule",
+]
 
+from .careamist import CAREamist
 from .config import Configuration, load_configuration, save_configuration
-from .engine import Engine as Engine
+from .lightning_datamodule import CAREamicsTrainDataModule
+from .lightning_module import CAREamicsModule
+from .lightning_prediction_datamodule import CAREamicsPredictDataModule

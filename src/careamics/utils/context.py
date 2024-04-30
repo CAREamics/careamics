@@ -9,6 +9,24 @@ from pathlib import Path
 from typing import Iterator, Union
 
 
+def get_careamics_home() -> Path:
+    """Return the CAREamics home directory.
+
+    CAREamics home directory is a hidden folder in home.
+
+    Returns
+    -------
+    Path
+        CAREamics home directory path.
+    """
+    home = Path.home() / ".careamics"
+
+    if not home.exists():
+        home.mkdir(parents=True, exist_ok=True)
+
+    return home
+
+
 @contextmanager
 def cwd(path: Union[str, Path]) -> Iterator[None]:
     """
@@ -29,8 +47,10 @@ def cwd(path: Union[str, Path]) -> Iterator[None]:
 
     Examples
     --------
-    >>> with cwd(path):
-    ...     pass
+    The context is whcnaged within the block and then restored to the original one.
+
+    >>> with cwd(my_path):
+    ...     pass # do something
     """
     path = Path(path)
 

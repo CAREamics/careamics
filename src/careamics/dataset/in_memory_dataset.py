@@ -1,154 +1,133 @@
 """In-memory dataset module."""
+from __future__ import annotations
+
+import copy
 from pathlib import Path
-from typing import Callable, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, List, Optional, Tuple, Union
 
 import numpy as np
-import torch
+from torch.utils.data import Dataset
 
-from ..utils import normalize
+from ..config import DataModel, InferenceModel
+from ..config.tile_information import TileInformation
 from ..utils.logging import get_logger
-from .dataset_utils import (
-    list_files,
-    read_tiff,
+from .dataset_utils import read_tiff, reshape_array
+from .patching.patch_transform import get_patch_transform
+from .patching.patching import (
+    prepare_patches_supervised,
+    prepare_patches_supervised_array,
+    prepare_patches_unsupervised,
+    prepare_patches_unsupervised_array,
 )
-from .extraction_strategy import ExtractionStrategy
-from .patching import generate_patches
+from .patching.tiled_patching import extract_tiles
 
 logger = get_logger(__name__)
 
 
-class InMemoryDataset(torch.utils.data.Dataset):
-    """
-    Dataset storing data in memory and allowing generating patches from it.
-
-    Parameters
-    ----------
-    data_path : Union[str, Path]
-        Path to the data, must be a directory.
-    data_format : str
-        Extension of the data files, without period.
-    axes : str
-        Description of axes in format STCZYX.
-    patch_extraction_method : ExtractionStrategies
-        Patch extraction strategy, as defined in extraction_strategy.
-    patch_size : Union[List[int], Tuple[int]]
-        Size of the patches along each axis, must be of dimension 2 or 3.
-    patch_overlap : Optional[Union[List[int], Tuple[int]]], optional
-        Overlap of the patches, must be of dimension 2 or 3, by default None.
-    mean : Optional[float], optional
-        Expected mean of the dataset, by default None.
-    std : Optional[float], optional
-        Expected standard deviation of the dataset, by default None.
-    patch_transform : Optional[Callable], optional
-        Patch transform to apply, by default None.
-    patch_transform_params : Optional[Dict], optional
-        Patch transform parameters, by default None.
-    """
+class InMemoryDataset(Dataset):
+    """Dataset storing data in memory and allowing generating patches from it."""
 
     def __init__(
         self,
-        data_path: Union[str, Path],
-        data_format: str,
-        axes: str,
-        patch_extraction_method: ExtractionStrategy,
-        patch_size: Union[List[int], Tuple[int]],
-        patch_overlap: Optional[Union[List[int], Tuple[int]]] = None,
-        mean: Optional[float] = None,
-        std: Optional[float] = None,
-        patch_transform: Optional[Callable] = None,
-        patch_transform_params: Optional[Dict] = None,
+        data_config: DataModel,
+        inputs: Union[np.ndarray, List[Path]],
+        data_target: Optional[Union[np.ndarray, List[Path]]] = None,
+        read_source_func: Callable = read_tiff,
+        **kwargs: Any,
     ) -> None:
         """
         Constructor.
 
-        Parameters
-        ----------
-        data_path : Union[str, Path]
-            Path to the data, must be a directory.
-        data_format : str
-            Extension of the data files, without period.
-        axes : str
-            Description of axes in format STCZYX.
-        patch_extraction_method : ExtractionStrategies
-            Patch extraction strategy, as defined in extraction_strategy.
-        patch_size : Union[List[int], Tuple[int]]
-            Size of the patches along each axis, must be of dimension 2 or 3.
-        patch_overlap : Optional[Union[List[int], Tuple[int]]], optional
-            Overlap of the patches, must be of dimension 2 or 3, by default None.
-        mean : Optional[float], optional
-            Expected mean of the dataset, by default None.
-        std : Optional[float], optional
-            Expected standard deviation of the dataset, by default None.
-        patch_transform : Optional[Callable], optional
-            Patch transform to apply, by default None.
-        patch_transform_params : Optional[Dict], optional
-            Patch transform parameters, by default None.
-
-        Raises
-        ------
-        ValueError
-            If data_path is not a directory.
+        # TODO
         """
-        self.data_path = Path(data_path)
-        if not self.data_path.is_dir():
-            raise ValueError("Path to data should be an existing folder.")
+        self.data_config = data_config
+        self.inputs = inputs
+        self.data_target = data_target
+        self.axes = self.data_config.axes
+        self.patch_size = self.data_config.patch_size
 
-        self.data_format = data_format
-        self.axes = axes
-
-        self.patch_transform = patch_transform
-
-        self.files = list_files(self.data_path, self.data_format)
-
-        self.patch_size = patch_size
-        self.patch_overlap = patch_overlap
-        self.patch_extraction_method = patch_extraction_method
-        self.patch_transform = patch_transform
-        self.patch_transform_params = patch_transform_params
-
-        self.mean = mean
-        self.std = std
+        # read function
+        self.read_source_func = read_source_func
 
         # Generate patches
-        self.data, computed_mean, computed_std = self._prepare_patches()
+        supervised = self.data_target is not None
+        patches = self._prepare_patches(supervised)
 
-        if not mean or not std:
+        # Add results to members
+        self.data, self.data_targets, computed_mean, computed_std = patches
+
+        if not self.data_config.mean or not self.data_config.std:
             self.mean, self.std = computed_mean, computed_std
             logger.info(f"Computed dataset mean: {self.mean}, std: {self.std}")
 
-        assert self.mean is not None
-        assert self.std is not None
+            # if the transforms are not an instance of Compose
+            if self.data_config.has_transform_list():
+                # update mean and std in configuration
+                # the object is mutable and should then be recorded in the CAREamist obj
+                self.data_config.set_mean_and_std(self.mean, self.std)
+        else:
+            self.mean, self.std = self.data_config.mean, self.data_config.std
 
-    def _prepare_patches(self) -> Tuple[np.ndarray, float, float]:
+        # get transforms
+        self.patch_transform = get_patch_transform(
+            patch_transforms=self.data_config.transforms,
+            with_target=self.data_target is not None,
+        )
+
+    def _prepare_patches(
+        self, supervised: bool
+    ) -> Tuple[np.ndarray, Optional[np.ndarray], float, float]:
         """
         Iterate over data source and create an array of patches.
+
+        Parameters
+        ----------
+        supervised : bool
+            Whether the dataset is supervised or not.
 
         Returns
         -------
         np.ndarray
             Array of patches.
         """
-        means, stds, num_samples = 0, 0, 0
-        self.all_patches = []
-        for filename in self.files:
-            sample = read_tiff(filename, self.axes)
-            means += sample.mean()
-            stds += np.std(sample)
-            num_samples += 1
-
-            # generate patches, return a generator
-            patches = generate_patches(
-                sample,
-                self.patch_extraction_method,
-                self.patch_size,
-                self.patch_overlap,
-            )
-
-            # convert generator to list and add to all_patches
-            self.all_patches.extend(list(patches))
-
-            result_mean, result_std = means / num_samples, stds / num_samples
-        return np.concatenate(self.all_patches), result_mean, result_std
+        if supervised:
+            if isinstance(self.inputs, np.ndarray) and isinstance(
+                self.data_target, np.ndarray
+            ):
+                return prepare_patches_supervised_array(
+                    self.inputs,
+                    self.axes,
+                    self.data_target,
+                    self.patch_size,
+                )
+            elif isinstance(self.inputs, list) and isinstance(self.data_target, list):
+                return prepare_patches_supervised(
+                    self.inputs,
+                    self.data_target,
+                    self.axes,
+                    self.patch_size,
+                    self.read_source_func,
+                )
+            else:
+                raise ValueError(
+                    f"Data and target must be of the same type, either both numpy "
+                    f"arrays or both lists of paths, got {type(self.inputs)} (data) "
+                    f"and {type(self.data_target)} (target)."
+                )
+        else:
+            if isinstance(self.inputs, np.ndarray):
+                return prepare_patches_unsupervised_array(
+                    self.inputs,
+                    self.axes,
+                    self.patch_size,
+                )
+            else:
+                return prepare_patches_unsupervised(
+                    self.inputs,
+                    self.axes,
+                    self.patch_size,
+                    self.read_source_func,
+                )
 
     def __len__(self) -> int:
         """
@@ -159,8 +138,7 @@ class InMemoryDataset(torch.utils.data.Dataset):
         int
             Length of the dataset.
         """
-        # convert to numpy array to convince mypy that it is not a generator
-        return sum(np.array(s).shape[0] for s in self.all_patches)
+        return len(self.data)
 
     def __getitem__(self, index: int) -> Tuple[np.ndarray]:
         """
@@ -181,21 +159,233 @@ class InMemoryDataset(torch.utils.data.Dataset):
         ValueError
             If dataset mean and std are not set.
         """
-        patch = self.data[index].squeeze()
+        patch = self.data[index]
 
-        if self.mean is not None and self.std is not None:
-            if isinstance(patch, tuple):
-                patch = normalize(img=patch[0], mean=self.mean, std=self.std)
-                patch = (patch, *patch[1:])
-            else:
-                patch = normalize(img=patch, mean=self.mean, std=self.std)
+        # if there is a target
+        if self.data_target is not None:
+            # get target
+            target = self.data_targets[index]
 
-            if self.patch_transform is not None:
-                # replace None self.patch_transform_params with empty dict
-                if self.patch_transform_params is None:
-                    self.patch_transform_params = {}
+            # Albumentations requires Channel last
+            c_patch = np.moveaxis(patch, 0, -1)
+            c_target = np.moveaxis(target, 0, -1)
 
-                patch = self.patch_transform(patch, **self.patch_transform_params)
-            return patch
+            # Apply transforms
+            transformed = self.patch_transform(image=c_patch, target=c_target)
+
+            # move axes back
+            patch = np.moveaxis(transformed["image"], -1, 0)
+            target = np.moveaxis(transformed["target"], -1, 0)
+
+            return patch, target
+
+        elif self.data_config.has_n2v_manipulate():
+            # Albumentations requires Channel last
+            patch = np.moveaxis(patch, 0, -1)
+
+            # Apply transforms
+            transformed_patch = self.patch_transform(image=patch)["image"]
+            manip_patch, patch, mask = transformed_patch
+
+            # move C axes back
+            manip_patch = np.moveaxis(manip_patch, -1, 0)
+            patch = np.moveaxis(patch, -1, 0)
+            mask = np.moveaxis(mask, -1, 0)
+
+            return (manip_patch, patch, mask)
         else:
-            raise ValueError("Dataset mean and std must be set before using it.")
+            raise ValueError(
+                "Something went wrong! No target provided (not supervised training) "
+                "and no N2V manipulation (no N2V training)."
+            )
+
+    def split_dataset(
+        self,
+        percentage: float = 0.1,
+        minimum_patches: int = 1,
+    ) -> InMemoryDataset:
+        """Split a new dataset away from the current one.
+
+        This method is used to extract random validation patches from the dataset.
+
+        Parameters
+        ----------
+        percentage : float, optional
+            Percentage of patches to extract, by default 0.1.
+        minimum_patches : int, optional
+            Minimum number of patches to extract, by default 5.
+
+        Returns
+        -------
+        InMemoryDataset
+            New dataset with the extracted patches.
+
+        Raises
+        ------
+        ValueError
+            If `percentage` is not between 0 and 1.
+        ValueError
+            If `minimum_number` is not between 1 and the number of patches.
+        """
+        if percentage < 0 or percentage > 1:
+            raise ValueError(f"Percentage must be between 0 and 1, got {percentage}.")
+
+        if minimum_patches < 1 or minimum_patches > len(self):
+            raise ValueError(
+                f"Minimum number of patches must be between 1 and "
+                f"{len(self)} (number of patches), got "
+                f"{minimum_patches}. Adjust the patch size or the minimum number of "
+                f"patches."
+            )
+
+        total_patches = len(self)
+
+        # number of patches to extract (either percentage rounded or minimum number)
+        n_patches = max(round(total_patches * percentage), minimum_patches)
+
+        # get random indices
+        indices = np.random.choice(total_patches, n_patches, replace=False)
+
+        # extract patches
+        val_patches = self.data[indices]
+
+        # remove patches from self.patch
+        self.data = np.delete(self.data, indices, axis=0)
+
+        # same for targets
+        if self.data_targets is not None:
+            val_targets = self.data_targets[indices]
+            self.data_targets = np.delete(self.data_targets, indices, axis=0)
+
+        # clone the dataset
+        dataset = copy.deepcopy(self)
+
+        # reassign patches
+        dataset.data = val_patches
+
+        # reassign targets
+        if self.data_targets is not None:
+            dataset.data_targets = val_targets
+
+        return dataset
+
+
+class InMemoryPredictionDataset(Dataset):
+    """
+    Dataset storing data in memory and allowing generating patches from it.
+
+    # TODO
+    """
+
+    def __init__(
+        self,
+        prediction_config: InferenceModel,
+        inputs: np.ndarray,
+        data_target: Optional[np.ndarray] = None,
+        read_source_func: Optional[Callable] = read_tiff,
+    ) -> None:
+        """Constructor.
+
+        Parameters
+        ----------
+        array : np.ndarray
+            Array containing the data.
+        axes : str
+            Description of axes in format STCZYX.
+
+        Raises
+        ------
+        ValueError
+            If data_path is not a directory.
+        """
+        self.pred_config = prediction_config
+        self.input_array = inputs
+        self.axes = self.pred_config.axes
+        self.tile_size = self.pred_config.tile_size
+        self.tile_overlap = self.pred_config.tile_overlap
+        self.mean = self.pred_config.mean
+        self.std = self.pred_config.std
+        self.data_target = data_target
+
+        # tiling only if both tile size and overlap are provided
+        self.tiling = self.tile_size is not None and self.tile_overlap is not None
+
+        # read function
+        self.read_source_func = read_source_func
+
+        # Generate patches
+        self.data = self._prepare_tiles()
+        self.mean, self.std = self.pred_config.mean, self.pred_config.std
+
+        # get transforms
+        self.patch_transform = get_patch_transform(
+            patch_transforms=self.pred_config.transforms,
+            with_target=self.data_target is not None,
+        )
+
+    def _prepare_tiles(self) -> List[Tuple[np.ndarray, TileInformation]]:
+        """
+        Iterate over data source and create an array of patches.
+
+        Returns
+        -------
+        List[XArrayTile]
+            List of tiles.
+        """
+        # reshape array
+        reshaped_sample = reshape_array(self.input_array, self.axes)
+
+        if self.tiling:
+            # generate patches, which returns a generator
+            patch_generator = extract_tiles(
+                arr=reshaped_sample,
+                tile_size=self.tile_size,
+                overlaps=self.tile_overlap,
+            )
+            patches_list = list(patch_generator)
+
+            if len(patches_list) == 0:
+                raise ValueError("No tiles generated, ")
+
+            return patches_list
+        else:
+            array_shape = reshaped_sample.squeeze().shape
+            return [(reshaped_sample, TileInformation(array_shape=array_shape))]
+
+    def __len__(self) -> int:
+        """
+        Return the length of the dataset.
+
+        Returns
+        -------
+        int
+            Length of the dataset.
+        """
+        return len(self.data)
+
+    def __getitem__(self, index: int) -> Tuple[np.ndarray, TileInformation]:
+        """
+        Return the patch corresponding to the provided index.
+
+        Parameters
+        ----------
+        index : int
+            Index of the patch to return.
+
+        Returns
+        -------
+        Tuple[np.ndarray, TileInformation]
+            Transformed patch.
+        """
+        tile_array, tile_info = self.data[index]
+
+        # Albumentations requires channel last, use the XArrayTile array
+        patch = np.moveaxis(tile_array, 0, -1)
+
+        # Apply transforms
+        transformed_patch = self.patch_transform(image=patch)["image"]
+
+        # move C axes back
+        transformed_patch = np.moveaxis(transformed_patch, -1, 0)
+
+        return transformed_patch, tile_info

@@ -3,12 +3,14 @@ UNet model.
 
 A UNet encoder, decoder and complete model.
 """
-from typing import Callable, List, Optional
+from typing import Any, List, Union
 
 import torch
 import torch.nn as nn
 
-from .layers import Conv_Block
+from ..config.support import SupportedActivation
+from .activation import get_activation
+from .layers import Conv_Block, MaxBlurPool
 
 
 class UnetEncoder(nn.Module):
@@ -42,6 +44,7 @@ class UnetEncoder(nn.Module):
         use_batch_norm: bool = True,
         dropout: float = 0.0,
         pool_kernel: int = 2,
+        n2v2: bool = False,
     ) -> None:
         """
         Constructor.
@@ -65,7 +68,11 @@ class UnetEncoder(nn.Module):
         """
         super().__init__()
 
-        self.pooling = getattr(nn, f"MaxPool{conv_dim}d")(kernel_size=pool_kernel)
+        self.pooling = (
+            getattr(nn, f"MaxPool{conv_dim}d")(kernel_size=pool_kernel)
+            if not n2v2
+            else MaxBlurPool(dim=conv_dim, kernel_size=3, max_pool_size=pool_kernel)
+        )
 
         encoder_blocks = []
 
@@ -82,7 +89,6 @@ class UnetEncoder(nn.Module):
                 )
             )
             encoder_blocks.append(self.pooling)
-
         self.encoder_blocks = nn.ModuleList(encoder_blocks)
 
     def forward(self, x: torch.Tensor) -> List[torch.Tensor]:
@@ -134,6 +140,7 @@ class UnetDecoder(nn.Module):
         num_channels_init: int = 64,
         use_batch_norm: bool = True,
         dropout: float = 0.0,
+        n2v2: bool = False,
     ) -> None:
         """
         Constructor.
@@ -157,6 +164,9 @@ class UnetDecoder(nn.Module):
             scale_factor=2, mode="bilinear" if conv_dim == 2 else "trilinear"
         )
         in_channels = out_channels = num_channels_init * 2 ** (depth - 1)
+
+        self.n2v2 = n2v2
+
         self.bottleneck = Conv_Block(
             conv_dim,
             in_channels=in_channels,
@@ -169,7 +179,11 @@ class UnetDecoder(nn.Module):
         decoder_blocks = []
         for n in range(depth):
             decoder_blocks.append(upsampling)
-            in_channels = num_channels_init * 2 ** (depth - n)
+            in_channels = (
+                num_channels_init ** (depth - n)
+                if (self.n2v2 and n == depth - 1)
+                else num_channels_init * 2 ** (depth - n)
+            )
             out_channels = num_channels_init
             decoder_blocks.append(
                 Conv_Block(
@@ -200,13 +214,19 @@ class UnetDecoder(nn.Module):
         torch.Tensor
             Output of the decoder.
         """
-        x = features[0]
-        skip_connections = features[1:][::-1]
+        x: torch.Tensor = features[0]
+        skip_connections: torch.Tensor = features[1:][::-1]
+
         x = self.bottleneck(x)
+
         for i, module in enumerate(self.decoder_blocks):
             x = module(x)
             if isinstance(module, nn.Upsample):
-                x = torch.cat([x, skip_connections[i // 2]], axis=1)
+                if self.n2v2:
+                    if x.shape != skip_connections[-1].shape:
+                        x = torch.cat([x, skip_connections[i // 2]], axis=1)
+                else:
+                    x = torch.cat([x, skip_connections[i // 2]], axis=1)
         return x
 
 
@@ -214,12 +234,12 @@ class UNet(nn.Module):
     """
     UNet model.
 
-    Adapted for PyTorch from
+    Adapted for PyTorch from:
     https://github.com/juglab/n2v/blob/main/n2v/nets/unet_blocks.py.
 
     Parameters
     ----------
-    conv_dim : int
+    conv_dims : int
         Number of dimensions of the convolution layers (2 or 3).
     num_classes : int, optional
         Number of classes to predict, by default 1.
@@ -241,7 +261,7 @@ class UNet(nn.Module):
 
     def __init__(
         self,
-        conv_dim: int,
+        conv_dims: int,
         num_classes: int = 1,
         in_channels: int = 1,
         depth: int = 3,
@@ -249,14 +269,16 @@ class UNet(nn.Module):
         use_batch_norm: bool = True,
         dropout: float = 0.0,
         pool_kernel: int = 2,
-        last_activation: Optional[Callable] = None,
+        final_activation: Union[SupportedActivation, str] = SupportedActivation.NONE,
+        n2v2: bool = False,
+        **kwargs: Any,
     ) -> None:
         """
         Constructor.
 
         Parameters
         ----------
-        conv_dim : int
+        conv_dims : int
             Number of dimensions of the convolution layers (2 or 3).
         num_classes : int, optional
             Number of classes to predict, by default 1.
@@ -278,28 +300,30 @@ class UNet(nn.Module):
         super().__init__()
 
         self.encoder = UnetEncoder(
-            conv_dim,
+            conv_dims,
             in_channels=in_channels,
             depth=depth,
             num_channels_init=num_channels_init,
             use_batch_norm=use_batch_norm,
             dropout=dropout,
             pool_kernel=pool_kernel,
+            n2v2=n2v2,
         )
 
         self.decoder = UnetDecoder(
-            conv_dim,
+            conv_dims,
             depth=depth,
             num_channels_init=num_channels_init,
             use_batch_norm=use_batch_norm,
             dropout=dropout,
+            n2v2=n2v2,
         )
-        self.final_conv = getattr(nn, f"Conv{conv_dim}d")(
+        self.final_conv = getattr(nn, f"Conv{conv_dims}d")(
             in_channels=num_channels_init,
             out_channels=num_classes,
             kernel_size=1,
         )
-        self.last_activation = last_activation if last_activation else nn.Identity()
+        self.final_activation = get_activation(final_activation)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -318,5 +342,5 @@ class UNet(nn.Module):
         encoder_features = self.encoder(x)
         x = self.decoder(*encoder_features)
         x = self.final_conv(x)
-        x = self.last_activation(x)
+        x = self.final_activation(x)
         return x

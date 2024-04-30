@@ -3,91 +3,124 @@ Convenience functions using torch.
 
 These functions are used to control certain aspects and behaviours of PyTorch.
 """
-import logging
-import os
-import sys
+import inspect
+from typing import Dict, Union
 
 import torch
 
+from careamics.config.support import SupportedOptimizer, SupportedScheduler
 
-def get_device() -> torch.device:
+from ..utils.logging import get_logger
+
+logger = get_logger(__name__)  # TODO are logger still needed?
+
+
+def filter_parameters(
+    func: type,
+    user_params: dict,
+) -> dict:
     """
-    Select the device to use for training.
+    Filter parameters according to the function signature.
+
+    Parameters
+    ----------
+    func : type
+        Class object.
+    user_params : Dict
+        User provided parameters.
 
     Returns
     -------
-    torch.device
-        CUDA or CPU device, depending on availability of CUDA devices.
+    Dict
+        Parameters matching `func`'s signature.
     """
-    if torch.cuda.is_available():
-        logging.info("CUDA available. Using GPU.")
-        device = torch.device("cuda")
-    else:
-        logging.info("CUDA not available. Using CPU.")
-        device = torch.device("cpu")
-    return device
+    # Get the list of all default parameters
+    default_params = list(inspect.signature(func).parameters.keys())
+
+    # Filter matching parameters
+    params_to_be_used = set(user_params.keys()) & set(default_params)
+
+    return {key: user_params[key] for key in params_to_be_used}
 
 
-def compile_model(model: torch.nn.Module) -> torch.nn.Module:
+def get_optimizer(name: str) -> torch.optim.Optimizer:
     """
-    Torch.compile wrapper.
+    Return the optimizer class given its name.
 
     Parameters
     ----------
-    model : torch.nn.Module
-        Model.
+    name : str
+        Optimizer name.
 
     Returns
     -------
-    torch.nn.Module
-        Compiled model if compile is available, the model itself otherwise.
+    torch.nn.Optimizer
+        Optimizer class.
     """
-    if hasattr(torch, "compile") and sys.version_info.minor <= 9:
-        return torch.compile(model, mode="reduce-overhead")
-    else:
-        return model
+    if name not in SupportedOptimizer:
+        raise NotImplementedError(f"Optimizer {name} is not yet supported.")
+
+    return getattr(torch.optim, name)
 
 
-def seed_everything(seed: int) -> None:
+def get_optimizers() -> Dict[str, str]:
     """
-    Seed all random number generators for reproducibility.
+    Return the list of all optimizers available in torch.optim.
+
+    Returns
+    -------
+    Dict
+        Optimizers available in torch.optim.
+    """
+    optims = {}
+    for name, obj in inspect.getmembers(torch.optim):
+        if inspect.isclass(obj) and issubclass(obj, torch.optim.Optimizer):
+            if name != "Optimizer":
+                optims[name] = name
+    return optims
+
+
+def get_scheduler(
+    name: str,
+) -> Union[
+    torch.optim.lr_scheduler.LRScheduler,
+    torch.optim.lr_scheduler.ReduceLROnPlateau,
+]:
+    """
+    Return the scheduler class given its name.
 
     Parameters
     ----------
-    seed : int
-        Seed.
+    name : str
+        Scheduler name.
+
+    Returns
+    -------
+    Union
+        Scheduler class.
     """
-    import random
+    if name not in SupportedScheduler:
+        raise NotImplementedError(f"Scheduler {name} is not yet supported.")
 
-    import numpy as np
-
-    random.seed(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)
+    return getattr(torch.optim.lr_scheduler, name)
 
 
-def setup_cudnn_reproducibility(
-    deterministic: bool = True, benchmark: bool = True
-) -> None:
+def get_schedulers() -> Dict[str, str]:
     """
-    Prepare CuDNN benchmark and sets it to be deterministic/non-deterministic mode.
+    Return the list of all schedulers available in torch.optim.lr_scheduler.
 
-    https://pytorch.org/docs/stable/notes/randomness.html#cuda-convolution-benchmarking.
-
-    Parameters
-    ----------
-    deterministic : bool
-        Deterministic mode, if running CuDNN backend.
-    benchmark : bool
-        If True, uses CuDNN heuristics to figure out which algorithm will be most
-        performant for your model architecture and input. False may slow down training.
+    Returns
+    -------
+    Dict
+        Schedulers available in torch.optim.lr_scheduler.
     """
-    if torch.cuda.is_available():
-        if deterministic:
-            deterministic = os.environ.get("CUDNN_DETERMINISTIC", "True") == "True"
-        torch.backends.cudnn.deterministic = deterministic
-
-        if benchmark:
-            benchmark = os.environ.get("CUDNN_BENCHMARK", "True") == "True"
-        torch.backends.cudnn.benchmark = benchmark
+    schedulers = {}
+    for name, obj in inspect.getmembers(torch.optim.lr_scheduler):
+        if inspect.isclass(obj) and issubclass(
+            obj, torch.optim.lr_scheduler.LRScheduler
+        ):
+            if "LRScheduler" not in name:
+                schedulers[name] = name
+        elif name == "ReduceLROnPlateau":  # somewhat not a subclass of LRScheduler
+            schedulers[name] = name
+    return schedulers

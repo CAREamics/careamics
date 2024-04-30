@@ -25,8 +25,6 @@ license = { text = "BSD-3-Clause" }
 authors = [
     { name = 'Igor Zubarev', email = 'igor.zubarev@fht.org' },
     { name = 'Joran Deschamps', email = 'joran.deschamps@fht.org' },
-    { name = 'Vera Galinova', email = 'vera.galinova@fht.org' },
-    { name = 'Mehdi Seifi', email = 'mehdi.seifi@fht.org' },
 ]
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -39,46 +37,33 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
-    'torch',
-    'torchvision',
+    # pytorch should be installed via conda/pip beforehand
+    'albumentations',
+    'bioimageio.core>=0.6.0',
     'tifffile',
+    'psutil',
+    'pydantic>=2.5',
+    'pytorch_lightning>=2.2.0',
     'pyyaml',
-    'pydantic>=2.0',
     'scikit-image',
-    'bioimageio.core',
     'zarr',
 ]
 
 [project.optional-dependencies]
 # development dependencies and tooling
-dev = ["pre-commit", "pytest", "pytest-cov"]
-
-# test for ci
-test = ["pytest", "pytest-cov", "wandb"]
-
-# use wandb for logging
-wandb = ["wandb"]
-
-# notebooks
-notebooks = [
-    "jupyter",
-    "careamics-portfolio",
-    "itkwidgets",
-    "torchsummary",
-    "ipython",
-]
-
-# all
-all = [
+dev = [
     "pre-commit",
     "pytest",
     "pytest-cov",
-    "wandb",
-    "jupyter",
-    "careamics-portfolio",
-    "itkwidgets",
-    "torchsummary",
+    "sybil",      # doctesting
 ]
+
+# notebooks
+examples = ["jupyter", "careamics-portfolio", "matplotlib"]
+
+# loggers
+wandb = ["wandb"]
+tensorboard = ["tensorboard", "protobuf==3.20.3"]
 
 [project.urls]
 homepage = "https://careamics.github.io/"
@@ -136,26 +121,23 @@ line-length = 88
 [tool.mypy]
 files = "src/**/"
 strict = false
-allow_untyped_defs = false
-allow_untyped_calls = false
-disallow_any_generics = false
-ignore_missing_imports = false
+# allow_untyped_defs = false
+# allow_untyped_calls = false
+# disallow_any_generics = false
+# ignore_missing_imports = false
 
-# # module specific overrides
-# [[tool.mypy.overrides]]
-# module = ["numpy.*",]
-# ignore_errors = true
+
 # https://docs.pytest.org/en/6.2.x/customize.html
 [tool.pytest.ini_options]
 minversion = "6.0"
-testpaths = ["tests"]
+testpaths = ["src/careamics", "tests"] # add src/careamics for doctest discovery
 filterwarnings = [
     # "error",
     # "ignore::UserWarning",
 ]
+addopts = "-p no:doctest"
+
 markers = ["gpu: marks tests as requiring gpu"]
-
-
 # https://coverage.readthedocs.io/en/6.4/config.html
 [tool.coverage.report]
 exclude_lines = [
@@ -185,9 +167,14 @@ ignore = [
 [tool.numpydoc_validation]
 checks = [
     "all",  # report on all checks, except the below
-    "EX01",
-    "SA01",
-    "ES01",
+    "EX01", # Example section not found
+    "SA01", # See Also section not found
+    "ES01", # Extended Summar not found
+    "GL01", # Docstring text (summary) should start in the line immediately
+    # after the opening quotes
+    "GL02", # Closing quotes should be placed in the line after the last text 
+    # in the docstring
+    "GL03", # Double line break found
 ]
 exclude = [ # don't report on objects that match any of these regex
     "test_*",
