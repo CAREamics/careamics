@@ -1,0 +1,29 @@
+from typing import Any, Dict
+
+from pydantic import BaseModel
+
+
+class ArchitectureModel(BaseModel):
+    """
+    Base Pydantic model for all model architectures.
+
+    The `model_dump` method allows removing the `architecture` key from the model.
+    """
+
+    architecture: str
+
+    def model_dump(self, **kwargs: Any) -> Dict[str, Any]:
+        """
+        Dump the model as a dictionary, ignoring the architecture keyword.
+
+        Returns
+        -------
+        dict[str, Any]
+            Model as a dictionnary.
+        """
+        model_dict = super().model_dump(**kwargs)
+
+        # remove the architecture key
+        model_dict.pop("architecture")
+
+        return model_dict

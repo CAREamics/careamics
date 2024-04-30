@@ -1,35 +1,30 @@
-import copy
-
-import pytest
-
 from careamics import Configuration
+from careamics.config.algorithm_model import AlgorithmModel
+from careamics.config.data_model import DataModel
+from careamics.config.inference_model import InferenceModel
+from careamics.config.training_model import TrainingModel
 
 
-def _instantiate_without_key(config: dict, key: str):
-    if isinstance(config[key], dict):
-        for k in config[key]:
-            _instantiate_without_key(config[key], k)
-    else:
-        # copy the dict
-        new_config = copy.deepcopy(config)
-
-        # remove the key
-        new_config[key] = None
-
-        # instantiate configuration
-        with pytest.raises(ValueError):
-            Configuration(**new_config)
+def test_minimum_algorithm(minimum_algorithm_n2v):
+    # create algorithm configuration
+    AlgorithmModel(**minimum_algorithm_n2v)
 
 
-def test_minimum_config(minimum_config):
-    """
-    Test that the minimum config is indeed a minimal example.
+def test_minimum_data(minimum_data):
+    # create data configuration
+    DataModel(**minimum_data)
 
-    First we check that we can instantiate a Configuration, then we test each
-    key in the dictionary by removing it and checking that it raises an error.
-    """
-    # test if the configuration is valid
-    Configuration(**minimum_config)
 
-    for key in minimum_config:
-        _instantiate_without_key(minimum_config, key)
+def test_minimum_prediction(minimum_inference):
+    # create prediction configuration
+    InferenceModel(**minimum_inference)
+
+
+def test_minimum_training(minimum_training):
+    # create training configuration
+    TrainingModel(**minimum_training)
+
+
+def test_minimum_configuration(minimum_configuration):
+    # create configuration
+    Configuration(**minimum_configuration)

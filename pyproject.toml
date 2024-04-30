@@ -1,12 +1,15 @@
+# https://peps.python.org/pep-0517/
+
 [build-system]
 requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
+# read more about configuring hatch at:
+# https://hatch.pypa.io/latest/config/build/
 
 # https://hatch.pypa.io/latest/config/metadata/
 [tool.hatch.version]
 source = "vcs"
 
-# https://hatch.pypa.io/latest/config/build/
 [tool.hatch.build.targets.wheel]
 only-include = ["src"]
 sources = ["src"]
@@ -22,8 +25,6 @@ license = { text = "BSD-3-Clause" }
 authors = [
     { name = 'Igor Zubarev', email = 'igor.zubarev@fht.org' },
     { name = 'Joran Deschamps', email = 'joran.deschamps@fht.org' },
-    { name = 'Vera Galinova', email = 'vera.galinova@fht.org' },
-    { name = 'Mehdi Seifi', email = 'mehdi.seifi@fht.org' },
 ]
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -32,74 +33,73 @@ classifiers = [
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
     "License :: OSI Approved :: BSD License",
     "Typing :: Typed",
 ]
 dependencies = [
-    'torch',
-    'torchvision',
+    'torch>=2.0.0',
+    'albumentations',
+    'bioimageio.core>=0.6.0',
     'tifffile',
+    'psutil',
+    'pydantic>=2.5',
+    'pytorch_lightning>=2.2.0',
     'pyyaml',
-    'pydantic>=2.0',
     'scikit-image',
-    'bioimageio.core',
     'zarr',
 ]
 
 [project.optional-dependencies]
 # development dependencies and tooling
-dev = ["pre-commit", "pytest", "pytest-cov"]
-
-# for ci
-test = ["pytest", "pytest-cov", "wandb"]
-
-# notebooks
-notebooks = [
-    "jupyter",
-    "careamics-portfolio",
-    "itkwidgets",
-    "torchsummary",
-    "ipython",
-    "wandb",
-]
-
-# all
-all = [
+dev = [
     "pre-commit",
     "pytest",
     "pytest-cov",
-    "wandb",
-    "jupyter",
-    "careamics-portfolio",
-    "itkwidgets",
-    "torchsummary",
-    "ipython",
+    "sybil",      # doctesting
 ]
+
+# notebooks
+examples = ["jupyter", "careamics-portfolio", "matplotlib"]
+
+# loggers
+wandb = ["wandb"]
+tensorboard = ["tensorboard", "protobuf==3.20.3"]
 
 [project.urls]
 homepage = "https://careamics.github.io/"
 repository = "https://github.com/CAREamics/careamics"
 
-# https://docs.astral.sh/ruff/
+# https://beta.ruff.rs/docs
 [tool.ruff]
 line-length = 88
 target-version = "py38"
 src = ["src"]
 select = [
-    "E",    # style errors
-    "W",    # style warnings
-    "F",    # flakes
-    "I",    # isort
-    "UP",   # pyupgrade
+    "E",  # style errors
+    "W",  # style warnings
+    "F",  # flakes
+    "D",  # pydocstyle
+    "I",  # isort
+    "UP", # pyupgrade
+    # "S",    # bandit
     "C4",   # flake8-comprehensions
     "B",    # flake8-bugbear
     "A001", # flake8-builtins
     "RUF",  # ruff-specific rules
-    "TCH",  # flake8-type-checking
-    "TID",  # flake8-tidy-imports
 ]
 ignore = [
+    "D100", # Missing docstring in public module
+    "D107", # Missing docstring in __init__
+    "D203", # 1 blank line required before class docstring
+    "D212", # Multi-line docstring summary should start at the first line
+    "D213", # Multi-line docstring summary should start at the second line
+    "D401", # First line should be in imperative mood
+    "D413", # Missing blank line after last section
+    "D416", # Section name should end with a colon
+
+    # incompatibility with mypy
+    "RUF005", # collection-literal-concatenation, in prediction_utils.py:30
+
     # version specific
     "UP006", # Replace typing.List by list, mandatory for py3.8
     "UP007", # Replace Union by |, mandatory for py3.9
@@ -107,8 +107,12 @@ ignore = [
 ignore-init-module-imports = true
 show-fixes = true
 
+[tool.ruff.pydocstyle]
+convention = "numpy"
+
 [tool.ruff.per-file-ignores]
-"tests/*.py" = ["S"]
+"tests/*.py" = ["D", "S"]
+"setup.py" = ["D"]
 
 [tool.black]
 line-length = 88
@@ -117,35 +121,32 @@ line-length = 88
 [tool.mypy]
 files = "src/**/"
 strict = false
-allow_untyped_defs = false
-allow_untyped_calls = false
-disallow_any_generics = false
-ignore_missing_imports = false
+# allow_untyped_defs = false
+# allow_untyped_calls = false
+# disallow_any_generics = false
+# ignore_missing_imports = false
+
 
 # https://docs.pytest.org/en/6.2.x/customize.html
 [tool.pytest.ini_options]
 minversion = "6.0"
-testpaths = ["tests"]
+testpaths = ["src/careamics", "tests"] # add src/careamics for doctest discovery
 filterwarnings = [
     # "error",
     # "ignore::UserWarning",
 ]
-markers = ["gpu: mark tests as requiring gpu"]
+addopts = "-p no:doctest"
 
+markers = ["gpu: marks tests as requiring gpu"]
 # https://coverage.readthedocs.io/en/6.4/config.html
 [tool.coverage.report]
 exclude_lines = [
     "pragma: no cover",
     "if TYPE_CHECKING:",
     "@overload",
+    "except ImportError",
     "\\.\\.\\.",
-    "except ImportError:",
     "raise NotImplementedError()",
-    "except PackageNotFoundError:",
-    "if torch.cuda.is_available():",
-    "except UsageError as e:",
-    "except ModuleNotFoundError:",
-    "except KeyboardInterrupt:",
 ]
 
 [tool.coverage.run]
@@ -159,16 +160,21 @@ ignore = [
     ".github_changelog_generator",
     ".pre-commit-config.yaml",
     ".ruff_cache/**/*",
+    "setup.py",
     "tests/**/*",
 ]
 
-# https://numpydoc.readthedocs.io/en/latest/format.html
 [tool.numpydoc_validation]
 checks = [
-    "all",  # report on all checks, except the ones below
-    "EX01", # No examples section found
+    "all",  # report on all checks, except the below
+    "EX01", # Example section not found
     "SA01", # See Also section not found
-    "ES01", # No extended summary found
+    "ES01", # Extended Summar not found
+    "GL01", # Docstring text (summary) should start in the line immediately
+    # after the opening quotes
+    "GL02", # Closing quotes should be placed in the line after the last text 
+    # in the docstring
+    "GL03", # Double line break found
 ]
 exclude = [ # don't report on objects that match any of these regex
     "test_*",

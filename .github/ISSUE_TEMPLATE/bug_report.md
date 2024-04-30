@@ -25,6 +25,7 @@ If applicable, add screenshots to help explain your problem.
 **Desktop (please complete the following information):**
  - OS: [e.g. iOS]
  - Version [e.g. 22]
+- microscopy-portfolio version [e.g. 0.0.5]
 
 **Environment:**
 Please add here the content of your conda environment with versions.

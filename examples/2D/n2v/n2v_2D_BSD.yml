@@ -1,0 +1,60 @@
+# Name, composed of letters, numbers, spaces, dashes and underscores
+experiment_name: N2V_BSD_n2v2
+
+algorithm:
+  algorithm: n2v
+  loss: n2v
+  model:
+    architecture: UNet
+    n2v2: False
+  optimizer_parameters:
+    lr: 1e-3
+  lr_scheduler_parameters:
+   factor: 0.5
+   patience: 10
+
+training:
+  # Number of epochs, greater or equal than 1
+  num_epochs: 1
+
+  # Batch size, greater or equal than 1
+  batch_size: 128
+
+  # Optional, use WandB (True or False), must be installed in your conda environment
+  use_wandb: False
+
+  callbacks:
+    # Optional, any parameter for Pytorch lightning callbacks
+
+    # Optional, any parameter for Pytorch lightning ModelCheckpoint
+    checkpoint:
+      # Optional, monitor the validation loss (val_loss) or the validation accuracy (val_acc)
+      # parameters:
+      # dirpath: 'checkpoints'
+      # monitor : val_loss
+      save_last: True
+      save_top_k: 3
+      # TODO should it be here or in predict ?
+      # Optional, path to the checkpoint to load the model
+      # load_path: ''
+
+  # Optional, automatic mixed precision
+  amp:
+    # Use (True or False)
+    use: True
+
+data:
+  # Extension of the data
+  data_type: tiff
+
+  patch_size: [64, 64]
+  
+  # Axes, among STCZYX with constraints on order
+  axes: SYX
+
+  tta_transforms: True
+
+  batch_size: 128
+
+  # Optional, number of workers for data loading, greater or equal than 0
+  num_workers: 0

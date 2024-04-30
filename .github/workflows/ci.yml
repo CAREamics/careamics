@@ -1,109 +1,103 @@
----
 name: CI
 
 on:
-    push:
-        branches:
-            - main
-        tags:
-            - v*.*.*
-    pull_request:
-    workflow_dispatch:
-    schedule:
+  push:
+    branches:
+      - main
+    tags:
+      - "v*"
+  pull_request:
+  workflow_dispatch:
+  schedule:
     # run every week (for --pre release tests)
-        - cron: 0 0 * * 0
+    - cron: "0 0 * * 0"
 
 jobs:
-    check-manifest:
+  check-manifest:
     # check-manifest is a tool that checks that all files in version control are
     # included in the sdist (unless explicitly excluded)
-        runs-on: ubuntu-latest
-        steps:
-            - uses: actions/checkout@v4
-            - run: pipx run check-manifest
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - run: pipx run check-manifest
 
-    test:
-        name: ${{ matrix.platform }} (${{ matrix.python-version }})
-        runs-on: ${{ matrix.platform }}
-        strategy:
-            fail-fast: false
-            matrix:
-                python-version: ['3.8', '3.9', '3.10', '3.11']
-                platform: [ubuntu-latest, macos-latest, windows-latest]
+  test:
+    name: ${{ matrix.platform }} (${{ matrix.python-version }})
+    runs-on: ${{ matrix.platform }}
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.8", "3.9", "3.10", "3.11"]
+        # https://docs.github.com/en/actions/using-github-hosted-runners/about-github-hosted-runners/about-github-hosted-runners#standard-github-hosted-runners-for-public-repositories
+        platform: [ubuntu-latest, macos-13, windows-latest]
 
-        steps:
-            - name: 🛑 Cancel Previous Runs
-              uses: styfle/cancel-workflow-action@0.12.1
-              with:
-                  access_token: ${{ github.token }}
+    steps:
+      - name: 🛑 Cancel Previous Runs
+        uses: styfle/cancel-workflow-action@0.11.0
+        with:
+          access_token: ${{ github.token }}
 
-            - uses: actions/checkout@v4
+      - uses: actions/checkout@v3
 
-            - name: 🐍 Set up Python ${{ matrix.python-version }}
-              uses: actions/setup-python@v5
-              with:
-                  python-version: ${{ matrix.python-version }}
-                  cache-dependency-path: pyproject.toml
-                  cache: pip
+      - name: 🐍 Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache-dependency-path: "pyproject.toml"
+          cache: "pip"
 
-            - name: Install Dependencies
-              run: |
-                  python -m pip install -U pip
-                  # if running a cron job, we add the --pre flag to test against pre-releases
-                  python -m pip install .[test] ${{ github.event_name == 'schedule' && '--pre' || ''  }}
+      - name: Install Dependencies
+        run: |
+          python -m pip install -U pip
+          # if running a cron job, we add the --pre flag to test against pre-releases
+          python -m pip install .[dev] ${{ github.event_name == 'schedule' && '--pre' || ''  }}
 
-            - name: 🧪 Run Tests
-              run: pytest --color=yes --cov --cov-report=xml --cov-report=term-missing -m "not gpu"
+      - name: 🧪 Run Tests
+        run: pytest --color=yes --cov --cov-report=xml --cov-report=term-missing -m "not gpu"
 
-            # If something goes wrong with --pre tests, we can open an issue in the repo
-            - name: 📝 Report --pre Failures
-              if: failure() && github.event_name == 'schedule'
-              uses: JasonEtco/create-an-issue@v2
-              env:
-                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-                  PLATFORM: ${{ matrix.platform }}
-                  PYTHON: ${{ matrix.python-version }}
-                  RUN_ID: ${{ github.run_id }}
-                  TITLE: '[test-bot] pip install --pre is failing'
-              with:
-                  filename: .github/TEST_FAIL_TEMPLATE.md
-                  update_existing: true
+      # If something goes wrong with --pre tests, we can open an issue in the repo
+      - name: 📝 Report --pre Failures
+        if: failure() && github.event_name == 'schedule'
+        uses: JasonEtco/create-an-issue@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PLATFORM: ${{ matrix.platform }}
+          PYTHON: ${{ matrix.python-version }}
+          RUN_ID: ${{ github.run_id }}
+          TITLE: "[test-bot] pip install --pre is failing"
+        with:
+          filename: .github/TEST_FAIL_TEMPLATE.md
+          update_existing: true
 
-            - name: Coverage
-              uses: codecov/codecov-action@v4
+      - name: Coverage
+        uses: codecov/codecov-action@v3
 
-    deploy:
-        name: Deploy
-        needs: test
-        if: success() && startsWith(github.ref, 'refs/tags/') && github.event_name != 'schedule'
-        runs-on: ubuntu-latest
+  deploy:
+    name: Deploy
+    needs: test
+    if: success() && startsWith(github.ref, 'refs/tags/') && github.event_name != 'schedule'
+    runs-on: ubuntu-latest
 
-        permissions:
-            # IMPORTANT: this permission is mandatory for trusted publishing on PyPi
-            # see https://docs.pypi.org/trusted-publishers/
-            id-token: write
-            # This permission allows writing releases
-            contents: write
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
 
-        steps:
-            - uses: actions/checkout@v4
-              with:
-                  fetch-depth: 0
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.x"
 
-            - name: 🐍 Set up Python
-              uses: actions/setup-python@v5
-              with:
-                  python-version: 3.x
+      - name: 👷 Build
+        run: |
+          python -m pip install build
+          python -m build
 
-            - name: 👷 Build
-              run: |
-                  python -m pip install build
-                  python -m build
+      - name: 🚢 Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          password: ${{ secrets.TWINE_API_KEY }}
 
-            - name: 🚢 Publish to PyPI
-              uses: pypa/gh-action-pypi-publish@release/v1
-
-            - uses: softprops/action-gh-release@v1
-              with:
-                  generate_release_notes: true
-                  files: ./dist/*
+      - uses: softprops/action-gh-release@v1
+        with:
+          generate_release_notes: true

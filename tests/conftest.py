@@ -1,19 +1,161 @@
-import copy
 from pathlib import Path
-from typing import Callable
+from typing import Callable, Tuple
 
 import numpy as np
 import pytest
 
+from careamics import CAREamist, Configuration
+from careamics.config.support import SupportedData
+from careamics.model_io import export_to_bmz
+
+
+# TODO add details about where each of these fixture is used (e.g. smoke test)
+@pytest.fixture
+def create_tiff(path: Path, n_files: int):
+    """Create tiff files for testing."""
+    if not path.exists():
+        path.mkdir()
+
+    for i in range(n_files):
+        file_path = path / f"file_{i}.tif"
+        file_path.touch()
+
 
 @pytest.fixture
-def minimum_config(tmp_path: Path) -> dict:
-    """Create a minimum configuration.
+def minimum_algorithm_custom() -> dict:
+    """Create a minimum algorithm dictionary.
+
+    Returns
+    -------
+    dict
+        A minimum algorithm example.
+    """
+    # create dictionary
+    algorithm = {
+        "algorithm": "custom",
+        "loss": "mae",
+        "model": {
+            "architecture": "UNet",
+        },
+    }
+
+    return algorithm
+
+
+@pytest.fixture
+def minimum_algorithm_n2v() -> dict:
+    """Create a minimum algorithm dictionary.
+
+    Returns
+    -------
+    dict
+        A minimum algorithm example.
+    """
+    # create dictionary
+    algorithm = {
+        "algorithm": "n2v",
+        "loss": "n2v",
+        "model": {
+            "architecture": "UNet",
+        },
+    }
+
+    return algorithm
+
+
+@pytest.fixture
+def minimum_algorithm_supervised() -> dict:
+    """Create a minimum algorithm dictionary.
+
+    Returns
+    -------
+    dict
+        A minimum algorithm example.
+    """
+    # create dictionary
+    algorithm = {
+        "algorithm": "n2n",
+        "loss": "mae",
+        "model": {
+            "architecture": "UNet",
+        },
+    }
+
+    return algorithm
+
+
+@pytest.fixture
+def minimum_data() -> dict:
+    """Create a minimum data dictionary.
+
+    Returns
+    -------
+    dict
+        A minimum data example.
+    """
+    # create dictionary
+    data = {
+        "data_type": SupportedData.ARRAY.value,
+        "patch_size": [8, 8],
+        "axes": "YX",
+    }
+
+    return data
+
+
+@pytest.fixture
+def minimum_inference() -> dict:
+    """Create a minimum inference dictionary.
+
+    Returns
+    -------
+    dict
+        A minimum data example.
+    """
+    # create dictionary
+    predic = {
+        "data_type": SupportedData.ARRAY.value,
+        "axes": "YX",
+        "mean": 2.0,
+        "std": 1.0,
+    }
+
+    return predic
+
+
+@pytest.fixture
+def minimum_training() -> dict:
+    """Create a minimum training dictionary.
+
+    Returns
+    -------
+    dict
+        A minimum training example.
+    """
+    # create dictionary
+    training = {
+        "num_epochs": 1,
+    }
+
+    return training
+
+
+@pytest.fixture
+def minimum_configuration(
+    minimum_algorithm_n2v: dict, minimum_data: dict, minimum_training: dict
+) -> dict:
+    """Create a minimum configuration dictionary.
 
     Parameters
     ----------
     tmp_path : Path
         Temporary path for testing.
+    minimum_algorithm : dict
+        Minimum algorithm configuration.
+    minimum_data : dict
+        Minimum data configuration.
+    minimum_training : dict
+        Minimum training configuration.
 
     Returns
     -------
@@ -23,77 +165,26 @@ def minimum_config(tmp_path: Path) -> dict:
     # create dictionary
     configuration = {
         "experiment_name": "LevitatingFrog",
-        "working_directory": str(tmp_path),
-        "algorithm": {
-            "loss": "n2v",
-            "model": "UNet",
-            "is_3D": False,
-        },
-        "training": {
-            "num_epochs": 666,
-            "batch_size": 42,
-            "patch_size": [64, 64],
-            "optimizer": {
-                "name": "Adam",
-            },
-            "lr_scheduler": {"name": "ReduceLROnPlateau"},
-            "augmentation": True,
-        },
-        "data": {
-            "in_memory": True,
-            "data_format": "tif",
-            "axes": "SYX",
-        },
+        "algorithm_config": minimum_algorithm_n2v,
+        "training_config": minimum_training,
+        "data_config": minimum_data,
     }
 
     return configuration
 
 
 @pytest.fixture
-def complete_config(minimum_config: dict) -> dict:
-    """Create a complete configuration.
-
-    This configuration should not be used for testing an Engine.
-
-    Parameters
-    ----------
-    minimum_config : dict
-        A minimum configuration.
-
-    Returns
-    -------
-    dict
-        A complete configuration example.
-    """
-    # add to configuration
-    complete_config = copy.deepcopy(minimum_config)
-
-    complete_config["algorithm"]["masking_strategy"] = "median"
-
-    complete_config["algorithm"]["masked_pixel_percentage"] = 0.6
-    complete_config["algorithm"]["roi_size"] = 13
-    complete_config["algorithm"]["model_parameters"] = {
-        "depth": 8,
-        "num_channels_init": 32,
+def supervised_configuration(
+    minimum_algorithm_supervised: dict, minimum_data: dict, minimum_training: dict
+) -> dict:
+    configuration = {
+        "experiment_name": "LevitatingFrog",
+        "algorithm_config": minimum_algorithm_supervised,
+        "training_config": minimum_training,
+        "data_config": minimum_data,
     }
 
-    complete_config["training"]["optimizer"]["parameters"] = {
-        "lr": 0.00999,
-    }
-    complete_config["training"]["lr_scheduler"]["parameters"] = {
-        "patience": 22,
-    }
-    complete_config["training"]["use_wandb"] = True
-    complete_config["training"]["num_workers"] = 6
-    complete_config["training"]["amp"] = {
-        "use": True,
-        "init_scale": 512,
-    }
-    complete_config["data"]["in_memory"] = False
-    complete_config["data"]["mean"] = 666.666
-    complete_config["data"]["std"] = 42.420
-
-    return complete_config
+    return configuration
 
 
 @pytest.fixture
@@ -119,24 +210,90 @@ def ordered_array() -> Callable:
 
 
 @pytest.fixture
-def array_2D(ordered_array) -> np.ndarray:
-    """A 2D array with shape (1, 10, 9).
+def array_2D() -> np.ndarray:
+    """A 2D array with shape (1, 3, 10, 9).
 
     Returns
     -------
     np.ndarray
-        2D array with shape (1, 10, 9).
+        2D array with shape (1, 3, 10, 9).
     """
-    return ordered_array((1, 10, 9))
+    return np.arange(90 * 3).reshape((1, 3, 10, 9))
 
 
 @pytest.fixture
-def array_3D(ordered_array) -> np.ndarray:
-    """A 3D array with shape (1, 5, 10, 9).
+def array_3D() -> np.ndarray:
+    """A 3D array with shape (1, 3, 5, 10, 9).
 
     Returns
     -------
     np.ndarray
-        3D array with shape (1, 5, 10, 9).
+        3D array with shape (1, 3, 5, 10, 9).
     """
-    return ordered_array((1, 8, 16, 16))
+    return np.arange(2048 * 3).reshape((1, 3, 8, 16, 16))
+
+
+@pytest.fixture
+def patch_size() -> Tuple[int, int]:
+    return (64, 64)
+
+
+@pytest.fixture
+def overlaps() -> Tuple[int, int]:
+    return (32, 32)
+
+
+@pytest.fixture
+def pre_trained(tmp_path, minimum_configuration):
+    """Fixture to create a pre-trained CAREamics model."""
+    # training data
+    train_array = np.arange(32 * 32).reshape((32, 32))
+
+    # create configuration
+    config = Configuration(**minimum_configuration)
+    config.training_config.num_epochs = 1
+    config.data_config.axes = "YX"
+    config.data_config.batch_size = 2
+    config.data_config.data_type = SupportedData.ARRAY.value
+    config.data_config.patch_size = (8, 8)
+
+    # instantiate CAREamist
+    careamist = CAREamist(source=config, work_dir=tmp_path)
+
+    # train CAREamist
+    careamist.train(train_source=train_array)
+
+    # check that it trained
+    pre_trained_path: Path = tmp_path / "checkpoints" / "last.ckpt"
+    assert pre_trained_path.exists()
+
+    return pre_trained_path
+
+
+@pytest.fixture
+def pre_trained_bmz(tmp_path, pre_trained) -> Path:
+    """Fixture to create a BMZ model."""
+    # training data
+    train_array = np.ones((32, 32), dtype=np.float32)
+
+    # instantiate CAREamist
+    careamist = CAREamist(source=pre_trained, work_dir=tmp_path)
+
+    # predict (no tiling and no tta)
+    predicted = careamist.predict(train_array, tta_transforms=False)
+
+    # export to BioImage Model Zoo
+    path = tmp_path / "model.zip"
+    export_to_bmz(
+        model=careamist.model,
+        config=careamist.cfg,
+        path=path,
+        name="TopModel",
+        general_description="A model that just walked in.",
+        authors=[{"name": "Amod", "affiliation": "El"}],
+        input_array=train_array[np.newaxis, np.newaxis, ...],
+        output_array=predicted,
+    )
+    assert path.exists()
+
+    return path
