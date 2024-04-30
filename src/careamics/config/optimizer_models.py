@@ -11,6 +11,7 @@ from pydantic import (
     model_validator,
 )
 from torch import optim
+from typing_extensions import Self
 
 from careamics.utils.torch_utils import filter_parameters
 
@@ -88,21 +89,15 @@ class OptimizerModel(BaseModel):
         return parameters
 
     @model_validator(mode="after")
-    @classmethod
-    def sgd_lr_parameter(cls, optimizer: OptimizerModel) -> OptimizerModel:
+    def sgd_lr_parameter(self) -> Self:
         """
         Check that SGD optimizer has the mandatory `lr` parameter specified.
 
         This is specific for PyTorch < 2.2.
 
-        Parameters
-        ----------
-        optimizer : Optimizer
-            Optimizer to validate.
-
         Returns
         -------
-        Optimizer
+        Self
             Validated optimizer.
 
         Raises
@@ -110,16 +105,13 @@ class OptimizerModel(BaseModel):
         ValueError
             If the optimizer is SGD and the lr parameter is not specified.
         """
-        if (
-            optimizer.name == SupportedOptimizer.SGD
-            and "lr" not in optimizer.parameters
-        ):
+        if self.name == SupportedOptimizer.SGD and "lr" not in self.parameters:
             raise ValueError(
                 "SGD optimizer requires `lr` parameter, check that it has correctly "
                 "been specified in `parameters`."
             )
 
-        return optimizer
+        return self
 
 
 class LrSchedulerModel(BaseModel):

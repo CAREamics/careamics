@@ -5,6 +5,7 @@ from typing import Any, Dict, Literal
 
 from pydantic import ConfigDict, field_validator, model_validator
 from torch.nn import Module
+from typing_extensions import Self
 
 from .architecture_model import ArchitectureModel
 from .register_model import get_custom_model
@@ -97,12 +98,12 @@ class CustomModel(ArchitectureModel):
         return value
 
     @model_validator(mode="after")
-    def check_parameters(self: CustomModel) -> CustomModel:
+    def check_parameters(self: Self) -> Self:
         """Validate model by instantiating the model with the parameters.
 
         Returns
         -------
-        CustomModel
+        Self
             The validated model.
         """
         # instantiate model

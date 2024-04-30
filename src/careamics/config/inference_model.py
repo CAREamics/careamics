@@ -5,6 +5,7 @@ from typing import Any, List, Literal, Optional, Union
 
 from albumentations import Compose
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from typing_extensions import Self
 
 from .support import SupportedTransform
 from .transformations.normalize_model import NormalizeModel
@@ -182,55 +183,43 @@ class InferenceModel(BaseModel):
         return transforms
 
     @model_validator(mode="after")
-    def validate_dimensions(cls, pred_model: InferenceModel) -> InferenceModel:
+    def validate_dimensions(self: Self) -> Self:
         """
         Validate 2D/3D dimensions between axes and tile size.
 
-        Parameters
-        ----------
-        pred_model : PredictionModel
-            Prediction model.
-
         Returns
         -------
-        PredictionModel
+        Self
             Validated prediction model.
         """
-        expected_len = 3 if "Z" in pred_model.axes else 2
+        expected_len = 3 if "Z" in self.axes else 2
 
-        if pred_model.tile_size is not None and pred_model.tile_overlap is not None:
-            if len(pred_model.tile_size) != expected_len:
+        if self.tile_size is not None and self.tile_overlap is not None:
+            if len(self.tile_size) != expected_len:
                 raise ValueError(
                     f"Tile size must have {expected_len} dimensions given axes "
-                    f"{pred_model.axes} (got {pred_model.tile_size})."
+                    f"{self.axes} (got {self.tile_size})."
                 )
 
-            if len(pred_model.tile_overlap) != expected_len:
+            if len(self.tile_overlap) != expected_len:
                 raise ValueError(
                     f"Tile overlap must have {expected_len} dimensions given axes "
-                    f"{pred_model.axes} (got {pred_model.tile_overlap})."
+                    f"{self.axes} (got {self.tile_overlap})."
                 )
 
-            if any(
-                (i >= j) for i, j in zip(pred_model.tile_overlap, pred_model.tile_size)
-            ):
+            if any((i >= j) for i, j in zip(self.tile_overlap, self.tile_size)):
                 raise ValueError("Tile overlap must be smaller than tile size.")
 
-        return pred_model
+        return self
 
     @model_validator(mode="after")
-    def std_only_with_mean(cls, pred_model: InferenceModel) -> InferenceModel:
+    def std_only_with_mean(self: Self) -> Self:
         """
         Check that mean and std are either both None, or both specified.
 
-        Parameters
-        ----------
-        pred_model : Data
-            Data model.
-
         Returns
         -------
-        Data
+        Self
             Validated prediction model.
 
         Raises
@@ -239,39 +228,32 @@ class InferenceModel(BaseModel):
             If std is not None and mean is None.
         """
         # check that mean and std are either both None, or both specified
-        if (pred_model.mean is None) != (pred_model.std is None):
+        if (self.mean is None) != (self.std is None):
             raise ValueError(
                 "Mean and std must be either both None, or both specified."
             )
 
-        return pred_model
+        return self
 
     @model_validator(mode="after")
-    def add_std_and_mean_to_normalize(
-        cls, pred_model: InferenceModel
-    ) -> InferenceModel:
+    def add_std_and_mean_to_normalize(self: Self) -> Self:
         """
         Add mean and std to the Normalize transform if it is present.
 
-        Parameters
-        ----------
-        pred_model : InferenceModel
-            Inference model.
-
         Returns
         -------
-        InferenceModel
+        Self
             Inference model with mean and std added to the Normalize transform.
         """
-        if pred_model.mean is not None or pred_model.std is not None:
+        if self.mean is not None or self.std is not None:
             # search in the transforms for Normalize and update parameters
-            if not isinstance(pred_model.transforms, Compose):
-                for transform in pred_model.transforms:
+            if not isinstance(self.transforms, Compose):
+                for transform in self.transforms:
                     if transform.name == SupportedTransform.NORMALIZE.value:
-                        transform.mean = pred_model.mean
-                        transform.std = pred_model.std
+                        transform.mean = self.mean
+                        transform.std = self.std
 
-        return pred_model
+        return self
 
     def _update(self, **kwargs: Any) -> None:
         """

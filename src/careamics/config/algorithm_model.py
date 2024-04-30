@@ -4,6 +4,7 @@ from pprint import pformat
 from typing import Literal, Union
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
+from typing_extensions import Self
 
 from .architectures import CustomModel, UNetModel, VAEModel
 from .optimizer_models import LrSchedulerModel, OptimizerModel
@@ -98,12 +99,17 @@ class AlgorithmModel(BaseModel):
     lr_scheduler: LrSchedulerModel = LrSchedulerModel()
 
     @model_validator(mode="after")
-    def algorithm_cross_validation(self) -> AlgorithmModel:
+    def algorithm_cross_validation(self: Self) -> Self:
         """Validate the algorithm model based on `algorithm`.
 
         N2V:
         - loss must be n2v
         - model must be a `UNetModel`
+
+        Returns
+        -------
+        Self
+            The validated model.
         """
         # N2V
         if self.algorithm == "n2v":

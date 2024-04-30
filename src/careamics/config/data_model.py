@@ -13,7 +13,7 @@ from pydantic import (
     field_validator,
     model_validator,
 )
-from typing_extensions import Annotated
+from typing_extensions import Annotated, Self
 
 from .support import SupportedTransform
 from .transformations.n2v_manipulate_model import N2VManipulateModel
@@ -222,18 +222,13 @@ class DataModel(BaseModel):
         return transforms
 
     @model_validator(mode="after")
-    def std_only_with_mean(cls, data_model: DataModel) -> DataModel:
+    def std_only_with_mean(self: Self) -> Self:
         """
         Check that mean and std are either both None, or both specified.
 
-        Parameters
-        ----------
-        data_model : Data
-            Data model.
-
         Returns
         -------
-        Data
+        Self
             Validated data model.
 
         Raises
@@ -242,51 +237,41 @@ class DataModel(BaseModel):
             If std is not None and mean is None.
         """
         # check that mean and std are either both None, or both specified
-        if (data_model.mean is None) != (data_model.std is None):
+        if (self.mean is None) != (self.std is None):
             raise ValueError(
                 "Mean and std must be either both None, or both specified."
             )
 
-        return data_model
+        return self
 
     @model_validator(mode="after")
-    def add_std_and_mean_to_normalize(cls, data_model: DataModel) -> DataModel:
+    def add_std_and_mean_to_normalize(self: Self) -> Self:
         """
         Add mean and std to the Normalize transform if it is present.
 
-        Parameters
-        ----------
-        data_model : DataModel
-            Data model.
-
         Returns
         -------
-        DataModel
+        Self
             Data model with mean and std added to the Normalize transform.
         """
-        if data_model.mean is not None or data_model.std is not None:
+        if self.mean is not None or self.std is not None:
             # search in the transforms for Normalize and update parameters
-            if data_model.has_transform_list():
-                for transform in data_model.transforms:
+            if self.has_transform_list():
+                for transform in self.transforms:
                     if transform.name == SupportedTransform.NORMALIZE.value:
-                        transform.mean = data_model.mean
-                        transform.std = data_model.std
+                        transform.mean = self.mean
+                        transform.std = self.std
 
-        return data_model
+        return self
 
     @model_validator(mode="after")
-    def validate_dimensions(cls, data_model: DataModel) -> DataModel:
+    def validate_dimensions(self: Self) -> Self:
         """
         Validate 2D/3D dimensions between axes, patch size and transforms.
 
-        Parameters
-        ----------
-        data_model : DataModel
-            Data model.
-
         Returns
         -------
-        DataModel
+        Self
             Validated data model.
 
         Raises
@@ -294,35 +279,35 @@ class DataModel(BaseModel):
         ValueError
             If the transforms are not valid.
         """
-        if "Z" in data_model.axes:
-            if len(data_model.patch_size) != 3:
+        if "Z" in self.axes:
+            if len(self.patch_size) != 3:
                 raise ValueError(
                     f"Patch size must have 3 dimensions if the data is 3D "
-                    f"({data_model.axes})."
+                    f"({self.axes})."
                 )
 
-            if data_model.has_transform_list():
-                for transform in data_model.transforms:
+            if self.has_transform_list():
+                for transform in self.transforms:
                     if transform.name == SupportedTransform.NDFLIP:
                         transform.is_3D = True
                     elif transform.name == SupportedTransform.XY_RANDOM_ROTATE90:
                         transform.is_3D = True
 
         else:
-            if len(data_model.patch_size) != 2:
+            if len(self.patch_size) != 2:
                 raise ValueError(
                     f"Patch size must have 3 dimensions if the data is 3D "
-                    f"({data_model.axes})."
+                    f"({self.axes})."
                 )
 
-            if data_model.has_transform_list():
-                for transform in data_model.transforms:
+            if self.has_transform_list():
+                for transform in self.transforms:
                     if transform.name == SupportedTransform.NDFLIP:
                         transform.is_3D = False
                     elif transform.name == SupportedTransform.XY_RANDOM_ROTATE90:
                         transform.is_3D = False
 
-        return data_model
+        return self
 
     def __str__(self) -> str:
         """

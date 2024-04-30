@@ -9,6 +9,7 @@ from typing import Dict, List, Literal, Union
 import yaml
 from bioimageio.spec.generic.v0_3 import CiteEntry
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from typing_extensions import Self
 
 from .algorithm_model import AlgorithmModel
 from .data_model import DataModel
@@ -197,7 +198,7 @@ class Configuration(BaseModel):
         return name
 
     @model_validator(mode="after")
-    def validate_3D(self: Configuration) -> Configuration:
+    def validate_3D(self: Self) -> Self:
         """
         Change algorithm dimensions to match data.axes.
 
@@ -205,7 +206,7 @@ class Configuration(BaseModel):
 
         Returns
         -------
-        Configuration
+        Self
             Validated configuration.
         """
         if self.algorithm_config.algorithm != SupportedAlgorithm.CUSTOM:
@@ -221,7 +222,7 @@ class Configuration(BaseModel):
         return self
 
     @model_validator(mode="after")
-    def validate_algorithm_and_data(self: Configuration) -> Configuration:
+    def validate_algorithm_and_data(self: Self) -> Self:
         """
         Validate algorithm and data compatibility.
 
@@ -232,7 +233,7 @@ class Configuration(BaseModel):
 
         Returns
         -------
-        Configuration
+        Self
             Validated configuration.
         """
         if self.algorithm_config.algorithm == SupportedAlgorithm.N2V:
