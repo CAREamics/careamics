@@ -9,16 +9,16 @@ except PackageNotFoundError:
 
 __all__ = [
     "CAREamist",
-    "CAREamicsModule",
+    "CAREamicsModuleWrapper",
     "Configuration",
     "load_configuration",
     "save_configuration",
-    "CAREamicsTrainDataModule",
-    "CAREamicsPredictDataModule",
+    "TrainingDataWrapper",
+    "PredictDataWrapper",
 ]
 
 from .careamist import CAREamist
 from .config import Configuration, load_configuration, save_configuration
-from .lightning_datamodule import CAREamicsTrainDataModule
-from .lightning_module import CAREamicsModule
-from .lightning_prediction_datamodule import CAREamicsPredictDataModule
+from .lightning_datamodule import TrainingDataWrapper
+from .lightning_module import CAREamicsModuleWrapper
+from .lightning_prediction_datamodule import PredictDataWrapper

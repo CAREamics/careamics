@@ -28,9 +28,9 @@ DatasetType = Union[InMemoryDataset, PathIterableDataset]
 logger = get_logger(__name__)
 
 
-class CAREamicsWood(L.LightningDataModule):
+class CAREamicsTrainData(L.LightningDataModule):
     """
-    LightningDataModule for training and validation datasets.
+    CAREamics Ligthning training and validation data module.
 
     The data module can be used with Path, str or numpy arrays. In the case of
     numpy arrays, it loads and computes all the patches in memory. For Path and str
@@ -353,9 +353,12 @@ class CAREamicsWood(L.LightningDataModule):
         )
 
 
-class CAREamicsTrainDataModule(CAREamicsWood):
+class TrainingDataWrapper(CAREamicsTrainData):
     """
-    LightningDataModule wrapper for training and validation datasets.
+    Wrapper around the CAREamics Lightning training data module.
+
+    This class is used to explicitely pass the parameters usually contained in a
+    `data_model` configuration.
 
     Since the lightning datamodule has no access to the model, make sure that the
     parameters passed to the datamodule are consistent with the model's requirements and

@@ -17,7 +17,7 @@ from careamics.transforms import Denormalize, ImageRestorationTTA
 from careamics.utils.torch_utils import get_optimizer, get_scheduler
 
 
-class CAREamicsKiln(L.LightningModule):
+class CAREamicsModule(L.LightningModule):
     """
     CAREamics Lightning module.
 
@@ -192,7 +192,7 @@ class CAREamicsKiln(L.LightningModule):
         }
 
 
-class CAREamicsModule(CAREamicsKiln):
+class CAREamicsModuleWrapper(CAREamicsModule):
     """Class defining the API for CAREamics Lightning layer.
 
     This class exposes parameters used to create an AlgorithmModel instance, triggering

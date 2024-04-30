@@ -6,12 +6,12 @@ from typing import Tuple, Union
 from torch import load
 
 from careamics.config import Configuration
-from careamics.lightning_module import CAREamicsKiln
+from careamics.lightning_module import CAREamicsModule
 from careamics.model_io.bmz_io import load_from_bmz
 from careamics.utils import check_path_exists
 
 
-def load_pretrained(path: Union[Path, str]) -> Tuple[CAREamicsKiln, Configuration]:
+def load_pretrained(path: Union[Path, str]) -> Tuple[CAREamicsModule, Configuration]:
     """
     Load a pretrained model from a checkpoint or a BioImage Model Zoo model.
 
@@ -44,7 +44,7 @@ def load_pretrained(path: Union[Path, str]) -> Tuple[CAREamicsKiln, Configuratio
         )
 
 
-def _load_checkpoint(path: Union[Path, str]) -> Tuple[CAREamicsKiln, Configuration]:
+def _load_checkpoint(path: Union[Path, str]) -> Tuple[CAREamicsModule, Configuration]:
     """
     Load a model from a checkpoint and return both model and configuration.
 
@@ -75,6 +75,6 @@ def _load_checkpoint(path: Union[Path, str]) -> Tuple[CAREamicsKiln, Configurati
             f"checkpoint: {checkpoint.keys()}"
         ) from e
 
-    model = CAREamicsKiln.load_from_checkpoint(path)
+    model = CAREamicsModule.load_from_checkpoint(path)
 
     return model, Configuration(**cfg_dict)

@@ -62,9 +62,9 @@ def _collate_tiles(batch: List[Tuple[np.ndarray, TileInformation]]) -> Any:
         return default_collate(new_batch)
 
 
-class CAREamicsClay(L.LightningDataModule):
+class CAREamicsPredictData(L.LightningDataModule):
     """
-    LightningDataModule for prediction dataset.
+    CAREamics Lightning prediction data module.
 
     The data module can be used with Path, str or numpy arrays. The data can be either
     a folder containing images or a single file.
@@ -238,9 +238,12 @@ class CAREamicsClay(L.LightningDataModule):
         )  # TODO check workers are used
 
 
-class CAREamicsPredictDataModule(CAREamicsClay):
+class PredictDataWrapper(CAREamicsPredictData):
     """
-    LightningDataModule wrapper of an inference dataset.
+    Wrapper around the CAREamics inference Lightning data module.
+
+    This class is used to explicitely pass the parameters usually contained in a
+    `inference_model` configuration.
 
     Since the lightning datamodule has no access to the model, make sure that the
     parameters passed to the datamodule are consistent with the model's requirements
