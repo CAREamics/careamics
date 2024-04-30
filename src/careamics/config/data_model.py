@@ -141,10 +141,9 @@ class DataModel(BaseModel):
         ValueError
             If the patch size is not a power of 2.
         """
-        patch_validated = patch_size_ge_than_8_power_of_2(patch_list)
-        assert patch_validated is not None, "Patch cannot be None."
+        patch_size_ge_than_8_power_of_2(patch_list)
 
-        return patch_validated
+        return patch_list
 
     @field_validator("axes")
     @classmethod

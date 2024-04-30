@@ -111,7 +111,9 @@ class InferenceModel(BaseModel):
         ValueError
             If the patch size is not a power of 2.
         """
-        return patch_size_ge_than_8_power_of_2(tile_list)
+        patch_size_ge_than_8_power_of_2(tile_list)
+
+        return tile_list
 
     @field_validator("axes")
     @classmethod
