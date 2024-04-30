@@ -726,12 +726,16 @@ class CAREamist:
         if input_patch.shape[0] > 1:
             input_patch = input_patch[0:1, ...]  # keep singleton dim
 
-        # axes need to be without S
-        axes = self.cfg.data_config.axes.replace("S", "")
+        # axes need to be reformated for the export because reshaping was done in the
+        # datamodule
+        if "Z" in self.cfg.data_config.axes:
+            axes = "SZCYX"
+        else:
+            axes = "SCYX"
 
         # predict output, remove extra dimensions for the purpose of the prediction
         output_patch = self.predict(
-            input_patch.squeeze(),
+            input_patch,
             data_type=SupportedData.ARRAY.value,
             axes=axes,
             tta_transforms=False,

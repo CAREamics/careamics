@@ -58,7 +58,8 @@ def test_careamics_kiln_unet_2D_depth_2_shape(shape):
 
     # instantiate CAREamicsKiln
     model = CAREamicsKiln(algo_config)
-
+    # set model to evaluation mode to avoid batch dimension error
+    model.model.eval()
     # test forward pass
     x = torch.rand((1, 1, *shape))
     y: torch.Tensor = model.forward(x)
@@ -92,7 +93,8 @@ def test_careamics_kiln_unet_2D_depth_3_shape(shape):
 
     # instantiate CAREamicsKiln
     model = CAREamicsKiln(algo_config)
-
+    # set model to evaluation mode to avoid batch dimension error
+    model.model.eval()
     # test forward pass
     x = torch.rand((1, 1, *shape))
     y: torch.Tensor = model.forward(x)
@@ -124,7 +126,8 @@ def test_careamics_kiln_unet_depth_2_3D(shape):
 
     # instantiate CAREamicsKiln
     model = CAREamicsKiln(algo_config)
-
+    # set model to evaluation mode to avoid batch dimension error
+    model.model.eval()
     # test forward pass
     x = torch.rand((1, 1, *shape))
     y: torch.Tensor = model.forward(x)
@@ -156,7 +159,8 @@ def test_careamics_kiln_unet_depth_3_3D(shape):
 
     # instantiate CAREamicsKiln
     model = CAREamicsKiln(algo_config)
-
+    # set model to evaluation mode to avoid batch dimension error
+    model.model.eval()
     # test forward pass
     x = torch.rand((1, 1, *shape))
     y: torch.Tensor = model.forward(x)
@@ -180,13 +184,14 @@ def test_careamics_kiln_unet_depth_2_channels_2D(n_channels):
 
     # instantiate CAREamicsKiln
     model = CAREamicsKiln(algo_config)
-
+    # set model to evaluation mode to avoid batch dimension error
+    model.model.eval()
     # test forward pass
     x = torch.rand((1, n_channels, 32, 32))
     y: torch.Tensor = model.forward(x)
     assert y.shape == x.shape
 
-
+@pytest.mark.parametrize("n_channels", [1, 3, 4])
 def test_careamics_kiln_unet_depth_3_channels_2D(n_channels):
     algo_dict = {
         "algorithm": "n2n",
@@ -203,7 +208,8 @@ def test_careamics_kiln_unet_depth_3_channels_2D(n_channels):
 
     # instantiate CAREamicsKiln
     model = CAREamicsKiln(algo_config)
-
+    # set model to evaluation mode to avoid batch dimension error
+    model.model.eval()
     # test forward pass
     x = torch.rand((1, n_channels, 64, 64))
     y: torch.Tensor = model.forward(x)
@@ -216,7 +222,7 @@ def test_careamics_kiln_unet_depth_2_channels_3D(n_channels):
         "algorithm": "n2n",
         "model": {
             "architecture": "UNet",
-            "conv_dims": 2,
+            "conv_dims": 3,
             "in_channels": n_channels,
             "num_classes": n_channels,
             "depth": 2,
@@ -227,9 +233,10 @@ def test_careamics_kiln_unet_depth_2_channels_3D(n_channels):
 
     # instantiate CAREamicsKiln
     model = CAREamicsKiln(algo_config)
-
+    # set model to evaluation mode to avoid batch dimension error
+    model.model.eval()
     # test forward pass
-    x = torch.rand((1, n_channels, 16, 32, 32))
+    x = torch.rand((2, n_channels, 16, 32, 32))
     y: torch.Tensor = model.forward(x)
     assert y.shape == x.shape
 
@@ -240,7 +247,7 @@ def test_careamics_kiln_unet_depth_3_channels_3D(n_channels):
         "algorithm": "n2n",
         "model": {
             "architecture": "UNet",
-            "conv_dims": 2,
+            "conv_dims": 3,
             "in_channels": n_channels,
             "num_classes": n_channels,
             "depth": 3,
@@ -251,7 +258,8 @@ def test_careamics_kiln_unet_depth_3_channels_3D(n_channels):
 
     # instantiate CAREamicsKiln
     model = CAREamicsKiln(algo_config)
-
+    # set model to evaluation mode to avoid batch dimension error
+    model.model.eval()
     # test forward pass
     x = torch.rand((1, n_channels, 16, 64, 64))
     y: torch.Tensor = model.forward(x)
