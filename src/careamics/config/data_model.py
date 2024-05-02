@@ -86,7 +86,7 @@ class DataModel(BaseModel):
 
     # Dataset configuration
     data_type: Literal["array", "tiff", "custom"]  # As defined in SupportedData
-    patch_size: Union[List[int]] = Field(..., min_length=2, max_length=3)
+    patch_size: List[int] = Field(..., min_length=2, max_length=3)
     batch_size: int = Field(default=1, ge=1, validate_default=True)
     axes: str
 
@@ -117,8 +117,8 @@ class DataModel(BaseModel):
     @field_validator("patch_size")
     @classmethod
     def all_elements_power_of_2_minimum_8(
-        cls, patch_list: Union[List[int]]
-    ) -> Union[List[int]]:
+        cls, patch_list: List[int]
+    ) -> List[int]:
         """
         Validate patch size.
 
