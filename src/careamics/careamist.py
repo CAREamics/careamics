@@ -624,7 +624,7 @@ class CAREamist:
 
                 # create datamodule
                 datamodule = CAREamicsPredictData(
-                    prediction_config=prediction_config,
+                    pred_config=prediction_config,
                     pred_data=source_path,
                     read_source_func=read_source_func,
                     extension_filter=extension_filter,
@@ -641,7 +641,7 @@ class CAREamist:
             elif isinstance(source, np.ndarray):
                 # create datamodule
                 datamodule = CAREamicsPredictData(
-                    prediction_config=prediction_config,
+                    pred_config=prediction_config,
                     pred_data=source,
                     dataloader_params=dataloader_params,
                 )
