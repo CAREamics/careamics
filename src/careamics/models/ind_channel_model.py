@@ -17,7 +17,8 @@ class IndChannelModel(nn.Module):
         self, 
         model: Type[nn.Module],
         model_kwargs: Dict[str, Any],
-        in_channels_keyword: str="in_channels"
+        in_channels_keyword: str="in_channels",
+        out_channels_keyword: str="num_classes"
     ):
         """
         A class to create a model where the base model is duplicated for each 
@@ -40,6 +41,7 @@ class IndChannelModel(nn.Module):
             If the `in_channels_keyword` is not found in the 
             `model_kwargs`.
         """
+        super().__init__()
 
         # get the number of input channels
         try:
@@ -53,12 +55,13 @@ class IndChannelModel(nn.Module):
         # Create a copy of the model config but for a single channel
         model_config_single_channel = model_kwargs.copy()
         setitem(model_config_single_channel, in_channels_keyword, 1)
+        setitem(model_config_single_channel, out_channels_keyword, 1)
 
         # Create a seperate model for each channel
-        self.channel_models = [
+        self.channel_models = nn.ModuleList([
             model(**model_config_single_channel)
             for _ in range(in_channels)
-        ]
+        ])
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -82,7 +85,7 @@ class IndChannelModel(nn.Module):
         y = []
         # Pass each channel to each model
         for i, model in enumerate(self.channel_models):
-            y.append(model(x[[i]]))
+            y.append(model(x[:, [i], ...]))
 
-        return torch.stack(y)
+        return torch.cat(y, dim=1)
         
