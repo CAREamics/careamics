@@ -188,7 +188,9 @@ class UnetDecoder(nn.Module):
             decoder_blocks.append(
                 Conv_Block(
                     conv_dim,
-                    in_channels=in_channels + in_channels // 2 if n > 0 else in_channels,
+                    in_channels=in_channels + in_channels // 2
+                    if n > 0
+                    else in_channels,
                     out_channels=out_channels,
                     intermediate_channel_multiplier=2,
                     dropout_perc=dropout,
