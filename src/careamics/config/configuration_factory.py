@@ -19,7 +19,8 @@ from .support import (
 from .training_model import TrainingModel
 
 
-def create_n2n_configuration(
+def _create_supervised_configuration(
+    algorithm: Literal["care", "n2n"],
     experiment_name: str,
     data_type: Literal["array", "tiff", "custom"],
     axes: str,
@@ -27,28 +28,18 @@ def create_n2n_configuration(
     batch_size: int,
     num_epochs: int,
     use_augmentations: bool = True,
-    use_n2v2: bool = False,
+    loss: Literal["mae", "mse"] = "mae",
     n_channels: int = 1,
     logger: Literal["wandb", "tensorboard", "none"] = "none",
     model_kwargs: Optional[dict] = None,
 ) -> Configuration:
     """
-    Create a configuration for training N2V.
-
-    If "Z" is present in `axes`, then `path_size` must be a list of length 3, otherwise
-    2.
-
-    By setting `use_augmentations` to False, the only transformation applied will be
-    normalization and N2V manipulation.
-
-    The parameter `use_n2v2` overrides the corresponding `n2v2` that can be passed
-    in `model_kwargs`.
-
-    If you pass "horizontal" or "vertical" to `struct_n2v_axis`, then structN2V mask
-    will be applied to each manipulated pixel.
+    Create a configuration for training CARE or Noise2Noise.
 
     Parameters
     ----------
+    algorithm : Literal["care", "n2n"]
+        Algorithm to use.
     experiment_name : str
         Name of the experiment.
     data_type : Literal["array", "tiff", "custom"]
@@ -63,18 +54,10 @@ def create_n2n_configuration(
         Number of epochs.
     use_augmentations : bool, optional
         Whether to use augmentations, by default True.
-    use_n2v2 : bool, optional
-        Whether to use N2V2, by default False.
+    loss : Literal["mae", "mse"], optional
+        Loss function to use, by default "mae".
     n_channels : int, optional
         Number of channels (in and out), by default 1.
-    roi_size : int, optional
-        N2V pixel manipulation area, by default 11.
-    masked_pixel_percentage : float, optional
-        Percentage of pixels masked in each patch, by default 0.2.
-    struct_n2v_axis : Literal["horizontal", "vertical", "none"], optional
-        Axis along which to apply structN2V mask, by default "none".
-    struct_n2v_span : int, optional
-        Span of the structN2V mask, by default 5.
     logger : Literal["wandb", "tensorboard", "none"], optional
         Logger to use, by default "none".
     model_kwargs : dict, optional
@@ -83,12 +66,11 @@ def create_n2n_configuration(
     Returns
     -------
     Configuration
-        Configuration for training N2V.
+        Configuration for training CARE or Noise2Noise.
     """
     # model
     if model_kwargs is None:
         model_kwargs = {}
-    model_kwargs["n2v2"] = use_n2v2
     model_kwargs["conv_dims"] = 3 if "Z" in axes else 2
     model_kwargs["in_channels"] = n_channels
     model_kwargs["num_classes"] = n_channels
@@ -100,8 +82,8 @@ def create_n2n_configuration(
 
     # algorithm model
     algorithm = AlgorithmModel(
-        algorithm=SupportedAlgorithm.N2V.value,
-        loss=SupportedLoss.N2V.value,
+        algorithm=algorithm,
+        loss=loss,
         model=unet_model,
     )
 
@@ -152,6 +134,143 @@ def create_n2n_configuration(
     return configuration
 
 
+def create_care_configuration(
+    experiment_name: str,
+    data_type: Literal["array", "tiff", "custom"],
+    axes: str,
+    patch_size: List[int],
+    batch_size: int,
+    num_epochs: int,
+    use_augmentations: bool = True,
+    loss: Literal["mae", "mse"] = "mae",
+    n_channels: int = 1,
+    logger: Literal["wandb", "tensorboard", "none"] = "none",
+    model_kwargs: Optional[dict] = None,
+) -> Configuration:
+    """
+    Create a configuration for training CARE.
+
+    If "Z" is present in `axes`, then `path_size` must be a list of length 3, otherwise
+    2.
+
+    By setting `use_augmentations` to False, the only transformation applied will be
+    normalization.
+
+    Parameters
+    ----------
+    experiment_name : str
+        Name of the experiment.
+    data_type : Literal["array", "tiff", "custom"]
+        Type of the data.
+    axes : str
+        Axes of the data (e.g. SYX).
+    patch_size : List[int]
+        Size of the patches along the spatial dimensions (e.g. [64, 64]).
+    batch_size : int
+        Batch size.
+    num_epochs : int
+        Number of epochs.
+    use_augmentations : bool, optional
+        Whether to use augmentations, by default True.
+    loss : Literal["mae", "mse"], optional
+        Loss function to use, by default "mae".
+    n_channels : int, optional
+        Number of channels (in and out), by default 1.
+    logger : Literal["wandb", "tensorboard", "none"], optional
+        Logger to use, by default "none".
+    model_kwargs : dict, optional
+        UNetModel parameters, by default {}.
+
+    Returns
+    -------
+    Configuration
+        Configuration for training CARE.
+    """
+    return _create_supervised_configuration(
+        algorithm="care",
+        experiment_name=experiment_name,
+        data_type=data_type,
+        axes=axes,
+        patch_size=patch_size,
+        batch_size=batch_size,
+        num_epochs=num_epochs,
+        use_augmentations=use_augmentations,
+        loss=loss,
+        # TODO in the future we might support different in and out channels for CARE
+        n_channels=n_channels,
+        logger=logger,
+        model_kwargs=model_kwargs,
+    )
+
+
+def create_n2n_configuration(
+    experiment_name: str,
+    data_type: Literal["array", "tiff", "custom"],
+    axes: str,
+    patch_size: List[int],
+    batch_size: int,
+    num_epochs: int,
+    use_augmentations: bool = True,
+    loss: Literal["mae", "mse"] = "mae",
+    n_channels: int = 1,
+    logger: Literal["wandb", "tensorboard", "none"] = "none",
+    model_kwargs: Optional[dict] = None,
+) -> Configuration:
+    """
+    Create a configuration for training Noise2Noise.
+
+    If "Z" is present in `axes`, then `path_size` must be a list of length 3, otherwise
+    2.
+
+    By setting `use_augmentations` to False, the only transformation applied will be
+    normalization.
+
+    Parameters
+    ----------
+    experiment_name : str
+        Name of the experiment.
+    data_type : Literal["array", "tiff", "custom"]
+        Type of the data.
+    axes : str
+        Axes of the data (e.g. SYX).
+    patch_size : List[int]
+        Size of the patches along the spatial dimensions (e.g. [64, 64]).
+    batch_size : int
+        Batch size.
+    num_epochs : int
+        Number of epochs.
+    use_augmentations : bool, optional
+        Whether to use augmentations, by default True.
+    loss : Literal["mae", "mse"], optional
+        Loss function to use, by default "mae".
+    n_channels : int, optional
+        Number of channels (in and out), by default 1.
+    logger : Literal["wandb", "tensorboard", "none"], optional
+        Logger to use, by default "none".
+    model_kwargs : dict, optional
+        UNetModel parameters, by default {}.
+
+    Returns
+    -------
+    Configuration
+        Configuration for training Noise2Noise.
+    """
+    return _create_supervised_configuration(
+        algorithm="n2n",
+        experiment_name=experiment_name,
+        data_type=data_type,
+        axes=axes,
+        patch_size=patch_size,
+        batch_size=batch_size,
+        num_epochs=num_epochs,
+        use_augmentations=use_augmentations,
+        loss=loss,
+        n_channels=n_channels,
+        logger=logger,
+        model_kwargs=model_kwargs,
+    )
+
+
 def create_n2v_configuration(
     experiment_name: str,
     data_type: Literal["array", "tiff", "custom"],
@@ -170,7 +289,7 @@ def create_n2v_configuration(
     model_kwargs: Optional[dict] = None,
 ) -> Configuration:
     """
-    Create a configuration for training N2V.
+    Create a configuration for training Noise2Void.
 
     N2V uses a UNet model to denoise images in a self-supervised manner. To use its
     variants structN2V and N2V2, set the `struct_n2v_axis` and `struct_n2v_span`
