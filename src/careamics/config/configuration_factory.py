@@ -100,8 +100,8 @@ def create_n2n_configuration(
 
     # algorithm model
     algorithm = AlgorithmModel(
-        algorithm=SupportedAlgorithm.N2V.value,
-        loss=SupportedLoss.N2V.value,
+        algorithm=SupportedAlgorithm.N2N.value,
+        loss=SupportedLoss.MAE.value,
         model=unet_model,
     )
 
