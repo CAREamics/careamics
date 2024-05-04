@@ -157,6 +157,7 @@ class Configuration(BaseModel):
 
     # Sub-configurations
     algorithm_config: AlgorithmModel
+
     data_config: DataModel
     training_config: TrainingModel
 
@@ -591,6 +592,6 @@ def save_configuration(config: Configuration, path: Union[str, Path]) -> Path:
     # save configuration as dictionary to yaml
     with open(config_path, "w") as f:
         # dump configuration
-        yaml.dump(config.model_dump(), f, default_flow_style=False)
+        yaml.dump(config.model_dump(), f, default_flow_style=False, sort_keys=False)
 
     return config_path
