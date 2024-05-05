@@ -26,14 +26,14 @@ from bioimageio.spec.model.v0_5 import (
     WeightsDescr,
 )
 
-from careamics.config import Configuration, DataModel
+from careamics.config import Configuration, DataConfig
 
 from ._readme_factory import readme_factory
 
 
 def _create_axes(
     array: np.ndarray,
-    data_config: DataModel,
+    data_config: DataConfig,
     channel_names: Optional[List[str]] = None,
     is_input: bool = True,
 ) -> List[AxisBase]:
@@ -100,7 +100,7 @@ def _create_axes(
 def _create_inputs_ouputs(
     input_array: np.ndarray,
     output_array: np.ndarray,
-    data_config: DataModel,
+    data_config: DataConfig,
     input_path: Union[Path, str],
     output_path: Union[Path, str],
     channel_names: Optional[List[str]] = None,

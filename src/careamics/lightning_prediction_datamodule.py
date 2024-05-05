@@ -1,3 +1,4 @@
+"""Prediction Lightning data modules."""
 from pathlib import Path
 from typing import Any, Callable, List, Literal, Optional, Tuple, Union
 
@@ -7,7 +8,7 @@ from albumentations import Compose
 from torch.utils.data import DataLoader
 from torch.utils.data.dataloader import default_collate
 
-from careamics.config import InferenceModel
+from careamics.config import InferenceConfig
 from careamics.config.support import SupportedData
 from careamics.config.tile_information import TileInformation
 from careamics.dataset.dataset_utils import (
@@ -62,9 +63,9 @@ def _collate_tiles(batch: List[Tuple[np.ndarray, TileInformation]]) -> Any:
         return default_collate(new_batch)
 
 
-class CAREamicsClay(L.LightningDataModule):
+class CAREamicsPredictData(L.LightningDataModule):
     """
-    LightningDataModule for prediction dataset.
+    CAREamics Lightning prediction data module.
 
     The data module can be used with Path, str or numpy arrays. The data can be either
     a folder containing images or a single file.
@@ -79,7 +80,7 @@ class CAREamicsClay(L.LightningDataModule):
 
     Parameters
     ----------
-    prediction_config : InferenceModel
+    pred_config : InferenceModel
         Pydantic model for CAREamics prediction configuration.
     pred_data : Union[Path, str, np.ndarray]
         Prediction data, can be a path to a folder, a file or a numpy array.
@@ -93,7 +94,7 @@ class CAREamicsClay(L.LightningDataModule):
 
     def __init__(
         self,
-        prediction_config: InferenceModel,
+        pred_config: InferenceConfig,
         pred_data: Union[Path, str, np.ndarray],
         read_source_func: Optional[Callable] = None,
         extension_filter: str = "",
@@ -115,7 +116,7 @@ class CAREamicsClay(L.LightningDataModule):
 
         Parameters
         ----------
-        prediction_config : InferenceModel
+        pred_config : InferenceModel
             Pydantic model for CAREamics prediction configuration.
         pred_data : Union[Path, str, np.ndarray]
             Prediction data, can be a path to a folder, a file or a numpy array.
@@ -142,51 +143,53 @@ class CAREamicsClay(L.LightningDataModule):
         super().__init__()
 
         # check that a read source function is provided for custom types
-        if (
-            prediction_config.data_type == SupportedData.CUSTOM
-            and read_source_func is None
-        ):
+        if pred_config.data_type == SupportedData.CUSTOM and read_source_func is None:
             raise ValueError(
                 f"Data type {SupportedData.CUSTOM} is not allowed without "
-                f"specifying a `read_source_func`."
+                f"specifying a `read_source_func` and an `extension_filer`."
             )
 
-        # and that arrays are passed, if array type specified
-        elif prediction_config.data_type == SupportedData.ARRAY and not isinstance(
-            pred_data, np.ndarray
+        # check correct input type
+        if (
+            isinstance(pred_data, np.ndarray)
+            and pred_config.data_type != SupportedData.ARRAY
         ):
             raise ValueError(
-                f"Expected array input (see configuration.data.data_type), but got "
-                f"{type(pred_data)} instead."
+                f"Received a numpy array as input, but the data type was set to "
+                f"{pred_config.data_type}. Set the data type "
+                f"to {SupportedData.ARRAY} to predict on numpy arrays."
             )
 
         # and that Path or str are passed, if tiff file type specified
-        elif prediction_config.data_type == SupportedData.TIFF and not (
-            isinstance(pred_data, Path) or isinstance(pred_data, str)
+        elif (isinstance(pred_data, Path) or isinstance(pred_config, str)) and (
+            pred_config.data_type != SupportedData.TIFF
+            and pred_config.data_type != SupportedData.CUSTOM
         ):
             raise ValueError(
-                f"Expected Path or str input (see configuration.data.data_type), "
-                f"but got {type(pred_data)} instead."
+                f"Received a path as input, but the data type was neither set to "
+                f"{SupportedData.TIFF} nor {SupportedData.CUSTOM}. Set the data type "
+                f" to {SupportedData.TIFF} or "
+                f"{SupportedData.CUSTOM} to predict on files."
             )
 
         # configuration data
-        self.prediction_config = prediction_config
-        self.data_type = prediction_config.data_type
-        self.batch_size = prediction_config.batch_size
+        self.prediction_config = pred_config
+        self.data_type = pred_config.data_type
+        self.batch_size = pred_config.batch_size
         self.dataloader_params = dataloader_params
 
         self.pred_data = pred_data
-        self.tile_size = prediction_config.tile_size
-        self.tile_overlap = prediction_config.tile_overlap
+        self.tile_size = pred_config.tile_size
+        self.tile_overlap = pred_config.tile_overlap
 
         # read source function
-        if prediction_config.data_type == SupportedData.CUSTOM:
+        if pred_config.data_type == SupportedData.CUSTOM:
             # mypy check
             assert read_source_func is not None
 
             self.read_source_func: Callable = read_source_func
-        elif prediction_config.data_type != SupportedData.ARRAY:
-            self.read_source_func = get_read_func(prediction_config.data_type)
+        elif pred_config.data_type != SupportedData.ARRAY:
+            self.read_source_func = get_read_func(pred_config.data_type)
 
         self.extension_filter = extension_filter
 
@@ -238,9 +241,12 @@ class CAREamicsClay(L.LightningDataModule):
         )  # TODO check workers are used
 
 
-class CAREamicsPredictDataModule(CAREamicsClay):
+class PredictDataWrapper(CAREamicsPredictData):
     """
-    LightningDataModule wrapper of an inference dataset.
+    Wrapper around the CAREamics inference Lightning data module.
+
+    This class is used to explicitely pass the parameters usually contained in a
+    `inference_model` configuration.
 
     Since the lightning datamodule has no access to the model, make sure that the
     parameters passed to the datamodule are consistent with the model's requirements
@@ -329,6 +335,12 @@ class CAREamicsPredictDataModule(CAREamicsClay):
             Prediction data.
         data_type : Union[Literal["array", "tiff", "custom"], SupportedData]
             Data type, see `SupportedData` for available options.
+        mean : float
+            Mean value for normalization, only used if Normalization is defined in the
+            transforms.
+        std : float
+            Standard deviation value for normalization, only used if Normalization is
+            defined in the transform.
         tile_size : List[int]
             Tile size, 2D or 3D tile size.
         tile_overlap : List[int]
@@ -339,12 +351,6 @@ class CAREamicsPredictDataModule(CAREamicsClay):
             Batch size.
         tta_transforms : bool, optional
             Use test time augmentation, by default True.
-        mean : Optional[float], optional
-            Mean value for normalization, only used if Normalization is defined, by
-            default None.
-        std : Optional[float], optional
-            Standard deviation value for normalization, only used if Normalization is
-            defined, by default None.
         transforms : Optional[Union[List[TRANSFORMS_UNION], Compose]], optional
             List of transforms to apply to prediction patches. If None, default
             transforms are applied.
@@ -374,7 +380,7 @@ class CAREamicsPredictDataModule(CAREamicsClay):
             prediction_dict["transforms"] = transforms
 
         # validate configuration
-        self.prediction_config = InferenceModel(**prediction_dict)
+        self.prediction_config = InferenceConfig(**prediction_dict)
 
         # sanity check on the dataloader parameters
         if "batch_size" in dataloader_params:
@@ -382,7 +388,7 @@ class CAREamicsPredictDataModule(CAREamicsClay):
             del dataloader_params["batch_size"]
 
         super().__init__(
-            prediction_config=self.prediction_config,
+            pred_config=self.prediction_config,
             pred_data=pred_data,
             read_source_func=read_source_func,
             extension_filter=extension_filter,

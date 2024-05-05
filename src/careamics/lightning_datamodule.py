@@ -1,3 +1,4 @@
+"""Training and validation Lightning data modules."""
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Literal, Optional, Union
 
@@ -6,7 +7,7 @@ import pytorch_lightning as L
 from albumentations import Compose
 from torch.utils.data import DataLoader
 
-from careamics.config import DataModel
+from careamics.config import DataConfig
 from careamics.config.data_model import TRANSFORMS_UNION
 from careamics.config.support import SupportedData
 from careamics.dataset.dataset_utils import (
@@ -28,9 +29,9 @@ DatasetType = Union[InMemoryDataset, PathIterableDataset]
 logger = get_logger(__name__)
 
 
-class CAREamicsWood(L.LightningDataModule):
+class CAREamicsTrainData(L.LightningDataModule):
     """
-    LightningDataModule for training and validation datasets.
+    CAREamics Ligthning training and validation data module.
 
     The data module can be used with Path, str or numpy arrays. In the case of
     numpy arrays, it loads and computes all the patches in memory. For Path and str
@@ -53,11 +54,70 @@ class CAREamicsWood(L.LightningDataModule):
 
     You can also provide a `fnmatch` and `Path.rglob` compatible expression (e.g.
     "*.czi") to filter the files extension using `extension_filter`.
+
+    Parameters
+    ----------
+    data_config : DataModel
+        Pydantic model for CAREamics data configuration.
+    train_data : Union[Path, str, np.ndarray]
+        Training data, can be a path to a folder, a file or a numpy array.
+    val_data : Optional[Union[Path, str, np.ndarray]], optional
+        Validation data, can be a path to a folder, a file or a numpy array, by
+        default None.
+    train_data_target : Optional[Union[Path, str, np.ndarray]], optional
+        Training target data, can be a path to a folder, a file or a numpy array, by
+        default None.
+    val_data_target : Optional[Union[Path, str, np.ndarray]], optional
+        Validation target data, can be a path to a folder, a file or a numpy array,
+        by default None.
+    read_source_func : Optional[Callable], optional
+        Function to read the source data, by default None. Only used for `custom`
+        data type (see DataModel).
+    extension_filter : str, optional
+        Filter for file extensions, by default "". Only used for `custom` data types
+        (see DataModel).
+    val_percentage : float, optional
+        Percentage of the training data to use for validation, by default 0.1. Only
+        used if `val_data` is None.
+    val_minimum_split : int, optional
+        Minimum number of patches or files to split from the training data for
+        validation, by default 5. Only used if `val_data` is None.
+    use_in_memory : bool, optional
+        Use in memory dataset if possible, by default True.
+
+    Attributes
+    ----------
+    data_config : DataModel
+        CAREamics data configuration.
+    data_type : SupportedData
+        Expected data type, one of "tiff", "array" or "custom".
+    batch_size : int
+        Batch size.
+    use_in_memory : bool
+        Whether to use in memory dataset if possible.
+    train_data : Union[Path, str, np.ndarray]
+        Training data.
+    val_data : Optional[Union[Path, str, np.ndarray]]
+        Validation data.
+    train_data_target : Optional[Union[Path, str, np.ndarray]]
+        Training target data.
+    val_data_target : Optional[Union[Path, str, np.ndarray]]
+        Validation target data.
+    val_percentage : float
+        Percentage of the training data to use for validation, if no validation data is
+        provided.
+    val_minimum_split : int
+        Minimum number of patches or files to split from the training data for
+        validation, if no validation data is provided.
+    read_source_func : Optional[Callable]
+        Function to read the source data, used if `data_type` is `custom`.
+    extension_filter : str
+        Filter for file extensions, used if `data_type` is `custom`.
     """
 
     def __init__(
         self,
-        data_config: DataModel,
+        data_config: DataConfig,
         train_data: Union[Path, str, np.ndarray],
         val_data: Optional[Union[Path, str, np.ndarray]] = None,
         train_data_target: Optional[Union[Path, str, np.ndarray]] = None,
@@ -98,6 +158,8 @@ class CAREamicsWood(L.LightningDataModule):
         val_minimum_split : int, optional
             Minimum number of patches or files to split from the training data for
             validation, by default 5. Only used if `val_data` is None.
+        use_in_memory : bool, optional
+            Use in memory dataset if possible, by default True.
 
         Raises
         ------
@@ -128,25 +190,30 @@ class CAREamicsWood(L.LightningDataModule):
         if data_config.data_type == SupportedData.CUSTOM and read_source_func is None:
             raise ValueError(
                 f"Data type {SupportedData.CUSTOM} is not allowed without "
-                f"specifying a `read_source_func`."
+                f"specifying a `read_source_func` and an `extension_filer`."
             )
 
-        # and that arrays are passed, if array type specified
-        elif data_config.data_type == SupportedData.ARRAY and not isinstance(
-            train_data, np.ndarray
+        # check correct input type
+        if (
+            isinstance(train_data, np.ndarray)
+            and data_config.data_type != SupportedData.ARRAY
         ):
             raise ValueError(
-                f"Expected array input (see configuration.data.data_type), but got "
-                f"{type(train_data)} instead."
+                f"Received a numpy array as input, but the data type was set to "
+                f"{data_config.data_type}. Set the data type in the configuration "
+                f"to {SupportedData.ARRAY} to train on numpy arrays."
             )
 
         # and that Path or str are passed, if tiff file type specified
-        elif data_config.data_type == SupportedData.TIFF and (
-            not isinstance(train_data, Path) and not isinstance(train_data, str)
+        elif (isinstance(train_data, Path) or isinstance(train_data, str)) and (
+            data_config.data_type != SupportedData.TIFF
+            and data_config.data_type != SupportedData.CUSTOM
         ):
             raise ValueError(
-                f"Expected Path or str input (see configuration.data.data_type), "
-                f"but got {type(train_data)} instead."
+                f"Received a path as input, but the data type was neither set to "
+                f"{SupportedData.TIFF} nor {SupportedData.CUSTOM}. Set the data type "
+                f"in the configuration to {SupportedData.TIFF} or "
+                f"{SupportedData.CUSTOM} to train on files."
             )
 
         # configuration
@@ -231,7 +298,15 @@ class CAREamicsWood(L.LightningDataModule):
                 validate_source_target_files(self.val_files, self.val_target_files)
 
     def setup(self, *args: Any, **kwargs: Any) -> None:
-        """Hook called at the beginning of fit, validate, or predict."""
+        """Hook called at the beginning of fit, validate, or predict.
+
+        Parameters
+        ----------
+        *args : Any
+            Unused.
+        **kwargs : Any
+            Unused.
+        """
         # if numpy array
         if self.data_type == SupportedData.ARRAY:
             # train dataset
@@ -353,9 +428,12 @@ class CAREamicsWood(L.LightningDataModule):
         )
 
 
-class CAREamicsTrainDataModule(CAREamicsWood):
+class TrainingDataWrapper(CAREamicsTrainData):
     """
-    LightningDataModule wrapper for training and validation datasets.
+    Wrapper around the CAREamics Lightning training data module.
+
+    This class is used to explicitely pass the parameters usually contained in a
+    `data_model` configuration.
 
     Since the lightning datamodule has no access to the model, make sure that the
     parameters passed to the datamodule are consistent with the model's requirements and
@@ -442,11 +520,11 @@ class CAREamicsTrainDataModule(CAREamicsWood):
 
     Examples
     --------
-    Create a CAREamicsTrainDataModule with default transforms with a numpy array:
+    Create a TrainingDataWrapper with default transforms with a numpy array:
     >>> import numpy as np
-    >>> from careamics import CAREamicsTrainDataModule
+    >>> from careamics import TrainingDataWrapper
     >>> my_array = np.arange(256).reshape(16, 16)
-    >>> data_module = CAREamicsTrainDataModule(
+    >>> data_module = TrainingDataWrapper(
     ...     train_data=my_array,
     ...     data_type="array",
     ...     patch_size=(8, 8),
@@ -457,12 +535,12 @@ class CAREamicsTrainDataModule(CAREamicsWood):
     For custom data types (those not supported by CAREamics), then one can pass a read
     function and a filter for the files extension:
     >>> import numpy as np
-    >>> from careamics import CAREamicsTrainDataModule
+    >>> from careamics import TrainingDataWrapper
     >>>
     >>> def read_npy(path):
     ...     return np.load(path)
     >>>
-    >>> data_module = CAREamicsTrainDataModule(
+    >>> data_module = TrainingDataWrapper(
     ...     train_data="path/to/data",
     ...     data_type="custom",
     ...     patch_size=(8, 8),
@@ -475,7 +553,7 @@ class CAREamicsTrainDataModule(CAREamicsWood):
     If you want to use a different set of transformations, you can pass a list of
     transforms:
     >>> import numpy as np
-    >>> from careamics import CAREamicsTrainDataModule
+    >>> from careamics import TrainingDataWrapper
     >>> from careamics.config.support import SupportedTransform
     >>> my_array = np.arange(256).reshape(16, 16)
     >>> my_transforms = [
@@ -488,7 +566,7 @@ class CAREamicsTrainDataModule(CAREamicsWood):
     ...         "name": SupportedTransform.N2V_MANIPULATE.value,
     ...     }
     ... ]
-    >>> data_module = CAREamicsTrainDataModule(
+    >>> data_module = TrainingDataWrapper(
     ...     train_data=my_array,
     ...     data_type="array",
     ...     patch_size=(8, 8),
@@ -628,7 +706,7 @@ class CAREamicsTrainDataModule(CAREamicsWood):
             data_dict["transforms"] = transforms
 
         # validate configuration
-        self.data_config = DataModel(**data_dict)
+        self.data_config = DataConfig(**data_dict)
 
         # N2V specific checks, N2V, structN2V, and transforms
         if (

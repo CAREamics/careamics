@@ -26,6 +26,6 @@ class NormalizeModel(TransformModel):
         validate_assignment=True,
     )
 
-    name: Literal["Normalize"]
+    name: Literal["Normalize"] = "Normalize"
     mean: float = Field(default=0.485)  # albumentations defaults
     std: float = Field(default=0.229)

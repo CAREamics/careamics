@@ -30,7 +30,7 @@ class N2VManipulateModel(TransformModel):
         validate_assignment=True,
     )
 
-    name: Literal["N2VManipulate"]
+    name: Literal["N2VManipulate"] = "N2VManipulate"
     roi_size: int = Field(default=11, ge=3, le=21)
     masked_pixel_percentage: float = Field(default=0.2, ge=0.05, le=1.0)
     strategy: Literal["uniform", "median"] = Field(default="uniform")

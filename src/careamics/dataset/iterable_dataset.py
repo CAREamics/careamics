@@ -7,7 +7,7 @@ from typing import Any, Callable, Generator, List, Optional, Tuple, Union
 import numpy as np
 from torch.utils.data import IterableDataset, get_worker_info
 
-from ..config import DataModel, InferenceModel
+from ..config import DataConfig, InferenceConfig
 from ..config.tile_information import TileInformation
 from ..utils.logging import get_logger
 from .dataset_utils import read_tiff, reshape_array
@@ -46,7 +46,7 @@ class PathIterableDataset(IterableDataset):
 
     def __init__(
         self,
-        data_config: Union[DataModel, InferenceModel],
+        data_config: Union[DataConfig, InferenceConfig],
         src_files: List[Path],
         target_files: Optional[List[Path]] = None,
         read_source_func: Callable = read_tiff,
@@ -346,7 +346,7 @@ class IterablePredictionDataset(PathIterableDataset):
 
     def __init__(
         self,
-        prediction_config: InferenceModel,
+        prediction_config: InferenceConfig,
         src_files: List[Path],
         read_source_func: Callable = read_tiff,
         **kwargs: Any,
