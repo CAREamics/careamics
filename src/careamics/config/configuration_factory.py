@@ -69,18 +69,16 @@ def _create_supervised_configuration(
         Configuration for training CARE or Noise2Noise.
     """
     # if there are channels, we need to specify their number
-    if "C" in axes and n_channels == -1:
+    if "C" in axes and n_channels == 1:
         raise ValueError(
             f"Number of channels must be specified when using channels "
             f"(got {n_channels} channel)."
         )
-    elif "C" not in axes and n_channels != -1:
+    elif "C" not in axes and n_channels > 1:
         raise ValueError(
             f"C is not present in the axes, but number of channels is specified "
             f"(got {n_channels} channel)."
         )
-    elif n_channels == -1:
-        n_channels = 1
 
     # model
     if model_kwargs is None:
@@ -167,6 +165,10 @@ def create_care_configuration(
     If "Z" is present in `axes`, then `path_size` must be a list of length 3, otherwise
     2.
 
+    If "C" is present in `axes`, then you need to set `n_channels` to the number of
+    channels. Likewise, if you set the number of channels, then "C" must be present in
+    `axes`.
+
     By setting `use_augmentations` to False, the only transformation applied will be
     normalization.
 
@@ -236,6 +238,10 @@ def create_n2n_configuration(
     If "Z" is present in `axes`, then `path_size` must be a list of length 3, otherwise
     2.
 
+    If "C" is present in `axes`, then you need to set `n_channels` to the number of
+    channels. Likewise, if you set the number of channels, then "C" must be present in
+    `axes`.
+
     By setting `use_augmentations` to False, the only transformation applied will be
     normalization.
 
@@ -294,7 +300,7 @@ def create_n2v_configuration(
     num_epochs: int,
     use_augmentations: bool = True,
     use_n2v2: bool = False,
-    n_channels: int = -1,
+    n_channels: int = 1,
     roi_size: int = 11,
     masked_pixel_percentage: float = 0.2,
     struct_n2v_axis: Literal["horizontal", "vertical", "none"] = "none",
@@ -353,7 +359,7 @@ def create_n2v_configuration(
     use_n2v2 : bool, optional
         Whether to use N2V2, by default False.
     n_channels : int, optional
-        Number of channels (in and out), by default -1.
+        Number of channels (in and out), by default 1.
     roi_size : int, optional
         N2V pixel manipulation area, by default 11.
     masked_pixel_percentage : float, optional
@@ -433,18 +439,17 @@ def create_n2v_configuration(
     ... )
     """
     # if there are channels, we need to specify their number
-    if "C" in axes and n_channels == -1:
+    if "C" in axes and n_channels == 1:
         raise ValueError(
             f"Number of channels must be specified when using channels "
             f"(got {n_channels} channel)."
         )
-    elif "C" not in axes and n_channels != -1:
+    elif "C" not in axes and n_channels > 1:
         raise ValueError(
             f"C is not present in the axes, but number of channels is specified "
             f"(got {n_channels} channel)."
         )
-    elif n_channels == -1:
-        n_channels = 1
+
 
     # model
     if model_kwargs is None:
