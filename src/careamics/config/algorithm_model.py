@@ -10,7 +10,7 @@ from .architectures import CustomModel, UNetModel, VAEModel
 from .optimizer_models import LrSchedulerModel, OptimizerModel
 
 
-class AlgorithmModel(BaseModel):
+class AlgorithmConfig(BaseModel):
     """Algorithm configuration.
 
     This Pydantic model validates the parameters governing the components of the
@@ -45,7 +45,7 @@ class AlgorithmModel(BaseModel):
     Examples
     --------
     Minimum example:
-    >>> from careamics.config import AlgorithmModel
+    >>> from careamics.config import AlgorithmConfig
     >>> config_dict = {
     ...     "algorithm": "n2v",
     ...     "loss": "n2v",
@@ -53,11 +53,11 @@ class AlgorithmModel(BaseModel):
     ...         "architecture": "UNet",
     ...     }
     ... }
-    >>> config = AlgorithmModel(**config_dict)
+    >>> config = AlgorithmConfig(**config_dict)
 
     Using a custom model:
     >>> from torch import nn, ones
-    >>> from careamics.config import AlgorithmModel, register_model
+    >>> from careamics.config import AlgorithmConfig, register_model
     ...
     >>> @register_model(name="linear_model")
     ... class LinearModel(nn.Module):
@@ -80,7 +80,7 @@ class AlgorithmModel(BaseModel):
     ...         "out_features": 5,
     ...     }
     ... }
-    >>> config = AlgorithmModel(**config_dict)
+    >>> config = AlgorithmConfig(**config_dict)
     """
 
     # Pydantic class configuration

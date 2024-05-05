@@ -11,8 +11,8 @@ from bioimageio.spec.generic.v0_3 import CiteEntry
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from typing_extensions import Self
 
-from .algorithm_model import AlgorithmModel
-from .data_model import DataModel
+from .algorithm_model import AlgorithmConfig
+from .data_model import DataConfig
 from .references import (
     CARE,
     CUSTOM,
@@ -34,7 +34,7 @@ from .references import (
     StructN2VRef,
 )
 from .support import SupportedAlgorithm, SupportedPixelManipulation, SupportedTransform
-from .training_model import TrainingModel
+from .training_model import TrainingConfig
 from .transformations.n2v_manipulate_model import (
     N2VManipulateModel,
 )
@@ -156,10 +156,10 @@ class Configuration(BaseModel):
     )
 
     # Sub-configurations
-    algorithm_config: AlgorithmModel
+    algorithm_config: AlgorithmConfig
 
-    data_config: DataModel
-    training_config: TrainingModel
+    data_config: DataConfig
+    training_config: TrainingConfig
 
     @field_validator("experiment_name")
     @classmethod

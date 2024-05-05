@@ -7,7 +7,7 @@ import pytorch_lightning as L
 from albumentations import Compose
 from torch.utils.data import DataLoader
 
-from careamics.config import DataModel
+from careamics.config import DataConfig
 from careamics.config.data_model import TRANSFORMS_UNION
 from careamics.config.support import SupportedData
 from careamics.dataset.dataset_utils import (
@@ -117,7 +117,7 @@ class CAREamicsTrainData(L.LightningDataModule):
 
     def __init__(
         self,
-        data_config: DataModel,
+        data_config: DataConfig,
         train_data: Union[Path, str, np.ndarray],
         val_data: Optional[Union[Path, str, np.ndarray]] = None,
         train_data_target: Optional[Union[Path, str, np.ndarray]] = None,
@@ -706,7 +706,7 @@ class TrainingDataWrapper(CAREamicsTrainData):
             data_dict["transforms"] = transforms
 
         # validate configuration
-        self.data_config = DataModel(**data_dict)
+        self.data_config = DataConfig(**data_dict)
 
         # N2V specific checks, N2V, structN2V, and transforms
         if (

@@ -1,7 +1,7 @@
-from .algorithm_model import AlgorithmModel
+from .algorithm_model import AlgorithmConfig
 from .architectures import UNetModel
 from .configuration_model import Configuration
-from .data_model import DataModel
+from .data_model import DataConfig
 from .optimizer_models import LrSchedulerModel, OptimizerModel
 from .support import (
     SupportedActivation,
@@ -15,7 +15,7 @@ from .support import (
     SupportedScheduler,
     SupportedTransform,
 )
-from .training_model import TrainingModel
+from .training_model import TrainingConfig
 
 
 def full_configuration_example() -> Configuration:
@@ -27,7 +27,7 @@ def full_configuration_example() -> Configuration:
         Full configuration example.
     """
     experiment_name = "Full example"
-    algorithm_model = AlgorithmModel(
+    algorithm_model = AlgorithmConfig(
         algorithm=SupportedAlgorithm.N2V.value,
         loss=SupportedLoss.N2V.value,
         model=UNetModel(
@@ -46,7 +46,7 @@ def full_configuration_example() -> Configuration:
             name=SupportedScheduler.REDUCE_LR_ON_PLATEAU.value,
         ),
     )
-    data_model = DataModel(
+    data_model = DataConfig(
         data_type=SupportedData.ARRAY.value,
         patch_size=(256, 256),
         batch_size=8,
@@ -76,7 +76,7 @@ def full_configuration_example() -> Configuration:
             "num_workers": 4,
         },
     )
-    training_model = TrainingModel(
+    training_model = TrainingConfig(
         num_epochs=30,
         logger=SupportedLogger.WANDB.value,
     )

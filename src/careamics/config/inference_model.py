@@ -14,7 +14,7 @@ from .validators import check_axes_validity, patch_size_ge_than_8_power_of_2
 TRANSFORMS_UNION = Union[NormalizeModel]
 
 
-class InferenceModel(BaseModel):
+class InferenceConfig(BaseModel):
     """Configuration class for the prediction model."""
 
     model_config = ConfigDict(validate_assignment=True, arbitrary_types_allowed=True)

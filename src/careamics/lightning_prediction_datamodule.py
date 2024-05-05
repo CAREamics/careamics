@@ -8,7 +8,7 @@ from albumentations import Compose
 from torch.utils.data import DataLoader
 from torch.utils.data.dataloader import default_collate
 
-from careamics.config import InferenceModel
+from careamics.config import InferenceConfig
 from careamics.config.support import SupportedData
 from careamics.config.tile_information import TileInformation
 from careamics.dataset.dataset_utils import (
@@ -94,7 +94,7 @@ class CAREamicsPredictData(L.LightningDataModule):
 
     def __init__(
         self,
-        pred_config: InferenceModel,
+        pred_config: InferenceConfig,
         pred_data: Union[Path, str, np.ndarray],
         read_source_func: Optional[Callable] = None,
         extension_filter: str = "",
@@ -380,7 +380,7 @@ class PredictDataWrapper(CAREamicsPredictData):
             prediction_dict["transforms"] = transforms
 
         # validate configuration
-        self.prediction_config = InferenceModel(**prediction_dict)
+        self.prediction_config = InferenceConfig(**prediction_dict)
 
         # sanity check on the dataloader parameters
         if "batch_size" in dataloader_params:

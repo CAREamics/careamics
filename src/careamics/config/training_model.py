@@ -13,7 +13,7 @@ from pydantic import (
 from .callback_model import CheckpointModel, EarlyStoppingModel
 
 
-class TrainingModel(BaseModel):
+class TrainingConfig(BaseModel):
     """
     Parameters related to the training.
 

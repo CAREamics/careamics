@@ -1,14 +1,14 @@
 import pytest
 import torch
 
-from careamics.config import AlgorithmModel
+from careamics.config import AlgorithmConfig
 from careamics.lightning_module import CAREamicsModule, CAREamicsModuleWrapper
 
 
 def test_careamics_module(minimum_algorithm_n2v):
     """Test that the minimum algorithm allows instantiating a the Lightning API
     intermediate layer."""
-    algo_config = AlgorithmModel(**minimum_algorithm_n2v)
+    algo_config = AlgorithmConfig(**minimum_algorithm_n2v)
 
     # extract model parameters
     model_parameters = algo_config.model.model_dump(exclude_none=True)
@@ -28,7 +28,7 @@ def test_careamics_module(minimum_algorithm_n2v):
 
 def test_careamics_kiln(minimum_algorithm_n2v):
     """Test that the minimum algorithm allows instantiating a CAREamicsKiln."""
-    algo_config = AlgorithmModel(**minimum_algorithm_n2v)
+    algo_config = AlgorithmConfig(**minimum_algorithm_n2v)
 
     # instantiate CAREamicsKiln
     CAREamicsModule(algo_config)
@@ -54,7 +54,7 @@ def test_careamics_kiln_unet_2D_depth_2_shape(shape):
         },
         "loss": "mae",
     }
-    algo_config = AlgorithmModel(**algo_dict)
+    algo_config = AlgorithmConfig(**algo_dict)
 
     # instantiate CAREamicsKiln
     model = CAREamicsModule(algo_config)
@@ -89,7 +89,7 @@ def test_careamics_kiln_unet_2D_depth_3_shape(shape):
         },
         "loss": "mae",
     }
-    algo_config = AlgorithmModel(**algo_dict)
+    algo_config = AlgorithmConfig(**algo_dict)
 
     # instantiate CAREamicsKiln
     model = CAREamicsModule(algo_config)
@@ -122,7 +122,7 @@ def test_careamics_kiln_unet_depth_2_3D(shape):
         },
         "loss": "mae",
     }
-    algo_config = AlgorithmModel(**algo_dict)
+    algo_config = AlgorithmConfig(**algo_dict)
 
     # instantiate CAREamicsKiln
     model = CAREamicsModule(algo_config)
@@ -155,7 +155,7 @@ def test_careamics_kiln_unet_depth_3_3D(shape):
         },
         "loss": "mae",
     }
-    algo_config = AlgorithmModel(**algo_dict)
+    algo_config = AlgorithmConfig(**algo_dict)
 
     # instantiate CAREamicsKiln
     model = CAREamicsModule(algo_config)
@@ -180,7 +180,7 @@ def test_careamics_kiln_unet_depth_2_channels_2D(n_channels):
         },
         "loss": "mae",
     }
-    algo_config = AlgorithmModel(**algo_dict)
+    algo_config = AlgorithmConfig(**algo_dict)
 
     # instantiate CAREamicsKiln
     model = CAREamicsModule(algo_config)
@@ -205,7 +205,7 @@ def test_careamics_kiln_unet_depth_3_channels_2D(n_channels):
         },
         "loss": "mae",
     }
-    algo_config = AlgorithmModel(**algo_dict)
+    algo_config = AlgorithmConfig(**algo_dict)
 
     # instantiate CAREamicsKiln
     model = CAREamicsModule(algo_config)
@@ -230,7 +230,7 @@ def test_careamics_kiln_unet_depth_2_channels_3D(n_channels):
         },
         "loss": "mae",
     }
-    algo_config = AlgorithmModel(**algo_dict)
+    algo_config = AlgorithmConfig(**algo_dict)
 
     # instantiate CAREamicsKiln
     model = CAREamicsModule(algo_config)
@@ -255,7 +255,7 @@ def test_careamics_kiln_unet_depth_3_channels_3D(n_channels):
         },
         "loss": "mae",
     }
-    algo_config = AlgorithmModel(**algo_dict)
+    algo_config = AlgorithmConfig(**algo_dict)
 
     # instantiate CAREamicsKiln
     model = CAREamicsModule(algo_config)

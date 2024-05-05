@@ -8,7 +8,7 @@ from typing import Any, Callable, List, Optional, Tuple, Union
 import numpy as np
 from torch.utils.data import Dataset
 
-from ..config import DataModel, InferenceModel
+from ..config import DataConfig, InferenceConfig
 from ..config.tile_information import TileInformation
 from ..utils.logging import get_logger
 from .dataset_utils import read_tiff, reshape_array
@@ -29,7 +29,7 @@ class InMemoryDataset(Dataset):
 
     def __init__(
         self,
-        data_config: DataModel,
+        data_config: DataConfig,
         inputs: Union[np.ndarray, List[Path]],
         data_target: Optional[Union[np.ndarray, List[Path]]] = None,
         read_source_func: Callable = read_tiff,
@@ -279,7 +279,7 @@ class InMemoryPredictionDataset(Dataset):
 
     def __init__(
         self,
-        prediction_config: InferenceModel,
+        prediction_config: InferenceConfig,
         inputs: np.ndarray,
         data_target: Optional[np.ndarray] = None,
         read_source_func: Optional[Callable] = read_tiff,

@@ -4,11 +4,11 @@ from typing import Any, Dict, List, Literal, Optional, Tuple, Union
 
 from albumentations import Compose
 
-from .algorithm_model import AlgorithmModel
+from .algorithm_model import AlgorithmConfig
 from .architectures import UNetModel
 from .configuration_model import Configuration
-from .data_model import DataModel
-from .inference_model import InferenceModel
+from .data_model import DataConfig
+from .inference_model import InferenceConfig
 from .support import (
     SupportedAlgorithm,
     SupportedArchitecture,
@@ -16,7 +16,7 @@ from .support import (
     SupportedPixelManipulation,
     SupportedTransform,
 )
-from .training_model import TrainingModel
+from .training_model import TrainingConfig
 
 
 def _create_supervised_configuration(
@@ -29,7 +29,7 @@ def _create_supervised_configuration(
     num_epochs: int,
     use_augmentations: bool = True,
     loss: Literal["mae", "mse"] = "mae",
-    n_channels: int = 1,
+    n_channels: int = -1,
     logger: Literal["wandb", "tensorboard", "none"] = "none",
     model_kwargs: Optional[dict] = None,
 ) -> Configuration:
@@ -57,7 +57,7 @@ def _create_supervised_configuration(
     loss : Literal["mae", "mse"], optional
         Loss function to use, by default "mae".
     n_channels : int, optional
-        Number of channels (in and out), by default 1.
+        Number of channels (in and out), by default -1.
     logger : Literal["wandb", "tensorboard", "none"], optional
         Logger to use, by default "none".
     model_kwargs : dict, optional
@@ -68,6 +68,20 @@ def _create_supervised_configuration(
     Configuration
         Configuration for training CARE or Noise2Noise.
     """
+    # if there are channels, we need to specify their number
+    if "C" in axes and n_channels == -1:
+        raise ValueError(
+            f"Number of channels must be specified when using channels "
+            f"(got {n_channels} channel)."
+        )
+    elif "C" not in axes and n_channels != -1:
+        raise ValueError(
+            f"C is not present in the axes, but number of channels is specified "
+            f"(got {n_channels} channel)."
+        )
+    elif n_channels == -1:
+        n_channels = 1
+
     # model
     if model_kwargs is None:
         model_kwargs = {}
@@ -81,7 +95,7 @@ def _create_supervised_configuration(
     )
 
     # algorithm model
-    algorithm = AlgorithmModel(
+    algorithm = AlgorithmConfig(
         algorithm=algorithm,
         loss=loss,
         model=unet_model,
@@ -108,7 +122,7 @@ def _create_supervised_configuration(
         ]
 
     # data model
-    data = DataModel(
+    data = DataConfig(
         data_type=data_type,
         axes=axes,
         patch_size=patch_size,
@@ -117,7 +131,7 @@ def _create_supervised_configuration(
     )
 
     # training model
-    training = TrainingModel(
+    training = TrainingConfig(
         num_epochs=num_epochs,
         batch_size=batch_size,
         logger=None if logger == "none" else logger,
@@ -446,7 +460,7 @@ def create_n2v_configuration(
     )
 
     # algorithm model
-    algorithm = AlgorithmModel(
+    algorithm = AlgorithmConfig(
         algorithm=SupportedAlgorithm.N2V.value,
         loss=SupportedLoss.N2V.value,
         model=unet_model,
@@ -486,7 +500,7 @@ def create_n2v_configuration(
     transforms.append(nv2_transform)
 
     # data model
-    data = DataModel(
+    data = DataConfig(
         data_type=data_type,
         axes=axes,
         patch_size=patch_size,
@@ -495,7 +509,7 @@ def create_n2v_configuration(
     )
 
     # training model
-    training = TrainingModel(
+    training = TrainingConfig(
         num_epochs=num_epochs,
         batch_size=batch_size,
         logger=None if logger == "none" else logger,
@@ -522,7 +536,7 @@ def create_inference_configuration(
     transforms: Optional[Union[List[Dict[str, Any]], Compose]] = None,
     tta_transforms: bool = True,
     batch_size: Optional[int] = 1,
-) -> InferenceModel:
+) -> InferenceConfig:
     """
     Create a configuration for inference with N2V.
 
@@ -566,7 +580,7 @@ def create_inference_configuration(
             },
         ]
 
-    return InferenceModel(
+    return InferenceConfig(
         data_type=data_type or training_configuration.data_config.data_type,
         tile_size=tile_size,
         tile_overlap=tile_overlap,

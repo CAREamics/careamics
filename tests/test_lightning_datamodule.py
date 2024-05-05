@@ -1,7 +1,7 @@
 import pytest
 
 from careamics import CAREamicsTrainData, TrainingDataWrapper
-from careamics.config import DataModel
+from careamics.config import DataConfig
 from careamics.config.support import (
     SupportedData,
     SupportedPixelManipulation,
@@ -19,19 +19,19 @@ def test_mismatching_types_array(simple_array, minimum_data):
     minimum_data["data_type"] = SupportedData.TIFF.value
     with pytest.raises(ValueError):
         CAREamicsTrainData(
-            data_config=DataModel(**minimum_data), train_data=simple_array
+            data_config=DataConfig(**minimum_data), train_data=simple_array
         )
 
     minimum_data["data_type"] = SupportedData.CUSTOM.value
     with pytest.raises(ValueError):
         CAREamicsTrainData(
-            data_config=DataModel(**minimum_data), train_data=simple_array
+            data_config=DataConfig(**minimum_data), train_data=simple_array
         )
 
     minimum_data["data_type"] = SupportedData.ARRAY.value
     with pytest.raises(ValueError):
         CAREamicsTrainData(
-            data_config=DataModel(**minimum_data), train_data="path/to/data"
+            data_config=DataConfig(**minimum_data), train_data="path/to/data"
         )
 
 

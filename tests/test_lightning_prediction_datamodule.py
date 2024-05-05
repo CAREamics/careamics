@@ -1,7 +1,7 @@
 import pytest
 
 from careamics import CAREamicsPredictData, PredictDataWrapper
-from careamics.config import InferenceModel
+from careamics.config import InferenceConfig
 from careamics.config.support import SupportedData
 
 
@@ -15,19 +15,19 @@ def test_mismatching_types_array(simple_array, minimum_data):
     minimum_data["data_type"] = SupportedData.TIFF.value
     with pytest.raises(ValueError):
         CAREamicsPredictData(
-            data_config=InferenceModel(**minimum_data), train_data=simple_array
+            data_config=InferenceConfig(**minimum_data), train_data=simple_array
         )
 
     minimum_data["data_type"] = SupportedData.CUSTOM.value
     with pytest.raises(ValueError):
         CAREamicsPredictData(
-            data_config=InferenceModel(**minimum_data), train_data=simple_array
+            data_config=InferenceConfig(**minimum_data), train_data=simple_array
         )
 
     minimum_data["data_type"] = SupportedData.ARRAY.value
     with pytest.raises(ValueError):
         CAREamicsPredictData(
-            data_config=InferenceModel(**minimum_data), train_data="path/to/data"
+            data_config=InferenceConfig(**minimum_data), train_data="path/to/data"
         )
 
 
