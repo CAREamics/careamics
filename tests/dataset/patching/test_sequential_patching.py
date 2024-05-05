@@ -70,9 +70,8 @@ def test_extract_patches_sequential_2d_supervised(array_2D, patch_size):
         array_2D, patch_size=patch_size, target=array_2D
     )
 
-    #Check that the same region is extracted in the patches and targets
+    # Check that the same region is extracted in the patches and targets
     assert np.array_equal(patches, targets)
-
 
 
 @pytest.mark.parametrize(
