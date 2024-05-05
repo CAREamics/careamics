@@ -185,7 +185,7 @@ def test_careamics_kiln_unet_depth_3_3D_n2v2(shape):
             "in_channels": 1,
             "num_classes": 1,
             "depth": 3,
-            "n2v2": True
+            "n2v2": True,
         },
         "loss": "n2v",
     }
