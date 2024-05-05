@@ -167,6 +167,40 @@ def test_careamics_kiln_unet_depth_3_3D(shape):
     assert y.shape == x.shape
 
 
+@pytest.mark.parametrize(
+    "shape",
+    [
+        (8, 64, 64),
+        (16, 64, 64),
+        (16, 128, 128),
+        (32, 128, 128),
+    ],
+)
+def test_careamics_kiln_unet_depth_3_3D_n2v2(shape):
+    algo_dict = {
+        "algorithm": "n2v",
+        "model": {
+            "architecture": "UNet",
+            "conv_dims": 3,
+            "in_channels": 1,
+            "num_classes": 1,
+            "depth": 3,
+            "n2v2": True
+        },
+        "loss": "n2v",
+    }
+    algo_config = AlgorithmConfig(**algo_dict)
+
+    # instantiate CAREamicsKiln
+    model = CAREamicsModule(algo_config)
+    # set model to evaluation mode to avoid batch dimension error
+    model.model.eval()
+    # test forward pass
+    x = torch.rand((1, 1, *shape))
+    y: torch.Tensor = model.forward(x)
+    assert y.shape == x.shape
+
+
 @pytest.mark.parametrize("n_channels", [1, 3, 4])
 def test_careamics_kiln_unet_depth_2_channels_2D(n_channels):
     algo_dict = {
