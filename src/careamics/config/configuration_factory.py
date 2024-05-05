@@ -450,7 +450,6 @@ def create_n2v_configuration(
             f"(got {n_channels} channel)."
         )
 
-
     # model
     if model_kwargs is None:
         model_kwargs = {}
