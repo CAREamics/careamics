@@ -3,6 +3,7 @@ Prediction convenience functions.
 
 These functions are used during prediction.
 """
+
 from typing import List
 
 import numpy as np

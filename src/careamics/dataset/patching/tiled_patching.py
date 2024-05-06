@@ -43,9 +43,11 @@ def _compute_crop_and_stitch_coords_1d(
             stitch_coords.append(
                 (
                     i + overlap // 2 if i > 0 else 0,
-                    i + tile_size - overlap // 2
-                    if crop_coords[-1][1] < axis_size
-                    else axis_size,
+                    (
+                        i + tile_size - overlap // 2
+                        if crop_coords[-1][1] < axis_size
+                        else axis_size
+                    ),
                 )
             )
 
@@ -53,9 +55,11 @@ def _compute_crop_and_stitch_coords_1d(
             overlap_crop_coords.append(
                 (
                     overlap // 2 if i > 0 else 0,
-                    tile_size - overlap // 2
-                    if crop_coords[-1][1] < axis_size
-                    else tile_size,
+                    (
+                        tile_size - overlap // 2
+                        if crop_coords[-1][1] < axis_size
+                        else tile_size
+                    ),
                 )
             )
 

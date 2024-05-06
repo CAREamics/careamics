@@ -58,6 +58,23 @@ def test_extract_patches_sequential_3d(array_3D, patch_size):
 
 
 @pytest.mark.parametrize(
+    "patch_size",
+    [
+        (4, 4),
+        (8, 8),
+    ],
+)
+def test_extract_patches_sequential_2d_supervised(array_2D, patch_size):
+    """Test extracting patches sequentially in 2D with target."""
+    patches, targets = extract_patches_sequential(
+        array_2D, patch_size=patch_size, target=array_2D
+    )
+
+    # Check that the same region is extracted in the patches and targets
+    assert np.array_equal(patches, targets)
+
+
+@pytest.mark.parametrize(
     "shape, patch_sizes, expected",
     [
         ((1, 3, 10, 10), (1, 3, 10, 5), (1, 1, 1, 2)),

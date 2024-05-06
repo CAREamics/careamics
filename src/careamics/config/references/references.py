@@ -1,4 +1,5 @@
 """References for the CAREamics algorithms."""
+
 from bioimageio.spec.generic.v0_3 import CiteEntry
 
 N2VRef = CiteEntry(

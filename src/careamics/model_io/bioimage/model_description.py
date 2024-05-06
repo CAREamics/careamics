@@ -1,4 +1,5 @@
 """Module use to build BMZ model description."""
+
 from pathlib import Path
 from typing import List, Optional, Tuple, Union
 

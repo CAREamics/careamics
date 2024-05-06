@@ -73,8 +73,7 @@ class CAREamist:
         source: Union[Path, str],
         work_dir: Optional[str] = None,
         experiment_name: str = "CAREamics",
-    ) -> None:
-        ...
+    ) -> None: ...
 
     @overload
     def __init__(  # numpydoc ignore=GL08
@@ -82,8 +81,7 @@ class CAREamist:
         source: Configuration,
         work_dir: Optional[str] = None,
         experiment_name: str = "CAREamics",
-    ) -> None:
-        ...
+    ) -> None: ...
 
     def __init__(
         self,
@@ -478,8 +476,7 @@ class CAREamist:
         source: CAREamicsPredictData,
         *,
         checkpoint: Optional[Literal["best", "last"]] = None,
-    ) -> Union[list, np.ndarray]:
-        ...
+    ) -> Union[list, np.ndarray]: ...
 
     @overload
     def predict(  # numpydoc ignore=GL08
@@ -497,8 +494,7 @@ class CAREamist:
         read_source_func: Optional[Callable] = None,
         extension_filter: str = "",
         checkpoint: Optional[Literal["best", "last"]] = None,
-    ) -> Union[list, np.ndarray]:
-        ...
+    ) -> Union[list, np.ndarray]: ...
 
     @overload
     def predict(  # numpydoc ignore=GL08
@@ -514,8 +510,7 @@ class CAREamist:
         tta_transforms: bool = True,
         dataloader_params: Optional[Dict] = None,
         checkpoint: Optional[Literal["best", "last"]] = None,
-    ) -> Union[list, np.ndarray]:
-        ...
+    ) -> Union[list, np.ndarray]: ...
 
     def predict(
         self,

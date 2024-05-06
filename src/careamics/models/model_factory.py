@@ -3,6 +3,7 @@ Model factory.
 
 Model creation factory functions.
 """
+
 from typing import Union
 
 import torch

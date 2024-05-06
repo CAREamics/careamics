@@ -1,4 +1,5 @@
 """Training and validation Lightning data modules."""
+
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Literal, Optional, Union
 
@@ -341,9 +342,9 @@ class CAREamicsTrainData(L.LightningDataModule):
                 self.train_dataset = InMemoryDataset(
                     data_config=self.data_config,
                     inputs=self.train_files,
-                    data_target=self.train_target_files
-                    if self.train_data_target
-                    else None,
+                    data_target=(
+                        self.train_target_files if self.train_data_target else None
+                    ),
                     read_source_func=self.read_source_func,
                 )
 
@@ -352,9 +353,9 @@ class CAREamicsTrainData(L.LightningDataModule):
                     self.val_dataset = InMemoryDataset(
                         data_config=self.data_config,
                         inputs=self.val_files,
-                        data_target=self.val_target_files
-                        if self.val_data_target
-                        else None,
+                        data_target=(
+                            self.val_target_files if self.val_data_target else None
+                        ),
                         read_source_func=self.read_source_func,
                     )
                 else:
@@ -370,9 +371,9 @@ class CAREamicsTrainData(L.LightningDataModule):
                 self.train_dataset = PathIterableDataset(
                     data_config=self.data_config,
                     src_files=self.train_files,
-                    target_files=self.train_target_files
-                    if self.train_data_target
-                    else None,
+                    target_files=(
+                        self.train_target_files if self.train_data_target else None
+                    ),
                     read_source_func=self.read_source_func,
                 )
 
@@ -382,9 +383,9 @@ class CAREamicsTrainData(L.LightningDataModule):
                     self.val_dataset = PathIterableDataset(
                         data_config=self.data_config,
                         src_files=self.val_files,
-                        target_files=self.val_target_files
-                        if self.val_data_target
-                        else None,
+                        target_files=(
+                            self.val_target_files if self.val_data_target else None
+                        ),
                         read_source_func=self.read_source_func,
                     )
                 elif len(self.train_files) <= self.val_minimum_split:
