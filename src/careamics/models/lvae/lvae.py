@@ -17,7 +17,6 @@ from torch.autograd import Variable
 ### TODO: Replace these imports!!!
 from disentangle.analysis.pred_frame_creator import PredFrameCreator
 from disentangle.core.data_utils import Interpolate, crop_img_tensor, pad_img_tensor
-from disentangle.core.likelihoods import GaussianLikelihood, NoiseModelLikelihood
 from disentangle.core.loss_type import LossType
 from disentangle.core.metric_monitor import MetricMonitor
 from disentangle.core.psnr import RangeInvariantPsnr
@@ -26,12 +25,6 @@ from disentangle.loss.exclusive_loss import compute_exclusion_loss
 from disentangle.loss.nbr_consistency_loss import NeighborConsistencyLoss
 from disentangle.losses import free_bits_kl
 from disentangle.metrics.running_psnr import RunningPSNR
-from disentangle.nets.lvae_layers import (
-    # BottomUpDeterministicResBlock, 
-    # BottomUpLayer, 
-    TopDownDeterministicResBlock,
-    TopDownLayer
-)
 from disentangle.nets.noise_model import get_noise_model
 
 
@@ -40,7 +33,10 @@ from .utils import torch_nanmean, compute_batch_mean
 from .layers import (
     BottomUpDeterministicResBlock,
     BottomUpLayer,
+    TopDownLayer,
+    TopDownDeterministicResBlock
 ) 
+from .likelihoods import GaussianLikelihood, NoiseModelLikelihood
 
 
 class LadderVAE(nn.Module):
@@ -377,25 +373,39 @@ class LadderVAE(nn.Module):
                 )
         return bottom_up_layers
 
-    def create_top_down_layers(self):
+    def create_top_down_layers(self) -> nn.ModuleList:
+        """
+        This method creates the stack of top-down layers of the Decoder.
+        In these layer the `bu`_values` from the Encoder are merged with 
+        the `p_params` from the previous layer of the Decoder to get 
+        `q_params`. Then, a sample is generated from the latent distribution
+        with parameters `q_params`. Finally, this sample is fed through a 
+        TopDownDeterministicResBlock to get the `p_params` for the layer below.
+        
+        Parameters
+        ----------
+        
+        NOTE:
+            The architecture when doing inference is roughly as follows:
+               p_params = output of top-down layer above
+               bu = inferred bottom-up value at this layer
+               q_params = merge(bu, p_params)
+               z = stochastic_layer(q_params):
+               possibly get skip connection from previous top-down layer
+               top-down deterministic ResNet
+            
+            When doing generation only, the value bu is not available, the
+            merge layer is not used, and z is sampled directly from p_params.
+            
+            Normalization should be applied only with relatively deep networks.
+        """
+        
         top_down_layers = nn.ModuleList([])
         nonlin = self.get_nonlin()
         for i in range(self.n_layers):
-            # Add top-down stochastic layer at level i.
-            # The architecture when doing inference is roughly as follows:
-            #    p_params = output of top-down layer above
-            #    bu = inferred bottom-up value at this layer
-            #    q_params = merge(bu, p_params)
-            #    z = stochastic_layer(q_params):
-            #    possibly get skip connection from previous top-down layer
-            #    top-down deterministic ResNet
-            #
-            # When doing generation only, the value bu is not available, the
-            # merge layer is not used, and z is sampled directly from p_params.
-            #
-            # only apply this normalization with relatively deep networks.
-            # Whether this is the top layer
+            # Check if this is the top layer
             is_top = i == self.n_layers - 1
+
             if self._enable_topdown_normalize_factor:
                 normalize_latent_factor = 1 / np.sqrt(2 * (1 + i)) if len(self.z_dims) > 4 else 1.0
             else:
@@ -430,16 +440,29 @@ class LadderVAE(nn.Module):
                     input_image_shape=self.img_shape,
                     normalize_latent_factor=normalize_latent_factor,
                     conv2d_bias=self.topdown_conv2d_bias,
-                    stochastic_use_naive_exponential=self._stochastic_use_naive_exponential))
+                    stochastic_use_naive_exponential=self._stochastic_use_naive_exponential
+                )
+            )
         return top_down_layers
 
-    def create_final_topdown_layer(self, upsample):
 
+    def create_final_topdown_layer(
+        self, 
+        upsample
+    ) -> nn.Sequential:
+        """
+        This method creates the final top-down layer of the Decoder.
+        
+        Parameters
+        ----------
+        
+        """
         # Final top-down layer
-
         modules = list()
+        
         if upsample:
             modules.append(Interpolate(scale=2))
+            
         for i in range(self.decoder_blocks_per_layer):
             modules.append(
                 TopDownDeterministicResBlock(
@@ -453,8 +476,10 @@ class LadderVAE(nn.Module):
                     skip_padding=self.decoder_res_block_skip_padding,
                     gated=self.gated,
                     conv2d_bias=self.topdown_conv2d_bias,
-                ))
+                )
+            )
         return nn.Sequential(*modules)
+
 
     def create_likelihood_module(self):
         # Define likelihood
@@ -474,7 +499,7 @@ class LadderVAE(nn.Module):
 
     def _init_multires(self, config):
         """
-        Initialize everything related to multiresolution approach.
+        Initialize everything related to multiresolution approach (LC).
         """
         stride = 1 if config.model.no_initial_downscaling else 2
         nonlin = self.get_nonlin()
