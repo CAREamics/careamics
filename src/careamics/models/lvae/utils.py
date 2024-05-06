@@ -30,3 +30,35 @@ def power_of_2(self, x):
     if x % 2 == 1:
         return False
     return self.power_of_2(x // 2)
+
+class Enum:
+    @classmethod
+    def name(cls, enum_type):
+        for key, value in cls.__dict__.items():
+            if enum_type == value:
+                return key
+
+    @classmethod
+    def contains(cls, enum_type):
+        for key, value in cls.__dict__.items():
+            if enum_type == value:
+                return True
+        return False
+
+    @classmethod
+    def from_name(cls, enum_type_str):
+        for key, value in cls.__dict__.items():
+            if key == enum_type_str:
+                return value
+        assert f'{cls.__name__}:{enum_type_str} doesnot exist.'
+
+class LossType(Enum):
+    Elbo = 0
+    ElboWithCritic = 1
+    ElboMixedReconstruction = 2
+    MSE = 3
+    ElboWithNbrConsistency = 4
+    ElboSemiSupMixedReconstruction = 5
+    ElboCL = 6
+    ElboRestrictedReconstruction = 7
+    DenoiSplitMuSplit = 8
