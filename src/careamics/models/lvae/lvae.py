@@ -4,7 +4,7 @@ Ladder VAE (LVAE) Model
 The current implementation is based on "Interpretable Unsupervised Diversity Denoising and Artefact Removal, Prakash et al."
 """
 import os
-
+from typing import List
 import numpy as np
 import pytorch_lightning as pl
 import torch
@@ -268,7 +268,7 @@ class LadderVAE(nn.Module):
         # PSNR computation on validation.
         # self.label1_psnr = RunningPSNR()
         # self.label2_psnr = RunningPSNR()
-        # self.channels_psnr = [RunningPSNR() for _ in range(target_ch)]
+        self.channels_psnr = [RunningPSNR() for _ in range(target_ch)]
     
         msg =f'[{self.__class__.__name__}] Stoc:{not self.non_stochastic_version} RecMode:{self.reconstruction_mode} TethInput:{self._tethered_to_input}'
         msg += f' TargetCh: {self.target_ch}'
@@ -552,78 +552,34 @@ class LadderVAE(nn.Module):
 
 
 ### SET OF FORWARD-LIKE METHODS
-    def sample_prior(self, n_imgs, mode_layers=None, constant_layers=None):
-
-        # Generate from prior
-        out, _ = self.topdown_pass(n_img_prior=n_imgs, mode_layers=mode_layers, constant_layers=constant_layers)
-        out = crop_img_tensor(out, self.img_shape)
-
-        # Log likelihood and other info (per data point)
-        _, likelihood_data = self.likelihood(out, None)
-
-        return likelihood_data['sample']
-
-    def reset_for_different_output_size(self, output_size):
-        for i in range(self.n_layers):
-            sz = output_size // 2**(1 + i)
-            self.bottom_up_layers[i].output_expected_shape = (sz, sz)
-            self.top_down_layers[i].latent_shape = (output_size, output_size)
-
-    def get_mixed_prediction(self, prediction, prediction_logvar, data_mean, data_std, channel_weights=None):
-        pred_unorm = prediction * data_std['target'] + data_mean['target']
-        if channel_weights is None:
-            channel_weights = 1
-
-        if self._input_is_sum:
-            mixed_prediction = torch.sum(pred_unorm * channel_weights, dim=1, keepdim=True)
-        else:
-            mixed_prediction = torch.mean(pred_unorm * channel_weights, dim=1, keepdim=True)
-
-        mixed_prediction = (mixed_prediction - data_mean['input'].mean()) / data_std['input'].mean()
-
-        if prediction_logvar is not None:
-            if data_std['target'].shape == data_std['input'].shape and torch.all(
-                    data_std['target'] == data_std['input']):
-                assert channel_weights == 1
-                logvar = prediction_logvar
-            else:
-                var = torch.exp(prediction_logvar)
-                var = var * (data_std['target'] / data_std['input'])**2
-                if channel_weights != 1:
-                    var = var * torch.square(channel_weights)
-
-                # sum of variance.
-                mixed_var = 0
-                for i in range(var.shape[1]):
-                    mixed_var += var[:, i:i + 1]
-
-                logvar = torch.log(mixed_var)
-        else:
-            logvar = None
-        return mixed_prediction, logvar
-
-    def _get_weighted_likelihood(self, ll):
-        """
-        each of the channels gets multiplied with a different weight.
-        """
-        if self.ch1_recons_w == 1 and self.ch2_recons_w == 1:
-            return ll
-        assert ll.shape[1] == 2, "This function is only for 2 channel images"
-        mask1 = torch.zeros((len(ll), ll.shape[1], 1, 1), device=ll.device)
-        mask1[:, 0] = 1
-
-        mask2 = torch.zeros((len(ll), ll.shape[1], 1, 1), device=ll.device)
-        mask2[:, 1] = 1
-        return ll * mask1 * self.ch1_recons_w + ll * mask2 * self.ch2_recons_w
-
-    def bottomup_pass(self, inp):
+    def bottomup_pass(self, inp: torch.Tensor) -> List[torch.Tensor]:
         return self._bottomup_pass(inp, self.first_bottom_up, self.lowres_first_bottom_ups, self.bottom_up_layers)
 
-    def _bottomup_pass(self, inp, first_bottom_up, lowres_first_bottom_ups, bottom_up_layers):
-
+    def _bottomup_pass(
+        self, 
+        inp: torch.Tensor, 
+        first_bottom_up: nn.Sequential, 
+        lowres_first_bottom_ups: nn.ModuleList, 
+        bottom_up_layers: nn.ModuleList
+    ) -> List[torch.Tensor]:
+        """
+        This method defines the forward pass throught the LVAE Encoder, the so-called 
+        Bottom-Up pass.
+        
+        Parameters
+        ----------
+        inp: torch.Tensor
+            The input tensor to the bottom-up pass.
+        first_bottom_up: nn.Sequential
+            The module defining the first bottom-up layer of the Encoder.
+        lowres_first_bottom_ups: nn.ModuleList
+            The list of modules defining Lateral Contextualization.
+        bottom_up_layers: nn.ModuleList
+            The list of modules defining the stack of bottom-up layers of the Encoder.
+        """
         if self._multiscale_count > 1:
-            # Bottom-up initial layer. The first channel is the original input, what we want to reconstruct.
-            # later channels are simply to yield more context.
+            # Bottom-up initial layer. The first channel is the original input image
+            # while additional channels are simply to yield more context.
             x = first_bottom_up(inp[:, :1])
         else:
             x = first_bottom_up(inp)
@@ -641,6 +597,7 @@ class LadderVAE(nn.Module):
 
         return bu_values
 
+
     def sample_from_q(self, x, masks=None):
         img_size = x.size()[2:]
 
@@ -650,6 +607,7 @@ class LadderVAE(nn.Module):
         # Bottom-up inference: return list of length n_layers (bottom to top)
         bu_values = self.bottomup_pass(x_pad)
         return self._sample_from_q(bu_values, masks=masks)
+
 
     def _sample_from_q(self, bu_values, top_down_layers=None, final_top_down_layer=None, masks=None):
         if top_down_layers is None:
@@ -670,6 +628,7 @@ class LadderVAE(nn.Module):
             samples.append(sample)
 
         return samples
+
 
     def topdown_pass(self,
                      bu_values=None,
@@ -799,6 +758,7 @@ class LadderVAE(nn.Module):
         }
         return out, data
 
+
     def forward(self, x):
         img_size = x.size()[2:]
 
@@ -827,8 +787,77 @@ class LadderVAE(nn.Module):
         return out, td_data
 
 
+    def get_mixed_prediction(self, prediction, prediction_logvar, data_mean, data_std, channel_weights=None):
+        pred_unorm = prediction * data_std['target'] + data_mean['target']
+        if channel_weights is None:
+            channel_weights = 1
 
-# SET OF UTILS METHODS (e.g., get-like, or basic functions) 
+        if self._input_is_sum:
+            mixed_prediction = torch.sum(pred_unorm * channel_weights, dim=1, keepdim=True)
+        else:
+            mixed_prediction = torch.mean(pred_unorm * channel_weights, dim=1, keepdim=True)
+
+        mixed_prediction = (mixed_prediction - data_mean['input'].mean()) / data_std['input'].mean()
+
+        if prediction_logvar is not None:
+            if data_std['target'].shape == data_std['input'].shape and torch.all(
+                    data_std['target'] == data_std['input']):
+                assert channel_weights == 1
+                logvar = prediction_logvar
+            else:
+                var = torch.exp(prediction_logvar)
+                var = var * (data_std['target'] / data_std['input'])**2
+                if channel_weights != 1:
+                    var = var * torch.square(channel_weights)
+
+                # sum of variance.
+                mixed_var = 0
+                for i in range(var.shape[1]):
+                    mixed_var += var[:, i:i + 1]
+
+                logvar = torch.log(mixed_var)
+        else:
+            logvar = None
+        return mixed_prediction, logvar
+
+    def _get_weighted_likelihood(self, ll):
+        """
+        each of the channels gets multiplied with a different weight.
+        """
+        if self.ch1_recons_w == 1 and self.ch2_recons_w == 1:
+            return ll
+        assert ll.shape[1] == 2, "This function is only for 2 channel images"
+        mask1 = torch.zeros((len(ll), ll.shape[1], 1, 1), device=ll.device)
+        mask1[:, 0] = 1
+
+        mask2 = torch.zeros((len(ll), ll.shape[1], 1, 1), device=ll.device)
+        mask2[:, 1] = 1
+        return ll * mask1 * self.ch1_recons_w + ll * mask2 * self.ch2_recons_w
+
+# SET OF UTILS METHODS (e.g., get-like, or functions that do basic stuff) 
+    def sample_prior(
+            self, 
+            n_imgs, 
+            mode_layers=None, 
+            constant_layers=None
+        ):
+
+        # Generate from prior
+        out, _ = self.topdown_pass(n_img_prior=n_imgs, mode_layers=mode_layers, constant_layers=constant_layers)
+        out = crop_img_tensor(out, self.img_shape)
+
+        # Log likelihood and other info (per data point)
+        _, likelihood_data = self.likelihood(out, None)
+
+        return likelihood_data['sample']
+
+    def reset_for_different_output_size(self, output_size):
+        for i in range(self.n_layers):
+            sz = output_size // 2**(1 + i)
+            self.bottom_up_layers[i].output_expected_shape = (sz, sz)
+            self.top_down_layers[i].latent_shape = (output_size, output_size)
+
+
     def get_nonlin(self):
         nonlin = {
             'relu': nn.ReLU,
@@ -837,6 +866,7 @@ class LadderVAE(nn.Module):
             'selu': nn.SELU,
         }
         return nonlin[self.nonlin]
+
 
     def pad_input(self, x):
         """
@@ -847,6 +877,7 @@ class LadderVAE(nn.Module):
         size = self.get_padded_size(x.size())
         x = pad_img_tensor(x, size)
         return x
+
 
     def get_padded_size(self, size):
         """
@@ -877,6 +908,7 @@ class LadderVAE(nn.Module):
 
         return padded_size
 
+
     def get_latent_spatial_size(self, level_idx):
         """
         level_idx: 0 is the bottommost layer, the highest resolution one.
@@ -888,6 +920,7 @@ class LadderVAE(nn.Module):
         w = sz[1] // dwnsc
         assert h == w
         return h
+
 
     def get_top_prior_param_shape(self, n_imgs=1):
         # TODO num channels depends on random variable we're using
@@ -904,6 +937,7 @@ class LadderVAE(nn.Module):
         c = self.z_dims[-1] * 2  # mu and logvar
         top_layer_shape = (n_imgs, c, h, w)
         return top_layer_shape
+
 
     def get_other_channel(self, ch1, input):
         assert self.data_std['target'].squeeze().shape == (2, )
