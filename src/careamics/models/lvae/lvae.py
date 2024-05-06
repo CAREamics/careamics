@@ -38,122 +38,26 @@ class LadderVAE(nn.Module):
 
     def __init__(self, data_mean, data_std, config, use_uncond_mode_at=[], target_ch=2, val_idx_manager=None):
         super().__init__()
-        self.lr = config.training.lr
-        self.lr_scheduler_patience = config.training.lr_scheduler_patience
-        self.enable_noise_model = config.model.enable_noise_model
+        
+        # Loss attributes
         self.ch1_recons_w = config.loss.get('ch1_recons_w', 1)
         self.ch2_recons_w = config.loss.get('ch2_recons_w', 1)
-        self._stochastic_use_naive_exponential = config.model.decoder.get('stochastic_use_naive_exponential', False)
-        self._enable_topdown_normalize_factor = config.model.get('enable_topdown_normalize_factor', True)
-        self.likelihood_gm = self.likelihood_NM = None
         self._restricted_kl = config.loss.get('restricted_kl', False)
-        # can be used to tile the validation predictions
-        self._val_idx_manager = val_idx_manager
-        self._val_frame_creator = None
-        self._dump_kth_frame_prediction = config.training.get('dump_kth_frame_prediction')
-        if self._dump_kth_frame_prediction is not None:
-            assert self._val_idx_manager is not None
-            dir = os.path.join(config.workdir, 'pred_frames')
-            os.mkdir(dir)
-            self._dump_epoch_interval = config.training.get('dump_epoch_interval', 1)
-            self._val_frame_creator = PredFrameCreator(self._val_idx_manager, self._dump_kth_frame_prediction, dir)
-
-        self._input_is_sum = config.data.input_is_sum
-        # grayscale input
-        self.color_ch = config.data.get('color_ch', 1)
-        self._tethered_ch1_scalar = self._tethered_ch2_scalar = None
-        self._tethered_to_input = config.model.get('tethered_to_input', False)
-        if self._tethered_to_input:
-            target_ch = 1
-            requires_grad = config.model.get('tethered_learnable_scalar', False)
-            # a learnable scalar that is multiplied with one channel prediction.
-            self._tethered_ch1_scalar = nn.Parameter(torch.ones(1) * 0.5, requires_grad=requires_grad)
-            self._tethered_ch2_scalar = nn.Parameter(torch.ones(1) * 2.0, requires_grad=requires_grad)
-
-        # disentangling two grayscale images.
-        self.target_ch = target_ch
-
-        self.z_dims = config.model.z_dims
-        self.encoder_blocks_per_layer = config.model.encoder.blocks_per_layer
-        self.decoder_blocks_per_layer = config.model.decoder.blocks_per_layer
-
         self.kl_loss_formulation = config.loss.get('kl_loss_formulation', None)
-        assert self.kl_loss_formulation in [None, '',
-                                            'usplit','denoisplit','denoisplit_usplit'], f'Invalid kl_loss_formulation. {self.kl_loss_formulation}'
-        self.n_layers = len(self.z_dims)
-        self.stochastic_skip = config.model.stochastic_skip
-        self.bottomup_batchnorm = config.model.encoder.batchnorm
-        self.topdown_batchnorm = config.model.decoder.batchnorm
-
-        self.encoder_n_filters = config.model.encoder.n_filters
-        self.decoder_n_filters = config.model.decoder.n_filters
-
-        self.encoder_dropout = config.model.encoder.dropout
-        self.decoder_dropout = config.model.decoder.dropout
-        self.skip_bottomk_buvalues = config.model.get('skip_bottomk_buvalues', 0)
-
-        # whether or not to have bias with Conv2D layer.
-        self.topdown_conv2d_bias = config.model.decoder.conv2d_bias
-
-        self.learn_top_prior = config.model.learn_top_prior
-        self.img_shape = (config.data.image_size, config.data.image_size)
-        self.res_block_type = config.model.res_block_type
-        self.encoder_res_block_kernel = config.model.encoder.res_block_kernel
-        self.decoder_res_block_kernel = config.model.decoder.res_block_kernel
-
-        self.encoder_res_block_skip_padding = config.model.encoder.res_block_skip_padding
-        self.decoder_res_block_skip_padding = config.model.decoder.res_block_skip_padding
-
-        self.reconstruction_mode = config.model.get('reconstruction_mode', False)
-
-        self.gated = config.model.gated
-        if isinstance(data_mean, np.ndarray):
-            self.data_mean = torch.Tensor(data_mean)
-            self.data_std = torch.Tensor(data_std)
-        elif isinstance(data_mean, dict):
-            for k in data_mean.keys():
-                data_mean[k] = torch.Tensor(data_mean[k]) if not isinstance(data_mean[k], dict) else data_mean[k]
-                data_std[k] = torch.Tensor(data_std[k]) if not isinstance(data_std[k], dict) else data_std[k]
-            self.data_mean = data_mean
-            self.data_std = data_std
-        else:
-            raise NotImplementedError('data_mean and data_std must be either a numpy array or a dictionary')
-
-        self.noiseModel = get_noise_model(config)
-        self.merge_type = config.model.merge_type
-        self.analytical_kl = config.model.analytical_kl
-        self.no_initial_downscaling = config.model.no_initial_downscaling
-        self.mode_pred = config.model.mode_pred
-        self.use_uncond_mode_at = use_uncond_mode_at
-        self.nonlin = config.model.nonlin
+        assert self.kl_loss_formulation in [
+            None, '', 'usplit', 'denoisplit', 'denoisplit_usplit'], f"""
+            Invalid kl_loss_formulation. {self.kl_loss_formulation}"""
         self.kl_annealing = config.loss.kl_annealing
         self.kl_annealtime = self.kl_start = None
-
         if self.kl_annealing:
             self.kl_annealtime = config.loss.kl_annealtime
             self.kl_start = config.loss.kl_start
-
-        self.predict_logvar = config.model.predict_logvar
-        self.logvar_lowerbound = config.model.logvar_lowerbound
-        self.non_stochastic_version = config.model.get('non_stochastic_version', False)
-        self._var_clip_max = config.model.var_clip_max
-        # loss related
         self.loss_type = config.loss.loss_type
         self.kl_weight = config.loss.kl_weight
         self.usplit_kl_weight = config.loss.get('usplit_kl_weight', None)
-
         self.free_bits = config.loss.free_bits
         self.reconstruction_weight = config.loss.get('reconstruction_weight', 1.0)
-
-        self.encoder_no_padding_mode = config.model.encoder.res_block_skip_padding is True and config.model.encoder.res_block_kernel > 1
-        self.decoder_no_padding_mode = config.model.decoder.res_block_skip_padding is True and config.model.decoder.res_block_kernel > 1
-
-        self.skip_nboundary_pixels_from_loss = config.model.skip_nboundary_pixels_from_loss
-        # initialize the learning rate scheduler params.
-        self.lr_scheduler_monitor = self.lr_scheduler_mode = None
-        self._init_lr_scheduler_params(config)
-
-        # enabling reconstruction loss on mixed input
+                # enabling reconstruction loss on mixed input
         self.mixed_rec_w = 0
         self.mixed_rec_w_step = 0
         self.enable_mixed_rec = False
@@ -190,12 +94,115 @@ class LadderVAE(nn.Module):
                 self._grid_sz,
                 nbr_set_count=config.data.get('nbr_set_count', None),
                 focus_on_opposite_gradients=config.model.offset_prediction_focus_on_opposite_gradients)
+        self.channel_1_w = config.loss.get('channel_1_w', 1)
+        self.channel_2_w = config.loss.get('channel_2_w', 1)
 
-        self._global_step = 0
 
+        # Training attributes
+        self.lr = config.training.lr
+        self.lr_scheduler_patience = config.training.lr_scheduler_patience
+        # can be used to tile the validation predictions
+        self._val_idx_manager = val_idx_manager
+        self._val_frame_creator = None
+        self._dump_kth_frame_prediction = config.training.get('dump_kth_frame_prediction')
+        if self._dump_kth_frame_prediction is not None:
+            assert self._val_idx_manager is not None
+            dir = os.path.join(config.workdir, 'pred_frames')
+            os.mkdir(dir)
+            self._dump_epoch_interval = config.training.get('dump_epoch_interval', 1)
+            self._val_frame_creator = PredFrameCreator(self._val_idx_manager, self._dump_kth_frame_prediction, dir)    
+
+
+        # Data attributes
+        self._input_is_sum = config.data.input_is_sum
+        self.color_ch = config.data.get('color_ch', 1)
+        self.img_shape = (config.data.image_size, config.data.image_size)
         # normalized_input: If input is normalized, then we don't normalize the input.
         # We then just normalize the target. Otherwise, both input and target are normalized.
         self.normalized_input = config.data.normalized_input
+
+        # Model attributes
+        self.enable_noise_model = config.model.enable_noise_model
+        self._stochastic_use_naive_exponential = config.model.decoder.get('stochastic_use_naive_exponential', False)
+        self._enable_topdown_normalize_factor = config.model.get('enable_topdown_normalize_factor', True)
+        self.likelihood_gm = self.likelihood_NM = None
+
+        self._tethered_ch1_scalar = self._tethered_ch2_scalar = None
+        self._tethered_to_input = config.model.get('tethered_to_input', False)
+        if self._tethered_to_input:
+            target_ch = 1
+            requires_grad = config.model.get('tethered_learnable_scalar', False)
+            # a learnable scalar that is multiplied with one channel prediction.
+            self._tethered_ch1_scalar = nn.Parameter(torch.ones(1) * 0.5, requires_grad=requires_grad)
+            self._tethered_ch2_scalar = nn.Parameter(torch.ones(1) * 2.0, requires_grad=requires_grad)
+
+        # disentangling two grayscale images.
+        self.target_ch = target_ch
+
+        self.z_dims = config.model.z_dims
+        self.encoder_blocks_per_layer = config.model.encoder.blocks_per_layer
+        self.decoder_blocks_per_layer = config.model.decoder.blocks_per_layer
+
+        self.n_layers = len(self.z_dims)
+        self.stochastic_skip = config.model.stochastic_skip
+        self.bottomup_batchnorm = config.model.encoder.batchnorm
+        self.topdown_batchnorm = config.model.decoder.batchnorm
+
+        self.encoder_n_filters = config.model.encoder.n_filters
+        self.decoder_n_filters = config.model.decoder.n_filters
+
+        self.encoder_dropout = config.model.encoder.dropout
+        self.decoder_dropout = config.model.decoder.dropout
+        self.skip_bottomk_buvalues = config.model.get('skip_bottomk_buvalues', 0)
+
+        # whether or not to have bias with Conv2D layer.
+        self.topdown_conv2d_bias = config.model.decoder.conv2d_bias
+
+        self.learn_top_prior = config.model.learn_top_prior
+        self.res_block_type = config.model.res_block_type
+        self.encoder_res_block_kernel = config.model.encoder.res_block_kernel
+        self.decoder_res_block_kernel = config.model.decoder.res_block_kernel
+
+        self.encoder_res_block_skip_padding = config.model.encoder.res_block_skip_padding
+        self.decoder_res_block_skip_padding = config.model.decoder.res_block_skip_padding
+
+        self.reconstruction_mode = config.model.get('reconstruction_mode', False)
+
+        self.gated = config.model.gated
+        if isinstance(data_mean, np.ndarray):
+            self.data_mean = torch.Tensor(data_mean)
+            self.data_std = torch.Tensor(data_std)
+        elif isinstance(data_mean, dict):
+            for k in data_mean.keys():
+                data_mean[k] = torch.Tensor(data_mean[k]) if not isinstance(data_mean[k], dict) else data_mean[k]
+                data_std[k] = torch.Tensor(data_std[k]) if not isinstance(data_std[k], dict) else data_std[k]
+            self.data_mean = data_mean
+            self.data_std = data_std
+        else:
+            raise NotImplementedError('data_mean and data_std must be either a numpy array or a dictionary')
+
+        self.noiseModel = get_noise_model(config)
+        self.merge_type = config.model.merge_type
+        self.analytical_kl = config.model.analytical_kl
+        self.no_initial_downscaling = config.model.no_initial_downscaling
+        self.mode_pred = config.model.mode_pred
+        self.use_uncond_mode_at = use_uncond_mode_at
+        self.nonlin = config.model.nonlin
+
+        self.predict_logvar = config.model.predict_logvar
+        self.logvar_lowerbound = config.model.logvar_lowerbound
+        self.non_stochastic_version = config.model.get('non_stochastic_version', False)
+        self._var_clip_max = config.model.var_clip_max
+
+        self.encoder_no_padding_mode = config.model.encoder.res_block_skip_padding is True and config.model.encoder.res_block_kernel > 1
+        self.decoder_no_padding_mode = config.model.decoder.res_block_skip_padding is True and config.model.decoder.res_block_kernel > 1
+
+        self.skip_nboundary_pixels_from_loss = config.model.skip_nboundary_pixels_from_loss
+        # initialize the learning rate scheduler params.
+        self.lr_scheduler_monitor = self.lr_scheduler_mode = None
+        self._init_lr_scheduler_params(config)
+
+        self._global_step = 0
 
         assert (self.data_std is not None)
         assert (self.data_mean is not None)
@@ -226,7 +233,6 @@ class LadderVAE(nn.Module):
         self._init_multires(config)
 
         # Init lists of layers
-
         enable_multiscale = self._multiscale_count is not None and self._multiscale_count > 1
         self.multiscale_decoder_retain_spatial_dims = self.multiscale_retain_spatial_dims and enable_multiscale
         self.bottom_up_layers = self.create_bottom_up_layers(config.model.multiscale_lowres_separate_branch)
@@ -234,9 +240,6 @@ class LadderVAE(nn.Module):
 
         # Final top-down layer
         self.final_top_down = self.create_final_topdown_layer(not self.no_initial_downscaling)
-
-        self.channel_1_w = config.loss.get('channel_1_w', 1)
-        self.channel_2_w = config.loss.get('channel_2_w', 1)
 
         self.likelihood = self.create_likelihood_module()
         # gradient norms. updated while training. this is also logged.
@@ -256,6 +259,7 @@ class LadderVAE(nn.Module):
         msg =f'[{self.__class__.__name__}] Stoc:{not self.non_stochastic_version} RecMode:{self.reconstruction_mode} TethInput:{self._tethered_to_input}'
         msg += f' TargetCh: {self.target_ch}'
         print(msg)
+
 
 ### SET OF METHODS TO CREATE MODEL BLOCKS
     def create_first_bottom_up(self, init_stride, num_blocks=1):
