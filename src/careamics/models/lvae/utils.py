@@ -1,5 +1,5 @@
 """
-Script for utility functions needed by the model
+Script for utility functions needed by the LVAE model.
 """
 
 def torch_nanmean(inp):
