@@ -1,6 +1,5 @@
 """Patching and tiling functions."""
 
-
 __all__ = [
     "get_patch_transform",
 ]

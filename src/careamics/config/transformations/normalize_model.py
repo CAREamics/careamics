@@ -1,4 +1,5 @@
 """Pydantic model for the Normalize transform."""
+
 from typing import Literal
 
 from pydantic import ConfigDict, Field
