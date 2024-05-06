@@ -257,6 +257,66 @@ class LadderVAE(nn.Module):
         msg += f' TargetCh: {self.target_ch}'
         print(msg)
 
+### SET OF METHODS TO CREATE MODEL BLOCKS
+    def create_first_bottom_up(self, init_stride, num_blocks=1):
+        nonlin = self.get_nonlin()
+        modules = [
+            nn.Conv2d(self.color_ch,
+                      self.encoder_n_filters,
+                      self.encoder_res_block_kernel,
+                      padding=0 if self.encoder_res_block_skip_padding else self.encoder_res_block_kernel // 2,
+                      stride=init_stride),
+            nonlin()
+        ]
+        for _ in range(num_blocks):
+            modules.append(
+                BottomUpDeterministicResBlock(
+                    c_in=self.encoder_n_filters,
+                    c_out=self.encoder_n_filters,
+                    nonlin=nonlin,
+                    batchnorm=self.bottomup_batchnorm,
+                    dropout=self.encoder_dropout,
+                    res_block_type=self.res_block_type,
+                    skip_padding=self.encoder_res_block_skip_padding,
+                    res_block_kernel=self.encoder_res_block_kernel,
+                ))
+        return nn.Sequential(*modules)
+
+    def create_bottom_up_layers(self, lowres_separate_branch):
+        bottom_up_layers = nn.ModuleList([])
+        multiscale_lowres_size_factor = 1
+        enable_multiscale = self._multiscale_count is not None and self._multiscale_count > 1
+        nonlin = self.get_nonlin()
+        for i in range(self.n_layers):
+            # Whether this is the top layer
+            is_top = i == self.n_layers - 1
+            layer_enable_multiscale = enable_multiscale and self._multiscale_count > i + 1
+            # if multiscale is enabled, this is the factor by which the lowres tensor will be larger than
+            multiscale_lowres_size_factor *= (1 + int(layer_enable_multiscale))
+            # Add bottom-up deterministic layer at level i.
+            # It's a sequence of residual blocks (BottomUpDeterministicResBlock)
+            # possibly with downsampling between them.
+            output_expected_shape = (self.img_shape[0] // 2**(i + 1),
+                                     self.img_shape[1] // 2**(i + 1)) if self._multiscale_count > 1 else None
+            bottom_up_layers.append(
+                BottomUpLayer(n_res_blocks=self.encoder_blocks_per_layer,
+                              n_filters=self.encoder_n_filters,
+                              downsampling_steps=self.downsample[i],
+                              nonlin=nonlin,
+                              batchnorm=self.bottomup_batchnorm,
+                              dropout=self.encoder_dropout,
+                              res_block_type=self.res_block_type,
+                              res_block_kernel=self.encoder_res_block_kernel,
+                              res_block_skip_padding=self.encoder_res_block_skip_padding,
+                              gated=self.gated,
+                              lowres_separate_branch=lowres_separate_branch,
+                              enable_multiscale=enable_multiscale,
+                              multiscale_retain_spatial_dims=self.multiscale_retain_spatial_dims,
+                              multiscale_lowres_size_factor=multiscale_lowres_size_factor,
+                              decoder_retain_spatial_dims=self.multiscale_decoder_retain_spatial_dims,
+                              output_expected_shape=output_expected_shape))
+        return bottom_up_layers
+
     def create_top_down_layers(self):
         top_down_layers = nn.ModuleList([])
         nonlin = self.get_nonlin()
@@ -313,41 +373,6 @@ class LadderVAE(nn.Module):
                     stochastic_use_naive_exponential=self._stochastic_use_naive_exponential))
         return top_down_layers
 
-    def create_bottom_up_layers(self, lowres_separate_branch):
-        bottom_up_layers = nn.ModuleList([])
-        multiscale_lowres_size_factor = 1
-        enable_multiscale = self._multiscale_count is not None and self._multiscale_count > 1
-        nonlin = self.get_nonlin()
-        for i in range(self.n_layers):
-            # Whether this is the top layer
-            is_top = i == self.n_layers - 1
-            layer_enable_multiscale = enable_multiscale and self._multiscale_count > i + 1
-            # if multiscale is enabled, this is the factor by which the lowres tensor will be larger than
-            multiscale_lowres_size_factor *= (1 + int(layer_enable_multiscale))
-            # Add bottom-up deterministic layer at level i.
-            # It's a sequence of residual blocks (BottomUpDeterministicResBlock)
-            # possibly with downsampling between them.
-            output_expected_shape = (self.img_shape[0] // 2**(i + 1),
-                                     self.img_shape[1] // 2**(i + 1)) if self._multiscale_count > 1 else None
-            bottom_up_layers.append(
-                BottomUpLayer(n_res_blocks=self.encoder_blocks_per_layer,
-                              n_filters=self.encoder_n_filters,
-                              downsampling_steps=self.downsample[i],
-                              nonlin=nonlin,
-                              batchnorm=self.bottomup_batchnorm,
-                              dropout=self.encoder_dropout,
-                              res_block_type=self.res_block_type,
-                              res_block_kernel=self.encoder_res_block_kernel,
-                              res_block_skip_padding=self.encoder_res_block_skip_padding,
-                              gated=self.gated,
-                              lowres_separate_branch=lowres_separate_branch,
-                              enable_multiscale=enable_multiscale,
-                              multiscale_retain_spatial_dims=self.multiscale_retain_spatial_dims,
-                              multiscale_lowres_size_factor=multiscale_lowres_size_factor,
-                              decoder_retain_spatial_dims=self.multiscale_decoder_retain_spatial_dims,
-                              output_expected_shape=output_expected_shape))
-        return bottom_up_layers
-
     def create_final_topdown_layer(self, upsample):
 
         # Final top-down layer
@@ -387,30 +412,6 @@ class LadderVAE(nn.Module):
         
         return self.likelihood_NM
 
-    def create_first_bottom_up(self, init_stride, num_blocks=1):
-        nonlin = self.get_nonlin()
-        modules = [
-            nn.Conv2d(self.color_ch,
-                      self.encoder_n_filters,
-                      self.encoder_res_block_kernel,
-                      padding=0 if self.encoder_res_block_skip_padding else self.encoder_res_block_kernel // 2,
-                      stride=init_stride),
-            nonlin()
-        ]
-        for _ in range(num_blocks):
-            modules.append(
-                BottomUpDeterministicResBlock(
-                    c_in=self.encoder_n_filters,
-                    c_out=self.encoder_n_filters,
-                    nonlin=nonlin,
-                    batchnorm=self.bottomup_batchnorm,
-                    dropout=self.encoder_dropout,
-                    res_block_type=self.res_block_type,
-                    skip_padding=self.encoder_res_block_skip_padding,
-                    res_block_kernel=self.encoder_res_block_kernel,
-                ))
-        return nn.Sequential(*modules)
-
     def _init_multires(self, config):
         """
         Initialize everything related to multiresolution approach.
@@ -444,15 +445,8 @@ class LadderVAE(nn.Module):
 
         self.lowres_first_bottom_ups = nn.ModuleList(lowres_first_bottom_ups) if len(lowres_first_bottom_ups) else None
 
-    def get_nonlin(self):
-        nonlin = {
-            'relu': nn.ReLU,
-            'leakyrelu': nn.LeakyReLU,
-            'elu': nn.ELU,
-            'selu': nn.SELU,
-        }
-        return nonlin[self.nonlin]
 
+### SET OF FORWARD-LIKE METHODS
     def sample_prior(self, n_imgs, mode_layers=None, constant_layers=None):
 
         # Generate from prior
@@ -516,33 +510,6 @@ class LadderVAE(nn.Module):
         mask2 = torch.zeros((len(ll), ll.shape[1], 1, 1), device=ll.device)
         mask2[:, 1] = 1
         return ll * mask1 * self.ch1_recons_w + ll * mask2 * self.ch2_recons_w
-
-    def forward(self, x):
-        img_size = x.size()[2:]
-
-        # Pad input to make everything easier with conv strides
-        x_pad = self.pad_input(x)
-
-        # Bottom-up inference: return list of length n_layers (bottom to top)
-        bu_values = self.bottomup_pass(x_pad)
-        for i in range(0, self.skip_bottomk_buvalues):
-            bu_values[i] = None
-
-        mode_layers = range(self.n_layers) if self.non_stochastic_version else None
-        # Top-down inference/generation
-        out, td_data = self.topdown_pass(bu_values, mode_layers=mode_layers)
-
-        if out.shape[-1] > img_size[-1]:
-            # Restore original image size
-            out = crop_img_tensor(out, img_size)
-
-        out = self.output_layer(out)
-        if self._tethered_to_input:
-            assert out.shape[1] == 1
-            ch2 = self.get_other_channel(out, x_pad)
-            out = torch.cat([out, ch2], dim=1)
-
-        return out, td_data
 
     def bottomup_pass(self, inp):
         return self._bottomup_pass(inp, self.first_bottom_up, self.lowres_first_bottom_ups, self.bottom_up_layers)
@@ -727,6 +694,45 @@ class LadderVAE(nn.Module):
         }
         return out, data
 
+    def forward(self, x):
+        img_size = x.size()[2:]
+
+        # Pad input to make everything easier with conv strides
+        x_pad = self.pad_input(x)
+
+        # Bottom-up inference: return list of length n_layers (bottom to top)
+        bu_values = self.bottomup_pass(x_pad)
+        for i in range(0, self.skip_bottomk_buvalues):
+            bu_values[i] = None
+
+        mode_layers = range(self.n_layers) if self.non_stochastic_version else None
+        # Top-down inference/generation
+        out, td_data = self.topdown_pass(bu_values, mode_layers=mode_layers)
+
+        if out.shape[-1] > img_size[-1]:
+            # Restore original image size
+            out = crop_img_tensor(out, img_size)
+
+        out = self.output_layer(out)
+        if self._tethered_to_input:
+            assert out.shape[1] == 1
+            ch2 = self.get_other_channel(out, x_pad)
+            out = torch.cat([out, ch2], dim=1)
+
+        return out, td_data
+
+
+
+# SET OF UTILS METHODS (e.g., get-like, or basic functions) 
+    def get_nonlin(self):
+        nonlin = {
+            'relu': nn.ReLU,
+            'leakyrelu': nn.LeakyReLU,
+            'elu': nn.ELU,
+            'selu': nn.SELU,
+        }
+        return nonlin[self.nonlin]
+
     def pad_input(self, x):
         """
         Pads input x so that its sizes are powers of 2
@@ -803,6 +809,7 @@ class LadderVAE(nn.Module):
         ch2_un = self._tethered_ch2_scalar * (input_un - ch1_un * self._tethered_ch1_scalar)
         ch2 = (ch2_un - self.data_mean['target'][:, -1:]) / self.data_std['target'][:, -1:]
         return ch2
+
 
 ##### TO MOVE IN PL.LIGHTNINGMODULE (training_step, validation_step, losses, ...)
     def log_images_for_tensorboard(self, pred, target, img_mmse, label):
