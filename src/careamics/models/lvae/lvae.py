@@ -14,7 +14,7 @@ import torchvision.transforms.functional as F
 import wandb
 from torch.autograd import Variable
 
-#### Replace these imports!!!
+### TODO: Replace these imports!!!
 from disentangle.analysis.pred_frame_creator import PredFrameCreator
 from disentangle.core.data_utils import Interpolate, crop_img_tensor, pad_img_tensor
 from disentangle.core.likelihoods import GaussianLikelihood, NoiseModelLikelihood
@@ -32,6 +32,8 @@ from disentangle.nets.noise_model import get_noise_model
 
 
 from .utils import torch_nanmean, compute_batch_mean
+
+from .layers import BottomUpDeterministicResBlock 
 
 
 class LadderVAE(nn.Module):
@@ -57,7 +59,7 @@ class LadderVAE(nn.Module):
         self.usplit_kl_weight = config.loss.get('usplit_kl_weight', None)
         self.free_bits = config.loss.free_bits
         self.reconstruction_weight = config.loss.get('reconstruction_weight', 1.0)
-                # enabling reconstruction loss on mixed input
+        # enabling reconstruction loss on mixed input
         self.mixed_rec_w = 0
         self.mixed_rec_w_step = 0
         self.enable_mixed_rec = False
@@ -206,6 +208,7 @@ class LadderVAE(nn.Module):
 
         assert (self.data_std is not None)
         assert (self.data_mean is not None)
+        
         if self.noiseModel is None:
             self.likelihood_form = "gaussian"
         else:
@@ -224,6 +227,8 @@ class LadderVAE(nn.Module):
         # Get class of nonlinear activation from string description
         nonlin = self.get_nonlin()
 
+        
+        ### CREATE MODEL BLOCKS
         # First bottom-up layer: change num channels + downsample by factor 2
         # unless we want to prevent this
         stride = 1 if config.model.no_initial_downscaling else 2
@@ -232,16 +237,28 @@ class LadderVAE(nn.Module):
         self.lowres_first_bottom_ups = self._multiscale_count = None
         self._init_multires(config)
 
-        # Init lists of layers
+        # other bottom-up layers
         enable_multiscale = self._multiscale_count is not None and self._multiscale_count > 1
         self.multiscale_decoder_retain_spatial_dims = self.multiscale_retain_spatial_dims and enable_multiscale
         self.bottom_up_layers = self.create_bottom_up_layers(config.model.multiscale_lowres_separate_branch)
-        self.top_down_layers = self.create_top_down_layers()
 
-        # Final top-down layer
+        # Top-down layers
+        self.top_down_layers = self.create_top_down_layers()
         self.final_top_down = self.create_final_topdown_layer(not self.no_initial_downscaling)
 
+        # Likelihood module
         self.likelihood = self.create_likelihood_module()
+        
+        # Output layer
+        logvar_ch_needed = self.predict_logvar is not None
+        self.output_layer = self.parameter_net = nn.Conv2d(
+            self.decoder_n_filters,
+            self.target_ch * (1 + logvar_ch_needed),
+            kernel_size=3,
+            padding=1,
+            bias=self.topdown_conv2d_bias
+        )
+
         # gradient norms. updated while training. this is also logged.
         self.grad_norm_bottom_up = 0.0
         self.grad_norm_top_down = 0.0
@@ -249,13 +266,7 @@ class LadderVAE(nn.Module):
         # self.label1_psnr = RunningPSNR()
         # self.label2_psnr = RunningPSNR()
         self.channels_psnr = [RunningPSNR() for _ in range(target_ch)]
-        logvar_ch_needed = self.predict_logvar is not None
-        self.output_layer = self.parameter_net = nn.Conv2d(self.decoder_n_filters,
-                                                           self.target_ch * (1 + logvar_ch_needed),
-                                                           kernel_size=3,
-                                                           padding=1,
-                                                           bias=self.topdown_conv2d_bias)
-
+    
         msg =f'[{self.__class__.__name__}] Stoc:{not self.non_stochastic_version} RecMode:{self.reconstruction_mode} TethInput:{self._tethered_to_input}'
         msg += f' TargetCh: {self.target_ch}'
         print(msg)
