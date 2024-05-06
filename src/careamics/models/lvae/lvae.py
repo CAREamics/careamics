@@ -26,14 +26,21 @@ from disentangle.loss.exclusive_loss import compute_exclusion_loss
 from disentangle.loss.nbr_consistency_loss import NeighborConsistencyLoss
 from disentangle.losses import free_bits_kl
 from disentangle.metrics.running_psnr import RunningPSNR
-from disentangle.nets.lvae_layers import (BottomUpDeterministicResBlock, BottomUpLayer, TopDownDeterministicResBlock,
-                                          TopDownLayer)
+from disentangle.nets.lvae_layers import (
+    # BottomUpDeterministicResBlock, 
+    # BottomUpLayer, 
+    TopDownDeterministicResBlock,
+    TopDownLayer
+)
 from disentangle.nets.noise_model import get_noise_model
 
 
 from .utils import torch_nanmean, compute_batch_mean
 
-from .layers import BottomUpDeterministicResBlock 
+from .layers import (
+    BottomUpDeterministicResBlock,
+    BottomUpLayer,
+) 
 
 
 class LadderVAE(nn.Module):
@@ -76,7 +83,6 @@ class LadderVAE(nn.Module):
                 LossType.ElboMixedReconstruction, LossType.ElboSemiSupMixedReconstruction,
                 LossType.ElboRestrictedReconstruction
         ]:
-
             self.mixed_rec_w = config.loss.mixed_rec_weight
             self.mixed_rec_w_step = config.loss.get('mixed_rec_w_step', 0)
             self.enable_mixed_rec = True
@@ -273,17 +279,38 @@ class LadderVAE(nn.Module):
 
 
 ### SET OF METHODS TO CREATE MODEL BLOCKS
-    def create_first_bottom_up(self, init_stride, num_blocks=1):
+    def create_first_bottom_up(
+        self, 
+        init_stride: int, 
+        num_res_blocks: int = 1,
+    ) -> nn.Sequential:
+        """
+        This method creates the first bottom-up block of the Encoder. 
+        Its role is to perform a first image compression step.
+        It is composed by a sequence of nn.Conv2d + non-linearity + 
+        BottomUpDeterministicResBlock (1 or more, default is 1).
+        
+        Parameters
+        ----------
+        init_stride: int
+            The stride used by the intial Conv2d block.
+        num_res_blocks: int, optional
+            The number of BottomUpDeterministicResBlocks to include in the layer, default is 1.
+        """
+        
         nonlin = self.get_nonlin()
         modules = [
-            nn.Conv2d(self.color_ch,
-                      self.encoder_n_filters,
-                      self.encoder_res_block_kernel,
-                      padding=0 if self.encoder_res_block_skip_padding else self.encoder_res_block_kernel // 2,
-                      stride=init_stride),
+            nn.Conv2d(
+                self.color_ch,
+                self.encoder_n_filters,
+                self.encoder_res_block_kernel,
+                padding=0 if self.encoder_res_block_skip_padding else self.encoder_res_block_kernel // 2,
+                stride=init_stride
+            ),
             nonlin()
         ]
-        for _ in range(num_blocks):
+        
+        for _ in range(num_res_blocks):
             modules.append(
                 BottomUpDeterministicResBlock(
                     c_in=self.encoder_n_filters,
@@ -294,13 +321,28 @@ class LadderVAE(nn.Module):
                     res_block_type=self.res_block_type,
                     skip_padding=self.encoder_res_block_skip_padding,
                     res_block_kernel=self.encoder_res_block_kernel,
-                ))
+                )
+            )
+            
         return nn.Sequential(*modules)
 
-    def create_bottom_up_layers(self, lowres_separate_branch):
-        bottom_up_layers = nn.ModuleList([])
+    def create_bottom_up_layers(
+        self, 
+        lowres_separate_branch
+    ) -> nn.ModuleList:
+        """
+        This method creates the stack of bottom-up layers of the Encoder
+        that are used to generate the so-called `bu_values`.
+        
+        Parameters
+        ----------
+        """
+        
+        # Whether to use Lateral Contextualization (LC)
         multiscale_lowres_size_factor = 1
         enable_multiscale = self._multiscale_count is not None and self._multiscale_count > 1
+        
+        bottom_up_layers = nn.ModuleList([])
         nonlin = self.get_nonlin()
         for i in range(self.n_layers):
             # Whether this is the top layer
@@ -314,22 +356,25 @@ class LadderVAE(nn.Module):
             output_expected_shape = (self.img_shape[0] // 2**(i + 1),
                                      self.img_shape[1] // 2**(i + 1)) if self._multiscale_count > 1 else None
             bottom_up_layers.append(
-                BottomUpLayer(n_res_blocks=self.encoder_blocks_per_layer,
-                              n_filters=self.encoder_n_filters,
-                              downsampling_steps=self.downsample[i],
-                              nonlin=nonlin,
-                              batchnorm=self.bottomup_batchnorm,
-                              dropout=self.encoder_dropout,
-                              res_block_type=self.res_block_type,
-                              res_block_kernel=self.encoder_res_block_kernel,
-                              res_block_skip_padding=self.encoder_res_block_skip_padding,
-                              gated=self.gated,
-                              lowres_separate_branch=lowres_separate_branch,
-                              enable_multiscale=enable_multiscale,
-                              multiscale_retain_spatial_dims=self.multiscale_retain_spatial_dims,
-                              multiscale_lowres_size_factor=multiscale_lowres_size_factor,
-                              decoder_retain_spatial_dims=self.multiscale_decoder_retain_spatial_dims,
-                              output_expected_shape=output_expected_shape))
+                BottomUpLayer(
+                    n_res_blocks=self.encoder_blocks_per_layer,
+                    n_filters=self.encoder_n_filters,
+                    downsampling_steps=self.downsample[i],
+                    nonlin=nonlin,
+                    batchnorm=self.bottomup_batchnorm,
+                    dropout=self.encoder_dropout,
+                    res_block_type=self.res_block_type,
+                    res_block_kernel=self.encoder_res_block_kernel,
+                    res_block_skip_padding=self.encoder_res_block_skip_padding,
+                    gated=self.gated,
+                    lowres_separate_branch=lowres_separate_branch,
+                    enable_multiscale=enable_multiscale,
+                    multiscale_retain_spatial_dims=self.multiscale_retain_spatial_dims,
+                    multiscale_lowres_size_factor=multiscale_lowres_size_factor,
+                    decoder_retain_spatial_dims=self.multiscale_decoder_retain_spatial_dims,
+                    output_expected_shape=output_expected_shape
+                    )
+                )
         return bottom_up_layers
 
     def create_top_down_layers(self):
