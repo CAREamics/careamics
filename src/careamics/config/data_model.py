@@ -1,4 +1,5 @@
 """Data configuration."""
+
 from __future__ import annotations
 
 from pprint import pformat

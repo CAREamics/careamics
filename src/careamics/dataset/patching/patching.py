@@ -3,6 +3,7 @@ Tiling submodule.
 
 These functions are used to tile images into patches or tiles.
 """
+
 from pathlib import Path
 from typing import Callable, List, Tuple, Union
 

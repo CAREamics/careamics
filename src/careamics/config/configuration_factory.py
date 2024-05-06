@@ -493,9 +493,11 @@ def create_n2v_configuration(
     # n2v2 and structn2v
     nv2_transform = {
         "name": SupportedTransform.N2V_MANIPULATE.value,
-        "strategy": SupportedPixelManipulation.MEDIAN.value
-        if use_n2v2
-        else SupportedPixelManipulation.UNIFORM.value,
+        "strategy": (
+            SupportedPixelManipulation.MEDIAN.value
+            if use_n2v2
+            else SupportedPixelManipulation.UNIFORM.value
+        ),
         "roi_size": roi_size,
         "masked_pixel_percentage": masked_pixel_percentage,
         "struct_mask_axis": struct_n2v_axis,

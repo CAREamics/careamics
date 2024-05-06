@@ -3,6 +3,7 @@ Validator functions.
 
 These functions are used to validate dimensions and axes of inputs.
 """
+
 from typing import List, Optional, Tuple, Union
 
 _AXES = "STCZYX"

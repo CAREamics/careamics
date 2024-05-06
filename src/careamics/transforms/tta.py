@@ -1,4 +1,5 @@
 """Test-time augmentations."""
+
 from typing import List
 
 import numpy as np

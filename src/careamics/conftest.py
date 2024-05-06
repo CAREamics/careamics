@@ -2,6 +2,7 @@
 
 See https://sybil.readthedocs.io/en/latest/use.html#pytest
 """
+
 from pathlib import Path
 
 import pytest
