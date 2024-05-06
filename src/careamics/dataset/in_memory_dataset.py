@@ -1,4 +1,5 @@
 """In-memory dataset module."""
+
 from __future__ import annotations
 
 import copy

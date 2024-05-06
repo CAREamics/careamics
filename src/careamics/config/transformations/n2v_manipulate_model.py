@@ -1,4 +1,5 @@
 """Pydantic model for the N2VManipulate transform."""
+
 from typing import Literal
 
 from pydantic import ConfigDict, Field, field_validator

@@ -1,4 +1,5 @@
 """Prediction Lightning data modules."""
+
 from pathlib import Path
 from typing import Any, Callable, List, Literal, Optional, Tuple, Union
 

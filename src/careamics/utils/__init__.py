@@ -1,6 +1,5 @@
 """Utils module."""
 
-
 __all__ = [
     "cwd",
     "get_ram_size",

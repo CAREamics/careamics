@@ -1,6 +1,5 @@
 """Files and arrays utils used in the datasets."""
 
-
 __all__ = [
     "reshape_array",
     "get_files_size",
