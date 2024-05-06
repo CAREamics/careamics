@@ -268,7 +268,7 @@ class LadderVAE(nn.Module):
         # PSNR computation on validation.
         # self.label1_psnr = RunningPSNR()
         # self.label2_psnr = RunningPSNR()
-        self.channels_psnr = [RunningPSNR() for _ in range(target_ch)]
+        # self.channels_psnr = [RunningPSNR() for _ in range(target_ch)]
     
         msg =f'[{self.__class__.__name__}] Stoc:{not self.non_stochastic_version} RecMode:{self.reconstruction_mode} TethInput:{self._tethered_to_input}'
         msg += f' TargetCh: {self.target_ch}'
@@ -484,8 +484,8 @@ class LadderVAE(nn.Module):
 
     def create_likelihood_module(self):
         """
-        Define the likelihood module for the current LVAE model.
-        The allowed likelihood modules are `GaussianLikelihood` and `NoiseModelLikelihood`.
+        This method defines the likelihood module for the current LVAE model.
+        The existing likelihood modules are `GaussianLikelihood` and `NoiseModelLikelihood`.
         """
         self.likelihood_gm = GaussianLikelihood(
             self.decoder_n_filters,
@@ -528,7 +528,13 @@ class LadderVAE(nn.Module):
         lowres_first_bottom_ups = []
         for _ in range(1, self._multiscale_count):
             first_bottom_up = nn.Sequential(
-                nn.Conv2d(self.color_ch, self.encoder_n_filters, 5, padding=2, stride=stride), 
+                nn.Conv2d(
+                    in_channels=self.color_ch, 
+                    out_channels=self.encoder_n_filters, 
+                    kernel_size=5,
+                    padding=2,
+                    stride=stride
+                ), 
                 nonlin(),
                 BottomUpDeterministicResBlock(
                     c_in=self.encoder_n_filters,
