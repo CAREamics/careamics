@@ -17,7 +17,6 @@ from torch.autograd import Variable
 ### TODO: Replace these imports!!!
 from disentangle.analysis.pred_frame_creator import PredFrameCreator
 from disentangle.core.data_utils import Interpolate, crop_img_tensor, pad_img_tensor
-from disentangle.core.loss_type import LossType
 from disentangle.core.metric_monitor import MetricMonitor
 from disentangle.core.psnr import RangeInvariantPsnr
 from disentangle.core.sampler_type import SamplerType
@@ -28,7 +27,7 @@ from disentangle.metrics.running_psnr import RunningPSNR
 from disentangle.nets.noise_model import get_noise_model
 
 
-from .utils import torch_nanmean, compute_batch_mean
+from .utils import LossType
 
 from .layers import (
     BottomUpDeterministicResBlock,
@@ -36,6 +35,7 @@ from .layers import (
     TopDownLayer,
     TopDownDeterministicResBlock
 ) 
+
 from .likelihoods import GaussianLikelihood, NoiseModelLikelihood
 
 
@@ -124,6 +124,7 @@ class LadderVAE(nn.Module):
         # normalized_input: If input is normalized, then we don't normalize the input.
         # We then just normalize the target. Otherwise, both input and target are normalized.
         self.normalized_input = config.data.normalized_input
+        self._multiscale_count = config.data.multiscale_lowres_count
 
         # Model attributes
         self.enable_noise_model = config.model.enable_noise_model
@@ -220,7 +221,7 @@ class LadderVAE(nn.Module):
 
         # Downsample by a factor of 2 at each downsampling operation
         self.overall_downscale_factor = np.power(2, sum(self.downsample))
-        if not config.model.no_initial_downscaling:  # by default do another downscaling
+        if not self.no_initial_downscaling:  # by default do another downscaling
             self.overall_downscale_factor *= 2
 
         assert max(self.downsample) <= self.encoder_blocks_per_layer
@@ -233,7 +234,7 @@ class LadderVAE(nn.Module):
         ### CREATE MODEL BLOCKS
         # First bottom-up layer: change num channels + downsample by factor 2
         # unless we want to prevent this
-        stride = 1 if config.model.no_initial_downscaling else 2
+        stride = 1 if self.no_initial_downscaling else 2
         self.first_bottom_up = self.create_first_bottom_up(stride)
         self.multiscale_retain_spatial_dims = config.model.multiscale_retain_spatial_dims
         self.lowres_first_bottom_ups = self._multiscale_count = None
@@ -482,41 +483,53 @@ class LadderVAE(nn.Module):
 
 
     def create_likelihood_module(self):
-        # Define likelihood
-        self.likelihood_gm = GaussianLikelihood(self.decoder_n_filters,
-                                            self.target_ch,
-                                            predict_logvar=self.predict_logvar,
-                                            logvar_lowerbound=self.logvar_lowerbound,
-                                            conv2d_bias=self.topdown_conv2d_bias)
+        """
+        Define the likelihood module for the current LVAE model.
+        The allowed likelihood modules are `GaussianLikelihood` and `NoiseModelLikelihood`.
+        """
+        self.likelihood_gm = GaussianLikelihood(
+            self.decoder_n_filters,
+            self.target_ch,
+            predict_logvar=self.predict_logvar,
+            logvar_lowerbound=self.logvar_lowerbound,
+            conv2d_bias=self.topdown_conv2d_bias
+        )
         self.likelihood_NM = None
         if self.enable_noise_model:
-            self.likelihood_NM = NoiseModelLikelihood(self.decoder_n_filters, self.target_ch, self.data_mean, self.data_std,
-                                                self.noiseModel)
+            self.likelihood_NM = NoiseModelLikelihood(
+                self.decoder_n_filters, 
+                self.target_ch, 
+                self.data_mean, 
+                self.data_std,
+                self.noiseModel
+            )
         if self.loss_type == LossType.DenoiSplitMuSplit or self.likelihood_NM is None:
             return self.likelihood_gm
         
         return self.likelihood_NM
 
-    def _init_multires(self, config):
+
+    def _init_multires(self, config) -> nn.ModuleList:
         """
         Initialize everything related to multiresolution approach (LC).
         """
-        stride = 1 if config.model.no_initial_downscaling else 2
+        
+        stride = 1 if self.no_initial_downscaling else 2
         nonlin = self.get_nonlin()
-        self._multiscale_count = config.data.multiscale_lowres_count
         if self._multiscale_count is None:
             self._multiscale_count = 1
 
         msg = "Multiscale count({}) should not exceed the number of bottom up layers ({}) by more than 1"
-        msg = msg.format(config.data.multiscale_lowres_count, len(config.model.z_dims))
-        assert self._multiscale_count <= 1 or config.data.multiscale_lowres_count <= 1 + len(config.model.z_dims), msg
+        msg = msg.format(self._multiscale_count, len(config.model.z_dims))
+        assert self._multiscale_count <= 1 or self._multiscale_count <= 1 + len(config.model.z_dims), msg
 
         msg = "if multiscale is enabled, then we are just working with monocrome images."
         assert self._multiscale_count == 1 or self.color_ch == 1, msg
         lowres_first_bottom_ups = []
         for _ in range(1, self._multiscale_count):
             first_bottom_up = nn.Sequential(
-                nn.Conv2d(self.color_ch, self.encoder_n_filters, 5, padding=2, stride=stride), nonlin(),
+                nn.Conv2d(self.color_ch, self.encoder_n_filters, 5, padding=2, stride=stride), 
+                nonlin(),
                 BottomUpDeterministicResBlock(
                     c_in=self.encoder_n_filters,
                     c_out=self.encoder_n_filters,
@@ -525,7 +538,8 @@ class LadderVAE(nn.Module):
                     dropout=self.encoder_dropout,
                     res_block_type=self.res_block_type,
                     skip_padding=self.encoder_res_block_skip_padding,
-                ))
+                )
+            )
             lowres_first_bottom_ups.append(first_bottom_up)
 
         self.lowres_first_bottom_ups = nn.ModuleList(lowres_first_bottom_ups) if len(lowres_first_bottom_ups) else None
