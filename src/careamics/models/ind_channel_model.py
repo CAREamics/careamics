@@ -1,8 +1,6 @@
-"""
-For creating networks that train independent models for each channel
-"""
+"""For creating networks that train independent models for each channel."""
 from operator import getitem, setitem
-from typing import Type, Dict, Any
+from typing import Any, Dict, Type
 
 import torch
 import torch.nn as nn
@@ -11,17 +9,17 @@ from ..utils import get_logger
 
 logger = get_logger(__name__)
 
-class IndChannelModel(nn.Module):
 
+class IndChannelModel(nn.Module):
     def __init__(
-        self, 
+        self,
         model: Type[nn.Module],
         model_kwargs: Dict[str, Any],
-        in_channels_keyword: str="in_channels",
-        out_channels_keyword: str="num_classes"
+        in_channels_keyword: str = "in_channels",
+        out_channels_keyword: str = "num_classes",
     ):
         """
-        A class to create a model where the base model is duplicated for each 
+        A class to create a model where the base model is duplicated for each
         input channel. Each model is trained seperately for each channel and
         the outputs are recomined at the end.
 
@@ -32,13 +30,13 @@ class IndChannelModel(nn.Module):
         model_kwargs : dict(str, any)
             Model keyword arguments
         in_channels_keyword : str, optional
-            The argument that controls the input channels in the `model_kwargs`. 
+            The argument that controls the input channels in the `model_kwargs`.
             default = 'in_channels'.
 
         Raises
         ------
         ValueError
-            If the `in_channels_keyword` is not found in the 
+            If the `in_channels_keyword` is not found in the
             `model_kwargs`.
         """
         super().__init__()
@@ -48,8 +46,9 @@ class IndChannelModel(nn.Module):
             in_channels = getitem(model_kwargs, in_channels_keyword)
         except AttributeError as e:
             raise ValueError(
-                "Input channels keyword, '{}', not found in model_kwargs"
-                .format(in_channels_keyword)
+                "Input channels keyword, '{}', not found in model_kwargs".format(
+                    in_channels_keyword
+                )
             ) from e
 
         # Create a copy of the model config but for a single channel
@@ -58,10 +57,9 @@ class IndChannelModel(nn.Module):
         setitem(model_config_single_channel, out_channels_keyword, 1)
 
         # Create a seperate model for each channel
-        self.channel_models = nn.ModuleList([
-            model(**model_config_single_channel)
-            for _ in range(in_channels)
-        ])
+        self.channel_models = nn.ModuleList(
+            [model(**model_config_single_channel) for _ in range(in_channels)]
+        )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -80,7 +78,6 @@ class IndChannelModel(nn.Module):
         torch.Tensor
             Output of the model.
         """
-
         # Alternative: pre-initialise 0-tensor and populate each channel
         y = []
         # Pass each channel to each model
@@ -88,4 +85,3 @@ class IndChannelModel(nn.Module):
             y.append(model(x[:, [i], ...]))
 
         return torch.cat(y, dim=1)
-        

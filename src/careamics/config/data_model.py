@@ -116,9 +116,7 @@ class DataModel(BaseModel):
 
     @field_validator("patch_size")
     @classmethod
-    def all_elements_power_of_2_minimum_8(
-        cls, patch_list: List[int]
-    ) -> List[int]:
+    def all_elements_power_of_2_minimum_8(cls, patch_list: List[int]) -> List[int]:
         """
         Validate patch size.
 

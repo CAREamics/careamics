@@ -10,8 +10,9 @@ import torch.nn as nn
 
 from ..config.support import SupportedActivation
 from .activation import get_activation
-from .layers import Conv_Block, MaxBlurPool
 from .ind_channel_model import IndChannelModel
+from .layers import Conv_Block, MaxBlurPool
+
 
 class UnetEncoder(nn.Module):
     """
@@ -231,9 +232,10 @@ class UnetDecoder(nn.Module):
                     x = torch.cat([x, skip_connections[i // 2]], axis=1)
         return x
 
+
 class UNet(nn.Module):
     """
-    UNet model. Option to train duplicated independent networks for each input 
+    UNet model. Option to train duplicated independent networks for each input
     channel.
 
     Adapted for PyTorch from:
@@ -320,11 +322,9 @@ class UNet(nn.Module):
             "final_activation": final_activation,
         }
         # TODO: This could be part of the `model_factory` function
-        #   - would require more refactoring 
+        #   - would require more refactoring
         if ind_channels:
-            self.model = IndChannelModel(
-                model=BaseUNet, model_kwargs=model_kwargs
-            )
+            self.model = IndChannelModel(model=BaseUNet, model_kwargs=model_kwargs)
         else:
             self.model = BaseUNet(**model_kwargs)
 
@@ -342,8 +342,8 @@ class UNet(nn.Module):
         torch.Tensor
             Output of the model.
         """
-
         return self.model(x)
+
 
 class BaseUNet(nn.Module):
     """
