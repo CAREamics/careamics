@@ -553,6 +553,9 @@ class LadderVAE(nn.Module):
 
 ### SET OF FORWARD-LIKE METHODS
     def bottomup_pass(self, inp: torch.Tensor) -> List[torch.Tensor]:
+        """
+        Wrapper of _bottomup_pass().
+        """
         return self._bottomup_pass(inp, self.first_bottom_up, self.lowres_first_bottom_ups, self.bottom_up_layers)
 
     def _bottomup_pass(
@@ -596,38 +599,6 @@ class LadderVAE(nn.Module):
             bu_values.append(bu_value)
 
         return bu_values
-
-
-    def sample_from_q(self, x, masks=None):
-        img_size = x.size()[2:]
-
-        # Pad input to make everything easier with conv strides
-        x_pad = self.pad_input(x)
-
-        # Bottom-up inference: return list of length n_layers (bottom to top)
-        bu_values = self.bottomup_pass(x_pad)
-        return self._sample_from_q(bu_values, masks=masks)
-
-
-    def _sample_from_q(self, bu_values, top_down_layers=None, final_top_down_layer=None, masks=None):
-        if top_down_layers is None:
-            top_down_layers = self.top_down_layers
-        if final_top_down_layer is None:
-            final_top_down_layer = self.final_top_down
-        if masks is None:
-            masks = [None] * len(bu_values)
-
-        msg = "Multiscale is not supported as of now. You need the output from the previous layers to do this."
-        assert self.n_layers == 1, msg
-        samples = []
-        for i in reversed(range(self.n_layers)):
-            bu_value = bu_values[i]
-
-            # Note that the first argument can be set to None since we are just dealing with one level
-            sample = top_down_layers[i].sample_from_q(None, bu_value, var_clip_max=self._var_clip_max, mask=masks[i])
-            samples.append(sample)
-
-        return samples
 
 
     def topdown_pass(self,
@@ -834,7 +805,7 @@ class LadderVAE(nn.Module):
         mask2[:, 1] = 1
         return ll * mask1 * self.ch1_recons_w + ll * mask2 * self.ch2_recons_w
 
-# SET OF UTILS METHODS (e.g., get-like, or functions that do basic stuff) 
+# SET OF UTILS METHODS
     def sample_prior(
             self, 
             n_imgs, 
@@ -850,22 +821,48 @@ class LadderVAE(nn.Module):
         _, likelihood_data = self.likelihood(out, None)
 
         return likelihood_data['sample']
+    
+    ### ???
+    def sample_from_q(self, x, masks=None):
+        """
+        This method performs the bottomup_pass() and samples from the 
+        obtained distribution.
+        """
+        img_size = x.size()[2:]
+
+        # Pad input to make everything easier with conv strides
+        x_pad = self.pad_input(x)
+
+        # Bottom-up inference: return list of length n_layers (bottom to top)
+        bu_values = self.bottomup_pass(x_pad)
+        return self._sample_from_q(bu_values, masks=masks)
+    ### ???
+
+    def _sample_from_q(self, bu_values, top_down_layers=None, final_top_down_layer=None, masks=None):
+        if top_down_layers is None:
+            top_down_layers = self.top_down_layers
+        if final_top_down_layer is None:
+            final_top_down_layer = self.final_top_down
+        if masks is None:
+            masks = [None] * len(bu_values)
+
+        msg = "Multiscale is not supported as of now. You need the output from the previous layers to do this."
+        assert self.n_layers == 1, msg
+        samples = []
+        for i in reversed(range(self.n_layers)):
+            bu_value = bu_values[i]
+
+            # Note that the first argument can be set to None since we are just dealing with one level
+            sample = top_down_layers[i].sample_from_q(None, bu_value, var_clip_max=self._var_clip_max, mask=masks[i])
+            samples.append(sample)
+
+        return samples
 
     def reset_for_different_output_size(self, output_size):
         for i in range(self.n_layers):
             sz = output_size // 2**(1 + i)
             self.bottom_up_layers[i].output_expected_shape = (sz, sz)
             self.top_down_layers[i].latent_shape = (output_size, output_size)
-
-
-    def get_nonlin(self):
-        nonlin = {
-            'relu': nn.ReLU,
-            'leakyrelu': nn.LeakyReLU,
-            'elu': nn.ELU,
-            'selu': nn.SELU,
-        }
-        return nonlin[self.nonlin]
 
 
     def pad_input(self, x):
@@ -877,6 +874,16 @@ class LadderVAE(nn.Module):
         size = self.get_padded_size(x.size())
         x = pad_img_tensor(x, size)
         return x
+    
+### SET OF GETTERS 
+    def get_nonlin(self):
+        nonlin = {
+            'relu': nn.ReLU,
+            'leakyrelu': nn.LeakyReLU,
+            'elu': nn.ELU,
+            'selu': nn.SELU,
+        }
+        return nonlin[self.nonlin]
 
 
     def get_padded_size(self, size):
