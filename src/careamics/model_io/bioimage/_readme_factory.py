@@ -117,4 +117,4 @@ def readme_factory(
 
         readme.write_text("".join(description))
 
-    return readme
+        return readme.absolute()
