@@ -1,4 +1,5 @@
 """Pydantic model representing CAREamics prediction configuration."""
+
 from __future__ import annotations
 
 from typing import Any, List, Literal, Optional, Union

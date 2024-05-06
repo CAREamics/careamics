@@ -1,6 +1,5 @@
 """Configuration module."""
 
-
 __all__ = [
     "AlgorithmConfig",
     "DataConfig",

@@ -3,6 +3,7 @@ Extraction strategy module.
 
 This module defines the various extraction strategies available in CAREamics.
 """
+
 from careamics.utils import BaseEnum
 
 

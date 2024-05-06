@@ -1,4 +1,5 @@
 """Bioimage.io utils."""
+
 from pathlib import Path
 from typing import Union
 

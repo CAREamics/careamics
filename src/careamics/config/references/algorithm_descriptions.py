@@ -1,4 +1,5 @@
 """Descriptions of the algorithms used in CAREmics."""
+
 from pydantic import BaseModel
 
 CUSTOM = "Custom"
