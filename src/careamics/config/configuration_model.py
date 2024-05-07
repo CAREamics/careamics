@@ -1,4 +1,5 @@
 """Pydantic CAREamics configuration."""
+
 from __future__ import annotations
 
 import re
@@ -11,8 +12,8 @@ from bioimageio.spec.generic.v0_3 import CiteEntry
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from typing_extensions import Self
 
-from .algorithm_model import AlgorithmModel
-from .data_model import DataModel
+from .algorithm_model import AlgorithmConfig
+from .data_model import DataConfig
 from .references import (
     CARE,
     CUSTOM,
@@ -34,7 +35,7 @@ from .references import (
     StructN2VRef,
 )
 from .support import SupportedAlgorithm, SupportedPixelManipulation, SupportedTransform
-from .training_model import TrainingModel
+from .training_model import TrainingConfig
 from .transformations.n2v_manipulate_model import (
     N2VManipulateModel,
 )
@@ -156,9 +157,10 @@ class Configuration(BaseModel):
     )
 
     # Sub-configurations
-    algorithm_config: AlgorithmModel
-    data_config: DataModel
-    training_config: TrainingModel
+    algorithm_config: AlgorithmConfig
+
+    data_config: DataConfig
+    training_config: TrainingConfig
 
     @field_validator("experiment_name")
     @classmethod
@@ -591,6 +593,6 @@ def save_configuration(config: Configuration, path: Union[str, Path]) -> Path:
     # save configuration as dictionary to yaml
     with open(config_path, "w") as f:
         # dump configuration
-        yaml.dump(config.model_dump(), f, default_flow_style=False)
+        yaml.dump(config.model_dump(), f, default_flow_style=False, sort_keys=False)
 
     return config_path

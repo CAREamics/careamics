@@ -1,4 +1,5 @@
 """Pydantic model for the NDFlip transform."""
+
 from typing import Literal
 
 from pydantic import ConfigDict, Field
@@ -26,7 +27,7 @@ class NDFlipModel(TransformModel):
         validate_assignment=True,
     )
 
-    name: Literal["NDFlip"]
+    name: Literal["NDFlip"] = "NDFlip"
     p: float = Field(default=0.5, ge=0.0, le=1.0)
     is_3D: bool = Field(default=False)
     flip_z: bool = Field(default=True)

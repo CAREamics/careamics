@@ -3,6 +3,7 @@ Convenience functions using torch.
 
 These functions are used to control certain aspects and behaviours of PyTorch.
 """
+
 import inspect
 from typing import Dict, Union
 

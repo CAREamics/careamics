@@ -1,4 +1,5 @@
 """Function to export to the BioImage Model Zoo format."""
+
 import tempfile
 from pathlib import Path
 from typing import List, Optional, Tuple, Union
@@ -11,7 +12,7 @@ from torch import __version__, load, save
 
 from careamics.config import Configuration, load_configuration, save_configuration
 from careamics.config.support import SupportedArchitecture
-from careamics.lightning_module import CAREamicsKiln
+from careamics.lightning_module import CAREamicsModule
 
 from .bioimage import (
     create_env_text,
@@ -21,7 +22,7 @@ from .bioimage import (
 )
 
 
-def _export_state_dict(model: CAREamicsKiln, path: Union[Path, str]) -> Path:
+def _export_state_dict(model: CAREamicsModule, path: Union[Path, str]) -> Path:
     """
     Export the model state dictionary to a file.
 
@@ -51,7 +52,7 @@ def _export_state_dict(model: CAREamicsKiln, path: Union[Path, str]) -> Path:
     return path
 
 
-def _load_state_dict(model: CAREamicsKiln, path: Union[Path, str]) -> None:
+def _load_state_dict(model: CAREamicsModule, path: Union[Path, str]) -> None:
     """
     Load a model from a state dictionary.
 
@@ -73,7 +74,7 @@ def _load_state_dict(model: CAREamicsKiln, path: Union[Path, str]) -> None:
 
 # TODO break down in subfunctions
 def export_to_bmz(
-    model: CAREamicsKiln,
+    model: CAREamicsModule,
     config: Configuration,
     path: Union[Path, str],
     name: str,
@@ -177,7 +178,7 @@ def export_to_bmz(
         )
 
         # test model description
-        summary: ValidationSummary = test_model(model_description)
+        summary: ValidationSummary = test_model(model_description, decimal=0)
         if summary.status == "failed":
             raise ValueError(f"Model description test failed: {summary}")
 
@@ -185,7 +186,7 @@ def export_to_bmz(
         save_bioimageio_package(model_description, output_path=path)
 
 
-def load_from_bmz(path: Union[Path, str]) -> Tuple[CAREamicsKiln, Configuration]:
+def load_from_bmz(path: Union[Path, str]) -> Tuple[CAREamicsModule, Configuration]:
     """Load a model from a BioImage Model Zoo archive.
 
     Parameters
@@ -223,7 +224,7 @@ def load_from_bmz(path: Union[Path, str]) -> Tuple[CAREamicsKiln, Configuration]
     config = load_configuration(config_path)
 
     # create careamics lightning module
-    model = CAREamicsKiln(algorithm_config=config.algorithm_config)
+    model = CAREamicsModule(algorithm_config=config.algorithm_config)
 
     # load model state dictionary
     _load_state_dict(model, weights_path)

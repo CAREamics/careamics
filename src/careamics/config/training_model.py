@@ -1,4 +1,5 @@
 """Training configuration."""
+
 from __future__ import annotations
 
 from pprint import pformat
@@ -13,7 +14,7 @@ from pydantic import (
 from .callback_model import CheckpointModel, EarlyStoppingModel
 
 
-class TrainingModel(BaseModel):
+class TrainingConfig(BaseModel):
     """
     Parameters related to the training.
 

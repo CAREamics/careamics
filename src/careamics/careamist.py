@@ -20,9 +20,9 @@ from careamics.config import (
 )
 from careamics.config.inference_model import TRANSFORMS_UNION
 from careamics.config.support import SupportedAlgorithm, SupportedData, SupportedLogger
-from careamics.lightning_datamodule import CAREamicsWood
-from careamics.lightning_module import CAREamicsKiln
-from careamics.lightning_prediction_datamodule import CAREamicsClay
+from careamics.lightning_datamodule import CAREamicsTrainData
+from careamics.lightning_module import CAREamicsModule
+from careamics.lightning_prediction_datamodule import CAREamicsPredictData
 from careamics.lightning_prediction_loop import CAREamicsPredictionLoop
 from careamics.model_io import export_to_bmz, load_pretrained
 from careamics.utils import check_path_exists, get_logger
@@ -73,8 +73,7 @@ class CAREamist:
         source: Union[Path, str],
         work_dir: Optional[str] = None,
         experiment_name: str = "CAREamics",
-    ) -> None:
-        ...
+    ) -> None: ...
 
     @overload
     def __init__(  # numpydoc ignore=GL08
@@ -82,8 +81,7 @@ class CAREamist:
         source: Configuration,
         work_dir: Optional[str] = None,
         experiment_name: str = "CAREamics",
-    ) -> None:
-        ...
+    ) -> None: ...
 
     def __init__(
         self,
@@ -140,7 +138,7 @@ class CAREamist:
             self.cfg = source
 
             # instantiate model
-            self.model = CAREamicsKiln(
+            self.model = CAREamicsModule(
                 algorithm_config=self.cfg.algorithm_config,
             )
 
@@ -156,7 +154,7 @@ class CAREamist:
                 self.cfg = load_configuration(source)
 
                 # instantiate model
-                self.model = CAREamicsKiln(
+                self.model = CAREamicsModule(
                     algorithm_config=self.cfg.algorithm_config,
                 )
 
@@ -193,8 +191,8 @@ class CAREamist:
         self.trainer.predict_loop = CAREamicsPredictionLoop(self.trainer)
 
         # place holder for the datamodules
-        self.train_datamodule: Optional[CAREamicsWood] = None
-        self.pred_datamodule: Optional[CAREamicsClay] = None
+        self.train_datamodule: Optional[CAREamicsTrainData] = None
+        self.pred_datamodule: Optional[CAREamicsPredictData] = None
 
     def _define_callbacks(self) -> List[Callback]:
         """
@@ -227,7 +225,7 @@ class CAREamist:
     def train(
         self,
         *,
-        datamodule: Optional[CAREamicsWood] = None,
+        datamodule: Optional[CAREamicsTrainData] = None,
         train_source: Optional[Union[Path, str, np.ndarray]] = None,
         val_source: Optional[Union[Path, str, np.ndarray]] = None,
         train_target: Optional[Union[Path, str, np.ndarray]] = None,
@@ -360,7 +358,7 @@ class CAREamist:
                     f"instance (got {type(train_source)})."
                 )
 
-    def _train_on_datamodule(self, datamodule: CAREamicsWood) -> None:
+    def _train_on_datamodule(self, datamodule: CAREamicsTrainData) -> None:
         """
         Train the model on the provided datamodule.
 
@@ -402,7 +400,7 @@ class CAREamist:
             Minimum number of patches to use for validation, by default 5.
         """
         # create datamodule
-        datamodule = CAREamicsWood(
+        datamodule = CAREamicsTrainData(
             data_config=self.cfg.data_config,
             train_data=train_data,
             val_data=val_data,
@@ -458,7 +456,7 @@ class CAREamist:
             path_to_val_target = check_path_exists(path_to_val_target)
 
         # create datamodule
-        datamodule = CAREamicsWood(
+        datamodule = CAREamicsTrainData(
             data_config=self.cfg.data_config,
             train_data=path_to_train_data,
             val_data=path_to_val_data,
@@ -475,11 +473,10 @@ class CAREamist:
     @overload
     def predict(  # numpydoc ignore=GL08
         self,
-        source: CAREamicsClay,
+        source: CAREamicsPredictData,
         *,
         checkpoint: Optional[Literal["best", "last"]] = None,
-    ) -> Union[list, np.ndarray]:
-        ...
+    ) -> Union[list, np.ndarray]: ...
 
     @overload
     def predict(  # numpydoc ignore=GL08
@@ -497,8 +494,7 @@ class CAREamist:
         read_source_func: Optional[Callable] = None,
         extension_filter: str = "",
         checkpoint: Optional[Literal["best", "last"]] = None,
-    ) -> Union[list, np.ndarray]:
-        ...
+    ) -> Union[list, np.ndarray]: ...
 
     @overload
     def predict(  # numpydoc ignore=GL08
@@ -514,12 +510,11 @@ class CAREamist:
         tta_transforms: bool = True,
         dataloader_params: Optional[Dict] = None,
         checkpoint: Optional[Literal["best", "last"]] = None,
-    ) -> Union[list, np.ndarray]:
-        ...
+    ) -> Union[list, np.ndarray]: ...
 
     def predict(
         self,
-        source: Union[CAREamicsClay, Path, str, np.ndarray],
+        source: Union[CAREamicsPredictData, Path, str, np.ndarray],
         *,
         batch_size: int = 1,
         tile_size: Optional[Tuple[int, ...]] = None,
@@ -587,7 +582,7 @@ class CAREamist:
         ValueError
             If the input is not a CAREamicsClay instance, a path or a numpy array.
         """
-        if isinstance(source, CAREamicsClay):
+        if isinstance(source, CAREamicsPredictData):
             # record datamodule
             self.pred_datamodule = source
 
@@ -623,8 +618,8 @@ class CAREamist:
                 source_path = check_path_exists(source)
 
                 # create datamodule
-                datamodule = CAREamicsClay(
-                    prediction_config=prediction_config,
+                datamodule = CAREamicsPredictData(
+                    pred_config=prediction_config,
                     pred_data=source_path,
                     read_source_func=read_source_func,
                     extension_filter=extension_filter,
@@ -640,8 +635,8 @@ class CAREamist:
 
             elif isinstance(source, np.ndarray):
                 # create datamodule
-                datamodule = CAREamicsClay(
-                    prediction_config=prediction_config,
+                datamodule = CAREamicsPredictData(
+                    pred_config=prediction_config,
                     pred_data=source,
                     dataloader_params=dataloader_params,
                 )

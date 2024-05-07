@@ -1,4 +1,5 @@
 """Data configuration."""
+
 from __future__ import annotations
 
 from pprint import pformat
@@ -33,7 +34,7 @@ TRANSFORMS_UNION = Annotated[
 ]
 
 
-class DataModel(BaseModel):
+class DataConfig(BaseModel):
     """
     Data configuration.
 
@@ -45,7 +46,7 @@ class DataModel(BaseModel):
     --------
     Minimum example:
 
-    >>> data = DataModel(
+    >>> data = DataConfig(
     ...     data_type="array", # defined in SupportedData
     ...     patch_size=[128, 128],
     ...     batch_size=4,
@@ -58,7 +59,7 @@ class DataModel(BaseModel):
     One can pass also a list of transformations, by keyword, using the
     SupportedTransform or the name of an Albumentation transform:
     >>> from careamics.config.support import SupportedTransform
-    >>> data = DataModel(
+    >>> data = DataConfig(
     ...     data_type="tiff",
     ...     patch_size=[128, 128],
     ...     batch_size=4,

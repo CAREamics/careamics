@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 import tifffile
 
-from careamics.config import DataModel
+from careamics.config import DataConfig
 from careamics.config.support import SupportedData
 from careamics.dataset import PathIterableDataset
 from careamics.dataset.dataset_utils import read_tiff
@@ -41,7 +41,7 @@ def test_number_of_files(tmp_path, ordered_array, shape):
         "patch_size": patch_sizes,
         "axes": axes,
     }
-    config = DataModel(**config_dict)
+    config = DataConfig(**config_dict)
 
     # create dataset
     dataset = PathIterableDataset(
@@ -84,7 +84,7 @@ def test_read_function(tmp_path, ordered_array):
         "patch_size": patch_sizes,
         "axes": "YX",
     }
-    config = DataModel(**config_dict)
+    config = DataConfig(**config_dict)
 
     # create dataset
     dataset = PathIterableDataset(
@@ -118,7 +118,7 @@ def test_extracting_val_files(tmp_path, ordered_array, percentage):
         "patch_size": [8, 8],
         "axes": "YX",
     }
-    config = DataModel(**config_dict)
+    config = DataConfig(**config_dict)
 
     # create dataset
     dataset = PathIterableDataset(

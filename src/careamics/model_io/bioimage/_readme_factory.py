@@ -1,4 +1,5 @@
 """Functions used to create a README.md file for BMZ export."""
+
 from pathlib import Path
 from typing import Optional
 
@@ -117,4 +118,4 @@ def readme_factory(
 
         readme.write_text("".join(description))
 
-    return readme
+        return readme.absolute()

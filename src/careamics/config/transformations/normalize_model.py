@@ -1,4 +1,5 @@
 """Pydantic model for the Normalize transform."""
+
 from typing import Literal
 
 from pydantic import ConfigDict, Field
@@ -26,6 +27,6 @@ class NormalizeModel(TransformModel):
         validate_assignment=True,
     )
 
-    name: Literal["Normalize"]
+    name: Literal["Normalize"] = "Normalize"
     mean: float = Field(default=0.485)  # albumentations defaults
     std: float = Field(default=0.229)

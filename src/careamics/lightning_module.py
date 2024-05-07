@@ -3,7 +3,7 @@ from typing import Any, Optional, Union
 import pytorch_lightning as L
 from torch import Tensor, nn
 
-from careamics.config import AlgorithmModel
+from careamics.config import AlgorithmConfig
 from careamics.config.support import (
     SupportedAlgorithm,
     SupportedArchitecture,
@@ -17,7 +17,7 @@ from careamics.transforms import Denormalize, ImageRestorationTTA
 from careamics.utils.torch_utils import get_optimizer, get_scheduler
 
 
-class CAREamicsKiln(L.LightningModule):
+class CAREamicsModule(L.LightningModule):
     """
     CAREamics Lightning module.
 
@@ -38,7 +38,7 @@ class CAREamicsKiln(L.LightningModule):
         Learning rate scheduler name.
     """
 
-    def __init__(self, algorithm_config: Union[AlgorithmModel, dict]) -> None:
+    def __init__(self, algorithm_config: Union[AlgorithmConfig, dict]) -> None:
         """
         CAREamics Lightning module.
 
@@ -53,7 +53,7 @@ class CAREamicsKiln(L.LightningModule):
         super().__init__()
         # if loading from a checkpoint, AlgorithmModel needs to be instantiated
         if isinstance(algorithm_config, dict):
-            algorithm_config = AlgorithmModel(**algorithm_config)
+            algorithm_config = AlgorithmConfig(**algorithm_config)
 
         # create model and loss function
         self.model: nn.Module = model_factory(algorithm_config.model)
@@ -192,7 +192,7 @@ class CAREamicsKiln(L.LightningModule):
         }
 
 
-class CAREamicsModule(CAREamicsKiln):
+class CAREamicsModuleWrapper(CAREamicsModule):
     """Class defining the API for CAREamics Lightning layer.
 
     This class exposes parameters used to create an AlgorithmModel instance, triggering
@@ -287,6 +287,6 @@ class CAREamicsModule(CAREamicsKiln):
         algorithm_configuration["model"] = model_configuration
 
         # call the parent init using an AlgorithmModel instance
-        super().__init__(AlgorithmModel(**algorithm_configuration))
+        super().__init__(AlgorithmConfig(**algorithm_configuration))
 
         # TODO add load_from_checkpoint wrapper

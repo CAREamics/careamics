@@ -1,4 +1,5 @@
 """Pydantic model for the XYRandomRotate90 transform."""
+
 from typing import Literal
 
 from pydantic import ConfigDict, Field
@@ -24,6 +25,6 @@ class XYRandomRotate90Model(TransformModel):
         validate_assignment=True,
     )
 
-    name: Literal["XYRandomRotate90"]
+    name: Literal["XYRandomRotate90"] = "XYRandomRotate90"
     p: float = Field(default=0.5, ge=0.0, le=1.0)
     is_3D: bool = Field(default=False)
