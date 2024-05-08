@@ -16,7 +16,7 @@ from torch.autograd import Variable
 
 ### TODO: Replace these imports!!!
 from disentangle.analysis.pred_frame_creator import PredFrameCreator
-from disentangle.core.data_utils import Interpolate, crop_img_tensor, pad_img_tensor
+from disentangle.core.data_utils import Interpolate, pad_img_tensor
 from disentangle.core.metric_monitor import MetricMonitor
 from disentangle.core.psnr import RangeInvariantPsnr
 from disentangle.core.sampler_type import SamplerType
@@ -27,7 +27,10 @@ from disentangle.metrics.running_psnr import RunningPSNR
 from disentangle.nets.noise_model import get_noise_model
 
 
-from .utils import LossType
+from .utils import (
+    LossType,
+    crop_img_tensor
+)
 
 from .layers import (
     BottomUpDeterministicResBlock,
