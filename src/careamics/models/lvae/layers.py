@@ -1,11 +1,14 @@
 """
-Script containing the common layers (nn.Module) reused by the LadderVAE architecture.
+Script containing the common basic blocks (nn.Module) reused by the LadderVAE architecture.
+
+Hierarchy in the model blocks:
+
 """
 import torch
 import torch.nn as nn
 import torchvision.transforms.functional as F
 from copy import deepcopy
-from typing import Union, Tuple, Iterable
+from typing import Union, Tuple, Iterable, Literal, Callable
 
 
 class ResidualBlock(nn.Module):
@@ -34,7 +37,7 @@ class ResidualBlock(nn.Module):
     def __init__(
         self,
         channels: int,
-        nonlin: str,
+        nonlin: Callable,
         kernel: Union[int, Iterable[int]] = None,
         groups: int = 1,
         batchnorm: bool = True,
@@ -51,8 +54,8 @@ class ResidualBlock(nn.Module):
         ----------
         channels: int
             The number of input and output channels (they are the same).
-        nonlin: str
-            The type of non-linearity used in the block (see `get_nonlin()`).
+        nonlin: Callable
+            The non-linearity function used in the block (e.g., `nn.ReLU`).
         kernel: Union[int, Iterable[int]], optional
             The kernel size used in the convolutions of the block.
             It can be either a single integer or a pair of integers defining the squared kernel.
@@ -163,71 +166,123 @@ class GateLayer2d(nn.Module):
 
 class ResBlockWithResampling(nn.Module):
     """
-    Residual block that takes care of resampling steps (each by a factor of 2).
-    The mode can be top-down or bottom-up, and the block does up- and
-    down-sampling by a factor of 2, respectively. Resampling is performed at
-    the beginning of the block, through strided convolution.
-    The number of channels is adjusted at the beginning and end of the block,
-    through convolutional layers with kernel size 1. The number of internal
-    channels is by default the same as the number of output channels, but
-    min_inner_channels overrides this behaviour.
-    Other parameters: kernel size, nonlinearity, and groups of the internal
-    residual block; whether batch normalization and dropout are performed;
-    whether the residual path has a gate layer at the end. There are a few
-    residual block structures to choose from.
+    Residual block that takes care of resampling (i.e. downsampling or upsampling) steps (by a factor 2).
+    It is structured as follows:
+        1. `pre_conv`: a downsampling or upsampling convolutional layer in case of resampling, or 
+            a 1x1 convolutional layer that maps the number of channels of the input to `inner_channels`.
+        2. `ResidualBlock`
+        3. `post_conv`: a 1x1 convolutional layer that maps the number of channels to `c_out`.
+    
+    Some implementation notes:
+    - Resampling is performed through a strided convolution layer at the beginning of the block.
+    - The strided convolution block has fixed kernel size of 3x3 and 1 layer of zero-padding.
+    - The number of channels is adjusted at the beginning and end of the block through 1x1 convolutional layers.
+    - The number of internal channels is by default the same as the number of output channels, but
+      min_inner_channels can override the behaviour.
     """
 
     def __init__(
         self,
-        mode,
-        c_in,
-        c_out,
-        nonlin=nn.LeakyReLU,
-        resample=False,
-        res_block_kernel=None,
-        groups=1,
-        batchnorm=True,
-        res_block_type=None,
-        dropout=None,
-        min_inner_channels=None,
-        gated=None,
-        lowres_input=False,
-        skip_padding=False,
-        conv2d_bias=True
+        mode: Literal["top-down", "bottom-up"],
+        c_in: int,
+        c_out: int,
+        min_inner_channels: int = None,
+        nonlin: Callable = nn.LeakyReLU,
+        resample: bool = False,
+        res_block_kernel: Union[int, Iterable[int]] = None,
+        groups: int = 1,
+        batchnorm: bool = True,
+        res_block_type: str = None,
+        dropout: float = None,
+        gated: bool = None,
+        lowres_input: bool = False,
+        skip_padding: bool = False,
+        conv2d_bias: bool = True
     ):
+        """
+        Constructor. 
+        
+        Parameters
+        ----------
+        mode: Literal["top-down", "bottom-up"]
+            The type of resampling performed in the initial strided convolution of the block.
+            If "bottom-up" downsampling of a factor 2 is done.
+            If "top-down" upsampling of a factor 2 is done.
+        c_in: int
+            The number of input channels.
+        c_out: int
+            The number of output channels.
+        min_inner_channels: int, optional
+            The number of channels used in the inner layer of this module.
+            Default is `None`, meaning that the number of inner channels is set to `c_out`.
+        nonlin: Callable, optional
+            The non-linearity function used in the block. Default is `nn.LeakyReLU`.
+        resample: bool, optional
+            Whether to perform resampling in the first convolutional layer.
+            If `False`, the first convolutional layer just maps the input to a tensor with 
+            `inner_channels` channels through 1x1 convolution. Deafult is `False`.
+        res_block_kernel: Union[int, Iterable[int]], optional
+            The kernel size used in the convolutions of the residual block.
+            It can be either a single integer or a pair of integers defining the squared kernel.
+            Default is `None`.
+        groups: int, optional
+            The number of groups to consider in the convolutions. Default is 1.
+        batchnorm: bool, optional
+            Whether to use batchnorm layers. Default is `True`.
+        res_block_type: str, optional
+            A string specifying the structure of residual block. 
+            Check `ResidualBlock` doscstring for more information.
+            Default is `None`.
+        dropout: float, optional
+            The dropout probability in dropout layers. If `None` dropout is not used.
+            Default is `None`.
+        gated: bool, optional
+            Whether to use gated layer. Default is `None`.
+        skip_padding: bool, optional
+            Whether to skip padding in convolutions. Default is `False`.
+        conv2d_bias: bool, optional
+            Whether to use bias term in convolutions. Default is `True`.
+        """
         super().__init__()
         assert mode in ['top-down', 'bottom-up']
+        
         if min_inner_channels is None:
             min_inner_channels = 0
-        inner_filters = max(c_out, min_inner_channels)
+        # inner_channels is the number of channels used in the inner layers
+        # of ResBlockWithResampling 
+        inner_channels = max(c_out, min_inner_channels)
 
-        # Define first conv layer to change channels and/or up/downsample
+        # Define first conv layer to change num channels and/or up/downsample
         if resample:
             if mode == 'bottom-up':  # downsample
-                self.pre_conv = nn.Conv2d(in_channels=c_in,
-                                          out_channels=inner_filters,
-                                          kernel_size=3,
-                                          padding=1,
-                                          stride=2,
-                                          groups=groups,
-                                          bias=conv2d_bias)
+                self.pre_conv = nn.Conv2d(
+                    in_channels=c_in,
+                    out_channels=inner_channels,
+                    kernel_size=3,
+                    padding=1,
+                    stride=2,
+                    groups=groups,
+                    bias=conv2d_bias
+                )
             elif mode == 'top-down':  # upsample
-                self.pre_conv = nn.ConvTranspose2d(in_channels=c_in,
-                                                   out_channels=inner_filters,
-                                                   kernel_size=3,
-                                                   padding=1,
-                                                   stride=2,
-                                                   groups=groups,
-                                                   output_padding=1,
-                                                   bias=conv2d_bias)
-        elif c_in != inner_filters:
-            self.pre_conv = nn.Conv2d(c_in, inner_filters, 1, groups=groups, bias=conv2d_bias)
+                self.pre_conv = nn.ConvTranspose2d(
+                    in_channels=c_in,
+                    kernel_size=3,
+                    out_channels=inner_channels,
+                    padding=1,
+                    stride=2,
+                    groups=groups,
+                    output_padding=1,
+                    bias=conv2d_bias
+                )
+        elif c_in != inner_channels:
+            self.pre_conv = nn.Conv2d(c_in, inner_channels, 1, groups=groups, bias=conv2d_bias)
         else:
             self.pre_conv = None
 
         # Residual block
         self.res = ResidualBlock(
-            channels=inner_filters,
+            channels=inner_channels,
             nonlin=nonlin,
             kernel=res_block_kernel,
             groups=groups,
@@ -238,9 +293,10 @@ class ResBlockWithResampling(nn.Module):
             skip_padding=skip_padding,
             conv2d_bias=conv2d_bias,
         )
+        
         # Define last conv layer to get correct num output channels
-        if inner_filters != c_out:
-            self.post_conv = nn.Conv2d(inner_filters, c_out, 1, groups=groups, bias=conv2d_bias)
+        if inner_channels != c_out:
+            self.post_conv = nn.Conv2d(inner_channels, c_out, 1, groups=groups, bias=conv2d_bias)
         else:
             self.post_conv = None
 
@@ -266,6 +322,7 @@ class BottomUpDeterministicResBlock(ResBlockWithResampling):
     def __init__(self, *args, downsample=False, **kwargs):
         kwargs['resample'] = downsample
         super().__init__('bottom-up', *args, **kwargs)
+
 
 class BottomUpLayer(nn.Module):
     """
