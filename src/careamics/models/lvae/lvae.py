@@ -743,7 +743,7 @@ class LadderVAE(nn.Module):
         # Final top-down layer
         out = final_top_down_layer(out)
 
-        # Store useful variables to return them 
+        # Store useful variables in a dict to return them 
         data = {
             'z': z,  # list of tensors with shape (batch, ch[i], h[i], w[i])
             'kl': kl,  # list of tensors with shape (batch, )
@@ -758,7 +758,13 @@ class LadderVAE(nn.Module):
         return out, data
 
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor):
+        """
+        Parameters
+        ----------
+        x: torch.Tensor
+            The input tensor of shape (B, C, H, W).
+        """
         img_size = x.size()[2:]
 
         # Pad input to make everything easier with conv strides
@@ -784,54 +790,7 @@ class LadderVAE(nn.Module):
             out = torch.cat([out, ch2], dim=1)
 
         return out, td_data
-
-
-    def get_mixed_prediction(self, prediction, prediction_logvar, data_mean, data_std, channel_weights=None):
-        pred_unorm = prediction * data_std['target'] + data_mean['target']
-        if channel_weights is None:
-            channel_weights = 1
-
-        if self._input_is_sum:
-            mixed_prediction = torch.sum(pred_unorm * channel_weights, dim=1, keepdim=True)
-        else:
-            mixed_prediction = torch.mean(pred_unorm * channel_weights, dim=1, keepdim=True)
-
-        mixed_prediction = (mixed_prediction - data_mean['input'].mean()) / data_std['input'].mean()
-
-        if prediction_logvar is not None:
-            if data_std['target'].shape == data_std['input'].shape and torch.all(
-                    data_std['target'] == data_std['input']):
-                assert channel_weights == 1
-                logvar = prediction_logvar
-            else:
-                var = torch.exp(prediction_logvar)
-                var = var * (data_std['target'] / data_std['input'])**2
-                if channel_weights != 1:
-                    var = var * torch.square(channel_weights)
-
-                # sum of variance.
-                mixed_var = 0
-                for i in range(var.shape[1]):
-                    mixed_var += var[:, i:i + 1]
-
-                logvar = torch.log(mixed_var)
-        else:
-            logvar = None
-        return mixed_prediction, logvar
-
-    def _get_weighted_likelihood(self, ll):
-        """
-        each of the channels gets multiplied with a different weight.
-        """
-        if self.ch1_recons_w == 1 and self.ch2_recons_w == 1:
-            return ll
-        assert ll.shape[1] == 2, "This function is only for 2 channel images"
-        mask1 = torch.zeros((len(ll), ll.shape[1], 1, 1), device=ll.device)
-        mask1[:, 0] = 1
-
-        mask2 = torch.zeros((len(ll), ll.shape[1], 1, 1), device=ll.device)
-        mask2[:, 1] = 1
-        return ll * mask1 * self.ch1_recons_w + ll * mask2 * self.ch2_recons_w
+    
 
 # SET OF UTILS METHODS
     def sample_prior(
@@ -983,3 +942,51 @@ class LadderVAE(nn.Module):
         ch2_un = self._tethered_ch2_scalar * (input_un - ch1_un * self._tethered_ch1_scalar)
         ch2 = (ch2_un - self.data_mean['target'][:, -1:]) / self.data_std['target'][:, -1:]
         return ch2
+    
+    
+    def get_mixed_prediction(self, prediction, prediction_logvar, data_mean, data_std, channel_weights=None):
+        pred_unorm = prediction * data_std['target'] + data_mean['target']
+        if channel_weights is None:
+            channel_weights = 1
+
+        if self._input_is_sum:
+            mixed_prediction = torch.sum(pred_unorm * channel_weights, dim=1, keepdim=True)
+        else:
+            mixed_prediction = torch.mean(pred_unorm * channel_weights, dim=1, keepdim=True)
+
+        mixed_prediction = (mixed_prediction - data_mean['input'].mean()) / data_std['input'].mean()
+
+        if prediction_logvar is not None:
+            if data_std['target'].shape == data_std['input'].shape and torch.all(
+                    data_std['target'] == data_std['input']):
+                assert channel_weights == 1
+                logvar = prediction_logvar
+            else:
+                var = torch.exp(prediction_logvar)
+                var = var * (data_std['target'] / data_std['input'])**2
+                if channel_weights != 1:
+                    var = var * torch.square(channel_weights)
+
+                # sum of variance.
+                mixed_var = 0
+                for i in range(var.shape[1]):
+                    mixed_var += var[:, i:i + 1]
+
+                logvar = torch.log(mixed_var)
+        else:
+            logvar = None
+        return mixed_prediction, logvar
+
+    def _get_weighted_likelihood(self, ll):
+        """
+        Each of the channels gets multiplied with a different weight.
+        """
+        if self.ch1_recons_w == 1 and self.ch2_recons_w == 1:
+            return ll
+        assert ll.shape[1] == 2, "This function is only for 2 channel images"
+        mask1 = torch.zeros((len(ll), ll.shape[1], 1, 1), device=ll.device)
+        mask1[:, 0] = 1
+
+        mask2 = torch.zeros((len(ll), ll.shape[1], 1, 1), device=ll.device)
+        mask2[:, 1] = 1
+        return ll * mask1 * self.ch1_recons_w + ll * mask2 * self.ch2_recons_w
