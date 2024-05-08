@@ -1,4 +1,5 @@
 """For creating networks that train independent models for each channel."""
+
 from operator import getitem, setitem
 from typing import Any, Dict, Type
 
@@ -46,9 +47,7 @@ class IndChannelModel(nn.Module):
             in_channels = getitem(model_kwargs, in_channels_keyword)
         except AttributeError as e:
             raise ValueError(
-                "Input channels keyword, '{}', not found in model_kwargs".format(
-                    in_channels_keyword
-                )
+                f"Input channels keyword, '{in_channels_keyword}', not found in model_kwargs"
             ) from e
 
         # Create a copy of the model config but for a single channel
