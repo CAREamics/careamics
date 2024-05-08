@@ -6,3 +6,10 @@
 .coverage
 coverage.xml
 lightning_logs
+
+# data
+data/*
+**/data/*
+
+# checkpoints
+*.ckpt
