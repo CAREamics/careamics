@@ -195,9 +195,9 @@ class ResBlockWithResampling(nn.Module):
         res_block_type: str = None,
         dropout: float = None,
         gated: bool = None,
-        lowres_input: bool = False,
         skip_padding: bool = False,
-        conv2d_bias: bool = True
+        conv2d_bias: bool = True,
+        # lowres_input: bool = False,
     ):
         """
         Constructor. 
@@ -326,54 +326,86 @@ class BottomUpDeterministicResBlock(ResBlockWithResampling):
 
 class BottomUpLayer(nn.Module):
     """
-    Bottom-up deterministic layer for inference, roughly the same as the
-    small deterministic Resnet in top-down layers. Consists of a sequence of
-    bottom-up deterministic residual blocks with downsampling.
+    Bottom-up deterministic layer for inference. 
+    It consists of one or more `BottomUpDeterministicResBlock`'s.
     """
 
     def __init__(
         self,
-        n_filters: int,
         n_res_blocks: int,
+        n_filters: int,
         downsampling_steps: int = 0,
-        nonlin=None,
+        nonlin: Callable = None,
         batchnorm: bool = True,
-        dropout: Union[None, float] = None,
+        dropout: float = None,
         res_block_type: str = None,
         res_block_kernel: int = None,
         res_block_skip_padding: bool = False,
         gated: bool = None,
-        multiscale_lowres_size_factor: int = None,
         enable_multiscale: bool = False,
-        lowres_separate_branch=False,
+        multiscale_lowres_size_factor: int = None,
+        lowres_separate_branch: bool = False,
         multiscale_retain_spatial_dims: bool = False,
         decoder_retain_spatial_dims: bool = False,
-        output_expected_shape=None
+        output_expected_shape: Iterable[int] = None
     ):
         """
-        Args:
-            n_res_blocks: Number of BottomUpDeterministicResBlock blocks present in this layer.
-            n_filters:      Number of channels which is present through out this layer.
-            downsampling_steps: How many times downsampling has to be done in this layer. This is typically 1.
-            nonlin: What non linear activation is to be applied at various places in this module.
-            batchnorm: Whether to apply batch normalization at various places or not.
-            dropout: Amount of dropout to be applied at various places.
-            res_block_type: Example: 'bacdbac'. It has the constitution of the residual block.
-            gated: This is also an argument for the residual block. At the end of residual block, whether 
-            there should be a gate or not.
-            res_block_kernel:int => kernel size for the residual blocks in the bottom up layer.
-            multiscale_lowres_size_factor: How small is the bu_value when compared with low resolution tensor.
-            enable_multiscale: Whether to enable multiscale or not.
-            multiscale_retain_spatial_dims: typically the output of the bottom-up layer scales down spatially.
-                                            However, with this set, we return the same spatially sized tensor.
-            output_expected_shape: What should be the shape of the output of this layer. Only used if enable_multiscale is True.
+        Constructor.
+        
+        Parameters
+        ----------
+        n_res_blocks: int
+            Number of `BottomUpDeterministicResBlock` modules stacked in this layer.
+        n_filters: int
+            Number of channels present through out the layers of this block.
+        downsampling_steps: int, optional
+            Number of downsampling steps that has to be done in this layer (typically 1).
+            Default is 0.
+        nonlin: Callable, optional
+            The non-linearity function used in the block. Default is `None`.
+        batchnorm: bool, optional
+            Whether to use batchnorm layers. Default is `True`.
+        dropout: float, optional
+            The dropout probability in dropout layers. If `None` dropout is not used.
+            Default is `None`.
+        res_block_type: str, optional
+            A string specifying the structure of residual block. 
+            Check `ResidualBlock` doscstring for more information.
+            Default is `None`.
+        res_block_kernel: Union[int, Iterable[int]], optional
+            The kernel size used in the convolutions of the residual block.
+            It can be either a single integer or a pair of integers defining the squared kernel.
+            Default is `None`.
+        res_block_skip_padding: bool, optional
+            Whether to skip padding in convolutions in the Residual block. Default is `False`.
+        gated: bool, optional
+            Whether to use gated layer. Default is `None`.
+        enable_multiscale: bool, optional 
+            Whether to enable multiscale or not. Default is `None`.           
+        multiscale_lowres_size_factor: int, optional
+            A factor the expresses the relative size of the bu_value tensor 
+            with respect to the lower-resolution lateral context tensor.
+            Default in `None`.
+        lowres_separate_branch: bool, optional
+            Default is `False`.
+        multiscale_retain_spatial_dims: bool, optional
+            typically the output of the bottom-up layer scales down spatially.
+            However, with this set, we return the same spatially sized tensor.
+            Default is `False`.
+        decoder_retain_spatial_dims: bool, optional
+            Default is `False`.
+        output_expected_shape: Iterable[int], optional
+            The expected shape of the layer output (only used if enable_multiscale is `True`).
+            Default is `None`.
         """
         super().__init__()
+        
+        # Define attributes for Lateral Contextualization
         self.enable_multiscale = enable_multiscale
         self.lowres_separate_branch = lowres_separate_branch
         self.multiscale_retain_spatial_dims = multiscale_retain_spatial_dims
-        self.output_expected_shape = output_expected_shape
         self.decoder_retain_spatial_dims = decoder_retain_spatial_dims
+        self.output_expected_shape = output_expected_shape
         assert self.output_expected_shape is None or self.enable_multiscale is True
 
         bu_blocks_downsized = []
@@ -402,7 +434,8 @@ class BottomUpLayer(nn.Module):
 
         self.net_downsized = nn.Sequential(*bu_blocks_downsized)
         self.net = nn.Sequential(*bu_blocks_samesize)
-        # using the same net for the lowresolution (and larger sized image)
+        
+        # using the same net for the low resolution (and larger sized image)
         self.lowres_net = self.lowres_merge = self.multiscale_lowres_size_factor = None
         if self.enable_multiscale:
             self._init_multiscale(
@@ -420,14 +453,17 @@ class BottomUpLayer(nn.Module):
             msg += f'McParallelBeam:{int(multiscale_retain_spatial_dims)} McFactor{multiscale_lowres_size_factor}'
         print(msg)
 
-    def _init_multiscale(self,
-                         n_filters=None,
-                         nonlin=None,
-                         batchnorm=None,
-                         dropout=None,
-                         res_block_type=None,
-                         multiscale_retain_spatial_dims=None,
-                         multiscale_lowres_size_factor=None):
+
+    def _init_multiscale(
+        self,
+        nonlin=None,
+        n_filters=None,
+        batchnorm=None,
+        dropout=None,
+        res_block_type=None,
+        multiscale_retain_spatial_dims=None,
+        multiscale_lowres_size_factor=None
+    ) -> None:
         self.multiscale_lowres_size_factor = multiscale_lowres_size_factor
         self.lowres_net = self.net
         if self.lowres_separate_branch:
@@ -444,7 +480,11 @@ class BottomUpLayer(nn.Module):
             multiscale_lowres_size_factor=self.multiscale_lowres_size_factor,
         )
 
-    def forward(self, x, lowres_x=None):
+    def forward(
+        self, 
+        x: torch.Tensor, 
+        lowres_x: torch.Tensor = None
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         primary_flow = self.net_downsized(x)
         primary_flow = self.net(primary_flow)
 
