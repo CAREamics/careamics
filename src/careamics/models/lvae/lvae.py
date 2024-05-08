@@ -4,7 +4,7 @@ Ladder VAE (LVAE) Model
 The current implementation is based on "Interpretable Unsupervised Diversity Denoising and Artefact Removal, Prakash et al."
 """
 import os
-from typing import List
+from typing import List, Tuple, Dict, Iterable, Optional
 import numpy as np
 import pytorch_lightning as pl
 import torch
@@ -601,24 +601,45 @@ class LadderVAE(nn.Module):
         return bu_values
 
 
-    def topdown_pass(self,
-                     bu_values=None,
-                     n_img_prior=None,
-                     mode_layers=None,
-                     constant_layers=None,
-                     forced_latent=None,
-                     top_down_layers=None,
-                     final_top_down_layer=None):
+    def topdown_pass(
+        self,
+        bu_values: torch.Tensor = None,
+        n_img_prior: torch.Tensor = None,
+        mode_layers: Iterable[int] = None,
+        constant_layers: Iterable[int] = None,
+        forced_latent: List[torch.Tensor] = None,
+        top_down_layers: nn.ModuleList = None,
+        final_top_down_layer: nn.Sequential = None
+    ) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:
         """
-        Args:
-            bu_values: Output of the bottom-up pass. It will have values from multiple layers of the ladder.
-            n_img_prior: bu_values needs to be none for this. This generates n images from the prior. So, it does
-                        not use bottom up pass at all.
-            mode_layers: At these layers, sampling is disabled. Mean value is used directly.
-            constant_layers: Here, a single instance's z is copied over the entire batch. Also, bottom-up path is not used.
-                            So, only prior is used here.
-            forced_latent: Here, latent vector is not sampled but taken from here.
+        This method defines the forward pass throught the LVAE Decoder, the so-called 
+        Top-Down pass.
+        
+        Parameters
+        ----------
+            bu_values: torch.Tensor, optional
+                Output of the bottom-up pass. It will have values from multiple layers of the ladder.
+            n_img_prior: optional
+                When `bu_values` is `None`, `n_img_prior` indicates the number of images to generate
+                from the prior (so bottom-up pass is not used at all here).
+            mode_layers: Iterable[int], optional
+                A sequence of indexes associated to the layers in which sampling is disabled and 
+                the mode (mean value) is used instead. Set to `None` to avoid this behaviour.
+            constant_layers: Iterable[int], optional
+                A sequence of indexes associated to the layers in which a single instance's z is 
+                copied over the entire batch (bottom-up path is not used, so only prior is used here).
+                Set to `None` to avoid this behaviour.
+            forced_latent: List[torch.Tensor], optional
+                A list of tensors that are used as fixed latent variables (hence, sampling doesn't take
+                place in this case).
+            top_down_layers: nn.ModuleList, optional
+                A list of top-down layers to use in the top-down pass. If `None`, the method uses the 
+                default layers defined in the contructor.
+            final_top_down_layer: nn.Sequential, optional
+                The last top-down layer of the top-down pass. If `None`, the method uses the default 
+                layers defined in the contructor.
         """
+        
         if top_down_layers is None:
             top_down_layers = self.top_down_layers
         if final_top_down_layer is None:
@@ -664,6 +685,7 @@ class LadderVAE(nn.Module):
         debug_qvar_max = [None] * self.n_layers
 
         kl_channelwise = [None] * self.n_layers
+        
         if forced_latent is None:
             forced_latent = [None] * self.n_layers
 
@@ -689,17 +711,21 @@ class LadderVAE(nn.Module):
             skip_input = out  # TODO or n? or both?
 
             # Full top-down layer, including sampling and deterministic part
-            out, out_pre_residual, aux = top_down_layers[i](out,
-                                                            skip_connection_input=skip_input,
-                                                            inference_mode=inference_mode,
-                                                            bu_value=bu_value,
-                                                            n_img_prior=n_img_prior,
-                                                            use_mode=use_mode,
-                                                            force_constant_output=constant_out,
-                                                            forced_latent=forced_latent[i],
-                                                            mode_pred=self.mode_pred,
-                                                            use_uncond_mode=use_uncond_mode,
-                                                            var_clip_max=self._var_clip_max)
+            out, out_pre_residual, aux = top_down_layers[i](
+                out,
+                skip_connection_input=skip_input,
+                inference_mode=inference_mode,
+                bu_value=bu_value,
+                n_img_prior=n_img_prior,
+                use_mode=use_mode,
+                force_constant_output=constant_out,
+                forced_latent=forced_latent[i],
+                mode_pred=self.mode_pred,
+                use_uncond_mode=use_uncond_mode,
+                var_clip_max=self._var_clip_max
+            )
+            
+            # Save useful variables
             z[i] = aux['z']  # sampled variable at this layer (batch, ch, h, w)
             kl[i] = aux['kl_samplewise']  # (batch, )
             kl_restricted[i] = aux['kl_samplewise_restricted']
@@ -713,9 +739,11 @@ class LadderVAE(nn.Module):
             #     logprob_p += aux['logprob_p'].mean()  # mean over batch
             # else:
             #     logprob_p = None
+            
         # Final top-down layer
         out = final_top_down_layer(out)
 
+        # Store useful variables to return them 
         data = {
             'z': z,  # list of tensors with shape (batch, ch[i], h[i], w[i])
             'kl': kl,  # list of tensors with shape (batch, )
