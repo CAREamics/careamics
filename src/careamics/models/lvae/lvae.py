@@ -514,7 +514,7 @@ class LadderVAE(nn.Module):
 
     def _init_multires(self, config) -> nn.ModuleList:
         """
-        Initialize everything related to multiresolution approach (LC).
+        This method initializes everything that is related to multiresolution approach (LC).
         """
         
         stride = 1 if self.no_initial_downscaling else 2
