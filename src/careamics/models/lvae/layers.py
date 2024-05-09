@@ -565,6 +565,152 @@ class BottomUpLayer(nn.Module):
         # Crop the resulting tensor so that it matches with the Decoder 
         value_to_use_in_topdown = crop_img_tensor(merged, expected_shape)
         return merged, value_to_use_in_topdown
+    
+    
+class MergeLayer(nn.Module):
+    """
+    This layer merges two or more 4D input tensors by concatenating along dim=1 and passes the result through:
+    a) a convolutional 1x1 layer (`merge_type == "linear"`), or
+    b) a convolutional 1x1 layer and then a gated residual block (`merge_type == "residual"`), or
+    c) a convolutional 1x1 layer and then an ungated residual block (`merge_type == "residual_ungated"`). 
+    """
+
+    def __init__(
+        self,
+        merge_type: Literal["linear", "residual", "residual_ungated"],
+        channels: Union[int, Iterable[int]],
+        nonlin: Callable = nn.LeakyReLU,
+        batchnorm: bool = True,
+        dropout: float = None,
+        res_block_type: str = None,
+        res_block_kernel: int = None,
+        res_block_skip_padding: bool = False,
+        conv2d_bias: bool = True,
+    ):
+        """
+        Constructor.
+        
+        Parameters
+        ----------
+        merge_type: Literal["linear", "residual", "residual_ungated"]  
+            The type of merge done in the layer. It can be chosen between "linear", "residual", and "residual_ungated".
+            Check the class docstring for more information about the behaviour of different merge modalities. 
+        channels: Union[int, Iterable[int]]
+            The number of channels used in the convolutional blocks of this layer.
+            If it is an `int`:  
+                - 1st 1x1 Conv2d: in_channels=2*channels, out_channels=channels
+                - (Optional) ResBlock: in_channels=channels, out_channels=channels
+            If it is an Iterable (must have `len(channels)==3`):
+                - 1st 1x1 Conv2d: in_channels=sum(channels[:-1]), out_channels=channels[-1]
+                - (Optional) ResBlock: in_channels=channels[-1], out_channels=channels[-1]
+        nonlin: Callable, optional
+            The non-linearity function used in the block. Default is `nn.LeakyReLU`.
+        batchnorm: bool, optional
+            Whether to use batchnorm layers. Default is `True`.
+        dropout: float, optional
+            The dropout probability in dropout layers. If `None` dropout is not used.
+            Default is `None`.
+        res_block_type: str, optional
+            A string specifying the structure of residual block. 
+            Check `ResidualBlock` doscstring for more information.
+            Default is `None`.
+        res_block_kernel: Union[int, Iterable[int]], optional
+            The kernel size used in the convolutions of the residual block.
+            It can be either a single integer or a pair of integers defining the squared kernel.
+            Default is `None`.
+        res_block_skip_padding: bool, optional
+            Whether to skip padding in convolutions in the Residual block. Default is `False`.
+        conv2d_bias: bool, optional
+            Whether to use bias term in convolutions. Default is `True`.
+        """
+        super().__init__()
+        try:
+            iter(channels)
+        except TypeError:  # it is not iterable
+            channels = [channels] * 3
+        else:  # it is iterable
+            if len(channels) == 1:
+                channels = [channels[0]] * 3
+
+        # assert len(channels) == 3
+
+        if merge_type == 'linear':
+            self.layer = nn.Conv2d(sum(channels[:-1]), channels[-1], 1, bias=conv2d_bias)
+        elif merge_type == 'residual':
+            self.layer = nn.Sequential(
+                nn.Conv2d(sum(channels[:-1]), channels[-1], 1, padding=0, bias=conv2d_bias),
+                ResidualGatedBlock(
+                    channels[-1],
+                    nonlin,
+                    batchnorm=batchnorm,
+                    dropout=dropout,
+                    block_type=res_block_type,
+                    kernel=res_block_kernel,
+                    conv2d_bias=conv2d_bias,
+                    skip_padding=res_block_skip_padding,
+                ),
+            )
+        elif merge_type == 'residual_ungated':
+            self.layer = nn.Sequential(
+                nn.Conv2d(sum(channels[:-1]), channels[-1], 1, padding=0, bias=conv2d_bias),
+                ResidualBlock(
+                    channels[-1],
+                    nonlin,
+                    batchnorm=batchnorm,
+                    dropout=dropout,
+                    block_type=res_block_type,
+                    kernel=res_block_kernel,
+                    conv2d_bias=conv2d_bias,
+                    skip_padding=res_block_skip_padding,
+                ),
+            )
+
+    def forward(self, *args) -> torch.Tensor:
+        
+        # Concatenate the input tensors along dim=1
+        x = torch.cat(args, dim=1)
+        
+        # Pass the concatenated tensor through the conv layer
+        x = self.layer(x)
+        
+        return x
+
+
+class MergeLowRes(MergeLayer):
+    """
+    Child class of `MergeLayer`, specifically designed to merge the low-resolution patches 
+    that are used in Lateral Contextualization approach.
+    """
+
+    def __init__(self, *args, **kwargs):
+        self.retain_spatial_dims = kwargs.pop('multiscale_retain_spatial_dims')
+        self.multiscale_lowres_size_factor = kwargs.pop('multiscale_lowres_size_factor')
+        super().__init__(*args, **kwargs)
+
+    def forward(
+        self, 
+        latent: torch.Tensor, 
+        lowres: torch.Tensor
+    ) -> torch.Tensor:
+        """
+        Parameters
+        ----------
+        latent: torch.Tensor
+            The output latent tensor from previous layer in the LVAE hierarchy.
+        lowres: torch.Tensor
+            The low-res patch image to be merged to increase the context.
+        """
+        if self.retain_spatial_dims:
+            latent = pad_img_tensor(latent, lowres.shape[2:])
+        else:
+            lh, lw = lowres.shape[-2:]
+            h = lh // self.multiscale_lowres_size_factor
+            w = lw // self.multiscale_lowres_size_factor
+            h_pad = (lh - h) // 2
+            w_pad = (lw - w) // 2
+            lowres = lowres[:, :, h_pad:-h_pad, w_pad:-w_pad]
+
+        return super().forward(latent, lowres)
 
 
 class TopDownLayer(nn.Module):
@@ -916,152 +1062,6 @@ class TopDownLayer(nn.Module):
             data['q_mu'] = q_mu
             data['q_lv'] = q_lv
         return x, x_pre_residual, data
-    
-    
-class MergeLayer(nn.Module):
-    """
-    This layer merges two or more 4D input tensors by concatenating along dim=1 and passes the result through:
-    a) a convolutional 1x1 layer (`merge_type == "linear"`), or
-    b) a convolutional 1x1 layer and then a gated residual block (`merge_type == "residual"`), or
-    c) a convolutional 1x1 layer and then an ungated residual block (`merge_type == "residual_ungated"`). 
-    """
-
-    def __init__(
-        self,
-        merge_type: Literal["linear", "residual", "residual_ungated"],
-        channels: Union[int, Iterable[int]],
-        nonlin: Callable = nn.LeakyReLU,
-        batchnorm: bool = True,
-        dropout: float = None,
-        res_block_type: str = None,
-        res_block_kernel: int = None,
-        res_block_skip_padding: bool = False,
-        conv2d_bias: bool = True,
-    ):
-        """
-        Constructor.
-        
-        Parameters
-        ----------
-        merge_type: Literal["linear", "residual", "residual_ungated"]  
-            The type of merge done in the layer. It can be chosen between "linear", "residual", and "residual_ungated".
-            Check the class docstring for more information about the behaviour of different merge modalities. 
-        channels: Union[int, Iterable[int]]
-            The number of channels used in the convolutional blocks of this layer.
-            If it is an `int`:  
-                - 1st 1x1 Conv2d: in_channels=2*channels, out_channels=channels
-                - (Optional) ResBlock: in_channels=channels, out_channels=channels
-            If it is an Iterable (must have `len(channels)==3`):
-                - 1st 1x1 Conv2d: in_channels=sum(channels[:-1]), out_channels=channels[-1]
-                - (Optional) ResBlock: in_channels=channels[-1], out_channels=channels[-1]
-        nonlin: Callable, optional
-            The non-linearity function used in the block. Default is `nn.LeakyReLU`.
-        batchnorm: bool, optional
-            Whether to use batchnorm layers. Default is `True`.
-        dropout: float, optional
-            The dropout probability in dropout layers. If `None` dropout is not used.
-            Default is `None`.
-        res_block_type: str, optional
-            A string specifying the structure of residual block. 
-            Check `ResidualBlock` doscstring for more information.
-            Default is `None`.
-        res_block_kernel: Union[int, Iterable[int]], optional
-            The kernel size used in the convolutions of the residual block.
-            It can be either a single integer or a pair of integers defining the squared kernel.
-            Default is `None`.
-        res_block_skip_padding: bool, optional
-            Whether to skip padding in convolutions in the Residual block. Default is `False`.
-        conv2d_bias: bool, optional
-            Whether to use bias term in convolutions. Default is `True`.
-        """
-        super().__init__()
-        try:
-            iter(channels)
-        except TypeError:  # it is not iterable
-            channels = [channels] * 3
-        else:  # it is iterable
-            if len(channels) == 1:
-                channels = [channels[0]] * 3
-
-        # assert len(channels) == 3
-
-        if merge_type == 'linear':
-            self.layer = nn.Conv2d(sum(channels[:-1]), channels[-1], 1, bias=conv2d_bias)
-        elif merge_type == 'residual':
-            self.layer = nn.Sequential(
-                nn.Conv2d(sum(channels[:-1]), channels[-1], 1, padding=0, bias=conv2d_bias),
-                ResidualGatedBlock(
-                    channels[-1],
-                    nonlin,
-                    batchnorm=batchnorm,
-                    dropout=dropout,
-                    block_type=res_block_type,
-                    kernel=res_block_kernel,
-                    conv2d_bias=conv2d_bias,
-                    skip_padding=res_block_skip_padding,
-                ),
-            )
-        elif merge_type == 'residual_ungated':
-            self.layer = nn.Sequential(
-                nn.Conv2d(sum(channels[:-1]), channels[-1], 1, padding=0, bias=conv2d_bias),
-                ResidualBlock(
-                    channels[-1],
-                    nonlin,
-                    batchnorm=batchnorm,
-                    dropout=dropout,
-                    block_type=res_block_type,
-                    kernel=res_block_kernel,
-                    conv2d_bias=conv2d_bias,
-                    skip_padding=res_block_skip_padding,
-                ),
-            )
-
-    def forward(self, *args) -> torch.Tensor:
-        
-        # Concatenate the input tensors along dim=1
-        x = torch.cat(args, dim=1)
-        
-        # Pass the concatenated tensor through the conv layer
-        x = self.layer(x)
-        
-        return x
-
-
-class MergeLowRes(MergeLayer):
-    """
-    Child class of `MergeLayer`, specifically designed to merge the low-resolution patches 
-    that are used in Lateral Contextualization approach.
-    """
-
-    def __init__(self, *args, **kwargs):
-        self.retain_spatial_dims = kwargs.pop('multiscale_retain_spatial_dims')
-        self.multiscale_lowres_size_factor = kwargs.pop('multiscale_lowres_size_factor')
-        super().__init__(*args, **kwargs)
-
-    def forward(
-        self, 
-        latent: torch.Tensor, 
-        lowres: torch.Tensor
-    ) -> torch.Tensor:
-        """
-        Parameters
-        ----------
-        latent: torch.Tensor
-            The output latent tensor from previous layer in the LVAE hierarchy.
-        lowres: torch.Tensor
-            The low-res patch image to be merged to increase the context.
-        """
-        if self.retain_spatial_dims:
-            latent = pad_img_tensor(latent, lowres.shape[2:])
-        else:
-            lh, lw = lowres.shape[-2:]
-            h = lh // self.multiscale_lowres_size_factor
-            w = lw // self.multiscale_lowres_size_factor
-            h_pad = (lh - h) // 2
-            w_pad = (lw - w) // 2
-            lowres = lowres[:, :, h_pad:-h_pad, w_pad:-w_pad]
-
-        return super().forward(latent, lowres)
 
 
 class NonStochasticBlock2d(nn.Module):
