@@ -100,8 +100,7 @@ def _pad_crop_img(x, size, mode) -> torch.Tensor:
     
 def pad_img_tensor(x, size) -> torch.Tensor:
     """Pads a tensor.
-    Pads a tensor of shape (batch, channels, h, w) to new height and width
-    given by a tuple.
+    Pads a tensor of shape (batch, channels, h, w) to a desired height and width.
     Args:
         x (torch.Tensor): Input image
         size (list or tuple): Desired size (height, width)
@@ -114,7 +113,7 @@ def pad_img_tensor(x, size) -> torch.Tensor:
 
 def crop_img_tensor(x, size) -> torch.Tensor:
     """Crops a tensor.
-    Crops a tensor of shape (batch, channels, h, w) to new height and width
+    Crops a tensor of shape (batch, channels, h, w) to a desired height and width
     given by a tuple.
     Args:
         x (torch.Tensor): Input image
