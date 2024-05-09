@@ -328,7 +328,7 @@ class BottomUpDeterministicResBlock(ResBlockWithResampling):
 class BottomUpLayer(nn.Module):
     """
     Bottom-up deterministic layer for inference. 
-    It consists of one or more `BottomUpDeterministicResBlock`'s.
+    It consists of one or a stack of `BottomUpDeterministicResBlock`'s.
     """
 
     def __init__(
@@ -867,20 +867,60 @@ class TopDownLayer(nn.Module):
     
 class MergeLayer(nn.Module):
     """
-    Merge two/more than two 4D input tensors by concatenating along dim=1 and passing the
-    result through 1) a convolutional 1x1 layer, or 2) a residual block
+    This layer merges two or more 4D input tensors by concatenating along dim=1 and passes the result through:
+    a) a convolutional 1x1 layer (`merge_type == "linear"`), or
+    b) a convolutional 1x1 layer and then a gated residual block (`merge_type == "residual"`), or
+    c) a convolutional 1x1 layer and then an ungated residual block (`merge_type == "residual_ungated"`). 
     """
 
-    def __init__(self,
-                 channels,
-                 merge_type,
-                 nonlin=nn.LeakyReLU,
-                 batchnorm=True,
-                 dropout=None,
-                 res_block_type=None,
-                 res_block_kernel=None,
-                 conv2d_bias=True,
-                 res_block_skip_padding=False):
+    def __init__(
+        self,
+        merge_type: Literal["linear", "residual", "residual_ungated"],
+        channels: Union[int, Iterable[int]],
+        nonlin: Callable = nn.LeakyReLU,
+        batchnorm: bool = True,
+        dropout: float = None,
+        res_block_type: str = None,
+        res_block_kernel: int = None,
+        res_block_skip_padding: bool = False,
+        conv2d_bias: bool = True,
+    ):
+        """
+        Constructor.
+        
+        Parameters
+        ----------
+        merge_type: Literal["linear", "residual", "residual_ungated"]  
+            The type of merge done in the layer. It can be chosen between "linear", "residual", and "residual_ungated".
+            Check the class docstring for more information about the behaviour of different merge modalities. 
+        channels: Union[int, Iterable[int]]
+            The number of channels used in the convolutional blocks of this layer.
+            If it is an `int`:  
+                - 1st 1x1 Conv2d: in_channels=2*channels, out_channels=channels
+                - (Optional) ResBlock: in_channels=channels, out_channels=channels
+            If it is an Iterable (must have `len(channels)==3`):
+                - 1st 1x1 Conv2d: in_channels=sum(channels[:-1]), out_channels=channels[-1]
+                - (Optional) ResBlock: in_channels=channels[-1], out_channels=channels[-1]
+        nonlin: Callable, optional
+            The non-linearity function used in the block. Default is `nn.LeakyReLU`.
+        batchnorm: bool, optional
+            Whether to use batchnorm layers. Default is `True`.
+        dropout: float, optional
+            The dropout probability in dropout layers. If `None` dropout is not used.
+            Default is `None`.
+        res_block_type: str, optional
+            A string specifying the structure of residual block. 
+            Check `ResidualBlock` doscstring for more information.
+            Default is `None`.
+        res_block_kernel: Union[int, Iterable[int]], optional
+            The kernel size used in the convolutions of the residual block.
+            It can be either a single integer or a pair of integers defining the squared kernel.
+            Default is `None`.
+        res_block_skip_padding: bool, optional
+            Whether to skip padding in convolutions in the Residual block. Default is `False`.
+        conv2d_bias: bool, optional
+            Whether to use bias term in convolutions. Default is `True`.
+        """
         super().__init__()
         try:
             iter(channels)
@@ -924,8 +964,14 @@ class MergeLayer(nn.Module):
             )
 
     def forward(self, *args):
+        
+        # Concatenate the input tensors along dim=1
         x = torch.cat(args, dim=1)
-        return self.layer(x)
+        
+        # Pass the concatenated tensor through the conv layer
+        x = self.layer(x)
+        
+        return x
 
 
 class MergeLowRes(MergeLayer):
