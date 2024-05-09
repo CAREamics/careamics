@@ -10,7 +10,7 @@ import torchvision.transforms.functional as F
 from copy import deepcopy
 from typing import Union, Tuple, Iterable, Literal, Callable
 
-from .utils import crop_img_tensor
+from .utils import crop_img_tensor, pad_img_tensor
 
 class ResidualBlock(nn.Module):
     """
@@ -963,7 +963,7 @@ class MergeLayer(nn.Module):
                 ),
             )
 
-    def forward(self, *args):
+    def forward(self, *args) -> torch.Tensor:
         
         # Concatenate the input tensors along dim=1
         x = torch.cat(args, dim=1)
@@ -976,7 +976,8 @@ class MergeLayer(nn.Module):
 
 class MergeLowRes(MergeLayer):
     """
-    Here, we merge the lowresolution input (which has higher size)
+    Child class of `MergeLayer`, specifically designed to merge the low-resolution patches 
+    that are used in Lateral Contextualization approach.
     """
 
     def __init__(self, *args, **kwargs):
@@ -984,7 +985,19 @@ class MergeLowRes(MergeLayer):
         self.multiscale_lowres_size_factor = kwargs.pop('multiscale_lowres_size_factor')
         super().__init__(*args, **kwargs)
 
-    def forward(self, latent, lowres):
+    def forward(
+        self, 
+        latent: torch.Tensor, 
+        lowres: torch.Tensor
+    ) -> torch.Tensor:
+        """
+        Parameters
+        ----------
+        latent: torch.Tensor
+            The output latent tensor from previous layer in the LVAE hierarchy.
+        lowres: torch.Tensor
+            The low-res patch image to be merged to increase the context.
+        """
         if self.retain_spatial_dims:
             latent = pad_img_tensor(latent, lowres.shape[2:])
         else:
