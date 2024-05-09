@@ -329,6 +329,17 @@ class BottomUpLayer(nn.Module):
     """
     Bottom-up deterministic layer for inference. 
     It consists of one or a stack of `BottomUpDeterministicResBlock`'s.
+    The output is the so-called `bu_values` that are later used in the Decoder to update the
+    generative distributions.
+    
+    NOTE: When Lateral Contextualization is Enabled (i.e., `enable_multiscale=True`), 
+    the low-res input patch used for that is first fed through a BottomUpDeterministicBlock (BUDB)
+    (without downsampling), and then merged to the latent tensor produced by the primary flow 
+    of the `BottomUpLayer` through the `MergeLowRes` layer. It is meaningful to remark that 
+    the BUDB that takes care of encoding the low-res input can be either shared with the 
+    primary flow (and in that case it is the "same_size" BUDB (or stack of BUDBs) -> see `self.net`),
+    or can be a separate BUDB (or stack of BUDBs) with the same structure as the primary flow.
+    This behaviour is controlled by `lowres_separate_branch` parameter. 
     """
 
     def __init__(
@@ -382,21 +393,20 @@ class BottomUpLayer(nn.Module):
         gated: bool, optional
             Whether to use gated layer. Default is `None`.
         enable_multiscale: bool, optional 
-            Whether to enable multiscale or not. Default is `None`.           
+            Whether to enable multiscale (Lateral Contextualization) or not. Default is `False`.           
         multiscale_lowres_size_factor: int, optional
-            A factor the expresses the relative size of the bu_value tensor 
-            with respect to the lower-resolution lateral context tensor.
-            Default in `None`.
+            A factor the expresses the relative size of the bu_value tensor with respect to the 
+            lower-resolution lateral context tensor. Default in `None`.
         lowres_separate_branch: bool, optional
-            Default is `False`.
+            Whether the residual block(s) encoding the low-res input should be shared (`False`) or
+            not (`True`) with the primary flow "same-size" residual block(s). Default is `False`.
         multiscale_retain_spatial_dims: bool, optional
-            typically the output of the bottom-up layer scales down spatially.
-            However, with this set, we return the same spatially sized tensor.
-            Default is `False`.
+            Whether to pad the latent tensor resulting from the bottom-up layer's primary flow
+            to match the size of the low-res input. Default is `False`.
         decoder_retain_spatial_dims: bool, optional
             Default is `False`.
         output_expected_shape: Iterable[int], optional
-            The expected shape of the layer output (only used if enable_multiscale is `True`).
+            The expected shape of the layer output (only used if `enable_multiscale == True`).
             Default is `None`.
         """
         super().__init__()
@@ -465,7 +475,34 @@ class BottomUpLayer(nn.Module):
         multiscale_retain_spatial_dims: bool = None,
         multiscale_lowres_size_factor: int = None
     ) -> None:
+        """
+        This method initializes everything that is related to multiresolution approach (LC).
         
+        NOTE: the merge modality is set by default to "residual", meaning that the merge layer
+        performs concatenation on dim=1, followed by 1x1 convolution and a Residual Gated block.
+        
+        Parameters
+        ----------  
+        nonlin: Callable, optional
+            The non-linearity function used in the block. Default is `None`.
+        n_filters: int
+            Number of channels present through out the layers of this block.
+        batchnorm: bool, optional
+            Whether to use batchnorm layers. Default is `True`.
+        dropout: float, optional
+            The dropout probability in dropout layers. If `None` dropout is not used.
+            Default is `None`.
+        res_block_type: str, optional
+            A string specifying the structure of residual block. 
+            Check `ResidualBlock` doscstring for more information.
+            Default is `None`.
+        multiscale_retain_spatial_dims: bool, optional
+            Whether to pad the latent tensor resulting from the bottom-up layer's primary flow
+            to match the size of the low-res input. Default is `False`.
+        multiscale_lowres_size_factor: int, optional
+            A factor the expresses the relative size of the bu_value tensor with respect to the 
+            lower-resolution lateral context tensor. Default in `None`.
+        """
         self.multiscale_lowres_size_factor = multiscale_lowres_size_factor
         self.lowres_net = self.net
         if self.lowres_separate_branch:
@@ -487,15 +524,30 @@ class BottomUpLayer(nn.Module):
         x: torch.Tensor, 
         lowres_x: torch.Tensor = None
     ) -> Tuple[torch.Tensor, torch.Tensor]:
+        """
+        Parameters
+        ----------
+        x: torch.Tensor
+            The input of the `BottomUpLayer`, i.e., the input image or the output of the
+            previous layer.
+        lowres_x: torch.Tensor, optional
+            The low-res input used for Lateral Contextualization (LC). Default is `None`.s
+        """
+        
+        # The input is fed through the residual downsampling block(s)
         primary_flow = self.net_downsized(x)
+        # The downsampling output is fed through additional residual block(s)
         primary_flow = self.net(primary_flow)
 
+        # If LC is not used, simply return output of primary-flow 
         if self.enable_multiscale is False:
             assert lowres_x is None
             return primary_flow, primary_flow
 
         if lowres_x is not None:
+            # First encode the low-res lateral input 
             lowres_flow = self.lowres_net(lowres_x)
+            # Then pass the result through the MergeLowRes layer
             merged = self.lowres_merge(primary_flow, lowres_flow)
         else:
             merged = primary_flow
@@ -510,6 +562,7 @@ class BottomUpLayer(nn.Module):
             expected_shape = (merged.shape[-2] // fac, merged.shape[-1] // fac)
             assert merged.shape[-2:] != expected_shape
 
+        # Crop the resulting tensor so that it matches with the Decoder 
         value_to_use_in_topdown = crop_img_tensor(merged, expected_shape)
         return merged, value_to_use_in_topdown
 
