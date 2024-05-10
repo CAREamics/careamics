@@ -122,3 +122,92 @@ def crop_img_tensor(x, size) -> torch.Tensor:
         The cropped tensor
     """
     return _pad_crop_img(x, size, 'crop')
+
+
+class StableExponential:
+    """
+    Class that redefines the definition of exp() to increase numerical stability. 
+    Naturally, also the definition of log() must change accordingly. 
+    However, it is worth noting that the two operations remain one the inverse of 
+    the other, meaning that x = log(exp(x)) and x = exp(log(x)) are always true.
+    
+    NOTE 1:
+        Here, the idea is that everything is done on the tensor which you've given in the constructor.
+        when exp() is called, what that means is that we want to compute self._tensor.exp()
+        when log() is called, we want to compute torch.log(self._tensor.exp())
+    
+    NOTE 2:
+        Given the output from exp(), torch.log() or the log() method of the class give identical results.
+    """
+
+    def __init__(self, tensor):
+        self._raw_tensor = tensor
+        posneg_dic = self.posneg_separation(self._raw_tensor)
+        self.pos_f, self.neg_f = posneg_dic['filter']
+        self.pos_data, self.neg_data = posneg_dic['value']
+
+    def posneg_separation(self, tensor):
+        pos = tensor > 0
+        pos_tensor = torch.clip(tensor, min=0)
+
+        neg = tensor <= 0
+        neg_tensor = torch.clip(tensor, max=0)
+
+        return {'filter': [pos, neg], 'value': [pos_tensor, neg_tensor]}
+
+    def exp(self):
+        return torch.exp(self.neg_data) * self.neg_f + (1 + self.pos_data) * self.pos_f
+
+    def log(self):
+        return self.neg_data * self.neg_f + torch.log(1 + self.pos_data) * self.pos_f
+
+
+class StableLogVar:
+
+    def __init__(self, logvar, enable_stable=True, var_eps=1e-6):
+        """
+        Args:
+            var_eps: var() has this minimum value.
+        """
+        self._lv = logvar
+        self._enable_stable = enable_stable
+        self._eps = var_eps
+
+    def get(self):
+        if self._enable_stable is False:
+            return self._lv
+
+        return torch.log(self.get_var())
+
+    def get_var(self):
+        if self._enable_stable is False:
+            return torch.exp(self._lv)
+        return StableExponential(self._lv).exp() + self._eps
+
+    def get_std(self):
+        return torch.sqrt(self.get_var())
+
+    def centercrop_to_size(self, size):
+        if self._lv.shape[-1] == size:
+            return
+
+        diff = self._lv.shape[-1] - size
+        assert diff > 0 and diff % 2 == 0
+        self._lv = F.center_crop(self._lv, (size, size))
+
+
+class StableMean:
+
+    def __init__(self, mean):
+        self._mean = mean
+
+    def get(self):
+        return self._mean
+
+    def centercrop_to_size(self, size):
+        if self._mean.shape[-1] == size:
+            return
+
+        diff = self._mean.shape[-1] - size
+        assert diff > 0 and diff % 2 == 0
+        self._mean = F.center_crop(self._mean, (size, size))
