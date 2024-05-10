@@ -1699,33 +1699,48 @@ class NonStochasticBlock2d(nn.Module):
 
 
     def forward(self,
-                p_params: torch.Tensor,
-                q_params: torch.Tensor = None,
-                forced_latent: Union[None, torch.Tensor] = None,
-                use_mode: bool = False,
-                force_constant_output: bool = False,
-                analytical_kl: bool = False,
-                mode_pred: bool = False,
-                use_uncond_mode: bool = False,
-                var_clip_max: Union[None, float] = None):
+        p_params: torch.Tensor,
+        q_params: torch.Tensor = None,
+        forced_latent: Union[None, torch.Tensor] = None,
+        use_mode: bool = False,
+        force_constant_output: bool = False,
+        analytical_kl: bool = False,
+        mode_pred: bool = False,
+        use_uncond_mode: bool = False,
+        var_clip_max: float = None
+    )-> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:
         """
-        Args:
-            p_params: this is passed from top layers.
-            q_params: this is the merge of bottom up layer at this level and top down layers above this level.
-            forced_latent: If this is a tensor, then in stochastic layer, we don't sample by using p() & q(). We simply 
-                            use this as the latent space sampling.
-            use_mode:   If it is true, we still don't sample from the q(). We simply 
-                            use the mean of the distribution as the latent space.
-            force_constant_output: This ensures that only the first sample of the batch is used. Typically used 
-                                when infernce_mode is False
-            analytical_kl: If True, typical KL divergence is calculated. Otherwise, a one-sample approximate of it is
-                            calculated.
-            mode_pred: If True, then only prediction happens. Otherwise, KL divergence loss also gets computed.
-            use_uncond_mode: Used only when mode_pred=True
-            var_clip_max: This is the maximum value the log of the variance of the latent vector for any layer can reach.
-            
+        Parameters
+        ----------
+        p_params: torch.Tensor
+            The output tensor of the top-down layer above (i.e., mu_{p,i+1}, sigma_{p,i+1}). 
+        q_params: torch.Tensor, optional
+            The tensor resulting from merging the bu_value tensor at the same hierarchical level 
+            from the bottom-up pass and the `p_params` tensor. Default is `None`.
+        forced_latent: torch.Tensor, optional
+            A pre-defined latent tensor. If it is not `None`, than it is used as the actual latent
+            tensor and, hence, sampling does not happen. Default is `None`.
+        use_mode: bool, optional
+            Wheteher the latent tensor should be set as the latent distribution mode.
+            In the case of Gaussian, the mode coincides with the mean of the distribution.
+            Default is `False`.
+        force_constant_output: bool, optional
+            Whether to copy the first sample (and rel. distrib parameters) over the whole batch.
+            This is used when doing experiment from the prior - q is not used.
+            Default is `False`.
+        analytical_kl: bool, optional
+            Whether to compute the KL divergence analytically or using Monte Carlo estimation.
+            Default is `False`.
+        mode_pred: bool, optional
+            Whether the model is in inference/prediction mode. Default is `False`.
+        use_uncond_mode: bool, optional
+            Whether to use the uncoditional distribution p(z) to sample latents in prediction mode.
+            Default is `False`.
+        var_clip_max: float, optional
+            The maximum value reachable by the log-variance of the latent distribtion.
+            Values exceeding this threshold are clipped. Default is `None`. 
         """
-
+        
         debug_qvar_max = 0
         assert (forced_latent is None) or (not use_mode)
 
