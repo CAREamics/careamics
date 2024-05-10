@@ -3,6 +3,8 @@ Script for utility functions needed by the LVAE model.
 """
 import torch
 import torch.nn as nn 
+import torchvision.transforms.functional as F
+from typing import Iterable
 
 def torch_nanmean(inp):
     return torch.mean(inp[~inp.isnan()])
@@ -128,13 +130,24 @@ class StableExponential:
     """
     Class that redefines the definition of exp() to increase numerical stability. 
     Naturally, also the definition of log() must change accordingly. 
-    However, it is worth noting that the two operations remain one the inverse of 
-    the other, meaning that x = log(exp(x)) and x = exp(log(x)) are always true.
+    However, it is worth noting that the two operations remain one the inverse of the other,
+    meaning that x = log(exp(x)) and x = exp(log(x)) are always true.
+    
+    Definition:
+        exp(x) = {
+            exp(x) if x<=0
+            x+1    if x>0
+        }
+        
+        log(x) = {
+            x        if x<=0
+            log(1+x) if x>0
+        }
     
     NOTE 1:
-        Here, the idea is that everything is done on the tensor which you've given in the constructor.
-        when exp() is called, what that means is that we want to compute self._tensor.exp()
-        when log() is called, we want to compute torch.log(self._tensor.exp())
+        Within the class everything is done on the tensor given as input to the constructor.
+        Therefore, when exp() is called, self._tensor.exp() is computed.
+        When log() is called, torch.log(self._tensor.exp()) is computed instead.
     
     NOTE 2:
         Given the output from exp(), torch.log() or the log() method of the class give identical results.
@@ -163,31 +176,59 @@ class StableExponential:
 
 
 class StableLogVar:
+    """
+    Class that provides a numerically stable implementation of Log-Variance.
+    Specifically, it uses the exp() and log() formulas defined in `StableExponential` class. 
+    """
 
-    def __init__(self, logvar, enable_stable=True, var_eps=1e-6):
+    def __init__(
+        self, 
+        logvar: torch.Tensor, 
+        enable_stable: bool = True, 
+        var_eps: float = 1e-6
+    ):
         """
-        Args:
-            var_eps: var() has this minimum value.
+        Contructor.
+        
+        Parameters
+        ----------
+        logvar: torch.Tensor
+            The input (true) logvar vector, to be converted in the Stable version.
+        enable_stable: bool, optional
+            Whether to compute the stable version of log-variance. Default is `True`.
+        var_eps: float, optional
+            The minimum value attainable by the variance. Default is `1e-6`.
         """
         self._lv = logvar
         self._enable_stable = enable_stable
         self._eps = var_eps
 
-    def get(self):
+    def get(self) -> torch.Tensor:
         if self._enable_stable is False:
             return self._lv
 
         return torch.log(self.get_var())
 
-    def get_var(self):
+    def get_var(self) -> torch.Tensor:
+        """
+        Get Variance from Log-Variance.
+        """
         if self._enable_stable is False:
             return torch.exp(self._lv)
         return StableExponential(self._lv).exp() + self._eps
 
-    def get_std(self):
+    def get_std(self) -> torch.Tensor:
         return torch.sqrt(self.get_var())
 
-    def centercrop_to_size(self, size):
+    def centercrop_to_size(self, size: Iterable[int]) -> None:
+        """
+        Centercrop the log-variance tensor to the desired size.
+        
+        Parameters
+        ----------
+        size: torch.Tensor
+            The desired size of the log-variance tensor.
+        """
         if self._lv.shape[-1] == size:
             return
 
@@ -201,10 +242,18 @@ class StableMean:
     def __init__(self, mean):
         self._mean = mean
 
-    def get(self):
+    def get(self) -> torch.Tensor:
         return self._mean
 
-    def centercrop_to_size(self, size):
+    def centercrop_to_size(selfize: Iterable[int]) -> None:
+        """
+        Centercrop the mean tensor to the desired size.
+        
+        Parameters
+        ----------
+        size: torch.Tensor
+            The desired size of the log-variance tensor.
+        """
         if self._mean.shape[-1] == size:
             return
 
