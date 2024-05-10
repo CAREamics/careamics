@@ -4,7 +4,8 @@ Script for utility functions needed by the LVAE model.
 import torch
 import torch.nn as nn 
 import torchvision.transforms.functional as F
-from typing import Iterable
+from torch.distributions.normal import Normal
+from typing import Iterable, Tuple
 
 def torch_nanmean(inp):
     return torch.mean(inp[~inp.isnan()])
@@ -260,3 +261,34 @@ class StableMean:
         diff = self._mean.shape[-1] - size
         assert diff > 0 and diff % 2 == 0
         self._mean = F.center_crop(self._mean, (size, size))
+
+
+def kl_normal_mc(
+    z: torch.Tensor, 
+    p_mulv: Tuple[StableMean, StableLogVar], 
+    q_mulv: Tuple[StableMean, StableLogVar]
+) -> torch.Tensor:
+    """
+    One-sample estimation of element-wise KL between two diagonal multivariate normal distributions.
+    Any number of dimensions, broadcasting supported (be careful).
+    
+    Parameters
+    ----------
+    z: torch.Tensor
+        The sampled latent tensor.
+    p_mulv: Tuple[StableMean, StableLogVar]
+        A tuple containing the mean and log-variance of the prior generative distribution p(z).
+    q_mulv: Tuple[StableMean, StableLogVar]
+        A tuple containing the mean and log-variance of the inference distribution q(z).
+    """
+    assert isinstance(p_mulv, tuple)
+    assert isinstance(q_mulv, tuple)
+    p_mu, p_lv = p_mulv
+    q_mu, q_lv = q_mulv
+
+    p_std = p_lv.get_std()
+    q_std = q_lv.get_std()
+
+    p_distrib = Normal(p_mu.get(), p_std)
+    q_distrib = Normal(q_mu.get(), q_std)
+    return q_distrib.log_prob(z) - p_distrib.log_prob(z)
