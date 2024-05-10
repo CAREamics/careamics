@@ -327,7 +327,7 @@ class BottomUpDeterministicResBlock(ResBlockWithResampling):
 
 class BottomUpLayer(nn.Module):
     """
-    Bottom-up deterministic layer for inference. 
+    Bottom-up deterministic layer. 
     It consists of one or a stack of `BottomUpDeterministicResBlock`'s.
     The outputs are the so-called `bu_values` that are later used in the Decoder to update the
     generative distributions.
@@ -715,82 +715,146 @@ class MergeLowRes(MergeLayer):
 
 class TopDownLayer(nn.Module):
     """
-    Top-down layer, including stochastic sampling, KL computation, and small
-    deterministic ResNet with upsampling.
-    The architecture when doing inference is roughly as follows:
-       p_params = output of top-down layer above
-       bu = inferred bottom-up value at this layer
-       q_params = merge(bu, p_params)
-       z = stochastic_layer(q_params)
-       possibly get skip connection from previous top-down layer
-       top-down deterministic ResNet
-    When doing generation only, the value bu is not available, the
-    merge layer is not used, and z is sampled directly from p_params.
-    If this is the top layer, at inference time, the uppermost bottom-up value
-    is used directly as q_params, and p_params are defined in this layer
-    (while they are usually taken from the previous layer), and can be learned.
+    Top-down inference layer.
+    It includes stochastic sampling, computation of KL divergence, and a small
+    deterministic ResNet that performs upsampling.
+    
+    NOTE 1:
+            The algorithm for generative inference approximately works as follows:
+                - p_params = output of top-down layer above
+                - bu = inferred bottom-up value at this layer
+                - q_params = merge(bu, p_params)
+                - z = stochastic_layer(q_params)
+                - (optional) get and merge skip connection from prev top-down layer
+                - top-down deterministic ResNet
+        
+    NOTE 2:    
+        When doing unconditional generation, bu_value is not available. Hence the
+        merge layer is not used, and z is sampled directly from p_params.
+
+    NOTE 3:
+        If this is the top layer, at inference time, the uppermost bottom-up value
+        is used directly as q_params, and p_params are defined in this layer
+        (while they are usually taken from the previous layer), and can be learned.
     """
 
-    def __init__(self,
-                 z_dim: int,
-                 n_res_blocks: int,
-                 n_filters: int,
-                 is_top_layer: bool = False,
-                 downsampling_steps: int = None,
-                 nonlin=None,
-                 merge_type: str = None,
-                 batchnorm: bool = True,
-                 dropout: Union[None, float] = None,
-                 stochastic_skip: bool = False,
-                 res_block_type=None,
-                 res_block_kernel=None,
-                 res_block_skip_padding=None,
-                 groups: int = 1,
-                 gated=None,
-                 learn_top_prior=False,
-                 top_prior_param_shape=None,
-                 analytical_kl=False,
-                 bottomup_no_padding_mode=False,
-                 topdown_no_padding_mode=False,
-                 retain_spatial_dims: bool = False,
-                 restricted_kl=False,
-                 vanilla_latent_hw: int = None,
-                 non_stochastic_version=False,
-                 input_image_shape: Union[None, Tuple[int, int]] = None,
-                 normalize_latent_factor=1.0,
-                 conv2d_bias: bool = True,
-                 stochastic_use_naive_exponential=False):
+    def __init__(
+        self,
+        z_dim: int,
+        n_res_blocks: int,
+        n_filters: int,
+        is_top_layer: bool = False,
+        downsampling_steps: int = None,
+        nonlin:  Callable = None,
+        merge_type: Literal["linear", "residual", "residual_ungated"] = None,
+        batchnorm: bool = True,
+        dropout: float = None,
+        stochastic_skip: bool = False,
+        res_block_type: str = None,
+        res_block_kernel: int = None,
+        res_block_skip_padding: bool = None,
+        groups: int = 1,
+        gated: bool = None,
+        learn_top_prior: bool = False,
+        top_prior_param_shape: Iterable[int] = None,
+        analytical_kl: bool = False,
+        bottomup_no_padding_mode: bool = False,
+        topdown_no_padding_mode: bool = False,
+        retain_spatial_dims: bool = False,
+        restricted_kl: bool = False,
+        vanilla_latent_hw: int = None,
+        non_stochastic_version: bool = False,
+        input_image_shape: Union[None, Tuple[int, int]] = None,
+        normalize_latent_factor: float = 1.0,
+        conv2d_bias: bool = True,
+        stochastic_use_naive_exponential: bool = False
+    ):
         """
-            Args:
-                z_dim:          This is the dimension of the latent space.
-                n_res_blocks:   Number of TopDownDeterministicResBlock blocks
-                n_filters:      Number of channels which is present through out this layer.
-                is_top_layer:   Whether it is top layer or not.
-                downsampling_steps: How many times upsampling has to be done in this layer. This is typically 1.
-                nonlin: What non linear activation is to be applied at various places in this module.
-                merge_type: In Top down layer, one merges the information passed from q() and upper layers.
-                            This specifies how to mix these two tensors.
-                batchnorm: Whether to apply batch normalization at various places or not.
-                dropout: Amount of dropout to be applied at various places.
-                stochastic_skip: Previous layer's output is mixed with this layer's stochastic output. So, 
-                                the previous layer's output has a way to reach this level without going
-                                through the stochastic process. However, technically, this is not a skip as
-                                both are merged together. 
-                res_block_type: Example: 'bacdbac'. It has the constitution of the residual block.
-                gated: This is also an argument for the residual block. At the end of residual block, whether 
-                        there should be a gate or not.
-                learn_top_prior: Whether we want to learn the top prior or not. If set to False, for the top-most
-                                 layer, p will be N(0,1). Otherwise, we will still have a normal distribution. It is 
-                                 just that the mean and the stdev will be different.
-                top_prior_param_shape: This is the shape of the tensor which would contain the mean and the variance
-                                        of the prior (which is normal distribution) for the top most layer.
-                analytical_kl:  If True, typical KL divergence is calculated. Otherwise, an approximate of it is 
-                            calculated.
-                retain_spatial_dims: If True, the the latent space of encoder remains at image_shape spatial resolution for each topdown layer. What this means for one topdown layer is that the input spatial size remains the output spatial size.
-                            To achieve this, we centercrop the intermediate representation.
-                input_image_shape: This is the shape of the input patch. when retain_spatial_dims is set to True, then this is used to ensure that the output of this layer has this shape. 
-                normalize_latent_factor: Divide the latent space (q_params) by this factor.
-                conv2d_bias:    Whether or not bias should be present in the Conv2D layer.
+        Contructor.
+        
+        Parameters
+        ----------
+        z_dim: int         
+            The size of the latent space.
+        n_res_blocks: int  
+            The number of TopDownDeterministicResBlock blocks
+        n_filters: int
+            The number of channels present through out the layers of this block.
+        is_top_layer: bool, optional
+            Whether the current layer is at the top of the Decoder hierarchy. Default is `False`.
+        downsampling_steps: int, optional 
+            The number of downsampling steps that has to be done in this layer (typically 1).
+            Default is `False`.
+        nonlin: Callable, optional
+            The non-linearity function used in the block (e.g., `nn.ReLU`). Deafault is `None`.
+        merge_type: Literal["linear", "residual", "residual_ungated"], optional 
+            The type of merge done in the layer. It can be chosen between "linear", "residual", 
+            and "residual_ungated". Check the `MergeLayer` class docstring for more information
+            about the behaviour of different merging modalities. Default is `None`.
+        batchnorm: bool, optional
+            Whether to use batchnorm layers. Default is `True`.
+        dropout: float, optional
+            The dropout probability in dropout layers. If `None` dropout is not used.
+            Default is `None`.
+        stochastic_skip: bool, optional
+            Whether to use skip connections between previous top-down layer's output and this layer's stochastic output. 
+            Stochastic skip connection allows the previous layer's output has a way to directly reach this hierarchical
+            level, hence facilitating the gradient flow during backpropagation. Default is `False`.
+        res_block_type: str, optional
+            A string specifying the structure of residual block. 
+            Check `ResidualBlock` documentation for more information.
+            Default is `None`.
+        res_block_kernel: Union[int, Iterable[int]], optional
+            The kernel size used in the convolutions of the residual block.
+            It can be either a single integer or a pair of integers defining the squared kernel.
+            Default is `None`.
+        res_block_skip_padding: bool, optional
+            Whether to skip padding in convolutions in the Residual block. Default is `None`.
+        groups: int, optional
+            The number of groups to consider in the convolutions. Default is 1.
+        gated: bool, optional
+            Whether to use gated layer in `ResidualBlock`. Default is `None`.
+        learn_top_prior: 
+            Whether to set the top prior as learnable. 
+            If this is set to `False`, in the top-most layer the prior will be N(0,1).
+            Otherwise, we will still have a normal distribution whose parameters will be learnt.
+            Deafult is `False`.
+        top_prior_param_shape: Iterable[int], optional
+            The size of the tensor which expresses the mean and the variance
+            of the prior for the top most layer.
+        analytical_kl: bool, optional
+            If True, KL divergence is calculated according to the analytical formula. 
+            Otherwise, an MC approximation using sampled latents is calculated. Default is `False`.
+        
+        bottomup_no_padding_mode: bool, optional
+            Default is `False`.
+        topdown_no_padding_mode: bool, optional
+            Default is `False`.
+        retain_spatial_dims: bool, optional
+            If `True`, the size of Encoder's latent space is kept to `input_image_shape` within the topdown layer. 
+            This implies that the oput spatial size equals the input spatial size.
+            To achieve this, we centercrop the intermediate representation.
+            Default is `False`.
+        restricted_kl: bool, optional
+            Default is `False`.
+        vanilla_latent_hw: int, optional
+            Default is `None`.
+        non_stochastic_version: bool, optional
+            Default is `False`.
+        
+        input_image_shape: Tuple[int, int], optionalut
+            The shape of the input image tensor. 
+            When `retain_spatial_dims` is set to `True`, this is used to ensure that the shape of this layer 
+            output has the same shape as the input. Default is `None`.
+        normalize_latent_factor: float, optional
+            A factor used to normalize the latent tensors `q_params`.
+            Specifically, normalization is done by dividing the latent tensor by this factor. 
+            Default is 1.0.
+        conv2d_bias: bool, optional
+            Whether to use bias term is the convolutional blocks of this layer. Default is `False`.
+        
+        stochastic_use_naive_exponential: bool, optional
+            Default is `False`. 
         """
 
         super().__init__()
@@ -810,7 +874,10 @@ class TopDownLayer(nn.Module):
         
         # Define top layer prior parameters, possibly learnable
         if is_top_layer:
-            self.top_prior_params = nn.Parameter(torch.zeros(top_prior_param_shape), requires_grad=learn_top_prior)
+            self.top_prior_params = nn.Parameter(
+                torch.zeros(top_prior_param_shape), 
+                requires_grad=learn_top_prior
+            )
 
         # Downsampling steps left to do in this layer
         dws_left = downsampling_steps
@@ -818,7 +885,6 @@ class TopDownLayer(nn.Module):
         # Define deterministic top-down block: sequence of deterministic
         # residual blocks with downsampling when needed.
         block_list = []
-
         for _ in range(n_res_blocks):
             do_resample = False
             if dws_left > 0:

@@ -383,28 +383,27 @@ class LadderVAE(nn.Module):
     def create_top_down_layers(self) -> nn.ModuleList:
         """
         This method creates the stack of top-down layers of the Decoder.
-        In these layer the `bu`_values` from the Encoder are merged with 
-        the `p_params` from the previous layer of the Decoder to get 
-        `q_params`. Then, a sample is generated from the latent distribution
-        with parameters `q_params`. Finally, this sample is fed through a 
-        TopDownDeterministicResBlock to get the `p_params` for the layer below.
+        In these layer the `bu`_values` from the Encoder are merged with the `p_params` from the previous layer
+        of the Decoder to get `q_params`. Then, a sample is generated from the latent distribution with parameters
+        `q_params` using a stochastic layer. Finally, this sample is fed through a TopDownDeterministicResBlock to
+        compute the `p_params` for the layer below.
+        
+        NOTE 1:
+            The algorithm for generative inference approximately works as follows:
+                - p_params = output of top-down layer above
+                - bu = inferred bottom-up value at this layer
+                - q_params = merge(bu, p_params)
+                - z = stochastic_layer(q_params)
+                - (optional) get and merge skip connection from prev top-down layer
+                - top-down deterministic ResNet
+        
+        NOTE 2:    
+            When doing unconditional generation, bu_value is not available. Hence the
+            merge layer is not used, and z is sampled directly from p_params.
         
         Parameters
         ----------
         
-        NOTE:
-            The architecture when doing inference is roughly as follows:
-               p_params = output of top-down layer above
-               bu = inferred bottom-up value at this layer
-               q_params = merge(bu, p_params)
-               z = stochastic_layer(q_params):
-               possibly get skip connection from previous top-down layer
-               top-down deterministic ResNet
-            
-            When doing generation only, the value bu is not available, the
-            merge layer is not used, and z is sampled directly from p_params.
-            
-            Normalization should be applied only with relatively deep networks.
         """
         
         top_down_layers = nn.ModuleList([])
