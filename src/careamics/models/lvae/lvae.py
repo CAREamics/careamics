@@ -328,7 +328,7 @@ class LadderVAE(nn.Module):
 
     def create_bottom_up_layers(
         self, 
-        lowres_separate_branch
+        lowres_separate_branch: bool
     ) -> nn.ModuleList:
         """
         This method creates the stack of bottom-up layers of the Encoder
@@ -336,6 +336,9 @@ class LadderVAE(nn.Module):
         
         Parameters
         ----------
+        lowres_separate_branch: bool
+            Whether the residual block(s) encoding the low-res input should be shared (`False`) or
+            not (`True`) with the primary flow "same-size" residual block(s) of the `BottomUpLayer`(s).
         """
         
         # Whether to use Lateral Contextualization (LC)
@@ -575,7 +578,8 @@ class LadderVAE(nn.Module):
         Parameters
         ----------
         inp: torch.Tensor
-            The input tensor to the bottom-up pass.
+            The input tensor to the bottom-up pass. The first channel is the original input image
+            while additional channels contain low-res inputs to yield more context (LC approach).
         first_bottom_up: nn.Sequential
             The module defining the first bottom-up layer of the Encoder.
         lowres_first_bottom_ups: nn.ModuleList
@@ -584,14 +588,12 @@ class LadderVAE(nn.Module):
             The list of modules defining the stack of bottom-up layers of the Encoder.
         """
         if self._multiscale_count > 1:
-            # Bottom-up initial layer. The first channel is the original input image
-            # while additional channels are simply to yield more context.
             x = first_bottom_up(inp[:, :1])
         else:
             x = first_bottom_up(inp)
 
         # Loop from bottom to top layer, store all deterministic nodes we
-        # need in the top-down pass
+        # need for the top-down pass in bu_values list
         bu_values = []
         for i in range(self.n_layers):
             lowres_x = None

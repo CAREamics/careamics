@@ -329,7 +329,7 @@ class BottomUpLayer(nn.Module):
     """
     Bottom-up deterministic layer for inference. 
     It consists of one or a stack of `BottomUpDeterministicResBlock`'s.
-    The output is the so-called `bu_values` that are later used in the Decoder to update the
+    The outputs are the so-called `bu_values` that are later used in the Decoder to update the
     generative distributions.
     
     NOTE: When Lateral Contextualization is Enabled (i.e., `enable_multiscale=True`), 
