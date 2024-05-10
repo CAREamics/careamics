@@ -245,7 +245,7 @@ class StableMean:
     def get(self) -> torch.Tensor:
         return self._mean
 
-    def centercrop_to_size(selfize: Iterable[int]) -> None:
+    def centercrop_to_size(self, size: Iterable[int]) -> None:
         """
         Centercrop the mean tensor to the desired size.
         
