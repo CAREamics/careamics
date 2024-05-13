@@ -801,12 +801,22 @@ class TopDownLayer(nn.Module):
                 - z = stochastic_layer(q_params)
                 - (optional) get and merge skip connection from prev top-down layer
                 - top-down deterministic ResNet
-        
-    NOTE 2:    
+    
+    NOTE 2:
+        The Top-Down layer can work in two modes: inference and prediction/generative.
+        Depending on the particular mode, it follows distinct behaviours: 
+        - In inference mode, parameters of q(z_i|z_i+1) are obtained from the inference path,
+        by merging outcomes of bottom-up and top-down passes. The exception is the top layer,
+        in which the parameters of q(z_L|x) are set as the output of the topmost bottom-up layer.
+        - On the contrary in prediciton/generative mode, parameters of q(z_i|z_i+1) can be obtained
+        once again by merging bottom-up and top-down outputs (CONDITIONAL GENERATION), or it is 
+        possible to directly sample from the prior p(z_i|z_i+1) (UNCONDITIONAL GENERATION).     
+    
+    NOTE 3:    
         When doing unconditional generation, bu_value is not available. Hence the
         merge layer is not used, and z is sampled directly from p_params.
 
-    NOTE 3:
+    NOTE 4:
         If this is the top layer, at inference time, the uppermost bottom-up value
         is used directly as q_params, and p_params are defined in this layer
         (while they are usually taken from the previous layer), and can be learned.
@@ -1048,11 +1058,31 @@ class TopDownLayer(nn.Module):
         print(f'[{self.__class__.__name__}] normalize_latent_factor:{self.normalize_latent_factor}')
 
 
-    def sample_from_q(self, input_, bu_value, var_clip_max=None, mask=None):
+    def sample_from_q(
+        self, 
+        input_: torch.Tensor, 
+        bu_value: torch.Tensor, 
+        var_clip_max: float = None, 
+        mask: torch.Tensor = None
+    ) -> torch.Tensor:
         """
-        We sample from q
+        This method computes the latent inference distribution q(z_i|z_{i+1}) amd samples a latent tensor from it.
+        
+        Parameters
+        ----------
+        input_: torch.Tensor
+            The input tensor to the layer, which is the output of the top-down layer above.
+        bu_value: torch.Tensor
+            The tensor defining the parameters /mu_q and /sigma_q computed during the bottom-up deterministic pass
+            at the correspondent hierarchical layer.
+        var_clip_max: float, optional
+            The maximum value reachable by the log-variance of the latent distribtion.
+            Values exceeding this threshold are clipped. Default is `None`.
+        mask: Union[None, torch.Tensor], optional
+            A tensor that is used to mask the sampled latent tensor. Default is `None`.
         """
-        if self.is_top_layer:
+        
+        if self.is_top_layer: # In top layer, we don't merge bu_value with p_params
             q_params = bu_value
         else:
             # NOTE: Here the assumption is that the vampprior is only applied on the top layer.
@@ -1061,13 +1091,33 @@ class TopDownLayer(nn.Module):
             q_params = self.merge(bu_value, p_params)
 
         sample = self.stochastic.sample_from_q(q_params, var_clip_max)
+        
         if mask:
             return sample[mask]
+        
         return sample
 
-    def get_p_params(self, input_, n_img_prior):
+
+    def get_p_params(
+        self, 
+        input_: torch.Tensor, 
+        n_img_prior: int,
+    ) -> torch.Tensor:
+        """
+        This method returns the parameters of the prior distribution p(z_i|z_{i+1}) for the latent tensor
+        depending on the hierarchical level of the layer and other specific conditions.
+        
+        Parameters
+        ----------
+        input_: torch.Tensor
+            The input tensor to the layer, which is the output of the top-down layer above.
+        n_img_prior: int
+            The number of images to be generated from the unconditional prior distribution p(z_L).
+        """
+        
         p_params = None
-        # If top layer, define parameters of prior p(z_L)
+        
+        # If top layer, define p_params as the ones of the prior p(z_L)
         if self.is_top_layer:
             p_params = self.top_prior_params
 
@@ -1075,11 +1125,12 @@ class TopDownLayer(nn.Module):
             if n_img_prior is not None:
                 p_params = p_params.expand(n_img_prior, -1, -1, -1)
 
-        # Else the input from the layer above is the prior parameters
+        # Else the input from the layer above is p_params itself
         else:
             p_params = input_
 
         return p_params
+
 
     def align_pparams_buvalue(
         self, 
@@ -1095,7 +1146,8 @@ class TopDownLayer(nn.Module):
         p_params: torch.Tensor
             The tensor defining the parameters /mu_p and /sigma_p for the latent distribution p(z_i|z_{i+1}). 
         bu_value: torch.Tensor
-            The tensor defining the parameters /mu_q and /sigma_q computed during the bottom-up deterministic pass. 
+            The tensor defining the parameters /mu_q and /sigma_q computed during the bottom-up deterministic pass
+            at the correspondent hierarchical layer. 
         """
         if bu_value.shape[-2:] != p_params.shape[-2:]:
             assert self.bottomup_no_padding_mode is True
@@ -1109,37 +1161,59 @@ class TopDownLayer(nn.Module):
                     p_params = F.center_crop(p_params, bu_value.shape[-2:])
         return p_params, bu_value
 
-    def forward(self,
-                input_: Union[None, torch.Tensor] = None,
-                skip_connection_input=None,
-                inference_mode=False,
-                bu_value=None,
-                n_img_prior=None,
-                forced_latent: Union[None, torch.Tensor] = None,
-                use_mode: bool = False,
-                force_constant_output=False,
-                mode_pred=False,
-                use_uncond_mode=False,
-                var_clip_max: Union[None, float] = None):
+
+    def forward(
+        self,
+        input_: torch.Tensor = None,
+        skip_connection_input: torch.Tensor = None,
+        inference_mode: bool = False,
+        bu_value: torch.Tensor = None,
+        n_img_prior: int = None,
+        forced_latent: torch.Tensor = None,
+        use_mode: bool = False,
+        force_constant_output: bool = False,
+        mode_pred: bool = False,
+        use_uncond_mode: bool = False,
+        var_clip_max: float = None
+    ) -> Tuple[torch.Tensor, torch.Tensor, Dict[str, torch.Tensor]]:
         """
-        Args:
-            input_: output from previous top_down layer.
-            skip_connection_input: Currently, this is output from the previous top down layer. 
-                                It is mixed with the output of the stochastic layer.
-            inference_mode: In inference mode, q_params is not None. Otherwise it is. When q_params is None,
-                            everything is generated from the p_params. So, the encoder is not used at all.
-            bu_value: Output of the bottom-up pass layer of the same level as this top-down.
-            n_img_prior: This affects just the top most top-down layer. This is only present if inference_mode=False.
-            forced_latent: If this is a tensor, then in stochastic layer, we don't sample by using p() & q(). We simply 
-                            use this as the latent space sampling.
-            use_mode:      If it is true, we still don't sample from the q(). We simply 
-                            use the mean of the distribution as the latent space.
-            force_constant_output: This ensures that only the first sample of the batch is used. Typically used 
-                                when infernce_mode is False
-            mode_pred: If True, then only prediction happens. Otherwise, KL divergence loss also gets computed.
-            use_uncond_mode: Used only when mode_pred=True
-            var_clip_max: This is the maximum value the log of the variance of the latent vector for any layer can reach.
+        Parameters
+        ----------
+        input_: torch.Tensor, optional
+            The input tensor to the layer, which is the output of the top-down layer above.
+            Default is `None`.
+        skip_connection_input: torch.Tensor, optional
+            The tensor brought by the skip connection between the current and the previous top-down layer.
+            Default is `None`.
+        inference_mode: bool, optional
+            Whether the layer is in inference mode. See NOTE 2 in class description for more info.
+            Default is `False`.
+        bu_value: torch.Tensor, optional
+            The tensor defining the parameters /mu_q and /sigma_q computed during the bottom-up deterministic pass
+            at the correspondent hierarchical layer. Default is `None`.
+        n_img_prior: int, optional
+            The number of images to be generated from the unconditional prior distribution p(z_L).
+            Default is `None`.
+        forced_latent: torch.Tensor, optional
+            A pre-defined latent tensor. If it is not `None`, than it is used as the actual latent tensor and,
+            hence, sampling does not happen. Default is `None`.
+        use_mode: bool, optional
+            Wheteher the latent tensor should be set as the latent distribution mode.
+            In the case of Gaussian, the mode coincides with the mean of the distribution.
+            Default is `False`.
+        force_constant_output: bool, optional
+            Whether to copy the first sample (and rel. distrib parameters) over the whole batch.
+            This is used when doing experiment from the prior - q is not used.
+            Default is `False`.
+        mode_pred: bool, optional
+            Whether the model is in prediction mode. Default is `False`.
+        use_uncond_mode: bool, optional
+            Whether to use the uncoditional distribution p(z) to sample latents in prediction mode.
+        var_clip_max: float
+            The maximum value reachable by the log-variance of the latent distribtion.
+            Values exceeding this threshold are clipped.
         """
+
         # Check consistency of arguments
         inputs_none = input_ is None and skip_connection_input is None
         if self.is_top_layer and not inputs_none:
@@ -1147,8 +1221,7 @@ class TopDownLayer(nn.Module):
 
         p_params = self.get_p_params(input_, n_img_prior)
 
-        # In inference mode, get parameters of q from inference path,
-        # merging with top-down path if it's not the top layer
+        # Get the parameters for the latent distribution to sample from
         if inference_mode:
             if self.is_top_layer:
                 q_params = bu_value
@@ -1160,39 +1233,45 @@ class TopDownLayer(nn.Module):
                 else:
                     p_params, bu_value = self.align_pparams_buvalue(p_params, bu_value)
                     q_params = self.merge(bu_value, p_params)
-
         # In generative mode, q is not used
         else:
             q_params = None
 
-        # Sample from either q(z_i | z_{i+1}, x) or p(z_i | z_{i+1})
-        # depending on whether q_params is None
+        # NOTE: Sampling is done either from q(z_i | z_{i+1}, x) or p(z_i | z_{i+1})
+        # depending on the mode (hence, in practice, by checking whether q_params is None).
 
-        # This is done, purely for stablity. See Very deep VAEs generalize autoregressive models.
+        # Normalization of latent space parameters:
+        # it is done, purely for stablity. See Very deep VAEs generalize autoregressive models.
         if self.normalize_latent_factor:
             q_params = q_params / self.normalize_latent_factor
 
-        x, data_stoch = self.stochastic(p_params=p_params,
-                                        q_params=q_params,
-                                        forced_latent=forced_latent,
-                                        use_mode=use_mode,
-                                        force_constant_output=force_constant_output,
-                                        analytical_kl=self.analytical_kl,
-                                        mode_pred=mode_pred,
-                                        use_uncond_mode=use_uncond_mode,
-                                        var_clip_max=var_clip_max)
+        # Sample (and process) a latent tensor in the stochastic layer
+        x, data_stoch = self.stochastic(
+            p_params=p_params,
+            q_params=q_params,
+            forced_latent=forced_latent,
+            use_mode=use_mode,
+            force_constant_output=force_constant_output,
+            analytical_kl=self.analytical_kl,
+            mode_pred=mode_pred,
+            use_uncond_mode=use_uncond_mode,
+            var_clip_max=var_clip_max
+        )
 
-        # Skip connection from previous layer
+        # Merge skip connection from previous layer
         if self.stochastic_skip and not self.is_top_layer:
             if self.topdown_no_padding_mode is True:
-                # the output of last TopDown layer was of size 64*64. Due to lack of padding, currecnt x has become, say 60*60.
+                # If no padding is done in the current top-down pass, there may be a shape mismatch between current tensor and skip connection input.
+                # As an example, if the output of last TopDownLayer was of size 64*64, due to lack of padding in the current layer, the current tensor
+                # might become different in shape, say 60*60. 
+                # In order to avoid shape mismatch, we do central crop of the skip connection input.
                 skip_connection_input = F.center_crop(skip_connection_input, x.shape[-2:])
-
+                
             x = self.skip_connection_merger(x, skip_connection_input)
 
-        # Save activation before residual block: could be the skip
-        # connection input in the next layer
+        # Save activation before residual block as it can be the skip connection input in the next layer
         x_pre_residual = x
+        
         if self.retain_spatial_dims:
             # when we don't want to do padding in topdown as well, we need to spare some boundary pixels which would be used up.
             extra_len = (self.topdown_no_padding_mode is True) * 3
@@ -1212,6 +1291,7 @@ class TopDownLayer(nn.Module):
         if self.topdown_no_padding_mode:
             x = F.center_crop(x, self.latent_shape)
 
+        # Save some metrics that will be used in the loss computation
         keys = [
             'z',
             'kl_samplewise',
@@ -1229,6 +1309,7 @@ class TopDownLayer(nn.Module):
             q_mu, q_lv = data_stoch['q_params']
             data['q_mu'] = q_mu
             data['q_lv'] = q_lv
+            
         return x, x_pre_residual, data
 
 
@@ -1364,7 +1445,7 @@ class NormalStochasticBlock2d(nn.Module):
             Wheteher the latent tensor should be set as the latent distribution mode.
             In the case of Gaussian, the mode coincides with the mean of the distribution. 
         mode_pred: bool
-            Whether the model is in inference/prediction mode.
+            Whether the model is prediction mode.
         use_uncond_mode: bool
             Whether to use the uncoditional distribution p(z) to sample latents in prediction mode.
         """        
@@ -1437,7 +1518,7 @@ class NormalStochasticBlock2d(nn.Module):
             q_params: torch.Tensor
                 The parameters of the inference distribution.
             mode_pred: bool
-                Whether the model is in inference/prediction mode.
+                Whether the model is in prediction mode.
             analytical_kl: bool
                 Whether to compute the KL divergence analytically or using Monte Carlo estimation.
             z: torch.Tensor
@@ -1601,7 +1682,7 @@ class NormalStochasticBlock2d(nn.Module):
             Whether to compute the KL divergence analytically or using Monte Carlo estimation.
             Default is `False`.
         mode_pred: bool, optional
-            Whether the model is in inference/prediction mode. Default is `False`.
+            Whether the model is in prediction mode. Default is `False`.
         use_uncond_mode: bool, optional
             Whether to use the uncoditional distribution p(z) to sample latents in prediction mode.
             Default is `False`.
@@ -1764,7 +1845,7 @@ class NonStochasticBlock2d(nn.Module):
         q_params: torch.Tensor
             The parameters of the inference distribution.
         mode_pred: bool
-            Whether the model is in inference/prediction mode.
+            Whether the model is in prediction mode.
         analytical_kl: bool
             Whether to compute the KL divergence analytically or using Monte Carlo estimation.
         z: torch.Tensor
@@ -1837,7 +1918,7 @@ class NonStochasticBlock2d(nn.Module):
             Whether to compute the KL divergence analytically or using Monte Carlo estimation.
             Default is `False`.
         mode_pred: bool, optional
-            Whether the model is in inference/prediction mode. Default is `False`.
+            Whether the model is in prediction mode. Default is `False`.
         use_uncond_mode: bool, optional
             Whether to use the uncoditional distribution p(z) to sample latents in prediction mode.
             Default is `False`.
