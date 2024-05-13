@@ -2,8 +2,17 @@
 Script containing modules for definining different likelihood functions (as nn.Module).
 """
 
-class LikelihoodModule(nn.Module):
+import torch
+from torch import nn
+from typing import Literal, Tuple, Dict
 
+
+class LikelihoodModule(nn.Module):
+    """
+    The base class for all likelihood modules. 
+    It defines the fundamental structure and methods for specialized likelihood models.
+    """
+    
     def distr_params(self, x):
         return None
 
@@ -29,16 +38,23 @@ class LikelihoodModule(nn.Module):
     def log_likelihood(self, x, params):
         return None
 
-    def forward(self, input_, x):
+    def forward(
+        self, 
+        input_: torch.Tensor, 
+        x: torch.Tensor
+    ) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:
+        
         distr_params = self.distr_params(input_)
         mean = self.mean(distr_params)
         mode = self.mode(distr_params)
         sample = self.sample(distr_params)
         logvar = self.logvar(distr_params)
+        
         if x is None:
             ll = None
         else:
             ll = self.log_likelihood(x, distr_params)
+        
         dct = {
             'mean': mean,
             'mode': mode,
@@ -46,7 +62,142 @@ class LikelihoodModule(nn.Module):
             'params': distr_params,
             'logvar': logvar,
         }
+        
         return ll, dct
+
+
+class GaussianLikelihood(LikelihoodModule):
+    """
+    A specialize `LikelihoodModule` for Gaussian likelihood.
+    Specifically, the likelihood is defined as:
+        p(x|z_1) = N(x|\mu_{p,1}, \sigma_{p,1}^2)
+    """
+    
+    def __init__(
+        self,
+        ch_in,
+        color_channels,
+        predict_logvar: Literal[None, 'global', 'pixelwise', 'channelwise'] = None,
+        logvar_lowerbound: float = None,
+        conv2d_bias: bool = True
+    ):
+        """
+        Constructor.
+        
+        Parameters
+        ----------
+        predict_logvar: Literal[None, 'global', 'pixelwise', 'channelwise'], optional
+            If not `None`, it expresses the type of log-variance to compute.
+            Default is `None`.
+        logvar_lowerbound: float, optional
+            The lowerbound value for log-variance. Default is `None`.
+        conv2d_bias: bool, optional
+            Whether to use bias term in convolutions. Default is `True`.
+        """
+        
+        super().__init__()
+        
+        # If True, then we also predict pixelwise logvar.
+        self.predict_logvar = predict_logvar
+        self.logvar_lowerbound = logvar_lowerbound
+        self.conv2d_bias = conv2d_bias
+        assert self.predict_logvar in [None, 'global', 'pixelwise', 'channelwise']
+        
+        # logvar_ch_needed = self.predict_logvar is not None
+        # self.parameter_net = nn.Conv2d(ch_in,
+        #                                color_channels * (1 + logvar_ch_needed),
+        #                                kernel_size=3,
+        #                                padding=1,
+        #                                bias=self.conv2d_bias)
+        self.parameter_net = nn.Identity()
+        
+        print(f'[{self.__class__.__name__}] PredLVar:{self.predict_logvar} LowBLVar:{self.logvar_lowerbound}')
+
+    def get_mean_lv(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+        """
+        Given the output of the top-down pass.
+        """
+        x = self.parameter_net(x)
+        if self.predict_logvar is not None:
+            # pixelwise mean and logvar
+            mean, lv = x.chunk(2, dim=1)
+            if self.predict_logvar in ['channelwise', 'global']:
+                if self.predict_logvar == 'channelwise':
+                    # logvar should be of the following shape (batch,num_channels). Other dims would be singletons.
+                    N = np.prod(lv.shape[:2])
+                    new_shape = (*mean.shape[:2], *([1] * len(mean.shape[2:])))
+                elif self.predict_logvar == 'global':
+                    # logvar should be of the following shape (batch). Other dims would be singletons.
+                    N = lv.shape[0]
+                    new_shape = (*mean.shape[:1], *([1] * len(mean.shape[1:])))
+                else:
+                    raise ValueError(f"Invalid value for self.predict_logvar:{self.predict_logvar}")
+
+                lv = torch.mean(lv.reshape(N, -1), dim=1)
+                lv = lv.reshape(new_shape)
+
+            if self.logvar_lowerbound is not None:
+                lv = torch.clip(lv, min=self.logvar_lowerbound)
+        else:
+            mean = x
+            lv = None
+        return mean, lv
+
+    def distr_params(self, x: torch.Tensor) -> Dict[str, torch.Tensor]:
+        """
+        Get parameters (mean, log-var) of the Gaussian distribution defined by the likelihood.  
+        
+        Parameters
+        ----------
+        x: torch.Tensor
+            The input tensor to the likelihood module, i.e., the output of the top-down pass.   
+        """
+        mean, lv = self.get_mean_lv(x)
+        params = {
+            'mean': mean,
+            'logvar': lv,
+        }
+        return params
+
+    @staticmethod
+    def mean(params):
+        return params['mean']
+
+    @staticmethod
+    def mode(params):
+        return params['mean']
+
+    @staticmethod
+    def sample(params):
+        # p = Normal(params['mean'], (params['logvar'] / 2).exp())
+        # return p.rsample()
+        return params['mean']
+
+    @staticmethod
+    def logvar(params):
+        return params['logvar']
+
+    def log_likelihood(self, x, params):
+        if self.predict_logvar is not None:
+            logprob = log_normal(x, params['mean'], params['logvar'])
+        else:
+            logprob = -0.5 * (params['mean'] - x)**2
+        return logprob
+
+
+def log_normal(x, mean, logvar):
+    """
+    Log of the probability density of the values x untder the Normal
+    distribution with parameters mean and logvar.
+    :param x: tensor of points, with shape (batch, channels, dim1, dim2)
+    :param mean: tensor with mean of distribution, shape
+                 (batch, channels, dim1, dim2)
+    :param logvar: tensor with log-variance of distribution, shape has to be
+                   either scalar or broadcastable
+    """
+    var = torch.exp(logvar)
+    log_prob = -0.5 * (((x - mean)**2) / var + logvar + torch.tensor(2 * math.pi).log())
+    return log_prob
 
 
 class NoiseModelLikelihood(LikelihoodModule):
@@ -109,103 +260,3 @@ class NoiseModelLikelihood(LikelihoodModule):
         # likelihoods = self.noiseModel.likelihood(x, params['mean'])
         logprob = torch.log(likelihoods)
         return logprob
-
-
-class GaussianLikelihood(LikelihoodModule):
-
-    def __init__(self,
-                 ch_in,
-                 color_channels,
-                 predict_logvar: Union[None, str] = None,
-                 logvar_lowerbound=None,
-                 conv2d_bias=True):
-        super().__init__()
-        # If True, then we also predict pixelwise logvar.
-        self.predict_logvar = predict_logvar
-        self.logvar_lowerbound = logvar_lowerbound
-        self.conv2d_bias = conv2d_bias
-        assert self.predict_logvar in [None, 'global', 'pixelwise', 'channelwise']
-        logvar_ch_needed = self.predict_logvar is not None
-        # self.parameter_net = nn.Conv2d(ch_in,
-        #                                color_channels * (1 + logvar_ch_needed),
-        #                                kernel_size=3,
-        #                                padding=1,
-        #                                bias=self.conv2d_bias)
-        self.parameter_net = nn.Identity()
-        print(f'[{self.__class__.__name__}] PredLVar:{self.predict_logvar} LowBLVar:{self.logvar_lowerbound}')
-
-    def get_mean_lv(self, x):
-        x = self.parameter_net(x)
-        if self.predict_logvar is not None:
-            # pixelwise mean and logvar
-            mean, lv = x.chunk(2, dim=1)
-            if self.predict_logvar in ['channelwise', 'global']:
-                if self.predict_logvar == 'channelwise':
-                    # logvar should be of the following shape (batch,num_channels). Other dims would be singletons.
-                    N = np.prod(lv.shape[:2])
-                    new_shape = (*mean.shape[:2], *([1] * len(mean.shape[2:])))
-                elif self.predict_logvar == 'global':
-                    # logvar should be of the following shape (batch). Other dims would be singletons.
-                    N = lv.shape[0]
-                    new_shape = (*mean.shape[:1], *([1] * len(mean.shape[1:])))
-                else:
-                    raise ValueError(f"Invalid value for self.predict_logvar:{self.predict_logvar}")
-
-                lv = torch.mean(lv.reshape(N, -1), dim=1)
-                lv = lv.reshape(new_shape)
-
-            if self.logvar_lowerbound is not None:
-                lv = torch.clip(lv, min=self.logvar_lowerbound)
-        else:
-            mean = x
-            lv = None
-        return mean, lv
-
-    def distr_params(self, x):
-        mean, lv = self.get_mean_lv(x)
-
-        params = {
-            'mean': mean,
-            'logvar': lv,
-        }
-        return params
-
-    @staticmethod
-    def mean(params):
-        return params['mean']
-
-    @staticmethod
-    def mode(params):
-        return params['mean']
-
-    @staticmethod
-    def sample(params):
-        # p = Normal(params['mean'], (params['logvar'] / 2).exp())
-        # return p.rsample()
-        return params['mean']
-
-    @staticmethod
-    def logvar(params):
-        return params['logvar']
-
-    def log_likelihood(self, x, params):
-        if self.predict_logvar is not None:
-            logprob = log_normal(x, params['mean'], params['logvar'])
-        else:
-            logprob = -0.5 * (params['mean'] - x)**2
-        return logprob
-
-
-def log_normal(x, mean, logvar):
-    """
-    Log of the probability density of the values x untder the Normal
-    distribution with parameters mean and logvar.
-    :param x: tensor of points, with shape (batch, channels, dim1, dim2)
-    :param mean: tensor with mean of distribution, shape
-                 (batch, channels, dim1, dim2)
-    :param logvar: tensor with log-variance of distribution, shape has to be
-                   either scalar or broadcastable
-    """
-    var = torch.exp(logvar)
-    log_prob = -0.5 * (((x - mean)**2) / var + logvar + torch.tensor(2 * math.pi).log())
-    return log_prob
