@@ -1973,8 +1973,3 @@ class NonStochasticBlock2d(nn.Module):
 
         return out, data
 
-
-def log_Normal_diag(x, mean, log_var):
-    constant = -0.5 * torch.log(torch.Tensor([2 * math.pi])).item()
-    log_normal = constant + -0.5 * (log_var + torch.pow(x - mean, 2) / torch.exp(log_var))
-    return log_normal
