@@ -828,10 +828,11 @@ class TopDownLayer(nn.Module):
             Deafult is `False`.
         top_prior_param_shape: Iterable[int], optional
             The size of the tensor which expresses the mean and the variance
-            of the prior for the top most layer.
+            of the prior for the top most layer. Default is `None`.
         analytical_kl: bool, optional
             If True, KL divergence is calculated according to the analytical formula. 
-            Otherwise, an MC approximation using sampled latents is calculated. Default is `False`.
+            Otherwise, an MC approximation using sampled latents is calculated.
+            Default is `False`.
         
         bottomup_no_padding_mode: bool, optional
             Default is `False`.
@@ -1147,8 +1148,14 @@ class NormalStochasticBlock2d(nn.Module):
         - sample a latent tensor z ~ q(z)
         - feed z to convolution and return.
     
-    NOTE:
+    NOTE 1:
         If parameters for q are not given, sampling is done from p(z).
+    
+    NOTE 2:
+        The restricted KL divergence is obtained by first computing the element-wise KL divergence 
+        (i.e., the KL computed for each element of the latent tensors). Then, the restricted version
+        is computed by summing over the channels and the spatial dimensions associated only to the 
+        portion of the latent tensor that is used for prediction. 
     """
 
     def __init__(
@@ -1181,11 +1188,16 @@ class NormalStochasticBlock2d(nn.Module):
             maps the input to a larger number of channels. 
             Default is `True`.
         vanilla_latent_hw: int, optional
+            The shape of the latent tensor used for prediction (i.e., it influences the computation of restricted KL).
             Default is `None`.
         restricted_kl: bool, optional
+            Whether to compute the restricted version of KL Divergence. 
+            See NOTE 2 for more information about its computation. 
             Default is `False`.
         use_naive_exponential: bool, optional
-            Default is `False`.
+            If `False`, exponentials are computed according to the alternative definition
+            provided by `StableExponential` class. This should improve numerical stability
+            in the training process. Default is `False`.
         """
         super().__init__()
         assert kernel % 2 == 1
