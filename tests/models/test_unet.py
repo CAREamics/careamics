@@ -2,14 +2,14 @@ import pytest
 import torch
 
 from careamics.models.layers import MaxBlurPool
-from careamics.models.unet import UNet
+from careamics.models.unet import BaseUNet
 
 
 @pytest.mark.parametrize("depth", [1, 3, 5])
 def test_unet_depth(depth):
     """Test that the UNet has the correct number of down and up convs
     with respect to the depth."""
-    model = UNet(conv_dims=2, depth=depth)
+    model = BaseUNet(conv_dims=2, depth=depth)
 
     # check that encoder has the right number of down convs
     counter_down = 0
