@@ -720,11 +720,78 @@ class MergeLowRes(MergeLayer):
         return super().forward(latent, lowres)
 
 
+class SkipConnectionMerger(MergeLayer):
+    """
+    A specialized `MergeLayer` module, designed to handle skip connections in the model.
+    """
+
+    def __init__(
+        self,
+        nonlin: Callable,
+        channels: Union[int, Iterable[int]],
+        batchnorm: bool,
+        dropout: float,
+        res_block_type: str,
+        merge_type: Literal["linear", "residual", "residual_ungated"] = 'residual',
+        conv2d_bias: bool = True,
+        res_block_kernel: int = None,
+        res_block_skip_padding: bool = False
+    ):
+        """
+        Constructor.
+        
+        nonlin: Callable, optional
+            The non-linearity function used in the block. Default is `nn.LeakyReLU`.
+        channels: Union[int, Iterable[int]]
+            The number of channels used in the convolutional blocks of this layer.
+            If it is an `int`:  
+                - 1st 1x1 Conv2d: in_channels=2*channels, out_channels=channels
+                - (Optional) ResBlock: in_channels=channels, out_channels=channels
+            If it is an Iterable (must have `len(channels)==3`):
+                - 1st 1x1 Conv2d: in_channels=sum(channels[:-1]), out_channels=channels[-1]
+                - (Optional) ResBlock: in_channels=channels[-1], out_channels=channels[-1]
+        batchnorm: bool, optional
+            Whether to use batchnorm layers. Default is `True`.
+        dropout: float, optional
+            The dropout probability in dropout layers. If `None` dropout is not used.
+            Default is `None`.
+        res_block_type: str, optional
+            A string specifying the structure of residual block. 
+            Check `ResidualBlock` doscstring for more information.
+            Default is `None`.
+        merge_type: Literal["linear", "residual", "residual_ungated"]  
+            The type of merge done in the layer. It can be chosen between "linear", "residual", and "residual_ungated".
+            Check the class docstring for more information about the behaviour of different merge modalities. 
+        conv2d_bias: bool, optional
+            Whether to use bias term in convolutions. Default is `True`.
+        res_block_kernel: Union[int, Iterable[int]], optional
+            The kernel size used in the convolutions of the residual block.
+            It can be either a single integer or a pair of integers defining the squared kernel.
+            Default is `None`.
+        res_block_skip_padding: bool, optional
+            Whether to skip padding in convolutions in the Residual block. Default is `False`.
+        """
+        
+        super().__init__(
+            channels=channels,
+            nonlin=nonlin,
+            merge_type=merge_type,
+            batchnorm=batchnorm,
+            dropout=dropout,
+            res_block_type=res_block_type,
+            res_block_kernel=res_block_kernel,
+            conv2d_bias=conv2d_bias,
+            res_block_skip_padding=res_block_skip_padding
+        )
+
+
 class TopDownLayer(nn.Module):
     """
     Top-down inference layer.
-    It includes stochastic sampling, computation of KL divergence, and a small
-    deterministic ResNet that performs upsampling.
+    It includes:
+        - Stochastic sampling, 
+        - Computation of KL divergence, 
+        - A small deterministic ResNet that performs upsampling.
     
     NOTE 1:
             The algorithm for generative inference approximately works as follows:
@@ -769,7 +836,7 @@ class TopDownLayer(nn.Module):
         topdown_no_padding_mode: bool = False,
         retain_spatial_dims: bool = False,
         restricted_kl: bool = False,
-        vanilla_latent_hw: int = None,
+        vanilla_latent_hw: Iterable[int] = None,
         non_stochastic_version: bool = False,
         input_image_shape: Union[None, Tuple[int, int]] = None,
         normalize_latent_factor: float = 1.0,
@@ -777,7 +844,7 @@ class TopDownLayer(nn.Module):
         stochastic_use_naive_exponential: bool = False
     ):
         """
-        Contructor.
+        Constructor.
         
         Parameters
         ----------
@@ -833,23 +900,33 @@ class TopDownLayer(nn.Module):
             If True, KL divergence is calculated according to the analytical formula. 
             Otherwise, an MC approximation using sampled latents is calculated.
             Default is `False`.
-        
         bottomup_no_padding_mode: bool, optional
+            Whether padding is used in the different layers of the bottom-up pass.
+            It is meaningful to know this in advance in order to assess whether before 
+            merging `bu_values` and `p_params` tensors any alignment is needed.
             Default is `False`.
         topdown_no_padding_mode: bool, optional
-            Default is `False`.
+            Whether padding is used in the different layers of the top-down pass.
+            It is meaningful to know this in advance in order to assess whether before 
+            merging `bu_values` and `p_params` tensors any alignment is needed.
+            The same information is also needed in handling the skip connections between
+            top-down layers. Default is `False`.
         retain_spatial_dims: bool, optional
             If `True`, the size of Encoder's latent space is kept to `input_image_shape` within the topdown layer. 
             This implies that the oput spatial size equals the input spatial size.
             To achieve this, we centercrop the intermediate representation.
             Default is `False`.
         restricted_kl: bool, optional
+            Whether to compute the restricted version of KL Divergence. 
+            See `NormalStochasticBlock2d` module for more information about its computation. 
             Default is `False`.
-        vanilla_latent_hw: int, optional
+        vanilla_latent_hw: Iterable[int], optional
+            The shape of the latent tensor used for prediction (i.e., it influences the computation of restricted KL).
             Default is `None`.
         non_stochastic_version: bool, optional
+            Whether to replace the stochastic layer that samples a latent variable from the latent distribiution with 
+            a non-stochastic layer that simply drwas a sample as the mode of the latent distribution. 
             Default is `False`.
-        
         input_image_shape: Tuple[int, int], optionalut
             The shape of the input image tensor. 
             When `retain_spatial_dims` is set to `True`, this is used to ensure that the shape of this layer 
@@ -859,9 +936,12 @@ class TopDownLayer(nn.Module):
             Specifically, normalization is done by dividing the latent tensor by this factor. 
             Default is 1.0.
         conv2d_bias: bool, optional
-            Whether to use bias term is the convolutional blocks of this layer. Default is `True`.
-        
+            Whether to use bias term is the convolutional blocks of this layer. 
+            Default is `True`.
         stochastic_use_naive_exponential: bool, optional
+            If `False`, in the NormalStochasticBlock2d exponentials are computed according
+            to the alternative definition provided by `StableExponential` class. 
+            This should improve numerical stability in the training process.
             Default is `False`. 
         """
 
@@ -938,8 +1018,8 @@ class TopDownLayer(nn.Module):
             )
 
         if not is_top_layer:
-            # Merge layer, combine bottom-up inference with top-down
-            # generative to give posterior parameters
+            # Merge layer: it combines bottom-up inference and top-down
+            # generative outcomes to give posterior parameters
             self.merge = MergeLayer(
                 channels=n_filters,
                 merge_type=merge_type,
@@ -966,6 +1046,7 @@ class TopDownLayer(nn.Module):
                 )
                 
         print(f'[{self.__class__.__name__}] normalize_latent_factor:{self.normalize_latent_factor}')
+
 
     def sample_from_q(self, input_, bu_value, var_clip_max=None, mask=None):
         """
@@ -1000,9 +1081,21 @@ class TopDownLayer(nn.Module):
 
         return p_params
 
-    def align_pparams_buvalue(self, p_params, bu_value):
+    def align_pparams_buvalue(
+        self, 
+        p_params: torch.Tensor,
+        bu_value: torch.Tensor
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
-        In case the padding is not used either (or both) in encoder and decoder, we could have a mismatch. Doing a centercrop to ensure that both remain aligned.
+        In case the padding is not used either (or both) in encoder and decoder, we could have a mismatch. 
+        This method performs a centercrop to ensure that both remain aligned.
+        
+        Parameters
+        ----------
+        p_params: torch.Tensor
+            The tensor defining the parameters /mu_p and /sigma_p for the latent distribution p(z_i|z_{i+1}). 
+        bu_value: torch.Tensor
+            The tensor defining the parameters /mu_q and /sigma_q computed during the bottom-up deterministic pass. 
         """
         if bu_value.shape[-2:] != p_params.shape[-2:]:
             assert self.bottomup_no_padding_mode is True
