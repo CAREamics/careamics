@@ -292,3 +292,25 @@ def kl_normal_mc(
     p_distrib = Normal(p_mu.get(), p_std)
     q_distrib = Normal(q_mu.get(), q_std)
     return q_distrib.log_prob(z) - p_distrib.log_prob(z)
+
+
+class Interpolate(nn.Module):
+    """Wrapper for torch.nn.functional.interpolate."""
+
+    def __init__(self, size=None, scale=None, mode='bilinear', align_corners=False):
+        super().__init__()
+        assert (size is None) == (scale is not None)
+        self.size = size
+        self.scale = scale
+        self.mode = mode
+        self.align_corners = align_corners
+
+    def forward(self, x):
+        out = F.interpolate(
+            x,
+            size=self.size,
+            scale_factor=self.scale,
+            mode=self.mode,
+            align_corners=self.align_corners
+        )
+        return out
