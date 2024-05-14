@@ -320,14 +320,14 @@ class ResBlockWithResampling(nn.Module):
 
 class TopDownDeterministicResBlock(ResBlockWithResampling):
 
-    def __init__(self, *args, upsample=False, **kwargs):
+    def __init__(self, *args, upsample: bool = False, **kwargs):
         kwargs['resample'] = upsample
         super().__init__('top-down', *args, **kwargs)
 
 
 class BottomUpDeterministicResBlock(ResBlockWithResampling):
 
-    def __init__(self, *args, downsample=False, **kwargs):
+    def __init__(self, *args, downsample: bool = False, **kwargs):
         kwargs['resample'] = downsample
         super().__init__('bottom-up', *args, **kwargs)
 
@@ -483,9 +483,9 @@ class BottomUpLayer(nn.Module):
         multiscale_lowres_size_factor: int = None
     ) -> None:
         """
-        This method initializes everything that is related to multiresolution approach (LC).
+        This method initializes everything that is related to Lateral Contextualization (LC) approach.
         
-        NOTE: the merge modality is set by default to "residual", meaning that the merge layer
+        NOTE: The merge modality is set by default to "residual", meaning that the merge layer
         performs concatenation on dim=1, followed by 1x1 convolution and a Residual Gated block.
         
         Parameters
@@ -510,6 +510,7 @@ class BottomUpLayer(nn.Module):
             A factor the expresses the relative size of the bu_value tensor with respect to the 
             lower-resolution lateral context tensor. Default in `None`.
         """
+        
         self.multiscale_lowres_size_factor = multiscale_lowres_size_factor
         self.lowres_net = self.net
         if self.lowres_separate_branch:
@@ -538,7 +539,7 @@ class BottomUpLayer(nn.Module):
             The input of the `BottomUpLayer`, i.e., the input image or the output of the
             previous layer.
         lowres_x: torch.Tensor, optional
-            The low-res input used for Lateral Contextualization (LC). Default is `None`.s
+            The low-res input used for Lateral Contextualization (LC). Default is `None`.
         """
         
         # The input is fed through the residual downsampling block(s)
@@ -1505,7 +1506,7 @@ class NormalStochasticBlock2d(nn.Module):
                 - `kl_samplewise_restricted`: KL term only associated to the portion of the latent tensor that is 
                 used for prediction and summed over channel and spatial dimensions [Shape: (batch, )].
                 - `kl_channelwise`: KL term associated to each sample and each channel [Shape: (batch, ch, )].
-                - `kl_spatial`: # KL term summed over the channels, i.e., retaining the spatial dimensions [Shape: (batch, h, w)]
+                - `kl_spatial`: KL term summed over the channels, i.e., retaining the spatial dimensions [Shape: (batch, h, w)]
             
             Parameters
             ----------
