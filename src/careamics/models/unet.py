@@ -46,6 +46,7 @@ class UnetEncoder(nn.Module):
         dropout: float = 0.0,
         pool_kernel: int = 2,
         n2v2: bool = False,
+        independent_channels: bool = True
     ) -> None:
         """
         Constructor.
@@ -87,6 +88,7 @@ class UnetEncoder(nn.Module):
                     out_channels=out_channels,
                     dropout_perc=dropout,
                     use_batch_norm=use_batch_norm,
+                    groups=in_channels if independent_channels else 1
                 )
             )
             encoder_blocks.append(self.pooling)
@@ -142,6 +144,7 @@ class UnetDecoder(nn.Module):
         use_batch_norm: bool = True,
         dropout: float = 0.0,
         n2v2: bool = False,
+        independent_channels: bool = True
     ) -> None:
         """
         Constructor.
@@ -175,9 +178,10 @@ class UnetDecoder(nn.Module):
             intermediate_channel_multiplier=2,
             use_batch_norm=use_batch_norm,
             dropout_perc=dropout,
+            groups=in_channels if independent_channels else 1
         )
 
-        decoder_blocks = []
+        decoder_blocks: List[nn.Module] = []
         for n in range(depth):
             decoder_blocks.append(upsampling)
             in_channels = num_channels_init * 2 ** (depth - n)
@@ -193,6 +197,7 @@ class UnetDecoder(nn.Module):
                     dropout_perc=dropout,
                     activation="ReLU",
                     use_batch_norm=use_batch_norm,
+                    groups=in_channels if independent_channels else 1
                 )
             )
 
@@ -216,13 +221,17 @@ class UnetDecoder(nn.Module):
         x: torch.Tensor = features[0]
         skip_connections: torch.Tensor = features[1:][::-1]
 
+        in_channels = x.shape[1]
+
         x = self.bottleneck(x)
 
         for i, module in enumerate(self.decoder_blocks):
             x = module(x)
             if isinstance(module, nn.Upsample):
                 if self.n2v2:
+                    # TODO: interleave x and skips by group
                     if x.shape != skip_connections[-1].shape:
+                        # divide by 2 because of pooling layers
                         x = torch.cat([x, skip_connections[i // 2]], axis=1)
                 else:
                     x = torch.cat([x, skip_connections[i // 2]], axis=1)
@@ -270,6 +279,7 @@ class UNet(nn.Module):
         pool_kernel: int = 2,
         final_activation: Union[SupportedActivation, str] = SupportedActivation.NONE,
         n2v2: bool = False,
+        independent_channels: bool = True,
         **kwargs: Any,
     ) -> None:
         """
