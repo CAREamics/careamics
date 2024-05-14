@@ -3,6 +3,8 @@ Script containing modules for definining different likelihood functions (as nn.M
 """
 
 import torch
+import math
+import numpy as np
 from torch import nn
 from typing import Literal, Tuple, Dict
 
@@ -69,7 +71,8 @@ class LikelihoodModule(nn.Module):
 class GaussianLikelihood(LikelihoodModule):
     """
     A specialize `LikelihoodModule` for Gaussian likelihood.
-    Specifically, the likelihood is defined as:
+    
+    Specifically, in the LVAE model, the likelihood is defined as:
         p(x|z_1) = N(x|\mu_{p,1}, \sigma_{p,1}^2)
     """
     
@@ -77,7 +80,7 @@ class GaussianLikelihood(LikelihoodModule):
         self,
         ch_in,
         color_channels,
-        predict_logvar: Literal[None, 'global', 'pixelwise', 'channelwise'] = None,
+        predict_logvar: Literal[None, 'pixelwise', 'global', 'channelwise'] = None,
         logvar_lowerbound: float = None,
         conv2d_bias: bool = True
     ):
@@ -87,7 +90,11 @@ class GaussianLikelihood(LikelihoodModule):
         Parameters
         ----------
         predict_logvar: Literal[None, 'global', 'pixelwise', 'channelwise'], optional
-            If not `None`, it expresses the type of log-variance to compute.
+            If not `None`, it expresses how to compute the log-variance.
+            Namely:
+            - if `pixelwise`, log-variance is computed for each pixel.
+            - if `global`, log-variance is computed as the mean of all pixel-wise entries.
+            - if `channelwise`, log-variance is computed as the average over the channels.
             Default is `None`.
         logvar_lowerbound: float, optional
             The lowerbound value for log-variance. Default is `None`.
@@ -115,19 +122,31 @@ class GaussianLikelihood(LikelihoodModule):
 
     def get_mean_lv(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         """
-        Given the output of the top-down pass.
+        Given the output of the top-down pass, compute the mean and log-variance of the 
+        Gaussian distribution defining the likelihood.
+        
+        Parameters
+        ----------
+        x: torch.Tensor
+            The input tensor to the likelihood module, i.e., the output of the top-down pass.
         """
+        
+        # Feed the output of the top-down pass to a parameter network
+        # This network can be either a Conv2d or Identity module
         x = self.parameter_net(x)
+        
         if self.predict_logvar is not None:
-            # pixelwise mean and logvar
+            # Get pixel-wise mean and logvar
             mean, lv = x.chunk(2, dim=1)
+            
+            # Optionally, compute the global or channel-wise logvar
             if self.predict_logvar in ['channelwise', 'global']:
                 if self.predict_logvar == 'channelwise':
-                    # logvar should be of the following shape (batch,num_channels). Other dims would be singletons.
+                    # logvar should be of the following shape (batch, num_channels, ). Other dims would be singletons.
                     N = np.prod(lv.shape[:2])
                     new_shape = (*mean.shape[:2], *([1] * len(mean.shape[2:])))
                 elif self.predict_logvar == 'global':
-                    # logvar should be of the following shape (batch). Other dims would be singletons.
+                    # logvar should be of the following shape (batch, ). Other dims would be singletons.
                     N = lv.shape[0]
                     new_shape = (*mean.shape[:1], *([1] * len(mean.shape[1:])))
                 else:
@@ -135,7 +154,8 @@ class GaussianLikelihood(LikelihoodModule):
 
                 lv = torch.mean(lv.reshape(N, -1), dim=1)
                 lv = lv.reshape(new_shape)
-
+            
+            # Optionally, clip log-var to a lower bound
             if self.logvar_lowerbound is not None:
                 lv = torch.clip(lv, min=self.logvar_lowerbound)
         else:
@@ -185,15 +205,26 @@ class GaussianLikelihood(LikelihoodModule):
         return logprob
 
 
-def log_normal(x, mean, logvar):
+def log_normal(
+    x: torch.Tensor, 
+    mean: torch.Tensor, 
+    logvar: torch.Tensor
+) -> torch.Tensor:
     """
-    Log of the probability density of the values x untder the Normal
-    distribution with parameters mean and logvar.
-    :param x: tensor of points, with shape (batch, channels, dim1, dim2)
-    :param mean: tensor with mean of distribution, shape
-                 (batch, channels, dim1, dim2)
-    :param logvar: tensor with log-variance of distribution, shape has to be
-                   either scalar or broadcastable
+    Compute the log-probability at `x` of a Gaussian distribution
+    with parameters `(mean, exp(logvar))`.
+    
+    NOTE: In the case of LVAE, the log-likeihood formula becomes:
+        \mathbb{E}_{z_1\sim{q_\phi}}[\log{p_\theta(x|z_1)}]=-\frac{1}{2}(\mathbb{E}_{z_1\sim{q_\phi}}[\log{2\pi\sigma_{p,0}^2(z_1)}] +\mathbb{E}_{z_1\sim{q_\phi}}[\frac{(x-\mu_{p,0}(z_1))^2}{\sigma_{p,0}^2(z_1)}])
+    
+    Parameters
+    ----------
+    x: torch.Tensor
+        The ground-truth tensor. Shape is (batch, channels, dim1, dim2).
+    mean: torch.Tensor
+        The inferred mean of distribution. Shape is (batch, channels, dim1, dim2).
+    logvar: torch.Tensor 
+        The inferred log-variance of distribution. Shape has to be either scalar or broadcastable.
     """
     var = torch.exp(logvar)
     log_prob = -0.5 * (((x - mean)**2) / var + logvar + torch.tensor(2 * math.pi).log())
