@@ -340,7 +340,7 @@ class BottomUpLayer(nn.Module):
     generative distributions.
     
     NOTE: When Lateral Contextualization is Enabled (i.e., `enable_multiscale=True`), 
-    the low-res input patch used for that is first fed through a BottomUpDeterministicBlock (BUDB)
+    the low-res lateral input is first fed through a BottomUpDeterministicBlock (BUDB)
     (without downsampling), and then merged to the latent tensor produced by the primary flow 
     of the `BottomUpLayer` through the `MergeLowRes` layer. It is meaningful to remark that 
     the BUDB that takes care of encoding the low-res input can be either shared with the 
@@ -483,7 +483,12 @@ class BottomUpLayer(nn.Module):
         multiscale_lowres_size_factor: int = None
     ) -> None:
         """
-        This method initializes everything that is related to Lateral Contextualization (LC) approach.
+        This method defines the modules responsible of merging compressed lateral inputs to the outputs 
+        of the primary flow at different hierarchical levels in the multiresolution approach (LC).
+        
+        Specifically, the method initializes `lowres_net`, which is a stack of `BottomUpDeterministicBlock`'s
+        (w/out downsampling) that takes care of additionally processing the low-res input, and `lowres_merge`, 
+        which is the module responsible of merging the compressed lateral input to the main flow.
         
         NOTE: The merge modality is set by default to "residual", meaning that the merge layer
         performs concatenation on dim=1, followed by 1x1 convolution and a Residual Gated block.
