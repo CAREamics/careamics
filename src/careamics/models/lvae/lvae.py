@@ -3,11 +3,12 @@ Ladder VAE (LVAE) Model
 
 The current implementation is based on "Interpretable Unsupervised Diversity Denoising and Artefact Removal, Prakash et al."
 """
-import os
-from typing import List, Tuple, Dict, Iterable, Optional
+
 import numpy as np
 import torch
 import torch.nn as nn
+import ml_collections
+from typing import List, Tuple, Dict, Iterable, Union
 
 ### TODO: Replace these imports!!!
 # from disentangle.analysis.pred_frame_creator import PredFrameCreator
@@ -20,7 +21,6 @@ import torch.nn as nn
 # from disentangle.losses import free_bits_kl
 # from disentangle.metrics.running_psnr import RunningPSNR
 # from disentangle.nets.noise_model import get_noise_model
-
 
 from .utils import (
     LossType,
@@ -41,7 +41,34 @@ from .likelihoods import GaussianLikelihood, NoiseModelLikelihood
 
 class LadderVAE(nn.Module):
 
-    def __init__(self, data_mean, data_std, config, use_uncond_mode_at=[], target_ch=2, val_idx_manager=None):
+    def __init__(
+        self, 
+        data_mean: Union[np.ndarray, Dict[str, torch.Tensor]], 
+        data_std: Union[np.ndarray, Dict[str, torch.Tensor]], 
+        config: ml_collections.ConfigDict, 
+        use_uncond_mode_at: Iterable[int] = [], 
+        target_ch: int = 2, 
+        val_idx_manager = None
+    ):
+        """
+        Constructor.
+        
+        Parameters
+        ----------
+        data_mean: Union[np.ndarray, Dict[str, torch.Tensor]]
+            The mean of the data used for normalization.
+        data_std: Union[np.ndarray, Dict[str, torch.Tensor]]
+            The standard deviation of the data used for normalization.
+        config: ml_collections.ConfigDict
+            The configuration object of the model.
+        use_uncond_mode_at: Iterable[int], optional
+            A sequence of indexes associated to the layers in which sampling is disabled
+            and the mode (mean value) is used instead. Default is `[]`.
+        target_ch: int, optional
+            The number of target channels (e.g., 1 for super-resolution or 2 for splitting).
+            Default is `2`.
+        """
+        
         super().__init__()
         
         # Loss attributes
@@ -52,16 +79,15 @@ class LadderVAE(nn.Module):
         assert self.kl_loss_formulation in [
             None, '', 'usplit', 'denoisplit', 'denoisplit_usplit'], f"""
             Invalid kl_loss_formulation. {self.kl_loss_formulation}"""
-        self.kl_annealing = config.loss.kl_annealing
-        self.kl_annealtime = self.kl_start = None
-        if self.kl_annealing:
-            self.kl_annealtime = config.loss.kl_annealtime
-            self.kl_start = config.loss.kl_start
-        self.loss_type = config.loss.loss_type #
-        self.kl_weight = config.loss.kl_weight 
-        self.usplit_kl_weight = config.loss.get('usplit_kl_weight', None)
-        self.free_bits = config.loss.free_bits
-        self.reconstruction_weight = config.loss.get('reconstruction_weight', 1.0)
+        # self.kl_annealing = config.loss.kl_annealing
+        # self.kl_annealtime = self.kl_start = None
+        # if self.kl_annealing:
+        #     self.kl_annealtime = config.loss.kl_annealtime
+        #     self.kl_start = config.loss.kl_start
+        # self.kl_weight = config.loss.kl_weight 
+        # self.usplit_kl_weight = config.loss.get('usplit_kl_weight', None)
+        # self.free_bits = config.loss.free_bits
+        # self.reconstruction_weight = config.loss.get('reconstruction_weight', 1.0)
         # enabling reconstruction loss on mixed input
         self.mixed_rec_w = 0
         self.mixed_rec_w_step = 0
@@ -69,12 +95,14 @@ class LadderVAE(nn.Module):
         self.nbr_consistency_w = 0
         self._exclusion_loss_weight = config.loss.get('exclusion_loss_weight', 0)
         
+        # Setting the loss_type
+        self.loss_type = config.loss.get('loss_type', None)
         self._denoisplit_w = self._usplit_w = None
         if self.loss_type == LossType.DenoiSplitMuSplit:
             self._denoisplit_w = config.loss.denoisplit_w
             self._usplit_w = config.loss.usplit_w
             assert self._denoisplit_w + self._usplit_w == 1
-
+        
         if self.loss_type in [
                 LossType.ElboMixedReconstruction, LossType.ElboSemiSupMixedReconstruction,
                 LossType.ElboRestrictedReconstruction
@@ -101,6 +129,8 @@ class LadderVAE(nn.Module):
                 focus_on_opposite_gradients=config.model.offset_prediction_focus_on_opposite_gradients)
         self.channel_1_w = config.loss.get('channel_1_w', 1)
         self.channel_2_w = config.loss.get('channel_2_w', 1)
+        
+        self.skip_nboundary_pixels_from_loss = config.model.skip_nboundary_pixels_from_loss
 
 
         # # Training attributes
@@ -122,7 +152,7 @@ class LadderVAE(nn.Module):
         # self._global_step = 0
 
         # Data attributes
-        self._input_is_sum = config.data.input_is_sum
+        self._input_is_sum = config.data.get('input_is_sum', None)
         self.color_ch = config.data.get('color_ch', 1)
         self.img_shape = (config.data.image_size, config.data.image_size)
         # normalized_input: If input is normalized, we just normalize the target. 
@@ -211,8 +241,6 @@ class LadderVAE(nn.Module):
 
         self.encoder_no_padding_mode = config.model.encoder.res_block_skip_padding is True and config.model.encoder.res_block_kernel > 1
         self.decoder_no_padding_mode = config.model.decoder.res_block_skip_padding is True and config.model.decoder.res_block_kernel > 1
-
-        self.skip_nboundary_pixels_from_loss = config.model.skip_nboundary_pixels_from_loss
 
         assert (self.data_std is not None)
         assert (self.data_mean is not None)
