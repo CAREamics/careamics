@@ -4,7 +4,7 @@ UNet model.
 A UNet encoder, decoder and complete model.
 """
 
-from typing import Any, List, Union
+from typing import Any, List, Union, Tuple
 
 import torch
 import torch.nn as nn
@@ -69,6 +69,7 @@ class UnetEncoder(nn.Module):
             Kernel size for the max pooling layers, by default 2.
         """
         super().__init__()
+        groups = in_channels if independent_channels else 1
 
         self.pooling = (
             getattr(nn, f"MaxPool{conv_dim}d")(kernel_size=pool_kernel)
@@ -79,7 +80,7 @@ class UnetEncoder(nn.Module):
         encoder_blocks = []
 
         for n in range(depth):
-            out_channels = num_channels_init * (2**n)
+            out_channels = num_channels_init * (2**n) * groups
             in_channels = in_channels if n == 0 else out_channels // 2
             encoder_blocks.append(
                 Conv_Block(
@@ -88,7 +89,7 @@ class UnetEncoder(nn.Module):
                     out_channels=out_channels,
                     dropout_perc=dropout,
                     use_batch_norm=use_batch_norm,
-                    groups=in_channels if independent_channels else 1
+                    groups=groups
                 )
             )
             encoder_blocks.append(self.pooling)
@@ -144,7 +145,7 @@ class UnetDecoder(nn.Module):
         use_batch_norm: bool = True,
         dropout: float = 0.0,
         n2v2: bool = False,
-        independent_channels: bool = True
+        groups: int = 1,
     ) -> None:
         """
         Constructor.
@@ -167,9 +168,10 @@ class UnetDecoder(nn.Module):
         upsampling = nn.Upsample(
             scale_factor=2, mode="bilinear" if conv_dim == 2 else "trilinear"
         )
-        in_channels = out_channels = num_channels_init * 2 ** (depth - 1)
+        in_channels = out_channels = num_channels_init * 2 * groups ** (depth - 1) 
 
         self.n2v2 = n2v2
+        self.groups = groups
 
         self.bottleneck = Conv_Block(
             conv_dim,
@@ -178,13 +180,13 @@ class UnetDecoder(nn.Module):
             intermediate_channel_multiplier=2,
             use_batch_norm=use_batch_norm,
             dropout_perc=dropout,
-            groups=in_channels if independent_channels else 1
+            groups=self.groups
         )
 
         decoder_blocks: List[nn.Module] = []
         for n in range(depth):
             decoder_blocks.append(upsampling)
-            in_channels = num_channels_init * 2 ** (depth - n)
+            in_channels = (num_channels_init * 2 ** (depth - n)) * groups
             out_channels = in_channels // 2
             decoder_blocks.append(
                 Conv_Block(
@@ -197,13 +199,13 @@ class UnetDecoder(nn.Module):
                     dropout_perc=dropout,
                     activation="ReLU",
                     use_batch_norm=use_batch_norm,
-                    groups=in_channels if independent_channels else 1
+                    groups=groups
                 )
             )
 
         self.decoder_blocks = nn.ModuleList(decoder_blocks)
 
-    def forward(self, *features: List[torch.Tensor]) -> torch.Tensor:
+    def forward(self, *features: torch.Tensor) -> torch.Tensor:
         """
         Forward pass.
 
@@ -219,22 +221,34 @@ class UnetDecoder(nn.Module):
             Output of the decoder.
         """
         x: torch.Tensor = features[0]
-        skip_connections: torch.Tensor = features[1:][::-1]
-
-        in_channels = x.shape[1]
+        # skip_connections: torch.Tensor = features[1:][::-1]
+        skip_connections: Tuple[torch.Tensor] = features[-1:0:-1]
 
         x = self.bottleneck(x)
 
         for i, module in enumerate(self.decoder_blocks):
             x = module(x)
             if isinstance(module, nn.Upsample):
+                # divide index by 2 because of pooling layers
+                skip_connection: torch.Tensor = skip_connections[i // 2]
+                m = x.shape[1]//self.groups
+                n = skip_connection.shape[1]//self.groups
                 if self.n2v2:
-                    # TODO: interleave x and skips by group
-                    if x.shape != skip_connections[-1].shape:
-                        # divide by 2 because of pooling layers
-                        x = torch.cat([x, skip_connections[i // 2]], axis=1)
+                    if x.shape != skip_connections[-1].shape: 
+                        # Makes a list that:
+                        # - Alternates between x & respective skip connection
+                        # - Iterates through the sliced groups of the tensor 
+                        x = torch.cat([
+                            t[:, g*i : g*(i + 1)] 
+                            for g in range(self.groups)
+                            for t, i in zip([x, skip_connection], [m, n])
+                        ])
                 else:
-                    x = torch.cat([x, skip_connections[i // 2]], axis=1)
+                    x = torch.cat([
+                        t[:,g*i:(g*i+1)] 
+                        for g in range(self.groups)
+                        for t, i in zip([x, skip_connection], [m, n])
+                    ])
         return x
 
 
