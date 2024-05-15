@@ -191,6 +191,7 @@ class UnetDecoder(nn.Module):
             decoder_blocks.append(
                 Conv_Block(
                     conv_dim,
+                    # TODO: fix with groups
                     in_channels=(
                         in_channels + in_channels // 2 if n > 0 else in_channels
                     ),
@@ -222,7 +223,7 @@ class UnetDecoder(nn.Module):
         """
         x: torch.Tensor = features[0]
         # skip_connections: torch.Tensor = features[1:][::-1]
-        skip_connections: Tuple[torch.Tensor] = features[-1:0:-1]
+        skip_connections: Tuple[torch.Tensor, ...] = features[-1:0:-1]
 
         x = self.bottleneck(x)
 
@@ -238,17 +239,19 @@ class UnetDecoder(nn.Module):
                         # Makes a list that:
                         # - Alternates between x & respective skip connection
                         # - Iterates through the sliced groups of the tensor 
-                        x = torch.cat([
-                            t[:, g*i : g*(i + 1)] 
+                        interleaved: List[torch.Tensor] = [
+                            t[:, g*i : (g + 1)*i] 
                             for g in range(self.groups)
                             for t, i in zip([x, skip_connection], [m, n])
-                        ])
+                        ]
+                        x = torch.cat(interleaved, axis=1)
                 else:
-                    x = torch.cat([
-                        t[:,g*i:(g*i+1)] 
+                    interleaved: List[torch.Tensor] = [
+                        t[:, g*i : (g + 1)*i] 
                         for g in range(self.groups)
                         for t, i in zip([x, skip_connection], [m, n])
-                    ])
+                    ]
+                    x = torch.cat(interleaved, axis=1)
         return x
 
 
@@ -322,6 +325,8 @@ class UNet(nn.Module):
         """
         super().__init__()
 
+        groups = in_channels if independent_channels else 1
+
         self.encoder = UnetEncoder(
             conv_dims,
             in_channels=in_channels,
@@ -331,6 +336,7 @@ class UNet(nn.Module):
             dropout=dropout,
             pool_kernel=pool_kernel,
             n2v2=n2v2,
+            independent_channels=independent_channels
         )
 
         self.decoder = UnetDecoder(
@@ -340,9 +346,10 @@ class UNet(nn.Module):
             use_batch_norm=use_batch_norm,
             dropout=dropout,
             n2v2=n2v2,
+            groups=groups
         )
         self.final_conv = getattr(nn, f"Conv{conv_dims}d")(
-            in_channels=num_channels_init,
+            in_channels=num_channels_init * groups,
             out_channels=num_classes,
             kernel_size=1,
         )
