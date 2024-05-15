@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 import tifffile
 
-from careamics.config import DataModel
+from careamics.config import DataConfig
 from careamics.config.support import SupportedData
 from careamics.dataset import PathIterableDataset
 from careamics.dataset.dataset_utils import read_tiff
@@ -12,16 +12,16 @@ from careamics.dataset.dataset_utils import read_tiff
     "shape",
     [
         # 2D
-        (20, 20),
+        (32, 32),
         # 3D
-        (20, 20, 20),
+        (32, 32, 32),
     ],
 )
 def test_number_of_files(tmp_path, ordered_array, shape):
     """Test number of files in PathIterableDataset."""
     # create array
-    array_size = 20
-    patch_size = 4
+    array_size = 32
+    patch_size = 8
     n_files = 3
     factor = len(shape)
     axes = "YX" if factor == 2 else "ZYX"
@@ -41,7 +41,7 @@ def test_number_of_files(tmp_path, ordered_array, shape):
         "patch_size": patch_sizes,
         "axes": axes,
     }
-    config = DataModel(**config_dict)
+    config = DataConfig(**config_dict)
 
     # create dataset
     dataset = PathIterableDataset(
@@ -63,13 +63,13 @@ def test_read_function(tmp_path, ordered_array):
     def read_npy(file_path, *args, **kwargs):
         return np.load(file_path)
 
-    array_size = 20
-    patch_size = 4
+    array_size = 32
+    patch_size = 8
     n_files = 3
     patch_sizes = [patch_size] * 2
 
     # create array
-    array = ordered_array((n_files, array_size, array_size))
+    array: np.ndarray = ordered_array((n_files, array_size, array_size))
 
     # save each plane in a single .npy file
     files = []
@@ -84,7 +84,7 @@ def test_read_function(tmp_path, ordered_array):
         "patch_size": patch_sizes,
         "axes": "YX",
     }
-    config = DataModel(**config_dict)
+    config = DataConfig(**config_dict)
 
     # create dataset
     dataset = PathIterableDataset(
@@ -115,10 +115,10 @@ def test_extracting_val_files(tmp_path, ordered_array, percentage):
     # create config
     config_dict = {
         "data_type": SupportedData.TIFF.value,
-        "patch_size": [4, 4],
+        "patch_size": [8, 8],
         "axes": "YX",
     }
-    config = DataModel(**config_dict)
+    config = DataConfig(**config_dict)
 
     # create dataset
     dataset = PathIterableDataset(

@@ -12,8 +12,8 @@ from careamics.transforms import N2VManipulate
 )
 def test_manipulate_n2v(strategy):
     """Test the N2V augmentation."""
-    # create array
-    array = np.arange(16 * 16).reshape((16, 16))
+    # create array, adding a channel to simulate a 2D image with channel last
+    array = np.arange(16 * 16).reshape((16, 16))[..., np.newaxis]
 
     # create augmentation
     aug = Compose(

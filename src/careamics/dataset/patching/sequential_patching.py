@@ -135,15 +135,12 @@ def _compute_patch_views(
         arr = np.stack([arr, target], axis=0)
         window_shape = [arr.shape[0], *window_shape]
         step = (arr.shape[0], *step)
-        output_shape = [arr.shape[0], -1, arr.shape[2], *output_shape[2:]]
+        output_shape = [-1, arr.shape[0], arr.shape[2], *output_shape[2:]]
 
     patches = view_as_windows(arr, window_shape=window_shape, step=step).reshape(
         *output_shape
     )
-    if target is not None:
-        rng.shuffle(patches, axis=1)
-    else:
-        rng.shuffle(patches, axis=0)
+    rng.shuffle(patches, axis=0)
     return patches
 
 
@@ -201,6 +198,9 @@ def extract_patches_sequential(
 
     if target is not None:
         # target was concatenated to patches in _compute_reshaped_view
-        return (patches[0, ...], patches[1, ...])  # TODO  in _compute_reshaped_view?
+        return (
+            patches[:, 0, ...],
+            patches[:, 1, ...],
+        )  # TODO  in _compute_reshaped_view?
     else:
         return patches, None

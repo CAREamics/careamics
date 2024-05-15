@@ -1,3 +1,5 @@
+"""Test-time augmentations."""
+
 from typing import List
 
 import numpy as np
@@ -6,12 +8,16 @@ from torch import Tensor, flip, mean, rot90, stack
 
 # TODO add tests
 class ImageRestorationTTA:
-    """Test-time augmentation for image restoration tasks.
+    """
+    Test-time augmentation for image restoration tasks.
 
     The augmentation is performed using all 90 deg rotations and their flipped version,
     as well as the original image flipped.
 
     Tensors should be of shape SC(Z)YX
+
+    This transformation is used in the LightningModule in order to perform test-time
+    agumentation.
     """
 
     def __init__(self) -> None:
@@ -19,16 +25,17 @@ class ImageRestorationTTA:
         pass
 
     def forward(self, x: Tensor) -> List[Tensor]:
-        """Apply test-time augmentation to the input tensor.
+        """
+        Apply test-time augmentation to the input tensor.
 
         Parameters
         ----------
-        x : Any
+        x : Tensor
             Input tensor, shape SC(Z)YX.
 
         Returns
         -------
-        Any
+        List[Tensor]
             List of augmented tensors.
         """
         augmented = [

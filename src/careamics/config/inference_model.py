@@ -1,36 +1,38 @@
+"""Pydantic model representing CAREamics prediction configuration."""
+
 from __future__ import annotations
 
-from typing import Any, List, Literal, Optional, Tuple, Union
+from typing import Any, List, Literal, Optional, Union
 
 from albumentations import Compose
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
-
-from careamics.utils import check_axes_validity
+from typing_extensions import Self
 
 from .support import SupportedTransform
 from .transformations.normalize_model import NormalizeModel
-from .transformations.transform_model import TransformModel
+from .validators import check_axes_validity, patch_size_ge_than_8_power_of_2
 
-TRANSFORMS_UNION = Union[NormalizeModel, TransformModel]
+TRANSFORMS_UNION = Union[NormalizeModel]
 
 
-class InferenceModel(BaseModel):
+class InferenceConfig(BaseModel):
     """Configuration class for the prediction model."""
 
     model_config = ConfigDict(validate_assignment=True, arbitrary_types_allowed=True)
 
     # Mandatory fields
     data_type: Literal["array", "tiff", "custom"]  # As defined in SupportedData
-    tile_size: Union[List[int], Tuple[int]] = Field(..., min_length=2, max_length=3)
-    tile_overlap: List[int] = Field(
-        default=[48, 48], min_length=2, max_length=3
-    )  # TODO Will be calculated automatically
+    tile_size: Optional[Union[List[int]]] = Field(
+        default=None, min_length=2, max_length=3
+    )
+    tile_overlap: Optional[Union[List[int]]] = Field(
+        default=None, min_length=2, max_length=3
+    )
 
     axes: str
 
-    # Optional fields
-    mean: Optional[float] = None
-    std: Optional[float] = None
+    mean: float
+    std: float = Field(..., ge=0.0)
 
     transforms: Union[List[TRANSFORMS_UNION], Compose] = Field(
         default=[
@@ -47,9 +49,11 @@ class InferenceModel(BaseModel):
     # Dataloader parameters
     batch_size: int = Field(default=1, ge=1)
 
-    @field_validator("tile_size", "tile_overlap")
+    @field_validator("tile_overlap")
     @classmethod
-    def all_elements_non_zero_even(cls, patch_list: List[int]) -> List[int]:
+    def all_elements_non_zero_even(
+        cls, patch_list: Optional[Union[List[int]]]
+    ) -> Optional[Union[List[int]]]:
         """
         Validate patch size.
 
@@ -57,7 +61,44 @@ class InferenceModel(BaseModel):
 
         Parameters
         ----------
-        patch_list : List[int]
+        patch_list : Optional[Union[List[int]]]
+            Patch size.
+
+        Returns
+        -------
+        Optional[Union[List[int]]]
+            Validated patch size.
+
+        Raises
+        ------
+        ValueError
+            If the patch size is 0.
+        ValueError
+            If the patch size is not even.
+        """
+        if patch_list is not None:
+            for dim in patch_list:
+                if dim < 1:
+                    raise ValueError(
+                        f"Patch size must be non-zero positive (got {dim})."
+                    )
+
+                if dim % 2 != 0:
+                    raise ValueError(f"Patch size must be even (got {dim}).")
+
+        return patch_list
+
+    @field_validator("tile_size")
+    @classmethod
+    def tile_min_8_power_of_2(
+        cls, tile_list: Optional[Union[List[int]]]
+    ) -> Optional[Union[List[int]]]:
+        """
+        Validate that each entry is greater or equal than 8 and a power of 2.
+
+        Parameters
+        ----------
+        tile_list : List[int]
             Patch size.
 
         Returns
@@ -68,18 +109,13 @@ class InferenceModel(BaseModel):
         Raises
         ------
         ValueError
-            If the patch size is 0.
+            If the patch size if smaller than 8.
         ValueError
-            If the patch size is not even.
+            If the patch size is not a power of 2.
         """
-        for dim in patch_list:
-            if dim < 1:
-                raise ValueError(f"Patch size must be non-zero positive (got {dim}).")
+        patch_size_ge_than_8_power_of_2(tile_list)
 
-            if dim % 2 != 0:
-                raise ValueError(f"Patch size must be even (got {dim}).")
-
-        return patch_list
+        return tile_list
 
     @field_validator("axes")
     @classmethod
@@ -119,7 +155,8 @@ class InferenceModel(BaseModel):
     def validate_transforms(
         cls, transforms: Union[List[TRANSFORMS_UNION], Compose]
     ) -> Union[List[TRANSFORMS_UNION], Compose]:
-        """Validate that transforms do not have N2V pixel manipulate transforms.
+        """
+        Validate that transforms do not have N2V pixel manipulate transforms.
 
         Parameters
         ----------
@@ -147,49 +184,43 @@ class InferenceModel(BaseModel):
         return transforms
 
     @model_validator(mode="after")
-    def validate_dimensions(cls, pred_model: InferenceModel) -> InferenceModel:
+    def validate_dimensions(self: Self) -> Self:
         """
         Validate 2D/3D dimensions between axes and tile size.
 
-        Parameters
-        ----------
-        pred_model : PredictionModel
-            Prediction model.
-
         Returns
         -------
-        PredictionModel
+        Self
             Validated prediction model.
         """
-        expected_len = 3 if "Z" in pred_model.axes else 2
+        expected_len = 3 if "Z" in self.axes else 2
 
-        if len(pred_model.tile_size) != expected_len:
-            raise ValueError(
-                f"Tile size must have {expected_len} dimensions given axes "
-                f"{pred_model.axes} (got {pred_model.tile_size})."
-            )
+        if self.tile_size is not None and self.tile_overlap is not None:
+            if len(self.tile_size) != expected_len:
+                raise ValueError(
+                    f"Tile size must have {expected_len} dimensions given axes "
+                    f"{self.axes} (got {self.tile_size})."
+                )
 
-        if len(pred_model.tile_overlap) != expected_len:
-            raise ValueError(
-                f"Tile overlap must have {expected_len} dimensions given axes "
-                f"{pred_model.axes} (got {pred_model.tile_overlap})."
-            )
+            if len(self.tile_overlap) != expected_len:
+                raise ValueError(
+                    f"Tile overlap must have {expected_len} dimensions given axes "
+                    f"{self.axes} (got {self.tile_overlap})."
+                )
 
-        return pred_model
+            if any((i >= j) for i, j in zip(self.tile_overlap, self.tile_size)):
+                raise ValueError("Tile overlap must be smaller than tile size.")
+
+        return self
 
     @model_validator(mode="after")
-    def std_only_with_mean(cls, pred_model: InferenceModel) -> InferenceModel:
+    def std_only_with_mean(self: Self) -> Self:
         """
         Check that mean and std are either both None, or both specified.
 
-        Parameters
-        ----------
-        pred_model : Data
-            Data model.
-
         Returns
         -------
-        Data
+        Self
             Validated prediction model.
 
         Raises
@@ -198,72 +229,44 @@ class InferenceModel(BaseModel):
             If std is not None and mean is None.
         """
         # check that mean and std are either both None, or both specified
-        if (pred_model.mean is None) != (pred_model.std is None):
+        if (self.mean is None) != (self.std is None):
             raise ValueError(
                 "Mean and std must be either both None, or both specified."
             )
 
-        return pred_model
+        return self
 
     @model_validator(mode="after")
-    def add_std_and_mean_to_normalize(
-        cls, pred_model: InferenceModel
-    ) -> InferenceModel:
+    def add_std_and_mean_to_normalize(self: Self) -> Self:
         """
         Add mean and std to the Normalize transform if it is present.
 
-        Parameters
-        ----------
-        pred_model : InferenceModel
-            Inference model.
-
         Returns
         -------
-        InferenceModel
+        Self
             Inference model with mean and std added to the Normalize transform.
         """
-        if pred_model.mean is not None or pred_model.std is not None:
+        if self.mean is not None or self.std is not None:
             # search in the transforms for Normalize and update parameters
-            if not isinstance(pred_model.transforms, Compose):
-                for transform in pred_model.transforms:
+            if not isinstance(self.transforms, Compose):
+                for transform in self.transforms:
                     if transform.name == SupportedTransform.NORMALIZE.value:
-                        transform.parameters.mean = pred_model.mean
-                        transform.parameters.std = pred_model.std
+                        transform.mean = self.mean
+                        transform.std = self.std
 
-        return pred_model
+        return self
 
     def _update(self, **kwargs: Any) -> None:
-        """Update multiple arguments at once."""
-        self.__dict__.update(kwargs)
-        self.__class__.model_validate(self.__dict__)
-
-    def set_mean_and_std(self, mean: float, std: float) -> None:
         """
-        Set mean and standard deviation of the data.
-
-        This method should be used instead setting the fields directly, as it would
-        otherwise trigger a validation error.
+        Update multiple arguments at once.
 
         Parameters
         ----------
-        mean : float
-            Mean of the data.
-        std : float
-            Standard deviation of the data.
+        **kwargs : Any
+            Key-value pairs of arguments to update.
         """
-        self._update(mean=mean, std=std)
-
-        # search in the transforms for Normalize and update parameters
-        if not isinstance(self.transforms, Compose):
-            for transform in self.transforms:
-                if transform.name == SupportedTransform.NORMALIZE.value:
-                    transform.parameters.mean = mean
-                    transform.parameters.std = std
-        else:
-            raise ValueError(
-                "Setting mean and std with Compose transforms is not allowed. Add "
-                "mean and std parameters directly to the transform in the Compose."
-            )
+        self.__dict__.update(kwargs)
+        self.__class__.model_validate(self.__dict__)
 
     def set_3D(self, axes: str, tile_size: List[int], tile_overlap: List[int]) -> None:
         """
@@ -275,5 +278,7 @@ class InferenceModel(BaseModel):
             Axes.
         tile_size : List[int]
             Tile size.
+        tile_overlap : List[int]
+            Tile overlap.
         """
         self._update(axes=axes, tile_size=tile_size, tile_overlap=tile_overlap)

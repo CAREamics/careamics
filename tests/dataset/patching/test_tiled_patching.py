@@ -1,6 +1,7 @@
 import numpy as np
 import pytest
 
+from careamics.config.tile_information import TileInformation
 from careamics.dataset.patching.tiled_patching import (
     _compute_crop_and_stitch_coords_1d,
     extract_tiles,
@@ -17,7 +18,13 @@ def check_extract_tiles(array: np.ndarray, tile_size, overlaps):
 
     # Assemble all tiles and their respective coordinates
     for tile_data in tile_data_generator:
-        tile, _, _, overlap_crop_coords, stitch_coords = tile_data
+        tile = tile_data[0]
+
+        tile_info: TileInformation = tile_data[1]
+        overlap_crop_coords = tile_info.overlap_crop_coords
+        stitch_coords = tile_info.stitch_coords
+
+        # add data to lists
         tiles.append(tile)
         all_overlap_crop_coords.append(overlap_crop_coords)
         all_stitch_coords.append(stitch_coords)

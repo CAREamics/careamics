@@ -1,43 +1,43 @@
-"""Main class to train and predict with CAREamics models."""
+"""A class to train, predict and export models in CAREamics."""
 
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, Union, overload
 
 import numpy as np
-from pytorch_lightning import LightningModule, Trainer
-from pytorch_lightning.callbacks import Callback, EarlyStopping, ModelCheckpoint
-from torch import load
+from pytorch_lightning import Trainer
+from pytorch_lightning.callbacks import (
+    Callback,
+    EarlyStopping,
+    ModelCheckpoint,
+)
+from pytorch_lightning.loggers import TensorBoardLogger, WandbLogger
 
-from .config import (
-    AlgorithmModel,
+from careamics.callbacks import ProgressBarCallback
+from careamics.config import (
     Configuration,
-    DataModel,
-    TrainingModel,
     create_inference_configuration,
     load_configuration,
 )
-from .config.inference_model import TRANSFORMS_UNION
-from .config.support import SupportedAlgorithm
-from .lightning_datamodule import CAREamicsClay, CAREamicsWood
-from .lightning_module import CAREamicsKiln
-from .lightning_prediction import CAREamicsPredictionLoop
-from .utils import check_path_exists, get_logger
+from careamics.config.inference_model import TRANSFORMS_UNION
+from careamics.config.support import SupportedAlgorithm, SupportedData, SupportedLogger
+from careamics.lightning_datamodule import CAREamicsTrainData
+from careamics.lightning_module import CAREamicsModule
+from careamics.lightning_prediction_datamodule import CAREamicsPredictData
+from careamics.lightning_prediction_loop import CAREamicsPredictionLoop
+from careamics.model_io import export_to_bmz, load_pretrained
+from careamics.utils import check_path_exists, get_logger
+
+from .callbacks import HyperParametersCallback
 
 logger = get_logger(__name__)
 
+LOGGER_TYPES = Optional[Union[TensorBoardLogger, WandbLogger]]
+
+
 # TODO napari callbacks
-# TODO save as modelzoo, lightning and pytorch_dict
-# TODO load checkpoints
-# TODO how to do WandB
-# TODO: how to do AMP? How to continue training? How to load model from checkpoint?
-# TODO: how to save checkpoints?
-
-
-class CAREamist(LightningModule):
-    """
-    A class to train and predict with CAREamics models.
-
-    # TODO
+# TODO: how to do AMP? How to continue training?
+class CAREamist:
+    """Main CAREamics class, allowing training and prediction using various algorithms.
 
     Parameters
     ----------
@@ -49,6 +49,22 @@ class CAREamist(LightningModule):
     experiment_name : str, optional
         Experiment name used for checkpoints, by default "CAREamics".
 
+    Attributes
+    ----------
+    model : CAREamicsKiln
+        CAREamics model.
+    cfg : Configuration
+        CAREamics configuration.
+    trainer : Trainer
+        PyTorch Lightning trainer.
+    experiment_logger : Optional[Union[TensorBoardLogger, WandbLogger]]
+        Experiment logger, "wandb" or "tensorboard".
+    work_dir : Path
+        Working directory.
+    train_datamodule : Optional[CAREamicsWood]
+        Training datamodule.
+    pred_datamodule : Optional[CAREamicsClay]
+        Prediction datamodule.
     """
 
     @overload
@@ -57,8 +73,7 @@ class CAREamist(LightningModule):
         source: Union[Path, str],
         work_dir: Optional[str] = None,
         experiment_name: str = "CAREamics",
-    ) -> None:
-        ...
+    ) -> None: ...
 
     @overload
     def __init__(  # numpydoc ignore=GL08
@@ -66,8 +81,7 @@ class CAREamist(LightningModule):
         source: Configuration,
         work_dir: Optional[str] = None,
         experiment_name: str = "CAREamics",
-    ) -> None:
-        ...
+    ) -> None: ...
 
     def __init__(
         self,
@@ -106,7 +120,6 @@ class CAREamist(LightningModule):
             If no hyper parameters are found in the checkpoint.
         ValueError
             If no data module hyper parameters are found in the checkpoint.
-
         """
         super().__init__()
 
@@ -125,7 +138,9 @@ class CAREamist(LightningModule):
             self.cfg = source
 
             # instantiate model
-            self.model = CAREamicsKiln(self.cfg.algorithm)
+            self.model = CAREamicsModule(
+                algorithm_config=self.cfg.algorithm_config,
+            )
 
         # path to configuration file or model
         else:
@@ -138,67 +153,46 @@ class CAREamist(LightningModule):
                 # load configuration
                 self.cfg = load_configuration(source)
 
-                # save configuration in the working directory
-                # TODO should be in train
-                self.save_hyperparameters(self.cfg.model_dump())
-
                 # instantiate model
-                self.model = CAREamicsKiln(self.cfg.algorithm)
-
-            # bmz model
-            elif source.suffix == ".zip":
-                raise NotImplementedError(
-                    "Loading a model from BioImage Model Zoo is not implemented yet."
+                self.model = CAREamicsModule(
+                    algorithm_config=self.cfg.algorithm_config,
                 )
 
-            # checkpoint
-            elif source.suffix == ".ckpt":
-                checkpoint = load(source)
-
-                # attempt to load algorithm parameters
-                try:
-                    self.algo_params = checkpoint["hyper_parameters"]
-                except KeyError as e:
-                    raise ValueError(
-                        "Invalid checkpoint file. No `hyper_parameters` found for the "
-                        "algorithm."
-                    ) from e
-
-                # attempt to load data model parameters
-                try:
-                    self.data_params = checkpoint["datamodule_hyper_parameters"]
-                except KeyError as e:
-                    raise ValueError(
-                        "Invalid checkpoint file. No `datamodule_hyper_parameters` "
-                        "found for the data."
-                    ) from e
-
-                # create configuration
-                algorithm = AlgorithmModel(**self.algo_params)
-                data = DataModel(**self.data_params)
-                training = TrainingModel()
-                self.cfg = Configuration(
-                    experiment_name=experiment_name,
-                    algorithm=algorithm,
-                    data=data,
-                    training=training,
-                )
-
-                # load weights
-                self.load_pretrained(checkpoint)
+            # attempt loading a pre-trained model
+            else:
+                self.model, self.cfg = load_pretrained(source)
 
         # define the checkpoint saving callback
         self.callbacks = self._define_callbacks()
 
+        # instantiate logger
+        if self.cfg.training_config.has_logger():
+            if self.cfg.training_config.logger == SupportedLogger.WANDB:
+                self.experiment_logger: LOGGER_TYPES = WandbLogger(
+                    name=experiment_name,
+                    save_dir=self.work_dir / Path("logs"),
+                )
+            elif self.cfg.training_config.logger == SupportedLogger.TENSORBOARD:
+                self.experiment_logger = TensorBoardLogger(
+                    save_dir=self.work_dir / Path("logs"),
+                )
+        else:
+            self.experiment_logger = None
+
         # instantiate trainer
         self.trainer = Trainer(
-            max_epochs=self.cfg.training.num_epochs,
+            max_epochs=self.cfg.training_config.num_epochs,
             callbacks=self.callbacks,
             default_root_dir=self.work_dir,
+            logger=self.experiment_logger,
         )
 
         # change the prediction loop, necessary for tiled prediction
         self.trainer.predict_loop = CAREamicsPredictionLoop(self.trainer)
+
+        # place holder for the datamodules
+        self.train_datamodule: Optional[CAREamicsTrainData] = None
+        self.pred_datamodule: Optional[CAREamicsPredictData] = None
 
     def _define_callbacks(self) -> List[Callback]:
         """
@@ -211,17 +205,19 @@ class CAREamist(LightningModule):
         """
         # checkpoint callback saves checkpoints during training
         self.callbacks = [
+            HyperParametersCallback(self.cfg),
             ModelCheckpoint(
                 dirpath=self.work_dir / Path("checkpoints"),
                 filename=self.cfg.experiment_name,
-                **self.cfg.training.checkpoint_callback.model_dump(),
-            )
+                **self.cfg.training_config.checkpoint_callback.model_dump(),
+            ),
+            ProgressBarCallback(),
         ]
 
         # early stopping callback
-        if self.cfg.training.early_stopping_callback is not None:
+        if self.cfg.training_config.early_stopping_callback is not None:
             self.callbacks.append(
-                EarlyStopping(self.cfg.training.early_stopping_callback)
+                EarlyStopping(self.cfg.training_config.early_stopping_callback)
             )
 
         return self.callbacks
@@ -229,7 +225,7 @@ class CAREamist(LightningModule):
     def train(
         self,
         *,
-        datamodule: Optional[CAREamicsWood] = None,
+        datamodule: Optional[CAREamicsTrainData] = None,
         train_source: Optional[Union[Path, str, np.ndarray]] = None,
         val_source: Optional[Union[Path, str, np.ndarray]] = None,
         train_target: Optional[Union[Path, str, np.ndarray]] = None,
@@ -306,7 +302,7 @@ class CAREamist(LightningModule):
 
         else:
             # raise error if target is provided to N2V
-            if self.cfg.algorithm.algorithm == SupportedAlgorithm.N2V.value:
+            if self.cfg.algorithm_config.algorithm == SupportedAlgorithm.N2V.value:
                 if train_target is not None:
                     raise ValueError(
                         "Training target not compatible with N2V training."
@@ -362,7 +358,7 @@ class CAREamist(LightningModule):
                     f"instance (got {type(train_source)})."
                 )
 
-    def _train_on_datamodule(self, datamodule: CAREamicsWood) -> None:
+    def _train_on_datamodule(self, datamodule: CAREamicsTrainData) -> None:
         """
         Train the model on the provided datamodule.
 
@@ -371,6 +367,9 @@ class CAREamist(LightningModule):
         datamodule : CAREamicsWood
             Datamodule to train on.
         """
+        # record datamodule
+        self.train_datamodule = datamodule
+
         self.trainer.fit(self.model, datamodule=datamodule)
 
     def _train_on_array(
@@ -401,8 +400,8 @@ class CAREamist(LightningModule):
             Minimum number of patches to use for validation, by default 5.
         """
         # create datamodule
-        datamodule = CAREamicsWood(
-            data_config=self.cfg.data,
+        datamodule = CAREamicsTrainData(
+            data_config=self.cfg.data_config,
             train_data=train_data,
             val_data=val_data,
             train_data_target=train_target,
@@ -457,8 +456,8 @@ class CAREamist(LightningModule):
             path_to_val_target = check_path_exists(path_to_val_target)
 
         # create datamodule
-        datamodule = CAREamicsWood(
-            data_config=self.cfg.data,
+        datamodule = CAREamicsTrainData(
+            data_config=self.cfg.data_config,
             train_data=path_to_train_data,
             val_data=path_to_val_data,
             train_data_target=path_to_train_target,
@@ -473,9 +472,11 @@ class CAREamist(LightningModule):
 
     @overload
     def predict(  # numpydoc ignore=GL08
-        self, source: CAREamicsClay
-    ) -> Union[list, np.ndarray]:
-        ...
+        self,
+        source: CAREamicsPredictData,
+        *,
+        checkpoint: Optional[Literal["best", "last"]] = None,
+    ) -> Union[list, np.ndarray]: ...
 
     @overload
     def predict(  # numpydoc ignore=GL08
@@ -492,8 +493,8 @@ class CAREamist(LightningModule):
         dataloader_params: Optional[Dict] = None,
         read_source_func: Optional[Callable] = None,
         extension_filter: str = "",
-    ) -> Union[list, np.ndarray]:
-        ...
+        checkpoint: Optional[Literal["best", "last"]] = None,
+    ) -> Union[list, np.ndarray]: ...
 
     @overload
     def predict(  # numpydoc ignore=GL08
@@ -508,12 +509,12 @@ class CAREamist(LightningModule):
         transforms: Optional[List[TRANSFORMS_UNION]] = None,
         tta_transforms: bool = True,
         dataloader_params: Optional[Dict] = None,
-    ) -> Union[list, np.ndarray]:
-        ...
+        checkpoint: Optional[Literal["best", "last"]] = None,
+    ) -> Union[list, np.ndarray]: ...
 
     def predict(
         self,
-        source: Union[CAREamicsClay, Path, str, np.ndarray],
+        source: Union[CAREamicsPredictData, Path, str, np.ndarray],
         *,
         batch_size: int = 1,
         tile_size: Optional[Tuple[int, ...]] = None,
@@ -525,6 +526,7 @@ class CAREamist(LightningModule):
         dataloader_params: Optional[Dict] = None,
         read_source_func: Optional[Callable] = None,
         extension_filter: str = "",
+        checkpoint: Optional[Literal["best", "last"]] = None,
         **kwargs: Any,
     ) -> Union[List[np.ndarray], np.ndarray]:
         """
@@ -536,9 +538,10 @@ class CAREamist(LightningModule):
         configuration parameters will be used, with the `patch_size` instead of
         `tile_size`.
 
-        The default transforms are defined in the InferenceModel Pydantic model.
+        The default transforms are defined in the `InferenceModel` Pydantic model.
 
-        TTA transform can be switched off using the `tta_transforms` parameter.
+        Test-time augmentation (TTA) can be switched off using the `tta_transforms`
+        parameter.
 
         Parameters
         ----------
@@ -564,6 +567,8 @@ class CAREamist(LightningModule):
             Function to read the source data, by default None.
         extension_filter : str, optional
             Filter for the file extension, by default "".
+        checkpoint : Optional[Literal["best", "last"]], optional
+            Checkpoint to use for prediction, by default None.
         **kwargs : Any
             Unused.
 
@@ -577,10 +582,19 @@ class CAREamist(LightningModule):
         ValueError
             If the input is not a CAREamicsClay instance, a path or a numpy array.
         """
-        if isinstance(source, CAREamicsClay):
-            return self.trainer.predict(datamodule=source)
+        if isinstance(source, CAREamicsPredictData):
+            # record datamodule
+            self.pred_datamodule = source
 
+            return self.trainer.predict(
+                model=self.model, datamodule=source, ckpt_path=checkpoint
+            )
         else:
+            if self.cfg is None:
+                raise ValueError(
+                    "No configuration found. Train a model or load from a "
+                    "checkpoint before predicting."
+                )
             # create predict config, reuse training config if parameters missing
             prediction_config = create_inference_configuration(
                 training_configuration=self.cfg,
@@ -604,25 +618,35 @@ class CAREamist(LightningModule):
                 source_path = check_path_exists(source)
 
                 # create datamodule
-                datamodule = CAREamicsClay(
-                    prediction_config=prediction_config,
+                datamodule = CAREamicsPredictData(
+                    pred_config=prediction_config,
                     pred_data=source_path,
                     read_source_func=read_source_func,
                     extension_filter=extension_filter,
                     dataloader_params=dataloader_params,
                 )
 
-                return self.trainer.predict(datamodule=datamodule)
+                # record datamodule
+                self.pred_datamodule = datamodule
+
+                return self.trainer.predict(
+                    model=self.model, datamodule=datamodule, ckpt_path=checkpoint
+                )
 
             elif isinstance(source, np.ndarray):
                 # create datamodule
-                datamodule = CAREamicsClay(
-                    prediction_config=prediction_config,
+                datamodule = CAREamicsPredictData(
+                    pred_config=prediction_config,
                     pred_data=source,
                     dataloader_params=dataloader_params,
                 )
 
-                return self.trainer.predict(datamodule=datamodule)
+                # record datamodule
+                self.pred_datamodule = datamodule
+
+                return self.trainer.predict(
+                    model=self.model, datamodule=datamodule, ckpt_path=checkpoint
+                )
 
             else:
                 raise ValueError(
@@ -630,115 +654,103 @@ class CAREamist(LightningModule):
                     f"np.ndarray (got {type(source)})."
                 )
 
-    def export_checkpoint(
-        self, path: Union[Path, str], type: Literal["bmz", "script"] = "bmz"
+    def export_to_bmz(
+        self,
+        path: Union[Path, str],
+        name: str,
+        authors: List[dict],
+        input_array: Optional[np.ndarray] = None,
+        general_description: str = "",
+        channel_names: Optional[List[str]] = None,
+        data_description: Optional[str] = None,
     ) -> None:
-        """
-        Export the model to a checkpoint or a BioImage Model Zoo model.
+        """Export the model to the BioImage Model Zoo format.
+
+        Input array must be of shape SC(Z)YX, with S and C singleton dimensions.
 
         Parameters
         ----------
         path : Union[Path, str]
             Path to save the model.
-        type : Literal["bmz", "script"], optional
-            Export format, by default "bmz".
-
-        Raises
-        ------
-        NotImplementedError
-            If the export format is not implemented yet.
+        name : str
+            Name of the model.
+        authors : List[dict]
+            List of authors of the model.
+        input_array : Optional[np.ndarray], optional
+            Input array for the model, must be of shape SC(Z)YX, by default None.
+        general_description : str
+            General description of the model, used in the metadata of the BMZ archive.
+        channel_names : Optional[List[str]], optional
+            Channel names, by default None.
+        data_description : Optional[str], optional
+            Description of the data, by default None.
         """
-        path = Path(path)
-        if type == "bmz":
-            raise NotImplementedError(
-                "Exporting a model to BioImage Model Zoo is not implemented yet."
-            )
-        elif type == "script":
-            self.model.to_torchscript(path)
+        if input_array is None:
+            # generate images, priority is given to the prediction data module
+            if self.pred_datamodule is not None:
+                # unpack a batch, ignore masks or targets
+                input_patch, *_ = next(iter(self.pred_datamodule.predict_dataloader()))
+
+                # convert torch.Tensor to numpy
+                input_patch = input_patch.numpy()
+            elif self.train_datamodule is not None:
+                input_patch, *_ = next(iter(self.train_datamodule.train_dataloader()))
+                input_patch = input_patch.numpy()
+            else:
+                if (
+                    self.cfg.data_config.mean is None
+                    or self.cfg.data_config.std is None
+                ):
+                    raise ValueError(
+                        "Mean and std cannot be None in the configuration in order to"
+                        "export to the BMZ format. Was the model trained?"
+                    )
+
+                # create a random input array
+                input_patch = np.random.normal(
+                    loc=self.cfg.data_config.mean,
+                    scale=self.cfg.data_config.std,
+                    size=self.cfg.data_config.patch_size,
+                ).astype(np.float32)[
+                    np.newaxis, np.newaxis, ...
+                ]  # add S & C dimensions
         else:
-            raise ValueError(
-                f"Invalid export format. Expected 'bmz' or 'script', got {type}."
-            )
+            input_patch = input_array
 
-    def load_pretrained(self, path: Union[Path, str]) -> None:
-        """
-        Load a pretrained model from a checkpoint or a BioImage Model Zoo model.
+        # if there is a batch dimension
+        if input_patch.shape[0] > 1:
+            input_patch = input_patch[0:1, ...]  # keep singleton dim
 
-        Expected formats are .ckpt, .zip, .pth or .pt files.
-
-        Parameters
-        ----------
-        path : Union[Path, str]
-            Path to the pretrained model.
-
-        Raises
-        ------
-        ValueError
-            If the model format is not supported.
-        """
-        path = check_path_exists(path)
-
-        if path.suffix == ".ckpt":
-            self._load_from_checkpoint(path)
-        elif path.suffix == ".zip":
-            self._load_from_bmz(path)
-        elif path.suffix == ".pth" or path.suffix == ".pt":
-            self._load_from_state_dict(path)
+        # axes need to be reformated for the export because reshaping was done in the
+        # datamodule
+        if "Z" in self.cfg.data_config.axes:
+            axes = "SCZYX"
         else:
-            raise ValueError(
-                f"Invalid model format. Expected .ckpt, .zip, .pth or .pt file, "
-                f"got {path.suffix}."
-            )
+            axes = "SCYX"
 
-    def _load_from_checkpoint(self, path: Union[Path, str]) -> None:
-        """
-        Load a model from a checkpoint.
-
-        Parameters
-        ----------
-        path : Union[Path, str]
-            Path to the checkpoint.
-        """
-        self.model.load_from_checkpoint(path)
-
-    def _load_from_bmz(
-        self,
-        path: Union[Path, str],
-    ) -> None:
-        """
-        Load a model from BioImage Model Zoo.
-
-        Parameters
-        ----------
-        path : Union[Path, str]
-            Path to the BioImage Model Zoo model.
-
-        Raises
-        ------
-        NotImplementedError
-            If the method is not implemented yet.
-        """
-        raise NotImplementedError(
-            "Loading a model from BioImage Model Zoo is not implemented yet."
+        # predict output, remove extra dimensions for the purpose of the prediction
+        output_patch = self.predict(
+            input_patch,
+            data_type=SupportedData.ARRAY.value,
+            axes=axes,
+            tta_transforms=False,
         )
 
-    def _load_from_state_dict(
-        self,
-        path: Union[Path, str],
-    ) -> None:
-        """
-        Load a model from a state dict.
+        if not isinstance(output_patch, np.ndarray):
+            raise ValueError(
+                f"Numpy array required for export to BioImage Model Zoo, got "
+                f"{type(output_patch)}."
+            )
 
-        Parameters
-        ----------
-        path : Union[Path, str]
-            Path to the state dict.
-
-        Raises
-        ------
-        NotImplementedError
-            This method is not implemented yet.
-        """
-        raise NotImplementedError(
-            "Loading a model from a state dict is not implemented yet."
+        export_to_bmz(
+            model=self.model,
+            config=self.cfg,
+            path=path,
+            name=name,
+            general_description=general_description,
+            authors=authors,
+            input_array=input_patch,
+            output_array=output_patch,
+            channel_names=channel_names,
+            data_description=data_description,
         )

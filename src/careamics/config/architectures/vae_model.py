@@ -1,12 +1,13 @@
 from typing import Literal
 
 from pydantic import (
-    BaseModel,
     ConfigDict,
 )
 
+from .architecture_model import ArchitectureModel
 
-class VAEModel(BaseModel):
+
+class VAEModel(ArchitectureModel):
     """VAE model placeholder."""
 
     model_config = ConfigDict(

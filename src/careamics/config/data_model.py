@@ -1,33 +1,40 @@
 """Data configuration."""
+
 from __future__ import annotations
 
 from pprint import pformat
 from typing import Any, List, Literal, Optional, Union
 
 from albumentations import Compose
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
-
-from careamics.utils import check_axes_validity
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Discriminator,
+    Field,
+    field_validator,
+    model_validator,
+)
+from typing_extensions import Annotated, Self
 
 from .support import SupportedTransform
-from .transformations.n2v_manipulate_model import N2VManipulationModel
+from .transformations.n2v_manipulate_model import N2VManipulateModel
 from .transformations.nd_flip_model import NDFlipModel
 from .transformations.normalize_model import NormalizeModel
-from .transformations.transform_model import TransformModel
 from .transformations.xy_random_rotate90_model import XYRandomRotate90Model
+from .validators import check_axes_validity, patch_size_ge_than_8_power_of_2
 
-TRANSFORMS_UNION = Union[
-    NDFlipModel,
-    XYRandomRotate90Model,
-    NormalizeModel,
-    N2VManipulationModel,
-    TransformModel,
+TRANSFORMS_UNION = Annotated[
+    Union[
+        NDFlipModel,
+        XYRandomRotate90Model,
+        NormalizeModel,
+        N2VManipulateModel,
+    ],
+    Discriminator("name"),  # used to tell the different transform models apart
 ]
 
 
-# TODO can we check whether N2V manipulate is in a Compose?
-# TODO does patches need to be multiple of 8 with UNet?
-class DataModel(BaseModel):
+class DataConfig(BaseModel):
     """
     Data configuration.
 
@@ -39,7 +46,7 @@ class DataModel(BaseModel):
     --------
     Minimum example:
 
-    >>> data = DataModel(
+    >>> data = DataConfig(
     ...     data_type="array", # defined in SupportedData
     ...     patch_size=[128, 128],
     ...     batch_size=4,
@@ -47,12 +54,12 @@ class DataModel(BaseModel):
     ... )
 
     To change the mean and std of the data:
-    >>> data.set_mean_and_std(mean=0., std=1.)
+    >>> data.set_mean_and_std(mean=214.3, std=84.5)
 
     One can pass also a list of transformations, by keyword, using the
     SupportedTransform or the name of an Albumentation transform:
     >>> from careamics.config.support import SupportedTransform
-    >>> data = DataModel(
+    >>> data = DataConfig(
     ...     data_type="tiff",
     ...     patch_size=[128, 128],
     ...     batch_size=4,
@@ -60,14 +67,13 @@ class DataModel(BaseModel):
     ...     transforms=[
     ...         {
     ...             "name": SupportedTransform.NORMALIZE.value,
+    ...             "mean": 167.6,
+    ...             "std": 47.2,
     ...         },
     ...         {
     ...             "name": "NDFlip",
-    ...             "parameters": {"is_3D": True, "flip_Z": True}
-    ...         },
-    ...         {
-    ...             "name": "PixelDropout", # Albumentations transform
-    ...             "parameters": {"dropout_prob": 0.05}
+    ...             "is_3D": True,
+    ...             "flip_z": True,
     ...         }
     ...     ]
     ... )
@@ -81,7 +87,7 @@ class DataModel(BaseModel):
 
     # Dataset configuration
     data_type: Literal["array", "tiff", "custom"]  # As defined in SupportedData
-    patch_size: List[int] = Field(..., min_length=2, max_length=3)
+    patch_size: Union[List[int]] = Field(..., min_length=2, max_length=3)
     batch_size: int = Field(default=1, ge=1, validate_default=True)
     axes: str
 
@@ -107,37 +113,36 @@ class DataModel(BaseModel):
         validate_default=True,
     )
 
+    dataloader_params: Optional[dict] = None
+
     @field_validator("patch_size")
     @classmethod
-    def all_elements_non_zero_even(cls, patch_list: List[int]) -> List[int]:
+    def all_elements_power_of_2_minimum_8(
+        cls, patch_list: Union[List[int]]
+    ) -> Union[List[int]]:
         """
         Validate patch size.
 
-        Patch size must be non-zero, positive and even.
+        Patch size must be powers of 2 and minimum 8.
 
         Parameters
         ----------
-        patch_list : List[int]
+        patch_list : Union[List[int]]
             Patch size.
 
         Returns
         -------
-        List[int]
+        Union[List[int]]
             Validated patch size.
 
         Raises
         ------
         ValueError
-            If the patch size is 0.
+            If the patch size is smaller than 8.
         ValueError
-            If the patch size is not even.
+            If the patch size is not a power of 2.
         """
-        for dim in patch_list:
-            if dim < 1:
-                raise ValueError(f"Patch size must be non-zero positive (got {dim}).")
-
-            if dim % 2 != 0:
-                raise ValueError(f"Patch size must be even (got {dim}).")
+        patch_size_ge_than_8_power_of_2(patch_list)
 
         return patch_list
 
@@ -179,7 +184,8 @@ class DataModel(BaseModel):
     def validate_prediction_transforms(
         cls, transforms: Union[List[TRANSFORMS_UNION], Compose]
     ) -> Union[List[TRANSFORMS_UNION], Compose]:
-        """Validate N2VManipulate transform position in the transform list.
+        """
+        Validate N2VManipulate transform position in the transform list.
 
         Parameters
         ----------
@@ -217,18 +223,13 @@ class DataModel(BaseModel):
         return transforms
 
     @model_validator(mode="after")
-    def std_only_with_mean(cls, data_model: DataModel) -> DataModel:
+    def std_only_with_mean(self: Self) -> Self:
         """
         Check that mean and std are either both None, or both specified.
 
-        Parameters
-        ----------
-        data_model : Data
-            Data model.
-
         Returns
         -------
-        Data
+        Self
             Validated data model.
 
         Raises
@@ -237,51 +238,41 @@ class DataModel(BaseModel):
             If std is not None and mean is None.
         """
         # check that mean and std are either both None, or both specified
-        if (data_model.mean is None) != (data_model.std is None):
+        if (self.mean is None) != (self.std is None):
             raise ValueError(
                 "Mean and std must be either both None, or both specified."
             )
 
-        return data_model
+        return self
 
     @model_validator(mode="after")
-    def add_std_and_mean_to_normalize(cls, data_model: DataModel) -> DataModel:
+    def add_std_and_mean_to_normalize(self: Self) -> Self:
         """
         Add mean and std to the Normalize transform if it is present.
 
-        Parameters
-        ----------
-        data_model : DataModel
-            Data model.
-
         Returns
         -------
-        DataModel
+        Self
             Data model with mean and std added to the Normalize transform.
         """
-        if data_model.mean is not None or data_model.std is not None:
+        if self.mean is not None or self.std is not None:
             # search in the transforms for Normalize and update parameters
-            if data_model.has_transform_list():
-                for transform in data_model.transforms:
+            if self.has_transform_list():
+                for transform in self.transforms:
                     if transform.name == SupportedTransform.NORMALIZE.value:
-                        transform.parameters.mean = data_model.mean
-                        transform.parameters.std = data_model.std
+                        transform.mean = self.mean
+                        transform.std = self.std
 
-        return data_model
+        return self
 
     @model_validator(mode="after")
-    def validate_dimensions(cls, data_model: DataModel) -> DataModel:
+    def validate_dimensions(self: Self) -> Self:
         """
         Validate 2D/3D dimensions between axes, patch size and transforms.
 
-        Parameters
-        ----------
-        data_model : DataModel
-            Data model.
-
         Returns
         -------
-        DataModel
+        Self
             Validated data model.
 
         Raises
@@ -289,38 +280,39 @@ class DataModel(BaseModel):
         ValueError
             If the transforms are not valid.
         """
-        if "Z" in data_model.axes:
-            if len(data_model.patch_size) != 3:
+        if "Z" in self.axes:
+            if len(self.patch_size) != 3:
                 raise ValueError(
                     f"Patch size must have 3 dimensions if the data is 3D "
-                    f"({data_model.axes})."
+                    f"({self.axes})."
                 )
 
-            if data_model.has_transform_list():
-                for transform in data_model.transforms:
+            if self.has_transform_list():
+                for transform in self.transforms:
                     if transform.name == SupportedTransform.NDFLIP:
-                        transform.parameters.is_3D = True
+                        transform.is_3D = True
                     elif transform.name == SupportedTransform.XY_RANDOM_ROTATE90:
-                        transform.parameters.is_3D = True
+                        transform.is_3D = True
 
         else:
-            if len(data_model.patch_size) != 2:
+            if len(self.patch_size) != 2:
                 raise ValueError(
                     f"Patch size must have 3 dimensions if the data is 3D "
-                    f"({data_model.axes})."
+                    f"({self.axes})."
                 )
 
-            if data_model.has_transform_list():
-                for transform in data_model.transforms:
+            if self.has_transform_list():
+                for transform in self.transforms:
                     if transform.name == SupportedTransform.NDFLIP:
-                        transform.parameters.is_3D = False
+                        transform.is_3D = False
                     elif transform.name == SupportedTransform.XY_RANDOM_ROTATE90:
-                        transform.parameters.is_3D = False
+                        transform.is_3D = False
 
-        return data_model
+        return self
 
     def __str__(self) -> str:
-        """Pretty string reprensenting the configuration.
+        """
+        Pretty string reprensenting the configuration.
 
         Returns
         -------
@@ -330,7 +322,14 @@ class DataModel(BaseModel):
         return pformat(self.model_dump())
 
     def _update(self, **kwargs: Any) -> None:
-        """Update multiple arguments at once."""
+        """
+        Update multiple arguments at once.
+
+        Parameters
+        ----------
+        **kwargs : Any
+            Keyword arguments to update.
+        """
         self.__dict__.update(kwargs)
         self.__class__.model_validate(self.__dict__)
 
@@ -386,7 +385,7 @@ class DataModel(BaseModel):
         if self.has_transform_list():
             if not self.has_n2v_manipulate():
                 self.transforms.append(
-                    N2VManipulationModel(name=SupportedTransform.N2V_MANIPULATE.value)
+                    N2VManipulateModel(name=SupportedTransform.N2V_MANIPULATE.value)
                 )
         else:
             raise ValueError(
@@ -433,8 +432,8 @@ class DataModel(BaseModel):
         if self.has_transform_list():
             for transform in self.transforms:
                 if transform.name == SupportedTransform.NORMALIZE.value:
-                    transform.parameters.mean = mean
-                    transform.parameters.std = std
+                    transform.mean = mean
+                    transform.std = std
         else:
             raise ValueError(
                 "Setting mean and std with Compose transforms is not allowed. Add "
@@ -455,7 +454,8 @@ class DataModel(BaseModel):
         self._update(axes=axes, patch_size=patch_size)
 
     def set_N2V2(self, use_n2v2: bool) -> None:
-        """Set N2V2.
+        """
+        Set N2V2.
 
         Parameters
         ----------
@@ -475,7 +475,8 @@ class DataModel(BaseModel):
             self.set_N2V2_strategy("uniform")
 
     def set_N2V2_strategy(self, strategy: Literal["uniform", "median"]) -> None:
-        """Set N2V2 strategy.
+        """
+        Set N2V2 strategy.
 
         Parameters
         ----------
@@ -494,7 +495,7 @@ class DataModel(BaseModel):
 
             for transform in self.transforms:
                 if transform.name == SupportedTransform.N2V_MANIPULATE.value:
-                    transform.parameters.strategy = strategy
+                    transform.strategy = strategy
                     found_n2v = True
 
             if not found_n2v:
@@ -513,7 +514,8 @@ class DataModel(BaseModel):
     def set_structN2V_mask(
         self, mask_axis: Literal["horizontal", "vertical", "none"], mask_span: int
     ) -> None:
-        """Set structN2V mask parameters.
+        """
+        Set structN2V mask parameters.
 
         Setting `mask_axis` to `none` will disable structN2V.
 
@@ -536,8 +538,8 @@ class DataModel(BaseModel):
 
             for transform in self.transforms:
                 if transform.name == SupportedTransform.N2V_MANIPULATE.value:
-                    transform.parameters.struct_mask_axis = mask_axis
-                    transform.parameters.struct_mask_span = mask_span
+                    transform.struct_mask_axis = mask_axis
+                    transform.struct_mask_span = mask_span
                     found_n2v = True
 
             if not found_n2v:

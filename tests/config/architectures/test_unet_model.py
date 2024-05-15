@@ -113,9 +113,9 @@ def test_model_dump():
     model_dict = model.model_dump(exclude_defaults=True)
 
     # check that default values are excluded except the architecture
-    assert "architecture" in model_dict
-    assert len(model_dict) == 3
+    assert "architecture" not in model_dict
+    assert len(model_dict) == 2
 
     # check that we get all the optional values with the exclude_defaults flag
     model_dict = model.model_dump(exclude_defaults=False)
-    assert len(model_dict) == len(dict(model))
+    assert len(model_dict) == len(dict(model)) - 1

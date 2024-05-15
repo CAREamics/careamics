@@ -1,26 +1,32 @@
+"""Pydantic model for the Normalize transform."""
+
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import ConfigDict, Field
+
+from .transform_model import TransformModel
 
 
-class NormalizeParameters(BaseModel):
-    """Pydantic model used to validate Normalize parameters."""
+class NormalizeModel(TransformModel):
+    """
+    Pydantic model used to represent Normalize transformation.
+
+    The Normalize transform is a zero mean and unit variance transformation.
+
+    Attributes
+    ----------
+    name : Literal["Normalize"]
+        Name of the transformation.
+    mean : float
+        Mean value for normalization.
+    std : float
+        Standard deviation value for normalization.
+    """
 
     model_config = ConfigDict(
         validate_assignment=True,
     )
 
-    mean: float = Field(default=0.485)  # albumentations default
+    name: Literal["Normalize"] = "Normalize"
+    mean: float = Field(default=0.485)  # albumentations defaults
     std: float = Field(default=0.229)
-    max_pixel_value: float = Field(default=1.0, ge=0.0)  # TODO explain why
-
-
-class NormalizeModel(BaseModel):
-    """Pydantic model used to represent Normalize transformation."""
-
-    model_config = ConfigDict(
-        validate_assignment=True,
-    )
-
-    name: Literal["Normalize"]
-    parameters: NormalizeParameters = NormalizeParameters()

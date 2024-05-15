@@ -4,12 +4,13 @@ from pprint import pformat
 from typing import Literal, Union
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
+from typing_extensions import Self
 
 from .architectures import CustomModel, UNetModel, VAEModel
 from .optimizer_models import LrSchedulerModel, OptimizerModel
 
 
-class AlgorithmModel(BaseModel):
+class AlgorithmConfig(BaseModel):
     """Algorithm configuration.
 
     This Pydantic model validates the parameters governing the components of the
@@ -44,7 +45,7 @@ class AlgorithmModel(BaseModel):
     Examples
     --------
     Minimum example:
-    >>> from careamics.config import AlgorithmModel
+    >>> from careamics.config import AlgorithmConfig
     >>> config_dict = {
     ...     "algorithm": "n2v",
     ...     "loss": "n2v",
@@ -52,11 +53,11 @@ class AlgorithmModel(BaseModel):
     ...         "architecture": "UNet",
     ...     }
     ... }
-    >>> config = AlgorithmModel(**config_dict)
+    >>> config = AlgorithmConfig(**config_dict)
 
     Using a custom model:
     >>> from torch import nn, ones
-    >>> from careamics.config import AlgorithmModel, register_model
+    >>> from careamics.config import AlgorithmConfig, register_model
     ...
     >>> @register_model(name="linear_model")
     ... class LinearModel(nn.Module):
@@ -75,13 +76,11 @@ class AlgorithmModel(BaseModel):
     ...     "model": {
     ...         "architecture": "Custom",
     ...         "name": "linear_model",
-    ...         "parameters": {
-    ...             "in_features": 10,
-    ...             "out_features": 5,
-    ...         },
+    ...         "in_features": 10,
+    ...         "out_features": 5,
     ...     }
     ... }
-    >>> config = AlgorithmModel(**config_dict)
+    >>> config = AlgorithmConfig(**config_dict)
     """
 
     # Pydantic class configuration
@@ -100,24 +99,54 @@ class AlgorithmModel(BaseModel):
     lr_scheduler: LrSchedulerModel = LrSchedulerModel()
 
     @model_validator(mode="after")
-    def algorithm_cross_validation(self) -> AlgorithmModel:
+    def algorithm_cross_validation(self: Self) -> Self:
         """Validate the algorithm model based on `algorithm`.
 
         N2V:
         - loss must be n2v
         - model must be a `UNetModel`
+
+        Returns
+        -------
+        Self
+            The validated model.
         """
         # N2V
         if self.algorithm == "n2v":
+            # n2v is only compatible with the n2v loss
             if self.loss != "n2v":
                 raise ValueError(
                     f"Algorithm {self.algorithm} only supports loss `n2v`."
                 )
 
+            # n2v is only compatible with the UNet model
             if not isinstance(self.model, UNetModel):
                 raise ValueError(
                     f"Model for algorithm {self.algorithm} must be a `UNetModel`."
                 )
+
+            # n2v requires the number of input and output channels to be the same
+            if self.model.in_channels != self.model.num_classes:
+                raise ValueError(
+                    "N2V requires the same number of input and output channels. Make "
+                    "sure that `in_channels` and `num_classes` are the same."
+                )
+
+        # N2N
+        if self.algorithm == "n2n":
+            # n2n is only compatible with the UNet model
+            if not isinstance(self.model, UNetModel):
+                raise ValueError(
+                    f"Model for algorithm {self.algorithm} must be a `UNetModel`."
+                )
+
+            # n2n requires the number of input and output channels to be the same
+            if self.model.in_channels != self.model.num_classes:
+                raise ValueError(
+                    "N2N requires the same number of input and output channels. Make "
+                    "sure that `in_channels` and `num_classes` are the same."
+                )
+
         if self.algorithm == "care" or self.algorithm == "n2n":
             if self.loss == "n2v":
                 raise ValueError("Supervised algorithms do not support loss `n2v`.")

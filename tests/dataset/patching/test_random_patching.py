@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from careamics.dataset.patching.patching import extract_patches_random
+from careamics.dataset.patching.random_patching import extract_patches_random
 
 
 @pytest.mark.parametrize(

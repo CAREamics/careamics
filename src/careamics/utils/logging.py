@@ -3,6 +3,7 @@ Logging submodule.
 
 The methods are responsible for the in-console logger.
 """
+
 import logging
 import sys
 import time

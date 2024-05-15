@@ -3,7 +3,7 @@ from typing import Any, Optional, Union
 import pytorch_lightning as L
 from torch import Tensor, nn
 
-from careamics.config import AlgorithmModel
+from careamics.config import AlgorithmConfig
 from careamics.config.support import (
     SupportedAlgorithm,
     SupportedArchitecture,
@@ -13,19 +13,48 @@ from careamics.config.support import (
 )
 from careamics.losses import loss_factory
 from careamics.models.model_factory import model_factory
-from careamics.transforms import ImageRestorationTTA
+from careamics.transforms import Denormalize, ImageRestorationTTA
 from careamics.utils.torch_utils import get_optimizer, get_scheduler
 
 
-class CAREamicsKiln(L.LightningModule):
-    """CAREamics internal Lightning module class.
+class CAREamicsModule(L.LightningModule):
+    """
+    CAREamics Lightning module.
 
-    This class is configured using an AlgorithmModel instance, parameterizing the deep
-    learning model, and defining training and validation steps.
+    This class encapsulates the a PyTorch model along with the training, validation,
+    and testing logic. It is configured using an `AlgorithmModel` Pydantic class.
+
+    Attributes
+    ----------
+    model : nn.Module
+        PyTorch model.
+    loss_func : nn.Module
+        Loss function.
+    optimizer_name : str
+        Optimizer name.
+    optimizer_params : dict
+        Optimizer parameters.
+    lr_scheduler_name : str
+        Learning rate scheduler name.
     """
 
-    def __init__(self, algorithm_config: AlgorithmModel) -> None:
+    def __init__(self, algorithm_config: Union[AlgorithmConfig, dict]) -> None:
+        """
+        CAREamics Lightning module.
+
+        This class encapsulates the a PyTorch model along with the training, validation,
+        and testing logic. It is configured using an `AlgorithmModel` Pydantic class.
+
+        Parameters
+        ----------
+        algorithm_config : Union[AlgorithmModel, dict]
+            Algorithm configuration.
+        """
         super().__init__()
+        # if loading from a checkpoint, AlgorithmModel needs to be instantiated
+        if isinstance(algorithm_config, dict):
+            algorithm_config = AlgorithmConfig(**algorithm_config)
+
         # create model and loss function
         self.model: nn.Module = model_factory(algorithm_config.model)
         self.loss_func = loss_factory(algorithm_config.loss)
@@ -35,8 +64,6 @@ class CAREamicsKiln(L.LightningModule):
         self.optimizer_params = algorithm_config.optimizer.parameters
         self.lr_scheduler_name = algorithm_config.lr_scheduler.name
         self.lr_scheduler_params = algorithm_config.lr_scheduler.parameters
-
-        # self.save_hyperparameters(algorithm_config.model_dump())
 
     def forward(self, x: Any) -> Any:
         """Forward pass.
@@ -71,6 +98,9 @@ class CAREamicsKiln(L.LightningModule):
         x, *aux = batch
         out = self.model(x)
         loss = self.loss_func(out, *aux)
+        self.log(
+            "train_loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True
+        )
         return loss
 
     def validation_step(self, batch: Tensor, batch_idx: Any) -> None:
@@ -88,7 +118,14 @@ class CAREamicsKiln(L.LightningModule):
         val_loss = self.loss_func(out, *aux)
 
         # log validation loss
-        self.log("val_loss", val_loss)
+        self.log(
+            "val_loss",
+            val_loss,
+            on_step=False,
+            on_epoch=True,
+            prog_bar=True,
+            logger=True,
+        )
 
     def predict_step(self, batch: Tensor, batch_idx: Any) -> Any:
         """Prediction step.
@@ -119,7 +156,18 @@ class CAREamicsKiln(L.LightningModule):
             output = tta.backward(augmented_output)
         else:
             output = self.model(x)
-        return output, aux
+
+        # Denormalize the output
+        denorm = Denormalize(
+            mean=self._trainer.datamodule.predict_dataset.mean,
+            std=self._trainer.datamodule.predict_dataset.std,
+        )
+        denormalized_output = denorm(image=output)["image"]
+
+        if len(aux) > 0:
+            return denormalized_output, aux
+        else:
+            return denormalized_output
 
     def configure_optimizers(self) -> Any:
         """Configure optimizers and learning rate schedulers.
@@ -144,7 +192,7 @@ class CAREamicsKiln(L.LightningModule):
         }
 
 
-class CAREamicsModule(CAREamicsKiln):
+class CAREamicsModuleWrapper(CAREamicsModule):
     """Class defining the API for CAREamics Lightning layer.
 
     This class exposes parameters used to create an AlgorithmModel instance, triggering
@@ -186,6 +234,33 @@ class CAREamicsModule(CAREamicsKiln):
         lr_scheduler: Union[SupportedScheduler, str] = "ReduceLROnPlateau",
         lr_scheduler_parameters: Optional[dict] = None,
     ) -> None:
+        """
+        Wrapper for the CAREamics model, exposing all algorithm configuration arguments.
+
+        Parameters
+        ----------
+        algorithm : Union[SupportedAlgorithm, str]
+            Algorithm to use for training (see SupportedAlgorithm).
+        loss : Union[SupportedLoss, str]
+            Loss function to use for training (see SupportedLoss).
+        architecture : Union[SupportedArchitecture, str]
+            Model architecture to use for training (see SupportedArchitecture).
+        model_parameters : dict, optional
+            Model parameters to use for training, by default {}. Model parameters are
+            defined in the relevant `torch.nn.Module` class, or Pyddantic model (see
+            `careamics.config.architectures`).
+        optimizer : Union[SupportedOptimizer, str], optional
+            Optimizer to use for training, by default "Adam" (see SupportedOptimizer).
+        optimizer_parameters : dict, optional
+            Optimizer parameters to use for training, as defined in `torch.optim`, by
+            default {}.
+        lr_scheduler : Union[SupportedScheduler, str], optional
+            Learning rate scheduler to use for training, by default "ReduceLROnPlateau"
+            (see SupportedScheduler).
+        lr_scheduler_parameters : dict, optional
+            Learning rate scheduler parameters to use for training, as defined in
+            `torch.optim`, by default {}.
+        """
         # create a AlgorithmModel compatible dictionary
         if lr_scheduler_parameters is None:
             lr_scheduler_parameters = {}
@@ -210,8 +285,8 @@ class CAREamicsModule(CAREamicsKiln):
 
         # add model parameters to algorithm configuration
         algorithm_configuration["model"] = model_configuration
-        # self.save_hyperparameters({**model_configuration, **algorithm_configuration})
+
         # call the parent init using an AlgorithmModel instance
-        super().__init__(AlgorithmModel(**algorithm_configuration))
+        super().__init__(AlgorithmConfig(**algorithm_configuration))
 
         # TODO add load_from_checkpoint wrapper

@@ -1,4 +1,8 @@
-"""File used to discover python modules and run doctest."""
+"""File used to discover python modules and run doctest.
+
+See https://sybil.readthedocs.io/en/latest/use.html#pytest
+"""
+
 from pathlib import Path
 
 import pytest
@@ -13,7 +17,6 @@ def my_path(tmpdir_factory: TempPathFactory) -> Path:
     return tmpdir_factory.mktemp("my_path")
 
 
-# https://sybil.readthedocs.io/en/latest/use.html#pytest
 pytest_collect_file = Sybil(
     parsers=[
         DocTestParser(),

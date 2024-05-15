@@ -3,10 +3,12 @@ from typing import Generator, List, Tuple, Union
 
 import numpy as np
 
+from careamics.config.tile_information import TileInformation
+
 
 def _compute_crop_and_stitch_coords_1d(
     axis_size: int, tile_size: int, overlap: int
-) -> Tuple[List[Tuple[int, int]], ...]:
+) -> Tuple[List[Tuple[int, ...]], ...]:
     """
     Compute the coordinates of each tile along an axis, given the overlap.
 
@@ -21,7 +23,7 @@ def _compute_crop_and_stitch_coords_1d(
 
     Returns
     -------
-    Tuple[Tuple[int]]
+    Tuple[Tuple[int, ...], ...]
         Tuple of all coordinates for given axis.
     """
     # Compute the step between tiles
@@ -41,9 +43,11 @@ def _compute_crop_and_stitch_coords_1d(
             stitch_coords.append(
                 (
                     i + overlap // 2 if i > 0 else 0,
-                    i + tile_size - overlap // 2
-                    if crop_coords[-1][1] < axis_size
-                    else axis_size,
+                    (
+                        i + tile_size - overlap // 2
+                        if crop_coords[-1][1] < axis_size
+                        else axis_size
+                    ),
                 )
             )
 
@@ -51,9 +55,11 @@ def _compute_crop_and_stitch_coords_1d(
             overlap_crop_coords.append(
                 (
                     overlap // 2 if i > 0 else 0,
-                    tile_size - overlap // 2
-                    if crop_coords[-1][1] < axis_size
-                    else tile_size,
+                    (
+                        tile_size - overlap // 2
+                        if crop_coords[-1][1] < axis_size
+                        else tile_size
+                    ),
                 )
             )
 
@@ -75,24 +81,16 @@ def extract_tiles(
     arr: np.ndarray,
     tile_size: Union[List[int], Tuple[int, ...]],
     overlaps: Union[List[int], Tuple[int, ...]],
-) -> Generator[
-    Tuple[np.ndarray, bool, Tuple[int, ...], Tuple[int, ...], Tuple[int, ...]],
-    None,
-    None,
-]:
+) -> Generator[Tuple[np.ndarray, TileInformation], None, None]:
     """
     Generate tiles from the input array with specified overlap.
 
-    The tiles cover the whole array. The method returns a generator that yields a tuple
-    containing the following:
+    The tiles cover the whole array. The method returns a generator that yields
+    tuples of array and tile information, the latter includes whether
+    the tile is the last one, the coordinates of the overlap crop, and the coordinates
+    of the stitched tile.
 
-    - tile: np.ndarray, shape (C, (Z), Y, X).
-    - last_tile: bool, whether this is the last tile.
-    - shape: Tuple[int], shape of a tile, excluding the S dimension.
-    - overlap_crop_coords: Tuple[int], coordinates used to crop the tile during
-        stitching.
-    - stitch_coords: Tuple[int], coordinates used to stitch the tiles back to the full
-        image.
+    The array has shape C(Z)YX, where C can be a singleton.
 
     Parameters
     ----------
@@ -105,9 +103,8 @@ def extract_tiles(
 
     Yields
     ------
-    Generator[Tuple[np.ndarray, bool, Tuple[int], np.ndarray, np.ndarray], None, None]
-        Generator of tuple containing the tile, last tile boolean, array shape,
-        overlap_crop_coords, and stitching coords.
+    Generator[Tuple[np.ndarray, TileInformation], None, None]
+        Tile generator, yields the tile and additional information.
     """
     # Iterate over num samples (S)
     for sample_idx in range(arr.shape[0]):
@@ -153,10 +150,13 @@ def extract_tiles(
             else:
                 last_tile = False
 
-            yield (
-                tile.astype(np.float32),
-                last_tile,
-                arr.shape[1:],  # TODO is this used anywhere??
-                overlap_crop_coords,
-                stitch_coords,
+            # create tile information
+            tile_info = TileInformation(
+                array_shape=sample.squeeze().shape,
+                tiled=True,
+                last_tile=last_tile,
+                overlap_crop_coords=overlap_crop_coords,
+                stitch_coords=stitch_coords,
             )
+
+            yield tile, tile_info

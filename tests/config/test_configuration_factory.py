@@ -18,14 +18,17 @@ def test_n2v_configuration():
         batch_size=8,
         num_epochs=100,
     )
-    assert config.data.transforms[-1].name == SupportedTransform.N2V_MANIPULATE.value
     assert (
-        config.data.transforms[-1].parameters.strategy
+        config.data_config.transforms[-1].name
+        == SupportedTransform.N2V_MANIPULATE.value
+    )
+    assert (
+        config.data_config.transforms[-1].strategy
         == SupportedPixelManipulation.UNIFORM.value
     )
-    assert not config.data.transforms[-2].parameters.is_3D  # XY_RANDOM_ROTATE90
-    assert not config.data.transforms[-3].parameters.is_3D  # NDFLIP
-    assert not config.algorithm.model.is_3D()
+    assert not config.data_config.transforms[-2].is_3D  # XY_RANDOM_ROTATE90
+    assert not config.data_config.transforms[-3].is_3D  # NDFLIP
+    assert not config.algorithm_config.model.is_3D()
 
 
 def test_n2v_3d_configuration():
@@ -38,14 +41,17 @@ def test_n2v_3d_configuration():
         batch_size=8,
         num_epochs=100,
     )
-    assert config.data.transforms[-1].name == SupportedTransform.N2V_MANIPULATE.value
     assert (
-        config.data.transforms[-1].parameters.strategy
+        config.data_config.transforms[-1].name
+        == SupportedTransform.N2V_MANIPULATE.value
+    )
+    assert (
+        config.data_config.transforms[-1].strategy
         == SupportedPixelManipulation.UNIFORM.value
     )
-    assert config.data.transforms[-2].parameters.is_3D  # XY_RANDOM_ROTATE90
-    assert config.data.transforms[-3].parameters.is_3D  # NDFLIP
-    assert config.algorithm.model.is_3D()
+    assert config.data_config.transforms[-2].is_3D  # XY_RANDOM_ROTATE90
+    assert config.data_config.transforms[-3].is_3D  # NDFLIP
+    assert config.algorithm_config.model.is_3D()
 
 
 def test_n2v_3d_error():
@@ -90,12 +96,12 @@ def test_n2v_model_parameters():
             "num_classes": 5,
         },
     )
-    assert config.algorithm.model.depth == 4
-    assert not config.algorithm.model.n2v2
+    assert config.algorithm_config.model.depth == 4
+    assert not config.algorithm_config.model.n2v2
 
     # set to 1 because no C specified
-    assert config.algorithm.model.in_channels == 1
-    assert config.algorithm.model.num_classes == 1
+    assert config.algorithm_config.model.in_channels == 1
+    assert config.algorithm_config.model.num_classes == 1
 
 
 def test_n2v_model_parameters_channels():
@@ -116,8 +122,8 @@ def test_n2v_model_parameters_channels():
             "num_classes": 5,
         },
     )
-    assert config.algorithm.model.in_channels == 4
-    assert config.algorithm.model.num_classes == 4
+    assert config.algorithm_config.model.in_channels == 4
+    assert config.algorithm_config.model.num_classes == 4
 
 
 def test_n2v_model_parameters_channels_error():
@@ -156,9 +162,12 @@ def test_n2v_no_aug():
         num_epochs=100,
         use_augmentations=False,
     )
-    assert len(config.data.transforms) == 2
-    assert config.data.transforms[-1].name == SupportedTransform.N2V_MANIPULATE.value
-    assert config.data.transforms[-2].name == SupportedTransform.NORMALIZE.value
+    assert len(config.data_config.transforms) == 2
+    assert (
+        config.data_config.transforms[-1].name
+        == SupportedTransform.N2V_MANIPULATE.value
+    )
+    assert config.data_config.transforms[-2].name == SupportedTransform.NORMALIZE.value
 
 
 def test_n2v_augmentation_parameters():
@@ -173,8 +182,8 @@ def test_n2v_augmentation_parameters():
         roi_size=17,
         masked_pixel_percentage=0.5,
     )
-    assert config.data.transforms[-1].parameters.roi_size == 17
-    assert config.data.transforms[-1].parameters.masked_pixel_percentage == 0.5
+    assert config.data_config.transforms[-1].roi_size == 17
+    assert config.data_config.transforms[-1].masked_pixel_percentage == 0.5
 
 
 def test_n2v2():
@@ -189,7 +198,7 @@ def test_n2v2():
         use_n2v2=True,
     )
     assert (
-        config.data.transforms[-1].parameters.strategy
+        config.data_config.transforms[-1].strategy
         == SupportedPixelManipulation.MEDIAN.value
     )
 
@@ -207,7 +216,7 @@ def test_structn2v():
         struct_n2v_span=7,
     )
     assert (
-        config.data.transforms[-1].parameters.struct_mask_axis
+        config.data_config.transforms[-1].struct_mask_axis
         == SupportedStructAxis.HORIZONTAL.value
     )
-    assert config.data.transforms[-1].parameters.struct_mask_span == 7
+    assert config.data_config.transforms[-1].struct_mask_span == 7

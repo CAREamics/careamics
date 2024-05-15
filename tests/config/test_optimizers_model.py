@@ -11,7 +11,7 @@ from careamics.config.support.supported_optimizers import (
     "optimizer_name, parameters",
     [
         (
-            SupportedOptimizer.Adam.value,
+            SupportedOptimizer.ADAM.value,
             {
                 "lr": 0.08,
                 "betas": (0.1, 0.11),
@@ -65,7 +65,7 @@ def test_sgd_missing_parameter():
 def test_optimizer_wrong_values_by_assignments():
     """Test that wrong values cause an error during assignment."""
     optimizer = OptimizerModel(
-        name=SupportedOptimizer.Adam.value, parameters={"lr": 0.08}
+        name=SupportedOptimizer.ADAM.value, parameters={"lr": 0.08}
     )
 
     # name
@@ -97,7 +97,7 @@ def test_optimizer_to_dict_optional():
     "lr_scheduler_name, parameters",
     [
         (
-            SupportedScheduler.ReduceLROnPlateau.value,
+            SupportedScheduler.REDUCE_LR_ON_PLATEAU.value,
             {
                 "mode": "max",
                 "factor": 0.3,
@@ -110,7 +110,7 @@ def test_optimizer_to_dict_optional():
             },
         ),
         (
-            SupportedScheduler.StepLR.value,
+            SupportedScheduler.STEP_LR.value,
             {
                 "step_size": 2,
                 "gamma": 0.3,
@@ -137,10 +137,10 @@ def test_scheduler_parameters(lr_scheduler_name: SupportedScheduler, parameters:
 def test_scheduler_missing_parameter():
     """Test that StepLR scheduler fails if `step_size` is not provided"""
     with pytest.raises(ValueError):
-        LrSchedulerModel(name=SupportedScheduler.StepLR.value, parameters={})
+        LrSchedulerModel(name=SupportedScheduler.STEP_LR.value, parameters={})
 
     # test that it works if lr is provided
     lr_scheduler = LrSchedulerModel(
-        name=SupportedScheduler.StepLR.value, parameters={"step_size": "5"}
+        name=SupportedScheduler.STEP_LR.value, parameters={"step_size": "5"}
     )
     assert lr_scheduler.parameters == {"step_size": "5"}

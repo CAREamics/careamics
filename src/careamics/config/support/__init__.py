@@ -16,6 +16,7 @@ __all__ = [
     "SupportedData",
     "SupportedExtractionStrategy",
     "SupportedStructAxis",
+    "SupportedLogger",
 ]
 
 
@@ -24,6 +25,7 @@ from .supported_algorithms import SupportedAlgorithm
 from .supported_architectures import SupportedArchitecture
 from .supported_data import SupportedData
 from .supported_extraction_strategies import SupportedExtractionStrategy
+from .supported_loggers import SupportedLogger
 from .supported_losses import SupportedLoss
 from .supported_optimizers import SupportedOptimizer, SupportedScheduler
 from .supported_pixel_manipulations import SupportedPixelManipulation

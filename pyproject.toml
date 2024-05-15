@@ -25,8 +25,6 @@ license = { text = "BSD-3-Clause" }
 authors = [
     { name = 'Igor Zubarev', email = 'igor.zubarev@fht.org' },
     { name = 'Joran Deschamps', email = 'joran.deschamps@fht.org' },
-    { name = 'Vera Galinova', email = 'vera.galinova@fht.org' },
-    { name = 'Mehdi Seifi', email = 'mehdi.seifi@fht.org' },
 ]
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -39,12 +37,13 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
+    'torch>=2.0.0',
     'albumentations',
-    'bioimageio.core',
+    'bioimageio.core>=0.6.0',
     'tifffile',
     'psutil',
     'pydantic>=2.5',
-    'pytorch_lightning',
+    'pytorch_lightning>=2.2.0',
     'pyyaml',
     'scikit-image',
     'zarr',
@@ -52,10 +51,19 @@ dependencies = [
 
 [project.optional-dependencies]
 # development dependencies and tooling
-dev = ["pre-commit", "pytest", "pytest-cov", "sybil"]
+dev = [
+    "pre-commit",
+    "pytest",
+    "pytest-cov",
+    "sybil",      # doctesting
+]
 
 # notebooks
-examples = ["jupyter", "careamics-portfolio"]
+examples = ["jupyter", "careamics-portfolio", "matplotlib"]
+
+# loggers
+wandb = ["wandb"]
+tensorboard = ["tensorboard", "protobuf==3.20.3"]
 
 [project.urls]
 homepage = "https://careamics.github.io/"
@@ -159,11 +167,14 @@ ignore = [
 [tool.numpydoc_validation]
 checks = [
     "all",  # report on all checks, except the below
-    "EX01",
-    "SA01",
-    "ES01",
-    "GL02",
-    "GL03",
+    "EX01", # Example section not found
+    "SA01", # See Also section not found
+    "ES01", # Extended Summar not found
+    "GL01", # Docstring text (summary) should start in the line immediately
+    # after the opening quotes
+    "GL02", # Closing quotes should be placed in the line after the last text 
+    # in the docstring
+    "GL03", # Double line break found
 ]
 exclude = [ # don't report on objects that match any of these regex
     "test_*",
