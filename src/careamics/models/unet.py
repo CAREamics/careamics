@@ -380,6 +380,7 @@ class UNet(nn.Module):
             in_channels=num_channels_init * groups,
             out_channels=num_classes,
             kernel_size=1,
+            groups=groups
         )
         self.final_activation = get_activation(final_activation)
 
