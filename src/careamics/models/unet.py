@@ -168,7 +168,7 @@ class UnetDecoder(nn.Module):
         upsampling = nn.Upsample(
             scale_factor=2, mode="bilinear" if conv_dim == 2 else "trilinear"
         )
-        in_channels = out_channels = num_channels_init * 2 * groups ** (depth - 1) 
+        in_channels = out_channels = num_channels_init * groups * (2 ** (depth - 1))
 
         self.n2v2 = n2v2
         self.groups = groups
@@ -191,7 +191,6 @@ class UnetDecoder(nn.Module):
             decoder_blocks.append(
                 Conv_Block(
                     conv_dim,
-                    # TODO: fix with groups
                     in_channels=(
                         in_channels + in_channels // 2 if n > 0 else in_channels
                     ),
@@ -222,7 +221,6 @@ class UnetDecoder(nn.Module):
             Output of the decoder.
         """
         x: torch.Tensor = features[0]
-        # skip_connections: torch.Tensor = features[1:][::-1]
         skip_connections: Tuple[torch.Tensor, ...] = features[-1:0:-1]
 
         x = self.bottleneck(x)
@@ -230,29 +228,59 @@ class UnetDecoder(nn.Module):
         for i, module in enumerate(self.decoder_blocks):
             x = module(x)
             if isinstance(module, nn.Upsample):
-                # divide index by 2 because of pooling layers
+                # divide index by 2 because of upsampling layers
                 skip_connection: torch.Tensor = skip_connections[i // 2]
-                m = x.shape[1]//self.groups
-                n = skip_connection.shape[1]//self.groups
                 if self.n2v2:
                     if x.shape != skip_connections[-1].shape: 
-                        # Makes a list that:
-                        # - Alternates between x & respective skip connection
-                        # - Iterates through the sliced groups of the tensor 
-                        interleaved: List[torch.Tensor] = [
-                            t[:, g*i : (g + 1)*i] 
-                            for g in range(self.groups)
-                            for t, i in zip([x, skip_connection], [m, n])
-                        ]
-                        x = torch.cat(interleaved, axis=1)
+                        x = self._interleave(x, skip_connection, self.groups)
                 else:
-                    interleaved: List[torch.Tensor] = [
-                        t[:, g*i : (g + 1)*i] 
-                        for g in range(self.groups)
-                        for t, i in zip([x, skip_connection], [m, n])
-                    ]
-                    x = torch.cat(interleaved, axis=1)
+                    x = self._interleave(x, skip_connection, self.groups)
         return x
+    
+    @staticmethod
+    def _interleave(
+        A: torch.Tensor, B: torch.Tensor, groups: int
+    ) -> torch.Tensor:
+        """
+        Splits the tensors `A` and `B` into equally sized groups along the 
+        channel axis (axis=1); then concatenates the groups in alternating 
+        order along the channel axis, starting with the first group from tensor
+        A.
+
+        Parameters
+        ----------
+        A: torch.Tensor
+        B: torch.Tensor
+        groups: int
+            The number of groups.
+
+        Returns
+        -------
+        torch.Tensor
+
+        Raises
+        ------
+        ValueError:
+            If either of `A` or `B`'s channel axis is not divisible by `groups`.
+        """
+        if (A.shape[1] % groups != 0) or (B.shape[1] % groups != 0):
+            raise ValueError(
+                f"Number of channels not divisible by {groups} groups."
+            )
+        
+        m = A.shape[1] // groups
+        n = B.shape[1] // groups
+
+        A_groups: List[torch.Tensor] = [A[:, i*m:(i+1)*m] for i in range(groups)]
+        B_groups: List[torch.Tensor] = [B[:, i*n:(i+1)*n] for i in range(groups)]
+
+        interleaved = torch.cat([
+            tensor_list[i] 
+            for i in range(groups) 
+            for tensor_list in [A_groups, B_groups] 
+        ], dim=1)
+
+        return interleaved
 
 
 class UNet(nn.Module):
