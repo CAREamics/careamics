@@ -268,12 +268,17 @@ class LadderVAE(nn.Module):
         # unless we want to prevent this
         stride = 1 if self.no_initial_downscaling else 2
         self.first_bottom_up = self.create_first_bottom_up(stride)
+        
+        # Input Branches for Lateral Contextualization
         self.multiscale_retain_spatial_dims = config.model.multiscale_retain_spatial_dims
-        self.lowres_first_bottom_ups = self._multiscale_count = None
+        self.lowres_first_bottom_ups = self._multiscale_count = None # ?why is this set to None? 
+        # NOTE: In this way we always skip the initialization of lowres_first_bottom_ups layers,
+        # as _multiscal_count is now set to 1 inside _init_multires function, and hence we don't
+        # reach the loop for input branch modules initialization
         self._init_multires(config)
 
-        # other bottom-up layers
-        enable_multiscale = self._multiscale_count is not None and self._multiscale_count > 1
+        # Other bottom-up layers
+        enable_multiscale = self._multiscale_count is not None and self._multiscale_count > 1 # always False...
         self.multiscale_decoder_retain_spatial_dims = self.multiscale_retain_spatial_dims and enable_multiscale
         self.bottom_up_layers = self.create_bottom_up_layers(config.model.multiscale_lowres_separate_branch)
 
@@ -330,9 +335,9 @@ class LadderVAE(nn.Module):
         nonlin = self.get_nonlin()
         modules = [
             nn.Conv2d(
-                self.color_ch,
-                self.encoder_n_filters,
-                self.encoder_res_block_kernel,
+                in_channels=self.color_ch,
+                out_channels=self.encoder_n_filters,
+                kernel_size=self.encoder_res_block_kernel,
                 padding=0 if self.encoder_res_block_skip_padding else self.encoder_res_block_kernel // 2,
                 stride=init_stride
             ),
@@ -365,11 +370,15 @@ class LadderVAE(nn.Module):
         This method creates the stack of bottom-up layers of the Encoder
         that are used to generate the so-called `bu_values`.
         
+        NOTE:
+            If `self._multiscale_count < self.n_layers`, then LC is done only in the first
+            `self._multiscale_count` bottom-up layers (starting from the bottom).
+        
         Parameters
         ----------
         lowres_separate_branch: bool
-            Whether the residual block(s) encoding the low-res input should be shared (`False`) or
-            not (`True`) with the primary flow "same-size" residual block(s) of the `BottomUpLayer`(s).
+            Whether the residual block(s) used for encoding the low-res input are shared (`False`) or
+            not (`True`) with the "same-size" residual block(s) in the `BottomUpLayer`'s primary flow.
         """
         
         # Whether to use Lateral Contextualization (LC)
@@ -381,14 +390,20 @@ class LadderVAE(nn.Module):
         for i in range(self.n_layers):
             # Whether this is the top layer
             is_top = i == self.n_layers - 1
+            
+            # LC applied only to the first _multiscale_count layers
             layer_enable_multiscale = enable_multiscale and self._multiscale_count > i + 1
-            # if multiscale is enabled, this is the factor by which the lowres tensor will be larger than
+            
+            # If multiscale is enabled, this factor determines the factor by which the low-resolution tensor is larger
             multiscale_lowres_size_factor *= (1 + int(layer_enable_multiscale))
+            
+            output_expected_shape = (
+                self.img_shape[0] // 2**(i + 1),                     
+                self.img_shape[1] // 2**(i + 1)
+            ) if self._multiscale_count > 1 else None
+            
             # Add bottom-up deterministic layer at level i.
-            # It's a sequence of residual blocks (BottomUpDeterministicResBlock)
-            # possibly with downsampling between them.
-            output_expected_shape = (self.img_shape[0] // 2**(i + 1),
-                                     self.img_shape[1] // 2**(i + 1)) if self._multiscale_count > 1 else None
+            # It's a sequence of residual blocks (BottomUpDeterministicResBlock), possibly with downsampling between them.
             bottom_up_layers.append(
                 BottomUpLayer(
                     n_res_blocks=self.encoder_blocks_per_layer,
@@ -402,13 +417,14 @@ class LadderVAE(nn.Module):
                     res_block_skip_padding=self.encoder_res_block_skip_padding,
                     gated=self.gated,
                     lowres_separate_branch=lowres_separate_branch,
-                    enable_multiscale=enable_multiscale,
+                    enable_multiscale=enable_multiscale, # shouldn't the arg be `layer_enable_multiscale` here?
                     multiscale_retain_spatial_dims=self.multiscale_retain_spatial_dims,
                     multiscale_lowres_size_factor=multiscale_lowres_size_factor,
                     decoder_retain_spatial_dims=self.multiscale_decoder_retain_spatial_dims,
                     output_expected_shape=output_expected_shape
                 )
             )
+            
         return bottom_up_layers
 
 

@@ -97,7 +97,7 @@ class ResidualBlock(nn.Module):
         kernel = list(kernel)
         self.skip_padding = skip_padding
         pad = [0] * len(kernel) if self.skip_padding else [k // 2 for k in kernel]
-        print(kernel, pad)
+        # print(kernel, pad)
         
         modules = []        
         if block_type == 'cabdcabd':
@@ -176,7 +176,7 @@ class ResBlockWithResampling(nn.Module):
     """
     Residual block that takes care of resampling (i.e. downsampling or upsampling) steps (by a factor 2).
     It is structured as follows:
-        1. `pre_conv`: a downsampling or upsampling convolutional layer in case of resampling, or 
+        1. `pre_conv`: a downsampling or upsampling strided convolutional layer in case of resampling, or 
             a 1x1 convolutional layer that maps the number of channels of the input to `inner_channels`.
         2. `ResidualBlock`
         3. `post_conv`: a 1x1 convolutional layer that maps the number of channels to `c_out`.
@@ -251,6 +251,7 @@ class ResBlockWithResampling(nn.Module):
         conv2d_bias: bool, optional
             Whether to use bias term in convolutions. Default is `True`.
         """
+        
         super().__init__()
         assert mode in ['top-down', 'bottom-up']
         
@@ -313,6 +314,7 @@ class ResBlockWithResampling(nn.Module):
             x = self.pre_conv(x)
 
         x = self.res(x)
+        
         if self.post_conv is not None:
             x = self.post_conv(x)
         return x
@@ -466,10 +468,10 @@ class BottomUpLayer(nn.Module):
                 multiscale_lowres_size_factor=multiscale_lowres_size_factor,
             )
 
-        msg = f'[{self.__class__.__name__}] McEnabled:{int(enable_multiscale)} '
-        if enable_multiscale:
-            msg += f'McParallelBeam:{int(multiscale_retain_spatial_dims)} McFactor{multiscale_lowres_size_factor}'
-        print(msg)
+        # msg = f'[{self.__class__.__name__}] McEnabled:{int(enable_multiscale)} '
+        # if enable_multiscale:
+        #     msg += f'McParallelBeam:{int(multiscale_retain_spatial_dims)} McFactor{multiscale_lowres_size_factor}'
+        # print(msg)
 
 
     def _init_multiscale(
@@ -1061,7 +1063,7 @@ class TopDownLayer(nn.Module):
                     res_block_skip_padding=res_block_skip_padding,
                 )
                 
-        print(f'[{self.__class__.__name__}] normalize_latent_factor:{self.normalize_latent_factor}')
+        # print(f'[{self.__class__.__name__}] normalize_latent_factor:{self.normalize_latent_factor}')
 
 
     def sample_from_q(
