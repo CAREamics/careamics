@@ -4,7 +4,7 @@ UNet model.
 A UNet encoder, decoder and complete model.
 """
 
-from typing import Any, List, Union, Tuple
+from typing import Any, List, Tuple, Union
 
 import torch
 import torch.nn as nn
@@ -46,7 +46,7 @@ class UnetEncoder(nn.Module):
         dropout: float = 0.0,
         pool_kernel: int = 2,
         n2v2: bool = False,
-        groups: int = 1
+        groups: int = 1,
     ) -> None:
         """
         Constructor.
@@ -88,7 +88,7 @@ class UnetEncoder(nn.Module):
                     out_channels=out_channels,
                     dropout_perc=dropout,
                     use_batch_norm=use_batch_norm,
-                    groups=groups
+                    groups=groups,
                 )
             )
             encoder_blocks.append(self.pooling)
@@ -179,7 +179,7 @@ class UnetDecoder(nn.Module):
             intermediate_channel_multiplier=2,
             use_batch_norm=use_batch_norm,
             dropout_perc=dropout,
-            groups=self.groups
+            groups=self.groups,
         )
 
         decoder_blocks: List[nn.Module] = []
@@ -198,7 +198,7 @@ class UnetDecoder(nn.Module):
                     dropout_perc=dropout,
                     activation="ReLU",
                     use_batch_norm=use_batch_norm,
-                    groups=groups
+                    groups=groups,
                 )
             )
 
@@ -230,19 +230,17 @@ class UnetDecoder(nn.Module):
                 # divide index by 2 because of upsampling layers
                 skip_connection: torch.Tensor = skip_connections[i // 2]
                 if self.n2v2:
-                    if x.shape != skip_connections[-1].shape: 
+                    if x.shape != skip_connections[-1].shape:
                         x = self._interleave(x, skip_connection, self.groups)
                 else:
                     x = self._interleave(x, skip_connection, self.groups)
         return x
-    
+
     @staticmethod
-    def _interleave(
-        A: torch.Tensor, B: torch.Tensor, groups: int
-    ) -> torch.Tensor:
+    def _interleave(A: torch.Tensor, B: torch.Tensor, groups: int) -> torch.Tensor:
         """
-        Splits the tensors `A` and `B` into equally sized groups along the 
-        channel axis (axis=1); then concatenates the groups in alternating 
+        Splits the tensors `A` and `B` into equally sized groups along the
+        channel axis (axis=1); then concatenates the groups in alternating
         order along the channel axis, starting with the first group from tensor
         A.
 
@@ -263,21 +261,26 @@ class UnetDecoder(nn.Module):
             If either of `A` or `B`'s channel axis is not divisible by `groups`.
         """
         if (A.shape[1] % groups != 0) or (B.shape[1] % groups != 0):
-            raise ValueError(
-                f"Number of channels not divisible by {groups} groups."
-            )
-        
+            raise ValueError(f"Number of channels not divisible by {groups} groups.")
+
         m = A.shape[1] // groups
         n = B.shape[1] // groups
 
-        A_groups: List[torch.Tensor] = [A[:, i*m:(i+1)*m] for i in range(groups)]
-        B_groups: List[torch.Tensor] = [B[:, i*n:(i+1)*n] for i in range(groups)]
+        A_groups: List[torch.Tensor] = [
+            A[:, i * m : (i + 1) * m] for i in range(groups)
+        ]
+        B_groups: List[torch.Tensor] = [
+            B[:, i * n : (i + 1) * n] for i in range(groups)
+        ]
 
-        interleaved = torch.cat([
-            tensor_list[i] 
-            for i in range(groups) 
-            for tensor_list in [A_groups, B_groups] 
-        ], dim=1)
+        interleaved = torch.cat(
+            [
+                tensor_list[i]
+                for i in range(groups)
+                for tensor_list in [A_groups, B_groups]
+            ],
+            dim=1,
+        )
 
         return interleaved
 
@@ -363,7 +366,7 @@ class UNet(nn.Module):
             dropout=dropout,
             pool_kernel=pool_kernel,
             n2v2=n2v2,
-            groups=groups
+            groups=groups,
         )
 
         self.decoder = UnetDecoder(
@@ -373,13 +376,13 @@ class UNet(nn.Module):
             use_batch_norm=use_batch_norm,
             dropout=dropout,
             n2v2=n2v2,
-            groups=groups
+            groups=groups,
         )
         self.final_conv = getattr(nn, f"Conv{conv_dims}d")(
             in_channels=num_channels_init * groups,
             out_channels=num_classes,
             kernel_size=1,
-            groups=groups
+            groups=groups,
         )
         self.final_activation = get_activation(final_activation)
 
