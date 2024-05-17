@@ -46,7 +46,7 @@ class UnetEncoder(nn.Module):
         dropout: float = 0.0,
         pool_kernel: int = 2,
         n2v2: bool = False,
-        independent_channels: bool = True
+        groups: int = 1
     ) -> None:
         """
         Constructor.
@@ -69,7 +69,6 @@ class UnetEncoder(nn.Module):
             Kernel size for the max pooling layers, by default 2.
         """
         super().__init__()
-        groups = in_channels if independent_channels else 1
 
         self.pooling = (
             getattr(nn, f"MaxPool{conv_dim}d")(kernel_size=pool_kernel)
@@ -364,7 +363,7 @@ class UNet(nn.Module):
             dropout=dropout,
             pool_kernel=pool_kernel,
             n2v2=n2v2,
-            independent_channels=independent_channels
+            groups=groups
         )
 
         self.decoder = UnetDecoder(
