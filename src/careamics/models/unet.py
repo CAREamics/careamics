@@ -35,7 +35,7 @@ class UnetEncoder(nn.Module):
     pool_kernel : int, optional
         Kernel size for the max pooling layers, by default 2.
     groups: int, optional
-        Number of blocked connections from input channels to output 
+        Number of blocked connections from input channels to output
         channels, by default 1.
     """
 
@@ -71,7 +71,7 @@ class UnetEncoder(nn.Module):
         pool_kernel : int, optional
             Kernel size for the max pooling layers, by default 2.
         groups: int, optional
-            Number of blocked connections from input channels to output 
+            Number of blocked connections from input channels to output
             channels, by default 1.
         """
         super().__init__()
@@ -141,7 +141,7 @@ class UnetDecoder(nn.Module):
     dropout : float, optional
         Dropout probability, by default 0.0.
     groups: int, optional
-        Number of blocked connections from input channels to output 
+        Number of blocked connections from input channels to output
         channels, by default 1.
     """
 
@@ -171,7 +171,7 @@ class UnetDecoder(nn.Module):
         dropout : float, optional
             Dropout probability, by default 0.0.
         groups: int, optional
-            Number of blocked connections from input channels to output 
+            Number of blocked connections from input channels to output
             channels, by default 1.
         """
         super().__init__()
