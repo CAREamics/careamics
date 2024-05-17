@@ -135,6 +135,7 @@ def test_train_array(tmp_path: Path, minimum_configuration: dict):
     )
     assert (tmp_path / "model.zip").exists()
 
+
 @pytest.mark.parametrize("independent_channels", [False, True])
 def test_train_array_channel(
     tmp_path: Path, minimum_configuration: dict, independent_channels: bool
@@ -154,7 +155,6 @@ def test_train_array_channel(
     config.data_config.batch_size = 2
     config.data_config.data_type = SupportedData.ARRAY.value
     config.data_config.patch_size = (8, 8)
-    
 
     # instantiate CAREamist
     careamist = CAREamist(source=config, work_dir=tmp_path)

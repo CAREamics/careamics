@@ -69,6 +69,7 @@ def test_blurpool3d(input_shape):
         [1, 1] + [i // 2 for i in input_shape[2:]]
     )
 
+
 @pytest.mark.parametrize("independent_channels", [True, False])
 def test_independent_channels(independent_channels):
     """
@@ -80,16 +81,16 @@ def test_independent_channels(independent_channels):
     input_shape = (1, n_channels, 8, 8)
 
     # input 1
-    x1 = torch.randn((input_shape))
+    x1 = torch.randn(input_shape)
     # input 2: channel 1 same as input 1, channel 2 all zeros
     x2 = x1.clone()
     x2[:, 1] = 0
 
     model = UNet(
-        conv_dims=2, 
-        in_channels=n_channels, 
+        conv_dims=2,
+        in_channels=n_channels,
         num_classes=n_channels,
-        independent_channels=independent_channels
+        independent_channels=independent_channels,
     )
     model.eval()
 
@@ -105,6 +106,5 @@ def test_independent_channels(independent_channels):
         assert (y1[:, 0] == y2[:, 0]).all()
     else:
         # when not independent
-        # channel 2 different between inputs => all channels different between outputs 
+        # channel 2 different between inputs => all channels different between outputs
         assert (y1[:, 0] != y2[:, 0]).any()
-
