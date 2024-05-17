@@ -34,6 +34,9 @@ class UnetEncoder(nn.Module):
         Dropout probability, by default 0.0.
     pool_kernel : int, optional
         Kernel size for the max pooling layers, by default 2.
+    groups: int, optional
+        Number of blocked connections from input channels to output 
+        channels, by default 1.
     """
 
     def __init__(
@@ -67,6 +70,9 @@ class UnetEncoder(nn.Module):
             Dropout probability, by default 0.0.
         pool_kernel : int, optional
             Kernel size for the max pooling layers, by default 2.
+        groups: int, optional
+            Number of blocked connections from input channels to output 
+            channels, by default 1.
         """
         super().__init__()
 
@@ -134,6 +140,9 @@ class UnetDecoder(nn.Module):
         Whether to use batch normalization, by default True.
     dropout : float, optional
         Dropout probability, by default 0.0.
+    groups: int, optional
+        Number of blocked connections from input channels to output 
+        channels, by default 1.
     """
 
     def __init__(
@@ -161,6 +170,9 @@ class UnetDecoder(nn.Module):
             Whether to use batch normalization, by default True.
         dropout : float, optional
             Dropout probability, by default 0.0.
+        groups: int, optional
+            Number of blocked connections from input channels to output 
+            channels, by default 1.
         """
         super().__init__()
 
@@ -349,6 +361,9 @@ class UNet(nn.Module):
             Kernel size of the pooling layers, by default 2.
         last_activation : Optional[Callable], optional
             Activation function to use for the last layer, by default None.
+        independent_channels : bool
+            Whether to train parallel independent networks for each channel, by
+            default True.
         """
         super().__init__()
 
