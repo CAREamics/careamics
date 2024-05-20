@@ -288,6 +288,8 @@ def create_n2n_configuration(
         Number of epochs.
     use_augmentations : bool, optional
         Whether to use augmentations, by default True.
+    independent_channels : bool, optional
+        Whether to train all channels independently, by default False.
     loss : Literal["mae", "mse"], optional
         Loss function to use, by default "mae".
     n_channels : int, optional
@@ -449,7 +451,7 @@ def create_n2v_configuration(
     ...     struct_n2v_span=7
     ... )
 
-    If you are training multiple channels independently, then you need to specify the 
+    If you are training multiple channels independently, then you need to specify the
     number of channels:
     >>> config = create_n2v_configuration(
     ...     experiment_name="n2v_experiment",

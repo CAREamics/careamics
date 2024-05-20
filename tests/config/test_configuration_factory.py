@@ -1,9 +1,9 @@
 import pytest
 
 from careamics.config import (
-    create_n2v_configuration,
+    create_care_configuration,
     create_n2n_configuration,
-    create_care_configuration
+    create_n2v_configuration,
 )
 from careamics.config.support import (
     SupportedPixelManipulation,
@@ -22,11 +22,11 @@ def test_n2n_configuration():
         batch_size=8,
         num_epochs=100,
     )
-    
+
     assert config.data_config.transforms[0].name == SupportedTransform.NORMALIZE.value
     assert config.data_config.transforms[1].name == SupportedTransform.NDFLIP.value
     assert (
-        config.data_config.transforms[2].name 
+        config.data_config.transforms[2].name
         == SupportedTransform.XY_RANDOM_ROTATE90.value
     )
     assert not config.data_config.transforms[-1].is_3D  # XY_RANDOM_ROTATE90
@@ -97,6 +97,7 @@ def test_n2n_channels_errors():
             n_channels=5,
         )
 
+
 def test_n2n_aug_off():
     """Test that the augmentations are correctly disabled."""
     config = create_n2n_configuration(
@@ -110,7 +111,6 @@ def test_n2n_aug_off():
     )
     assert len(config.data_config.transforms) == 1
     assert config.data_config.transforms[-1].name == SupportedTransform.NORMALIZE.value
-
 
 
 @pytest.mark.parametrize("ind_channels", [True, False])
@@ -142,7 +142,7 @@ def test_n2n_chanels_equal():
     )
     assert config.algorithm_config.model.in_channels == 4
     assert config.algorithm_config.model.num_classes == 4
-    
+
 
 def test_care_configuration():
     """Test that CARE configuration can be created."""
@@ -154,11 +154,11 @@ def test_care_configuration():
         batch_size=8,
         num_epochs=100,
     )
-    
+
     assert config.data_config.transforms[0].name == SupportedTransform.NORMALIZE.value
     assert config.data_config.transforms[1].name == SupportedTransform.NDFLIP.value
     assert (
-        config.data_config.transforms[2].name 
+        config.data_config.transforms[2].name
         == SupportedTransform.XY_RANDOM_ROTATE90.value
     )
     assert not config.data_config.transforms[-1].is_3D  # XY_RANDOM_ROTATE90
@@ -229,6 +229,7 @@ def test_care_channels_errors():
             n_channels_in=5,
         )
 
+
 def test_care_aug_off():
     """Test that the augmentations are correctly disabled."""
     config = create_care_configuration(
@@ -242,7 +243,6 @@ def test_care_aug_off():
     )
     assert len(config.data_config.transforms) == 1
     assert config.data_config.transforms[-1].name == SupportedTransform.NORMALIZE.value
-
 
 
 @pytest.mark.parametrize("ind_channels", [True, False])
@@ -274,7 +274,7 @@ def test_care_chanels_out():
     )
     assert config.algorithm_config.model.num_classes == 4
 
-    # otherwise set independently    
+    # otherwise set independently
     config = create_care_configuration(
         experiment_name="test",
         data_type="tiff",
@@ -283,10 +283,9 @@ def test_care_chanels_out():
         batch_size=8,
         num_epochs=100,
         n_channels_in=4,
-        n_channels_out=5
+        n_channels_out=5,
     )
     assert config.algorithm_config.model.num_classes == 5
-
 
 
 def test_n2v_configuration():
