@@ -15,6 +15,8 @@ Therefore, the number of channels in the output equals the number of channels in
 3. The difference in the behaviour of the top-most TopDownLayer and the other is that:
     - In the topmost, `p_params` are obtained from the prior --> shape: [B, 2*z_dims, img_shape[0]//overall_downsc, img_shape[1]//overall_downsc]
     - `q_params` is simply obtained from the associated `bu_value` tensor, and not through combination with `p_params`.
+On the contrary, for subsequent TopDownLayer's, the p_params tensor is obtained from input_ argument, and q_params is obtained by merging p_params with
+the bu_value tensor relative to that layer.
 
 4. The `transform_p_params` in `NormalStochasticBlock2d` is always true expecpt made for the top-most `TopDownLayer`.
 Indeed, in that case the # of channels of `p_params` is already 2*z_dims, so it doesn't need any further transformation.

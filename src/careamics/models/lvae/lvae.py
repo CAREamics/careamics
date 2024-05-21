@@ -73,16 +73,16 @@ class LadderVAE(nn.Module):
         
         # -------------------------------------------------------
         # Customizable attributes
-        self.image_size = config.data.image_size
-        self.analytical_kl = config.model.analytical_kl
-        self.nonlin = config.model.nonlin
-        self.z_dims = config.model.z_dims
-        self.n_layers = len(self.z_dims)
-        self.encoder_n_filters = config.model.encoder.n_filters
-        self.decoder_n_filters = config.model.decoder.n_filters
-        self.encoder_dropout = config.model.encoder.dropout
-        self.decoder_dropout = config.model.decoder.dropout
-        self.enable_noise_model = config.model.enable_noise_model
+        self.image_size = config.image_size
+        self.z_dims = config.z_dims
+        self.encoder_n_filters = config.n_filters
+        self.decoder_n_filters = config.n_filters
+        self.encoder_dropout = config.dropout
+        self.decoder_dropout = config.dropout
+        self.nonlin = config.nonlin
+        self.enable_noise_model = config.enable_noise_model
+        self._multiscale_count = config.multiscale_lowres_count
+        self.analytical_kl = config.analytical_kl
         # -------------------------------------------------------
         
         # -------------------------------------------------------
@@ -112,7 +112,7 @@ class LadderVAE(nn.Module):
         self._stochastic_use_naive_exponential = False
         self._enable_topdown_normalize_factor = True
         self.skip_nboundary_pixels_from_loss = None
-
+    
         self._tethered_to_input = False
         self._tethered_ch1_scalar = self._tethered_ch2_scalar = None
         if self._tethered_to_input:
@@ -121,8 +121,15 @@ class LadderVAE(nn.Module):
             self._tethered_ch1_scalar = nn.Parameter(torch.ones(1) * 0.5, requires_grad=requires_grad)
             self._tethered_ch2_scalar = nn.Parameter(torch.ones(1) * 2.0, requires_grad=requires_grad)
 
+        self.n_layers = len(self.z_dims)
         self.encoder_no_padding_mode = self.encoder_res_block_skip_padding is True and self.encoder_res_block_kernel > 1
         self.decoder_no_padding_mode = self.decoder_res_block_skip_padding is True and self.decoder_res_block_kernel > 1
+        
+        # Attributes that handle LC
+        self.enable_multiscale = self._multiscale_count is not None and self._multiscale_count > 1
+        self.multiscale_retain_spatial_dims = True
+        self.multiscale_lowres_separate_branch = False
+        self.multiscale_decoder_retain_spatial_dims = self.multiscale_retain_spatial_dims and self.enable_multiscale
         # -------------------------------------------------------
         
         # -------------------------------------------------------
@@ -265,14 +272,11 @@ class LadderVAE(nn.Module):
         self.first_bottom_up = self.create_first_bottom_up(stride)
         
         # Input Branches for Lateral Contextualization
-        self.multiscale_retain_spatial_dims = config.model.multiscale_retain_spatial_dims
-        self.lowres_first_bottom_ups = self._multiscale_count = None
-        self._init_multires(config)
+        self.lowres_first_bottom_ups = None
+        self._init_multires()
 
         # Other bottom-up layers
-        enable_multiscale = self._multiscale_count is not None and self._multiscale_count > 1 # always False...
-        self.multiscale_decoder_retain_spatial_dims = self.multiscale_retain_spatial_dims and enable_multiscale
-        self.bottom_up_layers = self.create_bottom_up_layers(config.model.multiscale_lowres_separate_branch)
+        self.bottom_up_layers = self.create_bottom_up_layers(self.multiscale_lowres_separate_branch)
 
         # Top-down layers
         self.top_down_layers = self.create_top_down_layers()
@@ -375,7 +379,6 @@ class LadderVAE(nn.Module):
         
         # Whether to use Lateral Contextualization (LC)
         multiscale_lowres_size_factor = 1
-        enable_multiscale = self._multiscale_count is not None and self._multiscale_count > 1
         
         bottom_up_layers = nn.ModuleList([])
         nonlin = self.get_nonlin()
@@ -384,7 +387,7 @@ class LadderVAE(nn.Module):
             is_top = i == self.n_layers - 1
             
             # LC applied only to the first _multiscale_count layers
-            layer_enable_multiscale = enable_multiscale and self._multiscale_count > i + 1
+            layer_enable_multiscale = self.enable_multiscale and self._multiscale_count > i + 1
             
             # If multiscale is enabled, this factor determines the factor by which the low-resolution tensor is larger
             multiscale_lowres_size_factor *= (1 + int(layer_enable_multiscale))
@@ -409,7 +412,7 @@ class LadderVAE(nn.Module):
                     res_block_skip_padding=self.encoder_res_block_skip_padding,
                     gated=self.gated,
                     lowres_separate_branch=lowres_separate_branch,
-                    enable_multiscale=enable_multiscale, # shouldn't the arg be `layer_enable_multiscale` here?
+                    enable_multiscale=self.enable_multiscale, # shouldn't the arg be `layer_enable_multiscale` here?
                     multiscale_retain_spatial_dims=self.multiscale_retain_spatial_dims,
                     multiscale_lowres_size_factor=multiscale_lowres_size_factor,
                     decoder_retain_spatial_dims=self.multiscale_decoder_retain_spatial_dims,
@@ -556,7 +559,10 @@ class LadderVAE(nn.Module):
         return self.likelihood_NM
 
 
-    def _init_multires(self, config: ml_collections.ConfigDict) -> nn.ModuleList:
+    def _init_multires(
+        self, 
+        config: ml_collections.ConfigDict = None
+    ) -> nn.ModuleList:
         """
         This method defines the input block/branch to encode/compress low-res lateral inputs at different hierarchical levels
         in the multiresolution approach (LC). The role of the input branches is similar to the one of the first bottom-up layer
@@ -570,13 +576,12 @@ class LadderVAE(nn.Module):
         
         stride = 1 if self.no_initial_downscaling else 2
         nonlin = self.get_nonlin()
-        self._multiscale_count = config.data.multiscale_lowres_count
         if self._multiscale_count is None:
             self._multiscale_count = 1
 
         msg = "Multiscale count({}) should not exceed the number of bottom up layers ({}) by more than 1"
-        msg = msg.format(self._multiscale_count, len(config.model.z_dims))
-        assert self._multiscale_count <= 1 or self._multiscale_count <= 1 + len(config.model.z_dims), msg
+        msg = msg.format(self._multiscale_count, self.n_layers)
+        assert self._multiscale_count <= 1 or self._multiscale_count <= 1 + self.n_layers, msg
 
         msg = "if multiscale is enabled, then we are just working with monocrome images."
         assert self._multiscale_count == 1 or self.color_ch == 1, msg
