@@ -1,0 +1,20 @@
+Nice notes about LadderVAE model
+
+1. The `z_dims` parameter:
+    - `z_dims` is a list of int that determines the size of latent tensors (specifically, the # of channels) in the top-down layers.
+    As latent tensor I mean the `z` tensors sampled from the inference distribution q(z).
+    - It is NOT used in the Encoder, where the # of channels of the latents is set by `n_filters`.
+    - Specifically, `z_dims` is important for 2 facts:
+        1. The length of the list determines the number of layers (`n_layers`) in both the Encoder and the Decoder.
+        2. It is used in the `NormalStochasticBlock2d`, where the inputs `p_params` and `q_params` are mapped to `2*z_dims` # of channels using 1x1 convolutions. 
+
+2. Don't be fooled by the number of ouput channels in the Gated layer! Indeed, this block initially doubles the number of channels through a convolutional layer.
+However, it then split the result in 2 chunks and uses one half of the channels as gate (i.e., out = x[first_half] * sigmoid(x[second_half])).
+Therefore, the number of channels in the output equals the number of channels in the input.
+
+3. The difference in the behaviour of the top-most TopDownLayer and the other is that:
+    - In the topmost, `p_params` are obtained from the prior --> shape: [B, 2*z_dims, img_shape[0]//overall_downsc, img_shape[1]//overall_downsc]
+    - `q_params` is simply obtained from the associated `bu_value` tensor, and not through combination with `p_params`.
+
+4. The `transform_p_params` in `NormalStochasticBlock2d` is always true expecpt made for the top-most `TopDownLayer`.
+Indeed, in that case the # of channels of `p_params` is already 2*z_dims, so it doesn't need any further transformation.

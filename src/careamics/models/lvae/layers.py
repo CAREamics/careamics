@@ -1146,7 +1146,8 @@ class TopDownLayer(nn.Module):
         bu_value: torch.Tensor
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
-        In case the padding is not used either (or both) in encoder and decoder, we could have a mismatch. 
+        In case the padding is not used either (or both) in encoder and decoder, we could have a shape mismatch
+        in the spatial dimensions (usually, dim=2 & dim=3). 
         This method performs a centercrop to ensure that both remain aligned.
         
         Parameters

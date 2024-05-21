@@ -455,6 +455,7 @@ class LadderVAE(nn.Module):
         
         top_down_layers = nn.ModuleList([])
         nonlin = self.get_nonlin()
+        # NOTE: top-down layers are created starting from the bottom-most
         for i in range(self.n_layers):
             # Check if this is the top layer
             is_top = i == self.n_layers - 1
@@ -967,7 +968,7 @@ class LadderVAE(nn.Module):
         return padded_size
 
 
-    def get_latent_spatial_size(self, level_idx):
+    def get_latent_spatial_size(self, level_idx: int):
         """
         level_idx: 0 is the bottommost layer, the highest resolution one.
         """
@@ -980,12 +981,13 @@ class LadderVAE(nn.Module):
         return h
 
 
-    def get_top_prior_param_shape(self, n_imgs=1):
+    def get_top_prior_param_shape(self, n_imgs: int = 1):
         # TODO num channels depends on random variable we're using
 
         if self.multiscale_decoder_retain_spatial_dims is False:
             dwnsc = self.overall_downscale_factor
         else:
+            # LC allow the encoder latents to keep the same (H, W) size at different levels
             actual_downsampling = self.n_layers + 1 - self._multiscale_count
             dwnsc = 2**actual_downsampling
 
