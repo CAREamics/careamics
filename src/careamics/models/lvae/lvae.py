@@ -71,11 +71,74 @@ class LadderVAE(nn.Module):
         
         super().__init__()
         
+        # -------------------------------------------------------
+        # Customizable attributes
+        self.image_size = config.data.image_size
+        self.analytical_kl = config.model.analytical_kl
+        self.nonlin = config.model.nonlin
+        self.z_dims = config.model.z_dims
+        self.n_layers = len(self.z_dims)
+        self.encoder_n_filters = config.model.encoder.n_filters
+        self.decoder_n_filters = config.model.decoder.n_filters
+        self.encoder_dropout = config.model.encoder.dropout
+        self.decoder_dropout = config.model.decoder.dropout
+        self.enable_noise_model = config.model.enable_noise_model
+        # -------------------------------------------------------
+        
+        # -------------------------------------------------------
+        # Model attributes
+        self.encoder_blocks_per_layer = 1
+        self.decoder_blocks_per_layer = 1
+        self.bottomup_batchnorm = True
+        self.topdown_batchnorm = True
+        self.topdown_conv2d_bias = True
+        self.gated = True
+        self.encoder_res_block_kernel = 3
+        self.decoder_res_block_kernel = 3
+        self.encoder_res_block_skip_padding = False
+        self.decoder_res_block_skip_padding = False
+        self.merge_type = "residual"
+        self.no_initial_downscaling = True
+        self.skip_bottomk_buvalues = 0
+        self.non_stochastic_version = False
+        self.stochastic_skip = True
+        self.learn_top_prior = True
+        self.res_block_type = "bacdbacd"
+        self.reconstruction_mode = False
+        self.mode_pred = False
+        self.predict_logvar = 'pixelwise'  #'pixelwise' #'channelwise'
+        self.logvar_lowerbound = -5
+        self._var_clip_max = 20
+        self._stochastic_use_naive_exponential = False
+        self._enable_topdown_normalize_factor = True
+        self.skip_nboundary_pixels_from_loss = None
+
+        self._tethered_to_input = False
+        self._tethered_ch1_scalar = self._tethered_ch2_scalar = None
+        if self._tethered_to_input:
+            target_ch = 1
+            requires_grad = False
+            self._tethered_ch1_scalar = nn.Parameter(torch.ones(1) * 0.5, requires_grad=requires_grad)
+            self._tethered_ch2_scalar = nn.Parameter(torch.ones(1) * 2.0, requires_grad=requires_grad)
+
+        self.encoder_no_padding_mode = self.encoder_res_block_skip_padding is True and self.encoder_res_block_kernel > 1
+        self.decoder_no_padding_mode = self.decoder_res_block_skip_padding is True and self.decoder_res_block_kernel > 1
+        # -------------------------------------------------------
+        
+        # -------------------------------------------------------
+        # Data attributes
+        self._input_is_sum = False
+        self.color_ch = 1
+        self.img_shape = (self.image_size, self.image_size)
+        self.normalized_input = True
+        # -------------------------------------------------------   
+
+        # -------------------------------------------------------        
         # Loss attributes
-        self.ch1_recons_w = config.loss.get('ch1_recons_w', 1) 
-        self.ch2_recons_w = config.loss.get('ch2_recons_w', 1)
-        self._restricted_kl = config.loss.get('restricted_kl', False) #
-        self.kl_loss_formulation = config.loss.get('kl_loss_formulation', None) #
+        self.ch1_recons_w = 1
+        self.ch2_recons_w = 1
+        self._restricted_kl = False
+        self.kl_loss_formulation = 'denoisplit_usplit'
         assert self.kl_loss_formulation in [
             None, '', 'usplit', 'denoisplit', 'denoisplit_usplit'], f"""
             Invalid kl_loss_formulation. {self.kl_loss_formulation}"""
@@ -93,16 +156,18 @@ class LadderVAE(nn.Module):
         self.mixed_rec_w_step = 0
         self.enable_mixed_rec = False
         self.nbr_consistency_w = 0
-        self._exclusion_loss_weight = config.loss.get('exclusion_loss_weight', 0)
+        self._exclusion_loss_weight = 0
+        self.channel_1_w = 1
+        self.channel_2_w = 1
         
         # Setting the loss_type
-        self.loss_type = config.loss.get('loss_type', None)
+        # self.loss_type = config.loss.get('loss_type', None)
+        self.loss_type = LossType.DenoiSplitMuSplit
         self._denoisplit_w = self._usplit_w = None
         if self.loss_type == LossType.DenoiSplitMuSplit:
-            self._denoisplit_w = config.loss.denoisplit_w
-            self._usplit_w = config.loss.usplit_w
+            self._usplit_w = 0
+            self._denoisplit_w = 1 - self._usplit_w
             assert self._denoisplit_w + self._usplit_w == 1
-        
         if self.loss_type in [
                 LossType.ElboMixedReconstruction, LossType.ElboSemiSupMixedReconstruction,
                 LossType.ElboRestrictedReconstruction
@@ -127,12 +192,9 @@ class LadderVAE(nn.Module):
                 self._grid_sz,
                 nbr_set_count=config.data.get('nbr_set_count', None),
                 focus_on_opposite_gradients=config.model.offset_prediction_focus_on_opposite_gradients)
-        self.channel_1_w = config.loss.get('channel_1_w', 1)
-        self.channel_2_w = config.loss.get('channel_2_w', 1)
-        
-        self.skip_nboundary_pixels_from_loss = config.model.skip_nboundary_pixels_from_loss
+        # -------------------------------------------------------
 
-
+        # -------------------------------------------------------
         # # Training attributes
         # self.lr = config.training.lr
         # self.lr_scheduler_patience = config.training.lr_scheduler_patience
@@ -150,64 +212,12 @@ class LadderVAE(nn.Module):
         # self.lr_scheduler_monitor = self.lr_scheduler_mode = None
         # self._init_lr_scheduler_params(config)
         # self._global_step = 0
-
-        # Data attributes
-        self._input_is_sum = config.data.get('input_is_sum', None)
-        self.color_ch = config.data.get('color_ch', 1)
-        self.img_shape = (config.data.image_size, config.data.image_size)
-        # normalized_input: If input is normalized, we just normalize the target. 
-        # Otherwise, both input and target are normalized.
-        self.normalized_input = config.data.normalized_input
-        self._multiscale_count = config.data.multiscale_lowres_count
-
-        # Model attributes
-        self.enable_noise_model = config.model.enable_noise_model
-        self._stochastic_use_naive_exponential = config.model.decoder.get('stochastic_use_naive_exponential', False)
-        self._enable_topdown_normalize_factor = config.model.get('enable_topdown_normalize_factor', True)
-        self.likelihood_gm = self.likelihood_NM = None
-
-        self._tethered_ch1_scalar = self._tethered_ch2_scalar = None
-        self._tethered_to_input = config.model.get('tethered_to_input', False)
-        if self._tethered_to_input:
-            target_ch = 1
-            requires_grad = config.model.get('tethered_learnable_scalar', False)
-            # a learnable scalar that is multiplied with one channel prediction.
-            self._tethered_ch1_scalar = nn.Parameter(torch.ones(1) * 0.5, requires_grad=requires_grad)
-            self._tethered_ch2_scalar = nn.Parameter(torch.ones(1) * 2.0, requires_grad=requires_grad)
-
-        # Disentangling two grayscale images.
+        # -------------------------------------------------------     
+        
+        # -------------------------------------------------------
+        # Attributes from constructor arguments
         self.target_ch = target_ch
-
-        self.z_dims = config.model.z_dims
-        self.encoder_blocks_per_layer = config.model.encoder.blocks_per_layer
-        self.decoder_blocks_per_layer = config.model.decoder.blocks_per_layer
-
-        self.n_layers = len(self.z_dims)
-        self.stochastic_skip = config.model.stochastic_skip
-        self.bottomup_batchnorm = config.model.encoder.batchnorm
-        self.topdown_batchnorm = config.model.decoder.batchnorm
-
-        self.encoder_n_filters = config.model.encoder.n_filters
-        self.decoder_n_filters = config.model.decoder.n_filters
-
-        self.encoder_dropout = config.model.encoder.dropout
-        self.decoder_dropout = config.model.decoder.dropout
-        self.skip_bottomk_buvalues = config.model.get('skip_bottomk_buvalues', 0)
-
-        # Whether or not to have bias with Conv2D layers.
-        self.topdown_conv2d_bias = config.model.decoder.conv2d_bias
-
-        self.learn_top_prior = config.model.learn_top_prior
-        self.res_block_type = config.model.res_block_type
-        self.encoder_res_block_kernel = config.model.encoder.res_block_kernel
-        self.decoder_res_block_kernel = config.model.decoder.res_block_kernel
-
-        self.encoder_res_block_skip_padding = config.model.encoder.res_block_skip_padding
-        self.decoder_res_block_skip_padding = config.model.decoder.res_block_skip_padding
-
-        self.reconstruction_mode = config.model.get('reconstruction_mode', False)
-
-        self.gated = config.model.gated
+        self.use_uncond_mode_at = use_uncond_mode_at
         
         # Data mean and std used for normalization
         if isinstance(data_mean, np.ndarray):
@@ -222,47 +232,32 @@ class LadderVAE(nn.Module):
         else:
             raise NotImplementedError('data_mean and data_std must be either a numpy array or a dictionary')
 
+        assert (self.data_std is not None)
+        assert (self.data_mean is not None)
+        
+        # Initialize the Noise Model 
+        self.likelihood_gm = self.likelihood_NM = None
         try:
             self.noiseModel = get_noise_model(config)
         except NameError:
             self.noiseModel = None
-            
-        self.merge_type = config.model.merge_type
-        self.analytical_kl = config.model.analytical_kl
-        self.no_initial_downscaling = config.model.no_initial_downscaling
-        self.mode_pred = config.model.mode_pred
-        self.use_uncond_mode_at = use_uncond_mode_at
-        self.nonlin = config.model.nonlin
-
-        self.predict_logvar = config.model.predict_logvar
-        self.logvar_lowerbound = config.model.logvar_lowerbound
-        self.non_stochastic_version = config.model.get('non_stochastic_version', False)
-        self._var_clip_max = config.model.var_clip_max
-
-        self.encoder_no_padding_mode = config.model.encoder.res_block_skip_padding is True and config.model.encoder.res_block_kernel > 1
-        self.decoder_no_padding_mode = config.model.decoder.res_block_skip_padding is True and config.model.decoder.res_block_kernel > 1
-
-        assert (self.data_std is not None)
-        assert (self.data_mean is not None)
         
         if self.noiseModel is None:
             self.likelihood_form = "gaussian"
         else:
             self.likelihood_form = "noise_model"
 
+        # Calculate the downsampling happening in the network
         self.downsample = [1] * self.n_layers
-
-        # Downsample by a factor of 2 at each downsampling operation
         self.overall_downscale_factor = np.power(2, sum(self.downsample))
         if not self.no_initial_downscaling:  # by default do another downscaling
             self.overall_downscale_factor *= 2
 
         assert max(self.downsample) <= self.encoder_blocks_per_layer
         assert len(self.downsample) == self.n_layers
-
-        # Get class of nonlinear activation from string description
-        nonlin = self.get_nonlin()
+        # -------------------------------------------------------
         
+        # -------------------------------------------------------
         ### CREATE MODEL BLOCKS
         # First bottom-up layer: change num channels + downsample by factor 2
         # unless we want to prevent this
@@ -271,10 +266,7 @@ class LadderVAE(nn.Module):
         
         # Input Branches for Lateral Contextualization
         self.multiscale_retain_spatial_dims = config.model.multiscale_retain_spatial_dims
-        self.lowres_first_bottom_ups = self._multiscale_count = None # ?why is this set to None? 
-        # NOTE: In this way we always skip the initialization of lowres_first_bottom_ups layers,
-        # as _multiscal_count is now set to 1 inside _init_multires function, and hence we don't
-        # reach the loop for input branch modules initialization
+        self.lowres_first_bottom_ups = self._multiscale_count = None
         self._init_multires(config)
 
         # Other bottom-up layers
@@ -564,7 +556,7 @@ class LadderVAE(nn.Module):
         return self.likelihood_NM
 
 
-    def _init_multires(self, config) -> nn.ModuleList:
+    def _init_multires(self, config: ml_collections.ConfigDict) -> nn.ModuleList:
         """
         This method defines the input block/branch to encode/compress low-res lateral inputs at different hierarchical levels
         in the multiresolution approach (LC). The role of the input branches is similar to the one of the first bottom-up layer
@@ -578,6 +570,7 @@ class LadderVAE(nn.Module):
         
         stride = 1 if self.no_initial_downscaling else 2
         nonlin = self.get_nonlin()
+        self._multiscale_count = config.data.multiscale_lowres_count
         if self._multiscale_count is None:
             self._multiscale_count = 1
 
