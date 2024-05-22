@@ -377,19 +377,19 @@ class LadderVAE(nn.Module):
             not (`True`) with the "same-size" residual block(s) in the `BottomUpLayer`'s primary flow.
         """
         
-        # Whether to use Lateral Contextualization (LC)
         multiscale_lowres_size_factor = 1
+        nonlin = self.get_nonlin()
         
         bottom_up_layers = nn.ModuleList([])
-        nonlin = self.get_nonlin()
         for i in range(self.n_layers):
             # Whether this is the top layer
             is_top = i == self.n_layers - 1
             
-            # LC applied only to the first _multiscale_count layers
+            # LC is applied only to the first (_multiscale_count - 1) bottom-up layers
             layer_enable_multiscale = self.enable_multiscale and self._multiscale_count > i + 1
             
-            # If multiscale is enabled, this factor determines the factor by which the low-resolution tensor is larger
+            # This factor determines the factor by which the low-resolution tensor is larger
+            # N.B. Only used if layer_enable_multiscale == True, so we updated it only in that case
             multiscale_lowres_size_factor *= (1 + int(layer_enable_multiscale))
             
             output_expected_shape = (

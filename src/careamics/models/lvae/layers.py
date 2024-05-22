@@ -347,7 +347,7 @@ class BottomUpLayer(nn.Module):
     of the `BottomUpLayer` through the `MergeLowRes` layer. It is meaningful to remark that 
     the BUDB that takes care of encoding the low-res input can be either shared with the 
     primary flow (and in that case it is the "same_size" BUDB (or stack of BUDBs) -> see `self.net`),
-    or can be a separate BUDB (or stack of BUDBs) with the same structure as the primary flow.
+    or can be a deep-copy of the primary flow's BUDB.
     This behaviour is controlled by `lowres_separate_branch` parameter. 
     """
 
@@ -404,8 +404,8 @@ class BottomUpLayer(nn.Module):
         enable_multiscale: bool, optional 
             Whether to enable multiscale (Lateral Contextualization) or not. Default is `False`.           
         multiscale_lowres_size_factor: int, optional
-            A factor the expresses the relative size of the bu_value tensor with respect to the 
-            lower-resolution lateral context tensor. Default in `None`.
+            A factor the expresses the relative size of the primary flow tensor with respect to the 
+            lower-resolution lateral input tensor. Default in `None`.
         lowres_separate_branch: bool, optional
             Whether the residual block(s) encoding the low-res input should be shared (`False`) or
             not (`True`) with the primary flow "same-size" residual block(s). Default is `False`.
@@ -418,12 +418,14 @@ class BottomUpLayer(nn.Module):
             The expected shape of the layer output (only used if `enable_multiscale == True`).
             Default is `None`.
         """
+        
         super().__init__()
         
         # Define attributes for Lateral Contextualization
         self.enable_multiscale = enable_multiscale
         self.lowres_separate_branch = lowres_separate_branch
         self.multiscale_retain_spatial_dims = multiscale_retain_spatial_dims
+        self.multiscale_lowres_size_factor = multiscale_lowres_size_factor
         self.decoder_retain_spatial_dims = decoder_retain_spatial_dims
         self.output_expected_shape = output_expected_shape
         assert self.output_expected_shape is None or self.enable_multiscale is True
@@ -456,7 +458,7 @@ class BottomUpLayer(nn.Module):
         self.net = nn.Sequential(*bu_blocks_samesize)
         
         # Using the same net for the low resolution (and larger sized image)
-        self.lowres_net = self.lowres_merge = self.multiscale_lowres_size_factor = None
+        self.lowres_net = self.lowres_merge = None
         if self.enable_multiscale:
             self._init_multiscale(
                 n_filters=n_filters,
@@ -464,8 +466,6 @@ class BottomUpLayer(nn.Module):
                 batchnorm=batchnorm,
                 dropout=dropout,
                 res_block_type=res_block_type,
-                multiscale_retain_spatial_dims=multiscale_retain_spatial_dims,
-                multiscale_lowres_size_factor=multiscale_lowres_size_factor,
             )
 
         # msg = f'[{self.__class__.__name__}] McEnabled:{int(enable_multiscale)} '
@@ -480,9 +480,7 @@ class BottomUpLayer(nn.Module):
         n_filters: int = None,
         batchnorm: bool = None,
         dropout: float = None,
-        res_block_type: str = None,
-        multiscale_retain_spatial_dims: bool = None,
-        multiscale_lowres_size_factor: int = None
+        res_block_type: str = None
     ) -> None:
         """
         This method defines the modules responsible of merging compressed lateral inputs to the outputs 
@@ -510,15 +508,8 @@ class BottomUpLayer(nn.Module):
             A string specifying the structure of residual block. 
             Check `ResidualBlock` doscstring for more information.
             Default is `None`.
-        multiscale_retain_spatial_dims: bool, optional
-            Whether to pad the latent tensor resulting from the bottom-up layer's primary flow
-            to match the size of the low-res input. Default is `False`.
-        multiscale_lowres_size_factor: int, optional
-            A factor the expresses the relative size of the bu_value tensor with respect to the 
-            lower-resolution lateral context tensor. Default in `None`.
         """
         
-        self.multiscale_lowres_size_factor = multiscale_lowres_size_factor
         self.lowres_net = self.net
         if self.lowres_separate_branch:
             self.lowres_net = deepcopy(self.net)
@@ -530,7 +521,7 @@ class BottomUpLayer(nn.Module):
             batchnorm=batchnorm,
             dropout=dropout,
             res_block_type=res_block_type,
-            multiscale_retain_spatial_dims=multiscale_retain_spatial_dims,
+            multiscale_retain_spatial_dims=self.multiscale_retain_spatial_dims,
             multiscale_lowres_size_factor=self.multiscale_lowres_size_factor,
         )
 
@@ -716,8 +707,10 @@ class MergeLowRes(MergeLayer):
             The low-res patch image to be merged to increase the context.
         """
         if self.retain_spatial_dims:
+            # Pad latent tensor to match lowres tensor's shape 
             latent = pad_img_tensor(latent, lowres.shape[2:])
         else:
+            # Crop lowres tensor to match latent tensor's shape
             lh, lw = lowres.shape[-2:]
             h = lh // self.multiscale_lowres_size_factor
             w = lw // self.multiscale_lowres_size_factor
