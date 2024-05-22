@@ -1278,7 +1278,7 @@ class TopDownLayer(nn.Module):
             # when we don't want to do padding in topdown as well, we need to spare some boundary pixels which would be used up.
             extra_len = (self.topdown_no_padding_mode is True) * 3
 
-            # # this means that the x should be of the same size as config.data.image_size. So, we have to centercrop by a factor of 2 at this point.
+            # this means that x should be of the same size as config.data.image_size. So, we have to centercrop by a factor of 2 at this point.
             # assert x.shape[-1] >= self.latent_shape[-1] // 2 + extra_len
             # we assume that one topdown layer will have exactly one upscaling layer.
             new_latent_shape = (self.latent_shape[0] // 2 + extra_len, self.latent_shape[1] // 2 + extra_len)

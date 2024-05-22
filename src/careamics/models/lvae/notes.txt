@@ -29,3 +29,6 @@ to the primary flow of the bottom-up pass. -> POSSIBLE REFACTORING
 6. With the default parameter configuration we have `encoder_blocks_per_layer == 1`. Hence, each bottom-up layer only contain one `BottomUpDeterministicResBlock` which
 performs downsampling. Therefore, there are no additional blocks to apply further convolutions on both the primary flow and the input lateral tensor (specifically, in 
 the code we have `self.net()` and `self.lowres_net()` as empty `nn.Module`'s).
+
+7. The `nn.ModuleList` `top_down_layers` stores the `TopDownLayer` modules. It is important to notice that the layers are stored from the bottom-most (i=0), 
+to the top-most (i = n_layers - 1).

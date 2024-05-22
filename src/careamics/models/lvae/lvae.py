@@ -285,7 +285,7 @@ class LadderVAE(nn.Module):
         # Likelihood module
         self.likelihood = self.create_likelihood_module()
         
-        # Output layer
+        # Output layer --> Project to target_ch many channels
         logvar_ch_needed = self.predict_logvar is not None
         self.output_layer = self.parameter_net = nn.Conv2d(
             self.decoder_n_filters,
@@ -778,7 +778,7 @@ class LadderVAE(nn.Module):
 
             # Full top-down layer, including sampling and deterministic part
             out, out_pre_residual, aux = top_down_layers[i](
-                out,
+                input_=out,
                 skip_connection_input=skip_input,
                 inference_mode=inference_mode,
                 bu_value=bu_value,
@@ -987,6 +987,7 @@ class LadderVAE(nn.Module):
     def get_top_prior_param_shape(self, n_imgs: int = 1):
         # TODO num channels depends on random variable we're using
 
+        # Compute the total downscaling performed in the Encoder
         if self.multiscale_decoder_retain_spatial_dims is False:
             dwnsc = self.overall_downscale_factor
         else:
