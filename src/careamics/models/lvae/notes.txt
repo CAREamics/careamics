@@ -20,3 +20,8 @@ the bu_value tensor relative to that layer.
 
 4. The `transform_p_params` in `NormalStochasticBlock2d` is always true expecpt made for the top-most `TopDownLayer`.
 Indeed, in that case the # of channels of `p_params` is already 2*z_dims, so it doesn't need any further transformation.
+
+5. About _multiscale_count used in LC. Observe that _multiscale_count defines the total number of inputs to the bottom-up pass.
+In other terms if we have the input patch and n_LC additional lateral inputs, we will have a total of (n_LC + 1) inputs.
+The rationale behind this implementation choice is that Ashesh regards the lateral inputs in the same way as the input patch
+to the primary flow of the bottom-up pass.

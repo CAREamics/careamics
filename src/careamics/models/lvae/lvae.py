@@ -569,9 +569,12 @@ class LadderVAE(nn.Module):
         in the primary flow of the Encoder, namely to compress the lateral input image to a degree that is compatible with the
         one of the primary flow.
         
-        Specifically, each input branch consists of a sequence of Conv2d + non-linearity + BottomUpDeterministicResBlock.
-        It is meaningful to observe that the `BottomUpDeterministicResBlock` shares the same model parameters with the blocks
+        NOTE 1: Each input branch consists of a sequence of Conv2d + non-linearity + BottomUpDeterministicResBlock.
+        It is meaningful to observe that the `BottomUpDeterministicResBlock` shares the same model attributes with the blocks
         in the primary flow of the Encoder (e.g., c_in, c_out, dropout, etc. etc.). Moreover, it does not perform downsampling.
+        
+        NOTE 2: `_multiscale_count` attribute defines the total number of inputs to the bottom-up pass.
+        In other terms if we have the input patch and n_LC additional lateral inputs, we will have a total of (n_LC + 1) inputs.
         """
         
         stride = 1 if self.no_initial_downscaling else 2
@@ -634,8 +637,10 @@ class LadderVAE(nn.Module):
         Parameters
         ----------
         inp: torch.Tensor
-            The input tensor to the bottom-up pass. The first channel is the original input image
-            while additional channels contain low-res inputs to yield more context (LC approach).
+            The input tensor to the bottom-up pass of shape (B, 1+n_LC, H, W), where n_LC
+            is the number of lateral low-res inputs used in the LC approach.
+            In particular, the first channel corresponds to the input patch, while the 
+            remaining ones are associated to the lateral low-res inputs.
         first_bottom_up: nn.Sequential
             The module defining the first bottom-up layer of the Encoder.
         lowres_first_bottom_ups: nn.ModuleList
@@ -829,7 +834,7 @@ class LadderVAE(nn.Module):
         
         img_size = x.size()[2:]
 
-        # Pad input to make everything easier with conv strides
+        # Pad input to size equal to the closest power of 2
         x_pad = self.pad_input(x)
 
         # Bottom-up inference: return list of length n_layers (bottom to top)
