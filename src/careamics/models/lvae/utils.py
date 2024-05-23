@@ -14,17 +14,6 @@ def compute_batch_mean(x):
     N = len(x)
     return x.view(N, -1).mean(dim=1)
 
-def normalize_input(self, x):
-    if self.normalized_input:
-        return x
-    return (x - self.data_mean['input'].mean()) / self.data_std['input'].mean()
-
-def normalize_target(self, target, batch=None):
-    return (target - self.data_mean['target']) / self.data_std['target']
-
-def unnormalize_target(self, target_normalized):
-    return target_normalized * self.data_std['target'] + self.data_mean['target']
-
 def power_of_2(self, x):
     assert isinstance(x, int)
     if x == 1:
@@ -314,3 +303,37 @@ class Interpolate(nn.Module):
             align_corners=self.align_corners
         )
         return out
+    
+
+class RunningPSNR:
+
+    def __init__(self):
+        self.N = self.mse_sum = self.max = self.min = None
+        self.reset()
+
+    def reset(self):
+        self.mse_sum = 0
+        self.N = 0
+        self.max = self.min = None
+
+    def update(self, rec, tar):
+        ins_max = torch.max(tar).item()
+        ins_min = torch.min(tar).item()
+        if self.max is None:
+            assert self.min is None
+            self.max = ins_max
+            self.min = ins_min
+        else:
+            self.max = max(self.max, ins_max)
+            self.min = min(self.min, ins_min)
+
+        mse = (rec - tar)**2
+        elementwise_mse = torch.mean(mse.view(len(mse), -1), dim=1)
+        self.mse_sum += torch.nansum(elementwise_mse)
+        self.N += len(elementwise_mse) - torch.sum(torch.isnan(elementwise_mse))
+
+    def get(self):
+        if self.N == 0 or self.N is None:
+            return None
+        rmse = torch.sqrt(self.mse_sum / self.N)
+        return 20 * torch.log10((self.max - self.min) / rmse)

@@ -104,14 +104,12 @@ class LadderVAE(nn.Module):
         self.stochastic_skip = True
         self.learn_top_prior = True
         self.res_block_type = "bacdbacd"
-        self.reconstruction_mode = False
         self.mode_pred = False
         self.predict_logvar = 'pixelwise'  #'pixelwise' #'channelwise'
         self.logvar_lowerbound = -5
         self._var_clip_max = 20
         self._stochastic_use_naive_exponential = False
         self._enable_topdown_normalize_factor = True
-        self.skip_nboundary_pixels_from_loss = None
     
         self._tethered_to_input = False
         self._tethered_ch1_scalar = self._tethered_ch2_scalar = None
@@ -145,25 +143,17 @@ class LadderVAE(nn.Module):
         self.ch1_recons_w = 1
         self.ch2_recons_w = 1
         self._restricted_kl = False
-        self.kl_loss_formulation = 'denoisplit_usplit'
-        assert self.kl_loss_formulation in [
-            None, '', 'usplit', 'denoisplit', 'denoisplit_usplit'], f"""
-            Invalid kl_loss_formulation. {self.kl_loss_formulation}"""
         # self.kl_annealing = config.loss.kl_annealing
         # self.kl_annealtime = self.kl_start = None
         # if self.kl_annealing:
         #     self.kl_annealtime = config.loss.kl_annealtime
         #     self.kl_start = config.loss.kl_start
-        # self.kl_weight = config.loss.kl_weight 
-        # self.usplit_kl_weight = config.loss.get('usplit_kl_weight', None)
         # self.free_bits = config.loss.free_bits
-        # self.reconstruction_weight = config.loss.get('reconstruction_weight', 1.0)
         # enabling reconstruction loss on mixed input
         self.mixed_rec_w = 0
         self.mixed_rec_w_step = 0
         self.enable_mixed_rec = False
         self.nbr_consistency_w = 0
-        self._exclusion_loss_weight = 0
         self.channel_1_w = 1
         self.channel_2_w = 1
         
@@ -207,14 +197,7 @@ class LadderVAE(nn.Module):
         # self.lr_scheduler_patience = config.training.lr_scheduler_patience
         # # can be used to tile the validation predictions
         # self._val_idx_manager = val_idx_manager
-        # self._val_frame_creator = None
-        # self._dump_kth_frame_prediction = config.training.get('dump_kth_frame_prediction')
-        # if self._dump_kth_frame_prediction is not None:
-        #     assert self._val_idx_manager is not None
-        #     dir = os.path.join(config.workdir, 'pred_frames')
-        #     os.mkdir(dir)
-        #     self._dump_epoch_interval = config.training.get('dump_epoch_interval', 1)
-        #     self._val_frame_creator = PredFrameCreator(self._val_idx_manager, self._dump_kth_frame_prediction, dir)    
+        # self._val_frame_creator = None    
         # # initialize the learning rate scheduler params.
         # self.lr_scheduler_monitor = self.lr_scheduler_mode = None
         # self._init_lr_scheduler_params(config)
@@ -301,11 +284,10 @@ class LadderVAE(nn.Module):
         # PSNR computation on validation.
         # self.label1_psnr = RunningPSNR()
         # self.label2_psnr = RunningPSNR()
-        # self.channels_psnr = [RunningPSNR() for _ in range(target_ch)]
     
-        msg =f'[{self.__class__.__name__}] Stoc:{not self.non_stochastic_version} RecMode:{self.reconstruction_mode} TethInput:{self._tethered_to_input}'
-        msg += f' TargetCh: {self.target_ch}'
-        print(msg)
+        # msg =f'[{self.__class__.__name__}] Stoc:{not self.non_stochastic_version} RecMode:{self.reconstruction_mode} TethInput:{self._tethered_to_input}'
+        # msg += f' TargetCh: {self.target_ch}'
+        # print(msg)
 
 
     ### SET OF METHODS TO CREATE MODEL BLOCKS
