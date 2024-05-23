@@ -50,4 +50,6 @@ What differentiate the input to the model is, of course, the nature of input dat
 so that we don't have to call self.model.some_attribute to used them. Also this make code more compartimentalized and clean.
 --> things that would be nice to move:
     - data_mean, data_std --> not used in the model definition...
-    - likelihood module & loss_type (they go together)
+    - likelihood module & loss_type (they go together) --> Ashesh suggested to keep things like they are
+
+4. Ask Ashesh to help understanding implementation details of patching / tiling

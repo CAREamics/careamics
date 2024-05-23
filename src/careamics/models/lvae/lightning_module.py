@@ -1,3 +1,7 @@
+"""
+Lightning Module for LadderVAE.
+"""
+
 import os
 from typing import Any, Dict
 
@@ -10,8 +14,10 @@ import torchvision.transforms.functional as F
 from .lvae import LadderVAE
 from .utils import (
     LossType,
-    RunningPSNR
+    torch_nanmean, 
+    compute_batch_mean
 )
+from .metrics import RunningPSNR, RangeInvariantPsnr
 
 class LadderVAELight(L.LightningModule):
 
@@ -20,6 +26,12 @@ class LadderVAELight(L.LightningModule):
         Here we will do the following:
             - initialize the model (from LadderVAE class)
             - initialize the parameters related to the training and loss.
+            
+        NOTE:
+        Some of the model attributes are defined in the model object itself, while some others will be defined here.
+        Note that all the attributes related to the training and loss that were already defined in the model object 
+        are redefined here as Lightning module attributes (e.g., self.some_attr = model.some_attr).
+        The attributes related to the model itself are treated as model attributes (e.g., self.model.some_attr).
         """
         
         super.__init__()
@@ -28,22 +40,35 @@ class LadderVAELight(L.LightningModule):
         model = LadderVAE(config)
         
         ##### Define loss attributes #####
+        # Parameters already defined in the model object
+        self.loss_type = model.loss_type
+        self._denoisplit_w = model._denoisplit_w
+        self._usplit_w = model._usplit_w
+        self._restricted_kl = model._restricted_kl
+        
+        # General loss parameters
+        self.channel_1_w = 1
+        self.channel_2_w = 1
+        
         # About Reconsruction Loss
         self.reconstruction_mode = False
         self.skip_nboundary_pixels_from_loss = None
         self.reconstruction_weight = 1.0
         self._exclusion_loss_weight = 0
-        self.kl_weight = config.loss.kl_weight 
-        self.usplit_kl_weight = config.loss.get('usplit_kl_weight', None)
+        self.ch1_recons_w = 1
+        self.ch2_recons_w = 1
         
         # About KL Loss
-        self._restricted_kl = model._restricted_kl
+        self.kl_weight = config.loss.kl_weight 
+        self.usplit_kl_weight = config.loss.get('usplit_kl_weight', None)
         self.kl_loss_formulation = 'denoisplit_usplit'
         assert self.kl_loss_formulation in [
             None, '', 'usplit', 'denoisplit', 'denoisplit_usplit'], f"""
             Invalid kl_loss_formulation. {self.kl_loss_formulation}"""
         
         ##### Define training attributes #####
+        self.lr = config.training.lr
+        self.lr_scheduler_patience = config.training.lr_scheduler_patience
         self.channels_psnr = [RunningPSNR() for _ in range(self.model.target_ch)]
         self._dump_kth_frame_prediction = config.training.get('dump_kth_frame_prediction')
         if self._dump_kth_frame_prediction is not None:
@@ -138,8 +163,8 @@ class LadderVAELight(L.LightningModule):
                 kl_loss = self._denoisplit_w * denoisplit_kl + self._usplit_w * usplit_kl
                 kl_loss = self.kl_weight * kl_loss
 
-                recons_loss_nm = -1*self.likelihood_NM(out_mean, target_normalized)[0].mean()
-                recons_loss_gm = -1*self.likelihood_gm(out, target_normalized)[0].mean()
+                recons_loss_nm = -1 * self.model.likelihood_NM(out_mean, target_normalized)[0].mean()
+                recons_loss_gm = -1 * self.model.likelihood_gm(out, target_normalized)[0].mean()
                 recons_loss = self._denoisplit_w * recons_loss_nm + self._usplit_w * recons_loss_gm
                 
             elif self.kl_loss_formulation == 'usplit':
@@ -175,11 +200,17 @@ class LadderVAELight(L.LightningModule):
 
         return output
     
-    def validation_step(self, batch, batch_idx):
+    
+    def validation_step(
+        self, 
+        batch: torch.Tensor, 
+        batch_idx: int
+    ):    
+        # Pre-processing of inputs
         x, target = batch[:2]
         self.set_params_to_same_device_as(x)
         x_normalized = self.normalize_input(x)
-        if self.reconstruction_mode:
+        if self.reconstruction_mode: # only for experimental purpose
             target_normalized = x_normalized[:, :1].repeat(1, 2, 1, 1)
             target = None
             mask = None
@@ -187,10 +218,12 @@ class LadderVAELight(L.LightningModule):
             target_normalized = self.normalize_target(target)
             mask = ~((target == 0).reshape(len(target), -1).all(dim=1))
 
+        # Forward pass
         out, td_data = self.forward(x_normalized)
         if self.model.encoder_no_padding_mode and out.shape[-2:] != target_normalized.shape[-2:]:
             target_normalized = F.center_crop(target_normalized, out.shape[-2:])
 
+        # Metrics computation
         recons_loss_dict, recons_img = self.get_reconstruction_loss(
             out,
             x_normalized,
@@ -201,8 +234,10 @@ class LadderVAELight(L.LightningModule):
         
         if self._dump_kth_frame_prediction is not None:
             if self.current_epoch == 0:
-                self._val_frame_creator.update_target(target.cpu().numpy().astype(np.int32),
-                                                      batch[-1].cpu().numpy().astype(np.int32))
+                self._val_frame_creator.update_target(
+                    target.cpu().numpy().astype(np.int32),
+                    batch[-1].cpu().numpy().astype(np.int32)
+                )
             if self.current_epoch == 0 or self.current_epoch % self._dump_epoch_interval == 0:
                 imgs = self.unnormalize_target(recons_img).cpu().numpy().astype(np.int32)
                 self._val_frame_creator.update(imgs, batch[-1].cpu().numpy().astype(np.int32))
@@ -242,7 +277,7 @@ class LadderVAELight(L.LightningModule):
 
         # return net_loss
         
-    def predict_step(self, batch: Tensor, batch_idx: Any) -> Any:
+    def predict_step(self, batch: torch.Tensor, batch_idx: Any) -> Any:
         raise NotImplementedError("predict_step is not implemented")
         
     def configure_optimizers(self):
@@ -269,11 +304,13 @@ class LadderVAELight(L.LightningModule):
         return_predicted_img=False,
         likelihood_obj=None
     ):
-        output = self._get_reconstruction_loss_vector(reconstruction,
-                                                      target,
-                                                      input,
-                                                      return_predicted_img=return_predicted_img,
-                                                      likelihood_obj=likelihood_obj)
+        output = self._get_reconstruction_loss_vector(
+            reconstruction,
+            target,
+            input,
+            return_predicted_img=return_predicted_img,
+            likelihood_obj=likelihood_obj
+        )
         loss_dict = output[0] if return_predicted_img else output
         if splitting_mask is None:
             splitting_mask = torch.ones_like(loss_dict['loss']).bool()
@@ -295,11 +332,11 @@ class LadderVAELight(L.LightningModule):
 
     def _get_reconstruction_loss_vector(
         self,
-        reconstruction,
-        target,
-        input,
-        return_predicted_img=False,
-        likelihood_obj=None
+        reconstruction: torch.Tensor,
+        target: torch.Tensor,
+        input: torch.Tensor,
+        return_predicted_img: bool = False,
+        likelihood_obj = None
     ):
         """
         Args:
@@ -310,11 +347,12 @@ class LadderVAELight(L.LightningModule):
             'loss': None,
             'mixed_loss': None,
         }
+        
         for i in range(1, 1 + target.shape[1]):
             output['ch{}_loss'.format(i)] = None
 
         if likelihood_obj is None:
-            likelihood_obj = self.likelihood
+            likelihood_obj = self.model.likelihood
 
         # Log likelihood
         ll, like_dict = likelihood_obj(reconstruction, target)
@@ -351,7 +389,7 @@ class LadderVAELight(L.LightningModule):
                 input = input[:, :1]
 
             assert input.shape == mixed_pred.shape, "No fucking room for vectorization induced bugs."
-            mixed_recons_ll = self.likelihood.log_likelihood(input, {'mean': mixed_pred, 'logvar': mixed_logvar})
+            mixed_recons_ll = self.model.likelihood.log_likelihood(input, {'mean': mixed_pred, 'logvar': mixed_logvar})
             output['mixed_loss'] = compute_batch_mean(-1 * mixed_recons_ll)
 
         if self._exclusion_loss_weight:
@@ -363,6 +401,24 @@ class LadderVAELight(L.LightningModule):
             return output, like_dict['params']['mean']
 
         return output
+
+    def _get_weighted_likelihood(self, ll):
+        """
+        Each of the channels gets multiplied with a different weight.
+        """
+        
+        if self.ch1_recons_w == 1 and self.ch2_recons_w == 1:
+            return ll
+        
+        assert ll.shape[1] == 2, "This function is only for 2 channel images"
+        
+        mask1 = torch.zeros((len(ll), ll.shape[1], 1, 1), device=ll.device)
+        mask1[:, 0] = 1
+        mask2 = torch.zeros((len(ll), ll.shape[1], 1, 1), device=ll.device)
+        mask2[:, 1] = 1
+        
+        return ll * mask1 * self.ch1_recons_w + ll * mask2 * self.ch2_recons_w
+    
     
     ##### UTILS Methods #####
     def normalize_input(self, x):
@@ -457,8 +513,9 @@ class LadderVAELight(L.LightningModule):
         return kl_loss
 
 
-    def set_params_to_same_device_as(self, correct_device_tensor):
-        self.likelihood.set_params_to_same_device_as(correct_device_tensor)
+    def set_params_to_same_device_as(self, correct_device_tensor: torch.Tensor):
+        
+        self.model.likelihood.set_params_to_same_device_as(correct_device_tensor)
         if isinstance(self.data_mean, torch.Tensor):
             if self.data_mean.device != correct_device_tensor.device:
                 self.data_mean = self.data_mean.to(correct_device_tensor.device)

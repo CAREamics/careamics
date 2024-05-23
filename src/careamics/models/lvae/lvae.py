@@ -140,8 +140,6 @@ class LadderVAE(nn.Module):
 
         # -------------------------------------------------------        
         # Loss attributes
-        self.ch1_recons_w = 1
-        self.ch2_recons_w = 1
         self._restricted_kl = False
         # self.kl_annealing = config.loss.kl_annealing
         # self.kl_annealtime = self.kl_start = None
@@ -154,8 +152,6 @@ class LadderVAE(nn.Module):
         self.mixed_rec_w_step = 0
         self.enable_mixed_rec = False
         self.nbr_consistency_w = 0
-        self.channel_1_w = 1
-        self.channel_2_w = 1
         
         # Setting the loss_type
         # self.loss_type = config.loss.get('loss_type', None)
@@ -193,8 +189,6 @@ class LadderVAE(nn.Module):
 
         # -------------------------------------------------------
         # # Training attributes
-        # self.lr = config.training.lr
-        # self.lr_scheduler_patience = config.training.lr_scheduler_patience
         # # can be used to tile the validation predictions
         # self._val_idx_manager = val_idx_manager
         # self._val_frame_creator = None    
@@ -1028,17 +1022,3 @@ class LadderVAE(nn.Module):
     #     else:
     #         logvar = None
     #     return mixed_prediction, logvar
-
-    # def _get_weighted_likelihood(self, ll):
-    #     """
-    #     Each of the channels gets multiplied with a different weight.
-    #     """
-    #     if self.ch1_recons_w == 1 and self.ch2_recons_w == 1:
-    #         return ll
-    #     assert ll.shape[1] == 2, "This function is only for 2 channel images"
-    #     mask1 = torch.zeros((len(ll), ll.shape[1], 1, 1), device=ll.device)
-    #     mask1[:, 0] = 1
-
-    #     mask2 = torch.zeros((len(ll), ll.shape[1], 1, 1), device=ll.device)
-    #     mask2[:, 1] = 1
-    #     return ll * mask1 * self.ch1_recons_w + ll * mask2 * self.ch2_recons_w
