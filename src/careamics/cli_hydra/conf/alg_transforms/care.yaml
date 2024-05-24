@@ -1,0 +1,2 @@
+defaults:
+  - transforms_collection/normalize

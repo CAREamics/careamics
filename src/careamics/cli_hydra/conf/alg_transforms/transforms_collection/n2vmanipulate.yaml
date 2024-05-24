@@ -1,0 +1,8 @@
+- {
+  masked_pixel_percentage: 0.2,
+  name: N2VManipulate,
+  roi_size: 11,
+  strategy: uniform,
+  struct_mask_axis: none,
+  struct_mask_span: 5
+  }

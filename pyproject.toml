@@ -69,6 +69,11 @@ tensorboard = ["tensorboard", "protobuf==3.20.3"]
 homepage = "https://careamics.github.io/"
 repository = "https://github.com/CAREamics/careamics"
 
+# cli
+[project.scripts]
+careamics-hydra = "careamics.cli_hydra.main:main"
+
+
 # https://beta.ruff.rs/docs
 [tool.ruff]
 line-length = 88
@@ -179,3 +184,4 @@ checks = [
 exclude = [ # don't report on objects that match any of these regex
     "test_*",
 ]
+

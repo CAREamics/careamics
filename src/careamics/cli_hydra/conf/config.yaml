@@ -1,0 +1,8 @@
+experiment_name: CAREamics
+
+defaults:
+  - algorithm_config: n2v
+  - data_config/tiff
+  - training_config
+  - alg_transforms: ${algorithm_config}
+  - _self_

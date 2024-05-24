@@ -1,0 +1,5 @@
+- {
+  is_3D: false,
+  name: XYRandomRotate90,
+  p: 0.5
+  }
