@@ -1,5 +1,6 @@
 """Receptive field calculation for computing the tile overlap."""
 
+# TODO better docstring and function names
 # Adapted from: https://github.com/frgfm/torch-scan
 
 import math
@@ -21,14 +22,19 @@ from torch.nn.modules.pooling import (
 def module_rf(module: Module, inp: Tensor, out: Tensor) -> Tuple[float, float, float]:
     """Estimate the spatial receptive field of the module.
 
-    Args:
-        module (torch.nn.Module): PyTorch module
-        inp (torch.Tensor): input to the module
-        out (torch.Tensor): output of the module
-    Returns:
-        receptive field
-        effective stride
-        effective padding
+    Parameters
+    ----------
+    module : Module
+        Module to estimate the receptive field.
+    inp : Tensor
+        Input tensor.
+    out : Tensor
+        Output tensor.
+
+    Returns
+    -------
+    Tuple[float, float, float]
+        Receptive field, effective stride and padding.
     """
     if isinstance(
         module,

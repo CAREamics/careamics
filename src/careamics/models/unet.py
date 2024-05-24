@@ -253,8 +253,7 @@ class UnetDecoder(nn.Module):
         """
         Splits the tensors `A` and `B` into equally sized groups along the
         channel axis (axis=1); then concatenates the groups in alternating
-        order along the channel axis, starting with the first group from tensor
-        A.
+        order along the channel axis, starting with the first group from tensor A.
 
         Parameters
         ----------
