@@ -1,0 +1,4 @@
+normalize:
+  mean: 0.485
+  name: Normalize
+  std: 0.229

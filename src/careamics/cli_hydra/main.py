@@ -1,18 +1,10 @@
-from dataclasses import dataclass
-
+from omegaconf import DictConfig, OmegaConf
 import hydra
-from hydra.core.config_store import ConfigStore
-from omegaconf import DictConfig, OmegaConf, MISSING
 
-from ..careamist import CAREamist
-from ..config import Configuration, configuration_factory
+from .configuration import Config
 
 @hydra.main(version_base=None, config_path="conf", config_name="config")
 def main(cfg: DictConfig) -> None:
+    print(OmegaConf.missing_keys(cfg))
+    print(OmegaConf.resolve(cfg))
     print(OmegaConf.to_yaml(cfg))
-    # engine = CAREamist(source=Configuration(**cfg))
-
-if __name__ == "__main__":
-    main()
-
-

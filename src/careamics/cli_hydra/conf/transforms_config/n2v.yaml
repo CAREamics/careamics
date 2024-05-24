@@ -1,0 +1,4 @@
+# @package _global_
+
+defaults:
+  - transforms_collection/n2v_manipulate

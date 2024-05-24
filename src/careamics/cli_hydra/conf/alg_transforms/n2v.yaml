@@ -1,8 +1,0 @@
-# @package __global__
-
-defaults:
-  - transforms_collection/normalize
-  - transforms_collection/n2vmanipulate
-
-data_config:
-  transforms: ${oc.dict.values:transforms}

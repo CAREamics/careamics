@@ -1,0 +1,5 @@
+# @package _global_
+
+defaults:
+  - transforms_collection/nd_flip
+  - transforms_collection/xy_random_rotate90

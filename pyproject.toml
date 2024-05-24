@@ -72,7 +72,7 @@ repository = "https://github.com/CAREamics/careamics"
 # cli
 [project.scripts]
 careamics-hydra = "careamics.cli_hydra.main:main"
-
+careamics = "careamics.cli.main:main"
 
 # https://beta.ruff.rs/docs
 [tool.ruff]

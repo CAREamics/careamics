@@ -1,0 +1,50 @@
+algorithm_config:
+  algorithm: care
+  loss: mae
+  lr_scheduler:
+    name: ReduceLROnPlateau
+    parameters: {}
+  model:
+    architecture: UNet
+    conv_dims: 2
+    depth: 2
+    final_activation: None
+    in_channels: 1
+    independent_channels: false
+    n2v2: false
+    num_channels_init: 32
+    num_classes: 1
+  optimizer:
+    name: Adam
+    parameters:
+      lr: 0.0001
+data_config:
+  axes: SYX
+  batch_size: 8
+  data_type: tiff
+  patch_size:
+  - 64
+  - 64
+  transforms:
+  - mean: 0.485
+    name: Normalize
+    std: 0.229
+  - flip_z: true
+    is_3D: false
+    name: NDFlip
+    p: 0.5
+  - is_3D: false
+    name: XYRandomRotate90
+    p: 0.5
+experiment_name: CAREamics
+training_config:
+  checkpoint_callback:
+    auto_insert_metric_name: false
+    mode: min
+    monitor: val_loss
+    save_last: true
+    save_top_k: 3
+    save_weights_only: false
+    verbose: false
+  num_epochs: 1
+version: 0.1.0
