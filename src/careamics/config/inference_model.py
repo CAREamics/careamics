@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from typing import Any, List, Literal, Optional, Union
 
-from albumentations import Compose
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from typing_extensions import Self
 
@@ -34,7 +33,7 @@ class InferenceConfig(BaseModel):
     mean: float
     std: float = Field(..., ge=0.0)
 
-    transforms: Union[List[TRANSFORMS_UNION], Compose] = Field(
+    transforms: List[TRANSFORMS_UNION] = Field(
         default=[
             {
                 "name": SupportedTransform.NORMALIZE.value,
@@ -153,19 +152,19 @@ class InferenceConfig(BaseModel):
     @field_validator("transforms")
     @classmethod
     def validate_transforms(
-        cls, transforms: Union[List[TRANSFORMS_UNION], Compose]
-    ) -> Union[List[TRANSFORMS_UNION], Compose]:
+        cls, transforms: List[TRANSFORMS_UNION]
+    ) -> List[TRANSFORMS_UNION]:
         """
         Validate that transforms do not have N2V pixel manipulate transforms.
 
         Parameters
         ----------
-        transforms : Union[List[TransformModel], Compose]
+        transforms : List[TRANSFORMS_UNION]
             Transforms.
 
         Returns
         -------
-        Union[List[Transformations_Union], Compose]
+        List[TRANSFORMS_UNION]
             Validated transforms.
 
         Raises
@@ -173,7 +172,7 @@ class InferenceConfig(BaseModel):
         ValueError
             If transforms contain N2V pixel manipulate transforms.
         """
-        if not isinstance(transforms, Compose) and transforms is not None:
+        if transforms is not None:
             for transform in transforms:
                 if transform.name == SupportedTransform.N2V_MANIPULATE.value:
                     raise ValueError(
@@ -248,11 +247,10 @@ class InferenceConfig(BaseModel):
         """
         if self.mean is not None or self.std is not None:
             # search in the transforms for Normalize and update parameters
-            if not isinstance(self.transforms, Compose):
-                for transform in self.transforms:
-                    if transform.name == SupportedTransform.NORMALIZE.value:
-                        transform.mean = self.mean
-                        transform.std = self.std
+            for transform in self.transforms:
+                if transform.name == SupportedTransform.NORMALIZE.value:
+                    transform.mean = self.mean
+                    transform.std = self.std
 
         return self
 

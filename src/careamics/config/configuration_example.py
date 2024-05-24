@@ -57,11 +57,9 @@ def full_configuration_example() -> Configuration:
             },
             {
                 "name": SupportedTransform.NDFLIP.value,
-                "is_3D": False,
             },
             {
                 "name": SupportedTransform.XY_RANDOM_ROTATE90.value,
-                "is_3D": False,
             },
             {
                 "name": SupportedTransform.N2V_MANIPULATE.value,
