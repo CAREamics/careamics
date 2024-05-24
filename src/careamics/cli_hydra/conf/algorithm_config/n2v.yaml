@@ -1,1 +1,7 @@
+defaults:
+  - model: unet
+
 algorithm: n2v
+loss: n2v
+model:
+  independent_channels: true

@@ -2,9 +2,8 @@ defaults:
   - _self_
   - algorithm_config: ???
   - transforms_config/transforms_selection
-  # - use_augmentations: "true"
+  - use_augmentations: "true"
   - optional transforms_config: ${algorithm_config}
-
 
 experiment_name: "CAREamics"
 data_config:
