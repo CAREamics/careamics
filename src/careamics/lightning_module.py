@@ -162,7 +162,7 @@ class CAREamicsModule(L.LightningModule):
             mean=self._trainer.datamodule.predict_dataset.mean,
             std=self._trainer.datamodule.predict_dataset.std,
         )
-        denormalized_output = denorm(image=output)["image"]
+        denormalized_output, _ = denorm(patch=output)
 
         if len(aux) > 0:
             return denormalized_output, aux

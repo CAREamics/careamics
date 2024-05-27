@@ -239,25 +239,22 @@ class Configuration(BaseModel):
             Validated configuration.
         """
         if self.algorithm_config.algorithm == SupportedAlgorithm.N2V:
-            # if we have a list of transform (as opposed to Compose)
-            if self.data_config.has_transform_list():
-                # missing N2V_MANIPULATE
-                if not self.data_config.has_n2v_manipulate():
-                    self.data_config.transforms.append(
-                        N2VManipulateModel(
-                            name=SupportedTransform.N2V_MANIPULATE.value,
-                        )
+            # missing N2V_MANIPULATE
+            if not self.data_config.has_n2v_manipulate():
+                self.data_config.transforms.append(
+                    N2VManipulateModel(
+                        name=SupportedTransform.N2V_MANIPULATE.value,
                     )
+                )
 
-                median = SupportedPixelManipulation.MEDIAN.value
-                uniform = SupportedPixelManipulation.UNIFORM.value
-                strategy = median if self.algorithm_config.model.n2v2 else uniform
-                self.data_config.set_N2V2_strategy(strategy)
+            median = SupportedPixelManipulation.MEDIAN.value
+            uniform = SupportedPixelManipulation.UNIFORM.value
+            strategy = median if self.algorithm_config.model.n2v2 else uniform
+            self.data_config.set_N2V2_strategy(strategy)
         else:
-            # if we have a list of transform, remove N2V manipulate if present
-            if self.data_config.has_transform_list():
-                if self.data_config.has_n2v_manipulate():
-                    self.data_config.remove_n2v_manipulate()
+            # remove N2V manipulate if present
+            if self.data_config.has_n2v_manipulate():
+                self.data_config.remove_n2v_manipulate()
 
         return self
 

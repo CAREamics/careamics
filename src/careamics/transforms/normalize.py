@@ -1,14 +1,15 @@
-from typing import Any
+from typing import Optional, Tuple
 
 import numpy as np
-from albumentations import DualTransform
+
+from careamics.transforms.transform import Transform
 
 
-class Normalize(DualTransform):
+class Normalize(Transform):
     """
     Normalize an image or image patch.
 
-    Normalization is a zero mean and unit variance. This transform expects (Z)YXC
+    Normalization is a zero mean and unit variance. This transform expects C(Z)YX
     dimensions.
 
     Not that an epsilon value of 1e-6 is added to the standard deviation to avoid
@@ -20,8 +21,6 @@ class Normalize(DualTransform):
         Mean value.
     std : float
         Standard deviation value.
-    eps : float
-        Epsilon value to avoid division by zero.
     """
 
     def __init__(
@@ -29,48 +28,42 @@ class Normalize(DualTransform):
         mean: float,
         std: float,
     ):
-        super().__init__(always_apply=True, p=1)
-
         self.mean = mean
         self.std = std
         self.eps = 1e-6
 
-    def apply(self, patch: np.ndarray, **kwargs: Any) -> np.ndarray:
-        """
-        Apply the transform to the image.
+    def __call__(
+        self, patch: np.ndarray, target: Optional[np.ndarray] = None
+    ) -> Tuple[np.ndarray, Optional[np.ndarray]]:
+        """Apply the transform to the source patch and the target (optional).
 
         Parameters
         ----------
         patch : np.ndarray
-            Image or image patch, 2D or 3D, shape (y, x, c) or (z, y, x, c).
+            Patch, 2D or 3D, shape C(Z)YX.
+        target : Optional[np.ndarray], optional
+            Target for the patch, by default None
 
         Returns
         -------
-        np.ndarray
-            Normalized image or image patch.
+        Tuple[np.ndarray, Optional[np.ndarray]]
+            Transformed patch and target.
         """
+        norm_patch = self._apply(patch)
+        norm_target = self._apply(target) if target is not None else None
+
+        return norm_patch, norm_target
+
+    def _apply(self, patch: np.ndarray) -> np.ndarray:
         return ((patch - self.mean) / (self.std + self.eps)).astype(np.float32)
 
-    def apply_to_mask(self, mask: np.ndarray, **kwargs: Any) -> np.ndarray:
-        """
-        Apply the transform to the mask.
 
-        The mask is returned as is.
-
-        Parameters
-        ----------
-        mask : np.ndarray
-            Mask or mask patch, 2D or 3D, shape (y, x, c) or (z, y, x, c).
-        """
-        return mask
-
-
-class Denormalize(DualTransform):
+class Denormalize:
     """
     Denormalize an image or image patch.
 
     Denormalization is performed expecting a zero mean and unit variance input. This
-    transform expects (Z)YXC dimensions.
+    transform expects C(Z)YX dimensions.
 
     Not that an epsilon value of 1e-6 is added to the standard deviation to avoid
     division by zero during the normalization step, which is taken into account during
@@ -82,8 +75,6 @@ class Denormalize(DualTransform):
         Mean value.
     std : float
         Standard deviation value.
-    eps : float
-        Epsilon value to avoid division by zero.
     """
 
     def __init__(
@@ -91,19 +82,39 @@ class Denormalize(DualTransform):
         mean: float,
         std: float,
     ):
-        super().__init__(always_apply=True, p=1)
-
         self.mean = mean
         self.std = std
         self.eps = 1e-6
 
-    def apply(self, patch: np.ndarray, **kwargs: Any) -> np.ndarray:
+    def __call__(
+        self, patch: np.ndarray, target: Optional[np.ndarray] = None
+    ) -> Tuple[np.ndarray, Optional[np.ndarray]]:
+        """Apply the transform to the source patch and the target (optional).
+
+        Parameters
+        ----------
+        patch : np.ndarray
+            Patch, 2D or 3D, shape C(Z)YX.
+        target : Optional[np.ndarray], optional
+            Target for the patch, by default None
+
+        Returns
+        -------
+        Tuple[np.ndarray, Optional[np.ndarray]]
+            Transformed patch and target.
+        """
+        norm_patch = self._apply(patch)
+        norm_target = self._apply(target) if target is not None else None
+
+        return norm_patch, norm_target
+
+    def _apply(self, patch: np.ndarray) -> np.ndarray:
         """
         Apply the transform to the image.
 
         Parameters
         ----------
         patch : np.ndarray
-            Image or image patch, 2D or 3D, shape (y, x, c) or (z, y, x, c).
+            Image or image patch, 2D or 3D, shape C(Z)YX.
         """
         return patch * (self.std + self.eps) + self.mean

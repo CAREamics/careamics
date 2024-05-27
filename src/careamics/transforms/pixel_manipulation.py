@@ -247,8 +247,7 @@ def uniform_manipulate(
     subpatch_size : int
         Size of the subpatch the new pixel value is sampled from, by default 11.
     remove_center : bool
-        Whether to remove the center pixel from the subpatch, by default False. See
-        uniform with/without central pixel in the documentation. #TODO add link
+        Whether to remove the center pixel from the subpatch, by default False.
     struct_params: Optional[StructMaskParameters]
         Parameters for the structN2V mask (axis and span).
 

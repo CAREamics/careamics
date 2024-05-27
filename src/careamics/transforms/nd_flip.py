@@ -1,93 +1,67 @@
-from typing import Any, Dict, Tuple
+from typing import Optional, Tuple
 
 import numpy as np
-from albumentations import DualTransform
+
+from careamics.transforms.transform import Transform
 
 
-class NDFlip(DualTransform):
+class NDFlip(Transform):
     """Flip ND arrays on a single axis.
 
     This transform ignores singleton axes and randomly flips one of the other
-    axes, to the exception of the first and last axes (sample and channels).
+    last two axes.
 
-    This transform expects (Z)YXC dimensions.
+    This transform expects C(Z)YX dimensions.
     """
 
-    def __init__(self, p: float = 0.5, is_3D: bool = False, flip_z: bool = True):
+    def __init__(self, seed: Optional[int] = None):
         """Constructor.
 
         Parameters
         ----------
-        p : float, optional
-            Probability to apply the transform, by default 0.5
-        is_3D : bool, optional
-            Whether the data is 3D, by default False
-        flip_z : bool, optional
-            Whether to flip Z dimension, by default True
+        seed : Optional[int], optional
+            Random seed, by default None
         """
-        super().__init__(p=p)
-
-        self.is_3D = is_3D
-        self.flip_z = flip_z
-
         # "flippable" axes
-        if is_3D:
-            self.axis_indices = [0, 1, 2] if flip_z else [1, 2]
-        else:
-            self.axis_indices = [0, 1]
+        self.axis_indices = [-2, -1]
 
-    def get_params(self, **kwargs: Any) -> Dict[str, int]:
-        """Get the transform parameters.
+        # numpy random generator
+        self.rng = np.random.default_rng(seed=seed)
+
+    def __call__(
+        self, patch: np.ndarray, target: Optional[np.ndarray] = None
+    ) -> Tuple[np.ndarray, Optional[np.ndarray]]:
+        """Apply the transform to the source patch and the target (optional).
+
+        Parameters
+        ----------
+        patch : np.ndarray
+            Patch, 2D or 3D, shape C(Z)YX.
+        target : Optional[np.ndarray], optional
+            Target for the patch, by default None
 
         Returns
         -------
-        Dict[str, int]
-            Transform parameters.
+        Tuple[np.ndarray, Optional[np.ndarray]]
+            Transformed patch and target.
         """
-        return {"flip_axis": np.random.choice(self.axis_indices)}
+        # choose an axis to flip
+        axis = self.rng.choice(self.axis_indices)
 
-    def apply(self, patch: np.ndarray, flip_axis: int, **kwargs: Any) -> np.ndarray:
+        patch_transformed = self._apply(patch, axis)
+        target_transformed = self._apply(target, axis) if target is not None else None
+
+        return patch_transformed, target_transformed
+
+    def _apply(self, patch: np.ndarray, axis: int) -> np.ndarray:
         """Apply the transform to the image.
 
         Parameters
         ----------
         patch : np.ndarray
-            Image or image patch, 2D or 3D, shape (y, x, c) or (z, y, x, c).
-        flip_axis : int
-            Axis along which to flip the patch.
+            Image or image patch, 2D or 3D, shape C(Z)YX.
+        axis : int
+            Axis to flip.
         """
-        if len(patch.shape) == 3 and self.is_3D:
-            raise ValueError(
-                "Incompatible patch shape and dimensionality. ZYXC patch shape "
-                "expected, but got YXC shape."
-            )
-
-        return np.ascontiguousarray(np.flip(patch, axis=flip_axis))
-
-    def apply_to_mask(
-        self, mask: np.ndarray, flip_axis: int, **kwargs: Any
-    ) -> np.ndarray:
-        """Apply the transform to the mask.
-
-        Parameters
-        ----------
-        mask : np.ndarray
-            Mask or mask patch, 2D or 3D, shape (y, x, c) or (z, y, x, c).
-        """
-        if len(mask.shape) == 3 and self.is_3D:
-            raise ValueError(
-                "Incompatible mask shape and dimensionality. ZYXC patch shape "
-                "expected, but got YXC shape."
-            )
-
-        return np.ascontiguousarray(np.flip(mask, axis=flip_axis))
-
-    def get_transform_init_args_names(self, **kwargs: Any) -> Tuple[str, ...]:
-        """Get the transform arguments names.
-
-        Returns
-        -------
-        Tuple[str, ...]
-            Transform arguments names.
-        """
-        return ("is_3D", "flip_z")
+        # TODO why ascontiguousarray?
+        return np.ascontiguousarray(np.flip(patch, axis=axis))

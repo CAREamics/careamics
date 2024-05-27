@@ -2,7 +2,6 @@
 
 from typing import List
 
-import numpy as np
 from torch import Tensor, flip, mean, rot90, stack
 
 
@@ -49,7 +48,7 @@ class ImageRestorationTTA:
             augmented_flip.append(flip(x_, dims=(-3, -1)))
         return augmented_flip
 
-    def backward(self, x: List[Tensor]) -> np.ndarray:
+    def backward(self, x: List[Tensor]) -> Tensor:
         """Undo the test-time augmentation.
 
         Parameters

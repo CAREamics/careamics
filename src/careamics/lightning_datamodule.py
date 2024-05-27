@@ -5,7 +5,6 @@ from typing import Any, Callable, Dict, List, Literal, Optional, Union
 
 import numpy as np
 import pytorch_lightning as L
-from albumentations import Compose
 from torch.utils.data import DataLoader
 
 from careamics.config import DataConfig
@@ -453,8 +452,7 @@ class TrainingDataWrapper(CAREamicsTrainData):
     In particular, N2V requires a specific transformation (N2V manipulates), which is
     not compatible with supervised training. The default transformations applied to the
     training patches are defined in `careamics.config.data_model`. To use different
-    transformations, pass a list of transforms or an albumentation `Compose` as
-    `transforms` parameter. See examples for more details.
+    transformations, pass a list of transforms. See examples for more details.
 
     By default, CAREamics only supports types defined in
     `careamics.config.support.SupportedData`. To read custom data types, you can set
@@ -489,7 +487,7 @@ class TrainingDataWrapper(CAREamicsTrainData):
         Batch size.
     val_data : Optional[Union[str, Path]], optional
         Validation data, by default None.
-    transforms : Optional[Union[List[TRANSFORMS_UNION], Compose]], optional
+    transforms : List[TRANSFORMS_UNION], optional
         List of transforms to apply to training patches. If None, default transforms
         are applied.
     train_target_data : Optional[Union[str, Path]], optional
@@ -585,7 +583,7 @@ class TrainingDataWrapper(CAREamicsTrainData):
         axes: str,
         batch_size: int,
         val_data: Optional[Union[str, Path]] = None,
-        transforms: Optional[Union[List[TRANSFORMS_UNION], Compose]] = None,
+        transforms: Optional[List[TRANSFORMS_UNION]] = None,
         train_target_data: Optional[Union[str, Path]] = None,
         val_target_data: Optional[Union[str, Path]] = None,
         read_source_func: Optional[Callable] = None,
@@ -618,8 +616,8 @@ class TrainingDataWrapper(CAREamicsTrainData):
         In particular, N2V requires a specific transformation (N2V manipulates), which
         is not compatible with supervised training. The default transformations applied
         to the training patches are defined in `careamics.config.data_model`. To use
-        different transformations, pass a list of transforms or an albumentation
-        `Compose` as `transforms` parameter. See examples for more details.
+        different transformations, pass a list of transforms. See examples for more
+        details.
 
         By default, CAREamics only supports types defined in
         `careamics.config.support.SupportedData`. To read custom data types, you can set
@@ -656,7 +654,7 @@ class TrainingDataWrapper(CAREamicsTrainData):
             Batch size.
         val_data : Optional[Union[str, Path]], optional
             Validation data, by default None.
-        transforms : Optional[Union[List[TRANSFORMS_UNION], Compose]], optional
+        transforms : Optional[List[TRANSFORMS_UNION]], optional
             List of transforms to apply to training patches. If None, default transforms
             are applied.
         train_target_data : Optional[Union[str, Path]], optional
@@ -710,10 +708,7 @@ class TrainingDataWrapper(CAREamicsTrainData):
         self.data_config = DataConfig(**data_dict)
 
         # N2V specific checks, N2V, structN2V, and transforms
-        if (
-            self.data_config.has_transform_list()
-            and self.data_config.has_n2v_manipulate()
-        ):
+        if self.data_config.has_n2v_manipulate():
             # there is not target, n2v2 and structN2V can be changed
             if train_target_data is None:
                 self.data_config.set_N2V2(use_n2v2)
