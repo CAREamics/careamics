@@ -1,95 +1,68 @@
-from typing import Any, Dict, Tuple
+from typing import Optional, Tuple
 
 import numpy as np
-from albumentations import DualTransform
+
+from careamics.transforms.transform import Transform
 
 
-class XYRandomRotate90(DualTransform):
+class XYRandomRotate90(Transform):
     """Applies random 90 degree rotations to the YX axis.
 
-    This transform expects (Z)YXC dimensions.
-
-    Parameters
-    ----------
-    p : int, optional
-        Probability to apply the transform, by default 0.5
-    is_3D : bool, optional
-        Whether the patches are 3D, by default False
+    This transform expects C(Z)YX dimensions.
     """
 
-    def __init__(self, p: float = 0.5, is_3D: bool = False):
+    def __init__(self, seed: Optional[int] = None):
         """Constructor.
 
         Parameters
         ----------
-        p : float, optional
-            Probability to apply the transform, by default 0.5
-        is_3D : bool, optional
-            Whether the patches are 3D, by default False
+        seed : Optional[int], optional
+            Random seed, by default None
         """
-        super().__init__(p=p)
+        # numpy random generator
+        self.rng = np.random.default_rng(seed=seed)
 
-        self.is_3D = is_3D
+    def __call__(
+        self, patch: np.ndarray, target: Optional[np.ndarray] = None
+    ) -> Tuple[np.ndarray, Optional[np.ndarray]]:
+        """Apply the transform to the source patch and the target (optional).
 
-        # rotation axes
-        if is_3D:
-            self.axes = (1, 2)
-        else:
-            self.axes = (0, 1)
-
-    def get_params(self, **kwargs: Any) -> Dict[str, int]:
-        """Get the transform parameters.
+        Parameters
+        ----------
+        patch : np.ndarray
+            Patch, 2D or 3D, shape C(Z)YX.
+        target : Optional[np.ndarray], optional
+            Target for the patch, by default None
 
         Returns
         -------
-        Dict[str, int]
-            Transform parameters.
+        Tuple[np.ndarray, Optional[np.ndarray]]
+            Transformed patch and target.
         """
-        return {"n_rotations": np.random.randint(1, 4)}
+        # number of rotations
+        n_rot = self.rng.integers(1, 4)
 
-    def apply(self, patch: np.ndarray, n_rotations: int, **kwargs: Any) -> np.ndarray:
+        axes = (-2, -1)
+        patch_transformed = self._apply(patch, n_rot, axes)
+        target_transformed = (
+            self._apply(target, n_rot, axes) if target is not None else None
+        )
+
+        return patch_transformed, target_transformed
+
+    def _apply(
+        self, patch: np.ndarray, n_rot: int, axes: Tuple[int, int]
+    ) -> np.ndarray:
         """Apply the transform to the image.
 
         Parameters
         ----------
         patch : np.ndarray
-            Image or image patch, 2D or 3D, shape (y, x, c) or (z, y, x, c).
-        flip_axis : int
-            Axis along which to flip the patch.
+            Image or image patch, 2D or 3D, shape C(Z)YX.
+        n_rot : int
+            Number of 90 degree rotations.
+        axes : Tuple[int, int]
+            Axes along which to rotate the patch.
         """
-        if len(patch.shape) == 3 and self.is_3D:
-            raise ValueError(
-                "Incompatible patch shape and dimensionality. ZYXC patch shape "
-                "expected, but got YXC shape."
-            )
-
-        return np.ascontiguousarray(np.rot90(patch, k=n_rotations, axes=self.axes))
-
-    def apply_to_mask(
-        self, mask: np.ndarray, n_rotations: int, **kwargs: Any
-    ) -> np.ndarray:
-        """Apply the transform to the mask.
-
-        Parameters
-        ----------
-        mask : np.ndarray
-            Mask or mask patch, 2D or 3D, shape (y, x, c) or (z, y, x, c).
-        """
-        if len(mask.shape) != 4 and self.is_3D:
-            raise ValueError(
-                "Incompatible mask shape and dimensionality. ZYXC patch shape "
-                "expected, but got YXC shape."
-            )
-
-        return np.ascontiguousarray(np.rot90(mask, k=n_rotations, axes=self.axes))
-
-    def get_transform_init_args_names(self) -> Tuple[str, str]:
-        """
-        Get the transform arguments.
-
-        Returns
-        -------
-        Tuple[str]
-            Transform arguments.
-        """
-        return ("p", "is_3D")
+        # TODO why ascontiguousarray?
+        return np.ascontiguousarray(np.rot90(patch, k=n_rot, axes=axes))

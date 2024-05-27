@@ -1,5 +1,4 @@
 import pytest
-from albumentations import Compose
 
 from careamics.config.data_model import DataConfig
 from careamics.config.support import (
@@ -254,18 +253,6 @@ def test_correct_transform_parameters(minimum_data: dict):
     assert "mean" in params
     assert "std" in params
 
-    # NDFlip
-    params = model.transforms[1].model_dump()
-    assert "p" in params
-    assert "is_3D" in params
-    assert "flip_z" in params
-
-    # XYRandomRotate90
-    params = model.transforms[2].model_dump()
-    assert "p" in params
-    assert "is_3D" in params
-    assert isinstance(model.transforms[2], XYRandomRotate90Model)
-
     # N2VManipulate
     params = model.transforms[3].model_dump()
     assert "roi_size" in params
@@ -289,40 +276,6 @@ def test_passing_incorrect_element(minimum_data: dict):
     ]
     with pytest.raises(ValueError):
         DataConfig(**minimum_data)
-
-
-def test_passing_compose_transform(minimum_data: dict):
-    """Test that Compose transform can be passed."""
-    minimum_data["transforms"] = Compose(
-        [
-            get_all_transforms()[SupportedTransform.NDFLIP](),
-            get_all_transforms()[SupportedTransform.N2V_MANIPULATE](),
-        ]
-    )
-    DataConfig(**minimum_data)
-
-
-def test_3D_and_transforms(minimum_data: dict):
-    """Test that NDFlip is corrected if the data is 3D."""
-    minimum_data["transforms"] = [
-        {
-            "name": SupportedTransform.NDFLIP.value,
-            "is_3D": True,
-            "flip_z": True,
-        },
-        {
-            "name": SupportedTransform.XY_RANDOM_ROTATE90.value,
-            "is_3D": True,
-        },
-    ]
-    data = DataConfig(**minimum_data)
-    assert data.transforms[0].is_3D is False
-    assert data.transforms[1].is_3D is False
-
-    # change to 3D
-    data.set_3D("ZYX", [64, 64, 64])
-    data.transforms[0].is_3D = True
-    data.transforms[1].is_3D = True
 
 
 def test_set_n2v_strategy(minimum_data: dict):

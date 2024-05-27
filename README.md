@@ -4,7 +4,7 @@
   </a>
 </p>
 
-# CAREamics Restoration
+# CAREamics
 
 [![License](https://img.shields.io/pypi/l/careamics.svg?color=green)](https://github.com/CAREamics/careamics/blob/main/LICENSE)
 [![PyPI](https://img.shields.io/pypi/v/careamics.svg?color=green)](https://pypi.org/project/careamics)

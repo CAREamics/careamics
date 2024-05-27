@@ -1,8 +1,8 @@
 """Pydantic model for the XYRandomRotate90 transform."""
 
-from typing import Literal
+from typing import Literal, Optional
 
-from pydantic import ConfigDict, Field
+from pydantic import ConfigDict
 
 from .transform_model import TransformModel
 
@@ -15,10 +15,8 @@ class XYRandomRotate90Model(TransformModel):
     ----------
     name : Literal["XYRandomRotate90"]
         Name of the transformation.
-    p : float
-        Probability of applying the transformation, by default 0.5.
-    is_3D : bool
-        Whether the transformation should be applied in 3D, by default False.
+    seed : Optional[int]
+        Seed for the random number generator.
     """
 
     model_config = ConfigDict(
@@ -26,5 +24,4 @@ class XYRandomRotate90Model(TransformModel):
     )
 
     name: Literal["XYRandomRotate90"] = "XYRandomRotate90"
-    p: float = Field(default=0.5, ge=0.0, le=1.0)
-    is_3D: bool = Field(default=False)
+    seed: Optional[int] = None

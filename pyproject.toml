@@ -38,7 +38,6 @@ classifiers = [
 ]
 dependencies = [
     'torch>=2.0.0',
-    'albumentations',
     'bioimageio.core>=0.6.0',
     'tifffile',
     'psutil',
