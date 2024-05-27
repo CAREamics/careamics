@@ -39,7 +39,9 @@ class DataConfig(BaseModel):
 
     If std is specified, mean must be specified as well. Note that setting the std first
     and then the mean (if they were both `None` before) will raise a validation error.
-    Prefer instead `set_mean_and_std` to set both at once.
+    Prefer instead `set_mean_and_std` to set both at once. Means and stds are expected to
+    be lists of floats, one for each channel. For supervised tasks, the mean and std of
+    the target could be different from the input data.
 
     Examples
     --------
@@ -53,7 +55,7 @@ class DataConfig(BaseModel):
     ... )
 
     To change the mean and std of the data:
-    >>> data.set_mean_and_std(mean=214.3, std=84.5)
+    >>> data.set_mean_and_std(mean=[214.3], std=[84.5])
 
     One can pass also a list of transformations, by keyword, using the
     SupportedTransform or the name of an Albumentation transform:
@@ -88,8 +90,10 @@ class DataConfig(BaseModel):
     axes: str
 
     # Optional fields
-    mean: Optional[float] = None
-    std: Optional[float] = None
+    image_mean: Optional[List[float]] = None
+    image_std: Optional[List[float]] = None
+    target_mean: Optional[List[float]] = None
+    target_std: Optional[List[float]] = None
 
     transforms: List[TRANSFORMS_UNION] = Field(
         default=[
@@ -233,9 +237,19 @@ class DataConfig(BaseModel):
             If std is not None and mean is None.
         """
         # check that mean and std are either both None, or both specified
-        if (self.mean is None) != (self.std is None):
+        if len(self.image_mean) != len(self.image_std):
             raise ValueError(
-                "Mean and std must be either both None, or both specified."
+                "Mean and std must be either both None, or both specified for each"
+                "input channel."
+            )
+        if len(self.target_mean) != len(self.target_std):
+            raise ValueError(
+                "Mean and std must be either both None, or both specified for each"
+                "target channel."
+            )
+        if len(self.target_mean) > 0 and len(self.image_mean) != len(self.target_mean):
+            raise ValueError(
+                "Statistics of input and target channels must be the same."
             )
 
         return self
@@ -250,12 +264,14 @@ class DataConfig(BaseModel):
         Self
             Data model with mean and std added to the Normalize transform.
         """
-        if self.mean is not None or self.std is not None:
+        if self.image_mean and self.image_std:
             # search in the transforms for Normalize and update parameters
             for transform in self.transforms:
                 if transform.name == SupportedTransform.NORMALIZE.value:
-                    transform.mean = self.mean
-                    transform.std = self.std
+                    transform.image_mean = self.image_mean
+                    transform.image_std = self.image_std
+                    transform.target_mean = self.target_mean
+                    transform.target_std = self.target_std
 
         return self
 
@@ -339,7 +355,13 @@ class DataConfig(BaseModel):
         if self.has_n2v_manipulate():
             self.transforms.pop(-1)
 
-    def set_mean_and_std(self, mean: float, std: float) -> None:
+    def set_mean_and_std(
+        self,
+        image_mean: Optional[List[float]] = None,
+        image_std: Optional[List[float]] = None,
+        target_mean: Optional[List[float]] = None,
+        target_std: Optional[List[float]] = None,
+    ) -> None:
         """
         Set mean and standard deviation of the data.
 
@@ -353,13 +375,20 @@ class DataConfig(BaseModel):
         std : float
             Standard deviation of the data.
         """
-        self._update(mean=mean, std=std)
+        self._update(
+            image_mean=image_mean,
+            image_std=image_std,
+            target_mean=target_mean,
+            target_std=target_std,
+        )
 
         # search in the transforms for Normalize and update parameters
         for transform in self.transforms:
             if transform.name == SupportedTransform.NORMALIZE.value:
-                transform.mean = mean
-                transform.std = std
+                transform.image_mean = self.image_mean
+                transform.image_std = self.image_std
+                transform.target_mean = self.target_mean
+                transform.target_std = self.target_std
 
     def set_3D(self, axes: str, patch_size: List[int]) -> None:
         """
