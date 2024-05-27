@@ -1,6 +1,6 @@
 """A class chaining transforms together."""
 
-from typing import Callable, List, Optional, Tuple
+from typing import Callable, Dict, List, Optional, Tuple
 
 import numpy as np
 
@@ -20,7 +20,7 @@ ALL_TRANSFORMS = {
 }
 
 
-def get_all_transforms() -> dict:
+def get_all_transforms() -> Dict[str, type]:
     """Return all the transforms accepted by CAREamics.
 
     Returns
@@ -68,7 +68,7 @@ class Compose:
 
         def _chain(
             patch: np.ndarray, target: Optional[np.ndarray]
-        ) -> Tuple[np.ndarray, ...]:
+        ) -> Tuple[np.ndarray, Optional[np.ndarray]]:
             params = (patch, target)
 
             for t in transforms:

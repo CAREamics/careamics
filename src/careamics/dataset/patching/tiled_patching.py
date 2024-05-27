@@ -8,7 +8,7 @@ from careamics.config.tile_information import TileInformation
 
 def _compute_crop_and_stitch_coords_1d(
     axis_size: int, tile_size: int, overlap: int
-) -> Tuple[List[Tuple[int, ...]], ...]:
+) -> Tuple[List[Tuple[int, int]], List[Tuple[int, int]], List[Tuple[int, int]]]:
     """
     Compute the coordinates of each tile along an axis, given the overlap.
 

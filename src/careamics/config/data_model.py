@@ -202,7 +202,7 @@ class DataConfig(BaseModel):
 
         if SupportedTransform.N2V_MANIPULATE in transform_list:
             # multiple N2V_MANIPULATE
-            if transform_list.count(SupportedTransform.N2V_MANIPULATE) > 1:
+            if transform_list.count(SupportedTransform.N2V_MANIPULATE.value) > 1:
                 raise ValueError(
                     f"Multiple instances of "
                     f"{SupportedTransform.N2V_MANIPULATE} transforms "
@@ -211,7 +211,7 @@ class DataConfig(BaseModel):
 
             # N2V_MANIPULATE not the last transform
             elif transform_list[-1] != SupportedTransform.N2V_MANIPULATE:
-                index = transform_list.index(SupportedTransform.N2V_MANIPULATE)
+                index = transform_list.index(SupportedTransform.N2V_MANIPULATE.value)
                 transform = transforms.pop(index)
                 transforms.append(transform)
 
@@ -250,7 +250,7 @@ class DataConfig(BaseModel):
         Self
             Data model with mean and std added to the Normalize transform.
         """
-        if self.mean is not None or self.std is not None:
+        if self.mean is not None and self.std is not None:
             # search in the transforms for Normalize and update parameters
             for transform in self.transforms:
                 if transform.name == SupportedTransform.NORMALIZE.value:

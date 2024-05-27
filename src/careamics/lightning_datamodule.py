@@ -95,13 +95,13 @@ class CAREamicsTrainData(L.LightningDataModule):
         Batch size.
     use_in_memory : bool
         Whether to use in memory dataset if possible.
-    train_data : Union[Path, str, np.ndarray]
+    train_data : Union[Path, np.ndarray]
         Training data.
-    val_data : Optional[Union[Path, str, np.ndarray]]
+    val_data : Optional[Union[Path, np.ndarray]]
         Validation data.
-    train_data_target : Optional[Union[Path, str, np.ndarray]]
+    train_data_target : Optional[Union[Path, np.ndarray]]
         Training target data.
-    val_data_target : Optional[Union[Path, str, np.ndarray]]
+    val_data_target : Optional[Union[Path, np.ndarray]]
         Validation target data.
     val_percentage : float
         Percentage of the training data to use for validation, if no validation data is
@@ -217,17 +217,33 @@ class CAREamicsTrainData(L.LightningDataModule):
             )
 
         # configuration
-        self.data_config = data_config
-        self.data_type = data_config.data_type
-        self.batch_size = data_config.batch_size
-        self.use_in_memory = use_in_memory
+        self.data_config: DataConfig = data_config
+        self.data_type: str = data_config.data_type
+        self.batch_size: int = data_config.batch_size
+        self.use_in_memory: bool = use_in_memory
 
-        # data
-        self.train_data = train_data
-        self.val_data = val_data
+        # data: make data Path or np.ndarray, use type annotations for mypy
+        self.train_data: Union[Path, np.ndarray] = (
+            Path(train_data) if isinstance(train_data, str) else train_data
+        )
 
-        self.train_data_target = train_data_target
-        self.val_data_target = val_data_target
+        self.val_data: Union[Path, np.ndarray] = (
+            Path(val_data) if isinstance(val_data, str) else val_data
+        )
+
+        self.train_data_target: Union[Path, np.ndarray] = (
+            Path(train_data_target)
+            if isinstance(train_data_target, str)
+            else train_data_target
+        )
+
+        self.val_data_target: Union[Path, np.ndarray] = (
+            Path(val_data_target)
+            if isinstance(val_data_target, str)
+            else val_data_target
+        )
+
+        # validation split
         self.val_percentage = val_percentage
         self.val_minimum_split = val_minimum_split
 
@@ -241,7 +257,7 @@ class CAREamicsTrainData(L.LightningDataModule):
         elif data_config.data_type != SupportedData.ARRAY:
             self.read_source_func = get_read_func(data_config.data_type)
 
-        self.extension_filter = extension_filter
+        self.extension_filter: str = extension_filter
 
         # Pytorch dataloader parameters
         self.dataloader_params = (
