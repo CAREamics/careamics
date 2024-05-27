@@ -99,3 +99,23 @@ def reshape_array(x: np.ndarray, axes: str) -> np.ndarray:
         _x = np.expand_dims(_x, new_axes.index("S") + 1)
 
     return _x
+
+
+def compute_normalization_stats(image: np.ndarray) -> Tuple[List[float], List[float]]:
+    """
+    Compute mean and standard deviation of an array.
+
+    Parameters
+    ----------
+    data : np.ndarray
+        Input array.
+
+    Returns
+    -------
+    Tuple[List[float], List[float]]
+        Lists of mean and standard deviation values per channel.
+    """
+    image_means = [image[i].mean() for i in range(image.shape[0])]
+    image_stds = [image[i].std() for i in range(image.shape[0])]
+
+    return image_means, image_stds

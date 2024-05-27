@@ -10,7 +10,7 @@ from typing import Callable, List, Tuple, Union
 import numpy as np
 
 from ...utils.logging import get_logger
-from ..dataset_utils import reshape_array
+from ..dataset_utils import compute_normalization_stats_array, reshape_array
 from .sequential_patching import extract_patches_sequential
 
 logger = get_logger(__name__)
@@ -142,7 +142,7 @@ def prepare_patches_supervised_array(
     axes: str,
     data_target: np.ndarray,
     patch_size: Union[List[int], Tuple[int]],
-) -> Tuple[np.ndarray, np.ndarray, float, float]:
+) -> Tuple[np.ndarray, np.ndarray, List[float], List[float]]:
     """Iterate over data source and create an array of patches.
 
     This method expects an array of shape SC(Z)YX, where S and C can be singleton
@@ -156,8 +156,8 @@ def prepare_patches_supervised_array(
         Array of patches.
     """
     # compute statistics
-    mean = data.mean()
-    std = data.std()
+    image_means, image_stds = compute_normalization_stats_array(data)
+    target_means, target_stds = compute_normalization_stats_array(data_target)
 
     # reshape array
     reshaped_sample = reshape_array(data, axes)
@@ -176,8 +176,8 @@ def prepare_patches_supervised_array(
     return (
         patches,
         patch_targets,
-        mean,
-        std,
+        image_means, target_means,
+        image_stds, target_stds
     )
 
 
@@ -201,8 +201,7 @@ def prepare_patches_unsupervised_array(
         Array of patches.
     """
     # calculate mean and std
-    mean = data.mean()
-    std = data.std()
+    means, stds = compute_normalization_stats_array(data)
 
     # reshape array
     reshaped_sample = reshape_array(data, axes)
@@ -210,4 +209,4 @@ def prepare_patches_unsupervised_array(
     # generate patches, return a generator
     patches, _ = extract_patches_sequential(reshaped_sample, patch_size=patch_size)
 
-    return patches, _, mean, std  # TODO inelegant, replace  by dataclass?
+    return patches, _, means, stds  # TODO inelegant, replace  by dataclass?
