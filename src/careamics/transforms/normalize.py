@@ -1,4 +1,4 @@
-from typing import Optional, Tuple
+from typing import List, Optional, Tuple
 
 import numpy as np
 
@@ -25,11 +25,15 @@ class Normalize(Transform):
 
     def __init__(
         self,
-        mean: float,
-        std: float,
+        image_mean: List[float],
+        image_std: List[float],
+        target_mean: Optional[List[float]] = None,
+        target_std: Optional[List[float]] = None,
     ):
-        self.mean = mean
-        self.std = std
+        self.image_mean = image_mean
+        self.image_std = image_std
+        self.target_mean = target_mean
+        self.target_std = target_std
         self.eps = 1e-6
 
     def __call__(
@@ -49,13 +53,22 @@ class Normalize(Transform):
         Tuple[np.ndarray, Optional[np.ndarray]]
             Transformed patch and target.
         """
-        norm_patch = self._apply(patch)
-        norm_target = self._apply(target) if target is not None else None
+        norm_patch = np.zeros_like(patch, dtype=np.float32)
+        norm_target = (
+            np.zeros_like(target, dtype=np.float32) if target is not None else None
+        )
+
+        for i in range(patch.shape[0]):
+            norm_patch[i] = self._apply(patch[i], self.image_mean[i], self.image_std[i])
+            if target is not None:
+                norm_target[i] = self._apply(
+                    target[i], self.target_mean[i], self.target_std[i]
+                )
 
         return norm_patch, norm_target
 
-    def _apply(self, patch: np.ndarray) -> np.ndarray:
-        return ((patch - self.mean) / (self.std + self.eps)).astype(np.float32)
+    def _apply(self, patch: np.ndarray, mean: float, std: float) -> np.ndarray:
+        return ((patch - mean) / (std + self.eps)).astype(np.float32)
 
 
 class Denormalize:
