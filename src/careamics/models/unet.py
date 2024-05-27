@@ -250,15 +250,18 @@ class UnetDecoder(nn.Module):
 
     @staticmethod
     def _interleave(A: torch.Tensor, B: torch.Tensor, groups: int) -> torch.Tensor:
-        """
-        Splits the tensors `A` and `B` into equally sized groups along the
-        channel axis (axis=1); then concatenates the groups in alternating
-        order along the channel axis, starting with the first group from tensor A.
+        """Interleave two tensors.
+
+        Splits the tensors `A` and `B` into equally sized groups along the channel
+        axis (axis=1); then concatenates the groups in alternating order along the
+        channel axis, starting with the first group from tensor A.
 
         Parameters
         ----------
         A: torch.Tensor
+            First tensor.
         B: torch.Tensor
+            Second tensor.
         groups: int
             The number of groups.
 
