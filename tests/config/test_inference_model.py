@@ -1,5 +1,4 @@
 import pytest
-from albumentations import Compose
 
 from careamics.config.inference_model import InferenceConfig
 from careamics.config.support import (
@@ -159,17 +158,6 @@ def test_passing_incorrect_element(minimum_inference: dict):
     ]
     with pytest.raises(ValueError):
         InferenceConfig(**minimum_inference)
-
-
-def test_passing_compose_transform(minimum_inference: dict):
-    """Test that Compose transform can be passed."""
-    minimum_inference["transforms"] = Compose(
-        [
-            get_all_transforms()[SupportedTransform.NORMALIZE](mean=10.4, std=3.2),
-            get_all_transforms()[SupportedTransform.NDFLIP](),
-        ]
-    )
-    InferenceConfig(**minimum_inference)
 
 
 def test_mean_and_std_in_normalize(minimum_inference: dict):

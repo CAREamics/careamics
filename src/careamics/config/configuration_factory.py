@@ -2,8 +2,6 @@
 
 from typing import Any, Dict, List, Literal, Optional, Tuple, Union
 
-from albumentations import Compose
-
 from .algorithm_model import AlgorithmConfig
 from .architectures import UNetModel
 from .configuration_model import Configuration
@@ -589,7 +587,7 @@ def create_inference_configuration(
     tile_overlap: Optional[Tuple[int, ...]] = None,
     data_type: Optional[Literal["array", "tiff", "custom"]] = None,
     axes: Optional[str] = None,
-    transforms: Optional[Union[List[Dict[str, Any]], Compose]] = None,
+    transforms: Optional[Union[List[Dict[str, Any]]]] = None,
     tta_transforms: bool = True,
     batch_size: Optional[int] = 1,
 ) -> InferenceConfig:
@@ -611,7 +609,7 @@ def create_inference_configuration(
         Type of the data, by default "tiff".
     axes : str, optional
         Axes of the data, by default "YX".
-    transforms : List[Dict[str, Any]] or Compose, optional
+    transforms : List[Dict[str, Any]], optional
         Transformations to apply to the data, by default None.
     tta_transforms : bool, optional
         Whether to apply test-time augmentations, by default True.

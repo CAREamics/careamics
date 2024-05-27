@@ -7,13 +7,12 @@ from typing import Any, Callable, Generator, List, Optional, Tuple, Union
 import numpy as np
 from torch.utils.data import IterableDataset, get_worker_info
 
+from careamics.transforms import Compose
+
 from ..config import DataConfig, InferenceConfig
 from ..config.tile_information import TileInformation
 from ..utils.logging import get_logger
 from .dataset_utils import read_tiff, reshape_array
-from .patching import (
-    get_patch_transform,
-)
 from .patching.random_patching import extract_patches_random
 from .patching.tiled_patching import extract_tiles
 
@@ -61,26 +60,15 @@ class PathIterableDataset(IterableDataset):
         if not data_config.mean or not data_config.std:
             self.mean, self.std = self._calculate_mean_and_std()
 
-            # if the transforms are not an instance of Compose
-            # Check if the data_config is an instance of DataModel or InferenceModel
-            # isinstance isn't working properly here
-            if hasattr(data_config, "has_transform_list"):
-                if data_config.has_transform_list():
-                    # update mean and std in configuration
-                    # the object is mutable and should then be recorded in the CAREamist
-                    data_config.set_mean_and_std(self.mean, self.std)
-            else:
-                data_config.set_mean_and_std(self.mean, self.std)
-
+            # update mean and std in configuration
+            # the object is mutable and should then be recorded in the CAREamist
+            data_config.set_mean_and_std(self.mean, self.std)
         else:
             self.mean = data_config.mean
             self.std = data_config.std
 
         # get transforms
-        self.patch_transform = get_patch_transform(
-            patch_transforms=data_config.transforms,
-            with_target=target_files is not None,
-        )
+        self.patch_transform = Compose(transform_list=data_config.transforms)
 
     def _calculate_mean_and_std(self) -> Tuple[float, float]:
         """
@@ -192,49 +180,10 @@ class PathIterableDataset(IterableDataset):
             # or (patch, None) only if no target is available
             # patch is of dimensions (C)ZYX
             for patch_data in patches:
-                # if there is a target
-                if self.target_files is not None:
-                    # Albumentations expects the channel dimension to be last
-                    # Taking the first element because patch_data can include target
-                    c_patch = np.moveaxis(patch_data[0], 0, -1)
-                    c_target = np.moveaxis(patch_data[1], 0, -1)
-
-                    # apply the transform to the patch and the target
-                    transformed = self.patch_transform(
-                        image=c_patch,
-                        target=c_target,
-                    )
-
-                    # move the axes back to the original position
-                    c_patch = np.moveaxis(transformed["image"], -1, 0)
-                    c_target = np.moveaxis(transformed["target"], -1, 0)
-
-                    yield (c_patch, c_target)
-                elif self.data_config.has_n2v_manipulate():
-                    # Albumentations expects the channel dimension to be last
-                    # Taking the first element because patch_data can include target
-                    patch = np.moveaxis(patch_data[0], 0, -1)
-
-                    # apply transform
-                    transformed = self.patch_transform(image=patch)
-
-                    # retrieve the output of ManipulateN2V
-                    results = transformed["image"]
-                    masked_patch: np.ndarray = results[0]
-                    original_patch: np.ndarray = results[1]
-                    mask: np.ndarray = results[2]
-
-                    # move C axes back
-                    masked_patch = np.moveaxis(masked_patch, -1, 0)
-                    original_patch = np.moveaxis(original_patch, -1, 0)
-                    mask = np.moveaxis(mask, -1, 0)
-
-                    yield (masked_patch, original_patch, mask)
-                else:
-                    raise ValueError(
-                        "Something went wrong! Not target file (no supervised "
-                        "training) and no N2V transform (no n2v training either)."
-                    )
+                yield self.patch_transform(
+                    patch=patch_data[0],
+                    target=patch_data[1],
+                )
 
     def get_number_of_files(self) -> int:
         """
@@ -367,9 +316,8 @@ class IterablePredictionDataset(PathIterableDataset):
         self.tile = self.tile_size is not None and self.tile_overlap is not None
 
         # get tta transforms
-        self.patch_transform = get_patch_transform(
-            patch_transforms=prediction_config.transforms,
-            with_target=False,
+        self.patch_transform = Compose(
+            transform_list=prediction_config.transforms,
         )
 
     def __iter__(
@@ -408,9 +356,6 @@ class IterablePredictionDataset(PathIterableDataset):
 
             # apply transform to patches
             for patch_array, tile_info in patch_gen:
-                # albumentations expects the channel dimension to be last
-                patch = np.moveaxis(patch_array, 0, -1)
-                transformed_patch = self.patch_transform(image=patch)
-                transformed_patch = np.moveaxis(transformed_patch["image"], -1, 0)
+                transformed_patch, _ = self.patch_transform(patch=patch_array)
 
                 yield transformed_patch, tile_info
