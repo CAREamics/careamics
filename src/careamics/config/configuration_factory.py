@@ -583,9 +583,8 @@ def create_n2v_configuration(
     return configuration
 
 
-# TODO add tests
 def create_inference_configuration(
-    training_configuration: Configuration,
+    configuration: Configuration,
     tile_size: Optional[Tuple[int, ...]] = None,
     tile_overlap: Optional[Tuple[int, ...]] = None,
     data_type: Optional[Literal["array", "tiff", "custom"]] = None,
@@ -602,8 +601,8 @@ def create_inference_configuration(
 
     Parameters
     ----------
-    training_configuration : Configuration
-        Configuration used for training.
+    configuration : Configuration
+        Global configuration.
     tile_size : Tuple[int, ...], optional
         Size of the tiles.
     tile_overlap : Tuple[int, ...], optional
@@ -622,14 +621,12 @@ def create_inference_configuration(
     Returns
     -------
     InferenceConfiguration
-        Configuration for inference with N2V.
+        Configuration used to configure CAREamicsPredictData.
     """
-    if (
-        training_configuration.data_config.mean is None
-        or training_configuration.data_config.std is None
-    ):
-        raise ValueError("Mean and std must be provided in the training configuration.")
+    if configuration.data_config.mean is None or configuration.data_config.std is None:
+        raise ValueError("Mean and std must be provided in the configuration.")
 
+    # minimum transform
     if transforms is None:
         transforms = [
             {
@@ -637,13 +634,35 @@ def create_inference_configuration(
             },
         ]
 
+    # tile size for UNets
+    if tile_size is not None:
+        model = configuration.algorithm_config.model
+
+        if model.architecture == SupportedArchitecture.UNET.value:
+            # tile size must be equal to k*2^n, where n is the number of pooling layers
+            # (equal to the depth) and k is an integer
+            depth = model.depth
+            tile_increment = 2**depth
+
+            for i, t in enumerate(tile_size):
+                if t % tile_increment != 0:
+                    raise ValueError(
+                        f"Tile size must be divisible by {tile_increment} along all "
+                        f"axes (got {t} for axis {i}). If your image size is smaller "
+                        f"along one axis (e.g. Z), consider padding the image."
+                    )
+
+        # tile overlaps must be specified
+        if tile_overlap is None:
+            raise ValueError("Tile overlap must be specified.")
+
     return InferenceConfig(
-        data_type=data_type or training_configuration.data_config.data_type,
+        data_type=data_type or configuration.data_config.data_type,
         tile_size=tile_size,
         tile_overlap=tile_overlap,
-        axes=axes or training_configuration.data_config.axes,
-        mean=training_configuration.data_config.mean,
-        std=training_configuration.data_config.std,
+        axes=axes or configuration.data_config.axes,
+        mean=configuration.data_config.mean,
+        std=configuration.data_config.std,
         transforms=transforms,
         tta_transforms=tta_transforms,
         batch_size=batch_size,

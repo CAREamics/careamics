@@ -52,22 +52,22 @@ class InferenceConfig(BaseModel):
     @field_validator("tile_overlap")
     @classmethod
     def all_elements_non_zero_even(
-        cls, patch_list: Optional[Union[List[int]]]
+        cls, tile_overlap: Optional[Union[List[int]]]
     ) -> Optional[Union[List[int]]]:
         """
-        Validate patch size.
+        Validate tile overlap.
 
-        Patch size must be non-zero, positive and even.
+        Overlaps must be non-zero, positive and even.
 
         Parameters
         ----------
-        patch_list : Optional[Union[List[int]]]
+        tile_overlap : Optional[Union[List[int]]]
             Patch size.
 
         Returns
         -------
         Optional[Union[List[int]]]
-            Validated patch size.
+            Validated tile overlap.
 
         Raises
         ------
@@ -76,8 +76,8 @@ class InferenceConfig(BaseModel):
         ValueError
             If the patch size is not even.
         """
-        if patch_list is not None:
-            for dim in patch_list:
+        if tile_overlap is not None:
+            for dim in tile_overlap:
                 if dim < 1:
                     raise ValueError(
                         f"Patch size must be non-zero positive (got {dim})."
@@ -86,7 +86,7 @@ class InferenceConfig(BaseModel):
                 if dim % 2 != 0:
                     raise ValueError(f"Patch size must be even (got {dim}).")
 
-        return patch_list
+        return tile_overlap
 
     @field_validator("tile_size")
     @classmethod
@@ -173,7 +173,7 @@ class InferenceConfig(BaseModel):
         ValueError
             If transforms contain N2V pixel manipulate transforms.
         """
-        if not isinstance(transforms, Compose) and transforms is not None:
+        if transforms is not None:
             for transform in transforms:
                 if transform.name == SupportedTransform.N2V_MANIPULATE.value:
                     raise ValueError(

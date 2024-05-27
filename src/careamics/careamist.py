@@ -543,6 +543,12 @@ class CAREamist:
         Test-time augmentation (TTA) can be switched off using the `tta_transforms`
         parameter.
 
+        Note that if you are using a UNet model and tiling, the tile size must be
+        divisible in every dimension by 2**d, where d is the depth of the model. This
+        avoids artefacts arising from the broken shift invariance induced by the
+        pooling layers of the UNet. If your image has less dimensions, as it may
+        happen in the Z dimension, consider padding your image.
+
         Parameters
         ----------
         source : Union[CAREamicsClay, Path, str, np.ndarray]
@@ -597,7 +603,7 @@ class CAREamist:
                 )
             # create predict config, reuse training config if parameters missing
             prediction_config = create_inference_configuration(
-                training_configuration=self.cfg,
+                configuration=self.cfg,
                 tile_size=tile_size,
                 tile_overlap=tile_overlap,
                 data_type=data_type,
