@@ -324,8 +324,14 @@ class UNet(nn.Module):
         Dropout probability, by default 0.0.
     pool_kernel : int, optional
         Kernel size of the pooling layers, by default 2.
-    last_activation : Optional[Callable], optional
+    final_activation : Optional[Callable], optional
         Activation function to use for the last layer, by default None.
+    n2v2 : bool, optional
+        Whether to use N2V2 architecture, by default False.
+    independent_channels : bool
+        Whether to train the channels independently, by default True.
+    **kwargs : Any
+        Additional keyword arguments, unused.
     """
 
     def __init__(
@@ -364,11 +370,15 @@ class UNet(nn.Module):
             Dropout probability, by default 0.0.
         pool_kernel : int, optional
             Kernel size of the pooling layers, by default 2.
-        last_activation : Optional[Callable], optional
+        final_activation : Optional[Callable], optional
             Activation function to use for the last layer, by default None.
+        n2v2 : bool, optional
+            Whether to use N2V2 architecture, by default False.
         independent_channels : bool
             Whether to train parallel independent networks for each channel, by
             default True.
+        **kwargs : Any
+            Additional keyword arguments, unused.
         """
         super().__init__()
 

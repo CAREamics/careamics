@@ -33,7 +33,19 @@ def get_all_transforms() -> Dict[str, type]:
 
 
 class Compose:
-    """A class chaining transforms together."""
+    """A class chaining transforms together.
+
+    Parameters
+    ----------
+    transform_list : List[TRANSFORMS_UNION]
+        A list of dictionaries where each dictionary contains the name of a
+        transform and its parameters.
+
+    Attributes
+    ----------
+    _callable_transforms : Callable
+        A callable that applies the transforms to the input data.
+    """
 
     def __init__(self, transform_list: List[TRANSFORMS_UNION]) -> None:
         """Instantiate a Compose object.
@@ -69,6 +81,20 @@ class Compose:
         def _chain(
             patch: np.ndarray, target: Optional[np.ndarray]
         ) -> Tuple[np.ndarray, Optional[np.ndarray]]:
+            """Chain transforms on the input data.
+
+            Parameters
+            ----------
+            patch : np.ndarray
+                Input data.
+            target : Optional[np.ndarray]
+                Target data, by default None.
+
+            Returns
+            -------
+            Tuple[np.ndarray, Optional[np.ndarray]]
+                The output of the transformations.
+            """
             params = (patch, target)
 
             for t in transforms:
@@ -88,7 +114,7 @@ class Compose:
         patch : np.ndarray
             The input data.
         target : Optional[np.ndarray], optional
-            Target data, by default None
+            Target data, by default None.
 
         Returns
         -------

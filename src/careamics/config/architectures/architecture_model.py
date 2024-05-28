@@ -1,3 +1,5 @@
+"""Base model for the various CAREamics architectures."""
+
 from typing import Any, Dict
 
 from pydantic import BaseModel

@@ -1,3 +1,5 @@
+"""Algorithm configuration."""
+
 from __future__ import annotations
 
 from pprint import pformat
@@ -17,9 +19,9 @@ class AlgorithmConfig(BaseModel):
     training algorithm: which algorithm, loss function, model architecture, optimizer,
     and learning rate scheduler to use.
 
-    Currently, we only support N2V and custom algorithms. The `n2v` algorithm is only
-    compatible with `n2v` loss and `UNet` architecture. The `custom` algorithm allows
-    you to register your own architecture and select it using its name as
+    Currently, we only support N2V, CARE, N2N and custom models. The `n2v` algorithm is
+    only compatible with `n2v` loss and `UNet` architecture. The `custom` algorithm
+    allows you to register your own architecture and select it using its name as
     `name` in the custom pydantic model.
 
     Attributes
