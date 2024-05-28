@@ -237,22 +237,40 @@ class DataConfig(BaseModel):
             If std is not None and mean is None.
         """
         # check that mean and std are either both None, or both specified
-        if len(self.image_mean) != len(self.image_std):
+        if (self.image_mean and not self.image_std) or (
+            self.image_std and not self.image_mean
+        ):
             raise ValueError(
-                "Mean and std must be either both None, or both specified for each "
-                "input channel."
+                "Mean and std must be either both None, or both specified."
             )
 
-        if len(self.target_mean) != len(self.target_std):
+        elif (self.image_mean is not None and self.image_std is not None) and (
+            len(self.image_mean) != len(self.image_std)
+        ):
             raise ValueError(
-                "Mean and std must be either both None, or both specified for each "
-                "target channel."
+                "Mean and std must be specified for each " "input channel."
             )
 
-        if len(self.target_mean) > 0 and len(self.image_mean) != len(self.target_mean):
+        if (self.target_mean and not self.target_std) or (
+            self.target_std and not self.target_mean
+        ):
             raise ValueError(
-                "Statistics of input and target channels must be the same."
+                "Mean and std must be either both None, or both specified "
             )
+
+        elif self.target_mean is not None and self.target_std is not None:
+            if len(self.target_mean) != len(self.target_std):
+                raise ValueError(
+                    "Mean and std must be either both None, or both specified for each "
+                    "target channel."
+                )
+
+            if len(self.target_mean) > 0 and len(self.image_mean) != len(
+                self.target_mean
+            ):
+                raise ValueError(
+                    "Statistics of input and target channels must be the same."
+                )
 
         return self
 

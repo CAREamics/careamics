@@ -4,8 +4,9 @@ Tiling submodule.
 These functions are used to tile images into patches or tiles.
 """
 
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, List, Tuple, Union
+from typing import Callable, Iterator, List, Tuple, Union
 
 import numpy as np
 
@@ -14,6 +15,18 @@ from ..dataset_utils import compute_normalization_stats, reshape_array
 from .sequential_patching import extract_patches_sequential
 
 logger = get_logger(__name__)
+
+
+@dataclass
+class PatchedOutput:
+    """Dataclass to store patches and statistics."""
+
+    patches: Union[np.ndarray, Iterator[np.ndarray]]
+    targets: np.ndarray
+    image_means: List[float]
+    image_stds: List[float]
+    target_means: List[float]
+    target_stds: List[float]
 
 
 # called by in memory dataset
@@ -74,17 +87,15 @@ def prepare_patches_supervised(
             f"{target_files}."
         )
 
-    result_mean, result_std = means / num_samples, stds / num_samples
+    image_means, image_stds = compute_normalization_stats(np.concatenate(all_patches))
+    target_means, target_stds = compute_normalization_stats(np.concatenate(all_targets))
 
     patch_array: np.ndarray = np.concatenate(all_patches, axis=0)
     target_array: np.ndarray = np.concatenate(all_targets, axis=0)
     logger.info(f"Extracted {patch_array.shape[0]} patches from input array.")
 
-    return (
-        patch_array,
-        target_array,
-        result_mean,
-        result_std,
+    return PatchedOutput(
+        patch_array, target_array, image_means, image_stds, target_means, target_stds
     )
 
 
@@ -128,12 +139,14 @@ def prepare_patches_unsupervised(
     if num_samples == 0:
         raise ValueError(f"No valid samples found in the input data: {train_files}.")
 
-    result_mean, result_std = means / num_samples, stds / num_samples
+    image_means, image_stds = compute_normalization_stats(np.concatenate(all_patches))
 
     patch_array: np.ndarray = np.concatenate(all_patches)
     logger.info(f"Extracted {patch_array.shape[0]} patches from input array.")
 
-    return patch_array, _, result_mean, result_std  # TODO return object?
+    return PatchedOutput(
+        patch_array, None, image_means, image_stds, [], []
+    )
 
 
 # called on arrays by in memory dataset
@@ -155,13 +168,13 @@ def prepare_patches_supervised_array(
     np.ndarray
         Array of patches.
     """
-    # compute statistics
-    image_means, image_stds = compute_normalization_stats(data)
-    target_means, target_stds = compute_normalization_stats(data_target)
-
     # reshape array
     reshaped_sample = reshape_array(data, axes)
     reshaped_target = reshape_array(data_target, axes)
+
+    # compute statistics
+    image_means, image_stds = compute_normalization_stats(reshaped_sample)
+    target_means, target_stds = compute_normalization_stats(reshaped_target)
 
     # generate patches, return a generator
     patches, patch_targets = extract_patches_sequential(
@@ -173,11 +186,8 @@ def prepare_patches_supervised_array(
 
     logger.info(f"Extracted {patches.shape[0]} patches from input array.")
 
-    return (
-        patches,
-        patch_targets,
-        image_means, target_means,
-        image_stds, target_stds
+    return PatchedOutput(
+        patches, patch_targets, image_means, image_stds, target_means, target_stds
     )
 
 
@@ -200,13 +210,13 @@ def prepare_patches_unsupervised_array(
     np.ndarray
         Array of patches.
     """
-    # calculate mean and std
-    means, stds = compute_normalization_stats(data)
-
     # reshape array
     reshaped_sample = reshape_array(data, axes)
+
+    # calculate mean and std
+    means, stds = compute_normalization_stats(reshaped_sample)
 
     # generate patches, return a generator
     patches, _ = extract_patches_sequential(reshaped_sample, patch_size=patch_size)
 
-    return patches, _, means, stds  # TODO inelegant, replace  by dataclass?
+    return PatchedOutput(patches, None, means, stds, [], [])

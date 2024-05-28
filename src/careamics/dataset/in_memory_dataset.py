@@ -53,21 +53,35 @@ class InMemoryDataset(Dataset):
 
         # Generate patches
         supervised = self.data_target is not None
-        patches = self._prepare_patches(supervised)
+        patches_data = self._prepare_patches(supervised)
 
-        # Add results to members
-        self.data, self.data_targets, computed_mean, computed_std = patches
+        # Unpack the dataclass
+        self.data = patches_data.patches
+        self.data_targets = patches_data.targets
 
-        if not self.data_config.mean or not self.data_config.std:
-            self.mean, self.std = computed_mean, computed_std
-            logger.info(f"Computed dataset mean: {self.mean}, std: {self.std}")
-
-            # update mean and std in configuration
-            # the object is mutable and should then be recorded in the CAREamist obj
-            self.data_config.set_mean_and_std(self.mean, self.std)
+        if not self.data_config.image_mean or not self.data_config.image_std:
+            self.image_means = patches_data.image_means
+            self.image_stds = patches_data.image_stds
+            logger.info(f"Computed dataset mean: {self.image_means}, std: {self.image_stds}")
         else:
-            self.mean, self.std = self.data_config.mean, self.data_config.std
+            self.image_means = self.data_config.image_mean
+            self.image_stds = self.data_config.image_std
 
+        if not self.data_config.target_mean or not self.data_config.target_std:
+            self.target_means = patches_data.target_means
+            self.target_stds = patches_data.target_stds
+        else:
+            self.target_means = self.data_config.target_mean
+            self.target_stds = self.data_config.target_std
+
+        # update mean and std in configuration
+        # the object is mutable and should then be recorded in the CAREamist obj
+        self.data_config.set_mean_and_std(
+            image_mean=self.image_means,
+            image_std=self.image_stds,
+            target_mean=self.target_means,
+            target_std=self.target_stds,
+        )
         # get transforms
         self.patch_transform = Compose(
             transform_list=self.data_config.transforms,

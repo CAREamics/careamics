@@ -25,15 +25,15 @@ class Normalize(Transform):
 
     def __init__(
         self,
-        image_mean: List[float],
-        image_std: List[float],
-        target_mean: Optional[List[float]] = None,
-        target_std: Optional[List[float]] = None,
+        image_means: List[float],
+        image_stds: List[float],
+        target_means: Optional[List[float]] = None,
+        target_stds: Optional[List[float]] = None,
     ):
-        self.image_mean = image_mean
-        self.image_std = image_std
-        self.target_mean = target_mean
-        self.target_std = target_std
+        self.image_mean = image_means
+        self.image_std = image_stds
+        self.target_mean = target_means
+        self.target_std = target_stds
         self.eps = 1e-6
 
     def __call__(
