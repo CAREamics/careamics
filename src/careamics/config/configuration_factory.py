@@ -1,6 +1,6 @@
 """Convenience functions to create configurations for training and inference."""
 
-from typing import Any, Dict, List, Literal, Optional, Tuple, Union
+from typing import Any, Dict, List, Literal, Optional, Tuple
 
 from .algorithm_model import AlgorithmConfig
 from .architectures import UNetModel
@@ -587,7 +587,6 @@ def create_inference_configuration(
     tile_overlap: Optional[Tuple[int, ...]] = None,
     data_type: Optional[Literal["array", "tiff", "custom"]] = None,
     axes: Optional[str] = None,
-    transforms: Optional[Union[List[Dict[str, Any]]]] = None,
     tta_transforms: bool = True,
     batch_size: Optional[int] = 1,
 ) -> InferenceConfig:
@@ -595,7 +594,7 @@ def create_inference_configuration(
     Create a configuration for inference with N2V.
 
     If not provided, `data_type` and `axes` are taken from the training
-    configuration. If `transforms` are not provided, only normalization is applied.
+    configuration.
 
     Parameters
     ----------
@@ -609,8 +608,6 @@ def create_inference_configuration(
         Type of the data, by default "tiff".
     axes : str, optional
         Axes of the data, by default "YX".
-    transforms : List[Dict[str, Any]], optional
-        Transformations to apply to the data, by default None.
     tta_transforms : bool, optional
         Whether to apply test-time augmentations, by default True.
     batch_size : int, optional
@@ -623,14 +620,6 @@ def create_inference_configuration(
     """
     if configuration.data_config.mean is None or configuration.data_config.std is None:
         raise ValueError("Mean and std must be provided in the configuration.")
-
-    # minimum transform
-    if transforms is None:
-        transforms = [
-            {
-                "name": SupportedTransform.NORMALIZE.value,
-            },
-        ]
 
     # tile size for UNets
     if tile_size is not None:
@@ -661,7 +650,6 @@ def create_inference_configuration(
         axes=axes or configuration.data_config.axes,
         mean=configuration.data_config.mean,
         std=configuration.data_config.std,
-        transforms=transforms,
         tta_transforms=tta_transforms,
         batch_size=batch_size,
     )

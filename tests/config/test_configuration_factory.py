@@ -539,10 +539,9 @@ def test_inference_config():
     )
     config.data_config.set_mean_and_std(0.5, 0.2)
 
-    inf_config = create_inference_configuration(
+    create_inference_configuration(
         configuration=config,
     )
-    assert len(inf_config.transforms) == 1
 
 
 def test_inference_tile_size():

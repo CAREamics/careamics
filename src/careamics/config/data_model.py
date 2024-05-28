@@ -355,12 +355,6 @@ class DataConfig(BaseModel):
         """
         self._update(mean=mean, std=std)
 
-        # search in the transforms for Normalize and update parameters
-        for transform in self.transforms:
-            if transform.name == SupportedTransform.NORMALIZE.value:
-                transform.mean = mean
-                transform.std = std
-
     def set_3D(self, axes: str, patch_size: List[int]) -> None:
         """
         Set 3D parameters.

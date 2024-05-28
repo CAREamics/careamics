@@ -13,6 +13,7 @@ from careamics.transforms import Compose
 
 from ..config import DataConfig, InferenceConfig
 from ..config.tile_information import TileInformation
+from ..config.transformations import NormalizeModel
 from ..utils.logging import get_logger
 from .dataset_utils import read_tiff, reshape_array
 from .patching.patching import (
@@ -27,7 +28,21 @@ logger = get_logger(__name__)
 
 
 class InMemoryDataset(Dataset):
-    """Dataset storing data in memory and allowing generating patches from it."""
+    """Dataset storing data in memory and allowing generating patches from it.
+
+    Parameters
+    ----------
+    data_config : DataConfig
+        Data configuration.
+    inputs : Union[np.ndarray, List[Path]]
+        Input data.
+    data_target : Optional[Union[np.ndarray, List[Path]]], optional
+        Target data, by default None.
+    read_source_func : Callable, optional
+        Read source function for custom types, by default read_tiff.
+    **kwargs : Any
+        Additional keyword arguments, unused.
+    """
 
     def __init__(
         self,
@@ -40,7 +55,18 @@ class InMemoryDataset(Dataset):
         """
         Constructor.
 
-        # TODO
+        Parameters
+        ----------
+        data_config : DataConfig
+            Data configuration.
+        inputs : Union[np.ndarray, List[Path]]
+            Input data.
+        data_target : Optional[Union[np.ndarray, List[Path]]], optional
+            Target data, by default None.
+        read_source_func : Callable, optional
+            Read source function for custom types, by default read_tiff.
+        **kwargs : Any
+            Additional keyword arguments, unused.
         """
         self.data_config = data_config
         self.inputs = inputs
@@ -250,7 +276,16 @@ class InMemoryPredictionDataset(Dataset):
     """
     Dataset storing data in memory and allowing generating patches from it.
 
-    # TODO
+    Parameters
+    ----------
+    prediction_config : InferenceConfig
+        Prediction configuration.
+    inputs : np.ndarray
+        Input data.
+    data_target : Optional[np.ndarray], optional
+        Target data, by default None.
+    read_source_func : Optional[Callable], optional
+        Read source function for custom types, by default read_tiff.
     """
 
     def __init__(
@@ -264,10 +299,14 @@ class InMemoryPredictionDataset(Dataset):
 
         Parameters
         ----------
-        array : np.ndarray
-            Array containing the data.
-        axes : str
-            Description of axes in format STCZYX.
+        prediction_config : InferenceConfig
+            Prediction configuration.
+        inputs : np.ndarray
+            Input data.
+        data_target : Optional[np.ndarray], optional
+            Target data, by default None.
+        read_source_func : Optional[Callable], optional
+            Read source function for custom types, by default read_tiff.
 
         Raises
         ------
@@ -295,7 +334,7 @@ class InMemoryPredictionDataset(Dataset):
 
         # get transforms
         self.patch_transform = Compose(
-            transform_list=self.pred_config.transforms,
+            transform_list=[NormalizeModel(mean=self.mean, std=self.std)],
         )
 
     def _prepare_tiles(self) -> List[Tuple[np.ndarray, TileInformation]]:

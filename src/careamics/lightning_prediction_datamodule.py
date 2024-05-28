@@ -303,9 +303,6 @@ class PredictDataWrapper(CAREamicsPredictData):
         Batch size.
     tta_transforms : bool, optional
         Use test time augmentation, by default True.
-    transforms : List, optional
-        List of transforms to apply to prediction patches. If None, default
-        transforms are applied.
     read_source_func : Optional[Callable], optional
         Function to read the source data, used if `data_type` is `custom`, by
         default None.
@@ -326,7 +323,6 @@ class PredictDataWrapper(CAREamicsPredictData):
         axes: str = "YX",
         batch_size: int = 1,
         tta_transforms: bool = True,
-        transforms: Optional[List] = None,
         read_source_func: Optional[Callable] = None,
         extension_filter: str = "",
         dataloader_params: Optional[dict] = None,
@@ -356,9 +352,6 @@ class PredictDataWrapper(CAREamicsPredictData):
             Batch size.
         tta_transforms : bool, optional
             Use test time augmentation, by default True.
-        transforms : Optional[List], optional
-            List of transforms to apply to prediction patches. If None, default
-            transforms are applied.
         read_source_func : Optional[Callable], optional
             Function to read the source data, used if `data_type` is `custom`, by
             default None.
@@ -379,10 +372,6 @@ class PredictDataWrapper(CAREamicsPredictData):
             "tta": tta_transforms,
             "batch_size": batch_size,
         }
-
-        # if transforms are passed (otherwise it will use the default ones)
-        if transforms is not None:
-            prediction_dict["transforms"] = transforms
 
         # validate configuration
         self.prediction_config = InferenceConfig(**prediction_dict)
