@@ -275,6 +275,12 @@ class PredictDataWrapper(CAREamicsPredictData):
     dataloaders, except for `batch_size`, which is set by the `batch_size`
     parameter.
 
+    Note that if you are using a UNet model and tiling, the tile size must be
+    divisible in every dimension by 2**d, where d is the depth of the model. This
+    avoids artefacts arising from the broken shift invariance induced by the
+    pooling layers of the UNet. If your image has less dimensions, as it may
+    happen in the Z dimension, consider padding your image.
+
     Parameters
     ----------
     pred_data : Union[str, Path, np.ndarray]
