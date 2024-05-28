@@ -329,7 +329,7 @@ class CAREamicsTrainData(L.LightningDataModule):
             self.train_dataset: DatasetType = InMemoryDataset(
                 data_config=self.data_config,
                 inputs=self.train_data,
-                data_target=self.train_data_target,
+                input_target=self.train_data_target,
             )
 
             # validation dataset
@@ -338,7 +338,7 @@ class CAREamicsTrainData(L.LightningDataModule):
                 self.val_dataset: DatasetType = InMemoryDataset(
                     data_config=self.data_config,
                     inputs=self.val_data,
-                    data_target=self.val_data_target,
+                    input_target=self.val_data_target,
                 )
             else:
                 # extract validation from the training patches
@@ -357,7 +357,7 @@ class CAREamicsTrainData(L.LightningDataModule):
                 self.train_dataset = InMemoryDataset(
                     data_config=self.data_config,
                     inputs=self.train_files,
-                    data_target=(
+                    input_target=(
                         self.train_target_files if self.train_data_target else None
                     ),
                     read_source_func=self.read_source_func,
@@ -368,7 +368,7 @@ class CAREamicsTrainData(L.LightningDataModule):
                     self.val_dataset = InMemoryDataset(
                         data_config=self.data_config,
                         inputs=self.val_files,
-                        data_target=(
+                        input_target=(
                             self.val_target_files if self.val_data_target else None
                         ),
                         read_source_func=self.read_source_func,
