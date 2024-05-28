@@ -161,7 +161,7 @@ class InMemoryDataset(Dataset):
         patch = self.patches[index]
 
         # if there is a target
-        if self.patch_targets:
+        if self.patch_targets is not None:
             # get target
             target = self.patch_targets[index]
 
