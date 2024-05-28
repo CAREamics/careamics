@@ -260,7 +260,7 @@ class CAREamicsTrainData(L.LightningDataModule):
         self.extension_filter: str = extension_filter
 
         # Pytorch dataloader parameters
-        self.dataloader_params = (
+        self.dataloader_params: Dict[str, Any] = (
             data_config.dataloader_params if data_config.dataloader_params else {}
         )
 
@@ -325,6 +325,11 @@ class CAREamicsTrainData(L.LightningDataModule):
         """
         # if numpy array
         if self.data_type == SupportedData.ARRAY:
+            # mypy checks
+            assert isinstance(self.train_data, np.ndarray)
+            if self.train_data_target is not None:
+                assert isinstance(self.train_data_target, np.ndarray)
+
             # train dataset
             self.train_dataset: DatasetType = InMemoryDataset(
                 data_config=self.data_config,
@@ -334,6 +339,11 @@ class CAREamicsTrainData(L.LightningDataModule):
 
             # validation dataset
             if self.val_data is not None:
+                # mypy checks
+                assert isinstance(self.val_data, np.ndarray)
+                if self.val_data_target is not None:
+                    assert isinstance(self.val_data_target, np.ndarray)
+
                 # create its own dataset
                 self.val_dataset: DatasetType = InMemoryDataset(
                     data_config=self.data_config,
