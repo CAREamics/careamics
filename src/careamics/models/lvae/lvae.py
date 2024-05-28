@@ -132,7 +132,6 @@ class LadderVAE(nn.Module):
         
         # -------------------------------------------------------
         # Data attributes
-        self._input_is_sum = False
         self.color_ch = 1
         self.img_shape = (self.image_size, self.image_size)
         self.normalized_input = True
@@ -141,16 +140,8 @@ class LadderVAE(nn.Module):
         # -------------------------------------------------------        
         # Loss attributes
         self._restricted_kl = False
-        # self.kl_annealing = config.loss.kl_annealing
-        # self.kl_annealtime = self.kl_start = None
-        # if self.kl_annealing:
-        #     self.kl_annealtime = config.loss.kl_annealtime
-        #     self.kl_start = config.loss.kl_start
-        # self.free_bits = config.loss.free_bits
         # enabling reconstruction loss on mixed input
         self.mixed_rec_w = 0
-        self.mixed_rec_w_step = 0
-        self.enable_mixed_rec = False
         self.nbr_consistency_w = 0
         
         # Setting the loss_type
@@ -988,37 +979,3 @@ class LadderVAE(nn.Module):
         ch2_un = self._tethered_ch2_scalar * (input_un - ch1_un * self._tethered_ch1_scalar)
         ch2 = (ch2_un - self.data_mean['target'][:, -1:]) / self.data_std['target'][:, -1:]
         return ch2
-    
-    
-    # def get_mixed_prediction(self, prediction, prediction_logvar, data_mean, data_std, channel_weights=None):
-    #     pred_unorm = prediction * data_std['target'] + data_mean['target']
-    #     if channel_weights is None:
-    #         channel_weights = 1
-
-    #     if self._input_is_sum:
-    #         mixed_prediction = torch.sum(pred_unorm * channel_weights, dim=1, keepdim=True)
-    #     else:
-    #         mixed_prediction = torch.mean(pred_unorm * channel_weights, dim=1, keepdim=True)
-
-    #     mixed_prediction = (mixed_prediction - data_mean['input'].mean()) / data_std['input'].mean()
-
-    #     if prediction_logvar is not None:
-    #         if data_std['target'].shape == data_std['input'].shape and torch.all(
-    #                 data_std['target'] == data_std['input']):
-    #             assert channel_weights == 1
-    #             logvar = prediction_logvar
-    #         else:
-    #             var = torch.exp(prediction_logvar)
-    #             var = var * (data_std['target'] / data_std['input'])**2
-    #             if channel_weights != 1:
-    #                 var = var * torch.square(channel_weights)
-
-    #             # sum of variance.
-    #             mixed_var = 0
-    #             for i in range(var.shape[1]):
-    #                 mixed_var += var[:, i:i + 1]
-
-    #             logvar = torch.log(mixed_var)
-    #     else:
-    #         logvar = None
-    #     return mixed_prediction, logvar

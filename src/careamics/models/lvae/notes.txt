@@ -46,10 +46,13 @@ It would be nice to store all of this code into a different `compute_loss()` met
 Observe that the current implementation of the DataLoader is common to the two. 
 What differentiate the input to the model is, of course, the nature of input data and how these are handled in the model class itself.
 
-3. An implementation note: attributes used only in the Lightning wrapper (e.g., most of loss and training related attributes) are directly defined there, 
-so that we don't have to call self.model.some_attribute to used them. Also this make code more compartimentalized and clean.
+3. An implementation note: attributes used only in the Lightning wrapper (e.g., most of loss and training related attributes) are directly defined there
+(either hard-coded, or provided within the same config file that defines the model attributes). In this way we don't have to call self.model.some_attribute to used them. 
+In addition, this makes the code more modularized and clean.
 --> things that would be nice to move:
     - data_mean, data_std --> not used in the model definition...
     - likelihood module & loss_type (they go together) --> Ashesh suggested to keep things like they are
 
-4. Ask Ashesh to help understanding implementation details of patching / tiling
+4. Ask Ashesh to help understanding implementation details of patching / tiling + logging of images (_dump_kth_frame_prediction and friends)
+
+5. Ask Ashesh why KL loss is handled differently for musplit (.mean()) and denoisplit (.sum(), then normalized by input shape).

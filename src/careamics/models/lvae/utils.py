@@ -291,3 +291,64 @@ class Interpolate(nn.Module):
             align_corners=self.align_corners
         )
         return out
+    
+def kl_normal_mc(z, p_mulv, q_mulv):
+    """
+    One-sample estimation of element-wise KL between two diagonal
+    multivariate normal distributions. Any number of dimensions,
+    broadcasting supported (be careful).
+    :param z:
+    :param p_mulv:
+    :param q_mulv:
+    :return:
+    """
+    assert isinstance(p_mulv, tuple)
+    assert isinstance(q_mulv, tuple)
+    p_mu, p_lv = p_mulv
+    q_mu, q_lv = q_mulv
+
+    p_std = p_lv.get_std()
+    q_std = q_lv.get_std()
+
+    p_distrib = Normal(p_mu.get(), p_std)
+    q_distrib = Normal(q_mu.get(), q_std)
+    return q_distrib.log_prob(z) - p_distrib.log_prob(z)
+
+
+def free_bits_kl(
+    kl: torch.Tensor, 
+    free_bits: float, 
+    batch_average: bool = False, 
+    eps: float = 1e-6
+) -> torch.Tensor:
+    """
+    Computes free-bits version of KL divergence.
+    Ensures that the KL doesn't go to zero for any latent dimension.
+    Hence, it contributes to use latent variables more efficiently, 
+    leading to better representation learning.
+    
+    NOTE:
+    Takes in the KL with shape (batch size, layers), returns the KL with
+    free bits (for optimization) with shape (layers,), which is the average
+    free-bits KL per layer in the current batch.
+    If batch_average is False (default), the free bits are per layer and
+    per batch element. Otherwise, the free bits are still per layer, but
+    are assigned on average to the whole batch. In both cases, the batch
+    average is returned, so it's simply a matter of doing mean(clamp(KL))
+    or clamp(mean(KL)).
+    
+    Args:
+        kl (torch.Tensor)
+        free_bits (float)
+        batch_average (bool, optional))
+        eps (float, optional)
+    Returns:
+        The KL with free bits
+    """
+
+    assert kl.dim() == 2
+    if free_bits < eps:
+        return kl.mean(0)
+    if batch_average:
+        return kl.mean(0).clamp(min=free_bits)
+    return kl.clamp(min=free_bits).mean(0)

@@ -15,10 +15,11 @@ from .lvae import LadderVAE
 from .utils import (
     LossType,
     torch_nanmean, 
-    compute_batch_mean
+    compute_batch_mean,
+    free_bits_kl
 )
 from .metrics import RunningPSNR, RangeInvariantPsnr
-
+from .likelihoods import LikelihoodModule
 class LadderVAELight(L.LightningModule):
 
     def __init__(self, config):
@@ -37,14 +38,18 @@ class LadderVAELight(L.LightningModule):
         super.__init__()
         
         # Initialize LVAE model
-        model = LadderVAE(config)
+        self.model = LadderVAE(config)
+        
+        ##### Define data attributes #####
+        self.workdir = config.workdir
+        self._input_is_sum = False
         
         ##### Define loss attributes #####
         # Parameters already defined in the model object
-        self.loss_type = model.loss_type
-        self._denoisplit_w = model._denoisplit_w
-        self._usplit_w = model._usplit_w
-        self._restricted_kl = model._restricted_kl
+        self.loss_type = self.model.loss_type
+        self._denoisplit_w = self.model._denoisplit_w
+        self._usplit_w = self.model._usplit_w
+        self._restricted_kl = self.model._restricted_kl
         
         # General loss parameters
         self.channel_1_w = 1
@@ -57,14 +62,22 @@ class LadderVAELight(L.LightningModule):
         self._exclusion_loss_weight = 0
         self.ch1_recons_w = 1
         self.ch2_recons_w = 1
+        self.enable_mixed_rec = False
+        self.mixed_rec_w_step = 0
         
         # About KL Loss
-        self.kl_weight = config.loss.kl_weight 
-        self.usplit_kl_weight = config.loss.get('usplit_kl_weight', None)
+        self.kl_weight = 1.0
+        self.usplit_kl_weight = None
         self.kl_loss_formulation = 'denoisplit_usplit'
         assert self.kl_loss_formulation in [
             None, '', 'usplit', 'denoisplit', 'denoisplit_usplit'], f"""
             Invalid kl_loss_formulation. {self.kl_loss_formulation}"""
+        self.free_bits = 1.0
+        self.kl_annealing = False
+        self.kl_annealtime = self.kl_start = None
+        if self.kl_annealing:
+            self.kl_annealtime = 10
+            self.kl_start = None
         
         ##### Define training attributes #####
         self.lr = config.training.lr
@@ -73,7 +86,7 @@ class LadderVAELight(L.LightningModule):
         self._dump_kth_frame_prediction = config.training.get('dump_kth_frame_prediction')
         if self._dump_kth_frame_prediction is not None:
             assert self._val_idx_manager is not None
-            dir = os.path.join(config.workdir, 'pred_frames')
+            dir = os.path.join(self.workdir, 'pred_frames')
             os.mkdir(dir)
             self._dump_epoch_interval = config.training.get('dump_epoch_interval', 1)
             self._val_frame_creator = PredFrameCreator(self._val_idx_manager, self._dump_kth_frame_prediction, dir)
@@ -120,6 +133,7 @@ class LadderVAELight(L.LightningModule):
             return_predicted_img=True
         )
         
+        # This `if` is not used by default config
         if self.skip_nboundary_pixels_from_loss:
             pad = self.skip_nboundary_pixels_from_loss
             target_normalized = target_normalized[:, :, pad:-pad, pad:-pad]
@@ -129,12 +143,14 @@ class LadderVAELight(L.LightningModule):
         if torch.isnan(recons_loss).any():
             recons_loss = 0.0
 
+        # This `if` is not used by default config
         if self.loss_type == LossType.ElboMixedReconstruction:
             recons_loss += self.mixed_rec_w * recons_loss_dict['mixed_loss']
 
             if enable_logging:
                 self.log('mixed_reconstruction_loss', recons_loss_dict['mixed_loss'], on_epoch=True)
 
+        # This `if` is not used by default config
         if self._exclusion_loss_weight:
             exclusion_loss = recons_loss_dict['exclusion_loss']
             recons_loss += self._exclusion_loss_weight * exclusion_loss
@@ -158,8 +174,13 @@ class LadderVAELight(L.LightningModule):
                     out_mean  = out
                 
                 kl_key_denoisplit = 'kl_restricted' if self._restricted_kl else 'kl'
-                denoisplit_kl = self.get_kl_divergence_loss(td_data, kl_key=kl_key_denoisplit)
-                usplit_kl = self.get_kl_divergence_loss_usplit(td_data)
+                # NOTE: 'kl' key stands for the 'kl_samplewise' key in the TopDownLayer class.
+                # The different naming comes from `top_down_pass()` method in the LadderVAE class.
+                denoisplit_kl = self.get_kl_divergence_loss(
+                    topdown_layer_data_dict=td_data, 
+                    kl_key=kl_key_denoisplit
+                )
+                usplit_kl = self.get_kl_divergence_loss_usplit(topdown_layer_data_dict=td_data)
                 kl_loss = self._denoisplit_w * denoisplit_kl + self._usplit_w * usplit_kl
                 kl_loss = self.kl_weight * kl_loss
 
@@ -219,7 +240,7 @@ class LadderVAELight(L.LightningModule):
             mask = ~((target == 0).reshape(len(target), -1).all(dim=1))
 
         # Forward pass
-        out, td_data = self.forward(x_normalized)
+        out, _ = self.forward(x_normalized)
         if self.model.encoder_no_padding_mode and out.shape[-2:] != target_normalized.shape[-2:]:
             target_normalized = F.center_crop(target_normalized, out.shape[-2:])
 
@@ -277,6 +298,35 @@ class LadderVAELight(L.LightningModule):
 
         # return net_loss
         
+    
+    def on_validation_epoch_end(self):
+        psnr_arr = []
+        for i in range(len(self.channels_psnr)):
+            psnr = self.channels_psnr[i].get()
+            if psnr is None:
+                psnr_arr = None
+                break
+            psnr_arr.append(psnr.cpu().numpy())
+            self.channels_psnr[i].reset()
+
+        if psnr_arr is not None:
+            psnr = np.mean(psnr_arr)
+            self.log('val_psnr', psnr, on_epoch=True)
+        else:
+            self.log('val_psnr', 0.0, on_epoch=True)
+
+        if self._dump_kth_frame_prediction is not None:
+            if self.current_epoch == 1:
+                self._val_frame_creator.dump_target()
+            if self.current_epoch == 0 or self.current_epoch % self._dump_epoch_interval == 0:
+                self._val_frame_creator.dump(self.current_epoch)
+                self._val_frame_creator.reset()
+
+        if self.mixed_rec_w_step:
+            self.mixed_rec_w = max(self.mixed_rec_w - self.mixed_rec_w_step, 0.0)
+            self.log('mixed_rec_w', self.mixed_rec_w, on_epoch=True)
+
+        
     def predict_step(self, batch: torch.Tensor, batch_idx: Any) -> Any:
         raise NotImplementedError("predict_step is not implemented")
         
@@ -297,21 +347,34 @@ class LadderVAELight(L.LightningModule):
     ##### REQUIRED Methods for Loss Computation #####
     def get_reconstruction_loss(
         self,
-        reconstruction,
-        target,
-        input,
-        splitting_mask=None,
-        return_predicted_img=False,
-        likelihood_obj=None
-    ):
+        reconstruction: torch.Tensor,
+        target: torch.Tensor,
+        input: torch.Tensor,
+        splitting_mask: torch.Tensor = None,
+        return_predicted_img: bool = False,
+        likelihood_obj: LikelihoodModule = None
+    ) -> Dict[str, torch.Tensor]:
+        """
+        Parameters
+        ----------
+        reconstruction: torch.Tensor,
+        target: torch.Tensor
+        input: torch.Tensor
+        splitting_mask: torch.Tensor = None
+            A boolean tensor that indicates which items to keep for reconstruction loss computation.
+            If `None`, all the elements of the items are considered (i.e., the mask is all `True`).
+        return_predicted_img: bool = False
+        likelihood_obj: LikelihoodModule = None
+        """
         output = self._get_reconstruction_loss_vector(
-            reconstruction,
-            target,
-            input,
+            reconstruction=reconstruction,
+            target=target,
+            input=input,
             return_predicted_img=return_predicted_img,
             likelihood_obj=likelihood_obj
         )
         loss_dict = output[0] if return_predicted_img else output
+        
         if splitting_mask is None:
             splitting_mask = torch.ones_like(loss_dict['loss']).bool()
 
@@ -330,17 +393,21 @@ class LadderVAELight(L.LightningModule):
         else:
             return loss_dict
 
+
     def _get_reconstruction_loss_vector(
         self,
         reconstruction: torch.Tensor,
         target: torch.Tensor,
         input: torch.Tensor,
         return_predicted_img: bool = False,
-        likelihood_obj = None
+        likelihood_obj: LikelihoodModule = None
     ):
         """
-        Args:
-            return_predicted_img: If set to True, the besides the loss, the reconstructed image is also returned.
+        Parameters
+        ----------
+        return_predicted_img: bool 
+            If set to `True`, the besides the loss, the reconstructed image is also returned.
+            Default is `False`.
         """
 
         output = {
@@ -363,9 +430,7 @@ class LadderVAELight(L.LightningModule):
             like_dict['params']['mean'] = like_dict['params']['mean'][:, :, pad:-pad, pad:-pad]
 
         # assert ll.shape[1] == 2, f"Change the code below to handle >2 channels first. ll.shape {ll.shape}"
-        output = {
-            'loss': compute_batch_mean(-1 * ll),
-        }
+        output = {'loss': compute_batch_mean(-1 * ll)}
         if ll.shape[1] > 1:
             for i in range(1, 1 + target.shape[1]):
                 output['ch{}_loss'.format(i)] = compute_batch_mean(-ll[:, i - 1])
@@ -377,21 +442,27 @@ class LadderVAELight(L.LightningModule):
         if self.channel_1_w is not None and self.channel_2_w is not None and (self.channel_1_w != 1
                                                                               or self.channel_2_w != 1):
             assert ll.shape[1] == 2, "Only 2 channels are supported for now."
-            output['loss'] = (self.channel_1_w * output['ch1_loss'] +
-                              self.channel_2_w * output['ch2_loss']) / (self.channel_1_w + self.channel_2_w)
+            output['loss'] = (
+                self.channel_1_w * output['ch1_loss'] +
+                self.channel_2_w * output['ch2_loss']
+            ) / (self.channel_1_w + self.channel_2_w)
 
+        # This `if` is not used by default config
         if self.enable_mixed_rec:
-            mixed_pred, mixed_logvar = self.get_mixed_prediction(like_dict['params']['mean'],
-                                                                 like_dict['params']['logvar'], self.data_mean,
-                                                                 self.data_std)
-            if self._multiscale_count is not None and self._multiscale_count > 1:
-                assert input.shape[1] == self._multiscale_count
+            mixed_pred, mixed_logvar = self.get_mixed_prediction(
+                like_dict['params']['mean'],
+                like_dict['params']['logvar'], self.data_mean,
+                self.data_std
+            )
+            if self.model._multiscale_count is not None and self.model._multiscale_count > 1:
+                assert input.shape[1] == self.model._multiscale_count
                 input = input[:, :1]
 
             assert input.shape == mixed_pred.shape, "No fucking room for vectorization induced bugs."
             mixed_recons_ll = self.model.likelihood.log_likelihood(input, {'mean': mixed_pred, 'logvar': mixed_logvar})
             output['mixed_loss'] = compute_batch_mean(-1 * mixed_recons_ll)
 
+        # This `if` is not used by default config
         if self._exclusion_loss_weight:
             imgs = like_dict['params']['mean']
             exclusion_loss = compute_exclusion_loss(imgs[:, :1], imgs[:, 1:])
@@ -418,6 +489,72 @@ class LadderVAELight(L.LightningModule):
         mask2[:, 1] = 1
         
         return ll * mask1 * self.ch1_recons_w + ll * mask2 * self.ch2_recons_w
+    
+    def get_kl_weight(self):
+        """
+        KL loss can be weighted depending whether any annealing procedure is used.
+        This function computes the weight of the KL loss in case of annealing.
+        """
+        if (self.kl_annealing == True):
+            # calculate relative weight
+            kl_weight = (self.current_epoch - self.kl_start) * (1.0 / self.kl_annealtime)
+            # clamp to [0,1]
+            kl_weight = min(max(0.0, kl_weight), 1.0)
+
+            # if the final weight is given, then apply that weight on top of it
+            if self.kl_weight is not None:
+                kl_weight = kl_weight * self.kl_weight
+        elif self.kl_weight is not None:
+            return self.kl_weight
+        else:
+            kl_weight = 1.0
+        return kl_weight
+    
+
+    def get_kl_divergence_loss_usplit(
+        self, 
+        topdown_layer_data_dict: Dict[str, torch.Tensor]
+    ) -> torch.Tensor:
+        """
+        """
+        kl = torch.cat([kl_layer.unsqueeze(1) for kl_layer in topdown_layer_data_dict['kl']], dim=1)
+        # NOTE: kl.shape = (16,4) 16 is batch size. 4 is number of layers. 
+        # Values are sum() and so are of the order 30000
+        # Example values: 30626.6758, 31028.8145, 29509.8809, 29945.4922, 28919.1875, 29075.2988
+        
+        nlayers = kl.shape[1]
+        for i in range(nlayers):
+            # topdown_layer_data_dict['z'][2].shape[-3:] = 128 * 32 * 32
+            norm_factor = np.prod(topdown_layer_data_dict['z'][i].shape[-3:])
+            # if self._restricted_kl:
+            #     pow = np.power(2,min(i + 1, self._multiscale_count-1))
+            #     norm_factor /= pow * pow
+            
+            kl[:, i] = kl[:, i] / norm_factor
+
+        kl_loss = free_bits_kl(kl, 0.0).mean()
+        return kl_loss
+
+    def get_kl_divergence_loss(self, topdown_layer_data_dict, kl_key='kl'):
+        """
+        kl[i] for each i has length batch_size
+        resulting kl shape: (batch_size, layers)
+        """
+        kl = torch.cat([kl_layer.unsqueeze(1) for kl_layer in topdown_layer_data_dict[kl_key]], dim=1)
+        
+        # As compared to uSplit kl divergence,
+        # more by a factor of 4 just because we do sum and not mean.
+        kl_loss = free_bits_kl(kl, self.free_bits).sum()
+        # NOTE: at each hierarchy, it is more by a factor of 128/i**2).
+        # 128/(2*2) = 32 (bottommost layer)
+        # 128/(4*4) = 8
+        # 128/(8*8) = 2
+        # 128/(16*16) = 0.5 (topmost layer)
+        
+        # Normalize the KL-loss w.r.t. the  latent space
+        kl_loss = kl_loss / np.prod(self.model.img_shape)
+        return kl_loss
+
     
     
     ##### UTILS Methods #####
@@ -462,57 +599,6 @@ class LadderVAELight(L.LightningModule):
         self.lr_scheduler_monitor = config.model.get('monitor', 'val_loss')
         self.lr_scheduler_mode = MetricMonitor(self.lr_scheduler_monitor).mode()
 
-    def get_kl_weight(self):
-        if (self.kl_annealing == True):
-            # calculate relative weight
-            kl_weight = (self.current_epoch - self.kl_start) * (1.0 / self.kl_annealtime)
-            # clamp to [0,1]
-            kl_weight = min(max(0.0, kl_weight), 1.0)
-
-            # if the final weight is given, then apply that weight on top of it
-            if self.kl_weight is not None:
-                kl_weight = kl_weight * self.kl_weight
-
-        elif self.kl_weight is not None:
-            return self.kl_weight
-        else:
-            kl_weight = 1.0
-        return kl_weight
-    
-
-    def get_kl_divergence_loss_usplit(self, topdown_layer_data_dict):
-        kl = torch.cat([kl_layer.unsqueeze(1) for kl_layer in topdown_layer_data_dict['kl']], dim=1)
-        # kl.shape = (16,4) 16 is batch size. 4 is number of layers. Values are sum() and so are of the order 30000
-        # Example values: 30626.6758, 31028.8145, 29509.8809, 29945.4922, 28919.1875, 29075.2988
-        nlayers = kl.shape[1]
-        for i in range(nlayers):
-            # topdown_layer_data_dict['z'][2].shape[-3:] = 128 * 32 * 32
-            norm_factor = np.prod(topdown_layer_data_dict['z'][i].shape[-3:])
-            # if self._restricted_kl:
-            #     pow = np.power(2,min(i + 1, self._multiscale_count-1))
-            #     norm_factor /= pow * pow
-            
-            kl[:, i] = kl[:, i] / norm_factor
-
-        kl_loss = free_bits_kl(kl, 0.0).mean()
-        return kl_loss
-
-    def get_kl_divergence_loss(self, topdown_layer_data_dict, kl_key='kl'):
-        # kl[i] for each i has length batch_size
-        # resulting kl shape: (batch_size, layers)
-        kl = torch.cat([kl_layer.unsqueeze(1) for kl_layer in topdown_layer_data_dict[kl_key]], dim=1)
-        # As compared to uSplit kl divergence,
-        # more by a factor of 4 just because we do sum and not mean.
-        kl_loss = free_bits_kl(kl, self.free_bits).sum()
-        # at each hierarchy, it is more by a factor of 128/i**2).
-        # 128/(2*2) = 32 (bottommost layer)
-        # 128/(4*4) = 8
-        # 128/(8*8) = 2
-        # 128/(16*16) = 0.5 (topmost layer)
-        kl_loss = kl_loss / np.prod(self.img_shape)
-        return kl_loss
-
-
     def set_params_to_same_device_as(self, correct_device_tensor: torch.Tensor):
         
         self.model.likelihood.set_params_to_same_device_as(correct_device_tensor)
@@ -525,30 +611,37 @@ class LadderVAELight(L.LightningModule):
                 if v.device != correct_device_tensor.device:
                     self.data_mean[k] = v.to(correct_device_tensor.device)
                     self.data_std[k] = self.data_std[k].to(correct_device_tensor.device)
+              
+                    
+    def get_mixed_prediction(self, prediction, prediction_logvar, data_mean, data_std, channel_weights=None):
+        pred_unorm = prediction * data_std['target'] + data_mean['target']
+        if channel_weights is None:
+            channel_weights = 1
 
-    def on_validation_epoch_end(self):
-        psnr_arr = []
-        for i in range(len(self.channels_psnr)):
-            psnr = self.channels_psnr[i].get()
-            if psnr is None:
-                psnr_arr = None
-                break
-            psnr_arr.append(psnr.cpu().numpy())
-            self.channels_psnr[i].reset()
-
-        if psnr_arr is not None:
-            psnr = np.mean(psnr_arr)
-            self.log('val_psnr', psnr, on_epoch=True)
+        if self._input_is_sum:
+            mixed_prediction = torch.sum(pred_unorm * channel_weights, dim=1, keepdim=True)
         else:
-            self.log('val_psnr', 0.0, on_epoch=True)
+            mixed_prediction = torch.mean(pred_unorm * channel_weights, dim=1, keepdim=True)
 
-        if self._dump_kth_frame_prediction is not None:
-            if self.current_epoch == 1:
-                self._val_frame_creator.dump_target()
-            if self.current_epoch == 0 or self.current_epoch % self._dump_epoch_interval == 0:
-                self._val_frame_creator.dump(self.current_epoch)
-                self._val_frame_creator.reset()
+        mixed_prediction = (mixed_prediction - data_mean['input'].mean()) / data_std['input'].mean()
 
-        if self.mixed_rec_w_step:
-            self.mixed_rec_w = max(self.mixed_rec_w - self.mixed_rec_w_step, 0.0)
-            self.log('mixed_rec_w', self.mixed_rec_w, on_epoch=True)
+        if prediction_logvar is not None:
+            if data_std['target'].shape == data_std['input'].shape and torch.all(
+                    data_std['target'] == data_std['input']):
+                assert channel_weights == 1
+                logvar = prediction_logvar
+            else:
+                var = torch.exp(prediction_logvar)
+                var = var * (data_std['target'] / data_std['input'])**2
+                if channel_weights != 1:
+                    var = var * torch.square(channel_weights)
+
+                # sum of variance.
+                mixed_var = 0
+                for i in range(var.shape[1]):
+                    mixed_var += var[:, i:i + 1]
+
+                logvar = torch.log(mixed_var)
+        else:
+            logvar = None
+        return mixed_prediction, logvar
