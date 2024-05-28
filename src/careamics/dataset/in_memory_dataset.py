@@ -9,11 +9,12 @@ from typing import Any, Callable, List, Optional, Tuple, Union
 import numpy as np
 from torch.utils.data import Dataset
 
+from careamics.transforms import Compose
+
 from ..config import DataConfig, InferenceConfig
 from ..config.tile_information import TileInformation
 from ..utils.logging import get_logger
 from .dataset_utils import read_tiff, reshape_array
-from .patching.patch_transform import get_patch_transform
 from .patching.patching import (
     prepare_patches_supervised,
     prepare_patches_supervised_array,
@@ -61,18 +62,15 @@ class InMemoryDataset(Dataset):
             self.mean, self.std = computed_mean, computed_std
             logger.info(f"Computed dataset mean: {self.mean}, std: {self.std}")
 
-            # if the transforms are not an instance of Compose
-            if self.data_config.has_transform_list():
-                # update mean and std in configuration
-                # the object is mutable and should then be recorded in the CAREamist obj
-                self.data_config.set_mean_and_std(self.mean, self.std)
+            # update mean and std in configuration
+            # the object is mutable and should then be recorded in the CAREamist obj
+            self.data_config.set_mean_and_std(self.mean, self.std)
         else:
             self.mean, self.std = self.data_config.mean, self.data_config.std
 
         # get transforms
-        self.patch_transform = get_patch_transform(
-            patch_transforms=self.data_config.transforms,
-            with_target=self.data_target is not None,
+        self.patch_transform = Compose(
+            transform_list=self.data_config.transforms,
         )
 
     def _prepare_patches(
@@ -167,33 +165,10 @@ class InMemoryDataset(Dataset):
             # get target
             target = self.data_targets[index]
 
-            # Albumentations requires Channel last
-            c_patch = np.moveaxis(patch, 0, -1)
-            c_target = np.moveaxis(target, 0, -1)
-
-            # Apply transforms
-            transformed = self.patch_transform(image=c_patch, target=c_target)
-
-            # move axes back
-            patch = np.moveaxis(transformed["image"], -1, 0)
-            target = np.moveaxis(transformed["target"], -1, 0)
-
-            return patch, target
+            return self.patch_transform(patch=patch, target=target)
 
         elif self.data_config.has_n2v_manipulate():
-            # Albumentations requires Channel last
-            patch = np.moveaxis(patch, 0, -1)
-
-            # Apply transforms
-            transformed_patch = self.patch_transform(image=patch)["image"]
-            manip_patch, patch, mask = transformed_patch
-
-            # move C axes back
-            manip_patch = np.moveaxis(manip_patch, -1, 0)
-            patch = np.moveaxis(patch, -1, 0)
-            mask = np.moveaxis(mask, -1, 0)
-
-            return (manip_patch, patch, mask)
+            return self.patch_transform(patch=patch)
         else:
             raise ValueError(
                 "Something went wrong! No target provided (not supervised training) "
@@ -319,9 +294,8 @@ class InMemoryPredictionDataset(Dataset):
         self.mean, self.std = self.pred_config.mean, self.pred_config.std
 
         # get transforms
-        self.patch_transform = get_patch_transform(
-            patch_transforms=self.pred_config.transforms,
-            with_target=self.data_target is not None,
+        self.patch_transform = Compose(
+            transform_list=self.pred_config.transforms,
         )
 
     def _prepare_tiles(self) -> List[Tuple[np.ndarray, TileInformation]]:
@@ -380,13 +354,7 @@ class InMemoryPredictionDataset(Dataset):
         """
         tile_array, tile_info = self.data[index]
 
-        # Albumentations requires channel last, use the XArrayTile array
-        patch = np.moveaxis(tile_array, 0, -1)
-
         # Apply transforms
-        transformed_patch = self.patch_transform(image=patch)["image"]
+        transformed_tile, _ = self.patch_transform(patch=tile_array)
 
-        # move C axes back
-        transformed_patch = np.moveaxis(transformed_patch, -1, 0)
-
-        return transformed_patch, tile_info
+        return transformed_tile, tile_info

@@ -29,8 +29,6 @@ def test_n2n_configuration():
         config.data_config.transforms[2].name
         == SupportedTransform.XY_RANDOM_ROTATE90.value
     )
-    assert not config.data_config.transforms[-1].is_3D  # XY_RANDOM_ROTATE90
-    assert not config.data_config.transforms[-2].is_3D  # NDFLIP
     assert not config.algorithm_config.model.is_3D()
 
 
@@ -45,8 +43,6 @@ def test_cn2n_3d_configuration():
         num_epochs=100,
     )
     assert config.data_config.transforms[0].name == SupportedTransform.NORMALIZE.value
-    assert config.data_config.transforms[-1].is_3D  # XY_RANDOM_ROTATE90
-    assert config.data_config.transforms[-2].is_3D  # NDFLIP
     assert config.algorithm_config.model.is_3D()
 
 
@@ -161,8 +157,6 @@ def test_care_configuration():
         config.data_config.transforms[2].name
         == SupportedTransform.XY_RANDOM_ROTATE90.value
     )
-    assert not config.data_config.transforms[-1].is_3D  # XY_RANDOM_ROTATE90
-    assert not config.data_config.transforms[-2].is_3D  # NDFLIP
     assert not config.algorithm_config.model.is_3D()
 
 
@@ -177,8 +171,6 @@ def test_care_3d_configuration():
         num_epochs=100,
     )
     assert config.data_config.transforms[0].name == SupportedTransform.NORMALIZE.value
-    assert config.data_config.transforms[-1].is_3D  # XY_RANDOM_ROTATE90
-    assert config.data_config.transforms[-2].is_3D  # NDFLIP
     assert config.algorithm_config.model.is_3D()
 
 
@@ -306,8 +298,6 @@ def test_n2v_configuration():
         config.data_config.transforms[-1].strategy
         == SupportedPixelManipulation.UNIFORM.value
     )
-    assert not config.data_config.transforms[-2].is_3D  # XY_RANDOM_ROTATE90
-    assert not config.data_config.transforms[-3].is_3D  # NDFLIP
     assert not config.algorithm_config.model.is_3D()
 
 
@@ -329,8 +319,6 @@ def test_n2v_3d_configuration():
         config.data_config.transforms[-1].strategy
         == SupportedPixelManipulation.UNIFORM.value
     )
-    assert config.data_config.transforms[-2].is_3D  # XY_RANDOM_ROTATE90
-    assert config.data_config.transforms[-3].is_3D  # NDFLIP
     assert config.algorithm_config.model.is_3D()
 
 
