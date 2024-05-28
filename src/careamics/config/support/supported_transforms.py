@@ -9,14 +9,14 @@ class SupportedTransform(str, BaseEnum):
     - XYRandomRotate90: #TODO
     - Normalize # TODO add details, in particular about the parameters
     - ManipulateN2V # TODO add details, in particular about the parameters
-    - NDFlip
+    - XYFlip
 
     Note that while any Albumentations (see https://albumentations.ai/) transform can be
     used in CAREamics, no check are implemented to verify the compatibility of any other
     transforms than the ones officially supported.
     """
 
-    NDFLIP = "NDFlip"
+    XY_FLIP = "XYFlip"
     XY_RANDOM_ROTATE90 = "XYRandomRotate90"
     NORMALIZE = "Normalize"
     N2V_MANIPULATE = "N2VManipulate"

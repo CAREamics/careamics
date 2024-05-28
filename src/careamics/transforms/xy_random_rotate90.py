@@ -1,3 +1,4 @@
+"""Patch transform applying XY random 90 degrees rotations."""
 from typing import Optional, Tuple
 
 import numpy as np
@@ -9,6 +10,16 @@ class XYRandomRotate90(Transform):
     """Applies random 90 degree rotations to the YX axis.
 
     This transform expects C(Z)YX dimensions.
+
+    Attributes
+    ----------
+    rng : np.random.Generator
+        Random number generator.
+
+    Parameters
+    ----------
+    seed : Optional[int]
+        Random seed, by default None.
     """
 
     def __init__(self, seed: Optional[int] = None):
@@ -16,8 +27,8 @@ class XYRandomRotate90(Transform):
 
         Parameters
         ----------
-        seed : Optional[int], optional
-            Random seed, by default None
+        seed : Optional[int]
+            Random seed, by default None.
         """
         # numpy random generator
         self.rng = np.random.default_rng(seed=seed)
@@ -32,7 +43,7 @@ class XYRandomRotate90(Transform):
         patch : np.ndarray
             Patch, 2D or 3D, shape C(Z)YX.
         target : Optional[np.ndarray], optional
-            Target for the patch, by default None
+            Target for the patch, by default None.
 
         Returns
         -------
@@ -63,6 +74,11 @@ class XYRandomRotate90(Transform):
             Number of 90 degree rotations.
         axes : Tuple[int, int]
             Axes along which to rotate the patch.
+
+        Returns
+        -------
+        np.ndarray
+            Transformed patch.
         """
         # TODO why ascontiguousarray?
         return np.ascontiguousarray(np.rot90(patch, k=n_rot, axes=axes))

@@ -8,7 +8,7 @@ from careamics.config.support import (
 )
 from careamics.config.transformations import (
     N2VManipulateModel,
-    NDFlipModel,
+    XYFlipModel,
     NormalizeModel,
     XYRandomRotate90Model,
 )
@@ -140,15 +140,15 @@ def test_set_3d(minimum_data: dict):
     "transforms",
     [
         [
-            {"name": SupportedTransform.NDFLIP.value},
+            {"name": SupportedTransform.XY_FLIP.value},
             {"name": SupportedTransform.N2V_MANIPULATE.value},
         ],
         [
-            {"name": SupportedTransform.NDFLIP.value},
+            {"name": SupportedTransform.XY_FLIP.value},
         ],
         [
             {"name": SupportedTransform.NORMALIZE.value},
-            {"name": SupportedTransform.NDFLIP.value},
+            {"name": SupportedTransform.XY_FLIP.value},
             {"name": SupportedTransform.XY_RANDOM_ROTATE90.value},
             {"name": SupportedTransform.N2V_MANIPULATE.value},
         ],
@@ -160,7 +160,7 @@ def test_passing_supported_transforms(minimum_data: dict, transforms):
     model = DataConfig(**minimum_data)
 
     supported = {
-        "NDFlip": NDFlipModel,
+        "XYFlip": XYFlipModel,
         "XYRandomRotate90": XYRandomRotate90Model,
         "Normalize": NormalizeModel,
         "N2VManipulate": N2VManipulateModel,
@@ -176,14 +176,14 @@ def test_passing_supported_transforms(minimum_data: dict, transforms):
     [
         [
             {"name": SupportedTransform.N2V_MANIPULATE.value},
-            {"name": SupportedTransform.NDFLIP.value},
+            {"name": SupportedTransform.XY_FLIP.value},
         ],
         [
             {"name": SupportedTransform.N2V_MANIPULATE.value},
         ],
         [
             {"name": SupportedTransform.NORMALIZE.value},
-            {"name": SupportedTransform.NDFLIP.value},
+            {"name": SupportedTransform.XY_FLIP.value},
             {"name": SupportedTransform.N2V_MANIPULATE.value},
             {"name": SupportedTransform.XY_RANDOM_ROTATE90.value},
         ],
@@ -209,19 +209,19 @@ def test_multiple_n2v_manipulate(minimum_data: dict):
 def test_remove_n2v_manipulate(minimum_data: dict):
     """Test that N2V Manipulate can be removed."""
     minimum_data["transforms"] = [
-        {"name": SupportedTransform.NDFLIP.value},
+        {"name": SupportedTransform.XY_FLIP.value},
         {"name": SupportedTransform.N2V_MANIPULATE.value},
     ]
     model = DataConfig(**minimum_data)
     model.remove_n2v_manipulate()
     assert len(model.transforms) == 1
-    assert model.transforms[-1].name == SupportedTransform.NDFLIP.value
+    assert model.transforms[-1].name == SupportedTransform.XY_FLIP.value
 
 
 def test_add_n2v_manipulate(minimum_data: dict):
     """Test that N2V Manipulate can be added."""
     minimum_data["transforms"] = [
-        {"name": SupportedTransform.NDFLIP.value},
+        {"name": SupportedTransform.XY_FLIP.value},
     ]
     model = DataConfig(**minimum_data)
     model.add_n2v_manipulate()
@@ -242,7 +242,7 @@ def test_correct_transform_parameters(minimum_data: dict):
     """
     minimum_data["transforms"] = [
         {"name": SupportedTransform.NORMALIZE.value},
-        {"name": SupportedTransform.NDFLIP.value},
+        {"name": SupportedTransform.XY_FLIP.value},
         {"name": SupportedTransform.XY_RANDOM_ROTATE90.value},
         {"name": SupportedTransform.N2V_MANIPULATE.value},
     ]
@@ -272,7 +272,7 @@ def test_passing_incorrect_element(minimum_data: dict):
     """Test that incorrect element in the list of transforms raises an error (
     e.g. passing un object rather than a string)."""
     minimum_data["transforms"] = [
-        {"name": get_all_transforms()[SupportedTransform.NDFLIP.value]()},
+        {"name": get_all_transforms()[SupportedTransform.XY_FLIP.value]()},
     ]
     with pytest.raises(ValueError):
         DataConfig(**minimum_data)

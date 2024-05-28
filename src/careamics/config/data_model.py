@@ -17,14 +17,14 @@ from typing_extensions import Annotated, Self
 
 from .support import SupportedTransform
 from .transformations.n2v_manipulate_model import N2VManipulateModel
-from .transformations.nd_flip_model import NDFlipModel
+from .transformations.xy_flip_model import XYFlipModel
 from .transformations.normalize_model import NormalizeModel
 from .transformations.xy_random_rotate90_model import XYRandomRotate90Model
 from .validators import check_axes_validity, patch_size_ge_than_8_power_of_2
 
 TRANSFORMS_UNION = Annotated[
     Union[
-        NDFlipModel,
+        XYFlipModel,
         XYRandomRotate90Model,
         NormalizeModel,
         N2VManipulateModel,
@@ -70,7 +70,7 @@ class DataConfig(BaseModel):
     ...             "std": 47.2,
     ...         },
     ...         {
-    ...             "name": "NDFlip",
+    ...             "name": "XYFlip",
     ...         }
     ...     ]
     ... )
@@ -97,7 +97,7 @@ class DataConfig(BaseModel):
                 "name": SupportedTransform.NORMALIZE.value,
             },
             {
-                "name": SupportedTransform.NDFLIP.value,
+                "name": SupportedTransform.XY_FLIP.value,
             },
             {
                 "name": SupportedTransform.XY_RANDOM_ROTATE90.value,

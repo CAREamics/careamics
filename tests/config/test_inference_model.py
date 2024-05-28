@@ -154,7 +154,7 @@ def test_passing_incorrect_element(minimum_inference: dict):
     """Test that incorrect element in the list of transforms raises an error (
     e.g. passing un object rather than a string)."""
     minimum_inference["transforms"] = [
-        {"name": get_all_transforms()[SupportedTransform.NDFLIP.value]()},
+        {"name": get_all_transforms()[SupportedTransform.XY_FLIP.value]()},
     ]
     with pytest.raises(ValueError):
         InferenceConfig(**minimum_inference)

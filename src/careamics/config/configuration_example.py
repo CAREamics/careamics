@@ -56,7 +56,7 @@ def full_configuration_example() -> Configuration:
                 "name": SupportedTransform.NORMALIZE.value,
             },
             {
-                "name": SupportedTransform.NDFLIP.value,
+                "name": SupportedTransform.XY_FLIP.value,
             },
             {
                 "name": SupportedTransform.XY_RANDOM_ROTATE90.value,

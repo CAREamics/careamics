@@ -106,7 +106,7 @@ def test_n2v2_and_transforms(minimum_configuration: dict, algorithm, strategy):
 
     # missing ManipulateN2V
     minimum_configuration["data_config"]["transforms"] = [
-        {"name": SupportedTransform.NDFLIP.value}
+        {"name": SupportedTransform.XY_FLIP.value}
     ]
     config = Configuration(**minimum_configuration)
     assert len(config.data_config.transforms) == 2
