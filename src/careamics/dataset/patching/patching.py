@@ -10,7 +10,7 @@ from typing import Callable, List, Tuple, Union
 import numpy as np
 
 from ...utils.logging import get_logger
-from ..dataset_utils import compute_normalization_stats_array, reshape_array
+from ..dataset_utils import compute_normalization_stats, reshape_array
 from .sequential_patching import extract_patches_sequential
 
 logger = get_logger(__name__)
@@ -156,8 +156,8 @@ def prepare_patches_supervised_array(
         Array of patches.
     """
     # compute statistics
-    image_means, image_stds = compute_normalization_stats_array(data)
-    target_means, target_stds = compute_normalization_stats_array(data_target)
+    image_means, image_stds = compute_normalization_stats(data)
+    target_means, target_stds = compute_normalization_stats(data_target)
 
     # reshape array
     reshaped_sample = reshape_array(data, axes)
@@ -201,7 +201,7 @@ def prepare_patches_unsupervised_array(
         Array of patches.
     """
     # calculate mean and std
-    means, stds = compute_normalization_stats_array(data)
+    means, stds = compute_normalization_stats(data)
 
     # reshape array
     reshaped_sample = reshape_array(data, axes)

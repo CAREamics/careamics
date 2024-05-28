@@ -90,10 +90,10 @@ class DataConfig(BaseModel):
     axes: str
 
     # Optional fields
-    image_mean: Optional[List[float]] = None
-    image_std: Optional[List[float]] = None
-    target_mean: Optional[List[float]] = None
-    target_std: Optional[List[float]] = None
+    image_mean: Optional[List[float]] = Field(default=[], min_length=0, max_length=32)
+    image_std: Optional[List[float]] = Field(default=[], min_length=0, max_length=32)
+    target_mean: Optional[List[float]] = Field(default=[], min_length=0, max_length=32)
+    target_std: Optional[List[float]] = Field(default=[], min_length=0, max_length=32)
 
     transforms: List[TRANSFORMS_UNION] = Field(
         default=[
@@ -239,14 +239,16 @@ class DataConfig(BaseModel):
         # check that mean and std are either both None, or both specified
         if len(self.image_mean) != len(self.image_std):
             raise ValueError(
-                "Mean and std must be either both None, or both specified for each"
+                "Mean and std must be either both None, or both specified for each "
                 "input channel."
             )
+
         if len(self.target_mean) != len(self.target_std):
             raise ValueError(
-                "Mean and std must be either both None, or both specified for each"
+                "Mean and std must be either both None, or both specified for each "
                 "target channel."
             )
+
         if len(self.target_mean) > 0 and len(self.image_mean) != len(self.target_mean):
             raise ValueError(
                 "Statistics of input and target channels must be the same."
@@ -268,10 +270,10 @@ class DataConfig(BaseModel):
             # search in the transforms for Normalize and update parameters
             for transform in self.transforms:
                 if transform.name == SupportedTransform.NORMALIZE.value:
-                    transform.image_mean = self.image_mean
-                    transform.image_std = self.image_std
-                    transform.target_mean = self.target_mean
-                    transform.target_std = self.target_std
+                    transform.image_means = self.image_mean
+                    transform.image_stds = self.image_std
+                    transform.target_means = self.target_mean
+                    transform.target_stds = self.target_std
 
         return self
 
@@ -357,10 +359,10 @@ class DataConfig(BaseModel):
 
     def set_mean_and_std(
         self,
-        image_mean: Optional[List[float]] = None,
-        image_std: Optional[List[float]] = None,
-        target_mean: Optional[List[float]] = None,
-        target_std: Optional[List[float]] = None,
+        image_mean: Optional[List[float]] = (),
+        image_std: Optional[List[float]] = (),
+        target_mean: Optional[List[float]] = (),
+        target_std: Optional[List[float]] = (),
     ) -> None:
         """
         Set mean and standard deviation of the data.
@@ -385,10 +387,10 @@ class DataConfig(BaseModel):
         # search in the transforms for Normalize and update parameters
         for transform in self.transforms:
             if transform.name == SupportedTransform.NORMALIZE.value:
-                transform.image_mean = self.image_mean
-                transform.image_std = self.image_std
-                transform.target_mean = self.target_mean
-                transform.target_std = self.target_std
+                transform.image_means = self.image_mean
+                transform.image_stds = self.image_std
+                transform.target_means = self.target_mean
+                transform.target_stds = self.target_std
 
     def set_3D(self, axes: str, patch_size: List[int]) -> None:
         """

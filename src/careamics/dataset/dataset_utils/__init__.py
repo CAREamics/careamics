@@ -2,6 +2,7 @@
 
 __all__ = [
     "reshape_array",
+    "compute_normalization_stats",
     "get_files_size",
     "list_files",
     "validate_source_target_files",
@@ -11,7 +12,7 @@ __all__ = [
 ]
 
 
-from .dataset_utils import reshape_array
+from .dataset_utils import compute_normalization_stats, reshape_array
 from .file_utils import get_files_size, list_files, validate_source_target_files
 from .read_tiff import read_tiff
 from .read_utils import get_read_func

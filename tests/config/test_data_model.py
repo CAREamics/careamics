@@ -28,12 +28,16 @@ def test_wrong_extensions(minimum_data: dict, ext: str):
 @pytest.mark.parametrize("mean, std", [(0, 124.5), (12.6, 0.1)])
 def test_mean_std_non_negative(minimum_data: dict, mean, std):
     """Test that non negative mean and std are accepted."""
-    minimum_data["mean"] = mean
-    minimum_data["std"] = std
+    minimum_data["image_mean"] = [mean]
+    minimum_data["image_std"] = [std]
+    minimum_data["target_mean"] = [mean]
+    minimum_data["target_std"] = [std]
 
     data_model = DataConfig(**minimum_data)
-    assert data_model.mean == mean
-    assert data_model.std == std
+    assert data_model.image_mean == [mean]
+    assert data_model.image_std == [std]
+    assert data_model.target_mean == [mean]
+    assert data_model.target_std == [std]
 
 
 def test_mean_std_both_specified_or_none(minimum_data: dict):
@@ -42,51 +46,69 @@ def test_mean_std_both_specified_or_none(minimum_data: dict):
     DataConfig(**minimum_data)
 
     # Error if only mean is defined
-    minimum_data["mean"] = 10.4
+    minimum_data["image_mean"] = [10.4]
     with pytest.raises(ValueError):
         DataConfig(**minimum_data)
 
     # Error if only std is defined
-    minimum_data.pop("mean")
-    minimum_data["std"] = 10.4
+    minimum_data.pop("image_mean")
+    minimum_data["image_std"] = [10.4]
     with pytest.raises(ValueError):
         DataConfig(**minimum_data)
 
     # No error if both are specified
-    minimum_data["mean"] = 10.4
-    minimum_data["std"] = 10.4
+    minimum_data["image_mean"] = [10.4]
+    minimum_data["image_std"] = [10.4]
     DataConfig(**minimum_data)
+
+    # Error if target mean is defined but target std is None
+    minimum_data["target_std"] = [10.4, 11]
+    with pytest.raises(ValueError):
+        DataConfig(**minimum_data)
+
+    # Error if image stats are inconsistent with target stats
+    minimum_data["target_mean"] = [10.4, 11]
+    minimum_data["target_std"] = [10.4, 11]
+    with pytest.raises(ValueError):
+        DataConfig(**minimum_data)
+
 
 
 def test_set_mean_and_std(minimum_data: dict):
     """Test that mean and std can be set after initialization."""
     # they can be set both, when they None
-    mean = 4.07
-    std = 14.07
+    mean = [4.07]
+    std = [14.07]
     data = DataConfig(**minimum_data)
     data.set_mean_and_std(mean, std)
-    assert data.mean == mean
-    assert data.std == std
+    assert data.image_mean == mean
+    assert data.image_std == std
 
-    # and if they are already set
-    minimum_data["mean"] = 10.4
-    minimum_data["std"] = 3.2
-    data = DataConfig(**minimum_data)
-    data.set_mean_and_std(mean, std)
-    assert data.mean == mean
-    assert data.std == std
+    # Set also target mean and std
+    data.set_mean_and_std(mean, std, mean, std)
+    assert data.target_mean == mean
+    assert data.target_std == std
 
 
 def test_mean_and_std_in_normalize(minimum_data: dict):
     """Test that mean and std are added to the Normalize transform."""
-    minimum_data["mean"] = 10.4
-    minimum_data["std"] = 3.2
+    minimum_data["image_mean"] = [10.4]
+    minimum_data["image_std"] = [3.2]
     minimum_data["transforms"] = [
         {"name": SupportedTransform.NORMALIZE.value},
     ]
     data = DataConfig(**minimum_data)
-    assert data.transforms[0].mean == 10.4
-    assert data.transforms[0].std == 3.2
+    assert data.transforms[0].image_means == [10.4]
+    assert data.transforms[0].image_stds == [3.2]
+
+    # Add target mean and std
+    minimum_data["target_mean"] = [10.4]
+    minimum_data["target_std"] = [3.2]
+    data = DataConfig(**minimum_data)
+    assert data.transforms[0].image_means == [10.4]
+    assert data.transforms[0].image_stds == [3.2]
+    assert data.transforms[0].target_means == [10.4]
+    assert data.transforms[0].target_stds == [3.2]
 
 
 def test_patch_size(minimum_data: dict):
@@ -250,8 +272,10 @@ def test_correct_transform_parameters(minimum_data: dict):
 
     # Normalize
     params = model.transforms[0].model_dump()
-    assert "mean" in params
-    assert "std" in params
+    assert "image_means" in params
+    assert "image_stds" in params
+    assert "target_means" in params
+    assert "target_stds" in params
 
     # N2VManipulate
     params = model.transforms[3].model_dump()

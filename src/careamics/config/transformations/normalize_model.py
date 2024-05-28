@@ -1,6 +1,6 @@
 """Pydantic model for the Normalize transform."""
 
-from typing import Literal
+from typing import List, Literal
 
 from pydantic import ConfigDict, Field
 
@@ -28,5 +28,8 @@ class NormalizeModel(TransformModel):
     )
 
     name: Literal["Normalize"] = "Normalize"
-    mean: float = Field(default=0.485)  # albumentations defaults
-    std: float = Field(default=0.229)
+    image_means: List[float] = Field(default=[], min_length=0, max_length=32)
+    image_stds: List[float] = Field(default=[], min_length=0, max_length=32)
+    target_means: List[float] = Field(default=[], min_length=0, max_length=32)
+    target_stds: List[float] = Field(default=[], min_length=0, max_length=32)
+
