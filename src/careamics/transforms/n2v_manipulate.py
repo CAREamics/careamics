@@ -1,4 +1,5 @@
 """N2V manipulation transform."""
+
 from typing import Any, Literal, Optional, Tuple
 
 import numpy as np
@@ -83,7 +84,7 @@ class N2VManipulate(Transform):
         self.masked_pixel_percentage = masked_pixel_percentage
         self.roi_size = roi_size
         self.strategy = strategy
-        self.remove_center = remove_center # TODO is this ever used?
+        self.remove_center = remove_center  # TODO is this ever used?
 
         if struct_mask_axis == SupportedStructAxis.NONE:
             self.struct_mask: Optional[StructMaskParameters] = None

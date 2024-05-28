@@ -17,8 +17,8 @@ from typing_extensions import Annotated, Self
 
 from .support import SupportedTransform
 from .transformations.n2v_manipulate_model import N2VManipulateModel
-from .transformations.xy_flip_model import XYFlipModel
 from .transformations.normalize_model import NormalizeModel
+from .transformations.xy_flip_model import XYFlipModel
 from .transformations.xy_random_rotate90_model import XYRandomRotate90Model
 from .validators import check_axes_validity, patch_size_ge_than_8_power_of_2
 

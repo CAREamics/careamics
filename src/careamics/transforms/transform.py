@@ -8,14 +8,14 @@ class Transform:
 
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
         """Apply the transform.
-        
+
         Parameters
         ----------
         *args : Any
             Arguments.
         **kwargs : Any
             Keyword arguments.
-        
+
         Returns
         -------
         Any

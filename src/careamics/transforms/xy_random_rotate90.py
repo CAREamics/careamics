@@ -1,4 +1,5 @@
 """Patch transform applying XY random 90 degrees rotations."""
+
 from typing import Optional, Tuple
 
 import numpy as np

@@ -9,6 +9,6 @@ __all__ = [
 
 
 from .n2v_manipulate_model import N2VManipulateModel
-from .xy_flip_model import XYFlipModel
 from .normalize_model import NormalizeModel
+from .xy_flip_model import XYFlipModel
 from .xy_random_rotate90_model import XYRandomRotate90Model

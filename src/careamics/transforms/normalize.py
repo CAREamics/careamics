@@ -1,4 +1,5 @@
 """Normalization and denormalization transforms for image patches."""
+
 from typing import Optional, Tuple
 
 import numpy as np

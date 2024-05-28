@@ -1,4 +1,5 @@
 """Utility function to get RAM size."""
+
 import psutil
 
 

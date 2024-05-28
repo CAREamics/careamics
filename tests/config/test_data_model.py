@@ -8,8 +8,8 @@ from careamics.config.support import (
 )
 from careamics.config.transformations import (
     N2VManipulateModel,
-    XYFlipModel,
     NormalizeModel,
+    XYFlipModel,
     XYRandomRotate90Model,
 )
 from careamics.transforms import get_all_transforms

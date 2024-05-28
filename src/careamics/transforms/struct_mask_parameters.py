@@ -1,4 +1,5 @@
 """Class representing the parameters of structN2V masks."""
+
 from dataclasses import dataclass
 from typing import Literal
 

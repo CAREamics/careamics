@@ -1,10 +1,12 @@
 """A base class for Enum that allows checking if a value is in the Enum."""
+
 from enum import Enum, EnumMeta
 from typing import Any
 
 
 class _ContainerEnum(EnumMeta):
     """Metaclass for Enum with __contains__ method."""
+
     def __contains__(cls, item: Any) -> bool:
         """Check if an item is in the Enum.
 

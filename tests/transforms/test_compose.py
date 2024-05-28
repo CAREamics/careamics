@@ -2,11 +2,11 @@ import numpy as np
 
 from careamics.config.transformations import (
     N2VManipulateModel,
-    XYFlipModel,
     NormalizeModel,
+    XYFlipModel,
     XYRandomRotate90Model,
 )
-from careamics.transforms import Compose, XYFlip, Normalize, XYRandomRotate90
+from careamics.transforms import Compose, Normalize, XYFlip, XYRandomRotate90
 
 
 def test_empty_compose(ordered_array):

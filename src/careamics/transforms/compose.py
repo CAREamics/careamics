@@ -7,9 +7,9 @@ import numpy as np
 from careamics.config.data_model import TRANSFORMS_UNION
 
 from .n2v_manipulate import N2VManipulate
-from .xy_flip import XYFlip
 from .normalize import Normalize
 from .transform import Transform
+from .xy_flip import XYFlip
 from .xy_random_rotate90 import XYRandomRotate90
 
 ALL_TRANSFORMS = {
