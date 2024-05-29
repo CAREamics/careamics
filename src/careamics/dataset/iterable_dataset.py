@@ -1,3 +1,5 @@
+"""Iterable dataset used to load data file by file."""
+
 from __future__ import annotations
 
 import copy

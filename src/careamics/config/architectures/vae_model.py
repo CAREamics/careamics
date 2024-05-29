@@ -1,3 +1,5 @@
+"""VAE Pydantic model."""
+
 from typing import Literal
 
 from pydantic import (

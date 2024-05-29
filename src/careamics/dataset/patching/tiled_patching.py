@@ -1,3 +1,5 @@
+"""Tiled patching utilities."""
+
 import itertools
 from typing import Generator, List, Tuple, Union
 

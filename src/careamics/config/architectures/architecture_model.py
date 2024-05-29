@@ -18,6 +18,11 @@ class ArchitectureModel(BaseModel):
         """
         Dump the model as a dictionary, ignoring the architecture keyword.
 
+        Parameters
+        ----------
+        **kwargs : Any
+            Additional keyword arguments from Pydantic BaseModel model_dump method.
+
         Returns
         -------
         dict[str, Any]

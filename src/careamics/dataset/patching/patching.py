@@ -1,8 +1,4 @@
-"""
-Tiling submodule.
-
-These functions are used to tile images into patches or tiles.
-"""
+"""Patching functions."""
 
 from pathlib import Path
 from typing import Callable, List, Tuple, Union
@@ -21,11 +17,24 @@ def prepare_patches_supervised(
     train_files: List[Path],
     target_files: List[Path],
     axes: str,
-    patch_size: Union[List[int], Tuple[int]],
+    patch_size: Union[List[int], Tuple[int, ...]],
     read_source_func: Callable,
 ) -> Tuple[np.ndarray, np.ndarray, float, float]:
     """
     Iterate over data source and create an array of patches and corresponding targets.
+
+    Parameters
+    ----------
+    train_files : List[Path]
+        List of paths to training data.
+    target_files : List[Path]
+        List of paths to target data.
+    axes : str
+        Axes of the data.
+    patch_size : Union[List[int], Tuple[int]]
+        Size of the patches.
+    read_source_func : Callable
+        Function to read the data.
 
     Returns
     -------
@@ -95,13 +104,25 @@ def prepare_patches_unsupervised(
     patch_size: Union[List[int], Tuple[int]],
     read_source_func: Callable,
 ) -> Tuple[np.ndarray, None, float, float]:
-    """
-    Iterate over data source and create an array of patches.
+    """Iterate over data source and create an array of patches.
+
+    This method returns the mean and standard deviation of the image.
+
+    Parameters
+    ----------
+    train_files : List[Path]
+        List of paths to training data.
+    axes : str
+        Axes of the data.
+    patch_size : Union[List[int], Tuple[int]]
+        Size of the patches.
+    read_source_func : Callable
+        Function to read the data.
 
     Returns
     -------
-    np.ndarray
-        Array of patches.
+    Tuple[np.ndarray, None, float, float]
+        Source and target patches, mean and standard deviation.
     """
     means, stds, num_samples = 0, 0, 0
     all_patches = []
@@ -150,10 +171,21 @@ def prepare_patches_supervised_array(
 
     Patches returned are of shape SC(Z)YX, where S is now the patches dimension.
 
+    Parameters
+    ----------
+    data : np.ndarray
+        Input data array.
+    axes : str
+        Axes of the data.
+    data_target : np.ndarray
+        Target data array.
+    patch_size : Union[List[int], Tuple[int]]
+        Size of the patches.
+
     Returns
     -------
-    np.ndarray
-        Array of patches.
+    Tuple[np.ndarray, np.ndarray, float, float]
+        Source and target patches, mean and standard deviation.
     """
     # compute statistics
     mean = data.mean()
@@ -195,10 +227,19 @@ def prepare_patches_unsupervised_array(
 
     Patches returned are of shape SC(Z)YX, where S is now the patches dimension.
 
+    Parameters
+    ----------
+    data : np.ndarray
+        Input data array.
+    axes : str
+        Axes of the data.
+    patch_size : Union[List[int], Tuple[int]]
+        Size of the patches.
+
     Returns
     -------
-    np.ndarray
-        Array of patches.
+    Tuple[np.ndarray, None, float, float]
+        Source patches, mean and standard deviation.
     """
     # calculate mean and std
     mean = data.mean()
@@ -210,4 +251,4 @@ def prepare_patches_unsupervised_array(
     # generate patches, return a generator
     patches, _ = extract_patches_sequential(reshaped_sample, patch_size=patch_size)
 
-    return patches, _, mean, std  # TODO inelegant, replace  by dataclass?
+    return patches, _, mean, std  # TODO inelegant, replace by dataclass?

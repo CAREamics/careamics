@@ -1,3 +1,5 @@
+"""StructN2V axes supported by CAREamics."""
+
 from careamics.utils import BaseEnum
 
 

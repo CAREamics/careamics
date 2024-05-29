@@ -17,7 +17,7 @@ def loss_factory(loss: Union[SupportedLoss, str]) -> Callable:
 
     Parameters
     ----------
-    loss: SupportedLoss
+    loss : Union[SupportedLoss, str]
         Requested loss.
 
     Returns

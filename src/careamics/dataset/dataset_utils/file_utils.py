@@ -1,3 +1,5 @@
+"""File utilities."""
+
 from fnmatch import fnmatch
 from pathlib import Path
 from typing import List, Union
@@ -11,8 +13,7 @@ logger = get_logger(__name__)
 
 
 def get_files_size(files: List[Path]) -> float:
-    """
-    Get files size in MB.
+    """Get files size in MB.
 
     Parameters
     ----------
@@ -32,7 +33,7 @@ def list_files(
     data_type: Union[str, SupportedData],
     extension_filter: str = "",
 ) -> List[Path]:
-    """Creates a recursive list of files in `data_path`.
+    """Create a recursive list of files in `data_path`.
 
     If `data_path` is a file, its name is validated against the `data_type` using
     `fnmatch`, and the method returns `data_path` itself.

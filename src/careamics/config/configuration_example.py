@@ -1,3 +1,5 @@
+"""Example of configurations."""
+
 from .algorithm_model import AlgorithmConfig
 from .architectures import UNetModel
 from .configuration_model import Configuration
@@ -19,7 +21,7 @@ from .training_model import TrainingConfig
 
 
 def full_configuration_example() -> Configuration:
-    """Returns a dictionnary representing a full configuration example.
+    """Return a dictionnary representing a full configuration example.
 
     Returns
     -------
