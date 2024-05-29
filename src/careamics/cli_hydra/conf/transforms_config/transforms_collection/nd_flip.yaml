@@ -1,5 +1,0 @@
-nd_flip:
-  flip_z: true
-  is_3D: false
-  name: NDFlip
-  p: 0.5

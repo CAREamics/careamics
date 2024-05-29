@@ -1,9 +1,0 @@
-architecture: UNet
-conv_dims: 2
-depth: 2
-final_activation: None
-in_channels: 1
-independent_channels: false
-n2v2: false
-num_channels_init: 32
-num_classes: 1

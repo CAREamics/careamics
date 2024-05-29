@@ -1,7 +1,0 @@
-# @package _global_
-
-defaults:
-  - transforms_collection/normalize
-
-data_config:
-  transforms: ${oc.dict.values:transforms_collection}

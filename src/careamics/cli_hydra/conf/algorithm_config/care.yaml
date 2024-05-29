@@ -1,5 +1,0 @@
-defaults:
-  - model: unet
-
-algorithm: care
-loss: mae
