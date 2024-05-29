@@ -27,7 +27,7 @@ def model_factory(
     Parameters
     ----------
     model_configuration : Union[UNetModel, VAEModel]
-        Model configuration
+        Model configuration.
 
     Returns
     -------

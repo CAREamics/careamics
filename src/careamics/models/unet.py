@@ -34,7 +34,9 @@ class UnetEncoder(nn.Module):
         Dropout probability, by default 0.0.
     pool_kernel : int, optional
         Kernel size for the max pooling layers, by default 2.
-    groups: int, optional
+    n2v2 : bool, optional
+        Whether to use N2V2 architecture, by default False.
+    groups : int, optional
         Number of blocked connections from input channels to output
         channels, by default 1.
     """
@@ -70,7 +72,9 @@ class UnetEncoder(nn.Module):
             Dropout probability, by default 0.0.
         pool_kernel : int, optional
             Kernel size for the max pooling layers, by default 2.
-        groups: int, optional
+        n2v2 : bool, optional
+            Whether to use N2V2 architecture, by default False.
+        groups : int, optional
             Number of blocked connections from input channels to output
             channels, by default 1.
         """
@@ -140,7 +144,9 @@ class UnetDecoder(nn.Module):
         Whether to use batch normalization, by default True.
     dropout : float, optional
         Dropout probability, by default 0.0.
-    groups: int, optional
+    n2v2 : bool, optional
+        Whether to use N2V2 architecture, by default False.
+    groups : int, optional
         Number of blocked connections from input channels to output
         channels, by default 1.
     """
@@ -170,7 +176,9 @@ class UnetDecoder(nn.Module):
             Whether to use batch normalization, by default True.
         dropout : float, optional
             Dropout probability, by default 0.0.
-        groups: int, optional
+        n2v2 : bool, optional
+            Whether to use N2V2 architecture, by default False.
+        groups : int, optional
             Number of blocked connections from input channels to output
             channels, by default 1.
         """
@@ -258,16 +266,17 @@ class UnetDecoder(nn.Module):
 
         Parameters
         ----------
-        A: torch.Tensor
+        A : torch.Tensor
             First tensor.
-        B: torch.Tensor
+        B : torch.Tensor
             Second tensor.
-        groups: int
+        groups : int
             The number of groups.
 
         Returns
         -------
         torch.Tensor
+            Interleaved tensor.
 
         Raises
         ------
