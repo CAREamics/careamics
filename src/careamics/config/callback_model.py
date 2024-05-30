@@ -1,4 +1,4 @@
-"""Checkpoint saving configuration."""
+"""Callback Pydantic models."""
 
 from __future__ import annotations
 
@@ -13,13 +13,7 @@ from pydantic import (
 
 
 class CheckpointModel(BaseModel):
-    """_summary_.
-
-    Parameters
-    ----------
-    BaseModel : _type_
-        _description_
-    """
+    """Checkpoint saving callback Pydantic model."""
 
     model_config = ConfigDict(
         validate_assignment=True,
@@ -46,13 +40,7 @@ class CheckpointModel(BaseModel):
 
 
 class EarlyStoppingModel(BaseModel):
-    """_summary_.
-
-    Parameters
-    ----------
-    BaseModel : _type_
-        _description_
-    """
+    """Early stopping callback Pydantic model."""
 
     model_config = ConfigDict(
         validate_assignment=True,

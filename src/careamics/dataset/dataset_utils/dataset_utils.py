@@ -1,4 +1,4 @@
-"""Convenience methods for datasets."""
+"""Dataset utilities."""
 
 from typing import List, Tuple
 
@@ -17,12 +17,12 @@ def _get_shape_order(
 
     Parameters
     ----------
-    shape_in : Tuple
+    shape_in : Tuple[int, ...]
         Input shape.
-    ref_axes : str
-        Reference axes.
     axes_in : str
         Input axes.
+    ref_axes : str
+        Reference axes.
 
     Returns
     -------

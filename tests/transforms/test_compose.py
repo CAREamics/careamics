@@ -2,11 +2,11 @@ import numpy as np
 
 from careamics.config.transformations import (
     N2VManipulateModel,
-    NDFlipModel,
     NormalizeModel,
+    XYFlipModel,
     XYRandomRotate90Model,
 )
-from careamics.transforms import Compose, NDFlip, Normalize, XYRandomRotate90
+from careamics.transforms import Compose, Normalize, XYFlip, XYRandomRotate90
 
 
 def test_empty_compose(ordered_array):
@@ -32,9 +32,9 @@ def test_compose_with_target(ordered_array):
     target = array[:2, ...]
 
     # transform lists
-    transform_list = [NDFlip(seed=seed), XYRandomRotate90(seed=seed)]
+    transform_list = [XYFlip(seed=seed), XYRandomRotate90(seed=seed)]
     transform_list_pydantic = [
-        NDFlipModel(name="NDFlip", seed=seed),
+        XYFlipModel(name="XYFlip", seed=seed),
         XYRandomRotate90Model(name="XYRandomRotate90", seed=seed),
     ]
 
@@ -62,16 +62,16 @@ def test_compose_n2v(ordered_array):
 
     transform_list_pydantic = [
         NormalizeModel(mean=mean, std=std),
-        NDFlipModel(seed=seed),
+        XYFlipModel(seed=seed),
         XYRandomRotate90Model(seed=seed),
         N2VManipulateModel(),
     ]
 
     # apply the transforms
     normalize = Normalize(mean=mean, std=std)
-    ndflip = NDFlip(seed=seed)
+    xyflip = XYFlip(seed=seed)
     xyrotate = XYRandomRotate90(seed=seed)
-    array_aug, _ = xyrotate(*ndflip(*normalize(array)))
+    array_aug, _ = xyrotate(*xyflip(*normalize(array)))
 
     # instantiate Compose
     compose = Compose(transform_list_pydantic)

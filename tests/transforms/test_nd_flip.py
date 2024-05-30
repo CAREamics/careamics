@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from careamics.transforms import NDFlip
+from careamics.transforms import XYFlip
 
 
 @pytest.mark.parametrize(
@@ -21,7 +21,7 @@ def test_flip_nd(ordered_array, shape):
     array: np.ndarray = ordered_array(shape)
 
     # create augmentation
-    aug = NDFlip(seed=42)
+    aug = XYFlip(seed=42)
     r = np.random.default_rng(seed=42)
 
     # potential flips
@@ -43,7 +43,7 @@ def test_flip_mask(ordered_array):
     array = array[:2, ...]
 
     # create augmentation
-    aug = NDFlip(seed=42)
+    aug = XYFlip(seed=42)
     r = np.random.default_rng(seed=42)
 
     # potential flips on Y and X axes

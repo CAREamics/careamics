@@ -1,3 +1,5 @@
+"""Custom architecture Pydantic model."""
+
 from __future__ import annotations
 
 from pprint import pformat
@@ -84,6 +86,11 @@ class CustomModel(ArchitectureModel):
         value : str
             Name of the custom model as registered using the `@register_model`
             decorator.
+
+        Returns
+        -------
+        str
+            The custom model name.
         """
         # delegate error to get_custom_model
         model = get_custom_model(value)
@@ -134,7 +141,7 @@ class CustomModel(ArchitectureModel):
 
         Parameters
         ----------
-        kwargs : Any
+        **kwargs : Any
             Additional keyword arguments from Pydantic BaseModel model_dump method.
 
         Returns

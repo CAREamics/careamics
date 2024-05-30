@@ -1,3 +1,5 @@
+"""Function to read zarr images."""
+
 from typing import Union
 
 from zarr import Group, core, hierarchy, storage
@@ -6,26 +8,28 @@ from zarr import Group, core, hierarchy, storage
 def read_zarr(
     zarr_source: Group, axes: str
 ) -> Union[core.Array, storage.DirectoryStore, hierarchy.Group]:
-    """Reads a file and returns a pointer.
+    """Read a file and returns a pointer.
 
     Parameters
     ----------
-    file_path : Path
-        pathlib.Path object containing a path to a file
+    zarr_source : Group
+        Zarr storage.
+    axes : str
+        Axes of the data.
 
     Returns
     -------
     np.ndarray
-        Pointer to zarr storage
+        Pointer to zarr storage.
 
     Raises
     ------
     ValueError, OSError
-        if a file is not a valid tiff or damaged
+        if a file is not a valid tiff or damaged.
     ValueError
-        if data dimensions are not 2, 3 or 4
+        if data dimensions are not 2, 3 or 4.
     ValueError
-        if axes parameter from config is not consistent with data dimensions
+        if axes parameter from config is not consistent with data dimensions.
     """
     if isinstance(zarr_source, hierarchy.Group):
         array = zarr_source[0]

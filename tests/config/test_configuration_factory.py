@@ -25,7 +25,7 @@ def test_n2n_configuration():
     )
 
     assert config.data_config.transforms[0].name == SupportedTransform.NORMALIZE.value
-    assert config.data_config.transforms[1].name == SupportedTransform.NDFLIP.value
+    assert config.data_config.transforms[1].name == SupportedTransform.XY_FLIP.value
     assert (
         config.data_config.transforms[2].name
         == SupportedTransform.XY_RANDOM_ROTATE90.value
@@ -153,7 +153,7 @@ def test_care_configuration():
     )
 
     assert config.data_config.transforms[0].name == SupportedTransform.NORMALIZE.value
-    assert config.data_config.transforms[1].name == SupportedTransform.NDFLIP.value
+    assert config.data_config.transforms[1].name == SupportedTransform.XY_FLIP.value
     assert (
         config.data_config.transforms[2].name
         == SupportedTransform.XY_RANDOM_ROTATE90.value

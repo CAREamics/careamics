@@ -1,3 +1,5 @@
+"""XY flip transform."""
+
 from typing import Optional, Tuple
 
 import numpy as np
@@ -5,22 +7,34 @@ import numpy as np
 from careamics.transforms.transform import Transform
 
 
-class NDFlip(Transform):
-    """Flip ND arrays on a single axis.
+class XYFlip(Transform):
+    """Flip image along X or Y axis.
 
     This transform ignores singleton axes and randomly flips one of the other
     last two axes.
 
     This transform expects C(Z)YX dimensions.
+
+    Attributes
+    ----------
+    axis_indices : List[int]
+        Indices of the axes that can be flipped.
+    rng : np.random.Generator
+        Random number generator.
+
+    Parameters
+    ----------
+    seed : Optional[int], optional
+        Random seed, by default None.
     """
 
-    def __init__(self, seed: Optional[int] = None):
+    def __init__(self, seed: Optional[int] = None) -> None:
         """Constructor.
 
         Parameters
         ----------
         seed : Optional[int], optional
-            Random seed, by default None
+            Random seed, by default None.
         """
         # "flippable" axes
         self.axis_indices = [-2, -1]
@@ -38,7 +52,7 @@ class NDFlip(Transform):
         patch : np.ndarray
             Patch, 2D or 3D, shape C(Z)YX.
         target : Optional[np.ndarray], optional
-            Target for the patch, by default None
+            Target for the patch, by default None.
 
         Returns
         -------
@@ -59,9 +73,14 @@ class NDFlip(Transform):
         Parameters
         ----------
         patch : np.ndarray
-            Image or image patch, 2D or 3D, shape C(Z)YX.
+            Image patch, 2D or 3D, shape C(Z)YX.
         axis : int
             Axis to flip.
+
+        Returns
+        -------
+        np.ndarray
+            Flipped image patch.
         """
         # TODO why ascontiguousarray?
         return np.ascontiguousarray(np.flip(patch, axis=axis))
