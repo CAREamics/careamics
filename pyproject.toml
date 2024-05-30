@@ -70,7 +70,7 @@ repository = "https://github.com/CAREamics/careamics"
 
 # cli
 [project.scripts]
-careamics = "careamics.cli.main:main"
+careamics = "careamics.cli.main:run"
 
 # https://beta.ruff.rs/docs
 [tool.ruff]
