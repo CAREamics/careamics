@@ -1,4 +1,4 @@
-"""Iterable datasets used to load data from disk."""
+"""Iterable dataset used to load data file by file."""
 
 from __future__ import annotations
 
@@ -189,7 +189,7 @@ class PathIterableDataset(IterableDataset):
 
     def __iter__(
         self,
-    ) -> Generator[Tuple[np.ndarray, np.ndarray, Optional[np.ndarray]], None, None]:
+    ) -> Generator[Tuple[np.ndarray, ...], None, None]:
         """
         Iterate over data source and yield single patch.
 
@@ -422,7 +422,11 @@ class IterablePredictionDataset(IterableDataset):
             # reshape array
             reshaped_sample = reshape_array(sample, self.axes)
 
-            if self.tile:
+            if (
+                self.tile
+                and self.tile_size is not None
+                and self.tile_overlap is not None
+            ):
                 # generate patches, return a generator
                 patch_gen = extract_tiles(
                     arr=reshaped_sample,

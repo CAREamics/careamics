@@ -5,7 +5,7 @@ Pixel manipulation is used in N2V and similar algorithm to replace the value of
 masked pixels.
 """
 
-from typing import Optional, Tuple, Union
+from typing import Optional, Tuple
 
 import numpy as np
 
@@ -15,7 +15,7 @@ from .struct_mask_parameters import StructMaskParameters
 def _apply_struct_mask(
     patch: np.ndarray, coords: np.ndarray, struct_params: StructMaskParameters
 ) -> np.ndarray:
-    """Applies structN2V masks to patch.
+    """Apply structN2V masks to patch.
 
     Each point in `coords` corresponds to the center of a mask, masks are paremeterized
     by `struct_params` and pixels in the mask (with respect to `coords`) are replaced by
@@ -98,7 +98,7 @@ def _odd_jitter_func(step: float, rng: np.random.Generator) -> np.ndarray:
 
 
 def _get_stratified_coords(
-    mask_pixel_perc: float, shape: Union[Tuple[int, int], Tuple[int, int, int]]
+    mask_pixel_perc: float, shape: Tuple[int, ...]
 ) -> np.ndarray:
     """
     Generate coordinates of the pixels to mask.
@@ -248,7 +248,7 @@ def uniform_manipulate(
         Size of the subpatch the new pixel value is sampled from, by default 11.
     remove_center : bool
         Whether to remove the center pixel from the subpatch, by default False.
-    struct_params: Optional[StructMaskParameters]
+    struct_params : Optional[StructMaskParameters]
         Parameters for the structN2V mask (axis and span).
 
     Returns
@@ -322,7 +322,7 @@ def median_manipulate(
         Approximate percentage of pixels to be masked.
     subpatch_size : int
         Size of the subpatch the new pixel value is sampled from, by default 11.
-    struct_params: Optional[StructMaskParameters]
+    struct_params : Optional[StructMaskParameters]
         Parameters for the structN2V mask (axis and span).
 
     Returns

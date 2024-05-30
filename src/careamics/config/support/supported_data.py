@@ -1,3 +1,5 @@
+"""Data supported by CAREamics."""
+
 from __future__ import annotations
 
 from typing import Union

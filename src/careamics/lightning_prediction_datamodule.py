@@ -1,7 +1,7 @@
 """Prediction Lightning data modules."""
 
 from pathlib import Path
-from typing import Any, Callable, List, Literal, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, Union
 
 import numpy as np
 import pytorch_lightning as L
@@ -362,7 +362,7 @@ class PredictDataWrapper(CAREamicsPredictData):
         """
         if dataloader_params is None:
             dataloader_params = {}
-        prediction_dict = {
+        prediction_dict: Dict[str, Any] = {
             "data_type": data_type,
             "tile_size": tile_size,
             "tile_overlap": tile_overlap,
@@ -371,6 +371,7 @@ class PredictDataWrapper(CAREamicsPredictData):
             "std": std,
             "tta": tta_transforms,
             "batch_size": batch_size,
+            "transforms": [],
         }
 
         # validate configuration

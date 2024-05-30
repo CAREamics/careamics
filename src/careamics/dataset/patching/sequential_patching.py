@@ -1,3 +1,5 @@
+"""Sequential patching functions."""
+
 from typing import List, Optional, Tuple, Union
 
 import numpy as np
@@ -14,14 +16,14 @@ def _compute_number_of_patches(
 
     Parameters
     ----------
-    arr : Tuple[int, ...]
+    arr_shape : Tuple[int, ...]
         Shape of the input array.
-    patch_sizes : Tuple[int]
+    patch_sizes : Union[List[int], Tuple[int, ...]
         Shape of the patches.
 
     Returns
     -------
-    Tuple[int]
+    Tuple[int, ...]
         Number of patches in each dimension.
     """
     if len(arr_shape) != len(patch_sizes):
@@ -55,14 +57,14 @@ def _compute_overlap(
 
     Parameters
     ----------
-    arr : Tuple[int, ...]
+    arr_shape : Tuple[int, ...]
         Input array shape.
-    patch_sizes : Tuple[int]
+    patch_sizes : Union[List[int], Tuple[int, ...]]
         Size of the patches.
 
     Returns
     -------
-    Tuple[int]
+    Tuple[int, ...]
         Overlap between patches in each dimension.
     """
     n_patches = _compute_number_of_patches(arr_shape, patch_sizes)
@@ -123,6 +125,8 @@ def _compute_patch_views(
         Steps between views.
     output_shape : Tuple[int]
         Shape of the output array.
+    target : Optional[np.ndarray], optional
+        Target array, by default None.
 
     Returns
     -------
@@ -161,11 +165,13 @@ def extract_patches_sequential(
         Input image array.
     patch_size : Tuple[int]
         Patch sizes in each dimension.
+    target : Optional[np.ndarray], optional
+        Target array, by default None.
 
     Returns
     -------
-    Generator[Tuple[np.ndarray, ...], None, None]
-        Generator of patches.
+    Tuple[np.ndarray, Optional[np.ndarray]]
+        Patches.
     """
     is_3d_patch = len(patch_size) == 3
 
