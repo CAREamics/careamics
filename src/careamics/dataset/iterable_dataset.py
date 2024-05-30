@@ -26,7 +26,7 @@ def _iterate_over_files(
     data_config: Union[DataConfig, InferenceConfig],
     data_files: List[Path],
     target_files: Optional[List[Path]] = None,
-    read_source_func: Optional[Callable] = read_tiff,
+    read_source_func: Callable = read_tiff,
 ) -> Generator[Tuple[np.ndarray, Optional[np.ndarray]], None, None]:
     """
     Iterate over data source and yield whole image.

@@ -103,7 +103,6 @@ lint.ignore = [
     "UP006", # Replace typing.List by list, mandatory for py3.8
     "UP007", # Replace Union by |, mandatory for py3.9
 ]
-lint.ignore-init-module-imports = true
 show-fixes = true
 
 [tool.ruff.lint.pydocstyle]
