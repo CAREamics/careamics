@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 from typing import Optional
 
 import typer
@@ -12,29 +13,47 @@ app = typer.Typer()
 @app.command()
 def train(
     source: Annotated[
-        str,
-        typer.Argument(help="Path to a configuration file or a trained model."),
+        Path,
+        typer.Argument(
+            help="Path to a configuration file or a trained model.",
+            exists=True,
+            file_okay=True,
+            dir_okay=False,
+        ),
     ],
     train_source: Annotated[
-        str,
+        Path,
         typer.Option(
-            "--train_source", "-ts", help="Path to the training data."
+            "--train_source", "-ts", help="Path to the training data.",
+            exists=True,
+            file_okay=True,
+            dir_okay=True,
         ),
     ],
     train_target: Annotated[
-        Optional[str],
+        Optional[Path],
         typer.Option(
-            "--train_target", "-tt", help="Path to train target data."
+            "--train_target", "-tt", help="Path to train target data.",
+            exists=True,
+            file_okay=True,
+            dir_okay=True,
         ),
     ] = None,
     val_source: Annotated[
-        Optional[str],
-        typer.Option("--val_source", "-vs", help="Path to validation data."),
+        Optional[Path],
+        typer.Option("--val_source", "-vs", help="Path to validation data.",
+                     exists=True,
+            file_okay=True,
+            dir_okay=True,),
+        
     ] = None,
     val_target: Annotated[
-        Optional[str],
+        Optional[Path],
         typer.Option(
-            "--val_target", "-vt", help="Path to validation target data."
+            "--val_target", "-vt", help="Path to validation target data.",
+            exists=True,
+            file_okay=True,
+            dir_okay=True,
         ),
     ] = None,
     # TODO: better to do opposite i.e. on_disk=False ?
@@ -53,7 +72,7 @@ def train(
         typer.Option(help="Minimum number of files to use for validation,"),
     ] = 1,
     work_dir: Annotated[
-        Optional[str],
+        Optional[Path],
         typer.Option(
             "--work_dir",
             "-wd",
@@ -61,6 +80,9 @@ def train(
                 "Path to working directory in which to save checkpoints and "
                 "logs"
             ),
+            exists=True,
+            file_okay=False,
+            dir_okay=True,
         ),
     ] = None,
 ):
