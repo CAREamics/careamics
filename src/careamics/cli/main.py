@@ -78,6 +78,7 @@ def train(
 
 @app.command()
 def predict():
+    # TODO: Need a save predict to workdir function
     raise NotImplementedError
 
 
