@@ -18,7 +18,6 @@ from careamics.config import (
     create_inference_configuration,
     load_configuration,
 )
-from careamics.config.inference_model import TRANSFORMS_UNION
 from careamics.config.support import SupportedAlgorithm, SupportedData, SupportedLogger
 from careamics.lightning_datamodule import CAREamicsTrainData
 from careamics.lightning_module import CAREamicsModule
@@ -488,7 +487,6 @@ class CAREamist:
         tile_overlap: Tuple[int, ...] = (48, 48),
         axes: Optional[str] = None,
         data_type: Optional[Literal["tiff", "custom"]] = None,
-        transforms: Optional[List[TRANSFORMS_UNION]] = None,
         tta_transforms: bool = True,
         dataloader_params: Optional[Dict] = None,
         read_source_func: Optional[Callable] = None,
@@ -506,7 +504,6 @@ class CAREamist:
         tile_overlap: Tuple[int, ...] = (48, 48),
         axes: Optional[str] = None,
         data_type: Optional[Literal["array"]] = None,
-        transforms: Optional[List[TRANSFORMS_UNION]] = None,
         tta_transforms: bool = True,
         dataloader_params: Optional[Dict] = None,
         checkpoint: Optional[Literal["best", "last"]] = None,
@@ -521,7 +518,6 @@ class CAREamist:
         tile_overlap: Tuple[int, ...] = (48, 48),
         axes: Optional[str] = None,
         data_type: Optional[Literal["array", "tiff", "custom"]] = None,
-        transforms: Optional[List[TRANSFORMS_UNION]] = None,
         tta_transforms: bool = True,
         dataloader_params: Optional[Dict] = None,
         read_source_func: Optional[Callable] = None,
@@ -537,8 +533,6 @@ class CAREamist:
         If `data_type`, `axes` and `tile_size` are not provided, the training
         configuration parameters will be used, with the `patch_size` instead of
         `tile_size`.
-
-        The default transforms are defined in the `InferenceModel` Pydantic model.
 
         Test-time augmentation (TTA) can be switched off using the `tta_transforms`
         parameter.
@@ -563,8 +557,6 @@ class CAREamist:
             Axes of the input data, by default None.
         data_type : Optional[Literal["array", "tiff", "custom"]], optional
             Type of the input data, by default None.
-        transforms : Optional[List[TRANSFORMS_UNION]], optional
-            List of transforms to apply to the data, by default None.
         tta_transforms : bool, optional
             Whether to apply test-time augmentation, by default True.
         dataloader_params : Optional[Dict], optional
@@ -608,7 +600,6 @@ class CAREamist:
                 tile_overlap=tile_overlap,
                 data_type=data_type,
                 axes=axes,
-                transforms=transforms,
                 tta_transforms=tta_transforms,
                 batch_size=batch_size,
             )
