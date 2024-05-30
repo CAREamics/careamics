@@ -1,14 +1,14 @@
-import os
 from pathlib import Path
 from typing import Optional
-
-import typer
 from typing_extensions import Annotated
 
-from careamics import CAREamist
+import typer
+
+from ..careamist import CAREamist
+from . import conf
 
 app = typer.Typer()
-
+app.add_typer(conf.app, name="conf")
 
 @app.command()
 def train(
@@ -56,13 +56,12 @@ def train(
             dir_okay=True,
         ),
     ] = None,
-    # TODO: better to do opposite i.e. on_disk=False ?
-    # use_in_memory: Annotated[
-    #     bool,
-    #     typer.Option(
-    #         "--use_in_memory", "-m", help="Use in memory dataset if possible."
-    #     ),
-    # ] = True,
+    use_in_memory: Annotated[
+        bool,
+        typer.Option(
+            "--use_in_memory", "-m", help="Use in memory dataset if possible."
+        ),
+    ] = True,
     val_percentage: Annotated[
         float,
         typer.Option(help="Percentage of files to use for validation."),
@@ -92,7 +91,7 @@ def train(
         val_source=val_source,
         train_target=train_target,
         val_target=val_target,
-        # use_in_memory=use_in_memory,
+        use_in_memory=use_in_memory,
         val_percentage=val_percentage,
         val_minimum_split=val_minimum_split,
     )
@@ -104,9 +103,7 @@ def predict():
     raise NotImplementedError
 
 
-@app.command()
-def conf():
-    raise NotImplementedError
+
 
 
 def run():
