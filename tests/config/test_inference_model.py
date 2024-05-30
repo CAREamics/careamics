@@ -116,7 +116,7 @@ def test_set_3d(minimum_inference: dict):
     assert len(pred.tile_size) == 3
     assert len(pred.tile_overlap) == 3
 
-    
+
 @pytest.mark.parametrize(
     "transforms",
     [
