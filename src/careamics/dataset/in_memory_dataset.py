@@ -36,7 +36,7 @@ class InMemoryDataset(Dataset):
         Data configuration.
     inputs : Union[np.ndarray, List[Path]]
         Input data.
-    data_target : Optional[Union[np.ndarray, List[Path]]], optional
+    input_target : Optional[Union[np.ndarray, List[Path]]], optional
         Target data, by default None.
     read_source_func : Callable, optional
         Read source function for custom types, by default read_tiff.
@@ -61,7 +61,7 @@ class InMemoryDataset(Dataset):
             Data configuration.
         inputs : Union[np.ndarray, List[Path]]
             Input data.
-        data_target : Optional[Union[np.ndarray, List[Path]]], optional
+        input_target : Optional[Union[np.ndarray, List[Path]]], optional
             Target data, by default None.
         read_source_func : Callable, optional
             Read source function for custom types, by default read_tiff.

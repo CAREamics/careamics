@@ -21,6 +21,10 @@ def read_tiff(file_path: Path, *args: list, **kwargs: dict) -> np.ndarray:
     ----------
     file_path : Path
         Path to a file.
+    *args : list
+        Additional arguments.
+    **kwargs : dict
+        Additional keyword arguments.
 
     Returns
     -------
