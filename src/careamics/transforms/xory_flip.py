@@ -1,23 +1,21 @@
 """XY flip transform."""
 
-from typing import Optional, Tuple
+from typing import Literal, Optional, Tuple
 
 import numpy as np
 
 from careamics.transforms.transform import Transform
 
 
-class XYFlip(Transform):
-    """Flip image along X and Y axis, one at a time.
-
-    This transform randomly flips one of the last two axes.
+class XorYFlip(Transform):
+    """Flip image along a single axis.
 
     This transform expects C(Z)YX dimensions.
 
     Attributes
     ----------
-    axis_indices : List[int]
-        Indices of the axes that can be flipped.
+    axis : Literal[-2, -1]
+        Axis to be flipped.
     rng : np.random.Generator
         Random number generator.
     p : float
@@ -27,17 +25,23 @@ class XYFlip(Transform):
 
     Parameters
     ----------
+    axis : Literal[-2, -1]
+        Axis to flip.
     p : float, optional
         Probability of applying the transform, by default 0.5.
     seed : Optional[int], optional
         Random seed, by default None.
     """
 
-    def __init__(self, p: float = 0.5, seed: Optional[int] = None) -> None:
+    def __init__(
+        self, axis: Literal[-2, -1], p: float = 0.5, seed: Optional[int] = None
+    ) -> None:
         """Constructor.
 
         Parameters
         ----------
+        axis : Literal[-2, -1]
+            Axis to flip.
         p : float
             Probability of applying the transform, by default 0.5.
         seed : Optional[int], optional
@@ -45,6 +49,9 @@ class XYFlip(Transform):
         """
         if p < 0 or p > 1:
             raise ValueError("Probability must be in [0, 1].")
+
+        # axis to flip
+        self.axis = axis
 
         # probability to apply the transform
         self.p = p
@@ -75,11 +82,10 @@ class XYFlip(Transform):
         if self.rng.random() > self.p:
             return patch, target
 
-        # choose an axis to flip
-        axis = self.rng.choice(self.axis_indices)
-
-        patch_transformed = self._apply(patch, axis)
-        target_transformed = self._apply(target, axis) if target is not None else None
+        patch_transformed = self._apply(patch, self.axis)
+        target_transformed = (
+            self._apply(target, self.axis) if target is not None else None
+        )
 
         return patch_transformed, target_transformed
 

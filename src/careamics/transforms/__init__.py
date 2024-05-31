@@ -9,6 +9,7 @@ __all__ = [
     "Denormalize",
     "Normalize",
     "Compose",
+    "XorYFlip",
 ]
 
 
@@ -16,5 +17,6 @@ from .compose import Compose, get_all_transforms
 from .n2v_manipulate import N2VManipulate
 from .normalize import Denormalize, Normalize
 from .tta import ImageRestorationTTA
+from .xory_flip import XorYFlip
 from .xy_flip import XYFlip
 from .xy_random_rotate90 import XYRandomRotate90
