@@ -24,7 +24,7 @@ def train(
     train_source: Annotated[
         Path,
         typer.Option(
-            "--train_source", "-ts", help="Path to the training data.",
+            "--train-source", "-ts", help="Path to the training data.",
             exists=True,
             file_okay=True,
             dir_okay=True,
@@ -33,7 +33,7 @@ def train(
     train_target: Annotated[
         Optional[Path],
         typer.Option(
-            "--train_target", "-tt", help="Path to train target data.",
+            "--train-target", "-tt", help="Path to train target data.",
             exists=True,
             file_okay=True,
             dir_okay=True,
@@ -41,7 +41,7 @@ def train(
     ] = None,
     val_source: Annotated[
         Optional[Path],
-        typer.Option("--val_source", "-vs", help="Path to validation data.",
+        typer.Option("--val-source", "-vs", help="Path to validation data.",
                      exists=True,
             file_okay=True,
             dir_okay=True,),
@@ -50,7 +50,7 @@ def train(
     val_target: Annotated[
         Optional[Path],
         typer.Option(
-            "--val_target", "-vt", help="Path to validation target data.",
+            "--val-target", "-vt", help="Path to validation target data.",
             exists=True,
             file_okay=True,
             dir_okay=True,
@@ -59,7 +59,7 @@ def train(
     use_in_memory: Annotated[
         bool,
         typer.Option(
-            "--use_in_memory", "-m", help="Use in memory dataset if possible."
+            "--use-in-memory/--not-in-memory", "-m/-M", help="Use in memory dataset if possible."
         ),
     ] = True,
     val_percentage: Annotated[
@@ -73,7 +73,7 @@ def train(
     work_dir: Annotated[
         Optional[Path],
         typer.Option(
-            "--work_dir",
+            "--work-dir",
             "-wd",
             help=(
                 "Path to working directory in which to save checkpoints and "
