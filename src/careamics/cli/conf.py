@@ -232,7 +232,7 @@ def n2v(
         ),
     ] = "none",
     struct_n2v_span: Annotated[
-        int, typer.Option("Span of the structN2V mask.")
+        int, typer.Option(help="Span of the structN2V mask.")
     ] = 5,
     logger: Annotated[
         click.Choice,
