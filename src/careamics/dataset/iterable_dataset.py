@@ -1,3 +1,5 @@
+"""Iterable dataset used to load data file by file."""
+
 from __future__ import annotations
 
 import copy
@@ -11,6 +13,7 @@ from careamics.transforms import Compose
 
 from ..config import DataConfig, InferenceConfig
 from ..config.tile_information import TileInformation
+from ..config.transformations import NormalizeModel
 from ..utils.logging import get_logger
 from .dataset_utils import read_tiff, reshape_array
 from .patching.random_patching import extract_patches_random
@@ -19,13 +22,85 @@ from .patching.tiled_patching import extract_tiles
 logger = get_logger(__name__)
 
 
+def _iterate_over_files(
+    data_config: Union[DataConfig, InferenceConfig],
+    data_files: List[Path],
+    target_files: Optional[List[Path]] = None,
+    read_source_func: Callable = read_tiff,
+) -> Generator[Tuple[np.ndarray, Optional[np.ndarray]], None, None]:
+    """
+    Iterate over data source and yield whole image.
+
+    Parameters
+    ----------
+    data_config : Union[DataConfig, InferenceConfig]
+        Data configuration.
+    data_files : List[Path]
+        List of data files.
+    target_files : Optional[List[Path]]
+        List of target files, by default None.
+    read_source_func : Optional[Callable]
+        Function to read the source, by default read_tiff.
+
+    Yields
+    ------
+    np.ndarray
+        Image.
+    """
+    # When num_workers > 0, each worker process will have a different copy of the
+    # dataset object
+    # Configuring each copy independently to avoid having duplicate data returned
+    # from the workers
+    worker_info = get_worker_info()
+    worker_id = worker_info.id if worker_info is not None else 0
+    num_workers = worker_info.num_workers if worker_info is not None else 1
+
+    # iterate over the files
+    for i, filename in enumerate(data_files):
+        # retrieve file corresponding to the worker id
+        if i % num_workers == worker_id:
+            try:
+                # read data
+                sample = read_source_func(filename, data_config.axes)
+
+                # read target, if available
+                if target_files is not None:
+                    if filename.name != target_files[i].name:
+                        raise ValueError(
+                            f"File {filename} does not match target file "
+                            f"{target_files[i]}. Have you passed sorted "
+                            f"arrays?"
+                        )
+
+                    # read target
+                    target = read_source_func(target_files[i], data_config.axes)
+
+                    yield sample, target
+                else:
+                    yield sample, None
+
+            except Exception as e:
+                logger.error(f"Error reading file {filename}: {e}")
+
+
 class PathIterableDataset(IterableDataset):
     """
     Dataset allowing extracting patches w/o loading whole data into memory.
 
     Parameters
     ----------
-    data_path : Union[str, Path]
+    data_config : DataConfig
+        Data configuration.
+    src_files : List[Path]
+        List of data files.
+    target_files : Optional[List[Path]], optional
+        Optional list of target files, by default None.
+    read_source_func : Callable, optional
+        Read source function for custom types, by default read_tiff.
+
+    Attributes
+    ----------
+    data_path : List[Path]
         Path to the data, must be a directory.
     axes : str
         Description of axes in format STCZYX.
@@ -45,11 +120,24 @@ class PathIterableDataset(IterableDataset):
 
     def __init__(
         self,
-        data_config: Union[DataConfig, InferenceConfig],
+        data_config: DataConfig,
         src_files: List[Path],
         target_files: Optional[List[Path]] = None,
         read_source_func: Callable = read_tiff,
     ) -> None:
+        """Constructors.
+
+        Parameters
+        ----------
+        data_config : DataConfig
+            Data configuration.
+        src_files : List[Path]
+            List of data files.
+        target_files : Optional[List[Path]], optional
+            Optional list of target files, by default None.
+        read_source_func : Callable, optional
+            Read source function for custom types, by default read_tiff.
+        """
         self.data_config = data_config
         self.data_files = src_files
         self.target_files = target_files
@@ -82,7 +170,9 @@ class PathIterableDataset(IterableDataset):
         means, stds = 0, 0
         num_samples = 0
 
-        for sample, _ in self._iterate_over_files():
+        for sample, _ in _iterate_over_files(
+            self.data_config, self.data_files, self.target_files, self.read_source_func
+        ):
             means += sample.mean()
             stds += sample.std()
             num_samples += 1
@@ -97,57 +187,9 @@ class PathIterableDataset(IterableDataset):
         logger.info(f"Mean: {result_mean}, std: {result_std}")
         return result_mean, result_std
 
-    def _iterate_over_files(
-        self,
-    ) -> Generator[Tuple[np.ndarray, Optional[np.ndarray]], None, None]:
-        """
-        Iterate over data source and yield whole image.
-
-        Yields
-        ------
-        np.ndarray
-            Image.
-        """
-        # When num_workers > 0, each worker process will have a different copy of the
-        # dataset object
-        # Configuring each copy independently to avoid having duplicate data returned
-        # from the workers
-        worker_info = get_worker_info()
-        worker_id = worker_info.id if worker_info is not None else 0
-        num_workers = worker_info.num_workers if worker_info is not None else 1
-
-        # iterate over the files
-        for i, filename in enumerate(self.data_files):
-            # retrieve file corresponding to the worker id
-            if i % num_workers == worker_id:
-                try:
-                    # read data
-                    sample = self.read_source_func(filename, self.data_config.axes)
-
-                    # read target, if available
-                    if self.target_files is not None:
-                        if filename.name != self.target_files[i].name:
-                            raise ValueError(
-                                f"File {filename} does not match target file "
-                                f"{self.target_files[i]}. Have you passed sorted "
-                                f"arrays?"
-                            )
-
-                        # read target
-                        target = self.read_source_func(
-                            self.target_files[i], self.data_config.axes
-                        )
-
-                        yield sample, target
-                    else:
-                        yield sample, None
-
-                except Exception as e:
-                    logger.error(f"Error reading file {filename}: {e}")
-
     def __iter__(
         self,
-    ) -> Generator[Tuple[np.ndarray, np.ndarray, Optional[np.ndarray]], None, None]:
+    ) -> Generator[Tuple[np.ndarray, ...], None, None]:
         """
         Iterate over data source and yield single patch.
 
@@ -161,7 +203,9 @@ class PathIterableDataset(IterableDataset):
         ), "Mean and std must be provided"
 
         # iterate over files
-        for sample_input, sample_target in self._iterate_over_files():
+        for sample_input, sample_target in _iterate_over_files(
+            self.data_config, self.data_files, self.target_files, self.read_source_func
+        ):
             reshaped_sample = reshape_array(sample_input, self.data_config.axes)
             reshaped_target = (
                 None
@@ -209,9 +253,9 @@ class PathIterableDataset(IterableDataset):
         Parameters
         ----------
         percentage : float, optional
-            Percentage of files to split up, by default 0.1
+            Percentage of files to split up, by default 0.1.
         minimum_number : int, optional
-            Minimum number of files to split up, by default 5
+            Minimum number of files to split up, by default 5.
 
         Returns
         -------
@@ -275,11 +319,22 @@ class PathIterableDataset(IterableDataset):
         return dataset
 
 
-class IterablePredictionDataset(PathIterableDataset):
+class IterablePredictionDataset(IterableDataset):
     """
-    Dataset allowing extracting patches w/o loading whole data into memory.
+    Prediction dataset.
 
     Parameters
+    ----------
+    prediction_config : InferenceConfig
+        Inference configuration.
+    src_files : List[Path]
+        List of data files.
+    read_source_func : Callable, optional
+        Read source function for custom types, by default read_tiff.
+    **kwargs : Any
+        Additional keyword arguments, unused.
+
+    Attributes
     ----------
     data_path : Union[str, Path]
         Path to the data, must be a directory.
@@ -300,13 +355,26 @@ class IterablePredictionDataset(PathIterableDataset):
         read_source_func: Callable = read_tiff,
         **kwargs: Any,
     ) -> None:
-        super().__init__(
-            data_config=prediction_config,
-            src_files=src_files,
-            read_source_func=read_source_func,
-        )
+        """Constructor.
 
+        Parameters
+        ----------
+        prediction_config : InferenceConfig
+            Inference configuration.
+        src_files : List[Path]
+            List of data files.
+        read_source_func : Callable, optional
+            Read source function for custom types, by default read_tiff.
+        **kwargs : Any
+            Additional keyword arguments, unused.
+
+        Raises
+        ------
+        ValueError
+            If mean and std are not provided in the inference configuration.
+        """
         self.prediction_config = prediction_config
+        self.data_files = src_files
         self.axes = prediction_config.axes
         self.tile_size = self.prediction_config.tile_size
         self.tile_overlap = self.prediction_config.tile_overlap
@@ -315,10 +383,21 @@ class IterablePredictionDataset(PathIterableDataset):
         # tile only if both tile size and overlaps are provided
         self.tile = self.tile_size is not None and self.tile_overlap is not None
 
-        # get tta transforms
-        self.patch_transform = Compose(
-            transform_list=prediction_config.transforms,
-        )
+        # check mean and std and create normalize transform
+        if self.prediction_config.mean is None or self.prediction_config.std is None:
+            raise ValueError("Mean and std must be provided for prediction.")
+        else:
+            self.mean = self.prediction_config.mean
+            self.std = self.prediction_config.std
+
+            # instantiate normalize transform
+            self.patch_transform = Compose(
+                transform_list=[
+                    NormalizeModel(
+                        mean=prediction_config.mean, std=prediction_config.std
+                    )
+                ],
+            )
 
     def __iter__(
         self,
@@ -335,11 +414,19 @@ class IterablePredictionDataset(PathIterableDataset):
             self.mean is not None and self.std is not None
         ), "Mean and std must be provided"
 
-        for sample, _ in self._iterate_over_files():
+        for sample, _ in _iterate_over_files(
+            self.prediction_config,
+            self.data_files,
+            read_source_func=self.read_source_func,
+        ):
             # reshape array
             reshaped_sample = reshape_array(sample, self.axes)
 
-            if self.tile:
+            if (
+                self.tile
+                and self.tile_size is not None
+                and self.tile_overlap is not None
+            ):
                 # generate patches, return a generator
                 patch_gen = extract_tiles(
                     arr=reshaped_sample,

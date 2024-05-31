@@ -1,8 +1,4 @@
-"""
-Prediction convenience functions.
-
-These functions are used during prediction.
-"""
+"""Prediction utility functions."""
 
 from typing import List
 
@@ -21,7 +17,7 @@ def stitch_prediction(
     ----------
     tiles : List[torch.Tensor]
         Cropped tiles and their respective stitching coordinates.
-    stitching_coords : List
+    stitching_data : List
         List of information and coordinates obtained from
         `dataset.tiled_patching.extract_tiles`.
 

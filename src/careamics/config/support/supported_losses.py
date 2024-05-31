@@ -1,3 +1,5 @@
+"""Losses supported by CAREamics."""
+
 from careamics.utils import BaseEnum
 
 

@@ -17,14 +17,14 @@ from typing_extensions import Annotated, Self
 
 from .support import SupportedTransform
 from .transformations.n2v_manipulate_model import N2VManipulateModel
-from .transformations.nd_flip_model import NDFlipModel
 from .transformations.normalize_model import NormalizeModel
+from .transformations.xy_flip_model import XYFlipModel
 from .transformations.xy_random_rotate90_model import XYRandomRotate90Model
 from .validators import check_axes_validity, patch_size_ge_than_8_power_of_2
 
 TRANSFORMS_UNION = Annotated[
     Union[
-        NDFlipModel,
+        XYFlipModel,
         XYRandomRotate90Model,
         NormalizeModel,
         N2VManipulateModel,
@@ -70,7 +70,7 @@ class DataConfig(BaseModel):
     ...             "std": 47.2,
     ...         },
     ...         {
-    ...             "name": "NDFlip",
+    ...             "name": "XYFlip",
     ...         }
     ...     ]
     ... )
@@ -97,7 +97,7 @@ class DataConfig(BaseModel):
                 "name": SupportedTransform.NORMALIZE.value,
             },
             {
-                "name": SupportedTransform.NDFLIP.value,
+                "name": SupportedTransform.XY_FLIP.value,
             },
             {
                 "name": SupportedTransform.XY_RANDOM_ROTATE90.value,
@@ -202,7 +202,7 @@ class DataConfig(BaseModel):
 
         if SupportedTransform.N2V_MANIPULATE in transform_list:
             # multiple N2V_MANIPULATE
-            if transform_list.count(SupportedTransform.N2V_MANIPULATE) > 1:
+            if transform_list.count(SupportedTransform.N2V_MANIPULATE.value) > 1:
                 raise ValueError(
                     f"Multiple instances of "
                     f"{SupportedTransform.N2V_MANIPULATE} transforms "
@@ -211,7 +211,7 @@ class DataConfig(BaseModel):
 
             # N2V_MANIPULATE not the last transform
             elif transform_list[-1] != SupportedTransform.N2V_MANIPULATE:
-                index = transform_list.index(SupportedTransform.N2V_MANIPULATE)
+                index = transform_list.index(SupportedTransform.N2V_MANIPULATE.value)
                 transform = transforms.pop(index)
                 transforms.append(transform)
 
@@ -250,7 +250,7 @@ class DataConfig(BaseModel):
         Self
             Data model with mean and std added to the Normalize transform.
         """
-        if self.mean is not None or self.std is not None:
+        if self.mean is not None and self.std is not None:
             # search in the transforms for Normalize and update parameters
             for transform in self.transforms:
                 if transform.name == SupportedTransform.NORMALIZE.value:
@@ -354,12 +354,6 @@ class DataConfig(BaseModel):
             Standard deviation of the data.
         """
         self._update(mean=mean, std=std)
-
-        # search in the transforms for Normalize and update parameters
-        for transform in self.transforms:
-            if transform.name == SupportedTransform.NORMALIZE.value:
-                transform.mean = mean
-                transform.std = std
 
     def set_3D(self, axes: str, patch_size: List[int]) -> None:
         """

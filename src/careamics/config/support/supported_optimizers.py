@@ -1,3 +1,5 @@
+"""Optimizers and schedulers supported by CAREamics."""
+
 from careamics.utils import BaseEnum
 
 

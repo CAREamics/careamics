@@ -1,3 +1,5 @@
+"""Architectures supported by CAREamics."""
+
 from careamics.utils import BaseEnum
 
 

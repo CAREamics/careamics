@@ -162,6 +162,18 @@ def _unpack_kernel_size(
     """Unpack kernel_size to a tuple of ints.
 
     Inspired by Kornia implementation. TODO: link
+
+    Parameters
+    ----------
+    kernel_size : Union[Tuple[int, ...], int]
+        Kernel size.
+    dim : int
+        Number of dimensions.
+
+    Returns
+    -------
+    Tuple[int, ...]
+        Kernel size tuple.
     """
     if isinstance(kernel_size, int):
         kernel_dims = tuple([kernel_size for _ in range(dim)])
@@ -173,7 +185,20 @@ def _unpack_kernel_size(
 def _compute_zero_padding(
     kernel_size: Union[Tuple[int, ...], int], dim: int
 ) -> Tuple[int, ...]:
-    """Utility function that computes zero padding tuple."""
+    """Utility function that computes zero padding tuple.
+
+    Parameters
+    ----------
+    kernel_size : Union[Tuple[int, ...], int]
+        Kernel size.
+    dim : int
+        Number of dimensions.
+
+    Returns
+    -------
+    Tuple[int, ...]
+        Zero padding tuple.
+    """
     kernel_dims = _unpack_kernel_size(kernel_size, dim)
     return tuple([(kd - 1) // 2 for kd in kernel_dims])
 
@@ -191,14 +216,19 @@ def get_pascal_kernel_1d(
 
     Parameters
     ----------
-    kernel_size: height and width of the kernel.
-    norm: if to normalize the kernel or not. Default: False.
-    device: tensor device
-    dtype: tensor dtype
+    kernel_size : int
+        Kernel size.
+    norm : bool
+        Normalize the kernel, by default False.
+    device : Optional[torch.device]
+        Device of the tensor, by default None.
+    dtype : Optional[torch.dtype]
+        Data type of the tensor, by default None.
 
     Returns
     -------
-    kernel shaped as :math:`(kernel_size,)`
+    torch.Tensor
+        Pascal kernel.
 
     Examples
     --------
@@ -245,19 +275,28 @@ def _get_pascal_kernel_nd(
 ) -> torch.Tensor:
     """Generate pascal filter kernel by kernel size.
 
+    If kernel_size is an integer the kernel will be shaped as (kernel_size, kernel_size)
+    otherwise the kernel will be shaped as kernel_size
+
     Inspired by Kornia implementation.
 
     Parameters
     ----------
-    kernel_size: height and width of the kernel.
-    norm: if to normalize the kernel or not. Default: True.
-    device: tensor device
-    dtype: tensor dtype
+    kernel_size : Union[Tuple[int, int], int]
+        Kernel size for the pascal kernel.
+    norm : bool
+        Normalize the kernel, by default True.
+    dim : int
+        Number of dimensions, by default 2.
+    device : Optional[torch.device]
+        Device of the tensor, by default None.
+    dtype : Optional[torch.dtype]
+        Data type of the tensor, by default None.
 
     Returns
     -------
-    if kernel_size is an integer the kernel will be shaped as (kernel_size, kernel_size)
-    otherwise the kernel will be shaped as kernel_size
+    torch.Tensor
+        Pascal kernel.
 
     Examples
     --------
@@ -303,6 +342,24 @@ def _max_blur_pool_by_kernel2d(
     """Compute max_blur_pool by a given :math:`CxC_(out, None)xNxN` kernel.
 
     Inspired by Kornia implementation.
+
+    Parameters
+    ----------
+    x : torch.Tensor
+        Input tensor.
+    kernel : torch.Tensor
+        Kernel tensor.
+    stride : int
+        Stride.
+    max_pool_size : int
+        Maximum pool size.
+    ceil_mode : bool
+        Ceil mode, by default False. Set to True to match output size of conv2d.
+
+    Returns
+    -------
+    torch.Tensor
+        Output tensor.
     """
     # compute local maxima
     x = F.max_pool2d(
@@ -323,6 +380,24 @@ def _max_blur_pool_by_kernel3d(
     """Compute max_blur_pool by a given :math:`CxC_(out, None)xNxNxN` kernel.
 
     Inspired by Kornia implementation.
+
+    Parameters
+    ----------
+    x : torch.Tensor
+        Input tensor.
+    kernel : torch.Tensor
+        Kernel tensor.
+    stride : int
+        Stride.
+    max_pool_size : int
+        Maximum pool size.
+    ceil_mode : bool
+        Ceil mode, by default False. Set to True to match output size of conv2d.
+
+    Returns
+    -------
+    torch.Tensor
+        Output tensor.
     """
     # compute local maxima
     x = F.max_pool3d(
@@ -343,21 +418,16 @@ class MaxBlurPool(nn.Module):
 
     Parameters
     ----------
-    dim: int
-        Toggles between 2D and 3D
-    kernel_size: Union[Tuple[int, int], int]
+    dim : int
+        Toggles between 2D and 3D.
+    kernel_size : Union[Tuple[int, int], int]
         Kernel size for max pooling.
-    stride: int
+    stride : int
         Stride for pooling.
-    max_pool_size: int
+    max_pool_size : int
         Max kernel size for max pooling.
-    ceil_mode: bool
-        Should be true to match output size of conv2d with same kernel size.
-
-    Returns
-    -------
-    torch.Tensor
-        The pooled and blurred tensor.
+    ceil_mode : bool
+        Ceil mode, by default False. Set to True to match output size of conv2d.
     """
 
     def __init__(
@@ -368,6 +438,21 @@ class MaxBlurPool(nn.Module):
         max_pool_size: int = 2,
         ceil_mode: bool = False,
     ) -> None:
+        """Constructor.
+
+        Parameters
+        ----------
+        dim : int
+            Dimension of the convolution.
+        kernel_size : Union[Tuple[int, int], int]
+            Kernel size for max pooling.
+        stride : int, optional
+            Stride, by default 2.
+        max_pool_size : int, optional
+            Maximum pool size, by default 2.
+        ceil_mode : bool, optional
+            Ceil mode, by default False. Set to True to match output size of conv2d.
+        """
         super().__init__()
         self.dim = dim
         self.kernel_size = kernel_size
@@ -377,7 +462,18 @@ class MaxBlurPool(nn.Module):
         self.kernel = _get_pascal_kernel_nd(kernel_size, norm=True, dim=self.dim)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """Forward pass of the function."""
+        """Forward pass of the function.
+
+        Parameters
+        ----------
+        x : torch.Tensor
+            Input tensor.
+
+        Returns
+        -------
+        torch.Tensor
+            Output tensor.
+        """
         self.kernel = torch.as_tensor(self.kernel, device=x.device, dtype=x.dtype)
         if self.dim == 2:
             return _max_blur_pool_by_kernel2d(

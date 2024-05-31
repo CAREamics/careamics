@@ -1,3 +1,5 @@
+"""UNet Pydantic model."""
+
 from __future__ import annotations
 
 from typing import Literal

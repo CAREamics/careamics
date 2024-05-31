@@ -1,3 +1,5 @@
+"""Activations supported by CAREamics."""
+
 from careamics.utils import BaseEnum
 
 

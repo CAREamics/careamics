@@ -1,3 +1,5 @@
+"""Random patching utilities."""
+
 from typing import Generator, List, Optional, Tuple, Union
 
 import numpy as np
@@ -30,6 +32,8 @@ def extract_patches_random(
         Input image array.
     patch_size : Tuple[int]
         Patch sizes in each dimension.
+    target : Optional[np.ndarray], optional
+        Target array, by default None.
 
     Yields
     ------
@@ -120,10 +124,12 @@ def extract_patches_random_from_chunks(
     ----------
     arr : np.ndarray
         Input image array.
-    patch_size : Tuple[int]
+    patch_size : Union[List[int], Tuple[int, ...]]
         Patch sizes in each dimension.
-    chunk_size : Tuple[int]
+    chunk_size : Union[List[int], Tuple[int, ...]]
         Chunk sizes to load from the.
+    chunk_limit : Optional[int], optional
+        Number of chunks to load, by default None.
 
     Yields
     ------
