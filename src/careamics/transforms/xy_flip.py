@@ -21,21 +21,35 @@ class XYFlip(Transform):
         Indices of the axes that can be flipped.
     rng : np.random.Generator
         Random number generator.
+    p : float
+        Probability of applying the transform.
+    seed : Optional[int]
+        Random seed.
 
     Parameters
     ----------
+    p : float, optional
+        Probability of applying the transform, by default 0.5.
     seed : Optional[int], optional
         Random seed, by default None.
     """
 
-    def __init__(self, seed: Optional[int] = None) -> None:
+    def __init__(self, p: float = 0.5, seed: Optional[int] = None) -> None:
         """Constructor.
 
         Parameters
         ----------
+        p : float
+            Probability of applying the transform, by default 0.5.
         seed : Optional[int], optional
             Random seed, by default None.
         """
+        if p < 0 or p > 1:
+            raise ValueError("Probability must be in [0, 1].")
+
+        # probability to apply the transform
+        self.p = p
+
         # "flippable" axes
         self.axis_indices = [-2, -1]
 
@@ -59,6 +73,9 @@ class XYFlip(Transform):
         Tuple[np.ndarray, Optional[np.ndarray]]
             Transformed patch and target.
         """
+        if self.rng.random() > self.p:
+            return patch, target
+
         # choose an axis to flip
         axis = self.rng.choice(self.axis_indices)
 

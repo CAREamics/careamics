@@ -2,7 +2,7 @@
 
 from typing import Literal, Optional
 
-from pydantic import ConfigDict
+from pydantic import ConfigDict, Field
 
 from .transform_model import TransformModel
 
@@ -15,8 +15,10 @@ class XYFlipModel(TransformModel):
     ----------
     name : Literal["XYFlip"]
         Name of the transformation.
+    p : float
+        Probability of applying the transform, by default 0.5.
     seed : Optional[int]
-        Seed for the random number generator.
+        Seed for the random number generator,  by default None.
     """
 
     model_config = ConfigDict(
@@ -24,4 +26,10 @@ class XYFlipModel(TransformModel):
     )
 
     name: Literal["XYFlip"] = "XYFlip"
+    p: float = Field(
+        0.5,
+        description="Probability of applying the transform.",
+        ge=0,
+        le=1,
+    )
     seed: Optional[int] = None
