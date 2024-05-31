@@ -1,7 +1,6 @@
 import os
 from pathlib import Path
 from dataclasses import dataclass
-from typing import Literal
 from typing_extensions import Annotated
 import yaml
 
@@ -18,9 +17,16 @@ from ..config import (
 
 app = typer.Typer()
 
+
 def _save_config(config: Configuration, fp: Path) -> None:
     with open(fp, "w") as file:
         yaml.dump(config.model_dump(), file, indent=2)
+    
+def _config_builder_exit(ctx: typer.Context, config: Configuration) -> None:
+    conf_path = (ctx.obj.dir / ctx.obj.name).with_suffix(".yaml")
+    _save_config(config, conf_path)
+    if ctx.obj.print:
+        print(yaml.dump(config.model_dump(), indent=2))
 
 @dataclass
 class ConfigOptions:
@@ -52,29 +58,53 @@ def config_options(
 @app.command()
 def care(
     ctx: typer.Context,
-    experiment_name: Annotated[str, typer.Option()],
-    axes: Annotated[str, typer.Option()],
-    patch_size: Annotated[
-        click.Tuple, typer.Option(click_type=click.Tuple([int, int]))
+    experiment_name: Annotated[
+        str, typer.Option(help="Name of the experiment.")
     ],
-    batch_size: Annotated[int, typer.Option()],
-    num_epochs: Annotated[int, typer.Option()],
+    axes: Annotated[str, typer.Option(help="Axes of the data (e.g. SYX).")],
+    patch_size: Annotated[
+        click.Tuple,
+        typer.Option(
+            click_type=click.Tuple([int, int]),
+            help="Size of the patches along the spatial dimensions (e.g. --patch-size 64 64).",
+        ),
+    ],
+    batch_size: Annotated[int, typer.Option(help="Batch size.")],
+    num_epochs: Annotated[int, typer.Option(help="Number of epochs.")],
     data_type: Annotated[
-        click.Choice, typer.Option(click_type=click.Choice(["tiff"]))
+        click.Choice,
+        typer.Option(
+            click_type=click.Choice(["tiff"]), help="Type of the data."
+        ),
     ] = "tiff",
-    use_augmentations: Annotated[bool, typer.Option()] = True,
-    independent_channels: Annotated[bool, typer.Option()] = False,
+    use_augmentations: Annotated[
+        bool, typer.Option(help="Whether to use augmentations.")
+    ] = True,
+    independent_channels: Annotated[
+        bool, typer.Option(help="Whether to train all channels independently.")
+    ] = False,
     loss: Annotated[
-        click.Choice, typer.Option(click_type=click.Choice(["mae", "mse"]))
+        click.Choice,
+        typer.Option(
+            click_type=click.Choice(["mae", "mse"]),
+            help="Loss function to use.",
+        ),
     ] = "mae",
-    n_channels_in: Annotated[int, typer.Option()] = 1,
-    n_channels_out: Annotated[int, typer.Option()] = -1,
+    n_channels_in: Annotated[
+        int, typer.Option(help="Number of channels in")
+    ] = 1,
+    n_channels_out: Annotated[
+        int, typer.Option(help="Number of channels out")
+    ] = -1,
     logger: Annotated[
         click.Choice,
-        typer.Option(click_type=click.Choice(["wandb", "tensorboard", "none"])),
+        typer.Option(
+            click_type=click.Choice(["wandb", "tensorboard", "none"]),
+            help="Logger to use.",
+        ),
     ] = "none",
     # TODO: How to address model kwargs
-):
+) -> None:
     config = create_care_configuration(
         experiment_name=experiment_name,
         data_type=data_type,
@@ -87,9 +117,6 @@ def care(
         loss=loss,
         n_channels_in=n_channels_in,
         n_channels_out=n_channels_out,
-        logger=logger
+        logger=logger,
     )
-    conf_path = (ctx.obj.dir / ctx.obj.name).with_suffix(".yaml")
-    _save_config(config, conf_path)
-    if ctx.obj.print:
-        print(yaml.dump(config.model_dump(), indent=2))
+    _config_builder_exit(ctx, config)
