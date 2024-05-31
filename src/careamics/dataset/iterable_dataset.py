@@ -55,8 +55,17 @@ def _iterate_over_files(
     worker_id = worker_info.id if worker_info is not None else 0
     num_workers = worker_info.num_workers if worker_info is not None else 1
 
+    sorted_files = data_files.copy()
+    sorted_files.sort()
+
+    if target_files is not None:
+        sorted_target_files = target_files.copy()
+        sorted_target_files.sort()
+    else:
+        sorted_target_files = []
+
     # iterate over the files
-    for i, filename in enumerate(data_files):
+    for i, filename in enumerate(sorted_files):
         # retrieve file corresponding to the worker id
         if i % num_workers == worker_id:
             try:
@@ -65,15 +74,15 @@ def _iterate_over_files(
 
                 # read target, if available
                 if target_files is not None:
-                    if filename.name != target_files[i].name:
+                    if filename.name != sorted_target_files[i].name:
                         raise ValueError(
                             f"File {filename} does not match target file "
-                            f"{target_files[i]}. Have you passed sorted "
+                            f"{sorted_target_files[i]}. Have you passed sorted "
                             f"arrays?"
                         )
 
                     # read target
-                    target = read_source_func(target_files[i], data_config.axes)
+                    target = read_source_func(sorted_target_files[i], data_config.axes)
 
                     yield sample, target
                 else:

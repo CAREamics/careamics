@@ -126,7 +126,11 @@ def prepare_patches_unsupervised(
     """
     means, stds, num_samples = 0, 0, 0
     all_patches = []
-    for filename in train_files:
+
+    sorted_train_files = train_files.copy()
+    sorted_train_files.sort()
+
+    for filename in sorted_train_files:
         try:
             sample: np.ndarray = read_source_func(filename, axes)
             means += sample.mean()
