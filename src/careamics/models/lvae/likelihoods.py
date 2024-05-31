@@ -1,12 +1,12 @@
 """
 Script containing modules for definining different likelihood functions (as nn.Module).
 """
+import math
+from typing import Literal, Tuple, Dict, Union
 
 import torch
-import math
 import numpy as np
 from torch import nn
-from typing import Literal, Tuple, Dict
 
 
 class LikelihoodModule(nn.Module):
@@ -78,8 +78,8 @@ class GaussianLikelihood(LikelihoodModule):
     
     def __init__(
         self,
-        ch_in,
-        color_channels,
+        ch_in: int,
+        color_channels: int,
         predict_logvar: Literal[None, 'pixelwise', 'global', 'channelwise'] = None,
         logvar_lowerbound: float = None,
         conv2d_bias: bool = True
@@ -233,7 +233,14 @@ def log_normal(
 
 class NoiseModelLikelihood(LikelihoodModule):
 
-    def __init__(self, ch_in, color_channels, data_mean, data_std, noiseModel):
+    def __init__(
+        self, 
+        ch_in: int, 
+        color_channels: int, 
+        data_mean: Union[Dict[str, torch.Tensor], torch.Tensor], 
+        data_std: Union[Dict[str, torch.Tensor], torch.Tensor], 
+        noiseModel: nn.Module
+    ):
         super().__init__()
         self.parameter_net = nn.Identity()  #nn.Conv2d(ch_in, color_channels, kernel_size=3, padding=1)
         self.data_mean = data_mean

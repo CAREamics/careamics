@@ -54,5 +54,14 @@ In addition, this makes the code more modularized and clean.
     - likelihood module & loss_type (they go together) --> Ashesh suggested to keep things like they are
 
 4. Ask Ashesh to help understanding implementation details of patching / tiling + logging of images (_dump_kth_frame_prediction and friends)
+NOT IMPORTANT, since it is not used...
 
-5. Ask Ashesh why KL loss is handled differently for musplit (.mean()) and denoisplit (.sum(), then normalized by input shape).
+5. loss_type should be ELBO (0) for denoisplit!!
+
+6. About Noise Model:
+    - The noise model defines a distribution p(x_i|s_i) where x_i is the (predicted) noisy image and s_i is the clean underlying signal.
+    Hence, to define it we need some parameters to be defined pixel-wise. 
+    - In the code, the noise model that we typically use is the GaussianMixtureNoiseModel which, as the name suggests, is given by a 
+    mixture of Gaussians. 
+    - Another important fact to underline is that in the case of LadderVAE training the noise model is somehow 
+    pre-computed and passed to the noise model object as a simple numpy array.

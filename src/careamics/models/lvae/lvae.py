@@ -3,41 +3,33 @@ Ladder VAE (LVAE) Model
 
 The current implementation is based on "Interpretable Unsupervised Diversity Denoising and Artefact Removal, Prakash et al."
 """
+from typing import List, Tuple, Dict, Iterable, Union
 
 import numpy as np
 import torch
 import torch.nn as nn
 import ml_collections
-from typing import List, Tuple, Dict, Iterable, Union
 
-### TODO: Replace these imports!!!
-# from disentangle.analysis.pred_frame_creator import PredFrameCreator
-# from disentangle.core.data_utils import Interpolate, pad_img_tensor
-# from disentangle.core.metric_monitor import MetricMonitor
-# from disentangle.core.psnr import RangeInvariantPsnr
-# from disentangle.core.sampler_type import SamplerType
-# from disentangle.loss.exclusive_loss import compute_exclusion_loss
-# from disentangle.loss.nbr_consistency_loss import NeighborConsistencyLoss
-# from disentangle.losses import free_bits_kl
-# from disentangle.metrics.running_psnr import RunningPSNR
 # from disentangle.nets.noise_model import get_noise_model
 
 from .utils import (
     LossType,
     crop_img_tensor,
     pad_img_tensor,
-    Interpolate
+    Interpolate,
+    ModelType
 )
-
 from .layers import (
     BottomUpDeterministicResBlock,
     BottomUpLayer,
     TopDownLayer,
     TopDownDeterministicResBlock
 ) 
-
-from .likelihoods import GaussianLikelihood, NoiseModelLikelihood
-
+from .likelihoods import (
+    GaussianLikelihood, 
+    NoiseModelLikelihood
+)
+from .noise_models import get_noise_model
 
 class LadderVAE(nn.Module):
 
@@ -87,6 +79,9 @@ class LadderVAE(nn.Module):
         
         # -------------------------------------------------------
         # Model attributes
+        self.model_type = ModelType.LadderVae
+        self.noise_model_type = "gmm"
+        self.denoise_channel = "input" # 4 values for denoise_channel {'Ch1', 'Ch2', 'input','all'}
         self.encoder_blocks_per_layer = 1
         self.decoder_blocks_per_layer = 1
         self.bottomup_batchnorm = True
@@ -213,7 +208,9 @@ class LadderVAE(nn.Module):
         # Initialize the Noise Model 
         self.likelihood_gm = self.likelihood_NM = None
         try:
-            self.noiseModel = get_noise_model(config)
+            self.noiseModel = get_noise_model(
+                
+            )
         except NameError:
             self.noiseModel = None
         
@@ -511,6 +508,7 @@ class LadderVAE(nn.Module):
             logvar_lowerbound=self.logvar_lowerbound,
             conv2d_bias=self.topdown_conv2d_bias
         )
+        
         self.likelihood_NM = None
         if self.enable_noise_model:
             self.likelihood_NM = NoiseModelLikelihood(
