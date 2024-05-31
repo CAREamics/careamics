@@ -20,6 +20,8 @@ from .utils import (
 )
 from .metrics import RunningPSNR, RangeInvariantPsnr
 from .likelihoods import LikelihoodModule
+
+
 class LadderVAELight(L.LightningModule):
 
     def __init__(self, config):
@@ -126,10 +128,10 @@ class LadderVAELight(L.LightningModule):
         # Loss Computations
         # mask = torch.isnan(target.reshape(len(x), -1)).all(dim=1)
         recons_loss_dict, imgs = self.get_reconstruction_loss(
-            out,
-            target_normalized,
-            x_normalized,
-            mask,
+            reconstruction=out,
+            target=target_normalized,
+            input=x_normalized,
+            splitting_mask=mask,
             return_predicted_img=True
         )
         
@@ -253,16 +255,18 @@ class LadderVAELight(L.LightningModule):
             return_predicted_img=True
         )
         
-        if self._dump_kth_frame_prediction is not None:
-            if self.current_epoch == 0:
-                self._val_frame_creator.update_target(
-                    target.cpu().numpy().astype(np.int32),
-                    batch[-1].cpu().numpy().astype(np.int32)
-                )
-            if self.current_epoch == 0 or self.current_epoch % self._dump_epoch_interval == 0:
-                imgs = self.unnormalize_target(recons_img).cpu().numpy().astype(np.int32)
-                self._val_frame_creator.update(imgs, batch[-1].cpu().numpy().astype(np.int32))
+        # # To log the prediction of kth frame -> tiled predictions inside the validator
+        # if self._dump_kth_frame_prediction is not None:
+        #     if self.current_epoch == 0:
+        #         self._val_frame_creator.update_target(
+        #             target.cpu().numpy().astype(np.int32),
+        #             batch[-1].cpu().numpy().astype(np.int32)
+        #         )
+        #     if self.current_epoch == 0 or self.current_epoch % self._dump_epoch_interval == 0:
+        #         imgs = self.unnormalize_target(recons_img).cpu().numpy().astype(np.int32)
+        #         self._val_frame_creator.update(imgs, batch[-1].cpu().numpy().astype(np.int32))
 
+        # This `if` is not used by default config
         if self.skip_nboundary_pixels_from_loss:
             pad = self.skip_nboundary_pixels_from_loss
             target_normalized = target_normalized[:, :, pad:-pad, pad:-pad]
@@ -315,12 +319,12 @@ class LadderVAELight(L.LightningModule):
         else:
             self.log('val_psnr', 0.0, on_epoch=True)
 
-        if self._dump_kth_frame_prediction is not None:
-            if self.current_epoch == 1:
-                self._val_frame_creator.dump_target()
-            if self.current_epoch == 0 or self.current_epoch % self._dump_epoch_interval == 0:
-                self._val_frame_creator.dump(self.current_epoch)
-                self._val_frame_creator.reset()
+        # if self._dump_kth_frame_prediction is not None:
+        #     if self.current_epoch == 1:
+        #         self._val_frame_creator.dump_target()
+        #     if self.current_epoch == 0 or self.current_epoch % self._dump_epoch_interval == 0:
+        #         self._val_frame_creator.dump(self.current_epoch)
+        #         self._val_frame_creator.reset()
 
         if self.mixed_rec_w_step:
             self.mixed_rec_w = max(self.mixed_rec_w - self.mixed_rec_w_step, 0.0)
@@ -473,6 +477,7 @@ class LadderVAELight(L.LightningModule):
 
         return output
 
+
     def _get_weighted_likelihood(self, ll):
         """
         Each of the channels gets multiplied with a different weight.
@@ -489,6 +494,7 @@ class LadderVAELight(L.LightningModule):
         mask2[:, 1] = 1
         
         return ll * mask1 * self.ch1_recons_w + ll * mask2 * self.ch2_recons_w
+
     
     def get_kl_weight(self):
         """
