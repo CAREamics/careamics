@@ -1,3 +1,17 @@
+"""
+This script is meant to load data, intialize the model, and provide the logic for training it.
+"""
+
+import os
+import glob
+
+import torch
+import pytorch_lightning as pl
+from pytorch_lightning.callbacks import ModelCheckpoint
+from pytorch_lightning.callbacks.early_stopping import EarlyStopping
+from pytorch_lightning.loggers import WandbLogger
+
+from .lvae import LadderVAE
 from .data_utils import (
     DataSplitType
 )
@@ -5,6 +19,8 @@ from .data_modules import (
     LCMultiChDloader,
     MultiChDloader
 )
+from .metrics import MetricMonitor
+
 
 def create_dataset(
     config,
@@ -120,3 +136,104 @@ def create_dataset(
     val_data.set_mean_std(mean_val, std_val)
 
     return train_data, val_data
+
+
+def create_model_and_train(
+    config, 
+    data_mean, 
+    data_std, 
+    logger, 
+    checkpoint_callback, 
+    train_loader, 
+    val_loader
+):
+    # tensorboard previous files.
+    for filename in glob.glob(config.workdir + "/events*"):
+        os.remove(filename)
+
+    # checkpoints
+    for filename in glob.glob(config.workdir + "/*.ckpt"):
+        os.remove(filename)
+    
+    if 'num_targets' in config.model:
+        target_ch = config.model.num_targets
+    else:
+        target_ch = config.data.get('num_channels', 2)
+
+    # Instantiate the model
+    model = LadderVAE(
+        data_mean=data_mean, 
+        data_std=data_std, 
+        config=config, 
+        target_ch=target_ch
+    )
+    
+    # Load pre-trained weights if any 
+    if config.training.pre_trained_ckpt_fpath:
+        print('Starting with pre-trained model', config.training.pre_trained_ckpt_fpath)
+        checkpoint = torch.load(config.training.pre_trained_ckpt_fpath)
+        _ = model.load_state_dict(checkpoint['state_dict'], strict=False)
+
+    estop_monitor = config.model.get('monitor', 'val_loss')
+    estop_mode = MetricMonitor(estop_monitor).mode()
+
+    callbacks = [
+        EarlyStopping(
+            monitor=estop_monitor,
+            min_delta=1e-6,
+            patience=config.training.earlystop_patience,
+            verbose=True,
+            mode=estop_mode
+        ),
+        checkpoint_callback,
+    ]
+
+    logger.experiment.config.update(config.to_dict())
+    # wandb.init(config=config)
+    trainer = pl.Trainer(
+        gpus=1,
+        max_epochs=config.training.max_epochs,
+        gradient_clip_val=config.training.grad_clip_norm_value,
+        logger=logger,
+        callbacks=callbacks,
+        limit_train_batches = config.training.limit_train_batches,
+        precision=config.training.precision
+    )
+    trainer.fit(model, train_loader, val_loader)
+
+
+def train_network(
+    train_loader, 
+    val_loader, 
+    data_mean, 
+    data_std, 
+    config, 
+    model_name, 
+    logdir
+):
+    ckpt_monitor = config.model.get('monitor', 'val_loss')
+    ckpt_mode = MetricMonitor(ckpt_monitor).mode()
+    checkpoint_callback = ModelCheckpoint(
+        monitor=ckpt_monitor,
+        dirpath=config.workdir,
+        filename=model_name + '_best',
+        save_last=True,
+        save_top_k=1,
+        mode=ckpt_mode,
+    )
+    checkpoint_callback.CHECKPOINT_NAME_LAST = model_name + "_last"
+    logger = WandbLogger(
+        name=os.path.join(config.hostname, config.exptname),
+        save_dir=logdir,
+        project="Disentanglement"
+    )
+    
+    create_model_and_train(
+        config, 
+        data_mean, 
+        data_std, 
+        logger, 
+        checkpoint_callback, 
+        train_loader,
+        val_loader
+    )

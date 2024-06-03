@@ -28,6 +28,7 @@ def get_config():
     data = config.data
     data.image_size = 128
     data.multiscale_lowres_count = None
+    data.num_channels = 2
     
     model = config.model
     model.z_dims = [128, 128, 128, 128]
