@@ -15,3 +15,14 @@ def test_compute_normalization_stats(samples, channels):
     for ch in range(array.shape[1]):
         assert np.isclose(mean[ch], array[:, ch, ...].mean())
         assert np.isclose(std[ch], array[:, ch, ...].std())
+
+    # Create data 3D
+    array = np.arange(1000 * samples * channels).reshape(
+        (samples, channels, 10, 10, 10)
+    )
+
+    # Compute mean and std
+    mean, std = compute_normalization_stats(image=array)
+    for ch in range(array.shape[1]):
+        assert np.isclose(mean[ch], array[:, ch, ...].mean())
+        assert np.isclose(std[ch], array[:, ch, ...].std())

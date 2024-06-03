@@ -13,7 +13,7 @@ from careamics.dataset.dataset_utils import read_tiff
     [
         ((32, 32), "YX", (8, 8)),
         ((2, 32, 32), "CYX", (8, 8)),
-        ((32, 32, 32), "ZYX", (8, 8)),
+        ((32, 32, 32), "ZYX", (8, 8, 8)),
     ],
 )
 def test_number_of_files(tmp_path, ordered_array, shape, axes, patch_size):
@@ -21,7 +21,7 @@ def test_number_of_files(tmp_path, ordered_array, shape, axes, patch_size):
     # create array
     array_size = 32
     n_files = 3
-    factor = len(shape)
+    factor = 3 if axes == "ZYX" else 2
     array = ordered_array(shape)
 
     # save three files
@@ -49,7 +49,7 @@ def test_number_of_files(tmp_path, ordered_array, shape, axes, patch_size):
 
     # iterate over dataset
     patches = list(dataset)
-    assert len(patches) == n_files * (array_size / patch_size) ** factor
+    assert len(patches) == n_files * (array_size / patch_size[0]) ** factor
 
 
 def test_read_function(tmp_path, ordered_array):

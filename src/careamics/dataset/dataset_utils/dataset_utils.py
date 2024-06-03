@@ -115,4 +115,6 @@ def compute_normalization_stats(image: np.ndarray) -> Tuple[np.ndarray, np.ndarr
     Tuple[List[float], List[float]]
         Lists of mean and standard deviation values per channel.
     """
-    return np.mean(image, axis=(0, 2, 3)), np.std(image, axis=(0, 2, 3))
+    # Define the list of axes excluding the channel axis
+    axes = tuple(np.delete(np.arange(len(image.shape)), 1))
+    return np.mean(image, axis=axes), np.std(image, axis=axes)
