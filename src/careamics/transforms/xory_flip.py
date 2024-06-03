@@ -1,6 +1,6 @@
 """XY flip transform."""
 
-from typing import Literal, Optional, Tuple
+from typing import Optional, Tuple
 
 import numpy as np
 
@@ -14,8 +14,8 @@ class XorYFlip(Transform):
 
     Attributes
     ----------
-    axis : Literal[-2, -1]
-        Axis to be flipped.
+    flip_x : bool
+        If True, flip along the X axis, otherwise flip along the Y axis.
     rng : np.random.Generator
         Random number generator.
     p : float
@@ -25,8 +25,8 @@ class XorYFlip(Transform):
 
     Parameters
     ----------
-    axis : Literal[-2, -1]
-        Axis to flip.
+    flip_x : bool
+        If True, flip along the X axis, otherwise flip along the Y axis.
     p : float, optional
         Probability of applying the transform, by default 0.5.
     seed : Optional[int], optional
@@ -34,14 +34,14 @@ class XorYFlip(Transform):
     """
 
     def __init__(
-        self, axis: Literal[-2, -1], p: float = 0.5, seed: Optional[int] = None
+        self, flip_x: bool, p: float = 0.5, seed: Optional[int] = None
     ) -> None:
         """Constructor.
 
         Parameters
         ----------
-        axis : Literal[-2, -1]
-            Axis to flip.
+        flip_x : bool
+            If True, flip along the X axis, otherwise flip along the Y axis.
         p : float
             Probability of applying the transform, by default 0.5.
         seed : Optional[int], optional
@@ -51,7 +51,7 @@ class XorYFlip(Transform):
             raise ValueError("Probability must be in [0, 1].")
 
         # axis to flip
-        self.axis = axis
+        self.axis = -1 if flip_x else -2
 
         # probability to apply the transform
         self.p = p
