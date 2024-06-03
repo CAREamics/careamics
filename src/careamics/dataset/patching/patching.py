@@ -23,10 +23,10 @@ class PatchedOutput:
 
     patches: Union[np.ndarray, Iterator[np.ndarray]]
     targets: np.ndarray
-    image_means: List[float]
-    image_stds: List[float]
-    target_means: List[float]
-    target_stds: List[float]
+    image_means: Union[np.ndarray, List[float]]
+    image_stds: Union[np.ndarray, List[float]]
+    target_means: Union[np.ndarray, List[float]]
+    target_stds: Union[np.ndarray, List[float]]
 
 
 # called by in memory dataset

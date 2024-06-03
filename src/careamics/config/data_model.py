@@ -90,10 +90,10 @@ class DataConfig(BaseModel):
     axes: str
 
     # Optional fields
-    image_mean: Optional[List[float]] = Field(default=[], min_length=0, max_length=32)
-    image_std: Optional[List[float]] = Field(default=[], min_length=0, max_length=32)
-    target_mean: Optional[List[float]] = Field(default=[], min_length=0, max_length=32)
-    target_std: Optional[List[float]] = Field(default=[], min_length=0, max_length=32)
+    image_mean: Optional[List] = Field(default=[], min_length=0, max_length=32)
+    image_std: Optional[List] = Field(default=[], min_length=0, max_length=32)
+    target_mean: Optional[List] = Field(default=[], min_length=0, max_length=32)
+    target_std: Optional[List] = Field(default=[], min_length=0, max_length=32)
 
     transforms: List[TRANSFORMS_UNION] = Field(
         default=[
@@ -377,10 +377,10 @@ class DataConfig(BaseModel):
 
     def set_mean_and_std(
         self,
-        image_mean: Optional[List[float]] = (),
-        image_std: Optional[List[float]] = (),
-        target_mean: Optional[List[float]] = (),
-        target_std: Optional[List[float]] = (),
+        image_mean: Optional[List] = (),
+        image_std: Optional[List] = (),
+        target_mean: Optional[List] = (),
+        target_std: Optional[List] = (),
     ) -> None:
         """
         Set mean and standard deviation of the data.

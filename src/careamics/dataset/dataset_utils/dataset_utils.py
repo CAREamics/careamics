@@ -101,7 +101,7 @@ def reshape_array(x: np.ndarray, axes: str) -> np.ndarray:
     return _x
 
 
-def compute_normalization_stats(image: np.ndarray) -> Tuple[List[float], List[float]]:
+def compute_normalization_stats(image: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
     """
     Compute mean and standard deviation of an array.
 
@@ -115,7 +115,4 @@ def compute_normalization_stats(image: np.ndarray) -> Tuple[List[float], List[fl
     Tuple[List[float], List[float]]
         Lists of mean and standard deviation values per channel.
     """
-    image_means = [image[i].mean() for i in range(image.shape[0])]
-    image_stds = [image[i].std() for i in range(image.shape[0])]
-
-    return image_means, image_stds
+    return np.mean(image, axis=(0, 2, 3)), np.std(image, axis=(0, 2, 3))

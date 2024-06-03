@@ -9,23 +9,19 @@ from careamics.dataset.dataset_utils import read_tiff
 
 
 @pytest.mark.parametrize(
-    "shape",
+    "shape, axes, patch_size",
     [
-        # 2D
-        (32, 32),
-        # 3D
-        (32, 32, 32),
+        ((32, 32), "YX", (8, 8)),
+        ((2, 32, 32), "CYX", (8, 8)),
+        ((32, 32, 32), "ZYX", (8, 8)),
     ],
 )
-def test_number_of_files(tmp_path, ordered_array, shape):
+def test_number_of_files(tmp_path, ordered_array, shape, axes, patch_size):
     """Test number of files in PathIterableDataset."""
     # create array
     array_size = 32
-    patch_size = 8
     n_files = 3
     factor = len(shape)
-    axes = "YX" if factor == 2 else "ZYX"
-    patch_sizes = [patch_size] * factor
     array = ordered_array(shape)
 
     # save three files
@@ -38,7 +34,7 @@ def test_number_of_files(tmp_path, ordered_array, shape):
     # create config
     config_dict = {
         "data_type": SupportedData.TIFF.value,
-        "patch_size": patch_sizes,
+        "patch_size": patch_size,
         "axes": axes,
     }
     config = DataConfig(**config_dict)

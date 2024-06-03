@@ -30,10 +30,10 @@ class Normalize(Transform):
         target_means: Optional[List[float]] = None,
         target_stds: Optional[List[float]] = None,
     ):
-        self.image_mean = image_means
-        self.image_std = image_stds
-        self.target_mean = target_means
-        self.target_std = target_stds
+        self.image_means = image_means
+        self.image_stds = image_stds
+        self.target_means = target_means
+        self.target_stds = target_stds
         self.eps = 1e-6
 
     def __call__(
@@ -59,10 +59,12 @@ class Normalize(Transform):
         )
 
         for i in range(patch.shape[0]):
-            norm_patch[i] = self._apply(patch[i], self.image_mean[i], self.image_std[i])
+            norm_patch[i] = self._apply(
+                patch[i], self.image_means[i], self.image_stds[i]
+            )
             if target is not None:
                 norm_target[i] = self._apply(
-                    target[i], self.target_mean[i], self.target_std[i]
+                    target[i], self.target_means[i], self.target_stds[i]
                 )
 
         return norm_patch, norm_target
@@ -92,16 +94,14 @@ class Denormalize:
 
     def __init__(
         self,
-        mean: float,
-        std: float,
+        image_means: List[float],
+        image_stds: List[float],
     ):
-        self.mean = mean
-        self.std = std
+        self.image_means = image_means
+        self.image_stds = image_stds
         self.eps = 1e-6
 
-    def __call__(
-        self, patch: np.ndarray, target: Optional[np.ndarray] = None
-    ) -> Tuple[np.ndarray, Optional[np.ndarray]]:
+    def __call__(self, patch: np.ndarray) -> Tuple[np.ndarray, Optional[np.ndarray]]:
         """Apply the transform to the source patch and the target (optional).
 
         Parameters
@@ -116,12 +116,16 @@ class Denormalize:
         Tuple[np.ndarray, Optional[np.ndarray]]
             Transformed patch and target.
         """
-        norm_patch = self._apply(patch)
-        norm_target = self._apply(target) if target is not None else None
+        norm_patch = np.zeros_like(patch, dtype=np.float32)
 
-        return norm_patch, norm_target
+        for i in range(patch.shape[0]):
+            norm_patch[i] = self._apply(
+                patch[i], self.image_means[i], self.image_stds[i]
+            )
 
-    def _apply(self, patch: np.ndarray) -> np.ndarray:
+        return norm_patch
+
+    def _apply(self, patch: np.ndarray, mean: float, std: float) -> np.ndarray:
         """
         Apply the transform to the image.
 
@@ -130,4 +134,4 @@ class Denormalize:
         patch : np.ndarray
             Image or image patch, 2D or 3D, shape C(Z)YX.
         """
-        return patch * (self.std + self.eps) + self.mean
+        return patch * (std + self.eps) + mean

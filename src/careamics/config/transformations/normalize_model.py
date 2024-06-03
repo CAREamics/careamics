@@ -28,8 +28,8 @@ class NormalizeModel(TransformModel):
     )
 
     name: Literal["Normalize"] = "Normalize"
-    image_means: List[float] = Field(default=[], min_length=0, max_length=32)
-    image_stds: List[float] = Field(default=[], min_length=0, max_length=32)
-    target_means: List[float] = Field(default=[], min_length=0, max_length=32)
-    target_stds: List[float] = Field(default=[], min_length=0, max_length=32)
+    image_means: List = Field(default=[], min_length=0, max_length=32)
+    image_stds: List = Field(default=[], min_length=0, max_length=32)
+    target_means: List = Field(default=[], min_length=0, max_length=32)
+    target_stds: List = Field(default=[], min_length=0, max_length=32)
 
