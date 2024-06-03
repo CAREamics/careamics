@@ -56,9 +56,6 @@ class XorYFlip(Transform):
         # probability to apply the transform
         self.p = p
 
-        # "flippable" axes
-        self.axis_indices = [-2, -1]
-
         # numpy random generator
         self.rng = np.random.default_rng(seed=seed)
 
@@ -104,5 +101,4 @@ class XorYFlip(Transform):
         np.ndarray
             Flipped image patch.
         """
-        # TODO why ascontiguousarray?
         return np.ascontiguousarray(np.flip(patch, axis=axis))

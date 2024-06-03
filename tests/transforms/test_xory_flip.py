@@ -28,7 +28,7 @@ def test_flip_xy(ordered_array, shape, axis):
     aug = XorYFlip(axis=axis, p=1, seed=42)
     r = np.random.default_rng(seed=42)
 
-    # potential flips
+    # flip
     flip = np.flip(array, axis=axis)
 
     # apply augmentation 5 times
