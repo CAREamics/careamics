@@ -1,6 +1,5 @@
-from .utils import (
-    DataSplitType,
-    ModelType
+from .data_utils import (
+    DataSplitType
 )
 from .data_modules import (
     LCMultiChDloader,
@@ -21,16 +20,26 @@ def create_dataset(
         
     datapath = datadir
 
-    normalized_input = config.data.normalized_input
-    use_one_mu_std = config.data.use_one_mu_std
-    train_aug_rotate = config.data.train_aug_rotate
-    enable_random_cropping = config.data.deterministic_grid is False
-    lowres_supervision = config.model.model_type == ModelType.LadderVAEMultiTarget
+    # Hard-coded parameters (used to be in the config file)
+    normalized_input = True
+    use_one_mu_std = True
+    train_aug_rotate = False
+    enable_random_cropping = True
+    lowres_supervision = False
+    
+    # 1) Data loader for Lateral Contextualization
     if 'multiscale_lowres_count' in config.data and config.data.multiscale_lowres_count is not None:
+        # Get padding attributes
         if 'padding_kwargs' not in kwargs_dict:
-            padding_kwargs = {'mode': config.data.padding_mode}
+            padding_kwargs = {}
+            if 'padding_mode' in config.data and config.data.padding_mode is not None:
+                padding_kwargs['mode'] = config.data.padding_mode
+            else:
+                padding_kwargs['mode'] = 'reflect'
             if 'padding_value' in config.data and config.data.padding_value is not None:
                 padding_kwargs['constant_values'] = config.data.padding_value
+            else:
+                padding_kwargs['constant_values'] = None
         else:
             padding_kwargs = kwargs_dict.pop('padding_kwargs')
 
@@ -39,8 +48,8 @@ def create_dataset(
             config.data,
             datapath,
             datasplit_type=DataSplitType.Train,
-            val_fraction=config.training.val_fraction,
-            test_fraction=config.training.test_fraction,
+            val_fraction=0.1,
+            test_fraction=0.1,
             normalized_input=normalized_input,
             use_one_mu_std=use_one_mu_std,
             enable_rotation_aug=train_aug_rotate,
@@ -57,8 +66,8 @@ def create_dataset(
             config.data,
             datapath,
             datasplit_type=eval_datasplit_type,
-            val_fraction=config.training.val_fraction,
-            test_fraction=config.training.test_fraction,
+            val_fraction=0.1,
+            test_fraction=0.1,
             normalized_input=normalized_input,
             use_one_mu_std=use_one_mu_std,
             enable_rotation_aug=False,  # No rotation aug on validation
@@ -71,7 +80,7 @@ def create_dataset(
             **kwargs_dict,
             max_val=max_val,
         )
-
+    # 2) Vanilla data loader
     else:
         train_data_kwargs = {'allow_generation': True, **kwargs_dict}
         val_data_kwargs = {'allow_generation': False, **kwargs_dict}
@@ -83,8 +92,8 @@ def create_dataset(
             config.data,
             datapath,
             datasplit_type=DataSplitType.Train,
-            val_fraction=config.training.val_fraction,
-            test_fraction=config.training.test_fraction,
+            val_fraction=0.1,
+            test_fraction=0.1,
             normalized_input=normalized_input,
             use_one_mu_std=use_one_mu_std,
             enable_rotation_aug=train_aug_rotate,
@@ -96,8 +105,8 @@ def create_dataset(
             config.data,
             datapath,
             datasplit_type=eval_datasplit_type,
-            val_fraction=config.training.val_fraction,
-            test_fraction=config.training.test_fraction,
+            val_fraction=0.1,
+            test_fraction=0.1,
             normalized_input=normalized_input,
             use_one_mu_std=use_one_mu_std,
             enable_rotation_aug=False,  # No rotation aug on validation
