@@ -1,10 +1,14 @@
 """
 Script for utility functions needed by the LVAE model.
 """
+from typing import Iterable, List
+
 import torch
 import torch.nn as nn 
+import numpy as np
 import torchvision.transforms.functional as F
-from typing import Iterable, Tuple
+from torch.distributions.normal import Normal
+
 
 def torch_nanmean(inp):
     return torch.mean(inp[~inp.isnan()])

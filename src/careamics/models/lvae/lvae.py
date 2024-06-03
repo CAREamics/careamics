@@ -10,8 +10,6 @@ import torch
 import torch.nn as nn
 import ml_collections
 
-# from disentangle.nets.noise_model import get_noise_model
-
 from .utils import (
     LossType,
     crop_img_tensor,
@@ -39,8 +37,7 @@ class LadderVAE(nn.Module):
         data_std: Union[np.ndarray, Dict[str, torch.Tensor]], 
         config: ml_collections.ConfigDict, 
         use_uncond_mode_at: Iterable[int] = [], 
-        target_ch: int = 2, 
-        val_idx_manager = None
+        target_ch: int = 2
     ):
         """
         Constructor.
@@ -65,16 +62,16 @@ class LadderVAE(nn.Module):
         
         # -------------------------------------------------------
         # Customizable attributes
-        self.image_size = config.image_size
-        self.z_dims = config.z_dims
-        self.encoder_n_filters = config.n_filters
-        self.decoder_n_filters = config.n_filters
-        self.encoder_dropout = config.dropout
-        self.decoder_dropout = config.dropout
-        self.nonlin = config.nonlin
-        self.enable_noise_model = config.enable_noise_model
-        self._multiscale_count = config.multiscale_lowres_count
-        self.analytical_kl = config.analytical_kl
+        self.image_size = config.data.image_size
+        self._multiscale_count = config.data.multiscale_lowres_count
+        self.z_dims = config.model.z_dims
+        self.encoder_n_filters = config.model.n_filters
+        self.decoder_n_filters = config.model.n_filters
+        self.encoder_dropout = config.model.dropout
+        self.decoder_dropout = config.model.dropout
+        self.nonlin = config.model.nonlin
+        self.enable_noise_model = config.model.enable_noise_model
+        self.analytical_kl = config.loss.analytical_kl
         # -------------------------------------------------------
         
         # -------------------------------------------------------

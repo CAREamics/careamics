@@ -10,6 +10,7 @@ import pytorch_lightning as L
 import torch
 import torch.nn as nn
 import torchvision.transforms.functional as F
+import ml_collections
 
 from .lvae import LadderVAE
 from .utils import (
@@ -18,13 +19,20 @@ from .utils import (
     compute_batch_mean,
     free_bits_kl
 )
-from .metrics import RunningPSNR, RangeInvariantPsnr
+from .metrics import (
+    RunningPSNR, 
+    MetricMonitor, 
+    RangeInvariantPsnr
+)
 from .likelihoods import LikelihoodModule
 
 
 class LadderVAELight(L.LightningModule):
 
-    def __init__(self, config):
+    def __init__(
+        self, 
+        config: ml_collections.ConfigDict
+    ):
         """
         Here we will do the following:
             - initialize the model (from LadderVAE class)
@@ -85,14 +93,6 @@ class LadderVAELight(L.LightningModule):
         self.lr = config.training.lr
         self.lr_scheduler_patience = config.training.lr_scheduler_patience
         self.channels_psnr = [RunningPSNR() for _ in range(self.model.target_ch)]
-        self._dump_kth_frame_prediction = config.training.get('dump_kth_frame_prediction')
-        if self._dump_kth_frame_prediction is not None:
-            assert self._val_idx_manager is not None
-            dir = os.path.join(self.workdir, 'pred_frames')
-            os.mkdir(dir)
-            self._dump_epoch_interval = config.training.get('dump_epoch_interval', 1)
-            self._val_frame_creator = PredFrameCreator(self._val_idx_manager, self._dump_kth_frame_prediction, dir)
-        
         
     def forward(self, x: Any) -> Any:
         return self.model(x)
@@ -255,17 +255,6 @@ class LadderVAELight(L.LightningModule):
             return_predicted_img=True
         )
         
-        # # To log the prediction of kth frame -> tiled predictions inside the validator
-        # if self._dump_kth_frame_prediction is not None:
-        #     if self.current_epoch == 0:
-        #         self._val_frame_creator.update_target(
-        #             target.cpu().numpy().astype(np.int32),
-        #             batch[-1].cpu().numpy().astype(np.int32)
-        #         )
-        #     if self.current_epoch == 0 or self.current_epoch % self._dump_epoch_interval == 0:
-        #         imgs = self.unnormalize_target(recons_img).cpu().numpy().astype(np.int32)
-        #         self._val_frame_creator.update(imgs, batch[-1].cpu().numpy().astype(np.int32))
-
         # This `if` is not used by default config
         if self.skip_nboundary_pixels_from_loss:
             pad = self.skip_nboundary_pixels_from_loss
@@ -318,13 +307,6 @@ class LadderVAELight(L.LightningModule):
             self.log('val_psnr', psnr, on_epoch=True)
         else:
             self.log('val_psnr', 0.0, on_epoch=True)
-
-        # if self._dump_kth_frame_prediction is not None:
-        #     if self.current_epoch == 1:
-        #         self._val_frame_creator.dump_target()
-        #     if self.current_epoch == 0 or self.current_epoch % self._dump_epoch_interval == 0:
-        #         self._val_frame_creator.dump(self.current_epoch)
-        #         self._val_frame_creator.reset()
 
         if self.mixed_rec_w_step:
             self.mixed_rec_w = max(self.mixed_rec_w - self.mixed_rec_w_step, 0.0)
@@ -468,6 +450,7 @@ class LadderVAELight(L.LightningModule):
 
         # This `if` is not used by default config
         if self._exclusion_loss_weight:
+            raise NotImplementedError("Exclusion loss is not well defined here, so it should not be used.")
             imgs = like_dict['params']['mean']
             exclusion_loss = compute_exclusion_loss(imgs[:, :1], imgs[:, 1:])
             output['exclusion_loss'] = exclusion_loss
