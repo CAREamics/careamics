@@ -4,6 +4,21 @@ import pytest
 from careamics.transforms import XYFlip
 
 
+def test_p_wrong_values():
+    """Test that an error is raised for wrong probability values."""
+    with pytest.raises(ValueError):
+        XYFlip(p=-1)
+
+    with pytest.raises(ValueError):
+        XYFlip(p=2)
+
+
+def test_no_flip_error():
+    """Test that an error is raised if no axis is flippable."""
+    with pytest.raises(ValueError):
+        XYFlip(flip_x=False, flip_y=False)
+
+
 @pytest.mark.parametrize(
     "shape",
     [
