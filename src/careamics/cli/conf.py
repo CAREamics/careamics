@@ -110,7 +110,7 @@ def conf_options(  # numpydoc ignore=PR01
 
 def patch_size_callback(
     value: Tuple[int, int, int]
-) -> Tuple[int, int, int] | Tuple[int, int]:
+) -> Tuple[int, ...]:
     """
     Callback for --patch-size option.
 
