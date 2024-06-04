@@ -273,8 +273,7 @@ class InMemoryDataset(Dataset):
 
 
 class InMemoryPredictionDataset(Dataset):
-    """
-    Dataset storing data in memory and allowing generating patches from it.
+    """Simple prediction dataset returning images along the sample axis.
 
     Parameters
     ----------
@@ -321,9 +320,107 @@ class InMemoryPredictionDataset(Dataset):
         self.mean = self.pred_config.mean
         self.std = self.pred_config.std
         self.data_target = data_target
+        self.mean, self.std = self.pred_config.mean, self.pred_config.std
 
         # tiling only if both tile size and overlap are provided
         self.tiling = self.tile_size is not None and self.tile_overlap is not None
+
+        # read function
+        self.read_source_func = read_source_func
+
+        # Reshape data
+        self.data = reshape_array(self.input_array, self.axes)
+
+        # get transforms
+        self.patch_transform = Compose(
+            transform_list=[NormalizeModel(mean=self.mean, std=self.std)],
+        )
+
+    def __len__(self) -> int:
+        """
+        Return the length of the dataset.
+
+        Returns
+        -------
+        int
+            Length of the dataset.
+        """
+        return len(self.data)
+
+    def __getitem__(self, index: int) -> np.ndarray:
+        """
+        Return the patch corresponding to the provided index.
+
+        Parameters
+        ----------
+        index : int
+            Index of the patch to return.
+
+        Returns
+        -------
+        np.ndarray
+            Transformed patch.
+        """
+        return self.data[[index]]
+
+
+class InMemoryTiledPredictionDataset(Dataset):
+    """Prediction dataset storing data in memory and returning tiles of each image.
+
+    Parameters
+    ----------
+    prediction_config : InferenceConfig
+        Prediction configuration.
+    inputs : np.ndarray
+        Input data.
+    data_target : Optional[np.ndarray], optional
+        Target data, by default None.
+    read_source_func : Optional[Callable], optional
+        Read source function for custom types, by default read_tiff.
+    """
+
+    def __init__(
+        self,
+        prediction_config: InferenceConfig,
+        inputs: np.ndarray,
+        data_target: Optional[np.ndarray] = None,
+        read_source_func: Optional[Callable] = read_tiff,
+    ) -> None:
+        """Constructor.
+
+        Parameters
+        ----------
+        prediction_config : InferenceConfig
+            Prediction configuration.
+        inputs : np.ndarray
+            Input data.
+        data_target : Optional[np.ndarray], optional
+            Target data, by default None.
+        read_source_func : Optional[Callable], optional
+            Read source function for custom types, by default read_tiff.
+
+        Raises
+        ------
+        ValueError
+            If data_path is not a directory.
+        """
+        if (
+            prediction_config.tile_size is None
+            or prediction_config.tile_overlap is None
+        ):
+            raise ValueError(
+                "Tile size and overlap must be provided to use the tiled prediction "
+                "dataset."
+            )
+
+        self.pred_config = prediction_config
+        self.input_array = inputs
+        self.axes = self.pred_config.axes
+        self.tile_size = prediction_config.tile_size
+        self.tile_overlap = prediction_config.tile_overlap
+        self.mean = self.pred_config.mean
+        self.std = self.pred_config.std
+        self.data_target = data_target
 
         # read function
         self.read_source_func = read_source_func
@@ -349,22 +446,18 @@ class InMemoryPredictionDataset(Dataset):
         # reshape array
         reshaped_sample = reshape_array(self.input_array, self.axes)
 
-        if self.tiling and self.tile_size is not None and self.tile_overlap is not None:
-            # generate patches, which returns a generator
-            patch_generator = extract_tiles(
-                arr=reshaped_sample,
-                tile_size=self.tile_size,
-                overlaps=self.tile_overlap,
-            )
-            patches_list = list(patch_generator)
+        # generate patches, which returns a generator
+        patch_generator = extract_tiles(
+            arr=reshaped_sample,
+            tile_size=self.tile_size,
+            overlaps=self.tile_overlap,
+        )
+        patches_list = list(patch_generator)
 
-            if len(patches_list) == 0:
-                raise ValueError("No tiles generated, ")
+        if len(patches_list) == 0:
+            raise ValueError("No tiles generated, ")
 
-            return patches_list
-        else:
-            array_shape = reshaped_sample.squeeze().shape
-            return [(reshaped_sample, TileInformation(array_shape=array_shape))]
+        return patches_list
 
     def __len__(self) -> int:
         """

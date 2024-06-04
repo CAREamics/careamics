@@ -28,8 +28,7 @@ def _iterate_over_files(
     target_files: Optional[List[Path]] = None,
     read_source_func: Callable = read_tiff,
 ) -> Generator[Tuple[np.ndarray, Optional[np.ndarray]], None, None]:
-    """
-    Iterate over data source and yield whole image.
+    """Iterate over data source and yield whole reshaped images.
 
     Parameters
     ----------
@@ -63,6 +62,9 @@ def _iterate_over_files(
                 # read data
                 sample = read_source_func(filename, data_config.axes)
 
+                # reshape array
+                reshaped_sample = reshape_array(sample, data_config.axes)
+
                 # read target, if available
                 if target_files is not None:
                     if filename.name != target_files[i].name:
@@ -75,9 +77,12 @@ def _iterate_over_files(
                     # read target
                     target = read_source_func(target_files[i], data_config.axes)
 
-                    yield sample, target
+                    # reshape target
+                    reshaped_target = reshape_array(target, data_config.axes)
+
+                    yield reshaped_sample, reshaped_target
                 else:
-                    yield sample, None
+                    yield reshaped_sample, None
 
             except Exception as e:
                 logger.error(f"Error reading file {filename}: {e}")
@@ -206,17 +211,10 @@ class PathIterableDataset(IterableDataset):
         for sample_input, sample_target in _iterate_over_files(
             self.data_config, self.data_files, self.target_files, self.read_source_func
         ):
-            reshaped_sample = reshape_array(sample_input, self.data_config.axes)
-            reshaped_target = (
-                None
-                if sample_target is None
-                else reshape_array(sample_target, self.data_config.axes)
-            )
-
             patches = extract_patches_random(
-                arr=reshaped_sample,
+                arr=sample_input,
                 patch_size=self.data_config.patch_size,
-                target=reshaped_target,
+                target=sample_target,
             )
 
             # iterate over patches
@@ -320,8 +318,7 @@ class PathIterableDataset(IterableDataset):
 
 
 class IterablePredictionDataset(IterableDataset):
-    """
-    Prediction dataset.
+    """Simple iterable prediction dataset.
 
     Parameters
     ----------
@@ -376,12 +373,116 @@ class IterablePredictionDataset(IterableDataset):
         self.prediction_config = prediction_config
         self.data_files = src_files
         self.axes = prediction_config.axes
-        self.tile_size = self.prediction_config.tile_size
-        self.tile_overlap = self.prediction_config.tile_overlap
         self.read_source_func = read_source_func
 
-        # tile only if both tile size and overlaps are provided
-        self.tile = self.tile_size is not None and self.tile_overlap is not None
+        # check mean and std and create normalize transform
+        if self.prediction_config.mean is None or self.prediction_config.std is None:
+            raise ValueError("Mean and std must be provided for prediction.")
+        else:
+            self.mean = self.prediction_config.mean
+            self.std = self.prediction_config.std
+
+            # instantiate normalize transform
+            self.patch_transform = Compose(
+                transform_list=[
+                    NormalizeModel(
+                        mean=prediction_config.mean, std=prediction_config.std
+                    )
+                ],
+            )
+
+    def __iter__(
+        self,
+    ) -> Generator[np.ndarray, None, None]:
+        """
+        Iterate over data source and yield single patch.
+
+        Yields
+        ------
+        np.ndarray
+            Single patch.
+        """
+        assert (
+            self.mean is not None and self.std is not None
+        ), "Mean and std must be provided"
+
+        for sample, _ in _iterate_over_files(
+            self.prediction_config,
+            self.data_files,
+            read_source_func=self.read_source_func,
+        ):
+            # TODO what if S dimensions > 1, should we yield each sample independently?
+            transformed_sample, _ = self.patch_transform(patch=sample)
+            yield transformed_sample
+
+
+class IterableTiledPredictionDataset(IterableDataset):
+    """Tiled prediction dataset.
+
+    Parameters
+    ----------
+    prediction_config : InferenceConfig
+        Inference configuration.
+    src_files : List[Path]
+        List of data files.
+    read_source_func : Callable, optional
+        Read source function for custom types, by default read_tiff.
+    **kwargs : Any
+        Additional keyword arguments, unused.
+
+    Attributes
+    ----------
+    data_path : Union[str, Path]
+        Path to the data, must be a directory.
+    axes : str
+        Description of axes in format STCZYX.
+    mean : Optional[float], optional
+        Expected mean of the dataset, by default None.
+    std : Optional[float], optional
+        Expected standard deviation of the dataset, by default None.
+    patch_transform : Optional[Callable], optional
+        Patch transform callable, by default None.
+    """
+
+    def __init__(
+        self,
+        prediction_config: InferenceConfig,
+        src_files: List[Path],
+        read_source_func: Callable = read_tiff,
+        **kwargs: Any,
+    ) -> None:
+        """Constructor.
+
+        Parameters
+        ----------
+        prediction_config : InferenceConfig
+            Inference configuration.
+        src_files : List[Path]
+            List of data files.
+        read_source_func : Callable, optional
+            Read source function for custom types, by default read_tiff.
+        **kwargs : Any
+            Additional keyword arguments, unused.
+
+        Raises
+        ------
+        ValueError
+            If mean and std are not provided in the inference configuration.
+        """
+        if (
+            prediction_config.tile_size is None
+            or prediction_config.tile_overlap is None
+        ):
+            raise ValueError(
+                "Tile size and overlap must be provided for tiled prediction."
+            )
+
+        self.prediction_config = prediction_config
+        self.data_files = src_files
+        self.axes = prediction_config.axes
+        self.tile_size = prediction_config.tile_size
+        self.tile_overlap = prediction_config.tile_overlap
+        self.read_source_func = read_source_func
 
         # check mean and std and create normalize transform
         if self.prediction_config.mean is None or self.prediction_config.std is None:
@@ -407,8 +508,8 @@ class IterablePredictionDataset(IterableDataset):
 
         Yields
         ------
-        np.ndarray
-            Single patch.
+        Tuple[pnp.ndarray, TileInformation]
+            Single tile.
         """
         assert (
             self.mean is not None and self.std is not None
@@ -419,27 +520,12 @@ class IterablePredictionDataset(IterableDataset):
             self.data_files,
             read_source_func=self.read_source_func,
         ):
-            # reshape array
-            reshaped_sample = reshape_array(sample, self.axes)
-
-            if (
-                self.tile
-                and self.tile_size is not None
-                and self.tile_overlap is not None
-            ):
-                # generate patches, return a generator
-                patch_gen = extract_tiles(
-                    arr=reshaped_sample,
-                    tile_size=self.tile_size,
-                    overlaps=self.tile_overlap,
-                )
-            else:
-                # just wrap the sample in a generator with default tiling info
-                array_shape = reshaped_sample.squeeze().shape
-                patch_gen = (
-                    (reshaped_sample, TileInformation(array_shape=array_shape))
-                    for _ in range(1)
-                )
+            # generate patches, return a generator
+            patch_gen = extract_tiles(
+                arr=sample,
+                tile_size=self.tile_size,
+                overlaps=self.tile_overlap,
+            )
 
             # apply transform to patches
             for patch_array, tile_info in patch_gen:
