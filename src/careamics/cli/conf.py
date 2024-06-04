@@ -108,9 +108,7 @@ def conf_options(  # numpydoc ignore=PR01
     ctx.obj = ConfOptions(dir, name, force, print)
 
 
-def patch_size_callback(
-    value: Tuple[int, int, int]
-) -> Tuple[int, ...]:
+def patch_size_callback(value: Tuple[int, int, int]) -> Tuple[int, ...]:
     """
     Callback for --patch-size option.
 
