@@ -42,7 +42,8 @@ def get_config():
     
     training = config.training
     training.lr = 1e-3
-    training.lr_scheduler_patience = 15 
+    training.lr_scheduler_patience = 15
+    training.num_workers = 4 
     training.batch_size = 32
     training.grad_clip_norm_value = 0.5  # Taken from https://github.com/openai/vdvae/blob/main/hps.py#L38
     training.gradient_clip_algorithm = 'value'
