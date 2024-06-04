@@ -1,8 +1,10 @@
+"""Configuration building convinience functions for the CAREamics CLI."""
+
 import os
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal, Tuple
+from typing import Tuple
 
 import click
 import typer
@@ -17,15 +19,40 @@ from ..config import (
     create_n2v_configuration,
 )
 
+WORK_DIR = Path(os.getcwd())
+
 app = typer.Typer()
 
 
 def _save_config(config: Configuration, fp: Path) -> None:
+    """
+    Function to save careamics Configuration object to a yaml file.
+
+    Parameters
+    ----------
+    config : Configuration
+        CAREamics configuration object.
+    fp : Path
+        File path to save to.
+    """
     with open(fp, "w") as file:
         yaml.dump(config.model_dump(), file, indent=2)
 
 
 def _config_builder_exit(ctx: typer.Context, config: Configuration) -> None:
+    """
+    Function to be called at the end of a CLI configuration builder.
+
+    Saves the `config` object and performs other functionality depending on the command
+    context.
+
+    Parameters
+    ----------
+    ctx : typer.Context
+        Typer Context.
+    config : Configuration
+        CAREamics configuration.
+    """
     conf_path = (ctx.obj.dir / ctx.obj.name).with_suffix(".yaml")
     _save_config(config, conf_path)
     if ctx.obj.print:
@@ -34,6 +61,8 @@ def _config_builder_exit(ctx: typer.Context, config: Configuration) -> None:
 
 @dataclass
 class ConfOptions:
+    """Data class for containing CLI `conf` command option values."""
+
     dir: Path
     name: str
     force: bool
@@ -41,14 +70,14 @@ class ConfOptions:
 
 
 @app.callback()
-def conf_options(
+def conf_options(  # numpydoc ignore=PR01
     ctx: typer.Context,
     dir: Annotated[
         Path,
         typer.Option(
             "--dir", "-d", exists=True, help="Directory to save the config file to."
         ),
-    ] = Path(os.getcwd()),
+    ] = WORK_DIR,
     name: Annotated[
         str, typer.Option("--name", "-n", help="The config file name.")
     ] = "config",
@@ -67,6 +96,7 @@ def conf_options(
         ),
     ] = False,
 ):
+    """Build and save CAREamics configuration files."""
     # Callback is called still on --help command
     # If a config exists it will complain that you need to use the -f flag
     if "--help" in sys.argv:
@@ -78,7 +108,23 @@ def conf_options(
     ctx.obj = ConfOptions(dir, name, force, print)
 
 
-def patch_size_callback(value: Tuple[int, int, int | Literal["none"]]):
+def patch_size_callback(
+    value: Tuple[int, int, int]
+) -> Tuple[int, int, int] | Tuple[int, int]:
+    """
+    Callback for --patch-size option.
+
+    Parameters
+    ----------
+    value : (int, int, int)
+        Patch size value.
+
+    Returns
+    -------
+    (int, int, int) | (int, int)
+        If the last element in `value` is -1 the tuple is reduced to the first two
+        values.
+    """
     if value[2] == -1:
         return value[:2]
     return value
@@ -92,7 +138,7 @@ def patch_size_callback(value: Tuple[int, int, int | Literal["none"]]):
 
 
 @app.command()
-def care(
+def care(  # numpydoc ignore=PR01
     ctx: typer.Context,
     experiment_name: Annotated[str, typer.Option(help="Name of the experiment.")],
     axes: Annotated[str, typer.Option(help="Axes of the data (e.g. SYX).")],
@@ -174,7 +220,7 @@ def care(
 
 
 @app.command()
-def n2n(
+def n2n(  # numpydoc ignore=PR01
     ctx: typer.Context,
     experiment_name: Annotated[str, typer.Option(help="Name of the experiment.")],
     axes: Annotated[str, typer.Option(help="Axes of the data (e.g. SYX).")],
@@ -253,7 +299,7 @@ def n2n(
 
 
 @app.command()
-def n2v(
+def n2v(  # numpydoc ignore=PR01
     ctx: typer.Context,
     experiment_name: Annotated[str, typer.Option(help="Name of the experiment.")],
     axes: Annotated[str, typer.Option(help="Axes of the data (e.g. SYX).")],

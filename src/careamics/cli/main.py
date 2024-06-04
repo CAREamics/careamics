@@ -1,3 +1,11 @@
+"""
+Module for CLI functionality and entrypoint.
+
+Contains the CLI entrypoint, the `run` function; and first level subcommands `train`
+and `predict`. The `conf` subcommand is added through the `app.add_typer` function, and
+it's implementation is contained in the conf.py file.
+"""
+
 from pathlib import Path
 from typing import Optional
 
@@ -14,13 +22,12 @@ app = typer.Typer(
 app.add_typer(
     conf.app,
     name="conf",
-    help="Build and save CAREamics configuration files.",
     # callback=conf.conf_options
 )
 
 
 @app.command()
-def train(
+def train(  # numpydoc ignore=PR01
     source: Annotated[
         Path,
         typer.Argument(
@@ -102,9 +109,7 @@ def train(
         ),
     ] = None,
 ):
-    """
-    Train CAREamics models.
-    """
+    """Train CAREamics models."""
     engine = CAREamist(source=source, work_dir=work_dir)
     engine.train(
         train_source=train_source,
@@ -118,11 +123,12 @@ def train(
 
 
 @app.command()
-def predict():
+def predict():  # numpydoc ignore=PR01
     """Create and save predictions from CAREamics models."""
     # TODO: Need a save predict to workdir function
     raise NotImplementedError
 
 
 def run():
+    """CLI Entry point."""
     app()
