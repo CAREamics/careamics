@@ -87,6 +87,7 @@ class CAREamicsPredictionLoop(L.loops._PredictionLoop):
 
                 ########################################################
                 ################ CAREamics specific code ###############
+                # TODO: next line is not compatible with muSplit
                 is_tiled = len(self.predictions[batch_idx]) == 2
                 if is_tiled:
                     # extract the last tile flag and the coordinates (crop and stitch)

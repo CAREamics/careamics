@@ -26,6 +26,14 @@ class XYFlipModel(TransformModel):
     )
 
     name: Literal["XYFlip"] = "XYFlip"
+    flip_x: bool = Field(
+        True,
+        description="Whether to flip along the X axis.",
+    )
+    flip_y: bool = Field(
+        True,
+        description="Whether to flip along the Y axis.",
+    )
     p: float = Field(
         0.5,
         description="Probability of applying the transform.",

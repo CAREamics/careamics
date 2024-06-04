@@ -33,7 +33,43 @@ def test_flip_xy(ordered_array, shape):
         r.random()  # consume random number
         augmented, _ = aug(array)
 
-        assert np.array_equal(augmented, flips[r.choice(axes)])
+        # draw axis
+        axis = r.choice(axes)
+
+        assert np.array_equal(augmented, flips[axis])
+
+
+@pytest.mark.parametrize(
+    "shape, flip_x",
+    [
+        # 2D
+        ((1, 2, 2), True),
+        ((2, 2, 2), True),
+        ((1, 2, 2), False),
+        ((2, 2, 2), False),
+        # 3D
+        ((1, 2, 2), True),
+        ((2, 2, 2), True),
+        ((1, 2, 2), False),
+        ((2, 2, 2), False),
+    ],
+)
+def test_flip_single_axis(ordered_array, shape, flip_x):
+    """Test flipping for 2D and 3D arrays."""
+    # create array
+    array: np.ndarray = ordered_array(shape)
+
+    # create augmentation
+    aug = XYFlip(flip_x=flip_x, flip_y=not flip_x, p=1)
+
+    # potential flips
+    axis = -1 if flip_x else -2
+
+    # apply augmentation 5 times
+    for _ in range(5):
+        augmented, _ = aug(array)
+
+        assert np.array_equal(augmented, np.flip(array, axis=axis))
 
 
 def test_flip_mask(ordered_array):

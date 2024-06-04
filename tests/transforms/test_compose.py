@@ -4,7 +4,6 @@ import pytest
 from careamics.config.transformations import (
     N2VManipulateModel,
     NormalizeModel,
-    XorYFlipModel,
     XYFlipModel,
     XYRandomRotate90Model,
 )
@@ -114,10 +113,11 @@ def test_random_composition(ordered_array, shape):
 
     # apply transform in random order
     for _ in range(10):
+        flip_x = rng.choice([True, False])
+
         transforms = [
             NormalizeModel(mean=0.5, std=0.5),
-            XYFlipModel(seed=42),
-            XorYFlipModel(flip_x=rng.choice([True, False]), seed=42),
+            XYFlipModel(flip_x=flip_x, seed=42),
             XYRandomRotate90Model(seed=42),
         ]
 
