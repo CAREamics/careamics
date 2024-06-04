@@ -3,6 +3,7 @@ This script is meant to load data, intialize the model, and provide the logic fo
 """
 
 import os
+import sys
 import glob
 import socket
 from typing import Dict
@@ -16,24 +17,24 @@ from pytorch_lightning.loggers import WandbLogger
 from absl import app, flags
 from ml_collections.config_flags import config_flags
 
-from .lvae import LadderVAE
-from .data_utils import (
+from models.lvae.lvae import LadderVAE
+from models.lvae.data_utils import (
     DataSplitType
 )
-from .data_modules import (
+from models.lvae.data_modules import (
     LCMultiChDloader,
     MultiChDloader
 )
-from .metrics import MetricMonitor
-from .train_utils import *
+from models.lvae.metrics import MetricMonitor
+from models.lvae.train_utils import *
 
 FLAGS = flags.FLAGS
 
 config_flags.DEFINE_config_file("config", None, "Training configuration.", lock_config=True)
-flags.DEFINE_string("workdir", None, "Work directory.")
+flags.DEFINE_string("workdir", '/group/jug/federico/careamics_training/training', "Work directory.")
 flags.DEFINE_enum("mode", None, ["train", "eval"], "Running mode: train or eval")
 flags.DEFINE_string("logdir", '/group/jug/federico/wandb_backup/', "The folder name for storing logging")
-flags.DEFINE_string("datadir", '', "Data directory.")
+flags.DEFINE_string("datadir", '/group/jug/federico/careamics_training/data/BioSR', "Data directory.")
 flags.DEFINE_boolean("use_max_version", False, "Overwrite the max version of the model")
 flags.DEFINE_string("load_ckptfpath", '', "The path to a previous ckpt from which the weights should be loaded")
 flags.mark_flags_as_required(["workdir", "config", "mode"])
