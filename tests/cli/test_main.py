@@ -44,4 +44,4 @@ def test_train(tmp_path: Path, minimum_configuration: dict):
 
 def test_predict():
     result = runner.invoke(app, ["predict"])
-    assert result.exit_code == 2  # assert exits with error (NotImplementedError)
+    assert result.exit_code == 1  # assert exits with error (NotImplementedError)
