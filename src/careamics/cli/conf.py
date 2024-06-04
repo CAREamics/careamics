@@ -1,12 +1,16 @@
+import sys
 import os
 from pathlib import Path
 from dataclasses import dataclass
+from typing import Optional, Union, Tuple, Literal
 from typing_extensions import Annotated
 import yaml
+from typing_extensions import Annotated
 
 import typer
 import click
-from typing_extensions import Annotated
+
+# import hydra
 
 from ..config import (
     Configuration,
@@ -31,30 +35,64 @@ def _config_builder_exit(ctx: typer.Context, config: Configuration) -> None:
 
 
 @dataclass
-class ConfigOptions:
+class ConfOptions:
     dir: Path
-    name: Path
+    name: str
     force: bool
     print: bool
 
 
 @app.callback()
-def config_options(
+def conf_options(
     ctx: typer.Context,
     dir: Annotated[
-        Path, typer.Option("--dir", "-d", exists=True)
-    ] = os.getcwd(),
-    name: Annotated[str, typer.Option("--name", "-n")] = "config",
-    force: Annotated[bool, typer.Option("--force", "-f")] = False,
-    print: Annotated[bool, typer.Option("--print", "-p")] = False,
+        Path,
+        typer.Option(
+            "--dir", "-d", exists=True, help="Directory to save the config file to."
+        ),
+    ] = Path(os.getcwd()),
+    name: Annotated[
+        str, typer.Option("--name", "-n", help="The config file name.")
+    ] = "config",
+    force: Annotated[
+        bool,
+        typer.Option(
+            "--force", "-f", help="Whether to overwrite existing config files."
+        ),
+    ] = False,
+    print: Annotated[
+        bool,
+        typer.Option(
+            "--print",
+            "-p",
+            help="Whether to print the config file to the console.",
+        ),
+    ] = False,
 ):
+    # Callback is called still on --help command
+    # If a config exists it will complain that you need to use the -f flag
+    if "--help" in sys.argv:
+        return
     conf_path = (dir / name).with_suffix(".yaml")
     if conf_path.exists() and not force:
         raise FileExistsError(
             f"To overwrite '{conf_path}' use flag --force/-f."
         )
 
-    ctx.obj = ConfigOptions(dir, name, force, print)
+    ctx.obj = ConfOptions(dir, name, force, print)
+
+
+def patch_size_callback(value: Tuple[int, int, int | Literal["none"]]):
+    if value[2] == -1:
+        return value[:2]
+    return value
+
+
+# TODO: Need to decide how to parse model kwargs
+#   - Could be json style string to be loaded as dict e.g. {"depth": 3}
+#        - Cons: Annoying to type, easily have syntax errors
+#   - Could parse all unknown options as model kwargs
+#       - Cons: There could be argument name clashes
 
 
 @app.command()
@@ -67,8 +105,12 @@ def care(
     patch_size: Annotated[
         click.Tuple,
         typer.Option(
-            click_type=click.Tuple([int, int]),
-            help="Size of the patches along the spatial dimensions (e.g. --patch-size 64 64).",
+            help=(
+                "Size of the patches along the spatial dimensions (if the data "
+                "is not 3D pass the last value as -1 e.g. --patch-size 64 64 -1)."
+            ),
+            click_type=click.Tuple([int, int, int]),
+            callback=patch_size_callback,
         ),
     ],
     batch_size: Annotated[int, typer.Option(help="Batch size.")],
@@ -107,6 +149,25 @@ def care(
     ] = "none",
     # TODO: How to address model kwargs
 ) -> None:
+    """
+    Create a configuration for training CARE.
+
+    If "Z" is present in `axes`, then `path_size` must be a list of length 3, otherwise
+    2.
+
+    If "C" is present in `axes`, then you need to set `n_channels_in` to the number of
+    channels. Likewise, if you set the number of channels, then "C" must be present in
+    `axes`.
+
+    To set the number of output channels, use the `n_channels_out` parameter. If it is
+    not specified, it will be assumed to be equal to `n_channels_in`.
+
+    By default, all channels are trained together. To train all channels independently,
+    set `independent_channels` to True.
+
+    By setting `use_augmentations` to False, the only transformation applied will be
+    normalization.
+    """
     config = create_care_configuration(
         experiment_name=experiment_name,
         data_type=data_type,
@@ -134,8 +195,12 @@ def n2n(
     patch_size: Annotated[
         click.Tuple,
         typer.Option(
-            click_type=click.Tuple([int, int]),
-            help="Size of the patches along the spatial dimensions (e.g. --patch-size 64 64).",
+            help=(
+                "Size of the patches along the spatial dimensions (if the data "
+                "is not 3D pass the last value as -1 e.g. --patch-size 64 64 -1)."
+            ),
+            click_type=click.Tuple([int, int, int]),
+            callback=patch_size_callback,
         ),
     ],
     batch_size: Annotated[int, typer.Option(help="Batch size.")],
@@ -171,6 +236,22 @@ def n2n(
     ] = "none",
     # TODO: How to address model kwargs
 ) -> None:
+    """
+    Create a configuration for training Noise2Noise.
+
+    If "Z" is present in `axes`, then `path_size` must be a list of length 3, otherwise
+    2.
+
+    If "C" is present in `axes`, then you need to set `n_channels` to the number of
+    channels. Likewise, if you set the number of channels, then "C" must be present in
+    `axes`.
+
+    By default, all channels are trained together. To train all channels independently,
+    set `independent_channels` to True.
+
+    By setting `use_augmentations` to False, the only transformation applied will be
+    normalization.
+    """
     config = create_n2n_configuration(
         experiment_name=experiment_name,
         data_type=data_type,
@@ -197,8 +278,12 @@ def n2v(
     patch_size: Annotated[
         click.Tuple,
         typer.Option(
-            click_type=click.Tuple([int, int]),
-            help="Size of the patches along the spatial dimensions (e.g. --patch-size 64 64).",
+            help=(
+                "Size of the patches along the spatial dimensions (if the data "
+                "is not 3D pass the last value as -1 e.g. --patch-size 64 64 -1)."
+            ),
+            click_type=click.Tuple([int, int, int]),
+            callback=patch_size_callback,
         ),
     ],
     batch_size: Annotated[int, typer.Option(help="Batch size.")],
@@ -243,6 +328,41 @@ def n2v(
     ] = "none",
     # TODO: How to address model kwargs
 ) -> None:
+    """
+    Create a configuration for training Noise2Void.
+
+    N2V uses a UNet model to denoise images in a self-supervised manner. To use its
+    variants structN2V and N2V2, set the `struct_n2v_axis` and `struct_n2v_span`
+    (structN2V) parameters, or set `use_n2v2` to True (N2V2).
+
+    N2V2 modifies the UNet architecture by adding blur pool layers and removes the skip
+    connections, thus removing checkboard artefacts. StructN2V is used when vertical
+    or horizontal correlations are present in the noise; it applies an additional mask
+    to the manipulated pixel neighbors.
+
+    If "Z" is present in `axes`, then `path_size` must be a list of length 3, otherwise
+    2.
+
+    If "C" is present in `axes`, then you need to set `n_channels` to the number of
+    channels.
+
+    By default, all channels are trained independently. To train all channels together,
+    set `independent_channels` to False.
+
+    By setting `use_augmentations` to False, the only transformations applied will be
+    normalization and N2V manipulation.
+
+    The `roi_size` parameter specifies the size of the area around each pixel that will
+    be manipulated by N2V. The `masked_pixel_percentage` parameter specifies how many
+    pixels per patch will be manipulated.
+
+    The parameters of the UNet can be specified in the `model_kwargs` (passed as a
+    parameter-value dictionary). Note that `use_n2v2` and 'n_channels' override the
+    corresponding parameters passed in `model_kwargs`.
+
+    If you pass "horizontal" or "vertical" to `struct_n2v_axis`, then structN2V mask
+    will be applied to each manipulated pixel.
+    """
     config = create_n2v_configuration(
         experiment_name=experiment_name,
         data_type=data_type,
@@ -259,5 +379,6 @@ def n2v(
         struct_n2v_axis=struct_n2v_axis,
         struct_n2v_span=struct_n2v_span,
         logger=logger,
+        # TODO: Model kwargs
     )
     _config_builder_exit(ctx, config)

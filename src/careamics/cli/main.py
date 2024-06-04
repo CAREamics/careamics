@@ -7,8 +7,15 @@ import typer
 from ..careamist import CAREamist
 from . import conf
 
-app = typer.Typer()
-app.add_typer(conf.app, name="conf")
+app = typer.Typer(
+    help="Run CAREamics algorithms from the command line, including Noise2Void "
+    "and its many variants and cousins"
+)
+app.add_typer(
+    conf.app, name="conf", help="Build and save CAREamics configuration files.",
+    # callback=conf.conf_options
+)
+
 
 @app.command()
 def train(
@@ -24,7 +31,9 @@ def train(
     train_source: Annotated[
         Path,
         typer.Option(
-            "--train-source", "-ts", help="Path to the training data.",
+            "--train-source",
+            "-ts",
+            help="Path to the training data.",
             exists=True,
             file_okay=True,
             dir_okay=True,
@@ -33,7 +42,9 @@ def train(
     train_target: Annotated[
         Optional[Path],
         typer.Option(
-            "--train-target", "-tt", help="Path to train target data.",
+            "--train-target",
+            "-tt",
+            help="Path to train target data.",
             exists=True,
             file_okay=True,
             dir_okay=True,
@@ -41,16 +52,21 @@ def train(
     ] = None,
     val_source: Annotated[
         Optional[Path],
-        typer.Option("--val-source", "-vs", help="Path to validation data.",
-                     exists=True,
+        typer.Option(
+            "--val-source",
+            "-vs",
+            help="Path to validation data.",
+            exists=True,
             file_okay=True,
-            dir_okay=True,),
-        
+            dir_okay=True,
+        ),
     ] = None,
     val_target: Annotated[
         Optional[Path],
         typer.Option(
-            "--val-target", "-vt", help="Path to validation target data.",
+            "--val-target",
+            "-vt",
+            help="Path to validation target data.",
             exists=True,
             file_okay=True,
             dir_okay=True,
@@ -59,7 +75,9 @@ def train(
     use_in_memory: Annotated[
         bool,
         typer.Option(
-            "--use-in-memory/--not-in-memory", "-m/-M", help="Use in memory dataset if possible."
+            "--use-in-memory/--not-in-memory",
+            "-m/-M",
+            help="Use in memory dataset if possible.",
         ),
     ] = True,
     val_percentage: Annotated[
@@ -85,6 +103,9 @@ def train(
         ),
     ] = None,
 ):
+    """
+    Train CAREamics models.
+    """
     engine = CAREamist(source=source, work_dir=work_dir)
     engine.train(
         train_source=train_source,
@@ -99,11 +120,9 @@ def train(
 
 @app.command()
 def predict():
+    """Create and save predictions from CAREamics models."""
     # TODO: Need a save predict to workdir function
     raise NotImplementedError
-
-
-
 
 
 def run():
