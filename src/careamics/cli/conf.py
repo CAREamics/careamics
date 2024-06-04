@@ -1,17 +1,15 @@
-import sys
 import os
-from pathlib import Path
+import sys
 from dataclasses import dataclass
-from typing import Optional, Union, Tuple, Literal
-from typing_extensions import Annotated
+from pathlib import Path
+from typing import Literal, Tuple
+
+import click
+import typer
 import yaml
 from typing_extensions import Annotated
 
-import typer
-import click
-
 # import hydra
-
 from ..config import (
     Configuration,
     create_care_configuration,
@@ -75,9 +73,7 @@ def conf_options(
         return
     conf_path = (dir / name).with_suffix(".yaml")
     if conf_path.exists() and not force:
-        raise FileExistsError(
-            f"To overwrite '{conf_path}' use flag --force/-f."
-        )
+        raise FileExistsError(f"To overwrite '{conf_path}' use flag --force/-f.")
 
     ctx.obj = ConfOptions(dir, name, force, print)
 
@@ -98,9 +94,7 @@ def patch_size_callback(value: Tuple[int, int, int | Literal["none"]]):
 @app.command()
 def care(
     ctx: typer.Context,
-    experiment_name: Annotated[
-        str, typer.Option(help="Name of the experiment.")
-    ],
+    experiment_name: Annotated[str, typer.Option(help="Name of the experiment.")],
     axes: Annotated[str, typer.Option(help="Axes of the data (e.g. SYX).")],
     patch_size: Annotated[
         click.Tuple,
@@ -117,9 +111,7 @@ def care(
     num_epochs: Annotated[int, typer.Option(help="Number of epochs.")],
     data_type: Annotated[
         click.Choice,
-        typer.Option(
-            click_type=click.Choice(["tiff"]), help="Type of the data."
-        ),
+        typer.Option(click_type=click.Choice(["tiff"]), help="Type of the data."),
     ] = "tiff",
     use_augmentations: Annotated[
         bool, typer.Option(help="Whether to use augmentations.")
@@ -134,12 +126,8 @@ def care(
             help="Loss function to use.",
         ),
     ] = "mae",
-    n_channels_in: Annotated[
-        int, typer.Option(help="Number of channels in")
-    ] = 1,
-    n_channels_out: Annotated[
-        int, typer.Option(help="Number of channels out")
-    ] = -1,
+    n_channels_in: Annotated[int, typer.Option(help="Number of channels in")] = 1,
+    n_channels_out: Annotated[int, typer.Option(help="Number of channels out")] = -1,
     logger: Annotated[
         click.Choice,
         typer.Option(
@@ -188,9 +176,7 @@ def care(
 @app.command()
 def n2n(
     ctx: typer.Context,
-    experiment_name: Annotated[
-        str, typer.Option(help="Name of the experiment.")
-    ],
+    experiment_name: Annotated[str, typer.Option(help="Name of the experiment.")],
     axes: Annotated[str, typer.Option(help="Axes of the data (e.g. SYX).")],
     patch_size: Annotated[
         click.Tuple,
@@ -207,9 +193,7 @@ def n2n(
     num_epochs: Annotated[int, typer.Option(help="Number of epochs.")],
     data_type: Annotated[
         click.Choice,
-        typer.Option(
-            click_type=click.Choice(["tiff"]), help="Type of the data."
-        ),
+        typer.Option(click_type=click.Choice(["tiff"]), help="Type of the data."),
     ] = "tiff",
     use_augmentations: Annotated[
         bool, typer.Option(help="Whether to use augmentations.")
@@ -271,9 +255,7 @@ def n2n(
 @app.command()
 def n2v(
     ctx: typer.Context,
-    experiment_name: Annotated[
-        str, typer.Option(help="Name of the experiment.")
-    ],
+    experiment_name: Annotated[str, typer.Option(help="Name of the experiment.")],
     axes: Annotated[str, typer.Option(help="Axes of the data (e.g. SYX).")],
     patch_size: Annotated[
         click.Tuple,
@@ -290,9 +272,7 @@ def n2v(
     num_epochs: Annotated[int, typer.Option(help="Number of epochs.")],
     data_type: Annotated[
         click.Choice,
-        typer.Option(
-            click_type=click.Choice(["tiff"]), help="Type of the data."
-        ),
+        typer.Option(click_type=click.Choice(["tiff"]), help="Type of the data."),
     ] = "tiff",
     use_augmentations: Annotated[
         bool, typer.Option(help="Whether to use augmentations.")
@@ -304,17 +284,13 @@ def n2v(
     n_channels: Annotated[
         int, typer.Option(help="Number of channels (in and out)")
     ] = 1,
-    roi_size: Annotated[
-        int, typer.Option(help="N2V pixel manipulation area.")
-    ] = 11,
+    roi_size: Annotated[int, typer.Option(help="N2V pixel manipulation area.")] = 11,
     masked_pixel_percentage: Annotated[
         float, typer.Option(help="Percentage of pixels masked in each patch.")
     ] = 0.2,
     struct_n2v_axis: Annotated[
         click.Choice,
-        typer.Option(
-            click_type=click.Choice(["horizontal", "vertical", "none"])
-        ),
+        typer.Option(click_type=click.Choice(["horizontal", "vertical", "none"])),
     ] = "none",
     struct_n2v_span: Annotated[
         int, typer.Option(help="Span of the structN2V mask.")

@@ -2,12 +2,12 @@ from pathlib import Path
 
 import numpy as np
 import tifffile
-from typer.testing import CliRunner
 import yaml
+from typer.testing import CliRunner
 
+from careamics.cli.main import app
 from careamics.config import Configuration
 from careamics.config.support import SupportedData
-from careamics.cli.main import app
 
 runner = CliRunner()
 
@@ -27,7 +27,7 @@ def test_train(tmp_path: Path, minimum_configuration: dict):
     train_file = tmp_path / "train.tiff"
     tifffile.imwrite(train_file, train_array)
 
-    # invoke command 
+    # invoke command
     result = runner.invoke(
         app,
         [
@@ -44,4 +44,4 @@ def test_train(tmp_path: Path, minimum_configuration: dict):
 
 def test_predict():
     result = runner.invoke(app, ["predict"])
-    result.exit_code == 2 # assert exits with error (NotImplementedError)
+    result.exit_code == 2  # assert exits with error (NotImplementedError)

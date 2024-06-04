@@ -2,16 +2,16 @@ import os
 from pathlib import Path
 
 import pytest
-
 from typer.testing import CliRunner
+
 from careamics.cli.main import app
-from typer.main import get_command
 
 runner = CliRunner()
 
+
 @pytest.mark.parametrize("algorithm", ["care", "n2n", "n2v"])
 def test_conf(tmp_path: Path, algorithm: str):
-    config_path = tmp_path/"config.yaml"
+    config_path = tmp_path / "config.yaml"
     result = runner.invoke(
         app,
         [
@@ -24,11 +24,13 @@ def test_conf(tmp_path: Path, algorithm: str):
             "--axes",
             "YX",
             "--patch-size",
-            "64", "64", "-1",
+            "64",
+            "64",
+            "-1",
             "--batch-size",
             "1",
             "--num-epochs",
-            "1"
+            "1",
         ],
     )
     assert os.path.isfile(config_path)

@@ -1,8 +1,8 @@
 from pathlib import Path
 from typing import Optional
-from typing_extensions import Annotated
 
 import typer
+from typing_extensions import Annotated
 
 from ..careamist import CAREamist
 from . import conf
@@ -12,7 +12,9 @@ app = typer.Typer(
     "and its many variants and cousins"
 )
 app.add_typer(
-    conf.app, name="conf", help="Build and save CAREamics configuration files.",
+    conf.app,
+    name="conf",
+    help="Build and save CAREamics configuration files.",
     # callback=conf.conf_options
 )
 
@@ -93,10 +95,7 @@ def train(
         typer.Option(
             "--work-dir",
             "-wd",
-            help=(
-                "Path to working directory in which to save checkpoints and "
-                "logs"
-            ),
+            help=("Path to working directory in which to save checkpoints and " "logs"),
             exists=True,
             file_okay=False,
             dir_okay=True,
