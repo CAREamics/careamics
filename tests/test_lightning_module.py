@@ -226,8 +226,11 @@ def test_careamics_kiln_unet_depth_2_channels_2D(n_channels):
     assert y.shape == x.shape
 
 
-@pytest.mark.parametrize("n_channels", [1, 3, 4])
-def test_careamics_kiln_unet_depth_3_channels_2D(n_channels):
+@pytest.mark.parametrize(
+    "n_channels,independent_channels",
+    [(1, False), (1, True), (3, False), (3, True), (4, False), (4, True)],
+)
+def test_careamics_kiln_unet_depth_3_channels_2D(n_channels, independent_channels):
     algo_dict = {
         "algorithm": "n2n",
         "model": {
@@ -236,6 +239,7 @@ def test_careamics_kiln_unet_depth_3_channels_2D(n_channels):
             "in_channels": n_channels,
             "num_classes": n_channels,
             "depth": 3,
+            "independent_channels": independent_channels,
         },
         "loss": "mae",
     }

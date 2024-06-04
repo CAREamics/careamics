@@ -1,8 +1,6 @@
 """Convenience functions to create configurations for training and inference."""
 
-from typing import Any, Dict, List, Literal, Optional, Tuple, Union
-
-from albumentations import Compose
+from typing import Any, Dict, List, Literal, Optional, Tuple
 
 from .algorithm_model import AlgorithmConfig
 from .architectures import UNetModel
@@ -28,8 +26,10 @@ def _create_supervised_configuration(
     batch_size: int,
     num_epochs: int,
     use_augmentations: bool = True,
+    independent_channels: bool = False,
     loss: Literal["mae", "mse"] = "mae",
-    n_channels: int = -1,
+    n_channels_in: int = 1,
+    n_channels_out: int = 1,
     logger: Literal["wandb", "tensorboard", "none"] = "none",
     model_kwargs: Optional[dict] = None,
 ) -> Configuration:
@@ -54,10 +54,14 @@ def _create_supervised_configuration(
         Number of epochs.
     use_augmentations : bool, optional
         Whether to use augmentations, by default True.
+    independent_channels : bool, optional
+        Whether to train all channels independently, by default False.
     loss : Literal["mae", "mse"], optional
         Loss function to use, by default "mae".
-    n_channels : int, optional
-        Number of channels (in and out), by default -1.
+    n_channels_in : int, optional
+        Number of channels in, by default 1.
+    n_channels_out : int, optional
+        Number of channels out, by default 1.
     logger : Literal["wandb", "tensorboard", "none"], optional
         Logger to use, by default "none".
     model_kwargs : dict, optional
@@ -69,23 +73,24 @@ def _create_supervised_configuration(
         Configuration for training CARE or Noise2Noise.
     """
     # if there are channels, we need to specify their number
-    if "C" in axes and n_channels == 1:
+    if "C" in axes and n_channels_in == 1:
         raise ValueError(
-            f"Number of channels must be specified when using channels "
-            f"(got {n_channels} channel)."
+            f"Number of channels in must be specified when using channels "
+            f"(got {n_channels_in} channel)."
         )
-    elif "C" not in axes and n_channels > 1:
+    elif "C" not in axes and n_channels_in > 1:
         raise ValueError(
             f"C is not present in the axes, but number of channels is specified "
-            f"(got {n_channels} channel)."
+            f"(got {n_channels_in} channels)."
         )
 
     # model
     if model_kwargs is None:
         model_kwargs = {}
     model_kwargs["conv_dims"] = 3 if "Z" in axes else 2
-    model_kwargs["in_channels"] = n_channels
-    model_kwargs["num_classes"] = n_channels
+    model_kwargs["in_channels"] = n_channels_in
+    model_kwargs["num_classes"] = n_channels_out
+    model_kwargs["independent_channels"] = independent_channels
 
     unet_model = UNetModel(
         architecture=SupportedArchitecture.UNET.value,
@@ -106,7 +111,7 @@ def _create_supervised_configuration(
                 "name": SupportedTransform.NORMALIZE.value,
             },
             {
-                "name": SupportedTransform.NDFLIP.value,
+                "name": SupportedTransform.XY_FLIP.value,
             },
             {
                 "name": SupportedTransform.XY_RANDOM_ROTATE90.value,
@@ -154,8 +159,10 @@ def create_care_configuration(
     batch_size: int,
     num_epochs: int,
     use_augmentations: bool = True,
+    independent_channels: bool = False,
     loss: Literal["mae", "mse"] = "mae",
-    n_channels: int = 1,
+    n_channels_in: int = 1,
+    n_channels_out: int = -1,
     logger: Literal["wandb", "tensorboard", "none"] = "none",
     model_kwargs: Optional[dict] = None,
 ) -> Configuration:
@@ -165,9 +172,15 @@ def create_care_configuration(
     If "Z" is present in `axes`, then `path_size` must be a list of length 3, otherwise
     2.
 
-    If "C" is present in `axes`, then you need to set `n_channels` to the number of
+    If "C" is present in `axes`, then you need to set `n_channels_in` to the number of
     channels. Likewise, if you set the number of channels, then "C" must be present in
     `axes`.
+
+    To set the number of output channels, use the `n_channels_out` parameter. If it is
+    not specified, it will be assumed to be equal to `n_channels_in`.
+
+    By default, all channels are trained together. To train all channels independently,
+    set `independent_channels` to True.
 
     By setting `use_augmentations` to False, the only transformation applied will be
     normalization.
@@ -188,10 +201,14 @@ def create_care_configuration(
         Number of epochs.
     use_augmentations : bool, optional
         Whether to use augmentations, by default True.
+    independent_channels : bool, optional
+        Whether to train all channels independently, by default False.
     loss : Literal["mae", "mse"], optional
         Loss function to use, by default "mae".
-    n_channels : int, optional
-        Number of channels (in and out), by default 1.
+    n_channels_in : int, optional
+        Number of channels in, by default 1.
+    n_channels_out : int, optional
+        Number of channels out, by default -1.
     logger : Literal["wandb", "tensorboard", "none"], optional
         Logger to use, by default "none".
     model_kwargs : dict, optional
@@ -202,6 +219,9 @@ def create_care_configuration(
     Configuration
         Configuration for training CARE.
     """
+    if n_channels_out == -1:
+        n_channels_out = n_channels_in
+
     return _create_supervised_configuration(
         algorithm="care",
         experiment_name=experiment_name,
@@ -211,9 +231,10 @@ def create_care_configuration(
         batch_size=batch_size,
         num_epochs=num_epochs,
         use_augmentations=use_augmentations,
+        independent_channels=independent_channels,
         loss=loss,
-        # TODO in the future we might support different in and out channels for CARE
-        n_channels=n_channels,
+        n_channels_in=n_channels_in,
+        n_channels_out=n_channels_out,
         logger=logger,
         model_kwargs=model_kwargs,
     )
@@ -227,6 +248,7 @@ def create_n2n_configuration(
     batch_size: int,
     num_epochs: int,
     use_augmentations: bool = True,
+    independent_channels: bool = False,
     loss: Literal["mae", "mse"] = "mae",
     n_channels: int = 1,
     logger: Literal["wandb", "tensorboard", "none"] = "none",
@@ -242,6 +264,9 @@ def create_n2n_configuration(
     channels. Likewise, if you set the number of channels, then "C" must be present in
     `axes`.
 
+    By default, all channels are trained together. To train all channels independently,
+    set `independent_channels` to True.
+
     By setting `use_augmentations` to False, the only transformation applied will be
     normalization.
 
@@ -261,6 +286,8 @@ def create_n2n_configuration(
         Number of epochs.
     use_augmentations : bool, optional
         Whether to use augmentations, by default True.
+    independent_channels : bool, optional
+        Whether to train all channels independently, by default False.
     loss : Literal["mae", "mse"], optional
         Loss function to use, by default "mae".
     n_channels : int, optional
@@ -284,8 +311,10 @@ def create_n2n_configuration(
         batch_size=batch_size,
         num_epochs=num_epochs,
         use_augmentations=use_augmentations,
+        independent_channels=independent_channels,
         loss=loss,
-        n_channels=n_channels,
+        n_channels_in=n_channels,
+        n_channels_out=n_channels,
         logger=logger,
         model_kwargs=model_kwargs,
     )
@@ -299,6 +328,7 @@ def create_n2v_configuration(
     batch_size: int,
     num_epochs: int,
     use_augmentations: bool = True,
+    independent_channels: bool = True,
     use_n2v2: bool = False,
     n_channels: int = 1,
     roi_size: int = 11,
@@ -320,11 +350,14 @@ def create_n2v_configuration(
     or horizontal correlations are present in the noise; it applies an additional mask
     to the manipulated pixel neighbors.
 
+    If "Z" is present in `axes`, then `path_size` must be a list of length 3, otherwise
+    2.
+
     If "C" is present in `axes`, then you need to set `n_channels` to the number of
     channels.
 
-    If "Z" is present in `axes`, then `path_size` must be a list of length 3, otherwise
-    2.
+    By default, all channels are trained independently. To train all channels together,
+    set `independent_channels` to False.
 
     By setting `use_augmentations` to False, the only transformations applied will be
     normalization and N2V manipulation.
@@ -356,6 +389,8 @@ def create_n2v_configuration(
         Number of epochs.
     use_augmentations : bool, optional
         Whether to use augmentations, by default True.
+    independent_channels : bool, optional
+        Whether to train all channels together, by default True.
     use_n2v2 : bool, optional
         Whether to use N2V2, by default False.
     n_channels : int, optional
@@ -414,8 +449,8 @@ def create_n2v_configuration(
     ...     struct_n2v_span=7
     ... )
 
-    If you are training multiple channels together, then you need to specify the number
-    of channels:
+    If you are training multiple channels independently, then you need to specify the
+    number of channels:
     >>> config = create_n2v_configuration(
     ...     experiment_name="n2v_experiment",
     ...     data_type="array",
@@ -423,6 +458,19 @@ def create_n2v_configuration(
     ...     patch_size=[64, 64],
     ...     batch_size=32,
     ...     num_epochs=100,
+    ...     n_channels=3
+    ... )
+
+    If instead you want to train multiple channels together, you need to turn off the
+    `independent_channels` parameter:
+    >>> config = create_n2v_configuration(
+    ...     experiment_name="n2v_experiment",
+    ...     data_type="array",
+    ...     axes="YXC",
+    ...     patch_size=[64, 64],
+    ...     batch_size=32,
+    ...     num_epochs=100,
+    ...     independent_channels=False,
     ...     n_channels=3
     ... )
 
@@ -457,6 +505,7 @@ def create_n2v_configuration(
     model_kwargs["conv_dims"] = 3 if "Z" in axes else 2
     model_kwargs["in_channels"] = n_channels
     model_kwargs["num_classes"] = n_channels
+    model_kwargs["independent_channels"] = independent_channels
 
     unet_model = UNetModel(
         architecture=SupportedArchitecture.UNET.value,
@@ -477,7 +526,7 @@ def create_n2v_configuration(
                 "name": SupportedTransform.NORMALIZE.value,
             },
             {
-                "name": SupportedTransform.NDFLIP.value,
+                "name": SupportedTransform.XY_FLIP.value,
             },
             {
                 "name": SupportedTransform.XY_RANDOM_ROTATE90.value,
@@ -532,14 +581,12 @@ def create_n2v_configuration(
     return configuration
 
 
-# TODO add tests
 def create_inference_configuration(
-    training_configuration: Configuration,
+    configuration: Configuration,
     tile_size: Optional[Tuple[int, ...]] = None,
     tile_overlap: Optional[Tuple[int, ...]] = None,
     data_type: Optional[Literal["array", "tiff", "custom"]] = None,
     axes: Optional[str] = None,
-    transforms: Optional[Union[List[Dict[str, Any]], Compose]] = None,
     tta_transforms: bool = True,
     batch_size: Optional[int] = 1,
 ) -> InferenceConfig:
@@ -547,12 +594,12 @@ def create_inference_configuration(
     Create a configuration for inference with N2V.
 
     If not provided, `data_type` and `axes` are taken from the training
-    configuration. If `transforms` are not provided, only normalization is applied.
+    configuration.
 
     Parameters
     ----------
-    training_configuration : Configuration
-        Configuration used for training.
+    configuration : Configuration
+        Global configuration.
     tile_size : Tuple[int, ...], optional
         Size of the tiles.
     tile_overlap : Tuple[int, ...], optional
@@ -561,8 +608,6 @@ def create_inference_configuration(
         Type of the data, by default "tiff".
     axes : str, optional
         Axes of the data, by default "YX".
-    transforms : List[Dict[str, Any]] or Compose, optional
-        Transformations to apply to the data, by default None.
     tta_transforms : bool, optional
         Whether to apply test-time augmentations, by default True.
     batch_size : int, optional
@@ -571,29 +616,40 @@ def create_inference_configuration(
     Returns
     -------
     InferenceConfiguration
-        Configuration for inference with N2V.
+        Configuration used to configure CAREamicsPredictData.
     """
-    if (
-        training_configuration.data_config.mean is None
-        or training_configuration.data_config.std is None
-    ):
-        raise ValueError("Mean and std must be provided in the training configuration.")
+    if configuration.data_config.mean is None or configuration.data_config.std is None:
+        raise ValueError("Mean and std must be provided in the configuration.")
 
-    if transforms is None:
-        transforms = [
-            {
-                "name": SupportedTransform.NORMALIZE.value,
-            },
-        ]
+    # tile size for UNets
+    if tile_size is not None:
+        model = configuration.algorithm_config.model
+
+        if model.architecture == SupportedArchitecture.UNET.value:
+            # tile size must be equal to k*2^n, where n is the number of pooling layers
+            # (equal to the depth) and k is an integer
+            depth = model.depth
+            tile_increment = 2**depth
+
+            for i, t in enumerate(tile_size):
+                if t % tile_increment != 0:
+                    raise ValueError(
+                        f"Tile size must be divisible by {tile_increment} along all "
+                        f"axes (got {t} for axis {i}). If your image size is smaller "
+                        f"along one axis (e.g. Z), consider padding the image."
+                    )
+
+        # tile overlaps must be specified
+        if tile_overlap is None:
+            raise ValueError("Tile overlap must be specified.")
 
     return InferenceConfig(
-        data_type=data_type or training_configuration.data_config.data_type,
+        data_type=data_type or configuration.data_config.data_type,
         tile_size=tile_size,
         tile_overlap=tile_overlap,
-        axes=axes or training_configuration.data_config.axes,
-        mean=training_configuration.data_config.mean,
-        std=training_configuration.data_config.std,
-        transforms=transforms,
+        axes=axes or configuration.data_config.axes,
+        mean=configuration.data_config.mean,
+        std=configuration.data_config.std,
         tta_transforms=tta_transforms,
         batch_size=batch_size,
     )

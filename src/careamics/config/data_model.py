@@ -5,7 +5,6 @@ from __future__ import annotations
 from pprint import pformat
 from typing import Any, List, Literal, Optional, Union
 
-from albumentations import Compose
 from pydantic import (
     BaseModel,
     ConfigDict,
@@ -18,14 +17,14 @@ from typing_extensions import Annotated, Self
 
 from .support import SupportedTransform
 from .transformations.n2v_manipulate_model import N2VManipulateModel
-from .transformations.nd_flip_model import NDFlipModel
 from .transformations.normalize_model import NormalizeModel
+from .transformations.xy_flip_model import XYFlipModel
 from .transformations.xy_random_rotate90_model import XYRandomRotate90Model
 from .validators import check_axes_validity, patch_size_ge_than_8_power_of_2
 
 TRANSFORMS_UNION = Annotated[
     Union[
-        NDFlipModel,
+        XYFlipModel,
         XYRandomRotate90Model,
         NormalizeModel,
         N2VManipulateModel,
@@ -71,9 +70,7 @@ class DataConfig(BaseModel):
     ...             "std": 47.2,
     ...         },
     ...         {
-    ...             "name": "NDFlip",
-    ...             "is_3D": True,
-    ...             "flip_z": True,
+    ...             "name": "XYFlip",
     ...         }
     ...     ]
     ... )
@@ -82,7 +79,6 @@ class DataConfig(BaseModel):
     # Pydantic class configuration
     model_config = ConfigDict(
         validate_assignment=True,
-        arbitrary_types_allowed=True,  # Allow Compose declaration
     )
 
     # Dataset configuration
@@ -95,13 +91,13 @@ class DataConfig(BaseModel):
     mean: Optional[float] = None
     std: Optional[float] = None
 
-    transforms: Union[List[TRANSFORMS_UNION], Compose] = Field(
+    transforms: List[TRANSFORMS_UNION] = Field(
         default=[
             {
                 "name": SupportedTransform.NORMALIZE.value,
             },
             {
-                "name": SupportedTransform.NDFLIP.value,
+                "name": SupportedTransform.XY_FLIP.value,
             },
             {
                 "name": SupportedTransform.XY_RANDOM_ROTATE90.value,
@@ -182,19 +178,19 @@ class DataConfig(BaseModel):
     @field_validator("transforms")
     @classmethod
     def validate_prediction_transforms(
-        cls, transforms: Union[List[TRANSFORMS_UNION], Compose]
-    ) -> Union[List[TRANSFORMS_UNION], Compose]:
+        cls, transforms: List[TRANSFORMS_UNION]
+    ) -> List[TRANSFORMS_UNION]:
         """
         Validate N2VManipulate transform position in the transform list.
 
         Parameters
         ----------
-        transforms : Union[List[Transformations_Union], Compose]
+        transforms : List[Transformations_Union]
             Transforms.
 
         Returns
         -------
-        Union[List[Transformations_Union], Compose]
+        List[TRANSFORMS_UNION]
             Validated transforms.
 
         Raises
@@ -202,23 +198,22 @@ class DataConfig(BaseModel):
         ValueError
             If multiple instances of N2VManipulate are found.
         """
-        if not isinstance(transforms, Compose):
-            transform_list = [t.name for t in transforms]
+        transform_list = [t.name for t in transforms]
 
-            if SupportedTransform.N2V_MANIPULATE in transform_list:
-                # multiple N2V_MANIPULATE
-                if transform_list.count(SupportedTransform.N2V_MANIPULATE) > 1:
-                    raise ValueError(
-                        f"Multiple instances of "
-                        f"{SupportedTransform.N2V_MANIPULATE} transforms "
-                        f"are not allowed."
-                    )
+        if SupportedTransform.N2V_MANIPULATE in transform_list:
+            # multiple N2V_MANIPULATE
+            if transform_list.count(SupportedTransform.N2V_MANIPULATE.value) > 1:
+                raise ValueError(
+                    f"Multiple instances of "
+                    f"{SupportedTransform.N2V_MANIPULATE} transforms "
+                    f"are not allowed."
+                )
 
-                # N2V_MANIPULATE not the last transform
-                elif transform_list[-1] != SupportedTransform.N2V_MANIPULATE:
-                    index = transform_list.index(SupportedTransform.N2V_MANIPULATE)
-                    transform = transforms.pop(index)
-                    transforms.append(transform)
+            # N2V_MANIPULATE not the last transform
+            elif transform_list[-1] != SupportedTransform.N2V_MANIPULATE:
+                index = transform_list.index(SupportedTransform.N2V_MANIPULATE.value)
+                transform = transforms.pop(index)
+                transforms.append(transform)
 
         return transforms
 
@@ -255,13 +250,12 @@ class DataConfig(BaseModel):
         Self
             Data model with mean and std added to the Normalize transform.
         """
-        if self.mean is not None or self.std is not None:
+        if self.mean is not None and self.std is not None:
             # search in the transforms for Normalize and update parameters
-            if self.has_transform_list():
-                for transform in self.transforms:
-                    if transform.name == SupportedTransform.NORMALIZE.value:
-                        transform.mean = self.mean
-                        transform.std = self.std
+            for transform in self.transforms:
+                if transform.name == SupportedTransform.NORMALIZE.value:
+                    transform.mean = self.mean
+                    transform.std = self.std
 
         return self
 
@@ -287,26 +281,12 @@ class DataConfig(BaseModel):
                     f"({self.axes})."
                 )
 
-            if self.has_transform_list():
-                for transform in self.transforms:
-                    if transform.name == SupportedTransform.NDFLIP:
-                        transform.is_3D = True
-                    elif transform.name == SupportedTransform.XY_RANDOM_ROTATE90:
-                        transform.is_3D = True
-
         else:
             if len(self.patch_size) != 2:
                 raise ValueError(
                     f"Patch size must have 3 dimensions if the data is 3D "
                     f"({self.axes})."
                 )
-
-            if self.has_transform_list():
-                for transform in self.transforms:
-                    if transform.name == SupportedTransform.NDFLIP:
-                        transform.is_3D = False
-                    elif transform.name == SupportedTransform.XY_RANDOM_ROTATE90:
-                        transform.is_3D = False
 
         return self
 
@@ -333,84 +313,31 @@ class DataConfig(BaseModel):
         self.__dict__.update(kwargs)
         self.__class__.model_validate(self.__dict__)
 
-    def has_transform_list(self) -> bool:
-        """
-        Check if the transforms are a list, as opposed to a Compose object.
-
-        Returns
-        -------
-        bool
-            True if the transforms are a list, False otherwise.
-        """
-        return isinstance(self.transforms, list)
-
     def has_n2v_manipulate(self) -> bool:
         """
         Check if the transforms contain N2VManipulate.
-
-        Use `has_transform_list` to check if the transforms are a list.
 
         Returns
         -------
         bool
             True if the transforms contain N2VManipulate, False otherwise.
-
-        Raises
-        ------
-        ValueError
-            If the transforms are a Compose object.
         """
-        if self.has_transform_list():
-            return any(
-                transform.name == SupportedTransform.N2V_MANIPULATE.value
-                for transform in self.transforms
-            )
-        else:
-            raise ValueError(
-                "Checking for N2VManipulate with Compose transforms is not allowed. "
-                "Check directly in the Compose."
-            )
+        return any(
+            transform.name == SupportedTransform.N2V_MANIPULATE.value
+            for transform in self.transforms
+        )
 
     def add_n2v_manipulate(self) -> None:
-        """
-        Add N2VManipulate to the transforms.
-
-        Use `has_transform_list` to check if the transforms are a list.
-
-        Raises
-        ------
-        ValueError
-            If the transforms are a Compose object.
-        """
-        if self.has_transform_list():
-            if not self.has_n2v_manipulate():
-                self.transforms.append(
-                    N2VManipulateModel(name=SupportedTransform.N2V_MANIPULATE.value)
-                )
-        else:
-            raise ValueError(
-                "Adding N2VManipulate with Compose transforms is not allowed. Add "
-                "N2VManipulate directly to the transform in the Compose."
+        """Add N2VManipulate to the transforms."""
+        if not self.has_n2v_manipulate():
+            self.transforms.append(
+                N2VManipulateModel(name=SupportedTransform.N2V_MANIPULATE.value)
             )
 
     def remove_n2v_manipulate(self) -> None:
-        """
-        Remove N2VManipulate from the transforms.
-
-        Use `has_transform_list` to check if the transforms are a list.
-
-        Raises
-        ------
-        ValueError
-            If the transforms are a Compose object.
-        """
-        if self.has_transform_list() and self.has_n2v_manipulate():
+        """Remove N2VManipulate from the transforms."""
+        if self.has_n2v_manipulate():
             self.transforms.pop(-1)
-        else:
-            raise ValueError(
-                "Removing N2VManipulate with Compose transforms is not allowed. Remove "
-                "N2VManipulate directly from the transform in the Compose."
-            )
 
     def set_mean_and_std(self, mean: float, std: float) -> None:
         """
@@ -427,18 +354,6 @@ class DataConfig(BaseModel):
             Standard deviation of the data.
         """
         self._update(mean=mean, std=std)
-
-        # search in the transforms for Normalize and update parameters
-        if self.has_transform_list():
-            for transform in self.transforms:
-                if transform.name == SupportedTransform.NORMALIZE.value:
-                    transform.mean = mean
-                    transform.std = std
-        else:
-            raise ValueError(
-                "Setting mean and std with Compose transforms is not allowed. Add "
-                "mean and std parameters directly to the transform in the Compose."
-            )
 
     def set_3D(self, axes: str, patch_size: List[int]) -> None:
         """
@@ -466,8 +381,6 @@ class DataConfig(BaseModel):
         ------
         ValueError
             If the N2V pixel manipulate transform is not found in the transforms.
-        ValueError
-            If the transforms are a Compose object.
         """
         if use_n2v2:
             self.set_N2V2_strategy("median")
@@ -487,28 +400,19 @@ class DataConfig(BaseModel):
         ------
         ValueError
             If the N2V pixel manipulate transform is not found in the transforms.
-        ValueError
-            If the transforms are a Compose object.
         """
-        if isinstance(self.transforms, list):
-            found_n2v = False
+        found_n2v = False
 
-            for transform in self.transforms:
-                if transform.name == SupportedTransform.N2V_MANIPULATE.value:
-                    transform.strategy = strategy
-                    found_n2v = True
+        for transform in self.transforms:
+            if transform.name == SupportedTransform.N2V_MANIPULATE.value:
+                transform.strategy = strategy
+                found_n2v = True
 
-            if not found_n2v:
-                transforms = [t.name for t in self.transforms]
-                raise ValueError(
-                    f"N2V_Manipulate transform not found in the transforms list "
-                    f"({transforms})."
-                )
-
-        else:
+        if not found_n2v:
+            transforms = [t.name for t in self.transforms]
             raise ValueError(
-                "Setting N2V2 strategy with Compose transforms is not allowed. Add "
-                "N2V2 strategy parameters directly to the transform in the Compose."
+                f"N2V_Manipulate transform not found in the transforms list "
+                f"({transforms})."
             )
 
     def set_structN2V_mask(
@@ -530,27 +434,18 @@ class DataConfig(BaseModel):
         ------
         ValueError
             If the N2V pixel manipulate transform is not found in the transforms.
-        ValueError
-            If the transforms are a Compose object.
         """
-        if isinstance(self.transforms, list):
-            found_n2v = False
+        found_n2v = False
 
-            for transform in self.transforms:
-                if transform.name == SupportedTransform.N2V_MANIPULATE.value:
-                    transform.struct_mask_axis = mask_axis
-                    transform.struct_mask_span = mask_span
-                    found_n2v = True
+        for transform in self.transforms:
+            if transform.name == SupportedTransform.N2V_MANIPULATE.value:
+                transform.struct_mask_axis = mask_axis
+                transform.struct_mask_span = mask_span
+                found_n2v = True
 
-            if not found_n2v:
-                transforms = [t.name for t in self.transforms]
-                raise ValueError(
-                    f"N2V pixel manipulate transform not found in the transforms "
-                    f"({transforms})."
-                )
-
-        else:
+        if not found_n2v:
+            transforms = [t.name for t in self.transforms]
             raise ValueError(
-                "Setting structN2VMask with Compose transforms is not allowed. Add "
-                "structN2VMask parameters directly to the transform in the Compose."
+                f"N2V pixel manipulate transform not found in the transforms "
+                f"({transforms})."
             )

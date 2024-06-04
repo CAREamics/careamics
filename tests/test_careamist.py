@@ -136,7 +136,10 @@ def test_train_array(tmp_path: Path, minimum_configuration: dict):
     assert (tmp_path / "model.zip").exists()
 
 
-def test_train_array_channel(tmp_path: Path, minimum_configuration: dict):
+@pytest.mark.parametrize("independent_channels", [False, True])
+def test_train_array_channel(
+    tmp_path: Path, minimum_configuration: dict, independent_channels: bool
+):
     """Test that CAREamics can be trained on arrays with channels."""
     # training data
     train_array = np.random.rand(32, 32, 3)
@@ -148,6 +151,7 @@ def test_train_array_channel(tmp_path: Path, minimum_configuration: dict):
     config.data_config.axes = "YXC"
     config.algorithm_config.model.in_channels = 3
     config.algorithm_config.model.num_classes = 3
+    config.algorithm_config.model.independent_channels = independent_channels
     config.data_config.batch_size = 2
     config.data_config.data_type = SupportedData.ARRAY.value
     config.data_config.patch_size = (8, 8)

@@ -1,3 +1,5 @@
+"""Pydantic model representing the metadata of a prediction tile."""
+
 from __future__ import annotations
 
 from typing import Optional, Tuple

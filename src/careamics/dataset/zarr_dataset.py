@@ -1,3 +1,5 @@
+"""Zarr dataset."""
+
 # from itertools import islice
 # from typing import Callable, Dict, List, Optional, Tuple, Union
 

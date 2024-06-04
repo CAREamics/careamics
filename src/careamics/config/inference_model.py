@@ -4,15 +4,10 @@ from __future__ import annotations
 
 from typing import Any, List, Literal, Optional, Union
 
-from albumentations import Compose
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from typing_extensions import Self
 
-from .support import SupportedTransform
-from .transformations.normalize_model import NormalizeModel
 from .validators import check_axes_validity, patch_size_ge_than_8_power_of_2
-
-TRANSFORMS_UNION = Union[NormalizeModel]
 
 
 class InferenceConfig(BaseModel):
@@ -34,15 +29,6 @@ class InferenceConfig(BaseModel):
     mean: float
     std: float = Field(..., ge=0.0)
 
-    transforms: Union[List[TRANSFORMS_UNION], Compose] = Field(
-        default=[
-            {
-                "name": SupportedTransform.NORMALIZE.value,
-            },
-        ],
-        validate_default=True,
-    )
-
     # only default TTAs are supported for now
     tta_transforms: bool = Field(default=True)
 
@@ -52,22 +38,22 @@ class InferenceConfig(BaseModel):
     @field_validator("tile_overlap")
     @classmethod
     def all_elements_non_zero_even(
-        cls, patch_list: Optional[Union[List[int]]]
+        cls, tile_overlap: Optional[Union[List[int]]]
     ) -> Optional[Union[List[int]]]:
         """
-        Validate patch size.
+        Validate tile overlap.
 
-        Patch size must be non-zero, positive and even.
+        Overlaps must be non-zero, positive and even.
 
         Parameters
         ----------
-        patch_list : Optional[Union[List[int]]]
+        tile_overlap : Optional[Union[List[int]]]
             Patch size.
 
         Returns
         -------
         Optional[Union[List[int]]]
-            Validated patch size.
+            Validated tile overlap.
 
         Raises
         ------
@@ -76,8 +62,8 @@ class InferenceConfig(BaseModel):
         ValueError
             If the patch size is not even.
         """
-        if patch_list is not None:
-            for dim in patch_list:
+        if tile_overlap is not None:
+            for dim in tile_overlap:
                 if dim < 1:
                     raise ValueError(
                         f"Patch size must be non-zero positive (got {dim})."
@@ -86,7 +72,7 @@ class InferenceConfig(BaseModel):
                 if dim % 2 != 0:
                     raise ValueError(f"Patch size must be even (got {dim}).")
 
-        return patch_list
+        return tile_overlap
 
     @field_validator("tile_size")
     @classmethod
@@ -150,39 +136,6 @@ class InferenceConfig(BaseModel):
 
         return axes
 
-    @field_validator("transforms")
-    @classmethod
-    def validate_transforms(
-        cls, transforms: Union[List[TRANSFORMS_UNION], Compose]
-    ) -> Union[List[TRANSFORMS_UNION], Compose]:
-        """
-        Validate that transforms do not have N2V pixel manipulate transforms.
-
-        Parameters
-        ----------
-        transforms : Union[List[TransformModel], Compose]
-            Transforms.
-
-        Returns
-        -------
-        Union[List[Transformations_Union], Compose]
-            Validated transforms.
-
-        Raises
-        ------
-        ValueError
-            If transforms contain N2V pixel manipulate transforms.
-        """
-        if not isinstance(transforms, Compose) and transforms is not None:
-            for transform in transforms:
-                if transform.name == SupportedTransform.N2V_MANIPULATE.value:
-                    raise ValueError(
-                        "N2V_Manipulate transform is not allowed in "
-                        "prediction transforms."
-                    )
-
-        return transforms
-
     @model_validator(mode="after")
     def validate_dimensions(self: Self) -> Self:
         """
@@ -233,26 +186,6 @@ class InferenceConfig(BaseModel):
             raise ValueError(
                 "Mean and std must be either both None, or both specified."
             )
-
-        return self
-
-    @model_validator(mode="after")
-    def add_std_and_mean_to_normalize(self: Self) -> Self:
-        """
-        Add mean and std to the Normalize transform if it is present.
-
-        Returns
-        -------
-        Self
-            Inference model with mean and std added to the Normalize transform.
-        """
-        if self.mean is not None or self.std is not None:
-            # search in the transforms for Normalize and update parameters
-            if not isinstance(self.transforms, Compose):
-                for transform in self.transforms:
-                    if transform.name == SupportedTransform.NORMALIZE.value:
-                        transform.mean = self.mean
-                        transform.std = self.std
 
         return self
 

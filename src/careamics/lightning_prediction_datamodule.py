@@ -1,11 +1,10 @@
 """Prediction Lightning data modules."""
 
 from pathlib import Path
-from typing import Any, Callable, List, Literal, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, Union
 
 import numpy as np
 import pytorch_lightning as L
-from albumentations import Compose
 from torch.utils.data import DataLoader
 from torch.utils.data.dataloader import default_collate
 
@@ -40,7 +39,7 @@ def _collate_tiles(batch: List[Tuple[np.ndarray, TileInformation]]) -> Any:
 
     Parameters
     ----------
-    batch : Tuple[Tuple[np.ndarray, TileInformation], ...]
+    batch : List[Tuple[np.ndarray, TileInformation], ...]
         Batch of tiles.
 
     Returns
@@ -258,14 +257,13 @@ class PredictDataWrapper(CAREamicsPredictData):
 
     The default transformations applied to the images are defined in
     `careamics.config.inference_model`. To use different transformations, pass a list
-    of transforms or an albumentation `Compose` as `transforms` parameter. See examples
+    of transforms. See examples
     for more details.
 
     The `mean` and `std` parameters are only used if Normalization is defined either
-    in the default transformations or in the `transforms` parameter, but not with
-    a `Compose` object. If you pass a `Normalization` transform in a list as
-    `transforms`, then the mean and std parameters will be overwritten by those passed
-    to this method.
+    in the default transformations or in the `transforms` parameter. If you pass a
+    `Normalization` transform in a list as `transforms`, then the mean and std
+    parameters will be overwritten by those passed to this method.
 
     By default, CAREamics only supports types defined in
     `careamics.config.support.SupportedData`. To read custom data types, you can set
@@ -276,6 +274,12 @@ class PredictDataWrapper(CAREamicsPredictData):
     In `dataloader_params`, you can pass any parameter accepted by PyTorch
     dataloaders, except for `batch_size`, which is set by the `batch_size`
     parameter.
+
+    Note that if you are using a UNet model and tiling, the tile size must be
+    divisible in every dimension by 2**d, where d is the depth of the model. This
+    avoids artefacts arising from the broken shift invariance induced by the
+    pooling layers of the UNet. If your image has less dimensions, as it may
+    happen in the Z dimension, consider padding your image.
 
     Parameters
     ----------
@@ -299,9 +303,6 @@ class PredictDataWrapper(CAREamicsPredictData):
         Batch size.
     tta_transforms : bool, optional
         Use test time augmentation, by default True.
-    transforms : Optional[Union[List[TRANSFORMS_UNION], Compose]], optional
-        List of transforms to apply to prediction patches. If None, default
-        transforms are applied.
     read_source_func : Optional[Callable], optional
         Function to read the source data, used if `data_type` is `custom`, by
         default None.
@@ -322,7 +323,6 @@ class PredictDataWrapper(CAREamicsPredictData):
         axes: str = "YX",
         batch_size: int = 1,
         tta_transforms: bool = True,
-        transforms: Optional[Union[List, Compose]] = None,
         read_source_func: Optional[Callable] = None,
         extension_filter: str = "",
         dataloader_params: Optional[dict] = None,
@@ -352,9 +352,6 @@ class PredictDataWrapper(CAREamicsPredictData):
             Batch size.
         tta_transforms : bool, optional
             Use test time augmentation, by default True.
-        transforms : Optional[Union[List[TRANSFORMS_UNION], Compose]], optional
-            List of transforms to apply to prediction patches. If None, default
-            transforms are applied.
         read_source_func : Optional[Callable], optional
             Function to read the source data, used if `data_type` is `custom`, by
             default None.
@@ -365,7 +362,7 @@ class PredictDataWrapper(CAREamicsPredictData):
         """
         if dataloader_params is None:
             dataloader_params = {}
-        prediction_dict = {
+        prediction_dict: Dict[str, Any] = {
             "data_type": data_type,
             "tile_size": tile_size,
             "tile_overlap": tile_overlap,
@@ -374,11 +371,8 @@ class PredictDataWrapper(CAREamicsPredictData):
             "std": std,
             "tta": tta_transforms,
             "batch_size": batch_size,
+            "transforms": [],
         }
-
-        # if transforms are passed (otherwise it will use the default ones)
-        if transforms is not None:
-            prediction_dict["transforms"] = transforms
 
         # validate configuration
         self.prediction_config = InferenceConfig(**prediction_dict)

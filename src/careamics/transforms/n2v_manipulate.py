@@ -1,26 +1,53 @@
+"""N2V manipulation transform."""
+
 from typing import Any, Literal, Optional, Tuple
 
 import numpy as np
-from albumentations import ImageOnlyTransform
 
 from careamics.config.support import SupportedPixelManipulation, SupportedStructAxis
+from careamics.transforms.transform import Transform
 
 from .pixel_manipulation import median_manipulate, uniform_manipulate
 from .struct_mask_parameters import StructMaskParameters
 
 
-class N2VManipulate(ImageOnlyTransform):
+class N2VManipulate(Transform):
     """
     Default augmentation for the N2V model.
 
-    This transform expects (Z)YXC dimensions.
+    This transform expects C(Z)YX dimensions.
 
     Parameters
     ----------
-    mask_pixel_percentage : float
-        Approximate percentage of pixels to be masked.
+    roi_size : int, optional
+        Size of the replacement area, by default 11.
+    masked_pixel_percentage : float, optional
+        Percentage of pixels to mask, by default 0.2.
+    strategy : Literal[ "uniform", "median" ], optional
+        Replaccement strategy, uniform or median, by default uniform.
+    remove_center : bool, optional
+        Whether to remove central pixel from patch, by default True.
+    struct_mask_axis : Literal["horizontal", "vertical", "none"], optional
+        StructN2V mask axis, by default "none".
+    struct_mask_span : int, optional
+        StructN2V mask span, by default 5.
+    seed : Optional[int], optional
+        Random seed, by default None.
+
+    Attributes
+    ----------
+    masked_pixel_percentage : float
+        Percentage of pixels to mask.
     roi_size : int
-        Size of the ROI the new pixel value is sampled from, by default 11.
+        Size of the replacement area.
+    strategy : Literal[ "uniform", "median" ]
+        Replaccement strategy, uniform or median.
+    remove_center : bool
+        Whether to remove central pixel from patch.
+    struct_mask : Optional[StructMaskParameters]
+        StructN2V mask parameters.
+    rng : Generator
+        Random number generator.
     """
 
     def __init__(
@@ -33,29 +60,31 @@ class N2VManipulate(ImageOnlyTransform):
         remove_center: bool = True,
         struct_mask_axis: Literal["horizontal", "vertical", "none"] = "none",
         struct_mask_span: int = 5,
+        seed: Optional[int] = None,  # TODO use in pixel manipulation
     ):
         """Constructor.
 
         Parameters
         ----------
         roi_size : int, optional
-            Size of the replacement area, by default 11
+            Size of the replacement area, by default 11.
         masked_pixel_percentage : float, optional
-            Percentage of pixels to mask, by default 0.2
+            Percentage of pixels to mask, by default 0.2.
         strategy : Literal[ "uniform", "median" ], optional
-            Replaccement strategy, uniform or median, by default uniform
+            Replaccement strategy, uniform or median, by default uniform.
         remove_center : bool, optional
-            Whether to remove central pixel from patch, by default True
+            Whether to remove central pixel from patch, by default True.
         struct_mask_axis : Literal["horizontal", "vertical", "none"], optional
-            StructN2V mask axis, by default "none"
+            StructN2V mask axis, by default "none".
         struct_mask_span : int, optional
-            StructN2V mask span, by default 5
+            StructN2V mask span, by default 5.
+        seed : Optional[int], optional
+            Random seed, by default None.
         """
-        super().__init__(p=1)
         self.masked_pixel_percentage = masked_pixel_percentage
         self.roi_size = roi_size
         self.strategy = strategy
-        self.remove_center = remove_center
+        self.remove_center = remove_center  # TODO is this ever used?
 
         if struct_mask_axis == SupportedStructAxis.NONE:
             self.struct_mask: Optional[StructMaskParameters] = None
@@ -65,23 +94,35 @@ class N2VManipulate(ImageOnlyTransform):
                 span=struct_mask_span,
             )
 
-    def apply(
-        self, patch: np.ndarray, **kwargs: Any
+        # numpy random generator
+        self.rng = np.random.default_rng(seed=seed)
+
+    def __call__(
+        self, patch: np.ndarray, *args: Any, **kwargs: Any
     ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """Apply the transform to the image.
 
         Parameters
         ----------
-        image : np.ndarray
-            Image or image patch, 2D or 3D, shape (y, x, c) or (z, y, x, c).
+        patch : np.ndarray
+            Image patch, 2D or 3D, shape C(Z)YX.
+        *args : Any
+            Additional arguments, unused.
+        **kwargs : Any
+            Additional keyword arguments, unused.
+
+        Returns
+        -------
+        Tuple[np.ndarray, np.ndarray, np.ndarray]
+            Masked patch, original patch, and mask.
         """
         masked = np.zeros_like(patch)
         mask = np.zeros_like(patch)
         if self.strategy == SupportedPixelManipulation.UNIFORM:
             # Iterate over the channels to apply manipulation separately
-            for c in range(patch.shape[-1]):
-                masked[..., c], mask[..., c] = uniform_manipulate(
-                    patch=patch[..., c],
+            for c in range(patch.shape[0]):
+                masked[c, ...], mask[c, ...] = uniform_manipulate(
+                    patch=patch[c, ...],
                     mask_pixel_percentage=self.masked_pixel_percentage,
                     subpatch_size=self.roi_size,
                     remove_center=self.remove_center,
@@ -89,9 +130,9 @@ class N2VManipulate(ImageOnlyTransform):
                 )
         elif self.strategy == SupportedPixelManipulation.MEDIAN:
             # Iterate over the channels to apply manipulation separately
-            for c in range(patch.shape[-1]):
-                masked[..., c], mask[..., c] = median_manipulate(
-                    patch=patch[..., c],
+            for c in range(patch.shape[0]):
+                masked[c, ...], mask[c, ...] = median_manipulate(
+                    patch=patch[c, ...],
                     mask_pixel_percentage=self.masked_pixel_percentage,
                     subpatch_size=self.roi_size,
                     struct_params=self.struct_mask,
@@ -101,13 +142,3 @@ class N2VManipulate(ImageOnlyTransform):
 
         # TODO why return patch?
         return masked, patch, mask
-
-    def get_transform_init_args_names(self) -> Tuple[str, ...]:
-        """Get the transform parameters.
-
-        Returns
-        -------
-        Tuple[str, ...]
-            Transform parameters.
-        """
-        return ("roi_size", "masked_pixel_percentage", "strategy", "struct_mask")

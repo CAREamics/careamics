@@ -1,11 +1,6 @@
 import pytest
-from albumentations import Compose
 
 from careamics.config.inference_model import InferenceConfig
-from careamics.config.support import (
-    SupportedTransform,
-)
-from careamics.transforms import get_all_transforms
 
 
 @pytest.mark.parametrize("ext", ["nd2", "jpg", "png ", "zarr", "npy"])
@@ -120,66 +115,3 @@ def test_set_3d(minimum_inference: dict):
     assert "Z" in pred.axes
     assert len(pred.tile_size) == 3
     assert len(pred.tile_overlap) == 3
-
-
-@pytest.mark.parametrize(
-    "transforms",
-    [
-        [
-            {"name": SupportedTransform.NORMALIZE.value},
-        ],
-    ],
-)
-def test_passing_supported_transforms(minimum_inference: dict, transforms):
-    """Test that list of supported transforms can be passed."""
-    minimum_inference["transforms"] = transforms
-    InferenceConfig(**minimum_inference)
-
-
-def test_cannot_pass_n2v_manipulate(minimum_inference: dict):
-    """Test that passing N2V pixel manipulate transform raises an error."""
-    minimum_inference["transforms"] = [
-        {"name": SupportedTransform.N2V_MANIPULATE.value},
-    ]
-    with pytest.raises(ValueError):
-        InferenceConfig(**minimum_inference)
-
-
-def test_passing_empty_transforms(minimum_inference: dict):
-    """Test that empty list of transforms can be passed."""
-    minimum_inference["transforms"] = []
-    InferenceConfig(**minimum_inference)
-
-
-def test_passing_incorrect_element(minimum_inference: dict):
-    """Test that incorrect element in the list of transforms raises an error (
-    e.g. passing un object rather than a string)."""
-    minimum_inference["transforms"] = [
-        {"name": get_all_transforms()[SupportedTransform.NDFLIP.value]()},
-    ]
-    with pytest.raises(ValueError):
-        InferenceConfig(**minimum_inference)
-
-
-def test_passing_compose_transform(minimum_inference: dict):
-    """Test that Compose transform can be passed."""
-    minimum_inference["transforms"] = Compose(
-        [
-            get_all_transforms()[SupportedTransform.NORMALIZE](mean=10.4, std=3.2),
-            get_all_transforms()[SupportedTransform.NDFLIP](),
-        ]
-    )
-    InferenceConfig(**minimum_inference)
-
-
-def test_mean_and_std_in_normalize(minimum_inference: dict):
-    """Test that mean and std are added to the Normalize transform."""
-    minimum_inference["mean"] = 10.4
-    minimum_inference["std"] = 3.2
-    minimum_inference["transforms"] = [
-        {"name": SupportedTransform.NORMALIZE.value},
-    ]
-
-    data = InferenceConfig(**minimum_inference)
-    assert data.transforms[0].mean == 10.4
-    assert data.transforms[0].std == 3.2

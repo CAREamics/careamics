@@ -5,15 +5,19 @@ This submodule contains the various losses used in CAREamics.
 """
 
 import torch
-
-# TODO if we are only using the DiceLoss, can we just implement it?
-# from segmentation_models_pytorch.losses import DiceLoss
 from torch.nn import L1Loss, MSELoss
 
 
-def mse_loss(samples: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
+def mse_loss(source: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
     """
     Mean squared error loss.
+
+    Parameters
+    ----------
+    source : torch.Tensor
+        Source patches.
+    target : torch.Tensor
+        Target patches.
 
     Returns
     -------
@@ -21,7 +25,7 @@ def mse_loss(samples: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
         Loss value.
     """
     loss = MSELoss()
-    return loss(samples, labels)
+    return loss(source, target)
 
 
 def n2v_loss(
@@ -34,9 +38,9 @@ def n2v_loss(
 
     Parameters
     ----------
-    samples : torch.Tensor
+    manipulated_patches : torch.Tensor
         Patches with manipulated pixels.
-    labels : torch.Tensor
+    original_patches : torch.Tensor
         Noisy patches.
     masks : torch.Tensor
         Array containing masked pixel locations.

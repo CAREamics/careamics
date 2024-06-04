@@ -4,7 +4,7 @@ UNet model.
 A UNet encoder, decoder and complete model.
 """
 
-from typing import Any, List, Union
+from typing import Any, List, Tuple, Union
 
 import torch
 import torch.nn as nn
@@ -34,6 +34,11 @@ class UnetEncoder(nn.Module):
         Dropout probability, by default 0.0.
     pool_kernel : int, optional
         Kernel size for the max pooling layers, by default 2.
+    n2v2 : bool, optional
+        Whether to use N2V2 architecture, by default False.
+    groups : int, optional
+        Number of blocked connections from input channels to output
+        channels, by default 1.
     """
 
     def __init__(
@@ -46,6 +51,7 @@ class UnetEncoder(nn.Module):
         dropout: float = 0.0,
         pool_kernel: int = 2,
         n2v2: bool = False,
+        groups: int = 1,
     ) -> None:
         """
         Constructor.
@@ -66,6 +72,11 @@ class UnetEncoder(nn.Module):
             Dropout probability, by default 0.0.
         pool_kernel : int, optional
             Kernel size for the max pooling layers, by default 2.
+        n2v2 : bool, optional
+            Whether to use N2V2 architecture, by default False.
+        groups : int, optional
+            Number of blocked connections from input channels to output
+            channels, by default 1.
         """
         super().__init__()
 
@@ -78,7 +89,7 @@ class UnetEncoder(nn.Module):
         encoder_blocks = []
 
         for n in range(depth):
-            out_channels = num_channels_init * (2**n)
+            out_channels = num_channels_init * (2**n) * groups
             in_channels = in_channels if n == 0 else out_channels // 2
             encoder_blocks.append(
                 Conv_Block(
@@ -87,6 +98,7 @@ class UnetEncoder(nn.Module):
                     out_channels=out_channels,
                     dropout_perc=dropout,
                     use_batch_norm=use_batch_norm,
+                    groups=groups,
                 )
             )
             encoder_blocks.append(self.pooling)
@@ -132,6 +144,11 @@ class UnetDecoder(nn.Module):
         Whether to use batch normalization, by default True.
     dropout : float, optional
         Dropout probability, by default 0.0.
+    n2v2 : bool, optional
+        Whether to use N2V2 architecture, by default False.
+    groups : int, optional
+        Number of blocked connections from input channels to output
+        channels, by default 1.
     """
 
     def __init__(
@@ -142,6 +159,7 @@ class UnetDecoder(nn.Module):
         use_batch_norm: bool = True,
         dropout: float = 0.0,
         n2v2: bool = False,
+        groups: int = 1,
     ) -> None:
         """
         Constructor.
@@ -158,15 +176,21 @@ class UnetDecoder(nn.Module):
             Whether to use batch normalization, by default True.
         dropout : float, optional
             Dropout probability, by default 0.0.
+        n2v2 : bool, optional
+            Whether to use N2V2 architecture, by default False.
+        groups : int, optional
+            Number of blocked connections from input channels to output
+            channels, by default 1.
         """
         super().__init__()
 
         upsampling = nn.Upsample(
             scale_factor=2, mode="bilinear" if conv_dim == 2 else "trilinear"
         )
-        in_channels = out_channels = num_channels_init * 2 ** (depth - 1)
+        in_channels = out_channels = num_channels_init * groups * (2 ** (depth - 1))
 
         self.n2v2 = n2v2
+        self.groups = groups
 
         self.bottleneck = Conv_Block(
             conv_dim,
@@ -175,12 +199,13 @@ class UnetDecoder(nn.Module):
             intermediate_channel_multiplier=2,
             use_batch_norm=use_batch_norm,
             dropout_perc=dropout,
+            groups=self.groups,
         )
 
-        decoder_blocks = []
+        decoder_blocks: List[nn.Module] = []
         for n in range(depth):
             decoder_blocks.append(upsampling)
-            in_channels = num_channels_init * 2 ** (depth - n)
+            in_channels = (num_channels_init * 2 ** (depth - n)) * groups
             out_channels = in_channels // 2
             decoder_blocks.append(
                 Conv_Block(
@@ -193,12 +218,13 @@ class UnetDecoder(nn.Module):
                     dropout_perc=dropout,
                     activation="ReLU",
                     use_batch_norm=use_batch_norm,
+                    groups=groups,
                 )
             )
 
         self.decoder_blocks = nn.ModuleList(decoder_blocks)
 
-    def forward(self, *features: List[torch.Tensor]) -> torch.Tensor:
+    def forward(self, *features: torch.Tensor) -> torch.Tensor:
         """
         Forward pass.
 
@@ -214,19 +240,72 @@ class UnetDecoder(nn.Module):
             Output of the decoder.
         """
         x: torch.Tensor = features[0]
-        skip_connections: torch.Tensor = features[1:][::-1]
+        skip_connections: Tuple[torch.Tensor, ...] = features[-1:0:-1]
 
         x = self.bottleneck(x)
 
         for i, module in enumerate(self.decoder_blocks):
             x = module(x)
             if isinstance(module, nn.Upsample):
+                # divide index by 2 because of upsampling layers
+                skip_connection: torch.Tensor = skip_connections[i // 2]
                 if self.n2v2:
                     if x.shape != skip_connections[-1].shape:
-                        x = torch.cat([x, skip_connections[i // 2]], axis=1)
+                        x = self._interleave(x, skip_connection, self.groups)
                 else:
-                    x = torch.cat([x, skip_connections[i // 2]], axis=1)
+                    x = self._interleave(x, skip_connection, self.groups)
         return x
+
+    @staticmethod
+    def _interleave(A: torch.Tensor, B: torch.Tensor, groups: int) -> torch.Tensor:
+        """Interleave two tensors.
+
+        Splits the tensors `A` and `B` into equally sized groups along the channel
+        axis (axis=1); then concatenates the groups in alternating order along the
+        channel axis, starting with the first group from tensor A.
+
+        Parameters
+        ----------
+        A : torch.Tensor
+            First tensor.
+        B : torch.Tensor
+            Second tensor.
+        groups : int
+            The number of groups.
+
+        Returns
+        -------
+        torch.Tensor
+            Interleaved tensor.
+
+        Raises
+        ------
+        ValueError:
+            If either of `A` or `B`'s channel axis is not divisible by `groups`.
+        """
+        if (A.shape[1] % groups != 0) or (B.shape[1] % groups != 0):
+            raise ValueError(f"Number of channels not divisible by {groups} groups.")
+
+        m = A.shape[1] // groups
+        n = B.shape[1] // groups
+
+        A_groups: List[torch.Tensor] = [
+            A[:, i * m : (i + 1) * m] for i in range(groups)
+        ]
+        B_groups: List[torch.Tensor] = [
+            B[:, i * n : (i + 1) * n] for i in range(groups)
+        ]
+
+        interleaved = torch.cat(
+            [
+                tensor_list[i]
+                for i in range(groups)
+                for tensor_list in [A_groups, B_groups]
+            ],
+            dim=1,
+        )
+
+        return interleaved
 
 
 class UNet(nn.Module):
@@ -254,8 +333,14 @@ class UNet(nn.Module):
         Dropout probability, by default 0.0.
     pool_kernel : int, optional
         Kernel size of the pooling layers, by default 2.
-    last_activation : Optional[Callable], optional
+    final_activation : Optional[Callable], optional
         Activation function to use for the last layer, by default None.
+    n2v2 : bool, optional
+        Whether to use N2V2 architecture, by default False.
+    independent_channels : bool
+        Whether to train the channels independently, by default True.
+    **kwargs : Any
+        Additional keyword arguments, unused.
     """
 
     def __init__(
@@ -270,6 +355,7 @@ class UNet(nn.Module):
         pool_kernel: int = 2,
         final_activation: Union[SupportedActivation, str] = SupportedActivation.NONE,
         n2v2: bool = False,
+        independent_channels: bool = True,
         **kwargs: Any,
     ) -> None:
         """
@@ -293,10 +379,19 @@ class UNet(nn.Module):
             Dropout probability, by default 0.0.
         pool_kernel : int, optional
             Kernel size of the pooling layers, by default 2.
-        last_activation : Optional[Callable], optional
+        final_activation : Optional[Callable], optional
             Activation function to use for the last layer, by default None.
+        n2v2 : bool, optional
+            Whether to use N2V2 architecture, by default False.
+        independent_channels : bool
+            Whether to train parallel independent networks for each channel, by
+            default True.
+        **kwargs : Any
+            Additional keyword arguments, unused.
         """
         super().__init__()
+
+        groups = in_channels if independent_channels else 1
 
         self.encoder = UnetEncoder(
             conv_dims,
@@ -307,6 +402,7 @@ class UNet(nn.Module):
             dropout=dropout,
             pool_kernel=pool_kernel,
             n2v2=n2v2,
+            groups=groups,
         )
 
         self.decoder = UnetDecoder(
@@ -316,11 +412,13 @@ class UNet(nn.Module):
             use_batch_norm=use_batch_norm,
             dropout=dropout,
             n2v2=n2v2,
+            groups=groups,
         )
         self.final_conv = getattr(nn, f"Conv{conv_dims}d")(
-            in_channels=num_channels_init,
+            in_channels=num_channels_init * groups,
             out_channels=num_classes,
             kernel_size=1,
+            groups=groups,
         )
         self.final_activation = get_activation(final_activation)
 

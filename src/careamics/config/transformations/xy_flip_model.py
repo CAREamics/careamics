@@ -1,4 +1,4 @@
-"""Pydantic model for the XYRandomRotate90 transform."""
+"""Pydantic model for the XYFlip transform."""
 
 from typing import Literal, Optional
 
@@ -7,13 +7,13 @@ from pydantic import ConfigDict
 from .transform_model import TransformModel
 
 
-class XYRandomRotate90Model(TransformModel):
+class XYFlipModel(TransformModel):
     """
-    Pydantic model used to represent NDFlip transformation.
+    Pydantic model used to represent XYFlip transformation.
 
     Attributes
     ----------
-    name : Literal["XYRandomRotate90"]
+    name : Literal["XYFlip"]
         Name of the transformation.
     seed : Optional[int]
         Seed for the random number generator.
@@ -23,5 +23,5 @@ class XYRandomRotate90Model(TransformModel):
         validate_assignment=True,
     )
 
-    name: Literal["XYRandomRotate90"] = "XYRandomRotate90"
+    name: Literal["XYFlip"] = "XYFlip"
     seed: Optional[int] = None

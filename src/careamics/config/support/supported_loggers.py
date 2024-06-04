@@ -1,3 +1,5 @@
+"""Logger supported by CAREamics."""
+
 from careamics.utils import BaseEnum
 
 

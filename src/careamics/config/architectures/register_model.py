@@ -1,3 +1,5 @@
+"""Custom model registration utilities."""
+
 from typing import Callable
 
 from torch.nn import Module
@@ -53,7 +55,7 @@ def register_model(name: str) -> Callable:
         Parameters
         ----------
         model : Module
-            Module class to register
+            Module class to register.
 
         Returns
         -------

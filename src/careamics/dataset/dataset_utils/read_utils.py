@@ -1,3 +1,5 @@
+"""Read function utilities."""
+
 from typing import Callable, Union
 
 from careamics.config.support import SupportedData

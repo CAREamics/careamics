@@ -1,3 +1,5 @@
+"""Progressbar callback."""
+
 import sys
 from typing import Dict, Union
 
@@ -10,7 +12,13 @@ class ProgressBarCallback(TQDMProgressBar):
     """Progress bar for training and validation steps."""
 
     def init_train_tqdm(self) -> tqdm:
-        """Override this to customize the tqdm bar for training."""
+        """Override this to customize the tqdm bar for training.
+
+        Returns
+        -------
+        tqdm
+            A tqdm bar.
+        """
         bar = tqdm(
             desc="Training",
             position=(2 * self.process_position),
@@ -23,7 +31,13 @@ class ProgressBarCallback(TQDMProgressBar):
         return bar
 
     def init_validation_tqdm(self) -> tqdm:
-        """Override this to customize the tqdm bar for validation."""
+        """Override this to customize the tqdm bar for validation.
+
+        Returns
+        -------
+        tqdm
+            A tqdm bar.
+        """
         # The main progress bar doesn't exist in `trainer.validate()`
         has_main_bar = self.train_progress_bar is not None
         bar = tqdm(
@@ -37,7 +51,13 @@ class ProgressBarCallback(TQDMProgressBar):
         return bar
 
     def init_test_tqdm(self) -> tqdm:
-        """Override this to customize the tqdm bar for testing."""
+        """Override this to customize the tqdm bar for testing.
+
+        Returns
+        -------
+        tqdm
+            A tqdm bar.
+        """
         bar = tqdm(
             desc="Testing",
             position=(2 * self.process_position),
@@ -52,6 +72,19 @@ class ProgressBarCallback(TQDMProgressBar):
     def get_metrics(
         self, trainer: Trainer, pl_module: LightningModule
     ) -> Dict[str, Union[int, str, float, Dict[str, float]]]:
-        """Override this to customize the metrics displayed in the progress bar."""
+        """Override this to customize the metrics displayed in the progress bar.
+
+        Parameters
+        ----------
+        trainer : Trainer
+            The trainer object.
+        pl_module : LightningModule
+            The LightningModule object, unused.
+
+        Returns
+        -------
+        dict
+            A dictionary with the metrics to display in the progress bar.
+        """
         pbar_metrics = trainer.progress_bar_metrics
         return {**pbar_metrics}

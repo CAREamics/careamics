@@ -1,3 +1,5 @@
+"""CAREamics Lightning module."""
+
 from typing import Any, Optional, Union
 
 import pytorch_lightning as L
@@ -24,6 +26,11 @@ class CAREamicsModule(L.LightningModule):
     This class encapsulates the a PyTorch model along with the training, validation,
     and testing logic. It is configured using an `AlgorithmModel` Pydantic class.
 
+    Parameters
+    ----------
+    algorithm_config : Union[AlgorithmModel, dict]
+        Algorithm configuration.
+
     Attributes
     ----------
     model : nn.Module
@@ -39,8 +46,7 @@ class CAREamicsModule(L.LightningModule):
     """
 
     def __init__(self, algorithm_config: Union[AlgorithmConfig, dict]) -> None:
-        """
-        CAREamics Lightning module.
+        """Lightning module for CAREamics.
 
         This class encapsulates the a PyTorch model along with the training, validation,
         and testing logic. It is configured using an `AlgorithmModel` Pydantic class.
@@ -162,7 +168,7 @@ class CAREamicsModule(L.LightningModule):
             mean=self._trainer.datamodule.predict_dataset.mean,
             std=self._trainer.datamodule.predict_dataset.std,
         )
-        denormalized_output = denorm(image=output)["image"]
+        denormalized_output, _ = denorm(patch=output)
 
         if len(aux) > 0:
             return denormalized_output, aux

@@ -1,3 +1,5 @@
+"""UNet Pydantic model."""
+
 from __future__ import annotations
 
 from typing import Literal
@@ -39,6 +41,7 @@ class UNetModel(ArchitectureModel):
         "None", "Sigmoid", "Softmax", "Tanh", "ReLU", "LeakyReLU"
     ] = Field(default="None", validate_default=True)
     n2v2: bool = Field(default=False, validate_default=True)
+    independent_channels: bool = Field(default=True, validate_default=True)
 
     @field_validator("num_channels_init")
     @classmethod

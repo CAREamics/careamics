@@ -5,7 +5,6 @@ from typing import Any, Callable, Dict, List, Literal, Optional, Union
 
 import numpy as np
 import pytorch_lightning as L
-from albumentations import Compose
 from torch.utils.data import DataLoader
 
 from careamics.config import DataConfig
@@ -96,13 +95,13 @@ class CAREamicsTrainData(L.LightningDataModule):
         Batch size.
     use_in_memory : bool
         Whether to use in memory dataset if possible.
-    train_data : Union[Path, str, np.ndarray]
+    train_data : Union[Path, np.ndarray]
         Training data.
-    val_data : Optional[Union[Path, str, np.ndarray]]
+    val_data : Optional[Union[Path, np.ndarray]]
         Validation data.
-    train_data_target : Optional[Union[Path, str, np.ndarray]]
+    train_data_target : Optional[Union[Path, np.ndarray]]
         Training target data.
-    val_data_target : Optional[Union[Path, str, np.ndarray]]
+    val_data_target : Optional[Union[Path, np.ndarray]]
         Validation target data.
     val_percentage : float
         Percentage of the training data to use for validation, if no validation data is
@@ -218,17 +217,33 @@ class CAREamicsTrainData(L.LightningDataModule):
             )
 
         # configuration
-        self.data_config = data_config
-        self.data_type = data_config.data_type
-        self.batch_size = data_config.batch_size
-        self.use_in_memory = use_in_memory
+        self.data_config: DataConfig = data_config
+        self.data_type: str = data_config.data_type
+        self.batch_size: int = data_config.batch_size
+        self.use_in_memory: bool = use_in_memory
 
-        # data
-        self.train_data = train_data
-        self.val_data = val_data
+        # data: make data Path or np.ndarray, use type annotations for mypy
+        self.train_data: Union[Path, np.ndarray] = (
+            Path(train_data) if isinstance(train_data, str) else train_data
+        )
 
-        self.train_data_target = train_data_target
-        self.val_data_target = val_data_target
+        self.val_data: Union[Path, np.ndarray] = (
+            Path(val_data) if isinstance(val_data, str) else val_data
+        )
+
+        self.train_data_target: Union[Path, np.ndarray] = (
+            Path(train_data_target)
+            if isinstance(train_data_target, str)
+            else train_data_target
+        )
+
+        self.val_data_target: Union[Path, np.ndarray] = (
+            Path(val_data_target)
+            if isinstance(val_data_target, str)
+            else val_data_target
+        )
+
+        # validation split
         self.val_percentage = val_percentage
         self.val_minimum_split = val_minimum_split
 
@@ -242,10 +257,10 @@ class CAREamicsTrainData(L.LightningDataModule):
         elif data_config.data_type != SupportedData.ARRAY:
             self.read_source_func = get_read_func(data_config.data_type)
 
-        self.extension_filter = extension_filter
+        self.extension_filter: str = extension_filter
 
         # Pytorch dataloader parameters
-        self.dataloader_params = (
+        self.dataloader_params: Dict[str, Any] = (
             data_config.dataloader_params if data_config.dataloader_params else {}
         )
 
@@ -310,20 +325,30 @@ class CAREamicsTrainData(L.LightningDataModule):
         """
         # if numpy array
         if self.data_type == SupportedData.ARRAY:
+            # mypy checks
+            assert isinstance(self.train_data, np.ndarray)
+            if self.train_data_target is not None:
+                assert isinstance(self.train_data_target, np.ndarray)
+
             # train dataset
             self.train_dataset: DatasetType = InMemoryDataset(
                 data_config=self.data_config,
                 inputs=self.train_data,
-                data_target=self.train_data_target,
+                input_target=self.train_data_target,
             )
 
             # validation dataset
             if self.val_data is not None:
+                # mypy checks
+                assert isinstance(self.val_data, np.ndarray)
+                if self.val_data_target is not None:
+                    assert isinstance(self.val_data_target, np.ndarray)
+
                 # create its own dataset
                 self.val_dataset: DatasetType = InMemoryDataset(
                     data_config=self.data_config,
                     inputs=self.val_data,
-                    data_target=self.val_data_target,
+                    input_target=self.val_data_target,
                 )
             else:
                 # extract validation from the training patches
@@ -342,7 +367,7 @@ class CAREamicsTrainData(L.LightningDataModule):
                 self.train_dataset = InMemoryDataset(
                     data_config=self.data_config,
                     inputs=self.train_files,
-                    data_target=(
+                    input_target=(
                         self.train_target_files if self.train_data_target else None
                     ),
                     read_source_func=self.read_source_func,
@@ -353,7 +378,7 @@ class CAREamicsTrainData(L.LightningDataModule):
                     self.val_dataset = InMemoryDataset(
                         data_config=self.data_config,
                         inputs=self.val_files,
-                        data_target=(
+                        input_target=(
                             self.val_target_files if self.val_data_target else None
                         ),
                         read_source_func=self.read_source_func,
@@ -453,8 +478,7 @@ class TrainingDataWrapper(CAREamicsTrainData):
     In particular, N2V requires a specific transformation (N2V manipulates), which is
     not compatible with supervised training. The default transformations applied to the
     training patches are defined in `careamics.config.data_model`. To use different
-    transformations, pass a list of transforms or an albumentation `Compose` as
-    `transforms` parameter. See examples for more details.
+    transformations, pass a list of transforms. See examples for more details.
 
     By default, CAREamics only supports types defined in
     `careamics.config.support.SupportedData`. To read custom data types, you can set
@@ -489,7 +513,7 @@ class TrainingDataWrapper(CAREamicsTrainData):
         Batch size.
     val_data : Optional[Union[str, Path]], optional
         Validation data, by default None.
-    transforms : Optional[Union[List[TRANSFORMS_UNION], Compose]], optional
+    transforms : List[TRANSFORMS_UNION], optional
         List of transforms to apply to training patches. If None, default transforms
         are applied.
     train_target_data : Optional[Union[str, Path]], optional
@@ -585,7 +609,7 @@ class TrainingDataWrapper(CAREamicsTrainData):
         axes: str,
         batch_size: int,
         val_data: Optional[Union[str, Path]] = None,
-        transforms: Optional[Union[List[TRANSFORMS_UNION], Compose]] = None,
+        transforms: Optional[List[TRANSFORMS_UNION]] = None,
         train_target_data: Optional[Union[str, Path]] = None,
         val_target_data: Optional[Union[str, Path]] = None,
         read_source_func: Optional[Callable] = None,
@@ -618,8 +642,8 @@ class TrainingDataWrapper(CAREamicsTrainData):
         In particular, N2V requires a specific transformation (N2V manipulates), which
         is not compatible with supervised training. The default transformations applied
         to the training patches are defined in `careamics.config.data_model`. To use
-        different transformations, pass a list of transforms or an albumentation
-        `Compose` as `transforms` parameter. See examples for more details.
+        different transformations, pass a list of transforms. See examples for more
+        details.
 
         By default, CAREamics only supports types defined in
         `careamics.config.support.SupportedData`. To read custom data types, you can set
@@ -656,7 +680,7 @@ class TrainingDataWrapper(CAREamicsTrainData):
             Batch size.
         val_data : Optional[Union[str, Path]], optional
             Validation data, by default None.
-        transforms : Optional[Union[List[TRANSFORMS_UNION], Compose]], optional
+        transforms : Optional[List[TRANSFORMS_UNION]], optional
             List of transforms to apply to training patches. If None, default transforms
             are applied.
         train_target_data : Optional[Union[str, Path]], optional
@@ -710,10 +734,7 @@ class TrainingDataWrapper(CAREamicsTrainData):
         self.data_config = DataConfig(**data_dict)
 
         # N2V specific checks, N2V, structN2V, and transforms
-        if (
-            self.data_config.has_transform_list()
-            and self.data_config.has_n2v_manipulate()
-        ):
+        if self.data_config.has_n2v_manipulate():
             # there is not target, n2v2 and structN2V can be changed
             if train_target_data is None:
                 self.data_config.set_N2V2(use_n2v2)
