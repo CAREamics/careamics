@@ -4,7 +4,7 @@ Here there are functions to define a config file.
 import os
 import ml_collections
 
-from .data_utils import DataType
+from careamics.models.lvae.data_utils import DataType
 
 def _init_config():
     """
@@ -47,6 +47,7 @@ def get_config():
     training.lr_scheduler_patience = 15
     training.batch_size = 32
     training.earlystop_patience = 100
+    training.max_epochs = 400
     training.pre_trained_ckpt_fpath = ''
     
     # Set of attributes not to include in the PyDantic data model

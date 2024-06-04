@@ -34,7 +34,7 @@ def get_train_val_data(
     Ensure that the shape of data should be N*H*W*C: N is number of data points. H,W are the image dimensions.
     C is the number of channels.
     """
-    if data_config.data_type in DataType.SeparateTiffData:
+    if data_config.data_type == DataType.SeparateTiffData:
         fpath1 = os.path.join(fpath, data_config.ch1_fname)
         fpath2 = os.path.join(fpath, data_config.ch2_fname)
         fpaths = [fpath1, fpath2]
@@ -79,7 +79,7 @@ def get_train_val_data(
         fpaths = []
         data_list = []
         for i in range(num_channels):
-            fpath1 = os.path.join(dirname, data_config.get(f'ch{i + 1}_fname'))
+            fpath1 = os.path.join(fpath, data_config.get(f'ch{i + 1}_fname'))
             fpaths.append(fpath1)
             data = get_mrc_data(fpath1)[..., None]
             data_list.append(data)
@@ -179,6 +179,7 @@ class MultiChDloader:
         self._background_quantile = 0.0
         self._clip_background_noise_to_zero = False
         self._skip_normalization_using_mean = False
+        self._empty_patch_replacement_enabled = False
 
         self._background_values = None
 

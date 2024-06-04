@@ -18,9 +18,9 @@ from absl import app, flags
 from ml_collections.config_flags import config_flags
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
-print(sys.path)
+print(torch.cuda.is_available())
 
-from careamics.models.lvae.lvae import LadderVAE
+from careamics.models.lvae.lightning_module import LadderVAELight
 from careamics.models.lvae.data_utils import (
     DataSplitType
 )
@@ -33,8 +33,8 @@ from careamics.models.lvae.train_utils import *
 
 FLAGS = flags.FLAGS
 
-config_flags.DEFINE_config_file("config", None, "Training configuration.", lock_config=True)
-flags.DEFINE_string("workdir", '/group/jug/federico/careamics_training/training', "Work directory.")
+config_flags.DEFINE_config_file("config", None, "Training configuration.", lock_config=False)
+flags.DEFINE_string("workdir", None, "Work directory.")
 flags.DEFINE_enum("mode", None, ["train", "eval"], "Running mode: train or eval")
 flags.DEFINE_string("logdir", '/group/jug/federico/wandb_backup/', "The folder name for storing logging")
 flags.DEFINE_string("datadir", '/group/jug/federico/careamics_training/data/BioSR', "Data directory.")
@@ -180,8 +180,8 @@ def create_model_and_train(
     else:
         target_ch = config.data.get('num_channels', 2)
 
-    # Instantiate the model
-    model = LadderVAE(
+    # Instantiate the model (lightning wrapper)
+    model = LadderVAELight(
         data_mean=data_mean, 
         data_std=data_std, 
         config=config, 
@@ -211,13 +211,13 @@ def create_model_and_train(
     logger.experiment.config.update(config.to_dict())
     # wandb.init(config=config)
     trainer = pl.Trainer(
-        gpus=1,
+        accelerator='gpu',
         max_epochs=config.training.max_epochs,
         gradient_clip_val=config.training.grad_clip_norm_value,
         gradient_clip_algorithm=config.training.gradient_clip_algorithm,
         logger=logger,
         callbacks=callbacks,
-        limit_train_batches = config.training.limit_train_batches,
+        # limit_train_batches = config.training.limit_train_batches,
         precision=config.training.precision
     )
     trainer.fit(model, train_loader, val_loader)
@@ -274,7 +274,7 @@ def main(argv):
     config.training.pre_trained_ckpt_fpath = FLAGS.load_ckptfpath
 
     if FLAGS.mode == "train":
-        set_logger()
+        set_logger(workdir=cur_workdir)
         raw_data_dict = None
 
         # From now on, config cannot be changed.

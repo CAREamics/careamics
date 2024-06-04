@@ -31,7 +31,10 @@ class LadderVAELight(L.LightningModule):
 
     def __init__(
         self, 
-        config: ml_collections.ConfigDict
+        config: ml_collections.ConfigDict,
+        data_mean: Dict[str, torch.Tensor],
+        data_std: Dict[str, torch.Tensor],
+        target_ch: int
     ):
         """
         Here we will do the following:
@@ -47,10 +50,19 @@ class LadderVAELight(L.LightningModule):
         NOTE: HC stands for Hard Coded attribute.
         """
         
-        super.__init__()
+        super().__init__()
+        
+        self.data_mean = data_mean
+        self.data_std = data_std
+        self.target_ch = target_ch
         
         # Initialize LVAE model
-        self.model = LadderVAE(config)
+        self.model = LadderVAE(
+            data_mean=data_mean, 
+            data_std=data_std, 
+            config=config, 
+            target_ch=target_ch
+        )
         
         ##### Define data attributes #####
         self.workdir = config.workdir
@@ -94,6 +106,8 @@ class LadderVAELight(L.LightningModule):
         ##### Define training attributes #####
         self.lr = config.training.lr
         self.lr_scheduler_patience = config.training.lr_scheduler_patience
+        self.lr_scheduler_monitor = config.model.get('monitor', 'val_loss')
+        self.lr_scheduler_mode = MetricMonitor(self.lr_scheduler_monitor).mode()
         self.channels_psnr = [RunningPSNR() for _ in range(self.model.target_ch)]
         
     def forward(self, x: Any) -> Any:
@@ -585,10 +599,6 @@ class LadderVAELight(L.LightningModule):
     def increment_global_step(self):
         """Increments global step by 1."""
         self._global_step += 1
-
-    def _init_lr_scheduler_params(self, config):
-        self.lr_scheduler_monitor = config.model.get('monitor', 'val_loss')
-        self.lr_scheduler_mode = MetricMonitor(self.lr_scheduler_monitor).mode()
 
     def set_params_to_same_device_as(self, correct_device_tensor: torch.Tensor):
         

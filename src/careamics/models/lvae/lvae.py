@@ -73,7 +73,7 @@ class LadderVAE(nn.Module):
         self.enable_noise_model = config.model.enable_noise_model
         self.noise_model_ch1_fpath = config.model.noise_model_ch1_fpath
         self.noise_model_ch2_fpath = config.model.noise_model_ch2_fpath
-        self.analytical_kl = config.loss.analytical_kl
+        self.analytical_kl = config.model.analytical_kl
         # -------------------------------------------------------
         
         # -------------------------------------------------------

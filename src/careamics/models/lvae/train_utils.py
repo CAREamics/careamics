@@ -6,20 +6,25 @@ import os
 import time
 import pickle
 import logging
-import datetime
+from datetime import datetime
 from pathlib import Path
 from copy import deepcopy
 
 import ml_collections
 
 
-def log_config(config, cur_workdir):
+def log_config(
+    config: ml_collections.ConfigDict, 
+    cur_workdir: str
+) -> None:
     # Saving config file.
     with open(os.path.join(cur_workdir, 'config.pkl'), 'wb') as f:
         pickle.dump(config, f)
     print(f'Saved config to {cur_workdir}/config.pkl')
     
-def set_logger(workdir: str):
+def set_logger(
+    workdir: str
+) -> None:
     os.makedirs(workdir, exist_ok=True)
     fstream = open(os.path.join(workdir, 'stdout.txt'), 'w')
     handler = logging.StreamHandler(fstream)
@@ -29,7 +34,9 @@ def set_logger(workdir: str):
     logger.addHandler(handler)
     logger.setLevel('INFO')
 
-def get_new_model_version(model_dir: str) -> str:
+def get_new_model_version(
+    model_dir: str
+) -> str:
     """
     A model will have multiple runs. Each run will have a different version.
     """
