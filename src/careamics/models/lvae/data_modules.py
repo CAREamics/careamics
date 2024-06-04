@@ -7,6 +7,7 @@ import os
 import numpy as np
 # import albumentations as A
 import ml_collections
+from skimage.transform import resize
 
 from .data_utils import (
     DataSplitType,
@@ -249,8 +250,9 @@ class MultiChDloader:
         # Randomly rotate [-90,90]
 
         self._rotation_transform = None
-        # if self._enable_rotation:
-        #     self._rotation_transform = A.Compose([A.Flip(), A.RandomRotate90()])
+        if self._enable_rotation:
+            raise NotImplementedError('Augmentation by means of rotation is not supported yet.')
+            self._rotation_transform = A.Compose([A.Flip(), A.RandomRotate90()])
 
         if print_vars:
             msg = self._init_msg()
