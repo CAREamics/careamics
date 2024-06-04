@@ -43,6 +43,8 @@ class LadderVAELight(L.LightningModule):
         Note that all the attributes related to the training and loss that were already defined in the model object 
         are redefined here as Lightning module attributes (e.g., self.some_attr = model.some_attr).
         The attributes related to the model itself are treated as model attributes (e.g., self.model.some_attr).
+        
+        NOTE: HC stands for Hard Coded attribute.
         """
         
         super.__init__()
@@ -76,18 +78,18 @@ class LadderVAELight(L.LightningModule):
         self.mixed_rec_w_step = 0
         
         # About KL Loss
-        self.kl_weight = 1.0
-        self.usplit_kl_weight = None
-        self.kl_loss_formulation = 'denoisplit_usplit'
+        self.kl_weight = 1.0 #HC
+        self.usplit_kl_weight = None #HC
+        self.kl_loss_formulation = 'denoisplit_usplit' #HC
         assert self.kl_loss_formulation in [
             None, '', 'usplit', 'denoisplit', 'denoisplit_usplit'], f"""
             Invalid kl_loss_formulation. {self.kl_loss_formulation}"""
-        self.free_bits = 1.0
-        self.kl_annealing = False
+        self.free_bits = 1.0 #HC
+        self.kl_annealing = False #HC
         self.kl_annealtime = self.kl_start = None
         if self.kl_annealing:
-            self.kl_annealtime = 10
-            self.kl_start = None
+            self.kl_annealtime = 10 #HC
+            self.kl_start = -1 #HC 
         
         ##### Define training attributes #####
         self.lr = config.training.lr
@@ -548,7 +550,7 @@ class LadderVAELight(L.LightningModule):
     
     ##### UTILS Methods #####
     def normalize_input(self, x):
-        if self.normalized_input:
+        if self.model.normalized_input:
             return x
         return (x - self.data_mean['input'].mean()) / self.data_std['input'].mean()
 

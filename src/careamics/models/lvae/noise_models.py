@@ -9,7 +9,6 @@ import numpy as np
 from .utils import ModelType
 
 
-
 class DisentNoiseModel(nn.Module):
 
     def __init__(

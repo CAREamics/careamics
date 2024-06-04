@@ -12,8 +12,6 @@ from copy import deepcopy
 
 import ml_collections
 
-from .data_utils import DataType
-
 
 def log_config(config, cur_workdir):
     # Saving config file.

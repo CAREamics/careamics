@@ -141,9 +141,11 @@ class MultiChDloader:
         self._data_type = data_config.data_type
         self._fpath = fpath
         self._data = self.N = self._noise_data = None
+        
+        # Hardcoded params, not included in the config file.
         # by default, if the noise is present, add it to the input and target.
         self._disable_noise = False
-        self._poisson_noise_factor = None
+        self._poisson_noise_factor = 4000
         self._train_index_switcher = None
         # NOTE: Input is the sum of the different channels. It is not the average of the different channels.
         self._input_is_sum = data_config.get('input_is_sum', False)
@@ -236,7 +238,8 @@ class MultiChDloader:
         self._mean = None
         self._std = None
         self._use_one_mu_std = use_one_mu_std
-        self._target_separate_normalization = data_config.target_separate_normalization
+        # Hardcoded
+        self._target_separate_normalization = True
 
         self._enable_rotation = enable_rotation_aug
         self._enable_random_cropping = enable_random_cropping

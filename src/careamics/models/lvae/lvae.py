@@ -71,14 +71,14 @@ class LadderVAE(nn.Module):
         self.decoder_dropout = config.model.dropout
         self.nonlin = config.model.nonlin
         self.enable_noise_model = config.model.enable_noise_model
+        self.noise_model_ch1_fpath = config.model.noise_model_ch1_fpath
+        self.noise_model_ch2_fpath = config.model.noise_model_ch2_fpath
         self.analytical_kl = config.loss.analytical_kl
         # -------------------------------------------------------
         
         # -------------------------------------------------------
-        # Model attributes
+        # Model attributes -> Hardcoded
         self.model_type = ModelType.LadderVae
-        self.noise_model_type = "gmm"
-        self.denoise_channel = "input" # 4 values for denoise_channel {'Ch1', 'Ch2', 'input','all'}
         self.encoder_blocks_per_layer = 1
         self.decoder_blocks_per_layer = 1
         self.bottomup_batchnorm = True
@@ -102,7 +102,24 @@ class LadderVAE(nn.Module):
         self._var_clip_max = 20
         self._stochastic_use_naive_exponential = False
         self._enable_topdown_normalize_factor = True
-    
+        
+        # Noise model attributes -> Hardcoded
+        self.noise_model_type = "gmm"
+        self.denoise_channel = "input" # 4 values for denoise_channel {'Ch1', 'Ch2', 'input','all'}
+        self.noise_model_learnable = False
+        
+        # Attributes that handle LC -> Hardcoded
+        self.enable_multiscale = self._multiscale_count is not None and self._multiscale_count > 1
+        self.multiscale_retain_spatial_dims = True
+        self.multiscale_lowres_separate_branch = False
+        self.multiscale_decoder_retain_spatial_dims = self.multiscale_retain_spatial_dims and self.enable_multiscale
+
+        # Derived attributes 
+        self.n_layers = len(self.z_dims)
+        self.encoder_no_padding_mode = self.encoder_res_block_skip_padding is True and self.encoder_res_block_kernel > 1
+        self.decoder_no_padding_mode = self.decoder_res_block_skip_padding is True and self.decoder_res_block_kernel > 1
+        
+        # Others...
         self._tethered_to_input = False
         self._tethered_ch1_scalar = self._tethered_ch2_scalar = None
         if self._tethered_to_input:
@@ -110,16 +127,6 @@ class LadderVAE(nn.Module):
             requires_grad = False
             self._tethered_ch1_scalar = nn.Parameter(torch.ones(1) * 0.5, requires_grad=requires_grad)
             self._tethered_ch2_scalar = nn.Parameter(torch.ones(1) * 2.0, requires_grad=requires_grad)
-
-        self.n_layers = len(self.z_dims)
-        self.encoder_no_padding_mode = self.encoder_res_block_skip_padding is True and self.encoder_res_block_kernel > 1
-        self.decoder_no_padding_mode = self.decoder_res_block_skip_padding is True and self.decoder_res_block_kernel > 1
-        
-        # Attributes that handle LC
-        self.enable_multiscale = self._multiscale_count is not None and self._multiscale_count > 1
-        self.multiscale_retain_spatial_dims = True
-        self.multiscale_lowres_separate_branch = False
-        self.multiscale_decoder_retain_spatial_dims = self.multiscale_retain_spatial_dims and self.enable_multiscale
         # -------------------------------------------------------
         
         # -------------------------------------------------------
@@ -131,14 +138,13 @@ class LadderVAE(nn.Module):
 
         # -------------------------------------------------------        
         # Loss attributes
-        self._restricted_kl = False
+        self._restricted_kl = False #HC
         # enabling reconstruction loss on mixed input
         self.mixed_rec_w = 0
         self.nbr_consistency_w = 0
         
         # Setting the loss_type
-        # self.loss_type = config.loss.get('loss_type', None)
-        self.loss_type = LossType.DenoiSplitMuSplit
+        self.loss_type = config.loss.get('loss_type', LossType.DenoiSplitMuSplit)
         self._denoisplit_w = self._usplit_w = None
         if self.loss_type == LossType.DenoiSplitMuSplit:
             self._usplit_w = 0
@@ -204,12 +210,15 @@ class LadderVAE(nn.Module):
         
         # Initialize the Noise Model 
         self.likelihood_gm = self.likelihood_NM = None
-        try:
-            self.noiseModel = get_noise_model(
-                
-            )
-        except NameError:
-            self.noiseModel = None
+        self.noiseModel = get_noise_model(
+            enable_noise_model=self.enable_noise_model,
+            model_type=self.model_type,
+            noise_model_type=self.noise_model_type,
+            noise_model_ch1_fpath=self.noise_model_ch1_fpath,
+            noise_model_ch2_fpath=self.noise_model_ch2_fpath,
+            noise_model_learnable=self.noise_model_learnable, 
+            
+        )
         
         if self.noiseModel is None:
             self.likelihood_form = "gaussian"
