@@ -33,7 +33,7 @@ def list_files(
     data_type: Union[str, SupportedData],
     extension_filter: str = "",
 ) -> List[Path]:
-    """Create a recursive list of files in `data_path`.
+    """List recursively files in `data_path` and return a sorted list.
 
     If `data_path` is a file, its name is validated against the `data_type` using
     `fnmatch`, and the method returns `data_path` itself.
