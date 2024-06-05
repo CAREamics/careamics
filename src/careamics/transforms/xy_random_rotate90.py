@@ -16,21 +16,35 @@ class XYRandomRotate90(Transform):
     ----------
     rng : np.random.Generator
         Random number generator.
+    p : float
+        Probability of applying the transform.
+    seed : Optional[int]
+        Random seed.
 
     Parameters
     ----------
+    p : float
+        Probability of applying the transform, by default 0.5.
     seed : Optional[int]
         Random seed, by default None.
     """
 
-    def __init__(self, seed: Optional[int] = None):
+    def __init__(self, p: float = 0.5, seed: Optional[int] = None):
         """Constructor.
 
         Parameters
         ----------
+        p : float
+            Probability of applying the transform, by default 0.5.
         seed : Optional[int]
             Random seed, by default None.
         """
+        if p < 0 or p > 1:
+            raise ValueError("Probability must be in [0, 1].")
+
+        # probability to apply the transform
+        self.p = p
+
         # numpy random generator
         self.rng = np.random.default_rng(seed=seed)
 
@@ -51,6 +65,9 @@ class XYRandomRotate90(Transform):
         Tuple[np.ndarray, Optional[np.ndarray]]
             Transformed patch and target.
         """
+        if self.rng.random() > self.p:
+            return patch, target
+
         # number of rotations
         n_rot = self.rng.integers(1, 4)
 
@@ -81,5 +98,4 @@ class XYRandomRotate90(Transform):
         np.ndarray
             Transformed patch.
         """
-        # TODO why ascontiguousarray?
         return np.ascontiguousarray(np.rot90(patch, k=n_rot, axes=axes))

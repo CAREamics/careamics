@@ -41,6 +41,8 @@ class DataConfig(BaseModel):
     and then the mean (if they were both `None` before) will raise a validation error.
     Prefer instead `set_mean_and_std` to set both at once.
 
+    All supported transforms are defined in the SupportedTransform enum.
+
     Examples
     --------
     Minimum example:
@@ -56,7 +58,7 @@ class DataConfig(BaseModel):
     >>> data.set_mean_and_std(mean=214.3, std=84.5)
 
     One can pass also a list of transformations, by keyword, using the
-    SupportedTransform or the name of an Albumentation transform:
+    SupportedTransform value:
     >>> from careamics.config.support import SupportedTransform
     >>> data = DataConfig(
     ...     data_type="tiff",
