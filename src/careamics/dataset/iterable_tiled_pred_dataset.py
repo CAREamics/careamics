@@ -17,7 +17,7 @@ from .dataset_utils import iterate_over_files, read_tiff
 from .patching.tiled_patching import extract_tiles
 
 
-class IterableTiledPredictionDataset(IterableDataset):
+class IterableTiledPredDataset(IterableDataset):
     """Tiled prediction dataset.
 
     Parameters

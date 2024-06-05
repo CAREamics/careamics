@@ -16,7 +16,7 @@ from .dataset_utils import reshape_array
 from .patching.tiled_patching import extract_tiles
 
 
-class InMemoryTiledPredictionDataset(Dataset):
+class InMemoryTiledPredDataset(Dataset):
     """Prediction dataset storing data in memory and returning tiles of each image.
 
     Parameters

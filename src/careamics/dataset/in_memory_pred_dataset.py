@@ -45,12 +45,7 @@ class InMemoryPredDataset(Dataset):
         self.pred_config = prediction_config
         self.input_array = inputs
         self.axes = self.pred_config.axes
-        self.tile_size = self.pred_config.tile_size
-        self.tile_overlap = self.pred_config.tile_overlap
         self.mean, self.std = self.pred_config.mean, self.pred_config.std
-
-        # tiling only if both tile size and overlap are provided
-        self.tiling = self.tile_size is not None and self.tile_overlap is not None
 
         # Reshape data
         self.data = reshape_array(self.input_array, self.axes)

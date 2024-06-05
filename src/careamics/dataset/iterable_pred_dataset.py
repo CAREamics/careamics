@@ -15,7 +15,7 @@ from ..config.transformations import NormalizeModel
 from .dataset_utils import iterate_over_files, read_tiff
 
 
-class IterablePredictionDataset(IterableDataset):
+class IterablePredDataset(IterableDataset):
     """Simple iterable prediction dataset.
 
     Parameters

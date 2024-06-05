@@ -13,9 +13,9 @@ from careamics.config.support import SupportedData
 from careamics.config.tile_information import TileInformation
 from careamics.dataset import (
     InMemoryPredDataset,
-    InMemoryTiledPredictionDataset,
-    IterablePredictionDataset,
-    IterableTiledPredictionDataset,
+    InMemoryTiledPredDataset,
+    IterablePredDataset,
+    IterableTiledPredDataset,
 )
 from careamics.dataset.dataset_utils import (
     get_read_func,
@@ -25,9 +25,9 @@ from careamics.utils import get_logger
 
 PredictDatasetType = Union[
     InMemoryPredDataset,
-    InMemoryTiledPredictionDataset,
-    IterablePredictionDataset,
-    IterableTiledPredictionDataset,
+    InMemoryTiledPredDataset,
+    IterablePredDataset,
+    IterableTiledPredDataset,
 ]
 
 logger = get_logger(__name__)
@@ -219,11 +219,9 @@ class CAREamicsPredictData(L.LightningDataModule):
         # if numpy array
         if self.data_type == SupportedData.ARRAY:
             if self.tiled:
-                self.predict_dataset: PredictDatasetType = (
-                    InMemoryTiledPredictionDataset(
-                        prediction_config=self.prediction_config,
-                        inputs=self.pred_data,
-                    )
+                self.predict_dataset: PredictDatasetType = InMemoryTiledPredDataset(
+                    prediction_config=self.prediction_config,
+                    inputs=self.pred_data,
                 )
             else:
                 self.predict_dataset = InMemoryPredDataset(
@@ -232,13 +230,13 @@ class CAREamicsPredictData(L.LightningDataModule):
                 )
         else:
             if self.tiled:
-                self.predict_dataset = IterableTiledPredictionDataset(
+                self.predict_dataset = IterableTiledPredDataset(
                     prediction_config=self.prediction_config,
                     src_files=self.pred_files,
                     read_source_func=self.read_source_func,
                 )
             else:
-                self.predict_dataset = IterablePredictionDataset(
+                self.predict_dataset = IterablePredDataset(
                     prediction_config=self.prediction_config,
                     src_files=self.pred_files,
                     read_source_func=self.read_source_func,
