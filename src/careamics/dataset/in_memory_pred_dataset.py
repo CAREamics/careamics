@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Callable, Optional
-
 import numpy as np
 from torch.utils.data import Dataset
 
@@ -11,7 +9,7 @@ from careamics.transforms import Compose
 
 from ..config import InferenceConfig
 from ..config.transformations import NormalizeModel
-from .dataset_utils import read_tiff, reshape_array
+from .dataset_utils import reshape_array
 
 
 class InMemoryPredDataset(Dataset):
@@ -23,18 +21,12 @@ class InMemoryPredDataset(Dataset):
         Prediction configuration.
     inputs : np.ndarray
         Input data.
-    data_target : Optional[np.ndarray], optional
-        Target data, by default None.
-    read_source_func : Optional[Callable], optional
-        Read source function for custom types, by default read_tiff.
     """
 
     def __init__(
         self,
         prediction_config: InferenceConfig,
         inputs: np.ndarray,
-        data_target: Optional[np.ndarray] = None,
-        read_source_func: Optional[Callable] = read_tiff,
     ) -> None:
         """Constructor.
 
@@ -44,10 +36,6 @@ class InMemoryPredDataset(Dataset):
             Prediction configuration.
         inputs : np.ndarray
             Input data.
-        data_target : Optional[np.ndarray], optional
-            Target data, by default None.
-        read_source_func : Optional[Callable], optional
-            Read source function for custom types, by default read_tiff.
 
         Raises
         ------
@@ -59,16 +47,10 @@ class InMemoryPredDataset(Dataset):
         self.axes = self.pred_config.axes
         self.tile_size = self.pred_config.tile_size
         self.tile_overlap = self.pred_config.tile_overlap
-        self.mean = self.pred_config.mean
-        self.std = self.pred_config.std
-        self.data_target = data_target
         self.mean, self.std = self.pred_config.mean, self.pred_config.std
 
         # tiling only if both tile size and overlap are provided
         self.tiling = self.tile_size is not None and self.tile_overlap is not None
-
-        # read function
-        self.read_source_func = read_source_func
 
         # Reshape data
         self.data = reshape_array(self.input_array, self.axes)

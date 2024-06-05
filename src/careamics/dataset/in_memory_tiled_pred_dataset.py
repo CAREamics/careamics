@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Callable, List, Optional, Tuple
+from typing import List, Tuple
 
 import numpy as np
 from torch.utils.data import Dataset
@@ -12,7 +12,7 @@ from careamics.transforms import Compose
 from ..config import InferenceConfig
 from ..config.tile_information import TileInformation
 from ..config.transformations import NormalizeModel
-from .dataset_utils import read_tiff, reshape_array
+from .dataset_utils import reshape_array
 from .patching.tiled_patching import extract_tiles
 
 
@@ -25,18 +25,12 @@ class InMemoryTiledPredictionDataset(Dataset):
         Prediction configuration.
     inputs : np.ndarray
         Input data.
-    data_target : Optional[np.ndarray], optional
-        Target data, by default None.
-    read_source_func : Optional[Callable], optional
-        Read source function for custom types, by default read_tiff.
     """
 
     def __init__(
         self,
         prediction_config: InferenceConfig,
         inputs: np.ndarray,
-        data_target: Optional[np.ndarray] = None,
-        read_source_func: Optional[Callable] = read_tiff,
     ) -> None:
         """Constructor.
 
@@ -46,10 +40,6 @@ class InMemoryTiledPredictionDataset(Dataset):
             Prediction configuration.
         inputs : np.ndarray
             Input data.
-        data_target : Optional[np.ndarray], optional
-            Target data, by default None.
-        read_source_func : Optional[Callable], optional
-            Read source function for custom types, by default read_tiff.
 
         Raises
         ------
@@ -72,10 +62,6 @@ class InMemoryTiledPredictionDataset(Dataset):
         self.tile_overlap = prediction_config.tile_overlap
         self.mean = self.pred_config.mean
         self.std = self.pred_config.std
-        self.data_target = data_target
-
-        # read function
-        self.read_source_func = read_source_func
 
         # Generate patches
         self.data = self._prepare_tiles()
