@@ -104,9 +104,9 @@ def export_to_bmz(
     authors : List[dict]
         Authors of the model.
     input_array : np.ndarray
-        Input array.
+        Input array, should not have been normalized.
     output_array : np.ndarray
-        Output array.
+        Output array, should have been denormalized.
     channel_names : Optional[List[str]], optional
         Channel names, by default None.
     data_description : Optional[str], optional
