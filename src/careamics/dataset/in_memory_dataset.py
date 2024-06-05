@@ -361,7 +361,9 @@ class InMemoryPredictionDataset(Dataset):
         np.ndarray
             Transformed patch.
         """
-        return self.data[[index]]
+        transformed_patch, _ = self.patch_transform(patch=self.data[[index]])
+
+        return transformed_patch
 
 
 class InMemoryTiledPredictionDataset(Dataset):

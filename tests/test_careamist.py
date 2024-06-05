@@ -546,8 +546,9 @@ def test_predict_arrays_no_tiling(tmp_path: Path, minimum_configuration: dict):
 
     # predict CAREamist
     predicted = careamist.predict(train_array)
+    predicted_squeeze = [p.squeeze() for p in predicted]
 
-    assert predicted.squeeze().shape == train_array.shape
+    assert np.array(predicted_squeeze).shape == train_array.shape
 
     # export to BMZ
     careamist.export_to_bmz(

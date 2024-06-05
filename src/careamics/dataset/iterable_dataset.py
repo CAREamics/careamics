@@ -413,6 +413,7 @@ class IterablePredictionDataset(IterableDataset):
         ):
             # TODO what if S dimensions > 1, should we yield each sample independently?
             transformed_sample, _ = self.patch_transform(patch=sample)
+
             yield transformed_sample
 
 
