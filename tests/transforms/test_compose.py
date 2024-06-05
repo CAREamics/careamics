@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 
 from careamics.config.transformations import (
     N2VManipulateModel,
@@ -86,3 +87,45 @@ def test_compose_n2v(ordered_array):
     assert (
         results[0][np.where(results[2] != 1)] == array_aug[np.where(results[2] != 1)]
     ).all()
+
+
+@pytest.mark.parametrize(
+    "shape",
+    [
+        # 2D
+        (1, 2, 2),
+        (2, 2, 2),
+        # 3D
+        (1, 2, 2, 2),
+        (2, 2, 2, 2),
+    ],
+)
+def test_random_composition(ordered_array, shape):
+    """Test that all the transforms can be composed in arbitrary order.
+
+    This exclude the N2VManipulate transform, which needs to be the last one.
+    """
+    rng = np.random.default_rng(seed=42)
+
+    # create array
+    array = ordered_array(shape)
+    mask = ordered_array(shape) + 5
+
+    # apply transform in random order
+    for _ in range(10):
+        flip_x = rng.choice([True, False])
+
+        transforms = [
+            NormalizeModel(mean=0.5, std=0.5),
+            XYFlipModel(flip_x=flip_x, seed=42),
+            XYRandomRotate90Model(seed=42),
+        ]
+
+        # randomly sort the transforms
+        rng.shuffle(transforms)
+
+        # apply compose
+        compose = Compose(transforms)
+        result_array, result_mask = compose(array, mask)
+        assert not np.array_equal(result_array, array)
+        assert not np.array_equal(result_mask, mask)
