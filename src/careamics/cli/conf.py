@@ -1,6 +1,5 @@
 """Configuration building convenience functions for the CAREamics CLI."""
 
-import os
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -16,13 +15,12 @@ from ..config import (
     create_care_configuration,
     create_n2n_configuration,
     create_n2v_configuration,
-    save_configuration
+    save_configuration,
 )
 
 WORK_DIR = Path.cwd()
 
 app = typer.Typer()
-
 
 
 def _config_builder_exit(ctx: typer.Context, config: Configuration) -> None:
