@@ -11,7 +11,6 @@ import typer
 import yaml
 from typing_extensions import Annotated
 
-# import hydra
 from ..config import (
     Configuration,
     create_care_configuration,
