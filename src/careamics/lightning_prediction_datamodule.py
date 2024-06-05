@@ -11,23 +11,22 @@ from torch.utils.data.dataloader import default_collate
 from careamics.config import InferenceConfig
 from careamics.config.support import SupportedData
 from careamics.config.tile_information import TileInformation
+from careamics.dataset import (
+    InMemoryPredDataset,
+    InMemoryTiledPredictionDataset,
+    IterablePredictionDataset,
+    IterableTiledPredictionDataset,
+)
 from careamics.dataset.dataset_utils import (
     get_read_func,
     list_files,
 )
-from careamics.dataset.in_memory_dataset import (
-    InMemoryPredictionDataset,
-    InMemoryTiledPredictionDataset,
-)
-from careamics.dataset.iterable_dataset import (
-    IterablePredictionDataset,
-    IterableTiledPredictionDataset,
-)
 from careamics.utils import get_logger
 
 PredictDatasetType = Union[
-    InMemoryPredictionDataset,
+    InMemoryPredDataset,
     InMemoryTiledPredictionDataset,
+    IterablePredictionDataset,
     IterableTiledPredictionDataset,
 ]
 
@@ -227,7 +226,7 @@ class CAREamicsPredictData(L.LightningDataModule):
                     )
                 )
             else:
-                self.predict_dataset = InMemoryPredictionDataset(
+                self.predict_dataset = InMemoryPredDataset(
                     prediction_config=self.prediction_config,
                     inputs=self.pred_data,
                 )
