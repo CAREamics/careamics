@@ -5,6 +5,7 @@ __all__ = [
     "XYFlipModel",
     "NormalizeModel",
     "XYRandomRotate90Model",
+    "XorYFlipModel",
 ]
 
 
