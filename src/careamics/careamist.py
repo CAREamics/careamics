@@ -682,6 +682,7 @@ class CAREamist:
         data_description : Optional[str], optional
             Description of the data, by default None.
         """
+        # TODO data from dataloader will be normalized, which is an issue with BMZ!
         if input_array is None:
             # generate images, priority is given to the prediction data module
             if self.pred_datamodule is not None:
