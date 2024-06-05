@@ -1,4 +1,4 @@
-"""Configuration building convinience functions for the CAREamics CLI."""
+"""Configuration building convenience functions for the CAREamics CLI."""
 
 import os
 import sys

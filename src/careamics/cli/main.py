@@ -3,7 +3,7 @@ Module for CLI functionality and entrypoint.
 
 Contains the CLI entrypoint, the `run` function; and first level subcommands `train`
 and `predict`. The `conf` subcommand is added through the `app.add_typer` function, and
-it's implementation is contained in the conf.py file.
+its implementation is contained in the conf.py file.
 """
 
 from pathlib import Path
