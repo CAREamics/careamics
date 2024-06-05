@@ -16,26 +16,13 @@ from ..config import (
     create_care_configuration,
     create_n2n_configuration,
     create_n2v_configuration,
+    save_configuration
 )
 
-WORK_DIR = Path(os.getcwd())
+WORK_DIR = Path.cwd()
 
 app = typer.Typer()
 
-
-def _save_config(config: Configuration, fp: Path) -> None:
-    """
-    Function to save careamics Configuration object to a yaml file.
-
-    Parameters
-    ----------
-    config : Configuration
-        CAREamics configuration object.
-    fp : Path
-        File path to save to.
-    """
-    with open(fp, "w") as file:
-        yaml.dump(config.model_dump(), file, indent=2)
 
 
 def _config_builder_exit(ctx: typer.Context, config: Configuration) -> None:
@@ -53,7 +40,7 @@ def _config_builder_exit(ctx: typer.Context, config: Configuration) -> None:
         CAREamics configuration.
     """
     conf_path = (ctx.obj.dir / ctx.obj.name).with_suffix(".yaml")
-    _save_config(config, conf_path)
+    save_configuration(config, conf_path)
     if ctx.obj.print:
         print(yaml.dump(config.model_dump(), indent=2))
 
