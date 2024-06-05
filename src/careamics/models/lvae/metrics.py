@@ -1,45 +1,9 @@
 """
 This script contains the functions/classes to compute loss and metrics used to train and evaluate the performance of the model.
 """
-from typing import Tuple
-
 import torch
-from torch.distributions.normal import Normal
 
-from .utils import (
-    StableMean, StableLogVar, 
-    allow_numpy
-)
-
-def kl_normal_mc(
-    z: torch.Tensor, 
-    p_mulv: Tuple[StableMean, StableLogVar], 
-    q_mulv: Tuple[StableMean, StableLogVar]
-) -> torch.Tensor:
-    """
-    One-sample estimation of element-wise KL between two diagonal multivariate normal distributions.
-    Any number of dimensions, broadcasting supported (be careful).
-    
-    Parameters
-    ----------
-    z: torch.Tensor
-        The sampled latent tensor.
-    p_mulv: Tuple[StableMean, StableLogVar]
-        A tuple containing the mean and log-variance of the prior generative distribution p(z).
-    q_mulv: Tuple[StableMean, StableLogVar]
-        A tuple containing the mean and log-variance of the inference distribution q(z).
-    """
-    assert isinstance(p_mulv, tuple)
-    assert isinstance(q_mulv, tuple)
-    p_mu, p_lv = p_mulv
-    q_mu, q_lv = q_mulv
-
-    p_std = p_lv.get_std()
-    q_std = q_lv.get_std()
-
-    p_distrib = Normal(p_mu.get(), p_std)
-    q_distrib = Normal(q_mu.get(), q_std)
-    return q_distrib.log_prob(z) - p_distrib.log_prob(z)
+from .utils import allow_numpy
 
 class RunningPSNR:
 

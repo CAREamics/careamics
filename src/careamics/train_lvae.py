@@ -18,7 +18,6 @@ from absl import app, flags
 from ml_collections.config_flags import config_flags
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
-print(torch.cuda.is_available())
 
 from careamics.models.lvae.lightning_module import LadderVAELight
 from careamics.models.lvae.data_utils import (
