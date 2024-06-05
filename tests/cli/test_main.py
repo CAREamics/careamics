@@ -39,8 +39,8 @@ def test_train(tmp_path: Path, minimum_configuration: dict):
             str(tmp_path),
         ],
     )
-    assert (tmp_path/"checkpoints").is_dir()
-    assert len(list((tmp_path/"checkpoints").glob("*"))) > 0
+    assert (tmp_path / "checkpoints").is_dir()
+    assert len(list((tmp_path / "checkpoints").glob("*"))) > 0
     assert result.exit_code == 0
 
 
