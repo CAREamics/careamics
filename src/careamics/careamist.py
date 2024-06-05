@@ -36,6 +36,7 @@ from careamics.lightning_prediction_datamodule import CAREamicsPredictData
 from careamics.lightning_prediction_loop import CAREamicsPredictionLoop
 from careamics.model_io import export_to_bmz, load_pretrained
 from careamics.utils import check_path_exists, get_logger
+from .dataset.dataset_utils import list_files
 from .prediction.save_utils import get_save_func, SavePredictFunc
 from .callbacks import HyperParametersCallback
 
@@ -665,7 +666,7 @@ class CAREamist:
         self,
         source: Union[CAREamicsPredictData, Path, str, np.ndarray],
         *,
-        batch_size: int = 1,
+        # batch_size: int = 1, Only predicting one file at a time
         tile_size: Optional[Tuple[int, ...]] = None,
         tile_overlap: Tuple[int, ...] = (48, 48),
         axes: Optional[str] = None,
@@ -677,10 +678,81 @@ class CAREamist:
         checkpoint: Optional[Literal["best", "last"]] = None,
         save_type: Literal["tiff", "custom"] = "tiff",
         save_extension: Optional[str] = None,
-        save_predict_func: SavePredictFunc = None,
-        save_predict_func_kwargs: Dict[str, Any] = {},
+        save_predict_func: Optional[SavePredictFunc] = None,
+        save_predict_func_kwargs: Optional[Dict[str, Any]] = None,
         predict_dir: str | Path = "predict",
+        force: bool = False
     ) -> Union[List[Path], Path]:
+        """
+        Make predictions on the provided data, and save to disk.
+
+        Input can be a CAREamicsClay instance, a path to a data file, or a numpy array.
+
+        If `data_type`, `axes` and `tile_size` are not provided, the training
+        configuration parameters will be used, with the `patch_size` instead of
+        `tile_size`.
+
+        Test-time augmentation (TTA) can be switched off using the `tta_transforms`
+        parameter.
+
+        Note that if you are using a UNet model and tiling, the tile size must be
+        divisible in every dimension by 2**d, where d is the depth of the model. This
+        avoids artefacts arising from the broken shift invariance induced by the
+        pooling layers of the UNet. If your image has less dimensions, as it may
+        happen in the Z dimension, consider padding your image.
+
+        Parameters
+        ----------
+        source : Union[CAREamicsClay, Path, str, np.ndarray]
+            Data to predict on.
+        tile_size : Optional[Tuple[int, ...]], optional
+            Size of the tiles to use for prediction, by default None.
+        tile_overlap : Tuple[int, ...], optional
+            Overlap between tiles, by default (48, 48).
+        axes : Optional[str], optional
+            Axes of the input data, by default None.
+        data_type : Optional[Literal["array", "tiff", "custom"]], optional
+            Type of the input data, by default None.
+        tta_transforms : bool, optional
+            Whether to apply test-time augmentation, by default True.
+        dataloader_params : Optional[Dict], optional
+            Parameters to pass to the dataloader, by default None.
+        read_source_func : Optional[Callable], optional
+            Function to read the source data, by default None.
+        extension_filter : str, optional
+            Filter for the file extension, by default "".
+        checkpoint : Optional[Literal["best", "last"]], optional
+            Checkpoint to use for prediction, by default None.
+        save_type : {"tiff" | "custom"}
+            Data type to save to, if 'custom' provide a `save_predict_func` 
+            default=tiff.
+        save_extension : str, optional
+            Extension of saved type, only needs to be specified if `save_type='custom`.
+        save_predict_func: callable, optional
+            Function for saving to a custom data type. Expected signature is 
+            `func(fp: Path, img: numpy.ndarray, *args, **kwargs) -> None`.
+        save_predict_func_kwargs: dict, optional
+            Extra kwargs to pass to `save_predict_func` after the file path and data.
+        predict_dir: Path | str
+            Where the predicted data will be saved. Can be relative to the `work_dir`
+            that the `CAREamist` instance was initialized with, or absolute, 
+            default='predict'
+        force: bool
+            Whether to overwrite existing prediction outputs, default=False.
+
+        Returns
+        -------
+        Union[List[Path], Path]
+            Paths to predictions made by the model.
+        """
+        # TODO: Don't accept array as source? or require name?
+         
+        if save_predict_func_kwargs is None:
+            save_predict_func_kwargs = {}
+        
+        if save_extension is None:
+            save_extension = SupportedData.get_extension(save_type)
+
         # Get save function
         if save_type == "custom":
             if save_predict_func is None:
@@ -691,10 +763,38 @@ class CAREamist:
             save_predict_func = get_save_func(save_type)
         
         # Create save directory
+        predict_dir = Path(predict_dir)
+        if not predict_dir.is_absolute():
+            predict_dir = self.work_dir / predict_dir
+        if not predict_dir.is_dir():
+            predict_dir.mkdir()
 
         # Loop through images
+        source_paths = list_files(source, data_type, save_extension)
+        # prediction files will have a matching name to the source files.
+        save_paths = [
+            (predict_dir/path.stem).with_suffix(save_extension) 
+            for path in source_paths
+        ]
+        for source_path, save_path in zip(source_paths, save_paths):
+            # predict each image in turn
+            pred = self.predict(
+                source=source_path,
+                batch_size=1, # TODO: determine how many files can fit into memory ?
+                tile_size=tile_size,
+                tile_overlap=tile_overlap,
+                axes=axes,
+                data_type=data_type,
+                tta_transforms=tta_transforms,
+                dataloader_params=dataloader_params,
+                read_source_func=read_source_func,
+                extension_filter=extension_filter,
+                checkpoint=checkpoint
+            )
+            # TODO: check if file already exists and not force
+            save_predict_func(save_path, pred, **save_predict_func_kwargs)
         
-        raise NotImplementedError
+        return save_paths
 
     def export_to_bmz(
         self,
