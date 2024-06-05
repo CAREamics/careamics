@@ -1,9 +1,20 @@
 """A class to train, predict and export models in CAREamics."""
 
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, Union, overload
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    List,
+    Literal,
+    Optional,
+    Tuple,
+    Union,
+    overload
+)
 
 import numpy as np
+from numpy.typing import NDArray
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import (
     Callback,
@@ -25,13 +36,12 @@ from careamics.lightning_prediction_datamodule import CAREamicsPredictData
 from careamics.lightning_prediction_loop import CAREamicsPredictionLoop
 from careamics.model_io import export_to_bmz, load_pretrained
 from careamics.utils import check_path_exists, get_logger
-
+from .prediction.save_utils import get_save_func, SavePredictFunc
 from .callbacks import HyperParametersCallback
 
 logger = get_logger(__name__)
 
 LOGGER_TYPES = Optional[Union[TensorBoardLogger, WandbLogger]]
-
 
 # TODO napari callbacks
 # TODO: how to do AMP? How to continue training?
@@ -650,6 +660,41 @@ class CAREamist:
                     f"Invalid input. Expected a CAREamicsWood instance, paths or "
                     f"np.ndarray (got {type(source)})."
                 )
+
+    def predict_to_disk(
+        self,
+        source: Union[CAREamicsPredictData, Path, str, np.ndarray],
+        *,
+        batch_size: int = 1,
+        tile_size: Optional[Tuple[int, ...]] = None,
+        tile_overlap: Tuple[int, ...] = (48, 48),
+        axes: Optional[str] = None,
+        data_type: Optional[Literal["array", "tiff", "custom"]] = None,
+        tta_transforms: bool = True,
+        dataloader_params: Optional[Dict] = None,
+        read_source_func: Optional[Callable] = None,
+        extension_filter: str = "",
+        checkpoint: Optional[Literal["best", "last"]] = None,
+        save_type: Literal["tiff", "custom"] = "tiff",
+        save_extension: Optional[str] = None,
+        save_predict_func: SavePredictFunc = None,
+        save_predict_func_kwargs: Dict[str, Any] = {},
+        predict_dir: str | Path = "predict",
+    ) -> Union[List[Path], Path]:
+        # Get save function
+        if save_type == "custom":
+            if save_predict_func is None:
+                raise ValueError(
+                    "`save_predict_func` not provided for custom `save_type`."
+                )
+        else:
+            save_predict_func = get_save_func(save_type)
+        
+        # Create save directory
+
+        # Loop through images
+        
+        raise NotImplementedError
 
     def export_to_bmz(
         self,
