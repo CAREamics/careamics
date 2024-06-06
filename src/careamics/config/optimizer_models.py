@@ -1,3 +1,5 @@
+"""Optimizers and schedulers Pydantic models."""
+
 from __future__ import annotations
 
 from typing import Dict, Literal
@@ -19,8 +21,7 @@ from .support import SupportedOptimizer
 
 
 class OptimizerModel(BaseModel):
-    """
-    Torch optimizer.
+    """Torch optimizer Pydantic model.
 
     Only parameters supported by the corresponding torch optimizer will be taken
     into account. For more details, check:
@@ -115,8 +116,7 @@ class OptimizerModel(BaseModel):
 
 
 class LrSchedulerModel(BaseModel):
-    """
-    Torch learning rate scheduler.
+    """Torch learning rate scheduler Pydantic model.
 
     Only parameters supported by the corresponding torch lr scheduler will be taken
     into account. For more details, check:

@@ -14,6 +14,18 @@ from sybil.parsers.doctest import DocTestParser
 
 @pytest.fixture(scope="module")
 def my_path(tmpdir_factory: TempPathFactory) -> Path:
+    """Fixture used in doctest to create a temporary directory.
+
+    Parameters
+    ----------
+    tmpdir_factory : TempPathFactory
+        Temporary path factory from pytest.
+
+    Returns
+    -------
+    Path
+        Temporary directory path.
+    """
     return tmpdir_factory.mktemp("my_path")
 
 

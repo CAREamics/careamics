@@ -1,4 +1,5 @@
 from careamics.config.transformations import NormalizeModel
+from careamics.transforms import Normalize
 
 
 def test_setting_image_means_std():
@@ -33,3 +34,12 @@ def test_setting_image_means_std():
     assert model.image_stds == [0.6]
     assert model.target_means == [0.6]
     assert model.target_stds == [0.6]
+
+
+
+def test_comptatibility_with_transform():
+    """Test that the model allows instantiating a transform."""
+    model = NormalizeModel(name="Normalize", image_means=[0.5], image_stds=[0.5])
+
+    # instantiate transform
+    Normalize(**model.model_dump())

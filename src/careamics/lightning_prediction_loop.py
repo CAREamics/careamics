@@ -1,3 +1,5 @@
+"""Lithning prediction loop allowing tiling."""
+
 from typing import Optional
 
 import pytorch_lightning as L
@@ -18,14 +20,14 @@ class CAREamicsPredictionLoop(L.loops._PredictionLoop):
     """
 
     def _on_predict_epoch_end(self) -> Optional[_PREDICT_OUTPUT]:
-        """
-        Calls `on_predict_epoch_end` hook.
+        """Call `on_predict_epoch_end` hook.
 
         Adapted from the parent method.
 
         Returns
         -------
-            the results for all dataloaders
+        Optional[_PREDICT_OUTPUT]
+            Prediction output.
         """
         trainer = self.trainer
         call._call_callback_hooks(trainer, "on_predict_epoch_end")
@@ -44,15 +46,14 @@ class CAREamicsPredictionLoop(L.loops._PredictionLoop):
 
     @_no_grad_context
     def run(self) -> Optional[_PREDICT_OUTPUT]:
-        """
-        Runs the prediction loop.
+        """Run the prediction loop.
 
         Adapted from the parent method in order to stitch the predictions.
 
         Returns
         -------
         Optional[_PREDICT_OUTPUT]
-            Prediction output
+            Prediction output.
         """
         self.setup_data()
         if self.skip:
@@ -85,6 +86,7 @@ class CAREamicsPredictionLoop(L.loops._PredictionLoop):
 
                 ########################################################
                 ################ CAREamics specific code ###############
+                # TODO: next line is not compatible with muSplit
                 is_tiled = len(self.predictions[batch_idx]) == 2
                 if is_tiled:
                     # extract the last tile flag and the coordinates (crop and stitch)

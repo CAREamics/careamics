@@ -17,14 +17,14 @@ from typing_extensions import Annotated, Self
 
 from .support import SupportedTransform
 from .transformations.n2v_manipulate_model import N2VManipulateModel
-from .transformations.nd_flip_model import NDFlipModel
 from .transformations.normalize_model import NormalizeModel
+from .transformations.xy_flip_model import XYFlipModel
 from .transformations.xy_random_rotate90_model import XYRandomRotate90Model
 from .validators import check_axes_validity, patch_size_ge_than_8_power_of_2
 
 TRANSFORMS_UNION = Annotated[
     Union[
-        NDFlipModel,
+        XYFlipModel,
         XYRandomRotate90Model,
         NormalizeModel,
         N2VManipulateModel,
@@ -43,6 +43,8 @@ class DataConfig(BaseModel):
     to be lists of floats, one for each channel. For supervised tasks, the mean and std
     of the target could be different from the input data.
 
+    All supported transforms are defined in the SupportedTransform enum.
+
     Examples
     --------
     Minimum example:
@@ -58,7 +60,7 @@ class DataConfig(BaseModel):
     >>> data.set_mean_and_std(mean=[214.3], std=[84.5])
 
     One can pass also a list of transformations, by keyword, using the
-    SupportedTransform or the name of an Albumentation transform:
+    SupportedTransform value:
     >>> from careamics.config.support import SupportedTransform
     >>> data = DataConfig(
     ...     data_type="tiff",
@@ -72,7 +74,7 @@ class DataConfig(BaseModel):
     ...             "std": 47.2,
     ...         },
     ...         {
-    ...             "name": "NDFlip",
+    ...             "name": "XYFlip",
     ...         }
     ...     ]
     ... )
@@ -101,7 +103,7 @@ class DataConfig(BaseModel):
                 "name": SupportedTransform.NORMALIZE.value,
             },
             {
-                "name": SupportedTransform.NDFLIP.value,
+                "name": SupportedTransform.XY_FLIP.value,
             },
             {
                 "name": SupportedTransform.XY_RANDOM_ROTATE90.value,
@@ -206,7 +208,7 @@ class DataConfig(BaseModel):
 
         if SupportedTransform.N2V_MANIPULATE in transform_list:
             # multiple N2V_MANIPULATE
-            if transform_list.count(SupportedTransform.N2V_MANIPULATE) > 1:
+            if transform_list.count(SupportedTransform.N2V_MANIPULATE.value) > 1:
                 raise ValueError(
                     f"Multiple instances of "
                     f"{SupportedTransform.N2V_MANIPULATE} transforms "
@@ -215,7 +217,7 @@ class DataConfig(BaseModel):
 
             # N2V_MANIPULATE not the last transform
             elif transform_list[-1] != SupportedTransform.N2V_MANIPULATE:
-                index = transform_list.index(SupportedTransform.N2V_MANIPULATE)
+                index = transform_list.index(SupportedTransform.N2V_MANIPULATE.value)
                 transform = transforms.pop(index)
                 transforms.append(transform)
 
@@ -284,7 +286,7 @@ class DataConfig(BaseModel):
         Self
             Data model with mean and std added to the Normalize transform.
         """
-        if self.image_mean and self.image_std:
+        if self.image_mean is not None and self.image_std is not None:
             # search in the transforms for Normalize and update parameters
             for transform in self.transforms:
                 if transform.name == SupportedTransform.NORMALIZE.value:
@@ -401,14 +403,6 @@ class DataConfig(BaseModel):
             target_mean=target_mean,
             target_std=target_std,
         )
-
-        # search in the transforms for Normalize and update parameters
-        for transform in self.transforms:
-            if transform.name == SupportedTransform.NORMALIZE.value:
-                transform.image_means = self.image_mean
-                transform.image_stds = self.image_std
-                transform.target_means = self.target_mean
-                transform.target_stds = self.target_std
 
     def set_3D(self, axes: str, patch_size: List[int]) -> None:
         """

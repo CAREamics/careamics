@@ -13,6 +13,7 @@ from careamics.transforms import Compose
 
 from ..config import DataConfig, InferenceConfig
 from ..config.tile_information import TileInformation
+from ..config.transformations import NormalizeModel
 from ..utils.logging import get_logger
 from .dataset_utils import read_tiff, reshape_array
 from .patching.patching import (
@@ -27,24 +28,49 @@ logger = get_logger(__name__)
 
 
 class InMemoryDataset(Dataset):
-    """Dataset storing data in memory and allowing generating patches from it."""
+    """Dataset storing data in memory and allowing generating patches from it.
+
+    Parameters
+    ----------
+    data_config : DataConfig
+        Data configuration.
+    inputs : Union[np.ndarray, List[Path]]
+        Input data.
+    input_target : Optional[Union[np.ndarray, List[Path]]], optional
+        Target data, by default None.
+    read_source_func : Callable, optional
+        Read source function for custom types, by default read_tiff.
+    **kwargs : Any
+        Additional keyword arguments, unused.
+    """
 
     def __init__(
         self,
         data_config: DataConfig,
         inputs: Union[np.ndarray, List[Path]],
-        data_target: Optional[Union[np.ndarray, List[Path]]] = None,
+        input_target: Optional[Union[np.ndarray, List[Path]]] = None,
         read_source_func: Callable = read_tiff,
         **kwargs: Any,
     ) -> None:
         """
         Constructor.
 
-        # TODO
+        Parameters
+        ----------
+        data_config : DataConfig
+            Data configuration.
+        inputs : Union[np.ndarray, List[Path]]
+            Input data.
+        input_target : Optional[Union[np.ndarray, List[Path]]], optional
+            Target data, by default None.
+        read_source_func : Callable, optional
+            Read source function for custom types, by default read_tiff.
+        **kwargs : Any
+            Additional keyword arguments, unused.
         """
         self.data_config = data_config
         self.inputs = inputs
-        self.data_target = data_target
+        self.input_targets = input_target
         self.axes = self.data_config.axes
         self.patch_size = self.data_config.patch_size
 
@@ -107,18 +133,18 @@ class InMemoryDataset(Dataset):
         """
         if supervised:
             if isinstance(self.inputs, np.ndarray) and isinstance(
-                self.data_target, np.ndarray
+                self.input_targets, np.ndarray
             ):
                 return prepare_patches_supervised_array(
                     self.inputs,
                     self.axes,
-                    self.data_target,
+                    self.input_targets,
                     self.patch_size,
                 )
-            elif isinstance(self.inputs, list) and isinstance(self.data_target, list):
+            elif isinstance(self.inputs, list) and isinstance(self.input_targets, list):
                 return prepare_patches_supervised(
                     self.inputs,
-                    self.data_target,
+                    self.input_targets,
                     self.axes,
                     self.patch_size,
                     self.read_source_func,
@@ -127,7 +153,7 @@ class InMemoryDataset(Dataset):
                 raise ValueError(
                     f"Data and target must be of the same type, either both numpy "
                     f"arrays or both lists of paths, got {type(self.inputs)} (data) "
-                    f"and {type(self.data_target)} (target)."
+                    f"and {type(self.input_targets)} (target)."
                 )
         else:
             if isinstance(self.inputs, np.ndarray):
@@ -153,9 +179,9 @@ class InMemoryDataset(Dataset):
         int
             Length of the dataset.
         """
-        return len(self.data)
+        return len(self.patches)
 
-    def __getitem__(self, index: int) -> Tuple[np.ndarray]:
+    def __getitem__(self, index: int) -> Tuple[np.ndarray, ...]:
         """
         Return the patch corresponding to the provided index.
 
@@ -174,12 +200,12 @@ class InMemoryDataset(Dataset):
         ValueError
             If dataset mean and std are not set.
         """
-        patch = self.data[index]
+        patch = self.patches[index]
 
         # if there is a target
-        if self.data_target is not None:
+        if self.patch_targets is not None:
             # get target
-            target = self.data_targets[index]
+            target = self.patch_targets[index]
 
             return self.patch_transform(patch=patch, target=target)
 
@@ -239,25 +265,25 @@ class InMemoryDataset(Dataset):
         indices = np.random.choice(total_patches, n_patches, replace=False)
 
         # extract patches
-        val_patches = self.data[indices]
+        val_patches = self.patches[indices]
 
         # remove patches from self.patch
-        self.data = np.delete(self.data, indices, axis=0)
+        self.patches = np.delete(self.patches, indices, axis=0)
 
         # same for targets
-        if self.data_targets is not None:
-            val_targets = self.data_targets[indices]
-            self.data_targets = np.delete(self.data_targets, indices, axis=0)
+        if self.patch_targets is not None:
+            val_targets = self.patch_targets[indices]
+            self.patch_targets = np.delete(self.patch_targets, indices, axis=0)
 
         # clone the dataset
         dataset = copy.deepcopy(self)
 
         # reassign patches
-        dataset.data = val_patches
+        dataset.patches = val_patches
 
         # reassign targets
-        if self.data_targets is not None:
-            dataset.data_targets = val_targets
+        if self.patch_targets is not None:
+            dataset.patch_targets = val_targets
 
         return dataset
 
@@ -266,7 +292,16 @@ class InMemoryPredictionDataset(Dataset):
     """
     Dataset storing data in memory and allowing generating patches from it.
 
-    # TODO
+    Parameters
+    ----------
+    prediction_config : InferenceConfig
+        Prediction configuration.
+    inputs : np.ndarray
+        Input data.
+    data_target : Optional[np.ndarray], optional
+        Target data, by default None.
+    read_source_func : Optional[Callable], optional
+        Read source function for custom types, by default read_tiff.
     """
 
     def __init__(
@@ -280,10 +315,14 @@ class InMemoryPredictionDataset(Dataset):
 
         Parameters
         ----------
-        array : np.ndarray
-            Array containing the data.
-        axes : str
-            Description of axes in format STCZYX.
+        prediction_config : InferenceConfig
+            Prediction configuration.
+        inputs : np.ndarray
+            Input data.
+        data_target : Optional[np.ndarray], optional
+            Target data, by default None.
+        read_source_func : Optional[Callable], optional
+            Read source function for custom types, by default read_tiff.
 
         Raises
         ------
@@ -310,7 +349,7 @@ class InMemoryPredictionDataset(Dataset):
 
         # get transforms
         self.patch_transform = Compose(
-            transform_list=self.pred_config.transforms,
+            transform_list=[NormalizeModel(mean=self.mean, std=self.std)],
         )
 
     def _prepare_tiles(self) -> List[Tuple[np.ndarray, TileInformation]]:
@@ -325,7 +364,7 @@ class InMemoryPredictionDataset(Dataset):
         # reshape array
         reshaped_sample = reshape_array(self.input_array, self.axes)
 
-        if self.tiling:
+        if self.tiling and self.tile_size is not None and self.tile_overlap is not None:
             # generate patches, which returns a generator
             patch_generator = extract_tiles(
                 arr=reshaped_sample,

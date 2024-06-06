@@ -1,3 +1,5 @@
+"""Funtions to read tiff images."""
+
 import logging
 from fnmatch import fnmatch
 from pathlib import Path
@@ -19,8 +21,10 @@ def read_tiff(file_path: Path, *args: list, **kwargs: dict) -> np.ndarray:
     ----------
     file_path : Path
         Path to a file.
-    axes : str
-        Description of axes in format STCZYX.
+    *args : list
+        Additional arguments.
+    **kwargs : dict
+        Additional keyword arguments.
 
     Returns
     -------

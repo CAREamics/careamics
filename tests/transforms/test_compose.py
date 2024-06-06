@@ -1,13 +1,15 @@
 import numpy as np
+import pytest
 
 from careamics.config.transformations import (
     N2VManipulateModel,
-    NDFlipModel,
     NormalizeModel,
+    XYFlipModel,
     XYRandomRotate90Model,
 )
 from careamics.dataset.dataset_utils import compute_normalization_stats
 from careamics.transforms import Compose, NDFlip, Normalize, XYRandomRotate90
+
 
 
 def test_empty_compose(ordered_array):
@@ -33,9 +35,9 @@ def test_compose_with_target(ordered_array):
     target = array[:2, ...]
 
     # transform lists
-    transform_list = [NDFlip(seed=seed), XYRandomRotate90(seed=seed)]
+    transform_list = [XYFlip(seed=seed), XYRandomRotate90(seed=seed)]
     transform_list_pydantic = [
-        NDFlipModel(name="NDFlip", seed=seed),
+        XYFlipModel(name="XYFlip", seed=seed),
         XYRandomRotate90Model(name="XYRandomRotate90", seed=seed),
     ]
 
@@ -71,9 +73,10 @@ def test_compose_n2v(ordered_array):
 
     # apply the transforms
     normalize = Normalize(image_means=means, image_stds=stds)
-    ndflip = NDFlip(seed=seed)
+    xyflip = XYFlip(seed=seed)
+
     xyrotate = XYRandomRotate90(seed=seed)
-    array_aug, _ = xyrotate(*ndflip(*normalize(array)))
+    array_aug, _ = xyrotate(*xyflip(*normalize(array)))
 
     # instantiate Compose
     compose = Compose(transform_list_pydantic)
@@ -88,3 +91,45 @@ def test_compose_n2v(ordered_array):
     assert (
         results[0][np.where(results[2] != 1)] == array_aug[np.where(results[2] != 1)]
     ).all()
+
+
+@pytest.mark.parametrize(
+    "shape",
+    [
+        # 2D
+        (1, 2, 2),
+        (2, 2, 2),
+        # 3D
+        (1, 2, 2, 2),
+        (2, 2, 2, 2),
+    ],
+)
+def test_random_composition(ordered_array, shape):
+    """Test that all the transforms can be composed in arbitrary order.
+
+    This exclude the N2VManipulate transform, which needs to be the last one.
+    """
+    rng = np.random.default_rng(seed=42)
+
+    # create array
+    array = ordered_array(shape)
+    mask = ordered_array(shape) + 5
+
+    # apply transform in random order
+    for _ in range(10):
+        flip_x = rng.choice([True, False])
+
+        transforms = [
+            NormalizeModel(mean=0.5, std=0.5),
+            XYFlipModel(flip_x=flip_x, seed=42),
+            XYRandomRotate90Model(seed=42),
+        ]
+
+        # randomly sort the transforms
+        rng.shuffle(transforms)
+
+        # apply compose
+        compose = Compose(transforms)
+        result_array, result_mask = compose(array, mask)
+        assert not np.array_equal(result_array, array)
+        assert not np.array_equal(result_mask, mask)
