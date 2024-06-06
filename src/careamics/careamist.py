@@ -19,11 +19,13 @@ from careamics.config import (
     load_configuration,
 )
 from careamics.config.support import SupportedAlgorithm, SupportedData, SupportedLogger
+from careamics.dataset.dataset_utils import reshape_array
 from careamics.lightning_datamodule import CAREamicsTrainData
 from careamics.lightning_module import CAREamicsModule
 from careamics.lightning_prediction_datamodule import CAREamicsPredictData
 from careamics.lightning_prediction_loop import CAREamicsPredictionLoop
 from careamics.model_io import export_to_bmz, load_pretrained
+from careamics.transforms import Denormalize
 from careamics.utils import check_path_exists, get_logger
 
 from .callbacks import HyperParametersCallback
@@ -651,6 +653,83 @@ class CAREamist:
                     f"np.ndarray (got {type(source)})."
                 )
 
+    def _create_data_for_bmz(
+        self,
+        input_array: Optional[np.ndarray] = None,
+    ) -> np.ndarray:
+        """Create data for BMZ export.
+
+        If no `input_array` is provided, this method checks if there is a prediction
+        datamodule, or a training data module, to extract a patch. If none exists,
+        then a random aray is created.
+
+        If there is a non-singleton batch dimension, this method returns only the first
+        element.
+
+        Parameters
+        ----------
+        input_array : Optional[np.ndarray], optional
+            Input array, by default None.
+
+        Returns
+        -------
+        np.ndarray
+            Input data for BMZ export.
+
+        Raises
+        ------
+        ValueError
+            If mean and std are not provided in the configuration.
+        """
+        if input_array is None:
+            if self.cfg.data_config.mean is None or self.cfg.data_config.std is None:
+                raise ValueError(
+                    "Mean and std cannot be None in the configuration in order to"
+                    "export to the BMZ format. Was the model trained?"
+                )
+
+            # generate images, priority is given to the prediction data module
+            if self.pred_datamodule is not None:
+                # unpack a batch, ignore masks or targets
+                input_patch, *_ = next(iter(self.pred_datamodule.predict_dataloader()))
+
+                # convert torch.Tensor to numpy
+                input_patch = input_patch.numpy()
+
+                # denormalize
+                denormalize = Denormalize(
+                    mean=self.cfg.data_config.mean, std=self.cfg.data_config.std
+                )
+                input_patch, _ = denormalize(input_patch)
+
+            elif self.train_datamodule is not None:
+                input_patch, *_ = next(iter(self.train_datamodule.train_dataloader()))
+                input_patch = input_patch.numpy()
+
+                # denormalize
+                denormalize = Denormalize(
+                    mean=self.cfg.data_config.mean, std=self.cfg.data_config.std
+                )
+                input_patch, _ = denormalize(input_patch)
+            else:
+                # create a random input array
+                input_patch = np.random.normal(
+                    loc=self.cfg.data_config.mean,
+                    scale=self.cfg.data_config.std,
+                    size=self.cfg.data_config.patch_size,
+                ).astype(np.float32)[
+                    np.newaxis, np.newaxis, ...
+                ]  # add S & C dimensions
+        else:
+            # potentially correct shape
+            input_patch = reshape_array(input_array, self.cfg.data_config.axes)
+
+        # if this a batch
+        if input_patch.shape[0] > 1:
+            input_patch = input_patch[[0], ...]  # keep singleton dim
+
+        return input_patch
+
     def export_to_bmz(
         self,
         path: Union[Path, str],
@@ -682,41 +761,7 @@ class CAREamist:
         data_description : Optional[str], optional
             Description of the data, by default None.
         """
-        if input_array is None:
-            # generate images, priority is given to the prediction data module
-            if self.pred_datamodule is not None:
-                # unpack a batch, ignore masks or targets
-                input_patch, *_ = next(iter(self.pred_datamodule.predict_dataloader()))
-
-                # convert torch.Tensor to numpy
-                input_patch = input_patch.numpy()
-            elif self.train_datamodule is not None:
-                input_patch, *_ = next(iter(self.train_datamodule.train_dataloader()))
-                input_patch = input_patch.numpy()
-            else:
-                if (
-                    self.cfg.data_config.mean is None
-                    or self.cfg.data_config.std is None
-                ):
-                    raise ValueError(
-                        "Mean and std cannot be None in the configuration in order to"
-                        "export to the BMZ format. Was the model trained?"
-                    )
-
-                # create a random input array
-                input_patch = np.random.normal(
-                    loc=self.cfg.data_config.mean,
-                    scale=self.cfg.data_config.std,
-                    size=self.cfg.data_config.patch_size,
-                ).astype(np.float32)[
-                    np.newaxis, np.newaxis, ...
-                ]  # add S & C dimensions
-        else:
-            input_patch = input_array
-
-        # if there is a batch dimension
-        if input_patch.shape[0] > 1:
-            input_patch = input_patch[0:1, ...]  # keep singleton dim
+        input_patch = self._create_data_for_bmz(input_array)
 
         # axes need to be reformated for the export because reshaping was done in the
         # datamodule

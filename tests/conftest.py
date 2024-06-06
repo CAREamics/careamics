@@ -247,7 +247,7 @@ def overlaps() -> Tuple[int, int]:
 def pre_trained(tmp_path, minimum_configuration):
     """Fixture to create a pre-trained CAREamics model."""
     # training data
-    train_array = np.arange(32 * 32).reshape((32, 32))
+    train_array = np.arange(32 * 32).reshape((32, 32)).astype(float)
 
     # create configuration
     config = Configuration(**minimum_configuration)
