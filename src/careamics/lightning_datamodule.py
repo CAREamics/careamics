@@ -584,8 +584,8 @@ class TrainingDataWrapper(CAREamicsTrainData):
     >>> my_transforms = [
     ...     {
     ...         "name": SupportedTransform.NORMALIZE.value,
-    ...         "mean": 0,
-    ...         "std": 1,
+    ...         "image_means": [0],
+    ...         "image_stds": [1],
     ...     },
     ...     {
     ...         "name": SupportedTransform.N2V_MANIPULATE.value,

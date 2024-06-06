@@ -78,7 +78,7 @@ class InMemoryDataset(Dataset):
         self.read_source_func = read_source_func
 
         # Generate patches
-        supervised = self.data_target is not None
+        supervised = self.input_targets is not None
         patches_data = self._prepare_patches(supervised)
 
         # Unpack the dataclass
@@ -179,7 +179,7 @@ class InMemoryDataset(Dataset):
         int
             Length of the dataset.
         """
-        return len(self.patches)
+        return len(self.data)
 
     def __getitem__(self, index: int) -> Tuple[np.ndarray, ...]:
         """
@@ -200,16 +200,16 @@ class InMemoryDataset(Dataset):
         ValueError
             If dataset mean and std are not set.
         """
-        patch = self.patches[index]
+        patch = self.data[index]
 
         # if there is a target
-        if self.patch_targets is not None:
+        if self.data_targets is not None:
             # get target
-            target = self.patch_targets[index]
+            target = self.data_targets[index]
 
             return self.patch_transform(patch=patch, target=target)
 
-        elif self.data_config.has_n2v_manipulate():
+        elif self.data_config.has_n2v_manipulate():  # TODO not compatible with HDN
             return self.patch_transform(patch=patch)
         else:
             raise ValueError(
@@ -265,25 +265,25 @@ class InMemoryDataset(Dataset):
         indices = np.random.choice(total_patches, n_patches, replace=False)
 
         # extract patches
-        val_patches = self.patches[indices]
+        val_patches = self.data[indices]
 
         # remove patches from self.patch
-        self.patches = np.delete(self.patches, indices, axis=0)
+        self.data = np.delete(self.data, indices, axis=0)
 
         # same for targets
-        if self.patch_targets is not None:
-            val_targets = self.patch_targets[indices]
-            self.patch_targets = np.delete(self.patch_targets, indices, axis=0)
+        if self.data_targets is not None:
+            val_targets = self.data_targets[indices]
+            self.data_targets = np.delete(self.data_targets, indices, axis=0)
 
         # clone the dataset
         dataset = copy.deepcopy(self)
 
         # reassign patches
-        dataset.patches = val_patches
+        dataset.data = val_patches
 
         # reassign targets
-        if self.patch_targets is not None:
-            dataset.patch_targets = val_targets
+        if self.data_targets is not None:
+            dataset.data_targets = val_targets
 
         return dataset
 
@@ -349,7 +349,9 @@ class InMemoryPredictionDataset(Dataset):
 
         # get transforms
         self.patch_transform = Compose(
-            transform_list=[NormalizeModel(mean=self.mean, std=self.std)],
+            transform_list=[
+                NormalizeModel(image_means=self.image_means, image_stds=self.image_stds)
+            ],
         )
 
     def _prepare_tiles(self) -> List[Tuple[np.ndarray, TileInformation]]:

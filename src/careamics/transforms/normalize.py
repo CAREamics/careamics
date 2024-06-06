@@ -178,8 +178,8 @@ class Denormalize:
 
         Returns
         -------
-        Tuple[np.ndarray, Optional[np.ndarray]]
-            Transformed patch and target.
+        Tuple[np.ndarray]
+            Transformed patch.
         """
         norm_array = np.zeros_like(patch, dtype=np.float32)
 

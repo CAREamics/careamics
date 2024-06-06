@@ -653,7 +653,7 @@ def test_data_for_bmz_random(tmp_path, minimum_configuration):
     config.data_config.data_type = SupportedData.ARRAY.value
     config.data_config.patch_size = (8, 8)
     config.data_config.set_mean_and_std(
-        mean=example_data.mean(), std=example_data.std()
+        image_mean=example_data.mean(), image_std=example_data.std()
     )
 
     # instantiate CAREamist
@@ -684,7 +684,7 @@ def test_data_for_bmz_with_array(tmp_path, minimum_configuration):
     config.data_config.data_type = SupportedData.ARRAY.value
     config.data_config.patch_size = (8, 8)
     config.data_config.set_mean_and_std(
-        mean=example_data.mean(), std=example_data.std()
+        image_mean=example_data.mean(), image_std=example_data.std()
     )
 
     # instantiate CAREamist
@@ -723,15 +723,15 @@ def test_data_for_bmz_after_training(tmp_path, minimum_configuration):
     careamist.train(train_source=train_array, val_source=val_array)
 
     # check that mean and std make sense
-    assert config.data_config.mean > 100
-    assert config.data_config.std > 20
+    assert config.data_config.image_mean > 100
+    assert config.data_config.image_std > 20
 
     # get data for BMZ
     patch = careamist._create_data_for_bmz()
     assert patch.shape == (1, 1) + tuple(config.data_config.patch_size)
 
     # check that it is not normalised (data should be [0, 255])
-    assert patch.max() > config.data_config.mean
+    assert patch.max() > config.data_config.image_mean
 
 
 def test_data_for_bmz_after_prediction(tmp_path, minimum_configuration):
@@ -759,8 +759,8 @@ def test_data_for_bmz_after_prediction(tmp_path, minimum_configuration):
     careamist.train(train_source=train_array, val_source=val_array)
 
     # check that mean and std make sense
-    assert config.data_config.mean > 100
-    assert config.data_config.std > 20
+    assert config.data_config.image_mean > 100
+    assert config.data_config.image_std > 20
 
     # predict without tiling
     test_array = 1_000 * (1 + rng.random((32, 32), dtype=float)) / 2

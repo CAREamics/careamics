@@ -27,7 +27,7 @@ def test_number_of_patches(ordered_array):
     )
 
     # check number of patches
-    assert len(dataset) == dataset.patches.shape[0]
+    assert len(dataset) == dataset.data.shape[0]
 
 
 def test_compute_mean_std_transform(ordered_array):
@@ -69,7 +69,7 @@ def test_extracting_val_array(ordered_array, percentage):
     assert len(dataset) == total_n_patches - n_patches
 
     # check that none of the validation patch values are in the original dataset
-    assert np.in1d(valset.patches, dataset.patches).sum() == 0
+    assert np.in1d(valset.data, dataset.data).sum() == 0
 
 
 @pytest.mark.parametrize("percentage", [0.1, 0.6])
@@ -109,4 +109,4 @@ def test_extracting_val_files(tmp_path, ordered_array, percentage):
     assert len(dataset) == total_n_patches - n_patches
 
     # check that none of the validation patch values are in the original dataset
-    assert np.in1d(valset.patches, dataset.patches).sum() == 0
+    assert np.in1d(valset.data, dataset.data).sum() == 0

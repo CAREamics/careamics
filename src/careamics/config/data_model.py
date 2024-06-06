@@ -57,7 +57,7 @@ class DataConfig(BaseModel):
     ... )
 
     To change the mean and std of the data:
-    >>> data.set_mean_and_std(mean=[214.3], std=[84.5])
+    >>> data.set_mean_and_std(image_mean=[214.3], image_std=[84.5])
 
     One can pass also a list of transformations, by keyword, using the
     SupportedTransform value:
@@ -70,8 +70,8 @@ class DataConfig(BaseModel):
     ...     transforms=[
     ...         {
     ...             "name": SupportedTransform.NORMALIZE.value,
-    ...             "mean": 167.6,
-    ...             "std": 47.2,
+    ...             "image_means": [167.6],
+    ...             "image_stds": [47.2],
     ...         },
     ...         {
     ...             "name": "XYFlip",
@@ -379,8 +379,8 @@ class DataConfig(BaseModel):
 
     def set_mean_and_std(
         self,
-        image_mean: Optional[List] = (),
-        image_std: Optional[List] = (),
+        image_mean: List,
+        image_std: List,
         target_mean: Optional[List] = (),
         target_std: Optional[List] = (),
     ) -> None:

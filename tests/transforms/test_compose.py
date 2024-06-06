@@ -118,7 +118,12 @@ def test_random_composition(ordered_array, shape):
         flip_x = rng.choice([True, False])
 
         transforms = [
-            NormalizeModel(mean=0.5, std=0.5),
+            NormalizeModel(
+                image_means=[0.5 for _ in range(array.shape[0])],
+                image_stds=[0.5 for _ in range(array.shape[0])],
+                target_means=[0.5 for _ in range(array.shape[0])],
+                target_stds=[0.5 for _ in range(array.shape[0])],
+            ),
             XYFlipModel(flip_x=flip_x, seed=42),
             XYRandomRotate90Model(seed=42),
         ]
