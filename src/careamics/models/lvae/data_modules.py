@@ -31,6 +31,8 @@ def get_train_val_data(
     ignore_specific_datapoints=None
 ):
     """
+    Load the data from the given path and split them in training, validation and test sets.
+    
     Ensure that the shape of data should be N*H*W*C: N is number of data points. H,W are the image dimensions.
     C is the number of channels.
     """

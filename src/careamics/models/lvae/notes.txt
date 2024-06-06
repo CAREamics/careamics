@@ -65,8 +65,3 @@ NOT IMPORTANT, since it is not used...
     mixture of Gaussians. 
     - Another important fact to underline is that in the case of LadderVAE training the noise model is somehow 
     pre-computed and passed to the noise model object as a simple numpy array.
-
-----------------------------------------------------
-Operation notes
-
-1. I have a problem with environment --> pytorch-cuda==1.16 cannot be installed for some reason.

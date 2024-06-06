@@ -29,10 +29,10 @@ def get_config():
     
     data = config.data
     data.image_size = 128
-    data.multiscale_lowres_count = None
-    data.num_channels = 2
+    data.multiscale_lowres_count = None # todo: this one will be an issue in current careamics
+    data.num_channels = 2 # in careamics probably in lvae pydantic model
     
-    model = config.model
+    model = config.model # all in lvae pydantic model
     model.z_dims = [128, 128, 128, 128]
     model.n_filters = 64
     model.dropout = 0.1
@@ -40,19 +40,19 @@ def get_config():
     model.enable_noise_model = True
     model.analytical_kl = False
     
-    loss = config.loss
+    loss = config.loss # in algorithm config
     
     training = config.training
-    training.lr = 1e-3
+    training.lr = 1e-3 # in algorithm config
     training.lr_scheduler_patience = 15
-    training.batch_size = 32
-    training.earlystop_patience = 100
-    training.max_epochs = 400
-    training.pre_trained_ckpt_fpath = ''
+    training.batch_size = 32 # in data config
+    training.earlystop_patience = 100 # in training config in the callbacks (early stopping)
+    training.max_epochs = 400 # training config
+    training.pre_trained_ckpt_fpath = '' # this is through the careamics API
     
     # Set of attributes not to include in the PyDantic data model
-    training.num_workers = 4 
-    training.grad_clip_norm_value = 0.5  # Taken from https://github.com/openai/vdvae/blob/main/hps.py#L38
+    training.num_workers = 4 # this is in the data config, passed in the dataloader parameters
+    training.grad_clip_norm_value = 0.5  # Taken from https://github.com/openai/vdvae/blob/main/hps.py#L38 # this maybe should be in a new trainer_parameters dict in the training config pydantic model
     training.gradient_clip_algorithm = 'value'
     training.precision = 32
     data.data_type = DataType.BioSR_MRC

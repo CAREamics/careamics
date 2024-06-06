@@ -106,7 +106,12 @@ def adjust_for_imbalance_in_fraction_value(
             test = test[imb_count:]
     return val, test
 
-def get_datasplit_tuples(val_fraction: float, test_fraction: float, total_size: int, starting_test: bool = False):
+def get_datasplit_tuples(
+    val_fraction: float, 
+    test_fraction: float, 
+    total_size: int, 
+    starting_test: bool = False
+):
     if starting_test:
         # test => val => train
         test = list(range(0, int(total_size * test_fraction)))

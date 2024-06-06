@@ -6,17 +6,42 @@ import torch
 from .utils import allow_numpy
 
 class RunningPSNR:
-
+    """
+    This class allows to compute the running PSNR during validation step in training.
+    In this way it is possible to compute the PSNR on the entire validation set one batch at the time.
+    """
     def __init__(self):
-        self.N = self.mse_sum = self.max = self.min = None
+        # number of elements seen so far during the epoch
+        self.N = None
+        # running sum of the MSE over the self.N elements seen so far
+        self.mse_sum = None
+        # running max and min values of the self.N target images seen so far
+        self.max = self.min = None
         self.reset()
 
     def reset(self):
+        """
+        Used to reset the running PSNR (usually called at the end of each epoch).
+        """
         self.mse_sum = 0
         self.N = 0
         self.max = self.min = None
 
-    def update(self, rec, tar):
+    def update(
+        self, 
+        rec: torch.Tensor, 
+        tar: torch.Tensor
+    ) -> None:
+        """
+        Given a batch of reconstructed and target images, it updates the MSE and.
+        
+        Parameters
+        ----------
+        rec: torch.Tensor
+            Batch of reconstructed images (B, H, W).
+        tar: torch.Tensor
+            Batch of target images (B, H, W).
+        """
         ins_max = torch.max(tar).item()
         ins_min = torch.min(tar).item()
         if self.max is None:
@@ -33,6 +58,9 @@ class RunningPSNR:
         self.N += len(elementwise_mse) - torch.sum(torch.isnan(elementwise_mse))
 
     def get(self):
+        """
+        The get the actual PSNR value given the running statistics.
+        """
         if self.N == 0 or self.N is None:
             return None
         rmse = torch.sqrt(self.mse_sum / self.N)
@@ -80,7 +108,10 @@ def PSNR(gt, pred, range_=None):
 
 
 @allow_numpy
-def RangeInvariantPsnr(gt, pred):
+def RangeInvariantPsnr(
+    gt: torch.Tensor, 
+    pred: torch.Tensor
+):
     """
     NOTE: Works only for grayscale images.
     Adapted from https://github.com/juglab/ScaleInvPSNR/blob/master/psnr.py

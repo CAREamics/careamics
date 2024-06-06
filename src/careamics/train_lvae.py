@@ -20,9 +20,7 @@ from ml_collections.config_flags import config_flags
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 from careamics.models.lvae.lightning_module import LadderVAELight
-from careamics.models.lvae.data_utils import (
-    DataSplitType
-)
+from careamics.models.lvae.data_utils import DataSplitType
 from careamics.models.lvae.data_modules import (
     LCMultiChDloader,
     MultiChDloader
@@ -124,8 +122,8 @@ def create_dataset(
         val_data_kwargs['enable_random_cropping'] = False
 
         train_data = None if skip_train_dataset else MultiChDloader(
-            config.data,
-            datapath,
+            data_config=config.data,
+            fpath=datapath,
             datasplit_type=DataSplitType.Train,
             val_fraction=0.1,
             test_fraction=0.1,
@@ -137,8 +135,8 @@ def create_dataset(
 
         max_val = train_data.get_max_val()
         val_data = MultiChDloader(
-            config.data,
-            datapath,
+            data_config=config.data,
+            fpath=datapath,
             datasplit_type=eval_datasplit_type,
             val_fraction=0.1,
             test_fraction=0.1,
