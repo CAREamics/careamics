@@ -1,6 +1,9 @@
 """CAREamics Lightning module."""
 
-from typing import Any, Optional, Union
+from pathlib import Path
+
+from typing import Any, Optional, Union, Literal, Dict
+from dataclasses import dataclass
 
 import pytorch_lightning as L
 from torch import Tensor, nn
@@ -12,11 +15,24 @@ from careamics.config.support import (
     SupportedLoss,
     SupportedOptimizer,
     SupportedScheduler,
+    SupportedData
 )
 from careamics.losses import loss_factory
 from careamics.models.model_factory import model_factory
 from careamics.transforms import Denormalize, ImageRestorationTTA
 from careamics.utils.torch_utils import get_optimizer, get_scheduler
+
+from .prediction.save_utils import get_save_func, SavePredictFunc
+
+@dataclass
+class SavePredictionArgs:
+    save_predictions: bool = False
+    save_type: Literal["tiff", "custom"] = "tiff"
+    save_extension: Optional[str] = None
+    save_predict_func: Optional[SavePredictFunc] = None
+    save_predict_func_kwargs: Optional[Dict[str, Any]] = None
+    predict_dir: str | Path = "predict"
+    force: bool = False
 
 
 class CAREamicsModule(L.LightningModule):
@@ -70,6 +86,8 @@ class CAREamicsModule(L.LightningModule):
         self.optimizer_params = algorithm_config.optimizer.parameters
         self.lr_scheduler_name = algorithm_config.lr_scheduler.name
         self.lr_scheduler_params = algorithm_config.lr_scheduler.parameters
+
+        self.save_prediction_args: SavePredictionArgs = SavePredictionArgs()
 
     def forward(self, x: Any) -> Any:
         """Forward pass.
@@ -196,6 +214,43 @@ class CAREamicsModule(L.LightningModule):
             "lr_scheduler": scheduler,
             "monitor": "val_loss",  # otherwise triggers MisconfigurationException
         }
+
+    def set_save_prediction_args(
+        self,
+        save_predictions: bool = False,
+        save_type: Literal["tiff", "custom"] = "tiff",
+        save_extension: Optional[str] = None,
+        save_predict_func: Optional[SavePredictFunc] = None,
+        save_predict_func_kwargs: Optional[Dict[str, Any]] = None,
+        predict_dir: str | Path = "predict",
+        force: bool = False,
+    ) -> None:
+        
+        if save_predict_func_kwargs is None:
+            save_predict_func_kwargs = {}
+        
+        if (save_extension is None) and (save_type != "custom"):
+            save_extension = SupportedData.get_extension(save_type)
+
+        # Get save function
+        if save_type == "custom":
+            if save_predict_func is None:
+                raise ValueError(
+                    "`save_predict_func` not provided for custom `save_type`."
+                )
+        else:
+            save_predict_func = get_save_func(save_type)
+
+        self.save_prediction_args.save_predictions = save_predictions
+        self.save_prediction_args.save_type = save_type
+        self.save_prediction_args.save_extension = save_extension
+        self.save_prediction_args.save_predict_func = save_predict_func
+        self.save_prediction_args.save_predict_func_kwargs = save_predict_func_kwargs
+        self.save_prediction_args.predict_dir = predict_dir
+        self.save_prediction_args.force = force
+
+    def set_save_predictions(self, save_predictions: bool) -> None:
+        self.save_prediction_args.save_predictions = save_predictions
 
 
 class CAREamicsModuleWrapper(CAREamicsModule):

@@ -1,17 +1,7 @@
 """A class to train, predict and export models in CAREamics."""
 
 from pathlib import Path
-from typing import (
-    Any,
-    Callable,
-    Dict,
-    List,
-    Literal,
-    Optional,
-    Tuple,
-    Union,
-    overload
-)
+from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, Union, overload
 
 import numpy as np
 from numpy.typing import NDArray
@@ -39,10 +29,12 @@ from careamics.utils import check_path_exists, get_logger
 from .dataset.dataset_utils import list_files
 from .prediction.save_utils import get_save_func, SavePredictFunc
 from .callbacks import HyperParametersCallback
+from .lightning_prediction_writer import CAREamicsPredictionWriter
 
 logger = get_logger(__name__)
 
 LOGGER_TYPES = Optional[Union[TensorBoardLogger, WandbLogger]]
+
 
 # TODO napari callbacks
 # TODO: how to do AMP? How to continue training?
@@ -222,6 +214,7 @@ class CAREamist:
                 **self.cfg.training_config.checkpoint_callback.model_dump(),
             ),
             ProgressBarCallback(),
+            CAREamicsPredictionWriter(),
         ]
 
         # early stopping callback
@@ -480,6 +473,75 @@ class CAREamist:
         # train
         self.train(datamodule=datamodule)
 
+    def _create_pred_datamodule(
+        self,
+        source: Union[Path, str],
+        *,
+        batch_size: int = 1,
+        tile_size: Optional[Tuple[int, ...]] = None,
+        tile_overlap: Tuple[int, ...] = (48, 48),
+        axes: Optional[str] = None,
+        data_type: Optional[Literal["tiff", "custom"]] = None,
+        tta_transforms: bool = True,
+        dataloader_params: Optional[Dict] = None,
+        read_source_func: Optional[Callable] = None,
+        extension_filter: str = "",
+    ) -> CAREamicsPredictData:
+        if isinstance(source, CAREamicsPredictData):
+            pred_datamodule = source
+
+        else:
+            if self.cfg is None:
+                raise ValueError(
+                    "No configuration found. Train a model or load from a "
+                    "checkpoint before predicting."
+                )
+            # create predict config, reuse training config if parameters missing
+            prediction_config = create_inference_configuration(
+                configuration=self.cfg,
+                tile_size=tile_size,
+                tile_overlap=tile_overlap,
+                data_type=data_type,
+                axes=axes,
+                tta_transforms=tta_transforms,
+                batch_size=batch_size,
+            )
+
+            # remove batch from dataloader parameters (priority given to config)
+            if dataloader_params is None:
+                dataloader_params = {}
+            if "batch_size" in dataloader_params:
+                del dataloader_params["batch_size"]
+
+            if isinstance(source, Path) or isinstance(source, str):
+                # Check the source
+                source_path = check_path_exists(source)
+
+                # create datamodule
+                pred_datamodule = CAREamicsPredictData(
+                    pred_config=prediction_config,
+                    pred_data=source_path,
+                    read_source_func=read_source_func,
+                    extension_filter=extension_filter,
+                    dataloader_params=dataloader_params,
+                )
+
+            elif isinstance(source, np.ndarray):
+                # create datamodule
+                pred_datamodule = CAREamicsPredictData(
+                    pred_config=prediction_config,
+                    pred_data=source,
+                    dataloader_params=dataloader_params,
+                )
+
+            else:
+                raise ValueError(
+                    f"Invalid input. Expected a CAREamicsWood instance, paths or "
+                    f"np.ndarray (got {type(source)})."
+                )
+
+            return pred_datamodule
+
     @overload
     def predict(  # numpydoc ignore=GL08
         self,
@@ -591,82 +653,28 @@ class CAREamist:
         ValueError
             If the input is not a CAREamicsClay instance, a path or a numpy array.
         """
-        if isinstance(source, CAREamicsPredictData):
-            # record datamodule
-            self.pred_datamodule = source
-
-            return self.trainer.predict(
-                model=self.model, datamodule=source, ckpt_path=checkpoint
-            )
-        else:
-            if self.cfg is None:
-                raise ValueError(
-                    "No configuration found. Train a model or load from a "
-                    "checkpoint before predicting."
-                )
-            # create predict config, reuse training config if parameters missing
-            prediction_config = create_inference_configuration(
-                configuration=self.cfg,
-                tile_size=tile_size,
-                tile_overlap=tile_overlap,
-                data_type=data_type,
-                axes=axes,
-                tta_transforms=tta_transforms,
-                batch_size=batch_size,
-            )
-
-            # remove batch from dataloader parameters (priority given to config)
-            if dataloader_params is None:
-                dataloader_params = {}
-            if "batch_size" in dataloader_params:
-                del dataloader_params["batch_size"]
-
-            if isinstance(source, Path) or isinstance(source, str):
-                # Check the source
-                source_path = check_path_exists(source)
-
-                # create datamodule
-                datamodule = CAREamicsPredictData(
-                    pred_config=prediction_config,
-                    pred_data=source_path,
-                    read_source_func=read_source_func,
-                    extension_filter=extension_filter,
-                    dataloader_params=dataloader_params,
-                )
-
-                # record datamodule
-                self.pred_datamodule = datamodule
-
-                return self.trainer.predict(
-                    model=self.model, datamodule=datamodule, ckpt_path=checkpoint
-                )
-
-            elif isinstance(source, np.ndarray):
-                # create datamodule
-                datamodule = CAREamicsPredictData(
-                    pred_config=prediction_config,
-                    pred_data=source,
-                    dataloader_params=dataloader_params,
-                )
-
-                # record datamodule
-                self.pred_datamodule = datamodule
-
-                return self.trainer.predict(
-                    model=self.model, datamodule=datamodule, ckpt_path=checkpoint
-                )
-
-            else:
-                raise ValueError(
-                    f"Invalid input. Expected a CAREamicsWood instance, paths or "
-                    f"np.ndarray (got {type(source)})."
-                )
+        # record datamodule
+        self.pred_datamodule = self._create_pred_datamodule(
+            source,
+            batch_size=batch_size,
+            tile_size=tile_size,
+            tile_overlap=tile_overlap,
+            axes=axes,
+            data_type=data_type,
+            tta_transforms=tta_transforms,
+            dataloader_params=dataloader_params,
+            read_source_func=read_source_func,
+            extension_filter=extension_filter,
+        )
+        return self.trainer.predict(
+            model=self.model, datamodule=self.pred_datamodule, ckpt_path=checkpoint
+        )
 
     def predict_to_disk(
         self,
         source: Union[CAREamicsPredictData, Path, str, np.ndarray],
         *,
-        # batch_size: int = 1, Only predicting one file at a time
+        batch_size: int = 1,
         tile_size: Optional[Tuple[int, ...]] = None,
         tile_overlap: Tuple[int, ...] = (48, 48),
         axes: Optional[str] = None,
@@ -681,120 +689,178 @@ class CAREamist:
         save_predict_func: Optional[SavePredictFunc] = None,
         save_predict_func_kwargs: Optional[Dict[str, Any]] = None,
         predict_dir: str | Path = "predict",
-        force: bool = False
+        force: bool = False,
     ) -> Union[List[Path], Path]:
-        """
-        Make predictions on the provided data, and save to disk.
+        """ """
+        self.model.set_save_prediction_args(
+            save_predictions=True,
+            save_type=save_type,
+            save_extension=save_extension,
+            save_predict_func=save_predict_func,
+            save_predict_func_kwargs=save_predict_func_kwargs,
+            predict_dir=predict_dir,
+            force=force,
+        )
+        self.pred_datamodule = self._create_pred_datamodule(
+            source,
+            batch_size=batch_size,
+            tile_size=tile_size,
+            tile_overlap=tile_overlap,
+            axes=axes,
+            data_type=data_type,
+            tta_transforms=tta_transforms,
+            dataloader_params=dataloader_params,
+            read_source_func=read_source_func,
+            extension_filter=extension_filter,
+        )
+        # TODO: Problem: CAREamics predict loop is not compatible with `return_predictions=False`
+        self.trainer.predict(
+            model=self.model, datamodule=self.pred_datamodule, ckpt_path=checkpoint, return_predictions=False
+        )
 
-        Input can be a CAREamicsClay instance, a path to a data file, or a numpy array.
+        # unset save predictions
+        self.model.set_save_predictions(False)
 
-        If `data_type`, `axes` and `tile_size` are not provided, the training
-        configuration parameters will be used, with the `patch_size` instead of
-        `tile_size`.
+        return []
 
-        Test-time augmentation (TTA) can be switched off using the `tta_transforms`
-        parameter.
+    # def predict_to_disk(
+    #     self,
+    #     source: Union[CAREamicsPredictData, Path, str, np.ndarray],
+    #     *,
+    #     tile_size: Optional[Tuple[int, ...]] = None,
+    #     tile_overlap: Tuple[int, ...] = (48, 48),
+    #     axes: Optional[str] = None,
+    #     data_type: Optional[Literal["array", "tiff", "custom"]] = None,
+    #     tta_transforms: bool = True,
+    #     dataloader_params: Optional[Dict] = None,
+    #     read_source_func: Optional[Callable] = None,
+    #     extension_filter: str = "",
+    #     checkpoint: Optional[Literal["best", "last"]] = None,
+    #     save_type: Literal["tiff", "custom"] = "tiff",
+    #     save_extension: Optional[str] = None,
+    #     save_predict_func: Optional[SavePredictFunc] = None,
+    #     save_predict_func_kwargs: Optional[Dict[str, Any]] = None,
+    #     predict_dir: str | Path = "predict",
+    #     force: bool = False
+    # ) -> Union[List[Path], Path]:
+    #     """
+    #     Make predictions on the provided data, and save to disk.
 
-        Note that if you are using a UNet model and tiling, the tile size must be
-        divisible in every dimension by 2**d, where d is the depth of the model. This
-        avoids artefacts arising from the broken shift invariance induced by the
-        pooling layers of the UNet. If your image has less dimensions, as it may
-        happen in the Z dimension, consider padding your image.
+    #     Input can be a CAREamicsClay instance, a path to a data file, or a numpy array.
 
-        Parameters
-        ----------
-        source : Union[CAREamicsClay, Path, str, np.ndarray]
-            Data to predict on.
-        tile_size : Optional[Tuple[int, ...]], optional
-            Size of the tiles to use for prediction, by default None.
-        tile_overlap : Tuple[int, ...], optional
-            Overlap between tiles, by default (48, 48).
-        axes : Optional[str], optional
-            Axes of the input data, by default None.
-        data_type : Optional[Literal["array", "tiff", "custom"]], optional
-            Type of the input data, by default None.
-        tta_transforms : bool, optional
-            Whether to apply test-time augmentation, by default True.
-        dataloader_params : Optional[Dict], optional
-            Parameters to pass to the dataloader, by default None.
-        read_source_func : Optional[Callable], optional
-            Function to read the source data, by default None.
-        extension_filter : str, optional
-            Filter for the file extension, by default "".
-        checkpoint : Optional[Literal["best", "last"]], optional
-            Checkpoint to use for prediction, by default None.
-        save_type : {"tiff" | "custom"}
-            Data type to save to, if 'custom' provide a `save_predict_func` 
-            default=tiff.
-        save_extension : str, optional
-            Extension of saved type, only needs to be specified if `save_type='custom`.
-        save_predict_func: callable, optional
-            Function for saving to a custom data type. Expected signature is 
-            `func(fp: Path, img: numpy.ndarray, *args, **kwargs) -> None`.
-        save_predict_func_kwargs: dict, optional
-            Extra kwargs to pass to `save_predict_func` after the file path and data.
-        predict_dir: Path | str
-            Where the predicted data will be saved. Can be relative to the `work_dir`
-            that the `CAREamist` instance was initialized with, or absolute, 
-            default='predict'
-        force: bool
-            Whether to overwrite existing prediction outputs, default=False.
+    #     If `data_type`, `axes` and `tile_size` are not provided, the training
+    #     configuration parameters will be used, with the `patch_size` instead of
+    #     `tile_size`.
 
-        Returns
-        -------
-        Union[List[Path], Path]
-            Paths to predictions made by the model.
-        """
-        # TODO: Don't accept array as source? or require name?
-         
-        if save_predict_func_kwargs is None:
-            save_predict_func_kwargs = {}
-        
-        if save_extension is None:
-            save_extension = SupportedData.get_extension(save_type)
+    #     Test-time augmentation (TTA) can be switched off using the `tta_transforms`
+    #     parameter.
 
-        # Get save function
-        if save_type == "custom":
-            if save_predict_func is None:
-                raise ValueError(
-                    "`save_predict_func` not provided for custom `save_type`."
-                )
-        else:
-            save_predict_func = get_save_func(save_type)
-        
-        # Create save directory
-        predict_dir = Path(predict_dir)
-        if not predict_dir.is_absolute():
-            predict_dir = self.work_dir / predict_dir
-        if not predict_dir.is_dir():
-            predict_dir.mkdir()
+    #     Note that if you are using a UNet model and tiling, the tile size must be
+    #     divisible in every dimension by 2**d, where d is the depth of the model. This
+    #     avoids artefacts arising from the broken shift invariance induced by the
+    #     pooling layers of the UNet. If your image has less dimensions, as it may
+    #     happen in the Z dimension, consider padding your image.
 
-        # Loop through images
-        source_paths = list_files(source, data_type, save_extension)
-        # prediction files will have a matching name to the source files.
-        save_paths = [
-            (predict_dir/path.stem).with_suffix(save_extension) 
-            for path in source_paths
-        ]
-        for source_path, save_path in zip(source_paths, save_paths):
-            # predict each image in turn
-            pred = self.predict(
-                source=source_path,
-                batch_size=1, # TODO: determine how many files can fit into memory ?
-                tile_size=tile_size,
-                tile_overlap=tile_overlap,
-                axes=axes,
-                data_type=data_type,
-                tta_transforms=tta_transforms,
-                dataloader_params=dataloader_params,
-                read_source_func=read_source_func,
-                extension_filter=extension_filter,
-                checkpoint=checkpoint
-            )
-            # TODO: check if file already exists and not force
-            save_predict_func(save_path, pred, **save_predict_func_kwargs)
-        
-        return save_paths
+    #     Parameters
+    #     ----------
+    #     source : Union[CAREamicsClay, Path, str, np.ndarray]
+    #         Data to predict on.
+    #     tile_size : Optional[Tuple[int, ...]], optional
+    #         Size of the tiles to use for prediction, by default None.
+    #     tile_overlap : Tuple[int, ...], optional
+    #         Overlap between tiles, by default (48, 48).
+    #     axes : Optional[str], optional
+    #         Axes of the input data, by default None.
+    #     data_type : Optional[Literal["array", "tiff", "custom"]], optional
+    #         Type of the input data, by default None.
+    #     tta_transforms : bool, optional
+    #         Whether to apply test-time augmentation, by default True.
+    #     dataloader_params : Optional[Dict], optional
+    #         Parameters to pass to the dataloader, by default None.
+    #     read_source_func : Optional[Callable], optional
+    #         Function to read the source data, by default None.
+    #     extension_filter : str, optional
+    #         Filter for the file extension, by default "".
+    #     checkpoint : Optional[Literal["best", "last"]], optional
+    #         Checkpoint to use for prediction, by default None.
+    #     save_type : {"tiff" | "custom"}
+    #         Data type to save to, if 'custom' provide a `save_predict_func`
+    #         default=tiff.
+    #     save_extension : str, optional
+    #         Extension of saved type, only needs to be specified if `save_type='custom`.
+    #     save_predict_func: callable, optional
+    #         Function for saving to a custom data type. Expected signature is
+    #         `func(fp: Path, img: numpy.ndarray, *args, **kwargs) -> None`.
+    #     save_predict_func_kwargs: dict, optional
+    #         Extra kwargs to pass to `save_predict_func` after the file path and data.
+    #     predict_dir: Path | str
+    #         Where the predicted data will be saved. Can be relative to the `work_dir`
+    #         that the `CAREamist` instance was initialized with, or absolute,
+    #         default='predict'
+    #     force: bool
+    #         Whether to overwrite existing prediction outputs, default=False.
+
+    #     Returns
+    #     -------
+    #     Union[List[Path], Path]
+    #         Paths to predictions made by the model.
+    #     """
+    #     # TODO: Don't accept array as source? or require name?
+
+    #     if save_predict_func_kwargs is None:
+    #         save_predict_func_kwargs = {}
+
+    #     if save_extension is None:
+    #         save_extension = SupportedData.get_extension(save_type)
+
+    #     # Get save function
+    #     if save_type == "custom":
+    #         if save_predict_func is None:
+    #             raise ValueError(
+    #                 "`save_predict_func` not provided for custom `save_type`."
+    #             )
+    #     else:
+    #         save_predict_func = get_save_func(save_type)
+
+    #     # Create save directory
+    #     predict_dir = Path(predict_dir)
+    #     if not predict_dir.is_absolute():
+    #         predict_dir = self.work_dir / predict_dir
+    #     if not predict_dir.is_dir():
+    #         predict_dir.mkdir()
+
+    #     # --- Loop through images
+    #     source_paths = list_files(source, data_type, save_extension)
+    #     # prediction files will have a matching name to the source files.
+    #     save_paths = [
+    #         (predict_dir/path.stem).with_suffix(save_extension)
+    #         for path in source_paths
+    #     ]
+    #     save_paths_exist = [path.is_file() for path in save_paths]
+    #     # check file existance
+    #     if (not force) and any(save_paths_exist):
+    #         raise FileExistsError(
+    #             "Prediction files already exist, use `force=True` to overwrite "
+    #             "existing files."
+    #         )
+    #     for source_path, save_path in zip(source_paths, save_paths):
+    #         # predict each image in turn
+    #         pred = self.predict(
+    #             source=source_path,
+    #             batch_size=1, # TODO: determine how many files can fit into memory ?
+    #             tile_size=tile_size,
+    #             tile_overlap=tile_overlap,
+    #             axes=axes,
+    #             data_type=data_type,
+    #             tta_transforms=tta_transforms,
+    #             dataloader_params=dataloader_params,
+    #             read_source_func=read_source_func,
+    #             extension_filter=extension_filter,
+    #             checkpoint=checkpoint
+    #         )
+    #         save_predict_func(save_path, pred, **save_predict_func_kwargs)
+
+    #     return save_paths
 
     def export_to_bmz(
         self,
