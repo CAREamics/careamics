@@ -39,9 +39,9 @@ class DataConfig(BaseModel):
 
     If std is specified, mean must be specified as well. Note that setting the std first
     and then the mean (if they were both `None` before) will raise a validation error.
-    Prefer instead `set_mean_and_std` to set both at once. Means and stds are expected to
-    be lists of floats, one for each channel. For supervised tasks, the mean and std of
-    the target could be different from the input data.
+    Prefer instead `set_mean_and_std` to set both at once. Means and stds are expected
+    to be lists of floats, one for each channel. For supervised tasks, the mean and std
+    of the target could be different from the input data.
 
     Examples
     --------
@@ -90,10 +90,10 @@ class DataConfig(BaseModel):
     axes: str
 
     # Optional fields
-    image_mean: Optional[List] = Field(default=[], min_length=0, max_length=32)
-    image_std: Optional[List] = Field(default=[], min_length=0, max_length=32)
-    target_mean: Optional[List] = Field(default=[], min_length=0, max_length=32)
-    target_std: Optional[List] = Field(default=[], min_length=0, max_length=32)
+    image_mean: Optional[List[float]] = Field(default=[], min_length=0, max_length=32)
+    image_std: Optional[List[float]] = Field(default=[], min_length=0, max_length=32)
+    target_mean: Optional[List[float]] = Field(default=[], min_length=0, max_length=32)
+    target_std: Optional[List[float]] = Field(default=[], min_length=0, max_length=32)
 
     transforms: List[TRANSFORMS_UNION] = Field(
         default=[

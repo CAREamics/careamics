@@ -12,7 +12,7 @@ from careamics.transforms import Compose
 from ..config import DataConfig, InferenceConfig
 from ..config.tile_information import TileInformation
 from ..utils.logging import get_logger
-from .dataset_utils import read_tiff, reshape_array, compute_normalization_stats
+from .dataset_utils import compute_normalization_stats, read_tiff, reshape_array
 from .patching.patching import PatchedOutput
 from .patching.random_patching import extract_patches_random
 from .patching.tiled_patching import extract_tiles
@@ -73,24 +73,32 @@ class PathIterableDataset(IterableDataset):
                 None,
                 self.data_config.image_mean,
                 self.data_config.image_std,
-                self.data_config.target_mean,
-                self.data_config.target_std,
+                (
+                    self.data_config.target_mean
+                    if hasattr(self.data_config, "target_mean")
+                    else None
+                ),
+                (
+                    self.data_config.target_std
+                    if hasattr(self.data_config, "target_std")
+                    else None
+                ),
             )
-
-        self.data_config.set_mean_and_std(
-            image_mean=self.patches_data.image_means.tolist(),
-            image_std=self.patches_data.image_stds.tolist(),
-            target_mean=(
-                self.patches_data.target_means.tolist()
-                if self.patches_data.target_means is not None
-                else []
-            ),
-            target_std=(
-                self.patches_data.target_stds.tolist()
-                if self.patches_data.target_stds is not None
-                else []
-            ),
-        )
+        if hasattr(self.data_config, "set_mean_and_std"):
+            self.data_config.set_mean_and_std(
+                image_mean=list(self.patches_data.image_means),
+                image_std=list(self.patches_data.image_stds),
+                target_mean=(
+                    list(self.patches_data.target_means)
+                    if self.patches_data.target_means is not None
+                    else []
+                ),
+                target_std=(
+                    list(self.patches_data.target_stds)
+                    if self.patches_data.target_stds is not None
+                    else []
+                ),
+            )
 
         # get transforms
         self.patch_transform = Compose(transform_list=data_config.transforms)
@@ -361,6 +369,8 @@ class IterablePredictionDataset(PathIterableDataset):
         self.tile_size = self.prediction_config.tile_size
         self.tile_overlap = self.prediction_config.tile_overlap
         self.read_source_func = read_source_func
+        self.image_means = self.prediction_config.image_mean
+        self.image_stds = self.prediction_config.image_std
 
         # tile only if both tile size and overlaps are provided
         self.tile = self.tile_size is not None and self.tile_overlap is not None
@@ -382,7 +392,8 @@ class IterablePredictionDataset(PathIterableDataset):
             Single patch.
         """
         assert (
-            self.mean is not None and self.std is not None
+            self.image_means is not None
+            and self.image_stds is not None
         ), "Mean and std must be provided"
 
         for sample, _ in self._iterate_over_files():

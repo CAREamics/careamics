@@ -13,8 +13,8 @@ from bioimageio.spec.model.v0_5 import (
     ChannelAxis,
     EnvironmentFileDescr,
     FileDescr,
+    FixedZeroMeanUnitVarianceAlongAxisKwargs,
     FixedZeroMeanUnitVarianceDescr,
-    FixedZeroMeanUnitVarianceKwargs,
     Identifier,
     InputTensorDescr,
     ModelDescr,
@@ -134,18 +134,22 @@ def _create_inputs_ouputs(
     output_axes = _create_axes(output_array, data_config, channel_names, False)
 
     # mean and std
-    assert data_config.mean is not None, "Mean cannot be None."
-    assert data_config.std is not None, "Std cannot be None."
-    mean = data_config.mean
-    std = data_config.std
+    assert data_config.image_mean is not None, "Mean cannot be None."
+    assert data_config.image_mean is not None, "Std cannot be None."
+    means = data_config.image_mean
+    stds = data_config.image_std
 
     # and the mean and std required to invert the normalization
     # CAREamics denormalization: x = y * (std + eps) + mean
     # BMZ normalization : x = (y - mean') / (std' + eps)
     # to apply the BMZ normalization as a denormalization step, we need:
     eps = 1e-6
-    inv_mean = -mean / (std + eps)
-    inv_std = 1 / (std + eps) - eps
+    inv_means = []
+    inv_stds = []
+
+    for mean, std in zip(means, stds):
+        inv_means.append(-mean / (std + eps))
+        inv_stds.append(1 / (std + eps) - eps)
 
     # create input/output descriptions
     input_descr = InputTensorDescr(
@@ -154,7 +158,9 @@ def _create_inputs_ouputs(
         test_tensor=FileDescr(source=input_path),
         preprocessing=[
             FixedZeroMeanUnitVarianceDescr(
-                kwargs=FixedZeroMeanUnitVarianceKwargs(mean=mean, std=std)
+                kwargs=FixedZeroMeanUnitVarianceAlongAxisKwargs(
+                    mean=means, std=stds, axis="channel"
+                )
             )
         ],
     )
@@ -164,8 +170,8 @@ def _create_inputs_ouputs(
         test_tensor=FileDescr(source=output_path),
         postprocessing=[
             FixedZeroMeanUnitVarianceDescr(
-                kwargs=FixedZeroMeanUnitVarianceKwargs(  # invert normalization
-                    mean=inv_mean, std=inv_std
+                kwargs=FixedZeroMeanUnitVarianceAlongAxisKwargs(  # invert normalization
+                    mean=inv_means, std=inv_stds, axis="channel"
                 )
             )
         ],

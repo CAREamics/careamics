@@ -698,8 +698,8 @@ class CAREamist:
                 input_patch = input_patch.numpy()
             else:
                 if (
-                    self.cfg.data_config.mean is None
-                    or self.cfg.data_config.std is None
+                    self.cfg.data_config.image_mean is None
+                    or self.cfg.data_config.image_std is None
                 ):
                     raise ValueError(
                         "Mean and std cannot be None in the configuration in order to"
@@ -708,8 +708,8 @@ class CAREamist:
 
                 # create a random input array
                 input_patch = np.random.normal(
-                    loc=self.cfg.data_config.mean,
-                    scale=self.cfg.data_config.std,
+                    loc=self.cfg.data_config.image_mean,
+                    scale=self.cfg.data_config.image_std,
                     size=self.cfg.data_config.patch_size,
                 ).astype(np.float32)[
                     np.newaxis, np.newaxis, ...

@@ -102,12 +102,12 @@ class Denormalize:
         self.eps = 1e-6
 
     def __call__(self, patch: np.ndarray) -> Tuple[np.ndarray, Optional[np.ndarray]]:
-        """Apply the transform to the source patch and the target (optional).
+        """Reverse the normalization operation for a batch of patches.
 
         Parameters
         ----------
         patch : np.ndarray
-            Patch, 2D or 3D, shape C(Z)YX.
+            Patch, 2D or 3D, shape BC(Z)YX.
         target : Optional[np.ndarray], optional
             Target for the patch, by default None
 
@@ -116,14 +116,16 @@ class Denormalize:
         Tuple[np.ndarray, Optional[np.ndarray]]
             Transformed patch and target.
         """
-        norm_patch = np.zeros_like(patch, dtype=np.float32)
+        norm_array = np.zeros_like(patch, dtype=np.float32)
 
+        # Iterating over the batch dimension
         for i in range(patch.shape[0]):
-            norm_patch[i] = self._apply(
-                patch[i], self.image_means[i], self.image_stds[i]
-            )
+            for ch in range(patch.shape[1]):
+                norm_array[i, ch] = self._apply(
+                    patch[i, ch], self.image_means[ch], self.image_stds[ch]
+                )
 
-        return norm_patch
+        return norm_array
 
     def _apply(self, patch: np.ndarray, mean: float, std: float) -> np.ndarray:
         """

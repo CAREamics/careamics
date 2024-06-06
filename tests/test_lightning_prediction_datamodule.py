@@ -37,8 +37,8 @@ def test_wrapper_unknown_type(simple_array):
         PredictDataWrapper(
             pred_data=simple_array,
             data_type="wrong_type",
-            mean=0.5,
-            std=0.1,
+            image_mean=[0.5],
+            image_std=[0.1],
             axes="YX",
             batch_size=2,
         )
@@ -50,8 +50,8 @@ def test_wrapper_instantiated_with_tiling(simple_array):
     data_module = PredictDataWrapper(
         pred_data=simple_array,
         data_type="array",
-        mean=0.5,
-        std=0.1,
+        image_mean=[0.5],
+        image_std=[0.1],
         axes="YX",
         batch_size=2,
         tile_overlap=[2, 2],
@@ -69,8 +69,8 @@ def test_lwrapper_instantiated_without_tiling(simple_array):
     data_module = PredictDataWrapper(
         pred_data=simple_array,
         data_type="array",
-        mean=0.5,
-        std=0.1,
+        image_mean=[0.5],
+        image_std=[0.1],
         axes="YX",
         batch_size=2,
     )

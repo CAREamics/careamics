@@ -30,8 +30,8 @@ class InferenceConfig(BaseModel):
 
     axes: str
 
-    mean: float
-    std: float = Field(..., ge=0.0)
+    image_mean: Optional[List] = Field(default=[], min_length=0, max_length=32)
+    image_std: Optional[List] = Field(default=[], min_length=0, max_length=32)
 
     transforms: List[TRANSFORMS_UNION] = Field(
         default=[
@@ -228,9 +228,21 @@ class InferenceConfig(BaseModel):
             If std is not None and mean is None.
         """
         # check that mean and std are either both None, or both specified
-        if (self.mean is None) != (self.std is None):
+        if not self.image_mean and not self.image_std:
+            raise ValueError("Mean and std must be specified during inference.")
+
+        if (self.image_mean and not self.image_std) or (
+            self.image_std and not self.image_mean
+        ):
             raise ValueError(
                 "Mean and std must be either both None, or both specified."
+            )
+
+        elif (self.image_mean is not None and self.image_std is not None) and (
+            len(self.image_mean) != len(self.image_std)
+        ):
+            raise ValueError(
+                "Mean and std must be specified for each " "input channel."
             )
 
         return self
@@ -245,12 +257,12 @@ class InferenceConfig(BaseModel):
         Self
             Inference model with mean and std added to the Normalize transform.
         """
-        if self.mean is not None or self.std is not None:
+        if self.image_mean and self.image_std:
             # search in the transforms for Normalize and update parameters
             for transform in self.transforms:
                 if transform.name == SupportedTransform.NORMALIZE.value:
-                    transform.mean = self.mean
-                    transform.std = self.std
+                    transform.image_means = self.image_mean
+                    transform.image_stds = self.image_std
 
         return self
 

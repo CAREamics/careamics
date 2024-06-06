@@ -20,25 +20,25 @@ def test_wrong_extensions(minimum_inference: dict, ext: str):
 def test_mean_std_both_specified_or_none(minimum_inference: dict):
     """Test error raising when setting mean and std."""
     # Errors if both are None
-    minimum_inference["mean"] = None
-    minimum_inference["std"] = None
+    minimum_inference["image_mean"] = []
+    minimum_inference["image_std"] = []
     with pytest.raises(ValueError):
         InferenceConfig(**minimum_inference)
 
     # Error if only mean is defined
-    minimum_inference["mean"] = 10.4
+    minimum_inference["image_mean"] = [10.4]
     with pytest.raises(ValueError):
         InferenceConfig(**minimum_inference)
 
     # Error if only std is defined
-    minimum_inference.pop("mean")
-    minimum_inference["std"] = 10.4
+    minimum_inference.pop("image_mean")
+    minimum_inference["image_std"] = [10.4]
     with pytest.raises(ValueError):
         InferenceConfig(**minimum_inference)
 
     # No error if both are specified
-    minimum_inference["mean"] = 10.4
-    minimum_inference["std"] = 10.4
+    minimum_inference["image_mean"] = [10.4]
+    minimum_inference["image_std"] = [10.4]
     InferenceConfig(**minimum_inference)
 
 
@@ -162,12 +162,12 @@ def test_passing_incorrect_element(minimum_inference: dict):
 
 def test_mean_and_std_in_normalize(minimum_inference: dict):
     """Test that mean and std are added to the Normalize transform."""
-    minimum_inference["mean"] = 10.4
-    minimum_inference["std"] = 3.2
+    minimum_inference["image_mean"] = [10.4]
+    minimum_inference["image_std"] = [3.2]
     minimum_inference["transforms"] = [
         {"name": SupportedTransform.NORMALIZE.value},
     ]
 
     data = InferenceConfig(**minimum_inference)
-    assert data.transforms[0].mean == 10.4
-    assert data.transforms[0].std == 3.2
+    assert data.transforms[0].image_means == [10.4]
+    assert data.transforms[0].image_stds == [3.2]

@@ -623,8 +623,8 @@ def create_inference_configuration(
         Configuration for inference with N2V.
     """
     if (
-        training_configuration.data_config.mean is None
-        or training_configuration.data_config.std is None
+        training_configuration.data_config.image_mean is None
+        or training_configuration.data_config.image_std is None
     ):
         raise ValueError("Mean and std must be provided in the training configuration.")
 
@@ -640,8 +640,8 @@ def create_inference_configuration(
         tile_size=tile_size,
         tile_overlap=tile_overlap,
         axes=axes or training_configuration.data_config.axes,
-        mean=training_configuration.data_config.mean,
-        std=training_configuration.data_config.std,
+        image_mean=training_configuration.data_config.image_mean,
+        image_std=training_configuration.data_config.image_std,
         transforms=transforms,
         tta_transforms=tta_transforms,
         batch_size=batch_size,

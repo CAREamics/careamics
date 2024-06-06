@@ -59,10 +59,12 @@ class InMemoryDataset(Dataset):
         self.data = patches_data.patches
         self.data_targets = patches_data.targets
 
-        if not self.data_config.image_mean or not self.data_config.image_std:
+        if not any(self.data_config.image_mean) or not any(self.data_config.image_std):
             self.image_means = patches_data.image_means
             self.image_stds = patches_data.image_stds
-            logger.info(f"Computed dataset mean: {self.image_means}, std: {self.image_stds}")
+            logger.info(
+                f"Computed dataset mean: {self.image_means}, std: {self.image_stds}"
+            )
         else:
             self.image_means = self.data_config.image_mean
             self.image_stds = self.data_config.image_std
@@ -293,8 +295,8 @@ class InMemoryPredictionDataset(Dataset):
         self.axes = self.pred_config.axes
         self.tile_size = self.pred_config.tile_size
         self.tile_overlap = self.pred_config.tile_overlap
-        self.mean = self.pred_config.mean
-        self.std = self.pred_config.std
+        self.image_means = self.pred_config.image_mean
+        self.image_stds = self.pred_config.image_std
         self.data_target = data_target
 
         # tiling only if both tile size and overlap are provided
@@ -305,7 +307,6 @@ class InMemoryPredictionDataset(Dataset):
 
         # Generate patches
         self.data = self._prepare_tiles()
-        self.mean, self.std = self.pred_config.mean, self.pred_config.std
 
         # get transforms
         self.patch_transform = Compose(
@@ -338,8 +339,13 @@ class InMemoryPredictionDataset(Dataset):
 
             return patches_list
         else:
-            array_shape = reshaped_sample.squeeze().shape
-            return [(reshaped_sample, TileInformation(array_shape=array_shape))]
+            return [
+                (
+                    reshaped_sample[i][np.newaxis],
+                    TileInformation(array_shape=reshaped_sample[0].squeeze().shape),
+                )
+                for i in range(reshaped_sample.shape[0])
+            ]
 
     def __len__(self) -> int:
         """

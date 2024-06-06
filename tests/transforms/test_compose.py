@@ -6,6 +6,7 @@ from careamics.config.transformations import (
     NormalizeModel,
     XYRandomRotate90Model,
 )
+from careamics.dataset.dataset_utils import compute_normalization_stats
 from careamics.transforms import Compose, NDFlip, Normalize, XYRandomRotate90
 
 
@@ -58,17 +59,18 @@ def test_compose_n2v(ordered_array):
     array = ordered_array((2, 5, 5))
 
     # transform lists
-    mean, std = 0.5, 0.5
+    means, stds = compute_normalization_stats(image=array)
+
 
     transform_list_pydantic = [
-        NormalizeModel(mean=mean, std=std),
+        NormalizeModel(image_means=means, image_stds=stds),
         NDFlipModel(seed=seed),
         XYRandomRotate90Model(seed=seed),
         N2VManipulateModel(),
     ]
 
     # apply the transforms
-    normalize = Normalize(mean=mean, std=std)
+    normalize = Normalize(image_means=means, image_stds=stds)
     ndflip = NDFlip(seed=seed)
     xyrotate = XYRandomRotate90(seed=seed)
     array_aug, _ = xyrotate(*ndflip(*normalize(array)))
