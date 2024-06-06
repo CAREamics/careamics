@@ -32,4 +32,3 @@ class NormalizeModel(TransformModel):
     image_stds: List = Field(default=[], min_length=0, max_length=32)
     target_means: List = Field(default=[], min_length=0, max_length=32)
     target_stds: List = Field(default=[], min_length=0, max_length=32)
-

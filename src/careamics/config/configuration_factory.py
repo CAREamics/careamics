@@ -618,8 +618,10 @@ def create_inference_configuration(
     InferenceConfiguration
         Configuration used to configure CAREamicsPredictData.
     """
-
-    if configuration.data_config.image_mean is None or configuration.data_config.image_std is None:
+    if (
+        configuration.data_config.image_mean is None
+        or configuration.data_config.image_std is None
+    ):
         raise ValueError("Mean and std must be provided in the configuration.")
 
     # tile size for UNets

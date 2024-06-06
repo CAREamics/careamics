@@ -73,7 +73,6 @@ def test_mean_std_both_specified_or_none(minimum_data: dict):
         DataConfig(**minimum_data)
 
 
-
 def test_set_mean_and_std(minimum_data: dict):
     """Test that mean and std can be set after initialization."""
     # they can be set both, when they None

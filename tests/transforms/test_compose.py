@@ -8,8 +8,7 @@ from careamics.config.transformations import (
     XYRandomRotate90Model,
 )
 from careamics.dataset.dataset_utils import compute_normalization_stats
-from careamics.transforms import Compose, NDFlip, Normalize, XYRandomRotate90
-
+from careamics.transforms import Compose, Normalize, XYRandomRotate90
 
 
 def test_empty_compose(ordered_array):
@@ -62,7 +61,6 @@ def test_compose_n2v(ordered_array):
 
     # transform lists
     means, stds = compute_normalization_stats(image=array)
-
 
     transform_list_pydantic = [
         NormalizeModel(image_means=means, image_stds=stds),

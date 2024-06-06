@@ -682,8 +682,10 @@ class CAREamist:
             If mean and std are not provided in the configuration.
         """
         if input_array is None:
-            if self.cfg.data_config.image_mean is None or \
-                self.cfg.data_config.image_std is None:
+            if (
+                self.cfg.data_config.image_mean is None
+                or self.cfg.data_config.image_std is None
+            ):
                 raise ValueError(
                     "Mean and std cannot be None in the configuration in order to"
                     "export to the BMZ format. Was the model trained?"

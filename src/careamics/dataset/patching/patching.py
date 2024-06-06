@@ -165,9 +165,7 @@ def prepare_patches_unsupervised(
     patch_array: np.ndarray = np.concatenate(all_patches)
     logger.info(f"Extracted {patch_array.shape[0]} patches from input array.")
 
-    return PatchedOutput(
-        patch_array, None, image_means, image_stds, [], []
-    )
+    return PatchedOutput(patch_array, None, image_means, image_stds, [], [])
 
 
 # called on arrays by in memory dataset

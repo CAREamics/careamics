@@ -2,7 +2,6 @@
 
 from typing import List, Optional, Tuple
 
-
 import numpy as np
 
 from careamics.transforms.transform import Transform
@@ -47,7 +46,7 @@ class Normalize(Transform):
         image_stds: List[float],
         target_means: Optional[List[float]] = None,
         target_stds: Optional[List[float]] = None,
-    ):        
+    ):
         """Constructor.
 
         Parameters
@@ -164,7 +163,7 @@ class Denormalize:
         """
         self.image_means = image_means
         self.image_stds = image_stds
-      
+
         self.eps = 1e-6
 
     def __call__(self, patch: np.ndarray) -> Tuple[np.ndarray, Optional[np.ndarray]]:

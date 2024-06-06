@@ -471,8 +471,7 @@ class IterablePredictionDataset(IterableDataset):
             Single patch.
         """
         assert (
-            self.image_means is not None
-            and self.image_stds is not None
+            self.image_means is not None and self.image_stds is not None
         ), "Mean and std must be provided"
 
         for sample, _ in _iterate_over_files(

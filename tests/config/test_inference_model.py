@@ -116,7 +116,7 @@ def test_set_3d(minimum_inference: dict):
     assert len(pred.tile_size) == 3
     assert len(pred.tile_overlap) == 3
 
-    
+
 @pytest.mark.parametrize(
     "transforms",
     [
@@ -167,4 +167,3 @@ def test_mean_and_std_in_normalize(minimum_inference: dict):
     data = InferenceConfig(**minimum_inference)
     assert data.transforms[0].image_means == [10.4]
     assert data.transforms[0].image_stds == [3.2]
-
