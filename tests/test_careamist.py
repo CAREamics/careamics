@@ -598,6 +598,35 @@ def test_predict_path(tmp_path: Path, minimum_configuration: dict, batch_size):
     )
     assert (tmp_path / "model.zip").exists()
 
+@pytest.mark.parametrize("batch_size", [1, 2])
+def test_predict_to_disk(tmp_path: Path, minimum_configuration: dict, batch_size):
+    # training data
+    n = 2
+    train_arrays = [np.random.rand(32, 32) for _ in range(n)]
+
+    # save files
+    train_files = [tmp_path / f"train_{i}.tiff" for i in range(n)]
+    for fp, array in zip(train_files, train_arrays):
+        tifffile.imwrite(fp, array)
+
+    # create configuration
+    config = Configuration(**minimum_configuration)
+    config.training_config.num_epochs = 1
+    config.data_config.axes = "YX"
+    config.data_config.batch_size = 2
+    config.data_config.data_type = SupportedData.TIFF.value
+    config.data_config.patch_size = (8, 8)
+
+    # instantiate CAREamist
+    careamist = CAREamist(source=config, work_dir=tmp_path)
+
+    # train CAREamist
+    careamist.train(train_source=tmp_path)
+
+    # predict CAREamist
+    predicted = careamist.predict_to_disk(tmp_path, batch_size=batch_size, tile_size=[8, 8], tile_overlap=[2, 2])
+
+
 
 def test_predict_pretrained_checkpoint(tmp_path: Path, pre_trained: Path):
     """Test that CAREamics can be instantiated with a pre-trained network and predict
