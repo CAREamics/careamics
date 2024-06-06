@@ -108,12 +108,25 @@ class LadderVAELight(L.LightningModule):
         self.lr_scheduler_patience = config.training.lr_scheduler_patience
         self.lr_scheduler_monitor = config.model.get('monitor', 'val_loss')
         self.lr_scheduler_mode = MetricMonitor(self.lr_scheduler_monitor).mode()
+        
+        # Initialize object for keeping track of PSNR for each output channel
         self.channels_psnr = [RunningPSNR() for _ in range(self.model.target_ch)]
         
     def forward(self, x: Any) -> Any:
         return self.model(x)
     
 
+    def reconstruction_loss_musplit_denoisplit(self, out, target_normalized):
+        if self.model.predict_logvar is not None:
+            out_mean, _ = out.chunk(2, dim=1)
+        else:
+            out_mean  = out
+        
+        recons_loss_nm = -1 * self.model.likelihood_NM(out_mean, target_normalized)[0].mean()
+        recons_loss_gm = -1 * self.model.likelihood_gm(out, target_normalized)[0].mean()
+        recons_loss = self._denoisplit_w * recons_loss_nm + self._usplit_w * recons_loss_gm
+        return recons_loss
+    
     def training_step(
         self, 
         batch: torch.Tensor, 
@@ -202,9 +215,8 @@ class LadderVAELight(L.LightningModule):
                 kl_loss = self._denoisplit_w * denoisplit_kl + self._usplit_w * usplit_kl
                 kl_loss = self.kl_weight * kl_loss
 
-                recons_loss_nm = -1 * self.model.likelihood_NM(out_mean, target_normalized)[0].mean()
-                recons_loss_gm = -1 * self.model.likelihood_gm(out, target_normalized)[0].mean()
-                recons_loss = self._denoisplit_w * recons_loss_nm + self._usplit_w * recons_loss_gm
+                recons_loss = self.reconstruction_loss_musplit_denoisplit(out, target_normalized)   
+                # recons_loss = self._denoisplit_w * recons_loss_nm + self._usplit_w * recons_loss_gm
                 
             elif self.kl_loss_formulation == 'usplit':
                 kl_loss = self.get_kl_weight() * self.get_kl_divergence_loss_usplit(td_data)
@@ -259,17 +271,28 @@ class LadderVAELight(L.LightningModule):
 
         # Forward pass
         out, _ = self.forward(x_normalized)
+        
+        if self.model.predict_logvar is not None:
+            out_mean, _ = out.chunk(2, dim=1)
+        else:
+            out_mean  = out
+        
         if self.model.encoder_no_padding_mode and out.shape[-2:] != target_normalized.shape[-2:]:
             target_normalized = F.center_crop(target_normalized, out.shape[-2:])
 
-        # Metrics computation
-        recons_loss_dict, recons_img = self.get_reconstruction_loss(
-            out,
-            x_normalized,
-            target_normalized,
-            mask,
-            return_predicted_img=True
-        )
+        if self.loss_type == LossType.DenoiSplitMuSplit:
+            recons_loss = self.reconstruction_loss_musplit_denoisplit(out, target_normalized)   
+            recons_loss_dict = {'loss':recons_loss}
+            recons_img = out_mean
+        else:
+            # Metrics computation
+            recons_loss_dict, recons_img = self.get_reconstruction_loss(
+                out_mean,
+                x_normalized,
+                target_normalized,
+                mask,
+                return_predicted_img=True
+            )
         
         # This `if` is not used by default config
         if self.skip_nboundary_pixels_from_loss:
@@ -277,7 +300,7 @@ class LadderVAELight(L.LightningModule):
             target_normalized = target_normalized[:, :, pad:-pad, pad:-pad]
 
         channels_rinvpsnr = []
-        for i in range(recons_img.shape[1]):
+        for i in range(target_normalized.shape[1]):
             self.channels_psnr[i].update(recons_img[:, i], target_normalized[:, i])
             psnr = RangeInvariantPsnr(target_normalized[:, i].clone(), recons_img[:, i].clone())
             channels_rinvpsnr.append(psnr)
