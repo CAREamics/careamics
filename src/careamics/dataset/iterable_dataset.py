@@ -191,14 +191,14 @@ class PathIterableDataset(IterableDataset):
         # get transforms
         self.patch_transform = Compose(transform_list=data_config.transforms)
 
-    def _calculate_mean_and_std(self) -> Tuple[float, float]:
+    def _calculate_mean_and_std(self) -> PatchedOutput:
         """
         Calculate mean and std of the dataset.
 
         Returns
         -------
-        Tuple[float, float]
-            Tuple containing mean and standard deviation.
+        PatchedOutput
+            Data class containing the image statistics.
         """
         image_means, image_stds, target_means, target_stds = 0, 0, 0, 0
         num_samples = 0

@@ -3,21 +3,20 @@
 from typing import List
 
 import numpy as np
-import torch
 
 
 def stitch_prediction(
-    tiles: List[torch.Tensor],
-    stitching_data: List[List[torch.Tensor]],
-) -> torch.Tensor:
+    tiles: List[np.ndarray],
+    stitching_data: List[List[np.ndarray]],
+) -> np.ndarray:
     """
     Stitch tiles back together to form a full image.
 
     Parameters
     ----------
-    tiles : List[torch.Tensor]
+    tiles : List[np.ndarray]
         Cropped tiles and their respective stitching coordinates.
-    stitching_data : List
+    stitching_coords : List[List[np.ndarray]]
         List of information and coordinates obtained from
         `dataset.tiled_patching.extract_tiles`.
 

@@ -11,7 +11,7 @@ from careamics.config.support import SupportedAlgorithm, SupportedData
 
 def random_array(shape: Tuple[int, ...]):
     """Return a random array with values between 0 and 255."""
-    return (255 * (1 + np.random.rand(*shape)) / 2).astype(np.float32)
+    return (np.random.randint(0, 255, shape)).astype(np.float32)
 
 
 def test_no_parameters():
@@ -653,7 +653,7 @@ def test_data_for_bmz_random(tmp_path, minimum_configuration):
     config.data_config.data_type = SupportedData.ARRAY.value
     config.data_config.patch_size = (8, 8)
     config.data_config.set_mean_and_std(
-        image_mean=example_data.mean(), image_std=example_data.std()
+        image_mean=[example_data.mean()], image_std=[example_data.std()]
     )
 
     # instantiate CAREamist
@@ -684,7 +684,7 @@ def test_data_for_bmz_with_array(tmp_path, minimum_configuration):
     config.data_config.data_type = SupportedData.ARRAY.value
     config.data_config.patch_size = (8, 8)
     config.data_config.set_mean_and_std(
-        image_mean=example_data.mean(), image_std=example_data.std()
+        image_mean=[example_data.mean()], image_std=[example_data.std()]
     )
 
     # instantiate CAREamist
