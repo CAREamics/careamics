@@ -114,18 +114,7 @@ class LadderVAELight(L.LightningModule):
         
     def forward(self, x: Any) -> Any:
         return self.model(x)
-    
 
-    def reconstruction_loss_musplit_denoisplit(self, out, target_normalized):
-        if self.model.predict_logvar is not None:
-            out_mean, _ = out.chunk(2, dim=1)
-        else:
-            out_mean  = out
-        
-        recons_loss_nm = -1 * self.model.likelihood_NM(out_mean, target_normalized)[0].mean()
-        recons_loss_gm = -1 * self.model.likelihood_gm(out, target_normalized)[0].mean()
-        recons_loss = self._denoisplit_w * recons_loss_nm + self._usplit_w * recons_loss_gm
-        return recons_loss
     
     def training_step(
         self, 
@@ -174,22 +163,6 @@ class LadderVAELight(L.LightningModule):
         if torch.isnan(recons_loss).any():
             recons_loss = 0.0
 
-        # This `if` is not used by default config
-        if self.loss_type == LossType.ElboMixedReconstruction:
-            recons_loss += self.mixed_rec_w * recons_loss_dict['mixed_loss']
-
-            if enable_logging:
-                self.log('mixed_reconstruction_loss', recons_loss_dict['mixed_loss'], on_epoch=True)
-
-        # This `if` is not used by default config
-        if self._exclusion_loss_weight:
-            exclusion_loss = recons_loss_dict['exclusion_loss']
-            recons_loss += self._exclusion_loss_weight * exclusion_loss
-            if enable_logging:
-                self.log('exclusion_loss', exclusion_loss, on_epoch=True)
-
-        assert self.loss_type != LossType.ElboWithNbrConsistency
-
         if self.model.non_stochastic_version:
             kl_loss = torch.Tensor([0.0]).cuda()
             net_loss = recons_loss
@@ -198,11 +171,6 @@ class LadderVAELight(L.LightningModule):
                 msg = f"For the loss type {LossType.name(self.loss_type)}, kl_loss_formulation must be denoisplit_usplit"
                 assert self.kl_loss_formulation == 'denoisplit_usplit', msg
                 assert self._denoisplit_w is not None and self._usplit_w is not None
-
-                if self.model.predict_logvar is not None:
-                    out_mean, _ = out.chunk(2, dim=1)
-                else:
-                    out_mean  = out
                 
                 kl_key_denoisplit = 'kl_restricted' if self._restricted_kl else 'kl'
                 # NOTE: 'kl' key stands for the 'kl_samplewise' key in the TopDownLayer class.
@@ -498,6 +466,18 @@ class LadderVAELight(L.LightningModule):
             return output, like_dict['params']['mean']
 
         return output
+    
+    
+    def reconstruction_loss_musplit_denoisplit(self, out, target_normalized):
+        if self.model.predict_logvar is not None:
+            out_mean, _ = out.chunk(2, dim=1)
+        else:
+            out_mean  = out
+        
+        recons_loss_nm = -1 * self.model.likelihood_NM(out_mean, target_normalized)[0].mean()
+        recons_loss_gm = -1 * self.model.likelihood_gm(out, target_normalized)[0].mean()
+        recons_loss = self._denoisplit_w * recons_loss_nm + self._usplit_w * recons_loss_gm
+        return recons_loss
 
 
     def _get_weighted_likelihood(self, ll):
