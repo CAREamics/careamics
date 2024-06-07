@@ -4,7 +4,6 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, Union, overload
 
 import numpy as np
-from numpy.typing import NDArray
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import (
     Callback,
@@ -26,10 +25,10 @@ from careamics.lightning_prediction_datamodule import CAREamicsPredictData
 from careamics.lightning_prediction_loop import CAREamicsPredictionLoop
 from careamics.model_io import export_to_bmz, load_pretrained
 from careamics.utils import check_path_exists, get_logger
-from .dataset.dataset_utils import list_files
-from .prediction.save_utils import get_save_func, SavePredictFunc
+
 from .callbacks import HyperParametersCallback
 from .lightning_prediction_writer import CAREamicsPredictionWriter
+from .prediction.save_utils import SavePredictFunc
 
 logger = get_logger(__name__)
 
@@ -715,7 +714,10 @@ class CAREamist:
         )
         # TODO: Problem: CAREamics predict loop is not compatible with `return_predictions=False`
         self.trainer.predict(
-            model=self.model, datamodule=self.pred_datamodule, ckpt_path=checkpoint, return_predictions=False
+            model=self.model,
+            datamodule=self.pred_datamodule,
+            ckpt_path=checkpoint,
+            return_predictions=False,
         )
 
         # TODO: make a context manager ? Or is that unnecesssary

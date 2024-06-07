@@ -1,9 +1,8 @@
 """CAREamics Lightning module."""
 
-from pathlib import Path
-
-from typing import Any, Optional, Union, Literal, Dict
 from dataclasses import dataclass
+from pathlib import Path
+from typing import Any, Dict, Literal, Optional, Union
 
 import pytorch_lightning as L
 from torch import Tensor, nn
@@ -12,17 +11,18 @@ from careamics.config import AlgorithmConfig
 from careamics.config.support import (
     SupportedAlgorithm,
     SupportedArchitecture,
+    SupportedData,
     SupportedLoss,
     SupportedOptimizer,
     SupportedScheduler,
-    SupportedData
 )
 from careamics.losses import loss_factory
 from careamics.models.model_factory import model_factory
 from careamics.transforms import Denormalize, ImageRestorationTTA
 from careamics.utils.torch_utils import get_optimizer, get_scheduler
 
-from .prediction.save_utils import get_save_func, SavePredictFunc
+from .prediction.save_utils import SavePredictFunc, get_save_func
+
 
 @dataclass
 class SavePredictionArgs:
@@ -225,10 +225,10 @@ class CAREamicsModule(L.LightningModule):
         predict_dir: str | Path = "predict",
         force: bool = False,
     ) -> None:
-        
+
         if save_predict_func_kwargs is None:
             save_predict_func_kwargs = {}
-        
+
         if (save_extension is None) and (save_type != "custom"):
             save_extension = SupportedData.get_extension(save_type)
 
