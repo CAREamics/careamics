@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Tuple
 
 import numpy as np
 import pytest
@@ -7,7 +8,10 @@ import tifffile
 from careamics import CAREamist, Configuration, save_configuration
 from careamics.config.support import SupportedAlgorithm, SupportedData
 
-# TODO test 3D and channels
+
+def random_array(shape: Tuple[int, ...]):
+    """Return a random array with values between 0 and 255."""
+    return (255 * (1 + np.random.rand(*shape)) / 2).astype(np.float32)
 
 
 def test_no_parameters():
@@ -74,7 +78,7 @@ def test_train_error_target_unsupervised_algorithm(
 def test_train_single_array_no_val(tmp_path: Path, minimum_configuration: dict):
     """Test that CAREamics can be trained with arrays."""
     # training data
-    train_array = np.random.rand(32, 32)
+    train_array = random_array((32, 32))
 
     # create configuration
     config = Configuration(**minimum_configuration)
@@ -106,8 +110,8 @@ def test_train_single_array_no_val(tmp_path: Path, minimum_configuration: dict):
 def test_train_array(tmp_path: Path, minimum_configuration: dict):
     """Test that CAREamics can be trained on arrays."""
     # training data
-    train_array = np.random.rand(32, 32)
-    val_array = np.random.rand(32, 32)
+    train_array = random_array((32, 32))
+    val_array = random_array((32, 32))
 
     # create configuration
     config = Configuration(**minimum_configuration)
@@ -142,8 +146,8 @@ def test_train_array_channel(
 ):
     """Test that CAREamics can be trained on arrays with channels."""
     # training data
-    train_array = np.random.rand(32, 32, 3)
-    val_array = np.random.rand(32, 32, 3)
+    train_array = random_array((32, 32, 3))
+    val_array = random_array((32, 32, 3))
 
     # create configuration
     config = Configuration(**minimum_configuration)
@@ -179,8 +183,8 @@ def test_train_array_channel(
 def test_train_array_3d(tmp_path: Path, minimum_configuration: dict):
     """Test that CAREamics can be trained on 3D arrays."""
     # training data
-    train_array = np.random.rand(8, 32, 32)
-    val_array = np.random.rand(8, 32, 32)
+    train_array = random_array((8, 32, 32))
+    val_array = random_array((8, 32, 32))
 
     # create configuration
     minimum_configuration["data_config"]["axes"] = "ZYX"
@@ -212,7 +216,7 @@ def test_train_array_3d(tmp_path: Path, minimum_configuration: dict):
 def test_train_tiff_files_in_memory_no_val(tmp_path: Path, minimum_configuration: dict):
     """Test that CAREamics can be trained with tiff files in memory."""
     # training data
-    train_array = np.random.rand(32, 32)
+    train_array = random_array((32, 32))
 
     # save files
     train_file = tmp_path / "train.tiff"
@@ -248,8 +252,8 @@ def test_train_tiff_files_in_memory_no_val(tmp_path: Path, minimum_configuration
 def test_train_tiff_files_in_memory(tmp_path: Path, minimum_configuration: dict):
     """Test that CAREamics can be trained with tiff files in memory."""
     # training data
-    train_array = np.random.rand(32, 32)
-    val_array = np.random.rand(32, 32)
+    train_array = random_array((32, 32))
+    val_array = random_array((32, 32))
 
     # save files
     train_file = tmp_path / "train.tiff"
@@ -290,8 +294,8 @@ def test_train_tiff_files(tmp_path: Path, minimum_configuration: dict):
     the in memory dataset.
     """
     # training data
-    train_array = np.random.rand(32, 32)
-    val_array = np.random.rand(32, 32)
+    train_array = random_array((32, 32))
+    val_array = random_array((32, 32))
 
     # save files
     train_file = tmp_path / "train.tiff"
@@ -330,10 +334,10 @@ def test_train_tiff_files(tmp_path: Path, minimum_configuration: dict):
 def test_train_array_supervised(tmp_path: Path, supervised_configuration: dict):
     """Test that CAREamics can be trained with arrays."""
     # training data
-    train_array = np.random.rand(32, 32)
-    val_array = np.random.rand(32, 32)
-    train_target = np.random.rand(32, 32)
-    val_target = np.random.rand(32, 32)
+    train_array = random_array((32, 32))
+    val_array = random_array((32, 32))
+    train_target = random_array((32, 32))
+    val_target = random_array((32, 32))
 
     # create configuration
     config = Configuration(**supervised_configuration)
@@ -372,10 +376,10 @@ def test_train_tiff_files_in_memory_supervised(
 ):
     """Test that CAREamics can be trained with tiff files in memory."""
     # training data
-    train_array = np.random.rand(32, 32)
-    val_array = np.random.rand(32, 32)
-    train_target = np.random.rand(32, 32)
-    val_target = np.random.rand(32, 32)
+    train_array = random_array((32, 32))
+    val_array = random_array((32, 32))
+    train_target = random_array((32, 32))
+    val_target = random_array((32, 32))
 
     # save files
     images = tmp_path / "images"
@@ -431,10 +435,10 @@ def test_train_tiff_files_supervised(tmp_path: Path, supervised_configuration: d
     the in memory dataset.
     """
     # training data
-    train_array = np.random.rand(32, 32)
-    val_array = np.random.rand(32, 32)
-    train_target = np.random.rand(32, 32)
-    val_target = np.random.rand(32, 32)
+    train_array = random_array((32, 32))
+    val_array = random_array((32, 32))
+    train_target = random_array((32, 32))
+    val_target = random_array((32, 32))
 
     # save files
     images = tmp_path / "images"
@@ -492,7 +496,7 @@ def test_predict_on_array_tiled(
 ):
     """Test that CAREamics can predict on arrays."""
     # training data
-    train_array = np.random.rand(32, 32)
+    train_array = random_array((32, 32))
 
     # create configuration
     config = Configuration(**minimum_configuration)
@@ -528,7 +532,7 @@ def test_predict_on_array_tiled(
 def test_predict_arrays_no_tiling(tmp_path: Path, minimum_configuration: dict):
     """Test that CAREamics can predict on arrays without tiling."""
     # training data
-    train_array = np.random.rand(4, 32, 32)
+    train_array = random_array((4, 32, 32))
 
     # create configuration
     config = Configuration(**minimum_configuration)
@@ -560,11 +564,49 @@ def test_predict_arrays_no_tiling(tmp_path: Path, minimum_configuration: dict):
     assert (tmp_path / "model.zip").exists()
 
 
+@pytest.mark.parametrize("independent_channels", [False, True])
+@pytest.mark.parametrize("batch_size", [1, 2])
+def test_predict_tiled_channel(
+    tmp_path: Path,
+    minimum_configuration: dict,
+    independent_channels: bool,
+    batch_size: int,
+):
+    """Test that CAREamics can be trained on arrays with channels."""
+    # training data
+    train_array = random_array((3, 32, 32))
+    val_array = random_array((3, 32, 32))
+
+    # create configuration
+    config = Configuration(**minimum_configuration)
+    config.training_config.num_epochs = 1
+    config.data_config.axes = "CYX"
+    config.algorithm_config.model.in_channels = 3
+    config.algorithm_config.model.num_classes = 3
+    config.algorithm_config.model.independent_channels = independent_channels
+    config.data_config.batch_size = batch_size
+    config.data_config.data_type = SupportedData.ARRAY.value
+    config.data_config.patch_size = (8, 8)
+
+    # instantiate CAREamist
+    careamist = CAREamist(source=config, work_dir=tmp_path)
+
+    # train CAREamist
+    careamist.train(train_source=train_array, val_source=val_array)
+
+    # predict CAREamist
+    predicted = careamist.predict(
+        train_array, batch_size=batch_size, tile_size=(16, 16), tile_overlap=(4, 4)
+    )
+
+    assert predicted.squeeze().shape == train_array.shape
+
+
 @pytest.mark.parametrize("batch_size", [1, 2])
 def test_predict_path(tmp_path: Path, minimum_configuration: dict, batch_size):
     """Test that CAREamics can predict with tiff files."""
     # training data
-    train_array = np.random.rand(32, 32)
+    train_array = random_array((32, 32))
 
     # save files
     train_file = tmp_path / "train.tiff"
@@ -604,7 +646,7 @@ def test_predict_pretrained_checkpoint(tmp_path: Path, pre_trained: Path):
     """Test that CAREamics can be instantiated with a pre-trained network and predict
     on an array."""
     # prediction data
-    source_array = np.random.rand(32, 32)
+    source_array = random_array((32, 32))
 
     # instantiate CAREamist
     careamist = CAREamist(source=pre_trained, work_dir=tmp_path)
@@ -621,7 +663,7 @@ def test_predict_pretrained_checkpoint(tmp_path: Path, pre_trained: Path):
 def test_predict_pretrained_bmz(tmp_path: Path, pre_trained_bmz: Path):
     """Test that CAREamics can be instantiated with a BMZ archive and predict."""
     # prediction data
-    source_array = np.random.rand(32, 32)
+    source_array = random_array((32, 32))
 
     # instantiate CAREamist
     careamist = CAREamist(source=pre_trained_bmz, work_dir=tmp_path)
@@ -631,6 +673,144 @@ def test_predict_pretrained_bmz(tmp_path: Path, pre_trained_bmz: Path):
 
     # check that it predicted
     assert predicted.squeeze().shape == source_array.shape
+
+
+def test_data_for_bmz_random(tmp_path, minimum_configuration):
+    """Test the BMZ example data creation when the careamist has a training
+    datamodule."""
+    seed = 24
+    rng = np.random.default_rng(seed)
+
+    # example data
+    example_data = 255 * (1 + rng.random((32, 32), dtype=float)) / 2
+
+    # create configuration
+    config = Configuration(**minimum_configuration)
+    config.training_config.num_epochs = 1
+    config.data_config.axes = "YX"
+    config.data_config.batch_size = 2
+    config.data_config.data_type = SupportedData.ARRAY.value
+    config.data_config.patch_size = (8, 8)
+    config.data_config.set_mean_and_std(
+        mean=example_data.mean(), std=example_data.std()
+    )
+
+    # instantiate CAREamist
+    careamist = CAREamist(source=config, work_dir=tmp_path)
+
+    # get data for BMZ
+    patch = careamist._create_data_for_bmz()
+    assert patch.shape == (1, 1) + tuple(config.data_config.patch_size)
+
+    # check that it is not normalised
+    assert np.abs(patch.mean() - example_data.mean()) < 0.1 * example_data.mean()
+
+
+def test_data_for_bmz_with_array(tmp_path, minimum_configuration):
+    """Test the BMZ example data creation when the careamist has a training
+    datamodule."""
+    seed = 24
+    rng = np.random.default_rng(seed)
+
+    # example data
+    example_data = 255 * (1 + rng.random((32, 32), dtype=float)) / 2
+
+    # create configuration
+    config = Configuration(**minimum_configuration)
+    config.training_config.num_epochs = 1
+    config.data_config.axes = "YX"
+    config.data_config.batch_size = 2
+    config.data_config.data_type = SupportedData.ARRAY.value
+    config.data_config.patch_size = (8, 8)
+    config.data_config.set_mean_and_std(
+        mean=example_data.mean(), std=example_data.std()
+    )
+
+    # instantiate CAREamist
+    careamist = CAREamist(source=config, work_dir=tmp_path)
+
+    # get data for BMZ
+    patch = careamist._create_data_for_bmz(example_data)
+    assert patch.shape == (1, 1) + example_data.shape
+
+    # check that it is not normalised
+    assert np.allclose(patch.squeeze(), example_data)
+
+
+def test_data_for_bmz_after_training(tmp_path, minimum_configuration):
+    """Test the BMZ example data creation when the careamist has a training
+    datamodule."""
+    seed = 24
+    rng = np.random.default_rng(seed)
+
+    # training data
+    train_array = 255 * (1 + rng.random((32, 32), dtype=float)) / 2
+    val_array = 255 * (1 + rng.random((32, 32), dtype=float)) / 2
+
+    # create configuration
+    config = Configuration(**minimum_configuration)
+    config.training_config.num_epochs = 1
+    config.data_config.axes = "YX"
+    config.data_config.batch_size = 2
+    config.data_config.data_type = SupportedData.ARRAY.value
+    config.data_config.patch_size = (8, 8)
+
+    # instantiate CAREamist
+    careamist = CAREamist(source=config, work_dir=tmp_path)
+
+    # train CAREamist
+    careamist.train(train_source=train_array, val_source=val_array)
+
+    # check that mean and std make sense
+    assert config.data_config.mean > 100
+    assert config.data_config.std > 20
+
+    # get data for BMZ
+    patch = careamist._create_data_for_bmz()
+    assert patch.shape == (1, 1) + tuple(config.data_config.patch_size)
+
+    # check that it is not normalised (data should be [0, 255])
+    assert patch.max() > config.data_config.mean
+
+
+def test_data_for_bmz_after_prediction(tmp_path, minimum_configuration):
+    """Test the BMZ example data creation when the careamist has a prediction
+    datamodule."""
+    seed = 24
+    rng = np.random.default_rng(seed)
+
+    # training data
+    train_array = 255 * (1 + rng.random((32, 32), dtype=float)) / 2
+    val_array = 255 * (1 + rng.random((32, 32), dtype=float)) / 2
+
+    # create configuration
+    config = Configuration(**minimum_configuration)
+    config.training_config.num_epochs = 1
+    config.data_config.axes = "YX"
+    config.data_config.batch_size = 2
+    config.data_config.data_type = SupportedData.ARRAY.value
+    config.data_config.patch_size = (8, 8)
+
+    # instantiate CAREamist
+    careamist = CAREamist(source=config, work_dir=tmp_path)
+
+    # train CAREamist
+    careamist.train(train_source=train_array, val_source=val_array)
+
+    # check that mean and std make sense
+    assert config.data_config.mean > 100
+    assert config.data_config.std > 20
+
+    # predict without tiling
+    test_array = 1_000 * (1 + rng.random((32, 32), dtype=float)) / 2
+    _ = careamist.predict(test_array)
+
+    # get data for BMZ
+    patch = careamist._create_data_for_bmz()
+    assert patch.shape == (1, 1) + test_array.shape
+
+    # check that it is not normalised
+    assert np.allclose(patch.squeeze(), test_array)
 
 
 def test_export_bmz_pretrained_prediction(tmp_path: Path, pre_trained: Path):
@@ -644,7 +824,7 @@ def test_export_bmz_pretrained_prediction(tmp_path: Path, pre_trained: Path):
     careamist = CAREamist(source=pre_trained, work_dir=tmp_path)
 
     # prediction data
-    source_array = np.random.rand(32, 32)
+    source_array = random_array((32, 32))
     _ = careamist.predict(source_array)
     assert len(careamist.pred_datamodule.predict_dataloader()) > 0
 
@@ -687,11 +867,11 @@ def test_export_bmz_pretrained_with_array(tmp_path: Path, pre_trained: Path):
     careamist = CAREamist(source=pre_trained, work_dir=tmp_path)
 
     # alternatively we can pass an array
-    array = np.random.rand(32, 32).astype(np.float32)
+    array = random_array((32, 32))
     careamist.export_to_bmz(
         path=tmp_path / "model2.zip",
         name="TopModel",
-        input_array=array[np.newaxis, np.newaxis, ...],
+        input_array=array,
         general_description="A model that just walked in.",
         authors=[{"name": "Amod", "affiliation": "El"}],
     )

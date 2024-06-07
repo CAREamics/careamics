@@ -14,7 +14,7 @@ from ..config import InferenceConfig
 from ..config.tile_information import TileInformation
 from ..config.transformations import NormalizeModel
 from .dataset_utils import iterate_over_files, read_tiff
-from .patching.tiled_patching import extract_tiles
+from .tiling import extract_tiles
 
 
 class IterableTiledPredDataset(IterableDataset):

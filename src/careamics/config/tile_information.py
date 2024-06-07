@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Optional, Tuple
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator
+from pydantic import BaseModel, ConfigDict, ValidationInfo, field_validator
 
 
 class TileInformation(BaseModel):
@@ -18,10 +18,10 @@ class TileInformation(BaseModel):
     model_config = ConfigDict(validate_default=True)
 
     array_shape: Tuple[int, ...]
-    tiled: bool = False
+    tiled: bool = False  # TODO remove
     last_tile: bool = False
-    overlap_crop_coords: Optional[Tuple[Tuple[int, ...], ...]] = Field(default=None)
-    stitch_coords: Optional[Tuple[Tuple[int, ...], ...]] = Field(default=None)
+    overlap_crop_coords: Tuple[Tuple[int, ...], ...]
+    stitch_coords: Tuple[Tuple[int, ...], ...]
 
     @field_validator("array_shape")
     @classmethod
@@ -104,3 +104,27 @@ class TileInformation(BaseModel):
             return v
         else:
             return None
+
+    def __eq__(self, other_tile: object):
+        """Check if two tile information objects are equal.
+
+        Parameters
+        ----------
+        other_tile : object
+            Tile information object to compare with.
+
+        Returns
+        -------
+        bool
+            Whether the two tile information objects are equal.
+        """
+        if not isinstance(other_tile, TileInformation):
+            return NotImplemented
+
+        return (
+            self.array_shape == other_tile.array_shape
+            and self.tiled == other_tile.tiled
+            and self.last_tile == other_tile.last_tile
+            and self.overlap_crop_coords == other_tile.overlap_crop_coords
+            and self.stitch_coords == other_tile.stitch_coords
+        )

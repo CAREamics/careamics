@@ -1,16 +1,14 @@
 """Prediction Lightning data modules."""
 
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Literal, Optional, Tuple, Union
 
 import numpy as np
 import pytorch_lightning as L
 from torch.utils.data import DataLoader
-from torch.utils.data.dataloader import default_collate
 
 from careamics.config import InferenceConfig
 from careamics.config.support import SupportedData
-from careamics.config.tile_information import TileInformation
 from careamics.dataset import (
     InMemoryPredDataset,
     InMemoryTiledPredDataset,
@@ -21,6 +19,7 @@ from careamics.dataset.dataset_utils import (
     get_read_func,
     list_files,
 )
+from careamics.dataset.tiling.collate_tiles import collate_tiles
 from careamics.utils import get_logger
 
 PredictDatasetType = Union[
@@ -31,39 +30,6 @@ PredictDatasetType = Union[
 ]
 
 logger = get_logger(__name__)
-
-
-def _collate_tiles(batch: List[Tuple[np.ndarray, TileInformation]]) -> Any:
-    """
-    Collate tiles received from CAREamics prediction dataloader.
-
-    CAREamics prediction dataloader returns tuples of arrays and TileInformation. In
-    case of non-tiled data, this function will return the arrays. In case of tiled data,
-    it will return the arrays, the last tile flag, the overlap crop coordinates and the
-    stitch coordinates.
-
-    Parameters
-    ----------
-    batch : List[Tuple[np.ndarray, TileInformation], ...]
-        Batch of tiles.
-
-    Returns
-    -------
-    Any
-        Collated batch.
-    """
-    first_tile_info: TileInformation = batch[0][1]
-    # if not tiled, then return arrays
-    if not first_tile_info.tiled:
-        raise ValueError("Collate function should not be called for non-tiled data.")
-    # else we explicit the last_tile flag and coordinates for the the default collate
-    else:
-        new_batch = [
-            (tile, t.last_tile, t.array_shape, t.overlap_crop_coords, t.stitch_coords)
-            for tile, t in batch
-        ]
-
-        return default_collate(new_batch)
 
 
 class CAREamicsPredictData(L.LightningDataModule):
@@ -254,7 +220,7 @@ class CAREamicsPredictData(L.LightningDataModule):
         return DataLoader(
             self.predict_dataset,
             batch_size=self.batch_size,
-            collate_fn=_collate_tiles if self.tiled else None,
+            collate_fn=collate_tiles if self.tiled else None,
             **self.dataloader_params,
         )  # TODO check workers are used
 
