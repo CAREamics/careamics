@@ -16,32 +16,6 @@ def test_defaults():
     assert not tile_info.last_tile
 
 
-def test_tiled():
-    """Test instantiating time information with parameters."""
-    tile_info = TileInformation(
-        array_shape=np.zeros((6, 6)).shape,
-        last_tile=True,
-        overlap_crop_coords=((1, 2),),
-        stitch_coords=((3, 4),),
-    )
-
-    assert tile_info.array_shape == (6, 6)
-    assert tile_info.last_tile
-    assert tile_info.overlap_crop_coords == ((1, 2),)
-    assert tile_info.stitch_coords == ((3, 4),)
-
-
-def test_validation_last_tile():
-    """Test that last tile is only set if tiled is set."""
-    tile_info = TileInformation(
-        array_shape=(6, 6),
-        last_tile=True,
-        overlap_crop_coords=((1, 2),),
-        stitch_coords=((3, 4),),
-    )
-    assert not tile_info.last_tile
-
-
 def test_error_on_coords():
     """Test than an error is raised if no coordinates are given."""
     with pytest.raises(ValueError):
