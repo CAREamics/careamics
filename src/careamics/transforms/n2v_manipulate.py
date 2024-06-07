@@ -60,7 +60,7 @@ class N2VManipulate(Transform):
         remove_center: bool = True,
         struct_mask_axis: Literal["horizontal", "vertical", "none"] = "none",
         struct_mask_span: int = 5,
-        seed: Optional[int] = None,  # TODO use in pixel manipulation
+        seed: Optional[int] = None,
     ):
         """Constructor.
 
@@ -127,6 +127,7 @@ class N2VManipulate(Transform):
                     subpatch_size=self.roi_size,
                     remove_center=self.remove_center,
                     struct_params=self.struct_mask,
+                    rng=self.rng,
                 )
         elif self.strategy == SupportedPixelManipulation.MEDIAN:
             # Iterate over the channels to apply manipulation separately
@@ -136,6 +137,7 @@ class N2VManipulate(Transform):
                     mask_pixel_percentage=self.masked_pixel_percentage,
                     subpatch_size=self.roi_size,
                     struct_params=self.struct_mask,
+                    rng=self.rng,
                 )
         else:
             raise ValueError(f"Unknown masking strategy ({self.strategy}).")
