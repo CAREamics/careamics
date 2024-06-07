@@ -6,13 +6,15 @@ from careamics.config.tile_information import TileInformation
 
 def test_defaults():
     """Test instantiating time information with defaults."""
-    tile_info = TileInformation(array_shape=np.zeros((6, 6)).shape)
+    tile_info = TileInformation(
+        array_shape=np.zeros((6, 6)).shape,
+        overlap_crop_coords=((1, 2),),
+        stitch_coords=((3, 4),),
+    )
 
     assert tile_info.array_shape == (6, 6)
     assert not tile_info.tiled
     assert not tile_info.last_tile
-    assert tile_info.overlap_crop_coords is None
-    assert tile_info.stitch_coords is None
 
 
 def test_tiled():
@@ -34,7 +36,12 @@ def test_tiled():
 
 def test_validation_last_tile():
     """Test that last tile is only set if tiled is set."""
-    tile_info = TileInformation(array_shape=(6, 6), last_tile=True)
+    tile_info = TileInformation(
+        array_shape=(6, 6),
+        last_tile=True,
+        overlap_crop_coords=((1, 2),),
+        stitch_coords=((3, 4),),
+    )
     assert not tile_info.last_tile
 
 
