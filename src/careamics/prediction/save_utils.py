@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Protocol, Union, Callable, Any
+from typing import Protocol, Union
 
 from numpy.typing import NDArray
 
@@ -10,9 +10,11 @@ SAVE_FUNCS = {
     SupportedData.TIFF.value: save_tiff,
 }
 
+
 # This is very strict, arguments have to be called fp & img
 class SavePredictFunc(Protocol):
     def __call__(self, fp: Path, img: NDArray, *args, **kwargs) -> None: ...
+
 
 # Alternative? - doesn't capture *args & **kwargs
 # SavePredictFunc = Callable[[Path, NDArray], None]

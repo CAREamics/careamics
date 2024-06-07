@@ -598,6 +598,7 @@ def test_predict_path(tmp_path: Path, minimum_configuration: dict, batch_size):
     )
     assert (tmp_path / "model.zip").exists()
 
+
 @pytest.mark.parametrize("batch_size", [1, 2])
 def test_predict_to_disk(tmp_path: Path, minimum_configuration: dict, batch_size):
     # training data
@@ -624,8 +625,9 @@ def test_predict_to_disk(tmp_path: Path, minimum_configuration: dict, batch_size
     careamist.train(train_source=tmp_path)
 
     # predict CAREamist
-    predicted = careamist.predict_to_disk(tmp_path, batch_size=batch_size, tile_size=[8, 8], tile_overlap=[2, 2])
-
+    predicted = careamist.predict_to_disk(
+        tmp_path, batch_size=batch_size, tile_size=[8, 8], tile_overlap=[2, 2]
+    )
 
 
 def test_predict_pretrained_checkpoint(tmp_path: Path, pre_trained: Path):
