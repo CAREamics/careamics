@@ -27,15 +27,7 @@ def collate_tiles(batch: List[Tuple[np.ndarray, TileInformation]]) -> Any:
     Any
         Collated batch.
     """
-    first_tile_info: TileInformation = batch[0][1]
-    # if not tiled, then return arrays
-    if not first_tile_info.tiled:
-        arrays, _ = zip(*batch)
+    new_batch = [tile for tile, _ in batch]
+    tiles_batch = [tile_info for _, tile_info in batch]
 
-        return default_collate(arrays)
-    # else we explicit the last_tile flag and coordinates
-    else:
-        new_batch = [tile for tile, _ in batch]
-        tiles_batch = [tile_info for _, tile_info in batch]
-
-        return default_collate(new_batch), tiles_batch
+    return default_collate(new_batch), tiles_batch

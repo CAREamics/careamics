@@ -13,7 +13,6 @@ def test_defaults():
     )
 
     assert tile_info.array_shape == (6, 6)
-    assert not tile_info.tiled
     assert not tile_info.last_tile
 
 
@@ -21,14 +20,12 @@ def test_tiled():
     """Test instantiating time information with parameters."""
     tile_info = TileInformation(
         array_shape=np.zeros((6, 6)).shape,
-        tiled=True,
         last_tile=True,
         overlap_crop_coords=((1, 2),),
         stitch_coords=((3, 4),),
     )
 
     assert tile_info.array_shape == (6, 6)
-    assert tile_info.tiled
     assert tile_info.last_tile
     assert tile_info.overlap_crop_coords == ((1, 2),)
     assert tile_info.stitch_coords == ((3, 4),)
@@ -46,29 +43,31 @@ def test_validation_last_tile():
 
 
 def test_error_on_coords():
-    """Test than an error is raised if it is tiled but not coordinates are given."""
+    """Test than an error is raised if no coordinates are given."""
     with pytest.raises(ValueError):
-        TileInformation(array_shape=(6, 6), tiled=True)
+        TileInformation(array_shape=(6, 6))
 
 
 def test_error_on_singleton_dims():
     """Test that an error is raised if the array shape contains singleton dimensions."""
     with pytest.raises(ValueError):
-        TileInformation(array_shape=(2, 1, 6, 6))
+        TileInformation(
+            array_shape=(2, 1, 6, 6),
+            overlap_crop_coords=((1, 2),),
+            stitch_coords=((3, 4),),
+        )
 
 
 def test_tile_equality():
     """Test whether two tile information objects are equal."""
     t1 = TileInformation(
         array_shape=(6, 6),
-        tiled=True,
         last_tile=True,
         overlap_crop_coords=((1, 2),),
         stitch_coords=((3, 4),),
     )
     t2 = TileInformation(
         array_shape=(6, 6),
-        tiled=True,
         last_tile=True,
         overlap_crop_coords=((1, 2),),
         stitch_coords=((3, 4),),
@@ -80,10 +79,6 @@ def test_tile_equality():
     assert t1 != t2
 
     t2.array_shape = (6, 6)
-    t2.tiled = False
-    assert t1 != t2
-
-    t2.tiled = True
     t2.last_tile = False
     assert t1 != t2
 
