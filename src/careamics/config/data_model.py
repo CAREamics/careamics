@@ -17,7 +17,6 @@ from typing_extensions import Annotated, Self
 
 from .support import SupportedTransform
 from .transformations.n2v_manipulate_model import N2VManipulateModel
-from .transformations.normalize_model import NormalizeModel
 from .transformations.xy_flip_model import XYFlipModel
 from .transformations.xy_random_rotate90_model import XYRandomRotate90Model
 from .validators import check_axes_validity, patch_size_ge_than_8_power_of_2
@@ -26,7 +25,6 @@ TRANSFORMS_UNION = Annotated[
     Union[
         XYFlipModel,
         XYRandomRotate90Model,
-        NormalizeModel,
         N2VManipulateModel,
     ],
     Discriminator("name"),  # used to tell the different transform models apart
@@ -67,11 +65,6 @@ class DataConfig(BaseModel):
     ...     axes="YX",
     ...     transforms=[
     ...         {
-    ...             "name": SupportedTransform.NORMALIZE.value,
-    ...             "mean": 167.6,
-    ...             "std": 47.2,
-    ...         },
-    ...         {
     ...             "name": "XYFlip",
     ...         }
     ...     ]
@@ -95,9 +88,6 @@ class DataConfig(BaseModel):
 
     transforms: List[TRANSFORMS_UNION] = Field(
         default=[
-            {
-                "name": SupportedTransform.NORMALIZE.value,
-            },
             {
                 "name": SupportedTransform.XY_FLIP.value,
             },
@@ -239,25 +229,6 @@ class DataConfig(BaseModel):
             raise ValueError(
                 "Mean and std must be either both None, or both specified."
             )
-
-        return self
-
-    @model_validator(mode="after")
-    def add_std_and_mean_to_normalize(self: Self) -> Self:
-        """
-        Add mean and std to the Normalize transform if it is present.
-
-        Returns
-        -------
-        Self
-            Data model with mean and std added to the Normalize transform.
-        """
-        if self.mean is not None and self.std is not None:
-            # search in the transforms for Normalize and update parameters
-            for transform in self.transforms:
-                if transform.name == SupportedTransform.NORMALIZE.value:
-                    transform.mean = self.mean
-                    transform.std = self.std
 
         return self
 

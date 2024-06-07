@@ -108,9 +108,6 @@ def _create_supervised_configuration(
     if use_augmentations:
         transforms: List[Dict[str, Any]] = [
             {
-                "name": SupportedTransform.NORMALIZE.value,
-            },
-            {
                 "name": SupportedTransform.XY_FLIP.value,
             },
             {
@@ -118,11 +115,7 @@ def _create_supervised_configuration(
             },
         ]
     else:
-        transforms = [
-            {
-                "name": SupportedTransform.NORMALIZE.value,
-            },
-        ]
+        transforms = []
 
     # data model
     data = DataConfig(
@@ -523,9 +516,6 @@ def create_n2v_configuration(
     if use_augmentations:
         transforms: List[Dict[str, Any]] = [
             {
-                "name": SupportedTransform.NORMALIZE.value,
-            },
-            {
                 "name": SupportedTransform.XY_FLIP.value,
             },
             {
@@ -533,11 +523,7 @@ def create_n2v_configuration(
             },
         ]
     else:
-        transforms = [
-            {
-                "name": SupportedTransform.NORMALIZE.value,
-            },
-        ]
+        transforms = []
 
     # n2v2 and structn2v
     nv2_transform = {

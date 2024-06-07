@@ -94,9 +94,10 @@ class InMemoryDataset(Dataset):
         else:
             self.mean, self.std = self.data_config.mean, self.data_config.std
 
-        # get transforms
+        # add normalization to transforms and create a compose object
         self.patch_transform = Compose(
-            transform_list=self.data_config.transforms,
+            transform_list=[NormalizeModel(mean=self.mean, std=self.std)]
+            + self.data_config.transforms,
         )
 
     def _prepare_patches(
