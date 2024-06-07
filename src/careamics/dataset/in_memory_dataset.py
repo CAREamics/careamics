@@ -22,7 +22,7 @@ from .patching.patching import (
     prepare_patches_unsupervised,
     prepare_patches_unsupervised_array,
 )
-from .patching.tiled_patching import extract_tiles
+from .tiling.tiled_patching import extract_tiles
 
 logger = get_logger(__name__)
 

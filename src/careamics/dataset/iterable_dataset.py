@@ -17,7 +17,7 @@ from ..config.transformations import NormalizeModel
 from ..utils.logging import get_logger
 from .dataset_utils import read_tiff, reshape_array
 from .patching.random_patching import extract_patches_random
-from .patching.tiled_patching import extract_tiles
+from .tiling.tiled_patching import extract_tiles
 
 logger = get_logger(__name__)
 
