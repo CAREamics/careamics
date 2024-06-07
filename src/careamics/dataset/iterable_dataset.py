@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import copy
 from pathlib import Path
-from typing import Any, Callable, Generator, List, Optional, Tuple, Union
+from typing import Any, Callable, Generator, Optional, Union
 
 import numpy as np
 from torch.utils.data import IterableDataset, get_worker_info
@@ -24,22 +24,22 @@ logger = get_logger(__name__)
 
 def _iterate_over_files(
     data_config: Union[DataConfig, InferenceConfig],
-    data_files: List[Path],
-    target_files: Optional[List[Path]] = None,
+    data_files: list[Path],
+    target_files: Optional[list[Path]] = None,
     read_source_func: Callable = read_tiff,
-) -> Generator[Tuple[np.ndarray, Optional[np.ndarray]], None, None]:
+) -> Generator[tuple[np.ndarray, Optional[np.ndarray]], None, None]:
     """
     Iterate over data source and yield whole image.
 
     Parameters
     ----------
-    data_config : Union[DataConfig, InferenceConfig]
+    data_config : DataConfig or InferenceConfig
         Data configuration.
-    data_files : List[Path]
+    data_files : list[Path]
         List of data files.
-    target_files : Optional[List[Path]]
+    target_files : list[Path] or None, optional
         List of target files, by default None.
-    read_source_func : Optional[Callable]
+    read_source_func : Callable or None, optional
         Function to read the source, by default read_tiff.
 
     Yields
@@ -91,38 +91,36 @@ class PathIterableDataset(IterableDataset):
     ----------
     data_config : DataConfig
         Data configuration.
-    src_files : List[Path]
+    src_files : list[Path]
         List of data files.
-    target_files : Optional[List[Path]], optional
+    target_files : list[Path] or None, optional
         Optional list of target files, by default None.
     read_source_func : Callable, optional
         Read source function for custom types, by default read_tiff.
 
     Attributes
     ----------
-    data_path : List[Path]
+    data_path : list[Path]
         Path to the data, must be a directory.
     axes : str
         Description of axes in format STCZYX.
-    patch_extraction_method : Union[ExtractionStrategies, None]
-        Patch extraction strategy, as defined in extraction_strategy.
-    patch_size : Optional[Union[List[int], Tuple[int]]], optional
+    patch_size : list[int] or tuple[int] or None, optional
         Size of the patches in each dimension, by default None.
-    patch_overlap : Optional[Union[List[int], Tuple[int]]], optional
+    patch_overlap : list[int] or tuple[int] or None, optional
         Overlap of the patches in each dimension, by default None.
-    mean : Optional[float], optional
+    mean : float or None, optional
         Expected mean of the dataset, by default None.
-    std : Optional[float], optional
+    std : float or None, optional
         Expected standard deviation of the dataset, by default None.
-    patch_transform : Optional[Callable], optional
+    patch_transform : Callable or None, optional
         Patch transform callable, by default None.
     """
 
     def __init__(
         self,
         data_config: DataConfig,
-        src_files: List[Path],
-        target_files: Optional[List[Path]] = None,
+        src_files: list[Path],
+        target_files: Optional[list[Path]] = None,
         read_source_func: Callable = read_tiff,
     ) -> None:
         """Constructors.
@@ -131,9 +129,9 @@ class PathIterableDataset(IterableDataset):
         ----------
         data_config : DataConfig
             Data configuration.
-        src_files : List[Path]
+        src_files : list[Path]
             List of data files.
-        target_files : Optional[List[Path]], optional
+        target_files : list[Path] or None, optional
             Optional list of target files, by default None.
         read_source_func : Callable, optional
             Read source function for custom types, by default read_tiff.
@@ -158,13 +156,13 @@ class PathIterableDataset(IterableDataset):
         # get transforms
         self.patch_transform = Compose(transform_list=data_config.transforms)
 
-    def _calculate_mean_and_std(self) -> Tuple[float, float]:
+    def _calculate_mean_and_std(self) -> tuple[float, float]:
         """
         Calculate mean and std of the dataset.
 
         Returns
         -------
-        Tuple[float, float]
+        tuple[float, float]
             Tuple containing mean and standard deviation.
         """
         means, stds = 0, 0
@@ -189,7 +187,7 @@ class PathIterableDataset(IterableDataset):
 
     def __iter__(
         self,
-    ) -> Generator[Tuple[np.ndarray, ...], None, None]:
+    ) -> Generator[tuple[np.ndarray, ...], None, None]:
         """
         Iterate over data source and yield single patch.
 
@@ -327,7 +325,7 @@ class IterablePredictionDataset(IterableDataset):
     ----------
     prediction_config : InferenceConfig
         Inference configuration.
-    src_files : List[Path]
+    src_files : list[Path]
         List of data files.
     read_source_func : Callable, optional
         Read source function for custom types, by default read_tiff.
@@ -336,22 +334,22 @@ class IterablePredictionDataset(IterableDataset):
 
     Attributes
     ----------
-    data_path : Union[str, Path]
+    data_path : str or Path
         Path to the data, must be a directory.
     axes : str
         Description of axes in format STCZYX.
-    mean : Optional[float], optional
+    mean : float or None, optional
         Expected mean of the dataset, by default None.
-    std : Optional[float], optional
+    std : float or None, optional
         Expected standard deviation of the dataset, by default None.
-    patch_transform : Optional[Callable], optional
+    patch_transform : Callable or None, optional
         Patch transform callable, by default None.
     """
 
     def __init__(
         self,
         prediction_config: InferenceConfig,
-        src_files: List[Path],
+        src_files: list[Path],
         read_source_func: Callable = read_tiff,
         **kwargs: Any,
     ) -> None:
@@ -361,7 +359,7 @@ class IterablePredictionDataset(IterableDataset):
         ----------
         prediction_config : InferenceConfig
             Inference configuration.
-        src_files : List[Path]
+        src_files : list[Path]
             List of data files.
         read_source_func : Callable, optional
             Read source function for custom types, by default read_tiff.
@@ -401,7 +399,7 @@ class IterablePredictionDataset(IterableDataset):
 
     def __iter__(
         self,
-    ) -> Generator[Tuple[np.ndarray, TileInformation], None, None]:
+    ) -> Generator[tuple[np.ndarray, TileInformation], None, None]:
         """
         Iterate over data source and yield single patch.
 

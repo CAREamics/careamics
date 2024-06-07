@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Optional, Tuple
+from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator
 
@@ -17,26 +17,26 @@ class TileInformation(BaseModel):
 
     model_config = ConfigDict(validate_default=True)
 
-    array_shape: Tuple[int, ...]
+    array_shape: tuple[int, ...]
     tiled: bool = False
     last_tile: bool = False
-    overlap_crop_coords: Optional[Tuple[Tuple[int, ...], ...]] = Field(default=None)
-    stitch_coords: Optional[Tuple[Tuple[int, ...], ...]] = Field(default=None)
+    overlap_crop_coords: Optional[tuple[tuple[int, ...], ...]] = Field(default=None)
+    stitch_coords: Optional[tuple[tuple[int, ...], ...]] = Field(default=None)
 
     @field_validator("array_shape")
     @classmethod
-    def no_singleton_dimensions(cls, v: Tuple[int, ...]):
+    def no_singleton_dimensions(cls, v: tuple[int, ...]):
         """
         Check that the array shape does not have any singleton dimensions.
 
         Parameters
         ----------
-        v : Tuple[int, ...]
+        v : tuple[int, ...]
             Array shape to check.
 
         Returns
         -------
-        Tuple[int, ...]
+        tuple[int, ...]
             The array shape if it does not contain singleton dimensions.
 
         Raises
@@ -73,8 +73,8 @@ class TileInformation(BaseModel):
     @field_validator("overlap_crop_coords", "stitch_coords")
     @classmethod
     def mandatory_if_tiled(
-        cls, v: Optional[Tuple[int, ...]], values: ValidationInfo
-    ) -> Optional[Tuple[int, ...]]:
+        cls, v: Optional[tuple[int, ...]], values: ValidationInfo
+    ) -> Optional[tuple[int, ...]]:
         """
         Check that the coordinates are not `None` if tiling is enabled.
 
@@ -82,14 +82,14 @@ class TileInformation(BaseModel):
 
         Parameters
         ----------
-        v : Optional[Tuple[int, ...]]
+        v : tuple[int, ...] or None
             Coordinates to check.
         values : ValidationInfo
             Validation information.
 
         Returns
         -------
-        Optional[Tuple[int, ...]]
+        tuple[int, ...] or None
             The coordinates if tiling is enabled, otherwise `None`.
 
         Raises

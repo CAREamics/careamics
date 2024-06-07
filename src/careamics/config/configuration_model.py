@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 from pprint import pformat
-from typing import Dict, List, Literal, Union
+from typing import Literal, Union
 
 import yaml
 from bioimageio.spec.generic.v0_3 import CiteEntry
@@ -269,7 +269,7 @@ class Configuration(BaseModel):
         """
         return pformat(self.model_dump())
 
-    def set_3D(self, is_3D: bool, axes: str, patch_size: List[int]) -> None:
+    def set_3D(self, is_3D: bool, axes: str, patch_size: list[int]) -> None:
         """
         Set 3D flag and axes.
 
@@ -279,7 +279,7 @@ class Configuration(BaseModel):
             Whether the algorithm is 3D or not.
         axes : str
             Axes of the data.
-        patch_size : List[int]
+        patch_size : list[int]
             Patch size.
         """
         # set the flag and axes (this will not trigger validation at the config level)
@@ -389,7 +389,7 @@ class Configuration(BaseModel):
 
         return ""
 
-    def get_algorithm_citations(self) -> List[CiteEntry]:
+    def get_algorithm_citations(self) -> list[CiteEntry]:
         """
         Return a list of citation entries of the current algorithm.
 
@@ -455,13 +455,13 @@ class Configuration(BaseModel):
 
         return ""
 
-    def get_algorithm_keywords(self) -> List[str]:
+    def get_algorithm_keywords(self) -> list[str]:
         """
         Get algorithm keywords.
 
         Returns
         -------
-        List[str]
+        list[str]
             List of keywords.
         """
         if self.algorithm_config.algorithm == SupportedAlgorithm.N2V:
@@ -491,8 +491,8 @@ class Configuration(BaseModel):
         self,
         exclude_defaults: bool = False,
         exclude_none: bool = True,
-        **kwargs: Dict,
-    ) -> Dict:
+        **kwargs: dict,
+    ) -> dict:
         """
         Override model_dump method in order to set default values.
 
@@ -503,7 +503,7 @@ class Configuration(BaseModel):
             True.
         exclude_none : bool, optional
             Whether to exclude fields with None values or not, by default True.
-        **kwargs : Dict
+        **kwargs : dict
             Keyword arguments.
 
         Returns
@@ -524,7 +524,7 @@ def load_configuration(path: Union[str, Path]) -> Configuration:
 
     Parameters
     ----------
-    path : Union[str, Path]
+    path : str or Path
         Path to the configuration.
 
     Returns
@@ -556,7 +556,7 @@ def save_configuration(config: Configuration, path: Union[str, Path]) -> Path:
     ----------
     config : Configuration
         Configuration to save.
-    path : Union[str, Path]
+    path : str or Path
         Path to a existing folder in which to save the configuration or to an existing
         configuration file.
 

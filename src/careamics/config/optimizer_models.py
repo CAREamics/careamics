@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Dict, Literal
+from typing import Literal
 
 from pydantic import (
     BaseModel,
@@ -32,7 +32,7 @@ class OptimizerModel(BaseModel):
 
     Attributes
     ----------
-    name : TorchOptimizer
+    name : {"Adam", "SGD"}
         Name of the optimizer.
     parameters : dict
         Parameters of the optimizer (see torch documentation).
@@ -56,7 +56,7 @@ class OptimizerModel(BaseModel):
 
     @field_validator("parameters")
     @classmethod
-    def filter_parameters(cls, user_params: dict, values: ValidationInfo) -> Dict:
+    def filter_parameters(cls, user_params: dict, values: ValidationInfo) -> dict:
         """
         Validate optimizer parameters.
 
@@ -71,7 +71,7 @@ class OptimizerModel(BaseModel):
 
         Returns
         -------
-        Dict
+        dict
             Filtered optimizer parameters.
 
         Raises
@@ -127,7 +127,7 @@ class LrSchedulerModel(BaseModel):
 
     Attributes
     ----------
-    name : TorchLRScheduler
+    name : {"ReduceLROnPlateau", "StepLR"}
         Name of the learning rate scheduler.
     parameters : dict
         Parameters of the learning rate scheduler (see torch documentation).
@@ -146,7 +146,7 @@ class LrSchedulerModel(BaseModel):
 
     @field_validator("parameters")
     @classmethod
-    def filter_parameters(cls, user_params: dict, values: ValidationInfo) -> Dict:
+    def filter_parameters(cls, user_params: dict, values: ValidationInfo) -> dict:
         """Filter parameters based on the learning rate scheduler's signature.
 
         Parameters
@@ -158,7 +158,7 @@ class LrSchedulerModel(BaseModel):
 
         Returns
         -------
-        Dict
+        dict
             Filtered scheduler parameters.
 
         Raises

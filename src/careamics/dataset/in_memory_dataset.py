@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import copy
 from pathlib import Path
-from typing import Any, Callable, List, Optional, Tuple, Union
+from typing import Any, Callable, Optional, Union
 
 import numpy as np
 from torch.utils.data import Dataset
@@ -34,9 +34,9 @@ class InMemoryDataset(Dataset):
     ----------
     data_config : DataConfig
         Data configuration.
-    inputs : Union[np.ndarray, List[Path]]
+    inputs : np.ndarray or list[Path]
         Input data.
-    input_target : Optional[Union[np.ndarray, List[Path]]], optional
+    input_target : np.ndarray or list[Path] or None, optional
         Target data, by default None.
     read_source_func : Callable, optional
         Read source function for custom types, by default read_tiff.
@@ -47,8 +47,8 @@ class InMemoryDataset(Dataset):
     def __init__(
         self,
         data_config: DataConfig,
-        inputs: Union[np.ndarray, List[Path]],
-        input_target: Optional[Union[np.ndarray, List[Path]]] = None,
+        inputs: Union[np.ndarray, list[Path]],
+        input_target: Optional[Union[np.ndarray, list[Path]]] = None,
         read_source_func: Callable = read_tiff,
         **kwargs: Any,
     ) -> None:
@@ -59,9 +59,9 @@ class InMemoryDataset(Dataset):
         ----------
         data_config : DataConfig
             Data configuration.
-        inputs : Union[np.ndarray, List[Path]]
+        inputs : np.ndarray or list[Path]
             Input data.
-        input_target : Optional[Union[np.ndarray, List[Path]]], optional
+        input_target : np.ndarray or list[Path] or None, optional
             Target data, by default None.
         read_source_func : Callable, optional
             Read source function for custom types, by default read_tiff.
@@ -101,7 +101,7 @@ class InMemoryDataset(Dataset):
 
     def _prepare_patches(
         self, supervised: bool
-    ) -> Tuple[np.ndarray, Optional[np.ndarray], float, float]:
+    ) -> tuple[np.ndarray, Optional[np.ndarray], float, float]:
         """
         Iterate over data source and create an array of patches.
 
@@ -165,7 +165,7 @@ class InMemoryDataset(Dataset):
         """
         return len(self.patches)
 
-    def __getitem__(self, index: int) -> Tuple[np.ndarray, ...]:
+    def __getitem__(self, index: int) -> tuple[np.ndarray, ...]:
         """
         Return the patch corresponding to the provided index.
 
@@ -176,7 +176,7 @@ class InMemoryDataset(Dataset):
 
         Returns
         -------
-        Tuple[np.ndarray]
+        tuple[np.ndarray, ...]
             Patch.
 
         Raises
@@ -337,13 +337,13 @@ class InMemoryPredictionDataset(Dataset):
             transform_list=[NormalizeModel(mean=self.mean, std=self.std)],
         )
 
-    def _prepare_tiles(self) -> List[Tuple[np.ndarray, TileInformation]]:
+    def _prepare_tiles(self) -> list[tuple[np.ndarray, TileInformation]]:
         """
         Iterate over data source and create an array of patches.
 
         Returns
         -------
-        List[XArrayTile]
+        list[tuple[np.ndarray, TileInformation]]
             List of tiles.
         """
         # reshape array
@@ -377,7 +377,7 @@ class InMemoryPredictionDataset(Dataset):
         """
         return len(self.data)
 
-    def __getitem__(self, index: int) -> Tuple[np.ndarray, TileInformation]:
+    def __getitem__(self, index: int) -> tuple[np.ndarray, TileInformation]:
         """
         Return the patch corresponding to the provided index.
 
@@ -388,7 +388,7 @@ class InMemoryPredictionDataset(Dataset):
 
         Returns
         -------
-        Tuple[np.ndarray, TileInformation]
+        tuple[np.ndarray, TileInformation]
             Transformed patch.
         """
         tile_array, tile_info = self.data[index]
