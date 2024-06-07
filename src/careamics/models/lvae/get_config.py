@@ -61,5 +61,10 @@ def get_config():
     fname = '/group/jug/federico/careamics_training/noise_models/139/GMMNoiseModel_BioSR-__6_4_Clip0.0-1.0_Sig0.125_UpNone_Norm0_bootstrap.npz'
     model.noise_model_ch1_fpath = fname
     model.noise_model_ch2_fpath = fname
+    # Parameters to apply synthetic noise to data (e.g., used with BioSR data for denoiSplit)
+    data.poisson_noise_factor = 4000
+    data.enable_gaussian_noise = False
+    data.synthetic_gaussian_scale = 0.1
+    data.input_has_dependant_noise = False
     
     return config

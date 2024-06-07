@@ -146,9 +146,9 @@ class MultiChDloader:
         self._data = self.N = self._noise_data = None
         
         # Hardcoded params, not included in the config file.
+        
         # by default, if the noise is present, add it to the input and target.
-        self._disable_noise = False
-        self._poisson_noise_factor = 4000
+        self._disable_noise = False # to add synthetic noise 
         self._train_index_switcher = None
         # NOTE: Input is the sum of the different channels. It is not the average of the different channels.
         self._input_is_sum = data_config.get('input_is_sum', False)
