@@ -17,7 +17,7 @@ from careamics.dataset import InMemoryPredDataset
         ((4, 3, 8, 16, 16), "SCZYX", (1, 3, 8, 16, 16)),
     ],
 )
-def test_in_memory_pred_dataset(shape, axes, expected_shape):
+def test_correct_normalized_outputs(shape, axes, expected_shape):
     """Test that the dataset returns normalized images with singleton
     sample dimension."""
     rng = np.random.default_rng(42)

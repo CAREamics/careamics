@@ -109,7 +109,9 @@ class IterablePredDataset(IterableDataset):
             self.data_files,
             read_source_func=self.read_source_func,
         ):
-            # TODO what if S dimensions > 1, should we yield each sample independently?
-            transformed_sample, _ = self.patch_transform(patch=sample)
+            # sample has S dimension
+            for i in range(sample.shape[0]):
 
-            yield transformed_sample
+                transformed_sample, _ = self.patch_transform(patch=sample[[i]])
+
+                yield transformed_sample

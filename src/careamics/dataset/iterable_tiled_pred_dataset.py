@@ -121,7 +121,7 @@ class IterableTiledPredDataset(IterableDataset):
             self.data_files,
             read_source_func=self.read_source_func,
         ):
-            # generate patches, return a generator
+            # generate patches, return a generator of single tiles
             patch_gen = extract_tiles(
                 arr=sample,
                 tile_size=self.tile_size,
