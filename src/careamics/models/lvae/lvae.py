@@ -97,7 +97,7 @@ class LadderVAE(nn.Module):
         self.learn_top_prior = True
         self.res_block_type = "bacdbacd"
         self.mode_pred = False
-        self.predict_logvar = 'pixelwise'  #'pixelwise' #'channelwise'
+        self.predict_logvar = 'pixelwise'  #'pixelwise' #'channelwise' # None
         self.logvar_lowerbound = -5
         self._var_clip_max = 20
         self._stochastic_use_naive_exponential = False
@@ -145,35 +145,12 @@ class LadderVAE(nn.Module):
         
         # Setting the loss_type
         self.loss_type = config.loss.get('loss_type', LossType.DenoiSplitMuSplit)
+        self.kl_loss_formulation = config.loss.get('kl_loss_formulation', 'usplit')
         self._denoisplit_w = self._usplit_w = None
         if self.loss_type == LossType.DenoiSplitMuSplit:
             self._usplit_w = 0
             self._denoisplit_w = 1 - self._usplit_w
             assert self._denoisplit_w + self._usplit_w == 1
-        if self.loss_type in [
-                LossType.ElboMixedReconstruction, LossType.ElboSemiSupMixedReconstruction,
-                LossType.ElboRestrictedReconstruction
-        ]:
-            self.mixed_rec_w = config.loss.mixed_rec_weight
-            self.mixed_rec_w_step = config.loss.get('mixed_rec_w_step', 0)
-            self.enable_mixed_rec = True
-            if self.loss_type not in [
-                    LossType.ElboSemiSupMixedReconstruction, LossType.ElboMixedReconstruction,
-                    LossType.ElboRestrictedReconstruction
-            ] and config.data.use_one_mu_std is False:
-                raise NotImplementedError(
-                    "This cannot work since now, different channels have different mean. One needs to reweigh the "
-                    "predicted channels and then take their sum. This would then be equivalent to the input.")
-        elif self.loss_type == LossType.ElboWithNbrConsistency:
-            raise NotImplementedError("This is not implemented.")
-            self.nbr_consistency_w = config.loss.nbr_consistency_w
-            assert 'grid_size' in config.data or 'gridsizes' in config.training
-            self._grid_sz = config.data.grid_size if 'grid_size' in config.data else config.data.image_size
-            # NeighborConsistencyLoss assumes the batch to be a sequence of [center, left, right, top bottom] images.
-            self.nbr_consistency_loss = NeighborConsistencyLoss(
-                self._grid_sz,
-                nbr_set_count=config.data.get('nbr_set_count', None),
-                focus_on_opposite_gradients=config.model.offset_prediction_focus_on_opposite_gradients)
         # -------------------------------------------------------
 
         # -------------------------------------------------------
