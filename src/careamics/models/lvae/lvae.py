@@ -70,6 +70,7 @@ class LadderVAE(nn.Module):
         self.encoder_dropout = config.model.dropout
         self.decoder_dropout = config.model.dropout
         self.nonlin = config.model.nonlin
+        self.predict_logvar = config.model.predict_logvar
         self.enable_noise_model = config.model.enable_noise_model
         self.noise_model_ch1_fpath = config.model.noise_model_ch1_fpath
         self.noise_model_ch2_fpath = config.model.noise_model_ch2_fpath
@@ -97,7 +98,6 @@ class LadderVAE(nn.Module):
         self.learn_top_prior = True
         self.res_block_type = "bacdbacd"
         self.mode_pred = False
-        self.predict_logvar = 'pixelwise'  #'pixelwise' #'channelwise' # None
         self.logvar_lowerbound = -5
         self._var_clip_max = 20
         self._stochastic_use_naive_exponential = False
@@ -145,12 +145,6 @@ class LadderVAE(nn.Module):
         
         # Setting the loss_type
         self.loss_type = config.loss.get('loss_type', LossType.DenoiSplitMuSplit)
-        self.kl_loss_formulation = config.loss.get('kl_loss_formulation', 'usplit')
-        self._denoisplit_w = self._usplit_w = None
-        if self.loss_type == LossType.DenoiSplitMuSplit:
-            self._usplit_w = 0
-            self._denoisplit_w = 1 - self._usplit_w
-            assert self._denoisplit_w + self._usplit_w == 1
         # -------------------------------------------------------
 
         # -------------------------------------------------------

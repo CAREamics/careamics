@@ -64,15 +64,22 @@ class LadderVAELight(L.LightningModule):
             target_ch=target_ch
         )
         
-        ##### Define data attributes #####
+        ##### Define attributes from config #####
         self.workdir = config.workdir
         self._input_is_sum = False
+        self.kl_loss_formulation = config.loss.kl_loss_formulation
+        assert self.kl_loss_formulation in [
+            None, '', 'usplit', 'denoisplit', 'denoisplit_usplit'], f"""
+            Invalid kl_loss_formulation. {self.kl_loss_formulation}"""
         
         ##### Define loss attributes #####
         # Parameters already defined in the model object
         self.loss_type = self.model.loss_type
-        self._denoisplit_w = self.model._denoisplit_w
-        self._usplit_w = self.model._usplit_w
+        self._denoisplit_w = self._usplit_w = None
+        if self.loss_type == LossType.DenoiSplitMuSplit:
+            self._usplit_w = 0
+            self._denoisplit_w = 1 - self._usplit_w
+            assert self._denoisplit_w + self._usplit_w == 1
         self._restricted_kl = self.model._restricted_kl
         
         # General loss parameters
@@ -92,10 +99,6 @@ class LadderVAELight(L.LightningModule):
         # About KL Loss
         self.kl_weight = 1.0 #HC
         self.usplit_kl_weight = None #HC
-        self.kl_loss_formulation = 'denoisplit_usplit' #HC
-        assert self.kl_loss_formulation in [
-            None, '', 'usplit', 'denoisplit', 'denoisplit_usplit'], f"""
-            Invalid kl_loss_formulation. {self.kl_loss_formulation}"""
         self.free_bits = 1.0 #HC
         self.kl_annealing = False #HC
         self.kl_annealtime = self.kl_start = None
@@ -128,6 +131,7 @@ class LadderVAELight(L.LightningModule):
 
         # Pre-processing of inputs
         x, target = batch[:2]
+        self.set_params_to_same_device_as(x)
         x_normalized = self.normalize_input(x)
         if self.reconstruction_mode: # just for experimental purpose
             target_normalized = x_normalized[:, :1].repeat(1, 2, 1, 1)

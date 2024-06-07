@@ -62,11 +62,11 @@ def get_config():
     data.data_type = DataType.BioSR_MRC
     data.ch1_fname = 'ER/GT_all.mrc'
     data.ch2_fname = 'Microtubules/GT_all.mrc'
-    fname = '/group/jug/ashesh/careamics_training/noise_models/140/GMMNoiseModel_BioSR-__6_4_Clip0.0-1.0_Sig0.125_UpNone_Norm0_bootstrap.npz'
+    fname = '/group/jug/federico/careamics_training/noise_models/140/GMMNoiseModel_BioSR-__6_4_Clip0.0-1.0_Sig0.125_UpNone_Norm0_bootstrap.npz'
     model.noise_model_ch1_fpath = fname
     model.noise_model_ch2_fpath = fname
     # Parameters to apply synthetic noise to data (e.g., used with BioSR data for denoiSplit)
-    data.poisson_noise_factor = 4000
+    data.poisson_noise_factor = 1000
     data.enable_gaussian_noise = True
     data.synthetic_gaussian_scale = 4450
     data.input_has_dependant_noise = True
