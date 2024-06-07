@@ -38,6 +38,7 @@ class CAREamicsPredictionWriter(BasePredictionWriter):
         batch_idx: int,
         dataloader_idx: int,
     ) -> None: 
+
         print("in write_on_batch_end.")
         if pl_module.save_prediction_args.save_predictions:
             print("saving to disk.")
@@ -47,6 +48,9 @@ class CAREamicsPredictionWriter(BasePredictionWriter):
             files = ds.data_files
             loop: CAREamicsPredictionLoop = trainer.predict_loop
             
+            # TODO: 
+            # Get prediction array from loop
+            # add prediction array clearing and also return file name if saving to disk
             
         else:
             print("Not saving to disk.")

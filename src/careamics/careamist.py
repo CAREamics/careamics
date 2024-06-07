@@ -718,6 +718,7 @@ class CAREamist:
             model=self.model, datamodule=self.pred_datamodule, ckpt_path=checkpoint, return_predictions=False
         )
 
+        # TODO: make a context manager ? Or is that unnecesssary
         # unset save predictions
         self.model.set_save_predictions(False)
 
