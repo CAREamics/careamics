@@ -2,6 +2,8 @@
 This script contains the functions/classes to compute loss and metrics used to train and evaluate the performance of the model.
 """
 import torch
+import numpy as np
+from skimage.metrics import structural_similarity
 
 from .utils import allow_numpy
 
@@ -136,3 +138,33 @@ class MetricMonitor:
             return 'max'
         else:
             raise ValueError(f'Invalid metric:{self.metric}')
+        
+def _avg_psnr(target, prediction, psnr_fn):
+    output = np.mean([
+        psnr_fn(target[i:i + 1], prediction[i:i + 1]).item() 
+        for i in range(len(prediction))
+    ])
+    return round(output, 2)
+
+
+def avg_range_inv_psnr(target, prediction):
+    return _avg_psnr(target, prediction, RangeInvariantPsnr)
+
+
+def avg_psnr(target, prediction):
+    return _avg_psnr(target, prediction, PSNR)
+
+def compute_masked_psnr(mask, tar1, tar2, pred1, pred2):
+    mask = mask.astype(bool)
+    mask = mask[..., 0]
+    tmp_tar1 = tar1[mask].reshape((len(tar1), -1, 1))
+    tmp_pred1 = pred1[mask].reshape((len(tar1), -1, 1))
+    tmp_tar2 = tar2[mask].reshape((len(tar2), -1, 1))
+    tmp_pred2 = pred2[mask].reshape((len(tar2), -1, 1))
+    psnr1 = avg_range_inv_psnr(tmp_tar1, tmp_pred1)
+    psnr2 = avg_range_inv_psnr(tmp_tar2, tmp_pred2)
+    return psnr1, psnr2
+
+def avg_ssim(target, prediction):
+    ssim = [structural_similarity(target[i],prediction[i], data_range=(target[i].max() - target[i].min())) for i in range(len(target))]
+    return np.mean(ssim),np.std(ssim)

@@ -555,7 +555,8 @@ class MultiChDloader:
         noise = []
         if self._noise_data is not None and not self._disable_noise:
             noise = [
-                self._noise_data[self.idx_manager.get_t(idx)][None, ..., i] for i in range(self._noise_data.shape[-1])
+                self._noise_data[self.idx_manager.get_t(idx)][None, ..., i] 
+                for i in range(self._noise_data.shape[-1])
             ]
         return tuple(loaded_imgs), tuple(noise)
 
