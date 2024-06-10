@@ -6,6 +6,7 @@ It includes functions to:
     - create plots to visualize the results.
 """
 import os
+import math
 from typing import Dict, List, Union, Literal
 
 import torch
@@ -33,7 +34,7 @@ def clean_ax(ax):
     ax.tick_params(left=False, right=False, top=False, bottom=False)
     
     
-def get_saveplots_dir(
+def get_plots_output_dir(
     saveplotsdir: str, 
     patch_size: int, 
     mmse_count: int = 50
@@ -42,7 +43,7 @@ def get_saveplots_dir(
     Given the path to a root directory to save plots, patch size, and mmse count, 
     it returns the specific directory to save the plots.
     """
-    plotsrootdir = os.path.join(saveplotsdir, f'/patch_{patch_size}_mmse_{mmse_count}')
+    plotsrootdir = os.path.join(saveplotsdir, f'plots/patch_{patch_size}_mmse_{mmse_count}')
     os.makedirs(plotsrootdir, exist_ok=True)
     print(plotsrootdir)
     return plotsrootdir
@@ -689,8 +690,9 @@ class Calibration:
 
 def nll(x, mean, logvar):
     """
-    Log of the probability density of the values x untder the Normal
+    Log of the probability density of the values x under the Normal
     distribution with parameters mean and logvar.
+
     :param x: tensor of points, with shape (batch, channels, dim1, dim2)
     :param mean: tensor with mean of distribution, shape
                  (batch, channels, dim1, dim2)
@@ -703,30 +705,57 @@ def nll(x, mean, logvar):
     return nll
 
 
-def get_calibrated_factor_for_stdev(pred, pred_logvar, target, batch_size=32, epochs=500, lr=0.01):
+def get_calibrated_factor_for_stdev(
+    pred: Union[np.ndarray, torch.Tensor], 
+    pred_logvar: Union[np.ndarray, torch.Tensor], 
+    target: Union[np.ndarray, torch.Tensor], 
+    batch_size: int = 32,
+    epochs: int = 500, 
+    lr: float = 0.01):
     """
-    Here, we calibrate with multiplying the predicted std (computed from logvar) with a scalar.
+    Here, we calibrate the uncertainty by multiplying the predicted std (mmse estimate or predicted logvar) with a scalar.
     We return the calibrated scalar. This needs to be multiplied with the std.
-    Why is the input logvar and not std? because the model typically predicts logvar and not std.
+    
+    NOTE: Why is the input logvar and not std? because the model typically predicts logvar and not std.
     """
-    import torch
-    from tqdm import tqdm
-
     # create a learnable scalar
     scalar = torch.nn.Parameter(torch.tensor(2.0))
     optimizer = torch.optim.Adam([scalar], lr=lr)
-    # tqdm with text description as loss
+
     bar = tqdm(range(epochs))
     for _ in bar:
         optimizer.zero_grad()
+        # Select a random batch of predictions
         mask = np.random.randint(0, pred.shape[0], batch_size)
         pred_batch = torch.Tensor(pred[mask]).cuda()
         pred_logvar_batch = torch.Tensor(pred_logvar[mask]).cuda()
         target_batch = torch.Tensor(target[mask]).cuda()
 
-        loss = torch.mean(nll(target_batch, pred_batch, pred_logvar_batch + torch.log(scalar)))
+        loss = torch.mean(
+            nll(target_batch, pred_batch, pred_logvar_batch + torch.log(scalar))
+        )
         loss.backward()
         optimizer.step()
         bar.set_description(f'nll: {loss.item()} scalar: {scalar.item()}')
 
     return np.sqrt(scalar.item())
+
+
+def plot_calibration(ax, calibration_stats):
+    first_idx = get_first_index(calibration_stats[0]['bin_count'], 0.001)
+    last_idx = get_last_index(calibration_stats[0]['bin_count'], 0.999)
+    ax.plot(calibration_stats[0]['rmv'][first_idx:-last_idx],
+            calibration_stats[0]['rmse'][first_idx:-last_idx],
+            'o',
+            label='$\hat{C}_0$: Ch1')
+
+    first_idx = get_first_index(calibration_stats[1]['bin_count'], 0.001)
+    last_idx = get_last_index(calibration_stats[1]['bin_count'], 0.999)
+    ax.plot(calibration_stats[1]['rmv'][first_idx:-last_idx],
+            calibration_stats[1]['rmse'][first_idx:-last_idx],
+            'o',
+            label='$\hat{C}_1: : Ch2$')
+
+    ax.set_xlabel('RMV')
+    ax.set_ylabel('RMSE')
+    ax.legend()
