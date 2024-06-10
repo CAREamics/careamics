@@ -57,7 +57,7 @@ def test_compose_with_target(ordered_array):
 
 def test_compose_n2v(ordered_array):
     seed = 24
-    array = ordered_array((2, 5, 5))
+    array = ordered_array((2, 1, 5, 5))
 
     # transform lists
     means, stds = compute_normalization_stats(image=array)
@@ -95,11 +95,12 @@ def test_compose_n2v(ordered_array):
     "shape",
     [
         # 2D
-        (1, 2, 2),
-        (2, 2, 2),
-        # 3D
+        (1, 1, 2, 2),
         (1, 2, 2, 2),
-        (2, 2, 2, 2),
+        (2, 1, 2, 2),
+        # 3D
+        (1, 1, 2, 2, 2),
+        (2, 1, 2, 2, 2),
     ],
 )
 def test_random_composition(ordered_array, shape):
@@ -119,10 +120,10 @@ def test_random_composition(ordered_array, shape):
 
         transforms = [
             NormalizeModel(
-                image_means=[0.5 for _ in range(array.shape[0])],
-                image_stds=[0.5 for _ in range(array.shape[0])],
-                target_means=[0.5 for _ in range(array.shape[0])],
-                target_stds=[0.5 for _ in range(array.shape[0])],
+                image_means=[0.5 for _ in range(array.shape[1])],
+                image_stds=[0.5 for _ in range(array.shape[1])],
+                target_means=[0.5 for _ in range(array.shape[1])],
+                target_stds=[0.5 for _ in range(array.shape[1])],
             ),
             XYFlipModel(flip_x=flip_x, seed=42),
             XYRandomRotate90Model(seed=42),

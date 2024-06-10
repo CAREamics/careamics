@@ -105,6 +105,9 @@ def compute_normalization_stats(image: np.ndarray) -> Tuple[np.ndarray, np.ndarr
     """
     Compute mean and standard deviation of an array.
 
+    Expected input shape is (S, C, (Z), Y, X). The mean and standard deviation are
+    computed per channel.
+
     Parameters
     ----------
     data : np.ndarray
@@ -116,5 +119,5 @@ def compute_normalization_stats(image: np.ndarray) -> Tuple[np.ndarray, np.ndarr
         Lists of mean and standard deviation values per channel.
     """
     # Define the list of axes excluding the channel axis
-    axes = tuple(np.delete(np.arange(len(image.shape)), 1))
+    axes = tuple(np.delete(np.arange(image.ndim), 1))
     return np.mean(image, axis=axes), np.std(image, axis=axes)

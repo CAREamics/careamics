@@ -86,8 +86,8 @@ class InMemoryDataset(Dataset):
         self.data_targets = patches_data.targets
 
         if not any(self.data_config.image_mean) or not any(self.data_config.image_std):
-            self.image_means = patches_data.image_means
-            self.image_stds = patches_data.image_stds
+            self.image_means = patches_data.image_stats.means
+            self.image_stds = patches_data.image_stats.stds
             logger.info(
                 f"Computed dataset mean: {self.image_means}, std: {self.image_stds}"
             )
@@ -96,8 +96,8 @@ class InMemoryDataset(Dataset):
             self.image_stds = self.data_config.image_std
 
         if not self.data_config.target_mean or not self.data_config.target_std:
-            self.target_means = patches_data.target_means
-            self.target_stds = patches_data.target_stds
+            self.target_means = patches_data.target_stats.means
+            self.target_stds = patches_data.target_stats.stds
         else:
             self.target_means = self.data_config.target_mean
             self.target_stds = self.data_config.target_std
@@ -416,6 +416,6 @@ class InMemoryPredictionDataset(Dataset):
         tile_array, tile_info = self.data[index]
 
         # Apply transforms
-        transformed_tile, _ = self.patch_transform(patch=tile_array)
+        transformed_tile, _ = self.patch_transform(patch=tile_array.squeeze())
 
         return transformed_tile, tile_info

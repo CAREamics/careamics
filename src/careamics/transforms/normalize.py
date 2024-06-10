@@ -84,19 +84,24 @@ class Normalize(Transform):
         Tuple[np.ndarray, Optional[np.ndarray]]
             Transformed patch and target.
         """
-        norm_patch = np.zeros_like(patch, dtype=np.float32)
-        norm_target = (
-            np.zeros_like(target, dtype=np.float32) if target is not None else None
+        assert len(self.image_means) == patch.shape[0], (
+            "Number of means and number of channels do not match."
         )
+        means = np.array(self.image_means)[(..., *[np.newaxis] * (patch.ndim - 1))]
+        stds = np.array(self.image_stds)[(..., *[np.newaxis] * (patch.ndim - 1))]
+        norm_patch = self._apply(patch, means, stds)
 
-        for i in range(patch.shape[0]):
-            norm_patch[i] = self._apply(
-                patch[i], self.image_means[i], self.image_stds[i]
-            )
-            if target is not None:
-                norm_target[i] = self._apply(
-                    target[i], self.target_means[i], self.target_stds[i]
-                )
+        if target is not None:
+            target_means = np.array(self.target_means)[
+                (..., *[np.newaxis] * (target.ndim - 1))
+            ]
+            target_stds = np.array(self.target_stds)[
+                (..., *[np.newaxis] * (target.ndim - 1))
+            ]
+            norm_target = self._apply(target, means, stds)
+            norm_target = self._apply(target, target_means, target_stds)
+        else:
+            norm_target = None
 
         return norm_patch, norm_target
 

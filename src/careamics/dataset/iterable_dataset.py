@@ -16,7 +16,7 @@ from ..config.tile_information import TileInformation
 from ..config.transformations import NormalizeModel
 from ..utils.logging import get_logger
 from .dataset_utils import compute_normalization_stats, read_tiff, reshape_array
-from .patching.patching import PatchedOutput
+from .patching.patching import PatchedOutput, Stats
 from .patching.random_patching import extract_patches_random
 from .patching.tiled_patching import extract_tiles
 
@@ -151,39 +151,30 @@ class PathIterableDataset(IterableDataset):
         if not self.data_config.image_mean:
             self.patches_data = self._calculate_mean_and_std()
             logger.info(
-                f"Computed dataset mean: {self.patches_data.image_means},"
-                f"std: {self.patches_data.image_stds}"
+                f"Computed dataset mean: {self.patches_data.image_stats.means},"
+                f"std: {self.patches_data.image_stats.stds}"
             )
 
         else:
             self.patches_data = PatchedOutput(
                 None,
                 None,
-                self.data_config.image_mean,
-                self.data_config.image_std,
-                (
-                    self.data_config.target_mean
-                    if hasattr(self.data_config, "target_mean")
-                    else None
-                ),
-                (
-                    self.data_config.target_std
-                    if hasattr(self.data_config, "target_std")
-                    else None
-                ),
+                Stats(self.data_config.image_mean, self.data_config.image_std),
+                Stats(self.data_config.target_mean, self.data_config.target_std),
             )
+
         if hasattr(self.data_config, "set_mean_and_std"):
             self.data_config.set_mean_and_std(
-                image_mean=list(self.patches_data.image_means),
-                image_std=list(self.patches_data.image_stds),
+                image_mean=list(self.patches_data.image_stats.means),
+                image_std=list(self.patches_data.image_stats.stds),
                 target_mean=(
-                    list(self.patches_data.target_means)
-                    if self.patches_data.target_means is not None
+                    list(self.patches_data.target_stats.means)
+                    if self.patches_data.target_stats.means is not None
                     else []
                 ),
                 target_std=(
-                    list(self.patches_data.target_stds)
-                    if self.patches_data.target_stds is not None
+                    list(self.patches_data.target_stats.stds)
+                    if self.patches_data.target_stats.stds is not None
                     else []
                 ),
             )
@@ -238,10 +229,11 @@ class PathIterableDataset(IterableDataset):
         return PatchedOutput(
             None,
             None,
-            image_means,
-            image_stds,
-            target_means if target is not None else None,
-            target_stds if target is not None else None,
+            Stats(image_means, image_stds),
+            Stats(
+                target_means if target is not None else None,
+                target_stds if target is not None else None,
+            ),
         )
 
     def __iter__(
@@ -256,8 +248,8 @@ class PathIterableDataset(IterableDataset):
             Single patch.
         """
         assert (
-            self.patches_data.image_means is not None
-            and self.patches_data.image_stds is not None
+            self.patches_data.image_stats.means is not None
+            and self.patches_data.image_stats.stds is not None
         ), "Mean and std must be provided"
 
         # iterate over files

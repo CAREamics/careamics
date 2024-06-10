@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Iterator, List, Tuple, Union
+from typing import Callable, Iterator, List, Optional, Tuple, Union
 
 import numpy as np
 
@@ -14,15 +14,21 @@ logger = get_logger(__name__)
 
 
 @dataclass
+class Stats:
+    """Dataclass to store statistics."""
+
+    means: Union[np.ndarray, List[float]]
+    stds: Union[np.ndarray, List[float]]
+
+
+@dataclass
 class PatchedOutput:
     """Dataclass to store patches and statistics."""
 
     patches: Union[np.ndarray, Iterator[np.ndarray]]
-    targets: np.ndarray
-    image_means: Union[np.ndarray, List[float]]
-    image_stds: Union[np.ndarray, List[float]]
-    target_means: Union[np.ndarray, List[float]]
-    target_stds: Union[np.ndarray, List[float]]
+    targets: Optional[np.ndarray]
+    image_stats: Stats
+    target_stats: Stats
 
 
 # called by in memory dataset
@@ -104,7 +110,10 @@ def prepare_patches_supervised(
     logger.info(f"Extracted {patch_array.shape[0]} patches from input array.")
 
     return PatchedOutput(
-        patch_array, target_array, image_means, image_stds, target_means, target_stds
+        patch_array,
+        target_array,
+        Stats(image_means, image_stds),
+        Stats(target_means, target_stds),
     )
 
 
@@ -165,7 +174,9 @@ def prepare_patches_unsupervised(
     patch_array: np.ndarray = np.concatenate(all_patches)
     logger.info(f"Extracted {patch_array.shape[0]} patches from input array.")
 
-    return PatchedOutput(patch_array, None, image_means, image_stds, [], [])
+    return PatchedOutput(
+        patch_array, None, Stats(image_means, image_stds), Stats([], [])
+    )
 
 
 # called on arrays by in memory dataset
@@ -217,7 +228,10 @@ def prepare_patches_supervised_array(
     logger.info(f"Extracted {patches.shape[0]} patches from input array.")
 
     return PatchedOutput(
-        patches, patch_targets, image_means, image_stds, target_means, target_stds
+        patches,
+        patch_targets,
+        Stats(image_means, image_stds),
+        Stats(target_means, target_stds),
     )
 
 
@@ -258,4 +272,4 @@ def prepare_patches_unsupervised_array(
     # generate patches, return a generator
     patches, _ = extract_patches_sequential(reshaped_sample, patch_size=patch_size)
 
-    return PatchedOutput(patches, None, means, stds, [], [])
+    return PatchedOutput(patches, None, Stats(means, stds), Stats([], []))
