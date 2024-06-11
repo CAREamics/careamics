@@ -515,7 +515,7 @@ class CAREamist:
         self,
         source: Union[CAREamicsPredictData, Path, str, np.ndarray],
         *,
-        batch_size: int = 1,
+        batch_size: Optional[int] = None,
         tile_size: Optional[Tuple[int, ...]] = None,
         tile_overlap: Tuple[int, ...] = (48, 48),
         axes: Optional[str] = None,
@@ -603,7 +603,11 @@ class CAREamist:
                 data_type=data_type,
                 axes=axes,
                 tta_transforms=tta_transforms,
-                batch_size=batch_size,
+                batch_size=(
+                    batch_size
+                    if batch_size is not None
+                    else self.train_datamodule.batch_size
+                ),
             )
 
             # remove batch from dataloader parameters (priority given to config)
