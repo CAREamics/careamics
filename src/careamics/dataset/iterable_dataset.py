@@ -10,6 +10,7 @@ import numpy as np
 from torch.utils.data import IterableDataset
 
 from careamics.config import DataConfig
+from careamics.config.transformations import NormalizeModel
 from careamics.transforms import Compose
 
 from ..utils.logging import get_logger
