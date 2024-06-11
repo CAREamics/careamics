@@ -33,7 +33,7 @@ def test_state_dict_io(tmp_path, pre_trained):
 def test_bmz_io(tmp_path, pre_trained):
     """Test exporting and loading to the BMZ."""
     # training data
-    train_array = np.ones((32, 32), dtype=np.float32)
+    train_array = np.ones((16, 16), dtype=np.float32)
 
     # instantiate CAREamist
     careamist = CAREamist(source=pre_trained, work_dir=tmp_path)

@@ -700,7 +700,7 @@ class CAREamist:
                 denormalize = Denormalize(
                     mean=self.cfg.data_config.mean, std=self.cfg.data_config.std
                 )
-                input_patch, _ = denormalize(input_patch)
+                input_patch = denormalize(input_patch)
 
             elif self.train_datamodule is not None:
                 input_patch, *_ = next(iter(self.train_datamodule.train_dataloader()))
@@ -710,7 +710,7 @@ class CAREamist:
                 denormalize = Denormalize(
                     mean=self.cfg.data_config.mean, std=self.cfg.data_config.std
                 )
-                input_patch, _ = denormalize(input_patch)
+                input_patch = denormalize(input_patch)
             else:
                 # create a random input array
                 input_patch = np.random.normal(

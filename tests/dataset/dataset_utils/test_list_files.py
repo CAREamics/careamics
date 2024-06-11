@@ -92,6 +92,10 @@ def test_list_multiple_files_tiff(tmp_path: Path):
     assert len(files) == 3
     assert set(files) == set(ref_files)
 
+    # test that the files are sorted
+    assert files != ref_files
+    assert files == sorted(ref_files)
+
 
 def test_list_single_file_custom(tmp_path):
     """Test listing a single custom file."""

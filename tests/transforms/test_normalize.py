@@ -26,5 +26,5 @@ def test_normalize_denormalize():
     )
 
     # Apply the denormalize transform
-    denormalized, _ = denorm(patch=normalized)
+    denormalized = denorm(patch=normalized)
     assert np.isclose(denormalized, array).all()

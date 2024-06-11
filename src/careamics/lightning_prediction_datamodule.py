@@ -1,66 +1,35 @@
 """Prediction Lightning data modules."""
 
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Literal, Optional, Tuple, Union
 
 import numpy as np
 import pytorch_lightning as L
 from torch.utils.data import DataLoader
-from torch.utils.data.dataloader import default_collate
 
 from careamics.config import InferenceConfig
 from careamics.config.support import SupportedData
-from careamics.config.tile_information import TileInformation
+from careamics.dataset import (
+    InMemoryPredDataset,
+    InMemoryTiledPredDataset,
+    IterablePredDataset,
+    IterableTiledPredDataset,
+)
 from careamics.dataset.dataset_utils import (
     get_read_func,
     list_files,
 )
-from careamics.dataset.in_memory_dataset import (
-    InMemoryPredictionDataset,
-)
-from careamics.dataset.iterable_dataset import (
-    IterablePredictionDataset,
-)
+from careamics.dataset.tiling.collate_tiles import collate_tiles
 from careamics.utils import get_logger
 
-PredictDatasetType = Union[InMemoryPredictionDataset, IterablePredictionDataset]
+PredictDatasetType = Union[
+    InMemoryPredDataset,
+    InMemoryTiledPredDataset,
+    IterablePredDataset,
+    IterableTiledPredDataset,
+]
 
 logger = get_logger(__name__)
-
-
-def _collate_tiles(batch: List[Tuple[np.ndarray, TileInformation]]) -> Any:
-    """
-    Collate tiles received from CAREamics prediction dataloader.
-
-    CAREamics prediction dataloader returns tuples of arrays and TileInformation. In
-    case of non-tiled data, this function will return the arrays. In case of tiled data,
-    it will return the arrays, the last tile flag, the overlap crop coordinates and the
-    stitch coordinates.
-
-    Parameters
-    ----------
-    batch : List[Tuple[np.ndarray, TileInformation], ...]
-        Batch of tiles.
-
-    Returns
-    -------
-    Any
-        Collated batch.
-    """
-    first_tile_info: TileInformation = batch[0][1]
-    # if not tiled, then return arrays
-    if not first_tile_info.tiled:
-        arrays, _ = zip(*batch)
-
-        return default_collate(arrays)
-    # else we explicit the last_tile flag and coordinates
-    else:
-        new_batch = [
-            (tile, t.last_tile, t.array_shape, t.overlap_crop_coords, t.stitch_coords)
-            for tile, t in batch
-        ]
-
-        return default_collate(new_batch)
 
 
 class CAREamicsPredictData(L.LightningDataModule):
@@ -182,6 +151,9 @@ class CAREamicsPredictData(L.LightningDataModule):
         self.tile_size = pred_config.tile_size
         self.tile_overlap = pred_config.tile_overlap
 
+        # check if it is tiled
+        self.tiled = self.tile_size is not None and self.tile_overlap is not None
+
         # read source function
         if pred_config.data_type == SupportedData.CUSTOM:
             # mypy check
@@ -212,17 +184,29 @@ class CAREamicsPredictData(L.LightningDataModule):
         """
         # if numpy array
         if self.data_type == SupportedData.ARRAY:
-            # prediction dataset
-            self.predict_dataset: PredictDatasetType = InMemoryPredictionDataset(
-                prediction_config=self.prediction_config,
-                inputs=self.pred_data,
-            )
+            if self.tiled:
+                self.predict_dataset: PredictDatasetType = InMemoryTiledPredDataset(
+                    prediction_config=self.prediction_config,
+                    inputs=self.pred_data,
+                )
+            else:
+                self.predict_dataset = InMemoryPredDataset(
+                    prediction_config=self.prediction_config,
+                    inputs=self.pred_data,
+                )
         else:
-            self.predict_dataset = IterablePredictionDataset(
-                prediction_config=self.prediction_config,
-                src_files=self.pred_files,
-                read_source_func=self.read_source_func,
-            )
+            if self.tiled:
+                self.predict_dataset = IterableTiledPredDataset(
+                    prediction_config=self.prediction_config,
+                    src_files=self.pred_files,
+                    read_source_func=self.read_source_func,
+                )
+            else:
+                self.predict_dataset = IterablePredDataset(
+                    prediction_config=self.prediction_config,
+                    src_files=self.pred_files,
+                    read_source_func=self.read_source_func,
+                )
 
     def predict_dataloader(self) -> DataLoader:
         """
@@ -236,7 +220,7 @@ class CAREamicsPredictData(L.LightningDataModule):
         return DataLoader(
             self.predict_dataset,
             batch_size=self.batch_size,
-            collate_fn=_collate_tiles,
+            collate_fn=collate_tiles if self.tiled else None,
             **self.dataloader_params,
         )  # TODO check workers are used
 

@@ -550,8 +550,9 @@ def test_predict_arrays_no_tiling(tmp_path: Path, minimum_configuration: dict):
 
     # predict CAREamist
     predicted = careamist.predict(train_array)
+    predicted_squeeze = [p.squeeze() for p in predicted]
 
-    assert predicted.squeeze().shape == train_array.shape
+    assert np.array(predicted_squeeze).shape == train_array.shape
 
     # export to BMZ
     careamist.export_to_bmz(
@@ -561,6 +562,44 @@ def test_predict_arrays_no_tiling(tmp_path: Path, minimum_configuration: dict):
         authors=[{"name": "Amod", "affiliation": "El"}],
     )
     assert (tmp_path / "model.zip").exists()
+
+
+@pytest.mark.parametrize("independent_channels", [False, True])
+@pytest.mark.parametrize("batch_size", [1, 2])
+def test_predict_tiled_channel(
+    tmp_path: Path,
+    minimum_configuration: dict,
+    independent_channels: bool,
+    batch_size: int,
+):
+    """Test that CAREamics can be trained on arrays with channels."""
+    # training data
+    train_array = random_array((3, 32, 32))
+    val_array = random_array((3, 32, 32))
+
+    # create configuration
+    config = Configuration(**minimum_configuration)
+    config.training_config.num_epochs = 1
+    config.data_config.axes = "CYX"
+    config.algorithm_config.model.in_channels = 3
+    config.algorithm_config.model.num_classes = 3
+    config.algorithm_config.model.independent_channels = independent_channels
+    config.data_config.batch_size = batch_size
+    config.data_config.data_type = SupportedData.ARRAY.value
+    config.data_config.patch_size = (8, 8)
+
+    # instantiate CAREamist
+    careamist = CAREamist(source=config, work_dir=tmp_path)
+
+    # train CAREamist
+    careamist.train(train_source=train_array, val_source=val_array)
+
+    # predict CAREamist
+    predicted = careamist.predict(
+        train_array, batch_size=batch_size, tile_size=(16, 16), tile_overlap=(4, 4)
+    )
+
+    assert predicted.squeeze().shape == train_array.shape
 
 
 @pytest.mark.parametrize("batch_size", [1, 2])
