@@ -84,9 +84,9 @@ class Normalize(Transform):
         Tuple[np.ndarray, Optional[np.ndarray]]
             Transformed patch and target.
         """
-        assert len(self.image_means) == patch.shape[0], (
-            "Number of means and number of channels do not match."
-        )
+        assert (
+            len(self.image_means) == patch.shape[0]
+        ), "Number of means and number of channels do not match."
         means = np.array(self.image_means)[(..., *[np.newaxis] * (patch.ndim - 1))]
         stds = np.array(self.image_stds)[(..., *[np.newaxis] * (patch.ndim - 1))]
         norm_patch = self._apply(patch, means, stds)
@@ -128,12 +128,12 @@ class Normalize(Transform):
 
 class Denormalize:
     """
-    Denormalize an image or image patch.
+    Denormalize an image.
 
     Denormalization is performed expecting a zero mean and unit variance input. This
     transform expects C(Z)YX dimensions.
 
-    Not that an epsilon value of 1e-6 is added to the standard deviation to avoid
+    Note that an epsilon value of 1e-6 is added to the standard deviation to avoid
     division by zero during the normalization step, which is taken into account during
     denormalization.
 

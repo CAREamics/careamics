@@ -11,18 +11,15 @@ from torch.utils.data import Dataset
 
 from careamics.transforms import Compose
 
-from ..config import DataConfig, InferenceConfig
-from ..config.tile_information import TileInformation
-from ..config.transformations import NormalizeModel
+from ..config import DataConfig
 from ..utils.logging import get_logger
-from .dataset_utils import read_tiff, reshape_array
+from .dataset_utils import read_tiff
 from .patching.patching import (
     prepare_patches_supervised,
     prepare_patches_supervised_array,
     prepare_patches_unsupervised,
     prepare_patches_unsupervised_array,
 )
-from .patching.tiled_patching import extract_tiles
 
 logger = get_logger(__name__)
 
@@ -286,136 +283,3 @@ class InMemoryDataset(Dataset):
             dataset.data_targets = val_targets
 
         return dataset
-
-
-class InMemoryPredictionDataset(Dataset):
-    """
-    Dataset storing data in memory and allowing generating patches from it.
-
-    Parameters
-    ----------
-    prediction_config : InferenceConfig
-        Prediction configuration.
-    inputs : np.ndarray
-        Input data.
-    data_target : Optional[np.ndarray], optional
-        Target data, by default None.
-    read_source_func : Optional[Callable], optional
-        Read source function for custom types, by default read_tiff.
-    """
-
-    def __init__(
-        self,
-        prediction_config: InferenceConfig,
-        inputs: np.ndarray,
-        data_target: Optional[np.ndarray] = None,
-        read_source_func: Optional[Callable] = read_tiff,
-    ) -> None:
-        """Constructor.
-
-        Parameters
-        ----------
-        prediction_config : InferenceConfig
-            Prediction configuration.
-        inputs : np.ndarray
-            Input data.
-        data_target : Optional[np.ndarray], optional
-            Target data, by default None.
-        read_source_func : Optional[Callable], optional
-            Read source function for custom types, by default read_tiff.
-
-        Raises
-        ------
-        ValueError
-            If data_path is not a directory.
-        """
-        self.pred_config = prediction_config
-        self.input_array = inputs
-        self.axes = self.pred_config.axes
-        self.tile_size = self.pred_config.tile_size
-        self.tile_overlap = self.pred_config.tile_overlap
-        self.image_means = self.pred_config.image_mean
-        self.image_stds = self.pred_config.image_std
-        self.data_target = data_target
-
-        # tiling only if both tile size and overlap are provided
-        self.tiling = self.tile_size is not None and self.tile_overlap is not None
-
-        # read function
-        self.read_source_func = read_source_func
-
-        # Generate patches
-        self.data = self._prepare_tiles()
-
-        # get transforms
-        self.patch_transform = Compose(
-            transform_list=[
-                NormalizeModel(image_means=self.image_means, image_stds=self.image_stds)
-            ],
-        )
-
-    def _prepare_tiles(self) -> List[Tuple[np.ndarray, TileInformation]]:
-        """
-        Iterate over data source and create an array of patches.
-
-        Returns
-        -------
-        List[XArrayTile]
-            List of tiles.
-        """
-        # reshape array
-        reshaped_sample = reshape_array(self.input_array, self.axes)
-
-        if self.tiling and self.tile_size is not None and self.tile_overlap is not None:
-            # generate patches, which returns a generator
-            patch_generator = extract_tiles(
-                arr=reshaped_sample,
-                tile_size=self.tile_size,
-                overlaps=self.tile_overlap,
-            )
-            patches_list = list(patch_generator)
-
-            if len(patches_list) == 0:
-                raise ValueError("No tiles generated, ")
-
-            return patches_list
-        else:
-            return [
-                (
-                    reshaped_sample[i][np.newaxis],
-                    TileInformation(array_shape=reshaped_sample[0].squeeze().shape),
-                )
-                for i in range(reshaped_sample.shape[0])
-            ]
-
-    def __len__(self) -> int:
-        """
-        Return the length of the dataset.
-
-        Returns
-        -------
-        int
-            Length of the dataset.
-        """
-        return len(self.data)
-
-    def __getitem__(self, index: int) -> Tuple[np.ndarray, TileInformation]:
-        """
-        Return the patch corresponding to the provided index.
-
-        Parameters
-        ----------
-        index : int
-            Index of the patch to return.
-
-        Returns
-        -------
-        Tuple[np.ndarray, TileInformation]
-            Transformed patch.
-        """
-        tile_array, tile_info = self.data[index]
-
-        # Apply transforms
-        transformed_tile, _ = self.patch_transform(patch=tile_array.squeeze())
-
-        return transformed_tile, tile_info

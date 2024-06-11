@@ -63,7 +63,7 @@ def test_wrapper_instantiated_with_tiling(simple_array):
     assert len(list(data_module.predict_dataloader())) == 2
 
 
-def test_lwrapper_instantiated_without_tiling(simple_array):
+def test_wrapper_instantiated_without_tiling(simple_array):
     """Test that the data module is created correctly with an array."""
     # create data module
     data_module = PredictDataWrapper(

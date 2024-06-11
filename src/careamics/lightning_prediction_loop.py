@@ -1,14 +1,16 @@
 """Lithning prediction loop allowing tiling."""
 
-from typing import Optional
+from typing import List, Optional
 
+import numpy as np
 import pytorch_lightning as L
 from pytorch_lightning.loops.fetchers import _DataLoaderIterDataFetcher
 from pytorch_lightning.loops.utilities import _no_grad_context
 from pytorch_lightning.trainer import call
 from pytorch_lightning.utilities.types import _PREDICT_OUTPUT
 
-from careamics.prediction import stitch_prediction
+from careamics.config.tile_information import TileInformation
+from careamics.dataset.tiling import stitch_prediction
 
 
 class CAREamicsPredictionLoop(L.loops._PredictionLoop):
@@ -37,9 +39,9 @@ class CAREamicsPredictionLoop(L.loops._PredictionLoop):
             ########################################################
             ################ CAREamics specific code ###############
             if len(self.predicted_array) == 1:
-                return self.predicted_array[0]
+                # single array, already a numpy array
+                return self.predicted_array[0]  # todo why not return the list here?
             else:
-                # TODO revisit logic
                 return self.predicted_array
             ########################################################
         return None
@@ -64,8 +66,8 @@ class CAREamicsPredictionLoop(L.loops._PredictionLoop):
         assert data_fetcher is not None
 
         self.predicted_array = []
-        self.tiles = []
-        self.stitching_data = []
+        self.tiles: List[np.ndarray] = []
+        self.tile_information: List[TileInformation] = []
 
         while True:
             try:
@@ -86,27 +88,34 @@ class CAREamicsPredictionLoop(L.loops._PredictionLoop):
 
                 ########################################################
                 ################ CAREamics specific code ###############
-                # TODO: next line is not compatible with muSplit
                 is_tiled = len(self.predictions[batch_idx]) == 2
                 if is_tiled:
-                    # extract the last tile flag and the coordinates (crop and stitch)
-                    last_tile, *stitch_data = self.predictions[batch_idx][1]
+                    # a numpy array of shape BC(Z)YX
+                    tile_batch = self.predictions[batch_idx][0]
 
-                    # append the tile and the coordinates to the lists
-                    self.tiles.append(self.predictions[batch_idx][0])
-                    self.stitching_data.append(stitch_data)
+                    # split the tiles into C(Z)YX (skip singleton S) and
+                    # add them to the tiles list
+                    self.tiles.extend(
+                        np.split(tile_batch.numpy(), tile_batch.shape[0], axis=0)[0]
+                    )
+
+                    # tile information is passed as a list of list of TileInformation
+                    # TODO why list of list?
+                    tile_info = self.predictions[batch_idx][1][0]
+                    self.tile_information.extend(tile_info)
 
                     # if last tile, stitch the tiles and add array to the prediction
-                    if any(last_tile):
+                    last_tiles = [t.last_tile for t in self.tile_information]
+                    if any(last_tiles):
                         predicted_batches = stitch_prediction(
-                            self.tiles, self.stitching_data
+                            self.tiles, self.tile_information
                         )
                         self.predicted_array.append(predicted_batches)
                         self.tiles.clear()
-                        self.stitching_data.clear()
+                        self.tile_information.clear()
                 else:
                     # simply add the prediction to the list
-                    self.predicted_array.append(self.predictions[batch_idx])
+                    self.predicted_array.append(self.predictions[batch_idx].numpy())
                 ########################################################
             except StopIteration:
                 break
