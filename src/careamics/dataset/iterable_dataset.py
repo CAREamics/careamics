@@ -4,83 +4,19 @@ from __future__ import annotations
 
 import copy
 from pathlib import Path
-from typing import Any, Callable, Generator, List, Optional, Tuple, Union
+from typing import Callable, Generator, List, Optional, Tuple
 
 import numpy as np
-from torch.utils.data import IterableDataset, get_worker_info
+from torch.utils.data import IterableDataset
 
+from careamics.config import DataConfig
 from careamics.transforms import Compose
 
-from ..config import DataConfig, InferenceConfig
-from ..config.tile_information import TileInformation
-from ..config.transformations import NormalizeModel
 from ..utils.logging import get_logger
-from .dataset_utils import read_tiff, reshape_array
+from .dataset_utils import iterate_over_files, read_tiff
 from .patching.random_patching import extract_patches_random
-from .patching.tiled_patching import extract_tiles
 
 logger = get_logger(__name__)
-
-
-def _iterate_over_files(
-    data_config: Union[DataConfig, InferenceConfig],
-    data_files: List[Path],
-    target_files: Optional[List[Path]] = None,
-    read_source_func: Callable = read_tiff,
-) -> Generator[Tuple[np.ndarray, Optional[np.ndarray]], None, None]:
-    """
-    Iterate over data source and yield whole image.
-
-    Parameters
-    ----------
-    data_config : Union[DataConfig, InferenceConfig]
-        Data configuration.
-    data_files : List[Path]
-        List of data files.
-    target_files : Optional[List[Path]]
-        List of target files, by default None.
-    read_source_func : Optional[Callable]
-        Function to read the source, by default read_tiff.
-
-    Yields
-    ------
-    np.ndarray
-        Image.
-    """
-    # When num_workers > 0, each worker process will have a different copy of the
-    # dataset object
-    # Configuring each copy independently to avoid having duplicate data returned
-    # from the workers
-    worker_info = get_worker_info()
-    worker_id = worker_info.id if worker_info is not None else 0
-    num_workers = worker_info.num_workers if worker_info is not None else 1
-
-    # iterate over the files
-    for i, filename in enumerate(data_files):
-        # retrieve file corresponding to the worker id
-        if i % num_workers == worker_id:
-            try:
-                # read data
-                sample = read_source_func(filename, data_config.axes)
-
-                # read target, if available
-                if target_files is not None:
-                    if filename.name != target_files[i].name:
-                        raise ValueError(
-                            f"File {filename} does not match target file "
-                            f"{target_files[i]}. Have you passed sorted "
-                            f"arrays?"
-                        )
-
-                    # read target
-                    target = read_source_func(target_files[i], data_config.axes)
-
-                    yield sample, target
-                else:
-                    yield sample, None
-
-            except Exception as e:
-                logger.error(f"Error reading file {filename}: {e}")
 
 
 class PathIterableDataset(IterableDataset):
@@ -175,7 +111,7 @@ class PathIterableDataset(IterableDataset):
         means, stds = 0, 0
         num_samples = 0
 
-        for sample, _ in _iterate_over_files(
+        for sample, _ in iterate_over_files(
             self.data_config, self.data_files, self.target_files, self.read_source_func
         ):
             means += sample.mean()
@@ -208,20 +144,13 @@ class PathIterableDataset(IterableDataset):
         ), "Mean and std must be provided"
 
         # iterate over files
-        for sample_input, sample_target in _iterate_over_files(
+        for sample_input, sample_target in iterate_over_files(
             self.data_config, self.data_files, self.target_files, self.read_source_func
         ):
-            reshaped_sample = reshape_array(sample_input, self.data_config.axes)
-            reshaped_target = (
-                None
-                if sample_target is None
-                else reshape_array(sample_target, self.data_config.axes)
-            )
-
             patches = extract_patches_random(
-                arr=reshaped_sample,
+                arr=sample_input,
                 patch_size=self.data_config.patch_size,
-                target=reshaped_target,
+                target=sample_target,
             )
 
             # iterate over patches
@@ -322,132 +251,3 @@ class PathIterableDataset(IterableDataset):
             dataset.target_files = val_target_files
 
         return dataset
-
-
-class IterablePredictionDataset(IterableDataset):
-    """
-    Prediction dataset.
-
-    Parameters
-    ----------
-    prediction_config : InferenceConfig
-        Inference configuration.
-    src_files : List[Path]
-        List of data files.
-    read_source_func : Callable, optional
-        Read source function for custom types, by default read_tiff.
-    **kwargs : Any
-        Additional keyword arguments, unused.
-
-    Attributes
-    ----------
-    data_path : Union[str, Path]
-        Path to the data, must be a directory.
-    axes : str
-        Description of axes in format STCZYX.
-    mean : Optional[float], optional
-        Expected mean of the dataset, by default None.
-    std : Optional[float], optional
-        Expected standard deviation of the dataset, by default None.
-    patch_transform : Optional[Callable], optional
-        Patch transform callable, by default None.
-    """
-
-    def __init__(
-        self,
-        prediction_config: InferenceConfig,
-        src_files: List[Path],
-        read_source_func: Callable = read_tiff,
-        **kwargs: Any,
-    ) -> None:
-        """Constructor.
-
-        Parameters
-        ----------
-        prediction_config : InferenceConfig
-            Inference configuration.
-        src_files : List[Path]
-            List of data files.
-        read_source_func : Callable, optional
-            Read source function for custom types, by default read_tiff.
-        **kwargs : Any
-            Additional keyword arguments, unused.
-
-        Raises
-        ------
-        ValueError
-            If mean and std are not provided in the inference configuration.
-        """
-        self.prediction_config = prediction_config
-        self.data_files = src_files
-        self.axes = prediction_config.axes
-        self.tile_size = self.prediction_config.tile_size
-        self.tile_overlap = self.prediction_config.tile_overlap
-        self.read_source_func = read_source_func
-
-        # tile only if both tile size and overlaps are provided
-        self.tile = self.tile_size is not None and self.tile_overlap is not None
-
-        # check mean and std and create normalize transform
-        if self.prediction_config.mean is None or self.prediction_config.std is None:
-            raise ValueError("Mean and std must be provided for prediction.")
-        else:
-            self.mean = self.prediction_config.mean
-            self.std = self.prediction_config.std
-
-            # instantiate normalize transform
-            self.patch_transform = Compose(
-                transform_list=[
-                    NormalizeModel(
-                        mean=prediction_config.mean, std=prediction_config.std
-                    )
-                ],
-            )
-
-    def __iter__(
-        self,
-    ) -> Generator[Tuple[np.ndarray, TileInformation], None, None]:
-        """
-        Iterate over data source and yield single patch.
-
-        Yields
-        ------
-        np.ndarray
-            Single patch.
-        """
-        assert (
-            self.mean is not None and self.std is not None
-        ), "Mean and std must be provided"
-
-        for sample, _ in _iterate_over_files(
-            self.prediction_config,
-            self.data_files,
-            read_source_func=self.read_source_func,
-        ):
-            # reshape array
-            reshaped_sample = reshape_array(sample, self.axes)
-
-            if (
-                self.tile
-                and self.tile_size is not None
-                and self.tile_overlap is not None
-            ):
-                # generate patches, return a generator
-                patch_gen = extract_tiles(
-                    arr=reshaped_sample,
-                    tile_size=self.tile_size,
-                    overlaps=self.tile_overlap,
-                )
-            else:
-                # just wrap the sample in a generator with default tiling info
-                array_shape = reshaped_sample.squeeze().shape
-                patch_gen = (
-                    (reshaped_sample, TileInformation(array_shape=array_shape))
-                    for _ in range(1)
-                )
-
-            # apply transform to patches
-            for patch_array, tile_info in patch_gen:
-                transformed_patch, _ = self.patch_transform(patch=patch_array)
-
-                yield transformed_patch, tile_info

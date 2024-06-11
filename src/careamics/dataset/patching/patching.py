@@ -23,6 +23,8 @@ def prepare_patches_supervised(
     """
     Iterate over data source and create an array of patches and corresponding targets.
 
+    The lists of Paths should be pre-sorted.
+
     Parameters
     ----------
     train_files : List[Path]
@@ -41,9 +43,6 @@ def prepare_patches_supervised(
     np.ndarray
         Array of patches.
     """
-    train_files.sort()
-    target_files.sort()
-
     means, stds, num_samples = 0, 0, 0
     all_patches, all_targets = [], []
     for train_filename, target_filename in zip(train_files, target_files):

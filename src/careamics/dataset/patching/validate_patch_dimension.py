@@ -45,18 +45,20 @@ def validate_patch_dimensions(
     if len(patch_size) != len(arr.shape[2:]):
         raise ValueError(
             f"There must be a patch size for each spatial dimensions "
-            f"(got {patch_size} patches for dims {arr.shape})."
+            f"(got {patch_size} patches for dims {arr.shape}). Check the axes order."
         )
 
     # Sanity checks on patch sizes versus array dimension
     if is_3d_patch and patch_size[0] > arr.shape[-3]:
         raise ValueError(
             f"Z patch size is inconsistent with image shape "
-            f"(got {patch_size[0]} patches for dim {arr.shape[1]})."
+            f"(got {patch_size[0]} patches for dim {arr.shape[1]}). Check the axes "
+            f"order."
         )
 
     if patch_size[-2] > arr.shape[-2] or patch_size[-1] > arr.shape[-1]:
         raise ValueError(
             f"At least one of YX patch dimensions is larger than the corresponding "
-            f"image dimension (got {patch_size} patches for dims {arr.shape[-2:]})."
+            f"image dimension (got {patch_size} patches for dims {arr.shape[-2:]}). "
+            f"Check the axes order."
         )
