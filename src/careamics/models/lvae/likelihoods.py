@@ -284,7 +284,14 @@ class NoiseModelLikelihood(LikelihoodModule):
         # return p.rsample()
         return params['mean']
 
-    def log_likelihood(self, x, params):
+    def log_likelihood(
+        self, 
+        x: torch.Tensor, 
+        params: Dict[str, torch.Tensor]
+    ):
+        """
+        Compute the log-likelihood given the parameters `params` obtained from the reconstruction tensor and the target tensor `x`.
+        """
         predicted_s_denormalized = params['mean'] * self.data_std['target'] + self.data_mean['target']
         x_denormalized = x * self.data_std['target'] + self.data_mean['target']
         # predicted_s_cloned = predicted_s_denormalized

@@ -259,10 +259,10 @@ class LadderVAELight(L.LightningModule):
         else:
             # Metrics computation
             recons_loss_dict, recons_img = self.get_reconstruction_loss(
-                out_mean,
-                x_normalized,
-                target_normalized,
-                mask,
+                reconstruction=out_mean,
+                target=target_normalized,
+                input=x_normalized,
+                splitting_mask=mask,
                 return_predicted_img=True
             )
         

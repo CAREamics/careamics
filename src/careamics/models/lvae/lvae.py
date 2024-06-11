@@ -187,8 +187,7 @@ class LadderVAE(nn.Module):
             noise_model_type=self.noise_model_type,
             noise_model_ch1_fpath=self.noise_model_ch1_fpath,
             noise_model_ch2_fpath=self.noise_model_ch2_fpath,
-            noise_model_learnable=self.noise_model_learnable, 
-            
+            noise_model_learnable=self.noise_model_learnable,     
         )
         
         if self.noiseModel is None:
