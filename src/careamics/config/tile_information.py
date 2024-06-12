@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Optional
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator
+from pydantic import BaseModel, ConfigDict, field_validator
 
 
 class TileInformation(BaseModel):
@@ -13,15 +12,17 @@ class TileInformation(BaseModel):
 
     This model is used to represent the information required to stitch back a tile into
     a larger image. It is used throughout the prediction pipeline of CAREamics.
+
+    Array shape should be (C)(Z)YX, where C and Z are optional dimensions, and must not
+    contain singleton dimensions.
     """
 
     model_config = ConfigDict(validate_default=True)
 
     array_shape: tuple[int, ...]
-    tiled: bool = False
     last_tile: bool = False
-    overlap_crop_coords: Optional[tuple[tuple[int, ...], ...]] = Field(default=None)
-    stitch_coords: Optional[tuple[tuple[int, ...], ...]] = Field(default=None)
+    overlap_crop_coords: tuple[tuple[int, ...], ...]
+    stitch_coords: tuple[tuple[int, ...], ...]
 
     @field_validator("array_shape")
     @classmethod
@@ -31,12 +32,12 @@ class TileInformation(BaseModel):
 
         Parameters
         ----------
-        v : tuple[int, ...]
+        v : tuple of int
             Array shape to check.
 
         Returns
         -------
-        tuple[int, ...]
+        tuple of int
             The array shape if it does not contain singleton dimensions.
 
         Raises
@@ -48,59 +49,25 @@ class TileInformation(BaseModel):
             raise ValueError("Array shape must not contain singleton dimensions.")
         return v
 
-    @field_validator("last_tile")
-    @classmethod
-    def only_if_tiled(cls, v: bool, values: ValidationInfo):
-        """
-        Check that the last tile flag is only set if tiling is enabled.
+    def __eq__(self, other_tile: object):
+        """Check if two tile information objects are equal.
 
         Parameters
         ----------
-        v : bool
-            Last tile flag.
-        values : ValidationInfo
-            Validation information.
+        other_tile : object
+            Tile information object to compare with.
 
         Returns
         -------
         bool
-            The last tile flag.
+            Whether the two tile information objects are equal.
         """
-        if not values.data["tiled"]:
-            return False
-        return v
+        if not isinstance(other_tile, TileInformation):
+            return NotImplemented
 
-    @field_validator("overlap_crop_coords", "stitch_coords")
-    @classmethod
-    def mandatory_if_tiled(
-        cls, v: Optional[tuple[int, ...]], values: ValidationInfo
-    ) -> Optional[tuple[int, ...]]:
-        """
-        Check that the coordinates are not `None` if tiling is enabled.
-
-        The method also return `None` if tiling is not enabled.
-
-        Parameters
-        ----------
-        v : tuple[int, ...] or None
-            Coordinates to check.
-        values : ValidationInfo
-            Validation information.
-
-        Returns
-        -------
-        tuple[int, ...] or None
-            The coordinates if tiling is enabled, otherwise `None`.
-
-        Raises
-        ------
-        ValueError
-            If the coordinates are `None` and tiling is enabled.
-        """
-        if values.data["tiled"]:
-            if v is None:
-                raise ValueError("Value must be specified if tiling is enabled.")
-
-            return v
-        else:
-            return None
+        return (
+            self.array_shape == other_tile.array_shape
+            and self.last_tile == other_tile.last_tile
+            and self.overlap_crop_coords == other_tile.overlap_crop_coords
+            and self.stitch_coords == other_tile.stitch_coords
+        )

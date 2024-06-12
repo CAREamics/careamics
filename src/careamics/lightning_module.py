@@ -168,9 +168,9 @@ class CAREamicsModule(L.LightningModule):
             mean=self._trainer.datamodule.predict_dataset.mean,
             std=self._trainer.datamodule.predict_dataset.std,
         )
-        denormalized_output, _ = denorm(patch=output)
+        denormalized_output = denorm(patch=output.cpu())
 
-        if len(aux) > 0:
+        if len(aux) > 0:  # aux can be tiling information
             return denormalized_output, aux
         else:
             return denormalized_output

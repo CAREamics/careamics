@@ -53,13 +53,4 @@ def read_tiff(file_path: Path, *args: list, **kwargs: dict) -> np.ndarray:
     else:
         raise ValueError(f"File {file_path} is not a valid tiff.")
 
-    # check dimensions
-    # TODO or should this really be done here? probably in the LightningDataModule
-    # TODO this should also be centralized somewhere else (validate_dimensions)
-    if len(array.shape) < 2 or len(array.shape) > 6:
-        raise ValueError(
-            f"Incorrect data dimensions. Must be 2, 3 or 4 (got {array.shape} for"
-            f"file {file_path})."
-        )
-
     return array
