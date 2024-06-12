@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Tuple
-
 from pydantic import BaseModel, ConfigDict, field_validator
 
 
@@ -20,25 +18,25 @@ class TileInformation(BaseModel):
 
     model_config = ConfigDict(validate_default=True)
 
-    array_shape: Tuple[int, ...]
+    array_shape: tuple[int, ...]
     last_tile: bool = False
-    overlap_crop_coords: Tuple[Tuple[int, ...], ...]
-    stitch_coords: Tuple[Tuple[int, ...], ...]
+    overlap_crop_coords: tuple[tuple[int, ...], ...]
+    stitch_coords: tuple[tuple[int, ...], ...]
 
     @field_validator("array_shape")
     @classmethod
-    def no_singleton_dimensions(cls, v: Tuple[int, ...]):
+    def no_singleton_dimensions(cls, v: tuple[int, ...]):
         """
         Check that the array shape does not have any singleton dimensions.
 
         Parameters
         ----------
-        v : Tuple[int, ...]
+        v : tuple of int
             Array shape to check.
 
         Returns
         -------
-        Tuple[int, ...]
+        tuple of int
             The array shape if it does not contain singleton dimensions.
 
         Raises

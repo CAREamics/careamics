@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import numpy as np
+from numpy.typing import NDArray
 from torch.utils.data import Dataset
 
 from careamics.transforms import Compose
@@ -19,14 +19,14 @@ class InMemoryPredDataset(Dataset):
     ----------
     prediction_config : InferenceConfig
         Prediction configuration.
-    inputs : np.ndarray
+    inputs : NDArray
         Input data.
     """
 
     def __init__(
         self,
         prediction_config: InferenceConfig,
-        inputs: np.ndarray,
+        inputs: NDArray,
     ) -> None:
         """Constructor.
 
@@ -34,7 +34,7 @@ class InMemoryPredDataset(Dataset):
         ----------
         prediction_config : InferenceConfig
             Prediction configuration.
-        inputs : np.ndarray
+        inputs : NDArray
             Input data.
 
         Raises
@@ -66,7 +66,7 @@ class InMemoryPredDataset(Dataset):
         """
         return len(self.data)
 
-    def __getitem__(self, index: int) -> np.ndarray:
+    def __getitem__(self, index: int) -> NDArray:
         """
         Return the patch corresponding to the provided index.
 
@@ -77,7 +77,7 @@ class InMemoryPredDataset(Dataset):
 
         Returns
         -------
-        np.ndarray
+        NDArray
             Transformed patch.
         """
         transformed_patch, _ = self.patch_transform(patch=self.data[[index]])

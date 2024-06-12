@@ -6,10 +6,10 @@ from careamics.model_io import export_to_bmz, load_pretrained
 from careamics.model_io.bmz_io import _export_state_dict, _load_state_dict
 
 
-def test_state_dict_io(tmp_path, pre_trained):
+def test_state_dict_io(tmp_path, ordered_array, pre_trained):
     """Test exporting and loading a state dict."""
     # training data
-    train_array = np.ones((32, 32), dtype=np.float32)
+    train_array = ordered_array((32, 32))
     path = tmp_path / "model.pth"
 
     # instantiate CAREamist
@@ -30,10 +30,10 @@ def test_state_dict_io(tmp_path, pre_trained):
     assert (predicted_loaded == predicted).all()
 
 
-def test_bmz_io(tmp_path, pre_trained):
+def test_bmz_io(tmp_path, ordered_array, pre_trained):
     """Test exporting and loading to the BMZ."""
     # training data
-    train_array = np.ones((16, 16), dtype=np.float32)
+    train_array = ordered_array((32, 32))
 
     # instantiate CAREamist
     careamist = CAREamist(source=pre_trained, work_dir=tmp_path)
