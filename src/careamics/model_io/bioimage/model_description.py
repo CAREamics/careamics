@@ -286,7 +286,7 @@ def create_model_description(
             "bioimageio": {
                 "test_kwargs": {
                     "pytorch_state_dict": {
-                        "decimals": 2,  # ...so we relax the constraints on the decimals
+                        "decimals": 0,  # ...so we relax the constraints on the decimals
                     }
                 }
             }

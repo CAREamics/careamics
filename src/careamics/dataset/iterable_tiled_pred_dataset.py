@@ -86,17 +86,21 @@ class IterableTiledPredDataset(IterableDataset):
         self.read_source_func = read_source_func
 
         # check mean and std and create normalize transform
-        if self.prediction_config.mean is None or self.prediction_config.std is None:
+        if (
+            self.prediction_config.image_mean is None
+            or self.prediction_config.image_std is None
+        ):
             raise ValueError("Mean and std must be provided for prediction.")
         else:
-            self.mean = self.prediction_config.mean
-            self.std = self.prediction_config.std
+            self.image_means = self.prediction_config.image_mean
+            self.image_stds = self.prediction_config.image_std
 
             # instantiate normalize transform
             self.patch_transform = Compose(
                 transform_list=[
                     NormalizeModel(
-                        mean=prediction_config.mean, std=prediction_config.std
+                        image_means=self.image_means,
+                        image_stds=self.image_stds,
                     )
                 ],
             )
@@ -113,7 +117,7 @@ class IterableTiledPredDataset(IterableDataset):
             Single tile.
         """
         assert (
-            self.mean is not None and self.std is not None
+            self.image_means is not None and self.image_stds is not None
         ), "Mean and std must be provided"
 
         for sample, _ in iterate_over_files(

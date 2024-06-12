@@ -45,14 +45,17 @@ class InMemoryPredDataset(Dataset):
         self.pred_config = prediction_config
         self.input_array = inputs
         self.axes = self.pred_config.axes
-        self.mean, self.std = self.pred_config.mean, self.pred_config.std
+        self.image_means = self.pred_config.image_mean
+        self.image_stds = self.pred_config.image_std
 
         # Reshape data
         self.data = reshape_array(self.input_array, self.axes)
 
         # get transforms
         self.patch_transform = Compose(
-            transform_list=[NormalizeModel(mean=self.mean, std=self.std)],
+            transform_list=[
+                NormalizeModel(image_means=self.image_means, image_stds=self.image_stds)
+            ],
         )
 
     def __len__(self) -> int:
@@ -80,6 +83,6 @@ class InMemoryPredDataset(Dataset):
         np.ndarray
             Transformed patch.
         """
-        transformed_patch, _ = self.patch_transform(patch=self.data[[index]])
+        transformed_patch, _ = self.patch_transform(patch=self.data[index])
 
         return transformed_patch

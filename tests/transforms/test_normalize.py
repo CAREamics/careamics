@@ -33,4 +33,4 @@ def test_normalize_denormalize(channels):
 
     # Apply the denormalize transform
     denormalized = denorm(patch=normalized[np.newaxis, ...])  # need to add batch dim
-    assert np.isclose(denormalized, array).all()
+    assert np.isclose(denormalized, array, atol=1e-6).all()

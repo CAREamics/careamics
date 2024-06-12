@@ -105,7 +105,9 @@ class Normalize(Transform):
 
         return norm_patch, norm_target
 
-    def _apply(self, patch: np.ndarray, mean: float, std: float) -> np.ndarray:
+    def _apply(
+        self, patch: np.ndarray, mean: np.ndarray, std: np.ndarray
+    ) -> np.ndarray:
         """
         Apply the transform to the image.
 
@@ -176,7 +178,7 @@ class Denormalize:
 
         Parameters
         ----------
-        patch : np.ndarray
+        array : np.ndarray
             Patch, 2D or 3D, shape BC(Z)YX.
         target : Optional[np.ndarray], optional
             Target for the patch, by default None.
@@ -184,31 +186,35 @@ class Denormalize:
         Returns
         -------
         Tuple[np.ndarray]
-            Transformed patch.
+            Transformed array.
         """
-        norm_array = np.zeros_like(patch, dtype=np.float32)
+        assert (
+            len(self.image_means) == patch.shape[1]
+        ), "Number of means and number of channels do not match."
 
-        # Iterating over the batch dimension
-        for i in range(patch.shape[0]):
-            for ch in range(patch.shape[1]):
-                norm_array[i, ch] = self._apply(
-                    patch[i, ch], self.image_means[ch], self.image_stds[ch]
-                )
+        means = np.array(self.image_means)[(..., *[np.newaxis] * (patch.ndim - 1))]
+        stds = np.array(self.image_stds)[(..., *[np.newaxis] * (patch.ndim - 1))]
 
-        return norm_array
+        denorm_array = self._apply(
+            patch, np.swapaxes(means, 0, 1), np.swapaxes(stds, 0, 1)
+        )
 
-    def _apply(self, patch: np.ndarray, mean: float, std: float) -> np.ndarray:
+        return denorm_array.astype(np.float32)
+
+    def _apply(
+        self, array: np.ndarray, mean: np.ndarray, std: np.ndarray
+    ) -> np.ndarray:
         """
         Apply the transform to the image.
 
         Parameters
         ----------
-        patch : np.ndarray
+        array : np.ndarray
             Image patch, 2D or 3D, shape C(Z)YX.
 
         Returns
         -------
         np.ndarray
-            Denormalized image patch.
+            Denormalized image array.
         """
-        return patch * (std + self.eps) + mean
+        return array * (std + self.eps) + mean

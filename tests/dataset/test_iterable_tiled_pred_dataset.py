@@ -66,8 +66,8 @@ def test_correct_normalized_outputs(tmp_path, n_files, shape, axes, expected_sha
     config = InferenceConfig(
         data_type="tiff",
         axes=axes,
-        mean=np.mean(array),
-        std=np.std(array),
+        image_mean=[np.mean(array)] * n_channels,
+        image_std=[np.std(array)] * n_channels,
         tile_size=tile_size,
         tile_overlap=tile_overlap,
     )

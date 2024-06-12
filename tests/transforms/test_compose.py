@@ -57,7 +57,7 @@ def test_compose_with_target(ordered_array):
 
 def test_compose_n2v(ordered_array):
     seed = 24
-    array = ordered_array((2, 1, 5, 5))
+    array = ordered_array((2, 2, 5, 5))
 
     # transform lists
     means, stds = compute_normalization_stats(image=array)
@@ -74,13 +74,13 @@ def test_compose_n2v(ordered_array):
     xyflip = XYFlip(seed=seed)
 
     xyrotate = XYRandomRotate90(seed=seed)
-    array_aug, _ = xyrotate(*xyflip(*normalize(array)))
+    array_aug, _ = xyrotate(*xyflip(*normalize(array[0])))
 
     # instantiate Compose
     compose = Compose(transform_list_pydantic)
 
     # apply the composed transform
-    results = compose(array)
+    results = compose(array[0])
     assert len(results) == 3  # output of n2v_manipulate
     assert (results[1] == array_aug).all()
     assert (
@@ -95,12 +95,11 @@ def test_compose_n2v(ordered_array):
     "shape",
     [
         # 2D
-        (1, 1, 2, 2),
-        (1, 2, 2, 2),
-        (2, 1, 2, 2),
+        (1, 2, 2),
+        (2, 2, 2),
         # 3D
-        (1, 1, 2, 2, 2),
-        (2, 1, 2, 2, 2),
+        (1, 2, 2, 2),
+        (2, 2, 2, 2),
     ],
 )
 def test_random_composition(ordered_array, shape):
@@ -120,10 +119,10 @@ def test_random_composition(ordered_array, shape):
 
         transforms = [
             NormalizeModel(
-                image_means=[0.5 for _ in range(array.shape[1])],
-                image_stds=[0.5 for _ in range(array.shape[1])],
-                target_means=[0.5 for _ in range(array.shape[1])],
-                target_stds=[0.5 for _ in range(array.shape[1])],
+                image_means=[0.5 for _ in range(array.shape[0])],
+                image_stds=[0.5 for _ in range(array.shape[0])],
+                target_means=[0.5 for _ in range(array.shape[0])],
+                target_stds=[0.5 for _ in range(array.shape[0])],
             ),
             XYFlipModel(flip_x=flip_x, seed=42),
             XYRandomRotate90Model(seed=42),

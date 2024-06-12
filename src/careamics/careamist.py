@@ -25,7 +25,6 @@ from careamics.lightning_module import CAREamicsModule
 from careamics.lightning_prediction_datamodule import CAREamicsPredictData
 from careamics.lightning_prediction_loop import CAREamicsPredictionLoop
 from careamics.model_io import export_to_bmz, load_pretrained
-from careamics.transforms import Denormalize
 from careamics.utils import check_path_exists, get_logger
 
 from .callbacks import HyperParametersCallback
@@ -595,6 +594,15 @@ class CAREamist:
                     "No configuration found. Train a model or load from a "
                     "checkpoint before predicting."
                 )
+
+            # Reuse batch size if not provided explicitly
+            if batch_size is None:
+                batch_size = (
+                    self.train_datamodule.batch_size
+                    if self.train_datamodule
+                    else self.cfg.data_config.batch_size
+                )
+
             # create predict config, reuse training config if parameters missing
             prediction_config = create_inference_configuration(
                 configuration=self.cfg,
@@ -603,11 +611,7 @@ class CAREamist:
                 data_type=data_type,
                 axes=axes,
                 tta_transforms=tta_transforms,
-                batch_size=(
-                    batch_size
-                    if batch_size is not None
-                    else self.train_datamodule.batch_size
-                ),
+                batch_size=batch_size,
             )
 
             # remove batch from dataloader parameters (priority given to config)
@@ -697,29 +701,35 @@ class CAREamist:
 
             # generate images, priority is given to the prediction data module
             if self.pred_datamodule is not None:
-                # unpack a batch, ignore masks or targets
-                input_patch, *_ = next(iter(self.pred_datamodule.predict_dataloader()))
+                # unpack a batch, ignore aux if present
+                if self.pred_datamodule.tiled:
+                    input_patch, *_ = next(
+                        iter(self.pred_datamodule.predict_dataloader())
+                    )
+                else:
+                    input_patch = next(iter(self.pred_datamodule.predict_dataloader()))
 
                 # convert torch.Tensor to numpy
                 input_patch = input_patch.numpy()
 
-                # denormalize
-                denormalize = Denormalize(
-                    image_means=self.cfg.data_config.image_mean,
-                    image_stds=self.cfg.data_config.image_std,
-                )
-                input_patch = denormalize(input_patch)
+                # # denormalize
+                # denormalize = Denormalize(
+                #     image_means=self.cfg.data_config.image_mean,
+                #     image_stds=self.cfg.data_config.image_std,
+                # )
+                # input_patch = denormalize(input_patch)
 
             elif self.train_datamodule is not None:
+                # unpack a batch, ignore aux if present
                 input_patch, *_ = next(iter(self.train_datamodule.train_dataloader()))
                 input_patch = input_patch.numpy()
 
                 # denormalize
-                denormalize = Denormalize(
-                    image_means=self.cfg.data_config.image_mean,
-                    image_stds=self.cfg.data_config.image_std,
-                )
-                input_patch = denormalize(input_patch)
+                # denormalize = Denormalize(
+                #     image_means=self.cfg.data_config.image_mean,
+                #     image_stds=self.cfg.data_config.image_std,
+                # )
+                # input_patch = denormalize(input_patch)
             else:
                 # create a random input array
                 input_patch = np.random.normal(
