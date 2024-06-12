@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, Union, overload
 
 import numpy as np
+import torch
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import (
     Callback,
@@ -20,10 +21,10 @@ from careamics.config import (
 )
 from careamics.config.support import SupportedAlgorithm, SupportedData, SupportedLogger
 from careamics.dataset.dataset_utils import reshape_array
+from careamics.dataset.tiling import stitch_prediction
 from careamics.lightning_datamodule import CAREamicsTrainData
 from careamics.lightning_module import CAREamicsModule
 from careamics.lightning_prediction_datamodule import CAREamicsPredictData
-from careamics.lightning_prediction_loop import CAREamicsPredictionLoop
 from careamics.model_io import export_to_bmz, load_pretrained
 from careamics.transforms import Denormalize
 from careamics.utils import check_path_exists, get_logger
@@ -187,9 +188,6 @@ class CAREamist:
             default_root_dir=self.work_dir,
             logger=self.experiment_logger,
         )
-
-        # change the prediction loop, necessary for tiled prediction
-        self.trainer.predict_loop = CAREamicsPredictionLoop(self.trainer)
 
         # place holder for the datamodules
         self.train_datamodule: Optional[CAREamicsTrainData] = None
@@ -586,9 +584,6 @@ class CAREamist:
             # record datamodule
             self.pred_datamodule = source
 
-            return self.trainer.predict(
-                model=self.model, datamodule=source, ckpt_path=checkpoint
-            )
         else:
             if self.cfg is None:
                 raise ValueError(
@@ -628,9 +623,6 @@ class CAREamist:
                 # record datamodule
                 self.pred_datamodule = datamodule
 
-                return self.trainer.predict(
-                    model=self.model, datamodule=datamodule, ckpt_path=checkpoint
-                )
 
             elif isinstance(source, np.ndarray):
                 # create datamodule
@@ -643,15 +635,43 @@ class CAREamist:
                 # record datamodule
                 self.pred_datamodule = datamodule
 
-                return self.trainer.predict(
-                    model=self.model, datamodule=datamodule, ckpt_path=checkpoint
-                )
 
             else:
                 raise ValueError(
                     f"Invalid input. Expected a CAREamicsWood instance, paths or "
                     f"np.ndarray (got {type(source)})."
                 )
+
+        # TODO: tidy up: move to a seperate function
+        predictions = self.trainer.predict(
+            model=self.model, datamodule=self.pred_datamodule, ckpt_path=checkpoint
+        )
+        # not sure if necessary
+        if len(predictions) == 0:
+            return predictions
+        is_tiled = len(predictions[0]) == 2
+        if is_tiled:
+            # "de-collate"
+            tile_infos = [
+                tile_info 
+                for _, tile_info_list in predictions 
+                for tile_info in tile_info_list
+            ]
+            predictions = torch.concatenate([preds for preds, _ in predictions])
+            # convert to numpy
+            predictions = predictions.cpu().numpy()
+            predictions = stitch_prediction(predictions, tile_infos)
+        else:
+            # convert to numpy
+            predictions = [pred.cpu().numpy() for pred in predictions]
+
+        # don't return list if single image
+        if len(predictions) == 1:
+            return predictions[0]
+        else:
+            return predictions
+
+        
 
     def _create_data_for_bmz(
         self,
