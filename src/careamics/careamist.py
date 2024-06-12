@@ -623,7 +623,6 @@ class CAREamist:
                 # record datamodule
                 self.pred_datamodule = datamodule
 
-
             elif isinstance(source, np.ndarray):
                 # create datamodule
                 datamodule = CAREamicsPredictData(
@@ -634,7 +633,6 @@ class CAREamist:
 
                 # record datamodule
                 self.pred_datamodule = datamodule
-
 
             else:
                 raise ValueError(
@@ -653,8 +651,8 @@ class CAREamist:
         if is_tiled:
             # "de-collate"
             tile_infos = [
-                tile_info 
-                for _, tile_info_list in predictions 
+                tile_info
+                for _, tile_info_list in predictions
                 for tile_info in tile_info_list
             ]
             predictions = torch.concatenate([preds for preds, _ in predictions])
@@ -670,8 +668,6 @@ class CAREamist:
             return predictions[0]
         else:
             return predictions
-
-        
 
     def _create_data_for_bmz(
         self,

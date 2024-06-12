@@ -22,7 +22,7 @@ def stitch_prediction(
     Parameters
     ----------
     tiles : list of numpy.ndarray
-        Cropped tiles and their respective stitching coordinates. Can contain tiles 
+        Cropped tiles and their respective stitching coordinates. Can contain tiles
         from multiple images.
     tile_infos : list of TileInformation
         List of information and coordinates obtained from

@@ -1,7 +1,11 @@
 import numpy as np
 import pytest
 
-from careamics.dataset.tiling import extract_tiles, stitch_prediction_single, stitch_prediction
+from careamics.dataset.tiling import (
+    extract_tiles,
+    stitch_prediction,
+    stitch_prediction_single,
+)
 
 
 @pytest.mark.parametrize(
