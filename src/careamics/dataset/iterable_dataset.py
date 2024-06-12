@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import copy
 from pathlib import Path
-
 from typing import Callable, Generator, Optional
 
 import numpy as np
