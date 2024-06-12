@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Callable, Generator, List, Tuple
+from typing import Any, Callable, Generator
 
-import numpy as np
+from numpy.typing import NDArray
 from torch.utils.data import IterableDataset
 
 from careamics.transforms import Compose
@@ -24,7 +24,7 @@ class IterableTiledPredDataset(IterableDataset):
     ----------
     prediction_config : InferenceConfig
         Inference configuration.
-    src_files : List[Path]
+    src_files : list of pathlib.Path
         List of data files.
     read_source_func : Callable, optional
         Read source function for custom types, by default read_tiff.
@@ -33,22 +33,22 @@ class IterableTiledPredDataset(IterableDataset):
 
     Attributes
     ----------
-    data_path : Union[str, Path]
+    data_path : str or pathlib.Path
         Path to the data, must be a directory.
     axes : str
         Description of axes in format STCZYX.
-    mean : Optional[float], optional
+    mean : float, optional
         Expected mean of the dataset, by default None.
-    std : Optional[float], optional
+    std : float, optional
         Expected standard deviation of the dataset, by default None.
-    patch_transform : Optional[Callable], optional
+    patch_transform : Callable, optional
         Patch transform callable, by default None.
     """
 
     def __init__(
         self,
         prediction_config: InferenceConfig,
-        src_files: List[Path],
+        src_files: list[Path],
         read_source_func: Callable = read_tiff,
         **kwargs: Any,
     ) -> None:
@@ -103,14 +103,14 @@ class IterableTiledPredDataset(IterableDataset):
 
     def __iter__(
         self,
-    ) -> Generator[Tuple[np.ndarray, TileInformation], None, None]:
+    ) -> Generator[tuple[NDArray, TileInformation], None, None]:
         """
         Iterate over data source and yield single patch.
 
         Yields
         ------
-        Tuple[pnp.ndarray, TileInformation]
-            Single tile.
+        Generator of NDArray and TileInformation tuple
+            Generator of single tiles.
         """
         assert (
             self.mean is not None and self.std is not None

@@ -218,7 +218,6 @@ class InMemoryDataset(Dataset):
         Returns
         -------
         CAREamics InMemoryDataset
-        (see careamics.dataset.in_memory_dataset.InMemoryDataset)
             New dataset with the extracted patches.
 
         Raises
