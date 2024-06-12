@@ -72,7 +72,7 @@ def value_ge_than_8_power_of_2(
         If the value is not a power of 2.
     """
     if value < 8:
-        raise ValueError(f"Value must be non-zero positive (got {value}).")
+        raise ValueError(f"Value must be greater than 8 (got {value}).")
 
     if (value & (value - 1)) != 0:
         raise ValueError(f"Value must be a power of 2 (got {value}).")
