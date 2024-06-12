@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, List, Literal, Optional, Union
+from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from typing_extensions import Self
@@ -17,12 +17,8 @@ class InferenceConfig(BaseModel):
 
     # Mandatory fields
     data_type: Literal["array", "tiff", "custom"]  # As defined in SupportedData
-    tile_size: Optional[Union[List[int]]] = Field(
-        default=None, min_length=2, max_length=3
-    )
-    tile_overlap: Optional[Union[List[int]]] = Field(
-        default=None, min_length=2, max_length=3
-    )
+    tile_size: Optional[list[int]] = Field(default=None, min_length=2, max_length=3)
+    tile_overlap: Optional[list[int]] = Field(default=None, min_length=2, max_length=3)
 
     axes: str
 
@@ -38,8 +34,8 @@ class InferenceConfig(BaseModel):
     @field_validator("tile_overlap")
     @classmethod
     def all_elements_non_zero_even(
-        cls, tile_overlap: Optional[Union[List[int]]]
-    ) -> Optional[Union[List[int]]]:
+        cls, tile_overlap: Optional[list[int]]
+    ) -> Optional[list[int]]:
         """
         Validate tile overlap.
 
@@ -47,12 +43,12 @@ class InferenceConfig(BaseModel):
 
         Parameters
         ----------
-        tile_overlap : Optional[Union[List[int]]]
+        tile_overlap : list[int] or None
             Patch size.
 
         Returns
         -------
-        Optional[Union[List[int]]]
+        list[int] or None
             Validated tile overlap.
 
         Raises
@@ -77,19 +73,19 @@ class InferenceConfig(BaseModel):
     @field_validator("tile_size")
     @classmethod
     def tile_min_8_power_of_2(
-        cls, tile_list: Optional[Union[List[int]]]
-    ) -> Optional[Union[List[int]]]:
+        cls, tile_list: Optional[list[int]]
+    ) -> Optional[list[int]]:
         """
         Validate that each entry is greater or equal than 8 and a power of 2.
 
         Parameters
         ----------
-        tile_list : List[int]
+        tile_list : list[int] or None
             Patch size.
 
         Returns
         -------
-        List[int]
+        list[int] or None
             Validated patch size.
 
         Raises
@@ -201,7 +197,7 @@ class InferenceConfig(BaseModel):
         self.__dict__.update(kwargs)
         self.__class__.model_validate(self.__dict__)
 
-    def set_3D(self, axes: str, tile_size: List[int], tile_overlap: List[int]) -> None:
+    def set_3D(self, axes: str, tile_size: list[int], tile_overlap: list[int]) -> None:
         """
         Set 3D parameters.
 
@@ -209,9 +205,9 @@ class InferenceConfig(BaseModel):
         ----------
         axes : str
             Axes.
-        tile_size : List[int]
+        tile_size : list[int]
             Tile size.
-        tile_overlap : List[int]
+        tile_overlap : list[int]
             Tile overlap.
         """
         self._update(axes=axes, tile_size=tile_size, tile_overlap=tile_overlap)

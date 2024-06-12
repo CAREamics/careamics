@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pprint import pformat
-from typing import Any, Dict, Literal
+from typing import Any, Literal
 
 from pydantic import ConfigDict, field_validator, model_validator
 from torch.nn import Module
@@ -136,7 +136,7 @@ class CustomModel(ArchitectureModel):
         """
         return pformat(self.model_dump())
 
-    def model_dump(self, **kwargs: Any) -> Dict[str, Any]:
+    def model_dump(self, **kwargs: Any) -> dict[str, Any]:
         """Dump the model configuration.
 
         Parameters
@@ -146,7 +146,7 @@ class CustomModel(ArchitectureModel):
 
         Returns
         -------
-        Dict[str, Any]
+        dict[str, Any]
             Model configuration.
         """
         model_dict = super().model_dump()
