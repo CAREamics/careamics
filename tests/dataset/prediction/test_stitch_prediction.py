@@ -87,5 +87,7 @@ def test_stitch_tiles_multi(ordered_array, input_shape, tile_size, overlaps):
         tile_infos.append(tile_info)
 
     stitched = stitch_prediction(tiles, tile_infos)
+    for sample_id, result in enumerate(stitched):
+        assert np.array_equal(result, arr[sample_id].squeeze())
 
     assert len(stitched) == n_samples
