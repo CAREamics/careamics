@@ -10,6 +10,7 @@ import numpy as np
 from torch.utils.data import IterableDataset
 
 from careamics.config import DataConfig
+from careamics.config.transformations import NormalizeModel
 from careamics.transforms import Compose
 
 from ..utils.logging import get_logger
@@ -92,7 +93,12 @@ class PathIterableDataset(IterableDataset):
             self.std = data_config.std
 
         # get transforms
-        self.patch_transform = Compose(transform_list=data_config.transforms)
+        self.patch_transform = Compose(
+            transform_list=[
+                NormalizeModel(mean=self.mean, std=self.std),
+            ]
+            + data_config.transforms
+        )
 
     def _calculate_mean_and_std(self) -> Tuple[float, float]:
         """

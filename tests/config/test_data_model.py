@@ -77,16 +77,15 @@ def test_set_mean_and_std(minimum_data: dict):
     assert data.std == std
 
 
-def test_mean_and_std_in_normalize(minimum_data: dict):
-    """Test that mean and std are added to the Normalize transform."""
+def test_normalize_not_accepted(minimum_data: dict):
+    """Test that normalize is not accepted, because it is mandatory and applied else
+    where."""
     minimum_data["mean"] = 10.4
     minimum_data["std"] = 3.2
-    minimum_data["transforms"] = [
-        {"name": SupportedTransform.NORMALIZE.value},
-    ]
-    data = DataConfig(**minimum_data)
-    assert data.transforms[0].mean == 10.4
-    assert data.transforms[0].std == 3.2
+    minimum_data["transforms"] = [NormalizeModel(mean=0.485, std=0.229)]
+
+    with pytest.raises(ValueError):
+        DataConfig(**minimum_data)
 
 
 def test_patch_size(minimum_data: dict):
@@ -147,7 +146,6 @@ def test_set_3d(minimum_data: dict):
             {"name": SupportedTransform.XY_FLIP.value},
         ],
         [
-            {"name": SupportedTransform.NORMALIZE.value},
             {"name": SupportedTransform.XY_FLIP.value},
             {"name": SupportedTransform.XY_RANDOM_ROTATE90.value},
             {"name": SupportedTransform.N2V_MANIPULATE.value},
@@ -162,7 +160,6 @@ def test_passing_supported_transforms(minimum_data: dict, transforms):
     supported = {
         "XYFlip": XYFlipModel,
         "XYRandomRotate90": XYRandomRotate90Model,
-        "Normalize": NormalizeModel,
         "N2VManipulate": N2VManipulateModel,
     }
 
@@ -182,7 +179,6 @@ def test_passing_supported_transforms(minimum_data: dict, transforms):
             {"name": SupportedTransform.N2V_MANIPULATE.value},
         ],
         [
-            {"name": SupportedTransform.NORMALIZE.value},
             {"name": SupportedTransform.XY_FLIP.value},
             {"name": SupportedTransform.N2V_MANIPULATE.value},
             {"name": SupportedTransform.XY_RANDOM_ROTATE90.value},
@@ -241,20 +237,14 @@ def test_correct_transform_parameters(minimum_data: dict):
     a generic transform.
     """
     minimum_data["transforms"] = [
-        {"name": SupportedTransform.NORMALIZE.value},
         {"name": SupportedTransform.XY_FLIP.value},
         {"name": SupportedTransform.XY_RANDOM_ROTATE90.value},
         {"name": SupportedTransform.N2V_MANIPULATE.value},
     ]
     model = DataConfig(**minimum_data)
 
-    # Normalize
-    params = model.transforms[0].model_dump()
-    assert "mean" in params
-    assert "std" in params
-
     # N2VManipulate
-    params = model.transforms[3].model_dump()
+    params = model.transforms[-1].model_dump()
     assert "roi_size" in params
     assert "masked_pixel_percentage" in params
     assert "strategy" in params
