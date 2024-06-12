@@ -55,9 +55,6 @@ def full_configuration_example() -> Configuration:
         axes="YX",
         transforms=[
             {
-                "name": SupportedTransform.NORMALIZE.value,
-            },
-            {
                 "name": SupportedTransform.XY_FLIP.value,
             },
             {
