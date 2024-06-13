@@ -9,6 +9,7 @@ from careamics import CAREamist, Configuration, save_configuration
 from careamics.config.support import SupportedAlgorithm, SupportedData
 from careamics.dataset.tiling import extract_tiles, stitch_prediction_single
 
+
 def random_array(shape: Tuple[int, ...], seed: int = 42):
     """Return a random array with values between 0 and 255."""
     rng = np.random.default_rng(seed)
@@ -515,7 +516,9 @@ def test_predict_on_array_tiled(
     careamist.train(train_source=train_array)
 
     # predict CAREamist
-    predicted = careamist.predict(train_array, batch_size=batch_size, tile_size=(16, 16), tile_overlap=(4, 4))
+    predicted = careamist.predict(
+        train_array, batch_size=batch_size, tile_size=(16, 16), tile_overlap=(4, 4)
+    )
     predicted_squeeze = [p.squeeze() for p in predicted]
 
     assert np.array(predicted_squeeze).shape == train_array.squeeze().shape
@@ -532,7 +535,9 @@ def test_predict_on_array_tiled(
 
 @pytest.mark.parametrize("samples", [1, 2, 4])
 @pytest.mark.parametrize("batch_size", [1, 2])
-def test_predict_arrays_no_tiling(tmp_path: Path, minimum_configuration: dict, batch_size, samples):
+def test_predict_arrays_no_tiling(
+    tmp_path: Path, minimum_configuration: dict, batch_size, samples
+):
     """Test that CAREamics can predict on arrays without tiling."""
     # training data
     train_array = random_array((samples, 32, 32))
@@ -566,10 +571,12 @@ def test_predict_arrays_no_tiling(tmp_path: Path, minimum_configuration: dict, b
     )
     assert (tmp_path / "model.zip").exists()
 
+
 @pytest.mark.parametrize("samples", [1, 2, 4])
 @pytest.mark.parametrize("batch_size", [1, 2])
 @pytest.mark.parametrize("channels", [1, 2])
-def test_stitch_prediction_loop(    tmp_path: Path, minimum_configuration: dict, batch_size, samples, channels
+def test_stitch_prediction_loop(
+    tmp_path: Path, minimum_configuration: dict, batch_size, samples, channels
 ):
     """Test that CAREamics can predict on arrays."""
 
@@ -596,7 +603,9 @@ def test_stitch_prediction_loop(    tmp_path: Path, minimum_configuration: dict,
     careamist.train(train_source=train_array)
 
     # predict CAREamist
-    predicted = careamist.predict(train_array, batch_size=batch_size, tile_size=(16, 16), tile_overlap=(4, 4))
+    predicted = careamist.predict(
+        train_array, batch_size=batch_size, tile_size=(16, 16), tile_overlap=(4, 4)
+    )
     if samples == 1:
         predicted = [predicted]
 
@@ -628,6 +637,7 @@ def test_stitch_prediction_loop(    tmp_path: Path, minimum_configuration: dict,
             tile_infos.clear()
 
     assert sample_id == samples
+
 
 @pytest.mark.parametrize("independent_channels", [False, True])
 @pytest.mark.parametrize("batch_size", [1, 2])
