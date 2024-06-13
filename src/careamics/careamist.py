@@ -25,6 +25,7 @@ from careamics.lightning_module import CAREamicsModule
 from careamics.lightning_prediction_datamodule import CAREamicsPredictData
 from careamics.lightning_prediction_loop import CAREamicsPredictionLoop
 from careamics.model_io import export_to_bmz, load_pretrained
+from careamics.transforms import Denormalize
 from careamics.utils import check_path_exists, get_logger
 
 from .callbacks import HyperParametersCallback
@@ -712,12 +713,12 @@ class CAREamist:
                 # convert torch.Tensor to numpy
                 input_patch = input_patch.numpy()
 
-                # # denormalize
-                # denormalize = Denormalize(
-                #     image_means=self.cfg.data_config.image_mean,
-                #     image_stds=self.cfg.data_config.image_std,
-                # )
-                # input_patch = denormalize(input_patch)
+                # denormalize
+                denormalize = Denormalize(
+                    image_means=self.cfg.data_config.image_mean,
+                    image_stds=self.cfg.data_config.image_std,
+                )
+                denorm_input_patch = denormalize(input_patch)
 
             elif self.train_datamodule is not None:
                 # unpack a batch, ignore aux if present
@@ -725,11 +726,11 @@ class CAREamist:
                 input_patch = input_patch.numpy()
 
                 # denormalize
-                # denormalize = Denormalize(
-                #     image_means=self.cfg.data_config.image_mean,
-                #     image_stds=self.cfg.data_config.image_std,
-                # )
-                # input_patch = denormalize(input_patch)
+                denormalize = Denormalize(
+                    image_means=self.cfg.data_config.image_mean,
+                    image_stds=self.cfg.data_config.image_std,
+                )
+                denorm_input_patch = denormalize(input_patch)
             else:
                 # create a random input array
                 input_patch = np.random.normal(
@@ -747,7 +748,7 @@ class CAREamist:
         if input_patch.shape[0] > 1:
             input_patch = input_patch[[0], ...]  # keep singleton dim
 
-        return input_patch
+        return input_patch, denorm_input_patch
 
     def export_to_bmz(
         self,
@@ -780,7 +781,7 @@ class CAREamist:
         data_description : Optional[str], optional
             Description of the data, by default None.
         """
-        input_patch = self._create_data_for_bmz(input_array)
+        input_patch, denorm_input_patch = self._create_data_for_bmz(input_array)
 
         # axes need to be reformated for the export because reshaping was done in the
         # datamodule
@@ -810,7 +811,7 @@ class CAREamist:
             name=name,
             general_description=general_description,
             authors=authors,
-            input_array=input_patch,
+            input_array=denorm_input_patch,
             output_array=output_patch,
             channel_names=channel_names,
             data_description=data_description,

@@ -267,13 +267,6 @@ class DataConfig(BaseModel):
                     "target channel."
                 )
 
-            if len(self.target_mean) > 0 and len(self.image_mean) != len(
-                self.target_mean
-            ):
-                raise ValueError(
-                    "Statistics of input and target channels must be the same."
-                )
-
         return self
 
     @model_validator(mode="after")
