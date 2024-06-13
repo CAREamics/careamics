@@ -768,9 +768,6 @@ def test_data_for_bmz_after_training(tmp_path, minimum_configuration):
     patch = careamist._create_data_for_bmz()
     assert patch.shape == (1, 1) + tuple(config.data_config.patch_size)
 
-    # # check that it is not normalised (data should be [0, 255])
-    # assert patch.max() > config.data_config.image_mean # TODO check if this is necessary
-
 
 def test_data_for_bmz_after_prediction(tmp_path, minimum_configuration):
     """Test the BMZ example data creation when the careamist has a prediction
