@@ -82,7 +82,7 @@ class PathIterableDataset(IterableDataset):
         self.read_source_func = read_source_func
 
         # compute mean and std over the dataset
-        # Only checking the image_mean because the DatasetConfig class ensures that
+        # Only checking the image_mean because the DataConfig class ensures that
         # if image_mean is provided, image_std is also provided
         if not self.data_config.image_mean:
             self.patches_data = self._calculate_mean_and_std()
