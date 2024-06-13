@@ -5,6 +5,7 @@ from __future__ import annotations
 from pprint import pformat
 from typing import Any, List, Literal, Optional, Union
 
+import numpy as np
 from pydantic import (
     BaseModel,
     ConfigDict,
@@ -92,10 +93,10 @@ class DataConfig(BaseModel):
     axes: str
 
     # Optional fields
-    image_mean: Optional[List[float]] = Field(default=[], min_length=0, max_length=32)
-    image_std: Optional[List[float]] = Field(default=[], min_length=0, max_length=32)
-    target_mean: Optional[List[float]] = Field(default=[], min_length=0, max_length=32)
-    target_std: Optional[List[float]] = Field(default=[], min_length=0, max_length=32)
+    image_mean: Optional[tuple] = Field(default=[], min_length=0, max_length=32)
+    image_std: Optional[tuple] = Field(default=[], min_length=0, max_length=32)
+    target_mean: Optional[tuple] = Field(default=[], min_length=0, max_length=32)
+    target_std: Optional[tuple] = Field(default=[], min_length=0, max_length=32)
 
     transforms: List[TRANSFORMS_UNION] = Field(
         default=[
@@ -372,10 +373,10 @@ class DataConfig(BaseModel):
 
     def set_mean_and_std(
         self,
-        image_mean: List,
-        image_std: List,
-        target_mean: Optional[List] = (),
-        target_std: Optional[List] = (),
+        image_mean: Union[np.ndarray, tuple, list, None],
+        image_std: Union[np.ndarray, tuple, list, None],
+        target_mean: Optional[Union[np.ndarray, tuple, list, None]] = (),
+        target_std: Optional[Union[np.ndarray, tuple, list, None]] = (),
     ) -> None:
         """
         Set mean and standard deviation of the data.

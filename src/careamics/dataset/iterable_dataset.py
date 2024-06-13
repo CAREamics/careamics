@@ -14,7 +14,7 @@ from careamics.transforms import Compose
 
 from ..utils.logging import get_logger
 from .dataset_utils import compute_normalization_stats, iterate_over_files, read_tiff
-from .patching.patching import PatchedOutput, Stats
+from .patching.patching import Stats, StatsOutput
 from .patching.random_patching import extract_patches_random
 
 logger = get_logger(__name__)
@@ -92,24 +92,22 @@ class PathIterableDataset(IterableDataset):
             )
 
         else:
-            self.patches_data = PatchedOutput(
-                None,
-                None,
+            self.patches_data = StatsOutput(
                 Stats(self.data_config.image_mean, self.data_config.image_std),
                 Stats(self.data_config.target_mean, self.data_config.target_std),
             )
 
         if hasattr(self.data_config, "set_mean_and_std"):
             self.data_config.set_mean_and_std(
-                image_mean=list(self.patches_data.image_stats.means),
-                image_std=list(self.patches_data.image_stats.stds),
+                image_mean=self.patches_data.image_stats.means,
+                image_std=self.patches_data.image_stats.stds,
                 target_mean=(
-                    list(self.patches_data.target_stats.means)
+                    tuple(self.patches_data.target_stats.means)
                     if self.patches_data.target_stats.means is not None
                     else []
                 ),
                 target_std=(
-                    list(self.patches_data.target_stats.stds)
+                    tuple(self.patches_data.target_stats.stds)
                     if self.patches_data.target_stats.stds is not None
                     else []
                 ),
@@ -118,7 +116,7 @@ class PathIterableDataset(IterableDataset):
         # get transforms
         self.patch_transform = Compose(transform_list=data_config.transforms)
 
-    def _calculate_mean_and_std(self) -> PatchedOutput:
+    def _calculate_mean_and_std(self) -> StatsOutput:
         """
         Calculate mean and std of the dataset.
 
@@ -157,13 +155,11 @@ class PathIterableDataset(IterableDataset):
 
         logger.info(f"Calculated mean and std for {num_samples} images")
         logger.info(f"Mean: {image_means}, std: {image_stds}")
-        return PatchedOutput(
-            None,
-            None,
+        return StatsOutput(
             Stats(image_means, image_stds),
             Stats(
-                target_means if target is not None else None,
-                target_stds if target is not None else None,
+                np.array(target_means) if target is not None else None,
+                np.array(target_stds) if target is not None else None,
             ),
         )
 

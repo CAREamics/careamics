@@ -141,23 +141,17 @@ class Denormalize:
 
     Parameters
     ----------
-    image_means : List[float]
+    image_means : Tuple[float]
         Mean value per channel.
-    image_stds : List[float]
+    image_stds : Tuple[float]
         Standard deviation value per channel.
 
-    Attributes
-    ----------
-    image_means : List[float]
-        Mean value per channel.
-    image_stds : List[float]
-        Standard deviation value per channel.
     """
 
     def __init__(
         self,
-        image_means: List[float],
-        image_stds: List[float],
+        image_means: Tuple[float],
+        image_stds: Tuple[float],
     ):
         """Constructor.
 
@@ -173,7 +167,7 @@ class Denormalize:
 
         self.eps = 1e-6
 
-    def __call__(self, patch: np.ndarray) -> Tuple[np.ndarray, Optional[np.ndarray]]:
+    def __call__(self, patch: np.ndarray) -> np.ndarray:
         """Reverse the normalization operation for a batch of patches.
 
         Parameters

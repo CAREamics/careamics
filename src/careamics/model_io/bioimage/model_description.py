@@ -146,38 +146,40 @@ def _create_inputs_ouputs(
     eps = 1e-6
     inv_means = []
     inv_stds = []
+    if means and stds:
+        for mean, std in zip(means, stds):
+            inv_means.append(-mean / (std + eps))
+            inv_stds.append(1 / (std + eps) - eps)
 
-    for mean, std in zip(means, stds):
-        inv_means.append(-mean / (std + eps))
-        inv_stds.append(1 / (std + eps) - eps)
-
-    # create input/output descriptions
-    input_descr = InputTensorDescr(
-        id=TensorId("input"),
-        axes=input_axes,
-        test_tensor=FileDescr(source=input_path),
-        preprocessing=[
-            FixedZeroMeanUnitVarianceDescr(
-                kwargs=FixedZeroMeanUnitVarianceAlongAxisKwargs(
-                    mean=means, std=stds, axis="channel"
+        # create input/output descriptions
+        input_descr = InputTensorDescr(
+            id=TensorId("input"),
+            axes=input_axes,
+            test_tensor=FileDescr(source=input_path),
+            preprocessing=[
+                FixedZeroMeanUnitVarianceDescr(
+                    kwargs=FixedZeroMeanUnitVarianceAlongAxisKwargs(
+                        mean=means, std=stds, axis="channel"
+                    )
                 )
-            )
-        ],
-    )
-    output_descr = OutputTensorDescr(
-        id=TensorId("prediction"),
-        axes=output_axes,
-        test_tensor=FileDescr(source=output_path),
-        postprocessing=[
-            FixedZeroMeanUnitVarianceDescr(
-                kwargs=FixedZeroMeanUnitVarianceAlongAxisKwargs(  # invert normalization
-                    mean=inv_means, std=inv_stds, axis="channel"
+            ],
+        )
+        output_descr = OutputTensorDescr(
+            id=TensorId("prediction"),
+            axes=output_axes,
+            test_tensor=FileDescr(source=output_path),
+            postprocessing=[
+                FixedZeroMeanUnitVarianceDescr(
+                    kwargs=FixedZeroMeanUnitVarianceAlongAxisKwargs(  # invert norm
+                        mean=inv_means, std=inv_stds, axis="channel"
+                    )
                 )
-            )
-        ],
-    )
+            ],
+        )
 
-    return input_descr, output_descr
+        return input_descr, output_descr
+    else:
+        raise ValueError("Mean and std cannot be None.")
 
 
 def create_model_description(

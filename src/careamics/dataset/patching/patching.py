@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Iterator, List, Optional, Tuple, Union
+from typing import Callable, List, Tuple, Union
 
 import numpy as np
 
@@ -17,16 +17,24 @@ logger = get_logger(__name__)
 class Stats:
     """Dataclass to store statistics."""
 
-    means: Union[np.ndarray, List[float]]
-    stds: Union[np.ndarray, List[float]]
+    means: Union[np.ndarray, tuple, list, None]
+    stds: Union[np.ndarray, tuple, list, None]
 
 
 @dataclass
 class PatchedOutput:
     """Dataclass to store patches and statistics."""
 
-    patches: Union[np.ndarray, Iterator[np.ndarray]]
-    targets: Optional[np.ndarray]
+    patches: Union[np.ndarray]
+    targets: Union[np.ndarray, None]
+    image_stats: Stats
+    target_stats: Stats
+
+
+@dataclass
+class StatsOutput:
+    """Dataclass to store patches and statistics."""
+
     image_stats: Stats
     target_stats: Stats
 
@@ -38,7 +46,7 @@ def prepare_patches_supervised(
     axes: str,
     patch_size: Union[List[int], Tuple[int, ...]],
     read_source_func: Callable,
-) -> Tuple[np.ndarray, np.ndarray, float, float]:
+) -> PatchedOutput:
     """
     Iterate over data source and create an array of patches and corresponding targets.
 
@@ -122,7 +130,7 @@ def prepare_patches_unsupervised(
     axes: str,
     patch_size: Union[List[int], Tuple[int]],
     read_source_func: Callable,
-) -> Tuple[np.ndarray, None, float, float]:
+) -> PatchedOutput:
     """Iterate over data source and create an array of patches.
 
     This method returns the mean and standard deviation of the image.
@@ -174,7 +182,7 @@ def prepare_patches_unsupervised(
     logger.info(f"Extracted {patch_array.shape[0]} patches from input array.")
 
     return PatchedOutput(
-        patch_array, None, Stats(image_means, image_stds), Stats([], [])
+        patch_array, None, Stats(image_means, image_stds), Stats((), ())
     )
 
 
@@ -184,7 +192,7 @@ def prepare_patches_supervised_array(
     axes: str,
     data_target: np.ndarray,
     patch_size: Union[List[int], Tuple[int]],
-) -> Tuple[np.ndarray, np.ndarray, List[float], List[float]]:
+) -> PatchedOutput:
     """Iterate over data source and create an array of patches.
 
     This method expects an array of shape SC(Z)YX, where S and C can be singleton
@@ -239,7 +247,7 @@ def prepare_patches_unsupervised_array(
     data: np.ndarray,
     axes: str,
     patch_size: Union[List[int], Tuple[int]],
-) -> Tuple[np.ndarray, None, float, float]:
+) -> PatchedOutput:
     """
     Iterate over data source and create an array of patches.
 
@@ -271,4 +279,4 @@ def prepare_patches_unsupervised_array(
     # generate patches, return a generator
     patches, _ = extract_patches_sequential(reshaped_sample, patch_size=patch_size)
 
-    return PatchedOutput(patches, None, Stats(means, stds), Stats([], []))
+    return PatchedOutput(patches, None, Stats(means, stds), Stats((), ()))

@@ -15,6 +15,7 @@ from ..config import DataConfig
 from ..utils.logging import get_logger
 from .dataset_utils import read_tiff
 from .patching.patching import (
+    PatchedOutput,
     prepare_patches_supervised,
     prepare_patches_supervised_array,
     prepare_patches_unsupervised,
@@ -82,7 +83,13 @@ class InMemoryDataset(Dataset):
         self.data = patches_data.patches
         self.data_targets = patches_data.targets
 
-        if not any(self.data_config.image_mean) or not any(self.data_config.image_std):
+        if (
+            self.data_config.image_mean is not None
+            and not any(self.data_config.image_mean)
+        ) or (
+            self.data_config.image_std is not None
+            and not any(self.data_config.image_std)
+        ):
             self.image_means = patches_data.image_stats.means
             self.image_stds = patches_data.image_stats.stds
             logger.info(
@@ -112,9 +119,7 @@ class InMemoryDataset(Dataset):
             transform_list=self.data_config.transforms,
         )
 
-    def _prepare_patches(
-        self, supervised: bool
-    ) -> Tuple[np.ndarray, Optional[np.ndarray], float, float]:
+    def _prepare_patches(self, supervised: bool) -> PatchedOutput:
         """
         Iterate over data source and create an array of patches.
 
@@ -176,7 +181,7 @@ class InMemoryDataset(Dataset):
         int
             Length of the dataset.
         """
-        return len(self.data)
+        return self.data.shape[0]
 
     def __getitem__(self, index: int) -> Tuple[np.ndarray, ...]:
         """
