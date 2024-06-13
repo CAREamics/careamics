@@ -102,8 +102,9 @@ def test_train_single_array_no_val(tmp_path: Path, minimum_configuration: dict):
     careamist.export_to_bmz(
         path=tmp_path / "model.zip",
         name="TopModel",
-        general_description="A model that just walked in.",
+        input_array=train_array,
         authors=[{"name": "Amod", "affiliation": "El"}],
+        general_description="A model that just walked in.",
     )
     assert (tmp_path / "model.zip").exists()
 
@@ -135,8 +136,9 @@ def test_train_array(tmp_path: Path, minimum_configuration: dict):
     careamist.export_to_bmz(
         path=tmp_path / "model.zip",
         name="TopModel",
-        general_description="A model that just walked in.",
+        input_array=train_array,
         authors=[{"name": "Amod", "affiliation": "El"}],
+        general_description="A model that just walked in.",
     )
     assert (tmp_path / "model.zip").exists()
 
@@ -174,8 +176,9 @@ def test_train_array_channel(
     careamist.export_to_bmz(
         path=tmp_path / "model.zip",
         name="TopModel",
-        general_description="A model that just walked in.",
+        input_array=train_array,
         authors=[{"name": "Amod", "affiliation": "El"}],
+        general_description="A model that just walked in.",
         channel_names=["red", "green", "blue"],
     )
     assert (tmp_path / "model.zip").exists()
@@ -208,8 +211,9 @@ def test_train_array_3d(tmp_path: Path, minimum_configuration: dict):
     careamist.export_to_bmz(
         path=tmp_path / "model.zip",
         name="TopModel",
-        general_description="A model that just walked in.",
+        input_array=train_array,
         authors=[{"name": "Amod", "affiliation": "El"}],
+        general_description="A model that just walked in.",
     )
     assert (tmp_path / "model.zip").exists()
 
@@ -244,8 +248,9 @@ def test_train_tiff_files_in_memory_no_val(tmp_path: Path, minimum_configuration
     careamist.export_to_bmz(
         path=tmp_path / "model.zip",
         name="TopModel",
-        general_description="A model that just walked in.",
+        input_array=train_array,
         authors=[{"name": "Amod", "affiliation": "El"}],
+        general_description="A model that just walked in.",
     )
     assert (tmp_path / "model.zip").exists()
 
@@ -284,8 +289,9 @@ def test_train_tiff_files_in_memory(tmp_path: Path, minimum_configuration: dict)
     careamist.export_to_bmz(
         path=tmp_path / "model.zip",
         name="TopModel",
-        general_description="A model that just walked in.",
+        input_array=train_array,
         authors=[{"name": "Amod", "affiliation": "El"}],
+        general_description="A model that just walked in.",
     )
     assert (tmp_path / "model.zip").exists()
 
@@ -326,8 +332,9 @@ def test_train_tiff_files(tmp_path: Path, minimum_configuration: dict):
     careamist.export_to_bmz(
         path=tmp_path / "model.zip",
         name="TopModel",
-        general_description="A model that just walked in.",
+        input_array=train_array,
         authors=[{"name": "Amod", "affiliation": "El"}],
+        general_description="A model that just walked in.",
     )
     assert (tmp_path / "model.zip").exists()
 
@@ -366,8 +373,9 @@ def test_train_array_supervised(tmp_path: Path, supervised_configuration: dict):
     careamist.export_to_bmz(
         path=tmp_path / "model.zip",
         name="TopModel",
-        general_description="A model that just walked in.",
+        input_array=train_array,
         authors=[{"name": "Amod", "affiliation": "El"}],
+        general_description="A model that just walked in.",
     )
     assert (tmp_path / "model.zip").exists()
 
@@ -425,8 +433,9 @@ def test_train_tiff_files_in_memory_supervised(
     careamist.export_to_bmz(
         path=tmp_path / "model.zip",
         name="TopModel",
-        general_description="A model that just walked in.",
+        input_array=train_array,
         authors=[{"name": "Amod", "affiliation": "El"}],
+        general_description="A model that just walked in.",
     )
     assert (tmp_path / "model.zip").exists()
 
@@ -485,8 +494,9 @@ def test_train_tiff_files_supervised(tmp_path: Path, supervised_configuration: d
     careamist.export_to_bmz(
         path=tmp_path / "model.zip",
         name="TopModel",
-        general_description="A model that just walked in.",
+        input_array=train_array,
         authors=[{"name": "Amod", "affiliation": "El"}],
+        general_description="A model that just walked in.",
     )
     assert (tmp_path / "model.zip").exists()
 
@@ -524,8 +534,9 @@ def test_predict_on_array_tiled(
     careamist.export_to_bmz(
         path=tmp_path / "model.zip",
         name="TopModel",
-        general_description="A model that just walked in.",
+        input_array=train_array,
         authors=[{"name": "Amod", "affiliation": "El"}],
+        general_description="A model that just walked in.",
     )
     assert (tmp_path / "model.zip").exists()
 
@@ -559,8 +570,9 @@ def test_predict_arrays_no_tiling(tmp_path: Path, minimum_configuration: dict):
     careamist.export_to_bmz(
         path=tmp_path / "model.zip",
         name="TopModel",
-        general_description="A model that just walked in.",
+        input_array=train_array,
         authors=[{"name": "Amod", "affiliation": "El"}],
+        general_description="A model that just walked in.",
     )
     assert (tmp_path / "model.zip").exists()
 
@@ -637,8 +649,9 @@ def test_predict_path(tmp_path: Path, minimum_configuration: dict, batch_size):
     careamist.export_to_bmz(
         path=tmp_path / "model.zip",
         name="TopModel",
-        general_description="A model that just walked in.",
+        input_array=train_array,
         authors=[{"name": "Amod", "affiliation": "El"}],
+        general_description="A model that just walked in.",
     )
     assert (tmp_path / "model.zip").exists()
 
@@ -676,150 +689,6 @@ def test_predict_pretrained_bmz(tmp_path: Path, pre_trained_bmz: Path):
     assert predicted.squeeze().shape == source_array.shape
 
 
-def test_data_for_bmz_random(tmp_path, minimum_configuration):
-    """Test the BMZ example data creation when the careamist has a training
-    datamodule."""
-    seed = 42
-    rng = np.random.default_rng(seed)
-
-    # example data
-    example_data = 255 * rng.random((64, 64), dtype=np.float32)
-    example_mean = example_data.mean()
-    example_std = example_data.std()
-
-    # create configuration
-    config = Configuration(**minimum_configuration)
-    config.training_config.num_epochs = 1
-    config.data_config.axes = "YX"
-    config.data_config.batch_size = 2
-    config.data_config.data_type = SupportedData.ARRAY.value
-    config.data_config.patch_size = (32, 32)
-    config.data_config.set_mean_and_std(example_mean, example_std)
-
-    # instantiate CAREamist
-    careamist = CAREamist(source=config, work_dir=tmp_path)
-
-    # get data for BMZ
-    patch = careamist._create_data_for_bmz(seed=seed)
-    assert patch.shape == (1, 1) + tuple(config.data_config.patch_size)
-
-    # check that the correct image is not normalized
-    assert np.isclose(patch.mean(), example_mean, rtol=0.02)
-    assert np.isclose(patch.std(), example_std, rtol=0.02)
-
-
-def test_data_for_bmz_with_array(tmp_path, minimum_configuration):
-    """Test the BMZ example data creation when the careamist has a training
-    datamodule."""
-    seed = 42
-    rng = np.random.default_rng(seed)
-
-    # example data
-    example_data = 255 * rng.random((64, 64), dtype=np.float32)
-    example_mean = example_data.mean()
-    example_std = example_data.std()
-
-    # create configuration
-    config = Configuration(**minimum_configuration)
-    config.training_config.num_epochs = 1
-    config.data_config.axes = "YX"
-    config.data_config.batch_size = 2
-    config.data_config.data_type = SupportedData.ARRAY.value
-    config.data_config.patch_size = (8, 8)
-    config.data_config.set_mean_and_std(example_mean, example_std)
-
-    # instantiate CAREamist
-    careamist = CAREamist(source=config, work_dir=tmp_path)
-
-    # get data for BMZ
-    patch = careamist._create_data_for_bmz(example_data, seed=seed)
-    assert patch.shape == (1, 1) + example_data.shape
-
-    # check the normalization
-    assert np.allclose(patch.squeeze(), example_data)
-
-
-def test_data_for_bmz_after_training(tmp_path, minimum_configuration):
-    """Test the BMZ example data creation when the careamist has a training
-    datamodule."""
-    seed = 42
-    rng = np.random.default_rng(seed)
-
-    # training data
-    train_array = 255 * rng.random((64, 64), dtype=np.float32)
-    mean = train_array.mean()
-    std = train_array.std()
-
-    val_array = 255 * rng.random((64, 64), dtype=np.float32)
-
-    # create configuration
-    config = Configuration(**minimum_configuration)
-    config.training_config.num_epochs = 1
-    config.data_config.axes = "YX"
-    config.data_config.batch_size = 2
-    config.data_config.data_type = SupportedData.ARRAY.value
-    config.data_config.patch_size = (32, 32)
-
-    # instantiate CAREamist
-    careamist = CAREamist(source=config, work_dir=tmp_path)
-
-    # train CAREamist
-    careamist.train(train_source=train_array, val_source=val_array)
-
-    # check that mean and std make sense
-    assert np.isclose(config.data_config.mean, mean, rtol=0.01)
-    assert np.isclose(config.data_config.std, std, rtol=0.01)
-
-    # get data for BMZ
-    patch = careamist._create_data_for_bmz(seed=seed)
-    assert patch.shape == (1, 1) + tuple(config.data_config.patch_size)
-
-    # check normalization
-    assert np.isclose(patch.mean(), mean, rtol=0.1)
-    assert np.isclose(patch.std(), std, rtol=0.1)
-
-
-def test_data_for_bmz_after_prediction(tmp_path, minimum_configuration):
-    """Test the BMZ example data creation when the careamist has a prediction
-    datamodule."""
-    seed = 42
-    rng = np.random.default_rng(seed)
-
-    # training data
-    train_array = 255 * rng.random((64, 64), dtype=np.float32)
-    val_array = 255 * rng.random((64, 64), dtype=np.float32)
-
-    # create configuration
-    config = Configuration(**minimum_configuration)
-    config.training_config.num_epochs = 1
-    config.data_config.axes = "YX"
-    config.data_config.batch_size = 2
-    config.data_config.data_type = SupportedData.ARRAY.value
-    config.data_config.patch_size = (32, 32)
-
-    # instantiate CAREamist
-    careamist = CAREamist(source=config, work_dir=tmp_path)
-
-    # train CAREamist
-    careamist.train(train_source=train_array, val_source=val_array)
-
-    # check that mean and std make sense
-    assert config.data_config.mean > 100
-    assert config.data_config.std > 20
-
-    # predict without tiling
-    test_array = 255 * rng.random((64, 64), dtype=np.float32)
-    _ = careamist.predict(test_array)
-
-    # get data for BMZ
-    patch = careamist._create_data_for_bmz()
-    assert patch.shape == (1, 1) + test_array.shape
-
-    # check normalization
-    assert np.isclose(patch.mean(), test_array.mean(), rtol=0.1)
-    assert np.isclose(patch.std(), test_array.std(), rtol=0.1)
-
-
 def test_export_bmz_pretrained_prediction(tmp_path: Path, pre_trained: Path):
     """Test that CAREamics can be instantiated with a pre-trained network and exported
     to BMZ after prediction.
@@ -839,27 +708,9 @@ def test_export_bmz_pretrained_prediction(tmp_path: Path, pre_trained: Path):
     careamist.export_to_bmz(
         path=tmp_path / "model.zip",
         name="TopModel",
-        general_description="A model that just walked in.",
+        input_array=source_array,
         authors=[{"name": "Amod", "affiliation": "El"}],
-    )
-    assert (tmp_path / "model.zip").exists()
-
-
-def test_export_bmz_pretrained_random_array(tmp_path: Path, pre_trained: Path):
-    """Test that CAREamics can be instantiated with a pre-trained network and exported
-    to BMZ.
-
-    In this case, the careamist creates a random array for the BMZ archive test.
-    """
-    # instantiate CAREamist
-    careamist = CAREamist(source=pre_trained, work_dir=tmp_path)
-
-    # export to BMZ (random array created)
-    careamist.export_to_bmz(
-        path=tmp_path / "model.zip",
-        name="TopModel",
         general_description="A model that just walked in.",
-        authors=[{"name": "Amod", "affiliation": "El"}],
     )
     assert (tmp_path / "model.zip").exists()
 
@@ -879,7 +730,7 @@ def test_export_bmz_pretrained_with_array(tmp_path: Path, pre_trained: Path):
         path=tmp_path / "model2.zip",
         name="TopModel",
         input_array=array,
-        general_description="A model that just walked in.",
         authors=[{"name": "Amod", "affiliation": "El"}],
+        general_description="A model that just walked in.",
     )
     assert (tmp_path / "model2.zip").exists()
