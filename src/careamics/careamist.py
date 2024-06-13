@@ -3,6 +3,7 @@
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, Union, overload
 
+import torch
 import numpy as np
 from numpy.typing import NDArray
 from pytorch_lightning import Trainer
@@ -667,7 +668,7 @@ class CAREamist:
             predictions = predictions.numpy()
 
         # don't return list if single image
-        if len(predictions) == 1:
+        if (isinstance(predictions, list)) and (len(predictions) == 1):
             return predictions[0]
         else:
             return predictions
