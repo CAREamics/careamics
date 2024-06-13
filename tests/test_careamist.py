@@ -7,7 +7,7 @@ import tifffile
 
 from careamics import CAREamist, Configuration, save_configuration
 from careamics.config.support import SupportedAlgorithm, SupportedData
-
+from careamics.dataset.tiling import extract_tiles, stitch_prediction
 
 def random_array(shape: Tuple[int, ...]):
     """Return a random array with values between 0 and 255."""
@@ -490,49 +490,14 @@ def test_train_tiff_files_supervised(tmp_path: Path, supervised_configuration: d
     assert (tmp_path / "model.zip").exists()
 
 
+@pytest.mark.parametrize("samples", [1, 2, 4])
 @pytest.mark.parametrize("batch_size", [1, 2])
 def test_predict_on_array_tiled(
-    tmp_path: Path, minimum_configuration: dict, batch_size
+    tmp_path: Path, minimum_configuration: dict, batch_size, samples
 ):
     """Test that CAREamics can predict on arrays."""
     # training data
-    train_array = random_array((32, 32))
-
-    # create configuration
-    config = Configuration(**minimum_configuration)
-    config.training_config.num_epochs = 1
-    config.data_config.axes = "YX"
-    config.data_config.batch_size = 2
-    config.data_config.data_type = SupportedData.ARRAY.value
-    config.data_config.patch_size = (8, 8)
-
-    # instantiate CAREamist
-    careamist = CAREamist(source=config, work_dir=tmp_path)
-
-    # train CAREamist
-    careamist.train(train_source=train_array)
-
-    # predict CAREamist
-    predicted = careamist.predict(
-        train_array, batch_size=batch_size, tile_size=(16, 16), tile_overlap=(4, 4)
-    )
-
-    assert predicted.squeeze().shape == train_array.shape
-
-    # export to BMZ
-    careamist.export_to_bmz(
-        path=tmp_path / "model.zip",
-        name="TopModel",
-        general_description="A model that just walked in.",
-        authors=[{"name": "Amod", "affiliation": "El"}],
-    )
-    assert (tmp_path / "model.zip").exists()
-
-
-def test_predict_arrays_no_tiling(tmp_path: Path, minimum_configuration: dict):
-    """Test that CAREamics can predict on arrays without tiling."""
-    # training data
-    train_array = random_array((4, 32, 32))
+    train_array = random_array((samples, 32, 32))
 
     # create configuration
     config = Configuration(**minimum_configuration)
@@ -549,7 +514,44 @@ def test_predict_arrays_no_tiling(tmp_path: Path, minimum_configuration: dict):
     careamist.train(train_source=train_array)
 
     # predict CAREamist
-    predicted = careamist.predict(train_array)
+    predicted = careamist.predict(train_array, batch_size=batch_size, tile_size=(16, 16), tile_overlap=(4, 4))
+    predicted_squeeze = [p.squeeze() for p in predicted]
+
+    assert np.array(predicted_squeeze).shape == train_array.squeeze().shape
+
+    # export to BMZ
+    careamist.export_to_bmz(
+        path=tmp_path / "model.zip",
+        name="TopModel",
+        general_description="A model that just walked in.",
+        authors=[{"name": "Amod", "affiliation": "El"}],
+    )
+    assert (tmp_path / "model.zip").exists()
+
+
+@pytest.mark.parametrize("samples", [1, 2, 4])
+@pytest.mark.parametrize("batch_size", [1, 2])
+def test_predict_arrays_no_tiling(tmp_path: Path, minimum_configuration: dict, batch_size, samples):
+    """Test that CAREamics can predict on arrays without tiling."""
+    # training data
+    train_array = random_array((samples, 32, 32))
+
+    # create configuration
+    config = Configuration(**minimum_configuration)
+    config.training_config.num_epochs = 1
+    config.data_config.axes = "SYX"
+    config.data_config.batch_size = 2
+    config.data_config.data_type = SupportedData.ARRAY.value
+    config.data_config.patch_size = (8, 8)
+
+    # instantiate CAREamist
+    careamist = CAREamist(source=config, work_dir=tmp_path)
+
+    # train CAREamist
+    careamist.train(train_source=train_array)
+
+    # predict CAREamist
+    predicted = careamist.predict(train_array, batch_size=batch_size)
     predicted_squeeze = [p.squeeze() for p in predicted]
 
     assert np.array(predicted_squeeze).shape == train_array.shape
@@ -563,6 +565,68 @@ def test_predict_arrays_no_tiling(tmp_path: Path, minimum_configuration: dict):
     )
     assert (tmp_path / "model.zip").exists()
 
+@pytest.mark.parametrize("samples", [1, 2, 4])
+@pytest.mark.parametrize("batch_size", [1, 2])
+@pytest.mark.parametrize("channels", [1, 2])
+def test_stitch_prediction_loop(    tmp_path: Path, minimum_configuration: dict, batch_size, samples, channels
+):
+    """Test that CAREamics can predict on arrays."""
+
+    tile_size = (16, 16)
+    tile_overlap = (4, 4)
+
+    # training data
+    train_array = random_array((samples, channels, 32, 32))
+
+    # create configuration
+    config = Configuration(**minimum_configuration)
+    config.training_config.num_epochs = 1
+    config.data_config.axes = "SCYX"
+    config.data_config.batch_size = 2
+    config.data_config.data_type = SupportedData.ARRAY.value
+    config.data_config.patch_size = (8, 8)
+    config.algorithm_config.model.in_channels = channels
+    config.algorithm_config.model.num_classes = channels
+
+    # instantiate CAREamist
+    careamist = CAREamist(source=config, work_dir=tmp_path)
+
+    # train CAREamist
+    careamist.train(train_source=train_array)
+
+    # predict CAREamist
+    predicted = careamist.predict(train_array, batch_size=batch_size, tile_size=(16, 16), tile_overlap=(4, 4))
+    if samples == 1:
+        predicted = [predicted]
+
+    # --- predict each tile individually and see if the result matches predicted
+    # extract tiles
+    all_tiles = list(extract_tiles(train_array, tile_size, tile_overlap))
+
+    tiles = []
+    tile_infos = []
+    sample_id = 0
+    for tile, tile_info in all_tiles:
+        # predict each tile individually
+        predicted_tile = careamist.predict(tile, axes="CYX")[0] # output with sample dims
+
+        # create lists mimicking the output of the prediction loop
+        tiles.append(predicted_tile)
+        tile_infos.append(tile_info)
+
+        # if we reached the last tile
+        if tile_info.last_tile:
+            result = stitch_prediction(tiles, tile_infos)
+
+            # check equality with the correct sample
+            assert np.array_equal(result.squeeze(), predicted[sample_id].squeeze())
+            sample_id += 1
+
+            # clear the lists
+            tiles.clear()
+            tile_infos.clear()
+
+    assert sample_id == samples
 
 @pytest.mark.parametrize("independent_channels", [False, True])
 @pytest.mark.parametrize("batch_size", [1, 2])
