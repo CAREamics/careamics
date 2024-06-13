@@ -157,10 +157,10 @@ class Denormalize:
 
         Parameters
         ----------
-        mean : float
-            Mean.
-        std : float
-            Standard deviation.
+        image_means : Tuple[float]
+            Mean value per channel.
+        image_stds : Tuple[float]
+            Standard deviation value per channel.
         """
         self.image_means = image_means
         self.image_stds = image_stds
@@ -172,10 +172,8 @@ class Denormalize:
 
         Parameters
         ----------
-        array : np.ndarray
+        patch : np.ndarray
             Patch, 2D or 3D, shape BC(Z)YX.
-        target : Optional[np.ndarray], optional
-            Target for the patch, by default None.
 
         Returns
         -------
@@ -205,6 +203,10 @@ class Denormalize:
         ----------
         array : np.ndarray
             Image patch, 2D or 3D, shape C(Z)YX.
+        mean : float
+            Mean value.
+        std : float
+            Standard deviation.
 
         Returns
         -------

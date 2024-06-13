@@ -16,9 +16,8 @@ def stitch_prediction(
     ----------
     tiles : List[np.ndarray]
         Cropped tiles and their respective stitching coordinates.
-    stitching_coords : List[List[np.ndarray]]
-        List of information and coordinates obtained from
-        `dataset.tiled_patching.extract_tiles`.
+    stitching_data : List[List[np.ndarray]]
+        List of lists containing the overlap crop coordinates and stitch coordinates.
 
     Returns
     -------

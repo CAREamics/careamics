@@ -386,10 +386,14 @@ class DataConfig(BaseModel):
 
         Parameters
         ----------
-        mean : float
-            Mean of the data.
-        std : float
-            Standard deviation of the data.
+        image_mean : Union[np.ndarray, tuple, list, None]
+            Mean value for normalization.
+        image_std : Union[np.ndarray, tuple, list, None]
+            Standard deviation value for normalization.
+        target_mean : Optional[Union[np.ndarray, tuple, list, None]], optional
+            Target mean value for normalization, by default ().
+        target_std : Optional[Union[np.ndarray, tuple, list, None]], optional
+            Target standard deviation value for normalization, by default ().
         """
         self._update(
             image_mean=image_mean,

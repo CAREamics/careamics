@@ -271,12 +271,10 @@ class PredictDataWrapper(CAREamicsPredictData):
         Prediction data.
     data_type : Union[Literal["array", "tiff", "custom"], SupportedData]
         Data type, see `SupportedData` for available options.
-    mean : float
-        Mean value for normalization, only used if Normalization is defined in the
-        transforms.
-    std : float
-        Standard deviation value for normalization, only used if Normalization is
-        defined in the transform.
+    image_mean : float
+        Mean value for normalization, only used if Normalization is defined.
+    image_std : float
+        Std value for normalization, only used if Normalization is defined.
     tile_size : Tuple[int, ...]
         Tile size, 2D or 3D tile size.
     tile_overlap : Tuple[int, ...]
@@ -320,12 +318,10 @@ class PredictDataWrapper(CAREamicsPredictData):
             Prediction data.
         data_type : Union[Literal["array", "tiff", "custom"], SupportedData]
             Data type, see `SupportedData` for available options.
-        mean : float
-            Mean value for normalization, only used if Normalization is defined in the
-            transforms.
-        std : float
-            Standard deviation value for normalization, only used if Normalization is
-            defined in the transform.
+        image_mean : float
+            Mean value for normalization, only used if Normalization is defined.
+        image_std : float
+            Std value for normalization, only used if Normalization is defined.
         tile_size : List[int]
             Tile size, 2D or 3D tile size.
         tile_overlap : List[int]

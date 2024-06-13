@@ -110,7 +110,7 @@ def compute_normalization_stats(image: np.ndarray) -> Tuple[np.ndarray, np.ndarr
 
     Parameters
     ----------
-    data : np.ndarray
+    image : np.ndarray
         Input array.
 
     Returns
