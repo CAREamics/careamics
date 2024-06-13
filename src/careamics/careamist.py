@@ -59,7 +59,8 @@ class CAREamist:
         CAREamics configuration.
     trainer : Trainer
         PyTorch Lightning trainer.
-    experiment_logger : TensorBoardLogger or WandbLogger
+    experiment_logger : pytorch_lightning.loggersTensorBoardLogger or
+    pytorch_lightning.loggersWandbLogger
         Experiment logger, "wandb" or "tensorboard".
     work_dir : pathlib.Path
         Working directory.
