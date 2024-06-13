@@ -1,10 +1,32 @@
 """Normalization and denormalization transforms for image patches."""
 
-from typing import Optional, Union
+from typing import Optional
 
 import numpy as np
+from numpy.typing import NDArray
 
 from careamics.transforms.transform import Transform
+
+
+def _reshape_stats(stats: list[float], ndim: int) -> NDArray:
+    """Reshape stats to match the number of dimensions of the input image.
+
+    This allows to broadcast the stats (mean or std) to the image dimensions, and
+    thus directly perform a vectorial calculation.
+
+    Parameters
+    ----------
+    stats : list of float
+        List of stats, mean or standard deviation.
+    ndim : int
+        Number of dimensions of the image, including the C channel.
+
+    Returns
+    -------
+    NDArray
+        Reshaped stats.
+    """
+    return np.array(stats)[(..., *[np.newaxis] * (ndim - 1))]
 
 
 class Normalize(Transform):
@@ -19,24 +41,24 @@ class Normalize(Transform):
 
     Parameters
     ----------
-    image_means : List[float]
+    image_means : list of float
         Mean value per channel.
-    image_stds : List[float]
+    image_stds : list of float
         Standard deviation value per channel.
-    target_means : Optional[List[float]], optional
+    target_means : list of float, optional
         Target mean value per channel, by default None.
-    target_stds : Optional[List[float]], optional
+    target_stds : list of float, optional
         Target standard deviation value per channel, by default None.
 
     Attributes
     ----------
-    image_means : list[float]
+    image_means : list of float
         Mean value per channel.
-    image_stds : list[float]
+    image_stds : list of float
         Standard deviation value per channel.
-    target_means : Optional[list[float]], optional
+    target_means :list of float, optional
         Target mean value per channel, by default None.
-    target_stds : Optional[list[float]], optional
+    target_stds : list of float, optional
         Target standard deviation value per channel, by default None.
     """
 
@@ -51,13 +73,13 @@ class Normalize(Transform):
 
         Parameters
         ----------
-        image_means : list[float]
+        image_means : list of float
             Mean value per channel.
-        image_stds : list[float]
+        image_stds : list of float
             Standard deviation value per channel.
-        target_means : Optional[list[float]], optional
+        target_means : list of float, optional
             Target mean value per channel, by default None.
-        target_stds : Optional[list[float]], optional
+        target_stds : list of float, optional
             Target standard deviation value per channel, by default None.
         """
         self.image_means = image_means
@@ -68,61 +90,63 @@ class Normalize(Transform):
         self.eps = 1e-6
 
     def __call__(
-        self, patch: np.ndarray, target: Optional[np.ndarray] = None
-    ) -> tuple[np.ndarray, Optional[np.ndarray]]:
+        self, patch: np.ndarray, target: Optional[NDArray] = None
+    ) -> tuple[NDArray, Optional[NDArray]]:
         """Apply the transform to the source patch and the target (optional).
 
         Parameters
         ----------
-        patch : np.ndarray
+        patch : NDArray
             Patch, 2D or 3D, shape C(Z)YX.
-        target : Optional[np.ndarray], optional
+        target : NDArray, optional
             Target for the patch, by default None.
 
         Returns
         -------
-        Tuple[np.ndarray, Optional[np.ndarray]]
-            Transformed patch and target.
+        tuple of NDArray
+            Transformed patch and target, the target can be returned as `None`.
         """
-        assert (
-            len(self.image_means) == patch.shape[0]
-        ), "Number of means and number of channels do not match."
-        means = np.array(self.image_means)[(..., *[np.newaxis] * (patch.ndim - 1))]
-        stds = np.array(self.image_stds)[(..., *[np.newaxis] * (patch.ndim - 1))]
+        if len(self.image_means) != patch.shape[0]:
+            raise ValueError(
+                f"Number of means (got a list of size {len(self.image_means)}) and "
+                f"number of channels (got shape {patch.shape} for C(Z)YX) do not match."
+            )
+
+        # reshape mean and std and apply the normalization to the patch
+        means = _reshape_stats(self.image_means, patch.ndim)
+        stds = _reshape_stats(self.image_stds, patch.ndim)
         norm_patch = self._apply(patch, means, stds)
 
-        if target is not None:
-            target_means = np.array(self.target_means)[
-                (..., *[np.newaxis] * (target.ndim - 1))
-            ]
-            target_stds = np.array(self.target_stds)[
-                (..., *[np.newaxis] * (target.ndim - 1))
-            ]
-            norm_target = self._apply(target, means, stds)
+        # same for the target patch
+        if (
+            target is not None
+            and self.target_means is not None
+            and self.target_stds is not None
+        ):
+            target_means = _reshape_stats(self.target_means, target.ndim)
+            target_stds = _reshape_stats(self.target_stds, target.ndim)
             norm_target = self._apply(target, target_means, target_stds)
         else:
             norm_target = None
 
         return norm_patch, norm_target
 
-    def _apply(
-        self, patch: np.ndarray, mean: np.ndarray, std: np.ndarray
-    ) -> np.ndarray:
+    def _apply(self, patch: NDArray, mean: NDArray, std: NDArray) -> NDArray:
         """
         Apply the transform to the image.
 
         Parameters
         ----------
-        patch : np.ndarray
+        patch : NDArray
             Image patch, 2D or 3D, shape C(Z)YX.
-        mean : float
-            Mean value.
-        std : float
-            Standard deviation.
+        mean : NDArray
+            Mean values.
+        std : NDArray
+            Standard deviations.
 
         Returns
         -------
-        np.ndarray
+        NDArray
             Normalized image patch.
         """
         return ((patch - mean) / (std + self.eps)).astype(np.float32)
@@ -141,25 +165,25 @@ class Denormalize:
 
     Parameters
     ----------
-    image_means : Tuple[float]
+    image_means : list or tuple of float
         Mean value per channel.
-    image_stds : Tuple[float]
+    image_stds : list or tuple of float
         Standard deviation value per channel.
 
     """
 
     def __init__(
         self,
-        image_means: Union[list[float], tuple[float]],
-        image_stds: Union[list[float], tuple[float]],
+        image_means: list[float],
+        image_stds: list[float],
     ):
         """Constructor.
 
         Parameters
         ----------
-        image_means : Union[list[float], tuple[float]]
+        image_means : list of float
             Mean value per channel.
-        image_stds : Union[list[float], tuple[float]]
+        image_stds : list of float
             Standard deviation value per channel.
         """
         self.image_means = image_means
@@ -167,50 +191,53 @@ class Denormalize:
 
         self.eps = 1e-6
 
-    def __call__(self, patch: np.ndarray) -> np.ndarray:
+    def __call__(self, patch: NDArray) -> NDArray:
         """Reverse the normalization operation for a batch of patches.
 
         Parameters
         ----------
-        patch : np.ndarray
+        patch : NDArray
             Patch, 2D or 3D, shape BC(Z)YX.
 
         Returns
         -------
-        Tuple[np.ndarray]
+        NDArray
             Transformed array.
         """
-        assert (
-            len(self.image_means) == patch.shape[1]
-        ), "Number of means and number of channels do not match."
+        if len(self.image_means) != patch.shape[1]:
+            raise ValueError(
+                f"Number of means (got a list of size {len(self.image_means)}) and "
+                f"number of channels (got shape {patch.shape} for BC(Z)YX) do not "
+                f"match."
+            )
 
-        means = np.array(self.image_means)[(..., *[np.newaxis] * (patch.ndim - 1))]
-        stds = np.array(self.image_stds)[(..., *[np.newaxis] * (patch.ndim - 1))]
+        means = _reshape_stats(self.image_means, patch.ndim)
+        stds = _reshape_stats(self.image_stds, patch.ndim)
 
         denorm_array = self._apply(
-            patch, np.swapaxes(means, 0, 1), np.swapaxes(stds, 0, 1)
+            patch,
+            np.swapaxes(means, 0, 1),  # swap axes as C channel is axis 1
+            np.swapaxes(stds, 0, 1),
         )
 
         return denorm_array.astype(np.float32)
 
-    def _apply(
-        self, array: np.ndarray, mean: np.ndarray, std: np.ndarray
-    ) -> np.ndarray:
+    def _apply(self, array: NDArray, mean: NDArray, std: NDArray) -> NDArray:
         """
         Apply the transform to the image.
 
         Parameters
         ----------
-        array : np.ndarray
+        array : NDArray
             Image patch, 2D or 3D, shape C(Z)YX.
-        mean : float
-            Mean value.
-        std : float
-            Standard deviation.
+        mean : NDArray
+            Mean values.
+        std : NDArray
+            Standard deviations.
 
         Returns
         -------
-        np.ndarray
+        NDArray
             Denormalized image array.
         """
         return array * (std + self.eps) + mean

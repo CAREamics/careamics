@@ -3,6 +3,41 @@ import pytest
 
 from careamics.dataset.dataset_utils import compute_normalization_stats
 from careamics.transforms import Denormalize, Normalize
+from careamics.transforms.normalize import _reshape_stats
+
+
+@pytest.mark.parametrize("ndim", [3, 4])
+def test_reshape_stats(ndim):
+    """Test that reshape stats allows a list of float to be broadcasted to a given
+    number of dimensions."""
+    shape = (4,) + (8,) * (ndim - 1)
+    assert len(shape) == ndim
+
+    # create stats
+    stats = [(i + 1) for i in range(shape[0])]
+
+    # create test array
+    array = np.ones(shape)
+
+    # reshape and check that you can perform simple operations without error
+    reshaped = _reshape_stats(stats, ndim)
+    assert reshaped.shape == (shape[0],) + (1,) * (ndim - 1)
+
+    mult = array * reshaped
+    for i in range(shape[0]):
+        assert (mult[i] == 1 * stats[i]).all()
+
+    add = array + reshaped
+    for i in range(shape[0]):
+        assert (add[i] == 1 + stats[i]).all()
+
+    sub = array - reshaped
+    for i in range(shape[0]):
+        assert (sub[i] == 1 - stats[i]).all()
+
+    div = array / reshaped
+    for i in range(shape[0]):
+        assert (div[i] == 1 / stats[i]).all()
 
 
 @pytest.mark.parametrize("channels", [1, 2])
