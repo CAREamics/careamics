@@ -356,7 +356,7 @@ class CAREamist:
 
             else:
                 raise ValueError(
-                    f"Invalid input, expected a str, Path, array or CAREamicsWood "
+                    f"Invalid input, expected a str, Path, array or CAREamicsTrainData "
                     f"instance (got {type(train_source)})."
                 )
 
@@ -478,7 +478,7 @@ class CAREamist:
         source: CAREamicsPredictData,
         *,
         checkpoint: Optional[Literal["best", "last"]] = None,
-    ) -> Union[list, NDArray]: ...
+    ) -> Union[list[NDArray], NDArray]: ...
 
     @overload
     def predict(  # numpydoc ignore=GL08
@@ -495,7 +495,7 @@ class CAREamist:
         read_source_func: Optional[Callable] = None,
         extension_filter: str = "",
         checkpoint: Optional[Literal["best", "last"]] = None,
-    ) -> Union[list, NDArray]: ...
+    ) -> Union[list[NDArray], NDArray]: ...
 
     @overload
     def predict(  # numpydoc ignore=GL08
@@ -510,7 +510,7 @@ class CAREamist:
         tta_transforms: bool = True,
         dataloader_params: Optional[Dict] = None,
         checkpoint: Optional[Literal["best", "last"]] = None,
-    ) -> Union[list, NDArray]: ...
+    ) -> Union[list[NDArray], NDArray]: ...
 
     def predict(
         self,
@@ -531,7 +531,8 @@ class CAREamist:
         """
         Make predictions on the provided data.
 
-        Input can be a CAREamicsClay instance, a path to a data file, or a numpy array.
+        Input can be a CAREamicsPredData instance, a path to a data file, or a numpy
+        array.
 
         If `data_type`, `axes` and `tile_size` are not provided, the training
         configuration parameters will be used, with the `patch_size` instead of
@@ -650,7 +651,7 @@ class CAREamist:
 
             else:
                 raise ValueError(
-                    f"Invalid input. Expected a CAREamicsWood instance, paths or "
+                    f"Invalid input. Expected a CAREamicsPredData instance, paths or "
                     f"NDArray (got {type(source)})."
                 )
 
