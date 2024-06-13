@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pprint import pformat
-from typing import Any, List, Literal, Optional, Union
+from typing import Any, Literal, Optional, Union
 
 from pydantic import (
     BaseModel,
@@ -17,7 +17,6 @@ from typing_extensions import Annotated, Self
 
 from .support import SupportedTransform
 from .transformations.n2v_manipulate_model import N2VManipulateModel
-from .transformations.normalize_model import NormalizeModel
 from .transformations.xy_flip_model import XYFlipModel
 from .transformations.xy_random_rotate90_model import XYRandomRotate90Model
 from .validators import check_axes_validity, patch_size_ge_than_8_power_of_2
@@ -26,7 +25,6 @@ TRANSFORMS_UNION = Annotated[
     Union[
         XYFlipModel,
         XYRandomRotate90Model,
-        NormalizeModel,
         N2VManipulateModel,
     ],
     Discriminator("name"),  # used to tell the different transform models apart
@@ -67,11 +65,6 @@ class DataConfig(BaseModel):
     ...     axes="YX",
     ...     transforms=[
     ...         {
-    ...             "name": SupportedTransform.NORMALIZE.value,
-    ...             "mean": 167.6,
-    ...             "std": 47.2,
-    ...         },
-    ...         {
     ...             "name": "XYFlip",
     ...         }
     ...     ]
@@ -85,7 +78,7 @@ class DataConfig(BaseModel):
 
     # Dataset configuration
     data_type: Literal["array", "tiff", "custom"]  # As defined in SupportedData
-    patch_size: Union[List[int]] = Field(..., min_length=2, max_length=3)
+    patch_size: list[int] = Field(..., min_length=2, max_length=3)
     batch_size: int = Field(default=1, ge=1, validate_default=True)
     axes: str
 
@@ -93,11 +86,8 @@ class DataConfig(BaseModel):
     mean: Optional[float] = None
     std: Optional[float] = None
 
-    transforms: List[TRANSFORMS_UNION] = Field(
+    transforms: list[TRANSFORMS_UNION] = Field(
         default=[
-            {
-                "name": SupportedTransform.NORMALIZE.value,
-            },
             {
                 "name": SupportedTransform.XY_FLIP.value,
             },
@@ -115,9 +105,7 @@ class DataConfig(BaseModel):
 
     @field_validator("patch_size")
     @classmethod
-    def all_elements_power_of_2_minimum_8(
-        cls, patch_list: Union[List[int]]
-    ) -> Union[List[int]]:
+    def all_elements_power_of_2_minimum_8(cls, patch_list: list[int]) -> list[int]:
         """
         Validate patch size.
 
@@ -125,12 +113,12 @@ class DataConfig(BaseModel):
 
         Parameters
         ----------
-        patch_list : Union[List[int]]
+        patch_list : list[int]
             Patch size.
 
         Returns
         -------
-        Union[List[int]]
+        list[int]
             Validated patch size.
 
         Raises
@@ -180,19 +168,19 @@ class DataConfig(BaseModel):
     @field_validator("transforms")
     @classmethod
     def validate_prediction_transforms(
-        cls, transforms: List[TRANSFORMS_UNION]
-    ) -> List[TRANSFORMS_UNION]:
+        cls, transforms: list[TRANSFORMS_UNION]
+    ) -> list[TRANSFORMS_UNION]:
         """
         Validate N2VManipulate transform position in the transform list.
 
         Parameters
         ----------
-        transforms : List[Transformations_Union]
+        transforms : list[Transformations_Union]
             Transforms.
 
         Returns
         -------
-        List[TRANSFORMS_UNION]
+        list[TRANSFORMS_UNION]
             Validated transforms.
 
         Raises
@@ -239,25 +227,6 @@ class DataConfig(BaseModel):
             raise ValueError(
                 "Mean and std must be either both None, or both specified."
             )
-
-        return self
-
-    @model_validator(mode="after")
-    def add_std_and_mean_to_normalize(self: Self) -> Self:
-        """
-        Add mean and std to the Normalize transform if it is present.
-
-        Returns
-        -------
-        Self
-            Data model with mean and std added to the Normalize transform.
-        """
-        if self.mean is not None and self.std is not None:
-            # search in the transforms for Normalize and update parameters
-            for transform in self.transforms:
-                if transform.name == SupportedTransform.NORMALIZE.value:
-                    transform.mean = self.mean
-                    transform.std = self.std
 
         return self
 
@@ -357,7 +326,7 @@ class DataConfig(BaseModel):
         """
         self._update(mean=mean, std=std)
 
-    def set_3D(self, axes: str, patch_size: List[int]) -> None:
+    def set_3D(self, axes: str, patch_size: list[int]) -> None:
         """
         Set 3D parameters.
 
@@ -365,7 +334,7 @@ class DataConfig(BaseModel):
         ----------
         axes : str
             Axes.
-        patch_size : List[int]
+        patch_size : list[int]
             Patch size.
         """
         self._update(axes=axes, patch_size=patch_size)
