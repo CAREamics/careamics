@@ -100,3 +100,17 @@ def get_mean_std_dict_for_model(config, train_dset):
     mean_dict, std_dict = train_dset.get_mean_std()
 
     return deepcopy(mean_dict), deepcopy(std_dict)
+
+
+class MetricMonitor:
+    def __init__(self, metric):
+        assert metric in ['val_loss', 'val_psnr']
+        self.metric = metric
+
+    def mode(self):
+        if self.metric == 'val_loss':
+            return 'min'
+        elif self.metric == 'val_psnr':
+            return 'max'
+        else:
+            raise ValueError(f'Invalid metric:{self.metric}')
