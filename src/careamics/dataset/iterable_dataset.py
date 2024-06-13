@@ -127,33 +127,33 @@ class PathIterableDataset(IterableDataset):
         PatchedOutput
             Data class containing the image statistics.
         """
-        image_means, image_stds, target_means, target_stds = 0, 0, 0, 0
+        image_means = image_stds = target_means = target_stds = []
         num_samples = 0
 
         for sample, target in iterate_over_files(
             self.data_config, self.data_files, self.target_files, self.read_source_func
         ):
             sample_mean, sample_std = compute_normalization_stats(sample)
-            image_means += sample_mean
-            image_stds += sample_std
+            image_means.append(sample_mean)
+            image_stds.append(sample_std)
 
             if target is not None:
                 target_mean, target_std = compute_normalization_stats(target)
-                target_means += target_mean
-                target_stds += target_std
+                target_means.append(target_mean)
+                target_stds.append(target_std)
 
             num_samples += 1
 
         if num_samples == 0:
             raise ValueError("No samples found in the dataset.")
 
-        # Average the means and stds per channel
-        for ch in range(sample.shape[0]):
-            image_means[ch] /= num_samples
-            image_stds[ch] /= num_samples
-            if target is not None:
-                target_means[ch] /= num_samples
-                target_stds[ch] /= num_samples
+        # Average the means and stds per sample
+        image_means = np.mean(image_means, axis=0)
+        image_stds = np.mean([std**2 for std in image_stds], axis=0)
+
+        if target is not None:
+            target_means = np.mean(target_means, axis=0)
+            target_stds = np.mean([std**2 for std in image_stds], axis=0)
 
         logger.info(f"Calculated mean and std for {num_samples} images")
         logger.info(f"Mean: {image_means}, std: {image_stds}")
