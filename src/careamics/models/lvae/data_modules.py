@@ -214,10 +214,9 @@ class MultiChDloader:
             #     self._std_background_arr = None
 
         else:
-
             self.set_img_sz(
                 data_config.image_size,
-                data_config.val_grid_size if 'val_grid_size' in data_config else data_config.image_size
+                data_config.grid_size if 'grid_size' in data_config else data_config.image_size
             )
 
         self._return_alpha = False
