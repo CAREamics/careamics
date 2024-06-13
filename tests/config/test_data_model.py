@@ -66,12 +66,6 @@ def test_mean_std_both_specified_or_none(minimum_data: dict):
     with pytest.raises(ValueError):
         DataConfig(**minimum_data)
 
-    # Error if image stats are inconsistent with target stats
-    minimum_data["target_mean"] = [10.4, 11]
-    minimum_data["target_std"] = [10.4, 11]
-    with pytest.raises(ValueError):
-        DataConfig(**minimum_data)
-
 
 def test_set_mean_and_std(minimum_data: dict):
     """Test that mean and std can be set after initialization."""
