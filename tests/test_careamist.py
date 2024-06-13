@@ -7,7 +7,7 @@ import tifffile
 
 from careamics import CAREamist, Configuration, save_configuration
 from careamics.config.support import SupportedAlgorithm, SupportedData
-from careamics.dataset.tiling import extract_tiles, stitch_prediction
+from careamics.dataset.tiling import extract_tiles, stitch_prediction_single
 
 def random_array(shape: Tuple[int, ...], seed: int = 42):
     """Return a random array with values between 0 and 255."""
@@ -609,7 +609,7 @@ def test_stitch_prediction_loop(    tmp_path: Path, minimum_configuration: dict,
     sample_id = 0
     for tile, tile_info in all_tiles:
         # predict each tile individually
-        predicted_tile = careamist.predict(tile, axes="CYX")[0] # output with sample dims
+        predicted_tile = careamist.predict(tile, axes="CYX")
 
         # create lists mimicking the output of the prediction loop
         tiles.append(predicted_tile)
@@ -617,7 +617,7 @@ def test_stitch_prediction_loop(    tmp_path: Path, minimum_configuration: dict,
 
         # if we reached the last tile
         if tile_info.last_tile:
-            result = stitch_prediction(tiles, tile_infos)
+            result = stitch_prediction_single(tiles, tile_infos)
 
             # check equality with the correct sample
             assert np.array_equal(result.squeeze(), predicted[sample_id].squeeze())
