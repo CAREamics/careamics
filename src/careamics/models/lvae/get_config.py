@@ -30,7 +30,7 @@ def get_config():
     
     data = config.data
     data.image_size = 128 # the patch size
-    data.grid_size = 32 # the retained sub-patch when doing inner tiling
+    # data.grid_size = 32 # the retained sub-patch when doing inner tiling
     data.multiscale_lowres_count = None # todo: this one will be an issue in current careamics
     data.num_channels = 2 # in careamics probably in lvae pydantic model
     
