@@ -647,7 +647,7 @@ class CAREamist:
         # not sure if necessary
         if len(predictions) == 0:
             return predictions
-        is_tiled = len(predictions[0]) == 2
+        is_tiled = tile_size is not None
         if is_tiled:
             # "de-collate"
             tile_infos = [
@@ -657,11 +657,12 @@ class CAREamist:
             ]
             predictions = torch.concatenate([preds for preds, _ in predictions])
             # convert to numpy
-            predictions = predictions.cpu().numpy()
+            predictions = predictions.numpy()
             predictions = stitch_prediction(predictions, tile_infos)
         else:
             # convert to numpy
-            predictions = [pred.cpu().numpy() for pred in predictions]
+            predictions = torch.concatenate(predictions)
+            predictions = predictions.numpy()
 
         # don't return list if single image
         if len(predictions) == 1:
