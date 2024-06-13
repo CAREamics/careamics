@@ -11,7 +11,7 @@ from typing import Dict
 import torch
 from torch.utils.data import DataLoader
 import pytorch_lightning as pl
-from pytorch_lightning.callbacks import ModelCheckpoint
+from pytorch_lightning.callbacks import ModelCheckpoint, LearningRateMonitor
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 from pytorch_lightning.loggers import WandbLogger
 from absl import app, flags
@@ -25,7 +25,6 @@ from careamics.models.lvae.data_modules import (
     LCMultiChDloader,
     MultiChDloader
 )
-from careamics.models.lvae.metrics import MetricMonitor
 from careamics.models.lvae.train_utils import *
 
 FLAGS = flags.FLAGS
@@ -203,6 +202,7 @@ def create_model_and_train(
             mode=estop_mode
         ),
         checkpoint_callback,
+        LearningRateMonitor(logging_interval='epoch'),
     ]
 
     logger.experiment.config.update(config.to_dict())
