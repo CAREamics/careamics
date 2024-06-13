@@ -529,7 +529,8 @@ def test_predict_on_array_tiled(
     assert (tmp_path / "model.zip").exists()
 
 
-def test_predict_arrays_no_tiling(tmp_path: Path, minimum_configuration: dict):
+@pytest.mark.parametrize("batch_size", [1, 2])
+def test_predict_arrays_no_tiling(tmp_path: Path, minimum_configuration: dict, batch_size:int):
     """Test that CAREamics can predict on arrays without tiling."""
     # training data
     train_array = random_array((4, 32, 32))
@@ -549,7 +550,7 @@ def test_predict_arrays_no_tiling(tmp_path: Path, minimum_configuration: dict):
     careamist.train(train_source=train_array)
 
     # predict CAREamist
-    predicted = careamist.predict(train_array)
+    predicted = careamist.predict(train_array, batch_size=batch_size)
     predicted_squeeze = [p.squeeze() for p in predicted]
 
     assert np.array(predicted_squeeze).shape == train_array.shape
