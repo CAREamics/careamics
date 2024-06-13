@@ -1,6 +1,6 @@
 """Normalization and denormalization transforms for image patches."""
 
-from typing import List, Optional, Tuple
+from typing import Optional, Union
 
 import numpy as np
 
@@ -30,34 +30,34 @@ class Normalize(Transform):
 
     Attributes
     ----------
-    image_means : List[float]
+    image_means : list[float]
         Mean value per channel.
-    image_stds : List[float]
+    image_stds : list[float]
         Standard deviation value per channel.
-    target_means : Optional[List[float]], optional
+    target_means : Optional[list[float]], optional
         Target mean value per channel, by default None.
-    target_stds : Optional[List[float]], optional
+    target_stds : Optional[list[float]], optional
         Target standard deviation value per channel, by default None.
     """
 
     def __init__(
         self,
-        image_means: List[float],
-        image_stds: List[float],
-        target_means: Optional[List[float]] = None,
-        target_stds: Optional[List[float]] = None,
+        image_means: list[float],
+        image_stds: list[float],
+        target_means: Optional[list[float]] = None,
+        target_stds: Optional[list[float]] = None,
     ):
         """Constructor.
 
         Parameters
         ----------
-        image_means : List[float]
+        image_means : list[float]
             Mean value per channel.
-        image_stds : List[float]
+        image_stds : list[float]
             Standard deviation value per channel.
-        target_means : Optional[List[float]], optional
+        target_means : Optional[list[float]], optional
             Target mean value per channel, by default None.
-        target_stds : Optional[List[float]], optional
+        target_stds : Optional[list[float]], optional
             Target standard deviation value per channel, by default None.
         """
         self.image_means = image_means
@@ -69,7 +69,7 @@ class Normalize(Transform):
 
     def __call__(
         self, patch: np.ndarray, target: Optional[np.ndarray] = None
-    ) -> Tuple[np.ndarray, Optional[np.ndarray]]:
+    ) -> tuple[np.ndarray, Optional[np.ndarray]]:
         """Apply the transform to the source patch and the target (optional).
 
         Parameters
@@ -150,16 +150,16 @@ class Denormalize:
 
     def __init__(
         self,
-        image_means: Tuple[float],
-        image_stds: Tuple[float],
+        image_means: Union[list[float], tuple[float]],
+        image_stds: Union[list[float], tuple[float]],
     ):
         """Constructor.
 
         Parameters
         ----------
-        image_means : Tuple[float]
+        image_means : Union[list[float], tuple[float]]
             Mean value per channel.
-        image_stds : Tuple[float]
+        image_stds : Union[list[float], tuple[float]]
             Standard deviation value per channel.
         """
         self.image_means = image_means

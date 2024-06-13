@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pprint import pformat
-from typing import Any, List, Literal, Optional, Union
+from typing import Any, Literal, Optional, Union
 
 import numpy as np
 from pydantic import (
@@ -88,17 +88,17 @@ class DataConfig(BaseModel):
 
     # Dataset configuration
     data_type: Literal["array", "tiff", "custom"]  # As defined in SupportedData
-    patch_size: Union[List[int]] = Field(..., min_length=2, max_length=3)
+    patch_size: Union[list[int]] = Field(..., min_length=2, max_length=3)
     batch_size: int = Field(default=1, ge=1, validate_default=True)
     axes: str
 
     # Optional fields
-    image_mean: Optional[tuple] = Field(default=[], min_length=0, max_length=32)
-    image_std: Optional[tuple] = Field(default=[], min_length=0, max_length=32)
-    target_mean: Optional[tuple] = Field(default=[], min_length=0, max_length=32)
-    target_std: Optional[tuple] = Field(default=[], min_length=0, max_length=32)
+    image_mean: Optional[list] = Field(default=None, min_length=0, max_length=32)
+    image_std: Optional[list] = Field(default=None, min_length=0, max_length=32)
+    target_mean: Optional[list] = Field(default=None, min_length=0, max_length=32)
+    target_std: Optional[list] = Field(default=None, min_length=0, max_length=32)
 
-    transforms: List[TRANSFORMS_UNION] = Field(
+    transforms: list[TRANSFORMS_UNION] = Field(
         default=[
             {
                 "name": SupportedTransform.NORMALIZE.value,
@@ -121,8 +121,8 @@ class DataConfig(BaseModel):
     @field_validator("patch_size")
     @classmethod
     def all_elements_power_of_2_minimum_8(
-        cls, patch_list: Union[List[int]]
-    ) -> Union[List[int]]:
+        cls, patch_list: Union[list[int]]
+    ) -> Union[list[int]]:
         """
         Validate patch size.
 
@@ -130,12 +130,12 @@ class DataConfig(BaseModel):
 
         Parameters
         ----------
-        patch_list : Union[List[int]]
+        patch_list : list of int
             Patch size.
 
         Returns
         -------
-        Union[List[int]]
+        list of int
             Validated patch size.
 
         Raises
@@ -185,8 +185,8 @@ class DataConfig(BaseModel):
     @field_validator("transforms")
     @classmethod
     def validate_prediction_transforms(
-        cls, transforms: List[TRANSFORMS_UNION]
-    ) -> List[TRANSFORMS_UNION]:
+        cls, transforms: list[TRANSFORMS_UNION]
+    ) -> list[TRANSFORMS_UNION]:
         """
         Validate N2VManipulate transform position in the transform list.
 
@@ -197,7 +197,7 @@ class DataConfig(BaseModel):
 
         Returns
         -------
-        List[TRANSFORMS_UNION]
+        list of transforms
             Validated transforms.
 
         Raises
@@ -375,8 +375,8 @@ class DataConfig(BaseModel):
         self,
         image_mean: Union[np.ndarray, tuple, list, None],
         image_std: Union[np.ndarray, tuple, list, None],
-        target_mean: Optional[Union[np.ndarray, tuple, list, None]] = (),
-        target_std: Optional[Union[np.ndarray, tuple, list, None]] = (),
+        target_mean: Optional[Union[np.ndarray, tuple, list, None]] = None,
+        target_std: Optional[Union[np.ndarray, tuple, list, None]] = None,
     ) -> None:
         """
         Set mean and standard deviation of the data.
@@ -386,15 +386,25 @@ class DataConfig(BaseModel):
 
         Parameters
         ----------
-        image_mean : Union[np.ndarray, tuple, list, None]
+        image_mean : np.ndarray or tuple or list
             Mean value for normalization.
-        image_std : Union[np.ndarray, tuple, list, None]
+        image_std : np.ndarray or tuple or list
             Standard deviation value for normalization.
-        target_mean : Optional[Union[np.ndarray, tuple, list, None]], optional
+        target_mean : np.ndarray or tuple or list, optional
             Target mean value for normalization, by default ().
-        target_std : Optional[Union[np.ndarray, tuple, list, None]], optional
+        target_std : np.ndarray or tuple or list, optional
             Target standard deviation value for normalization, by default ().
         """
+        # make sure we pass a list
+        if image_mean is not None:
+            image_mean = list(image_mean)
+        if image_std is not None:
+            image_std = list(image_std)
+        if target_mean is not None:
+            target_mean = list(target_mean)
+        if target_std is not None:
+            target_std = list(target_std)
+
         self._update(
             image_mean=image_mean,
             image_std=image_std,
@@ -402,7 +412,7 @@ class DataConfig(BaseModel):
             target_std=target_std,
         )
 
-    def set_3D(self, axes: str, patch_size: List[int]) -> None:
+    def set_3D(self, axes: str, patch_size: list[int]) -> None:
         """
         Set 3D parameters.
 
@@ -410,7 +420,7 @@ class DataConfig(BaseModel):
         ----------
         axes : str
             Axes.
-        patch_size : List[int]
+        patch_size : list of int
             Patch size.
         """
         self._update(axes=axes, patch_size=patch_size)
