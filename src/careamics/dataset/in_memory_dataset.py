@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import copy
 from pathlib import Path
-from typing import Any, Callable, List, Optional, Tuple, Union
+from typing import Any, Callable, Optional, Union
 
 import numpy as np
 from torch.utils.data import Dataset
@@ -12,6 +12,7 @@ from torch.utils.data import Dataset
 from careamics.transforms import Compose
 
 from ..config import DataConfig
+from ..config.transformations import NormalizeModel
 from ..utils.logging import get_logger
 from .dataset_utils import read_tiff
 from .patching.patching import (
@@ -30,11 +31,12 @@ class InMemoryDataset(Dataset):
 
     Parameters
     ----------
-    data_config : DataConfig
+    data_config : CAREamics DataConfig
+        (see careamics.config.data_model.DataConfig)
         Data configuration.
-    inputs : Union[np.ndarray, List[Path]]
+    inputs : numpy.ndarray or list[pathlib.Path]
         Input data.
-    input_target : Optional[Union[np.ndarray, List[Path]]], optional
+    input_target : numpy.ndarray or list[pathlib.Path], optional
         Target data, by default None.
     read_source_func : Callable, optional
         Read source function for custom types, by default read_tiff.
@@ -45,8 +47,8 @@ class InMemoryDataset(Dataset):
     def __init__(
         self,
         data_config: DataConfig,
-        inputs: Union[np.ndarray, List[Path]],
-        input_target: Optional[Union[np.ndarray, List[Path]]] = None,
+        inputs: Union[np.ndarray, list[Path]],
+        input_target: Optional[Union[np.ndarray, list[Path]]] = None,
         read_source_func: Callable = read_tiff,
         **kwargs: Any,
     ) -> None:
@@ -57,9 +59,9 @@ class InMemoryDataset(Dataset):
         ----------
         data_config : DataConfig
             Data configuration.
-        inputs : Union[np.ndarray, List[Path]]
+        inputs : numpy.ndarray or list[pathlib.Path]
             Input data.
-        input_target : Optional[Union[np.ndarray, List[Path]]], optional
+        input_target : numpy.ndarray or list[pathlib.Path], optional
             Target data, by default None.
         read_source_func : Callable, optional
             Read source function for custom types, by default read_tiff.
@@ -116,7 +118,8 @@ class InMemoryDataset(Dataset):
         )
         # get transforms
         self.patch_transform = Compose(
-            transform_list=self.data_config.transforms,
+            transform_list=[NormalizeModel(mean=self.mean, std=self.std)]
+            + self.data_config.transforms,
         )
 
     def _prepare_patches(self, supervised: bool) -> PatchedOutput:
@@ -130,7 +133,7 @@ class InMemoryDataset(Dataset):
 
         Returns
         -------
-        np.ndarray
+        numpy.ndarray
             Array of patches.
         """
         if supervised:
@@ -183,7 +186,7 @@ class InMemoryDataset(Dataset):
         """
         return self.data.shape[0]
 
-    def __getitem__(self, index: int) -> Tuple[np.ndarray, ...]:
+    def __getitem__(self, index: int) -> tuple[np.ndarray, ...]:
         """
         Return the patch corresponding to the provided index.
 
@@ -194,7 +197,7 @@ class InMemoryDataset(Dataset):
 
         Returns
         -------
-        Tuple[np.ndarray]
+        tuple of numpy.ndarray
             Patch.
 
         Raises
@@ -237,7 +240,7 @@ class InMemoryDataset(Dataset):
 
         Returns
         -------
-        InMemoryDataset
+        CAREamics InMemoryDataset
             New dataset with the extracted patches.
 
         Raises

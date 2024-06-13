@@ -4,12 +4,13 @@ from __future__ import annotations
 
 import copy
 from pathlib import Path
-from typing import Callable, Generator, List, Optional, Tuple
+from typing import Callable, Generator, Optional
 
 import numpy as np
 from torch.utils.data import IterableDataset
 
 from careamics.config import DataConfig
+from careamics.config.transformations import NormalizeModel
 from careamics.transforms import Compose
 
 from ..utils.logging import get_logger
@@ -28,38 +29,36 @@ class PathIterableDataset(IterableDataset):
     ----------
     data_config : DataConfig
         Data configuration.
-    src_files : List[Path]
+    src_files : list[Path]
         List of data files.
-    target_files : Optional[List[Path]], optional
+    target_files : list[Path] or None, optional
         Optional list of target files, by default None.
     read_source_func : Callable, optional
         Read source function for custom types, by default read_tiff.
 
     Attributes
     ----------
-    data_path : List[Path]
+    data_path : list[Path]
         Path to the data, must be a directory.
     axes : str
         Description of axes in format STCZYX.
-    patch_extraction_method : Union[ExtractionStrategies, None]
-        Patch extraction strategy, as defined in extraction_strategy.
-    patch_size : Optional[Union[List[int], Tuple[int]]], optional
+    patch_size : list[int] or tuple[int] or None, optional
         Size of the patches in each dimension, by default None.
-    patch_overlap : Optional[Union[List[int], Tuple[int]]], optional
+    patch_overlap : list[int] or tuple[int] or None, optional
         Overlap of the patches in each dimension, by default None.
-    mean : Optional[float], optional
+    mean : float or None, optional
         Expected mean of the dataset, by default None.
-    std : Optional[float], optional
+    std : float or None, optional
         Expected standard deviation of the dataset, by default None.
-    patch_transform : Optional[Callable], optional
+    patch_transform : Callable or None, optional
         Patch transform callable, by default None.
     """
 
     def __init__(
         self,
         data_config: DataConfig,
-        src_files: List[Path],
-        target_files: Optional[List[Path]] = None,
+        src_files: list[Path],
+        target_files: Optional[list[Path]] = None,
         read_source_func: Callable = read_tiff,
     ) -> None:
         """Constructors.
@@ -68,9 +67,9 @@ class PathIterableDataset(IterableDataset):
         ----------
         data_config : DataConfig
             Data configuration.
-        src_files : List[Path]
+        src_files : list[Path]
             List of data files.
-        target_files : Optional[List[Path]], optional
+        target_files : list[Path] or None, optional
             Optional list of target files, by default None.
         read_source_func : Callable, optional
             Read source function for custom types, by default read_tiff.
@@ -114,7 +113,12 @@ class PathIterableDataset(IterableDataset):
             )
 
         # get transforms
-        self.patch_transform = Compose(transform_list=data_config.transforms)
+        self.patch_transform = Compose(
+            transform_list=[
+                NormalizeModel(mean=self.mean, std=self.std),
+            ]
+            + data_config.transforms
+        )
 
     def _calculate_mean_and_std(self) -> StatsOutput:
         """
@@ -165,7 +169,7 @@ class PathIterableDataset(IterableDataset):
 
     def __iter__(
         self,
-    ) -> Generator[Tuple[np.ndarray, ...], None, None]:
+    ) -> Generator[tuple[np.ndarray, ...], None, None]:
         """
         Iterate over data source and yield single patch.
 

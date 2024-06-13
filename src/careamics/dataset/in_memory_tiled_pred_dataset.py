@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-from typing import List, Tuple
-
-import numpy as np
+from numpy.typing import NDArray
 from torch.utils.data import Dataset
 
 from careamics.transforms import Compose
@@ -23,14 +21,14 @@ class InMemoryTiledPredDataset(Dataset):
     ----------
     prediction_config : InferenceConfig
         Prediction configuration.
-    inputs : np.ndarray
+    inputs : NDArray
         Input data.
     """
 
     def __init__(
         self,
         prediction_config: InferenceConfig,
-        inputs: np.ndarray,
+        inputs: NDArray,
     ) -> None:
         """Constructor.
 
@@ -38,7 +36,7 @@ class InMemoryTiledPredDataset(Dataset):
         ----------
         prediction_config : InferenceConfig
             Prediction configuration.
-        inputs : np.ndarray
+        inputs : NDArray
             Input data.
 
         Raises
@@ -73,14 +71,14 @@ class InMemoryTiledPredDataset(Dataset):
             ],
         )
 
-    def _prepare_tiles(self) -> List[Tuple[np.ndarray, TileInformation]]:
+    def _prepare_tiles(self) -> list[tuple[NDArray, TileInformation]]:
         """
         Iterate over data source and create an array of patches.
 
         Returns
         -------
-        List[XArrayTile]
-            List of tiles.
+        list of tuples of NDArray and TileInformation
+            List of tiles and tile information.
         """
         # reshape array
         reshaped_sample = reshape_array(self.input_array, self.axes)
@@ -109,7 +107,7 @@ class InMemoryTiledPredDataset(Dataset):
         """
         return len(self.data)
 
-    def __getitem__(self, index: int) -> Tuple[np.ndarray, TileInformation]:
+    def __getitem__(self, index: int) -> tuple[NDArray, TileInformation]:
         """
         Return the patch corresponding to the provided index.
 
@@ -120,7 +118,7 @@ class InMemoryTiledPredDataset(Dataset):
 
         Returns
         -------
-        Tuple[np.ndarray, TileInformation]
+        tuple of NDArray and TileInformation
             Transformed patch.
         """
         tile_array, tile_info = self.data[index]

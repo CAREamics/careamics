@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Callable, Generator, List
+from typing import Any, Callable, Generator
 
-import numpy as np
+from numpy.typing import NDArray
 from torch.utils.data import IterableDataset
 
 from careamics.transforms import Compose
@@ -46,7 +46,7 @@ class IterablePredDataset(IterableDataset):
     def __init__(
         self,
         prediction_config: InferenceConfig,
-        src_files: List[Path],
+        src_files: list[Path],
         read_source_func: Callable = read_tiff,
         **kwargs: Any,
     ) -> None:
@@ -56,7 +56,7 @@ class IterablePredDataset(IterableDataset):
         ----------
         prediction_config : InferenceConfig
             Inference configuration.
-        src_files : List[Path]
+        src_files : list of pathlib.Path
             List of data files.
         read_source_func : Callable, optional
             Read source function for custom types, by default read_tiff.
@@ -95,13 +95,13 @@ class IterablePredDataset(IterableDataset):
 
     def __iter__(
         self,
-    ) -> Generator[np.ndarray, None, None]:
+    ) -> Generator[NDArray, None, None]:
         """
         Iterate over data source and yield single patch.
 
         Yields
         ------
-        np.ndarray
+        NDArray
             Single patch.
         """
         assert (

@@ -13,6 +13,7 @@ def extract_patches_random(
     arr: np.ndarray,
     patch_size: Union[List[int], Tuple[int, ...]],
     target: Optional[np.ndarray] = None,
+    seed: Optional[int] = None,
 ) -> Generator[Tuple[np.ndarray, Optional[np.ndarray]], None, None]:
     """
     Generate patches from an array in a random manner.
@@ -34,12 +35,16 @@ def extract_patches_random(
         Patch sizes in each dimension.
     target : Optional[np.ndarray], optional
         Target array, by default None.
+    seed : Optional[int], optional
+        Random seed, by default None.
 
     Yields
     ------
     Generator[np.ndarray, None, None]
         Generator of patches.
     """
+    rng = np.random.default_rng(seed=seed)
+
     is_3d_patch = len(patch_size) == 3
 
     # patches sanity check
@@ -47,9 +52,6 @@ def extract_patches_random(
 
     # Update patch size to encompass S and C dimensions
     patch_size = [1, arr.shape[1], *patch_size]
-
-    # random generator
-    rng = np.random.default_rng()
 
     # iterate over the number of samples (S or T)
     for sample_idx in range(arr.shape[0]):
@@ -113,6 +115,7 @@ def extract_patches_random_from_chunks(
     patch_size: Union[List[int], Tuple[int, ...]],
     chunk_size: Union[List[int], Tuple[int, ...]],
     chunk_limit: Optional[int] = None,
+    seed: Optional[int] = None,
 ) -> Generator[np.ndarray, None, None]:
     """
     Generate patches from an array in a random manner.
@@ -130,6 +133,8 @@ def extract_patches_random_from_chunks(
         Chunk sizes to load from the.
     chunk_limit : Optional[int], optional
         Number of chunks to load, by default None.
+    seed : Optional[int], optional
+        Random seed, by default None.
 
     Yields
     ------
@@ -141,7 +146,7 @@ def extract_patches_random_from_chunks(
     # Patches sanity check
     validate_patch_dimensions(arr, patch_size, is_3d_patch)
 
-    rng = np.random.default_rng()
+    rng = np.random.default_rng(seed=seed)
     num_chunks = chunk_limit if chunk_limit else np.prod(arr._cdata_shape)
 
     # Iterate over num chunks in the array

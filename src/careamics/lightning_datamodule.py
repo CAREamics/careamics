@@ -583,12 +583,7 @@ class TrainingDataWrapper(CAREamicsTrainData):
     >>> my_array = np.arange(256).reshape(16, 16)
     >>> my_transforms = [
     ...     {
-    ...         "name": SupportedTransform.NORMALIZE.value,
-    ...         "image_means": [0],
-    ...         "image_stds": [1],
-    ...     },
-    ...     {
-    ...         "name": SupportedTransform.N2V_MANIPULATE.value,
+    ...         "name": SupportedTransform.XY_FLIP.value,
     ...     }
     ... ]
     >>> data_module = TrainingDataWrapper(

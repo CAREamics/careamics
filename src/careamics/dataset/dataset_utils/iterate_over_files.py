@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Callable, Generator, List, Optional, Tuple, Union
+from typing import Callable, Generator, Optional, Union
 
-import numpy as np
+from numpy.typing import NDArray
 from torch.utils.data import get_worker_info
 
 from careamics.config import DataConfig, InferenceConfig
@@ -19,26 +19,26 @@ logger = get_logger(__name__)
 
 def iterate_over_files(
     data_config: Union[DataConfig, InferenceConfig],
-    data_files: List[Path],
-    target_files: Optional[List[Path]] = None,
+    data_files: list[Path],
+    target_files: Optional[list[Path]] = None,
     read_source_func: Callable = read_tiff,
-) -> Generator[Tuple[np.ndarray, Optional[np.ndarray]], None, None]:
+) -> Generator[tuple[NDArray, Optional[NDArray]], None, None]:
     """Iterate over data source and yield whole reshaped images.
 
     Parameters
     ----------
-    data_config : Union[DataConfig, InferenceConfig]
-        Data configuration.
-    data_files : List[Path]
+    data_config : CAREamics DataConfig or InferenceConfig
+        Configuration.
+    data_files : list of pathlib.Path
         List of data files.
-    target_files : Optional[List[Path]]
+    target_files : list of pathlib.Path, optional
         List of target files, by default None.
-    read_source_func : Optional[Callable]
+    read_source_func : Callable, optional
         Function to read the source, by default read_tiff.
 
     Yields
     ------
-    np.ndarray
+    NDArray
         Image.
     """
     # When num_workers > 0, each worker process will have a different copy of the

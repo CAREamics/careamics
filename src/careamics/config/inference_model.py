@@ -38,8 +38,8 @@ class InferenceConfig(BaseModel):
     @field_validator("tile_overlap")
     @classmethod
     def all_elements_non_zero_even(
-        cls, tile_overlap: Optional[Union[list[int]]]
-    ) -> Optional[Union[list[int]]]:
+        cls, tile_overlap: Optional[list[int]]
+    ) -> Optional[list[int]]:
         """
         Validate tile overlap.
 
@@ -47,12 +47,12 @@ class InferenceConfig(BaseModel):
 
         Parameters
         ----------
-        tile_overlap : Optional[Union[List[int]]]
+        tile_overlap : list[int] or None
             Patch size.
 
         Returns
         -------
-        Optional[Union[List[int]]]
+        list[int] or None
             Validated tile overlap.
 
         Raises
