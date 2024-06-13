@@ -86,9 +86,11 @@ def test_set_mean_and_std(minimum_data: dict):
 def test_normalize_not_accepted(minimum_data: dict):
     """Test that normalize is not accepted, because it is mandatory and applied else
     where."""
-    minimum_data["mean"] = 10.4
-    minimum_data["std"] = 3.2
-    minimum_data["transforms"] = [NormalizeModel(mean=0.485, std=0.229)]
+    minimum_data["image_means"] = [10.4]
+    minimum_data["image_stds"] = [3.2]
+    minimum_data["transforms"] = [
+        NormalizeModel(image_means=[0.485], image_stds=[0.229])
+    ]
 
     with pytest.raises(ValueError):
         DataConfig(**minimum_data)

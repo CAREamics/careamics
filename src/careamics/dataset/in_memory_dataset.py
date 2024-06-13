@@ -85,13 +85,7 @@ class InMemoryDataset(Dataset):
         self.data = patches_data.patches
         self.data_targets = patches_data.targets
 
-        if (
-            self.data_config.image_mean is not None
-            and not any(self.data_config.image_mean)
-        ) or (
-            self.data_config.image_std is not None
-            and not any(self.data_config.image_std)
-        ):
+        if self.data_config.image_mean is None:
             self.image_means = patches_data.image_stats.means
             self.image_stds = patches_data.image_stats.stds
             logger.info(
@@ -101,7 +95,7 @@ class InMemoryDataset(Dataset):
             self.image_means = self.data_config.image_mean
             self.image_stds = self.data_config.image_std
 
-        if not self.data_config.target_mean or not self.data_config.target_std:
+        if self.data_config.target_mean is None:
             self.target_means = patches_data.target_stats.means
             self.target_stds = patches_data.target_stats.stds
         else:
@@ -118,7 +112,14 @@ class InMemoryDataset(Dataset):
         )
         # get transforms
         self.patch_transform = Compose(
-            transform_list=[NormalizeModel(mean=self.mean, std=self.std)]
+            transform_list=[
+                NormalizeModel(
+                    image_means=self.image_means,
+                    image_stds=self.image_stds,
+                    target_means=self.target_means,
+                    target_stds=self.target_stds,
+                )
+            ]
             + self.data_config.transforms,
         )
 

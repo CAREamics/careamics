@@ -68,11 +68,6 @@ class DataConfig(BaseModel):
     ...     axes="YX",
     ...     transforms=[
     ...         {
-    ...             "name": SupportedTransform.NORMALIZE.value,
-    ...             "image_means": [167.6],
-    ...             "image_stds": [47.2],
-    ...         },
-    ...         {
     ...             "name": "XYFlip",
     ...         }
     ...     ]
@@ -91,10 +86,12 @@ class DataConfig(BaseModel):
     axes: str
 
     # Optional fields
-    image_mean: Optional[list] = Field(default=None, min_length=0, max_length=32)
-    image_std: Optional[list] = Field(default=None, min_length=0, max_length=32)
-    target_mean: Optional[list] = Field(default=None, min_length=0, max_length=32)
-    target_std: Optional[list] = Field(default=None, min_length=0, max_length=32)
+    image_mean: Optional[list[float]] = Field(default=None, min_length=0, max_length=32)
+    image_std: Optional[list[float]] = Field(default=None, min_length=0, max_length=32)
+    target_mean: Optional[list[float]] = Field(
+        default=None, min_length=0, max_length=32
+    )
+    target_std: Optional[list[float]] = Field(default=None, min_length=0, max_length=32)
 
     transforms: list[TRANSFORMS_UNION] = Field(
         default=[
