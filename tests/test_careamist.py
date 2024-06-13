@@ -102,8 +102,9 @@ def test_train_single_array_no_val(tmp_path: Path, minimum_configuration: dict):
     careamist.export_to_bmz(
         path=tmp_path / "model.zip",
         name="TopModel",
-        general_description="A model that just walked in.",
+        input_array=train_array,
         authors=[{"name": "Amod", "affiliation": "El"}],
+        general_description="A model that just walked in.",
     )
     assert (tmp_path / "model.zip").exists()
 
@@ -135,8 +136,9 @@ def test_train_array(tmp_path: Path, minimum_configuration: dict):
     careamist.export_to_bmz(
         path=tmp_path / "model.zip",
         name="TopModel",
-        general_description="A model that just walked in.",
+        input_array=train_array,
         authors=[{"name": "Amod", "affiliation": "El"}],
+        general_description="A model that just walked in.",
     )
     assert (tmp_path / "model.zip").exists()
 
@@ -174,8 +176,9 @@ def test_train_array_channel(
     careamist.export_to_bmz(
         path=tmp_path / "model.zip",
         name="TopModel",
-        general_description="A model that just walked in.",
+        input_array=train_array,
         authors=[{"name": "Amod", "affiliation": "El"}],
+        general_description="A model that just walked in.",
         channel_names=["red", "green", "blue"],
     )
     assert (tmp_path / "model.zip").exists()
@@ -208,8 +211,9 @@ def test_train_array_3d(tmp_path: Path, minimum_configuration: dict):
     careamist.export_to_bmz(
         path=tmp_path / "model.zip",
         name="TopModel",
-        general_description="A model that just walked in.",
+        input_array=train_array,
         authors=[{"name": "Amod", "affiliation": "El"}],
+        general_description="A model that just walked in.",
     )
     assert (tmp_path / "model.zip").exists()
 
@@ -244,8 +248,9 @@ def test_train_tiff_files_in_memory_no_val(tmp_path: Path, minimum_configuration
     careamist.export_to_bmz(
         path=tmp_path / "model.zip",
         name="TopModel",
-        general_description="A model that just walked in.",
+        input_array=train_array,
         authors=[{"name": "Amod", "affiliation": "El"}],
+        general_description="A model that just walked in.",
     )
     assert (tmp_path / "model.zip").exists()
 
@@ -284,8 +289,9 @@ def test_train_tiff_files_in_memory(tmp_path: Path, minimum_configuration: dict)
     careamist.export_to_bmz(
         path=tmp_path / "model.zip",
         name="TopModel",
-        general_description="A model that just walked in.",
+        input_array=train_array,
         authors=[{"name": "Amod", "affiliation": "El"}],
+        general_description="A model that just walked in.",
     )
     assert (tmp_path / "model.zip").exists()
 
@@ -326,8 +332,9 @@ def test_train_tiff_files(tmp_path: Path, minimum_configuration: dict):
     careamist.export_to_bmz(
         path=tmp_path / "model.zip",
         name="TopModel",
-        general_description="A model that just walked in.",
+        input_array=train_array,
         authors=[{"name": "Amod", "affiliation": "El"}],
+        general_description="A model that just walked in.",
     )
     assert (tmp_path / "model.zip").exists()
 
@@ -366,8 +373,9 @@ def test_train_array_supervised(tmp_path: Path, supervised_configuration: dict):
     careamist.export_to_bmz(
         path=tmp_path / "model.zip",
         name="TopModel",
-        general_description="A model that just walked in.",
+        input_array=train_array,
         authors=[{"name": "Amod", "affiliation": "El"}],
+        general_description="A model that just walked in.",
     )
     assert (tmp_path / "model.zip").exists()
 
@@ -425,8 +433,9 @@ def test_train_tiff_files_in_memory_supervised(
     careamist.export_to_bmz(
         path=tmp_path / "model.zip",
         name="TopModel",
-        general_description="A model that just walked in.",
+        input_array=train_array,
         authors=[{"name": "Amod", "affiliation": "El"}],
+        general_description="A model that just walked in.",
     )
     assert (tmp_path / "model.zip").exists()
 
@@ -485,8 +494,9 @@ def test_train_tiff_files_supervised(tmp_path: Path, supervised_configuration: d
     careamist.export_to_bmz(
         path=tmp_path / "model.zip",
         name="TopModel",
-        general_description="A model that just walked in.",
+        input_array=train_array,
         authors=[{"name": "Amod", "affiliation": "El"}],
+        general_description="A model that just walked in.",
     )
     assert (tmp_path / "model.zip").exists()
 
@@ -524,8 +534,9 @@ def test_predict_on_array_tiled(
     careamist.export_to_bmz(
         path=tmp_path / "model.zip",
         name="TopModel",
-        general_description="A model that just walked in.",
+        input_array=train_array,
         authors=[{"name": "Amod", "affiliation": "El"}],
+        general_description="A model that just walked in.",
     )
     assert (tmp_path / "model.zip").exists()
 
@@ -558,8 +569,9 @@ def test_predict_arrays_no_tiling(tmp_path: Path, minimum_configuration: dict):
     careamist.export_to_bmz(
         path=tmp_path / "model.zip",
         name="TopModel",
-        general_description="A model that just walked in.",
+        input_array=train_array,
         authors=[{"name": "Amod", "affiliation": "El"}],
+        general_description="A model that just walked in.",
     )
     assert (tmp_path / "model.zip").exists()
 
@@ -636,8 +648,9 @@ def test_predict_path(tmp_path: Path, minimum_configuration: dict, batch_size):
     careamist.export_to_bmz(
         path=tmp_path / "model.zip",
         name="TopModel",
-        general_description="A model that just walked in.",
+        input_array=train_array,
         authors=[{"name": "Amod", "affiliation": "El"}],
+        general_description="A model that just walked in.",
     )
     assert (tmp_path / "model.zip").exists()
 
@@ -694,27 +707,9 @@ def test_export_bmz_pretrained_prediction(tmp_path: Path, pre_trained: Path):
     careamist.export_to_bmz(
         path=tmp_path / "model.zip",
         name="TopModel",
-        general_description="A model that just walked in.",
+        input_array=source_array,
         authors=[{"name": "Amod", "affiliation": "El"}],
-    )
-    assert (tmp_path / "model.zip").exists()
-
-
-def test_export_bmz_pretrained_random_array(tmp_path: Path, pre_trained: Path):
-    """Test that CAREamics can be instantiated with a pre-trained network and exported
-    to BMZ.
-
-    In this case, the careamist creates a random array for the BMZ archive test.
-    """
-    # instantiate CAREamist
-    careamist = CAREamist(source=pre_trained, work_dir=tmp_path)
-
-    # export to BMZ (random array created)
-    careamist.export_to_bmz(
-        path=tmp_path / "model.zip",
-        name="TopModel",
         general_description="A model that just walked in.",
-        authors=[{"name": "Amod", "affiliation": "El"}],
     )
     assert (tmp_path / "model.zip").exists()
 
@@ -734,7 +729,7 @@ def test_export_bmz_pretrained_with_array(tmp_path: Path, pre_trained: Path):
         path=tmp_path / "model2.zip",
         name="TopModel",
         input_array=array,
-        general_description="A model that just walked in.",
         authors=[{"name": "Amod", "affiliation": "El"}],
+        general_description="A model that just walked in.",
     )
     assert (tmp_path / "model2.zip").exists()
