@@ -605,8 +605,8 @@ def create_inference_configuration(
         Configuration used to configure CAREamicsPredictData.
     """
     if (
-        configuration.data_config.image_mean is None
-        or configuration.data_config.image_std is None
+        configuration.data_config.image_means is None
+        or configuration.data_config.image_stds is None
     ):
         raise ValueError("Mean and std must be provided in the configuration.")
 
@@ -637,8 +637,8 @@ def create_inference_configuration(
         tile_size=tile_size,
         tile_overlap=tile_overlap,
         axes=axes or configuration.data_config.axes,
-        image_mean=configuration.data_config.image_mean,
-        image_std=configuration.data_config.image_std,
+        image_means=configuration.data_config.image_means,
+        image_stds=configuration.data_config.image_stds,
         tta_transforms=tta_transforms,
         batch_size=batch_size,
     )

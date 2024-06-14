@@ -183,5 +183,7 @@ def test_compute_mean_std_transform_iterable(
 
     axes = tuple(np.delete(np.arange(stacked_array.ndim), 1))
 
-    assert np.array_equal(stacked_array.mean(axis=axes), dataset.data_config.image_mean)
-    assert np.array_equal(stacked_array.std(axis=axes), dataset.data_config.image_std)
+    assert np.array_equal(
+        stacked_array.mean(axis=axes), dataset.data_config.image_means
+    )
+    assert np.array_equal(stacked_array.std(axis=axes), dataset.data_config.image_stds)

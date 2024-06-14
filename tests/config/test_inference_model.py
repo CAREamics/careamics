@@ -16,25 +16,25 @@ def test_wrong_extensions(minimum_inference: dict, ext: str):
 def test_mean_std_both_specified_or_none(minimum_inference: dict):
     """Test error raising when setting mean and std."""
     # Errors if both are None
-    minimum_inference["image_mean"] = []
-    minimum_inference["image_std"] = []
+    minimum_inference["image_means"] = []
+    minimum_inference["image_stds"] = []
     with pytest.raises(ValueError):
         InferenceConfig(**minimum_inference)
 
     # Error if only mean is defined
-    minimum_inference["image_mean"] = [10.4]
+    minimum_inference["image_means"] = [10.4]
     with pytest.raises(ValueError):
         InferenceConfig(**minimum_inference)
 
     # Error if only std is defined
-    minimum_inference.pop("image_mean")
-    minimum_inference["image_std"] = [10.4]
+    minimum_inference.pop("image_means")
+    minimum_inference["image_stds"] = [10.4]
     with pytest.raises(ValueError):
         InferenceConfig(**minimum_inference)
 
     # No error if both are specified
-    minimum_inference["image_mean"] = [10.4]
-    minimum_inference["image_std"] = [10.4]
+    minimum_inference["image_means"] = [10.4]
+    minimum_inference["image_stds"] = [10.4]
     InferenceConfig(**minimum_inference)
 
 
