@@ -68,7 +68,6 @@ class PathIterableDataset(IterableDataset):
         self.data_config = data_config
         self.data_files = src_files
         self.target_files = target_files
-        self.data_config = data_config
         self.read_source_func = read_source_func
 
         # compute mean and std over the dataset
