@@ -516,7 +516,7 @@ class CAREamist:
         self,
         source: Union[CAREamicsPredictData, Path, str, NDArray],
         *,
-        batch_size: int = 1,
+        batch_size: Optional[int] = None,
         tile_size: Optional[Tuple[int, ...]] = None,
         tile_overlap: Tuple[int, ...] = (48, 48),
         axes: Optional[str] = None,
@@ -597,6 +597,15 @@ class CAREamist:
                     "No configuration found. Train a model or load from a "
                     "checkpoint before predicting."
                 )
+
+            # Reuse batch size if not provided explicitly
+            if batch_size is None:
+                batch_size = (
+                    self.train_datamodule.batch_size
+                    if self.train_datamodule
+                    else self.cfg.data_config.batch_size
+                )
+
             # create predict config, reuse training config if parameters missing
             prediction_config = create_inference_configuration(
                 configuration=self.cfg,

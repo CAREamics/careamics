@@ -8,13 +8,13 @@ from careamics.dataset import InMemoryPredDataset
 @pytest.mark.parametrize(
     "shape, axes, expected_shape",
     [
-        ((16, 16), "YX", (1, 1, 16, 16)),
-        ((3, 16, 16), "CYX", (1, 3, 16, 16)),
-        ((8, 16, 16), "ZYX", (1, 1, 8, 16, 16)),
-        ((3, 8, 16, 16), "CZYX", (1, 3, 8, 16, 16)),
-        ((4, 16, 16), "SYX", (1, 1, 16, 16)),
-        ((4, 3, 16, 16), "SCYX", (1, 3, 16, 16)),
-        ((4, 3, 8, 16, 16), "SCZYX", (1, 3, 8, 16, 16)),
+        ((16, 16), "YX", (1, 16, 16)),
+        ((3, 16, 16), "CYX", (3, 16, 16)),
+        ((8, 16, 16), "ZYX", (1, 8, 16, 16)),
+        ((3, 8, 16, 16), "CZYX", (3, 8, 16, 16)),
+        ((4, 16, 16), "SYX", (1, 16, 16)),
+        ((4, 3, 16, 16), "SCYX", (3, 16, 16)),
+        ((4, 3, 8, 16, 16), "SCZYX", (3, 8, 16, 16)),
     ],
 )
 def test_correct_normalized_outputs(shape, axes, expected_shape):
@@ -30,6 +30,14 @@ def test_correct_normalized_outputs(shape, axes, expected_shape):
     else:
         n_patches = 1
 
+    # check number of channels
+    if "C" in axes:
+        # get index
+        idx = axes.index("C")
+        n_channels = shape[idx]
+    else:
+        n_channels = 1
+
     # create array
     array = 255 * rng.random(shape)
 
@@ -37,8 +45,8 @@ def test_correct_normalized_outputs(shape, axes, expected_shape):
     config = InferenceConfig(
         data_type="array",
         axes=axes,
-        mean=np.mean(array),
-        std=np.std(array),
+        image_mean=[np.mean(array)] * n_channels,
+        image_std=[np.std(array)] * n_channels,
     )
 
     # create dataset

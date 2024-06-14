@@ -5,6 +5,7 @@ from __future__ import annotations
 from pprint import pformat
 from typing import Any, Literal, Optional, Union
 
+import numpy as np
 from pydantic import (
     BaseModel,
     ConfigDict,
@@ -37,7 +38,9 @@ class DataConfig(BaseModel):
 
     If std is specified, mean must be specified as well. Note that setting the std first
     and then the mean (if they were both `None` before) will raise a validation error.
-    Prefer instead `set_mean_and_std` to set both at once.
+    Prefer instead `set_mean_and_std` to set both at once. Means and stds are expected
+    to be lists of floats, one for each channel. For supervised tasks, the mean and std
+    of the target could be different from the input data.
 
     All supported transforms are defined in the SupportedTransform enum.
 
@@ -53,7 +56,7 @@ class DataConfig(BaseModel):
     ... )
 
     To change the mean and std of the data:
-    >>> data.set_mean_and_std(mean=214.3, std=84.5)
+    >>> data.set_mean_and_std(image_mean=[214.3], image_std=[84.5])
 
     One can pass also a list of transformations, by keyword, using the
     SupportedTransform value:
@@ -78,13 +81,17 @@ class DataConfig(BaseModel):
 
     # Dataset configuration
     data_type: Literal["array", "tiff", "custom"]  # As defined in SupportedData
-    patch_size: list[int] = Field(..., min_length=2, max_length=3)
+    patch_size: Union[list[int]] = Field(..., min_length=2, max_length=3)
     batch_size: int = Field(default=1, ge=1, validate_default=True)
     axes: str
 
     # Optional fields
-    mean: Optional[float] = None
-    std: Optional[float] = None
+    image_mean: Optional[list[float]] = Field(default=None, min_length=0, max_length=32)
+    image_std: Optional[list[float]] = Field(default=None, min_length=0, max_length=32)
+    target_mean: Optional[list[float]] = Field(
+        default=None, min_length=0, max_length=32
+    )
+    target_std: Optional[list[float]] = Field(default=None, min_length=0, max_length=32)
 
     transforms: list[TRANSFORMS_UNION] = Field(
         default=[
@@ -105,7 +112,9 @@ class DataConfig(BaseModel):
 
     @field_validator("patch_size")
     @classmethod
-    def all_elements_power_of_2_minimum_8(cls, patch_list: list[int]) -> list[int]:
+    def all_elements_power_of_2_minimum_8(
+        cls, patch_list: Union[list[int]]
+    ) -> Union[list[int]]:
         """
         Validate patch size.
 
@@ -113,12 +122,12 @@ class DataConfig(BaseModel):
 
         Parameters
         ----------
-        patch_list : list[int]
+        patch_list : list of int
             Patch size.
 
         Returns
         -------
-        list[int]
+        list of int
             Validated patch size.
 
         Raises
@@ -180,7 +189,7 @@ class DataConfig(BaseModel):
 
         Returns
         -------
-        list[TRANSFORMS_UNION]
+        list of transforms
             Validated transforms.
 
         Raises
@@ -223,10 +232,33 @@ class DataConfig(BaseModel):
             If std is not None and mean is None.
         """
         # check that mean and std are either both None, or both specified
-        if (self.mean is None) != (self.std is None):
+        if (self.image_mean and not self.image_std) or (
+            self.image_std and not self.image_mean
+        ):
             raise ValueError(
                 "Mean and std must be either both None, or both specified."
             )
+
+        elif (self.image_mean is not None and self.image_std is not None) and (
+            len(self.image_mean) != len(self.image_std)
+        ):
+            raise ValueError(
+                "Mean and std must be specified for each " "input channel."
+            )
+
+        if (self.target_mean and not self.target_std) or (
+            self.target_std and not self.target_mean
+        ):
+            raise ValueError(
+                "Mean and std must be either both None, or both specified "
+            )
+
+        elif self.target_mean is not None and self.target_std is not None:
+            if len(self.target_mean) != len(self.target_std):
+                raise ValueError(
+                    "Mean and std must be either both None, or both specified for each "
+                    "target channel."
+                )
 
         return self
 
@@ -310,7 +342,13 @@ class DataConfig(BaseModel):
         if self.has_n2v_manipulate():
             self.transforms.pop(-1)
 
-    def set_mean_and_std(self, mean: float, std: float) -> None:
+    def set_mean_and_std(
+        self,
+        image_mean: Union[np.ndarray, tuple, list, None],
+        image_std: Union[np.ndarray, tuple, list, None],
+        target_mean: Optional[Union[np.ndarray, tuple, list, None]] = None,
+        target_std: Optional[Union[np.ndarray, tuple, list, None]] = None,
+    ) -> None:
         """
         Set mean and standard deviation of the data.
 
@@ -319,12 +357,31 @@ class DataConfig(BaseModel):
 
         Parameters
         ----------
-        mean : float
-            Mean of the data.
-        std : float
-            Standard deviation of the data.
+        image_mean : np.ndarray or tuple or list
+            Mean value for normalization.
+        image_std : np.ndarray or tuple or list
+            Standard deviation value for normalization.
+        target_mean : np.ndarray or tuple or list, optional
+            Target mean value for normalization, by default ().
+        target_std : np.ndarray or tuple or list, optional
+            Target standard deviation value for normalization, by default ().
         """
-        self._update(mean=mean, std=std)
+        # make sure we pass a list
+        if image_mean is not None:
+            image_mean = list(image_mean)
+        if image_std is not None:
+            image_std = list(image_std)
+        if target_mean is not None:
+            target_mean = list(target_mean)
+        if target_std is not None:
+            target_std = list(target_std)
+
+        self._update(
+            image_mean=image_mean,
+            image_std=image_std,
+            target_mean=target_mean,
+            target_std=target_std,
+        )
 
     def set_3D(self, axes: str, patch_size: list[int]) -> None:
         """
@@ -334,7 +391,7 @@ class DataConfig(BaseModel):
         ----------
         axes : str
             Axes.
-        patch_size : list[int]
+        patch_size : list of int
             Patch size.
         """
         self._update(axes=axes, patch_size=patch_size)

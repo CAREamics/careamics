@@ -88,7 +88,7 @@ class CAREamicsPredictionLoop(L.loops._PredictionLoop):
 
                 ########################################################
                 ################ CAREamics specific code ###############
-                is_tiled = len(self.predictions[batch_idx]) == 2
+                is_tiled = self.trainer.datamodule.tiled
                 if is_tiled:
                     # a numpy array of shape BC(Z)YX
                     tile_batch = self.predictions[batch_idx][0]
@@ -96,7 +96,7 @@ class CAREamicsPredictionLoop(L.loops._PredictionLoop):
                     # split the tiles into C(Z)YX (skip singleton S) and
                     # add them to the tiles list
                     self.tiles.extend(
-                        np.split(tile_batch.numpy(), tile_batch.shape[0], axis=0)[0]
+                        np.split(tile_batch, tile_batch.shape[0], axis=0)[0]
                     )
 
                     # tile information is passed as a list of list of TileInformation
@@ -115,7 +115,7 @@ class CAREamicsPredictionLoop(L.loops._PredictionLoop):
                         self.tile_information.clear()
                 else:
                     # simply add the prediction to the list
-                    self.predicted_array.append(self.predictions[batch_idx].numpy())
+                    self.predicted_array.append(self.predictions[batch_idx])
                 ########################################################
             except StopIteration:
                 break

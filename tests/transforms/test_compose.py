@@ -7,6 +7,7 @@ from careamics.config.transformations import (
     XYFlipModel,
     XYRandomRotate90Model,
 )
+from careamics.dataset.dataset_utils import compute_normalization_stats
 from careamics.transforms import Compose, Normalize, XYFlip, XYRandomRotate90
 
 
@@ -56,29 +57,30 @@ def test_compose_with_target(ordered_array):
 
 def test_compose_n2v(ordered_array):
     seed = 24
-    array = ordered_array((2, 5, 5))
+    array = ordered_array((2, 2, 5, 5))
 
     # transform lists
-    mean, std = 0.5, 0.5
+    means, stds = compute_normalization_stats(image=array)
 
     transform_list_pydantic = [
-        NormalizeModel(mean=mean, std=std),
+        NormalizeModel(image_means=means, image_stds=stds),
         XYFlipModel(seed=seed),
         XYRandomRotate90Model(seed=seed),
         N2VManipulateModel(),
     ]
 
     # apply the transforms
-    normalize = Normalize(mean=mean, std=std)
+    normalize = Normalize(image_means=means, image_stds=stds)
     xyflip = XYFlip(seed=seed)
+
     xyrotate = XYRandomRotate90(seed=seed)
-    array_aug, _ = xyrotate(*xyflip(*normalize(array)))
+    array_aug, _ = xyrotate(*xyflip(*normalize(array[0])))
 
     # instantiate Compose
     compose = Compose(transform_list_pydantic)
 
     # apply the composed transform
-    results = compose(array)
+    results = compose(array[0])
     assert len(results) == 3  # output of n2v_manipulate
     assert (results[1] == array_aug).all()
     assert (
@@ -116,7 +118,12 @@ def test_random_composition(ordered_array, shape):
         flip_x = rng.choice([True, False])
 
         transforms = [
-            NormalizeModel(mean=0.5, std=0.5),
+            NormalizeModel(
+                image_means=[0.5 for _ in range(array.shape[0])],
+                image_stds=[0.5 for _ in range(array.shape[0])],
+                target_means=[0.5 for _ in range(array.shape[0])],
+                target_stds=[0.5 for _ in range(array.shape[0])],
+            ),
             XYFlipModel(flip_x=flip_x, seed=42),
             XYRandomRotate90Model(seed=42),
         ]

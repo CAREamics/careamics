@@ -58,16 +58,17 @@ class InMemoryTiledPredDataset(Dataset):
         self.axes = self.pred_config.axes
         self.tile_size = prediction_config.tile_size
         self.tile_overlap = prediction_config.tile_overlap
-        self.mean = self.pred_config.mean
-        self.std = self.pred_config.std
+        self.image_means = self.pred_config.image_mean
+        self.image_stds = self.pred_config.image_std
 
         # Generate patches
         self.data = self._prepare_tiles()
-        self.mean, self.std = self.pred_config.mean, self.pred_config.std
 
         # get transforms
         self.patch_transform = Compose(
-            transform_list=[NormalizeModel(mean=self.mean, std=self.std)],
+            transform_list=[
+                NormalizeModel(image_means=self.image_means, image_stds=self.image_stds)
+            ],
         )
 
     def _prepare_tiles(self) -> list[tuple[NDArray, TileInformation]]:

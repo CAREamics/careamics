@@ -12,7 +12,7 @@ from careamics.config.support import SupportedAlgorithm, SupportedData
 def random_array(shape: Tuple[int, ...], seed: int = 42):
     """Return a random array with values between 0 and 255."""
     rng = np.random.default_rng(seed)
-    return (255 * rng.random(shape)).astype(np.float32)
+    return (rng.integers(0, 255, shape)).astype(np.float32)
 
 
 def test_no_parameters():
@@ -562,9 +562,8 @@ def test_predict_arrays_no_tiling(tmp_path: Path, minimum_configuration: dict):
 
     # predict CAREamist
     predicted = careamist.predict(train_array)
-    predicted_squeeze = [p.squeeze() for p in predicted]
 
-    assert np.array(predicted_squeeze).shape == train_array.shape
+    assert np.concatenate(predicted).squeeze().shape == train_array.shape
 
     # export to BMZ
     careamist.export_to_bmz(
@@ -664,8 +663,8 @@ def test_predict_pretrained_checkpoint(tmp_path: Path, pre_trained: Path):
 
     # instantiate CAREamist
     careamist = CAREamist(source=pre_trained, work_dir=tmp_path)
-    assert careamist.cfg.data_config.mean is not None
-    assert careamist.cfg.data_config.std is not None
+    assert careamist.cfg.data_config.image_mean is not None
+    assert careamist.cfg.data_config.image_std is not None
 
     # predict
     predicted = careamist.predict(source_array)
