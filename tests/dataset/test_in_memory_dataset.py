@@ -30,12 +30,6 @@ def test_number_of_patches(ordered_array):
     assert len(dataset) == dataset.data.shape[0]
 
 
-def test_compute_mean_std_transform(ordered_array):
-    """Test that mean and std are computed and correctly added to the configuration
-    and transform."""
-    pass
-
-
 @pytest.mark.parametrize("percentage", [0.1, 0.6])
 def test_extracting_val_array(ordered_array, percentage):
     """Test extracting a validation set patches from InMemoryDataset."""

@@ -126,7 +126,10 @@ class PathIterableDataset(IterableDataset):
         PatchedOutput
             Data class containing the image statistics.
         """
-        image_means = image_stds = target_means = target_stds = []
+        image_means = []
+        image_stds = []
+        target_means = []
+        target_stds = []
         num_samples = 0
 
         for sample, target in iterate_over_files(
