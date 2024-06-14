@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import copy
+from collections.abc import Generator
 from pathlib import Path
-from typing import Callable, Generator, Optional
+from typing import Callable, Optional
 
 import numpy as np
 from torch.utils.data import IterableDataset
@@ -147,11 +148,11 @@ class PathIterableDataset(IterableDataset):
 
         # Average the means and stds per sample
         image_means = np.mean(image_means, axis=0)
-        image_stds = np.mean([std**2 for std in image_stds], axis=0)
+        image_stds = np.sqrt(np.mean([std**2 for std in image_stds], axis=0))
 
         if target is not None:
             target_means = np.mean(target_means, axis=0)
-            target_stds = np.mean([std**2 for std in target_stds], axis=0)
+            target_stds = np.sqrt(np.mean([std**2 for std in target_stds], axis=0))
 
         logger.info(f"Calculated mean and std for {num_samples} images")
         logger.info(f"Mean: {image_means}, std: {image_stds}")
