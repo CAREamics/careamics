@@ -171,7 +171,7 @@ class CAREamicsModule(L.LightningModule):
         denormalized_output = denorm(patch=output.cpu())
 
         if len(aux) > 0:  # aux can be tiling information
-            return denormalized_output, aux
+            return denormalized_output, *aux
         else:
             return denormalized_output
 

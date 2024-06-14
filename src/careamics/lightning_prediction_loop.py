@@ -96,12 +96,16 @@ class CAREamicsPredictionLoop(L.loops._PredictionLoop):
                     # split the tiles into C(Z)YX (skip singleton S) and
                     # add them to the tiles list
                     self.tiles.extend(
-                        np.split(tile_batch.numpy(), tile_batch.shape[0], axis=0)[0]
+                        [
+                            tile[0]
+                            for tile in np.split(
+                                tile_batch.numpy(), tile_batch.shape[0], axis=0
+                            )
+                        ]
                     )
 
-                    # tile information is passed as a list of list of TileInformation
-                    # TODO why list of list?
-                    tile_info = self.predictions[batch_idx][1][0]
+                    # list of TileInformation
+                    tile_info = self.predictions[batch_idx][1]
                     self.tile_information.extend(tile_info)
 
                     # if last tile, stitch the tiles and add array to the prediction
