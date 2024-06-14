@@ -48,10 +48,10 @@ def get_config():
     loss.kl_loss_formulation = '' # '', 'usplit', 'denoisplit'
     
     training = config.training
-    training.lr = 1e-3 # in algorithm config
-    training.lr_scheduler_patience = 15
+    training.lr = 0.001 # in algorithm config
+    training.lr_scheduler_patience = 30
     training.batch_size = 32 # in data config
-    training.earlystop_patience = 100 # in training config in the callbacks (early stopping)
+    training.earlystop_patience = 200 # in training config in the callbacks (early stopping)
     training.max_epochs = 400 # training config
     training.pre_trained_ckpt_fpath = '' # this is through the careamics API
     
@@ -63,9 +63,8 @@ def get_config():
     data.data_type = DataType.BioSR_MRC
     data.ch1_fname = 'ER/GT_all.mrc'
     data.ch2_fname = 'Microtubules/GT_all.mrc'
-    fname = '/group/jug/federico/careamics_training/noise_models/140/GMMNoiseModel_BioSR-__6_4_Clip0.0-1.0_Sig0.125_UpNone_Norm0_bootstrap.npz'
-    model.noise_model_ch1_fpath = fname
-    model.noise_model_ch2_fpath = fname
+    model.noise_model_ch1_fpath = '/group/jug/ashesh/training_pre_eccv/noise_model/2402/429/GMMNoiseModel_ER-GT_all__6_4_Clip0.0-1.0_Sig0.125_UpNone_Norm0_bootstrap.npz'
+    model.noise_model_ch2_fpath = '/group/jug/ashesh/training_pre_eccv/noise_model/2402/434/GMMNoiseModel_Microtubules-GT_all__6_4_Clip0.0-1.0_Sig0.125_UpNone_Norm0_bootstrap.npz'
     # Parameters to apply synthetic noise to data (e.g., used with BioSR data for denoiSplit)
     data.poisson_noise_factor = 1000
     data.enable_gaussian_noise = True
