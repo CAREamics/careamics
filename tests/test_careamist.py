@@ -569,7 +569,7 @@ def test_predict_arrays_no_tiling(tmp_path: Path, minimum_configuration: dict, b
 @pytest.mark.parametrize("samples", [1, 2, 4])
 @pytest.mark.parametrize("batch_size", [1, 2])
 @pytest.mark.parametrize("channels", [1, 2])
-def test_stitch_prediction_loop(    tmp_path: Path, minimum_configuration: dict, batch_size, samples, channels
+def test_stitch_prediction_loop(    tmp_path: Path, minimum_configuration: dict, batch_size, samples, channels, ordered_array
 ):
     """Test that CAREamics can predict on arrays."""
 
@@ -577,7 +577,7 @@ def test_stitch_prediction_loop(    tmp_path: Path, minimum_configuration: dict,
     tile_overlap = (4, 4)
 
     # training data
-    train_array = random_array((samples, channels, 32, 32))
+    train_array = ordered_array((samples, channels, 32, 32), dtype=int)
 
     # create configuration
     config = Configuration(**minimum_configuration)
