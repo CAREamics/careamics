@@ -16,6 +16,7 @@ from ..config.transformations import NormalizeModel
 from ..utils.logging import get_logger
 from .dataset_utils import read_tiff
 from .patching.patching import (
+    PatchedOutput,
     prepare_patches_supervised,
     prepare_patches_supervised_array,
     prepare_patches_unsupervised,
@@ -78,30 +79,51 @@ class InMemoryDataset(Dataset):
 
         # Generate patches
         supervised = self.input_targets is not None
-        patch_data = self._prepare_patches(supervised)
+        patches_data = self._prepare_patches(supervised)
 
-        # Add results to members
-        self.patches, self.patch_targets, computed_mean, computed_std = patch_data
+        # Unpack the dataclass
+        self.data = patches_data.patches
+        self.data_targets = patches_data.targets
 
-        if not self.data_config.mean or not self.data_config.std:
-            self.mean, self.std = computed_mean, computed_std
-            logger.info(f"Computed dataset mean: {self.mean}, std: {self.std}")
-
-            # update mean and std in configuration
-            # the object is mutable and should then be recorded in the CAREamist obj
-            self.data_config.set_mean_and_std(self.mean, self.std)
+        if self.data_config.image_mean is None:
+            self.image_means = patches_data.image_stats.means
+            self.image_stds = patches_data.image_stats.stds
+            logger.info(
+                f"Computed dataset mean: {self.image_means}, std: {self.image_stds}"
+            )
         else:
-            self.mean, self.std = self.data_config.mean, self.data_config.std
+            self.image_means = self.data_config.image_mean
+            self.image_stds = self.data_config.image_std
 
-        # add normalization to transforms and create a compose object
+        if self.data_config.target_mean is None:
+            self.target_means = patches_data.target_stats.means
+            self.target_stds = patches_data.target_stats.stds
+        else:
+            self.target_means = self.data_config.target_mean
+            self.target_stds = self.data_config.target_std
+
+        # update mean and std in configuration
+        # the object is mutable and should then be recorded in the CAREamist obj
+        self.data_config.set_mean_and_std(
+            image_mean=self.image_means,
+            image_std=self.image_stds,
+            target_mean=self.target_means,
+            target_std=self.target_stds,
+        )
+        # get transforms
         self.patch_transform = Compose(
-            transform_list=[NormalizeModel(mean=self.mean, std=self.std)]
+            transform_list=[
+                NormalizeModel(
+                    image_means=self.image_means,
+                    image_stds=self.image_stds,
+                    target_means=self.target_means,
+                    target_stds=self.target_stds,
+                )
+            ]
             + self.data_config.transforms,
         )
 
-    def _prepare_patches(
-        self, supervised: bool
-    ) -> tuple[np.ndarray, Optional[np.ndarray], float, float]:
+    def _prepare_patches(self, supervised: bool) -> PatchedOutput:
         """
         Iterate over data source and create an array of patches.
 
@@ -163,7 +185,7 @@ class InMemoryDataset(Dataset):
         int
             Length of the dataset.
         """
-        return len(self.patches)
+        return self.data.shape[0]
 
     def __getitem__(self, index: int) -> tuple[np.ndarray, ...]:
         """
@@ -184,16 +206,16 @@ class InMemoryDataset(Dataset):
         ValueError
             If dataset mean and std are not set.
         """
-        patch = self.patches[index]
+        patch = self.data[index]
 
         # if there is a target
-        if self.patch_targets is not None:
+        if self.data_targets is not None:
             # get target
-            target = self.patch_targets[index]
+            target = self.data_targets[index]
 
             return self.patch_transform(patch=patch, target=target)
 
-        elif self.data_config.has_n2v_manipulate():
+        elif self.data_config.has_n2v_manipulate():  # TODO not compatible with HDN
             return self.patch_transform(patch=patch)
         else:
             raise ValueError(
@@ -249,24 +271,24 @@ class InMemoryDataset(Dataset):
         indices = np.random.choice(total_patches, n_patches, replace=False)
 
         # extract patches
-        val_patches = self.patches[indices]
+        val_patches = self.data[indices]
 
         # remove patches from self.patch
-        self.patches = np.delete(self.patches, indices, axis=0)
+        self.data = np.delete(self.data, indices, axis=0)
 
         # same for targets
-        if self.patch_targets is not None:
-            val_targets = self.patch_targets[indices]
-            self.patch_targets = np.delete(self.patch_targets, indices, axis=0)
+        if self.data_targets is not None:
+            val_targets = self.data_targets[indices]
+            self.data_targets = np.delete(self.data_targets, indices, axis=0)
 
         # clone the dataset
         dataset = copy.deepcopy(self)
 
         # reassign patches
-        dataset.patches = val_patches
+        dataset.data = val_patches
 
         # reassign targets
-        if self.patch_targets is not None:
-            dataset.patch_targets = val_targets
+        if self.data_targets is not None:
+            dataset.data_targets = val_targets
 
         return dataset
