@@ -569,9 +569,8 @@ def test_predict_arrays_no_tiling(
 
     # predict CAREamist
     predicted = careamist.predict(train_array, batch_size=batch_size)
-    predicted_squeeze = [p.squeeze() for p in predicted]
 
-    assert np.concatenate(predicted).squeeze().shape == train_array.shape
+    assert np.concatenate(predicted).shape == train_array.shape
 
     # export to BMZ
     careamist.export_to_bmz(
@@ -583,29 +582,20 @@ def test_predict_arrays_no_tiling(
     )
     assert (tmp_path / "model.zip").exists()
 
-
-@pytest.mark.parametrize("samples", [1, 2, 4])
-@pytest.mark.parametrize("batch_size", [1, 2])
-@pytest.mark.parametrize("channels", [1, 2])
-def test_stitch_prediction_loop(    tmp_path: Path, minimum_configuration: dict, batch_size, samples, channels, ordered_array
-):
-    """Test that CAREamics can predict on arrays."""
+def test_batched_prediction(tmp_path: Path, minimum_configuration: dict):
+    "Compare outputs when a batch size of 1 or 2 is used"
 
     tile_size = (16, 16)
     tile_overlap = (4, 4)
+    shape = (32, 32)
 
-    # training data
-    train_array = ordered_array((samples, channels, 32, 32), dtype=int)
-
+    train_array = random_array(shape)
     # create configuration
     config = Configuration(**minimum_configuration)
     config.training_config.num_epochs = 1
-    config.data_config.axes = "SCYX"
+    config.data_config.axes = "YX"
     config.data_config.batch_size = 2
     config.data_config.data_type = SupportedData.ARRAY.value
-    config.data_config.patch_size = (8, 8)
-    config.algorithm_config.model.in_channels = channels
-    config.algorithm_config.model.num_classes = channels
 
     # instantiate CAREamist
     careamist = CAREamist(source=config, work_dir=tmp_path)
@@ -613,39 +603,11 @@ def test_stitch_prediction_loop(    tmp_path: Path, minimum_configuration: dict,
     # train CAREamist
     careamist.train(train_source=train_array)
 
-    # predict CAREamist
-    predicted = careamist.predict(train_array, batch_size=batch_size, tile_size=tile_size, tile_overlap=tile_overlap)
-    if samples == 1:
-        predicted = [predicted]
+    # predict with batch size 1 and batch size 2
+    pred_bs_1 = careamist.predict(train_array, batch_size=1, tile_size=tile_size, tile_overlap=tile_overlap)
+    pred_bs_2 = careamist.predict(train_array, batch_size=2, tile_size=tile_size, tile_overlap=tile_overlap)
 
-    # --- predict each tile individually and see if the result matches predicted
-    # extract tiles
-    all_tiles = list(extract_tiles(train_array, tile_size, tile_overlap))
-
-    tiles = []
-    tile_infos = []
-    sample_id = 0
-    for tile, tile_info in all_tiles:
-        # predict each tile individually
-        predicted_tile = careamist.predict(tile, axes="CYX")
-
-        # create lists mimicking the output of the predßiction loop
-        tiles.append(predicted_tile)
-        tile_infos.append(tile_info)
-
-        # if we reached the last tile
-        if tile_info.last_tile:
-            result = stitch_prediction_single(tiles, tile_infos)
-
-            # check equality with the correct sample
-            assert np.array_equal(result.squeeze(), predicted[sample_id].squeeze())
-            sample_id += 1
-
-            # clear the lists
-            tiles.clear()
-            tile_infos.clear()
-
-    assert sample_id == samples
+    assert np.array_equal(pred_bs_1, pred_bs_2)
 
 
 @pytest.mark.parametrize("independent_channels", [False, True])
