@@ -10,7 +10,7 @@ def test_defaults():
         array_shape=np.zeros((6, 6)).shape,
         overlap_crop_coords=((1, 2),),
         stitch_coords=((3, 4),),
-        sample_id=0
+        sample_id=0,
     )
 
     assert tile_info.array_shape == (6, 6)
@@ -40,14 +40,14 @@ def test_tile_equality():
         last_tile=True,
         overlap_crop_coords=((1, 2),),
         stitch_coords=((3, 4),),
-        sample_id=0
+        sample_id=0,
     )
     t2 = TileInformation(
         array_shape=(6, 6),
         last_tile=True,
         overlap_crop_coords=((1, 2),),
         stitch_coords=((3, 4),),
-        sample_id=0
+        sample_id=0,
     )
     assert t1 == t2
 

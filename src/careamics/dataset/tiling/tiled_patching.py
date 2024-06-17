@@ -158,7 +158,7 @@ def extract_tiles(
                 last_tile=last_tile,
                 overlap_crop_coords=overlap_crop_coords,
                 stitch_coords=stitch_coords,
-                sample_id=sample_idx
+                sample_id=sample_idx,
             )
 
             yield tile, tile_info

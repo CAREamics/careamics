@@ -7,7 +7,6 @@ import tifffile
 
 from careamics import CAREamist, Configuration, save_configuration
 from careamics.config.support import SupportedAlgorithm, SupportedData
-from careamics.dataset.tiling import extract_tiles, stitch_prediction_single
 
 
 def random_array(shape: Tuple[int, ...], seed: int = 42):
@@ -582,6 +581,7 @@ def test_predict_arrays_no_tiling(
     )
     assert (tmp_path / "model.zip").exists()
 
+
 def test_batched_prediction(tmp_path: Path, minimum_configuration: dict):
     "Compare outputs when a batch size of 1 or 2 is used"
 
@@ -604,8 +604,12 @@ def test_batched_prediction(tmp_path: Path, minimum_configuration: dict):
     careamist.train(train_source=train_array)
 
     # predict with batch size 1 and batch size 2
-    pred_bs_1 = careamist.predict(train_array, batch_size=1, tile_size=tile_size, tile_overlap=tile_overlap)
-    pred_bs_2 = careamist.predict(train_array, batch_size=2, tile_size=tile_size, tile_overlap=tile_overlap)
+    pred_bs_1 = careamist.predict(
+        train_array, batch_size=1, tile_size=tile_size, tile_overlap=tile_overlap
+    )
+    pred_bs_2 = careamist.predict(
+        train_array, batch_size=2, tile_size=tile_size, tile_overlap=tile_overlap
+    )
 
     assert np.array_equal(pred_bs_1, pred_bs_2)
 
