@@ -575,8 +575,7 @@ def test_predict_arrays_no_tiling(
 @pytest.mark.parametrize("samples", [1, 2, 4])
 @pytest.mark.parametrize("batch_size", [1, 2])
 @pytest.mark.parametrize("channels", [1, 2])
-def test_stitch_prediction_loop(
-    tmp_path: Path, minimum_configuration: dict, batch_size, samples, channels
+def test_stitch_prediction_loop(    tmp_path: Path, minimum_configuration: dict, batch_size, samples, channels, ordered_array
 ):
     """Test that CAREamics can predict on arrays."""
 
@@ -584,7 +583,7 @@ def test_stitch_prediction_loop(
     tile_overlap = (4, 4)
 
     # training data
-    train_array = random_array((samples, channels, 32, 32))
+    train_array = ordered_array((samples, channels, 32, 32), dtype=int)
 
     # create configuration
     config = Configuration(**minimum_configuration)
@@ -603,9 +602,7 @@ def test_stitch_prediction_loop(
     careamist.train(train_source=train_array)
 
     # predict CAREamist
-    predicted = careamist.predict(
-        train_array, batch_size=batch_size, tile_size=(16, 16), tile_overlap=(4, 4)
-    )
+    predicted = careamist.predict(train_array, batch_size=batch_size, tile_size=tile_size, tile_overlap=tile_overlap)
     if samples == 1:
         predicted = [predicted]
 
@@ -620,7 +617,7 @@ def test_stitch_prediction_loop(
         # predict each tile individually
         predicted_tile = careamist.predict(tile, axes="CYX")
 
-        # create lists mimicking the output of the prediction loop
+        # create lists mimicking the output of the predßiction loop
         tiles.append(predicted_tile)
         tile_infos.append(tile_info)
 
