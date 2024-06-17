@@ -666,14 +666,10 @@ class CAREamist:
                 for _, tile_info_list in predictions
                 for tile_info in tile_info_list
             ]
-            predictions = torch.concatenate([preds for preds, _ in predictions])
-            # convert to numpy
-            predictions = predictions.numpy()
+            predictions = np.concatenate([preds for preds, _ in predictions])
             predictions = stitch_prediction(predictions, tile_infos)
         else:
-            # convert to numpy
-            predictions = torch.concatenate(predictions)
-            predictions = predictions.numpy()
+            predictions = np.concatenate(predictions)
 
         # don't return list if single image
         if (isinstance(predictions, list)) and (len(predictions) == 1):
