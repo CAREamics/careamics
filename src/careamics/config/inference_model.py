@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Literal, Optional
+from typing import Any, Literal, Optional, Union
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from typing_extensions import Self
@@ -17,13 +17,17 @@ class InferenceConfig(BaseModel):
 
     # Mandatory fields
     data_type: Literal["array", "tiff", "custom"]  # As defined in SupportedData
-    tile_size: Optional[list[int]] = Field(default=None, min_length=2, max_length=3)
-    tile_overlap: Optional[list[int]] = Field(default=None, min_length=2, max_length=3)
+    tile_size: Optional[Union[list[int]]] = Field(
+        default=None, min_length=2, max_length=3
+    )
+    tile_overlap: Optional[Union[list[int]]] = Field(
+        default=None, min_length=2, max_length=3
+    )
 
     axes: str
 
-    mean: float
-    std: float = Field(..., ge=0.0)
+    image_mean: list = Field(..., min_length=0, max_length=32)
+    image_std: list = Field(..., min_length=0, max_length=32)
 
     # only default TTAs are supported for now
     tta_transforms: bool = Field(default=True)
@@ -80,12 +84,12 @@ class InferenceConfig(BaseModel):
 
         Parameters
         ----------
-        tile_list : list[int] or None
+        tile_list : list of int
             Patch size.
 
         Returns
         -------
-        list[int] or None
+        list of int
             Validated patch size.
 
         Raises
@@ -178,9 +182,21 @@ class InferenceConfig(BaseModel):
             If std is not None and mean is None.
         """
         # check that mean and std are either both None, or both specified
-        if (self.mean is None) != (self.std is None):
+        if not self.image_mean and not self.image_std:
+            raise ValueError("Mean and std must be specified during inference.")
+
+        if (self.image_mean and not self.image_std) or (
+            self.image_std and not self.image_mean
+        ):
             raise ValueError(
                 "Mean and std must be either both None, or both specified."
+            )
+
+        elif (self.image_mean is not None and self.image_std is not None) and (
+            len(self.image_mean) != len(self.image_std)
+        ):
+            raise ValueError(
+                "Mean and std must be specified for each " "input channel."
             )
 
         return self
@@ -205,9 +221,9 @@ class InferenceConfig(BaseModel):
         ----------
         axes : str
             Axes.
-        tile_size : list[int]
+        tile_size : list of int
             Tile size.
-        tile_overlap : list[int]
+        tile_overlap : list of int
             Tile overlap.
         """
         self._update(axes=axes, tile_size=tile_size, tile_overlap=tile_overlap)

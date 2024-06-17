@@ -9,23 +9,19 @@ from careamics.dataset.dataset_utils import read_tiff
 
 
 @pytest.mark.parametrize(
-    "shape",
+    "shape, axes, patch_size",
     [
-        # 2D
-        (32, 32),
-        # 3D
-        (32, 32, 32),
+        ((32, 32), "YX", (8, 8)),
+        ((2, 32, 32), "CYX", (8, 8)),
+        ((32, 32, 32), "ZYX", (8, 8, 8)),
     ],
 )
-def test_number_of_files(tmp_path, ordered_array, shape):
+def test_number_of_files(tmp_path, ordered_array, shape, axes, patch_size):
     """Test number of files in PathIterableDataset."""
     # create array
     array_size = 32
-    patch_size = 8
     n_files = 3
-    factor = len(shape)
-    axes = "YX" if factor == 2 else "ZYX"
-    patch_sizes = [patch_size] * factor
+    factor = 3 if axes == "ZYX" else 2
     array = ordered_array(shape)
 
     # save three files
@@ -38,7 +34,7 @@ def test_number_of_files(tmp_path, ordered_array, shape):
     # create config
     config_dict = {
         "data_type": SupportedData.TIFF.value,
-        "patch_size": patch_sizes,
+        "patch_size": patch_size,
         "axes": axes,
     }
     config = DataConfig(**config_dict)
@@ -53,7 +49,7 @@ def test_number_of_files(tmp_path, ordered_array, shape):
 
     # iterate over dataset
     patches = list(dataset)
-    assert len(patches) == n_files * (array_size / patch_size) ** factor
+    assert len(patches) == n_files * (array_size / patch_size[0]) ** factor
 
 
 def test_read_function(tmp_path, ordered_array):
@@ -139,3 +135,53 @@ def test_extracting_val_files(tmp_path, ordered_array, percentage):
 
     # check that none of the validation files are in the original dataset
     assert set(valset.data_files).isdisjoint(set(dataset.data_files))
+
+
+@pytest.mark.parametrize(
+    "shape, axes, patch_size",
+    [
+        ((32, 32), "YX", (8, 8)),
+        ((2, 32, 32), "CYX", (8, 8)),
+        ((32, 32, 32), "ZYX", (8, 8, 8)),
+    ],
+)
+def test_compute_mean_std_transform_iterable(
+    tmp_path, ordered_array, shape, axes, patch_size
+):
+    """Test that mean and std are computed and correctly added to the configuration
+    and transform."""
+    # create array
+    n_files = 3
+    array = ordered_array(shape)
+
+    # save three files
+    files = []
+
+    # create test array with channel axis
+    if "C" not in axes:
+        stacked_array = np.stack([array] * n_files)[:, np.newaxis, ...]
+    else:
+        stacked_array = np.stack([array] * n_files)
+
+    for i in range(n_files):
+        file = tmp_path / f"array{i}.tif"
+        tifffile.imwrite(file, array)
+        files.append(file)
+
+    # create config
+    config_dict = {
+        "data_type": SupportedData.TIFF.value,
+        "patch_size": patch_size,
+        "axes": axes,
+    }
+    config = DataConfig(**config_dict)
+
+    # create dataset
+    dataset = PathIterableDataset(
+        data_config=config, src_files=files, read_source_func=read_tiff
+    )
+
+    axes = tuple(np.delete(np.arange(stacked_array.ndim), 1))
+
+    assert np.array_equal(stacked_array.mean(axis=axes), dataset.data_config.image_mean)
+    assert np.array_equal(stacked_array.std(axis=axes), dataset.data_config.image_std)
