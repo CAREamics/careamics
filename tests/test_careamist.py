@@ -596,7 +596,7 @@ def test_stitch_prediction_loop(    tmp_path: Path, minimum_configuration: dict,
     careamist.train(train_source=train_array)
 
     # predict CAREamist
-    predicted = careamist.predict(train_array, batch_size=batch_size, tile_size=(16, 16), tile_overlap=(4, 4))
+    predicted = careamist.predict(train_array, batch_size=batch_size, tile_size=tile_size, tile_overlap=tile_overlap)
     if samples == 1:
         predicted = [predicted]
 
@@ -611,7 +611,7 @@ def test_stitch_prediction_loop(    tmp_path: Path, minimum_configuration: dict,
         # predict each tile individually
         predicted_tile = careamist.predict(tile, axes="CYX")[0] # output with sample dims
 
-        # create lists mimicking the output of the prediction loop
+        # create lists mimicking the output of the predßiction loop
         tiles.append(predicted_tile)
         tile_infos.append(tile_info)
 

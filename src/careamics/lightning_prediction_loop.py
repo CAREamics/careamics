@@ -111,12 +111,23 @@ class CAREamicsPredictionLoop(L.loops._PredictionLoop):
                     # if last tile, stitch the tiles and add array to the prediction
                     last_tiles = [t.last_tile for t in self.tile_information]
                     if any(last_tiles):
+                        sample_id_eq = [
+                            t.sample_id == self.tile_information[0].sample_id
+                            for t in self.tile_information
+                        ]
+                        sample_id = self.tile_information[0].sample_id
+                        sample_tile_idx = [t.sample_id == sample_id for t in self.tile_information]
+                        next_sample_tile_idx = [t.sample_id != sample_id for t in self.tile_information]
+                        # # added for debug
+                        # if not all(sample_id_eq):
+                        #     raise ValueError("Not all tiles are from the same sample!")
                         predicted_batches = stitch_prediction(
-                            self.tiles, self.tile_information
+                            [self.tiles[i] for i in sample_tile_idx], 
+                            [self.tile_information[i] for i in sample_tile_idx]
                         )
                         self.predicted_array.append(predicted_batches)
-                        self.tiles.clear()
-                        self.tile_information.clear()
+                        self.tiles = [self.tiles[i] for i in next_sample_tile_idx]
+                        self.tile_information = [self.tile_information[i] for i in next_sample_tile_idx]
                 else:
                     # simply add the prediction to the list
                     self.predicted_array.append(self.predictions[batch_idx].numpy())
