@@ -547,7 +547,7 @@ class CAREamist:
         ----------
         source : CAREamicsPredData, pathlib.Path, str or numpy.ndarray
             Data to predict on.
-        batch_size : int, default=1.
+        batch_size : int, default=1
             Batch size for prediction.
         tile_size : tuple of int, optional
             Size of the tiles to use for prediction.

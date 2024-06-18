@@ -1,12 +1,15 @@
+"""Module containing functions to create `CAREamicsPredictData`."""
+
 from pathlib import Path
 from typing import Callable, Dict, Literal, Optional, Tuple, Union
 
 import numpy as np
 from numpy.typing import NDArray
 
-from ..lightning_prediction_datamodule import CAREamicsPredictData
-from careamics.config import create_inference_configuration, Configuration
+from careamics.config import Configuration, create_inference_configuration
 from careamics.utils import check_path_exists
+
+from ..lightning_prediction_datamodule import CAREamicsPredictData
 
 
 def create_pred_datamodule(
@@ -23,13 +26,15 @@ def create_pred_datamodule(
     extension_filter: str = "",
 ) -> CAREamicsPredictData:
     """
-    Creates a `CAREamicsPredictData` module.
+    Create a `CAREamicsPredictData` module.
 
     Parameters
     ----------
     source : CAREamicsPredData, pathlib.Path, str or numpy.ndarray
         Data to predict on.
-    batch_size : int, default=1.
+    config : Configuration
+        Global configuration.
+    batch_size : int, default=1
         Batch size for prediction.
     tile_size : tuple of int, optional
         Size of the tiles to use for prediction.
@@ -111,22 +116,29 @@ def _create_from_path(
     extension_filter: str = "",
     dataloader_params: Optional[Dict] = None,
     **kwargs,
-):
+) -> CAREamicsPredictData:
     """
-    Creates `CAREamicsPredictData` from path.
+    Create `CAREamicsPredictData` from path.
 
     Parameters
     ----------
     source : Path or str
         _Data to predict on.
     pred_config : Configuration
-        Prediction configuration
+        Prediction configuration.
     read_source_func : Callable, optional
         Function to read the source data.
     extension_filter : str, default=""
         Function to read the source data.
     dataloader_params : Optional[Dict], optional
-        _description_, by default None
+        Parameters to pass to the dataloader.
+    **kwargs
+        Unused.
+
+    Returns
+    -------
+    prediction datamodule: CAREamicsPredictData
+        Subclass of `pytorch_lightning.LightningDataModule` for creating predictions.
     """
     source_path = check_path_exists(source)
 
@@ -141,22 +153,29 @@ def _create_from_path(
 
 
 def _create_from_array(
-    source: Union[Path, str],
+    source: NDArray,
     pred_config: Configuration,
     dataloader_params: Optional[Dict] = None,
     **kwargs,
-):
+) -> CAREamicsPredictData:
     """
-    Creates `CAREamicsPredictData` from array.
+    Create `CAREamicsPredictData` from array.
 
     Parameters
     ----------
     source : Path or str
         _Data to predict on.
     pred_config : Configuration
-        Prediction configuration
+        Prediction configuration.
     dataloader_params : Optional[Dict], optional
-        _description_, by default None
+        Parameters to pass to the dataloader.
+    **kwargs
+        Unused. Added for compatible function signature with `_create_from_path`.
+
+    Returns
+    -------
+    prediction datamodule: CAREamicsPredictData
+        Subclass of `pytorch_lightning.LightningDataModule` for creating predictions.
     """
     datamodule = CAREamicsPredictData(
         pred_config=pred_config,
