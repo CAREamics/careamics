@@ -1,12 +1,12 @@
 from pathlib import Path
-from typing import Union, Optional, Callable, Dict, Tuple, Literal
+from typing import Callable, Dict, Literal, Optional, Tuple, Union
 
 import numpy as np
 from numpy.typing import NDArray
 
-from careamics.config import create_inference_configuration
+from ..lightning_prediction_datamodule import CAREamicsPredictData
+from careamics.config import create_inference_configuration, Configuration
 from careamics.utils import check_path_exists
-from careamics import CAREamicsPredictData, Configuration
 
 
 def create_pred_datamodule(
@@ -23,7 +23,7 @@ def create_pred_datamodule(
     extension_filter: str = "",
 ) -> CAREamicsPredictData:
     """
-    Creates a `CAREamicsPredictData` module
+    Creates a `CAREamicsPredictData` module.
 
     Parameters
     ----------
@@ -100,7 +100,7 @@ def create_pred_datamodule(
             f"Invalid input. Expected a CAREamicsPredData instance, paths or "
             f"NDArray (got {type(source)})."
         )
-    
+
     return pred_datamodule
 
 
@@ -110,7 +110,7 @@ def _create_from_path(
     read_source_func: Optional[Callable] = None,
     extension_filter: str = "",
     dataloader_params: Optional[Dict] = None,
-    **kwargs
+    **kwargs,
 ):
     """
     Creates `CAREamicsPredictData` from path.
@@ -144,7 +144,7 @@ def _create_from_array(
     source: Union[Path, str],
     pred_config: Configuration,
     dataloader_params: Optional[Dict] = None,
-    **kwargs
+    **kwargs,
 ):
     """
     Creates `CAREamicsPredictData` from array.

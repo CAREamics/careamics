@@ -19,8 +19,8 @@ __all__ = [
     "PredictDataWrapper",
 ]
 
+from .careamist import CAREamist
 from .config import Configuration, load_configuration, save_configuration
 from .lightning_datamodule import CAREamicsTrainData, TrainingDataWrapper
 from .lightning_module import CAREamicsModuleWrapper
 from .lightning_prediction_datamodule import CAREamicsPredictData, PredictDataWrapper
-from .careamist import CAREamist

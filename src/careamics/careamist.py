@@ -16,19 +16,18 @@ from pytorch_lightning.loggers import TensorBoardLogger, WandbLogger
 from careamics.callbacks import ProgressBarCallback
 from careamics.config import (
     Configuration,
-    create_inference_configuration,
     load_configuration,
 )
 from careamics.config.support import SupportedAlgorithm, SupportedData, SupportedLogger
 from careamics.dataset.dataset_utils import reshape_array
-from careamics.prediction_utils import PredictionManager, create_pred_datamodule
 from careamics.lightning_datamodule import CAREamicsTrainData
 from careamics.lightning_module import CAREamicsModule
-from careamics.lightning_prediction_datamodule import CAREamicsPredictData
 from careamics.model_io import export_to_bmz, load_pretrained
+from careamics.prediction_utils import PredictionManager, create_pred_datamodule
 from careamics.utils import check_path_exists, get_logger
 
 from .callbacks import HyperParametersCallback
+from .lightning_prediction_datamodule import CAREamicsPredictData
 
 logger = get_logger(__name__)
 
