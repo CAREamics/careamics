@@ -38,6 +38,7 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
+    'numpy<2.0.0',
     'torch>=2.0.0',
     'bioimageio.core>=0.6.0',
     'tifffile',
@@ -45,8 +46,8 @@ dependencies = [
     'pydantic>=2.5',
     'pytorch_lightning>=2.2.0',
     'pyyaml',
-    'scikit-image',
-    'zarr',
+    'scikit-image<=0.23.2',
+    'zarr<3.0.0',
 ]
 
 [project.optional-dependencies]
