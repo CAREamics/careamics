@@ -46,7 +46,7 @@ dependencies = [
     'pytorch_lightning>=2.2.0',
     'pyyaml',
     'scikit-image',
-    'zarr',
+    'zarr<3.0.0',
 ]
 
 [project.optional-dependencies]
