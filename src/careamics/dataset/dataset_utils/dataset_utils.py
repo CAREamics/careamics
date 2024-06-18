@@ -123,27 +123,63 @@ def compute_normalization_stats(image: np.ndarray) -> Tuple[np.ndarray, np.ndarr
     return np.mean(image, axis=axes), np.std(image, axis=axes)
 
 
-def update_iterative_stats(count, mean, m2, new_values):
+def update_iterative_stats(
+    count: np.ndarray, mean: np.ndarray, m2: np.ndarray, new_values: np.ndarray
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Update the mean and variance of an array iteratively.
+
+    Parameters
+    ----------
+    count : np.ndarray
+        Number of elements in the array.
+    mean : np.ndarray
+        Mean of the array.
+    m2 : np.ndarray
+        Variance of the array.
+
+    Returns
+    -------
+    Tuple[np.ndarray, np.ndarray, np.ndarray]
+        Updated count, mean, and variance.
+    """
     count += np.array([len(arr.flatten()) for arr in new_values])
     # newvalues - oldMean
     delta = [
-            np.subtract(v.flatten(), [m] * len(v.flatten()))
-            for v, m in zip(new_values, mean)
-        ]
+        np.subtract(v.flatten(), [m] * len(v.flatten()))
+        for v, m in zip(new_values, mean)
+    ]
 
     mean += np.array([np.sum(d / c) for d, c in zip(delta, count)])
     # newvalues - newMeant
     delta2 = [
-            np.subtract(v.flatten(), [m] * len(v.flatten()))
-            for v, m in zip(new_values, mean)
-        ]
+        np.subtract(v.flatten(), [m] * len(v.flatten()))
+        for v, m in zip(new_values, mean)
+    ]
 
     m2 += np.array([np.sum(d * d2) for d, d2 in zip(delta, delta2)])
 
     return (count, mean, m2)
 
 
-def finalize_iterative_stats(count, mean, m2):
+def finalize_iterative_stats(
+    count: np.ndarray, mean: np.ndarray, m2: np.ndarray
+) -> Tuple[np.ndarray, np.ndarray]:
+    """Finalize the mean and variance computation.
+
+    Parameters
+    ----------
+    count : np.ndarray
+        Number of elements in the array.
+    mean : np.ndarray
+        Mean of the array.
+    m2 : np.ndarray
+        Variance of the array.
+
+    Returns
+    -------
+    Tuple[np.ndarray, np.ndarray]
+        Final mean and standard deviation.
+    """
     std = np.array([np.sqrt(m / c) for m, c in zip(m2, count)])
     if any(c < 2 for c in count):
         return float("nan"), float("nan")
