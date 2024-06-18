@@ -21,7 +21,7 @@ from careamics.config import (
 )
 from careamics.config.support import SupportedAlgorithm, SupportedData, SupportedLogger
 from careamics.dataset.dataset_utils import reshape_array
-from careamics.prediction_utils import stitch_prediction, create_pred_datamodule
+from careamics.prediction_utils import PredictionManager, create_pred_datamodule
 from careamics.lightning_datamodule import CAREamicsTrainData
 from careamics.lightning_module import CAREamicsModule
 from careamics.lightning_prediction_datamodule import CAREamicsPredictData
@@ -595,34 +595,13 @@ class CAREamist:
             tta_transforms=tta_transforms,
             dataloader_params=dataloader_params,
             read_source_func=read_source_func,
-            extension_filter=extension_filter
+            extension_filter=extension_filter,
         )
 
-        # TODO: tidy up: move to a seperate function
-        predictions = self.trainer.predict(
-            model=self.model, datamodule=self.pred_datamodule, ckpt_path=checkpoint
+        pm = PredictionManager(
+            self.trainer, self.model, self.pred_datamodule, checkpoint
         )
-        # not sure if necessary
-        if len(predictions) == 0:
-            return predictions
-        is_tiled = tile_size is not None
-        if is_tiled:
-            # "de-collate"
-            tile_infos = [
-                tile_info
-                for _, tile_info_list in predictions
-                for tile_info in tile_info_list
-            ]
-            predictions = np.concatenate([preds for preds, _ in predictions])
-            predictions = stitch_prediction(predictions, tile_infos)
-        else:
-            predictions = np.concatenate(predictions)
-
-        # don't return list if single image
-        if (isinstance(predictions, list)) and (len(predictions) == 1):
-            return predictions[0]
-        else:
-            return predictions
+        return pm.predict()
 
     def export_to_bmz(
         self,
