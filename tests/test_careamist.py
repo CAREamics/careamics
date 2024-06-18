@@ -569,7 +569,7 @@ def test_predict_arrays_no_tiling(
     # predict CAREamist
     predicted = careamist.predict(train_array, batch_size=batch_size)
 
-    assert np.concatenate(predicted).shape == train_array.shape
+    assert np.concatenate(predicted).squeeze().shape == train_array.squeeze().shape
 
     # export to BMZ
     careamist.export_to_bmz(
@@ -580,6 +580,7 @@ def test_predict_arrays_no_tiling(
         general_description="A model that just walked in.",
     )
     assert (tmp_path / "model.zip").exists()
+
 
 @pytest.mark.skip(
     reason=(
