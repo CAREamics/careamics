@@ -1,3 +1,5 @@
+import os
+
 import numpy as np
 import pytest
 import tifffile
@@ -152,7 +154,6 @@ def test_compute_mean_std_transform_iterable(tmp_path, shape, axes, patch_size):
     files = []
     array = np.random.randint(0, np.iinfo(np.uint16).max, (n_files, *shape))
 
-
     for i in range(n_files):
         file = tmp_path / f"array{i}.tif"
         tifffile.imwrite(file, array[i])
@@ -176,9 +177,64 @@ def test_compute_mean_std_transform_iterable(tmp_path, shape, axes, patch_size):
     # define axes for mean and std computation
     stats_axes = tuple(np.delete(np.arange(array.ndim), 1))
 
+    assert np.allclose(array.mean(axis=stats_axes), dataset.data_config.image_mean)
+    assert np.allclose(array.std(axis=stats_axes), dataset.data_config.image_std)
+
+
+@pytest.mark.parametrize(
+    "shape, axes, patch_size",
+    [
+        ((32, 32), "YX", (8, 8)),
+        ((2, 32, 32), "CYX", (8, 8)),
+        ((32, 32, 32), "ZYX", (8, 8, 8)),
+    ],
+)
+def test_compute_mean_std_transform_iterable_with_targets(
+    tmp_path, shape, axes, patch_size
+):
+    """Test that mean and std are computed and correctly added to the configuration
+    and transform."""
+    n_files = 100
+    files = []
+    target_files = []
+    array = np.random.randint(0, np.iinfo(np.uint16).max, (n_files, *shape))
+    target_array = np.random.randint(0, np.iinfo(np.uint16).max, (n_files, *shape))
+
+    for i in range(n_files):
+        file = tmp_path / "images" / f"array{i}.tif"
+        target_file = tmp_path / "targets" / f"array{i}.tif"
+        os.makedirs(file.parent, exist_ok=True)
+        os.makedirs(target_file.parent, exist_ok=True)
+        tifffile.imwrite(file, array[i])
+        tifffile.imwrite(target_file, target_array[i])
+        files.append(file)
+        target_files.append(target_file)
+
+    array = array[:, np.newaxis, ...] if "C" not in axes else array
+    target_array = target_array[:, np.newaxis, ...] if "C" not in axes else target_array
+
+    # create config
+    config_dict = {
+        "data_type": SupportedData.TIFF.value,
+        "patch_size": patch_size,
+        "axes": axes,
+    }
+    config = DataConfig(**config_dict)
+
+    # create dataset
+    dataset = PathIterableDataset(
+        data_config=config,
+        src_files=files,
+        target_files=target_files,
+        read_source_func=read_tiff,
+    )
+
+    # define axes for mean and std computation
+    stats_axes = tuple(np.delete(np.arange(array.ndim), 1))
+
     assert np.allclose(
-        array.mean(axis=stats_axes), dataset.data_config.image_mean
+        target_array.mean(axis=stats_axes), dataset.data_config.target_mean
     )
     assert np.allclose(
-        array.std(axis=stats_axes), dataset.data_config.image_std
+        target_array.std(axis=stats_axes), dataset.data_config.target_std
     )
