@@ -7,7 +7,7 @@ from pytorch_lightning import LightningModule, Trainer
 import careamics
 
 from ..config.tile_information import TileInformation
-from . import stitch_prediction
+from .stitch_prediction import stitch_prediction
 
 
 class PredictionManager:
