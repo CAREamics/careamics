@@ -1,12 +1,8 @@
 import numpy as np
 import pytest
 
-from careamics.dataset.tiling import (
-    extract_tiles,
-    stitch_prediction,
-    stitch_prediction_single,
-)
-
+from careamics.dataset.tiling import extract_tiles
+from careamics.prediction_utils import stitch_prediction, stitch_prediction_single
 
 @pytest.mark.parametrize(
     "input_shape, tile_size, overlaps",

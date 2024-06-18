@@ -7,8 +7,6 @@ import numpy as np
 from careamics.config.tile_information import TileInformation
 
 # TODO: why not allow input and output of torch.tensor ?
-
-
 def stitch_prediction(
     tiles: List[np.ndarray],
     tile_infos: List[TileInformation],

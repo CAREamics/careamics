@@ -21,7 +21,7 @@ from careamics.config import (
 )
 from careamics.config.support import SupportedAlgorithm, SupportedData, SupportedLogger
 from careamics.dataset.dataset_utils import reshape_array
-from careamics.dataset.tiling import stitch_prediction
+from careamics.prediction_utils import stitch_prediction
 from careamics.lightning_datamodule import CAREamicsTrainData
 from careamics.lightning_module import CAREamicsModule
 from careamics.lightning_prediction_datamodule import CAREamicsPredictData
