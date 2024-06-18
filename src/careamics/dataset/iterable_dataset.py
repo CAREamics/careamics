@@ -15,7 +15,13 @@ from careamics.config.transformations import NormalizeModel
 from careamics.transforms import Compose
 
 from ..utils.logging import get_logger
-from .dataset_utils import compute_normalization_stats, iterate_over_files, read_tiff
+from .dataset_utils import (
+    compute_normalization_stats,
+    iterate_over_files,
+    read_tiff,
+    update_iterative_stats,
+    finalize_iterative_stats,
+)
 from .patching.patching import Stats, StatsOutput
 from .patching.random_patching import extract_patches_random
 
@@ -134,9 +140,24 @@ class PathIterableDataset(IterableDataset):
         for sample, target in iterate_over_files(
             self.data_config, self.data_files, self.target_files, self.read_source_func
         ):
-            sample_mean, sample_std = compute_normalization_stats(sample)
-            image_means.append(sample_mean)
-            image_stds.append(sample_std)
+            init_mean, _ = compute_normalization_stats(sample)
+            # separate channels
+            sample_channels = np.array(np.split(sample, sample.shape[1], axis=1))
+
+            counts, m2s = [], []
+            if num_samples == 0:
+                mean = init_mean
+
+                count = np.array([np.prod(channel.shape) for channel in sample_channels])
+                m2 = np.array([
+                    np.sum(np.subtract(channel.flatten(), [mean[i]] * count[i]) ** 2)
+                    for i, channel in enumerate(sample_channels)
+                ])
+
+            else:
+                count, mean, m2 = update_iterative_stats(
+                    count, mean, m2, sample_channels
+                )
 
             if target is not None:
                 target_mean, target_std = compute_normalization_stats(target)
@@ -149,8 +170,7 @@ class PathIterableDataset(IterableDataset):
             raise ValueError("No samples found in the dataset.")
 
         # Average the means and stds per sample
-        image_means = np.mean(image_means, axis=0)
-        image_stds = np.sqrt(np.mean([std**2 for std in image_stds], axis=0))
+        image_means, image_stds = finalize_iterative_stats(count, mean, m2)
 
         if target is not None:
             target_means = np.mean(target_means, axis=0)

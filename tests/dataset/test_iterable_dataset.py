@@ -145,28 +145,20 @@ def test_extracting_val_files(tmp_path, ordered_array, percentage):
         ((32, 32, 32), "ZYX", (8, 8, 8)),
     ],
 )
-def test_compute_mean_std_transform_iterable(
-    tmp_path, ordered_array, shape, axes, patch_size
-):
+def test_compute_mean_std_transform_iterable(tmp_path, shape, axes, patch_size):
     """Test that mean and std are computed and correctly added to the configuration
     and transform."""
-    # create array
-    n_files = 3
-    array = ordered_array(shape)
-
-    # save three files
+    n_files = 100
     files = []
+    array = np.random.randint(0, np.iinfo(np.uint16).max, (n_files, *shape))
 
-    # create test array with channel axis
-    if "C" not in axes:
-        stacked_array = np.stack([array] * n_files)[:, np.newaxis, ...]
-    else:
-        stacked_array = np.stack([array] * n_files)
 
     for i in range(n_files):
         file = tmp_path / f"array{i}.tif"
-        tifffile.imwrite(file, array)
+        tifffile.imwrite(file, array[i])
         files.append(file)
+
+    array = array[:, np.newaxis, ...] if "C" not in axes else array
 
     # create config
     config_dict = {
@@ -181,7 +173,12 @@ def test_compute_mean_std_transform_iterable(
         data_config=config, src_files=files, read_source_func=read_tiff
     )
 
-    axes = tuple(np.delete(np.arange(stacked_array.ndim), 1))
+    # define axes for mean and std computation
+    stats_axes = tuple(np.delete(np.arange(array.ndim), 1))
 
-    assert np.array_equal(stacked_array.mean(axis=axes), dataset.data_config.image_mean)
-    assert np.array_equal(stacked_array.std(axis=axes), dataset.data_config.image_std)
+    assert np.allclose(
+        array.mean(axis=stats_axes), dataset.data_config.image_mean
+    )
+    assert np.allclose(
+        array.std(axis=stats_axes), dataset.data_config.image_std
+    )

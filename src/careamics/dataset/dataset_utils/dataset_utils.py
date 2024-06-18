@@ -121,3 +121,31 @@ def compute_normalization_stats(image: np.ndarray) -> Tuple[np.ndarray, np.ndarr
     # Define the list of axes excluding the channel axis
     axes = tuple(np.delete(np.arange(image.ndim), 1))
     return np.mean(image, axis=axes), np.std(image, axis=axes)
+
+
+def update_iterative_stats(count, mean, m2, new_values):
+    count += np.array([len(arr.flatten()) for arr in new_values])
+    # newvalues - oldMean
+    delta = [
+            np.subtract(v.flatten(), [m] * len(v.flatten()))
+            for v, m in zip(new_values, mean)
+        ]
+
+    mean += np.array([np.sum(d / c) for d, c in zip(delta, count)])
+    # newvalues - newMeant
+    delta2 = [
+            np.subtract(v.flatten(), [m] * len(v.flatten()))
+            for v, m in zip(new_values, mean)
+        ]
+
+    m2 += np.array([np.sum(d * d2) for d, d2 in zip(delta, delta2)])
+
+    return (count, mean, m2)
+
+
+def finalize_iterative_stats(count, mean, m2):
+    std = np.array([np.sqrt(m / c) for m, c in zip(m2, count)])
+    if any(c < 2 for c in count):
+        return float("nan"), float("nan")
+    else:
+        return mean, std

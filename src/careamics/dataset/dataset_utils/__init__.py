@@ -3,6 +3,8 @@
 __all__ = [
     "reshape_array",
     "compute_normalization_stats",
+    "update_iterative_stats",
+    "finalize_iterative_stats",
     "get_files_size",
     "list_files",
     "validate_source_target_files",
@@ -13,7 +15,12 @@ __all__ = [
 ]
 
 
-from .dataset_utils import compute_normalization_stats, reshape_array
+from .dataset_utils import (
+    compute_normalization_stats,
+    finalize_iterative_stats,
+    reshape_array,
+    update_iterative_stats,
+)
 from .file_utils import get_files_size, list_files, validate_source_target_files
 from .iterate_over_files import iterate_over_files
 from .read_tiff import read_tiff
