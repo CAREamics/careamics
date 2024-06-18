@@ -45,7 +45,7 @@ dependencies = [
     'pydantic>=2.5',
     'pytorch_lightning>=2.2.0',
     'pyyaml',
-    'scikit-image',
+    'scikit-image<=0.23.2',
     'zarr<3.0.0',
 ]
 
