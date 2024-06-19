@@ -9,8 +9,8 @@ from typing import Any, Callable, Optional, Union
 import numpy as np
 from torch.utils.data import Dataset
 
-from careamics.transforms import Compose
 from careamics.file_io.read import read_tiff
+from careamics.transforms import Compose
 
 from ..config import DataConfig
 from ..config.transformations import NormalizeModel

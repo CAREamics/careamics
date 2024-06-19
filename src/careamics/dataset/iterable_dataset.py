@@ -12,8 +12,8 @@ from torch.utils.data import IterableDataset
 
 from careamics.config import DataConfig
 from careamics.config.transformations import NormalizeModel
-from careamics.transforms import Compose
 from careamics.file_io.read import read_tiff
+from careamics.transforms import Compose
 
 from ..utils.logging import get_logger
 from .dataset_utils import compute_normalization_stats, iterate_over_files

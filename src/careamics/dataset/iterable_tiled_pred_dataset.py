@@ -8,9 +8,8 @@ from typing import Any, Callable, Generator
 from numpy.typing import NDArray
 from torch.utils.data import IterableDataset
 
-from careamics.transforms import Compose
 from careamics.file_io.read import read_tiff
-
+from careamics.transforms import Compose
 
 from ..config import InferenceConfig
 from ..config.tile_information import TileInformation
