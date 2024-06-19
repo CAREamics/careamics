@@ -4,5 +4,5 @@ import tifffile
 from numpy.typing import NDArray
 
 
-def write_tiff(fp: Path, img: NDArray, *args, **kwargs) -> None:
-    tifffile.imwrite(fp, img, *args, **kwargs)
+def write_tiff(file_path: Path, img: NDArray, *args, **kwargs) -> None:
+    tifffile.imwrite(file_path, img, *args, **kwargs)

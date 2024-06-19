@@ -4,20 +4,20 @@ from typing import Protocol, Union
 from numpy.typing import NDArray
 
 from careamics.config.support import SupportedData
+
 from .tiff import write_tiff
 
-WRITE_FUNCS = {
-    SupportedData.TIFF.value: write_tiff,
-}
 
-
-# This is very strict, arguments have to be called fp & img
-class WriteFunc(Protocol):
-    def __call__(self, fp: Path, img: NDArray, *args, **kwargs) -> None: ...
-
-
+# This is very strict, arguments have to be called file_path & img
 # Alternative? - doesn't capture *args & **kwargs
-# SavePredictFunc = Callable[[Path, NDArray], None]
+# WriteFunc = Callable[[Path, NDArray], None]
+class WriteFunc(Protocol):
+    def __call__(self, file_path: Path, img: NDArray, *args, **kwargs) -> None: ...
+
+
+WRITE_FUNCS: dict[SupportedData, WriteFunc] = {
+    SupportedData.TIFF: write_tiff,
+}
 
 
 def get_write_func(data_type: Union[SupportedData, str]) -> WriteFunc:
