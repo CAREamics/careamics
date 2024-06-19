@@ -26,8 +26,8 @@ class InferenceConfig(BaseModel):
 
     axes: str
 
-    image_mean: list = Field(..., min_length=0, max_length=32)
-    image_std: list = Field(..., min_length=0, max_length=32)
+    image_means: list = Field(..., min_length=0, max_length=32)
+    image_stds: list = Field(..., min_length=0, max_length=32)
 
     # only default TTAs are supported for now
     tta_transforms: bool = Field(default=True)
@@ -182,18 +182,18 @@ class InferenceConfig(BaseModel):
             If std is not None and mean is None.
         """
         # check that mean and std are either both None, or both specified
-        if not self.image_mean and not self.image_std:
+        if not self.image_means and not self.image_stds:
             raise ValueError("Mean and std must be specified during inference.")
 
-        if (self.image_mean and not self.image_std) or (
-            self.image_std and not self.image_mean
+        if (self.image_means and not self.image_stds) or (
+            self.image_stds and not self.image_means
         ):
             raise ValueError(
                 "Mean and std must be either both None, or both specified."
             )
 
-        elif (self.image_mean is not None and self.image_std is not None) and (
-            len(self.image_mean) != len(self.image_std)
+        elif (self.image_means is not None and self.image_stds is not None) and (
+            len(self.image_means) != len(self.image_stds)
         ):
             raise ValueError(
                 "Mean and std must be specified for each " "input channel."

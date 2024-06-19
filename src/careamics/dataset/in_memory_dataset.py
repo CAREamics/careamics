@@ -85,30 +85,30 @@ class InMemoryDataset(Dataset):
         self.data = patches_data.patches
         self.data_targets = patches_data.targets
 
-        if self.data_config.image_mean is None:
+        if self.data_config.image_means is None:
             self.image_means = patches_data.image_stats.means
             self.image_stds = patches_data.image_stats.stds
             logger.info(
                 f"Computed dataset mean: {self.image_means}, std: {self.image_stds}"
             )
         else:
-            self.image_means = self.data_config.image_mean
-            self.image_stds = self.data_config.image_std
+            self.image_means = self.data_config.image_means
+            self.image_stds = self.data_config.image_stds
 
-        if self.data_config.target_mean is None:
+        if self.data_config.target_means is None:
             self.target_means = patches_data.target_stats.means
             self.target_stds = patches_data.target_stats.stds
         else:
-            self.target_means = self.data_config.target_mean
-            self.target_stds = self.data_config.target_std
+            self.target_means = self.data_config.target_means
+            self.target_stds = self.data_config.target_stds
 
         # update mean and std in configuration
         # the object is mutable and should then be recorded in the CAREamist obj
         self.data_config.set_mean_and_std(
-            image_mean=self.image_means,
-            image_std=self.image_stds,
-            target_mean=self.target_means,
-            target_std=self.target_stds,
+            image_means=self.image_means,
+            image_stds=self.image_stds,
+            target_means=self.target_means,
+            target_stds=self.target_stds,
         )
         # get transforms
         self.patch_transform = Compose(

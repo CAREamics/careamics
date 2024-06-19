@@ -1,7 +1,7 @@
 """Prediction Lightning data modules."""
 
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Literal, Optional, Tuple, Union
 
 import numpy as np
 import pytorch_lightning as L
@@ -271,10 +271,10 @@ class PredictDataWrapper(CAREamicsPredictData):
         Prediction data.
     data_type : Union[Literal["array", "tiff", "custom"], SupportedData]
         Data type, see `SupportedData` for available options.
-    image_mean : float
-        Mean value for normalization, only used if Normalization is defined.
-    image_std : float
-        Std value for normalization, only used if Normalization is defined.
+    image_means : list of float
+        Mean values for normalization, only used if Normalization is defined.
+    image_stds : list of float
+        Std values for normalization, only used if Normalization is defined.
     tile_size : Tuple[int, ...]
         Tile size, 2D or 3D tile size.
     tile_overlap : Tuple[int, ...]
@@ -298,8 +298,8 @@ class PredictDataWrapper(CAREamicsPredictData):
         self,
         pred_data: Union[str, Path, np.ndarray],
         data_type: Union[Literal["array", "tiff", "custom"], SupportedData],
-        image_mean=List,
-        image_std=List,
+        image_means=list[float],
+        image_stds=list[float],
         tile_size: Optional[Tuple[int, ...]] = None,
         tile_overlap: Optional[Tuple[int, ...]] = None,
         axes: str = "YX",
@@ -318,10 +318,10 @@ class PredictDataWrapper(CAREamicsPredictData):
             Prediction data.
         data_type : Union[Literal["array", "tiff", "custom"], SupportedData]
             Data type, see `SupportedData` for available options.
-        image_mean : float
-            Mean value for normalization, only used if Normalization is defined.
-        image_std : float
-            Std value for normalization, only used if Normalization is defined.
+        image_means : list of float
+            Mean values for normalization, only used if Normalization is defined.
+        image_stds : list of float
+            Std values for normalization, only used if Normalization is defined.
         tile_size : List[int]
             Tile size, 2D or 3D tile size.
         tile_overlap : List[int]
@@ -347,8 +347,8 @@ class PredictDataWrapper(CAREamicsPredictData):
             "tile_size": tile_size,
             "tile_overlap": tile_overlap,
             "axes": axes,
-            "image_mean": image_mean,
-            "image_std": image_std,
+            "image_means": image_means,
+            "image_stds": image_stds,
             "tta": tta_transforms,
             "batch_size": batch_size,
             "transforms": [],

@@ -5,7 +5,7 @@ from __future__ import annotations
 from pprint import pformat
 from typing import Any, Literal, Optional, Union
 
-import numpy as np
+from numpy.typing import NDArray
 from pydantic import (
     BaseModel,
     ConfigDict,
@@ -56,7 +56,7 @@ class DataConfig(BaseModel):
     ... )
 
     To change the mean and std of the data:
-    >>> data.set_mean_and_std(image_mean=[214.3], image_std=[84.5])
+    >>> data.set_mean_and_std(image_means=[214.3], image_stds=[84.5])
 
     One can pass also a list of transformations, by keyword, using the
     SupportedTransform value:
@@ -86,12 +86,16 @@ class DataConfig(BaseModel):
     axes: str
 
     # Optional fields
-    image_mean: Optional[list[float]] = Field(default=None, min_length=0, max_length=32)
-    image_std: Optional[list[float]] = Field(default=None, min_length=0, max_length=32)
-    target_mean: Optional[list[float]] = Field(
+    image_means: Optional[list[float]] = Field(
         default=None, min_length=0, max_length=32
     )
-    target_std: Optional[list[float]] = Field(default=None, min_length=0, max_length=32)
+    image_stds: Optional[list[float]] = Field(default=None, min_length=0, max_length=32)
+    target_means: Optional[list[float]] = Field(
+        default=None, min_length=0, max_length=32
+    )
+    target_stds: Optional[list[float]] = Field(
+        default=None, min_length=0, max_length=32
+    )
 
     transforms: list[TRANSFORMS_UNION] = Field(
         default=[
@@ -232,29 +236,29 @@ class DataConfig(BaseModel):
             If std is not None and mean is None.
         """
         # check that mean and std are either both None, or both specified
-        if (self.image_mean and not self.image_std) or (
-            self.image_std and not self.image_mean
+        if (self.image_means and not self.image_stds) or (
+            self.image_stds and not self.image_means
         ):
             raise ValueError(
                 "Mean and std must be either both None, or both specified."
             )
 
-        elif (self.image_mean is not None and self.image_std is not None) and (
-            len(self.image_mean) != len(self.image_std)
+        elif (self.image_means is not None and self.image_stds is not None) and (
+            len(self.image_means) != len(self.image_stds)
         ):
             raise ValueError(
                 "Mean and std must be specified for each " "input channel."
             )
 
-        if (self.target_mean and not self.target_std) or (
-            self.target_std and not self.target_mean
+        if (self.target_means and not self.target_stds) or (
+            self.target_stds and not self.target_means
         ):
             raise ValueError(
                 "Mean and std must be either both None, or both specified "
             )
 
-        elif self.target_mean is not None and self.target_std is not None:
-            if len(self.target_mean) != len(self.target_std):
+        elif self.target_means is not None and self.target_stds is not None:
+            if len(self.target_means) != len(self.target_stds):
                 raise ValueError(
                     "Mean and std must be either both None, or both specified for each "
                     "target channel."
@@ -344,10 +348,10 @@ class DataConfig(BaseModel):
 
     def set_mean_and_std(
         self,
-        image_mean: Union[np.ndarray, tuple, list, None],
-        image_std: Union[np.ndarray, tuple, list, None],
-        target_mean: Optional[Union[np.ndarray, tuple, list, None]] = None,
-        target_std: Optional[Union[np.ndarray, tuple, list, None]] = None,
+        image_means: Union[NDArray, tuple, list, None],
+        image_stds: Union[NDArray, tuple, list, None],
+        target_means: Optional[Union[NDArray, tuple, list, None]] = None,
+        target_stds: Optional[Union[NDArray, tuple, list, None]] = None,
     ) -> None:
         """
         Set mean and standard deviation of the data.
@@ -357,30 +361,30 @@ class DataConfig(BaseModel):
 
         Parameters
         ----------
-        image_mean : np.ndarray or tuple or list
-            Mean value for normalization.
-        image_std : np.ndarray or tuple or list
-            Standard deviation value for normalization.
-        target_mean : np.ndarray or tuple or list, optional
-            Target mean value for normalization, by default ().
-        target_std : np.ndarray or tuple or list, optional
-            Target standard deviation value for normalization, by default ().
+        image_means : NDArray or tuple or list
+            Mean values for normalization.
+        image_stds : NDArray or tuple or list
+            Standard deviation values for normalization.
+        target_means : NDArray or tuple or list, optional
+            Target mean values for normalization, by default ().
+        target_stds : NDArray or tuple or list, optional
+            Target standard deviation values for normalization, by default ().
         """
         # make sure we pass a list
-        if image_mean is not None:
-            image_mean = list(image_mean)
-        if image_std is not None:
-            image_std = list(image_std)
-        if target_mean is not None:
-            target_mean = list(target_mean)
-        if target_std is not None:
-            target_std = list(target_std)
+        if image_means is not None:
+            image_means = list(image_means)
+        if image_stds is not None:
+            image_stds = list(image_stds)
+        if target_means is not None:
+            target_means = list(target_means)
+        if target_stds is not None:
+            target_stds = list(target_stds)
 
         self._update(
-            image_mean=image_mean,
-            image_std=image_std,
-            target_mean=target_mean,
-            target_std=target_std,
+            image_means=image_means,
+            image_stds=image_stds,
+            target_means=target_means,
+            target_stds=target_stds,
         )
 
     def set_3D(self, axes: str, patch_size: list[int]) -> None:
