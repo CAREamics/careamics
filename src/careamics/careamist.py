@@ -211,6 +211,23 @@ class CAREamist:
         """
         self.callbacks = [] if callbacks is None else callbacks
 
+        # check that user callbacks are not any of the CAREamics callbacks
+        for c in self.callbacks:
+            if isinstance(c, ModelCheckpoint) or isinstance(c, EarlyStopping):
+                raise ValueError(
+                    "ModelCheckpoint and EarlyStopping callbacks are already defined "
+                    "in CAREamics and should only be modified through the "
+                    "training configuration (see TrainingConfig)."
+                )
+
+            if isinstance(c, HyperParametersCallback) or isinstance(
+                c, ProgressBarCallback
+            ):
+                raise ValueError(
+                    "HyperParameter and ProgressBar callbacks are defined internally "
+                    "and should not be passed as callbacks."
+                )
+
         # checkpoint callback saves checkpoints during training
         self.callbacks.extend(
             [
