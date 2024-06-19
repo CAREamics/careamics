@@ -23,15 +23,22 @@ def test_random_patching_unsupervised(ordered_array, shape, patch_size):
     Since extract patches is called on already shaped array, dimensions S and C are
     present.
     """
-    np.random.seed(42)
-
     # create array
     array = ordered_array(shape)
     is_3D = len(patch_size) == 3
-    top_left = []
 
-    for _ in range(3):
-        patch_generator = extract_patches_random(array, patch_size=patch_size)
+    # minimum number of unique patches to validate randomness
+    if is_3D:
+        min_unique_patches = 0.7 * np.prod(shape[-3:]) / np.prod(patch_size)
+    else:
+        min_unique_patches = 0.7 * np.prod(shape[-2:]) / np.prod(patch_size)
+
+    top_left = []
+    seeds = [24, 42, 56]
+    for i in range(3):
+        patch_generator = extract_patches_random(
+            array, patch_size=patch_size, seed=seeds[i]
+        )
 
         # get all patches and targets
         patches = [patch for patch, _ in patch_generator]
@@ -49,57 +56,8 @@ def test_random_patching_unsupervised(ordered_array, shape, patch_size):
 
             top_left.append(np.array(ind))
 
-    # check randomness
-    coords = np.array(top_left).squeeze()
-    assert coords.min() == 0
-    assert coords.max() == max(array.shape) - max(patch_size)
-    assert len(np.unique(coords, axis=0)) >= 0.7 * np.prod(shape) / np.prod(patch_size)
-
-
-# @pytest.mark.parametrize(
-#     "patch_size",
-#     [
-#         (2, 2),
-#         (4, 2),
-#         (4, 8),
-#         (8, 8),
-#     ],
-# )
-# def test_extract_patches_random_2d(array_2D, patch_size):
-#     """Test extracting patches randomly in 2D."""
-#     check_extract_patches_random(array_2D, "SYX", patch_size)
-
-
-# @pytest.mark.parametrize(
-#     "patch_size",
-#     [
-#         (2, 2),
-#         (4, 2),
-#         (4, 8),
-#         (8, 8),
-#     ],
-# )
-# def test_extract_patches_random_supervised_2d(array_2D, patch_size):
-#     """Test extracting patches randomly in 2D."""
-#     check_extract_patches_random(
-#         array_2D,
-#         "SYX",
-#         patch_size,
-#         target=array_2D
-#     )
-
-
-# @pytest.mark.parametrize(
-#     "patch_size",
-#     [
-#         (2, 2, 4),
-#         (4, 2, 2),
-#         (2, 8, 4),
-#         (4, 8, 8),
-#     ],
-# )
-# def test_extract_patches_random_3d(array_3D, patch_size):
-#     """Test extracting patches randomly in 3D.
-
-#     The 3D array is a fixture of shape (1, 8, 16, 16)."""
-#     check_extract_patches_random(array_3D, "SZYX", patch_size)
+        # check randomness
+        coords = np.array(top_left).squeeze()
+        assert coords.min() == 0
+        assert coords.max() == max(array.shape) - max(patch_size)
+        assert len(np.unique(coords, axis=0)) >= min_unique_patches

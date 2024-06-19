@@ -13,7 +13,10 @@ from .struct_mask_parameters import StructMaskParameters
 
 
 def _apply_struct_mask(
-    patch: np.ndarray, coords: np.ndarray, struct_params: StructMaskParameters
+    patch: np.ndarray,
+    coords: np.ndarray,
+    struct_params: StructMaskParameters,
+    rng: Optional[np.random.Generator] = None,
 ) -> np.ndarray:
     """Apply structN2V masks to patch.
 
@@ -31,12 +34,17 @@ def _apply_struct_mask(
         Coordinates of the ROI(subpatch) centers.
     struct_params : StructMaskParameters
         Parameters for the structN2V mask (axis and span).
+    rng : np.random.Generator or None
+        Random number generator.
 
     Returns
     -------
     np.ndarray
         Patch with the structN2V mask applied.
     """
+    if rng is None:
+        rng = np.random.default_rng()
+
     # relative axis
     moving_axis = -1 - struct_params.axis
 
@@ -67,7 +75,7 @@ def _apply_struct_mask(
     mix = np.delete(mix, mix[:, moving_axis] > max_bound, axis=0)
 
     # replace neighbouring pixels with random values from flat dist
-    patch[tuple(mix.T)] = np.random.uniform(patch.min(), patch.max(), size=mix.shape[0])
+    patch[tuple(mix.T)] = rng.uniform(patch.min(), patch.max(), size=mix.shape[0])
 
     return patch
 
@@ -98,7 +106,9 @@ def _odd_jitter_func(step: float, rng: np.random.Generator) -> np.ndarray:
 
 
 def _get_stratified_coords(
-    mask_pixel_perc: float, shape: Tuple[int, ...]
+    mask_pixel_perc: float,
+    shape: Tuple[int, ...],
+    rng: Optional[np.random.Generator] = None,
 ) -> np.ndarray:
     """
     Generate coordinates of the pixels to mask.
@@ -113,6 +123,8 @@ def _get_stratified_coords(
         calculating the distance between masked pixels across each axis.
     shape : Tuple[int, ...]
         Shape of the input patch.
+    rng : np.random.Generator or None
+        Random number generator.
 
     Returns
     -------
@@ -124,7 +136,8 @@ def _get_stratified_coords(
             "Calculating coordinates is only possible for 2D and 3D patches"
         )
 
-    rng = np.random.default_rng()
+    if rng is None:
+        rng = np.random.default_rng()
 
     mask_pixel_distance = np.round((100 / mask_pixel_perc) ** (1 / len(shape))).astype(
         np.int32
@@ -228,6 +241,7 @@ def uniform_manipulate(
     subpatch_size: int = 11,
     remove_center: bool = True,
     struct_params: Optional[StructMaskParameters] = None,
+    rng: Optional[np.random.Generator] = None,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """
     Manipulate pixels by replacing them with a neighbor values.
@@ -248,19 +262,23 @@ def uniform_manipulate(
         Size of the subpatch the new pixel value is sampled from, by default 11.
     remove_center : bool
         Whether to remove the center pixel from the subpatch, by default False.
-    struct_params : Optional[StructMaskParameters]
+    struct_params : StructMaskParameters or None
         Parameters for the structN2V mask (axis and span).
+    rng : np.random.Generator or None
+        Random number generator.
 
     Returns
     -------
     Tuple[np.ndarray]
         Tuple containing the manipulated patch and the corresponding mask.
     """
+    if rng is None:
+        rng = np.random.default_rng()
+
     # Get the coordinates of the pixels to be replaced
     transformed_patch = patch.copy()
 
-    subpatch_centers = _get_stratified_coords(mask_pixel_percentage, patch.shape)
-    rng = np.random.default_rng()
+    subpatch_centers = _get_stratified_coords(mask_pixel_percentage, patch.shape, rng)
 
     # Generate coordinate grid for subpatch
     roi_span_full = np.arange(
@@ -303,6 +321,7 @@ def median_manipulate(
     mask_pixel_percentage: float,
     subpatch_size: int = 11,
     struct_params: Optional[StructMaskParameters] = None,
+    rng: Optional[np.random.Generator] = None,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """
     Manipulate pixels by replacing them with the median of their surrounding subpatch.
@@ -322,18 +341,23 @@ def median_manipulate(
         Approximate percentage of pixels to be masked.
     subpatch_size : int
         Size of the subpatch the new pixel value is sampled from, by default 11.
-    struct_params : Optional[StructMaskParameters]
+    struct_params : StructMaskParameters or None, optional
         Parameters for the structN2V mask (axis and span).
+    rng : np.random.Generator or None, optional
+        Random number generato, by default None.
 
     Returns
     -------
     Tuple[np.ndarray]
            Tuple containing the manipulated patch, the original patch and the mask.
     """
+    if rng is None:
+        rng = np.random.default_rng()
+
     transformed_patch = patch.copy()
 
     # Get the coordinates of the pixels to be replaced
-    subpatch_centers = _get_stratified_coords(mask_pixel_percentage, patch.shape)
+    subpatch_centers = _get_stratified_coords(mask_pixel_percentage, patch.shape, rng)
 
     # Generate coordinate grid for subpatch
     roi_span = np.array(

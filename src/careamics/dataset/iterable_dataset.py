@@ -3,84 +3,23 @@
 from __future__ import annotations
 
 import copy
+from collections.abc import Generator
 from pathlib import Path
-from typing import Any, Callable, Generator, List, Optional, Tuple, Union
+from typing import Callable, Optional
 
 import numpy as np
-from torch.utils.data import IterableDataset, get_worker_info
+from torch.utils.data import IterableDataset
 
+from careamics.config import DataConfig
+from careamics.config.transformations import NormalizeModel
 from careamics.transforms import Compose
 
-from ..config import DataConfig, InferenceConfig
-from ..config.tile_information import TileInformation
-from ..config.transformations import NormalizeModel
 from ..utils.logging import get_logger
-from .dataset_utils import read_tiff, reshape_array
+from .dataset_utils import compute_normalization_stats, iterate_over_files, read_tiff
+from .patching.patching import Stats, StatsOutput
 from .patching.random_patching import extract_patches_random
-from .patching.tiled_patching import extract_tiles
 
 logger = get_logger(__name__)
-
-
-def _iterate_over_files(
-    data_config: Union[DataConfig, InferenceConfig],
-    data_files: List[Path],
-    target_files: Optional[List[Path]] = None,
-    read_source_func: Callable = read_tiff,
-) -> Generator[Tuple[np.ndarray, Optional[np.ndarray]], None, None]:
-    """
-    Iterate over data source and yield whole image.
-
-    Parameters
-    ----------
-    data_config : Union[DataConfig, InferenceConfig]
-        Data configuration.
-    data_files : List[Path]
-        List of data files.
-    target_files : Optional[List[Path]]
-        List of target files, by default None.
-    read_source_func : Optional[Callable]
-        Function to read the source, by default read_tiff.
-
-    Yields
-    ------
-    np.ndarray
-        Image.
-    """
-    # When num_workers > 0, each worker process will have a different copy of the
-    # dataset object
-    # Configuring each copy independently to avoid having duplicate data returned
-    # from the workers
-    worker_info = get_worker_info()
-    worker_id = worker_info.id if worker_info is not None else 0
-    num_workers = worker_info.num_workers if worker_info is not None else 1
-
-    # iterate over the files
-    for i, filename in enumerate(data_files):
-        # retrieve file corresponding to the worker id
-        if i % num_workers == worker_id:
-            try:
-                # read data
-                sample = read_source_func(filename, data_config.axes)
-
-                # read target, if available
-                if target_files is not None:
-                    if filename.name != target_files[i].name:
-                        raise ValueError(
-                            f"File {filename} does not match target file "
-                            f"{target_files[i]}. Have you passed sorted "
-                            f"arrays?"
-                        )
-
-                    # read target
-                    target = read_source_func(target_files[i], data_config.axes)
-
-                    yield sample, target
-                else:
-                    yield sample, None
-
-            except Exception as e:
-                logger.error(f"Error reading file {filename}: {e}")
 
 
 class PathIterableDataset(IterableDataset):
@@ -91,38 +30,26 @@ class PathIterableDataset(IterableDataset):
     ----------
     data_config : DataConfig
         Data configuration.
-    src_files : List[Path]
+    src_files : list of pathlib.Path
         List of data files.
-    target_files : Optional[List[Path]], optional
+    target_files : list of pathlib.Path, optional
         Optional list of target files, by default None.
     read_source_func : Callable, optional
         Read source function for custom types, by default read_tiff.
 
     Attributes
     ----------
-    data_path : List[Path]
+    data_path : list of pathlib.Path
         Path to the data, must be a directory.
     axes : str
         Description of axes in format STCZYX.
-    patch_extraction_method : Union[ExtractionStrategies, None]
-        Patch extraction strategy, as defined in extraction_strategy.
-    patch_size : Optional[Union[List[int], Tuple[int]]], optional
-        Size of the patches in each dimension, by default None.
-    patch_overlap : Optional[Union[List[int], Tuple[int]]], optional
-        Overlap of the patches in each dimension, by default None.
-    mean : Optional[float], optional
-        Expected mean of the dataset, by default None.
-    std : Optional[float], optional
-        Expected standard deviation of the dataset, by default None.
-    patch_transform : Optional[Callable], optional
-        Patch transform callable, by default None.
     """
 
     def __init__(
         self,
         data_config: DataConfig,
-        src_files: List[Path],
-        target_files: Optional[List[Path]] = None,
+        src_files: list[Path],
+        target_files: Optional[list[Path]] = None,
         read_source_func: Callable = read_tiff,
     ) -> None:
         """Constructors.
@@ -131,9 +58,9 @@ class PathIterableDataset(IterableDataset):
         ----------
         data_config : DataConfig
             Data configuration.
-        src_files : List[Path]
+        src_files : list[Path]
             List of data files.
-        target_files : Optional[List[Path]], optional
+        target_files : list[Path] or None, optional
             Optional list of target files, by default None.
         read_source_func : Callable, optional
             Read source function for custom types, by default read_tiff.
@@ -141,55 +68,107 @@ class PathIterableDataset(IterableDataset):
         self.data_config = data_config
         self.data_files = src_files
         self.target_files = target_files
-        self.data_config = data_config
         self.read_source_func = read_source_func
 
         # compute mean and std over the dataset
-        if not data_config.mean or not data_config.std:
-            self.mean, self.std = self._calculate_mean_and_std()
+        # only checking the image_mean because the DataConfig class ensures that
+        # if image_mean is provided, image_std is also provided
+        if not self.data_config.image_means:
+            self.data_stats = self._calculate_mean_and_std()
+            logger.info(
+                f"Computed dataset mean: {self.data_stats.image_stats.means},"
+                f"std: {self.data_stats.image_stats.stds}"
+            )
 
-            # update mean and std in configuration
-            # the object is mutable and should then be recorded in the CAREamist
-            data_config.set_mean_and_std(self.mean, self.std)
+            # update the mean in the config
+            self.data_config.set_mean_and_std(
+                image_means=self.data_stats.image_stats.means,
+                image_stds=self.data_stats.image_stats.stds,
+                target_means=(
+                    list(self.data_stats.target_stats.means)
+                    if self.data_stats.target_stats.means is not None
+                    else None
+                ),
+                target_stds=(
+                    list(self.data_stats.target_stats.stds)
+                    if self.data_stats.target_stats.stds is not None
+                    else None
+                ),
+            )
+
         else:
-            self.mean = data_config.mean
-            self.std = data_config.std
+            # if mean and std are provided in the config, use them
+            self.data_stats = StatsOutput(
+                Stats(self.data_config.image_means, self.data_config.image_stds),
+                Stats(self.data_config.target_means, self.data_config.target_stds),
+            )
 
-        # get transforms
-        self.patch_transform = Compose(transform_list=data_config.transforms)
+        # create transform composed of normalization and other transforms
+        self.patch_transform = Compose(
+            transform_list=[
+                NormalizeModel(
+                    image_means=self.data_stats.image_stats.means,
+                    image_stds=self.data_stats.image_stats.stds,
+                    target_means=self.data_stats.target_stats.means,
+                    target_stds=self.data_stats.target_stats.stds,
+                )
+            ]
+            + data_config.transforms
+        )
 
-    def _calculate_mean_and_std(self) -> Tuple[float, float]:
+    def _calculate_mean_and_std(self) -> StatsOutput:
         """
         Calculate mean and std of the dataset.
 
         Returns
         -------
-        Tuple[float, float]
-            Tuple containing mean and standard deviation.
+        PatchedOutput
+            Data class containing the image statistics.
         """
-        means, stds = 0, 0
+        image_means = []
+        image_stds = []
+        target_means = []
+        target_stds = []
         num_samples = 0
 
-        for sample, _ in _iterate_over_files(
+        for sample, target in iterate_over_files(
             self.data_config, self.data_files, self.target_files, self.read_source_func
         ):
-            means += sample.mean()
-            stds += sample.std()
+            sample_mean, sample_std = compute_normalization_stats(sample)
+            image_means.append(sample_mean)
+            image_stds.append(sample_std)
+
+            if target is not None:
+                target_mean, target_std = compute_normalization_stats(target)
+                target_means.append(target_mean)
+                target_stds.append(target_std)
+
             num_samples += 1
 
         if num_samples == 0:
             raise ValueError("No samples found in the dataset.")
 
-        result_mean = means / num_samples
-        result_std = stds / num_samples
+        # Average the means and stds per sample
+        image_means = np.mean(image_means, axis=0)
+        image_stds = np.sqrt(np.mean([std**2 for std in image_stds], axis=0))
+
+        if target is not None:
+            target_means = np.mean(target_means, axis=0)
+            target_stds = np.sqrt(np.mean([std**2 for std in target_stds], axis=0))
 
         logger.info(f"Calculated mean and std for {num_samples} images")
-        logger.info(f"Mean: {result_mean}, std: {result_std}")
-        return result_mean, result_std
+        logger.info(f"Mean: {image_means}, std: {image_stds}")
+        return StatsOutput(
+            Stats(image_means, image_stds),
+            Stats(
+                np.array(target_means) if target is not None else None,
+                np.array(target_stds) if target is not None else None,
+            ),
+        )
 
     def __iter__(
         self,
-    ) -> Generator[Tuple[np.ndarray, ...], None, None]:
+    ) -> Generator[tuple[np.ndarray, ...], None, None]:
         """
         Iterate over data source and yield single patch.
 
@@ -199,24 +178,18 @@ class PathIterableDataset(IterableDataset):
             Single patch.
         """
         assert (
-            self.mean is not None and self.std is not None
+            self.data_stats.image_stats.means is not None
+            and self.data_stats.image_stats.stds is not None
         ), "Mean and std must be provided"
 
         # iterate over files
-        for sample_input, sample_target in _iterate_over_files(
+        for sample_input, sample_target in iterate_over_files(
             self.data_config, self.data_files, self.target_files, self.read_source_func
         ):
-            reshaped_sample = reshape_array(sample_input, self.data_config.axes)
-            reshaped_target = (
-                None
-                if sample_target is None
-                else reshape_array(sample_target, self.data_config.axes)
-            )
-
             patches = extract_patches_random(
-                arr=reshaped_sample,
+                arr=sample_input,
                 patch_size=self.data_config.patch_size,
-                target=reshaped_target,
+                target=sample_target,
             )
 
             # iterate over patches
@@ -317,132 +290,3 @@ class PathIterableDataset(IterableDataset):
             dataset.target_files = val_target_files
 
         return dataset
-
-
-class IterablePredictionDataset(IterableDataset):
-    """
-    Prediction dataset.
-
-    Parameters
-    ----------
-    prediction_config : InferenceConfig
-        Inference configuration.
-    src_files : List[Path]
-        List of data files.
-    read_source_func : Callable, optional
-        Read source function for custom types, by default read_tiff.
-    **kwargs : Any
-        Additional keyword arguments, unused.
-
-    Attributes
-    ----------
-    data_path : Union[str, Path]
-        Path to the data, must be a directory.
-    axes : str
-        Description of axes in format STCZYX.
-    mean : Optional[float], optional
-        Expected mean of the dataset, by default None.
-    std : Optional[float], optional
-        Expected standard deviation of the dataset, by default None.
-    patch_transform : Optional[Callable], optional
-        Patch transform callable, by default None.
-    """
-
-    def __init__(
-        self,
-        prediction_config: InferenceConfig,
-        src_files: List[Path],
-        read_source_func: Callable = read_tiff,
-        **kwargs: Any,
-    ) -> None:
-        """Constructor.
-
-        Parameters
-        ----------
-        prediction_config : InferenceConfig
-            Inference configuration.
-        src_files : List[Path]
-            List of data files.
-        read_source_func : Callable, optional
-            Read source function for custom types, by default read_tiff.
-        **kwargs : Any
-            Additional keyword arguments, unused.
-
-        Raises
-        ------
-        ValueError
-            If mean and std are not provided in the inference configuration.
-        """
-        self.prediction_config = prediction_config
-        self.data_files = src_files
-        self.axes = prediction_config.axes
-        self.tile_size = self.prediction_config.tile_size
-        self.tile_overlap = self.prediction_config.tile_overlap
-        self.read_source_func = read_source_func
-
-        # tile only if both tile size and overlaps are provided
-        self.tile = self.tile_size is not None and self.tile_overlap is not None
-
-        # check mean and std and create normalize transform
-        if self.prediction_config.mean is None or self.prediction_config.std is None:
-            raise ValueError("Mean and std must be provided for prediction.")
-        else:
-            self.mean = self.prediction_config.mean
-            self.std = self.prediction_config.std
-
-            # instantiate normalize transform
-            self.patch_transform = Compose(
-                transform_list=[
-                    NormalizeModel(
-                        mean=prediction_config.mean, std=prediction_config.std
-                    )
-                ],
-            )
-
-    def __iter__(
-        self,
-    ) -> Generator[Tuple[np.ndarray, TileInformation], None, None]:
-        """
-        Iterate over data source and yield single patch.
-
-        Yields
-        ------
-        np.ndarray
-            Single patch.
-        """
-        assert (
-            self.mean is not None and self.std is not None
-        ), "Mean and std must be provided"
-
-        for sample, _ in _iterate_over_files(
-            self.prediction_config,
-            self.data_files,
-            read_source_func=self.read_source_func,
-        ):
-            # reshape array
-            reshaped_sample = reshape_array(sample, self.axes)
-
-            if (
-                self.tile
-                and self.tile_size is not None
-                and self.tile_overlap is not None
-            ):
-                # generate patches, return a generator
-                patch_gen = extract_tiles(
-                    arr=reshaped_sample,
-                    tile_size=self.tile_size,
-                    overlaps=self.tile_overlap,
-                )
-            else:
-                # just wrap the sample in a generator with default tiling info
-                array_shape = reshaped_sample.squeeze().shape
-                patch_gen = (
-                    (reshaped_sample, TileInformation(array_shape=array_shape))
-                    for _ in range(1)
-                )
-
-            # apply transform to patches
-            for patch_array, tile_info in patch_gen:
-                transformed_patch, _ = self.patch_transform(patch=patch_array)
-
-                yield transformed_patch, tile_info

@@ -28,12 +28,16 @@ def test_wrong_extensions(minimum_data: dict, ext: str):
 @pytest.mark.parametrize("mean, std", [(0, 124.5), (12.6, 0.1)])
 def test_mean_std_non_negative(minimum_data: dict, mean, std):
     """Test that non negative mean and std are accepted."""
-    minimum_data["mean"] = mean
-    minimum_data["std"] = std
+    minimum_data["image_means"] = [mean]
+    minimum_data["image_stds"] = [std]
+    minimum_data["target_means"] = [mean]
+    minimum_data["target_stds"] = [std]
 
     data_model = DataConfig(**minimum_data)
-    assert data_model.mean == mean
-    assert data_model.std == std
+    assert data_model.image_means == [mean]
+    assert data_model.image_stds == [std]
+    assert data_model.target_means == [mean]
+    assert data_model.target_stds == [std]
 
 
 def test_mean_std_both_specified_or_none(minimum_data: dict):
@@ -42,51 +46,54 @@ def test_mean_std_both_specified_or_none(minimum_data: dict):
     DataConfig(**minimum_data)
 
     # Error if only mean is defined
-    minimum_data["mean"] = 10.4
+    minimum_data["image_means"] = [10.4]
     with pytest.raises(ValueError):
         DataConfig(**minimum_data)
 
     # Error if only std is defined
-    minimum_data.pop("mean")
-    minimum_data["std"] = 10.4
+    minimum_data.pop("image_means")
+    minimum_data["image_stds"] = [10.4]
     with pytest.raises(ValueError):
         DataConfig(**minimum_data)
 
     # No error if both are specified
-    minimum_data["mean"] = 10.4
-    minimum_data["std"] = 10.4
+    minimum_data["image_means"] = [10.4]
+    minimum_data["image_stds"] = [10.4]
     DataConfig(**minimum_data)
+
+    # Error if target mean is defined but target std is None
+    minimum_data["target_stds"] = [10.4, 11]
+    with pytest.raises(ValueError):
+        DataConfig(**minimum_data)
 
 
 def test_set_mean_and_std(minimum_data: dict):
     """Test that mean and std can be set after initialization."""
     # they can be set both, when they None
-    mean = 4.07
-    std = 14.07
+    mean = [4.07]
+    std = [14.07]
     data = DataConfig(**minimum_data)
     data.set_mean_and_std(mean, std)
-    assert data.mean == mean
-    assert data.std == std
+    assert data.image_means == mean
+    assert data.image_stds == std
 
-    # and if they are already set
-    minimum_data["mean"] = 10.4
-    minimum_data["std"] = 3.2
-    data = DataConfig(**minimum_data)
-    data.set_mean_and_std(mean, std)
-    assert data.mean == mean
-    assert data.std == std
+    # Set also target mean and std
+    data.set_mean_and_std(mean, std, mean, std)
+    assert data.target_means == mean
+    assert data.target_stds == std
 
 
-def test_mean_and_std_in_normalize(minimum_data: dict):
-    """Test that mean and std are added to the Normalize transform."""
-    minimum_data["mean"] = 10.4
-    minimum_data["std"] = 3.2
+def test_normalize_not_accepted(minimum_data: dict):
+    """Test that normalize is not accepted, because it is mandatory and applied else
+    where."""
+    minimum_data["image_means"] = [10.4]
+    minimum_data["image_stds"] = [3.2]
     minimum_data["transforms"] = [
-        {"name": SupportedTransform.NORMALIZE.value},
+        NormalizeModel(image_means=[0.485], image_stds=[0.229])
     ]
-    data = DataConfig(**minimum_data)
-    assert data.transforms[0].mean == 10.4
-    assert data.transforms[0].std == 3.2
+
+    with pytest.raises(ValueError):
+        DataConfig(**minimum_data)
 
 
 def test_patch_size(minimum_data: dict):
@@ -147,7 +154,6 @@ def test_set_3d(minimum_data: dict):
             {"name": SupportedTransform.XY_FLIP.value},
         ],
         [
-            {"name": SupportedTransform.NORMALIZE.value},
             {"name": SupportedTransform.XY_FLIP.value},
             {"name": SupportedTransform.XY_RANDOM_ROTATE90.value},
             {"name": SupportedTransform.N2V_MANIPULATE.value},
@@ -162,7 +168,6 @@ def test_passing_supported_transforms(minimum_data: dict, transforms):
     supported = {
         "XYFlip": XYFlipModel,
         "XYRandomRotate90": XYRandomRotate90Model,
-        "Normalize": NormalizeModel,
         "N2VManipulate": N2VManipulateModel,
     }
 
@@ -182,7 +187,6 @@ def test_passing_supported_transforms(minimum_data: dict, transforms):
             {"name": SupportedTransform.N2V_MANIPULATE.value},
         ],
         [
-            {"name": SupportedTransform.NORMALIZE.value},
             {"name": SupportedTransform.XY_FLIP.value},
             {"name": SupportedTransform.N2V_MANIPULATE.value},
             {"name": SupportedTransform.XY_RANDOM_ROTATE90.value},
@@ -241,20 +245,14 @@ def test_correct_transform_parameters(minimum_data: dict):
     a generic transform.
     """
     minimum_data["transforms"] = [
-        {"name": SupportedTransform.NORMALIZE.value},
         {"name": SupportedTransform.XY_FLIP.value},
         {"name": SupportedTransform.XY_RANDOM_ROTATE90.value},
         {"name": SupportedTransform.N2V_MANIPULATE.value},
     ]
     model = DataConfig(**minimum_data)
 
-    # Normalize
-    params = model.transforms[0].model_dump()
-    assert "mean" in params
-    assert "std" in params
-
     # N2VManipulate
-    params = model.transforms[3].model_dump()
+    params = model.transforms[-1].model_dump()
     assert "roi_size" in params
     assert "masked_pixel_percentage" in params
     assert "strategy" in params

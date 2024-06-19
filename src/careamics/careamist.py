@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, Union, overload
 
 import numpy as np
+from numpy.typing import NDArray
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import (
     Callback,
@@ -19,6 +20,7 @@ from careamics.config import (
     load_configuration,
 )
 from careamics.config.support import SupportedAlgorithm, SupportedData, SupportedLogger
+from careamics.dataset.dataset_utils import reshape_array
 from careamics.lightning_datamodule import CAREamicsTrainData
 from careamics.lightning_module import CAREamicsModule
 from careamics.lightning_prediction_datamodule import CAREamicsPredictData
@@ -50,19 +52,20 @@ class CAREamist:
 
     Attributes
     ----------
-    model : CAREamicsKiln
+    model : CAREamicsModule
         CAREamics model.
     cfg : Configuration
         CAREamics configuration.
     trainer : Trainer
         PyTorch Lightning trainer.
-    experiment_logger : Optional[Union[TensorBoardLogger, WandbLogger]]
+    experiment_logger : pytorch_lightning.loggersTensorBoardLogger or
+    pytorch_lightning.loggersWandbLogger
         Experiment logger, "wandb" or "tensorboard".
-    work_dir : Path
+    work_dir : pathlib.Path
         Working directory.
-    train_datamodule : Optional[CAREamicsWood]
+    train_datamodule : CAREamicsTrainData
         Training datamodule.
-    pred_datamodule : Optional[CAREamicsClay]
+    pred_datamodule : CAREamicsPredictData
         Prediction datamodule.
     """
 
@@ -103,9 +106,9 @@ class CAREamist:
 
         Parameters
         ----------
-        source : Union[Path, str, Configuration]
+        source : pathlib.Path or str or CAREamics Configuration
             Path to a configuration file or a trained model.
-        work_dir : Optional[str], optional
+        work_dir : str, optional
             Path to working directory in which to save checkpoints and logs,
             by default None.
         experiment_name : str, optional
@@ -199,7 +202,7 @@ class CAREamist:
 
         Returns
         -------
-        List[Callback]
+        list of Callback
             List of callbacks to be used during training.
         """
         # checkpoint callback saves checkpoints during training
@@ -225,10 +228,10 @@ class CAREamist:
         self,
         *,
         datamodule: Optional[CAREamicsTrainData] = None,
-        train_source: Optional[Union[Path, str, np.ndarray]] = None,
-        val_source: Optional[Union[Path, str, np.ndarray]] = None,
-        train_target: Optional[Union[Path, str, np.ndarray]] = None,
-        val_target: Optional[Union[Path, str, np.ndarray]] = None,
+        train_source: Optional[Union[Path, str, NDArray]] = None,
+        val_source: Optional[Union[Path, str, NDArray]] = None,
+        train_target: Optional[Union[Path, str, NDArray]] = None,
+        val_target: Optional[Union[Path, str, NDArray]] = None,
         use_in_memory: bool = True,
         val_percentage: float = 0.1,
         val_minimum_split: int = 1,
@@ -251,15 +254,15 @@ class CAREamist:
 
         Parameters
         ----------
-        datamodule : Optional[CAREamicsWood], optional
+        datamodule : CAREamicsTrainData, optional
             Datamodule to train on, by default None.
-        train_source : Optional[Union[Path, str, np.ndarray]], optional
+        train_source : pathlib.Path or str or NDArray, optional
             Train source, if no datamodule is provided, by default None.
-        val_source : Optional[Union[Path, str, np.ndarray]], optional
+        val_source : pathlib.Path or str or NDArray, optional
             Validation source, if no datamodule is provided, by default None.
-        train_target : Optional[Union[Path, str, np.ndarray]], optional
+        train_target : pathlib.Path or str or NDArray, optional
             Train target source, if no datamodule is provided, by default None.
-        val_target : Optional[Union[Path, str, np.ndarray]], optional
+        val_target : pathlib.Path or str or NDArray, optional
             Validation target source, if no datamodule is provided, by default None.
         use_in_memory : bool, optional
             Use in memory dataset if possible, by default True.
@@ -353,7 +356,7 @@ class CAREamist:
 
             else:
                 raise ValueError(
-                    f"Invalid input, expected a str, Path, array or CAREamicsWood "
+                    f"Invalid input, expected a str, Path, array or CAREamicsTrainData "
                     f"instance (got {type(train_source)})."
                 )
 
@@ -363,7 +366,7 @@ class CAREamist:
 
         Parameters
         ----------
-        datamodule : CAREamicsWood
+        datamodule : CAREamicsTrainData
             Datamodule to train on.
         """
         # record datamodule
@@ -373,10 +376,10 @@ class CAREamist:
 
     def _train_on_array(
         self,
-        train_data: np.ndarray,
-        val_data: Optional[np.ndarray] = None,
-        train_target: Optional[np.ndarray] = None,
-        val_target: Optional[np.ndarray] = None,
+        train_data: NDArray,
+        val_data: Optional[NDArray] = None,
+        train_target: Optional[NDArray] = None,
+        val_target: Optional[NDArray] = None,
         val_percentage: float = 0.1,
         val_minimum_split: int = 5,
     ) -> None:
@@ -385,13 +388,13 @@ class CAREamist:
 
         Parameters
         ----------
-        train_data : np.ndarray
+        train_data : NDArray
             Training data.
-        val_data : Optional[np.ndarray], optional
+        val_data : NDArray, optional
             Validation data, by default None.
-        train_target : Optional[np.ndarray], optional
+        train_target : NDArray, optional
             Train target data, by default None.
-        val_target : Optional[np.ndarray], optional
+        val_target : NDArray, optional
             Validation target data, by default None.
         val_percentage : float, optional
             Percentage of patches to use for validation, by default 0.1.
@@ -427,13 +430,13 @@ class CAREamist:
 
         Parameters
         ----------
-        path_to_train_data : Union[Path, str]
+        path_to_train_data : pathlib.Path or str
             Path to the training data.
-        path_to_val_data : Optional[Union[Path, str]], optional
+        path_to_val_data : pathlib.Path or str, optional
             Path to validation data, by default None.
-        path_to_train_target : Optional[Union[Path, str]], optional
+        path_to_train_target : pathlib.Path or str, optional
             Path to train target data, by default None.
-        path_to_val_target : Optional[Union[Path, str]], optional
+        path_to_val_target : pathlib.Path or str, optional
             Path to validation target data, by default None.
         use_in_memory : bool, optional
             Use in memory dataset if possible, by default True.
@@ -475,7 +478,7 @@ class CAREamist:
         source: CAREamicsPredictData,
         *,
         checkpoint: Optional[Literal["best", "last"]] = None,
-    ) -> Union[list, np.ndarray]: ...
+    ) -> Union[list[NDArray], NDArray]: ...
 
     @overload
     def predict(  # numpydoc ignore=GL08
@@ -492,12 +495,12 @@ class CAREamist:
         read_source_func: Optional[Callable] = None,
         extension_filter: str = "",
         checkpoint: Optional[Literal["best", "last"]] = None,
-    ) -> Union[list, np.ndarray]: ...
+    ) -> Union[list[NDArray], NDArray]: ...
 
     @overload
     def predict(  # numpydoc ignore=GL08
         self,
-        source: np.ndarray,
+        source: NDArray,
         *,
         batch_size: int = 1,
         tile_size: Optional[Tuple[int, ...]] = None,
@@ -507,13 +510,13 @@ class CAREamist:
         tta_transforms: bool = True,
         dataloader_params: Optional[Dict] = None,
         checkpoint: Optional[Literal["best", "last"]] = None,
-    ) -> Union[list, np.ndarray]: ...
+    ) -> Union[list[NDArray], NDArray]: ...
 
     def predict(
         self,
-        source: Union[CAREamicsPredictData, Path, str, np.ndarray],
+        source: Union[CAREamicsPredictData, Path, str, NDArray],
         *,
-        batch_size: int = 1,
+        batch_size: Optional[int] = None,
         tile_size: Optional[Tuple[int, ...]] = None,
         tile_overlap: Tuple[int, ...] = (48, 48),
         axes: Optional[str] = None,
@@ -524,11 +527,12 @@ class CAREamist:
         extension_filter: str = "",
         checkpoint: Optional[Literal["best", "last"]] = None,
         **kwargs: Any,
-    ) -> Union[List[np.ndarray], np.ndarray]:
+    ) -> Union[List[NDArray], NDArray]:
         """
         Make predictions on the provided data.
 
-        Input can be a CAREamicsClay instance, a path to a data file, or a numpy array.
+        Input can be a CAREamicsPredData instance, a path to a data file, or a numpy
+        array.
 
         If `data_type`, `axes` and `tile_size` are not provided, the training
         configuration parameters will be used, with the `patch_size` instead of
@@ -545,40 +549,40 @@ class CAREamist:
 
         Parameters
         ----------
-        source : Union[CAREamicsClay, Path, str, np.ndarray]
+        source : CAREamicsPredData or pathlib.Path or str or NDArray
             Data to predict on.
         batch_size : int, optional
             Batch size for prediction, by default 1.
-        tile_size : Optional[Tuple[int, ...]], optional
+        tile_size : tuple of int, optional
             Size of the tiles to use for prediction, by default None.
-        tile_overlap : Tuple[int, ...], optional
+        tile_overlap : tuple of int, optional
             Overlap between tiles, by default (48, 48).
-        axes : Optional[str], optional
+        axes : str, optional
             Axes of the input data, by default None.
-        data_type : Optional[Literal["array", "tiff", "custom"]], optional
+        data_type : {"array", "tiff", "custom"}, optional
             Type of the input data, by default None.
         tta_transforms : bool, optional
             Whether to apply test-time augmentation, by default True.
-        dataloader_params : Optional[Dict], optional
+        dataloader_params : dict, optional
             Parameters to pass to the dataloader, by default None.
-        read_source_func : Optional[Callable], optional
+        read_source_func : Callable, optional
             Function to read the source data, by default None.
         extension_filter : str, optional
             Filter for the file extension, by default "".
-        checkpoint : Optional[Literal["best", "last"]], optional
+        checkpoint : {"best", "last"}, optional
             Checkpoint to use for prediction, by default None.
         **kwargs : Any
             Unused.
 
         Returns
         -------
-        Union[List[np.ndarray], np.ndarray]
+        list of NDArray or NDArray
             Predictions made by the model.
 
         Raises
         ------
         ValueError
-            If the input is not a CAREamicsClay instance, a path or a numpy array.
+            If the input is not a CAREamicsPredData instance, a path or a numpy array.
         """
         if isinstance(source, CAREamicsPredictData):
             # record datamodule
@@ -593,6 +597,15 @@ class CAREamist:
                     "No configuration found. Train a model or load from a "
                     "checkpoint before predicting."
                 )
+
+            # Reuse batch size if not provided explicitly
+            if batch_size is None:
+                batch_size = (
+                    self.train_datamodule.batch_size
+                    if self.train_datamodule
+                    else self.cfg.data_config.batch_size
+                )
+
             # create predict config, reuse training config if parameters missing
             prediction_config = create_inference_configuration(
                 configuration=self.cfg,
@@ -647,76 +660,43 @@ class CAREamist:
 
             else:
                 raise ValueError(
-                    f"Invalid input. Expected a CAREamicsWood instance, paths or "
-                    f"np.ndarray (got {type(source)})."
+                    f"Invalid input. Expected a CAREamicsPredData instance, paths or "
+                    f"NDArray (got {type(source)})."
                 )
 
     def export_to_bmz(
         self,
         path: Union[Path, str],
         name: str,
+        input_array: NDArray,
         authors: List[dict],
-        input_array: Optional[np.ndarray] = None,
         general_description: str = "",
         channel_names: Optional[List[str]] = None,
         data_description: Optional[str] = None,
     ) -> None:
         """Export the model to the BioImage Model Zoo format.
 
-        Input array must be of shape SC(Z)YX, with S and C singleton dimensions.
+        Input array must be of the same dimensions as the axes recorded in the
+        configuration of the `CAREamist`.
 
         Parameters
         ----------
-        path : Union[Path, str]
+        path : pathlib.Path or str
             Path to save the model.
         name : str
             Name of the model.
-        authors : List[dict]
+        input_array : NDArray
+            Input array used to validate the model and as example.
+        authors : list of dict
             List of authors of the model.
-        input_array : Optional[np.ndarray], optional
-            Input array for the model, must be of shape SC(Z)YX, by default None.
         general_description : str
             General description of the model, used in the metadata of the BMZ archive.
-        channel_names : Optional[List[str]], optional
+        channel_names : list of str, optional
             Channel names, by default None.
-        data_description : Optional[str], optional
+        data_description : str, optional
             Description of the data, by default None.
         """
-        if input_array is None:
-            # generate images, priority is given to the prediction data module
-            if self.pred_datamodule is not None:
-                # unpack a batch, ignore masks or targets
-                input_patch, *_ = next(iter(self.pred_datamodule.predict_dataloader()))
-
-                # convert torch.Tensor to numpy
-                input_patch = input_patch.numpy()
-            elif self.train_datamodule is not None:
-                input_patch, *_ = next(iter(self.train_datamodule.train_dataloader()))
-                input_patch = input_patch.numpy()
-            else:
-                if (
-                    self.cfg.data_config.mean is None
-                    or self.cfg.data_config.std is None
-                ):
-                    raise ValueError(
-                        "Mean and std cannot be None in the configuration in order to"
-                        "export to the BMZ format. Was the model trained?"
-                    )
-
-                # create a random input array
-                input_patch = np.random.normal(
-                    loc=self.cfg.data_config.mean,
-                    scale=self.cfg.data_config.std,
-                    size=self.cfg.data_config.patch_size,
-                ).astype(np.float32)[
-                    np.newaxis, np.newaxis, ...
-                ]  # add S & C dimensions
-        else:
-            input_patch = input_array
-
-        # if there is a batch dimension
-        if input_patch.shape[0] > 1:
-            input_patch = input_patch[0:1, ...]  # keep singleton dim
+        input_patch = reshape_array(input_array, self.cfg.data_config.axes)
 
         # axes need to be reformated for the export because reshaping was done in the
         # datamodule
@@ -733,11 +713,10 @@ class CAREamist:
             tta_transforms=False,
         )
 
-        if not isinstance(output_patch, np.ndarray):
-            raise ValueError(
-                f"Numpy array required for export to BioImage Model Zoo, got "
-                f"{type(output_patch)}."
-            )
+        if isinstance(output_patch, list):
+            output = np.concatenate(output_patch, axis=0)
+        else:
+            output = output_patch
 
         export_to_bmz(
             model=self.model,
@@ -747,7 +726,7 @@ class CAREamist:
             general_description=general_description,
             authors=authors,
             input_array=input_patch,
-            output_array=output_patch,
+            output_array=output,
             channel_names=channel_names,
             data_description=data_description,
         )

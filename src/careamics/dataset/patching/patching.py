@@ -1,15 +1,42 @@
 """Patching functions."""
 
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, List, Tuple, Union
 
 import numpy as np
 
 from ...utils.logging import get_logger
-from ..dataset_utils import reshape_array
+from ..dataset_utils import compute_normalization_stats, reshape_array
 from .sequential_patching import extract_patches_sequential
 
 logger = get_logger(__name__)
+
+
+@dataclass
+class Stats:
+    """Dataclass to store statistics."""
+
+    means: Union[np.ndarray, tuple, list, None]
+    stds: Union[np.ndarray, tuple, list, None]
+
+
+@dataclass
+class PatchedOutput:
+    """Dataclass to store patches and statistics."""
+
+    patches: Union[np.ndarray]
+    targets: Union[np.ndarray, None]
+    image_stats: Stats
+    target_stats: Stats
+
+
+@dataclass
+class StatsOutput:
+    """Dataclass to store patches and statistics."""
+
+    image_stats: Stats
+    target_stats: Stats
 
 
 # called by in memory dataset
@@ -19,9 +46,11 @@ def prepare_patches_supervised(
     axes: str,
     patch_size: Union[List[int], Tuple[int, ...]],
     read_source_func: Callable,
-) -> Tuple[np.ndarray, np.ndarray, float, float]:
+) -> PatchedOutput:
     """
     Iterate over data source and create an array of patches and corresponding targets.
+
+    The lists of Paths should be pre-sorted.
 
     Parameters
     ----------
@@ -41,9 +70,6 @@ def prepare_patches_supervised(
     np.ndarray
         Array of patches.
     """
-    train_files.sort()
-    target_files.sort()
-
     means, stds, num_samples = 0, 0, 0
     all_patches, all_targets = [], []
     for train_filename, target_filename in zip(train_files, target_files):
@@ -83,17 +109,18 @@ def prepare_patches_supervised(
             f"{target_files}."
         )
 
-    result_mean, result_std = means / num_samples, stds / num_samples
+    image_means, image_stds = compute_normalization_stats(np.concatenate(all_patches))
+    target_means, target_stds = compute_normalization_stats(np.concatenate(all_targets))
 
     patch_array: np.ndarray = np.concatenate(all_patches, axis=0)
     target_array: np.ndarray = np.concatenate(all_targets, axis=0)
     logger.info(f"Extracted {patch_array.shape[0]} patches from input array.")
 
-    return (
+    return PatchedOutput(
         patch_array,
         target_array,
-        result_mean,
-        result_std,
+        Stats(image_means, image_stds),
+        Stats(target_means, target_stds),
     )
 
 
@@ -103,7 +130,7 @@ def prepare_patches_unsupervised(
     axes: str,
     patch_size: Union[List[int], Tuple[int]],
     read_source_func: Callable,
-) -> Tuple[np.ndarray, None, float, float]:
+) -> PatchedOutput:
     """Iterate over data source and create an array of patches.
 
     This method returns the mean and standard deviation of the image.
@@ -149,12 +176,14 @@ def prepare_patches_unsupervised(
     if num_samples == 0:
         raise ValueError(f"No valid samples found in the input data: {train_files}.")
 
-    result_mean, result_std = means / num_samples, stds / num_samples
+    image_means, image_stds = compute_normalization_stats(np.concatenate(all_patches))
 
     patch_array: np.ndarray = np.concatenate(all_patches)
     logger.info(f"Extracted {patch_array.shape[0]} patches from input array.")
 
-    return patch_array, _, result_mean, result_std  # TODO return object?
+    return PatchedOutput(
+        patch_array, None, Stats(image_means, image_stds), Stats((), ())
+    )
 
 
 # called on arrays by in memory dataset
@@ -163,7 +192,7 @@ def prepare_patches_supervised_array(
     axes: str,
     data_target: np.ndarray,
     patch_size: Union[List[int], Tuple[int]],
-) -> Tuple[np.ndarray, np.ndarray, float, float]:
+) -> PatchedOutput:
     """Iterate over data source and create an array of patches.
 
     This method expects an array of shape SC(Z)YX, where S and C can be singleton
@@ -187,13 +216,13 @@ def prepare_patches_supervised_array(
     Tuple[np.ndarray, np.ndarray, float, float]
         Source and target patches, mean and standard deviation.
     """
-    # compute statistics
-    mean = data.mean()
-    std = data.std()
-
     # reshape array
     reshaped_sample = reshape_array(data, axes)
     reshaped_target = reshape_array(data_target, axes)
+
+    # compute statistics
+    image_means, image_stds = compute_normalization_stats(reshaped_sample)
+    target_means, target_stds = compute_normalization_stats(reshaped_target)
 
     # generate patches, return a generator
     patches, patch_targets = extract_patches_sequential(
@@ -205,11 +234,11 @@ def prepare_patches_supervised_array(
 
     logger.info(f"Extracted {patches.shape[0]} patches from input array.")
 
-    return (
+    return PatchedOutput(
         patches,
         patch_targets,
-        mean,
-        std,
+        Stats(image_means, image_stds),
+        Stats(target_means, target_stds),
     )
 
 
@@ -218,7 +247,7 @@ def prepare_patches_unsupervised_array(
     data: np.ndarray,
     axes: str,
     patch_size: Union[List[int], Tuple[int]],
-) -> Tuple[np.ndarray, None, float, float]:
+) -> PatchedOutput:
     """
     Iterate over data source and create an array of patches.
 
@@ -241,14 +270,13 @@ def prepare_patches_unsupervised_array(
     Tuple[np.ndarray, None, float, float]
         Source patches, mean and standard deviation.
     """
-    # calculate mean and std
-    mean = data.mean()
-    std = data.std()
-
     # reshape array
     reshaped_sample = reshape_array(data, axes)
+
+    # calculate mean and std
+    means, stds = compute_normalization_stats(reshaped_sample)
 
     # generate patches, return a generator
     patches, _ = extract_patches_sequential(reshaped_sample, patch_size=patch_size)
 
-    return patches, _, mean, std  # TODO inelegant, replace by dataclass?
+    return PatchedOutput(patches, None, Stats(means, stds), Stats((), ()))

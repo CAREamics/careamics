@@ -8,10 +8,9 @@ from careamics.transforms.transform import Transform
 
 
 class XYFlip(Transform):
-    """Flip image along X or Y axis.
+    """Flip image along X and Y axis, one at a time.
 
-    This transform ignores singleton axes and randomly flips one of the other
-    last two axes.
+    This transform randomly flips one of the last two axes.
 
     This transform expects C(Z)YX dimensions.
 
@@ -21,23 +20,59 @@ class XYFlip(Transform):
         Indices of the axes that can be flipped.
     rng : np.random.Generator
         Random number generator.
+    p : float
+        Probability of applying the transform.
+    seed : Optional[int]
+        Random seed.
 
     Parameters
     ----------
+    flip_x : bool, optional
+        Whether to flip along the X axis, by default True.
+    flip_y : bool, optional
+        Whether to flip along the Y axis, by default True.
+    p : float, optional
+        Probability of applying the transform, by default 0.5.
     seed : Optional[int], optional
         Random seed, by default None.
     """
 
-    def __init__(self, seed: Optional[int] = None) -> None:
+    def __init__(
+        self,
+        flip_x: bool = True,
+        flip_y: bool = True,
+        p: float = 0.5,
+        seed: Optional[int] = None,
+    ) -> None:
         """Constructor.
 
         Parameters
         ----------
+        flip_x : bool, optional
+            Whether to flip along the X axis, by default True.
+        flip_y : bool, optional
+            Whether to flip along the Y axis, by default True.
+        p : float
+            Probability of applying the transform, by default 0.5.
         seed : Optional[int], optional
             Random seed, by default None.
         """
+        if p < 0 or p > 1:
+            raise ValueError("Probability must be in [0, 1].")
+
+        if not flip_x and not flip_y:
+            raise ValueError("At least one axis must be flippable.")
+
+        # probability to apply the transform
+        self.p = p
+
         # "flippable" axes
-        self.axis_indices = [-2, -1]
+        self.axis_indices = []
+
+        if flip_y:
+            self.axis_indices.append(-2)
+        if flip_x:
+            self.axis_indices.append(-1)
 
         # numpy random generator
         self.rng = np.random.default_rng(seed=seed)
@@ -59,6 +94,9 @@ class XYFlip(Transform):
         Tuple[np.ndarray, Optional[np.ndarray]]
             Transformed patch and target.
         """
+        if self.rng.random() > self.p:
+            return patch, target
+
         # choose an axis to flip
         axis = self.rng.choice(self.axis_indices)
 
@@ -82,5 +120,4 @@ class XYFlip(Transform):
         np.ndarray
             Flipped image patch.
         """
-        # TODO why ascontiguousarray?
         return np.ascontiguousarray(np.flip(patch, axis=axis))

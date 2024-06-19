@@ -3,23 +3,21 @@
 from typing import List
 
 import numpy as np
-import torch
 
 
 def stitch_prediction(
-    tiles: List[torch.Tensor],
-    stitching_data: List[List[torch.Tensor]],
-) -> torch.Tensor:
+    tiles: List[np.ndarray],
+    stitching_data: List[List[np.ndarray]],
+) -> np.ndarray:
     """
     Stitch tiles back together to form a full image.
 
     Parameters
     ----------
-    tiles : List[torch.Tensor]
+    tiles : List[np.ndarray]
         Cropped tiles and their respective stitching coordinates.
-    stitching_data : List
-        List of information and coordinates obtained from
-        `dataset.tiled_patching.extract_tiles`.
+    stitching_data : List[List[np.ndarray]]
+        List of lists containing the overlap crop coordinates and stitch coordinates.
 
     Returns
     -------
@@ -39,7 +37,7 @@ def stitch_prediction(
         ).squeeze()
 
     # TODO should use torch.zeros instead of np.zeros
-    predicted_image = torch.Tensor(np.zeros(input_shape, dtype=np.float32))
+    predicted_image = np.zeros(input_shape, dtype=np.float32)
 
     for tile_batch, (_, overlap_crop_coords_batch, stitch_coords_batch) in zip(
         tiles, stitching_data
@@ -65,6 +63,6 @@ def stitch_prediction(
                         for c in stitch_coords_batch
                     ],
                 )
-            ] = cropped_tile.to(torch.float32)
+            ] = cropped_tile.astype(np.float32)
 
     return predicted_image

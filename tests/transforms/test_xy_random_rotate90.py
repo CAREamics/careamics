@@ -21,7 +21,7 @@ def test_xy_rotate(ordered_array, shape):
     array = ordered_array(shape)
 
     # create augmentation
-    aug = XYRandomRotate90(seed=42)
+    aug = XYRandomRotate90(p=1, seed=42)
     r = np.random.default_rng(seed=42)
 
     axes = (2, 3) if len(array.shape) == 4 else (1, 2)
@@ -29,11 +29,11 @@ def test_xy_rotate(ordered_array, shape):
         np.rot90(array, k=1, axes=axes),
         np.rot90(array, k=2, axes=axes),
         np.rot90(array, k=3, axes=axes),
-        np.rot90(array, k=4, axes=axes),
     ]
 
     # check rotations
     for _ in range(5):
+        r.random()  # consume random number
         augmented, _ = aug(array)
 
         assert np.array_equal(augmented, rots[r.integers(1, 4) - 1])
@@ -41,7 +41,7 @@ def test_xy_rotate(ordered_array, shape):
 
 def test_mask_rotate(ordered_array):
     """Test rotating masks in 3D."""
-    aug = XYRandomRotate90(seed=42)
+    aug = XYRandomRotate90(p=1, seed=42)
     r = np.random.default_rng(seed=42)
 
     # create array
@@ -55,19 +55,42 @@ def test_mask_rotate(ordered_array):
         np.rot90(array, k=1, axes=axes),
         np.rot90(array, k=2, axes=axes),
         np.rot90(array, k=3, axes=axes),
-        np.rot90(array, k=4, axes=axes),
     ]
     mask_rots = [
         np.rot90(mask, k=1, axes=axes),
         np.rot90(mask, k=2, axes=axes),
         np.rot90(mask, k=3, axes=axes),
-        np.rot90(mask, k=4, axes=axes),
     ]
 
     # apply augmentation 10 times
     for _ in range(5):
+        r.random()  # consume random number
         augmented_p, augmented_m = aug(array, mask)
         n_rot = r.integers(1, 4)
 
         assert np.array_equal(augmented_p, array_rots[n_rot - 1])
         assert np.array_equal(augmented_m, mask_rots[n_rot - 1])
+
+
+def test_p(ordered_array):
+    """Test that the probability of rotation is respected."""
+    # create array
+    array = ordered_array((2, 2, 2))
+
+    # create augmentation
+    aug = XYRandomRotate90(p=0.0, seed=42)
+
+    # apply augmentation 5 times
+    for _ in range(5):
+        augmented, _ = aug(array)
+
+        assert np.array_equal(augmented, array)
+
+    # create augmentation that always applies
+    aug = XYRandomRotate90(p=1.0, seed=42)
+
+    # apply augmentation 5 times
+    for _ in range(5):
+        augmented, _ = aug(array)
+
+        assert not np.array_equal(augmented, array)

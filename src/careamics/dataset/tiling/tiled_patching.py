@@ -84,15 +84,15 @@ def extract_tiles(
     tile_size: Union[List[int], Tuple[int, ...]],
     overlaps: Union[List[int], Tuple[int, ...]],
 ) -> Generator[Tuple[np.ndarray, TileInformation], None, None]:
-    """
-    Generate tiles from the input array with specified overlap.
+    """Generate tiles from the input array with specified overlap.
 
     The tiles cover the whole array. The method returns a generator that yields
     tuples of array and tile information, the latter includes whether
     the tile is the last one, the coordinates of the overlap crop, and the coordinates
     of the stitched tile.
 
-    The array has shape C(Z)YX, where C can be a singleton.
+    Input array should have shape SC(Z)YX, while the returned tiles have shape C(Z)YX,
+    where C can be a singleton.
 
     Parameters
     ----------
@@ -155,7 +155,6 @@ def extract_tiles(
             # create tile information
             tile_info = TileInformation(
                 array_shape=sample.squeeze().shape,
-                tiled=True,
                 last_tile=last_tile,
                 overlap_crop_coords=overlap_crop_coords,
                 stitch_coords=stitch_coords,

@@ -4,25 +4,24 @@ from __future__ import annotations
 
 import copy
 from pathlib import Path
-from typing import Any, Callable, List, Optional, Tuple, Union
+from typing import Any, Callable, Optional, Union
 
 import numpy as np
 from torch.utils.data import Dataset
 
 from careamics.transforms import Compose
 
-from ..config import DataConfig, InferenceConfig
-from ..config.tile_information import TileInformation
+from ..config import DataConfig
 from ..config.transformations import NormalizeModel
 from ..utils.logging import get_logger
-from .dataset_utils import read_tiff, reshape_array
+from .dataset_utils import read_tiff
 from .patching.patching import (
+    PatchedOutput,
     prepare_patches_supervised,
     prepare_patches_supervised_array,
     prepare_patches_unsupervised,
     prepare_patches_unsupervised_array,
 )
-from .patching.tiled_patching import extract_tiles
 
 logger = get_logger(__name__)
 
@@ -32,11 +31,12 @@ class InMemoryDataset(Dataset):
 
     Parameters
     ----------
-    data_config : DataConfig
+    data_config : CAREamics DataConfig
+        (see careamics.config.data_model.DataConfig)
         Data configuration.
-    inputs : Union[np.ndarray, List[Path]]
+    inputs : numpy.ndarray or list[pathlib.Path]
         Input data.
-    input_target : Optional[Union[np.ndarray, List[Path]]], optional
+    input_target : numpy.ndarray or list[pathlib.Path], optional
         Target data, by default None.
     read_source_func : Callable, optional
         Read source function for custom types, by default read_tiff.
@@ -47,8 +47,8 @@ class InMemoryDataset(Dataset):
     def __init__(
         self,
         data_config: DataConfig,
-        inputs: Union[np.ndarray, List[Path]],
-        input_target: Optional[Union[np.ndarray, List[Path]]] = None,
+        inputs: Union[np.ndarray, list[Path]],
+        input_target: Optional[Union[np.ndarray, list[Path]]] = None,
         read_source_func: Callable = read_tiff,
         **kwargs: Any,
     ) -> None:
@@ -59,9 +59,9 @@ class InMemoryDataset(Dataset):
         ----------
         data_config : DataConfig
             Data configuration.
-        inputs : Union[np.ndarray, List[Path]]
+        inputs : numpy.ndarray or list[pathlib.Path]
             Input data.
-        input_target : Optional[Union[np.ndarray, List[Path]]], optional
+        input_target : numpy.ndarray or list[pathlib.Path], optional
             Target data, by default None.
         read_source_func : Callable, optional
             Read source function for custom types, by default read_tiff.
@@ -79,29 +79,51 @@ class InMemoryDataset(Dataset):
 
         # Generate patches
         supervised = self.input_targets is not None
-        patch_data = self._prepare_patches(supervised)
+        patches_data = self._prepare_patches(supervised)
 
-        # Add results to members
-        self.patches, self.patch_targets, computed_mean, computed_std = patch_data
+        # Unpack the dataclass
+        self.data = patches_data.patches
+        self.data_targets = patches_data.targets
 
-        if not self.data_config.mean or not self.data_config.std:
-            self.mean, self.std = computed_mean, computed_std
-            logger.info(f"Computed dataset mean: {self.mean}, std: {self.std}")
-
-            # update mean and std in configuration
-            # the object is mutable and should then be recorded in the CAREamist obj
-            self.data_config.set_mean_and_std(self.mean, self.std)
+        if self.data_config.image_means is None:
+            self.image_means = patches_data.image_stats.means
+            self.image_stds = patches_data.image_stats.stds
+            logger.info(
+                f"Computed dataset mean: {self.image_means}, std: {self.image_stds}"
+            )
         else:
-            self.mean, self.std = self.data_config.mean, self.data_config.std
+            self.image_means = self.data_config.image_means
+            self.image_stds = self.data_config.image_stds
 
+        if self.data_config.target_means is None:
+            self.target_means = patches_data.target_stats.means
+            self.target_stds = patches_data.target_stats.stds
+        else:
+            self.target_means = self.data_config.target_means
+            self.target_stds = self.data_config.target_stds
+
+        # update mean and std in configuration
+        # the object is mutable and should then be recorded in the CAREamist obj
+        self.data_config.set_mean_and_std(
+            image_means=self.image_means,
+            image_stds=self.image_stds,
+            target_means=self.target_means,
+            target_stds=self.target_stds,
+        )
         # get transforms
         self.patch_transform = Compose(
-            transform_list=self.data_config.transforms,
+            transform_list=[
+                NormalizeModel(
+                    image_means=self.image_means,
+                    image_stds=self.image_stds,
+                    target_means=self.target_means,
+                    target_stds=self.target_stds,
+                )
+            ]
+            + self.data_config.transforms,
         )
 
-    def _prepare_patches(
-        self, supervised: bool
-    ) -> Tuple[np.ndarray, Optional[np.ndarray], float, float]:
+    def _prepare_patches(self, supervised: bool) -> PatchedOutput:
         """
         Iterate over data source and create an array of patches.
 
@@ -112,7 +134,7 @@ class InMemoryDataset(Dataset):
 
         Returns
         -------
-        np.ndarray
+        numpy.ndarray
             Array of patches.
         """
         if supervised:
@@ -163,9 +185,9 @@ class InMemoryDataset(Dataset):
         int
             Length of the dataset.
         """
-        return len(self.patches)
+        return self.data.shape[0]
 
-    def __getitem__(self, index: int) -> Tuple[np.ndarray, ...]:
+    def __getitem__(self, index: int) -> tuple[np.ndarray, ...]:
         """
         Return the patch corresponding to the provided index.
 
@@ -176,7 +198,7 @@ class InMemoryDataset(Dataset):
 
         Returns
         -------
-        Tuple[np.ndarray]
+        tuple of numpy.ndarray
             Patch.
 
         Raises
@@ -184,16 +206,16 @@ class InMemoryDataset(Dataset):
         ValueError
             If dataset mean and std are not set.
         """
-        patch = self.patches[index]
+        patch = self.data[index]
 
         # if there is a target
-        if self.patch_targets is not None:
+        if self.data_targets is not None:
             # get target
-            target = self.patch_targets[index]
+            target = self.data_targets[index]
 
             return self.patch_transform(patch=patch, target=target)
 
-        elif self.data_config.has_n2v_manipulate():
+        elif self.data_config.has_n2v_manipulate():  # TODO not compatible with HDN
             return self.patch_transform(patch=patch)
         else:
             raise ValueError(
@@ -219,7 +241,7 @@ class InMemoryDataset(Dataset):
 
         Returns
         -------
-        InMemoryDataset
+        CAREamics InMemoryDataset
             New dataset with the extracted patches.
 
         Raises
@@ -249,151 +271,24 @@ class InMemoryDataset(Dataset):
         indices = np.random.choice(total_patches, n_patches, replace=False)
 
         # extract patches
-        val_patches = self.patches[indices]
+        val_patches = self.data[indices]
 
         # remove patches from self.patch
-        self.patches = np.delete(self.patches, indices, axis=0)
+        self.data = np.delete(self.data, indices, axis=0)
 
         # same for targets
-        if self.patch_targets is not None:
-            val_targets = self.patch_targets[indices]
-            self.patch_targets = np.delete(self.patch_targets, indices, axis=0)
+        if self.data_targets is not None:
+            val_targets = self.data_targets[indices]
+            self.data_targets = np.delete(self.data_targets, indices, axis=0)
 
         # clone the dataset
         dataset = copy.deepcopy(self)
 
         # reassign patches
-        dataset.patches = val_patches
+        dataset.data = val_patches
 
         # reassign targets
-        if self.patch_targets is not None:
-            dataset.patch_targets = val_targets
+        if self.data_targets is not None:
+            dataset.data_targets = val_targets
 
         return dataset
-
-
-class InMemoryPredictionDataset(Dataset):
-    """
-    Dataset storing data in memory and allowing generating patches from it.
-
-    Parameters
-    ----------
-    prediction_config : InferenceConfig
-        Prediction configuration.
-    inputs : np.ndarray
-        Input data.
-    data_target : Optional[np.ndarray], optional
-        Target data, by default None.
-    read_source_func : Optional[Callable], optional
-        Read source function for custom types, by default read_tiff.
-    """
-
-    def __init__(
-        self,
-        prediction_config: InferenceConfig,
-        inputs: np.ndarray,
-        data_target: Optional[np.ndarray] = None,
-        read_source_func: Optional[Callable] = read_tiff,
-    ) -> None:
-        """Constructor.
-
-        Parameters
-        ----------
-        prediction_config : InferenceConfig
-            Prediction configuration.
-        inputs : np.ndarray
-            Input data.
-        data_target : Optional[np.ndarray], optional
-            Target data, by default None.
-        read_source_func : Optional[Callable], optional
-            Read source function for custom types, by default read_tiff.
-
-        Raises
-        ------
-        ValueError
-            If data_path is not a directory.
-        """
-        self.pred_config = prediction_config
-        self.input_array = inputs
-        self.axes = self.pred_config.axes
-        self.tile_size = self.pred_config.tile_size
-        self.tile_overlap = self.pred_config.tile_overlap
-        self.mean = self.pred_config.mean
-        self.std = self.pred_config.std
-        self.data_target = data_target
-
-        # tiling only if both tile size and overlap are provided
-        self.tiling = self.tile_size is not None and self.tile_overlap is not None
-
-        # read function
-        self.read_source_func = read_source_func
-
-        # Generate patches
-        self.data = self._prepare_tiles()
-        self.mean, self.std = self.pred_config.mean, self.pred_config.std
-
-        # get transforms
-        self.patch_transform = Compose(
-            transform_list=[NormalizeModel(mean=self.mean, std=self.std)],
-        )
-
-    def _prepare_tiles(self) -> List[Tuple[np.ndarray, TileInformation]]:
-        """
-        Iterate over data source and create an array of patches.
-
-        Returns
-        -------
-        List[XArrayTile]
-            List of tiles.
-        """
-        # reshape array
-        reshaped_sample = reshape_array(self.input_array, self.axes)
-
-        if self.tiling and self.tile_size is not None and self.tile_overlap is not None:
-            # generate patches, which returns a generator
-            patch_generator = extract_tiles(
-                arr=reshaped_sample,
-                tile_size=self.tile_size,
-                overlaps=self.tile_overlap,
-            )
-            patches_list = list(patch_generator)
-
-            if len(patches_list) == 0:
-                raise ValueError("No tiles generated, ")
-
-            return patches_list
-        else:
-            array_shape = reshaped_sample.squeeze().shape
-            return [(reshaped_sample, TileInformation(array_shape=array_shape))]
-
-    def __len__(self) -> int:
-        """
-        Return the length of the dataset.
-
-        Returns
-        -------
-        int
-            Length of the dataset.
-        """
-        return len(self.data)
-
-    def __getitem__(self, index: int) -> Tuple[np.ndarray, TileInformation]:
-        """
-        Return the patch corresponding to the provided index.
-
-        Parameters
-        ----------
-        index : int
-            Index of the patch to return.
-
-        Returns
-        -------
-        Tuple[np.ndarray, TileInformation]
-            Transformed patch.
-        """
-        tile_array, tile_info = self.data[index]
-
-        # Apply transforms
-        transformed_tile, _ = self.patch_transform(patch=tile_array)
-
-        return transformed_tile, tile_info
