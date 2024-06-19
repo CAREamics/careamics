@@ -136,6 +136,8 @@ def update_iterative_stats(
         Mean of the array.
     m2 : np.ndarray
         Variance of the array.
+    new_values : np.ndarray
+        New values to add to the mean and variance.
 
     Returns
     -------
@@ -182,6 +184,6 @@ def finalize_iterative_stats(
     """
     std = np.array([np.sqrt(m / c) for m, c in zip(m2, count)])
     if any(c < 2 for c in count):
-        return float("nan"), float("nan")
+        return np.full(mean.shape, np.nan), np.full(std.shape, np.nan)
     else:
         return mean, std
