@@ -1,7 +1,7 @@
-"""Read function utilities."""
+"""Module to get read functions."""
 
 from pathlib import Path
-from typing import Callable, Protocol, Union
+from typing import Callable, Dict, Protocol, Union
 
 from careamics.config.support import SupportedData
 
@@ -9,12 +9,26 @@ from .tiff import read_tiff
 
 
 # This is very strict, arguments have to be called img
-# See Write func notes
+# See WriteFunc notes
 class ReadFunc(Protocol):
-    def __call__(self, fp: Path, *args, **kwargs) -> None: ...
+    """Protocol for type hinting read functions."""
+
+    def __call__(self, file_path: Path, *args, **kwargs) -> None:
+        """
+        Type hinted callables must match this function signature (not including self).
+
+        Parameters
+        ----------
+        file_path : pathlib.Path
+            Path to file.
+        *args
+            Other positional arguments.
+        **kwargs
+            Other keyword arguments.
+        """
 
 
-READ_FUNCS: dict[SupportedData, ReadFunc] = {
+READ_FUNCS: Dict[SupportedData, ReadFunc] = {
     SupportedData.TIFF: read_tiff,
 }
 
@@ -30,7 +44,7 @@ def get_read_func(data_type: Union[SupportedData, str]) -> Callable:
 
     Returns
     -------
-    Callable
+    callable
         Read function.
     """
     if data_type in READ_FUNCS:
