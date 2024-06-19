@@ -6,7 +6,7 @@ import numpy as np
 from skimage.metrics import structural_similarity
 from torchmetrics.image import MultiScaleStructuralSimilarityIndexMeasure
 
-from .utils import allow_numpy
+from careamics.models.lvae.utils import allow_numpy
 
 class RunningPSNR:
     """

@@ -18,7 +18,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from .metrics import RangeInvariantPsnr, RunningPSNR
-from .utils import ModelType, LossType
+from careamics.models.lvae.utils import ModelType
 
 # ------------------------------------------------------------------------------------------------
 # Function of plotting: TODO -> moved them to another file, plot_utils.py

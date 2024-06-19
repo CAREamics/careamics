@@ -17,15 +17,16 @@ from pytorch_lightning.loggers import WandbLogger
 from absl import app, flags
 from ml_collections.config_flags import config_flags
 
-sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+sys.path.append(os.path.join(os.path.dirname(__file__), "../.."))
+print(sys.path)
 
-from careamics.models.lvae.lightning_module import LadderVAELight
-from careamics.models.lvae.data_utils import DataSplitType
-from careamics.models.lvae.data_modules import (
+from careamics.lvae_training.lightning_module import LadderVAELight
+from careamics.lvae_training.data_utils import DataSplitType
+from careamics.lvae_training.data_modules import (
     LCMultiChDloader,
     MultiChDloader
 )
-from careamics.models.lvae.train_utils import *
+from careamics.lvae_training.train_utils import *
 
 FLAGS = flags.FLAGS
 

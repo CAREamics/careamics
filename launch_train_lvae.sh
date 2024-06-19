@@ -1,1 +1,1 @@
-python src/careamics/train_lvae.py --workdir=/group/jug/federico/careamics_training/training -mode=train --datadir=/group/jug/federico/careamics_training/data/BioSR --config=src/careamics/models/lvae/get_config.py 
+python src/careamics/lvae_training/train_lvae.py --workdir=/group/jug/federico/careamics_training/training -mode=train --datadir=/group/jug/federico/careamics_training/data/BioSR --config=src/careamics/lvae_training/get_config.py 

@@ -12,8 +12,8 @@ import torch.nn as nn
 import torchvision.transforms.functional as F
 import ml_collections
 
-from .lvae import LadderVAE
-from .utils import (
+from careamics.models.lvae.lvae import LadderVAE
+from careamics.models.lvae.utils import (
     LossType,
     torch_nanmean, 
     compute_batch_mean,
@@ -24,7 +24,7 @@ from .metrics import (
     RangeInvariantPsnr
 )
 from .train_utils import MetricMonitor
-from .likelihoods import LikelihoodModule
+from careamics.models.lvae.likelihoods import LikelihoodModule
 
 
 class LadderVAELight(L.LightningModule):

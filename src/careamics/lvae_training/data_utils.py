@@ -5,7 +5,7 @@ from typing import List
 
 import numpy as np
 from skimage.io import imread, imsave
-from .utils import Enum 
+from careamics.models.lvae.utils import Enum 
 
 class DataType(Enum):
     MNIST = 0

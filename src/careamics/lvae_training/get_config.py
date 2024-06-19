@@ -4,7 +4,7 @@ Here there are functions to define a config file.
 import os
 import ml_collections
 
-from careamics.models.lvae.data_utils import DataType
+from careamics.lvae_training.data_utils import DataType
 from careamics.models.lvae.utils import LossType
 
 def _init_config():
