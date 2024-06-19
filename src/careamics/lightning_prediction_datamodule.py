@@ -15,10 +15,8 @@ from careamics.dataset import (
     IterablePredDataset,
     IterableTiledPredDataset,
 )
-from careamics.dataset.dataset_utils import (
-    get_read_func,
-    list_files,
-)
+from careamics.file_io.read import get_read_func
+from careamics.dataset.dataset_utils import list_files
 from careamics.dataset.tiling.collate_tiles import collate_tiles
 from careamics.utils import get_logger
 

@@ -4,7 +4,7 @@ from typing import Callable, Union
 
 from careamics.config.support import SupportedData
 
-from .read_tiff import read_tiff
+from .tiff import read_tiff
 
 
 def get_read_func(data_type: Union[SupportedData, str]) -> Callable:

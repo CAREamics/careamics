@@ -10,9 +10,9 @@ from torch.utils.data import DataLoader
 from careamics.config import DataConfig
 from careamics.config.data_model import TRANSFORMS_UNION
 from careamics.config.support import SupportedData
+from careamics.file_io.read import get_read_func
 from careamics.dataset.dataset_utils import (
     get_files_size,
-    get_read_func,
     list_files,
     validate_source_target_files,
 )

@@ -10,11 +10,11 @@ import numpy as np
 from torch.utils.data import Dataset
 
 from careamics.transforms import Compose
+from careamics.file_io.read import read_tiff
 
 from ..config import DataConfig
 from ..config.transformations import NormalizeModel
 from ..utils.logging import get_logger
-from .dataset_utils import read_tiff
 from .patching.patching import (
     PatchedOutput,
     prepare_patches_supervised,

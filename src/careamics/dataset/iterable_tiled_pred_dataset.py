@@ -9,11 +9,13 @@ from numpy.typing import NDArray
 from torch.utils.data import IterableDataset
 
 from careamics.transforms import Compose
+from careamics.file_io.read import read_tiff
+
 
 from ..config import InferenceConfig
 from ..config.tile_information import TileInformation
 from ..config.transformations import NormalizeModel
-from .dataset_utils import iterate_over_files, read_tiff
+from .dataset_utils import iterate_over_files
 from .tiling import extract_tiles
 
 
