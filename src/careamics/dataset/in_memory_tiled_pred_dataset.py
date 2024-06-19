@@ -58,8 +58,8 @@ class InMemoryTiledPredDataset(Dataset):
         self.axes = self.pred_config.axes
         self.tile_size = prediction_config.tile_size
         self.tile_overlap = prediction_config.tile_overlap
-        self.image_means = self.pred_config.image_mean
-        self.image_stds = self.pred_config.image_std
+        self.image_means = self.pred_config.image_means
+        self.image_stds = self.pred_config.image_stds
 
         # Generate patches
         self.data = self._prepare_tiles()
