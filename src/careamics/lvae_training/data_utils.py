@@ -1,11 +1,14 @@
 """
 Utility functions needed by dataloader & co.
 """
+
 from typing import List
 
 import numpy as np
 from skimage.io import imread, imsave
-from careamics.models.lvae.utils import Enum 
+
+from careamics.models.lvae.utils import Enum
+
 
 class DataType(Enum):
     MNIST = 0
@@ -36,19 +39,22 @@ class DataType(Enum):
     # Here, we have 16 splitting tasks.
     NicolaData = 25
 
+
 class DataSplitType(Enum):
     All = 0
     Train = 1
     Val = 2
     Test = 3
 
+
 class GridAlignement(Enum):
     """
     A patch is formed by padding the grid with content. If the grids are 'Center' aligned, then padding is to done equally on all 4 sides.
     On the other hand, if grids are 'LeftTop' aligned, padding is to be done on the right and bottom end of the grid.
-    In the former case, one needs (patch_size - grid_size)//2 amount of content on the right end of the frame. 
-    In the latter case, one needs patch_size - grid_size amount of content on the right end of the frame. 
+    In the former case, one needs (patch_size - grid_size)//2 amount of content on the right end of the frame.
+    In the latter case, one needs patch_size - grid_size amount of content on the right end of the frame.
     """
+
     LeftTop = 0
     Center = 1
 
@@ -57,17 +63,18 @@ def load_tiff(path):
     """
     Returns a 4d numpy array: num_imgs*h*w*num_channels
     """
-    data = imread(path, plugin='tifffile')
+    data = imread(path, plugin="tifffile")
     return data
 
 
 def save_tiff(path, data):
-    imsave(path, data, plugin='tifffile')
+    imsave(path, data, plugin="tifffile")
 
 
 def load_tiffs(paths):
     data = [load_tiff(path) for path in paths]
     return np.concatenate(data, axis=0)
+
 
 def split_in_half(s, e):
     n = e - s
@@ -75,12 +82,13 @@ def split_in_half(s, e):
     s2 = list(np.arange(n // 2, n))
     return [x + s for x in s1], [x + s for x in s2]
 
+
 def adjust_for_imbalance_in_fraction_value(
-    val: List[int], 
-    test: List[int], 
-    val_fraction: float, 
+    val: List[int],
+    test: List[int],
+    val_fraction: float,
     test_fraction: float,
-    total_size: int
+    total_size: int,
 ):
     """
     here, val and test are divided almost equally. Here, we need to take into account their respective fractions
@@ -106,11 +114,12 @@ def adjust_for_imbalance_in_fraction_value(
             test = test[imb_count:]
     return val, test
 
+
 def get_datasplit_tuples(
-    val_fraction: float, 
-    test_fraction: float, 
-    total_size: int, 
-    starting_test: bool = False
+    val_fraction: float,
+    test_fraction: float,
+    total_size: int,
+    starting_test: bool = False,
 ):
     if starting_test:
         # test => val => train
@@ -149,9 +158,12 @@ def get_datasplit_tuples(
             test += p1
             val += p2
 
-    val, test = adjust_for_imbalance_in_fraction_value(val, test, val_fraction, test_fraction, total_size)
+    val, test = adjust_for_imbalance_in_fraction_value(
+        val, test, val_fraction, test_fraction, total_size
+    )
 
     return train, val, test
+
 
 def get_mrc_data(fpath):
     # HXWXN
@@ -178,22 +190,22 @@ class GridIndexManager:
 
     def grid_rows(self, grid_size):
         if self._align == GridAlignement.LeftTop:
-            extra_pixels = (self.patch_size - grid_size)
+            extra_pixels = self.patch_size - grid_size
         elif self._align == GridAlignement.Center:
             # Center is exclusively used during evaluation. In this case, we use the padding to handle edge cases.
             # So, here, we will ideally like to cover all pixels and so extra_pixels is set to 0.
             # If there was no padding, then it should be set to (self.patch_size - grid_size) // 2
             extra_pixels = 0
 
-        return ((self._data_shape[-3] - extra_pixels) // grid_size)
+        return (self._data_shape[-3] - extra_pixels) // grid_size
 
     def grid_cols(self, grid_size):
         if self._align == GridAlignement.LeftTop:
-            extra_pixels = (self.patch_size - grid_size)
+            extra_pixels = self.patch_size - grid_size
         elif self._align == GridAlignement.Center:
             extra_pixels = 0
 
-        return ((self._data_shape[-2] - extra_pixels) // grid_size)
+        return (self._data_shape[-2] - extra_pixels) // grid_size
 
     def grid_count(self, grid_size=None):
         if self.use_default_grid(grid_size):
@@ -328,21 +340,30 @@ class IndexSwitcher:
     The idea is to switch from valid indices for target to invalid indices for target.
     If index in invalid for the target, then we return all zero vector as target.
     This combines both logic:
-    1. Using less amount of total data. 
+    1. Using less amount of total data.
     2. Using less amount of target data but using full data.
     """
 
     def __init__(self, idx_manager, data_config, patch_size) -> None:
         self.idx_manager = idx_manager
         self._data_shape = self.idx_manager.get_data_shape()
-        self._training_validtarget_fraction = data_config.get('training_validtarget_fraction', 1.0)
-        self._validtarget_ceilT = int(np.ceil(self._data_shape[0] * self._training_validtarget_fraction))
+        self._training_validtarget_fraction = data_config.get(
+            "training_validtarget_fraction", 1.0
+        )
+        self._validtarget_ceilT = int(
+            np.ceil(self._data_shape[0] * self._training_validtarget_fraction)
+        )
         self._patch_size = patch_size
-        assert data_config.deterministic_grid is True, "This only works when the dataset has deterministic grid. Needed randomness comes from this class."
-        assert 'grid_size' in data_config and data_config.grid_size == 1, "We need a one to one mapping between index and h, w, t"
+        assert (
+            data_config.deterministic_grid is True
+        ), "This only works when the dataset has deterministic grid. Needed randomness comes from this class."
+        assert (
+            "grid_size" in data_config and data_config.grid_size == 1
+        ), "We need a one to one mapping between index and h, w, t"
 
-        self._h_validmax, self._w_validmax = self.get_reduced_frame_size(self._data_shape[:3],
-                                                                         self._training_validtarget_fraction)
+        self._h_validmax, self._w_validmax = self.get_reduced_frame_size(
+            self._data_shape[:3], self._training_validtarget_fraction
+        )
         if self._h_validmax < self._patch_size or self._w_validmax < self._patch_size:
             print(
                 "WARNING: The valid target size is smaller than the patch size. This will result in all zero target. so, we are ignoring this frame for target."
@@ -351,18 +372,19 @@ class IndexSwitcher:
             self._w_validmax = 0
 
         print(
-            f'[{self.__class__.__name__}] Target Indices: [0,{self._validtarget_ceilT-1}]. Index={self._validtarget_ceilT-1} has shape [:{self._h_validmax},:{self._w_validmax}].  Available data: {self._data_shape[0]}'
+            f"[{self.__class__.__name__}] Target Indices: [0,{self._validtarget_ceilT-1}]. Index={self._validtarget_ceilT-1} has shape [:{self._h_validmax},:{self._w_validmax}].  Available data: {self._data_shape[0]}"
         )
 
     def get_valid_target_index(self):
         """
         Returns an index which corresponds to a frame which is expected to have a target.
         """
-
         _, h, w, _ = self._data_shape
         framepixelcount = h * w
-        targetpixels = np.array([framepixelcount] * (self._validtarget_ceilT - 1) +
-                                [self._h_validmax * self._w_validmax])
+        targetpixels = np.array(
+            [framepixelcount] * (self._validtarget_ceilT - 1)
+            + [self._h_validmax * self._w_validmax]
+        )
         targetpixels = targetpixels / np.sum(targetpixels)
         t = np.random.choice(self._validtarget_ceilT, p=targetpixels)
         # t = np.random.randint(0, self._validtarget_ceilT) if self._validtarget_ceilT >= 1 else 0
@@ -373,7 +395,7 @@ class IndexSwitcher:
 
     def get_invalid_target_index(self):
         # if self._validtarget_ceilT == 0:
-        #TODO: There may not be enough data for this to work. The better way is to skip using 0 for invalid target.
+        # TODO: There may not be enough data for this to work. The better way is to skip using 0 for invalid target.
         # t = np.random.randint(1, self._data_shape[0])
         # elif self._validtarget_ceilT < self._data_shape[0]:
         #     t = np.random.randint(self._validtarget_ceilT, self._data_shape[0])
@@ -390,9 +412,14 @@ class IndexSwitcher:
         if available_w < self._patch_size:
             available_w = 0
 
-        targetpixels = np.array([available_h * available_w] + [framepixelcount] * (total_t - self._validtarget_ceilT))
+        targetpixels = np.array(
+            [available_h * available_w]
+            + [framepixelcount] * (total_t - self._validtarget_ceilT)
+        )
         t_probab = targetpixels / np.sum(targetpixels)
-        t = np.random.choice(np.arange(self._validtarget_ceilT - 1, total_t), p=t_probab)
+        t = np.random.choice(
+            np.arange(self._validtarget_ceilT - 1, total_t), p=t_probab
+        )
 
         h, w = self.get_invalid_target_hw(t)
         index = self.idx_manager.idx_from_hwt(h, w, t)
@@ -418,8 +445,12 @@ class IndexSwitcher:
         This is only valid for single frame setup.
         """
         if t == self._validtarget_ceilT - 1:
-            h = np.random.randint(self._h_validmax, self._data_shape[1] - self._patch_size)
-            w = np.random.randint(self._w_validmax, self._data_shape[2] - self._patch_size)
+            h = np.random.randint(
+                self._h_validmax, self._data_shape[1] - self._patch_size
+            )
+            w = np.random.randint(
+                self._w_validmax, self._data_shape[2] - self._patch_size
+            )
         else:
             h = np.random.randint(0, self._data_shape[1] - self._patch_size)
             w = np.random.randint(0, self._data_shape[2] - self._patch_size)
@@ -440,7 +471,10 @@ class IndexSwitcher:
             return False
         else:
             h, w, _ = self.idx_manager.hwt_from_idx(index)
-            return h + self._patch_size < self._h_validmax and w + self._patch_size < self._w_validmax
+            return (
+                h + self._patch_size < self._h_validmax
+                and w + self._patch_size < self._w_validmax
+            )
 
     @staticmethod
     def get_reduced_frame_size(data_shape_nhw, fraction):
@@ -459,131 +493,125 @@ class IndexSwitcher:
             new_size = int(np.sqrt(lastframepixelcount))
             return new_size, new_size
         else:
-            assert targetpixelcount / framepixelcount >= 1, 'This is not possible in euclidean space :D (so this is a bug)'
+            assert (
+                targetpixelcount / framepixelcount >= 1
+            ), "This is not possible in euclidean space :D (so this is a bug)"
             return h, w
 
-rec_header_dtd = \
-    [
-        ("nx", "i4"),  # Number of columns
-        ("ny", "i4"),  # Number of rows
-        ("nz", "i4"),  # Number of sections
 
-        ("mode", "i4"),  # Types of pixels in the image. Values used by IMOD:
-        #  0 = unsigned or signed bytes depending on flag in imodFlags
-        #  1 = signed short integers (16 bits)
-        #  2 = float (32 bits)
-        #  3 = short * 2, (used for complex data)
-        #  4 = float * 2, (used for complex data)
-        #  6 = unsigned 16-bit integers (non-standard)
-        # 16 = unsigned char * 3 (for rgb data, non-standard)
+rec_header_dtd = [
+    ("nx", "i4"),  # Number of columns
+    ("ny", "i4"),  # Number of rows
+    ("nz", "i4"),  # Number of sections
+    ("mode", "i4"),  # Types of pixels in the image. Values used by IMOD:
+    #  0 = unsigned or signed bytes depending on flag in imodFlags
+    #  1 = signed short integers (16 bits)
+    #  2 = float (32 bits)
+    #  3 = short * 2, (used for complex data)
+    #  4 = float * 2, (used for complex data)
+    #  6 = unsigned 16-bit integers (non-standard)
+    # 16 = unsigned char * 3 (for rgb data, non-standard)
+    ("nxstart", "i4"),  # Starting point of sub-image (not used in IMOD)
+    ("nystart", "i4"),
+    ("nzstart", "i4"),
+    ("mx", "i4"),  # Grid size in X, Y and Z
+    ("my", "i4"),
+    ("mz", "i4"),
+    ("xlen", "f4"),  # Cell size; pixel spacing = xlen/mx, ylen/my, zlen/mz
+    ("ylen", "f4"),
+    ("zlen", "f4"),
+    ("alpha", "f4"),  # Cell angles - ignored by IMOD
+    ("beta", "f4"),
+    ("gamma", "f4"),
+    # These need to be set to 1, 2, and 3 for pixel spacing to be interpreted correctly
+    ("mapc", "i4"),  # map column  1=x,2=y,3=z.
+    ("mapr", "i4"),  # map row     1=x,2=y,3=z.
+    ("maps", "i4"),  # map section 1=x,2=y,3=z.
+    # These need to be set for proper scaling of data
+    ("amin", "f4"),  # Minimum pixel value
+    ("amax", "f4"),  # Maximum pixel value
+    ("amean", "f4"),  # Mean pixel value
+    ("ispg", "i4"),  # space group number (ignored by IMOD)
+    (
+        "next",
+        "i4",
+    ),  # number of bytes in extended header (called nsymbt in MRC standard)
+    ("creatid", "i2"),  # used to be an ID number, is 0 as of IMOD 4.2.23
+    ("extra_data", "V30"),  # (not used, first two bytes should be 0)
+    # These two values specify the structure of data in the extended header; their meaning depend on whether the
+    # extended header has the Agard format, a series of 4-byte integers then real numbers, or has data
+    # produced by SerialEM, a series of short integers. SerialEM stores a float as two shorts, s1 and s2, by:
+    # value = (sign of s1)*(|s1|*256 + (|s2| modulo 256)) * 2**((sign of s2) * (|s2|/256))
+    ("nint", "i2"),
+    # Number of integers per section (Agard format) or number of bytes per section (SerialEM format)
+    ("nreal", "i2"),  # Number of reals per section (Agard format) or bit
+    # Number of reals per section (Agard format) or bit
+    # flags for which types of short data (SerialEM format):
+    # 1 = tilt angle * 100  (2 bytes)
+    # 2 = piece coordinates for montage  (6 bytes)
+    # 4 = Stage position * 25    (4 bytes)
+    # 8 = Magnification / 100 (2 bytes)
+    # 16 = Intensity * 25000  (2 bytes)
+    # 32 = Exposure dose in e-/A2, a float in 4 bytes
+    # 128, 512: Reserved for 4-byte items
+    # 64, 256, 1024: Reserved for 2-byte items
+    # If the number of bytes implied by these flags does
+    # not add up to the value in nint, then nint and nreal
+    # are interpreted as ints and reals per section
+    ("extra_data2", "V20"),  # extra data (not used)
+    ("imodStamp", "i4"),  # 1146047817 indicates that file was created by IMOD
+    ("imodFlags", "i4"),  # Bit flags: 1 = bytes are stored as signed
+    # Explanation of type of data
+    ("idtype", "i2"),  # ( 0 = mono, 1 = tilt, 2 = tilts, 3 = lina, 4 = lins)
+    ("lens", "i2"),
+    # ("nd1", "i2"),  # for idtype = 1, nd1 = axis (1, 2, or 3)
+    # ("nd2", "i2"),
+    ("nphase", "i4"),
+    ("vd1", "i2"),  # vd1 = 100. * tilt increment
+    ("vd2", "i2"),  # vd2 = 100. * starting angle
+    # Current angles are used to rotate a model to match a new rotated image.  The three values in each set are
+    # rotations about X, Y, and Z axes, applied in the order Z, Y, X.
+    ("triangles", "f4", 6),  # 0,1,2 = original:  3,4,5 = current
+    ("xorg", "f4"),  # Origin of image
+    ("yorg", "f4"),
+    ("zorg", "f4"),
+    ("cmap", "S4"),  # Contains "MAP "
+    (
+        "stamp",
+        "u1",
+        4,
+    ),  # First two bytes have 17 and 17 for big-endian or 68 and 65 for little-endian
+    ("rms", "f4"),  # RMS deviation of densities from mean density
+    ("nlabl", "i4"),  # Number of labels with useful data
+    ("labels", "S80", 10),  # 10 labels of 80 charactors
+]
 
-        ("nxstart", "i4"),  # Starting point of sub-image (not used in IMOD)
-        ("nystart", "i4"),
-        ("nzstart", "i4"),
 
-        ("mx", "i4"),  # Grid size in X, Y and Z
-        ("my", "i4"),
-        ("mz", "i4"),
+def read_mrc(filename, filetype="image"):
 
-        ("xlen", "f4"),  # Cell size; pixel spacing = xlen/mx, ylen/my, zlen/mz
-        ("ylen", "f4"),
-        ("zlen", "f4"),
-
-        ("alpha", "f4"),  # Cell angles - ignored by IMOD
-        ("beta", "f4"),
-        ("gamma", "f4"),
-
-        # These need to be set to 1, 2, and 3 for pixel spacing to be interpreted correctly
-        ("mapc", "i4"),  # map column  1=x,2=y,3=z.
-        ("mapr", "i4"),  # map row     1=x,2=y,3=z.
-        ("maps", "i4"),  # map section 1=x,2=y,3=z.
-
-        # These need to be set for proper scaling of data
-        ("amin", "f4"),  # Minimum pixel value
-        ("amax", "f4"),  # Maximum pixel value
-        ("amean", "f4"),  # Mean pixel value
-
-        ("ispg", "i4"),  # space group number (ignored by IMOD)
-        ("next", "i4"),  # number of bytes in extended header (called nsymbt in MRC standard)
-        ("creatid", "i2"),  # used to be an ID number, is 0 as of IMOD 4.2.23
-        ("extra_data", "V30"),  # (not used, first two bytes should be 0)
-
-        # These two values specify the structure of data in the extended header; their meaning depend on whether the
-        # extended header has the Agard format, a series of 4-byte integers then real numbers, or has data
-        # produced by SerialEM, a series of short integers. SerialEM stores a float as two shorts, s1 and s2, by:
-        # value = (sign of s1)*(|s1|*256 + (|s2| modulo 256)) * 2**((sign of s2) * (|s2|/256))
-        ("nint", "i2"),
-        # Number of integers per section (Agard format) or number of bytes per section (SerialEM format)
-        ("nreal", "i2"),  # Number of reals per section (Agard format) or bit
-        # Number of reals per section (Agard format) or bit
-        # flags for which types of short data (SerialEM format):
-        # 1 = tilt angle * 100  (2 bytes)
-        # 2 = piece coordinates for montage  (6 bytes)
-        # 4 = Stage position * 25    (4 bytes)
-        # 8 = Magnification / 100 (2 bytes)
-        # 16 = Intensity * 25000  (2 bytes)
-        # 32 = Exposure dose in e-/A2, a float in 4 bytes
-        # 128, 512: Reserved for 4-byte items
-        # 64, 256, 1024: Reserved for 2-byte items
-        # If the number of bytes implied by these flags does
-        # not add up to the value in nint, then nint and nreal
-        # are interpreted as ints and reals per section
-
-        ("extra_data2", "V20"),  # extra data (not used)
-        ("imodStamp", "i4"),  # 1146047817 indicates that file was created by IMOD
-        ("imodFlags", "i4"),  # Bit flags: 1 = bytes are stored as signed
-
-        # Explanation of type of data
-        ("idtype", "i2"),  # ( 0 = mono, 1 = tilt, 2 = tilts, 3 = lina, 4 = lins)
-        ("lens", "i2"),
-        # ("nd1", "i2"),  # for idtype = 1, nd1 = axis (1, 2, or 3)
-        # ("nd2", "i2"),
-        ("nphase", "i4"),
-        ("vd1", "i2"),  # vd1 = 100. * tilt increment
-        ("vd2", "i2"),  # vd2 = 100. * starting angle
-
-        # Current angles are used to rotate a model to match a new rotated image.  The three values in each set are
-        # rotations about X, Y, and Z axes, applied in the order Z, Y, X.
-        ("triangles", "f4", 6),  # 0,1,2 = original:  3,4,5 = current
-
-        ("xorg", "f4"),  # Origin of image
-        ("yorg", "f4"),
-        ("zorg", "f4"),
-
-        ("cmap", "S4"),  # Contains "MAP "
-        ("stamp", "u1", 4),  # First two bytes have 17 and 17 for big-endian or 68 and 65 for little-endian
-
-        ("rms", "f4"),  # RMS deviation of densities from mean density
-
-        ("nlabl", "i4"),  # Number of labels with useful data
-        ("labels", "S80", 10)  # 10 labels of 80 charactors
-    ]
-
-def read_mrc(filename, filetype='image'):
-
-    fd = open(filename, 'rb')
+    fd = open(filename, "rb")
     header = np.fromfile(fd, dtype=rec_header_dtd, count=1)
 
-    nx, ny, nz = header['nx'][0], header['ny'][0], header['nz'][0]
+    nx, ny, nz = header["nx"][0], header["ny"][0], header["nz"][0]
 
     if header[0][3] == 1:
-        data_type = 'int16'
+        data_type = "int16"
     elif header[0][3] == 2:
-        data_type = 'float32'
+        data_type = "float32"
     elif header[0][3] == 4:
-        data_type = 'single'
+        data_type = "single"
         nx = nx * 2
     elif header[0][3] == 6:
-        data_type = 'uint16'
+        data_type = "uint16"
 
     data = np.ndarray(shape=(nx, ny, nz))
     imgrawdata = np.fromfile(fd, data_type)
     fd.close()
 
-    if filetype == 'image':
+    if filetype == "image":
         for iz in range(nz):
-            data_2d = imgrawdata[nx * ny * iz:nx * ny * (iz + 1)]
-            data[:, :, iz] = data_2d.reshape(nx, ny, order='F')
+            data_2d = imgrawdata[nx * ny * iz : nx * ny * (iz + 1)]
+            data[:, :, iz] = data_2d.reshape(nx, ny, order="F")
     else:
         data = imgrawdata
 

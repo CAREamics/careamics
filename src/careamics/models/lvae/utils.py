@@ -1,11 +1,12 @@
 """
 Script for utility functions needed by the LVAE model.
 """
-from typing import Iterable, List
 
-import torch
-import torch.nn as nn 
+from typing import Iterable
+
 import numpy as np
+import torch
+import torch.nn as nn
 import torchvision.transforms.functional as F
 from torch.distributions.normal import Normal
 
@@ -13,9 +14,11 @@ from torch.distributions.normal import Normal
 def torch_nanmean(inp):
     return torch.mean(inp[~inp.isnan()])
 
+
 def compute_batch_mean(x):
     N = len(x)
     return x.view(N, -1).mean(dim=1)
+
 
 def power_of_2(self, x):
     assert isinstance(x, int)
@@ -27,6 +30,7 @@ def power_of_2(self, x):
     if x % 2 == 1:
         return False
     return self.power_of_2(x // 2)
+
 
 class Enum:
     @classmethod
@@ -47,7 +51,8 @@ class Enum:
         for key, value in cls.__dict__.items():
             if key == enum_type_str:
                 return value
-        assert f'{cls.__name__}:{enum_type_str} doesnot exist.'
+        assert f"{cls.__name__}:{enum_type_str} doesnot exist."
+
 
 class LossType(Enum):
     Elbo = 0
@@ -79,7 +84,9 @@ class ModelType(Enum):
     # since earlier, LadderVaeStitch2Stage = 13, LadderVaeSemiSupervised = 14
     LadderVaeMixedRecons = 15
     LadderVaeCL = 16
-    LadderVaeTwoDataSet = 17  #on one subdset, apply disentanglement, on other apply reconstruction
+    LadderVaeTwoDataSet = (
+        17  # on one subdset, apply disentanglement, on other apply reconstruction
+    )
     LadderVaeTwoDatasetMultiBranch = 18
     LadderVaeTwoDatasetMultiOptim = 19
     LVaeDeepEncoderIntensityAug = 20
@@ -94,7 +101,7 @@ class ModelType(Enum):
 
 
 def _pad_crop_img(x, size, mode) -> torch.Tensor:
-    """ Pads or crops a tensor.
+    """Pads or crops a tensor.
     Pads or crops a tensor of shape (batch, channels, h, w) to new height
     and width given by a tuple.
     Args:
@@ -104,38 +111,38 @@ def _pad_crop_img(x, size, mode) -> torch.Tensor:
     Returns:
         The padded or cropped tensor
     """
-
     assert x.dim() == 4 and len(size) == 2
     size = tuple(size)
     x_size = x.size()[2:4]
-    if mode == 'pad':
+    if mode == "pad":
         cond = x_size[0] > size[0] or x_size[1] > size[1]
-    elif mode == 'crop':
+    elif mode == "crop":
         cond = x_size[0] < size[0] or x_size[1] < size[1]
     else:
-        raise ValueError("invalid mode '{}'".format(mode))
+        raise ValueError(f"invalid mode '{mode}'")
     if cond:
-        raise ValueError('trying to {} from size {} to size {}'.format(mode, x_size, size))
+        raise ValueError(f"trying to {mode} from size {x_size} to size {size}")
     dr, dc = (abs(x_size[0] - size[0]), abs(x_size[1] - size[1]))
     dr1, dr2 = dr // 2, dr - (dr // 2)
     dc1, dc2 = dc // 2, dc - (dc // 2)
-    if mode == 'pad':
+    if mode == "pad":
         return nn.functional.pad(x, [dc1, dc2, dr1, dr2, 0, 0, 0, 0])
-    elif mode == 'crop':
-        return x[:, :, dr1:x_size[0] - dr2, dc1:x_size[1] - dc2]
+    elif mode == "crop":
+        return x[:, :, dr1 : x_size[0] - dr2, dc1 : x_size[1] - dc2]
 
-    
+
 def pad_img_tensor(x, size) -> torch.Tensor:
     """Pads a tensor.
     Pads a tensor of shape (batch, channels, h, w) to a desired height and width.
     Args:
         x (torch.Tensor): Input image
         size (list or tuple): Desired size (height, width)
-    Returns:
+
+    Returns
+    -------
         The padded tensor
     """
-
-    return _pad_crop_img(x, size, 'pad')
+    return _pad_crop_img(x, size, "pad")
 
 
 def crop_img_tensor(x, size) -> torch.Tensor:
@@ -145,35 +152,37 @@ def crop_img_tensor(x, size) -> torch.Tensor:
     Args:
         x (torch.Tensor): Input image
         size (list or tuple): Desired size (height, width)
-    Returns:
+
+    Returns
+    -------
         The cropped tensor
     """
-    return _pad_crop_img(x, size, 'crop')
+    return _pad_crop_img(x, size, "crop")
 
 
 class StableExponential:
     """
-    Class that redefines the definition of exp() to increase numerical stability. 
-    Naturally, also the definition of log() must change accordingly. 
+    Class that redefines the definition of exp() to increase numerical stability.
+    Naturally, also the definition of log() must change accordingly.
     However, it is worth noting that the two operations remain one the inverse of the other,
     meaning that x = log(exp(x)) and x = exp(log(x)) are always true.
-    
+
     Definition:
         exp(x) = {
             exp(x) if x<=0
             x+1    if x>0
         }
-        
+
         log(x) = {
             x        if x<=0
             log(1+x) if x>0
         }
-    
+
     NOTE 1:
         Within the class everything is done on the tensor given as input to the constructor.
         Therefore, when exp() is called, self._tensor.exp() is computed.
         When log() is called, torch.log(self._tensor.exp()) is computed instead.
-    
+
     NOTE 2:
         Given the output from exp(), torch.log() or the log() method of the class give identical results.
     """
@@ -181,8 +190,8 @@ class StableExponential:
     def __init__(self, tensor):
         self._raw_tensor = tensor
         posneg_dic = self.posneg_separation(self._raw_tensor)
-        self.pos_f, self.neg_f = posneg_dic['filter']
-        self.pos_data, self.neg_data = posneg_dic['value']
+        self.pos_f, self.neg_f = posneg_dic["filter"]
+        self.pos_data, self.neg_data = posneg_dic["value"]
 
     def posneg_separation(self, tensor):
         pos = tensor > 0
@@ -191,7 +200,7 @@ class StableExponential:
         neg = tensor <= 0
         neg_tensor = torch.clip(tensor, max=0)
 
-        return {'filter': [pos, neg], 'value': [pos_tensor, neg_tensor]}
+        return {"filter": [pos, neg], "value": [pos_tensor, neg_tensor]}
 
     def exp(self):
         return torch.exp(self.neg_data) * self.neg_f + (1 + self.pos_data) * self.pos_f
@@ -203,18 +212,15 @@ class StableExponential:
 class StableLogVar:
     """
     Class that provides a numerically stable implementation of Log-Variance.
-    Specifically, it uses the exp() and log() formulas defined in `StableExponential` class. 
+    Specifically, it uses the exp() and log() formulas defined in `StableExponential` class.
     """
 
     def __init__(
-        self, 
-        logvar: torch.Tensor, 
-        enable_stable: bool = True, 
-        var_eps: float = 1e-6
+        self, logvar: torch.Tensor, enable_stable: bool = True, var_eps: float = 1e-6
     ):
         """
         Contructor.
-        
+
         Parameters
         ----------
         logvar: torch.Tensor
@@ -248,7 +254,7 @@ class StableLogVar:
     def centercrop_to_size(self, size: Iterable[int]) -> None:
         """
         Centercrop the log-variance tensor to the desired size.
-        
+
         Parameters
         ----------
         size: torch.Tensor
@@ -273,7 +279,7 @@ class StableMean:
     def centercrop_to_size(self, size: Iterable[int]) -> None:
         """
         Centercrop the mean tensor to the desired size.
-        
+
         Parameters
         ----------
         size: torch.Tensor
@@ -310,7 +316,7 @@ def allow_numpy(func):
 class Interpolate(nn.Module):
     """Wrapper for torch.nn.functional.interpolate."""
 
-    def __init__(self, size=None, scale=None, mode='bilinear', align_corners=False):
+    def __init__(self, size=None, scale=None, mode="bilinear", align_corners=False):
         super().__init__()
         assert (size is None) == (scale is not None)
         self.size = size
@@ -324,10 +330,11 @@ class Interpolate(nn.Module):
             size=self.size,
             scale_factor=self.scale,
             mode=self.mode,
-            align_corners=self.align_corners
+            align_corners=self.align_corners,
         )
         return out
-    
+
+
 def kl_normal_mc(z, p_mulv, q_mulv):
     """
     One-sample estimation of element-wise KL between two diagonal
@@ -352,17 +359,14 @@ def kl_normal_mc(z, p_mulv, q_mulv):
 
 
 def free_bits_kl(
-    kl: torch.Tensor, 
-    free_bits: float, 
-    batch_average: bool = False, 
-    eps: float = 1e-6
+    kl: torch.Tensor, free_bits: float, batch_average: bool = False, eps: float = 1e-6
 ) -> torch.Tensor:
     """
     Computes free-bits version of KL divergence.
     Ensures that the KL doesn't go to zero for any latent dimension.
-    Hence, it contributes to use latent variables more efficiently, 
+    Hence, it contributes to use latent variables more efficiently,
     leading to better representation learning.
-    
+
     NOTE:
     Takes in the KL with shape (batch size, layers), returns the KL with
     free bits (for optimization) with shape (layers,), which is the average
@@ -372,16 +376,17 @@ def free_bits_kl(
     are assigned on average to the whole batch. In both cases, the batch
     average is returned, so it's simply a matter of doing mean(clamp(KL))
     or clamp(mean(KL)).
-    
+
     Args:
         kl (torch.Tensor)
         free_bits (float)
         batch_average (bool, optional))
         eps (float, optional)
-    Returns:
+
+    Returns
+    -------
         The KL with free bits
     """
-
     assert kl.dim() == 2
     if free_bits < eps:
         return kl.mean(0)
