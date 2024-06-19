@@ -664,8 +664,8 @@ def test_predict_pretrained_checkpoint(tmp_path: Path, pre_trained: Path):
 
     # instantiate CAREamist
     careamist = CAREamist(source=pre_trained, work_dir=tmp_path)
-    assert careamist.cfg.data_config.image_mean is not None
-    assert careamist.cfg.data_config.image_std is not None
+    assert careamist.cfg.data_config.image_means is not None
+    assert careamist.cfg.data_config.image_stds is not None
 
     # predict
     predicted = careamist.predict(source_array)
