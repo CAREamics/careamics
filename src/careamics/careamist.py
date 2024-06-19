@@ -23,7 +23,7 @@ from careamics.dataset.dataset_utils import reshape_array
 from careamics.lightning_datamodule import CAREamicsTrainData
 from careamics.lightning_module import CAREamicsModule
 from careamics.model_io import export_to_bmz, load_pretrained
-from careamics.prediction_utils import PredictionManager, create_pred_datamodule
+from careamics.prediction_utils import convert_outputs, create_pred_datamodule
 from careamics.utils import check_path_exists, get_logger
 
 from .callbacks import HyperParametersCallback
@@ -597,10 +597,10 @@ class CAREamist:
             extension_filter=extension_filter,
         )
 
-        pm = PredictionManager(
-            self.trainer, self.model, self.pred_datamodule, checkpoint
+        predictions = self.trainer.predict(
+            model=self.model, datamodule=self.pred_datamodule, ckpt_path=checkpoint
         )
-        return pm.predict()
+        return convert_outputs(predictions, self.pred_datamodule.tiled)
 
     def export_to_bmz(
         self,
