@@ -16,19 +16,18 @@ from pytorch_lightning.loggers import TensorBoardLogger, WandbLogger
 from careamics.callbacks import ProgressBarCallback
 from careamics.config import (
     Configuration,
-    create_inference_configuration,
     load_configuration,
 )
 from careamics.config.support import SupportedAlgorithm, SupportedData, SupportedLogger
 from careamics.dataset.dataset_utils import reshape_array
 from careamics.lightning_datamodule import CAREamicsTrainData
 from careamics.lightning_module import CAREamicsModule
-from careamics.lightning_prediction_datamodule import CAREamicsPredictData
-from careamics.lightning_prediction_loop import CAREamicsPredictionLoop
 from careamics.model_io import export_to_bmz, load_pretrained
+from careamics.prediction_utils import convert_outputs, create_pred_datamodule
 from careamics.utils import check_path_exists, get_logger
 
 from .callbacks import HyperParametersCallback
+from .lightning_prediction_datamodule import CAREamicsPredictData
 
 logger = get_logger(__name__)
 
@@ -192,9 +191,6 @@ class CAREamist:
             default_root_dir=self.work_dir,
             logger=self.experiment_logger,
         )
-
-        # change the prediction loop, necessary for tiled prediction
-        self.trainer.predict_loop = CAREamicsPredictionLoop(self.trainer)
 
         # place holder for the datamodules
         self.train_datamodule: Optional[CAREamicsTrainData] = None
@@ -572,28 +568,28 @@ class CAREamist:
 
         Parameters
         ----------
-        source : CAREamicsPredData or pathlib.Path or str or NDArray
+        source : CAREamicsPredData, pathlib.Path, str or numpy.ndarray
             Data to predict on.
-        batch_size : int, optional
-            Batch size for prediction, by default 1.
+        batch_size : int, default=1
+            Batch size for prediction.
         tile_size : tuple of int, optional
-            Size of the tiles to use for prediction, by default None.
-        tile_overlap : tuple of int, optional
-            Overlap between tiles, by default (48, 48).
+            Size of the tiles to use for prediction.
+        tile_overlap : tuple of int, default=(48, 48)
+            Overlap between tiles.
         axes : str, optional
             Axes of the input data, by default None.
         data_type : {"array", "tiff", "custom"}, optional
-            Type of the input data, by default None.
-        tta_transforms : bool, optional
-            Whether to apply test-time augmentation, by default True.
+            Type of the input data.
+        tta_transforms : bool, default=True
+            Whether to apply test-time augmentation.
         dataloader_params : dict, optional
-            Parameters to pass to the dataloader, by default None.
+            Parameters to pass to the dataloader.
         read_source_func : Callable, optional
-            Function to read the source data, by default None.
-        extension_filter : str, optional
-            Filter for the file extension, by default "".
+            Function to read the source data.
+        extension_filter : str, default=""
+            Filter for the file extension.
         checkpoint : {"best", "last"}, optional
-            Checkpoint to use for prediction, by default None.
+            Checkpoint to use for prediction.
         **kwargs : Any
             Unused.
 
@@ -601,91 +597,33 @@ class CAREamist:
         -------
         list of NDArray or NDArray
             Predictions made by the model.
-
-        Raises
-        ------
-        ValueError
-            If the input is not a CAREamicsPredData instance, a path or a numpy array.
         """
-        if isinstance(source, CAREamicsPredictData):
-            # record datamodule
-            self.pred_datamodule = source
-
-            return self.trainer.predict(
-                model=self.model, datamodule=source, ckpt_path=checkpoint
-            )
-        else:
-            if self.cfg is None:
-                raise ValueError(
-                    "No configuration found. Train a model or load from a "
-                    "checkpoint before predicting."
-                )
-
-            # Reuse batch size if not provided explicitly
-            if batch_size is None:
-                batch_size = (
-                    self.train_datamodule.batch_size
-                    if self.train_datamodule
-                    else self.cfg.data_config.batch_size
-                )
-
-            # create predict config, reuse training config if parameters missing
-            prediction_config = create_inference_configuration(
-                configuration=self.cfg,
-                tile_size=tile_size,
-                tile_overlap=tile_overlap,
-                data_type=data_type,
-                axes=axes,
-                tta_transforms=tta_transforms,
-                batch_size=batch_size,
+        # Reuse batch size if not provided explicitly
+        if batch_size is None:
+            batch_size = (
+                self.train_datamodule.batch_size
+                if self.train_datamodule
+                else self.cfg.data_config.batch_size
             )
 
-            # remove batch from dataloader parameters (priority given to config)
-            if dataloader_params is None:
-                dataloader_params = {}
-            if "batch_size" in dataloader_params:
-                del dataloader_params["batch_size"]
+        self.pred_datamodule = create_pred_datamodule(
+            source=source,
+            config=self.cfg,
+            batch_size=batch_size,
+            tile_size=tile_size,
+            tile_overlap=tile_overlap,
+            axes=axes,
+            data_type=data_type,
+            tta_transforms=tta_transforms,
+            dataloader_params=dataloader_params,
+            read_source_func=read_source_func,
+            extension_filter=extension_filter,
+        )
 
-            if isinstance(source, Path) or isinstance(source, str):
-                # Check the source
-                source_path = check_path_exists(source)
-
-                # create datamodule
-                datamodule = CAREamicsPredictData(
-                    pred_config=prediction_config,
-                    pred_data=source_path,
-                    read_source_func=read_source_func,
-                    extension_filter=extension_filter,
-                    dataloader_params=dataloader_params,
-                )
-
-                # record datamodule
-                self.pred_datamodule = datamodule
-
-                return self.trainer.predict(
-                    model=self.model, datamodule=datamodule, ckpt_path=checkpoint
-                )
-
-            elif isinstance(source, np.ndarray):
-                # create datamodule
-                datamodule = CAREamicsPredictData(
-                    pred_config=prediction_config,
-                    pred_data=source,
-                    dataloader_params=dataloader_params,
-                )
-
-                # record datamodule
-                self.pred_datamodule = datamodule
-
-                return self.trainer.predict(
-                    model=self.model, datamodule=datamodule, ckpt_path=checkpoint
-                )
-
-            else:
-                raise ValueError(
-                    f"Invalid input. Expected a CAREamicsPredData instance, paths or "
-                    f"NDArray (got {type(source)})."
-                )
+        predictions = self.trainer.predict(
+            model=self.model, datamodule=self.pred_datamodule, ckpt_path=checkpoint
+        )
+        return convert_outputs(predictions, self.pred_datamodule.tiled)
 
     def export_to_bmz(
         self,
