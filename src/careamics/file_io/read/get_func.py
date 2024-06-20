@@ -3,8 +3,9 @@
 from pathlib import Path
 from typing import Callable, Dict, Protocol, Union
 
-from careamics.config.support import SupportedData
+from numpy.typing import NDArray
 
+from careamics.config.support import SupportedData
 from .tiff import read_tiff
 
 
@@ -13,7 +14,7 @@ from .tiff import read_tiff
 class ReadFunc(Protocol):
     """Protocol for type hinting read functions."""
 
-    def __call__(self, file_path: Path, *args, **kwargs) -> None:
+    def __call__(self, file_path: Path, *args, **kwargs) -> NDArray:
         """
         Type hinted callables must match this function signature (not including self).
 
@@ -33,7 +34,7 @@ READ_FUNCS: Dict[SupportedData, ReadFunc] = {
 }
 
 
-def get_read_func(data_type: Union[SupportedData, str]) -> Callable:
+def get_read_func(data_type: SupportedData) -> Callable:
     """
     Get the read function for the data type.
 
@@ -47,6 +48,7 @@ def get_read_func(data_type: Union[SupportedData, str]) -> Callable:
     callable
         Read function.
     """
+
     if data_type in READ_FUNCS:
         return READ_FUNCS[data_type]
     else:

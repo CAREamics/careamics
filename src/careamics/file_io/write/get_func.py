@@ -38,7 +38,7 @@ WRITE_FUNCS: dict[SupportedData, WriteFunc] = {
 }
 
 
-def get_write_func(data_type: Union[SupportedData, str]) -> WriteFunc:
+def get_write_func(data_type: SupportedData) -> WriteFunc:
     """
     Get the write function for the data type.
 
