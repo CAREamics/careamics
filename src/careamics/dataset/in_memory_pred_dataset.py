@@ -45,8 +45,8 @@ class InMemoryPredDataset(Dataset):
         self.pred_config = prediction_config
         self.input_array = inputs
         self.axes = self.pred_config.axes
-        self.image_means = self.pred_config.image_mean
-        self.image_stds = self.pred_config.image_std
+        self.image_means = self.pred_config.image_means
+        self.image_stds = self.pred_config.image_stds
 
         # Reshape data
         self.data = reshape_array(self.input_array, self.axes)

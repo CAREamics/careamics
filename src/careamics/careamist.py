@@ -1,7 +1,7 @@
 """A class to train, predict and export models in CAREamics."""
 
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, Union, overload
+from typing import Any, Callable, Literal, Optional, Union, overload
 
 import numpy as np
 from numpy.typing import NDArray
@@ -16,39 +16,38 @@ from pytorch_lightning.loggers import TensorBoardLogger, WandbLogger
 from careamics.callbacks import ProgressBarCallback
 from careamics.config import (
     Configuration,
-    create_inference_configuration,
     load_configuration,
 )
 from careamics.config.support import SupportedAlgorithm, SupportedData, SupportedLogger
 from careamics.dataset.dataset_utils import reshape_array
 from careamics.lightning_datamodule import CAREamicsTrainData
 from careamics.lightning_module import CAREamicsModule
-from careamics.lightning_prediction_datamodule import CAREamicsPredictData
-from careamics.lightning_prediction_loop import CAREamicsPredictionLoop
 from careamics.model_io import export_to_bmz, load_pretrained
+from careamics.prediction_utils import convert_outputs, create_pred_datamodule
 from careamics.utils import check_path_exists, get_logger
 
 from .callbacks import HyperParametersCallback
+from .lightning_prediction_datamodule import CAREamicsPredictData
 
 logger = get_logger(__name__)
 
 LOGGER_TYPES = Optional[Union[TensorBoardLogger, WandbLogger]]
 
 
-# TODO napari callbacks
-# TODO: how to do AMP? How to continue training?
 class CAREamist:
     """Main CAREamics class, allowing training and prediction using various algorithms.
 
     Parameters
     ----------
-    source : Union[Path, str, Configuration]
+    source : pathlib.Path or str or CAREamics Configuration
         Path to a configuration file or a trained model.
-    work_dir : Optional[str], optional
+    work_dir : str, optional
         Path to working directory in which to save checkpoints and logs,
         by default None.
-    experiment_name : str, optional
-        Experiment name used for checkpoints, by default "CAREamics".
+    experiment_name : str, by default "CAREamics"
+        Experiment name used for checkpoints.
+    callbacks : list of Callback, optional
+        List of callbacks to use during training and prediction, by default None.
 
     Attributes
     ----------
@@ -58,8 +57,7 @@ class CAREamist:
         CAREamics configuration.
     trainer : Trainer
         PyTorch Lightning trainer.
-    experiment_logger : pytorch_lightning.loggersTensorBoardLogger or
-    pytorch_lightning.loggersWandbLogger
+    experiment_logger : TensorBoardLogger or WandbLogger
         Experiment logger, "wandb" or "tensorboard".
     work_dir : pathlib.Path
         Working directory.
@@ -75,6 +73,7 @@ class CAREamist:
         source: Union[Path, str],
         work_dir: Optional[str] = None,
         experiment_name: str = "CAREamics",
+        callbacks: Optional[list[Callback]] = None,
     ) -> None: ...
 
     @overload
@@ -83,6 +82,7 @@ class CAREamist:
         source: Configuration,
         work_dir: Optional[str] = None,
         experiment_name: str = "CAREamics",
+        callbacks: Optional[list[Callback]] = None,
     ) -> None: ...
 
     def __init__(
@@ -90,6 +90,7 @@ class CAREamist:
         source: Union[Path, str, Configuration],
         work_dir: Optional[Union[Path, str]] = None,
         experiment_name: str = "CAREamics",
+        callbacks: Optional[list[Callback]] = None,
     ) -> None:
         """
         Initialize CAREamist with a configuration object or a path.
@@ -113,6 +114,8 @@ class CAREamist:
             by default None.
         experiment_name : str, optional
             Experiment name used for checkpoints, by default "CAREamics".
+        callbacks : list of Callback, optional
+            List of callbacks to use during training and prediction, by default None.
 
         Raises
         ------
@@ -165,7 +168,7 @@ class CAREamist:
                 self.model, self.cfg = load_pretrained(source)
 
         # define the checkpoint saving callback
-        self.callbacks = self._define_callbacks()
+        self._define_callbacks(callbacks)
 
         # instantiate logger
         if self.cfg.training_config.has_logger():
@@ -189,40 +192,56 @@ class CAREamist:
             logger=self.experiment_logger,
         )
 
-        # change the prediction loop, necessary for tiled prediction
-        self.trainer.predict_loop = CAREamicsPredictionLoop(self.trainer)
-
         # place holder for the datamodules
         self.train_datamodule: Optional[CAREamicsTrainData] = None
         self.pred_datamodule: Optional[CAREamicsPredictData] = None
 
-    def _define_callbacks(self) -> List[Callback]:
+    def _define_callbacks(self, callbacks: Optional[list[Callback]] = None) -> None:
         """
         Define the callbacks for the training loop.
 
-        Returns
-        -------
-        list of Callback
-            List of callbacks to be used during training.
+        Parameters
+        ----------
+        callbacks : list of Callback, optional
+            List of callbacks to use during training and prediction, by default None.
         """
+        self.callbacks = [] if callbacks is None else callbacks
+
+        # check that user callbacks are not any of the CAREamics callbacks
+        for c in self.callbacks:
+            if isinstance(c, ModelCheckpoint) or isinstance(c, EarlyStopping):
+                raise ValueError(
+                    "ModelCheckpoint and EarlyStopping callbacks are already defined "
+                    "in CAREamics and should only be modified through the "
+                    "training configuration (see TrainingConfig)."
+                )
+
+            if isinstance(c, HyperParametersCallback) or isinstance(
+                c, ProgressBarCallback
+            ):
+                raise ValueError(
+                    "HyperParameter and ProgressBar callbacks are defined internally "
+                    "and should not be passed as callbacks."
+                )
+
         # checkpoint callback saves checkpoints during training
-        self.callbacks = [
-            HyperParametersCallback(self.cfg),
-            ModelCheckpoint(
-                dirpath=self.work_dir / Path("checkpoints"),
-                filename=self.cfg.experiment_name,
-                **self.cfg.training_config.checkpoint_callback.model_dump(),
-            ),
-            ProgressBarCallback(),
-        ]
+        self.callbacks.extend(
+            [
+                HyperParametersCallback(self.cfg),
+                ModelCheckpoint(
+                    dirpath=self.work_dir / Path("checkpoints"),
+                    filename=self.cfg.experiment_name,
+                    **self.cfg.training_config.checkpoint_callback.model_dump(),
+                ),
+                ProgressBarCallback(),
+            ]
+        )
 
         # early stopping callback
         if self.cfg.training_config.early_stopping_callback is not None:
             self.callbacks.append(
                 EarlyStopping(self.cfg.training_config.early_stopping_callback)
             )
-
-        return self.callbacks
 
     def train(
         self,
@@ -486,12 +505,12 @@ class CAREamist:
         source: Union[Path, str],
         *,
         batch_size: int = 1,
-        tile_size: Optional[Tuple[int, ...]] = None,
-        tile_overlap: Tuple[int, ...] = (48, 48),
+        tile_size: Optional[tuple[int, ...]] = None,
+        tile_overlap: tuple[int, ...] = (48, 48),
         axes: Optional[str] = None,
         data_type: Optional[Literal["tiff", "custom"]] = None,
         tta_transforms: bool = True,
-        dataloader_params: Optional[Dict] = None,
+        dataloader_params: Optional[dict] = None,
         read_source_func: Optional[Callable] = None,
         extension_filter: str = "",
         checkpoint: Optional[Literal["best", "last"]] = None,
@@ -503,12 +522,12 @@ class CAREamist:
         source: NDArray,
         *,
         batch_size: int = 1,
-        tile_size: Optional[Tuple[int, ...]] = None,
-        tile_overlap: Tuple[int, ...] = (48, 48),
+        tile_size: Optional[tuple[int, ...]] = None,
+        tile_overlap: tuple[int, ...] = (48, 48),
         axes: Optional[str] = None,
         data_type: Optional[Literal["array"]] = None,
         tta_transforms: bool = True,
-        dataloader_params: Optional[Dict] = None,
+        dataloader_params: Optional[dict] = None,
         checkpoint: Optional[Literal["best", "last"]] = None,
     ) -> Union[list[NDArray], NDArray]: ...
 
@@ -517,17 +536,17 @@ class CAREamist:
         source: Union[CAREamicsPredictData, Path, str, NDArray],
         *,
         batch_size: Optional[int] = None,
-        tile_size: Optional[Tuple[int, ...]] = None,
-        tile_overlap: Tuple[int, ...] = (48, 48),
+        tile_size: Optional[tuple[int, ...]] = None,
+        tile_overlap: tuple[int, ...] = (48, 48),
         axes: Optional[str] = None,
         data_type: Optional[Literal["array", "tiff", "custom"]] = None,
         tta_transforms: bool = True,
-        dataloader_params: Optional[Dict] = None,
+        dataloader_params: Optional[dict] = None,
         read_source_func: Optional[Callable] = None,
         extension_filter: str = "",
         checkpoint: Optional[Literal["best", "last"]] = None,
         **kwargs: Any,
-    ) -> Union[List[NDArray], NDArray]:
+    ) -> Union[list[NDArray], NDArray]:
         """
         Make predictions on the provided data.
 
@@ -549,28 +568,28 @@ class CAREamist:
 
         Parameters
         ----------
-        source : CAREamicsPredData or pathlib.Path or str or NDArray
+        source : CAREamicsPredData, pathlib.Path, str or numpy.ndarray
             Data to predict on.
-        batch_size : int, optional
-            Batch size for prediction, by default 1.
+        batch_size : int, default=1
+            Batch size for prediction.
         tile_size : tuple of int, optional
-            Size of the tiles to use for prediction, by default None.
-        tile_overlap : tuple of int, optional
-            Overlap between tiles, by default (48, 48).
+            Size of the tiles to use for prediction.
+        tile_overlap : tuple of int, default=(48, 48)
+            Overlap between tiles.
         axes : str, optional
             Axes of the input data, by default None.
         data_type : {"array", "tiff", "custom"}, optional
-            Type of the input data, by default None.
-        tta_transforms : bool, optional
-            Whether to apply test-time augmentation, by default True.
+            Type of the input data.
+        tta_transforms : bool, default=True
+            Whether to apply test-time augmentation.
         dataloader_params : dict, optional
-            Parameters to pass to the dataloader, by default None.
+            Parameters to pass to the dataloader.
         read_source_func : Callable, optional
-            Function to read the source data, by default None.
-        extension_filter : str, optional
-            Filter for the file extension, by default "".
+            Function to read the source data.
+        extension_filter : str, default=""
+            Filter for the file extension.
         checkpoint : {"best", "last"}, optional
-            Checkpoint to use for prediction, by default None.
+            Checkpoint to use for prediction.
         **kwargs : Any
             Unused.
 
@@ -578,100 +597,42 @@ class CAREamist:
         -------
         list of NDArray or NDArray
             Predictions made by the model.
-
-        Raises
-        ------
-        ValueError
-            If the input is not a CAREamicsPredData instance, a path or a numpy array.
         """
-        if isinstance(source, CAREamicsPredictData):
-            # record datamodule
-            self.pred_datamodule = source
-
-            return self.trainer.predict(
-                model=self.model, datamodule=source, ckpt_path=checkpoint
-            )
-        else:
-            if self.cfg is None:
-                raise ValueError(
-                    "No configuration found. Train a model or load from a "
-                    "checkpoint before predicting."
-                )
-
-            # Reuse batch size if not provided explicitly
-            if batch_size is None:
-                batch_size = (
-                    self.train_datamodule.batch_size
-                    if self.train_datamodule
-                    else self.cfg.data_config.batch_size
-                )
-
-            # create predict config, reuse training config if parameters missing
-            prediction_config = create_inference_configuration(
-                configuration=self.cfg,
-                tile_size=tile_size,
-                tile_overlap=tile_overlap,
-                data_type=data_type,
-                axes=axes,
-                tta_transforms=tta_transforms,
-                batch_size=batch_size,
+        # Reuse batch size if not provided explicitly
+        if batch_size is None:
+            batch_size = (
+                self.train_datamodule.batch_size
+                if self.train_datamodule
+                else self.cfg.data_config.batch_size
             )
 
-            # remove batch from dataloader parameters (priority given to config)
-            if dataloader_params is None:
-                dataloader_params = {}
-            if "batch_size" in dataloader_params:
-                del dataloader_params["batch_size"]
+        self.pred_datamodule = create_pred_datamodule(
+            source=source,
+            config=self.cfg,
+            batch_size=batch_size,
+            tile_size=tile_size,
+            tile_overlap=tile_overlap,
+            axes=axes,
+            data_type=data_type,
+            tta_transforms=tta_transforms,
+            dataloader_params=dataloader_params,
+            read_source_func=read_source_func,
+            extension_filter=extension_filter,
+        )
 
-            if isinstance(source, Path) or isinstance(source, str):
-                # Check the source
-                source_path = check_path_exists(source)
-
-                # create datamodule
-                datamodule = CAREamicsPredictData(
-                    pred_config=prediction_config,
-                    pred_data=source_path,
-                    read_source_func=read_source_func,
-                    extension_filter=extension_filter,
-                    dataloader_params=dataloader_params,
-                )
-
-                # record datamodule
-                self.pred_datamodule = datamodule
-
-                return self.trainer.predict(
-                    model=self.model, datamodule=datamodule, ckpt_path=checkpoint
-                )
-
-            elif isinstance(source, np.ndarray):
-                # create datamodule
-                datamodule = CAREamicsPredictData(
-                    pred_config=prediction_config,
-                    pred_data=source,
-                    dataloader_params=dataloader_params,
-                )
-
-                # record datamodule
-                self.pred_datamodule = datamodule
-
-                return self.trainer.predict(
-                    model=self.model, datamodule=datamodule, ckpt_path=checkpoint
-                )
-
-            else:
-                raise ValueError(
-                    f"Invalid input. Expected a CAREamicsPredData instance, paths or "
-                    f"NDArray (got {type(source)})."
-                )
+        predictions = self.trainer.predict(
+            model=self.model, datamodule=self.pred_datamodule, ckpt_path=checkpoint
+        )
+        return convert_outputs(predictions, self.pred_datamodule.tiled)
 
     def export_to_bmz(
         self,
         path: Union[Path, str],
         name: str,
         input_array: NDArray,
-        authors: List[dict],
+        authors: list[dict],
         general_description: str = "",
-        channel_names: Optional[List[str]] = None,
+        channel_names: Optional[list[str]] = None,
         data_description: Optional[str] = None,
     ) -> None:
         """Export the model to the BioImage Model Zoo format.

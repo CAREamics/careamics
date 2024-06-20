@@ -28,16 +28,16 @@ def test_wrong_extensions(minimum_data: dict, ext: str):
 @pytest.mark.parametrize("mean, std", [(0, 124.5), (12.6, 0.1)])
 def test_mean_std_non_negative(minimum_data: dict, mean, std):
     """Test that non negative mean and std are accepted."""
-    minimum_data["image_mean"] = [mean]
-    minimum_data["image_std"] = [std]
-    minimum_data["target_mean"] = [mean]
-    minimum_data["target_std"] = [std]
+    minimum_data["image_means"] = [mean]
+    minimum_data["image_stds"] = [std]
+    minimum_data["target_means"] = [mean]
+    minimum_data["target_stds"] = [std]
 
     data_model = DataConfig(**minimum_data)
-    assert data_model.image_mean == [mean]
-    assert data_model.image_std == [std]
-    assert data_model.target_mean == [mean]
-    assert data_model.target_std == [std]
+    assert data_model.image_means == [mean]
+    assert data_model.image_stds == [std]
+    assert data_model.target_means == [mean]
+    assert data_model.target_stds == [std]
 
 
 def test_mean_std_both_specified_or_none(minimum_data: dict):
@@ -46,23 +46,23 @@ def test_mean_std_both_specified_or_none(minimum_data: dict):
     DataConfig(**minimum_data)
 
     # Error if only mean is defined
-    minimum_data["image_mean"] = [10.4]
+    minimum_data["image_means"] = [10.4]
     with pytest.raises(ValueError):
         DataConfig(**minimum_data)
 
     # Error if only std is defined
-    minimum_data.pop("image_mean")
-    minimum_data["image_std"] = [10.4]
+    minimum_data.pop("image_means")
+    minimum_data["image_stds"] = [10.4]
     with pytest.raises(ValueError):
         DataConfig(**minimum_data)
 
     # No error if both are specified
-    minimum_data["image_mean"] = [10.4]
-    minimum_data["image_std"] = [10.4]
+    minimum_data["image_means"] = [10.4]
+    minimum_data["image_stds"] = [10.4]
     DataConfig(**minimum_data)
 
     # Error if target mean is defined but target std is None
-    minimum_data["target_std"] = [10.4, 11]
+    minimum_data["target_stds"] = [10.4, 11]
     with pytest.raises(ValueError):
         DataConfig(**minimum_data)
 
@@ -74,13 +74,13 @@ def test_set_mean_and_std(minimum_data: dict):
     std = [14.07]
     data = DataConfig(**minimum_data)
     data.set_mean_and_std(mean, std)
-    assert data.image_mean == mean
-    assert data.image_std == std
+    assert data.image_means == mean
+    assert data.image_stds == std
 
     # Set also target mean and std
     data.set_mean_and_std(mean, std, mean, std)
-    assert data.target_mean == mean
-    assert data.target_std == std
+    assert data.target_means == mean
+    assert data.target_stds == std
 
 
 def test_normalize_not_accepted(minimum_data: dict):
