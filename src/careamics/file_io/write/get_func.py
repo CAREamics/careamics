@@ -1,7 +1,7 @@
 """Module to get write functions."""
 
 from pathlib import Path
-from typing import Protocol, Union
+from typing import Protocol
 
 from numpy.typing import NDArray
 

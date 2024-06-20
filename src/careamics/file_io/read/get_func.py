@@ -1,11 +1,12 @@
 """Module to get read functions."""
 
 from pathlib import Path
-from typing import Callable, Dict, Protocol, Union
+from typing import Callable, Dict, Protocol
 
 from numpy.typing import NDArray
 
 from careamics.config.support import SupportedData
+
 from .tiff import read_tiff
 
 
@@ -48,7 +49,6 @@ def get_read_func(data_type: SupportedData) -> Callable:
     callable
         Read function.
     """
-
     if data_type in READ_FUNCS:
         return READ_FUNCS[data_type]
     else:
