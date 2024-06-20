@@ -1,7 +1,7 @@
 """A class to train, predict and export models in CAREamics."""
 
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Literal, Optional, Tuple, Union, overload
+from typing import Any, Callable, Literal, Optional, Union, overload
 
 import numpy as np
 from numpy.typing import NDArray
@@ -35,20 +35,20 @@ logger = get_logger(__name__)
 LOGGER_TYPES = Optional[Union[TensorBoardLogger, WandbLogger]]
 
 
-# TODO napari callbacks
-# TODO: how to do AMP? How to continue training?
 class CAREamist:
     """Main CAREamics class, allowing training and prediction using various algorithms.
 
     Parameters
     ----------
-    source : Union[Path, str, Configuration]
+    source : pathlib.Path or str or CAREamics Configuration
         Path to a configuration file or a trained model.
-    work_dir : Optional[str], optional
+    work_dir : str, optional
         Path to working directory in which to save checkpoints and logs,
         by default None.
-    experiment_name : str, optional
-        Experiment name used for checkpoints, by default "CAREamics".
+    experiment_name : str, by default "CAREamics"
+        Experiment name used for checkpoints.
+    callbacks : list of Callback, optional
+        List of callbacks to use during training and prediction, by default None.
 
     Attributes
     ----------
@@ -58,8 +58,7 @@ class CAREamist:
         CAREamics configuration.
     trainer : Trainer
         PyTorch Lightning trainer.
-    experiment_logger : pytorch_lightning.loggersTensorBoardLogger or
-    pytorch_lightning.loggersWandbLogger
+    experiment_logger : TensorBoardLogger or WandbLogger
         Experiment logger, "wandb" or "tensorboard".
     work_dir : pathlib.Path
         Working directory.
@@ -75,6 +74,7 @@ class CAREamist:
         source: Union[Path, str],
         work_dir: Optional[str] = None,
         experiment_name: str = "CAREamics",
+        callbacks: Optional[list[Callback]] = None,
     ) -> None: ...
 
     @overload
@@ -83,6 +83,7 @@ class CAREamist:
         source: Configuration,
         work_dir: Optional[str] = None,
         experiment_name: str = "CAREamics",
+        callbacks: Optional[list[Callback]] = None,
     ) -> None: ...
 
     def __init__(
@@ -90,6 +91,7 @@ class CAREamist:
         source: Union[Path, str, Configuration],
         work_dir: Optional[Union[Path, str]] = None,
         experiment_name: str = "CAREamics",
+        callbacks: Optional[list[Callback]] = None,
     ) -> None:
         """
         Initialize CAREamist with a configuration object or a path.
@@ -113,6 +115,8 @@ class CAREamist:
             by default None.
         experiment_name : str, optional
             Experiment name used for checkpoints, by default "CAREamics".
+        callbacks : list of Callback, optional
+            List of callbacks to use during training and prediction, by default None.
 
         Raises
         ------
@@ -165,7 +169,7 @@ class CAREamist:
                 self.model, self.cfg = load_pretrained(source)
 
         # define the checkpoint saving callback
-        self.callbacks = self._define_callbacks()
+        self._define_callbacks(callbacks)
 
         # instantiate logger
         if self.cfg.training_config.has_logger():
@@ -196,33 +200,52 @@ class CAREamist:
         self.train_datamodule: Optional[CAREamicsTrainData] = None
         self.pred_datamodule: Optional[CAREamicsPredictData] = None
 
-    def _define_callbacks(self) -> List[Callback]:
+    def _define_callbacks(self, callbacks: Optional[list[Callback]] = None) -> None:
         """
         Define the callbacks for the training loop.
 
-        Returns
-        -------
-        list of Callback
-            List of callbacks to be used during training.
+        Parameters
+        ----------
+        callbacks : list of Callback, optional
+            List of callbacks to use during training and prediction, by default None.
         """
+        self.callbacks = [] if callbacks is None else callbacks
+
+        # check that user callbacks are not any of the CAREamics callbacks
+        for c in self.callbacks:
+            if isinstance(c, ModelCheckpoint) or isinstance(c, EarlyStopping):
+                raise ValueError(
+                    "ModelCheckpoint and EarlyStopping callbacks are already defined "
+                    "in CAREamics and should only be modified through the "
+                    "training configuration (see TrainingConfig)."
+                )
+
+            if isinstance(c, HyperParametersCallback) or isinstance(
+                c, ProgressBarCallback
+            ):
+                raise ValueError(
+                    "HyperParameter and ProgressBar callbacks are defined internally "
+                    "and should not be passed as callbacks."
+                )
+
         # checkpoint callback saves checkpoints during training
-        self.callbacks = [
-            HyperParametersCallback(self.cfg),
-            ModelCheckpoint(
-                dirpath=self.work_dir / Path("checkpoints"),
-                filename=self.cfg.experiment_name,
-                **self.cfg.training_config.checkpoint_callback.model_dump(),
-            ),
-            ProgressBarCallback(),
-        ]
+        self.callbacks.extend(
+            [
+                HyperParametersCallback(self.cfg),
+                ModelCheckpoint(
+                    dirpath=self.work_dir / Path("checkpoints"),
+                    filename=self.cfg.experiment_name,
+                    **self.cfg.training_config.checkpoint_callback.model_dump(),
+                ),
+                ProgressBarCallback(),
+            ]
+        )
 
         # early stopping callback
         if self.cfg.training_config.early_stopping_callback is not None:
             self.callbacks.append(
                 EarlyStopping(self.cfg.training_config.early_stopping_callback)
             )
-
-        return self.callbacks
 
     def train(
         self,
@@ -486,12 +509,12 @@ class CAREamist:
         source: Union[Path, str],
         *,
         batch_size: int = 1,
-        tile_size: Optional[Tuple[int, ...]] = None,
-        tile_overlap: Tuple[int, ...] = (48, 48),
+        tile_size: Optional[tuple[int, ...]] = None,
+        tile_overlap: tuple[int, ...] = (48, 48),
         axes: Optional[str] = None,
         data_type: Optional[Literal["tiff", "custom"]] = None,
         tta_transforms: bool = True,
-        dataloader_params: Optional[Dict] = None,
+        dataloader_params: Optional[dict] = None,
         read_source_func: Optional[Callable] = None,
         extension_filter: str = "",
         checkpoint: Optional[Literal["best", "last"]] = None,
@@ -503,12 +526,12 @@ class CAREamist:
         source: NDArray,
         *,
         batch_size: int = 1,
-        tile_size: Optional[Tuple[int, ...]] = None,
-        tile_overlap: Tuple[int, ...] = (48, 48),
+        tile_size: Optional[tuple[int, ...]] = None,
+        tile_overlap: tuple[int, ...] = (48, 48),
         axes: Optional[str] = None,
         data_type: Optional[Literal["array"]] = None,
         tta_transforms: bool = True,
-        dataloader_params: Optional[Dict] = None,
+        dataloader_params: Optional[dict] = None,
         checkpoint: Optional[Literal["best", "last"]] = None,
     ) -> Union[list[NDArray], NDArray]: ...
 
@@ -517,17 +540,17 @@ class CAREamist:
         source: Union[CAREamicsPredictData, Path, str, NDArray],
         *,
         batch_size: Optional[int] = None,
-        tile_size: Optional[Tuple[int, ...]] = None,
-        tile_overlap: Tuple[int, ...] = (48, 48),
+        tile_size: Optional[tuple[int, ...]] = None,
+        tile_overlap: tuple[int, ...] = (48, 48),
         axes: Optional[str] = None,
         data_type: Optional[Literal["array", "tiff", "custom"]] = None,
         tta_transforms: bool = True,
-        dataloader_params: Optional[Dict] = None,
+        dataloader_params: Optional[dict] = None,
         read_source_func: Optional[Callable] = None,
         extension_filter: str = "",
         checkpoint: Optional[Literal["best", "last"]] = None,
         **kwargs: Any,
-    ) -> Union[List[NDArray], NDArray]:
+    ) -> Union[list[NDArray], NDArray]:
         """
         Make predictions on the provided data.
 
@@ -669,9 +692,9 @@ class CAREamist:
         path: Union[Path, str],
         name: str,
         input_array: NDArray,
-        authors: List[dict],
+        authors: list[dict],
         general_description: str = "",
-        channel_names: Optional[List[str]] = None,
+        channel_names: Optional[list[str]] = None,
         data_description: Optional[str] = None,
     ) -> None:
         """Export the model to the BioImage Model Zoo format.

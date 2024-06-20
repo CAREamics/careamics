@@ -4,8 +4,11 @@ from typing import Tuple
 import numpy as np
 import pytest
 import tifffile
+from pytorch_lightning import Trainer
+from pytorch_lightning.callbacks import Callback, EarlyStopping, ModelCheckpoint
 
 from careamics import CAREamist, Configuration, save_configuration
+from careamics.callbacks import HyperParametersCallback, ProgressBarCallback
 from careamics.config.support import SupportedAlgorithm, SupportedData
 
 
@@ -733,3 +736,86 @@ def test_export_bmz_pretrained_with_array(tmp_path: Path, pre_trained: Path):
         general_description="A model that just walked in.",
     )
     assert (tmp_path / "model2.zip").exists()
+
+
+def test_add_custom_callback(tmp_path, minimum_configuration):
+    """Test that custom callback can be added to the CAREamist."""
+
+    # define a custom callback
+    class MyCallback(Callback):
+        def __init__(self):
+            super().__init__()
+
+            self.has_started = False
+            self.has_ended = False
+
+        def on_train_start(self, trainer, pl_module):
+            self.has_started = True
+
+        def on_train_end(self, trainer, pl_module):
+            self.has_ended = True
+
+    my_callback = MyCallback()
+    assert not my_callback.has_started
+    assert not my_callback.has_ended
+
+    # training data
+    train_array = random_array((32, 32))
+
+    # create configuration
+    config = Configuration(**minimum_configuration)
+    config.training_config.num_epochs = 1
+    config.data_config.axes = "YX"
+    config.data_config.batch_size = 2
+    config.data_config.data_type = SupportedData.ARRAY.value
+    config.data_config.patch_size = (8, 8)
+
+    # instantiate CAREamist
+    careamist = CAREamist(source=config, work_dir=tmp_path, callbacks=[my_callback])
+    assert not my_callback.has_started
+    assert not my_callback.has_ended
+
+    # train CAREamist
+    careamist.train(train_source=train_array)
+
+    # check the state of the callback
+    assert my_callback.has_started
+    assert my_callback.has_ended
+
+
+def test_error_passing_careamics_callback(tmp_path, minimum_configuration):
+    """Test that an error is thrown if we pass known callbacks to CAREamist."""
+    # create configuration
+    config = Configuration(**minimum_configuration)
+    config.training_config.num_epochs = 1
+    config.data_config.axes = "YX"
+    config.data_config.batch_size = 2
+    config.data_config.data_type = SupportedData.ARRAY.value
+    config.data_config.patch_size = (8, 8)
+
+    # Lightning callbacks
+    model_ckp = ModelCheckpoint()
+
+    with pytest.raises(ValueError):
+        CAREamist(source=config, work_dir=tmp_path, callbacks=[model_ckp])
+
+    early_stp = EarlyStopping(
+        Trainer(
+            max_epochs=1,
+            default_root_dir=tmp_path,
+        )
+    )
+
+    with pytest.raises(ValueError):
+        CAREamist(source=config, work_dir=tmp_path, callbacks=[early_stp])
+
+    # CAREamics callbacks
+    progress_bar = ProgressBarCallback()
+
+    with pytest.raises(ValueError):
+        CAREamist(source=config, work_dir=tmp_path, callbacks=[progress_bar])
+
+    hyper_params = HyperParametersCallback(config=config)
+
+    with pytest.raises(ValueError):
+        CAREamist(source=config, work_dir=tmp_path, callbacks=[hyper_params])
