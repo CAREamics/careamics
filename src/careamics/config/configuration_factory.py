@@ -299,7 +299,7 @@ def create_n2n_configuration(
     Returns
     -------
     Configuration
-        Configuration for training CARE.
+        Configuration for training Noise2Noise.
     """
     if n_channels_out == -1:
         n_channels_out = n_channels_in
