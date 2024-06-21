@@ -134,21 +134,6 @@ class AlgorithmConfig(BaseModel):
                     "sure that `in_channels` and `num_classes` are the same."
                 )
 
-        # N2N
-        if self.algorithm == "n2n":
-            # n2n is only compatible with the UNet model
-            if not isinstance(self.model, UNetModel):
-                raise ValueError(
-                    f"Model for algorithm {self.algorithm} must be a `UNetModel`."
-                )
-
-            # n2n requires the number of input and output channels to be the same
-            if self.model.in_channels != self.model.num_classes:
-                raise ValueError(
-                    "N2N requires the same number of input and output channels. Make "
-                    "sure that `in_channels` and `num_classes` are the same."
-                )
-
         if self.algorithm == "care" or self.algorithm == "n2n":
             if self.loss == "n2v":
                 raise ValueError("Supervised algorithms do not support loss `n2v`.")

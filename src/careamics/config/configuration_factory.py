@@ -243,7 +243,8 @@ def create_n2n_configuration(
     use_augmentations: bool = True,
     independent_channels: bool = False,
     loss: Literal["mae", "mse"] = "mae",
-    n_channels: int = 1,
+    n_channels_in: int = 1,
+    n_channels_out: int = -1,
     logger: Literal["wandb", "tensorboard", "none"] = "none",
     model_kwargs: Optional[dict] = None,
 ) -> Configuration:
@@ -253,9 +254,12 @@ def create_n2n_configuration(
     If "Z" is present in `axes`, then `path_size` must be a list of length 3, otherwise
     2.
 
-    If "C" is present in `axes`, then you need to set `n_channels` to the number of
+    If "C" is present in `axes`, then you need to set `n_channels_in` to the number of
     channels. Likewise, if you set the number of channels, then "C" must be present in
     `axes`.
+
+    To set the number of output channels, use the `n_channels_out` parameter. If it is
+    not specified, it will be assumed to be equal to `n_channels_in`.
 
     By default, all channels are trained together. To train all channels independently,
     set `independent_channels` to True.
@@ -283,8 +287,10 @@ def create_n2n_configuration(
         Whether to train all channels independently, by default False.
     loss : Literal["mae", "mse"], optional
         Loss function to use, by default "mae".
-    n_channels : int, optional
-        Number of channels (in and out), by default 1.
+    n_channels_in : int, optional
+        Number of channels in, by default 1.
+    n_channels_out : int, optional
+        Number of channels out, by default -1.
     logger : Literal["wandb", "tensorboard", "none"], optional
         Logger to use, by default "none".
     model_kwargs : dict, optional
@@ -295,6 +301,9 @@ def create_n2n_configuration(
     Configuration
         Configuration for training Noise2Noise.
     """
+    if n_channels_out == -1:
+        n_channels_out = n_channels_in
+
     return _create_supervised_configuration(
         algorithm="n2n",
         experiment_name=experiment_name,
@@ -306,8 +315,8 @@ def create_n2n_configuration(
         use_augmentations=use_augmentations,
         independent_channels=independent_channels,
         loss=loss,
-        n_channels_in=n_channels,
-        n_channels_out=n_channels,
+        n_channels_in=n_channels_in,
+        n_channels_out=n_channels_out,
         logger=logger,
         model_kwargs=model_kwargs,
     )
