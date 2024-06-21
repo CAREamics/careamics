@@ -249,7 +249,7 @@ def create_n2n_configuration(
     model_kwargs: Optional[dict] = None,
 ) -> Configuration:
     """
-    Create a configuration for training CARE.
+    Create a configuration for training Noise2Noise.
 
     If "Z" is present in `axes`, then `path_size` must be a list of length 3, otherwise
     2.
