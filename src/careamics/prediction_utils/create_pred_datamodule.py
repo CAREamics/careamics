@@ -9,7 +9,7 @@ from numpy.typing import NDArray
 from careamics.config import Configuration, create_inference_configuration
 from careamics.utils import check_path_exists
 
-from ..lightning_prediction_datamodule import CAREamicsPredictData
+from ..lightning.lightning_prediction_datamodule import CAREamicsPredictData
 
 
 def create_pred_datamodule(

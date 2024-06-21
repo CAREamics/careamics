@@ -12,7 +12,7 @@ from torch import __version__, load, save
 
 from careamics.config import Configuration, load_configuration, save_configuration
 from careamics.config.support import SupportedArchitecture
-from careamics.lightning_module import CAREamicsModule
+from careamics.lightning.lightning_module import CAREamicsModule
 
 from .bioimage import (
     create_env_text,

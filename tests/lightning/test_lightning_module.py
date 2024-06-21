@@ -2,7 +2,7 @@ import pytest
 import torch
 
 from careamics.config import AlgorithmConfig
-from careamics.lightning_module import CAREamicsModule, CAREamicsModuleWrapper
+from careamics.lightning import CAREamicsModule, CAREamicsModuleWrapper
 
 
 def test_careamics_module(minimum_algorithm_n2v):

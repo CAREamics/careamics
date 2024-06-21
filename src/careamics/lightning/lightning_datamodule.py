@@ -403,7 +403,7 @@ class CAREamicsTrainData(L.LightningDataModule):
                 )
 
                 # create validation dataset
-                if self.val_files is not None:
+                if self.val_data is not None:
                     # create its own dataset
                     self.val_dataset = PathIterableDataset(
                         data_config=self.data_config,
@@ -423,8 +423,18 @@ class CAREamicsTrainData(L.LightningDataModule):
                     # extract validation from the training patches
                     self.val_dataset = self.train_dataset.split_dataset(
                         percentage=self.val_percentage,
-                        minimum_files=self.val_minimum_split,
+                        minimum_number=self.val_minimum_split,
                     )
+
+    def get_data_statistics(self) -> tuple[list[float], list[float]]:
+        """Return training data statistics.
+
+        Returns
+        -------
+        tuple of list
+            Means and standard deviations across channels of the training data.
+        """
+        return self.train_dataset.get_data_statistics()
 
     def train_dataloader(self) -> Any:
         """
@@ -547,7 +557,7 @@ class TrainingDataWrapper(CAREamicsTrainData):
     --------
     Create a TrainingDataWrapper with default transforms with a numpy array:
     >>> import numpy as np
-    >>> from careamics import TrainingDataWrapper
+    >>> from careamics.lightning import TrainingDataWrapper
     >>> my_array = np.arange(256).reshape(16, 16)
     >>> data_module = TrainingDataWrapper(
     ...     train_data=my_array,
@@ -560,7 +570,7 @@ class TrainingDataWrapper(CAREamicsTrainData):
     For custom data types (those not supported by CAREamics), then one can pass a read
     function and a filter for the files extension:
     >>> import numpy as np
-    >>> from careamics import TrainingDataWrapper
+    >>> from careamics.lightning import TrainingDataWrapper
     >>>
     >>> def read_npy(path):
     ...     return np.load(path)
@@ -578,7 +588,7 @@ class TrainingDataWrapper(CAREamicsTrainData):
     If you want to use a different set of transformations, you can pass a list of
     transforms:
     >>> import numpy as np
-    >>> from careamics import TrainingDataWrapper
+    >>> from careamics.lightning import TrainingDataWrapper
     >>> from careamics.config.support import SupportedTransform
     >>> my_array = np.arange(256).reshape(16, 16)
     >>> my_transforms = [

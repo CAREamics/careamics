@@ -8,8 +8,8 @@ from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import Callback, EarlyStopping, ModelCheckpoint
 
 from careamics import CAREamist, Configuration, save_configuration
-from careamics.callbacks import HyperParametersCallback, ProgressBarCallback
 from careamics.config.support import SupportedAlgorithm, SupportedData
+from careamics.lightning.callbacks import HyperParametersCallback, ProgressBarCallback
 
 
 def random_array(shape: Tuple[int, ...], seed: int = 42):

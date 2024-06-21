@@ -1,8 +1,8 @@
 import pytest
 
-from careamics import CAREamicsPredictData, PredictDataWrapper
 from careamics.config import InferenceConfig
 from careamics.config.support import SupportedData
+from careamics.lightning import CAREamicsPredictData, PredictDataWrapper
 
 
 @pytest.fixture

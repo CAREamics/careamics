@@ -20,6 +20,19 @@ class Stats:
     means: Union[np.ndarray, tuple, list, None]
     stds: Union[np.ndarray, tuple, list, None]
 
+    def get_statistics(self) -> tuple[list[float], list[float]]:
+        """Return the means and standard deviations.
+
+        Returns
+        -------
+        tuple of two lists of floats
+            Means and standard deviations.
+        """
+        if self.means is None or self.stds is None:
+            return [], []
+
+        return list(self.means), list(self.stds)
+
 
 @dataclass
 class PatchedOutput:
@@ -27,14 +40,6 @@ class PatchedOutput:
 
     patches: Union[np.ndarray]
     targets: Union[np.ndarray, None]
-    image_stats: Stats
-    target_stats: Stats
-
-
-@dataclass
-class StatsOutput:
-    """Dataclass to store patches and statistics."""
-
     image_stats: Stats
     target_stats: Stats
 

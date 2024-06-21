@@ -13,7 +13,9 @@ def convert_outputs(
     predictions: List[Any], tiled: bool
 ) -> Union[List[NDArray], NDArray]:
     """
-    Convert the outputs to the desired form.
+    Convert the Lightning trainer outputs to the desired form.
+
+    This method allows stitching back together tiled predictions.
 
     Parameters
     ----------
