@@ -24,17 +24,16 @@ def test_n2n_configuration():
         num_epochs=100,
     )
 
-    assert config.data_config.transforms[0].name == SupportedTransform.NORMALIZE.value
-    assert config.data_config.transforms[1].name == SupportedTransform.XY_FLIP.value
+    assert config.data_config.transforms[0].name == SupportedTransform.XY_FLIP.value
     assert (
-        config.data_config.transforms[2].name
+        config.data_config.transforms[1].name
         == SupportedTransform.XY_RANDOM_ROTATE90.value
     )
     assert not config.algorithm_config.model.is_3D()
 
 
 def test_n2n_3d_configuration():
-    """Test that a 3D N2N configurationc an be created."""
+    """Test that a 3D N2N configuration can be created."""
     config = create_care_configuration(
         experiment_name="test",
         data_type="tiff",
@@ -43,7 +42,11 @@ def test_n2n_3d_configuration():
         batch_size=8,
         num_epochs=100,
     )
-    assert config.data_config.transforms[0].name == SupportedTransform.NORMALIZE.value
+    assert config.data_config.transforms[0].name == SupportedTransform.XY_FLIP.value
+    assert (
+        config.data_config.transforms[1].name
+        == SupportedTransform.XY_RANDOM_ROTATE90.value
+    )
     assert config.algorithm_config.model.is_3D()
 
 
@@ -106,8 +109,7 @@ def test_n2n_aug_off():
         num_epochs=100,
         use_augmentations=False,
     )
-    assert len(config.data_config.transforms) == 1
-    assert config.data_config.transforms[-1].name == SupportedTransform.NORMALIZE.value
+    assert len(config.data_config.transforms) == 0
 
 
 @pytest.mark.parametrize("ind_channels", [True, False])
@@ -152,17 +154,16 @@ def test_care_configuration():
         num_epochs=100,
     )
 
-    assert config.data_config.transforms[0].name == SupportedTransform.NORMALIZE.value
-    assert config.data_config.transforms[1].name == SupportedTransform.XY_FLIP.value
+    assert config.data_config.transforms[0].name == SupportedTransform.XY_FLIP.value
     assert (
-        config.data_config.transforms[2].name
+        config.data_config.transforms[1].name
         == SupportedTransform.XY_RANDOM_ROTATE90.value
     )
     assert not config.algorithm_config.model.is_3D()
 
 
 def test_care_3d_configuration():
-    """Test that a 3D care configurationc an be created."""
+    """Test that a 3D care configuration can be created."""
     config = create_care_configuration(
         experiment_name="test",
         data_type="tiff",
@@ -171,7 +172,7 @@ def test_care_3d_configuration():
         batch_size=8,
         num_epochs=100,
     )
-    assert config.data_config.transforms[0].name == SupportedTransform.NORMALIZE.value
+    assert config.data_config.transforms[0].name == SupportedTransform.XY_FLIP.value
     assert config.algorithm_config.model.is_3D()
 
 
@@ -234,8 +235,7 @@ def test_care_aug_off():
         num_epochs=100,
         use_augmentations=False,
     )
-    assert len(config.data_config.transforms) == 1
-    assert config.data_config.transforms[-1].name == SupportedTransform.NORMALIZE.value
+    assert len(config.data_config.transforms) == 0
 
 
 @pytest.mark.parametrize("ind_channels", [True, False])
@@ -450,12 +450,10 @@ def test_n2v_no_aug():
         num_epochs=100,
         use_augmentations=False,
     )
-    assert len(config.data_config.transforms) == 2
+    assert len(config.data_config.transforms) == 1
     assert (
-        config.data_config.transforms[-1].name
-        == SupportedTransform.N2V_MANIPULATE.value
+        config.data_config.transforms[0].name == SupportedTransform.N2V_MANIPULATE.value
     )
-    assert config.data_config.transforms[-2].name == SupportedTransform.NORMALIZE.value
 
 
 def test_n2v_augmentation_parameters():
@@ -537,7 +535,7 @@ def test_inference_config():
         batch_size=8,
         num_epochs=100,
     )
-    config.data_config.set_mean_and_std(0.5, 0.2)
+    config.data_config.set_mean_and_std([0.5], [0.2])
 
     create_inference_configuration(
         configuration=config,
@@ -554,7 +552,7 @@ def test_inference_tile_size():
         batch_size=8,
         num_epochs=100,
     )
-    config.data_config.set_mean_and_std(0.5, 0.2)
+    config.data_config.set_mean_and_std([0.5], [0.2])
 
     # check UNet depth, tile increment must then be a factor of 4
     assert config.algorithm_config.model.depth == 2
@@ -586,7 +584,7 @@ def test_inference_tile_no_overlap():
         batch_size=8,
         num_epochs=100,
     )
-    config.data_config.set_mean_and_std(0.5, 0.2)
+    config.data_config.set_mean_and_std([0.5], [0.2])
 
     with pytest.raises(ValueError):
         create_inference_configuration(

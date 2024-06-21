@@ -148,13 +148,17 @@ class CAREamicsModule(L.LightningModule):
         Any
             Model output.
         """
-        x, *aux = batch
+        if self._trainer.datamodule.tiled:
+            x, *aux = batch
+        else:
+            x = batch
+            aux = []
 
         # apply test-time augmentation if available
         # TODO: probably wont work with batch size > 1
         if self._trainer.datamodule.prediction_config.tta_transforms:
             tta = ImageRestorationTTA()
-            augmented_batch = tta.forward(batch[0])  # list of augmented tensors
+            augmented_batch = tta.forward(x)  # list of augmented tensors
             augmented_output = []
             for augmented in augmented_batch:
                 augmented_pred = self.model(augmented)
@@ -165,13 +169,13 @@ class CAREamicsModule(L.LightningModule):
 
         # Denormalize the output
         denorm = Denormalize(
-            mean=self._trainer.datamodule.predict_dataset.mean,
-            std=self._trainer.datamodule.predict_dataset.std,
+            image_means=self._trainer.datamodule.predict_dataset.image_means,
+            image_stds=self._trainer.datamodule.predict_dataset.image_stds,
         )
-        denormalized_output, _ = denorm(patch=output)
+        denormalized_output = denorm(patch=output.cpu().numpy())
 
-        if len(aux) > 0:
-            return denormalized_output, aux
+        if len(aux) > 0:  # aux can be tiling information
+            return denormalized_output, *aux
         else:
             return denormalized_output
 

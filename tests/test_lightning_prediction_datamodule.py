@@ -37,8 +37,8 @@ def test_wrapper_unknown_type(simple_array):
         PredictDataWrapper(
             pred_data=simple_array,
             data_type="wrong_type",
-            mean=0.5,
-            std=0.1,
+            image_means=[0.5],
+            image_stds=[0.1],
             axes="YX",
             batch_size=2,
         )
@@ -50,8 +50,8 @@ def test_wrapper_instantiated_with_tiling(simple_array):
     data_module = PredictDataWrapper(
         pred_data=simple_array,
         data_type="array",
-        mean=0.5,
-        std=0.1,
+        image_means=[0.5],
+        image_stds=[0.1],
         axes="YX",
         batch_size=2,
         tile_overlap=[2, 2],
@@ -63,14 +63,14 @@ def test_wrapper_instantiated_with_tiling(simple_array):
     assert len(list(data_module.predict_dataloader())) == 2
 
 
-def test_lwrapper_instantiated_without_tiling(simple_array):
+def test_wrapper_instantiated_without_tiling(simple_array):
     """Test that the data module is created correctly with an array."""
     # create data module
     data_module = PredictDataWrapper(
         pred_data=simple_array,
         data_type="array",
-        mean=0.5,
-        std=0.1,
+        image_means=[0.5],
+        image_stds=[0.1],
         axes="YX",
         batch_size=2,
     )

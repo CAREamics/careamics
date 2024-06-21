@@ -116,8 +116,8 @@ def minimum_inference() -> dict:
     predic = {
         "data_type": SupportedData.ARRAY.value,
         "axes": "YX",
-        "mean": 2.0,
-        "std": 1.0,
+        "image_means": [2.0],
+        "image_stds": [1.0],
     }
 
     return predic
@@ -204,7 +204,7 @@ def ordered_array() -> Callable:
         np.ndarray
             Array with ordered values.
         """
-        return np.arange(np.prod(shape), dtype=dtype).reshape(shape)
+        return np.arange(np.prod(shape), dtype=dtype).reshape(shape).astype(np.float32)
 
     return _ordered_array
 
@@ -247,7 +247,7 @@ def overlaps() -> Tuple[int, int]:
 def pre_trained(tmp_path, minimum_configuration):
     """Fixture to create a pre-trained CAREamics model."""
     # training data
-    train_array = np.arange(32 * 32).reshape((32, 32))
+    train_array = np.arange(32 * 32).reshape((32, 32)).astype(np.float32)
 
     # create configuration
     config = Configuration(**minimum_configuration)

@@ -108,9 +108,6 @@ def _create_supervised_configuration(
     if use_augmentations:
         transforms: List[Dict[str, Any]] = [
             {
-                "name": SupportedTransform.NORMALIZE.value,
-            },
-            {
                 "name": SupportedTransform.XY_FLIP.value,
             },
             {
@@ -118,11 +115,7 @@ def _create_supervised_configuration(
             },
         ]
     else:
-        transforms = [
-            {
-                "name": SupportedTransform.NORMALIZE.value,
-            },
-        ]
+        transforms = []
 
     # data model
     data = DataConfig(
@@ -523,9 +516,6 @@ def create_n2v_configuration(
     if use_augmentations:
         transforms: List[Dict[str, Any]] = [
             {
-                "name": SupportedTransform.NORMALIZE.value,
-            },
-            {
                 "name": SupportedTransform.XY_FLIP.value,
             },
             {
@@ -533,11 +523,7 @@ def create_n2v_configuration(
             },
         ]
     else:
-        transforms = [
-            {
-                "name": SupportedTransform.NORMALIZE.value,
-            },
-        ]
+        transforms = []
 
     # n2v2 and structn2v
     nv2_transform = {
@@ -618,7 +604,10 @@ def create_inference_configuration(
     InferenceConfiguration
         Configuration used to configure CAREamicsPredictData.
     """
-    if configuration.data_config.mean is None or configuration.data_config.std is None:
+    if (
+        configuration.data_config.image_means is None
+        or configuration.data_config.image_stds is None
+    ):
         raise ValueError("Mean and std must be provided in the configuration.")
 
     # tile size for UNets
@@ -648,8 +637,8 @@ def create_inference_configuration(
         tile_size=tile_size,
         tile_overlap=tile_overlap,
         axes=axes or configuration.data_config.axes,
-        mean=configuration.data_config.mean,
-        std=configuration.data_config.std,
+        image_means=configuration.data_config.image_means,
+        image_stds=configuration.data_config.image_stds,
         tta_transforms=tta_transforms,
         batch_size=batch_size,
     )

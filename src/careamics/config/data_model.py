@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 from pprint import pformat
-from typing import Any, List, Literal, Optional, Union
+from typing import Any, Literal, Optional, Union
 
+from numpy.typing import NDArray
 from pydantic import (
     BaseModel,
     ConfigDict,
@@ -17,7 +18,6 @@ from typing_extensions import Annotated, Self
 
 from .support import SupportedTransform
 from .transformations.n2v_manipulate_model import N2VManipulateModel
-from .transformations.normalize_model import NormalizeModel
 from .transformations.xy_flip_model import XYFlipModel
 from .transformations.xy_random_rotate90_model import XYRandomRotate90Model
 from .validators import check_axes_validity, patch_size_ge_than_8_power_of_2
@@ -26,7 +26,6 @@ TRANSFORMS_UNION = Annotated[
     Union[
         XYFlipModel,
         XYRandomRotate90Model,
-        NormalizeModel,
         N2VManipulateModel,
     ],
     Discriminator("name"),  # used to tell the different transform models apart
@@ -39,7 +38,11 @@ class DataConfig(BaseModel):
 
     If std is specified, mean must be specified as well. Note that setting the std first
     and then the mean (if they were both `None` before) will raise a validation error.
-    Prefer instead `set_mean_and_std` to set both at once.
+    Prefer instead `set_mean_and_std` to set both at once. Means and stds are expected
+    to be lists of floats, one for each channel. For supervised tasks, the mean and std
+    of the target could be different from the input data.
+
+    All supported transforms are defined in the SupportedTransform enum.
 
     Examples
     --------
@@ -53,10 +56,10 @@ class DataConfig(BaseModel):
     ... )
 
     To change the mean and std of the data:
-    >>> data.set_mean_and_std(mean=214.3, std=84.5)
+    >>> data.set_mean_and_std(image_means=[214.3], image_stds=[84.5])
 
     One can pass also a list of transformations, by keyword, using the
-    SupportedTransform or the name of an Albumentation transform:
+    SupportedTransform value:
     >>> from careamics.config.support import SupportedTransform
     >>> data = DataConfig(
     ...     data_type="tiff",
@@ -64,11 +67,6 @@ class DataConfig(BaseModel):
     ...     batch_size=4,
     ...     axes="YX",
     ...     transforms=[
-    ...         {
-    ...             "name": SupportedTransform.NORMALIZE.value,
-    ...             "mean": 167.6,
-    ...             "std": 47.2,
-    ...         },
     ...         {
     ...             "name": "XYFlip",
     ...         }
@@ -83,19 +81,24 @@ class DataConfig(BaseModel):
 
     # Dataset configuration
     data_type: Literal["array", "tiff", "custom"]  # As defined in SupportedData
-    patch_size: Union[List[int]] = Field(..., min_length=2, max_length=3)
+    patch_size: Union[list[int]] = Field(..., min_length=2, max_length=3)
     batch_size: int = Field(default=1, ge=1, validate_default=True)
     axes: str
 
     # Optional fields
-    mean: Optional[float] = None
-    std: Optional[float] = None
+    image_means: Optional[list[float]] = Field(
+        default=None, min_length=0, max_length=32
+    )
+    image_stds: Optional[list[float]] = Field(default=None, min_length=0, max_length=32)
+    target_means: Optional[list[float]] = Field(
+        default=None, min_length=0, max_length=32
+    )
+    target_stds: Optional[list[float]] = Field(
+        default=None, min_length=0, max_length=32
+    )
 
-    transforms: List[TRANSFORMS_UNION] = Field(
+    transforms: list[TRANSFORMS_UNION] = Field(
         default=[
-            {
-                "name": SupportedTransform.NORMALIZE.value,
-            },
             {
                 "name": SupportedTransform.XY_FLIP.value,
             },
@@ -114,8 +117,8 @@ class DataConfig(BaseModel):
     @field_validator("patch_size")
     @classmethod
     def all_elements_power_of_2_minimum_8(
-        cls, patch_list: Union[List[int]]
-    ) -> Union[List[int]]:
+        cls, patch_list: Union[list[int]]
+    ) -> Union[list[int]]:
         """
         Validate patch size.
 
@@ -123,12 +126,12 @@ class DataConfig(BaseModel):
 
         Parameters
         ----------
-        patch_list : Union[List[int]]
+        patch_list : list of int
             Patch size.
 
         Returns
         -------
-        Union[List[int]]
+        list of int
             Validated patch size.
 
         Raises
@@ -178,19 +181,19 @@ class DataConfig(BaseModel):
     @field_validator("transforms")
     @classmethod
     def validate_prediction_transforms(
-        cls, transforms: List[TRANSFORMS_UNION]
-    ) -> List[TRANSFORMS_UNION]:
+        cls, transforms: list[TRANSFORMS_UNION]
+    ) -> list[TRANSFORMS_UNION]:
         """
         Validate N2VManipulate transform position in the transform list.
 
         Parameters
         ----------
-        transforms : List[Transformations_Union]
+        transforms : list[Transformations_Union]
             Transforms.
 
         Returns
         -------
-        List[TRANSFORMS_UNION]
+        list of transforms
             Validated transforms.
 
         Raises
@@ -233,29 +236,33 @@ class DataConfig(BaseModel):
             If std is not None and mean is None.
         """
         # check that mean and std are either both None, or both specified
-        if (self.mean is None) != (self.std is None):
+        if (self.image_means and not self.image_stds) or (
+            self.image_stds and not self.image_means
+        ):
             raise ValueError(
                 "Mean and std must be either both None, or both specified."
             )
 
-        return self
+        elif (self.image_means is not None and self.image_stds is not None) and (
+            len(self.image_means) != len(self.image_stds)
+        ):
+            raise ValueError(
+                "Mean and std must be specified for each " "input channel."
+            )
 
-    @model_validator(mode="after")
-    def add_std_and_mean_to_normalize(self: Self) -> Self:
-        """
-        Add mean and std to the Normalize transform if it is present.
+        if (self.target_means and not self.target_stds) or (
+            self.target_stds and not self.target_means
+        ):
+            raise ValueError(
+                "Mean and std must be either both None, or both specified "
+            )
 
-        Returns
-        -------
-        Self
-            Data model with mean and std added to the Normalize transform.
-        """
-        if self.mean is not None and self.std is not None:
-            # search in the transforms for Normalize and update parameters
-            for transform in self.transforms:
-                if transform.name == SupportedTransform.NORMALIZE.value:
-                    transform.mean = self.mean
-                    transform.std = self.std
+        elif self.target_means is not None and self.target_stds is not None:
+            if len(self.target_means) != len(self.target_stds):
+                raise ValueError(
+                    "Mean and std must be either both None, or both specified for each "
+                    "target channel."
+                )
 
         return self
 
@@ -339,7 +346,13 @@ class DataConfig(BaseModel):
         if self.has_n2v_manipulate():
             self.transforms.pop(-1)
 
-    def set_mean_and_std(self, mean: float, std: float) -> None:
+    def set_mean_and_std(
+        self,
+        image_means: Union[NDArray, tuple, list, None],
+        image_stds: Union[NDArray, tuple, list, None],
+        target_means: Optional[Union[NDArray, tuple, list, None]] = None,
+        target_stds: Optional[Union[NDArray, tuple, list, None]] = None,
+    ) -> None:
         """
         Set mean and standard deviation of the data.
 
@@ -348,14 +361,33 @@ class DataConfig(BaseModel):
 
         Parameters
         ----------
-        mean : float
-            Mean of the data.
-        std : float
-            Standard deviation of the data.
+        image_means : NDArray or tuple or list
+            Mean values for normalization.
+        image_stds : NDArray or tuple or list
+            Standard deviation values for normalization.
+        target_means : NDArray or tuple or list, optional
+            Target mean values for normalization, by default ().
+        target_stds : NDArray or tuple or list, optional
+            Target standard deviation values for normalization, by default ().
         """
-        self._update(mean=mean, std=std)
+        # make sure we pass a list
+        if image_means is not None:
+            image_means = list(image_means)
+        if image_stds is not None:
+            image_stds = list(image_stds)
+        if target_means is not None:
+            target_means = list(target_means)
+        if target_stds is not None:
+            target_stds = list(target_stds)
 
-    def set_3D(self, axes: str, patch_size: List[int]) -> None:
+        self._update(
+            image_means=image_means,
+            image_stds=image_stds,
+            target_means=target_means,
+            target_stds=target_stds,
+        )
+
+    def set_3D(self, axes: str, patch_size: list[int]) -> None:
         """
         Set 3D parameters.
 
@@ -363,7 +395,7 @@ class DataConfig(BaseModel):
         ----------
         axes : str
             Axes.
-        patch_size : List[int]
+        patch_size : list of int
             Patch size.
         """
         self._update(axes=axes, patch_size=patch_size)

@@ -20,6 +20,8 @@ def test_get_stratified_coords(mask_pixel_perc, shape, num_iterations):
     Ensure that the array of coordinates is randomly distributed across the
     image and that most pixels get selected.
     """
+    rng = np.random.default_rng(42)
+
     # Define the dummy array
     array = np.zeros(shape)
 
@@ -28,7 +30,7 @@ def test_get_stratified_coords(mask_pixel_perc, shape, num_iterations):
     # biased towards any particular region.
     for _ in range(num_iterations):
         # Get the coordinates of the pixels to be masked
-        coords = _get_stratified_coords(mask_pixel_perc, shape)
+        coords = _get_stratified_coords(mask_pixel_perc, shape, rng)
 
         # Check that there is at least one coordinate choosen
         assert len(coords) > 0
@@ -59,12 +61,14 @@ def test_uniform_manipulate(ordered_array, shape):
     Ensures that the mask corresponds to the manipulated pixels, and that the
     manipulated pixels have a value taken from a ROI surrounding them.
     """
+    rng = np.random.default_rng(42)
+
     # create the array
     patch = ordered_array(shape)
 
     # manipulate the array
     transform_patch, mask = uniform_manipulate(
-        patch, mask_pixel_percentage=10, subpatch_size=5
+        patch, mask_pixel_percentage=10, subpatch_size=5, rng=rng
     )
 
     # find pixels that have different values between patch and transformed patch
@@ -104,12 +108,14 @@ def test_median_manipulate(ordered_array, shape):
     Ensures that the mask corresponds to the manipulated pixels, and that the
     manipulated pixels have a value taken from a ROI surrounding them.
     """
+    rng = np.random.default_rng(42)
+
     # create the array
     patch = ordered_array(shape).astype(np.float32)
 
     # manipulate the array
     transform_patch, mask = median_manipulate(
-        patch, subpatch_size=5, mask_pixel_percentage=10
+        patch, subpatch_size=5, mask_pixel_percentage=10, rng=rng
     )
 
     # find pixels that have different values between patch and transformed patch
@@ -152,6 +158,8 @@ def test_apply_struct_mask(coords, struct_axis, struct_span):
     Ensures that the mask corresponds to the manipulated pixels, and that the
     manipulated pixels have a value taken from a ROI surrounding them.
     """
+    rng = np.random.default_rng(42)
+
     struct_params = StructMaskParameters(axis=struct_axis, span=struct_span)
 
     # create array
@@ -172,6 +180,7 @@ def test_apply_struct_mask(coords, struct_axis, struct_span):
         patch,
         coords=coords,
         struct_params=struct_params,
+        rng=rng,
     )
     changed_values = patch[np.where(original_patch != transform_patch)]
 
@@ -215,6 +224,8 @@ def test_apply_struct_mask_3D(coords, struct_axis, struct_span):
     Ensures that the mask corresponds to the manipulated pixels, and that the
     manipulated pixels have a value taken from a ROI surrounding them.
     """
+    rng = np.random.default_rng(42)
+
     struct_params = StructMaskParameters(axis=struct_axis, span=struct_span)
 
     # create array
@@ -235,6 +246,7 @@ def test_apply_struct_mask_3D(coords, struct_axis, struct_span):
         patch,
         coords=coords,
         struct_params=struct_params,
+        rng=rng,
     )
     changed_values = patch[np.where(original_patch != transform_patch)]
 

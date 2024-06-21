@@ -20,23 +20,25 @@ name = "careamics"
 dynamic = ["version"]
 description = "Toolbox for running N2V and friends."
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 license = { text = "BSD-3-Clause" }
 authors = [
-    { name = 'Igor Zubarev', email = 'igor.zubarev@fht.org' },
+    { name = 'Melisande Croft', email = 'melisande.croft@fht.org' },
     { name = 'Joran Deschamps', email = 'joran.deschamps@fht.org' },
+    { name = 'Igor Zubarev', email = 'igor.zubarev@fht.org' },
 ]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
     "License :: OSI Approved :: BSD License",
     "Typing :: Typed",
 ]
 dependencies = [
+    'numpy<2.0.0',
     'torch>=2.0.0',
     'bioimageio.core>=0.6.0',
     'tifffile',
@@ -44,9 +46,9 @@ dependencies = [
     'pydantic>=2.5',
     'pytorch_lightning>=2.2.0',
     'pyyaml',
-    'scikit-image',
-    'zarr',
     'typer==0.12.3'
+    'scikit-image<=0.23.2',
+    'zarr<3.0.0',
 ]
 
 [project.optional-dependencies]
@@ -76,7 +78,7 @@ careamics = "careamics.cli.main:run"
 # https://beta.ruff.rs/docs
 [tool.ruff]
 line-length = 88
-target-version = "py38"
+target-version = "py39"
 src = ["src"]
 lint.select = [
     "E",  # style errors
@@ -105,7 +107,6 @@ lint.ignore = [
     "RUF005", # collection-literal-concatenation, in prediction_utils.py:30
 
     # version specific
-    "UP006", # Replace typing.List by list, mandatory for py3.8
     "UP007", # Replace Union by |, mandatory for py3.9
 ]
 show-fixes = true
