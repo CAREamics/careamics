@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from careamics.dataset.dataset_utils import compute_normalization_stats
+from careamics.dataset.dataset_utils.running_stats import compute_normalization_stats
 from careamics.transforms import Denormalize, Normalize
 from careamics.transforms.normalize import _reshape_stats
 

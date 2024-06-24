@@ -7,7 +7,7 @@ from careamics.config.transformations import (
     XYFlipModel,
     XYRandomRotate90Model,
 )
-from careamics.dataset.dataset_utils import compute_normalization_stats
+from careamics.dataset.dataset_utils.running_stats import compute_normalization_stats
 from careamics.transforms import Compose, Normalize, XYFlip, XYRandomRotate90
 
 
