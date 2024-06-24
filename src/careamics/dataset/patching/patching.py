@@ -7,7 +7,8 @@ from typing import Callable, List, Tuple, Union
 import numpy as np
 
 from ...utils.logging import get_logger
-from ..dataset_utils import compute_normalization_stats, reshape_array
+from ..dataset_utils import reshape_array
+from ..dataset_utils.running_stats import compute_normalization_stats
 from .sequential_patching import extract_patches_sequential
 
 logger = get_logger(__name__)

@@ -16,12 +16,10 @@ from careamics.transforms import Compose
 
 from ..utils.logging import get_logger
 from .dataset_utils import (
-    compute_normalization_stats,
-    finalize_iterative_stats,
     iterate_over_files,
     read_tiff,
-    update_iterative_stats,
 )
+from .dataset_utils.running_stats import WelfordStatistics
 from .patching.patching import Stats, StatsOutput
 from .patching.random_patching import extract_patches_random
 
@@ -132,58 +130,19 @@ class PathIterableDataset(IterableDataset):
             Data class containing the image statistics.
         """
         num_samples = 0
+        image_stats = WelfordStatistics()
+        if self.target_files is not None:
+            target_stats = WelfordStatistics()
 
         for sample, target in iterate_over_files(
             self.data_config, self.data_files, self.target_files, self.read_source_func
         ):
-            # compute mean and std for each sample
-            init_mean, _ = compute_normalization_stats(sample)
-            # separate channels
-            sample_channels = np.array(np.split(sample, sample.shape[1], axis=1))
+            # update the image statistics
+            image_stats.update(sample, num_samples)
 
-            if num_samples == 0:
-                mean = init_mean
-                count = np.array(
-                    [np.prod(channel.shape) for channel in sample_channels]
-                )
-                m2 = np.array(
-                    [
-                        np.sum(
-                            np.subtract(channel.flatten(), [mean[i]] * count[i]) ** 2
-                        )
-                        for i, channel in enumerate(sample_channels)
-                    ]
-                )
-            else:
-                count, mean, m2 = update_iterative_stats(
-                    count, mean, m2, sample_channels
-                )
-
+            # update the target statistics if target is available
             if target is not None:
-                target_init_mean, _ = compute_normalization_stats(target)
-                target_channels = np.array(np.split(target, target.shape[1], axis=1))
-                if num_samples == 0:
-                    target_mean = target_init_mean
-                    target_count = np.array(
-                        [np.prod(channel.shape) for channel in target_channels]
-                    )
-                    target_m2 = np.array(
-                        [
-                            np.sum(
-                                np.subtract(
-                                    channel.flatten(),
-                                    [target_mean[i]] * target_count[i],
-                                )
-                                ** 2
-                            )
-                            for i, channel in enumerate(target_channels)
-                        ]
-                    )
-
-                else:
-                    target_count, target_mean, target_m2 = update_iterative_stats(
-                        target_count, target_mean, target_m2, target_channels
-                    )
+                target_stats.update(target, num_samples)
 
             num_samples += 1
 
@@ -191,12 +150,10 @@ class PathIterableDataset(IterableDataset):
             raise ValueError("No samples found in the dataset.")
 
         # Average the means and stds per sample
-        image_means, image_stds = finalize_iterative_stats(count, mean, m2)
+        image_means, image_stds = image_stats.finalize()
 
         if target is not None:
-            target_means, target_stds = finalize_iterative_stats(
-                target_count, target_mean, target_m2
-            )
+            target_means, target_stds = target_stats.finalize()
 
         logger.info(f"Calculated mean and std for {num_samples} images")
         logger.info(f"Mean: {image_means}, std: {image_stds}")
