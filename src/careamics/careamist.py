@@ -493,10 +493,7 @@ class CAREamist:
 
     @overload
     def predict(  # numpydoc ignore=GL08
-        self,
-        source: CAREamicsPredictData,
-        *,
-        checkpoint: Optional[Literal["best", "last"]] = None,
+        self, source: CAREamicsPredictData
     ) -> Union[list[NDArray], NDArray]: ...
 
     @overload
@@ -513,7 +510,6 @@ class CAREamist:
         dataloader_params: Optional[dict] = None,
         read_source_func: Optional[Callable] = None,
         extension_filter: str = "",
-        checkpoint: Optional[Literal["best", "last"]] = None,
     ) -> Union[list[NDArray], NDArray]: ...
 
     @overload
@@ -528,7 +524,6 @@ class CAREamist:
         data_type: Optional[Literal["array"]] = None,
         tta_transforms: bool = True,
         dataloader_params: Optional[dict] = None,
-        checkpoint: Optional[Literal["best", "last"]] = None,
     ) -> Union[list[NDArray], NDArray]: ...
 
     def predict(
@@ -544,7 +539,6 @@ class CAREamist:
         dataloader_params: Optional[dict] = None,
         read_source_func: Optional[Callable] = None,
         extension_filter: str = "",
-        checkpoint: Optional[Literal["best", "last"]] = None,
         **kwargs: Any,
     ) -> Union[list[NDArray], NDArray]:
         """
@@ -590,8 +584,6 @@ class CAREamist:
             Function to read the source data.
         extension_filter : str, default=""
             Filter for the file extension.
-        checkpoint : {"best", "last"}, optional
-            Checkpoint to use for prediction.
         **kwargs : Any
             Unused.
 
@@ -623,7 +615,7 @@ class CAREamist:
         )
 
         predictions = self.trainer.predict(
-            model=self.model, datamodule=self.pred_datamodule, ckpt_path=checkpoint
+            model=self.model, datamodule=self.pred_datamodule
         )
         return convert_outputs(predictions, self.pred_datamodule.tiled)
 
