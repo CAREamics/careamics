@@ -64,9 +64,8 @@ def test_algorithm_constraints(algorithm: str, loss: str, model: dict):
     AlgorithmConfig(algorithm=algorithm, loss=loss, model=model)
 
 
-@pytest.mark.parametrize("algorithm", ["n2v", "n2n"])
-def test_n_channels_n2v_and_n2n(algorithm):
-    """Check that an error is raised if n2v and n2n have different number of channels in
+def test_n_channels_n2v():
+    """Check that an error is raised if n2v has different number of channels in
     input and output."""
     model = {
         "architecture": "UNet",
@@ -74,10 +73,10 @@ def test_n_channels_n2v_and_n2n(algorithm):
         "num_classes": 2,
         "n2v2": False,
     }
-    loss = "mae" if algorithm == "n2n" else "n2v"
+    loss = "n2v"
 
     with pytest.raises(ValueError):
-        AlgorithmConfig(algorithm=algorithm, loss=loss, model=model)
+        AlgorithmConfig(algorithm="n2v", loss=loss, model=model)
 
 
 @pytest.mark.parametrize(

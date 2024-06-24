@@ -22,6 +22,7 @@ class TileInformation(BaseModel):
     last_tile: bool = False
     overlap_crop_coords: tuple[tuple[int, ...], ...]
     stitch_coords: tuple[tuple[int, ...], ...]
+    sample_id: int
 
     @field_validator("array_shape")
     @classmethod
@@ -69,4 +70,5 @@ class TileInformation(BaseModel):
             and self.last_tile == other_tile.last_tile
             and self.overlap_crop_coords == other_tile.overlap_crop_coords
             and self.stitch_coords == other_tile.stitch_coords
+            and self.sample_id == other_tile.sample_id
         )

@@ -94,7 +94,7 @@ def test_n2n_channels_errors():
             patch_size=[64, 64],
             batch_size=8,
             num_epochs=100,
-            n_channels=5,
+            n_channels_in=5,
         )
 
 
@@ -122,14 +122,14 @@ def test_n2n_independent_channels(ind_channels):
         patch_size=[64, 64],
         batch_size=8,
         num_epochs=100,
-        n_channels=4,
+        n_channels_in=4,
         independent_channels=ind_channels,
     )
     assert config.algorithm_config.model.independent_channels == ind_channels
 
 
-def test_n2n_chanels_equal():
-    """Test that channels in and out are equal."""
+def test_n2n_channels_equal():
+    """Test that channels in and out are equal if only channels_in is set."""
     config = create_n2n_configuration(
         experiment_name="test",
         data_type="tiff",
@@ -137,10 +137,26 @@ def test_n2n_chanels_equal():
         patch_size=[64, 64],
         batch_size=8,
         num_epochs=100,
-        n_channels=4,
+        n_channels_in=4,
     )
     assert config.algorithm_config.model.in_channels == 4
     assert config.algorithm_config.model.num_classes == 4
+
+
+def test_n2n_channels_different():
+    """Test that channels in and out can be different."""
+    config = create_n2n_configuration(
+        experiment_name="test",
+        data_type="tiff",
+        axes="YXC",
+        patch_size=[64, 64],
+        batch_size=8,
+        num_epochs=100,
+        n_channels_in=4,
+        n_channels_out=5,
+    )
+    assert config.algorithm_config.model.in_channels == 4
+    assert config.algorithm_config.model.num_classes == 5
 
 
 def test_care_configuration():

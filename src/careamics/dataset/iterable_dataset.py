@@ -77,7 +77,7 @@ class PathIterableDataset(IterableDataset):
         # compute mean and std over the dataset
         # only checking the image_mean because the DataConfig class ensures that
         # if image_mean is provided, image_std is also provided
-        if not self.data_config.image_mean:
+        if not self.data_config.image_means:
             self.data_stats = self._calculate_mean_and_std()
             logger.info(
                 f"Computed dataset mean: {self.data_stats.image_stats.means},"
@@ -86,14 +86,14 @@ class PathIterableDataset(IterableDataset):
 
             # update the mean in the config
             self.data_config.set_mean_and_std(
-                image_mean=self.data_stats.image_stats.means,
-                image_std=self.data_stats.image_stats.stds,
-                target_mean=(
+                image_means=self.data_stats.image_stats.means,
+                image_stds=self.data_stats.image_stats.stds,
+                target_means=(
                     list(self.data_stats.target_stats.means)
                     if self.data_stats.target_stats.means is not None
                     else None
                 ),
-                target_std=(
+                target_stds=(
                     list(self.data_stats.target_stats.stds)
                     if self.data_stats.target_stats.stds is not None
                     else None
@@ -103,8 +103,8 @@ class PathIterableDataset(IterableDataset):
         else:
             # if mean and std are provided in the config, use them
             self.data_stats = StatsOutput(
-                Stats(self.data_config.image_mean, self.data_config.image_std),
-                Stats(self.data_config.target_mean, self.data_config.target_std),
+                Stats(self.data_config.image_means, self.data_config.image_stds),
+                Stats(self.data_config.target_means, self.data_config.target_stds),
             )
 
         # create transform composed of normalization and other transforms

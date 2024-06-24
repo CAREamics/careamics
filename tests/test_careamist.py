@@ -4,8 +4,11 @@ from typing import Tuple
 import numpy as np
 import pytest
 import tifffile
+from pytorch_lightning import Trainer
+from pytorch_lightning.callbacks import Callback, EarlyStopping, ModelCheckpoint
 
 from careamics import CAREamist, Configuration, save_configuration
+from careamics.callbacks import HyperParametersCallback, ProgressBarCallback
 from careamics.config.support import SupportedAlgorithm, SupportedData
 
 
@@ -501,50 +504,14 @@ def test_train_tiff_files_supervised(tmp_path: Path, supervised_configuration: d
     assert (tmp_path / "model.zip").exists()
 
 
+@pytest.mark.parametrize("samples", [1, 2, 4])
 @pytest.mark.parametrize("batch_size", [1, 2])
 def test_predict_on_array_tiled(
-    tmp_path: Path, minimum_configuration: dict, batch_size
+    tmp_path: Path, minimum_configuration: dict, batch_size, samples
 ):
     """Test that CAREamics can predict on arrays."""
     # training data
-    train_array = random_array((32, 32))
-
-    # create configuration
-    config = Configuration(**minimum_configuration)
-    config.training_config.num_epochs = 1
-    config.data_config.axes = "YX"
-    config.data_config.batch_size = 2
-    config.data_config.data_type = SupportedData.ARRAY.value
-    config.data_config.patch_size = (8, 8)
-
-    # instantiate CAREamist
-    careamist = CAREamist(source=config, work_dir=tmp_path)
-
-    # train CAREamist
-    careamist.train(train_source=train_array)
-
-    # predict CAREamist
-    predicted = careamist.predict(
-        train_array, batch_size=batch_size, tile_size=(16, 16), tile_overlap=(4, 4)
-    )
-
-    assert predicted.squeeze().shape == train_array.shape
-
-    # export to BMZ
-    careamist.export_to_bmz(
-        path=tmp_path / "model.zip",
-        name="TopModel",
-        input_array=train_array,
-        authors=[{"name": "Amod", "affiliation": "El"}],
-        general_description="A model that just walked in.",
-    )
-    assert (tmp_path / "model.zip").exists()
-
-
-def test_predict_arrays_no_tiling(tmp_path: Path, minimum_configuration: dict):
-    """Test that CAREamics can predict on arrays without tiling."""
-    # training data
-    train_array = random_array((4, 32, 32))
+    train_array = random_array((samples, 32, 32))
 
     # create configuration
     config = Configuration(**minimum_configuration)
@@ -561,9 +528,12 @@ def test_predict_arrays_no_tiling(tmp_path: Path, minimum_configuration: dict):
     careamist.train(train_source=train_array)
 
     # predict CAREamist
-    predicted = careamist.predict(train_array)
+    predicted = careamist.predict(
+        train_array, batch_size=batch_size, tile_size=(16, 16), tile_overlap=(4, 4)
+    )
+    predicted_squeeze = [p.squeeze() for p in predicted]
 
-    assert np.concatenate(predicted).squeeze().shape == train_array.shape
+    assert np.array(predicted_squeeze).shape == train_array.squeeze().shape
 
     # export to BMZ
     careamist.export_to_bmz(
@@ -574,6 +544,83 @@ def test_predict_arrays_no_tiling(tmp_path: Path, minimum_configuration: dict):
         general_description="A model that just walked in.",
     )
     assert (tmp_path / "model.zip").exists()
+
+
+@pytest.mark.parametrize("samples", [1, 2, 4])
+@pytest.mark.parametrize("batch_size", [1, 2])
+def test_predict_arrays_no_tiling(
+    tmp_path: Path, minimum_configuration: dict, batch_size, samples
+):
+    """Test that CAREamics can predict on arrays without tiling."""
+    # training data
+    train_array = random_array((samples, 32, 32))
+
+    # create configuration
+    config = Configuration(**minimum_configuration)
+    config.training_config.num_epochs = 1
+    config.data_config.axes = "SYX"
+    config.data_config.batch_size = 2
+    config.data_config.data_type = SupportedData.ARRAY.value
+    config.data_config.patch_size = (8, 8)
+
+    # instantiate CAREamist
+    careamist = CAREamist(source=config, work_dir=tmp_path)
+
+    # train CAREamist
+    careamist.train(train_source=train_array)
+
+    # predict CAREamist
+    predicted = careamist.predict(train_array, batch_size=batch_size)
+
+    assert np.concatenate(predicted).squeeze().shape == train_array.squeeze().shape
+
+    # export to BMZ
+    careamist.export_to_bmz(
+        path=tmp_path / "model.zip",
+        name="TopModel",
+        input_array=train_array,
+        authors=[{"name": "Amod", "affiliation": "El"}],
+        general_description="A model that just walked in.",
+    )
+    assert (tmp_path / "model.zip").exists()
+
+
+@pytest.mark.skip(
+    reason=(
+        "This might be a problem at the PyTorch level during `forward`. Values up to "
+        "0.001 different."
+    )
+)
+def test_batched_prediction(tmp_path: Path, minimum_configuration: dict):
+    "Compare outputs when a batch size of 1 or 2 is used"
+
+    tile_size = (16, 16)
+    tile_overlap = (4, 4)
+    shape = (32, 32)
+
+    train_array = random_array(shape)
+    # create configuration
+    config = Configuration(**minimum_configuration)
+    config.training_config.num_epochs = 1
+    config.data_config.axes = "YX"
+    config.data_config.batch_size = 2
+    config.data_config.data_type = SupportedData.ARRAY.value
+
+    # instantiate CAREamist
+    careamist = CAREamist(source=config, work_dir=tmp_path)
+
+    # train CAREamist
+    careamist.train(train_source=train_array)
+
+    # predict with batch size 1 and batch size 2
+    pred_bs_1 = careamist.predict(
+        train_array, batch_size=1, tile_size=tile_size, tile_overlap=tile_overlap
+    )
+    pred_bs_2 = careamist.predict(
+        train_array, batch_size=2, tile_size=tile_size, tile_overlap=tile_overlap
+    )
+
+    assert np.array_equal(pred_bs_1, pred_bs_2)
 
 
 @pytest.mark.parametrize("independent_channels", [False, True])
@@ -663,8 +710,8 @@ def test_predict_pretrained_checkpoint(tmp_path: Path, pre_trained: Path):
 
     # instantiate CAREamist
     careamist = CAREamist(source=pre_trained, work_dir=tmp_path)
-    assert careamist.cfg.data_config.image_mean is not None
-    assert careamist.cfg.data_config.image_std is not None
+    assert careamist.cfg.data_config.image_means is not None
+    assert careamist.cfg.data_config.image_stds is not None
 
     # predict
     predicted = careamist.predict(source_array)
@@ -733,3 +780,86 @@ def test_export_bmz_pretrained_with_array(tmp_path: Path, pre_trained: Path):
         general_description="A model that just walked in.",
     )
     assert (tmp_path / "model2.zip").exists()
+
+
+def test_add_custom_callback(tmp_path, minimum_configuration):
+    """Test that custom callback can be added to the CAREamist."""
+
+    # define a custom callback
+    class MyCallback(Callback):
+        def __init__(self):
+            super().__init__()
+
+            self.has_started = False
+            self.has_ended = False
+
+        def on_train_start(self, trainer, pl_module):
+            self.has_started = True
+
+        def on_train_end(self, trainer, pl_module):
+            self.has_ended = True
+
+    my_callback = MyCallback()
+    assert not my_callback.has_started
+    assert not my_callback.has_ended
+
+    # training data
+    train_array = random_array((32, 32))
+
+    # create configuration
+    config = Configuration(**minimum_configuration)
+    config.training_config.num_epochs = 1
+    config.data_config.axes = "YX"
+    config.data_config.batch_size = 2
+    config.data_config.data_type = SupportedData.ARRAY.value
+    config.data_config.patch_size = (8, 8)
+
+    # instantiate CAREamist
+    careamist = CAREamist(source=config, work_dir=tmp_path, callbacks=[my_callback])
+    assert not my_callback.has_started
+    assert not my_callback.has_ended
+
+    # train CAREamist
+    careamist.train(train_source=train_array)
+
+    # check the state of the callback
+    assert my_callback.has_started
+    assert my_callback.has_ended
+
+
+def test_error_passing_careamics_callback(tmp_path, minimum_configuration):
+    """Test that an error is thrown if we pass known callbacks to CAREamist."""
+    # create configuration
+    config = Configuration(**minimum_configuration)
+    config.training_config.num_epochs = 1
+    config.data_config.axes = "YX"
+    config.data_config.batch_size = 2
+    config.data_config.data_type = SupportedData.ARRAY.value
+    config.data_config.patch_size = (8, 8)
+
+    # Lightning callbacks
+    model_ckp = ModelCheckpoint()
+
+    with pytest.raises(ValueError):
+        CAREamist(source=config, work_dir=tmp_path, callbacks=[model_ckp])
+
+    early_stp = EarlyStopping(
+        Trainer(
+            max_epochs=1,
+            default_root_dir=tmp_path,
+        )
+    )
+
+    with pytest.raises(ValueError):
+        CAREamist(source=config, work_dir=tmp_path, callbacks=[early_stp])
+
+    # CAREamics callbacks
+    progress_bar = ProgressBarCallback()
+
+    with pytest.raises(ValueError):
+        CAREamist(source=config, work_dir=tmp_path, callbacks=[progress_bar])
+
+    hyper_params = HyperParametersCallback(config=config)
+
+    with pytest.raises(ValueError):
+        CAREamist(source=config, work_dir=tmp_path, callbacks=[hyper_params])

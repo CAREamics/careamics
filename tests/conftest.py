@@ -116,8 +116,8 @@ def minimum_inference() -> dict:
     predic = {
         "data_type": SupportedData.ARRAY.value,
         "axes": "YX",
-        "image_mean": [2.0],
-        "image_std": [1.0],
+        "image_means": [2.0],
+        "image_stds": [1.0],
     }
 
     return predic

@@ -57,8 +57,8 @@ def test_correct_normalized_outputs(shape, axes, expected_shape):
     config = InferenceConfig(
         data_type="array",
         axes=axes,
-        image_mean=[np.mean(array)] * n_channels,
-        image_std=[np.std(array)] * n_channels,
+        image_means=[np.mean(array)] * n_channels,
+        image_stds=[np.std(array)] * n_channels,
         tile_size=tile_size,
         tile_overlap=tile_overlap,
     )

@@ -134,10 +134,10 @@ def _create_inputs_ouputs(
     output_axes = _create_axes(output_array, data_config, channel_names, False)
 
     # mean and std
-    assert data_config.image_mean is not None, "Mean cannot be None."
-    assert data_config.image_mean is not None, "Std cannot be None."
-    means = data_config.image_mean
-    stds = data_config.image_std
+    assert data_config.image_means is not None, "Mean cannot be None."
+    assert data_config.image_means is not None, "Std cannot be None."
+    means = data_config.image_means
+    stds = data_config.image_stds
 
     # and the mean and std required to invert the normalization
     # CAREamics denormalization: x = y * (std + eps) + mean

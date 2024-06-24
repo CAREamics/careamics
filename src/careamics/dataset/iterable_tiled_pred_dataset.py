@@ -87,13 +87,13 @@ class IterableTiledPredDataset(IterableDataset):
 
         # check mean and std and create normalize transform
         if (
-            self.prediction_config.image_mean is None
-            or self.prediction_config.image_std is None
+            self.prediction_config.image_means is None
+            or self.prediction_config.image_stds is None
         ):
             raise ValueError("Mean and std must be provided for prediction.")
         else:
-            self.image_means = self.prediction_config.image_mean
-            self.image_stds = self.prediction_config.image_std
+            self.image_means = self.prediction_config.image_means
+            self.image_stds = self.prediction_config.image_stds
 
             # instantiate normalize transform
             self.patch_transform = Compose(
