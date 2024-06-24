@@ -177,8 +177,8 @@ def test_compute_mean_std_transform_iterable(tmp_path, shape, axes, patch_size):
     # define axes for mean and std computation
     stats_axes = tuple(np.delete(np.arange(array.ndim), 1))
 
-    assert np.allclose(array.mean(axis=stats_axes), dataset.data_config.image_mean)
-    assert np.allclose(array.std(axis=stats_axes), dataset.data_config.image_std)
+    assert np.allclose(array.mean(axis=stats_axes), dataset.data_config.image_means)
+    assert np.allclose(array.std(axis=stats_axes), dataset.data_config.image_stds)
 
 
 @pytest.mark.parametrize(
@@ -233,8 +233,8 @@ def test_compute_mean_std_transform_iterable_with_targets(
     stats_axes = tuple(np.delete(np.arange(array.ndim), 1))
 
     assert np.allclose(
-        target_array.mean(axis=stats_axes), dataset.data_config.target_mean
+        target_array.mean(axis=stats_axes), dataset.data_config.target_means
     )
     assert np.allclose(
-        target_array.std(axis=stats_axes), dataset.data_config.target_std
+        target_array.std(axis=stats_axes), dataset.data_config.target_stds
     )
