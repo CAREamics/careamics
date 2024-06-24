@@ -661,15 +661,20 @@ def test_predict_tiled_channel(
     assert predicted.squeeze().shape == train_array.shape
 
 
+@pytest.mark.parametrize("tiled", [True, False])
+@pytest.mark.parametrize("n_samples", [1, 2])
 @pytest.mark.parametrize("batch_size", [1, 2])
-def test_predict_path(tmp_path: Path, minimum_configuration: dict, batch_size):
+def test_predict_path(
+    tmp_path: Path, minimum_configuration: dict, batch_size, n_samples, tiled
+):
     """Test that CAREamics can predict with tiff files."""
     # training data
     train_array = random_array((32, 32))
 
     # save files
-    train_file = tmp_path / "train.tiff"
-    tifffile.imwrite(train_file, train_array)
+    for i in range(n_samples):
+        train_file = tmp_path / f"train_{i}.tiff"
+        tifffile.imwrite(train_file, train_array)
 
     # create configuration
     config = Configuration(**minimum_configuration)
@@ -685,11 +690,27 @@ def test_predict_path(tmp_path: Path, minimum_configuration: dict, batch_size):
     # train CAREamist
     careamist.train(train_source=train_file)
 
+    if tiled:
+        tile_size = (16, 16)
+        tile_overlap = (4, 4)
+    else:
+        tile_size = None
+        tile_overlap = None
+
     # predict CAREamist
-    predicted = careamist.predict(train_file, batch_size=batch_size)
+    predicted = careamist.predict(
+        train_file,
+        batch_size=batch_size,
+        tile_size=tile_size,
+        tile_overlap=tile_overlap,
+    )
 
     # check that it predicted
-    assert predicted.squeeze().shape == train_array.shape
+    if isinstance(predicted, list):
+        for p in predicted:
+            assert p.squeeze().shape == train_array.shape
+    else:
+        assert predicted.squeeze().shape == train_array.shape
 
     # export to BMZ
     careamist.export_to_bmz(
