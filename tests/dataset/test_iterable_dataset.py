@@ -147,7 +147,7 @@ def test_extracting_val_files(tmp_path, ordered_array, percentage):
         ((32, 32, 32), "ZYX", (8, 8, 8)),
     ],
 )
-def test_compute_mean_std_transform_iterable(tmp_path, shape, axes, patch_size):
+def test_compute_mean_std_transform_welford(tmp_path, shape, axes, patch_size):
     """Test that mean and std are computed and correctly added to the configuration
     and transform."""
     n_files = 100
@@ -189,7 +189,7 @@ def test_compute_mean_std_transform_iterable(tmp_path, shape, axes, patch_size):
         ((32, 32, 32), "ZYX", (8, 8, 8)),
     ],
 )
-def test_compute_mean_std_transform_iterable_with_targets(
+def test_compute_mean_std_transform_welford_with_targets(
     tmp_path, shape, axes, patch_size
 ):
     """Test that mean and std are computed and correctly added to the configuration

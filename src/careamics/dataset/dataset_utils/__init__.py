@@ -3,8 +3,6 @@
 __all__ = [
     "reshape_array",
     "compute_normalization_stats",
-    "update_iterative_stats",
-    "finalize_iterative_stats",
     "get_files_size",
     "list_files",
     "validate_source_target_files",

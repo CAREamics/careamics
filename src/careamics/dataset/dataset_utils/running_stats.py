@@ -18,7 +18,7 @@ def compute_normalization_stats(image: NDArray) -> tuple[NDArray, NDArray]:
 
     Returns
     -------
-    tuple[List[float], List[float]]
+    tuple of (list of floats, list of floats)
         Lists of mean and standard deviation values per channel.
     """
     # Define the list of axes excluding the channel axis
@@ -47,7 +47,7 @@ def update_iterative_stats(
     tuple[NDArray, NDArray, NDArray]
         Updated count, mean, and variance.
     """
-    count += np.array([len(arr.flatten()) for arr in new_values])
+    count += np.array([np.prod(channel.shape) for channel in new_values])
     # newvalues - oldMean
     delta = [
         np.subtract(v.flatten(), [m] * len(v.flatten()))
@@ -93,48 +93,51 @@ def finalize_iterative_stats(
 
 
 class WelfordStatistics:
-    """Compute Welford statistics iteratively."""
+    """Compute Welford statistics iteratively.
 
-    def update(self, array: NDArray, num_samples: int) -> None:
+    The Welford algorithm is used to compute the mean and variance of an array
+    iteratively. Based on the implementation from:
+    https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Welford's_online_algorithm
+    """
+
+    def update(self, array: NDArray, sample_idx: int) -> None:
         """Update the Welford statistics.
 
         Parameters
         ----------
         array : NDArray
             Input array.
-        num_samples : int
+        sample_idx : int
             Current sample number.
         """
-        self.num_samples = num_samples
+        self.sample_idx = sample_idx
         sample_channels = np.array(np.split(array, array.shape[1], axis=1))
 
-        if self.num_samples == 0:
+        # Initialize the statistics
+        if self.sample_idx == 0:
+            # Compute the mean and standard deviation
             self.mean, _ = compute_normalization_stats(array)
-            self.count = np.array(
-                [np.prod(channel.shape) for channel in sample_channels]
-            )
-            self.m2 = np.array(
-                [
-                    np.sum(
-                        np.subtract(channel.flatten(), [self.mean[i]] * self.count[i])
-                        ** 2
-                    )
-                    for i, channel in enumerate(sample_channels)
-                ]
+            # Initialize the count and m2 with zero-valued arrays of shape (C,)
+            self.count, self.mean, self.m2 = update_iterative_stats(
+                count=np.zeros(array.shape[1]),
+                mean=self.mean,
+                m2=np.zeros(array.shape[1]),
+                new_values=sample_channels,
             )
         else:
+            # Update the statistics
             self.count, self.mean, self.m2 = update_iterative_stats(
-                self.count, self.mean, self.m2, sample_channels
+                count=self.count, mean=self.mean, m2=self.m2, new_values=sample_channels
             )
 
-        self.num_samples += 1
+        self.sample_idx += 1
 
     def finalize(self) -> tuple[NDArray, NDArray]:
         """Finalize the Welford statistics.
 
         Returns
         -------
-        tuple[NDArray, NDArray]
+        tuple or numpy arrays
             Final mean and standard deviation.
         """
         return finalize_iterative_stats(self.count, self.mean, self.m2)
