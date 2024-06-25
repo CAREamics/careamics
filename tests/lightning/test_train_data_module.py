@@ -9,7 +9,7 @@ from careamics.config.support import (
     SupportedStructAxis,
 )
 from careamics.dataset import InMemoryDataset, PathIterableDataset
-from careamics.lightning import CAREamicsTrainData, TrainingDataWrapper
+from careamics.lightning import TrainDataModule, create_train_datamodule
 
 
 @pytest.fixture
@@ -21,19 +21,15 @@ def test_mismatching_types_array(simple_array, minimum_data):
     """Test that an error is raised if the data type does not match the passed data."""
     minimum_data["data_type"] = SupportedData.TIFF.value
     with pytest.raises(ValueError):
-        CAREamicsTrainData(
-            data_config=DataConfig(**minimum_data), train_data=simple_array
-        )
+        TrainDataModule(data_config=DataConfig(**minimum_data), train_data=simple_array)
 
     minimum_data["data_type"] = SupportedData.CUSTOM.value
     with pytest.raises(ValueError):
-        CAREamicsTrainData(
-            data_config=DataConfig(**minimum_data), train_data=simple_array
-        )
+        TrainDataModule(data_config=DataConfig(**minimum_data), train_data=simple_array)
 
     minimum_data["data_type"] = SupportedData.ARRAY.value
     with pytest.raises(ValueError):
-        CAREamicsTrainData(
+        TrainDataModule(
             data_config=DataConfig(**minimum_data), train_data="path/to/data"
         )
 
@@ -41,7 +37,7 @@ def test_mismatching_types_array(simple_array, minimum_data):
 def test_wrapper_unknown_type(simple_array):
     """Test that an error is raised if the data type is not supported."""
     with pytest.raises(ValueError):
-        TrainingDataWrapper(
+        create_train_datamodule(
             train_data=simple_array,
             data_type="wrong_type",
             patch_size=(10, 10),
@@ -53,7 +49,7 @@ def test_wrapper_unknown_type(simple_array):
 def test_wrapper_train_array(simple_array):
     """Test that the data module is created correctly with an array."""
     # create data module
-    data_module = TrainingDataWrapper(
+    data_module = create_train_datamodule(
         train_data=simple_array,
         data_type="array",
         patch_size=(8, 8),
@@ -71,7 +67,7 @@ def test_wrapper_supervised_n2v_throws_error(simple_array):
     """Test that an error is raised if target data is passed but the transformations
     (default ones) contain N2V manipulate."""
     with pytest.raises(ValueError):
-        TrainingDataWrapper(
+        create_train_datamodule(
             train_data=simple_array,
             data_type="array",
             patch_size=(10, 10),
@@ -91,7 +87,7 @@ def test_wrapper_supervised_n2v_throws_error(simple_array):
 )
 def test_wrapper_n2v2(simple_array, use_n2v2, strategy):
     """Test that n2v2 parameter is correctly passed."""
-    data_module = TrainingDataWrapper(
+    data_module = create_train_datamodule(
         train_data=simple_array,
         data_type="array",
         patch_size=(16, 16),
@@ -107,7 +103,7 @@ def test_wrapper_structn2v(simple_array):
     struct_axis = SupportedStructAxis.HORIZONTAL.value
     struct_span = 11
 
-    data_module = TrainingDataWrapper(
+    data_module = create_train_datamodule(
         train_data=simple_array,
         data_type="array",
         patch_size=(16, 16),
@@ -136,7 +132,7 @@ def test_get_data_statistics(tmp_path):
         axes="SCYX",
         batch_size=1,
     )
-    data_module = CAREamicsTrainData(
+    data_module = TrainDataModule(
         data_config=data_config,
         train_data=data,
         val_data=data_val,
@@ -168,7 +164,7 @@ def test_get_data_statistics(tmp_path):
         axes="CYX",
         batch_size=1,
     )
-    data_module = CAREamicsTrainData(
+    data_module = TrainDataModule(
         data_config=data_config,
         train_data=train_path,
         val_data=val_path,

@@ -8,9 +8,9 @@ from pytorch_lightning.callbacks import (
 
 from careamics import Configuration
 from careamics.lightning import (
-    CAREamicsModuleWrapper,
-    PredictDataWrapper,
-    TrainingDataWrapper,
+    create_careamics_module,
+    create_predict_datamodule,
+    create_train_datamodule,
 )
 from careamics.prediction_utils import convert_outputs
 
@@ -26,14 +26,14 @@ def test_smoke_n2v_2d_array(tmp_path, minimum_configuration):
     cfg = Configuration(**minimum_configuration)
 
     # create lightning module
-    model = CAREamicsModuleWrapper(
+    model = create_careamics_module(
         algorithm=cfg.algorithm_config.algorithm,
         loss=cfg.algorithm_config.loss,
         architecture=cfg.algorithm_config.model.architecture,
     )
 
     # create data module
-    data = TrainingDataWrapper(
+    data = create_train_datamodule(
         train_data=train_array,
         val_data=val_array,
         data_type=cfg.data_config.data_type,
@@ -60,7 +60,7 @@ def test_smoke_n2v_2d_array(tmp_path, minimum_configuration):
 
     # predict
     means, stds = data.get_data_statistics()
-    predict_data = PredictDataWrapper(
+    predict_data = create_predict_datamodule(
         pred_data=val_array,
         data_type=cfg.data_config.data_type,
         axes=cfg.data_config.axes,
@@ -83,14 +83,14 @@ def test_smoke_n2v_2d_tiling(tmp_path, minimum_configuration):
     cfg = Configuration(**minimum_configuration)
 
     # create lightning module
-    model = CAREamicsModuleWrapper(
+    model = create_careamics_module(
         algorithm=cfg.algorithm_config.algorithm,
         loss=cfg.algorithm_config.loss,
         architecture=cfg.algorithm_config.model.architecture,
     )
 
     # create data module
-    data = TrainingDataWrapper(
+    data = create_train_datamodule(
         train_data=train_array,
         val_data=val_array,
         data_type=cfg.data_config.data_type,
@@ -117,7 +117,7 @@ def test_smoke_n2v_2d_tiling(tmp_path, minimum_configuration):
 
     # predict
     means, stds = data.get_data_statistics()
-    predict_data = PredictDataWrapper(
+    predict_data = create_predict_datamodule(
         pred_data=val_array,
         data_type=cfg.data_config.data_type,
         axes=cfg.data_config.axes,

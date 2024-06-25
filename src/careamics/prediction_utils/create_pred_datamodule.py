@@ -9,11 +9,11 @@ from numpy.typing import NDArray
 from careamics.config import Configuration, create_inference_configuration
 from careamics.utils import check_path_exists
 
-from ..lightning.lightning_prediction_datamodule import CAREamicsPredictData
+from ..lightning.predict_data_module import PredictDataModule
 
 
 def create_pred_datamodule(
-    source: Union[CAREamicsPredictData, Path, str, NDArray],
+    source: Union[PredictDataModule, Path, str, NDArray],
     config: Configuration,
     batch_size: Optional[int] = None,
     tile_size: Optional[Tuple[int, ...]] = None,
@@ -24,7 +24,7 @@ def create_pred_datamodule(
     dataloader_params: Optional[Dict] = None,
     read_source_func: Optional[Callable] = None,
     extension_filter: str = "",
-) -> CAREamicsPredictData:
+) -> PredictDataModule:
     """
     Create a `CAREamicsPredictData` module.
 
@@ -84,7 +84,7 @@ def create_pred_datamodule(
     if "batch_size" in dataloader_params:
         del dataloader_params["batch_size"]
 
-    if isinstance(source, CAREamicsPredictData):
+    if isinstance(source, PredictDataModule):
         pred_datamodule = source
     elif isinstance(source, Path) or isinstance(source, str):
         pred_datamodule = _create_from_path(
@@ -116,7 +116,7 @@ def _create_from_path(
     extension_filter: str = "",
     dataloader_params: Optional[Dict] = None,
     **kwargs,
-) -> CAREamicsPredictData:
+) -> PredictDataModule:
     """
     Create `CAREamicsPredictData` from path.
 
@@ -142,7 +142,7 @@ def _create_from_path(
     """
     source_path = check_path_exists(source)
 
-    datamodule = CAREamicsPredictData(
+    datamodule = PredictDataModule(
         pred_config=pred_config,
         pred_data=source_path,
         read_source_func=read_source_func,
@@ -157,7 +157,7 @@ def _create_from_array(
     pred_config: Configuration,
     dataloader_params: Optional[Dict] = None,
     **kwargs,
-) -> CAREamicsPredictData:
+) -> PredictDataModule:
     """
     Create `CAREamicsPredictData` from array.
 
@@ -177,7 +177,7 @@ def _create_from_array(
     prediction datamodule: CAREamicsPredictData
         Subclass of `pytorch_lightning.LightningDataModule` for creating predictions.
     """
-    datamodule = CAREamicsPredictData(
+    datamodule = PredictDataModule(
         pred_config=pred_config,
         pred_data=source,
         dataloader_params=dataloader_params,

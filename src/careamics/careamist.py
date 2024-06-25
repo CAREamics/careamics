@@ -20,14 +20,14 @@ from careamics.config import (
 from careamics.config.support import SupportedAlgorithm, SupportedData, SupportedLogger
 from careamics.dataset.dataset_utils import reshape_array
 from careamics.lightning.callbacks import ProgressBarCallback
-from careamics.lightning.lightning_datamodule import CAREamicsTrainData
 from careamics.lightning.lightning_module import CAREamicsModule
+from careamics.lightning.train_data_module import TrainDataModule
 from careamics.model_io import export_to_bmz, load_pretrained
 from careamics.prediction_utils import convert_outputs, create_pred_datamodule
 from careamics.utils import check_path_exists, get_logger
 
 from .lightning.callbacks import HyperParametersCallback
-from .lightning.lightning_prediction_datamodule import CAREamicsPredictData
+from .lightning.predict_data_module import PredictDataModule
 
 logger = get_logger(__name__)
 
@@ -193,8 +193,8 @@ class CAREamist:
         )
 
         # place holder for the datamodules
-        self.train_datamodule: Optional[CAREamicsTrainData] = None
-        self.pred_datamodule: Optional[CAREamicsPredictData] = None
+        self.train_datamodule: Optional[TrainDataModule] = None
+        self.pred_datamodule: Optional[PredictDataModule] = None
 
     def _define_callbacks(self, callbacks: Optional[list[Callback]] = None) -> None:
         """
@@ -246,7 +246,7 @@ class CAREamist:
     def train(
         self,
         *,
-        datamodule: Optional[CAREamicsTrainData] = None,
+        datamodule: Optional[TrainDataModule] = None,
         train_source: Optional[Union[Path, str, NDArray]] = None,
         val_source: Optional[Union[Path, str, NDArray]] = None,
         train_target: Optional[Union[Path, str, NDArray]] = None,
@@ -379,7 +379,7 @@ class CAREamist:
                     f"instance (got {type(train_source)})."
                 )
 
-    def _train_on_datamodule(self, datamodule: CAREamicsTrainData) -> None:
+    def _train_on_datamodule(self, datamodule: TrainDataModule) -> None:
         """
         Train the model on the provided datamodule.
 
@@ -421,7 +421,7 @@ class CAREamist:
             Minimum number of patches to use for validation, by default 5.
         """
         # create datamodule
-        datamodule = CAREamicsTrainData(
+        datamodule = TrainDataModule(
             data_config=self.cfg.data_config,
             train_data=train_data,
             val_data=val_data,
@@ -477,7 +477,7 @@ class CAREamist:
             path_to_val_target = check_path_exists(path_to_val_target)
 
         # create datamodule
-        datamodule = CAREamicsTrainData(
+        datamodule = TrainDataModule(
             data_config=self.cfg.data_config,
             train_data=path_to_train_data,
             val_data=path_to_val_data,
@@ -494,7 +494,7 @@ class CAREamist:
     @overload
     def predict(  # numpydoc ignore=GL08
         self,
-        source: CAREamicsPredictData,
+        source: PredictDataModule,
         *,
         checkpoint: Optional[Literal["best", "last"]] = None,
     ) -> Union[list[NDArray], NDArray]: ...
@@ -533,7 +533,7 @@ class CAREamist:
 
     def predict(
         self,
-        source: Union[CAREamicsPredictData, Path, str, NDArray],
+        source: Union[PredictDataModule, Path, str, NDArray],
         *,
         batch_size: Optional[int] = None,
         tile_size: Optional[tuple[int, ...]] = None,

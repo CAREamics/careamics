@@ -1,7 +1,7 @@
 """Prediction Lightning data modules."""
 
 from pathlib import Path
-from typing import Any, Callable, Dict, Literal, Optional, Tuple, Union
+from typing import Any, Callable, Literal, Optional, Union
 
 import numpy as np
 import pytorch_lightning as L
@@ -32,7 +32,7 @@ PredictDatasetType = Union[
 logger = get_logger(__name__)
 
 
-class CAREamicsPredictData(L.LightningDataModule):
+class PredictDataModule(L.LightningDataModule):
     """
     CAREamics Lightning prediction data module.
 
@@ -51,9 +51,9 @@ class CAREamicsPredictData(L.LightningDataModule):
     ----------
     pred_config : InferenceModel
         Pydantic model for CAREamics prediction configuration.
-    pred_data : Union[Path, str, np.ndarray]
+    pred_data : pathlib.Path or str or numpy.ndarray
         Prediction data, can be a path to a folder, a file or a numpy array.
-    read_source_func : Optional[Callable], optional
+    read_source_func : Callable, optional
         Function to read custom types, by default None.
     extension_filter : str, optional
         Filter to filter file extensions for custom types, by default "".
@@ -87,9 +87,9 @@ class CAREamicsPredictData(L.LightningDataModule):
         ----------
         pred_config : InferenceModel
             Pydantic model for CAREamics prediction configuration.
-        pred_data : Union[Path, str, np.ndarray]
+        pred_data : pathlib.Path or str or numpy.ndarray
             Prediction data, can be a path to a folder, a file or a numpy array.
-        read_source_func : Optional[Callable], optional
+        read_source_func : Callable, optional
             Function to read custom types, by default None.
         extension_filter : str, optional
             Filter to filter file extensions for custom types, by default "".
@@ -222,14 +222,26 @@ class CAREamicsPredictData(L.LightningDataModule):
             batch_size=self.batch_size,
             collate_fn=collate_tiles if self.tiled else None,
             **self.dataloader_params,
-        )  # TODO check workers are used
+        )
 
 
-class PredictDataWrapper(CAREamicsPredictData):
-    """
-    Wrapper around the CAREamics inference Lightning data module.
+def create_predict_datamodule(
+    pred_data: Union[str, Path, np.ndarray],
+    data_type: Union[Literal["array", "tiff", "custom"], SupportedData],
+    image_means=list[float],
+    image_stds=list[float],
+    tile_size: Optional[tuple[int, ...]] = None,
+    tile_overlap: Optional[tuple[int, ...]] = None,
+    axes: str = "YX",
+    batch_size: int = 1,
+    tta_transforms: bool = True,
+    read_source_func: Optional[Callable] = None,
+    extension_filter: str = "",
+    dataloader_params: Optional[dict] = None,
+) -> PredictDataModule:
+    """Return a CAREamics prediction Lightning datamodule.
 
-    This class is used to explicitely pass the parameters usually contained in a
+    This method is used to explicitely pass the parameters usually contained in an
     `inference_model` configuration.
 
     Since the lightning datamodule has no access to the model, make sure that the
@@ -267,17 +279,17 @@ class PredictDataWrapper(CAREamicsPredictData):
 
     Parameters
     ----------
-    pred_data : Union[str, Path, np.ndarray]
+    pred_data : str or pathlib.Path or numpy.ndarray
         Prediction data.
-    data_type : Union[Literal["array", "tiff", "custom"], SupportedData]
+    data_type : {"array", "tiff", "custom"}
         Data type, see `SupportedData` for available options.
     image_means : list of float
         Mean values for normalization, only used if Normalization is defined.
     image_stds : list of float
         Std values for normalization, only used if Normalization is defined.
-    tile_size : Tuple[int, ...]
+    tile_size : tuple of int
         Tile size, 2D or 3D tile size.
-    tile_overlap : Tuple[int, ...]
+    tile_overlap : tuple of int
         Tile overlap, 2D or 3D tile overlap.
     axes : str
         Axes of the data, choosen amongst SCZYX.
@@ -285,87 +297,47 @@ class PredictDataWrapper(CAREamicsPredictData):
         Batch size.
     tta_transforms : bool, optional
         Use test time augmentation, by default True.
-    read_source_func : Optional[Callable], optional
+    read_source_func : Callable, optional
         Function to read the source data, used if `data_type` is `custom`, by
         default None.
     extension_filter : str, optional
         Filter for file extensions, used if `data_type` is `custom`, by default "".
     dataloader_params : dict, optional
         Pytorch dataloader parameters, by default {}.
+
+    Returns
+    -------
+    PredictDataModule
+        CAREamics prediction datamodule.
+
     """
+    if dataloader_params is None:
+        dataloader_params = {}
 
-    def __init__(
-        self,
-        pred_data: Union[str, Path, np.ndarray],
-        data_type: Union[Literal["array", "tiff", "custom"], SupportedData],
-        image_means=list[float],
-        image_stds=list[float],
-        tile_size: Optional[Tuple[int, ...]] = None,
-        tile_overlap: Optional[Tuple[int, ...]] = None,
-        axes: str = "YX",
-        batch_size: int = 1,
-        tta_transforms: bool = True,
-        read_source_func: Optional[Callable] = None,
-        extension_filter: str = "",
-        dataloader_params: Optional[dict] = None,
-    ) -> None:
-        """
-        Constructor.
+    prediction_dict: dict[str, Any] = {
+        "data_type": data_type,
+        "tile_size": tile_size,
+        "tile_overlap": tile_overlap,
+        "axes": axes,
+        "image_means": image_means,
+        "image_stds": image_stds,
+        "tta": tta_transforms,
+        "batch_size": batch_size,
+        "transforms": [],
+    }
 
-        Parameters
-        ----------
-        pred_data : Union[str, Path, np.ndarray]
-            Prediction data.
-        data_type : Union[Literal["array", "tiff", "custom"], SupportedData]
-            Data type, see `SupportedData` for available options.
-        image_means : list of float
-            Mean values for normalization, only used if Normalization is defined.
-        image_stds : list of float
-            Std values for normalization, only used if Normalization is defined.
-        tile_size : List[int]
-            Tile size, 2D or 3D tile size.
-        tile_overlap : List[int]
-            Tile overlap, 2D or 3D tile overlap.
-        axes : str
-            Axes of the data, choosen amongst SCZYX.
-        batch_size : int
-            Batch size.
-        tta_transforms : bool, optional
-            Use test time augmentation, by default True.
-        read_source_func : Optional[Callable], optional
-            Function to read the source data, used if `data_type` is `custom`, by
-            default None.
-        extension_filter : str, optional
-            Filter for file extensions, used if `data_type` is `custom`, by default "".
-        dataloader_params : dict, optional
-            Pytorch dataloader parameters, by default {}.
-        """
-        if dataloader_params is None:
-            dataloader_params = {}
-        prediction_dict: Dict[str, Any] = {
-            "data_type": data_type,
-            "tile_size": tile_size,
-            "tile_overlap": tile_overlap,
-            "axes": axes,
-            "image_means": image_means,
-            "image_stds": image_stds,
-            "tta": tta_transforms,
-            "batch_size": batch_size,
-            "transforms": [],
-        }
+    # validate configuration
+    prediction_config = InferenceConfig(**prediction_dict)
 
-        # validate configuration
-        self.prediction_config = InferenceConfig(**prediction_dict)
+    # sanity check on the dataloader parameters
+    if "batch_size" in dataloader_params:
+        # remove it
+        del dataloader_params["batch_size"]
 
-        # sanity check on the dataloader parameters
-        if "batch_size" in dataloader_params:
-            # remove it
-            del dataloader_params["batch_size"]
-
-        super().__init__(
-            pred_config=self.prediction_config,
-            pred_data=pred_data,
-            read_source_func=read_source_func,
-            extension_filter=extension_filter,
-            dataloader_params=dataloader_params,
-        )
+    return PredictDataModule(
+        pred_config=prediction_config,
+        pred_data=pred_data,
+        read_source_func=read_source_func,
+        extension_filter=extension_filter,
+        dataloader_params=dataloader_params,
+    )

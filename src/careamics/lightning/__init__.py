@@ -2,16 +2,16 @@
 
 __all__ = [
     "CAREamicsModule",
-    "CAREamicsTrainData",
-    "TrainingDataWrapper",
-    "CAREamicsPredictData",
-    "PredictDataWrapper",
-    "CAREamicsModuleWrapper",
+    "create_careamics_module",
+    "TrainDataModule",
+    "create_train_datamodule",
+    "PredictDataModule",
+    "create_predict_datamodule",
     "HyperParametersCallback",
     "ProgressBarCallback",
 ]
 
 from .callbacks import HyperParametersCallback, ProgressBarCallback
-from .lightning_datamodule import CAREamicsTrainData, TrainingDataWrapper
-from .lightning_module import CAREamicsModule, CAREamicsModuleWrapper
-from .lightning_prediction_datamodule import CAREamicsPredictData, PredictDataWrapper
+from .lightning_module import CAREamicsModule, create_careamics_module
+from .predict_data_module import PredictDataModule, create_predict_datamodule
+from .train_data_module import TrainDataModule, create_train_datamodule
