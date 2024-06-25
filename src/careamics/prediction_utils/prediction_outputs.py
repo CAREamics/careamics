@@ -128,10 +128,8 @@ def _combine_array_batches(predictions: List[NDArray]) -> List[NDArray]:
     Returns
     -------
     list of numpy.ndarray
-        A list of arrays with dimensions (C, (Z), Y, X).
+        A list of arrays with dimensions (1, C, (Z), Y, X).
     """
     prediction_concat: NDArray = np.concatenate(predictions, axis=0)
     prediction_split = np.split(prediction_concat, prediction_concat.shape[0], axis=0)
-    # remove sample dimension (always 1)
-    prediction_split = [pred[0] for pred in prediction_split]
     return prediction_split
