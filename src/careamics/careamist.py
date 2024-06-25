@@ -659,27 +659,16 @@ class CAREamist:
         data_description : str, optional
             Description of the data, by default None.
         """
-        input_patch = reshape_array(input_array, self.cfg.data_config.axes)
-
-        # axes need to be reformated for the export because reshaping was done in the
-        # datamodule
-        if "Z" in self.cfg.data_config.axes:
-            axes = "SCZYX"
-        else:
-            axes = "SCYX"
-
-        # predict output, remove extra dimensions for the purpose of the prediction
+        # TODO: add in docs that it is expected that input_array dimensions match
+        # those in data_config
+     
         output_patch = self.predict(
-            input_patch,
+            input_array,
             data_type=SupportedData.ARRAY.value,
-            axes=axes,
             tta_transforms=False,
         )
-
-        if isinstance(output_patch, list):
-            output = np.concatenate(output_patch, axis=0)
-        else:
-            output = output_patch
+        output = np.concatenate(output_patch, axis=0)
+        input_array = reshape_array(input_array, self.cfg.data_config.axes)
 
         export_to_bmz(
             model=self.model,
@@ -688,7 +677,7 @@ class CAREamist:
             name=name,
             general_description=general_description,
             authors=authors,
-            input_array=input_patch,
+            input_array=input_array,
             output_array=output,
             channel_names=channel_names,
             data_description=data_description,
