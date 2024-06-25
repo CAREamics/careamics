@@ -96,8 +96,8 @@ def _combine_tiled_batches(
     ----------
     predictions : list of (numpy.ndarray, list of TileInformation)
         Predictions that are output from `Trainer.predict`. For tiled batches, this is
-        a list of tuples. The first element of the tuples is the prediction output of 
-        tiles with dimension (B, C, (Z), Y, X), where B is batch size. The second 
+        a list of tuples. The first element of the tuples is the prediction output of
+        tiles with dimension (B, C, (Z), Y, X), where B is batch size. The second
         element of the tuples is a list of TileInformation objects of length B.
 
     Returns

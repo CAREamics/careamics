@@ -661,7 +661,7 @@ class CAREamist:
         """
         # TODO: add in docs that it is expected that input_array dimensions match
         # those in data_config
-     
+
         output_patch = self.predict(
             input_array,
             data_type=SupportedData.ARRAY.value,

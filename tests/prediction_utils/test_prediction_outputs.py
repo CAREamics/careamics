@@ -24,9 +24,7 @@ def test_convert_outputs_tiled(ordered_array, batch_size, n_samples):
         prediction_batches.append((tiles, tile_infos))
 
     predictions = convert_outputs(prediction_batches, tiled=True)
-    assert np.array_equal(
-        np.stack(predictions, axis=0).squeeze(), arr.squeeze()
-    )
+    assert np.array_equal(np.stack(predictions, axis=0).squeeze(), arr.squeeze())
 
 
 @pytest.mark.parametrize("batch_size, n_samples", [(1, 1), (1, 2), (2, 2)])
@@ -40,6 +38,6 @@ def test_convert_outputs_not_tiled(ordered_array, batch_size, n_samples):
     assert np.array_equal(
         # stack predictions because there is no S axis
         # squeeze to remove singleton S or C axes
-        np.stack(predictions, axis=0).squeeze(), 
-        np.concatenate(prediction_batches, axis=0).squeeze()
+        np.stack(predictions, axis=0).squeeze(),
+        np.concatenate(prediction_batches, axis=0).squeeze(),
     )

@@ -1,8 +1,10 @@
 """Prediction utility functions."""
 
-from typing import List
+from types import EllipsisType
+from typing import List, Union
 
 import numpy as np
+from numpy.typing import NDArray
 
 from careamics.config.tile_information import TileInformation
 
@@ -52,9 +54,9 @@ def stitch_prediction(
 
 
 def stitch_prediction_single(
-    tiles: List[np.ndarray],
+    tiles: List[NDArray],
     tile_infos: List[TileInformation],
-) -> np.ndarray:
+) -> NDArray:
     """
     Stitch tiles back together to form a full image.
 
@@ -78,27 +80,24 @@ def stitch_prediction_single(
     input_shape = tile_infos[0].array_shape
     predicted_image = np.zeros(input_shape, dtype=np.float32)
 
-    # reshape 
+    # reshape
     # TODO: can be more elegantly solved if TileInformation allows singleton dims
-    singleton_dims = tuple(np.where(np.array(tiles[0].shape)==1)[0])
+    singleton_dims = tuple(np.where(np.array(tiles[0].shape) == 1)[0])
     predicted_image = np.expand_dims(predicted_image, singleton_dims)
 
     for tile, tile_info in zip(tiles, tile_infos):
 
         # Compute coordinates for cropping predicted tile
-        slices = (
-            ..., *[slice(c[0], c[1]) for c in tile_info.overlap_crop_coords]
+        crop_slices: tuple[Union[EllipsisType, slice], ...] = (
+            ...,
+            *[slice(c[0], c[1]) for c in tile_info.overlap_crop_coords],
         )
 
         # Crop predited tile according to overlap coordinates
-        cropped_tile = tile[slices]
+        cropped_tile = tile[crop_slices]
 
         # Insert cropped tile into predicted image using stitch coordinates
-        predicted_image[
-            (
-                ...,
-                *[slice(c[0], c[1]) for c in tile_info.stitch_coords],
-            )
-        ] = cropped_tile.astype(np.float32)
+        image_slices = (..., *[slice(c[0], c[1]) for c in tile_info.stitch_coords])
+        predicted_image[image_slices] = cropped_tile.astype(np.float32)
 
     return predicted_image
