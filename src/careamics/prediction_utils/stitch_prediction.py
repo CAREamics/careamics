@@ -37,7 +37,9 @@ def stitch_prediction(
     last_tiles = [tile_info.last_tile for tile_info in tile_infos]
     last_tile_position = np.where(last_tiles)[0]
     image_slices = [
-        slice(None if i == 0 else last_tile_position[i - 1], last_tile_position[i] + 1)
+        slice(
+            None if i == 0 else last_tile_position[i - 1] + 1, last_tile_position[i] + 1
+        )
         for i in range(len(last_tile_position))
     ]
     image_predictions = []
