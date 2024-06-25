@@ -24,22 +24,22 @@ def test_convert_outputs_tiled(ordered_array, batch_size, n_samples):
         prediction_batches.append((tiles, tile_infos))
 
     predictions = convert_outputs(prediction_batches, tiled=True)
-    # TODO: fix convert_outputs so output shape is the same as input shape
-    # (Or always SC(Z)YX)
-    assert np.array_equal(np.array(predictions), arr.squeeze())
+    assert np.array_equal(
+        np.stack(predictions, axis=0).squeeze(), arr.squeeze()
+    )
 
 
 @pytest.mark.parametrize("batch_size, n_samples", [(1, 1), (1, 2), (2, 2)])
 def test_convert_outputs_not_tiled(ordered_array, batch_size, n_samples):
     """Test conversion of output for when prediction is not tiled"""
     # --- simulate outputs from trainer.predict
-    # TODO: could test for case with different size batch at the end
     prediction_batches = [
         ordered_array((batch_size, 1, 16, 16)) for _ in range(n_samples // batch_size)
     ]
     predictions = convert_outputs(prediction_batches, tiled=False)
-    if not isinstance(predictions, list):  # single predictions not returned as list
-        predictions = [predictions]
     assert np.array_equal(
-        np.concatenate(predictions, axis=0), np.concatenate(prediction_batches, axis=0)
+        # stack predictions because there is no S axis
+        # squeeze to remove singleton S or C axes
+        np.stack(predictions, axis=0).squeeze(), 
+        np.concatenate(prediction_batches, axis=0).squeeze()
     )

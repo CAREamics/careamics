@@ -10,7 +10,7 @@ from pytorch_lightning.callbacks import Callback, EarlyStopping, ModelCheckpoint
 from careamics import CAREamist, Configuration, save_configuration
 from careamics.callbacks import HyperParametersCallback, ProgressBarCallback
 from careamics.config.support import SupportedAlgorithm, SupportedData
-
+from careamics.dataset.dataset_utils import reshape_array
 
 def random_array(shape: Tuple[int, ...], seed: int = 42):
     """Return a random array with values between 0 and 255."""
@@ -531,9 +531,8 @@ def test_predict_on_array_tiled(
     predicted = careamist.predict(
         train_array, batch_size=batch_size, tile_size=(16, 16), tile_overlap=(4, 4)
     )
-    predicted_squeeze = [p.squeeze() for p in predicted]
 
-    assert np.array(predicted_squeeze).shape == train_array.squeeze().shape
+    assert np.concatenate(predicted).shape == reshape_array(train_array, config.data_config.axes).shape
 
     # export to BMZ
     careamist.export_to_bmz(
@@ -572,7 +571,7 @@ def test_predict_arrays_no_tiling(
     # predict CAREamist
     predicted = careamist.predict(train_array, batch_size=batch_size)
 
-    assert np.concatenate(predicted).squeeze().shape == train_array.squeeze().shape
+    assert np.concatenate(predicted).shape == reshape_array(train_array, config.data_config.axes).shape
 
     # export to BMZ
     careamist.export_to_bmz(
@@ -658,7 +657,7 @@ def test_predict_tiled_channel(
         train_array, batch_size=batch_size, tile_size=(16, 16), tile_overlap=(4, 4)
     )
 
-    assert predicted.squeeze().shape == train_array.shape
+    assert np.concatenate(predicted).shape == reshape_array(train_array, config.data_config.axes).shape
 
 
 @pytest.mark.parametrize("tiled", [True, False])
@@ -738,7 +737,7 @@ def test_predict_pretrained_checkpoint(tmp_path: Path, pre_trained: Path):
     predicted = careamist.predict(source_array)
 
     # check that it predicted
-    assert predicted.squeeze().shape == source_array.shape
+    assert np.concatenate(predicted).shape == reshape_array(source_array, careamist.cfg.data_config.axes).shape
 
 
 def test_predict_pretrained_bmz(tmp_path: Path, pre_trained_bmz: Path):
@@ -751,9 +750,9 @@ def test_predict_pretrained_bmz(tmp_path: Path, pre_trained_bmz: Path):
 
     # predict
     predicted = careamist.predict(source_array)
-
+    # assert np.concatenate(predicted).shape == reshape_array(train_array, config.data_config.axes).shape
     # check that it predicted
-    assert predicted.squeeze().shape == source_array.shape
+    assert np.concatenate(predicted).shape == reshape_array(source_array, careamist.cfg.data_config.axes).shape
 
 
 def test_export_bmz_pretrained_prediction(tmp_path: Path, pre_trained: Path):
