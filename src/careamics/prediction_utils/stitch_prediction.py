@@ -1,8 +1,6 @@
 """Prediction utility functions."""
 
-from __future__ import annotations
-
-from types import EllipsisType
+import builtins
 from typing import List, Union
 
 import numpy as np
@@ -90,7 +88,7 @@ def stitch_prediction_single(
     for tile, tile_info in zip(tiles, tile_infos):
 
         # Compute coordinates for cropping predicted tile
-        crop_slices: tuple[Union[EllipsisType, slice], ...] = (
+        crop_slices: tuple[Union[builtins.ellipsis, slice], ...] = (
             ...,
             *[slice(c[0], c[1]) for c in tile_info.overlap_crop_coords],
         )
