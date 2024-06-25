@@ -8,7 +8,7 @@ from typing import Union
 
 import torch
 
-from ..config.architectures import CustomModel, UNetModel, VAEModel, get_custom_model
+from ..config.architectures import CustomModel, LVAEModel, UNetModel, get_custom_model
 from ..config.support import SupportedArchitecture
 from ..utils import get_logger
 from .unet import UNet
@@ -17,7 +17,7 @@ logger = get_logger(__name__)
 
 
 def model_factory(
-    model_configuration: Union[UNetModel, VAEModel, CustomModel]
+    model_configuration: Union[UNetModel, LVAEModel, CustomModel]
 ) -> torch.nn.Module:
     """
     Deep learning model factory.

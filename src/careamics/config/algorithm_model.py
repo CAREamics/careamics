@@ -8,7 +8,7 @@ from typing import Literal, Union
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from typing_extensions import Self
 
-from .architectures import CustomModel, UNetModel, VAEModel
+from .architectures import CustomModel, LVAEModel, UNetModel
 from .optimizer_models import LrSchedulerModel, OptimizerModel
 
 
@@ -30,7 +30,7 @@ class AlgorithmConfig(BaseModel):
         Algorithm to use.
     loss : Literal["n2v", "mae", "mse"]
         Loss function to use.
-    model : Union[UNetModel, VAEModel, CustomModel]
+    model : Union[UNetModel, LVAEModel, CustomModel]
         Model architecture to use.
     optimizer : OptimizerModel, optional
         Optimizer to use.
@@ -94,7 +94,9 @@ class AlgorithmConfig(BaseModel):
     # Mandatory fields
     algorithm: Literal["n2v", "care", "n2n", "custom"]  # defined in SupportedAlgorithm
     loss: Literal["n2v", "mae", "mse"]
-    model: Union[UNetModel, VAEModel, CustomModel] = Field(discriminator="architecture")
+    model: Union[UNetModel, LVAEModel, CustomModel] = Field(
+        discriminator="architecture"
+    )
 
     # Optional fields
     optimizer: OptimizerModel = OptimizerModel()
@@ -138,8 +140,8 @@ class AlgorithmConfig(BaseModel):
             if self.loss == "n2v":
                 raise ValueError("Supervised algorithms do not support loss `n2v`.")
 
-        if isinstance(self.model, VAEModel):
-            raise ValueError("VAE are currently not implemented.")
+        if isinstance(self.model, LVAEModel):
+            raise ValueError("LVAE are currently not implemented.")
 
         return self
 

@@ -71,7 +71,7 @@ class LadderVAE(nn.Module):
 
         # -------------------------------------------------------
         # Model attributes -> Hardcoded
-        self.model_type = ModelType.LadderVae
+        self.model_type = ModelType.LadderVae  # TODO remove ?
         self.encoder_blocks_per_layer = 1
         self.decoder_blocks_per_layer = 1
         self.bottomup_batchnorm = True
@@ -88,7 +88,7 @@ class LadderVAE(nn.Module):
         self.non_stochastic_version = False
         self.stochastic_skip = True
         self.learn_top_prior = True
-        self.res_block_type = "bacdbacd"
+        self.res_block_type = "bacdbacd"  # TODO remove !
         self.mode_pred = False
         self.logvar_lowerbound = -5
         self._var_clip_max = 20
