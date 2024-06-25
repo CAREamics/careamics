@@ -1,5 +1,7 @@
 """Prediction utility functions."""
 
+from __future__ import annotations
+
 from types import EllipsisType
 from typing import List, Union
 
