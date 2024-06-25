@@ -79,11 +79,10 @@ def stitch_prediction_single(
     predicted_image = np.zeros(input_shape, dtype=np.float32)
 
     for tile, tile_info in zip(tiles, tile_infos):
-        n_channels = tile.shape[0]
 
         # Compute coordinates for cropping predicted tile
-        slices = (slice(0, n_channels),) + tuple(
-            [slice(c[0], c[1]) for c in tile_info.overlap_crop_coords]
+        slices = (
+            ..., *[slice(c[0], c[1]) for c in tile_info.overlap_crop_coords]
         )
 
         # Crop predited tile according to overlap coordinates
