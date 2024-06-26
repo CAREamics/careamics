@@ -561,7 +561,9 @@ class CAREamist:
         `tile_size`.
 
         Test-time augmentation (TTA) can be switched off using the `tta_transforms`
-        parameter.
+        parameter. The TTA augmentation applies all possible flip and 90 degrees
+        rotations to the prediction input and averages the predictions. TTA augmentation
+        should not be used if you did not train with these augmentations.
 
         Note that if you are using a UNet model and tiling, the tile size must be
         divisible in every dimension by 2**d, where d is the depth of the model. This
