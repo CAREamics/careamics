@@ -176,6 +176,4 @@ def test_get_data_statistics(tmp_path):
 
     means, stds = data_module.get_data_statistics()
     assert np.allclose(means, data_mean)
-    assert np.allclose(
-        stds, data_std, rtol=0.1
-    )  # TODO remove rtol once Welfore is merged
+    assert np.allclose(stds, data_std)
