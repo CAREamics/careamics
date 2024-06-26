@@ -55,8 +55,8 @@ class DataConfig(BaseModel):
     ...     axes="YX"
     ... )
 
-    To change the mean and std of the data:
-    >>> data.set_mean_and_std(image_means=[214.3], image_stds=[84.5])
+    To change the image_means and image_stds of the data:
+    >>> data.set_means_and_stds(image_means=[214.3], image_stds=[84.5])
 
     One can pass also a list of transformations, by keyword, using the
     SupportedTransform value:
@@ -80,22 +80,38 @@ class DataConfig(BaseModel):
     )
 
     # Dataset configuration
-    data_type: Literal["array", "tiff", "custom"]  # As defined in SupportedData
-    patch_size: Union[list[int]] = Field(..., min_length=2, max_length=3)
-    batch_size: int = Field(default=1, ge=1, validate_default=True)
+    data_type: Literal["array", "tiff", "custom"]
+    """Type of input data, numpy.ndarray (array) or paths (tiff and custom), as defined
+    in SupportedData."""
+
     axes: str
+    """Axes of the data, as defined in SupportedAxes."""
+
+    patch_size: Union[list[int]] = Field(..., min_length=2, max_length=3)
+    """Patch size, as used during training."""
+
+    batch_size: int = Field(default=1, ge=1, validate_default=True)
+    """Batch size for training."""
 
     # Optional fields
     image_means: Optional[list[float]] = Field(
         default=None, min_length=0, max_length=32
     )
+    """Means of the data across channels, used for normalization."""
+
     image_stds: Optional[list[float]] = Field(default=None, min_length=0, max_length=32)
+    """Standard deviations of the data across channels, used for normalization."""
+
     target_means: Optional[list[float]] = Field(
         default=None, min_length=0, max_length=32
     )
+    """Means of the target data across channels, used for normalization."""
+
     target_stds: Optional[list[float]] = Field(
         default=None, min_length=0, max_length=32
     )
+    """Standard deviations of the target data across channels, used for
+    normalization."""
 
     transforms: list[TRANSFORMS_UNION] = Field(
         default=[
@@ -111,8 +127,11 @@ class DataConfig(BaseModel):
         ],
         validate_default=True,
     )
+    """List of transformations to apply to the data, available transforms are defined
+    in SupportedTransform. The default values are set for Noise2Void."""
 
     dataloader_params: Optional[dict] = None
+    """Dictionary of PyTorch dataloader parameters."""
 
     @field_validator("patch_size")
     @classmethod
@@ -346,7 +365,7 @@ class DataConfig(BaseModel):
         if self.has_n2v_manipulate():
             self.transforms.pop(-1)
 
-    def set_mean_and_std(
+    def set_means_and_stds(
         self,
         image_means: Union[NDArray, tuple, list, None],
         image_stds: Union[NDArray, tuple, list, None],
@@ -354,20 +373,20 @@ class DataConfig(BaseModel):
         target_stds: Optional[Union[NDArray, tuple, list, None]] = None,
     ) -> None:
         """
-        Set mean and standard deviation of the data.
+        Set mean and standard deviation of the data across channels.
 
         This method should be used instead setting the fields directly, as it would
         otherwise trigger a validation error.
 
         Parameters
         ----------
-        image_means : NDArray or tuple or list
+        image_means : numpy.ndarray ,tuple or list
             Mean values for normalization.
-        image_stds : NDArray or tuple or list
+        image_stds : numpy.ndarray, tuple or list
             Standard deviation values for normalization.
-        target_means : NDArray or tuple or list, optional
+        target_means : numpy.ndarray, tuple or list, optional
             Target mean values for normalization, by default ().
-        target_stds : NDArray or tuple or list, optional
+        target_stds : numpy.ndarray, tuple or list, optional
             Target standard deviation values for normalization, by default ().
         """
         # make sure we pass a list
