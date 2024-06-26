@@ -84,7 +84,7 @@ class CAREamicsModule(L.LightningModule):
         Any
             Output tensor.
         """
-        return self.model(x)
+        return self.model(x) #TODO Different model can have more than one output
 
     def training_step(self, batch: Tensor, batch_idx: Any) -> Any:
         """Training step.

@@ -7,7 +7,8 @@ This module contains a factory function for creating loss functions.
 from typing import Callable, Union
 
 from ..config.support import SupportedLoss
-from .losses import mae_loss, mse_loss, n2v_loss
+from .fcn.losses import mae_loss, mse_loss, n2v_loss
+from .lvae.losses import denoisplit_loss, musplit_loss
 
 
 # TODO add tests
@@ -42,8 +43,10 @@ def loss_factory(loss: Union[SupportedLoss, str]) -> Callable:
     elif loss == SupportedLoss.MSE:
         return mse_loss
 
-    # elif loss_type == SupportedLoss.DICE:
-    #     return dice_loss
+    elif loss == SupportedLoss.USPLIT:
+        return musplit_loss
 
+    elif loss == SupportedLoss.DENOISPLIT:
+        return denoisplit_loss
     else:
         raise NotImplementedError(f"Loss {loss} is not yet supported.")
