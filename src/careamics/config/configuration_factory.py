@@ -1,12 +1,11 @@
 """Convenience functions to create configurations for training and inference."""
 
-from typing import Any, Dict, List, Literal, Optional, Tuple
+from typing import Any, Dict, List, Literal, Optional
 
 from .algorithm_model import AlgorithmConfig
 from .architectures import UNetModel
 from .configuration_model import Configuration
 from .data_model import DataConfig
-from .inference_model import InferenceConfig
 from .support import (
     SupportedAlgorithm,
     SupportedArchitecture,
@@ -576,28 +575,30 @@ def create_n2v_configuration(
     return configuration
 
 
-def create_inference_configuration(
+def create_inference_parameters(
     configuration: Configuration,
-    tile_size: Optional[Tuple[int, ...]] = None,
-    tile_overlap: Optional[Tuple[int, ...]] = None,
+    tile_size: Optional[tuple[int, ...]] = None,
+    tile_overlap: Optional[tuple[int, ...]] = None,
     data_type: Optional[Literal["array", "tiff", "custom"]] = None,
     axes: Optional[str] = None,
     tta_transforms: bool = True,
-    batch_size: Optional[int] = 1,
-) -> InferenceConfig:
-    """
-    Create a configuration for inference with N2V.
+    batch_size: Optional[int] = None,
+) -> dict[str, Any]:
+    """Return inference parameters based on a full configuration.
 
-    If not provided, `data_type` and `axes` are taken from the training
+    If not provided, `data_type`, `axes` and `batch_size` are taken from the training
     configuration.
+
+    The tile and overlap sizes are compared to their constraints in the case of UNet
+    models.
 
     Parameters
     ----------
     configuration : Configuration
         Global configuration.
-    tile_size : Tuple[int, ...], optional
+    tile_size : tuple of int, optional
         Size of the tiles.
-    tile_overlap : Tuple[int, ...], optional
+    tile_overlap : tuple of int, optional
         Overlap of the tiles.
     data_type : str, optional
         Type of the data, by default "tiff".
@@ -610,8 +611,8 @@ def create_inference_configuration(
 
     Returns
     -------
-    InferenceConfiguration
-        Configuration used to configure CAREamicsPredictData.
+    dict
+        Dictionary of values used to configure a `TrainDataModule`.
     """
     if (
         configuration.data_config.image_means is None
@@ -641,13 +642,13 @@ def create_inference_configuration(
         if tile_overlap is None:
             raise ValueError("Tile overlap must be specified.")
 
-    return InferenceConfig(
-        data_type=data_type or configuration.data_config.data_type,
-        tile_size=tile_size,
-        tile_overlap=tile_overlap,
-        axes=axes or configuration.data_config.axes,
-        image_means=configuration.data_config.image_means,
-        image_stds=configuration.data_config.image_stds,
-        tta_transforms=tta_transforms,
-        batch_size=batch_size,
-    )
+    return {
+        "data_type": data_type or configuration.data_config.data_type,
+        "tile_size": tile_size,
+        "tile_overlap": tile_overlap,
+        "axes": axes or configuration.data_config.axes,
+        "image_means": configuration.data_config.image_means,
+        "image_stds": configuration.data_config.image_stds,
+        "tta_transforms": tta_transforms,
+        "batch_size": batch_size or configuration.data_config.batch_size,
+    }

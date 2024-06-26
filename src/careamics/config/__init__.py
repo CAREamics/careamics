@@ -12,11 +12,10 @@ __all__ = [
     "create_n2v_configuration",
     "create_n2n_configuration",
     "create_care_configuration",
+    "create_inference_parameters",
     "register_model",
     "CustomModel",
-    "create_inference_configuration",
     "clear_custom_models",
-    "ConfigurationInformation",
 ]
 
 from .algorithm_model import AlgorithmConfig
@@ -24,7 +23,7 @@ from .architectures import CustomModel, clear_custom_models, register_model
 from .callback_model import CheckpointModel
 from .configuration_factory import (
     create_care_configuration,
-    create_inference_configuration,
+    create_inference_parameters,
     create_n2n_configuration,
     create_n2v_configuration,
 )

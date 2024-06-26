@@ -5,6 +5,7 @@ from typing import Any, Callable, Literal, Optional, Union
 
 import numpy as np
 import pytorch_lightning as L
+from numpy.typing import NDArray
 from torch.utils.data import DataLoader
 
 from careamics.config import InferenceConfig
@@ -64,7 +65,7 @@ class PredictDataModule(L.LightningDataModule):
     def __init__(
         self,
         pred_config: InferenceConfig,
-        pred_data: Union[Path, str, np.ndarray],
+        pred_data: Union[Path, str, NDArray],
         read_source_func: Optional[Callable] = None,
         extension_filter: str = "",
         dataloader_params: Optional[dict] = None,
@@ -226,13 +227,13 @@ class PredictDataModule(L.LightningDataModule):
 
 
 def create_predict_datamodule(
-    pred_data: Union[str, Path, np.ndarray],
+    pred_data: Union[str, Path, NDArray],
     data_type: Union[Literal["array", "tiff", "custom"], SupportedData],
-    image_means=list[float],
-    image_stds=list[float],
+    axes: str,
+    image_means: list[float],
+    image_stds: list[float],
     tile_size: Optional[tuple[int, ...]] = None,
     tile_overlap: Optional[tuple[int, ...]] = None,
-    axes: str = "YX",
     batch_size: int = 1,
     tta_transforms: bool = True,
     read_source_func: Optional[Callable] = None,
@@ -246,20 +247,11 @@ def create_predict_datamodule(
 
     Since the lightning datamodule has no access to the model, make sure that the
     parameters passed to the datamodule are consistent with the model's requirements
-    and are coherent.
+    and are coherent. This can be done by creating a `Configuration` object beforehand
+    and passing its parameters to the different Lightning modules.
 
     The data module can be used with Path, str or numpy arrays. To use array data, set
     `data_type` to `array` and pass a numpy array to `train_data`.
-
-    The default transformations applied to the images are defined in
-    `careamics.config.inference_model`. To use different transformations, pass a list
-    of transforms. See examples
-    for more details.
-
-    The `mean` and `std` parameters are only used if Normalization is defined either
-    in the default transformations or in the `transforms` parameter. If you pass a
-    `Normalization` transform in a list as `transforms`, then the mean and std
-    parameters will be overwritten by those passed to this method.
 
     By default, CAREamics only supports types defined in
     `careamics.config.support.SupportedData`. To read custom data types, you can set
@@ -271,28 +263,22 @@ def create_predict_datamodule(
     dataloaders, except for `batch_size`, which is set by the `batch_size`
     parameter.
 
-    Note that if you are using a UNet model and tiling, the tile size must be
-    divisible in every dimension by 2**d, where d is the depth of the model. This
-    avoids artefacts arising from the broken shift invariance induced by the
-    pooling layers of the UNet. If your image has less dimensions, as it may
-    happen in the Z dimension, consider padding your image.
-
     Parameters
     ----------
     pred_data : str or pathlib.Path or numpy.ndarray
         Prediction data.
     data_type : {"array", "tiff", "custom"}
         Data type, see `SupportedData` for available options.
+    axes : str
+        Axes of the data, choosen among SCZYX.
     image_means : list of float
         Mean values for normalization, only used if Normalization is defined.
     image_stds : list of float
         Std values for normalization, only used if Normalization is defined.
-    tile_size : tuple of int
+    tile_size : tuple of int, optional
         Tile size, 2D or 3D tile size.
-    tile_overlap : tuple of int
+    tile_overlap : tuple of int, optional
         Tile overlap, 2D or 3D tile overlap.
-    axes : str
-        Axes of the data, choosen amongst SCZYX.
     batch_size : int
         Batch size.
     tta_transforms : bool, optional
@@ -310,6 +296,13 @@ def create_predict_datamodule(
     PredictDataModule
         CAREamics prediction datamodule.
 
+    Notes
+    -----
+    If you are using a UNet model and tiling, the tile size must be
+    divisible in every dimension by 2**d, where d is the depth of the model. This
+    avoids artefacts arising from the broken shift invariance induced by the
+    pooling layers of the UNet. If your image has less dimensions, as it may
+    happen in the Z dimension, consider padding your image.
     """
     if dataloader_params is None:
         dataloader_params = {}
@@ -321,9 +314,8 @@ def create_predict_datamodule(
         "axes": axes,
         "image_means": image_means,
         "image_stds": image_stds,
-        "tta": tta_transforms,
+        "tta_transforms": tta_transforms,
         "batch_size": batch_size,
-        "transforms": [],
     }
 
     # validate configuration

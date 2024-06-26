@@ -5,6 +5,7 @@ from typing import Any, Callable, Literal, Optional, Union
 
 import numpy as np
 import pytorch_lightning as L
+from numpy.typing import NDArray
 from torch.utils.data import DataLoader
 
 from careamics.config import DataConfig
@@ -118,10 +119,10 @@ class TrainDataModule(L.LightningDataModule):
     def __init__(
         self,
         data_config: DataConfig,
-        train_data: Union[Path, str, np.ndarray],
-        val_data: Optional[Union[Path, str, np.ndarray]] = None,
-        train_data_target: Optional[Union[Path, str, np.ndarray]] = None,
-        val_data_target: Optional[Union[Path, str, np.ndarray]] = None,
+        train_data: Union[Path, str, NDArray],
+        val_data: Optional[Union[Path, str, NDArray]] = None,
+        train_data_target: Optional[Union[Path, str, NDArray]] = None,
+        val_data_target: Optional[Union[Path, str, NDArray]] = None,
         read_source_func: Optional[Callable] = None,
         extension_filter: str = "",
         val_percentage: float = 0.1,
@@ -166,7 +167,7 @@ class TrainDataModule(L.LightningDataModule):
         NotImplementedError
             Raised if target data is provided.
         ValueError
-            If the input types are mixed (e.g. Path and np.ndarray).
+            If the input types are mixed (e.g. Path and numpy.ndarray).
         ValueError
             If the data type is `custom` and no `read_source_func` is provided.
         ValueError
@@ -223,21 +224,21 @@ class TrainDataModule(L.LightningDataModule):
         self.use_in_memory: bool = use_in_memory
 
         # data: make data Path or np.ndarray, use type annotations for mypy
-        self.train_data: Union[Path, np.ndarray] = (
+        self.train_data: Union[Path, NDArray] = (
             Path(train_data) if isinstance(train_data, str) else train_data
         )
 
-        self.val_data: Union[Path, np.ndarray] = (
+        self.val_data: Union[Path, NDArray] = (
             Path(val_data) if isinstance(val_data, str) else val_data
         )
 
-        self.train_data_target: Union[Path, np.ndarray] = (
+        self.train_data_target: Union[Path, NDArray] = (
             Path(train_data_target)
             if isinstance(train_data_target, str)
             else train_data_target
         )
 
-        self.val_data_target: Union[Path, np.ndarray] = (
+        self.val_data_target: Union[Path, NDArray] = (
             Path(val_data_target)
             if isinstance(val_data_target, str)
             else val_data_target
@@ -465,15 +466,15 @@ class TrainDataModule(L.LightningDataModule):
 
 
 def create_train_datamodule(
-    train_data: Union[str, Path, np.ndarray],
+    train_data: Union[str, Path, NDArray],
     data_type: Union[Literal["array", "tiff", "custom"], SupportedData],
     patch_size: list[int],
     axes: str,
     batch_size: int,
-    val_data: Optional[Union[str, Path, np.ndarray]] = None,
+    val_data: Optional[Union[str, Path, NDArray]] = None,
     transforms: Optional[list[TRANSFORMS_UNION]] = None,
-    train_target_data: Optional[Union[str, Path, np.ndarray]] = None,
-    val_target_data: Optional[Union[str, Path, np.ndarray]] = None,
+    train_target_data: Optional[Union[str, Path, NDArray]] = None,
+    val_target_data: Optional[Union[str, Path, NDArray]] = None,
     read_source_func: Optional[Callable] = None,
     extension_filter: str = "",
     val_percentage: float = 0.1,

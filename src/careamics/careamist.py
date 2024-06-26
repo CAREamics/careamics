@@ -15,19 +15,22 @@ from pytorch_lightning.loggers import TensorBoardLogger, WandbLogger
 
 from careamics.config import (
     Configuration,
+    create_inference_parameters,
     load_configuration,
 )
 from careamics.config.support import SupportedAlgorithm, SupportedData, SupportedLogger
 from careamics.dataset.dataset_utils import reshape_array
-from careamics.lightning.callbacks import ProgressBarCallback
-from careamics.lightning.lightning_module import CAREamicsModule
-from careamics.lightning.train_data_module import TrainDataModule
+from careamics.lightning import (
+    CAREamicsModule,
+    HyperParametersCallback,
+    PredictDataModule,
+    ProgressBarCallback,
+    TrainDataModule,
+    create_predict_datamodule,
+)
 from careamics.model_io import export_to_bmz, load_pretrained
-from careamics.prediction_utils import convert_outputs, create_pred_datamodule
+from careamics.prediction_utils import convert_outputs
 from careamics.utils import check_path_exists, get_logger
-
-from .lightning.callbacks import HyperParametersCallback
-from .lightning.predict_data_module import PredictDataModule
 
 logger = get_logger(__name__)
 
@@ -598,28 +601,27 @@ class CAREamist:
         list of NDArray or NDArray
             Predictions made by the model.
         """
-        # Reuse batch size if not provided explicitly
-        if batch_size is None:
-            batch_size = (
-                self.train_datamodule.batch_size
-                if self.train_datamodule
-                else self.cfg.data_config.batch_size
-            )
-
-        self.pred_datamodule = create_pred_datamodule(
-            source=source,
-            config=self.cfg,
-            batch_size=batch_size,
+        # create inference configuration using the main config
+        inference_dict: dict = create_inference_parameters(
+            configuration=self.cfg,
             tile_size=tile_size,
             tile_overlap=tile_overlap,
-            axes=axes,
             data_type=data_type,
+            axes=axes,
             tta_transforms=tta_transforms,
+            batch_size=batch_size,
+        )
+
+        # create the prediction
+        self.pred_datamodule = create_predict_datamodule(
+            pred_data=source,
             dataloader_params=dataloader_params,
             read_source_func=read_source_func,
             extension_filter=extension_filter,
+            **inference_dict,
         )
 
+        # predict
         predictions = self.trainer.predict(
             model=self.model, datamodule=self.pred_datamodule, ckpt_path=checkpoint
         )
