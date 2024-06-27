@@ -6,7 +6,7 @@ The current implementation is based on "Interpretable Unsupervised Diversity Den
 
 from typing import Dict, Iterable, List, Tuple, Union
 
-import ml_collections
+import ml_collections # TODO: refactor this out
 import numpy as np
 import torch
 import torch.nn as nn
@@ -28,7 +28,7 @@ class LadderVAE(nn.Module):
         self,
         data_mean: Union[np.ndarray, Dict[str, torch.Tensor]],
         data_std: Union[np.ndarray, Dict[str, torch.Tensor]],
-        config: ml_collections.ConfigDict,
+        # config: ml_collections.ConfigDict,
         use_uncond_mode_at: Iterable[int] = [],
         target_ch: int = 2,
     ):

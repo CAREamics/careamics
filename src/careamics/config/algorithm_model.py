@@ -92,8 +92,9 @@ class AlgorithmConfig(BaseModel):
     )
 
     # Mandatory fields
-    algorithm: Literal["n2v", "care", "n2n", "custom"]  # defined in SupportedAlgorithm
-    loss: Literal["n2v", "mae", "mse"]
+    # defined in SupportedAlgorithm
+    algorithm: Literal["n2v", "care", "n2n", "musplit", "denoisplit", "custom"]
+    loss: Literal["n2v", "mae", "mse", "musplit", "denoisplit"]
     model: Union[UNetModel, LVAEModel, CustomModel] = Field(
         discriminator="architecture"
     )
@@ -140,8 +141,25 @@ class AlgorithmConfig(BaseModel):
             if self.loss == "n2v":
                 raise ValueError("Supervised algorithms do not support loss `n2v`.")
 
-        if isinstance(self.model, LVAEModel):
-            raise ValueError("LVAE are currently not implemented.")
+        if self.algorithm == "musplit":
+            if self.loss != "musplit":
+                raise ValueError(
+                    f"Algorithm {self.algorithm} only supports loss `musplit`."
+                )
+            if self.model.architecture != "LVAE":
+                raise ValueError(
+                    f"Model for algorithm {self.algorithm} must be a `LVAEModel`."
+                )
+
+        if self.algorithm == "denoisplit":
+            if self.loss != "denoisplit":
+                raise ValueError(
+                    f"Algorithm {self.algorithm} only supports loss `denoisplit`."
+                )
+            if self.model.architecture != "LVAE":
+                raise ValueError(
+                    f"Model for algorithm {self.algorithm} must be a `LVAEModel`."
+                )
 
         return self
 

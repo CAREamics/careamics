@@ -43,10 +43,11 @@ def loss_factory(loss: Union[SupportedLoss, str]) -> Callable:
     elif loss == SupportedLoss.MSE:
         return mse_loss
 
-    elif loss == SupportedLoss.USPLIT:
+    elif loss == SupportedLoss.MUSPLIT:
         return musplit_loss
 
     elif loss == SupportedLoss.DENOISPLIT:
         return denoisplit_loss
+
     else:
         raise NotImplementedError(f"Loss {loss} is not yet supported.")

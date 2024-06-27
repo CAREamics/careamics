@@ -293,7 +293,7 @@ def denoisplit_loss(
     kl_start,
     kl_annealtime,
     kl_weight,
-    current_epoch, # TODO wrap this crap into a dataclass
+    current_epoch,  # TODO wrap this crap into a dataclass
 ):
     predictions, td_data = prediction_data
     recons_loss_dict, imgs = get_reconstruction_loss(
