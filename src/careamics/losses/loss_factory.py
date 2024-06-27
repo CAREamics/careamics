@@ -4,21 +4,40 @@ Loss factory module.
 This module contains a factory function for creating loss functions.
 """
 
+from torch import Tensor as tensor
 from typing import Callable, Union
-
+from dataclasses import dataclass
 from ..config.support import SupportedLoss
 from .fcn.losses import mae_loss, mse_loss, n2v_loss
 from .lvae.losses import denoisplit_loss, musplit_loss
 
 
-# TODO add tests
-# TODO add custom?
-def loss_factory(loss: Union[SupportedLoss, str]) -> Callable:
+#TODO Add similar dataclass fro Unet ?
+@dataclass
+class LVAELossParameters:
+    prediction: tensor
+    prediction_data: tensor
+    targets: tensor
+    inputs: tensor
+    mask: tensor
+    current_epoch: int
+    reconstruction_weight: float
+    denoisplit_weight: float
+    usplit_weight: float
+    kl_annealing: bool
+    kl_start: int
+    kl_annealtime: int
+    kl_weight: float
+    non_stochastic: bool
+
+
+
+def loss_factory(loss: Union[SupportedLoss: str]) -> Callable:
     """Return loss function.
 
     Parameters
     ----------
-    loss : Union[SupportedLoss, str]
+    loss : Union[SupportedLoss: str]
         Requested loss.
 
     Returns

@@ -292,7 +292,7 @@ def denoisplit_loss(
     kl_annealing,
     kl_start,
     kl_annealtime,
-    kl_weight,
+    kl_weight, # TODO what are all those params ? Document
     current_epoch,  # TODO wrap this crap into a dataclass
 ):
     predictions, td_data = prediction_data
