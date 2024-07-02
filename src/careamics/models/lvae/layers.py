@@ -117,7 +117,7 @@ class ResidualBlock(nn.Module):
                     bias=conv2d_bias,
                 )
                 modules.append(conv)
-                modules.append(nonlin())
+                modules.append(nonlin)
                 if batchnorm:
                     modules.append(nn.BatchNorm2d(channels))
                 if dropout is not None:
@@ -126,7 +126,7 @@ class ResidualBlock(nn.Module):
             for i in range(2):
                 if batchnorm:
                     modules.append(nn.BatchNorm2d(channels))
-                modules.append(nonlin())
+                modules.append(nonlin)
                 conv = nn.Conv2d(
                     channels,
                     channels,
@@ -142,7 +142,7 @@ class ResidualBlock(nn.Module):
             for i in range(2):
                 if batchnorm:
                     modules.append(nn.BatchNorm2d(channels))
-                modules.append(nonlin())
+                modules.append(nonlin)
                 conv = nn.Conv2d(
                     channels,
                     channels,
@@ -189,7 +189,7 @@ class GateLayer2d(nn.Module):
         assert kernel_size % 2 == 1
         pad = kernel_size // 2
         self.conv = nn.Conv2d(channels, 2 * channels, kernel_size, padding=pad)
-        self.nonlin = nonlin()
+        self.nonlin = nonlin
 
     def forward(self, x):
         x = self.conv(x)

@@ -85,6 +85,49 @@ def minimum_algorithm_supervised() -> dict:
 
 
 @pytest.fixture
+def minimum_algorithm_musplit() -> dict:
+    """Create a minimum algorithm dictionary.
+
+    Returns
+    -------
+    dict
+        A minimum algorithm example.
+    """
+    # create dictionary
+    algorithm = {
+        "algorithm": "musplit",
+        "loss": "musplit",
+        "model": {
+            "architecture": "LVAE",
+            "enable_noise_model": False,
+        },
+    }
+
+    return algorithm
+
+
+@pytest.fixture
+def minimum_algorithm_denoisplit() -> dict:
+    """Create a minimum algorithm dictionary.
+
+    Returns
+    -------
+    dict
+        A minimum algorithm example.
+    """
+    # create dictionary
+    algorithm = {
+        "algorithm": "denoisplit",
+        "loss": "denoisplit",
+        "model": {
+            "architecture": "LVAE",
+        },
+    }
+
+    return algorithm
+
+
+@pytest.fixture
 def minimum_data() -> dict:
     """Create a minimum data dictionary.
 

@@ -1,7 +1,12 @@
 ##### REQUIRED Methods for Loss Computation #####
+from typing import TYPE_CHECKING
+
 import numpy as np
 import torch
 
+if TYPE_CHECKING:
+    from careamics.lightning_module import CAREamicsModuleWrapper
+    print('sdfdsfds')
 from careamics.losses.lvae.loss_utils import free_bits_kl, get_kl_weight
 from careamics.models.lvae.likelihoods import LikelihoodModule
 from careamics.models.lvae.utils import compute_batch_mean
@@ -232,34 +237,39 @@ def get_kl_divergence_loss(topdown_layer_data_dict, img_shape, kl_key="kl"):
 # mask = torch.isnan(target.reshape(len(x), -1)).all(dim=1)
 
 
-def musplit_loss(
-    prediction_data,
-    targets,
-    inputs,
-    mask,
-    reconstruction_weight,
-    kl_annealing,
-    kl_start,
-    kl_annealtime,
-    kl_weight,
-    current_epoch,
-):
-    predictions, td_data = prediction_data
+def musplit_loss(module: "CAREamicsModuleWrapper") -> dict:
+    """Loss function for MuSplit.
+
+    Parameters
+    ----------
+    module : "CAREamicsModuleWrapper"
+        This function is called from the "CAREamicsModuleWrapper".
+
+    Returns
+    -------
+    dict
+        _description_
+    """
+    predictions, td_data = module.prediction_data
     recons_loss_dict, imgs = get_reconstruction_loss(
         reconstruction=predictions,
-        target=targets,
-        input=inputs,
-        splitting_mask=mask,
+        target=module.targets,
+        input=module.inputs,
+        splitting_mask=module.mask,
         return_predicted_img=True,
     )
 
-    recons_loss = recons_loss_dict["loss"] * reconstruction_weight
+    recons_loss = recons_loss_dict["loss"] * module.reconstruction_weight
 
     if torch.isnan(recons_loss).any():
         recons_loss = 0.0
 
     kl_loss = get_kl_weight(
-        kl_annealing, kl_start, kl_annealtime, kl_weight, current_epoch
+        module.kl_annealing,
+        module.kl_start,
+        module.kl_annealtime,
+        module.kl_weight,
+        module.current_epoch,
     ) * get_kl_divergence_loss_usplit(td_data)
 
     net_loss = recons_loss + kl_loss
@@ -280,36 +290,36 @@ def musplit_loss(
     return output
 
 
-def denoisplit_loss(
-    prediction_data,
-    targets,
-    inputs,
-    mask,
-    reconstruction_weight,
-    non_stochastic,
-    denoisplit_weight,
-    usplit_weight,
-    kl_annealing,
-    kl_start,
-    kl_annealtime,
-    kl_weight, # TODO what are all those params ? Document
-    current_epoch,  # TODO wrap this crap into a dataclass
-):
-    predictions, td_data = prediction_data
+def denoisplit_loss(module: "CAREamicsModuleWrapper") -> dict:
+    """Loss function for DenoiSplit.
+
+    Parameters
+    ----------
+    module : "CAREamicsModuleWrapper"
+        "CAREamicsModuleWrapper" instance. This function is called from the "CAREamicsModuleWrapper".
+
+    Returns
+    -------
+    dict
+        _description_
+    """
+    # TODO what are all those params ? Document
+
+    predictions, td_data = module.prediction_data
     recons_loss_dict, imgs = get_reconstruction_loss(
         reconstruction=predictions,
-        target=targets,
-        input=inputs,
-        splitting_mask=mask,
+        target=module.targets,
+        input=module.inputs,
+        splitting_mask=module.mask,
         return_predicted_img=True,
     )
 
-    recons_loss = recons_loss_dict["loss"] * reconstruction_weight
+    recons_loss = recons_loss_dict["loss"] * module.reconstruction_weight
 
     if torch.isnan(recons_loss).any():
         recons_loss = 0.0
 
-    if non_stochastic:  # TODO always false ?
+    if module.non_stochastic:  # TODO always false ?
         kl_loss = torch.Tensor([0.0]).cuda()
         net_loss = recons_loss
     else:
@@ -319,12 +329,20 @@ def denoisplit_loss(
             topdown_layer_data_dict=td_data, kl_key="kl"  # TODO hardcoded
         )
         usplit_kl = get_kl_divergence_loss_usplit(topdown_layer_data_dict=td_data)
-        kl_loss = denoisplit_weight * denoisplit_kl + usplit_weight * usplit_kl
+        kl_loss = (
+            module.denoisplit_weight * denoisplit_kl + module.usplit_weight * usplit_kl
+        )
         # TODO kl_weight is hardcoded
-        recons_loss = reconstruction_loss_musplit_denoisplit(predictions, targets)
+        recons_loss = reconstruction_loss_musplit_denoisplit(
+            predictions, module.targets
+        )
         # recons_loss = _denoisplit_w * recons_loss_nm + _usplit_w * recons_loss_gm
         kl_loss = get_kl_weight(
-            kl_annealing, kl_start, kl_annealtime, kl_weight, current_epoch
+            module.kl_annealing,
+            module.kl_start,
+            module.kl_annealtime,
+            module.kl_weight,
+            module.current_epoch,
         ) * get_kl_divergence_loss(td_data)
         net_loss = recons_loss + kl_loss
 

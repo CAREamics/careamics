@@ -14,6 +14,9 @@ from careamics.config.support import (
     SupportedScheduler,
 )
 from careamics.losses import loss_factory
+from careamics.losses.loss_factory import (
+    loss_parameters_factory,
+)
 from careamics.models.model_factory import model_factory
 from careamics.transforms import Denormalize, ImageRestorationTTA
 from careamics.utils.torch_utils import get_optimizer, get_scheduler
@@ -63,6 +66,7 @@ class CAREamicsModule(L.LightningModule):
 
         # create model and loss function
         self.model: nn.Module = model_factory(algorithm_config.model)
+        self.loss_parameters = loss_parameters_factory(algorithm_config.loss)
         self.loss_func = loss_factory(algorithm_config.loss)
 
         # save optimizer and lr_scheduler names and parameters
@@ -103,6 +107,8 @@ class CAREamicsModule(L.LightningModule):
         """
         x, *aux = batch
         out = self.model(x)
+        self.loss_parameters.prediction = out
+
         loss = self.loss_func(out, *aux)
         self.log(
             "train_loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True

@@ -4,13 +4,15 @@ Ladder VAE (LVAE) Model
 The current implementation is based on "Interpretable Unsupervised Diversity Denoising and Artefact Removal, Prakash et al."
 """
 
-from typing import Dict, Iterable, List, Tuple, Union
+from collections.abc import Iterable
+from typing import Dict, List, Tuple
 
-import ml_collections # TODO: refactor this out
+import ml_collections  # TODO: refactor this out
 import numpy as np
 import torch
 import torch.nn as nn
 
+from ..activation import get_activation
 from .layers import (
     BottomUpDeterministicResBlock,
     BottomUpLayer,
@@ -18,7 +20,6 @@ from .layers import (
     TopDownLayer,
 )
 from .likelihoods import GaussianLikelihood, NoiseModelLikelihood
-from .noise_models import get_noise_model
 from .utils import Interpolate, LossType, ModelType, crop_img_tensor, pad_img_tensor
 
 
@@ -26,47 +27,43 @@ class LadderVAE(nn.Module):
 
     def __init__(
         self,
-        data_mean: Union[np.ndarray, Dict[str, torch.Tensor]],
-        data_std: Union[np.ndarray, Dict[str, torch.Tensor]],
-        # config: ml_collections.ConfigDict,
-        use_uncond_mode_at: Iterable[int] = [],
-        target_ch: int = 2,
+        input_shape: int,
+        output_channels: int,
+        multiscale_count: int,
+        z_dims: List[int],
+        encoder_n_filters: int,
+        decoder_n_filters: int,
+        encoder_dropout: float,
+        decoder_dropout: float,
+        nonlinearity: str,
+        predict_logvar: bool,
+        enable_noise_model: bool,
+        analytical_kl: bool,
     ):
         """
         Constructor.
 
         Parameters
         ----------
-        data_mean: Union[np.ndarray, Dict[str, torch.Tensor]]
-            The mean of the data used for normalization.
-        data_std: Union[np.ndarray, Dict[str, torch.Tensor]]
-            The standard deviation of the data used for normalization.
-        config: ml_collections.ConfigDict
-            The configuration object of the model.
-        use_uncond_mode_at: Iterable[int], optional
-            A sequence of indexes associated to the layers in which sampling is disabled
-            and the mode (mean value) is used instead. Default is `[]`.
-        target_ch: int, optional
-            The number of target channels (e.g., 1 for super-resolution or 2 for splitting).
-            Default is `2`.
+
         """
         super().__init__()
 
         # -------------------------------------------------------
         # Customizable attributes
-        self.image_size = config.data.image_size
-        self._multiscale_count = config.data.multiscale_lowres_count
-        self.z_dims = config.model.z_dims
-        self.encoder_n_filters = config.model.n_filters
-        self.decoder_n_filters = config.model.n_filters
-        self.encoder_dropout = config.model.dropout
-        self.decoder_dropout = config.model.dropout
-        self.nonlin = config.model.nonlin
-        self.predict_logvar = config.model.predict_logvar
-        self.enable_noise_model = config.model.enable_noise_model
-        self.noise_model_ch1_fpath = config.model.noise_model_ch1_fpath
-        self.noise_model_ch2_fpath = config.model.noise_model_ch2_fpath
-        self.analytical_kl = config.model.analytical_kl
+        self.image_size = input_shape
+        self.target_ch = output_channels
+        self._multiscale_count = multiscale_count
+        self.z_dims = z_dims
+        self.encoder_n_filters = encoder_n_filters
+        self.decoder_n_filters = decoder_n_filters
+        self.encoder_dropout = encoder_dropout
+        self.decoder_dropout = decoder_dropout
+        self.nonlin = nonlinearity
+        self.predict_logvar = predict_logvar
+        self.enable_noise_model = enable_noise_model
+
+        self.analytical_kl = analytical_kl
         # -------------------------------------------------------
 
         # -------------------------------------------------------
@@ -151,8 +148,6 @@ class LadderVAE(nn.Module):
         self.mixed_rec_w = 0
         self.nbr_consistency_w = 0
 
-        # Setting the loss_type
-        self.loss_type = config.loss.get("loss_type", LossType.DenoiSplitMuSplit)
         # -------------------------------------------------------
 
         # -------------------------------------------------------
@@ -167,51 +162,6 @@ class LadderVAE(nn.Module):
         # -------------------------------------------------------
 
         # -------------------------------------------------------
-        # Attributes from constructor arguments
-        self.target_ch = target_ch
-        self.use_uncond_mode_at = use_uncond_mode_at
-
-        # Data mean and std used for normalization
-        if isinstance(data_mean, np.ndarray):
-            self.data_mean = torch.Tensor(data_mean)
-            self.data_std = torch.Tensor(data_std)
-        elif isinstance(data_mean, dict):
-            for k in data_mean.keys():
-                data_mean[k] = (
-                    torch.Tensor(data_mean[k])
-                    if not isinstance(data_mean[k], dict)
-                    else data_mean[k]
-                )
-                data_std[k] = (
-                    torch.Tensor(data_std[k])
-                    if not isinstance(data_std[k], dict)
-                    else data_std[k]
-                )
-            self.data_mean = data_mean
-            self.data_std = data_std
-        else:
-            raise NotImplementedError(
-                "data_mean and data_std must be either a numpy array or a dictionary"
-            )
-
-        assert self.data_std is not None
-        assert self.data_mean is not None
-
-        # Initialize the Noise Model
-        self.likelihood_gm = self.likelihood_NM = None
-        self.noiseModel = get_noise_model(
-            enable_noise_model=self.enable_noise_model,
-            model_type=self.model_type,
-            noise_model_type=self.noise_model_type,
-            noise_model_ch1_fpath=self.noise_model_ch1_fpath,
-            noise_model_ch2_fpath=self.noise_model_ch2_fpath,
-            noise_model_learnable=self.noise_model_learnable,
-        )
-
-        if self.noiseModel is None:
-            self.likelihood_form = "gaussian"
-        else:
-            self.likelihood_form = "noise_model"
 
         # Calculate the downsampling happening in the network
         self.downsample = [1] * self.n_layers
@@ -288,7 +238,7 @@ class LadderVAE(nn.Module):
         num_res_blocks: int, optional
             The number of BottomUpDeterministicResBlocks to include in the layer, default is 1.
         """
-        nonlin = self.get_nonlin()
+        nonlin = get_activation(self.nonlin)
         modules = [
             nn.Conv2d(
                 in_channels=self.color_ch,
@@ -301,7 +251,7 @@ class LadderVAE(nn.Module):
                 ),
                 stride=init_stride,
             ),
-            nonlin(),
+            nonlin,
         ]
 
         for _ in range(num_res_blocks):
@@ -337,7 +287,7 @@ class LadderVAE(nn.Module):
             not (`True`) with the "same-size" residual block(s) in the `BottomUpLayer`'s primary flow.
         """
         multiscale_lowres_size_factor = 1
-        nonlin = self.get_nonlin()
+        nonlin = get_activation(self.nonlin)
 
         bottom_up_layers = nn.ModuleList([])
         for i in range(self.n_layers):
@@ -409,7 +359,7 @@ class LadderVAE(nn.Module):
         ----------
         """
         top_down_layers = nn.ModuleList([])
-        nonlin = self.get_nonlin()
+        nonlin = get_activation(self.nonlin)
         # NOTE: top-down layers are created starting from the bottom-most
         for i in range(self.n_layers):
             # Check if this is the top layer
@@ -477,7 +427,7 @@ class LadderVAE(nn.Module):
                 TopDownDeterministicResBlock(
                     c_in=self.decoder_n_filters,
                     c_out=self.decoder_n_filters,
-                    nonlin=self.get_nonlin(),
+                    nonlin=get_activation(self.nonlin),
                     batchnorm=self.topdown_batchnorm,
                     dropout=self.decoder_dropout,
                     res_block_type=self.res_block_type,
@@ -494,27 +444,24 @@ class LadderVAE(nn.Module):
         This method defines the likelihood module for the current LVAE model.
         The existing likelihood modules are `GaussianLikelihood` and `NoiseModelLikelihood`.
         """
-        self.likelihood_gm = GaussianLikelihood(
-            self.decoder_n_filters,
-            self.target_ch,
-            predict_logvar=self.predict_logvar,
-            logvar_lowerbound=self.logvar_lowerbound,
-            conv2d_bias=self.topdown_conv2d_bias,
-        )
-
-        self.likelihood_NM = None
         if self.enable_noise_model:
-            self.likelihood_NM = NoiseModelLikelihood(
+            raise NotImplementedError("Noise model not implemented yet.")
+            # self.likelihood_NM = NoiseModelLikelihood(
+            #     self.decoder_n_filters,
+            #     self.target_ch,
+            #     self.data_mean,
+            #     self.data_std,
+            #     self.noiseModel,
+            # )
+        else:
+            self.likelihood_gm = GaussianLikelihood(
                 self.decoder_n_filters,
                 self.target_ch,
-                self.data_mean,
-                self.data_std,
-                self.noiseModel,
+                predict_logvar=self.predict_logvar,
+                logvar_lowerbound=self.logvar_lowerbound,
+                conv2d_bias=self.topdown_conv2d_bias,
             )
-        if self.loss_type == LossType.DenoiSplitMuSplit or self.likelihood_NM is None:
             return self.likelihood_gm
-
-        return self.likelihood_NM
 
     def _init_multires(self, config: ml_collections.ConfigDict = None) -> nn.ModuleList:
         """
@@ -531,7 +478,7 @@ class LadderVAE(nn.Module):
         In other terms if we have the input patch and n_LC additional lateral inputs, we will have a total of (n_LC + 1) inputs.
         """
         stride = 1 if self.no_initial_downscaling else 2
-        nonlin = self.get_nonlin()
+        nonlin = get_activation(self.nonlin)
         if self._multiscale_count is None:
             self._multiscale_count = 1
 
@@ -556,7 +503,7 @@ class LadderVAE(nn.Module):
                     padding=2,
                     stride=stride,
                 ),
-                nonlin(),
+                nonlin,
                 BottomUpDeterministicResBlock(
                     c_in=self.encoder_n_filters,
                     c_out=self.encoder_n_filters,
@@ -742,7 +689,6 @@ class LadderVAE(nn.Module):
             # Whether the current layer should be sampled from the mode
             use_mode = i in mode_layers
             constant_out = i in constant_layers
-            use_uncond_mode = i in self.use_uncond_mode_at
 
             # Input for skip connection
             skip_input = out  # TODO or n? or both?
@@ -758,7 +704,6 @@ class LadderVAE(nn.Module):
                 force_constant_output=constant_out,
                 forced_latent=forced_latent[i],
                 mode_pred=self.mode_pred,
-                use_uncond_mode=use_uncond_mode,
                 var_clip_max=self._var_clip_max,
             )
 
@@ -898,15 +843,6 @@ class LadderVAE(nn.Module):
         return x
 
     ### SET OF GETTERS
-    def get_nonlin(self):
-        nonlin = {
-            "relu": nn.ReLU,
-            "leakyrelu": nn.LeakyReLU,
-            "elu": nn.ELU,
-            "selu": nn.SELU,
-        }
-        return nonlin[self.nonlin]
-
     def get_padded_size(self, size):
         """
         Returns the smallest size (H, W) of the image with actual size given

@@ -4,35 +4,79 @@ Loss factory module.
 This module contains a factory function for creating loss functions.
 """
 
-from torch import Tensor as tensor
-from typing import Callable, Union
 from dataclasses import dataclass
+from typing import Callable, Union
+
+from torch import Tensor as tensor
+
 from ..config.support import SupportedLoss
 from .fcn.losses import mae_loss, mse_loss, n2v_loss
 from .lvae.losses import denoisplit_loss, musplit_loss
 
 
-#TODO Add similar dataclass fro Unet ?
+@dataclass
+class FCNLossParameters:
+    """Dataclass for FCN loss."""
+
+    # TODO check
+    prediction: tensor
+    targets: tensor
+    mask: tensor
+    current_epoch: int
+    loss_weight: float
+
+
 @dataclass
 class LVAELossParameters:
+    """Dataclass for LVAE loss."""
+
     prediction: tensor
-    prediction_data: tensor
+    prediction_data: tensor # td_data
     targets: tensor
     inputs: tensor
     mask: tensor
     current_epoch: int
-    reconstruction_weight: float
-    denoisplit_weight: float
-    usplit_weight: float
-    kl_annealing: bool
-    kl_start: int
-    kl_annealtime: int
-    kl_weight: float
-    non_stochastic: bool
+    reconstruction_weight: float = 1.0
+    usplit_weight: float = 0.0
+    denoisplit_weight: float = 1.0
+    kl_annealing: bool = False
+    kl_start: int = -1
+    kl_annealtime: int = 10
+    kl_weight: float = 1.0
+    non_stochastic: bool = False
 
 
+def loss_parameters_factory(
+    type: SupportedLoss,
+) -> Union[FCNLossParameters, LVAELossParameters]:
+    """Return loss parameters.
 
-def loss_factory(loss: Union[SupportedLoss: str]) -> Callable:
+    Parameters
+    ----------
+    type : SupportedLoss
+        Requested loss.
+
+    Returns
+    -------
+    Union[FCNLossParameters, LVAELossParameters]
+        Loss parameters.
+
+    Raises
+    ------
+    NotImplementedError
+        If the loss is unknown.
+    """
+    if type in [SupportedLoss.N2V, SupportedLoss.MSE, SupportedLoss.MAE]:
+        return FCNLossParameters
+
+    elif type in [SupportedLoss.MUSPLIT, SupportedLoss.DENOISPLIT]:
+        return LVAELossParameters
+
+    else:
+        raise NotImplementedError(f"Loss {type} is not yet supported.")
+
+
+def loss_factory(loss: Union[SupportedLoss, str]) -> Callable:
     """Return loss function.
 
     Parameters

@@ -2,7 +2,8 @@
 
 from typing import Literal
 
-from pydantic import ConfigDict, Field, field_validator
+from pydantic import ConfigDict, Field, field_validator, model_validator
+from typing_extensions import Self
 
 from .architecture_model import ArchitectureModel
 
@@ -16,10 +17,10 @@ class LVAEModel(ArchitectureModel):
 
     architecture: Literal["LVAE"]
     input_shape: int = Field(default=64, ge=8, le=1024)
-    # multiscale_count = Field() # TODO clarify
-    # 0 - off, 1 - len(z_dims)
+    multiscale_count: int = Field(default=3)  # TODO clarify
+    # 0 - off, len(z_dims) - 1
     z_dims: tuple = Field(default=(128, 128, 128, 128), validate_default=True)
-    num_channels: int = Field(default=1, ge=1, validate_default=True)
+    output_channels: int = Field(default=1, ge=1, validate_default=True)
     encoder_n_filters: int = Field(default=64, ge=8, le=1024, validate_default=True)
     decoder_n_filters: int = Field(default=64, ge=8, le=1024, validate_default=True)
     encoder_dropout: float = Field(default=0.1, ge=0.0, le=0.9, validate_default=True)
@@ -28,7 +29,7 @@ class LVAEModel(ArchitectureModel):
         "None", "Sigmoid", "Softmax", "Tanh", "ReLU", "LeakyReLU", "ELU"
     ] = Field(default="ELU", validate_default=True)
 
-    predict_logvar: bool = Field(default=False, validate_default=True)
+    predict_logvar: Literal[None, "global", "pixelwise", "channelwise"] = None
     enable_noise_model: bool = Field(default=True, validate_default=True)
     analytical_kl: bool = Field(default=False, validate_default=True)
 
@@ -118,6 +119,30 @@ class LVAEModel(ArchitectureModel):
             )
 
         return z_dims
+
+    @model_validator(mode="after")
+    def validate_multiscale_count(cls, self: Self) -> Self:
+        """
+        Validate the multiscale count.
+
+        Parameters
+        ----------
+        self : Self
+            The model.
+
+        Returns
+        -------
+        Self
+            The validated model.
+        """
+        if self.multiscale_count != 0:
+            if self.multiscale_count != len(self.z_dims) - 1:
+                raise ValueError(
+                    f"Multiscale count must be 0 or equal to the number of Z dimensions"
+                    f" - 1 (got {self.multiscale_count} and {len(self.z_dims)})."
+                )
+
+        return self
 
     def set_3D(self, is_3D: bool) -> None:
         """
