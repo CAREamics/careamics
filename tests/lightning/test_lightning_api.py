@@ -130,4 +130,4 @@ def test_smoke_n2v_2d_tiling(tmp_path, minimum_configuration):
     # predict
     predicted = trainer.predict(model, datamodule=predict_data)
     predicted_stitched = convert_outputs(predicted, tiled=True)
-    assert predicted_stitched.shape == val_array.shape
+    assert predicted_stitched[0].shape[-2:] == val_array.shape
