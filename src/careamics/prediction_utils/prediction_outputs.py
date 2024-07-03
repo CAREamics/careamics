@@ -34,21 +34,10 @@ def convert_outputs(
     # this layout is to stop mypy complaining
     if tiled:
         predictions_comb = combine_batches(predictions, tiled)
-        # remove sample dimension (always 1) `stitch_predict` func expects no S dim
-        tiles = [pred[0] for pred in predictions_comb[0]]
-        tile_infos = predictions_comb[1]
-        predictions_output = stitch_prediction(tiles, tile_infos)
+        predictions_output = stitch_prediction(*predictions_comb)
     else:
         predictions_output = combine_batches(predictions, tiled)
 
-    # TODO: add this in? Returns output with same axes as input
-    # Won't work with tiling rn because stitch_prediction func removes S axis
-    # predictions = reshape(predictions, axes)
-    # At least make sure stitched prediction and non-tiled prediction have matching axes
-
-    # TODO: might want to remove this
-    if len(predictions_output) == 1:
-        return predictions_output[0]
     return predictions_output
 
 
@@ -94,7 +83,7 @@ def combine_batches(
     if tiled:
         return _combine_tiled_batches(predictions)
     else:
-        return _combine_untiled_batches(predictions)
+        return _combine_array_batches(predictions)
 
 
 def _combine_tiled_batches(
@@ -105,8 +94,11 @@ def _combine_tiled_batches(
 
     Parameters
     ----------
-    predictions : list
-        Predictions that are output from `Trainer.predict`.
+    predictions : list of (numpy.ndarray, list of TileInformation)
+        Predictions that are output from `Trainer.predict`. For tiled batches, this is
+        a list of tuples. The first element of the tuples is the prediction output of
+        tiles with dimension (B, C, (Z), Y, X), where B is batch size. The second
+        element of the tuples is a list of TileInformation objects of length B.
 
     Returns
     -------
@@ -117,49 +109,27 @@ def _combine_tiled_batches(
     tile_infos = [
         tile_info for _, tile_info_list in predictions for tile_info in tile_info_list
     ]
-    prediction_tiles: List[NDArray] = _combine_untiled_batches(
+    prediction_tiles: List[NDArray] = _combine_array_batches(
         [preds for preds, _ in predictions]
     )
     return prediction_tiles, tile_infos
 
 
-def _combine_untiled_batches(predictions: List[NDArray]) -> List[NDArray]:
+def _combine_array_batches(predictions: List[NDArray]) -> List[NDArray]:
     """
-    Combine batches from un-tiled output.
-
-    Parameters
-    ----------
-        predictions : list
-            Predictions that are output from `Trainer.predict`.
-
-    Returns
-    -------
-        list of nunpy.ndarray
-            Combined batches.
-    """
-    prediction_concat: NDArray = np.concatenate(predictions, axis=0)
-    prediction_split = np.split(prediction_concat, prediction_concat.shape[0], axis=0)
-    return prediction_split
-
-
-def reshape(predictions: List[NDArray], axes: str) -> List[NDArray]:
-    """
-    Reshape predictions to have dimensions of input.
+    Combine batches of arrays.
 
     Parameters
     ----------
     predictions : list
-        Predictions that are output from `Trainer.predict`.
-    axes : str
-        Axes SC(Z)YX.
+        Prediction arrays that are output from `Trainer.predict`. A list of arrays that
+        have dimensions (B, C, (Z), Y, X), where B is batch size.
 
     Returns
     -------
-    List[NDArray]
-        Reshaped predicitions.
+    list of numpy.ndarray
+        A list of arrays with dimensions (1, C, (Z), Y, X).
     """
-    if "C" not in axes:
-        predictions = [pred[:, 0] for pred in predictions]
-    if "S" not in axes:
-        predictions = [pred[0] for pred in predictions]
-    return predictions
+    prediction_concat: NDArray = np.concatenate(predictions, axis=0)
+    prediction_split = np.split(prediction_concat, prediction_concat.shape[0], axis=0)
+    return prediction_split
