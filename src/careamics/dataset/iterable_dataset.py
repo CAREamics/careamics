@@ -82,9 +82,9 @@ class PathIterableDataset(IterableDataset):
             )
 
             # update the mean in the config
-            self.data_config.set_mean_and_std(
-                image_means=self.image_stats.means,
-                image_stds=self.image_stats.stds,
+            self.data_config.set_means_and_stds(
+                image_means=self.data_stats.image_stats.means,
+                image_stds=self.data_stats.image_stats.stds,
                 target_means=(
                     list(self.target_stats.means)
                     if self.target_stats.means is not None

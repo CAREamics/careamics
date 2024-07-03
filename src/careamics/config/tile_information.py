@@ -19,10 +19,20 @@ class TileInformation(BaseModel):
     model_config = ConfigDict(validate_default=True)
 
     array_shape: tuple[int, ...]
+    """Shape of the original (untiled) array."""
+
     last_tile: bool = False
+    """Whether this tile is the last one of the array."""
+
     overlap_crop_coords: tuple[tuple[int, ...], ...]
+    """Inner coordinates of the tile where to crop the prediction in order to stitch
+    it back into the original image."""
+
     stitch_coords: tuple[tuple[int, ...], ...]
+    """Coordinates in the original image where to stitch the cropped tile back."""
+
     sample_id: int
+    """Sample ID of the tile."""
 
     @field_validator("array_shape")
     @classmethod

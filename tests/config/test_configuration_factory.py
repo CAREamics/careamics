@@ -552,7 +552,7 @@ def test_inference_config():
         batch_size=8,
         num_epochs=100,
     )
-    config.data_config.set_mean_and_std([0.5], [0.2])
+    config.data_config.set_means_and_stds([0.5], [0.2])
 
     inf_dict = create_inference_parameters(
         configuration=config,
@@ -570,7 +570,7 @@ def test_inference_tile_size():
         batch_size=8,
         num_epochs=100,
     )
-    config.data_config.set_mean_and_std([0.5], [0.2])
+    config.data_config.set_means_and_stds([0.5], [0.2])
 
     # check UNet depth, tile increment must then be a factor of 4
     assert config.algorithm_config.model.depth == 2
@@ -603,7 +603,7 @@ def test_inference_tile_no_overlap():
         batch_size=8,
         num_epochs=100,
     )
-    config.data_config.set_mean_and_std([0.5], [0.2])
+    config.data_config.set_means_and_stds([0.5], [0.2])
 
     with pytest.raises(ValueError):
         create_inference_parameters(

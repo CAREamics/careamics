@@ -7,9 +7,11 @@ __all__ = [
     "BaseEnum",
     "get_logger",
     "get_careamics_home",
+    "autocorrelation",
 ]
 
 
+from .autocorrelation import autocorrelation
 from .base_enum import BaseEnum
 from .context import cwd, get_careamics_home
 from .logging import get_logger

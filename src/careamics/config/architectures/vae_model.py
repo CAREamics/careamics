@@ -17,6 +17,7 @@ class VAEModel(ArchitectureModel):
     )
 
     architecture: Literal["VAE"]
+    """Name of the architecture."""
 
     def set_3D(self, is_3D: bool) -> None:
         """

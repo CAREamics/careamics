@@ -72,9 +72,11 @@ class CustomModel(ArchitectureModel):
 
     # discriminator used for choosing the pydantic model in Model
     architecture: Literal["Custom"]
+    """Name of the architecture."""
 
     # name of the custom model
     name: str
+    """Name of the custom model."""
 
     @field_validator("name")
     @classmethod
