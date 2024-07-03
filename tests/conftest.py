@@ -280,7 +280,8 @@ def pre_trained_bmz(tmp_path, pre_trained) -> Path:
     careamist = CAREamist(source=pre_trained, work_dir=tmp_path)
 
     # predict (no tiling and no tta)
-    predicted = careamist.predict(train_array, tta_transforms=False)
+    predicted_output = careamist.predict(train_array, tta_transforms=False)
+    predicted = np.concatenate(predicted_output, axis=0)
 
     # export to BioImage Model Zoo
     path = tmp_path / "model.zip"

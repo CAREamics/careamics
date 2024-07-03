@@ -42,7 +42,7 @@ def test_stitch_tiles_single(ordered_array, input_shape, tile_size, overlaps):
             result = stitch_prediction_single(tiles, tile_infos)
 
             # check equality with the correct sample
-            assert np.array_equal(result, arr[sample_id].squeeze())
+            assert np.array_equal(result, arr[sample_id])
             sample_id += 1
 
             # clear the lists
@@ -85,6 +85,6 @@ def test_stitch_tiles_multi(ordered_array, input_shape, tile_size, overlaps):
 
     stitched = stitch_prediction(tiles, tile_infos)
     for sample_id, result in enumerate(stitched):
-        assert np.array_equal(result, arr[sample_id].squeeze())
+        assert np.array_equal(result, arr[sample_id])
 
     assert len(stitched) == n_samples
