@@ -93,12 +93,20 @@ class AlgorithmConfig(BaseModel):
 
     # Mandatory fields
     algorithm: Literal["n2v", "care", "n2n", "custom"]  # defined in SupportedAlgorithm
+    """Name of the algorithm, as defined in SupportedAlgorithm."""
+
     loss: Literal["n2v", "mae", "mse"]
+    """Loss function to use, as defined in SupportedLoss."""
+
     model: Union[UNetModel, VAEModel, CustomModel] = Field(discriminator="architecture")
+    """Model architecture to use, defined in SupportedArchitecture."""
 
     # Optional fields
     optimizer: OptimizerModel = OptimizerModel()
+    """Optimizer to use, defined in SupportedOptimizer."""
+
     lr_scheduler: LrSchedulerModel = LrSchedulerModel()
+    """Learning rate scheduler to use, defined in SupportedScheduler."""
 
     @model_validator(mode="after")
     def algorithm_cross_validation(self: Self) -> Self:

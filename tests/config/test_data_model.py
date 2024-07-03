@@ -73,12 +73,12 @@ def test_set_mean_and_std(minimum_data: dict):
     mean = [4.07]
     std = [14.07]
     data = DataConfig(**minimum_data)
-    data.set_mean_and_std(mean, std)
+    data.set_means_and_stds(mean, std)
     assert data.image_means == mean
     assert data.image_stds == std
 
     # Set also target mean and std
-    data.set_mean_and_std(mean, std, mean, std)
+    data.set_means_and_stds(mean, std, mean, std)
     assert data.target_means == mean
     assert data.target_stds == std
 
