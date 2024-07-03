@@ -64,9 +64,9 @@ class CAREamist:
         Experiment logger, "wandb" or "tensorboard".
     work_dir : pathlib.Path
         Working directory.
-    train_datamodule : CAREamicsTrainData
+    train_datamodule : TrainDataModule
         Training datamodule.
-    pred_datamodule : CAREamicsPredictData
+    pred_datamodule : PredictDataModule
         Prediction datamodule.
     """
 
@@ -276,7 +276,7 @@ class CAREamist:
 
         Parameters
         ----------
-        datamodule : CAREamicsTrainData, optional
+        datamodule : TrainDataModule, optional
             Datamodule to train on, by default None.
         train_source : pathlib.Path or str or NDArray, optional
             Train source, if no datamodule is provided, by default None.
@@ -378,7 +378,7 @@ class CAREamist:
 
             else:
                 raise ValueError(
-                    f"Invalid input, expected a str, Path, array or CAREamicsTrainData "
+                    f"Invalid input, expected a str, Path, array or TrainDataModule "
                     f"instance (got {type(train_source)})."
                 )
 
@@ -388,7 +388,7 @@ class CAREamist:
 
         Parameters
         ----------
-        datamodule : CAREamicsTrainData
+        datamodule : TrainDataModule
             Datamodule to train on.
         """
         # record datamodule
@@ -496,7 +496,7 @@ class CAREamist:
 
     @overload
     def predict(  # numpydoc ignore=GL08
-        self, source: CAREamicsPredictData
+        self, source: PredictDataModule
     ) -> Union[list[NDArray], NDArray]: ...
 
     @overload
