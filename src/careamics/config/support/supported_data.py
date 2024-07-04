@@ -106,6 +106,6 @@ class SupportedData(str, BaseEnum):
             return ".tiff"
         elif data_type == cls.CUSTOM:
             # TODO: improve this message
-            return NotImplementedError("Custom extensions have to be passed elsewhere.")
+            raise NotImplementedError("Custom extensions have to be passed elsewhere.")
         else:
             raise ValueError(f"Data type {data_type} is not supported.")
