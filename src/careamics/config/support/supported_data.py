@@ -7,7 +7,6 @@ from typing import Union
 from careamics.utils import BaseEnum
 
 
-
 class SupportedData(str, BaseEnum):
     """Supported data types.
 
@@ -75,7 +74,6 @@ class SupportedData(str, BaseEnum):
         str
             Corresponding extension pattern.
         """
-
         if data_type == cls.ARRAY:
             raise NotImplementedError(f"Data {data_type} are not loaded from file.")
         elif data_type == cls.TIFF:

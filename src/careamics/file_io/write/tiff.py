@@ -33,6 +33,6 @@ def write_tiff(file_path: Path, img: NDArray, *args, **kwargs) -> None:
         file_path.suffix, SupportedData.get_extension_pattern(SupportedData.TIFF)
     ):
         raise ValueError(
-            f"Unexpected extension {file_path.suffix} for save file type 'tiff'."
+            f"Unexpected extension '{file_path.suffix}' for save file type 'tiff'."
         )
     tifffile.imwrite(file_path, img, *args, **kwargs)
