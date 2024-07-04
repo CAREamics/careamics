@@ -485,9 +485,9 @@ def create_train_datamodule(
     struct_n2v_axis: Literal["horizontal", "vertical", "none"] = "none",
     struct_n2v_span: int = 5,
 ) -> TrainDataModule:
-    """Return a TrainDataModule.
+    """Create a TrainDataModule.
 
-    This method is used to explicitely pass the parameters usually contained in a
+    This function is used to explicitely pass the parameters usually contained in a
     `data_model` configuration to a TrainDataModule.
 
     Since the lightning datamodule has no access to the model, make sure that the

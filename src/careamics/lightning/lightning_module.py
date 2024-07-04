@@ -212,10 +212,10 @@ def create_careamics_module(
     lr_scheduler: Union[SupportedScheduler, str] = "ReduceLROnPlateau",
     lr_scheduler_parameters: Optional[dict] = None,
 ) -> CAREamicsModule:
-    """Return a CAREamics Lithgning module.
+    """Create a CAREamics Lithgning module.
 
-    This method exposes parameters used to create an AlgorithmModel instance, triggering
-    parameters validation.
+    This function exposes parameters used to create an AlgorithmModel instance,
+    triggering parameters validation.
 
     Parameters
     ----------

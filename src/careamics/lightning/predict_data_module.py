@@ -240,9 +240,9 @@ def create_predict_datamodule(
     extension_filter: str = "",
     dataloader_params: Optional[dict] = None,
 ) -> PredictDataModule:
-    """Return a CAREamics prediction Lightning datamodule.
+    """Create a CAREamics prediction Lightning datamodule.
 
-    This method is used to explicitely pass the parameters usually contained in an
+    This function is used to explicitely pass the parameters usually contained in an
     `inference_model` configuration.
 
     Since the lightning datamodule has no access to the model, make sure that the
