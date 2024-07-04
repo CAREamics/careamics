@@ -17,6 +17,7 @@ from ..utils.logging import get_logger
 from .dataset_utils import read_tiff
 from .patching.patching import (
     PatchedOutput,
+    Stats,
     prepare_patches_supervised,
     prepare_patches_supervised_array,
     prepare_patches_unsupervised,
@@ -77,47 +78,50 @@ class InMemoryDataset(Dataset):
         # read function
         self.read_source_func = read_source_func
 
-        # Generate patches
+        # generate patches
         supervised = self.input_targets is not None
         patches_data = self._prepare_patches(supervised)
 
-        # Unpack the dataclass
+        # unpack the dataclass
         self.data = patches_data.patches
         self.data_targets = patches_data.targets
 
+        # set image statistics
         if self.data_config.image_means is None:
-            self.image_means = patches_data.image_stats.means
-            self.image_stds = patches_data.image_stats.stds
+            self.image_stats = patches_data.image_stats
             logger.info(
-                f"Computed dataset mean: {self.image_means}, std: {self.image_stds}"
+                f"Computed dataset mean: {self.image_stats.means}, "
+                f"std: {self.image_stats.stds}"
             )
         else:
-            self.image_means = self.data_config.image_means
-            self.image_stds = self.data_config.image_stds
+            self.image_stats = Stats(
+                self.data_config.image_means, self.data_config.image_stds
+            )
 
+        # set target statistics
         if self.data_config.target_means is None:
-            self.target_means = patches_data.target_stats.means
-            self.target_stds = patches_data.target_stats.stds
+            self.target_stats = patches_data.target_stats
         else:
-            self.target_means = self.data_config.target_means
-            self.target_stds = self.data_config.target_stds
+            self.target_stats = Stats(
+                self.data_config.target_means, self.data_config.target_stds
+            )
 
         # update mean and std in configuration
         # the object is mutable and should then be recorded in the CAREamist obj
         self.data_config.set_means_and_stds(
-            image_means=self.image_means,
-            image_stds=self.image_stds,
-            target_means=self.target_means,
-            target_stds=self.target_stds,
+            image_means=self.image_stats.means,
+            image_stds=self.image_stats.stds,
+            target_means=self.target_stats.means,
+            target_stds=self.target_stats.stds,
         )
         # get transforms
         self.patch_transform = Compose(
             transform_list=[
                 NormalizeModel(
-                    image_means=self.image_means,
-                    image_stds=self.image_stds,
-                    target_means=self.target_means,
-                    target_stds=self.target_stds,
+                    image_means=self.image_stats.means,
+                    image_stds=self.image_stats.stds,
+                    target_means=self.target_stats.means,
+                    target_stds=self.target_stats.stds,
                 )
             ]
             + self.data_config.transforms,
@@ -222,6 +226,18 @@ class InMemoryDataset(Dataset):
                 "Something went wrong! No target provided (not supervised training) "
                 "and no N2V manipulation (no N2V training)."
             )
+
+    def get_data_statistics(self) -> tuple[list[float], list[float]]:
+        """Return training data statistics.
+
+        This does not return the target data statistics, only those of the input.
+
+        Returns
+        -------
+        tuple of list of floats
+            Means and standard deviations across channels of the training data.
+        """
+        return self.image_stats.get_statistics()
 
     def split_dataset(
         self,

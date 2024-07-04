@@ -15,12 +15,9 @@ from careamics.config.transformations import NormalizeModel
 from careamics.transforms import Compose
 
 from ..utils.logging import get_logger
-from .dataset_utils import (
-    iterate_over_files,
-    read_tiff,
-)
+from .dataset_utils import iterate_over_files, read_tiff
 from .dataset_utils.running_stats import WelfordStatistics
-from .patching.patching import Stats, StatsOutput
+from .patching.patching import Stats
 from .patching.random_patching import extract_patches_random
 
 logger = get_logger(__name__)
@@ -78,31 +75,31 @@ class PathIterableDataset(IterableDataset):
         # only checking the image_mean because the DataConfig class ensures that
         # if image_mean is provided, image_std is also provided
         if not self.data_config.image_means:
-            self.data_stats = self._calculate_mean_and_std()
+            self.image_stats, self.target_stats = self._calculate_mean_and_std()
             logger.info(
-                f"Computed dataset mean: {self.data_stats.image_stats.means},"
-                f"std: {self.data_stats.image_stats.stds}"
+                f"Computed dataset mean: {self.image_stats.means},"
+                f"std: {self.image_stats.stds}"
             )
 
             # update the mean in the config
             self.data_config.set_means_and_stds(
-                image_means=self.data_stats.image_stats.means,
-                image_stds=self.data_stats.image_stats.stds,
+                image_means=self.image_stats.means,
+                image_stds=self.image_stats.stds,
                 target_means=(
-                    list(self.data_stats.target_stats.means)
-                    if self.data_stats.target_stats.means is not None
+                    list(self.target_stats.means)
+                    if self.target_stats.means is not None
                     else None
                 ),
                 target_stds=(
-                    list(self.data_stats.target_stats.stds)
-                    if self.data_stats.target_stats.stds is not None
+                    list(self.target_stats.stds)
+                    if self.target_stats.stds is not None
                     else None
                 ),
             )
 
         else:
             # if mean and std are provided in the config, use them
-            self.data_stats = StatsOutput(
+            self.image_stats, self.target_stats = (
                 Stats(self.data_config.image_means, self.data_config.image_stds),
                 Stats(self.data_config.target_means, self.data_config.target_stds),
             )
@@ -111,23 +108,23 @@ class PathIterableDataset(IterableDataset):
         self.patch_transform = Compose(
             transform_list=[
                 NormalizeModel(
-                    image_means=self.data_stats.image_stats.means,
-                    image_stds=self.data_stats.image_stats.stds,
-                    target_means=self.data_stats.target_stats.means,
-                    target_stds=self.data_stats.target_stats.stds,
+                    image_means=self.image_stats.means,
+                    image_stds=self.image_stats.stds,
+                    target_means=self.target_stats.means,
+                    target_stds=self.target_stats.stds,
                 )
             ]
             + data_config.transforms
         )
 
-    def _calculate_mean_and_std(self) -> StatsOutput:
+    def _calculate_mean_and_std(self) -> tuple[Stats, Stats]:
         """
         Calculate mean and std of the dataset.
 
         Returns
         -------
-        PatchedOutput
-            Data class containing the image statistics.
+        tuple of Stats and optional Stats
+            Data classes containing the image and target statistics.
         """
         num_samples = 0
         image_stats = WelfordStatistics()
@@ -155,15 +152,12 @@ class PathIterableDataset(IterableDataset):
         if target is not None:
             target_means, target_stds = target_stats.finalize()
 
-        logger.info(f"Calculated mean and std for {num_samples} images")
-        logger.info(f"Mean: {image_means}, std: {image_stds}")
-        return StatsOutput(
-            Stats(image_means, image_stds),
-            Stats(
-                np.array(target_means) if target is not None else None,
-                np.array(target_stds) if target is not None else None,
-            ),
-        )
+            return (
+                Stats(image_means, image_stds),
+                Stats(np.array(target_means), np.array(target_stds)),
+            )
+        else:
+            return Stats(image_means, image_stds), Stats(None, None)
 
     def __iter__(
         self,
@@ -177,8 +171,7 @@ class PathIterableDataset(IterableDataset):
             Single patch.
         """
         assert (
-            self.data_stats.image_stats.means is not None
-            and self.data_stats.image_stats.stds is not None
+            self.image_stats.means is not None and self.image_stats.stds is not None
         ), "Mean and std must be provided"
 
         # iterate over files
@@ -200,6 +193,16 @@ class PathIterableDataset(IterableDataset):
                     patch=patch_data[0],
                     target=patch_data[1],
                 )
+
+    def get_data_statistics(self) -> tuple[list[float], list[float]]:
+        """Return training data statistics.
+
+        Returns
+        -------
+        tuple of list of floats
+            Means and standard deviations across channels of the training data.
+        """
+        return self.image_stats.get_statistics()
 
     def get_number_of_files(self) -> int:
         """

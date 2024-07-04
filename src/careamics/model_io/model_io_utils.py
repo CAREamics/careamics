@@ -6,7 +6,7 @@ from typing import Tuple, Union
 import torch
 
 from careamics.config import Configuration
-from careamics.lightning_module import CAREamicsModule
+from careamics.lightning.lightning_module import CAREamicsModule
 from careamics.model_io.bmz_io import load_from_bmz
 from careamics.utils import check_path_exists
 
