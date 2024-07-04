@@ -104,7 +104,7 @@ class InMemoryDataset(Dataset):
 
         # update mean and std in configuration
         # the object is mutable and should then be recorded in the CAREamist obj
-        self.data_config.set_mean_and_std(
+        self.data_config.set_means_and_stds(
             image_means=self.image_means,
             image_stds=self.image_stds,
             target_means=self.target_means,

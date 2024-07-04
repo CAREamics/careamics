@@ -16,7 +16,8 @@ from careamics.file_io.read import read_tiff
 from careamics.transforms import Compose
 
 from ..utils.logging import get_logger
-from .dataset_utils import compute_normalization_stats, iterate_over_files
+from .dataset_utils import iterate_over_files
+from .dataset_utils.running_stats import WelfordStatistics
 from .patching.patching import Stats, StatsOutput
 from .patching.random_patching import extract_patches_random
 
@@ -82,7 +83,7 @@ class PathIterableDataset(IterableDataset):
             )
 
             # update the mean in the config
-            self.data_config.set_mean_and_std(
+            self.data_config.set_means_and_stds(
                 image_means=self.data_stats.image_stats.means,
                 image_stds=self.data_stats.image_stats.stds,
                 target_means=(
@@ -126,23 +127,20 @@ class PathIterableDataset(IterableDataset):
         PatchedOutput
             Data class containing the image statistics.
         """
-        image_means = []
-        image_stds = []
-        target_means = []
-        target_stds = []
         num_samples = 0
+        image_stats = WelfordStatistics()
+        if self.target_files is not None:
+            target_stats = WelfordStatistics()
 
         for sample, target in iterate_over_files(
             self.data_config, self.data_files, self.target_files, self.read_source_func
         ):
-            sample_mean, sample_std = compute_normalization_stats(sample)
-            image_means.append(sample_mean)
-            image_stds.append(sample_std)
+            # update the image statistics
+            image_stats.update(sample, num_samples)
 
+            # update the target statistics if target is available
             if target is not None:
-                target_mean, target_std = compute_normalization_stats(target)
-                target_means.append(target_mean)
-                target_stds.append(target_std)
+                target_stats.update(target, num_samples)
 
             num_samples += 1
 
@@ -150,12 +148,10 @@ class PathIterableDataset(IterableDataset):
             raise ValueError("No samples found in the dataset.")
 
         # Average the means and stds per sample
-        image_means = np.mean(image_means, axis=0)
-        image_stds = np.sqrt(np.mean([std**2 for std in image_stds], axis=0))
+        image_means, image_stds = image_stats.finalize()
 
         if target is not None:
-            target_means = np.mean(target_means, axis=0)
-            target_stds = np.sqrt(np.mean([std**2 for std in target_stds], axis=0))
+            target_means, target_stds = target_stats.finalize()
 
         logger.info(f"Calculated mean and std for {num_samples} images")
         logger.info(f"Mean: {image_means}, std: {image_stds}")

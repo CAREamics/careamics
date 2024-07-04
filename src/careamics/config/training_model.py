@@ -35,15 +35,19 @@ class TrainingConfig(BaseModel):
     )
 
     num_epochs: int = Field(default=20, ge=1)
+    """Number of epochs, greater than 0."""
 
     logger: Optional[Literal["wandb", "tensorboard"]] = None
+    """Logger to use during training. If None, no logger will be used. Available
+    loggers are defined in SupportedLogger."""
 
     checkpoint_callback: CheckpointModel = CheckpointModel()
+    """Checkpoint callback configuration."""
 
     early_stopping_callback: Optional[EarlyStoppingModel] = Field(
         default=None, validate_default=True
     )
-    # precision: Literal["64", "32", "16", "bf16"] = 32
+    """Early stopping callback configuration."""
 
     def __str__(self) -> str:
         """Pretty string reprensenting the configuration.

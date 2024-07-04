@@ -1,8 +1,10 @@
 """Prediction utility functions."""
 
-from typing import List
+import builtins
+from typing import List, Union
 
 import numpy as np
+from numpy.typing import NDArray
 
 from careamics.config.tile_information import TileInformation
 
@@ -37,7 +39,9 @@ def stitch_prediction(
     last_tiles = [tile_info.last_tile for tile_info in tile_infos]
     last_tile_position = np.where(last_tiles)[0]
     image_slices = [
-        slice(None if i == 0 else last_tile_position[i - 1], last_tile_position[i] + 1)
+        slice(
+            None if i == 0 else last_tile_position[i - 1] + 1, last_tile_position[i] + 1
+        )
         for i in range(len(last_tile_position))
     ]
     image_predictions = []
@@ -50,9 +54,9 @@ def stitch_prediction(
 
 
 def stitch_prediction_single(
-    tiles: List[np.ndarray],
+    tiles: List[NDArray],
     tile_infos: List[TileInformation],
-) -> np.ndarray:
+) -> NDArray:
     """
     Stitch tiles back together to form a full image.
 
@@ -70,29 +74,30 @@ def stitch_prediction_single(
     Returns
     -------
     numpy.ndarray
-        Full image.
+        Full image, with dimensions SC(Z)YX.
     """
     # retrieve whole array size
     input_shape = tile_infos[0].array_shape
     predicted_image = np.zeros(input_shape, dtype=np.float32)
 
+    # reshape
+    # TODO: can be more elegantly solved if TileInformation allows singleton dims
+    singleton_dims = tuple(np.where(np.array(tiles[0].shape) == 1)[0])
+    predicted_image = np.expand_dims(predicted_image, singleton_dims)
+
     for tile, tile_info in zip(tiles, tile_infos):
-        n_channels = tile.shape[0]
 
         # Compute coordinates for cropping predicted tile
-        slices = (slice(0, n_channels),) + tuple(
-            [slice(c[0], c[1]) for c in tile_info.overlap_crop_coords]
+        crop_slices: tuple[Union[builtins.ellipsis, slice], ...] = (
+            ...,
+            *[slice(c[0], c[1]) for c in tile_info.overlap_crop_coords],
         )
 
         # Crop predited tile according to overlap coordinates
-        cropped_tile = tile[slices]
+        cropped_tile = tile[crop_slices]
 
         # Insert cropped tile into predicted image using stitch coordinates
-        predicted_image[
-            (
-                ...,
-                *[slice(c[0], c[1]) for c in tile_info.stitch_coords],
-            )
-        ] = cropped_tile.astype(np.float32)
+        image_slices = (..., *[slice(c[0], c[1]) for c in tile_info.stitch_coords])
+        predicted_image[image_slices] = cropped_tile.astype(np.float32)
 
     return predicted_image

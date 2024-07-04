@@ -493,10 +493,7 @@ class CAREamist:
 
     @overload
     def predict(  # numpydoc ignore=GL08
-        self,
-        source: CAREamicsPredictData,
-        *,
-        checkpoint: Optional[Literal["best", "last"]] = None,
+        self, source: CAREamicsPredictData
     ) -> Union[list[NDArray], NDArray]: ...
 
     @overload
@@ -513,7 +510,6 @@ class CAREamist:
         dataloader_params: Optional[dict] = None,
         read_source_func: Optional[Callable] = None,
         extension_filter: str = "",
-        checkpoint: Optional[Literal["best", "last"]] = None,
     ) -> Union[list[NDArray], NDArray]: ...
 
     @overload
@@ -528,7 +524,6 @@ class CAREamist:
         data_type: Optional[Literal["array"]] = None,
         tta_transforms: bool = True,
         dataloader_params: Optional[dict] = None,
-        checkpoint: Optional[Literal["best", "last"]] = None,
     ) -> Union[list[NDArray], NDArray]: ...
 
     def predict(
@@ -544,7 +539,6 @@ class CAREamist:
         dataloader_params: Optional[dict] = None,
         read_source_func: Optional[Callable] = None,
         extension_filter: str = "",
-        checkpoint: Optional[Literal["best", "last"]] = None,
         **kwargs: Any,
     ) -> Union[list[NDArray], NDArray]:
         """
@@ -558,7 +552,9 @@ class CAREamist:
         `tile_size`.
 
         Test-time augmentation (TTA) can be switched off using the `tta_transforms`
-        parameter.
+        parameter. The TTA augmentation applies all possible flip and 90 degrees
+        rotations to the prediction input and averages the predictions. TTA augmentation
+        should not be used if you did not train with these augmentations.
 
         Note that if you are using a UNet model and tiling, the tile size must be
         divisible in every dimension by 2**d, where d is the depth of the model. This
@@ -588,8 +584,6 @@ class CAREamist:
             Function to read the source data.
         extension_filter : str, default=""
             Filter for the file extension.
-        checkpoint : {"best", "last"}, optional
-            Checkpoint to use for prediction.
         **kwargs : Any
             Unused.
 
@@ -621,7 +615,7 @@ class CAREamist:
         )
 
         predictions = self.trainer.predict(
-            model=self.model, datamodule=self.pred_datamodule, ckpt_path=checkpoint
+            model=self.model, datamodule=self.pred_datamodule
         )
         return convert_outputs(predictions, self.pred_datamodule.tiled)
 
@@ -657,27 +651,16 @@ class CAREamist:
         data_description : str, optional
             Description of the data, by default None.
         """
-        input_patch = reshape_array(input_array, self.cfg.data_config.axes)
+        # TODO: add in docs that it is expected that input_array dimensions match
+        # those in data_config
 
-        # axes need to be reformated for the export because reshaping was done in the
-        # datamodule
-        if "Z" in self.cfg.data_config.axes:
-            axes = "SCZYX"
-        else:
-            axes = "SCYX"
-
-        # predict output, remove extra dimensions for the purpose of the prediction
         output_patch = self.predict(
-            input_patch,
+            input_array,
             data_type=SupportedData.ARRAY.value,
-            axes=axes,
             tta_transforms=False,
         )
-
-        if isinstance(output_patch, list):
-            output = np.concatenate(output_patch, axis=0)
-        else:
-            output = output_patch
+        output = np.concatenate(output_patch, axis=0)
+        input_array = reshape_array(input_array, self.cfg.data_config.axes)
 
         export_to_bmz(
             model=self.model,
@@ -686,7 +669,7 @@ class CAREamist:
             name=name,
             general_description=general_description,
             authors=authors,
-            input_array=input_patch,
+            input_array=input_array,
             output_array=output,
             channel_names=channel_names,
             data_description=data_description,
