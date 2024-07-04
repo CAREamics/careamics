@@ -79,19 +79,23 @@ def test_extension_pattern_any_error():
     with pytest.raises(ValueError):
         SupportedData.get_extension_pattern("some random")
 
+
 def test_extension_array_error():
     """Test that the array extension raises NotImplementedError."""
     with pytest.raises(NotImplementedError):
         SupportedData.get_extension(SupportedData.ARRAY)
 
+
 def test_extension_tiff():
     """Test that the tiff extension is .tiff."""
     assert SupportedData.get_extension(SupportedData.TIFF) == ".tiff"
+
 
 def test_extension_custom_error():
     """Test that the custom extension returns NotImplementedError."""
     with pytest.raises(NotImplementedError):
         SupportedData.get_extension(SupportedData.CUSTOM)
+
 
 def test_extension_any_error():
     """Test that any extension raises ValueError."""

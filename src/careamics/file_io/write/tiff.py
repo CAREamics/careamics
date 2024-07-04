@@ -1,12 +1,13 @@
 """Write tiff function."""
 
-from pathlib import Path
 from fnmatch import fnmatch
+from pathlib import Path
 
 import tifffile
 from numpy.typing import NDArray
 
 from careamics.config.support import SupportedData
+
 
 def write_tiff(file_path: Path, img: NDArray, *args, **kwargs) -> None:
     """
@@ -26,7 +27,7 @@ def write_tiff(file_path: Path, img: NDArray, *args, **kwargs) -> None:
     Raises
     ------
     ValueError
-        When the file extension of `file_path` does not match the Unix shell-style 
+        When the file extension of `file_path` does not match the Unix shell-style
         pattern '*.tif*'.
     """
     if not fnmatch(

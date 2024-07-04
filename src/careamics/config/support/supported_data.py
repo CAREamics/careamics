@@ -86,7 +86,7 @@ class SupportedData(str, BaseEnum):
     @classmethod
     def get_extension(cls, data_type: Union[str | SupportedData]) -> str:
         """
-        Get file extension of corresponding data type
+        Get file extension of corresponding data type.
 
         Parameters
         ----------
