@@ -53,6 +53,7 @@ def get_write_func(data_type: Union[str, SupportedData]) -> WriteFunc:
         Write function.
     """
     if data_type in WRITE_FUNCS:
+        data_type = SupportedData(data_type)  # mypy complaining about dict key type
         return WRITE_FUNCS[data_type]
     else:
         raise NotImplementedError(f"Data type {data_type} is not supported.")
