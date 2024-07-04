@@ -15,10 +15,14 @@ from pytorch_lightning.loggers import TensorBoardLogger, WandbLogger
 
 from careamics.config import (
     Configuration,
-    create_inference_parameters,
     load_configuration,
 )
-from careamics.config.support import SupportedAlgorithm, SupportedData, SupportedLogger
+from careamics.config.support import (
+    SupportedAlgorithm,
+    SupportedArchitecture,
+    SupportedData,
+    SupportedLogger,
+)
 from careamics.dataset.dataset_utils import reshape_array
 from careamics.lightning import (
     CAREamicsModule,
@@ -594,25 +598,59 @@ class CAREamist:
         -------
         list of NDArray or NDArray
             Predictions made by the model.
+
+        Raises
+        ------
+        ValueError
+            If mean and std are not provided in the configuration.
+        ValueError
+            If tile size is not divisible by 2**depth for UNet models.
+        ValueError
+            If tile overlap is not specified.
         """
-        # create inference configuration using the main config
-        inference_dict: dict = create_inference_parameters(
-            configuration=self.cfg,
-            tile_size=tile_size,
-            tile_overlap=tile_overlap,
-            data_type=data_type,
-            axes=axes,
-            tta_transforms=tta_transforms,
-            batch_size=batch_size,
-        )
+        if (
+            self.cfg.data_config.image_means is None
+            or self.cfg.data_config.image_stds is None
+        ):
+            raise ValueError("Mean and std must be provided in the configuration.")
+
+        # tile size for UNets
+        if tile_size is not None:
+            model = self.cfg.algorithm_config.model
+
+            if model.architecture == SupportedArchitecture.UNET.value:
+                # tile size must be equal to k*2^n, where n is the number of pooling
+                # layers (equal to the depth) and k is an integer
+                depth = model.depth
+                tile_increment = 2**depth
+
+                for i, t in enumerate(tile_size):
+                    if t % tile_increment != 0:
+                        raise ValueError(
+                            f"Tile size must be divisible by {tile_increment} along "
+                            f"all axes (got {t} for axis {i}). If your image size is "
+                            f"smaller along one axis (e.g. Z), consider padding the "
+                            f"image."
+                        )
+
+            # tile overlaps must be specified
+            if tile_overlap is None:
+                raise ValueError("Tile overlap must be specified.")
 
         # create the prediction
         self.pred_datamodule = create_predict_datamodule(
             pred_data=source,
-            dataloader_params=dataloader_params,
+            data_type=data_type or self.cfg.data_config.data_type,
+            axes=axes or self.cfg.data_config.axes,
+            image_means=self.cfg.data_config.image_means,
+            image_stds=self.cfg.data_config.image_stds,
+            tile_size=tile_size,
+            tile_overlap=tile_overlap,
+            batch_size=batch_size or self.cfg.data_config.batch_size,
+            tta_transforms=tta_transforms,
             read_source_func=read_source_func,
             extension_filter=extension_filter,
-            **inference_dict,
+            dataloader_params=dataloader_params,
         )
 
         # predict
