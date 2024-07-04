@@ -1,7 +1,7 @@
 """Module to get write functions."""
 
 from pathlib import Path
-from typing import Protocol
+from typing import Protocol, Union
 
 from numpy.typing import NDArray
 
@@ -38,7 +38,7 @@ WRITE_FUNCS: dict[SupportedData, WriteFunc] = {
 }
 
 
-def get_write_func(data_type: SupportedData) -> WriteFunc:
+def get_write_func(data_type: Union[str, SupportedData]) -> WriteFunc:
     """
     Get the write function for the data type.
 

@@ -1,7 +1,7 @@
 """Module to get read functions."""
 
 from pathlib import Path
-from typing import Callable, Dict, Protocol
+from typing import Callable, Dict, Protocol, Union
 
 from numpy.typing import NDArray
 
@@ -35,7 +35,7 @@ READ_FUNCS: Dict[SupportedData, ReadFunc] = {
 }
 
 
-def get_read_func(data_type: SupportedData) -> Callable:
+def get_read_func(data_type: Union[str, SupportedData]) -> Callable:
     """
     Get the read function for the data type.
 
