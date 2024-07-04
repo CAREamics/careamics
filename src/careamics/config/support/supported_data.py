@@ -7,6 +7,7 @@ from typing import Union
 from careamics.utils import BaseEnum
 
 
+
 class SupportedData(str, BaseEnum):
     """Supported data types.
 
@@ -60,13 +61,38 @@ class SupportedData(str, BaseEnum):
         return super()._missing_(value)
 
     @classmethod
-    def get_extension(cls, data_type: Union[str, SupportedData]) -> str:
+    def get_extension_pattern(cls, data_type: Union[str | SupportedData]) -> str:
         """
-        Path.rglob and fnmatch compatible extension.
+        Get Path.rglob and fnmatch compatible extension.
 
         Parameters
         ----------
         data_type : SupportedData
+            Data type.
+
+        Returns
+        -------
+        str
+            Corresponding extension pattern.
+        """
+
+        if data_type == cls.ARRAY:
+            raise NotImplementedError(f"Data {data_type} are not loaded from file.")
+        elif data_type == cls.TIFF:
+            return "*.tif*"
+        elif data_type == cls.CUSTOM:
+            return "*.*"
+        else:
+            raise ValueError(f"Data type {data_type} is not supported.")
+
+    @classmethod
+    def get_extension(cls, data_type: Union[str | SupportedData]) -> str:
+        """
+        Get file extension of corresponding data type
+
+        Parameters
+        ----------
+        data_type : str or SupportedData
             Data type.
 
         Returns
@@ -77,8 +103,9 @@ class SupportedData(str, BaseEnum):
         if data_type == cls.ARRAY:
             raise NotImplementedError(f"Data {data_type} are not loaded from file.")
         elif data_type == cls.TIFF:
-            return "*.tif*"
+            return ".tiff"
         elif data_type == cls.CUSTOM:
-            return "*.*"
+            # TODO: improve this message
+            return NotImplementedError("Custom extensions have to be passed elsewhere.")
         else:
             raise ValueError(f"Data type {data_type} is not supported.")

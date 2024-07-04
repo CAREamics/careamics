@@ -75,7 +75,7 @@ def list_files(
         raise FileNotFoundError(f"Data path {data_path} does not exist.")
 
     # get extension compatible with fnmatch and rglob search
-    extension = SupportedData.get_extension(data_type)
+    extension = SupportedData.get_extension_pattern(data_type)
 
     if data_type == SupportedData.CUSTOM and extension_filter != "":
         extension = extension_filter

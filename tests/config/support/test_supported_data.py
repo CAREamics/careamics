@@ -13,10 +13,10 @@ def test_extension_tiff_fnmatch(tmp_path: Path):
     path = tmp_path / "test.tif"
 
     # test as str
-    assert fnmatch(str(path), SupportedData.get_extension(SupportedData.TIFF))
+    assert fnmatch(str(path), SupportedData.get_extension_pattern(SupportedData.TIFF))
 
     # test as Path
-    assert fnmatch(path, SupportedData.get_extension(SupportedData.TIFF))
+    assert fnmatch(path, SupportedData.get_extension_pattern(SupportedData.TIFF))
 
 
 def test_extension_tiff_rglob(tmp_path: Path):
@@ -31,7 +31,9 @@ def test_extension_tiff_rglob(tmp_path: Path):
     tifffile.imwrite(path, image)
 
     # search for files
-    files = list(tmp_path.rglob(SupportedData.get_extension(SupportedData.TIFF)))
+    files = list(
+        tmp_path.rglob(SupportedData.get_extension_pattern(SupportedData.TIFF))
+    )
     assert len(files) == 1
     assert files[0] == path
 
@@ -41,10 +43,10 @@ def test_extension_custom_fnmatch(tmp_path: Path):
     path = tmp_path / "test.czi"
 
     # test as str
-    assert fnmatch(str(path), SupportedData.get_extension(SupportedData.CUSTOM))
+    assert fnmatch(str(path), SupportedData.get_extension_pattern(SupportedData.CUSTOM))
 
     # test as Path
-    assert fnmatch(path, SupportedData.get_extension(SupportedData.CUSTOM))
+    assert fnmatch(path, SupportedData.get_extension_pattern(SupportedData.CUSTOM))
 
 
 def test_extension_custom_rglob(tmp_path: Path):
@@ -59,7 +61,9 @@ def test_extension_custom_rglob(tmp_path: Path):
     np.save(path, image)
 
     # search for files
-    files = list(tmp_path.rglob(SupportedData.get_extension(SupportedData.CUSTOM)))
+    files = list(
+        tmp_path.rglob(SupportedData.get_extension_pattern(SupportedData.CUSTOM))
+    )
     assert len(files) == 2
     assert set(files) == {path, text_path}
 
@@ -67,10 +71,10 @@ def test_extension_custom_rglob(tmp_path: Path):
 def test_extension_array_error():
     """Test that the array extension raises NotImplementedError."""
     with pytest.raises(NotImplementedError):
-        SupportedData.get_extension(SupportedData.ARRAY)
+        SupportedData.get_extension_pattern(SupportedData.ARRAY)
 
 
 def test_extension_any_error():
     """Test that any extension raises NotImplementedError."""
     with pytest.raises(ValueError):
-        SupportedData.get_extension("some random")
+        SupportedData.get_extension_pattern("some random")
