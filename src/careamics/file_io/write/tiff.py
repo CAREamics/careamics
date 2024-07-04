@@ -1,10 +1,12 @@
 """Write tiff function."""
 
 from pathlib import Path
+from fnmatch import fnmatch
 
 import tifffile
 from numpy.typing import NDArray
 
+from careamics.config.support import SupportedData
 
 def write_tiff(file_path: Path, img: NDArray, *args, **kwargs) -> None:
     """
@@ -20,5 +22,17 @@ def write_tiff(file_path: Path, img: NDArray, *args, **kwargs) -> None:
         Positional arguments passed to `tifffile.imwrite`.
     **kwargs
         Keyword arguments passed to `tifffile.imwrite`.
+
+    Raises
+    ------
+    ValueError
+        When the file extension of `file_path` does not match the Unix shell-style 
+        pattern '*.tif*'.
     """
+    if not fnmatch(
+        file_path.suffix, SupportedData.get_extension_pattern(SupportedData.TIFF)
+    ):
+        raise ValueError(
+            f"Unexpected extension {file_path.suffix} for save file type 'tiff'."
+        )
     tifffile.imwrite(file_path, img, *args, **kwargs)
