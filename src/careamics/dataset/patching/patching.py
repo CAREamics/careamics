@@ -2,9 +2,10 @@
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, List, Tuple, Union
+from typing import Callable, Union
 
 import numpy as np
+from numpy.typing import NDArray
 
 from ...utils.logging import get_logger
 from ..dataset_utils import reshape_array
@@ -18,34 +19,49 @@ logger = get_logger(__name__)
 class Stats:
     """Dataclass to store statistics."""
 
-    means: Union[np.ndarray, tuple, list, None]
-    stds: Union[np.ndarray, tuple, list, None]
+    means: Union[NDArray, tuple, list, None]
+    """Mean of the data across channels."""
+
+    stds: Union[NDArray, tuple, list, None]
+    """Standard deviation of the data across channels."""
+
+    def get_statistics(self) -> tuple[list[float], list[float]]:
+        """Return the means and standard deviations.
+
+        Returns
+        -------
+        tuple of two lists of floats
+            Means and standard deviations.
+        """
+        if self.means is None or self.stds is None:
+            return [], []
+
+        return list(self.means), list(self.stds)
 
 
 @dataclass
 class PatchedOutput:
     """Dataclass to store patches and statistics."""
 
-    patches: Union[np.ndarray]
-    targets: Union[np.ndarray, None]
-    image_stats: Stats
-    target_stats: Stats
+    patches: Union[NDArray]
+    """Image patches."""
 
-
-@dataclass
-class StatsOutput:
-    """Dataclass to store patches and statistics."""
+    targets: Union[NDArray, None]
+    """Target patches."""
 
     image_stats: Stats
+    """Statistics of the image patches."""
+
     target_stats: Stats
+    """Statistics of the target patches."""
 
 
 # called by in memory dataset
 def prepare_patches_supervised(
-    train_files: List[Path],
-    target_files: List[Path],
+    train_files: list[Path],
+    target_files: list[Path],
     axes: str,
-    patch_size: Union[List[int], Tuple[int, ...]],
+    patch_size: Union[list[int], tuple[int, ...]],
     read_source_func: Callable,
 ) -> PatchedOutput:
     """
@@ -55,13 +71,13 @@ def prepare_patches_supervised(
 
     Parameters
     ----------
-    train_files : List[Path]
+    train_files : list of pathlib.Path
         List of paths to training data.
-    target_files : List[Path]
+    target_files : list of pathlib.Path
         List of paths to target data.
     axes : str
         Axes of the data.
-    patch_size : Union[List[int], Tuple[int]]
+    patch_size : list or tuple of int
         Size of the patches.
     read_source_func : Callable
         Function to read the data.
@@ -127,9 +143,9 @@ def prepare_patches_supervised(
 
 # called by in_memory_dataset
 def prepare_patches_unsupervised(
-    train_files: List[Path],
+    train_files: list[Path],
     axes: str,
-    patch_size: Union[List[int], Tuple[int]],
+    patch_size: Union[list[int], tuple[int]],
     read_source_func: Callable,
 ) -> PatchedOutput:
     """Iterate over data source and create an array of patches.
@@ -138,19 +154,19 @@ def prepare_patches_unsupervised(
 
     Parameters
     ----------
-    train_files : List[Path]
+    train_files : list of pathlib.Path
         List of paths to training data.
     axes : str
         Axes of the data.
-    patch_size : Union[List[int], Tuple[int]]
+    patch_size : list or tuple of int
         Size of the patches.
     read_source_func : Callable
         Function to read the data.
 
     Returns
     -------
-    Tuple[np.ndarray, None, float, float]
-        Source and target patches, mean and standard deviation.
+    PatchedOutput
+        Dataclass holding patches and their statistics.
     """
     means, stds, num_samples = 0, 0, 0
     all_patches = []
@@ -189,10 +205,10 @@ def prepare_patches_unsupervised(
 
 # called on arrays by in memory dataset
 def prepare_patches_supervised_array(
-    data: np.ndarray,
+    data: NDArray,
     axes: str,
-    data_target: np.ndarray,
-    patch_size: Union[List[int], Tuple[int]],
+    data_target: NDArray,
+    patch_size: Union[list[int], tuple[int]],
 ) -> PatchedOutput:
     """Iterate over data source and create an array of patches.
 
@@ -203,19 +219,19 @@ def prepare_patches_supervised_array(
 
     Parameters
     ----------
-    data : np.ndarray
+    data : numpy.ndarray
         Input data array.
     axes : str
         Axes of the data.
-    data_target : np.ndarray
+    data_target : numpy.ndarray
         Target data array.
-    patch_size : Union[List[int], Tuple[int]]
+    patch_size : list or tuple of int
         Size of the patches.
 
     Returns
     -------
-    Tuple[np.ndarray, np.ndarray, float, float]
-        Source and target patches, mean and standard deviation.
+    PatchedOutput
+        Dataclass holding the source and target patches, with their statistics.
     """
     # reshape array
     reshaped_sample = reshape_array(data, axes)
@@ -245,9 +261,9 @@ def prepare_patches_supervised_array(
 
 # called by in memory dataset
 def prepare_patches_unsupervised_array(
-    data: np.ndarray,
+    data: NDArray,
     axes: str,
-    patch_size: Union[List[int], Tuple[int]],
+    patch_size: Union[list[int], tuple[int]],
 ) -> PatchedOutput:
     """
     Iterate over data source and create an array of patches.
@@ -259,17 +275,17 @@ def prepare_patches_unsupervised_array(
 
     Parameters
     ----------
-    data : np.ndarray
+    data : numpy.ndarray
         Input data array.
     axes : str
         Axes of the data.
-    patch_size : Union[List[int], Tuple[int]]
+    patch_size : list or tuple of int
         Size of the patches.
 
     Returns
     -------
-    Tuple[np.ndarray, None, float, float]
-        Source patches, mean and standard deviation.
+    PatchedOutput
+        Dataclass holding the patches and their statistics.
     """
     # reshape array
     reshaped_sample = reshape_array(data, axes)

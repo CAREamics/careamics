@@ -1,12 +1,11 @@
 """Convenience functions to create configurations for training and inference."""
 
-from typing import Any, Dict, List, Literal, Optional, Tuple
+from typing import Any, Dict, List, Literal, Optional
 
 from .algorithm_model import AlgorithmConfig
 from .architectures import UNetModel
 from .configuration_model import Configuration
 from .data_model import DataConfig
-from .inference_model import InferenceConfig
 from .support import (
     SupportedAlgorithm,
     SupportedArchitecture,
@@ -574,80 +573,3 @@ def create_n2v_configuration(
     )
 
     return configuration
-
-
-def create_inference_configuration(
-    configuration: Configuration,
-    tile_size: Optional[Tuple[int, ...]] = None,
-    tile_overlap: Optional[Tuple[int, ...]] = None,
-    data_type: Optional[Literal["array", "tiff", "custom"]] = None,
-    axes: Optional[str] = None,
-    tta_transforms: bool = True,
-    batch_size: Optional[int] = 1,
-) -> InferenceConfig:
-    """
-    Create a configuration for inference with N2V.
-
-    If not provided, `data_type` and `axes` are taken from the training
-    configuration.
-
-    Parameters
-    ----------
-    configuration : Configuration
-        Global configuration.
-    tile_size : Tuple[int, ...], optional
-        Size of the tiles.
-    tile_overlap : Tuple[int, ...], optional
-        Overlap of the tiles.
-    data_type : str, optional
-        Type of the data, by default "tiff".
-    axes : str, optional
-        Axes of the data, by default "YX".
-    tta_transforms : bool, optional
-        Whether to apply test-time augmentations, by default True.
-    batch_size : int, optional
-        Batch size, by default 1.
-
-    Returns
-    -------
-    InferenceConfiguration
-        Configuration used to configure CAREamicsPredictData.
-    """
-    if (
-        configuration.data_config.image_means is None
-        or configuration.data_config.image_stds is None
-    ):
-        raise ValueError("Mean and std must be provided in the configuration.")
-
-    # tile size for UNets
-    if tile_size is not None:
-        model = configuration.algorithm_config.model
-
-        if model.architecture == SupportedArchitecture.UNET.value:
-            # tile size must be equal to k*2^n, where n is the number of pooling layers
-            # (equal to the depth) and k is an integer
-            depth = model.depth
-            tile_increment = 2**depth
-
-            for i, t in enumerate(tile_size):
-                if t % tile_increment != 0:
-                    raise ValueError(
-                        f"Tile size must be divisible by {tile_increment} along all "
-                        f"axes (got {t} for axis {i}). If your image size is smaller "
-                        f"along one axis (e.g. Z), consider padding the image."
-                    )
-
-        # tile overlaps must be specified
-        if tile_overlap is None:
-            raise ValueError("Tile overlap must be specified.")
-
-    return InferenceConfig(
-        data_type=data_type or configuration.data_config.data_type,
-        tile_size=tile_size,
-        tile_overlap=tile_overlap,
-        axes=axes or configuration.data_config.axes,
-        image_means=configuration.data_config.image_means,
-        image_stds=configuration.data_config.image_stds,
-        tta_transforms=tta_transforms,
-        batch_size=batch_size,
-    )
