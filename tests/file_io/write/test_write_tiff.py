@@ -21,5 +21,5 @@ def test_invalid_extension_error(tmp_path, ordered_array):
 
     # save files
     file = tmp_path / "test.invalid"
-    with pytest.raises("ValueError"):
+    with pytest.raises(ValueError):
         write_tiff(file, array)
