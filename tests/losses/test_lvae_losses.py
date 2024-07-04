@@ -1,35 +1,25 @@
+from careamics.config import AlgorithmConfig
+from careamics.lightning_module import CAREamicsModule
 from careamics.losses.loss_factory import loss_factory, loss_parameters_factory
 from careamics.losses.lvae.losses import denoisplit_loss, musplit_loss
-import pytest
-from careamics.config import AlgorithmConfig
-from careamics.lightning_module import CAREamicsModule, CAREamicsModuleWrapper
+import torch
 
 
 def test_mu_split_loss(minimum_algorithm_musplit):
-    loss = loss_factory("musplit")
-    assert loss == musplit_loss
-
+    loss_func = loss_factory("musplit")
+    assert loss_func == musplit_loss
 
     algo_config = AlgorithmConfig(**minimum_algorithm_musplit)
 
-    # extract model parameters
-    model_parameters = algo_config.model.model_dump(exclude_none=True)
-
-    # define default loss parameters
-    loss_parameters = loss_parameters_factory("musplit")
-
     # instantiate CAREamicsModule
-    CAREamicsModuleWrapper(
-        algorithm=algo_config.algorithm,
-        loss=algo_config.loss,
-        architecture=algo_config.model.architecture,
-        model_parameters=model_parameters,
-        optimizer=algo_config.optimizer.name,
-        optimizer_parameters=algo_config.optimizer.parameters,
-        lr_scheduler=algo_config.lr_scheduler.name,
-        lr_scheduler_parameters=algo_config.lr_scheduler.parameters,
+    module = CAREamicsModule(
+        algorithm_config=algo_config
     )
-    
+    inputs = torch.rand(2, 2, 5, 64, 64)
+    predictions = torch.rand(1, 1, 8, 8)
+    module.training_step(inputs, 0)
+    loss_value = loss_func(predictions, module)
+
 
 def test_denoisplit_loss():
     loss = loss_factory("denoisplit")

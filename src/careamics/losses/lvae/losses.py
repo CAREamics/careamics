@@ -237,7 +237,7 @@ def get_kl_divergence_loss(topdown_layer_data_dict, img_shape, kl_key="kl"):
 # mask = torch.isnan(target.reshape(len(x), -1)).all(dim=1)
 
 
-def musplit_loss(module: "CAREamicsModuleWrapper") -> dict:
+def musplit_loss(model_outputs, aux, module: "CAREamicsModuleWrapper") -> dict:
     """Loss function for MuSplit.
 
     Parameters
@@ -250,7 +250,7 @@ def musplit_loss(module: "CAREamicsModuleWrapper") -> dict:
     dict
         _description_
     """
-    predictions, td_data = module.prediction_data
+    predictions, td_data = model_outputs
     recons_loss_dict, imgs = get_reconstruction_loss(
         reconstruction=predictions,
         target=module.targets,
@@ -290,7 +290,7 @@ def musplit_loss(module: "CAREamicsModuleWrapper") -> dict:
     return output
 
 
-def denoisplit_loss(module: "CAREamicsModuleWrapper") -> dict:
+def denoisplit_loss(predictions, module: "CAREamicsModuleWrapper") -> dict:
     """Loss function for DenoiSplit.
 
     Parameters
@@ -305,7 +305,7 @@ def denoisplit_loss(module: "CAREamicsModuleWrapper") -> dict:
     """
     # TODO what are all those params ? Document
 
-    predictions, td_data = module.prediction_data
+    _, td_data = module.prediction_data
     recons_loss_dict, imgs = get_reconstruction_loss(
         reconstruction=predictions,
         target=module.targets,

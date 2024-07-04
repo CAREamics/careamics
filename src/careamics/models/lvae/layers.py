@@ -1171,7 +1171,7 @@ class TopDownLayer(nn.Module):
             at the correspondent hierarchical layer.
         """
         if bu_value.shape[-2:] != p_params.shape[-2:]:
-            assert self.bottomup_no_padding_mode is True
+            assert self.bottomup_no_padding_mode is True # TODO WTF ?
             if self.topdown_no_padding_mode is False:
                 assert bu_value.shape[-1] > p_params.shape[-1]
                 bu_value = F.center_crop(bu_value, p_params.shape[-2:])
@@ -1241,7 +1241,7 @@ class TopDownLayer(nn.Module):
         p_params = self.get_p_params(input_, n_img_prior)
 
         # Get the parameters for the latent distribution to sample from
-        if inference_mode:
+        if inference_mode: # TODO What's this ?
             if self.is_top_layer:
                 q_params = bu_value
                 if mode_pred is False:

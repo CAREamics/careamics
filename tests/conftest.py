@@ -100,6 +100,8 @@ def minimum_algorithm_musplit() -> dict:
         "model": {
             "architecture": "LVAE",
             "enable_noise_model": False,
+            "z_dims": (128, 128, 128),
+            "multiscale_count": 4,
         },
     }
 

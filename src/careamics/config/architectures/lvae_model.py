@@ -135,12 +135,12 @@ class LVAEModel(ArchitectureModel):
         Self
             The validated model.
         """
-        if self.multiscale_count != 0:
-            if self.multiscale_count != len(self.z_dims) - 1:
-                raise ValueError(
-                    f"Multiscale count must be 0 or equal to the number of Z dimensions"
-                    f" - 1 (got {self.multiscale_count} and {len(self.z_dims)})."
-                )
+        # if self.multiscale_count != 0:
+        #     if self.multiscale_count != len(self.z_dims) - 1:
+        #         raise ValueError(
+        #             f"Multiscale count must be 0 or equal to the number of Z dimensions"
+        #             f" - 1 (got {self.multiscale_count} and {len(self.z_dims)})."
+        #         )
 
         return self
 

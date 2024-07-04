@@ -31,7 +31,7 @@ class CAREamicsModule(L.LightningModule):
 
     Parameters
     ----------
-    algorithm_config : Union[AlgorithmModel, dict]
+    self.algorithm_config : Union[AlgorithmModel, dict]
         Algorithm configuration.
 
     Attributes
@@ -56,24 +56,27 @@ class CAREamicsModule(L.LightningModule):
 
         Parameters
         ----------
-        algorithm_config : Union[AlgorithmModel, dict]
+        self.algorithm_config : Union[AlgorithmModel, dict]
             Algorithm configuration.
         """
         super().__init__()
         # if loading from a checkpoint, AlgorithmModel needs to be instantiated
-        if isinstance(algorithm_config, dict):
-            algorithm_config = AlgorithmConfig(**algorithm_config)
+        self.algorithm_config = (
+            AlgorithmConfig(**algorithm_config)
+            if isinstance(algorithm_config, dict)
+            else algorithm_config
+        )
 
         # create model and loss function
-        self.model: nn.Module = model_factory(algorithm_config.model)
-        self.loss_parameters = loss_parameters_factory(algorithm_config.loss)
-        self.loss_func = loss_factory(algorithm_config.loss)
+        self.model: nn.Module = model_factory(self.algorithm_config.model)
+        self.loss_parameters = loss_parameters_factory(self.algorithm_config.loss)
+        self.loss_func = loss_factory(self.algorithm_config.loss)
 
         # save optimizer and lr_scheduler names and parameters
-        self.optimizer_name = algorithm_config.optimizer.name
-        self.optimizer_params = algorithm_config.optimizer.parameters
-        self.lr_scheduler_name = algorithm_config.lr_scheduler.name
-        self.lr_scheduler_params = algorithm_config.lr_scheduler.parameters
+        self.optimizer_name = self.algorithm_config.optimizer.name
+        self.optimizer_params = self.algorithm_config.optimizer.parameters
+        self.lr_scheduler_name = self.algorithm_config.lr_scheduler.name
+        self.lr_scheduler_params = self.algorithm_config.lr_scheduler.parameters
 
     def forward(self, x: Any) -> Any:
         """Forward pass.
@@ -107,9 +110,14 @@ class CAREamicsModule(L.LightningModule):
         """
         x, *aux = batch
         out = self.model(x)
-        self.loss_parameters.prediction = out
-
-        loss = self.loss_func(out, *aux)
+        if self.algorithm_config.model.architecture == "UNet":
+            loss = self.loss_func(out, *aux)
+        elif self.algorithm_config.model.architecture == "LVAE": # TODO is there anythin in aux ?
+            loss = self.loss_func(out, *aux, self)  # TODO ugly ?s
+        else:
+            raise ValueError(
+                f"Architecture {self.algorithm_config.model.architecture} not supported"
+            )
         self.log(
             "train_loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True
         )
@@ -284,7 +292,7 @@ class CAREamicsModuleWrapper(CAREamicsModule):
             optimizer_parameters = {}
         if model_parameters is None:
             model_parameters = {}
-        algorithm_configuration = {
+        self.algorithm_configuration = {
             "algorithm": algorithm,
             "loss": loss,
             "optimizer": {
@@ -300,9 +308,9 @@ class CAREamicsModuleWrapper(CAREamicsModule):
         model_configuration.update(model_parameters)
 
         # add model parameters to algorithm configuration
-        algorithm_configuration["model"] = model_configuration
+        self.algorithm_configuration["model"] = model_configuration
 
         # call the parent init using an AlgorithmModel instance
-        super().__init__(AlgorithmConfig(**algorithm_configuration))
+        super().__init__(AlgorithmConfig(**self.algorithm_configuration))
 
         # TODO add load_from_checkpoint wrapper
