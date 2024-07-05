@@ -13,7 +13,6 @@ from careamics.config.data_model import TRANSFORMS_UNION
 from careamics.config.support import SupportedData
 from careamics.dataset.dataset_utils import (
     get_files_size,
-    get_read_func,
     list_files,
     validate_source_target_files,
 )
@@ -23,6 +22,7 @@ from careamics.dataset.in_memory_dataset import (
 from careamics.dataset.iterable_dataset import (
     PathIterableDataset,
 )
+from careamics.file_io.read import get_read_func
 from careamics.utils import get_logger, get_ram_size
 
 DatasetType = Union[InMemoryDataset, PathIterableDataset]

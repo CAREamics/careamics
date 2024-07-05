@@ -8,11 +8,12 @@ from typing import Any, Callable, Generator
 from numpy.typing import NDArray
 from torch.utils.data import IterableDataset
 
+from careamics.file_io.read import read_tiff
 from careamics.transforms import Compose
 
 from ..config import InferenceConfig
 from ..config.transformations import NormalizeModel
-from .dataset_utils import iterate_over_files, read_tiff
+from .dataset_utils import iterate_over_files
 
 
 class IterablePredDataset(IterableDataset):

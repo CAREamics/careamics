@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 import tifffile
 
-from careamics.dataset.dataset_utils.read_tiff import read_tiff
+from careamics.file_io.read import read_tiff
 
 
 def test_read_tiff(tmp_path, ordered_array):

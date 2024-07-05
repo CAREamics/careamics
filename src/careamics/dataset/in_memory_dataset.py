@@ -9,12 +9,12 @@ from typing import Any, Callable, Optional, Union
 import numpy as np
 from torch.utils.data import Dataset
 
+from careamics.file_io.read import read_tiff
 from careamics.transforms import Compose
 
 from ..config import DataConfig
 from ..config.transformations import NormalizeModel
 from ..utils.logging import get_logger
-from .dataset_utils import read_tiff
 from .patching.patching import (
     PatchedOutput,
     Stats,
