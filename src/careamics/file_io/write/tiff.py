@@ -10,6 +10,7 @@ from careamics.config.support import SupportedData
 
 
 def write_tiff(file_path: Path, img: NDArray, *args, **kwargs) -> None:
+    # TODO: add link to tiffile docs for args kwrgs?
     """
     Write tiff files.
 
