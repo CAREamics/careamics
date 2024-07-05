@@ -60,7 +60,7 @@ class SupportedData(str, BaseEnum):
         return super()._missing_(value)
 
     @classmethod
-    def get_extension_pattern(cls, data_type: Union[str | SupportedData]) -> str:
+    def get_extension_pattern(cls, data_type: Union[str, SupportedData]) -> str:
         """
         Get Path.rglob and fnmatch compatible extension.
 
@@ -75,7 +75,7 @@ class SupportedData(str, BaseEnum):
             Corresponding extension pattern.
         """
         if data_type == cls.ARRAY:
-            raise NotImplementedError(f"Data {data_type} are not loaded from file.")
+            raise NotImplementedError(f"Data '{data_type}' is not loaded from a file.")
         elif data_type == cls.TIFF:
             return "*.tif*"
         elif data_type == cls.CUSTOM:
@@ -84,7 +84,7 @@ class SupportedData(str, BaseEnum):
             raise ValueError(f"Data type {data_type} is not supported.")
 
     @classmethod
-    def get_extension(cls, data_type: Union[str | SupportedData]) -> str:
+    def get_extension(cls, data_type: Union[str, SupportedData]) -> str:
         """
         Get file extension of corresponding data type.
 
@@ -99,7 +99,7 @@ class SupportedData(str, BaseEnum):
             Corresponding extension.
         """
         if data_type == cls.ARRAY:
-            raise NotImplementedError(f"Data {data_type} are not loaded from file.")
+            raise NotImplementedError(f"Data '{data_type}' is not loaded from a file.")
         elif data_type == cls.TIFF:
             return ".tiff"
         elif data_type == cls.CUSTOM:

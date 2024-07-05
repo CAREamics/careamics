@@ -10,7 +10,7 @@ from careamics.config.support import SupportedData
 from .tiff import read_tiff
 
 
-# This is very strict, arguments have to be called img
+# This is very strict, function signature has to match including arg names
 # See WriteFunc notes
 class ReadFunc(Protocol):
     """Protocol for type hinting read functions."""
