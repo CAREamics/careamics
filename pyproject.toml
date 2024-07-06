@@ -145,14 +145,13 @@ exclude_lines = [
     "if TYPE_CHECKING:",
     "@overload",
     "except ImportError",
-    "\\.\\.\\.",
     "raise NotImplementedError()",
     "except PackageNotFoundError:",
 ]
 
 [tool.coverage.run]
-source = ["careamics"]
-omit = ["careamics/lvae_training/*"]
+source = ["src/careamics"]
+omit = ["src/careamics/lvae_training/*"]
 
 # https://github.com/mgedmin/check-manifest#configuration
 # add files that you want check-manifest to explicitly ignore here
