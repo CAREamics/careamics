@@ -237,7 +237,7 @@ def get_kl_divergence_loss(topdown_layer_data_dict, img_shape, kl_key="kl"):
 # mask = torch.isnan(target.reshape(len(x), -1)).all(dim=1)
 
 
-def musplit_loss(model_outputs, aux, module: "CAREamicsModuleWrapper") -> dict:
+def musplit_loss(model_outputs, targets, loss_parameters) -> dict:
     """Loss function for MuSplit.
 
     Parameters
@@ -253,23 +253,23 @@ def musplit_loss(model_outputs, aux, module: "CAREamicsModuleWrapper") -> dict:
     predictions, td_data = model_outputs
     recons_loss_dict, imgs = get_reconstruction_loss(
         reconstruction=predictions,
-        target=module.targets,
-        input=module.inputs,
-        splitting_mask=module.mask,
+        target=targets,
+        input=loss_parameters.inputs,
+        splitting_mask=loss_parameters.mask,
         return_predicted_img=True,
     )
 
-    recons_loss = recons_loss_dict["loss"] * module.reconstruction_weight
+    recons_loss = recons_loss_dict["loss"] * loss_parameters.reconstruction_weight
 
     if torch.isnan(recons_loss).any():
         recons_loss = 0.0
 
     kl_loss = get_kl_weight(
-        module.kl_annealing,
-        module.kl_start,
-        module.kl_annealtime,
-        module.kl_weight,
-        module.current_epoch,
+        loss_parameters.kl_annealing,
+        loss_parameters.kl_start,
+        loss_parameters.kl_annealtime,
+        loss_parameters.kl_weight,
+        loss_parameters.current_epoch,
     ) * get_kl_divergence_loss_usplit(td_data)
 
     net_loss = recons_loss + kl_loss

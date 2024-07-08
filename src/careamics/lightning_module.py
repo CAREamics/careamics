@@ -70,6 +70,7 @@ class CAREamicsModule(L.LightningModule):
         # create model and loss function
         self.model: nn.Module = model_factory(self.algorithm_config.model)
         self.loss_parameters = loss_parameters_factory(self.algorithm_config.loss)
+        # TODO how to modify these ?
         self.loss_func = loss_factory(self.algorithm_config.loss)
 
         # save optimizer and lr_scheduler names and parameters
@@ -111,9 +112,15 @@ class CAREamicsModule(L.LightningModule):
         x, *aux = batch
         out = self.model(x)
         if self.algorithm_config.model.architecture == "UNet":
-            loss = self.loss_func(out, *aux)
-        elif self.algorithm_config.model.architecture == "LVAE": # TODO is there anythin in aux ?
-            loss = self.loss_func(out, *aux, self)  # TODO ugly ?s
+            loss = self.loss_func(out, *aux, self.loss_parameters)
+        elif self.algorithm_config.model.architecture == "LVAE":
+            target = aux[0]
+            self.loss_parameters.current_epoch = self.current_epoch
+            self.loss_parameters.inputs = x
+            self.loss_parameters.mask = ~(
+                (target == 0).reshape(len(target), -1).all(dim=1)
+            )
+            loss = self.loss_func(out, target, self.loss_parameters)  # TODO ugly ?
         else:
             raise ValueError(
                 f"Architecture {self.algorithm_config.model.architecture} not supported"
