@@ -58,6 +58,13 @@ class PredictionWriterCallback(BasePredictionWriter):
             be relative to current working directory. Nested directories will not be 
             automatically created.
 
+        Raises
+        ------
+        ValueError
+            If `save_type="custom"` but `save_func` has not been given.
+        ValueError
+            If `save_type="custom"` but `save_extension` has not been given.
+
         Notes
         -----
         The `save_func` function signature must match that of the example below
@@ -89,6 +96,14 @@ class PredictionWriterCallback(BasePredictionWriter):
         self._init_save_extension(save_extension)
 
     def _init_dirpath(self, dirpath):
+        """
+        Initialize directory path. Should only be called from `__init__`.
+
+        Parameters
+        ----------
+        dirpath : pathlib.Path
+            See `__init__` description.
+        """
         dirpath = Path(dirpath)
         if not dirpath.is_absolute():
             dirpath = Path.cwd() / dirpath
@@ -100,6 +115,19 @@ class PredictionWriterCallback(BasePredictionWriter):
         self.dirpath = dirpath    
 
     def _init_save_func(self, save_func: Optional[WriteFunc]):
+        """
+        Initialize save function. Should only be called from `__init__`.
+
+        Parameters
+        ----------
+        save_func : WriteFunc, optional
+            See `__init__` description.
+
+        Raises
+        ------
+        ValueError
+            If `self.save_type="custom"` but `save_func` has not been given.
+        """
         if self.save_type == SupportedData.CUSTOM:
             if save_func is None:
                 raise ValueError(
@@ -112,6 +140,19 @@ class PredictionWriterCallback(BasePredictionWriter):
             self.save_func = get_write_func(self.save_type)
 
     def _init_save_extension(self, save_extension: Optional[str]):
+        """
+        Initialize save extension. Should only be called from `__init__`.
+
+        Parameters
+        ----------
+        save_extension : str, optional
+            See `__init__` description.
+
+        Raises
+        ------
+        ValueError
+            If `self.save_type="custom"` but `save_extension` has not been given.
+        """
         if self.save_type == SupportedData.CUSTOM:
             if save_extension is None:
                 raise ValueError(
