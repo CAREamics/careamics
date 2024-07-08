@@ -1,17 +1,19 @@
 """Test PredictionWriterCallback class."""
+
 from pathlib import Path
 
 import numpy as np
-from numpy.typing import NDArray
 import pytest
+from numpy.typing import NDArray
 
-from careamics.lightning.callbacks import PredictionWriterCallback
 from careamics.file_io.write import write_tiff
-from careamics.config.support import SupportedData
+from careamics.lightning.callbacks import PredictionWriterCallback
+
 
 def save_numpy(file_path: Path, img: NDArray, *args, **kwargs) -> None:
     """Example custom save function."""
     np.save(file_path, img, *args, **kwargs)
+
 
 def test_init_tiff():
     """Test PredictionWriterCallback initialization with `save_type=="tiff"`"""

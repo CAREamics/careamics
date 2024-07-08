@@ -1,63 +1,81 @@
 """Module containing PredictionWriterCallback class."""
 
-from typing import Union, Optional, Any
 from pathlib import Path
+from typing import Any, Optional, Sequence, Union
 
-from pytorch_lightning import Trainer, LightningModule
+from pytorch_lightning import LightningModule, Trainer
 from pytorch_lightning.callbacks import BasePredictionWriter
 
 from careamics.config.support import SupportedData
-from careamics.file_io import get_write_func, WriteFunc
+from careamics.file_io import WriteFunc, get_write_func
 from careamics.utils import get_logger
 
 logger = get_logger(__name__)
+
 
 class PredictionWriterCallback(BasePredictionWriter):
     """
     A PyTorch Lightning callback to save predictions.
 
+    Parameters
+    ----------
+    save_type : SupportedData or str, default="tiff"
+        The data type to save as, includes custom.
+    save_func : WriteFunc, optional
+        If a known `save_type` is selected this argument is ignored. For a custom
+        `save_type` a function to save the data must be passed. See notes below.
+    save_extension : str, optional
+        If a known `save_type` is selected this argument is ignored. For a custom
+        `save_type` an extension to save the data with must be passed.
+    save_func_kwargs : dict of {str: any}, optional
+        Additional keyword arguments to be passed to the save function.
+    dirpath : pathlib.Path or str, default="predictions"
+        Directory to save outputs to. If `dirpath is not absolute it is assumed to
+        be relative to current working directory. Nested directories will not be
+        automatically created.
+
     Attributes
     ----------
-    save_predictions: bool
+    save_predictions : bool
         A toggle to optionally switch off prediction saving.
-    save_type: SupportedData
+    save_type : SupportedData
         The data type of the saved data.
-    save_func: WriteFunc
+    save_func : WriteFunc
         The function for saving data.
     save_extension: str
         The extension that will be added to the save paths.
-    save_func_kwargs: dict of {str, any}
+    save_func_kwargs : dict of {str, any}
         Additional keyword arguments that will be passed to the save function.
-    dirpath: pathlib.Path
+    dirpath : pathlib.Path
         The path to the directory where prediction outputs will be saved.
     """
-    
+
     def __init__(
-            self,
-            save_type: Union[SupportedData, str]="tiff",
-            save_func: Optional[WriteFunc]=None,
-            save_extension: Optional[str]=None,
-            save_func_kwargs: Optional[dict[str, Any]]=None,
-            dirpath: Union[Path, str]="predictions"
-        ):
+        self,
+        save_type: Union[SupportedData, str] = "tiff",
+        save_func: Optional[WriteFunc] = None,
+        save_extension: Optional[str] = None,
+        save_func_kwargs: Optional[dict[str, Any]] = None,
+        dirpath: Union[Path, str] = "predictions",
+    ):
         """
         A PyTorch Lightning callback to save predictions.
 
         Parameters
         ----------
-        save_type: SupportedData or str, default="tiff"
+        save_type : SupportedData or str, default="tiff"
             The data type to save as, includes custom.
-        save_func: WriteFunc, optional
+        save_func : WriteFunc, optional
             If a known `save_type` is selected this argument is ignored. For a custom
             `save_type` a function to save the data must be passed. See notes below.
-        save_extension: str, optional
+        save_extension : str, optional
             If a known `save_type` is selected this argument is ignored. For a custom
             `save_type` an extension to save the data with must be passed.
-        save_func_kwargs: dict of {str: any}, optional
+        save_func_kwargs : dict of {str: any}, optional
             Additional keyword arguments to be passed to the save function.
         dirpath : pathlib.Path or str, default="predictions"
-            Directory to save outputs to. If `dirpath is not absolute it is assumed to 
-            be relative to current working directory. Nested directories will not be 
+            Directory to save outputs to. If `dirpath is not absolute it is assumed to
+            be relative to current working directory. Nested directories will not be
             automatically created.
 
         Raises
@@ -79,8 +97,7 @@ class PredictionWriterCallback(BasePredictionWriter):
             save_func(file_path=file_path, img=img, **kwargs)
             ```
         """
-        # TODO: look into write_interval; how tile caching should work, remember zarr !
-        super().__init__(write_interval='epoch')
+        super().__init__(write_interval="batch")
 
         # Toggle for CAREamist to switch off saving if desired
         self.save_predictions: bool = True
@@ -88,7 +105,7 @@ class PredictionWriterCallback(BasePredictionWriter):
         self.save_type: SupportedData = SupportedData(save_type)
         self.save_func_kwargs = save_func_kwargs
 
-        # forward declarations 
+        # forward declarations
         self.dirpath: Path
         self.save_func: WriteFunc
         self.save_extension: str
@@ -112,9 +129,8 @@ class PredictionWriterCallback(BasePredictionWriter):
             logger.warning(
                 "Prediction output directory is not absolute, absolute path assumed to"
                 f"be '{dirpath}'"
-
             )
-        self.dirpath = dirpath    
+        self.dirpath = dirpath
 
     def _init_save_func(self, save_func: Optional[WriteFunc]):
         """
@@ -134,7 +150,7 @@ class PredictionWriterCallback(BasePredictionWriter):
             if save_func is None:
                 raise ValueError(
                     "A save function must be provided for custom data types."
-                    # TODO: link to how save functions should be implemented 
+                    # TODO: link to how save functions should be implemented
                 )
             else:
                 self.save_func = save_func
@@ -168,9 +184,18 @@ class PredictionWriterCallback(BasePredictionWriter):
 
     def setup(self, trainer: Trainer, pl_module: LightningModule, stage: str) -> None:
         """
-        Will create the prediction output directory when predict begins.
-        
+        Create the prediction output directory when predict begins.
+
         Called when fit, validate, test, predict, or tune begins.
+
+        Parameters
+        ----------
+        trainer : Trainer
+            PyTorch Lightning trainer.
+        pl_module : LightningModule
+            PyTorch Lightning module.
+        stage : str
+            Stage of training e.g. 'predict', 'fit', 'validate'.
         """
         super().setup(trainer, pl_module, stage)
         if stage == "predict":
@@ -179,5 +204,39 @@ class PredictionWriterCallback(BasePredictionWriter):
                 logger.info("Making prediction output directory.")
                 self.dirpath.mkdir()
 
-    # TODO: write hook placeholders with TODO comments 
+    def write_on_batch_end(
+        self,
+        trainer: Trainer,
+        pl_module: LightningModule,
+        prediction: Any,
+        batch_indices: Optional[Sequence[int]],
+        batch: Any,  # TODO: change to expected type
+        batch_idx: int,
+        dataloader_idx: int,
+    ) -> None:
+        """
+        Write predictions at the end of a batch.
 
+        If tiff or custom, and tiled, tiles will be cached until a whole image is
+        predicted and then the stictched prediction will be saved.
+
+        If zarr, when implemented, tiles can be saved directly to disk.
+
+        Parameters
+        ----------
+        trainer : Trainer
+            PyTorch Lightning trainer.
+        pl_module : LightningModule
+            PyTorch Lightning module.
+        prediction : Any
+            Prediction outputs on batch.
+        batch_indices : sequence of Any, optional
+            Batch indices.
+        batch : Any
+            Input batch.
+        batch_idx : int
+            Batch index.
+        dataloader_idx : int
+            Dataloader index.
+        """
+        raise NotImplementedError
