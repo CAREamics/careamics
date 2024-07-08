@@ -1,3 +1,5 @@
+"""Module containing PredictionWriterCallback class."""
+
 from typing import Union, Optional, Any
 from pathlib import Path
 
@@ -159,9 +161,10 @@ class PredictionWriterCallback(BasePredictionWriter):
                     "A save extension must be provided for custom data types."
                 )
             else:
-                self.save_func = save_extension
+                self.save_extension = save_extension
         else:
-            self.save_func = self.save_type.get_extension()
+            # kind of a weird pattern -> reason to move get_extension from SupportedData
+            self.save_extension = self.save_type.get_extension(self.save_type)
 
     def setup(self, trainer: Trainer, pl_module: LightningModule, stage: str) -> None:
         """
@@ -176,5 +179,5 @@ class PredictionWriterCallback(BasePredictionWriter):
                 logger.info("Making prediction output directory.")
                 self.dirpath.mkdir()
 
-        
+    # TODO: write hook placeholders with TODO comments 
 
