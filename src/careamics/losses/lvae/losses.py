@@ -16,9 +16,9 @@ def get_reconstruction_loss(
     reconstruction: torch.Tensor,
     target: torch.Tensor,
     input: torch.Tensor,
+    likelihood_obj: LikelihoodModule,
     splitting_mask: torch.Tensor = None,
     return_predicted_img: bool = False,
-    likelihood_obj: LikelihoodModule = None,
 ) -> dict[str, torch.Tensor]:
     """
     Function to compute the reconstruction loss.
@@ -66,8 +66,8 @@ def _get_reconstruction_loss_vector(
     reconstruction: torch.Tensor,
     target: torch.Tensor,
     input: torch.Tensor,
+    likelihood_obj: LikelihoodModule,
     return_predicted_img: bool = False,
-    likelihood_obj: LikelihoodModule = None,
 ):
     """
     Function to compute the reconstruction loss.

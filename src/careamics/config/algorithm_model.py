@@ -9,6 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from typing_extensions import Self
 
 from .architectures import CustomModel, LVAEModel, UNetModel
+from .likelihood_model import GaussianLikelihoodModel, NMLikelihoodModel
 from .optimizer_models import LrSchedulerModel, OptimizerModel
 
 
@@ -102,6 +103,9 @@ class AlgorithmConfig(BaseModel):
     # Optional fields
     optimizer: OptimizerModel = OptimizerModel()
     lr_scheduler: LrSchedulerModel = LrSchedulerModel()
+    likelihood: Union[GaussianLikelihoodModel, NMLikelihoodModel] = Field(
+        discriminator="type"
+    )
 
     @model_validator(mode="after")
     def algorithm_cross_validation(self: Self) -> Self:

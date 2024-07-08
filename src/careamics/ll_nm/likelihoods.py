@@ -9,41 +9,6 @@ import numpy as np
 import torch
 from torch import nn
 
-from careamics.config.likelihood_model import GaussianLikelihoodModel, NMLikelihoodModel
-
-
-def likelihood_factory(config: Union[GaussianLikelihoodModel, NMLikelihoodModel]):
-    """
-    Factory function for creating likelihood modules.
-
-    Parameters
-    ----------
-    config: Union[GaussianLikelihoodModel, NMLikelihoodModel]
-        The configuration object for the likelihood module.
-
-    Returns
-    -------
-    nn.Module
-        The likelihood module.
-    """
-    if config.type == "GaussianLikelihoodModel":
-        return GaussianLikelihood(
-            ch_in=config.ch_in,
-            color_channels=config.color_channels,
-            predict_logvar=config.predict_logvar,
-            logvar_lowerbound=config.logvar_lowerbound,
-            conv2d_bias=config.conv2d_bias,
-        )
-    elif config.type == "NMLikelihoodModel":
-        return NoiseModelLikelihood(
-            ch_in=config.ch_in,
-            color_channels=config.color_channels,
-            data_mean=config.data_mean,
-            data_std=config.data_std,
-            noiseModel=config.noiseModel,
-        )
-    else:
-        raise ValueError(f"Invalid likelihood model type: {config.type}")
 
 class LikelihoodModule(nn.Module):
     """

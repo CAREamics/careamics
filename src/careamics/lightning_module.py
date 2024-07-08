@@ -17,6 +17,7 @@ from careamics.losses import loss_factory
 from careamics.losses.loss_factory import (
     loss_parameters_factory,
 )
+from careamics.models.lvae.likelihood import likekihood_factory
 from careamics.models.model_factory import model_factory
 from careamics.transforms import Denormalize, ImageRestorationTTA
 from careamics.utils.torch_utils import get_optimizer, get_scheduler
@@ -69,6 +70,7 @@ class CAREamicsModule(L.LightningModule):
 
         # create model and loss function
         self.model: nn.Module = model_factory(self.algorithm_config.model)
+        self.likelihood = likekihood_factory(self.algorithm_config.likelihood)
         self.loss_parameters = loss_parameters_factory(self.algorithm_config.loss)
         # TODO how to modify these ?
         self.loss_func = loss_factory(self.algorithm_config.loss)
