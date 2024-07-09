@@ -102,6 +102,8 @@ class AlgorithmConfig(BaseModel):
 
     # Optional fields
     optimizer: OptimizerModel = OptimizerModel()
+    """Optimizer to use, defined in SupportedOptimizer."""
+
     lr_scheduler: LrSchedulerModel = LrSchedulerModel()
     likelihood: Union[GaussianLikelihoodModel, NMLikelihoodModel] = Field(
         discriminator="type" # TODO add opt

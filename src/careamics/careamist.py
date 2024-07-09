@@ -13,21 +13,28 @@ from pytorch_lightning.callbacks import (
 )
 from pytorch_lightning.loggers import TensorBoardLogger, WandbLogger
 
-from careamics.callbacks import ProgressBarCallback
 from careamics.config import (
     Configuration,
     load_configuration,
 )
-from careamics.config.support import SupportedAlgorithm, SupportedData, SupportedLogger
+from careamics.config.support import (
+    SupportedAlgorithm,
+    SupportedArchitecture,
+    SupportedData,
+    SupportedLogger,
+)
 from careamics.dataset.dataset_utils import reshape_array
-from careamics.lightning_datamodule import CAREamicsTrainData
-from careamics.lightning_module import CAREamicsModule
+from careamics.lightning import (
+    CAREamicsModule,
+    HyperParametersCallback,
+    PredictDataModule,
+    ProgressBarCallback,
+    TrainDataModule,
+    create_predict_datamodule,
+)
 from careamics.model_io import export_to_bmz, load_pretrained
-from careamics.prediction_utils import convert_outputs, create_pred_datamodule
+from careamics.prediction_utils import convert_outputs
 from careamics.utils import check_path_exists, get_logger
-
-from .callbacks import HyperParametersCallback
-from .lightning_prediction_datamodule import CAREamicsPredictData
 
 logger = get_logger(__name__)
 
@@ -61,9 +68,9 @@ class CAREamist:
         Experiment logger, "wandb" or "tensorboard".
     work_dir : pathlib.Path
         Working directory.
-    train_datamodule : CAREamicsTrainData
+    train_datamodule : TrainDataModule
         Training datamodule.
-    pred_datamodule : CAREamicsPredictData
+    pred_datamodule : PredictDataModule
         Prediction datamodule.
     """
 
@@ -193,8 +200,8 @@ class CAREamist:
         )
 
         # place holder for the datamodules
-        self.train_datamodule: Optional[CAREamicsTrainData] = None
-        self.pred_datamodule: Optional[CAREamicsPredictData] = None
+        self.train_datamodule: Optional[TrainDataModule] = None
+        self.pred_datamodule: Optional[PredictDataModule] = None
 
     def _define_callbacks(self, callbacks: Optional[list[Callback]] = None) -> None:
         """
@@ -246,7 +253,7 @@ class CAREamist:
     def train(
         self,
         *,
-        datamodule: Optional[CAREamicsTrainData] = None,
+        datamodule: Optional[TrainDataModule] = None,
         train_source: Optional[Union[Path, str, NDArray]] = None,
         val_source: Optional[Union[Path, str, NDArray]] = None,
         train_target: Optional[Union[Path, str, NDArray]] = None,
@@ -273,7 +280,7 @@ class CAREamist:
 
         Parameters
         ----------
-        datamodule : CAREamicsTrainData, optional
+        datamodule : TrainDataModule, optional
             Datamodule to train on, by default None.
         train_source : pathlib.Path or str or NDArray, optional
             Train source, if no datamodule is provided, by default None.
@@ -375,17 +382,17 @@ class CAREamist:
 
             else:
                 raise ValueError(
-                    f"Invalid input, expected a str, Path, array or CAREamicsTrainData "
+                    f"Invalid input, expected a str, Path, array or TrainDataModule "
                     f"instance (got {type(train_source)})."
                 )
 
-    def _train_on_datamodule(self, datamodule: CAREamicsTrainData) -> None:
+    def _train_on_datamodule(self, datamodule: TrainDataModule) -> None:
         """
         Train the model on the provided datamodule.
 
         Parameters
         ----------
-        datamodule : CAREamicsTrainData
+        datamodule : TrainDataModule
             Datamodule to train on.
         """
         # record datamodule
@@ -421,7 +428,7 @@ class CAREamist:
             Minimum number of patches to use for validation, by default 5.
         """
         # create datamodule
-        datamodule = CAREamicsTrainData(
+        datamodule = TrainDataModule(
             data_config=self.cfg.data_config,
             train_data=train_data,
             val_data=val_data,
@@ -477,7 +484,7 @@ class CAREamist:
             path_to_val_target = check_path_exists(path_to_val_target)
 
         # create datamodule
-        datamodule = CAREamicsTrainData(
+        datamodule = TrainDataModule(
             data_config=self.cfg.data_config,
             train_data=path_to_train_data,
             val_data=path_to_val_data,
@@ -493,10 +500,7 @@ class CAREamist:
 
     @overload
     def predict(  # numpydoc ignore=GL08
-        self,
-        source: CAREamicsPredictData,
-        *,
-        checkpoint: Optional[Literal["best", "last"]] = None,
+        self, source: PredictDataModule
     ) -> Union[list[NDArray], NDArray]: ...
 
     @overload
@@ -513,7 +517,6 @@ class CAREamist:
         dataloader_params: Optional[dict] = None,
         read_source_func: Optional[Callable] = None,
         extension_filter: str = "",
-        checkpoint: Optional[Literal["best", "last"]] = None,
     ) -> Union[list[NDArray], NDArray]: ...
 
     @overload
@@ -528,12 +531,11 @@ class CAREamist:
         data_type: Optional[Literal["array"]] = None,
         tta_transforms: bool = True,
         dataloader_params: Optional[dict] = None,
-        checkpoint: Optional[Literal["best", "last"]] = None,
     ) -> Union[list[NDArray], NDArray]: ...
 
     def predict(
         self,
-        source: Union[CAREamicsPredictData, Path, str, NDArray],
+        source: Union[PredictDataModule, Path, str, NDArray],
         *,
         batch_size: Optional[int] = None,
         tile_size: Optional[tuple[int, ...]] = None,
@@ -544,7 +546,6 @@ class CAREamist:
         dataloader_params: Optional[dict] = None,
         read_source_func: Optional[Callable] = None,
         extension_filter: str = "",
-        checkpoint: Optional[Literal["best", "last"]] = None,
         **kwargs: Any,
     ) -> Union[list[NDArray], NDArray]:
         """
@@ -590,8 +591,6 @@ class CAREamist:
             Function to read the source data.
         extension_filter : str, default=""
             Filter for the file extension.
-        checkpoint : {"best", "last"}, optional
-            Checkpoint to use for prediction.
         **kwargs : Any
             Unused.
 
@@ -599,31 +598,64 @@ class CAREamist:
         -------
         list of NDArray or NDArray
             Predictions made by the model.
-        """
-        # Reuse batch size if not provided explicitly
-        if batch_size is None:
-            batch_size = (
-                self.train_datamodule.batch_size
-                if self.train_datamodule
-                else self.cfg.data_config.batch_size
-            )
 
-        self.pred_datamodule = create_pred_datamodule(
-            source=source,
-            config=self.cfg,
-            batch_size=batch_size,
+        Raises
+        ------
+        ValueError
+            If mean and std are not provided in the configuration.
+        ValueError
+            If tile size is not divisible by 2**depth for UNet models.
+        ValueError
+            If tile overlap is not specified.
+        """
+        if (
+            self.cfg.data_config.image_means is None
+            or self.cfg.data_config.image_stds is None
+        ):
+            raise ValueError("Mean and std must be provided in the configuration.")
+
+        # tile size for UNets
+        if tile_size is not None:
+            model = self.cfg.algorithm_config.model
+
+            if model.architecture == SupportedArchitecture.UNET.value:
+                # tile size must be equal to k*2^n, where n is the number of pooling
+                # layers (equal to the depth) and k is an integer
+                depth = model.depth
+                tile_increment = 2**depth
+
+                for i, t in enumerate(tile_size):
+                    if t % tile_increment != 0:
+                        raise ValueError(
+                            f"Tile size must be divisible by {tile_increment} along "
+                            f"all axes (got {t} for axis {i}). If your image size is "
+                            f"smaller along one axis (e.g. Z), consider padding the "
+                            f"image."
+                        )
+
+            # tile overlaps must be specified
+            if tile_overlap is None:
+                raise ValueError("Tile overlap must be specified.")
+
+        # create the prediction
+        self.pred_datamodule = create_predict_datamodule(
+            pred_data=source,
+            data_type=data_type or self.cfg.data_config.data_type,
+            axes=axes or self.cfg.data_config.axes,
+            image_means=self.cfg.data_config.image_means,
+            image_stds=self.cfg.data_config.image_stds,
             tile_size=tile_size,
             tile_overlap=tile_overlap,
-            axes=axes,
-            data_type=data_type,
+            batch_size=batch_size or self.cfg.data_config.batch_size,
             tta_transforms=tta_transforms,
-            dataloader_params=dataloader_params,
             read_source_func=read_source_func,
             extension_filter=extension_filter,
+            dataloader_params=dataloader_params,
         )
 
+        # predict
         predictions = self.trainer.predict(
-            model=self.model, datamodule=self.pred_datamodule, ckpt_path=checkpoint
+            model=self.model, datamodule=self.pred_datamodule
         )
         return convert_outputs(predictions, self.pred_datamodule.tiled)
 
@@ -659,27 +691,16 @@ class CAREamist:
         data_description : str, optional
             Description of the data, by default None.
         """
-        input_patch = reshape_array(input_array, self.cfg.data_config.axes)
+        # TODO: add in docs that it is expected that input_array dimensions match
+        # those in data_config
 
-        # axes need to be reformated for the export because reshaping was done in the
-        # datamodule
-        if "Z" in self.cfg.data_config.axes:
-            axes = "SCZYX"
-        else:
-            axes = "SCYX"
-
-        # predict output, remove extra dimensions for the purpose of the prediction
         output_patch = self.predict(
-            input_patch,
+            input_array,
             data_type=SupportedData.ARRAY.value,
-            axes=axes,
             tta_transforms=False,
         )
-
-        if isinstance(output_patch, list):
-            output = np.concatenate(output_patch, axis=0)
-        else:
-            output = output_patch
+        output = np.concatenate(output_patch, axis=0)
+        input_array = reshape_array(input_array, self.cfg.data_config.axes)
 
         export_to_bmz(
             model=self.model,
@@ -688,7 +709,7 @@ class CAREamist:
             name=name,
             general_description=general_description,
             authors=authors,
-            input_array=input_patch,
+            input_array=input_array,
             output_array=output,
             channel_names=channel_names,
             data_description=data_description,

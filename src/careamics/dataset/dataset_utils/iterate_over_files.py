@@ -9,10 +9,10 @@ from numpy.typing import NDArray
 from torch.utils.data import get_worker_info
 
 from careamics.config import DataConfig, InferenceConfig
+from careamics.file_io.read import read_tiff
 from careamics.utils.logging import get_logger
 
 from .dataset_utils import reshape_array
-from .read_tiff import read_tiff
 
 logger = get_logger(__name__)
 

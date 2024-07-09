@@ -44,7 +44,9 @@ def read_tiff(file_path: Path, *args: list, **kwargs: dict) -> np.ndarray:
     ValueError
         If the axes length is incorrect.
     """
-    if fnmatch(file_path.suffix, SupportedData.get_extension(SupportedData.TIFF)):
+    if fnmatch(
+        file_path.suffix, SupportedData.get_extension_pattern(SupportedData.TIFF)
+    ):
         try:
             array = tifffile.imread(file_path)
         except (ValueError, OSError) as e:

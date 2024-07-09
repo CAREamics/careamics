@@ -29,19 +29,38 @@ class UNetModel(ArchitectureModel):
 
     # discriminator used for choosing the pydantic model in Model
     architecture: Literal["UNet"]
+    """Name of the architecture."""
 
     # parameters
     # validate_defaults allow ignoring default values in the dump if they were not set
     conv_dims: Literal[2, 3] = Field(default=2, validate_default=True)
+    """Dimensions (2D or 3D) of the convolutional layers."""
+
     num_classes: int = Field(default=1, ge=1, validate_default=True)
+    """Number of classes or channels in the model output."""
+
     in_channels: int = Field(default=1, ge=1, validate_default=True)
+    """Number of channels in the input to the model."""
+
     depth: int = Field(default=2, ge=1, le=10, validate_default=True)
+    """Number of levels in the UNet."""
+
     num_channels_init: int = Field(default=32, ge=8, le=1024, validate_default=True)
+    """Number of convolutional filters in the first layer of the UNet."""
+
     final_activation: Literal[
         "None", "Sigmoid", "Softmax", "Tanh", "ReLU", "LeakyReLU"
     ] = Field(default="None", validate_default=True)
+    """Final activation function."""
+
     n2v2: bool = Field(default=False, validate_default=True)
+    """Whether to use N2V2 architecture modifications, with blur pool layers and fewer
+    skip connections.
+    """
+
     independent_channels: bool = Field(default=True, validate_default=True)
+    """Whether information is processed independently in each channel, used to train
+    channels independently."""
 
     @field_validator("num_channels_init")
     @classmethod
