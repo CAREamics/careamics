@@ -17,9 +17,9 @@ def save_numpy(file_path: Path, img: NDArray, *args, **kwargs) -> None:
 
 def test_init_tiff():
     """Test PredictionWriterCallback initialization with `save_type=="tiff"`"""
-    pwc = PredictionWriterCallback(save_type="tiff")
-    assert pwc.save_func is write_tiff
-    assert pwc.save_extension == ".tiff"
+    pwc = PredictionWriterCallback(write_type="tiff")
+    assert pwc.write_func is write_tiff
+    assert pwc.write_extension == ".tiff"
 
 
 @pytest.mark.parametrize("save_func", [None, save_numpy])
@@ -30,11 +30,11 @@ def test_init_custom(save_func, save_extension):
     if (save_func is None) or (save_extension is None):
         with pytest.raises(ValueError):
             pwc = PredictionWriterCallback(
-                save_type="custom", save_func=save_func, save_extension=save_extension
+                write_type="custom", write_func=save_func, write_extension=save_extension
             )
         return
     pwc = PredictionWriterCallback(
-        save_type="custom", save_func=save_func, save_extension=save_extension
+        write_type="custom", write_func=save_func, write_extension=save_extension
     )
-    assert pwc.save_func is save_numpy
-    assert pwc.save_extension == ".npy"
+    assert pwc.write_func is save_numpy
+    assert pwc.write_extension == ".npy"
