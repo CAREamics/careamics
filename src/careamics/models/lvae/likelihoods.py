@@ -45,6 +45,7 @@ def likelihood_factory(config: Union[GaussianLikelihoodModel, NMLikelihoodModel]
     else:
         raise ValueError(f"Invalid likelihood model type: {config.type}")
 
+
 class LikelihoodModule(nn.Module):
     """
     The base class for all likelihood modules.
@@ -103,8 +104,7 @@ class LikelihoodModule(nn.Module):
 
 
 class GaussianLikelihood(LikelihoodModule):
-    r"""
-    A specialize `LikelihoodModule` for Gaussian likelihood.
+    r"""A specialize `LikelihoodModule` for Gaussian likelihood.
 
     Specifically, in the LVAE model, the likelihood is defined as:
         p(x|z_1) = N(x|\mu_{p,1}, \sigma_{p,1}^2)
@@ -115,7 +115,7 @@ class GaussianLikelihood(LikelihoodModule):
         ch_in: int,
         color_channels: int,
         predict_logvar: Literal[None, "pixelwise", "global", "channelwise"] = None,
-        logvar_lowerbound: float = None,
+        logvar_lowerbound: Union[float, None] = None,
         conv2d_bias: bool = True,
     ):
         """

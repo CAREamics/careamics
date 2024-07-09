@@ -5,7 +5,6 @@ import numpy as np
 import torch
 
 if TYPE_CHECKING:
-    from careamics.lightning_module import CAREamicsModuleWrapper
     print('sdfdsfds')
 from careamics.losses.lvae.loss_utils import free_bits_kl, get_kl_weight
 from careamics.models.lvae.likelihoods import LikelihoodModule
@@ -172,7 +171,7 @@ def reconstruction_loss_musplit_denoisplit(
     return recons_loss
 
 
-def _get_weighted_likelihood(ll, ch1_recons_w, ch2_recons_w):
+def _get_weighted_likelihood(ll, ch1_recons_w=1, ch2_recons_w=1): #TODO what's this ? added defaults
     """Each of the channels gets multiplied with a different weight."""
     if ch1_recons_w == 1 and ch2_recons_w == 1:
         return ll
@@ -257,6 +256,7 @@ def musplit_loss(model_outputs, targets, loss_parameters) -> dict:
         input=loss_parameters.inputs,
         splitting_mask=loss_parameters.mask,
         return_predicted_img=True,
+        likelihood_obj=loss_parameters.likelihood,
     )
 
     recons_loss = recons_loss_dict["loss"] * loss_parameters.reconstruction_weight
@@ -290,7 +290,7 @@ def musplit_loss(model_outputs, targets, loss_parameters) -> dict:
     return output
 
 
-def denoisplit_loss(predictions, module: "CAREamicsModuleWrapper") -> dict:
+def denoisplit_loss(model_outputs, targets, loss_parameters) -> dict:
     """Loss function for DenoiSplit.
 
     Parameters
@@ -305,21 +305,22 @@ def denoisplit_loss(predictions, module: "CAREamicsModuleWrapper") -> dict:
     """
     # TODO what are all those params ? Document
 
-    _, td_data = module.prediction_data
+    predictions, td_data = model_outputs
     recons_loss_dict, imgs = get_reconstruction_loss(
         reconstruction=predictions,
-        target=module.targets,
-        input=module.inputs,
-        splitting_mask=module.mask,
+        target=targets,
+        input=loss_parameters.inputs,
+        splitting_mask=loss_parameters.mask,
         return_predicted_img=True,
+        likelihood_obj=loss_parameters.likelihood,
     )
 
-    recons_loss = recons_loss_dict["loss"] * module.reconstruction_weight
+    recons_loss = recons_loss_dict["loss"] * loss_parameters.reconstruction_weight
 
     if torch.isnan(recons_loss).any():
         recons_loss = 0.0
 
-    if module.non_stochastic:  # TODO always false ?
+    if loss_parameters.non_stochastic:  # TODO always false ?
         kl_loss = torch.Tensor([0.0]).cuda()
         net_loss = recons_loss
     else:
@@ -330,19 +331,19 @@ def denoisplit_loss(predictions, module: "CAREamicsModuleWrapper") -> dict:
         )
         usplit_kl = get_kl_divergence_loss_usplit(topdown_layer_data_dict=td_data)
         kl_loss = (
-            module.denoisplit_weight * denoisplit_kl + module.usplit_weight * usplit_kl
+            loss_parameters.denoisplit_weight * denoisplit_kl + loss_parameters.usplit_weight * loss_parameters.usplit_kl
         )
         # TODO kl_weight is hardcoded
         recons_loss = reconstruction_loss_musplit_denoisplit(
-            predictions, module.targets
+            predictions, targets
         )
         # recons_loss = _denoisplit_w * recons_loss_nm + _usplit_w * recons_loss_gm
         kl_loss = get_kl_weight(
-            module.kl_annealing,
-            module.kl_start,
-            module.kl_annealtime,
-            module.kl_weight,
-            module.current_epoch,
+            loss_parameters.kl_annealing,
+            loss_parameters.kl_start,
+            loss_parameters.kl_annealtime,
+            loss_parameters.kl_weight,
+            loss_parameters.current_epoch,
         ) * get_kl_divergence_loss(td_data)
         net_loss = recons_loss + kl_loss
 

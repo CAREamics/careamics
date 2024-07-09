@@ -35,6 +35,7 @@ class LVAELossParameters:
     targets: tensor
     inputs: tensor
     mask: tensor
+    likelihood: Callable
     current_epoch: int
     reconstruction_weight: float = 1.0
     usplit_weight: float = 0.0

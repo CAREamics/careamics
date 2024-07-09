@@ -3,7 +3,7 @@
 from typing import Literal, Union
 
 import torch
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from torch import nn
 
 
@@ -19,9 +19,9 @@ class GaussianLikelihoodModel(BaseModel):
 
     type: Literal["GaussianLikelihoodModel"]
 
-    ch_in: int
-    color_channels: int
-    predict_logvar: Literal[None, "pixelwise", "global", "channelwise"] = (None,)
+    color_channels: int# TODO output channels, rename
+    ch_in: int = Field(default=64) # input to the likelihood model
+    predict_logvar: Literal[None, "pixelwise", "global", "channelwise"] = None
     logvar_lowerbound: float = None
     conv2d_bias: bool = True
 

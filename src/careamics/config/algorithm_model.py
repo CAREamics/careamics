@@ -104,7 +104,7 @@ class AlgorithmConfig(BaseModel):
     optimizer: OptimizerModel = OptimizerModel()
     lr_scheduler: LrSchedulerModel = LrSchedulerModel()
     likelihood: Union[GaussianLikelihoodModel, NMLikelihoodModel] = Field(
-        discriminator="type"
+        discriminator="type" # TODO add opt
     )
 
     @model_validator(mode="after")

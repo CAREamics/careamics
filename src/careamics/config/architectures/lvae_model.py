@@ -19,7 +19,7 @@ class LVAEModel(ArchitectureModel):
     input_shape: int = Field(default=64, ge=8, le=1024)
     multiscale_count: int = Field(default=3)  # TODO clarify
     # 0 - off, len(z_dims) - 1
-    z_dims: tuple = Field(default=(128, 128, 128, 128), validate_default=True)
+    z_dims: tuple = Field(default=(128, 128, 128, 128), validate_default=True) #TODO don't use tuple
     output_channels: int = Field(default=1, ge=1, validate_default=True)
     encoder_n_filters: int = Field(default=64, ge=8, le=1024, validate_default=True)
     decoder_n_filters: int = Field(default=64, ge=8, le=1024, validate_default=True)
@@ -29,7 +29,7 @@ class LVAEModel(ArchitectureModel):
         "None", "Sigmoid", "Softmax", "Tanh", "ReLU", "LeakyReLU", "ELU"
     ] = Field(default="ELU", validate_default=True)
 
-    predict_logvar: Literal[None, "global", "pixelwise", "channelwise"] = None
+    predict_logvar: Literal[None, "global", "pixelwise", "channelwise"] = None #TODO Remove ?
     enable_noise_model: bool = Field(default=True, validate_default=True)
     analytical_kl: bool = Field(default=False, validate_default=True)
 

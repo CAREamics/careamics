@@ -17,7 +17,7 @@ from careamics.losses import loss_factory
 from careamics.losses.loss_factory import (
     loss_parameters_factory,
 )
-from careamics.models.lvae.likelihood import likekihood_factory
+from careamics.models.lvae.likelihoods import likelihood_factory
 from careamics.models.model_factory import model_factory
 from careamics.transforms import Denormalize, ImageRestorationTTA
 from careamics.utils.torch_utils import get_optimizer, get_scheduler
@@ -70,7 +70,7 @@ class CAREamicsModule(L.LightningModule):
 
         # create model and loss function
         self.model: nn.Module = model_factory(self.algorithm_config.model)
-        self.likelihood = likekihood_factory(self.algorithm_config.likelihood)
+        self.likelihood = likelihood_factory(self.algorithm_config.likelihood)
         self.loss_parameters = loss_parameters_factory(self.algorithm_config.loss)
         # TODO how to modify these ?
         self.loss_func = loss_factory(self.algorithm_config.loss)
@@ -80,6 +80,12 @@ class CAREamicsModule(L.LightningModule):
         self.optimizer_params = self.algorithm_config.optimizer.parameters
         self.lr_scheduler_name = self.algorithm_config.lr_scheduler.name
         self.lr_scheduler_params = self.algorithm_config.lr_scheduler.parameters
+
+        self.log_func = (
+            self.log
+            if self.algorithm_config.model.architecture == "UNet"
+            else self.log_dict
+        )
 
     def forward(self, x: Any) -> Any:
         """Forward pass.
@@ -122,14 +128,15 @@ class CAREamicsModule(L.LightningModule):
             self.loss_parameters.mask = ~(
                 (target == 0).reshape(len(target), -1).all(dim=1)
             )
+            self.loss_parameters.likelihood = self.likelihood
             loss = self.loss_func(out, target, self.loss_parameters)  # TODO ugly ?
         else:
             raise ValueError(
                 f"Architecture {self.algorithm_config.model.architecture} not supported"
             )
-        self.log(
-            "train_loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True
-        )
+        self.log_func(
+            loss, on_step=True, on_epoch=True, prog_bar=True, logger=True
+        ) # TODO this is ugly
         return loss
 
     def validation_step(self, batch: Tensor, batch_idx: Any) -> None:
