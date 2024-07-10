@@ -11,6 +11,7 @@ from careamics.file_io import WriteFunc, get_write_func
 from careamics.utils import get_logger
 
 from .write_strategy import WriteStrategy
+from .write_strategy_factory import create_write_strategy
 
 logger = get_logger(__name__)
 
@@ -54,19 +55,46 @@ class PredictionWriterCallback(BasePredictionWriter):
 
     def __init__(
         self,
-        write_type: Union[SupportedData, str] = "tiff",
+        write_strategy: WriteStrategy,
+        dirpath: Union[Path, str] = "predictions",
+    ):    
+        """
+        A PyTorch Lightning callback to save predictions.     
+        """
+        super().__init__(write_interval="batch")
+
+        # Toggle for CAREamist to switch off saving if desired
+        self.write_predictions: bool = True
+
+        self.write_strategy: WriteStrategy = write_strategy
+
+        # forward declaration
+        self.dirpath: Path
+        # attribute initialisation
+        self._init_dirpath(dirpath)
+
+    @classmethod
+    def from_write_func_params(
+        cls: "PredictionWriterCallback", 
+        write_type: Union[SupportedData, str],
+        tiled: bool,
         write_func: Optional[WriteFunc] = None,
         write_extension: Optional[str] = None,
         write_func_kwargs: Optional[dict[str, Any]] = None,
         dirpath: Union[Path, str] = "predictions",
-    ):
+    ) -> "PredictionWriterCallback":
         """
-        A PyTorch Lightning callback to save predictions.
+        Initialize a `PredictionWriterCallback` from write function parameters.
+
+        This will automatically create a `WriteStrategy` to by passed to the 
+        initialisation of `PredictionWriterCallback`.
 
         Parameters
         ----------
-        write_type : SupportedData or str, default="tiff"
+        write_type : SupportedData or str
             The data type to save as, includes custom.
+        tiled : bool
+            Whether the prediction will be tiled or not.
         write_func : WriteFunc, optional
             If a known `write_type` is selected this argument is ignored. For a custom
             `write_type` a function to save the data must be passed. See notes below.
@@ -75,50 +103,16 @@ class PredictionWriterCallback(BasePredictionWriter):
             `write_type` an extension to save the data with must be passed.
         write_func_kwargs : dict of {str: any}, optional
             Additional keyword arguments to be passed to the save function.
-        dirpath : pathlib.Path or str, default="predictions"
-            Directory to save outputs to. If `dirpath is not absolute it is assumed to
-            be relative to current working directory. Nested directories will not be
-            automatically created.
-
-        Raises
-        ------
-        ValueError
-            If `write_type="custom"` but `write_func` has not been given.
-        ValueError
-            If `write_type="custom"` but `write_extension` has not been given.
-
-        Notes
-        -----
-        The `write_func` function signature must match that of the example below
-            ```
-            write_func(file_path: Path, img: NDArray, *args, **kwargs) -> None: ...
-            ```
-
-        The `write_func_kwargs` will be passed to the `write_func` doing the following:
-            ```
-            write_func(file_path=file_path, img=img, **kwargs)
-            ```
         """
-        super().__init__(write_interval="batch")
+        write_strategy = create_write_strategy(
+            write_type=write_type,
+            tiled=tiled,
+            write_func=write_func,
+            write_extension=write_extension,
+            write_func_kwargs=write_func_kwargs
+        )
+        return cls(write_strategy=write_strategy, dirpath=dirpath)
 
-        # Toggle for CAREamist to switch off saving if desired
-        self.write_predictions: bool = True
-
-        self.write_type: SupportedData = SupportedData(write_type)
-        self.write_func_kwargs: Optional[dict[str, Any]] = write_func_kwargs
-
-        # forward declarations
-        self.dirpath: Path
-        self.write_func: WriteFunc
-        self.write_extension: str
-        self.write_strategy: WriteStrategy
-        # attribute initialisation
-        self._init_dirpath(dirpath)
-        self._init_write_func(write_func)
-        self._init_write_extension(write_extension)
-        self._set_write_strategy()
-
-    # TODO: potentially override init for write strategy creation
 
     def _init_dirpath(self, dirpath):
         """
@@ -138,55 +132,6 @@ class PredictionWriterCallback(BasePredictionWriter):
             )
         self.dirpath = dirpath
 
-    def _init_write_func(self, write_func: Optional[WriteFunc]):
-        """
-        Initialize save function. Should only be called from `__init__`.
-
-        Parameters
-        ----------
-        save_func : WriteFunc, optional
-            See `__init__` description.
-
-        Raises
-        ------
-        ValueError
-            If `self.save_type="custom"` but `save_func` has not been given.
-        """
-        if self.write_type == SupportedData.CUSTOM:
-            if write_func is None:
-                raise ValueError(
-                    "A save function must be provided for custom data types."
-                    # TODO: link to how save functions should be implemented
-                )
-            else:
-                self.write_func = write_func
-        else:
-            self.write_func = get_write_func(self.write_type)
-
-    def _init_write_extension(self, write_extension: Optional[str]):
-        """
-        Initialize save extension. Should only be called from `__init__`.
-
-        Parameters
-        ----------
-        save_extension : str, optional
-            See `__init__` description.
-
-        Raises
-        ------
-        ValueError
-            If `self.save_type="custom"` but `save_extension` has not been given.
-        """
-        if self.write_type == SupportedData.CUSTOM:
-            if write_extension is None:
-                raise ValueError(
-                    "A save extension must be provided for custom data types."
-                )
-            else:
-                self.write_extension = write_extension
-        else:
-            # kind of a weird pattern -> reason to move get_extension from SupportedData
-            self.write_extension = self.write_type.get_extension(self.write_type)
 
     def setup(self, trainer: Trainer, pl_module: LightningModule, stage: str) -> None:
         """
@@ -210,9 +155,6 @@ class PredictionWriterCallback(BasePredictionWriter):
                 logger.info("Making prediction output directory.")
                 self.dirpath.mkdir()
 
-    def _set_write_strategy(self) -> None:
-        ...
-
     def write_on_batch_end(
         self,
         trainer: Trainer,
@@ -226,10 +168,7 @@ class PredictionWriterCallback(BasePredictionWriter):
         """
         Write predictions at the end of a batch.
 
-        If tiff or custom, and tiled, tiles will be cached until a whole image is
-        predicted and then the stictched prediction will be saved.
-
-        If zarr, when implemented, tiles can be saved directly to disk.
+        The method of prediction is determined by the attribute `write_strategy`.
 
         Parameters
         ----------
@@ -238,7 +177,7 @@ class PredictionWriterCallback(BasePredictionWriter):
         pl_module : LightningModule
             PyTorch Lightning module.
         prediction : Any
-            Prediction outputs on batch.
+            Prediction outputs of `batch`.
         batch_indices : sequence of Any, optional
             Batch indices.
         batch : Any
@@ -248,4 +187,12 @@ class PredictionWriterCallback(BasePredictionWriter):
         dataloader_idx : int
             Dataloader index.
         """
-        raise NotImplementedError
+        self.write_strategy.write_batch(
+            trainer=trainer,
+            pl_module=pl_module,
+            prediction=prediction,
+            batch_indices=batch_indices,
+            batch=batch,
+            batch_idx=batch_idx,
+            dataloader_idx=dataloader_idx
+        )
