@@ -1,11 +1,11 @@
 """Module containing convienience function to create WriteStrategy"""
 
-from typing import Optional, Union, Any
+from typing import Any, Optional, Union
 
 from careamics.config.support import SupportedData
 from careamics.file_io import WriteFunc, get_write_func
 
-from .write_strategy import WriteStrategy, CacheTiles, WriteImage, WriteTilesZarr
+from .write_strategy import CacheTiles, WriteImage, WriteStrategy
 
 
 def create_write_strategy(
@@ -62,7 +62,7 @@ def create_write_strategy(
             write_type=write_type,
             write_func=write_func,
             write_extension=write_extension,
-            write_func_kwargs=write_func_kwargs
+            write_func_kwargs=write_func_kwargs,
         )
 
     return write_strategy
@@ -75,9 +75,9 @@ def _create_tiled_write_strategy(
     write_func_kwargs: Optional[dict[str, Any]] = None,
 ) -> WriteStrategy:
     """
-    Create a tiled write strategy. 
-    
-    Either `CacheTiles` for caching tiles until a whole image is predicted or 
+    Create a tiled write strategy.
+
+    Either `CacheTiles` for caching tiles until a whole image is predicted or
     `WriteTilesZarr` for writing tiles directly to disk.
 
     Parameters
@@ -125,8 +125,10 @@ def select_write_func(
     write_type: Union[SupportedData, str], write_func: Optional[WriteFunc] = None
 ) -> WriteFunc:
     """
-    Return a function to write images. If `write_type` is "custom" then `write_func`,
-    otherwise the known write function is selected.
+    Return a function to write images. 
+    
+    If `write_type` is "custom" then `write_func`, otherwise the known write function 
+    is selected.
 
     Parameters
     ----------
@@ -169,8 +171,10 @@ def select_write_extension(
     write_type: Union[SupportedData, str], write_extension: Optional[str] = None
 ) -> str:
     """
-    Return an extension to add to file paths. If `write_type` is "custom" then 
-    `write_extension`, otherwise the known write extension is selected.
+    Return an extension to add to file paths. 
+    
+    If `write_type` is "custom" then `write_extension`, otherwise the known 
+    write extension is selected.
 
     Parameters
     ----------
