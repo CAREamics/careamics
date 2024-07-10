@@ -16,7 +16,7 @@ def create_write_strategy(
     write_func_kwargs: Optional[dict[str, Any]] = None,
 ) -> WriteStrategy:
     """
-    Create a write strategy from convinient parameters.
+    Create a write strategy from convenient parameters.
 
     Parameters
     ----------
@@ -36,7 +36,7 @@ def create_write_strategy(
     Returns
     -------
     WriteStrategy
-        _description_
+        A strategy for writing predicions.
 
     Notes
     -----
