@@ -5,15 +5,23 @@ from typing import Any, Optional, Sequence, Union
 
 from pytorch_lightning import LightningModule, Trainer
 from pytorch_lightning.callbacks import BasePredictionWriter
+from torch.utils.data import DataLoader
 
 from careamics.config.support import SupportedData
 from careamics.file_io import WriteFunc, get_write_func
 from careamics.utils import get_logger
+from careamics.dataset import (
+    IterablePredDataset,
+    IterableTiledPredDataset,
+    InMemoryPredDataset,
+)
 
 from .write_strategy import WriteStrategy
 from .write_strategy_factory import create_write_strategy
 
 logger = get_logger(__name__)
+
+PredDatasets = Union[IterablePredDataset, IterableTiledPredDataset, InMemoryPredDataset]
 
 
 class PredictionWriterCallback(BasePredictionWriter):
@@ -57,9 +65,9 @@ class PredictionWriterCallback(BasePredictionWriter):
         self,
         write_strategy: WriteStrategy,
         dirpath: Union[Path, str] = "predictions",
-    ):    
+    ):
         """
-        A PyTorch Lightning callback to save predictions.     
+        A PyTorch Lightning callback to save predictions.
         """
         super().__init__(write_interval="batch")
 
@@ -75,7 +83,7 @@ class PredictionWriterCallback(BasePredictionWriter):
 
     @classmethod
     def from_write_func_params(
-        cls: "PredictionWriterCallback", 
+        cls: "PredictionWriterCallback",
         write_type: Union[SupportedData, str],
         tiled: bool,
         write_func: Optional[WriteFunc] = None,
@@ -86,7 +94,7 @@ class PredictionWriterCallback(BasePredictionWriter):
         """
         Initialize a `PredictionWriterCallback` from write function parameters.
 
-        This will automatically create a `WriteStrategy` to by passed to the 
+        This will automatically create a `WriteStrategy` to by passed to the
         initialisation of `PredictionWriterCallback`.
 
         Parameters
@@ -109,10 +117,9 @@ class PredictionWriterCallback(BasePredictionWriter):
             tiled=tiled,
             write_func=write_func,
             write_extension=write_extension,
-            write_func_kwargs=write_func_kwargs
+            write_func_kwargs=write_func_kwargs,
         )
         return cls(write_strategy=write_strategy, dirpath=dirpath)
-
 
     def _init_dirpath(self, dirpath):
         """
@@ -131,7 +138,6 @@ class PredictionWriterCallback(BasePredictionWriter):
                 f"be '{dirpath}'"
             )
         self.dirpath = dirpath
-
 
     def setup(self, trainer: Trainer, pl_module: LightningModule, stage: str) -> None:
         """
@@ -159,9 +165,9 @@ class PredictionWriterCallback(BasePredictionWriter):
         self,
         trainer: Trainer,
         pl_module: LightningModule,
-        prediction: Any, # TODO: change to expected type
+        prediction: Any,  # TODO: change to expected type
         batch_indices: Optional[Sequence[int]],
-        batch: Any, # TODO: change to expected type
+        batch: Any,  # TODO: change to expected type
         batch_idx: int,
         dataloader_idx: int,
     ) -> None:
@@ -187,6 +193,20 @@ class PredictionWriterCallback(BasePredictionWriter):
         dataloader_idx : int
             Dataloader index.
         """
+        dl: DataLoader = trainer.predict_dataloaders[dataloader_idx]
+        ds: Union[IterablePredDataset, IterableTiledPredDataset] = dl.dataset
+        if not (
+            isinstance(ds, IterablePredDataset)
+            or isinstance(ds, IterableTiledPredDataset)
+        ):
+            # Note: Error will be raised before here from the source type
+            # This is for extra redundancy of errors.
+            raise TypeError(
+                "Prediction dataset has to be `IterableTiledPredDataset` or "
+                "`IterablePredDataset. Cannot be `InMemoryPredDataset because filenames"
+                "are taken from the original file."
+            )
+
         self.write_strategy.write_batch(
             trainer=trainer,
             pl_module=pl_module,
@@ -194,5 +214,6 @@ class PredictionWriterCallback(BasePredictionWriter):
             batch_indices=batch_indices,
             batch=batch,
             batch_idx=batch_idx,
-            dataloader_idx=dataloader_idx
+            dataloader_idx=dataloader_idx,
+            dirpath=self.dirpath
         )
