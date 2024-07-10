@@ -118,6 +118,8 @@ class PredictionWriterCallback(BasePredictionWriter):
         self._init_write_extension(write_extension)
         self._set_write_strategy()
 
+    # TODO: potentially override init for write strategy creation
+
     def _init_dirpath(self, dirpath):
         """
         Initialize directory path. Should only be called from `__init__`.
@@ -136,7 +138,7 @@ class PredictionWriterCallback(BasePredictionWriter):
             )
         self.dirpath = dirpath
 
-    def _init_write_func(self, save_func: Optional[WriteFunc]):
+    def _init_write_func(self, write_func: Optional[WriteFunc]):
         """
         Initialize save function. Should only be called from `__init__`.
 
@@ -151,17 +153,17 @@ class PredictionWriterCallback(BasePredictionWriter):
             If `self.save_type="custom"` but `save_func` has not been given.
         """
         if self.write_type == SupportedData.CUSTOM:
-            if save_func is None:
+            if write_func is None:
                 raise ValueError(
                     "A save function must be provided for custom data types."
                     # TODO: link to how save functions should be implemented
                 )
             else:
-                self.write_func = save_func
+                self.write_func = write_func
         else:
             self.write_func = get_write_func(self.write_type)
 
-    def _init_write_extension(self, save_extension: Optional[str]):
+    def _init_write_extension(self, write_extension: Optional[str]):
         """
         Initialize save extension. Should only be called from `__init__`.
 
@@ -176,12 +178,12 @@ class PredictionWriterCallback(BasePredictionWriter):
             If `self.save_type="custom"` but `save_extension` has not been given.
         """
         if self.write_type == SupportedData.CUSTOM:
-            if save_extension is None:
+            if write_extension is None:
                 raise ValueError(
                     "A save extension must be provided for custom data types."
                 )
             else:
-                self.write_extension = save_extension
+                self.write_extension = write_extension
         else:
             # kind of a weird pattern -> reason to move get_extension from SupportedData
             self.write_extension = self.write_type.get_extension(self.write_type)
