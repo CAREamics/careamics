@@ -30,7 +30,7 @@ class CacheTiles(WriteStrategy):
         self,
         write_func: WriteFunc,
         write_extension: str,
-        write_func_kwargs: Optional[dict[str, Any]] = None,
+        write_func_kwargs: dict[str, Any],
     ) -> None:
         super().__init__()
 
@@ -89,7 +89,7 @@ class WriteImage(WriteStrategy):
         self,
         write_func: WriteFunc,
         write_extension: str,
-        write_func_kwargs: Optional[dict[str, Any]] = None,
+        write_func_kwargs: dict[str, Any]
     ) -> None:
         super().__init__()
 

@@ -50,7 +50,14 @@ def create_write_strategy(
         write_func(file_path=file_path, img=img, **kwargs)
         ```
     """
+    if write_func_kwargs is None:
+        write_func_kwargs = {}
+
     if not tiled:
+        write_func = select_write_func(write_type=write_type, write_func=write_func)
+        write_extension = select_write_extension(
+            write_type=write_type, write_extension=write_extension
+        )
         write_strategy = WriteImage(
             write_func=write_func,
             write_extension=write_extension,
@@ -112,7 +119,7 @@ def _create_tiled_write_strategy(
     else:
         write_func = select_write_func(write_type=write_type, write_func=write_func)
         write_extension = select_write_extension(
-            write_type=write_type, write_func=write_func
+            write_type=write_type, write_extension=write_extension
         )
         return CacheTiles(
             write_func=write_func,
@@ -165,6 +172,7 @@ def select_write_func(
             write_func = write_func
     else:
         write_func = get_write_func(write_type)
+    return write_func
 
 
 def select_write_extension(
@@ -194,6 +202,7 @@ def select_write_extension(
     ValueError
         If `self.save_type="custom"` but `save_extension` has not been given.
     """
+    write_type = SupportedData(write_type)
     if write_type == SupportedData.CUSTOM:
         if write_extension is None:
             raise ValueError("A save extension must be provided for custom data types.")
@@ -202,3 +211,4 @@ def select_write_extension(
     else:
         # kind of a weird pattern -> reason to move get_extension from SupportedData
         write_extension = write_type.get_extension(write_type)
+    return write_extension
