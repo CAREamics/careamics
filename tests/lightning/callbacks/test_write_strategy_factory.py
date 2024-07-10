@@ -1,19 +1,14 @@
 """Test write strategy factory module."""
 
-import os
 from pathlib import Path
-from typing import Union, Optional
+from typing import Optional
 
 import numpy as np
-from numpy.typing import NDArray
 import pytest
-from unittest.mock import Mock, patch
-from pytorch_lightning import Trainer, LightningModule
+from numpy.typing import NDArray
 
-from careamics.file_io.write import write_tiff, WriteFunc
-from careamics.lightning.callbacks import PredictionWriterCallback
+from careamics.file_io.write import WriteFunc, write_tiff
 from careamics.lightning.callbacks.prediction_writer_callback import (
-    WriteStrategy,
     CacheTiles,
     WriteImage,
     create_write_strategy,
@@ -42,6 +37,7 @@ def test_create_write_strategy_tiff_untiled():
     assert write_strategy.write_extension == ".tiff"
     assert write_strategy.write_func_kwargs == {}
 
+
 @pytest.mark.parametrize("write_func", [None, save_numpy])
 @pytest.mark.parametrize("write_extension", [None, ".npy"])
 def test_create_write_strategy_custom_tiled(
@@ -56,7 +52,7 @@ def test_create_write_strategy_custom_tiled(
                 write_extension=write_extension,
             )
         return
-    
+
     write_strategy = create_write_strategy(
         write_type="custom",
         tiled=True,
@@ -67,6 +63,7 @@ def test_create_write_strategy_custom_tiled(
     assert write_strategy.write_func is save_numpy
     assert write_strategy.write_extension == ".npy"
     assert write_strategy.write_func_kwargs == {}
+
 
 @pytest.mark.parametrize("write_func", [None, save_numpy])
 @pytest.mark.parametrize("write_extension", [None, ".npy"])
@@ -82,7 +79,7 @@ def test_create_write_strategy_custom_untiled(
                 write_extension=write_extension,
             )
         return
-    
+
     write_strategy = create_write_strategy(
         write_type="custom",
         tiled=False,

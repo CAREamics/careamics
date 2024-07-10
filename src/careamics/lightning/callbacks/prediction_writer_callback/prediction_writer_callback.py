@@ -1,5 +1,7 @@
 """Module containing PredictionWriterCallback class."""
 
+from __future__ import annotations
+
 from pathlib import Path
 from typing import Any, Optional, Sequence, Union
 
@@ -8,13 +10,13 @@ from pytorch_lightning.callbacks import BasePredictionWriter
 from torch.utils.data import DataLoader
 
 from careamics.config.support import SupportedData
-from careamics.file_io import WriteFunc, get_write_func
-from careamics.utils import get_logger
 from careamics.dataset import (
+    InMemoryPredDataset,
     IterablePredDataset,
     IterableTiledPredDataset,
-    InMemoryPredDataset,
 )
+from careamics.file_io import WriteFunc
+from careamics.utils import get_logger
 
 from .write_strategy import WriteStrategy
 from .write_strategy_factory import create_write_strategy
@@ -30,35 +32,23 @@ class PredictionWriterCallback(BasePredictionWriter):
 
     Parameters
     ----------
-    write_type : SupportedData or str, default="tiff"
-        The data type to save as, includes custom.
-    write_func : WriteFunc, optional
-        If a known `write_type` is selected this argument is ignored. For a custom
-        `write_type` a function to save the data must be passed. See notes below.
-    write_extension : str, optional
-        If a known `write_type` is selected this argument is ignored. For a custom
-        `write_type` an extension to save the data with must be passed.
-    write_func_kwargs : dict of {str: any}, optional
-        Additional keyword arguments to be passed to the save function.
-    dirpath : pathlib.Path or str, default="predictions"
-        Directory to save outputs to. If `dirpath is not absolute it is assumed to
-        be relative to current working directory. Nested directories will not be
-        automatically created.
+    write_strategy : WriteStrategy
+        A strategy for writing predictions.
+    dirpath : Path or str, default="predictions"
+        The path to the directory where prediction outputs will be saved. If
+        `dirpath is not absolute it is assumed to  be relative to current working
+        directory. Nested directories will not be automatically created.
 
     Attributes
     ----------
-    write_predictions : bool
-        A toggle to optionally switch off prediction saving.
-    write_type : SupportedData
-        The data type of the saved data.
-    write_func : WriteFunc
-        The function for saving data.
-    write_extension: str
-        The extension that will be added to the save paths.
-    write_func_kwargs : dict of {str, any}
-        Additional keyword arguments that will be passed to the save function.
-    dirpath : pathlib.Path
-        The path to the directory where prediction outputs will be saved.
+    write_strategy : WriteStrategy
+        A strategy for writing predictions.
+    dirpath : pathlib.Path, default="predictions"
+        The path to the directory where prediction outputs will be saved. If
+        `dirpath is not absolute it is assumed to  be relative to current working
+        directory. Nested directories will not be automatically created.
+    writing_predictions : bool
+        If writing predictions is turned on or off.
     """
 
     def __init__(
@@ -68,11 +58,20 @@ class PredictionWriterCallback(BasePredictionWriter):
     ):
         """
         A PyTorch Lightning callback to save predictions.
+
+        Parameters
+        ----------
+        write_strategy : WriteStrategy
+            A strategy for writing predictions.
+        dirpath : pathlib.Path or str, default="predictions"
+            The path to the directory where prediction outputs will be saved. If
+            `dirpath is not absolute it is assumed to  be relative to current working
+            directory. Nested directories will not be automatically created.
         """
         super().__init__(write_interval="batch")
 
         # Toggle for CAREamist to switch off saving if desired
-        self.write_predictions: bool = True
+        self.writing_predictions: bool = True
 
         self.write_strategy: WriteStrategy = write_strategy
 
@@ -83,14 +82,14 @@ class PredictionWriterCallback(BasePredictionWriter):
 
     @classmethod
     def from_write_func_params(
-        cls: "PredictionWriterCallback",
+        cls,
         write_type: Union[SupportedData, str],
         tiled: bool,
         write_func: Optional[WriteFunc] = None,
         write_extension: Optional[str] = None,
         write_func_kwargs: Optional[dict[str, Any]] = None,
         dirpath: Union[Path, str] = "predictions",
-    ) -> "PredictionWriterCallback":
+    ) -> PredictionWriterCallback:  # TODO: change type hint to self (find out how)
         """
         Initialize a `PredictionWriterCallback` from write function parameters.
 
@@ -111,6 +110,14 @@ class PredictionWriterCallback(BasePredictionWriter):
             `write_type` an extension to save the data with must be passed.
         write_func_kwargs : dict of {str: any}, optional
             Additional keyword arguments to be passed to the save function.
+        dirpath : pathlib.Path or str, default="predictions"
+            The path to the directory where prediction outputs will be saved. If
+            `dirpath is not absolute it is assumed to  be relative to current working
+            directory. Nested directories will not be automatically created.
+
+        Returns
+        -------
+        PredictionWriterCallback
         """
         write_strategy = create_write_strategy(
             write_type=write_type,
@@ -193,6 +200,17 @@ class PredictionWriterCallback(BasePredictionWriter):
         dataloader_idx : int
             Dataloader index.
         """
+        # if writing prediction is turned of
+        if not self.writing_predictions:
+            return
+
+        if batch_indices is None:
+            raise ValueError(
+                "Batch indices cannot be None for saving predictions. The dataloader "
+                "must have a batch sampler wrapped by "
+                "`lightning.pytorch.overrides.distributed._IndexBatchSamplerWrappe`r"
+            )
+
         dl: DataLoader = trainer.predict_dataloaders[dataloader_idx]
         ds: Union[IterablePredDataset, IterableTiledPredDataset] = dl.dataset
         if not (
@@ -215,5 +233,5 @@ class PredictionWriterCallback(BasePredictionWriter):
             batch=batch,
             batch_idx=batch_idx,
             dataloader_idx=dataloader_idx,
-            dirpath=self.dirpath
+            dirpath=self.dirpath,
         )
