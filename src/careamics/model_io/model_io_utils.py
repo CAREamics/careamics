@@ -82,6 +82,13 @@ def _load_checkpoint(
             f"checkpoint: {checkpoint.keys()}"
         ) from e
 
-    model = Union[FCNModule, VAEModule].load_from_checkpoint(path)
+    if cfg_dict["algorithm_config"]["model"]["architecture"] == "UNet":
+        model = FCNModule.load_from_checkpoint(path)
+    elif cfg_dict["algorithm_config"]["model"]["architecture"] == "LVAE":
+        model = VAEModule.load_from_checkpoint(path)
+    else:
+        raise ValueError(
+            f"Invalid model architecture: {cfg_dict['algorithm_config']['model']['architecture']}"
+        )
 
     return model, Configuration(**cfg_dict)

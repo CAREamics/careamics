@@ -56,7 +56,7 @@ def test_model_registry_custom():
 def test_lvae():
     """Test that VAE are currently not supported."""
     model_config = {
-        "architecture": SupportedArchitecture.VAE.value,
+        "architecture": SupportedArchitecture.LVAE.value,
     }
 
     with pytest.raises(NotImplementedError):

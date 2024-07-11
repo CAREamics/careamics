@@ -17,7 +17,9 @@ def test_mu_split_loss(minimum_algorithm_musplit):
         algorithm_config=algo_config
     )
     inputs = torch.rand(2, 2, 5, 64, 64)
-    module.training_step(inputs, 0)
+    step = module.training_step(inputs, 0)
+    for k in step:
+        assert not step[k].isnan()
 
 
 def test_denoisplit_loss(minimum_algorithm_denoisplit):
@@ -31,4 +33,6 @@ def test_denoisplit_loss(minimum_algorithm_denoisplit):
         algorithm_config=algo_config
     )
     inputs = torch.rand(2, 2, 5, 64, 64)
-    module.training_step(inputs, 0)
+    step = module.training_step(inputs, 0)
+    for k in step:
+        assert not step[k].isnan()

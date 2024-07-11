@@ -471,9 +471,9 @@ def create_careamics_module(
     algorithm_configuration["model"] = model_configuration
 
     # call the parent init using an AlgorithmModel instance
-    if algorithm_configuration["algorithm"]["model"]["architecture"] == "UNet":
+    if algorithm_configuration["model"]["architecture"] == "UNet":
         return FCNModule(AlgorithmConfig(**algorithm_configuration))
-    elif algorithm_configuration["algorithm"]["model"]["architecture"] == "LVAE":
+    elif algorithm_configuration["model"]["architecture"] == "LVAE":
         return VAEModule(AlgorithmConfig(**algorithm_configuration))
     else:
         raise NotImplementedError(

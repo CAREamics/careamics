@@ -95,8 +95,8 @@ class AlgorithmConfig(BaseModel):
 
     # Mandatory fields
     # defined in SupportedAlgorithm
-    algorithm: Literal["n2v", "care", "n2n", "musplit", "denoisplit", "custom"]
-    loss: Literal["n2v", "mae", "mse", "musplit", "denoisplit"]
+    algorithm: Literal["n2v", "care", "n2n", "hdn", "musplit", "denoisplit", "custom"]
+    loss: Literal["n2v", "mae", "mse", "hdn", "musplit", "denoisplit"]
     model: Union[UNetModel, LVAEModel, CustomModel] = Field(
         discriminator="architecture"
     )
@@ -108,7 +108,7 @@ class AlgorithmConfig(BaseModel):
     lr_scheduler: LrSchedulerModel = LrSchedulerModel()
 
     likelihood: Optional[Union[GaussianLikelihoodModel, NMLikelihoodModel]] = Field(
-        discriminator="type"
+        discriminator="type", default=None
     )
     noise_model: Optional[GaussianMixtureNoiseModel] = None
 
