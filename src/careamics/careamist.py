@@ -155,14 +155,14 @@ class CAREamist:
                 self.cfg.algorithm_config.model.architecture
                 == SupportedArchitecture.UNET
             ):
-                self.model = FCNModule(
+                self.model: FCNModule = FCNModule(
                     algorithm_config=self.cfg.algorithm_config,
                 )
             elif (
                 self.cfg.algorithm_config.model.architecture
                 == SupportedArchitecture.LVAE
-            ):
-                self.model = VAEModule(
+            ): #TODO fuckin mypy thinks model "already defined on line 158"
+                self.model: VAEModule = VAEModule(
                     algorithm_config=self.cfg.algorithm_config,
                 )
             else:

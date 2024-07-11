@@ -14,9 +14,7 @@ from careamics.config.support import (
     SupportedScheduler,
 )
 from careamics.losses import loss_factory
-from careamics.losses.loss_factory import (
-    loss_parameters_factory,
-)
+from careamics.losses.loss_factory import LVAELossParameters
 from careamics.models.lvae.likelihoods import likelihood_factory
 from careamics.models.lvae.noise_models import noise_model_factory
 from careamics.models.model_factory import model_factory
@@ -256,7 +254,7 @@ class VAEModule(L.LightningModule):
         self.model: nn.Module = model_factory(self.algorithm_config.model)
         self.likelihood = likelihood_factory(self.algorithm_config.likelihood)
         self.noise_model = noise_model_factory(self.algorithm_config.noise_model)
-        self.loss_parameters = loss_parameters_factory(self.algorithm_config.loss)
+        self.loss_parameters = LVAELossParameters
         # TODO how to modify these ?
         self.loss_func = loss_factory(self.algorithm_config.loss)
 
@@ -452,7 +450,7 @@ def create_careamics_module(
         optimizer_parameters = {}
     if model_parameters is None:
         model_parameters = {}
-    algorithm_configuration = {
+    algorithm_configuration: dict[str, Any] = {
         "algorithm": algorithm,
         "loss": loss,
         "optimizer": {

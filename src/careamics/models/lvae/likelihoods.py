@@ -12,7 +12,7 @@ from torch import nn
 from careamics.config.likelihood_model import GaussianLikelihoodModel, NMLikelihoodModel
 
 
-def likelihood_factory(config: Union[GaussianLikelihoodModel, NMLikelihoodModel]):
+def likelihood_factory(config: Union[GaussianLikelihoodModel, NMLikelihoodModel, None]):
     """
     Factory function for creating likelihood modules.
 

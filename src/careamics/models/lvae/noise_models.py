@@ -1,5 +1,6 @@
 import json
 import os
+from typing import Union
 
 import numpy as np
 import torch
@@ -12,7 +13,9 @@ from .utils import ModelType
 # TODO this module shouldn't be in lvae folder
 
 
-def noise_model_factory(model_config: GaussianMixtureNoiseModel) -> nn.Module:
+def noise_model_factory(
+    model_config: Union[GaussianMixtureNoiseModel, None]
+) -> nn.Module:
     """Noise model factory.
 
     Parameters

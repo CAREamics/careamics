@@ -106,7 +106,7 @@ class AlgorithmConfig(BaseModel):
     """Optimizer to use, defined in SupportedOptimizer."""
 
     lr_scheduler: LrSchedulerModel = LrSchedulerModel()
-
+    # TODO spit algorithmConfig into separate classes because of this ? 
     likelihood: Optional[Union[GaussianLikelihoodModel, NMLikelihoodModel]] = Field(
         discriminator="type", default=None
     )
