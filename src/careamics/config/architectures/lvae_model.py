@@ -1,6 +1,6 @@
 """LVAE Pydantic model."""
 
-from typing import Literal, Optional, Union
+from typing import Literal
 
 from pydantic import ConfigDict, Field, field_validator, model_validator
 from typing_extensions import Self

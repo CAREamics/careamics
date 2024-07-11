@@ -19,8 +19,8 @@ class GaussianLikelihoodModel(BaseModel):
 
     type: Literal["GaussianLikelihoodModel"]
 
-    color_channels: int# TODO output channels, rename
-    ch_in: int = Field(default=64) # input to the likelihood model
+    color_channels: int  # TODO output channels, rename
+    ch_in: int = Field(default=64)  # input to the likelihood model
     predict_logvar: Literal[None, "pixelwise", "global", "channelwise"] = None
     logvar_lowerbound: float = None
     conv2d_bias: bool = True

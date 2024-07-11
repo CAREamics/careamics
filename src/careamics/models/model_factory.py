@@ -10,9 +10,9 @@ import torch
 
 from ..config.architectures import CustomModel, LVAEModel, UNetModel, get_custom_model
 from ..config.support import SupportedArchitecture
-from .unet import UNet
-from .lvae.lvae import LadderVAE as LVAE
 from ..utils import get_logger
+from .lvae.lvae import LadderVAE as LVAE
+from .unet import UNet
 
 logger = get_logger(__name__)
 

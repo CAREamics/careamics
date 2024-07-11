@@ -13,9 +13,7 @@ def test_mu_split_loss(minimum_algorithm_musplit):
     algo_config = AlgorithmConfig(**minimum_algorithm_musplit)
 
     # instantiate CAREamicsModule
-    module = VAEModule(
-        algorithm_config=algo_config
-    )
+    module = VAEModule(algorithm_config=algo_config)
     inputs = torch.rand(2, 2, 5, 64, 64)
     step = module.training_step(inputs, 0)
     for k in step:
@@ -29,9 +27,7 @@ def test_denoisplit_loss(minimum_algorithm_denoisplit):
     algo_config = AlgorithmConfig(**minimum_algorithm_denoisplit)
 
     # instantiate CAREamicsModule
-    module = VAEModule(
-        algorithm_config=algo_config
-    )
+    module = VAEModule(algorithm_config=algo_config)
     inputs = torch.rand(2, 2, 5, 64, 64)
     step = module.training_step(inputs, 0)
     for k in step:

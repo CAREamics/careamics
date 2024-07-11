@@ -237,7 +237,7 @@ def load_from_bmz(
     else:
         raise ValueError(
             f"Unsupported architecture {config.algorithm_config.model.architecture}"
-        ) # TODO ugly ?
+        )  # TODO ugly ?
 
     # load model state dictionary
     _load_state_dict(model, weights_path)

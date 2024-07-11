@@ -31,7 +31,7 @@ class LVAELossParameters:
     """Dataclass for LVAE loss."""
 
     prediction: tensor
-    prediction_data: tensor # td_data
+    prediction_data: tensor  # td_data
     targets: tensor
     inputs: tensor
     mask: tensor
