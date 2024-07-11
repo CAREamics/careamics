@@ -12,7 +12,7 @@ from torch import __version__, load, save
 
 from careamics.config import Configuration, load_configuration, save_configuration
 from careamics.config.support import SupportedArchitecture
-from careamics.lightning.lightning_module import CAREamicsModule
+from careamics.lightning.lightning_module import FCNModule, VAEModule
 
 from .bioimage import (
     create_env_text,
@@ -22,7 +22,9 @@ from .bioimage import (
 )
 
 
-def _export_state_dict(model: CAREamicsModule, path: Union[Path, str]) -> Path:
+def _export_state_dict(
+    model: Union[FCNModule, VAEModule], path: Union[Path, str]
+) -> Path:
     """
     Export the model state dictionary to a file.
 
@@ -52,7 +54,9 @@ def _export_state_dict(model: CAREamicsModule, path: Union[Path, str]) -> Path:
     return path
 
 
-def _load_state_dict(model: CAREamicsModule, path: Union[Path, str]) -> None:
+def _load_state_dict(
+    model: Union[FCNModule, VAEModule], path: Union[Path, str]
+) -> None:
     """
     Load a model from a state dictionary.
 
@@ -74,7 +78,7 @@ def _load_state_dict(model: CAREamicsModule, path: Union[Path, str]) -> None:
 
 # TODO break down in subfunctions
 def export_to_bmz(
-    model: CAREamicsModule,
+    model: Union[FCNModule, VAEModule],
     config: Configuration,
     path: Union[Path, str],
     name: str,
@@ -186,7 +190,9 @@ def export_to_bmz(
         save_bioimageio_package(model_description, output_path=path)
 
 
-def load_from_bmz(path: Union[Path, str]) -> Tuple[CAREamicsModule, Configuration]:
+def load_from_bmz(
+    path: Union[Path, str]
+) -> Tuple[Union[FCNModule, VAEModule], Configuration]:
     """Load a model from a BioImage Model Zoo archive.
 
     Parameters
@@ -224,7 +230,14 @@ def load_from_bmz(path: Union[Path, str]) -> Tuple[CAREamicsModule, Configuratio
     config = load_configuration(config_path)
 
     # create careamics lightning module
-    model = CAREamicsModule(algorithm_config=config.algorithm_config)
+    if config.algorithm_config.model.architecture == SupportedArchitecture.UNET:
+        model = FCNModule(algorithm_config=config.algorithm_config)
+    elif config.algorithm_config.model.architecture == SupportedArchitecture.LVAE:
+        model = VAEModule(algorithm_config=config.algorithm_config)
+    else:
+        raise ValueError(
+            f"Unsupported architecture {config.algorithm_config.model.architecture}"
+        ) # TODO ugly ?
 
     # load model state dictionary
     _load_state_dict(model, weights_path)

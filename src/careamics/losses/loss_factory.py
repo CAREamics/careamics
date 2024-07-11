@@ -36,9 +36,10 @@ class LVAELossParameters:
     inputs: tensor
     mask: tensor
     likelihood: Callable
+    noise_model: Callable
     current_epoch: int
     reconstruction_weight: float = 1.0
-    usplit_weight: float = 0.0
+    musplit_weight: float = 0.0
     denoisplit_weight: float = 1.0
     kl_annealing: bool = False
     kl_start: int = -1

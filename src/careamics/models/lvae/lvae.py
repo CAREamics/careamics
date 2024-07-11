@@ -446,13 +446,13 @@ class LadderVAE(nn.Module):
         """
         if self.enable_noise_model:
             raise NotImplementedError("Noise model not implemented yet.")
-            # self.likelihood_NM = NoiseModelLikelihood(
-            #     self.decoder_n_filters,
-            #     self.target_ch,
-            #     self.data_mean,
-            #     self.data_std,
-            #     self.noiseModel,
-            # )
+            self.likelihood_NM = NoiseModelLikelihood(
+                self.decoder_n_filters,
+                self.target_ch,
+                self.data_mean,
+                self.data_std,
+                self.noiseModel,
+            )
         else:
             self.likelihood_gm = GaussianLikelihood(
                 self.decoder_n_filters,

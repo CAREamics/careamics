@@ -5,7 +5,7 @@ import numpy as np
 import torch
 
 if TYPE_CHECKING:
-    print('sdfdsfds')
+    print("sdfdsfds")
 from careamics.losses.lvae.loss_utils import free_bits_kl, get_kl_weight
 from careamics.models.lvae.likelihoods import LikelihoodModule
 from careamics.models.lvae.utils import compute_batch_mean
@@ -171,7 +171,9 @@ def reconstruction_loss_musplit_denoisplit(
     return recons_loss
 
 
-def _get_weighted_likelihood(ll, ch1_recons_w=1, ch2_recons_w=1): #TODO what's this ? added defaults
+def _get_weighted_likelihood(
+    ll, ch1_recons_w=1, ch2_recons_w=1
+):  # TODO what's this ? added defaults
     """Each of the channels gets multiplied with a different weight."""
     if ch1_recons_w == 1 and ch2_recons_w == 1:
         return ll
@@ -327,15 +329,26 @@ def denoisplit_loss(model_outputs, targets, loss_parameters) -> dict:
         # NOTE: 'kl' key stands for the 'kl_samplewise' key in the TopDownLayer class.
         # The different naming comes from `top_down_pass()` method in the LadderVAE class.
         denoisplit_kl = get_kl_divergence_loss(
-            topdown_layer_data_dict=td_data, kl_key="kl"  # TODO hardcoded
+            topdown_layer_data_dict=td_data,
+            img_shape=loss_parameters.inputs.shape,
+            kl_key="kl",  # TODO hardcoded
         )
-        usplit_kl = get_kl_divergence_loss_usplit(topdown_layer_data_dict=td_data)
+        musplit_kl = get_kl_divergence_loss_usplit(topdown_layer_data_dict=td_data)
         kl_loss = (
-            loss_parameters.denoisplit_weight * denoisplit_kl + loss_parameters.usplit_weight * loss_parameters.usplit_kl
+            loss_parameters.denoisplit_weight * denoisplit_kl
+            + loss_parameters.musplit_weight * musplit_kl
         )
-        # TODO kl_weight is hardcoded
+        # TODO self.kl_weight is hardcoded
+        kl_loss = 1 * kl_loss
+
         recons_loss = reconstruction_loss_musplit_denoisplit(
-            predictions, targets
+            predictions,
+            targets,
+            predict_logvar=None,
+            likelihood_NM=loss_parameters.noise_model,
+            likelihood_GM=loss_parameters.likelihood,
+            denoise_weight=loss_parameters.denoisplit_weight,
+            split_weight=loss_parameters.musplit_weight,
         )
         # recons_loss = _denoisplit_w * recons_loss_nm + _usplit_w * recons_loss_gm
         kl_loss = get_kl_weight(
@@ -344,7 +357,8 @@ def denoisplit_loss(model_outputs, targets, loss_parameters) -> dict:
             loss_parameters.kl_annealtime,
             loss_parameters.kl_weight,
             loss_parameters.current_epoch,
-        ) * get_kl_divergence_loss(td_data)
+        ) * get_kl_divergence_loss(td_data, img_shape=loss_parameters.inputs.shape)
+
         net_loss = recons_loss + kl_loss
 
     output = {

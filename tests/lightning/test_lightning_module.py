@@ -2,7 +2,7 @@ import pytest
 import torch
 
 from careamics.config import AlgorithmConfig
-from careamics.lightning import CAREamicsModule, create_careamics_module
+from careamics.lightning.lightning_module import FCNModule, VAEModule, create_careamics_module
 
 
 def test_careamics_module(minimum_algorithm_n2v):
@@ -13,7 +13,7 @@ def test_careamics_module(minimum_algorithm_n2v):
     # extract model parameters
     model_parameters = algo_config.model.model_dump(exclude_none=True)
 
-    # instantiate CAREamicsModule
+    # instantiate FCNModule
     create_careamics_module(
         algorithm=algo_config.algorithm,
         loss=algo_config.loss,
@@ -26,12 +26,20 @@ def test_careamics_module(minimum_algorithm_n2v):
     )
 
 
-def test_careamics_kiln(minimum_algorithm_n2v):
+def test_careamics_fcn(minimum_algorithm_n2v):
     """Test that the minimum algorithm allows instantiating a CAREamicsKiln."""
     algo_config = AlgorithmConfig(**minimum_algorithm_n2v)
 
     # instantiate CAREamicsKiln
-    CAREamicsModule(algo_config)
+    FCNModule(algo_config)
+
+
+def test_careamics_vae(minimum_algorithm_musplit):
+    """Test that the minimum algorithm allows instantiating a CAREamicsKiln."""
+    algo_config = AlgorithmConfig(**minimum_algorithm_musplit)
+
+    # instantiate CAREamicsKiln
+    VAEModule(algo_config)
 
 
 @pytest.mark.parametrize(
@@ -57,7 +65,7 @@ def test_careamics_kiln_unet_2D_depth_2_shape(shape):
     algo_config = AlgorithmConfig(**algo_dict)
 
     # instantiate CAREamicsKiln
-    model = CAREamicsModule(algo_config)
+    model = FCNModule(algo_config)
     # set model to evaluation mode to avoid batch dimension error
     model.model.eval()
     # test forward pass
@@ -92,7 +100,7 @@ def test_careamics_kiln_unet_2D_depth_3_shape(shape):
     algo_config = AlgorithmConfig(**algo_dict)
 
     # instantiate CAREamicsKiln
-    model = CAREamicsModule(algo_config)
+    model = FCNModule(algo_config)
     # set model to evaluation mode to avoid batch dimension error
     model.model.eval()
     # test forward pass
@@ -125,7 +133,7 @@ def test_careamics_kiln_unet_depth_2_3D(shape):
     algo_config = AlgorithmConfig(**algo_dict)
 
     # instantiate CAREamicsKiln
-    model = CAREamicsModule(algo_config)
+    model = FCNModule(algo_config)
     # set model to evaluation mode to avoid batch dimension error
     model.model.eval()
     # test forward pass
@@ -158,7 +166,7 @@ def test_careamics_kiln_unet_depth_3_3D(shape):
     algo_config = AlgorithmConfig(**algo_dict)
 
     # instantiate CAREamicsKiln
-    model = CAREamicsModule(algo_config)
+    model = FCNModule(algo_config)
     # set model to evaluation mode to avoid batch dimension error
     model.model.eval()
     # test forward pass
@@ -192,7 +200,7 @@ def test_careamics_kiln_unet_depth_3_3D_n2v2(shape):
     algo_config = AlgorithmConfig(**algo_dict)
 
     # instantiate CAREamicsKiln
-    model = CAREamicsModule(algo_config)
+    model = FCNModule(algo_config)
     # set model to evaluation mode to avoid batch dimension error
     model.model.eval()
     # test forward pass
@@ -217,7 +225,7 @@ def test_careamics_kiln_unet_depth_2_channels_2D(n_channels):
     algo_config = AlgorithmConfig(**algo_dict)
 
     # instantiate CAREamicsKiln
-    model = CAREamicsModule(algo_config)
+    model = FCNModule(algo_config)
     # set model to evaluation mode to avoid batch dimension error
     model.model.eval()
     # test forward pass
@@ -246,7 +254,7 @@ def test_careamics_kiln_unet_depth_3_channels_2D(n_channels, independent_channel
     algo_config = AlgorithmConfig(**algo_dict)
 
     # instantiate CAREamicsKiln
-    model = CAREamicsModule(algo_config)
+    model = FCNModule(algo_config)
     # set model to evaluation mode to avoid batch dimension error
     model.model.eval()
     # test forward pass
@@ -271,7 +279,7 @@ def test_careamics_kiln_unet_depth_2_channels_3D(n_channels):
     algo_config = AlgorithmConfig(**algo_dict)
 
     # instantiate CAREamicsKiln
-    model = CAREamicsModule(algo_config)
+    model = FCNModule(algo_config)
     # set model to evaluation mode to avoid batch dimension error
     model.model.eval()
     # test forward pass
@@ -296,7 +304,7 @@ def test_careamics_kiln_unet_depth_3_channels_3D(n_channels):
     algo_config = AlgorithmConfig(**algo_dict)
 
     # instantiate CAREamicsKiln
-    model = CAREamicsModule(algo_config)
+    model = FCNModule(algo_config)
     # set model to evaluation mode to avoid batch dimension error
     model.model.eval()
     # test forward pass

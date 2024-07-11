@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 from pprint import pformat
-from typing import Literal, Union
+from typing import Literal, Optional, Union
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from typing_extensions import Self
 
 from .architectures import CustomModel, LVAEModel, UNetModel
 from .likelihood_model import GaussianLikelihoodModel, NMLikelihoodModel
+from .nm_model import GaussianMixtureNoiseModel
 from .optimizer_models import LrSchedulerModel, OptimizerModel
 
 
@@ -105,9 +106,11 @@ class AlgorithmConfig(BaseModel):
     """Optimizer to use, defined in SupportedOptimizer."""
 
     lr_scheduler: LrSchedulerModel = LrSchedulerModel()
-    likelihood: Union[GaussianLikelihoodModel, NMLikelihoodModel] = Field(
-        discriminator="type" # TODO add opt
+
+    likelihood: Optional[Union[GaussianLikelihoodModel, NMLikelihoodModel]] = Field(
+        discriminator="type"
     )
+    noise_model: Optional[GaussianMixtureNoiseModel] = None
 
     @model_validator(mode="after")
     def algorithm_cross_validation(self: Self) -> Self:
@@ -168,6 +171,32 @@ class AlgorithmConfig(BaseModel):
                 )
 
         return self
+
+    @field_validator("noise_model")
+    def validate_noise_model(
+        cls, noise_model: GaussianMixtureNoiseModel
+    ) -> GaussianMixtureNoiseModel:
+        """Validate the noise model.
+
+        Parameters
+        ----------
+        noise_model : GaussianMixtureNoiseModel
+            Noise model.
+
+        Returns
+        -------
+        GaussianMixtureNoiseModel
+            Validated noise model.
+        """
+        if noise_model is not None:
+            try:
+                model_type = noise_model.type
+            except AttributeError as err:
+                raise ValueError("Noise model must have a `type` attribute.") from err
+            if model_type == "GaussianMixtureNoiseModel":
+                return noise_model
+            else:
+                raise ValueError(f"Unknown noise model type {model_type}.")
 
     def __str__(self) -> str:
         """Pretty string representing the configuration.

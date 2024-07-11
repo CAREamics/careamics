@@ -97,13 +97,13 @@ def minimum_algorithm_musplit() -> dict:
     algorithm = {
         "algorithm": "musplit",
         "loss": "musplit",
-        "likelihood": {"type": "GaussianLikelihoodModel", "color_channels": 2},
         "model": {
             "architecture": "LVAE",
             "enable_noise_model": False,
             "z_dims": (128, 128, 128),
             "multiscale_count": 4,
         },
+        "likelihood": {"type": "GaussianLikelihoodModel", "color_channels": 2},
     }
 
     return algorithm
@@ -122,13 +122,14 @@ def minimum_algorithm_denoisplit() -> dict:
     algorithm = {
         "algorithm": "denoisplit",
         "loss": "denoisplit",
-        "likelihood": {"type": "GaussianLikelihoodModel", "color_channels": 2},
         "model": {
             "architecture": "LVAE",
             "enable_noise_model": False,
             "z_dims": (128, 128, 128),
             "multiscale_count": 4,
         },
+        "likelihood": {"type": "GaussianLikelihoodModel", "color_channels": 2},
+        "noise_model": {"type": "GaussianMixtureNoiseModel"},
     }
 
     return algorithm

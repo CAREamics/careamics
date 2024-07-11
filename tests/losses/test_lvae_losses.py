@@ -1,8 +1,8 @@
 import torch
 
 from careamics.config import AlgorithmConfig
-from careamics.lightning_module import CAREamicsModule
-from careamics.losses.loss_factory import loss_factory, loss_parameters_factory
+from careamics.lightning.lightning_module import VAEModule
+from careamics.losses.loss_factory import loss_factory
 from careamics.losses.lvae.losses import denoisplit_loss, musplit_loss
 
 
@@ -13,7 +13,7 @@ def test_mu_split_loss(minimum_algorithm_musplit):
     algo_config = AlgorithmConfig(**minimum_algorithm_musplit)
 
     # instantiate CAREamicsModule
-    module = CAREamicsModule(
+    module = VAEModule(
         algorithm_config=algo_config
     )
     inputs = torch.rand(2, 2, 5, 64, 64)
@@ -27,7 +27,7 @@ def test_denoisplit_loss(minimum_algorithm_denoisplit):
     algo_config = AlgorithmConfig(**minimum_algorithm_denoisplit)
 
     # instantiate CAREamicsModule
-    module = CAREamicsModule(
+    module = VAEModule(
         algorithm_config=algo_config
     )
     inputs = torch.rand(2, 2, 5, 64, 64)

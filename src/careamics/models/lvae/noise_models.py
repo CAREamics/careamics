@@ -5,7 +5,37 @@ import numpy as np
 import torch
 import torch.nn as nn
 
+from careamics.config import GaussianMixtureNoiseModel
+
 from .utils import ModelType
+
+# TODO this module shouldn't be in lvae folder
+
+
+def noise_model_factory(model_config: GaussianMixtureNoiseModel) -> nn.Module:
+    """Noise model factory.
+
+    Parameters
+    ----------
+    model_config : GaussianMixtureNoiseModel
+        _description_
+
+    Returns
+    -------
+    nn.Module
+        _description_
+
+    Raises
+    ------
+    NotImplementedError
+        _description_
+    """
+    if model_config:
+        if model_config.type == "GaussianMixtureNoiseModel":
+            return GaussianMixtureNoiseModel(**model_config.model_dump())
+        else:
+            raise NotImplementedError(f"Model {model_config.type} is not implemented")
+    return None
 
 
 class DisentNoiseModel(nn.Module):
@@ -137,6 +167,7 @@ def get_noise_model(
 class GaussianMixtureNoiseModel(nn.Module):
     """
     The GaussianMixtureNoiseModel class describes a noise model which is parameterized as a mixture of gaussians.
+
     If you would like to initialize a new object from scratch, then set `params`= None and specify the other parameters as keyword arguments.
     If you are instead loading a model, use only `params`.
 
@@ -219,8 +250,6 @@ class GaussianMixtureNoiseModel(nn.Module):
 
         self._learnable = True
         self.weight.requires_grad = True
-
-        #
 
     def to_device(self, cuda_tensor):
         # move everything to GPU
@@ -307,7 +336,7 @@ class GaussianMixtureNoiseModel(nn.Module):
         return p + self.tol
 
     def getGaussianParameters(self, signals):
-        """Returns the noise model for given signals
+        """Returns the noise model for given signals.
 
         Parameters
         ----------
@@ -374,7 +403,7 @@ class GaussianMixtureNoiseModel(nn.Module):
         return noiseModel
 
     def getSignalObservationPairs(self, signal, observation, lowerClip, upperClip):
-        """Returns the Signal-Observation pixel intensities as a two-column array
+        """Returns the Signal-Observation pixel intensities as a two-column array.
 
         Parameters
         ----------
@@ -407,3 +436,7 @@ class GaussianMixtureNoiseModel(nn.Module):
             (sig_obs_pairs[:, 0] > lb) & (sig_obs_pairs[:, 0] < ub)
         ]
         return fastShuffle(sig_obs_pairs, 2)
+
+    def forward(self, x, y):
+        """THIS IS A DUMMY METHOD BECAUSE THIS WHOLE MODULE IS A TOTAL MESS."""
+        return x, y
