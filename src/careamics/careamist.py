@@ -161,7 +161,7 @@ class CAREamist:
             elif (
                 self.cfg.algorithm_config.model.architecture
                 == SupportedArchitecture.LVAE
-            ): #TODO fuckin mypy thinks model "already defined on line 158"
+            ):  # TODO fuckin mypy thinks model "already defined on line 158"
                 self.model: VAEModule = VAEModule(
                     algorithm_config=self.cfg.algorithm_config,
                 )
