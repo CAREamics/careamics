@@ -118,6 +118,7 @@ class PredictionWriterCallback(BasePredictionWriter):
         Returns
         -------
         PredictionWriterCallback
+            Callback for writing predictions.
         """
         write_strategy = create_write_strategy(
             write_type=write_type,
