@@ -13,6 +13,7 @@ from careamics.lightning.callbacks.prediction_writer_callback import (
     WriteImage,
     create_write_strategy,
 )
+from careamics.lightning.callbacks.prediction_writer_callback.write_strategy_factory import select_write_func, select_write_extension
 
 
 def save_numpy(file_path: Path, img: NDArray, *args, **kwargs) -> None:
@@ -38,26 +39,13 @@ def test_create_write_strategy_tiff_untiled():
     assert write_strategy.write_func_kwargs == {}
 
 
-@pytest.mark.parametrize("write_func", [None, save_numpy])
-@pytest.mark.parametrize("write_extension", [None, ".npy"])
-def test_create_write_strategy_custom_tiled(
-    write_func: Optional[WriteFunc], write_extension: Optional[str]
-):
-    if (write_func is None) or (write_extension is None):
-        with pytest.raises(ValueError):
-            write_strategy = create_write_strategy(
-                write_type="custom",
-                tiled=True,
-                write_func=write_func,
-                write_extension=write_extension,
-            )
-        return
+def test_create_write_strategy_custom_tiled():
 
     write_strategy = create_write_strategy(
         write_type="custom",
         tiled=True,
-        write_func=write_func,
-        write_extension=write_extension,
+        write_func=save_numpy,
+        write_extension=".npy"
     )
     assert isinstance(write_strategy, CacheTiles)
     assert write_strategy.write_func is save_numpy
@@ -65,32 +53,44 @@ def test_create_write_strategy_custom_tiled(
     assert write_strategy.write_func_kwargs == {}
 
 
-@pytest.mark.parametrize("write_func", [None, save_numpy])
-@pytest.mark.parametrize("write_extension", [None, ".npy"])
 def test_create_write_strategy_custom_untiled(
-    write_func: Optional[WriteFunc], write_extension: Optional[str]
 ):
-    if (write_func is None) or (write_extension is None):
-        with pytest.raises(ValueError):
-            write_strategy = create_write_strategy(
-                write_type="custom",
-                tiled=True,
-                write_func=write_func,
-                write_extension=write_extension,
-            )
-        return
-
     write_strategy = create_write_strategy(
         write_type="custom",
         tiled=False,
-        write_func=write_func,
-        write_extension=write_extension,
+        write_func=save_numpy,
+        write_extension=".npy"
     )
     assert isinstance(write_strategy, WriteImage)
     assert write_strategy.write_func is save_numpy
     assert write_strategy.write_extension == ".npy"
     assert write_strategy.write_func_kwargs == {}
 
+def test_select_write_func_tiff():
+    write_func = select_write_func(write_type="tiff", write_func=None)
+    assert write_func is write_tiff
 
-# TODO: test_select_write_func maybe move some asserts and raises from above tests.
-# TODO: test_select_write_extension ^similar
+
+@pytest.mark.parametrize("write_func", [None, save_numpy])
+def test_select_write_func_custom(write_func):
+    if write_func is None:
+        with pytest.raises(ValueError):
+            write_func = select_write_func("custom", write_func)
+        return
+    write_func = select_write_func("custom", write_func)
+    assert write_func is save_numpy
+
+def test_select_write_extension_tiff():
+    write_extension = select_write_extension(write_type="tiff", write_extension=None)
+    assert write_extension == ".tiff"
+
+
+@pytest.mark.parametrize("write_extension", [None, ".npy"])
+def test_select_write_extension_custom(write_extension):
+    if write_extension is None:
+        with pytest.raises(ValueError):
+            write_extension = select_write_extension("custom", write_extension)
+        return
+    write_extension = select_write_extension("custom", write_extension)
+    assert write_extension == ".npy"
+
