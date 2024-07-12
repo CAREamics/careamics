@@ -137,21 +137,21 @@ filterwarnings = [
 ]
 addopts = "-p no:doctest"
 
-markers = ["gpu: marks tests as requiring gpu"]
+#markers = ["gpu: marks tests as requiring gpu"]
+
 # https://coverage.readthedocs.io/en/6.4/config.html
 [tool.coverage.report]
 exclude_lines = [
-    "pragma: no cover",
     "if TYPE_CHECKING:",
     "@overload",
     "except ImportError",
-    "\\.\\.\\.",
     "raise NotImplementedError()",
     "except PackageNotFoundError:",
 ]
 
 [tool.coverage.run]
-source = ["careamics"]
+source = ["src/careamics"]
+omit = ["src/careamics/lvae_training/*"]
 
 # https://github.com/mgedmin/check-manifest#configuration
 # add files that you want check-manifest to explicitly ignore here
@@ -179,4 +179,5 @@ checks = [
 ]
 exclude = [ # don't report on objects that match any of these regex
     "test_*",
+    "src/careamics/lvae_training/*",
 ]
