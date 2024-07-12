@@ -165,6 +165,10 @@ class CacheTiles(WriteStrategy):
         if not isinstance(ds, IterableTiledPredDataset):
             raise TypeError("Prediction dataset is not `IterableTiledPredDataset`.")
 
+        # cache tiles
+        self.tile_cache.extend(np.split(prediction[0], prediction[0].shape[0]))
+        self.tile_info_cache.extend(prediction[1])
+
         # save stitched prediction
         if self._have_last_tile():
 
@@ -181,16 +185,13 @@ class CacheTiles(WriteStrategy):
             sample_id = tile_infos[0].sample_id  # need this to select correct file name
             input_file_path = get_sample_file_path(ds=ds, sample_id=sample_id)
             file_path = create_write_file_path(
-                dirpath, input_file_path, self.write_extension
+                dirpath=dirpath,
+                file_path=input_file_path,
+                write_extension=self.write_extension,
             )
             self.write_func(
                 file_path=file_path, img=prediction_image[0], **self.write_func_kwargs
             )
-        # cache tiles
-        else:
-            # split batch and add to tile cache
-            self.tile_cache.extend(np.split(prediction[0], prediction[0].shape[0]))
-            self.tile_info_cache.extend(prediction[1])
 
     def _have_last_tile(self) -> bool:
         """
