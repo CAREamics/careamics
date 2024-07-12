@@ -7,7 +7,7 @@ The current implementation is based on "Interpretable Unsupervised Diversity Den
 from collections.abc import Iterable
 from typing import Dict, List, Tuple
 
-import ml_collections  # TODO: refactor this out
+# import ml_collections  # TODO: refactor this out
 import numpy as np
 import torch
 import torch.nn as nn
@@ -463,7 +463,7 @@ class LadderVAE(nn.Module):
             )
             return self.likelihood_gm
 
-    def _init_multires(self, config: ml_collections.ConfigDict = None) -> nn.ModuleList:
+    def _init_multires(self, config = None) -> nn.ModuleList: # TODO config: ml_collections.ConfigDict refactor
         """
         This method defines the input block/branch to encode/compress low-res lateral inputs at different hierarchical levels
         in the multiresolution approach (LC). The role of the input branches is similar to the one of the first bottom-up layer

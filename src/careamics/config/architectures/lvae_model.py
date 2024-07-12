@@ -11,35 +11,31 @@ from .architecture_model import ArchitectureModel
 class LVAEModel(ArchitectureModel):
     """LVAE model."""
 
-    model_config = ConfigDict(
-        use_enum_values=True, protected_namespaces=(), validate_assignment=True
-    )
+    model_config = ConfigDict(validate_assignment=True, validate_default=True)
 
     architecture: Literal["LVAE"]
     input_shape: int = Field(default=64, ge=8, le=1024)
     multiscale_count: int = Field(default=3)  # TODO clarify
     # 0 - off, len(z_dims) - 1
-    z_dims: tuple = Field(
-        default=(128, 128, 128, 128), validate_default=True
-    )  # TODO don't use tuple
-    output_channels: int = Field(default=1, ge=1, validate_default=True)
-    encoder_n_filters: int = Field(default=64, ge=8, le=1024, validate_default=True)
-    decoder_n_filters: int = Field(default=64, ge=8, le=1024, validate_default=True)
-    encoder_dropout: float = Field(default=0.1, ge=0.0, le=0.9, validate_default=True)
-    decoder_dropout: float = Field(default=0.1, ge=0.0, le=0.9, validate_default=True)
+    z_dims: list = Field(default=[128, 128, 128, 128])
+    output_channels: int = Field(default=1, ge=1)
+    encoder_n_filters: int = Field(default=64, ge=8, le=1024)
+    decoder_n_filters: int = Field(default=64, ge=8, le=1024)
+    encoder_dropout: float = Field(default=0.1, ge=0.0, le=0.9)
+    decoder_dropout: float = Field(default=0.1, ge=0.0, le=0.9)
     nonlinearity: Literal[
         "None", "Sigmoid", "Softmax", "Tanh", "ReLU", "LeakyReLU", "ELU"
-    ] = Field(default="ELU", validate_default=True)
+    ] = Field(default="ELU", )
 
     predict_logvar: Literal[None, "global", "pixelwise", "channelwise"] = (
         None  # TODO Remove ?
     )
-    enable_noise_model: bool = Field(default=True, validate_default=True)
-    analytical_kl: bool = Field(default=False, validate_default=True)
+    enable_noise_model: bool = Field(default=True, )
+    analytical_kl: bool = Field(default=False, )
 
     @field_validator("encoder_n_filters")
     @classmethod
-    def validate_encoder_n_filters(cls, encoder_n_filters: int) -> int:
+    def validate_encoder_even(cls, encoder_n_filters: int) -> int:
         """
         Validate that num_channels_init is even.
 
@@ -69,7 +65,7 @@ class LVAEModel(ArchitectureModel):
 
     @field_validator("decoder_n_filters")
     @classmethod
-    def validate_decoder_n_filters(cls, decoder_n_filters: int) -> int:
+    def validate_decoder_even(cls, decoder_n_filters: int) -> int:
         """
         Validate that num_channels_init is even.
 

@@ -15,7 +15,7 @@ class GaussianLikelihoodModel(BaseModel):
     BaseModel
     """
 
-    model_config = ConfigDict(validate_assignment=True, arbitrary_types_allowed=True)
+    model_config = ConfigDict(validate_assignment=True)
 
     type: Literal["GaussianLikelihoodModel"]
 

@@ -95,8 +95,8 @@ class AlgorithmConfig(BaseModel):
 
     # Mandatory fields
     # defined in SupportedAlgorithm
-    algorithm: Literal["n2v", "care", "n2n", "hdn", "musplit", "denoisplit", "custom"]
-    loss: Literal["n2v", "mae", "mse", "hdn", "musplit", "denoisplit"]
+    algorithm: Literal["n2v", "care", "n2n", "musplit", "denoisplit", "custom"]
+    loss: Literal["n2v", "mae", "mse", "musplit", "denoisplit"]
     model: Union[UNetModel, LVAEModel, CustomModel] = Field(
         discriminator="architecture"
     )

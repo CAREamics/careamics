@@ -15,7 +15,6 @@ class SupportedAlgorithm(str, BaseEnum):
     CARE = "care"
     N2N = "n2n"
     CUSTOM = "custom"
-    HDN = "hdn"
     MUSPLIT = "musplit"
     DENOISPLIT = "denoisplit"
     # PN2V = "pn2v"

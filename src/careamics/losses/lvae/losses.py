@@ -1,11 +1,7 @@
 ##### REQUIRED Methods for Loss Computation #####
-from typing import TYPE_CHECKING
-
 import numpy as np
 import torch
 
-if TYPE_CHECKING:
-    print("sdfdsfds")
 from careamics.losses.lvae.loss_utils import free_bits_kl, get_kl_weight
 from careamics.models.lvae.likelihoods import LikelihoodModule
 from careamics.models.lvae.utils import compute_batch_mean

@@ -297,6 +297,7 @@ class VAEModule(L.LightningModule):
         x, *aux = batch
         out = self.model(x)
         target = aux[0]
+        # TODO rethink loss parameters
         self.loss_parameters.current_epoch = self.current_epoch
         self.loss_parameters.inputs = x
         self.loss_parameters.mask = ~((target == 0).reshape(len(target), -1).all(dim=1))
