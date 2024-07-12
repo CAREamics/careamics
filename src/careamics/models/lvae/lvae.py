@@ -463,7 +463,9 @@ class LadderVAE(nn.Module):
             )
             return self.likelihood_gm
 
-    def _init_multires(self, config = None) -> nn.ModuleList: # TODO config: ml_collections.ConfigDict refactor
+    def _init_multires(
+        self, config=None
+    ) -> nn.ModuleList:  # TODO config: ml_collections.ConfigDict refactor
         """
         This method defines the input block/branch to encode/compress low-res lateral inputs at different hierarchical levels
         in the multiresolution approach (LC). The role of the input branches is similar to the one of the first bottom-up layer
