@@ -1,7 +1,7 @@
 """Module containing different strategies for writing predictions."""
 
 from pathlib import Path
-from typing import Any, Optional, Protocol, Sequence
+from typing import Any, Optional, Protocol, Sequence, Union
 
 import numpy as np
 from numpy.typing import NDArray
@@ -160,12 +160,16 @@ class CacheTiles(WriteStrategy):
         dirpath : Path
             Path to directory to save predictions to.
         """
-        dl: DataLoader = trainer.predict_dataloaders[dataloader_idx]
+        dls: Union[DataLoader, list[DataLoader]] = trainer.predict_dataloaders
+        if isinstance(dls, list):
+            dl: DataLoader = dls[dataloader_idx]
+        else:
+            dl: DataLoader = dls
         ds: IterableTiledPredDataset = dl.dataset
         if not isinstance(ds, IterableTiledPredDataset):
             raise TypeError("Prediction dataset is not `IterableTiledPredDataset`.")
 
-        # cache tiles
+        # cache tiles (batches are split into single samples)
         self.tile_cache.extend(np.split(prediction[0], prediction[0].shape[0]))
         self.tile_info_cache.extend(prediction[1])
 
@@ -373,17 +377,23 @@ class WriteImage(WriteStrategy):
         TypeError
             If trainer prediction dataset is not `IterablePredDataset`.
         """
-        dl: DataLoader = trainer.predict_dataloaders[dataloader_idx]
+        dls: Union[DataLoader, list[DataLoader]] = trainer.predict_dataloaders
+        if isinstance(dls, list):
+            dl: DataLoader = dls[dataloader_idx]
+        else:
+            dl: DataLoader = dls
         ds: IterablePredDataset = dl.dataset
         if not isinstance(ds, IterablePredDataset):
             raise TypeError("Prediction dataset is not `IterablePredDataset`.")
 
-        # TODO: have to check sample_idx is correct
-        for i, sample_id in enumerate(batch_indices):
-            prediction_image = batch[i]
+        for i in range(prediction.shape[0]):
+            prediction_image = prediction[0]
+            sample_id = batch_idx * dl.batch_size + i
             input_file_path = get_sample_file_path(ds=ds, sample_id=sample_id)
             file_path = create_write_file_path(
-                dirpath, input_file_path, self.write_extension
+                dirpath=dirpath,
+                file_path=input_file_path,
+                write_extension=self.write_extension,
             )
             self.write_func(
                 file_path=file_path, img=prediction_image, **self.write_func_kwargs

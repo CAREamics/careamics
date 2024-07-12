@@ -212,7 +212,11 @@ class PredictionWriterCallback(BasePredictionWriter):
                 "`lightning.pytorch.overrides.distributed._IndexBatchSamplerWrappe`r"
             )
 
-        dl: DataLoader = trainer.predict_dataloaders[dataloader_idx]
+        dls: Union[DataLoader, list[DataLoader]] = trainer.predict_dataloaders
+        if isinstance(dls, list):
+            dl: DataLoader = dls[dataloader_idx]
+        else:
+            dl: DataLoader = dls
         ds: Union[IterablePredDataset, IterableTiledPredDataset] = dl.dataset
         if not (
             isinstance(ds, IterablePredDataset)

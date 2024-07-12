@@ -5,14 +5,27 @@ from pathlib import Path
 from typing import Union
 from unittest.mock import Mock, patch
 
+import numpy as np
 import pytest
+import tifffile
 from pytorch_lightning import LightningModule, Trainer
+from pytorch_lightning.callbacks import ModelCheckpoint
 from torch.utils.data import DataLoader
 
+from careamics.config import Configuration
 from careamics.config.support import SupportedData
 from careamics.dataset import IterablePredDataset
+from careamics.lightning import (
+    create_careamics_module,
+    create_predict_datamodule,
+    create_train_datamodule,
+)
 from careamics.lightning.callbacks import PredictionWriterCallback
-from careamics.lightning.callbacks.prediction_writer_callback import WriteStrategy
+from careamics.lightning.callbacks.prediction_writer_callback import (
+    WriteStrategy,
+    create_write_strategy,
+)
+from careamics.prediction_utils import convert_outputs
 
 
 @pytest.fixture
@@ -36,6 +49,160 @@ def prediction_writer_callback(
 
 
 # TODO: smoke test with tiff (& example custom save func?)
+
+
+def test_smoke_n2v_tiled_tiff(tmp_path, minimum_configuration):
+    rng = np.random.default_rng(42)
+
+    # training data
+    train_array = rng.integers(0, 255, (32, 32)).astype(np.float32)
+    val_array = rng.integers(0, 255, (32, 32)).astype(np.float32)
+
+    # write train array to tiff
+    train_dir = tmp_path / "train"
+    train_dir.mkdir()
+    file_name = "image.tiff"
+    train_file = train_dir / file_name
+    tifffile.imwrite(train_file, train_array)
+
+    cfg = Configuration(**minimum_configuration)
+
+    # create lightning module
+    model = create_careamics_module(
+        algorithm=cfg.algorithm_config.algorithm,
+        loss=cfg.algorithm_config.loss,
+        architecture=cfg.algorithm_config.model.architecture,
+    )
+
+    # create data module
+    data = create_train_datamodule(
+        train_data=train_array,
+        val_data=val_array,
+        data_type=cfg.data_config.data_type,
+        patch_size=cfg.data_config.patch_size,
+        axes=cfg.data_config.axes,
+        batch_size=cfg.data_config.batch_size,
+    )
+
+    # create prediction writer callback params
+    write_strategy = create_write_strategy(write_type="tiff", tiled=True)
+    dirpath = tmp_path / "predictions"
+
+    # create trainer
+    trainer = Trainer(
+        max_epochs=1,
+        default_root_dir=tmp_path,
+        callbacks=[
+            ModelCheckpoint(
+                dirpath=tmp_path / "checkpoints",
+                filename="test_lightning_api",
+            ),
+            PredictionWriterCallback(write_strategy=write_strategy, dirpath=dirpath),
+        ],
+    )
+
+    # train
+    trainer.fit(model, datamodule=data)
+
+    # predict
+    means, stds = data.get_data_statistics()
+    predict_data = create_predict_datamodule(
+        data_type="tiff",
+        pred_data=train_dir,
+        axes=cfg.data_config.axes,
+        image_means=means,
+        image_stds=stds,
+        tile_size=(8, 8),
+        tile_overlap=(2, 2),
+    )
+
+    # predict
+    predicted = trainer.predict(model, datamodule=predict_data)
+    predicted_images = convert_outputs(predicted, tiled=True)
+
+    # assert predicted file exists
+    assert (dirpath / file_name).is_file()
+
+    # open file
+    save_data = tifffile.imread(dirpath / file_name)
+    # save data has singleton channel axis
+    assert np.array_equal(save_data, predicted_images[0][0])
+
+
+def test_smoke_n2v_untiled_tiff(tmp_path, minimum_configuration):
+    rng = np.random.default_rng(42)
+
+    # training data
+    train_array = rng.integers(0, 255, (32, 32)).astype(np.float32)
+    val_array = rng.integers(0, 255, (32, 32)).astype(np.float32)
+
+    # write train array to tiff
+    train_dir = tmp_path / "train"
+    train_dir.mkdir()
+    file_name = "image.tiff"
+    train_file = train_dir / file_name
+    tifffile.imwrite(train_file, train_array)
+
+    cfg = Configuration(**minimum_configuration)
+
+    # create lightning module
+    model = create_careamics_module(
+        algorithm=cfg.algorithm_config.algorithm,
+        loss=cfg.algorithm_config.loss,
+        architecture=cfg.algorithm_config.model.architecture,
+    )
+
+    # create data module
+    data = create_train_datamodule(
+        train_data=train_array,
+        val_data=val_array,
+        data_type=cfg.data_config.data_type,
+        patch_size=cfg.data_config.patch_size,
+        axes=cfg.data_config.axes,
+        batch_size=cfg.data_config.batch_size,
+    )
+
+    # create prediction writer callback params
+    write_strategy = create_write_strategy(write_type="tiff", tiled=False)
+    dirpath = tmp_path / "predictions"
+
+    # create trainer
+    trainer = Trainer(
+        max_epochs=1,
+        default_root_dir=tmp_path,
+        callbacks=[
+            ModelCheckpoint(
+                dirpath=tmp_path / "checkpoints",
+                filename="test_lightning_api",
+            ),
+            PredictionWriterCallback(write_strategy=write_strategy, dirpath=dirpath),
+        ],
+    )
+
+    # train
+    trainer.fit(model, datamodule=data)
+
+    # predict
+    means, stds = data.get_data_statistics()
+    predict_data = create_predict_datamodule(
+        data_type="tiff",
+        pred_data=train_dir,
+        axes=cfg.data_config.axes,
+        image_means=means,
+        image_stds=stds,
+    )
+
+    # predict
+    predicted = trainer.predict(model, datamodule=predict_data)
+    predicted_images = convert_outputs(predicted, tiled=False)
+
+    # assert predicted file exists
+    assert (dirpath / file_name).is_file()
+
+    # open file
+    save_data = tifffile.imread(dirpath / file_name)
+    # save data has singleton channel axis
+    assert np.array_equal(save_data, predicted_images[0][0])
 
 
 def test_initialization(prediction_writer_callback, write_strategy, dirpath):
