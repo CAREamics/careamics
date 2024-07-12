@@ -1,7 +1,7 @@
 """Module containing different strategies for writing predictions."""
 
 from pathlib import Path
-from typing import Any, Optional, Protocol, Sequence, Union
+from typing import Any, Optional, Protocol, Sequence
 
 import numpy as np
 from numpy.typing import NDArray
@@ -13,56 +13,7 @@ from careamics.dataset import IterablePredDataset, IterableTiledPredDataset
 from careamics.file_io import WriteFunc
 from careamics.prediction_utils import stitch_prediction_single
 
-
-# util functions
-# TODO: move to datasets package ?
-def get_sample_file_path(
-    ds: Union[IterableTiledPredDataset, IterablePredDataset], sample_id: int
-) -> Path:
-    """
-    Get the file path for a particular sample.
-
-    Parameters
-    ----------
-    ds : Union[IterableTiledPredDataset, IterablePredDataset]
-        Dataset.
-    sample_id : int
-        Sample ID, the index of the file in the dataset `ds`.
-
-    Returns
-    -------
-    Path
-        The file path corresponding to the sample with the ID `sample_id`.
-    """
-    return ds.data_files[sample_id]
-
-
-def create_write_file_path(
-    dirpath: Path, file_path: Path, write_extension: str
-) -> Path:
-    """
-    Create the file name for the output file.
-
-    Takes the original file path, changes the directory to `dirpath` and changes
-    the extension to `write_extension`.
-
-    Parameters
-    ----------
-    dirpath : pathlib.Path
-        The output directory to write file to.
-    file_path : pathlib.Path
-        The original file path.
-    write_extension : str
-        The extension that output files should have.
-
-    Returns
-    -------
-    Path
-        The output file path.
-    """
-    file_name = Path(file_path.stem).with_suffix(write_extension)
-    file_path = dirpath / file_name
-    return file_path
+from .file_path_utils import create_write_file_path, get_sample_file_path
 
 
 class WriteStrategy(Protocol):
