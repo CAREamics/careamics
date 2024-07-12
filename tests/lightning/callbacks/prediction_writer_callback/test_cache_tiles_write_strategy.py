@@ -17,8 +17,6 @@ from careamics.lightning.callbacks.prediction_writer_callback.write_strategy imp
     CacheTiles,
 )
 
-# TODO: add docs
-
 
 def create_tiles(n_samples: int) -> tuple[list[NDArray], list[TileInformation]]:
     """
