@@ -1,7 +1,7 @@
 """Module containing different strategies for writing predictions."""
 
 from pathlib import Path
-from typing import Any, Optional, Protocol, Sequence
+from typing import Any, Optional, Protocol, Sequence, Union
 
 import numpy as np
 from numpy.typing import NDArray
@@ -14,10 +14,59 @@ from careamics.file_io import WriteFunc
 from careamics.prediction_utils import stitch_prediction_single
 
 
+# util functions
+# TODO: move to datasets package ?
+def get_sample_file_path(
+    ds: Union[IterableTiledPredDataset, IterablePredDataset], sample_id: int
+) -> Path:
+    """
+    Get the file path for a particular sample.
+
+    Parameters
+    ----------
+    ds : Union[IterableTiledPredDataset, IterablePredDataset]
+        Dataset.
+    sample_id : int
+        Sample ID, the index of the file in the dataset `ds`.
+
+    Returns
+    -------
+    Path
+        The file path corresponding to the sample with the ID `sample_id`.
+    """
+    return ds.data_files[sample_id]
+
+
+def create_write_file_path(
+    dirpath: Path, file_path: Path, write_extension: str
+) -> Path:
+    """
+    Create the file name for the output file.
+
+    Takes the original file path, changes the directory to `dirpath` and changes
+    the extension to `write_extension`.
+
+    Parameters
+    ----------
+    dirpath : pathlib.Path
+        The output directory to write file to.
+    file_path : pathlib.Path
+        The original file path.
+    write_extension : str
+        The extension that output files should have.
+
+    Returns
+    -------
+    Path
+        The output file path.
+    """
+    file_name = Path(file_path.stem).with_suffix(write_extension)
+    file_path = dirpath / file_name
+    return file_path
+
+
 class WriteStrategy(Protocol):
-    """
-    Protocol for write strategy classes.
-    """
+    """Protocol for write strategy classes."""
 
     def write_batch(
         self,
@@ -179,9 +228,10 @@ class CacheTiles(WriteStrategy):
 
             # write prediction
             sample_id = tile_infos[0].sample_id  # need this to select correct file name
-            file_name_input = ds.data_files[sample_id]
-            file_name = Path(file_name_input.stem).with_suffix(self.write_extension)
-            file_path = dirpath / file_name
+            input_file_path = get_sample_file_path(ds=ds, sample_id=sample_id)
+            file_path = create_write_file_path(
+                dirpath, input_file_path, self.write_extension
+            )
             self.write_func(
                 file_path=file_path, img=prediction_image[0], **self.write_func_kwargs
             )
@@ -244,9 +294,7 @@ class CacheTiles(WriteStrategy):
 
 
 class WriteTilesZarr(WriteStrategy):
-    """
-    Strategy to write tiles to Zarr file.
-    """
+    """Strategy to write tiles to Zarr file."""
 
     def write_batch(
         self,
@@ -379,11 +427,12 @@ class WriteImage(WriteStrategy):
             raise TypeError("Prediction dataset is not `IterablePredDataset`.")
 
         # TODO: have to check sample_idx is correct
-        for i, sample_idx in enumerate(batch_indices):
+        for i, sample_id in enumerate(batch_indices):
             prediction_image = batch[i]
-            file_name_input = ds.data_files[sample_idx]
-            file_name = Path(file_name_input.stem).with_suffix(self.write_extension)
-            file_path = dirpath / file_name
+            input_file_path = get_sample_file_path(ds=ds, sample_id=sample_id)
+            file_path = create_write_file_path(
+                dirpath, input_file_path, self.write_extension
+            )
             self.write_func(
                 file_path=file_path, img=prediction_image, **self.write_func_kwargs
             )
