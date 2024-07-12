@@ -213,7 +213,6 @@ def test_write_batch_last_tile(cache_tiles_strategy):
         mock_get_sample_file_path = values["get_sample_file_path"]
         mock_create_write_file_path = values["create_write_file_path"]
 
-        
         prediction_image = [Mock()]
         in_file_path = Path("in_dir/file_path.ext")
         out_file_path = Path("out_dir/file_path.in_ext")

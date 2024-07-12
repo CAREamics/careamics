@@ -213,10 +213,7 @@ class PredictionWriterCallback(BasePredictionWriter):
             )
 
         dls: Union[DataLoader, list[DataLoader]] = trainer.predict_dataloaders
-        if isinstance(dls, list):
-            dl: DataLoader = dls[dataloader_idx]
-        else:
-            dl: DataLoader = dls
+        dl: DataLoader = dls[dataloader_idx] if isinstance(dls, list) else dls
         ds: Union[IterablePredDataset, IterableTiledPredDataset] = dl.dataset
         if not (
             isinstance(ds, IterablePredDataset)

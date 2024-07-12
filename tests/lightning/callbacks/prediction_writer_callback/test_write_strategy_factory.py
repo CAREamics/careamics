@@ -11,8 +11,6 @@ from careamics.lightning.callbacks.prediction_writer_callback import (
     CacheTiles,
     WriteImage,
     create_write_strategy,
-)
-from careamics.lightning.callbacks.prediction_writer_callback.write_strategy_factory import (
     select_write_extension,
     select_write_func,
 )

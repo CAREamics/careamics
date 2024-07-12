@@ -161,10 +161,7 @@ class CacheTiles(WriteStrategy):
             Path to directory to save predictions to.
         """
         dls: Union[DataLoader, list[DataLoader]] = trainer.predict_dataloaders
-        if isinstance(dls, list):
-            dl: DataLoader = dls[dataloader_idx]
-        else:
-            dl: DataLoader = dls
+        dl: DataLoader = dls[dataloader_idx] if isinstance(dls, list) else dls
         ds: IterableTiledPredDataset = dl.dataset
         if not isinstance(ds, IterableTiledPredDataset):
             raise TypeError("Prediction dataset is not `IterableTiledPredDataset`.")
@@ -378,10 +375,7 @@ class WriteImage(WriteStrategy):
             If trainer prediction dataset is not `IterablePredDataset`.
         """
         dls: Union[DataLoader, list[DataLoader]] = trainer.predict_dataloaders
-        if isinstance(dls, list):
-            dl: DataLoader = dls[dataloader_idx]
-        else:
-            dl: DataLoader = dls
+        dl: DataLoader = dls[dataloader_idx] if isinstance(dls, list) else dls
         ds: IterablePredDataset = dl.dataset
         if not isinstance(ds, IterablePredDataset):
             raise TypeError("Prediction dataset is not `IterablePredDataset`.")
