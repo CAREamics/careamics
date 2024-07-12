@@ -1,4 +1,4 @@
-"""Module containing PredictionWriterCallback class."""
+"""Module containing `PredictionWriterCallback` class."""
 
 from __future__ import annotations
 
@@ -201,7 +201,7 @@ class PredictionWriterCallback(BasePredictionWriter):
         dataloader_idx : int
             Dataloader index.
         """
-        # if writing prediction is turned of
+        # if writing prediction is turned off
         if not self.writing_predictions:
             return
 
