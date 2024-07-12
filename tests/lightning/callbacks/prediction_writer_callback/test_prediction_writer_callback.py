@@ -214,7 +214,7 @@ def test_initialization(prediction_writer_callback, write_strategy, dirpath):
 
 def test_init_dirpath_absolute_path(prediction_writer_callback):
     """Test initialization of dirpath with absolute path."""
-    absolute_path = Path("/absolute/path")
+    absolute_path = Path("/absolute/path").absolute()
     prediction_writer_callback._init_dirpath(absolute_path)
     assert prediction_writer_callback.dirpath == absolute_path
 
