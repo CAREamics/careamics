@@ -24,7 +24,7 @@ class WriteStrategy(Protocol):
         trainer: Trainer,
         pl_module: LightningModule,
         prediction: Any,  # TODO: change to expected type
-        batch_indices: Sequence[int],
+        batch_indices: Optional[Sequence[int]],
         batch: Any,  # TODO: change to expected type
         batch_idx: int,
         dataloader_idx: int,
@@ -341,7 +341,7 @@ class WriteImage(WriteStrategy):
         trainer: Trainer,
         pl_module: LightningModule,
         prediction: NDArray,
-        batch_indices: Sequence[int],
+        batch_indices: Optional[Sequence[int]],
         batch: NDArray,
         batch_idx: int,
         dataloader_idx: int,

@@ -205,13 +205,6 @@ class PredictionWriterCallback(BasePredictionWriter):
         if not self.writing_predictions:
             return
 
-        if batch_indices is None:
-            raise ValueError(
-                "Batch indices cannot be None for saving predictions. The dataloader "
-                "must have a batch sampler wrapped by "
-                "`lightning.pytorch.overrides.distributed._IndexBatchSamplerWrappe`r"
-            )
-
         dls: Union[DataLoader, list[DataLoader]] = trainer.predict_dataloaders
         dl: DataLoader = dls[dataloader_idx] if isinstance(dls, list) else dls
         ds: Union[IterablePredDataset, IterableTiledPredDataset] = dl.dataset
