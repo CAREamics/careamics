@@ -126,7 +126,7 @@ def test_smoke_n2v_tiled_tiff(tmp_path, minimum_configuration):
     # open file
     save_data = tifffile.imread(dirpath / file_name)
     # save data has singleton channel axis
-    assert np.array_equal(save_data, predicted_images[0][0])
+    np.testing.assert_array_equal(save_data, predicted_images[0][0], verbose=True)
 
 
 def test_smoke_n2v_untiled_tiff(tmp_path, minimum_configuration):
@@ -202,7 +202,7 @@ def test_smoke_n2v_untiled_tiff(tmp_path, minimum_configuration):
     # open file
     save_data = tifffile.imread(dirpath / file_name)
     # save data has singleton channel axis
-    assert np.array_equal(save_data, predicted_images[0][0])
+    np.testing.assert_array_equal(save_data, predicted_images[0][0], verbose=True)
 
 
 def test_initialization(prediction_writer_callback, write_strategy, dirpath):
