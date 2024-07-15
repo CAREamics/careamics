@@ -9,13 +9,12 @@ from pytorch_lightning import LightningModule, Trainer
 from pytorch_lightning.callbacks import BasePredictionWriter
 from torch.utils.data import DataLoader
 
-from careamics.config.support import SupportedData
 from careamics.dataset import (
     InMemoryPredDataset,
     IterablePredDataset,
     IterableTiledPredDataset,
 )
-from careamics.file_io import WriteFunc
+from careamics.file_io import SupportedWriteType, WriteFunc
 from careamics.utils import get_logger
 
 from .write_strategy import WriteStrategy
@@ -83,7 +82,7 @@ class PredictionWriterCallback(BasePredictionWriter):
     @classmethod
     def from_write_func_params(
         cls,
-        write_type: Union[SupportedData, str],
+        write_type: SupportedWriteType,
         tiled: bool,
         write_func: Optional[WriteFunc] = None,
         write_extension: Optional[str] = None,
@@ -98,7 +97,7 @@ class PredictionWriterCallback(BasePredictionWriter):
 
         Parameters
         ----------
-        write_type : SupportedData or str
+        write_type : {"tiff", "custom"}
             The data type to save as, includes custom.
         tiled : bool
             Whether the prediction will be tiled or not.
@@ -108,7 +107,7 @@ class PredictionWriterCallback(BasePredictionWriter):
         write_extension : str, optional
             If a known `write_type` is selected this argument is ignored. For a custom
             `write_type` an extension to save the data with must be passed.
-        write_func_kwargs : dict of {str: any}, optional
+        write_func_kwargs : dict of {{str: any}}, optional
             Additional keyword arguments to be passed to the save function.
         dirpath : pathlib.Path or str, default="predictions"
             The path to the directory where prediction outputs will be saved. If

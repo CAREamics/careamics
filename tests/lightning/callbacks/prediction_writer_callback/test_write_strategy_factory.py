@@ -82,7 +82,7 @@ def test_select_write_func_custom(write_func):
 
 def test_select_write_extension_tiff():
     """Test tiff extension is selected correctly."""
-    write_extension = select_write_extension(write_type="tiff", write_extension=None)
+    write_extension = select_write_extension(write_type_="tiff", write_extension=None)
     assert write_extension == ".tiff"
 
 

@@ -1,15 +1,15 @@
 """Module containing convienience function to create `WriteStrategy`."""
 
-from typing import Any, Optional, Union
+from typing import Any, Optional
 
 from careamics.config.support import SupportedData
-from careamics.file_io import WriteFunc, get_write_func
+from careamics.file_io import SupportedWriteType, WriteFunc, get_write_func
 
 from .write_strategy import CacheTiles, WriteImage, WriteStrategy
 
 
 def create_write_strategy(
-    write_type: Union[SupportedData, str],
+    write_type: SupportedWriteType,
     tiled: bool,
     write_func: Optional[WriteFunc] = None,
     write_extension: Optional[str] = None,
@@ -20,7 +20,7 @@ def create_write_strategy(
 
     Parameters
     ----------
-    write_type : SupportedData or str
+    write_type : {"tiff", "custom"}
         The data type to save as, includes custom.
     tiled : bool
         Whether the prediction will be tiled or not.
@@ -77,7 +77,7 @@ def create_write_strategy(
 
 
 def _create_tiled_write_strategy(
-    write_type: Union[SupportedData, str],
+    write_type: SupportedWriteType,
     write_func: Optional[WriteFunc],
     write_extension: Optional[str],
     write_func_kwargs: dict[str, Any],
@@ -90,7 +90,7 @@ def _create_tiled_write_strategy(
 
     Parameters
     ----------
-    write_type : SupportedData or str
+    write_type : {"tiff", "custom"}
         The data type to save as, includes custom.
     write_func : WriteFunc, optional
         If a known `write_type` is selected this argument is ignored. For a custom
@@ -130,7 +130,7 @@ def _create_tiled_write_strategy(
 
 
 def select_write_func(
-    write_type: Union[SupportedData, str], write_func: Optional[WriteFunc] = None
+    write_type: SupportedWriteType, write_func: Optional[WriteFunc] = None
 ) -> WriteFunc:
     """
     Return a function to write images.
@@ -140,7 +140,7 @@ def select_write_func(
 
     Parameters
     ----------
-    write_type : SupportedData or str
+    write_type : {"tiff", "custom"}
         The data type to save as, includes custom.
     write_func : WriteFunc, optional
         If a known `write_type` is selected this argument is ignored. For a custom
@@ -177,7 +177,7 @@ def select_write_func(
 
 
 def select_write_extension(
-    write_type: Union[SupportedData, str], write_extension: Optional[str] = None
+    write_type: SupportedWriteType, write_extension: Optional[str] = None
 ) -> str:
     """
     Return an extension to add to file paths.
@@ -187,7 +187,7 @@ def select_write_extension(
 
     Parameters
     ----------
-    write_type : SupportedData or str
+    write_type : {"tiff", "custom"}
         The data type to save as, includes custom.
     write_extension : str, optional
         If a known `write_type` is selected this argument is ignored. For a custom
@@ -203,13 +203,13 @@ def select_write_extension(
     ValueError
         If `self.save_type="custom"` but `save_extension` has not been given.
     """
-    write_type = SupportedData(write_type)
-    if write_type == SupportedData.CUSTOM:
+    write_type_: SupportedData = SupportedData(write_type)  # new variable for mypy
+    if write_type_ == SupportedData.CUSTOM:
         if write_extension is None:
             raise ValueError("A save extension must be provided for custom data types.")
         else:
             write_extension = write_extension
     else:
         # kind of a weird pattern -> reason to move get_extension from SupportedData
-        write_extension = write_type.get_extension(write_type)
+        write_extension = write_type_.get_extension(write_type_)
     return write_extension

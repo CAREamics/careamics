@@ -1,13 +1,15 @@
 """Module to get write functions."""
 
 from pathlib import Path
-from typing import Protocol, Union
+from typing import Literal, Protocol
 
 from numpy.typing import NDArray
 
 from careamics.config.support import SupportedData
 
 from .tiff import write_tiff
+
+SupportedWriteType = Literal["tiff", "custom"]
 
 
 # This is very strict, arguments have to be called file_path & img
@@ -38,13 +40,13 @@ WRITE_FUNCS: dict[SupportedData, WriteFunc] = {
 }
 
 
-def get_write_func(data_type: Union[str, SupportedData]) -> WriteFunc:
+def get_write_func(data_type: SupportedWriteType) -> WriteFunc:
     """
     Get the write function for the data type.
 
     Parameters
     ----------
-    data_type : SupportedData
+    data_type : {"tiff", "custom"}
         Data type.
 
     Returns
@@ -52,8 +54,8 @@ def get_write_func(data_type: Union[str, SupportedData]) -> WriteFunc:
     callable
         Write function.
     """
-    if data_type in WRITE_FUNCS:
-        data_type = SupportedData(data_type)  # mypy complaining about dict key type
-        return WRITE_FUNCS[data_type]
+    data_type_ = SupportedData(data_type)  # new variable for mypy
+    if data_type_ in WRITE_FUNCS:
+        return WRITE_FUNCS[data_type_]
     else:
         raise NotImplementedError(f"Data type {data_type} is not supported.")
