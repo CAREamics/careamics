@@ -12,8 +12,7 @@ class TileInformation(BaseModel):
     This model is used to represent the information required to stitch back a tile into
     a larger image. It is used throughout the prediction pipeline of CAREamics.
 
-    Array shape should be (C)(Z)YX, where C and Z are optional dimensions, and must not
-    contain singleton dimensions.
+    Array shape should be C(Z)YX, where Z is an optional dimensions.
     """
 
     model_config = ConfigDict(validate_default=True)
@@ -34,11 +33,15 @@ class TileInformation(BaseModel):
     sample_id: int
     """Sample ID of the tile."""
 
+    # TODO: Test that ZYX axes are not singleton ?
+
     @field_validator("array_shape")
     @classmethod
-    def no_singleton_dimensions(cls, v: tuple[int, ...]):
+    def n_dims(cls, v: tuple[int, ...]):
         """
-        Check that the array shape does not have any singleton dimensions.
+        Check that array shape has 3 or 4 dimensions.
+
+        Reduces ambiguity between C and Z channels.
 
         Parameters
         ----------
@@ -48,15 +51,17 @@ class TileInformation(BaseModel):
         Returns
         -------
         tuple of int
-            The array shape if it does not contain singleton dimensions.
+            The array shape if it has 3 or 4 dimensions.
 
         Raises
         ------
         ValueError
-            If the array shape contains singleton dimensions.
+            If the array shape does not have 3 or 4 dimensions.
         """
-        if any(dim == 1 for dim in v):
-            raise ValueError("Array shape must not contain singleton dimensions.")
+        if not ((len(v) == 3) or (len(v) == 4)):
+            raise ValueError(
+                "Array shape must have 3 or 4 dimensions - CYX or CZYX respectively."
+            )
         return v
 
     def __eq__(self, other_tile: object):
