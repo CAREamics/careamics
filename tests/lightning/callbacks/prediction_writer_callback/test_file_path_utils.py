@@ -1,8 +1,6 @@
 from pathlib import Path
 from unittest.mock import Mock
 
-import pytest
-
 from careamics.config import InferenceConfig
 from careamics.dataset import IterablePredDataset, IterableTiledPredDataset
 from careamics.lightning.callbacks.prediction_writer_callback.file_path_utils import (
@@ -11,20 +9,9 @@ from careamics.lightning.callbacks.prediction_writer_callback.file_path_utils im
 )
 
 
-def iterable_pred_ds():
-    """`IterablePredDataset` with mock prediction config."""
-    src_files = [f"{i}.ext" for i in range(2)]
-    pred_config = Mock(spec=InferenceConfig)
-    # attrs used in DS initialization
-    pred_config.axes = Mock()
-    pred_config.image_means = [Mock()]
-    pred_config.image_stds = [Mock()]
-    ds = IterablePredDataset(pred_config, src_files=src_files)
-    return ds
+def test_get_sample_file_path_tiled_ds():
 
-
-def iterable_tiled_pred_ds():
-    """`IterableTiledPredDataset` with mock prediction config."""
+    # Create DS with mock InferenceConfig
     src_files = [f"{i}.ext" for i in range(2)]
     pred_config = Mock(spec=InferenceConfig)
     # attrs used in DS initialization
@@ -34,12 +21,23 @@ def iterable_tiled_pred_ds():
     pred_config.image_means = [Mock()]
     pred_config.image_stds = [Mock()]
     ds = IterableTiledPredDataset(pred_config, src_files=src_files)
-    return ds
+
+    for i in range(2):
+        file_path = get_sample_file_path(ds, sample_id=i)
+        assert file_path == f"{i}.ext"
 
 
-@pytest.mark.parametrize("ds_func", [iterable_pred_ds, iterable_tiled_pred_ds])
-def test_get_sample_file_path(ds_func):
-    ds = ds_func()
+def test_get_sample_file_path_untiled_ds():
+
+    # Create DS with mock InferenceConfig
+    src_files = [f"{i}.ext" for i in range(2)]
+    pred_config = Mock(spec=InferenceConfig)
+    # attrs used in DS initialization
+    pred_config.axes = Mock()
+    pred_config.image_means = [Mock()]
+    pred_config.image_stds = [Mock()]
+    ds = IterablePredDataset(pred_config, src_files=src_files)
+
     for i in range(2):
         file_path = get_sample_file_path(ds, sample_id=i)
         assert file_path == f"{i}.ext"
