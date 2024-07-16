@@ -171,7 +171,7 @@ class CacheTiles(WriteStrategy):
         self.tile_info_cache.extend(prediction[1])
 
         # save stitched prediction
-        if self._have_last_tile():
+        if self._has_last_tile():
 
             # get image tiles and remove them from the cache
             tiles, tile_infos = self._get_image_tiles()
@@ -194,7 +194,7 @@ class CacheTiles(WriteStrategy):
                 file_path=file_path, img=prediction_image[0], **self.write_func_kwargs
             )
 
-    def _have_last_tile(self) -> bool:
+    def _has_last_tile(self) -> bool:
         """
         Whether a last tile is contained in the cached tiles.
 
