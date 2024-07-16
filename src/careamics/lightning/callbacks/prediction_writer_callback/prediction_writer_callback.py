@@ -35,7 +35,7 @@ class PredictionWriterCallback(BasePredictionWriter):
         A strategy for writing predictions.
     dirpath : Path or str, default="predictions"
         The path to the directory where prediction outputs will be saved. If
-        `dirpath is not absolute it is assumed to  be relative to current working
+        `dirpath` is not absolute it is assumed to be relative to current working
         directory. Nested directories will not be automatically created.
 
     Attributes
