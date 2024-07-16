@@ -44,7 +44,7 @@ class PredictionWriterCallback(BasePredictionWriter):
         A strategy for writing predictions.
     dirpath : pathlib.Path, default="predictions"
         The path to the directory where prediction outputs will be saved. If
-        `dirpath is not absolute it is assumed to  be relative to current working
+        `dirpath` is not absolute it is assumed to be relative to current working
         directory. Nested directories will not be automatically created.
     writing_predictions : bool
         If writing predictions is turned on or off.
@@ -64,7 +64,7 @@ class PredictionWriterCallback(BasePredictionWriter):
             A strategy for writing predictions.
         dirpath : pathlib.Path or str, default="predictions"
             The path to the directory where prediction outputs will be saved. If
-            `dirpath is not absolute it is assumed to  be relative to current working
+            `dirpath` is not absolute it is assumed to be relative to current working
             directory. Nested directories will not be automatically created.
         """
         super().__init__(write_interval="batch")
@@ -92,8 +92,8 @@ class PredictionWriterCallback(BasePredictionWriter):
         """
         Initialize a `PredictionWriterCallback` from write function parameters.
 
-        This will automatically create a `WriteStrategy` to by passed to the
-        initialisation of `PredictionWriterCallback`.
+        This will automatically create a `WriteStrategy` to be passed to the
+        initialization of `PredictionWriterCallback`.
 
         Parameters
         ----------
@@ -111,7 +111,7 @@ class PredictionWriterCallback(BasePredictionWriter):
             Additional keyword arguments to be passed to the save function.
         dirpath : pathlib.Path or str, default="predictions"
             The path to the directory where prediction outputs will be saved. If
-            `dirpath is not absolute it is assumed to  be relative to current working
+            `dirpath` is not absolute it is assumed to be relative to current working
             directory. Nested directories will not be automatically created.
 
         Returns
@@ -215,8 +215,8 @@ class PredictionWriterCallback(BasePredictionWriter):
             # This is for extra redundancy of errors.
             raise TypeError(
                 "Prediction dataset has to be `IterableTiledPredDataset` or "
-                "`IterablePredDataset. Cannot be `InMemoryPredDataset because filenames"
-                "are taken from the original file."
+                "`IterablePredDataset`. Cannot be `InMemoryPredDataset` because "
+                "filenames are taken from the original file."
             )
 
         self.write_strategy.write_batch(
