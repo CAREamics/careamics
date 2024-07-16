@@ -160,10 +160,14 @@ class CacheTiles(WriteStrategy):
         dirpath : Path
             Path to directory to save predictions to.
         """
-        dls: Union[DataLoader, list[DataLoader]] = trainer.predict_dataloaders
-        dl: DataLoader = dls[dataloader_idx] if isinstance(dls, list) else dls
-        ds: IterableTiledPredDataset = dl.dataset
-        if not isinstance(ds, IterableTiledPredDataset):
+        dataloaders: Union[DataLoader, list[DataLoader]] = trainer.predict_dataloaders
+        dataloader: DataLoader = (
+            dataloaders[dataloader_idx]
+            if isinstance(dataloaders, list)
+            else dataloaders
+        )
+        dataset: IterableTiledPredDataset = dataloader.dataset
+        if not isinstance(dataset, IterableTiledPredDataset):
             raise TypeError("Prediction dataset is not `IterableTiledPredDataset`.")
 
         # cache tiles (batches are split into single samples)
@@ -184,7 +188,7 @@ class CacheTiles(WriteStrategy):
 
             # write prediction
             sample_id = tile_infos[0].sample_id  # need this to select correct file name
-            input_file_path = get_sample_file_path(dataset=ds, sample_id=sample_id)
+            input_file_path = get_sample_file_path(dataset=dataset, sample_id=sample_id)
             file_path = create_write_file_path(
                 dirpath=dirpath,
                 file_path=input_file_path,

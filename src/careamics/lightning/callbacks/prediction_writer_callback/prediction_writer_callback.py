@@ -10,7 +10,6 @@ from pytorch_lightning.callbacks import BasePredictionWriter
 from torch.utils.data import DataLoader
 
 from careamics.dataset import (
-    InMemoryPredDataset,
     IterablePredDataset,
     IterableTiledPredDataset,
 )
@@ -22,7 +21,7 @@ from .write_strategy_factory import create_write_strategy
 
 logger = get_logger(__name__)
 
-PredDatasets = Union[IterablePredDataset, IterableTiledPredDataset, InMemoryPredDataset]
+ValidPredDatasets = Union[IterablePredDataset, IterableTiledPredDataset]
 
 
 class PredictionWriterCallback(BasePredictionWriter):
@@ -203,12 +202,16 @@ class PredictionWriterCallback(BasePredictionWriter):
         if not self.writing_predictions:
             return
 
-        dls: Union[DataLoader, list[DataLoader]] = trainer.predict_dataloaders
-        dl: DataLoader = dls[dataloader_idx] if isinstance(dls, list) else dls
-        ds: Union[IterablePredDataset, IterableTiledPredDataset] = dl.dataset
+        dataloaders: Union[DataLoader, list[DataLoader]] = trainer.predict_dataloaders
+        dataloader: DataLoader = (
+            dataloaders[dataloader_idx]
+            if isinstance(dataloaders, list)
+            else dataloaders
+        )
+        dataset: ValidPredDatasets = dataloader.dataset
         if not (
-            isinstance(ds, IterablePredDataset)
-            or isinstance(ds, IterableTiledPredDataset)
+            isinstance(dataset, IterablePredDataset)
+            or isinstance(dataset, IterableTiledPredDataset)
         ):
             # Note: Error will be raised before here from the source type
             # This is for extra redundancy of errors.
