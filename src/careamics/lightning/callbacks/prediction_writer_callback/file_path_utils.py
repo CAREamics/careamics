@@ -8,24 +8,24 @@ from careamics.dataset import IterablePredDataset, IterableTiledPredDataset
 
 # TODO: move to datasets package ?
 def get_sample_file_path(
-    ds: Union[IterableTiledPredDataset, IterablePredDataset], sample_id: int
+    dataset: Union[IterableTiledPredDataset, IterablePredDataset], sample_id: int
 ) -> Path:
     """
     Get the file path for a particular sample.
 
     Parameters
     ----------
-    ds : Union[IterableTiledPredDataset, IterablePredDataset]
+    dataset : IterableTiledPredDataset or IterablePredDataset
         Dataset.
     sample_id : int
-        Sample ID, the index of the file in the dataset `ds`.
+        Sample ID, the index of the file in the dataset `dataset`.
 
     Returns
     -------
     Path
         The file path corresponding to the sample with the ID `sample_id`.
     """
-    return ds.data_files[sample_id]
+    return dataset.data_files[sample_id]
 
 
 def create_write_file_path(

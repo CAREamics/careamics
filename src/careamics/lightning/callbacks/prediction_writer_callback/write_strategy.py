@@ -184,7 +184,7 @@ class CacheTiles(WriteStrategy):
 
             # write prediction
             sample_id = tile_infos[0].sample_id  # need this to select correct file name
-            input_file_path = get_sample_file_path(ds=ds, sample_id=sample_id)
+            input_file_path = get_sample_file_path(dataset=ds, sample_id=sample_id)
             file_path = create_write_file_path(
                 dirpath=dirpath,
                 file_path=input_file_path,
@@ -383,7 +383,7 @@ class WriteImage(WriteStrategy):
         for i in range(prediction.shape[0]):
             prediction_image = prediction[0]
             sample_id = batch_idx * dl.batch_size + i
-            input_file_path = get_sample_file_path(ds=ds, sample_id=sample_id)
+            input_file_path = get_sample_file_path(dataset=ds, sample_id=sample_id)
             file_path = create_write_file_path(
                 dirpath=dirpath,
                 file_path=input_file_path,
