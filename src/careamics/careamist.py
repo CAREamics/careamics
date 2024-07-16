@@ -24,6 +24,7 @@ from careamics.config.support import (
     SupportedLogger,
 )
 from careamics.dataset.dataset_utils import reshape_array
+from careamics.file_io import WriteFunc
 from careamics.lightning import (
     CAREamicsModule,
     HyperParametersCallback,
@@ -674,6 +675,65 @@ class CAREamist:
             model=self.model, datamodule=self.pred_datamodule
         )
         return convert_outputs(predictions, self.pred_datamodule.tiled)
+
+    def predict_to_disk(
+        self,
+        source: Union[PredictDataModule, Path, str],
+        *,
+        batch_size: int = 1,
+        tile_size: Optional[tuple[int, ...]] = None,
+        tile_overlap: tuple[int, ...] = (48, 48),
+        axes: Optional[str] = None,
+        data_type: Optional[Literal["array", "tiff", "custom"]] = None,
+        tta_transforms: bool = True,
+        dataloader_params: Optional[dict] = None,
+        read_source_func: Optional[Callable] = None,
+        extension_filter: str = "",
+        write_type: Literal["tiff", "custom"] = "tiff",
+        write_extension: Optional[str] = None,
+        write_func: Optional[WriteFunc] = None,
+        write_func_kwargs: Optional[dict[str, Any]] = None,
+        predict_dir: Optional[Path] = None,
+    ) -> None:
+        # TODO: raise error for predict dataset not iterable
+
+        # assign predict dir
+        # TODO: absolute vs relative
+        if predict_dir is not None:
+            self.prediction_writer.dirpath = predict_dir
+
+        tiled = tile_size is not None
+        write_strategy = create_write_strategy(
+            write_type=write_type,
+            tiled=tiled,
+            write_func=write_func,
+            write_extension=write_extension,
+            write_func_kwargs=write_func_kwargs,
+        )
+        self.prediction_writer.write_strategy = write_strategy
+
+        # TODO: validate tile size (extract to seperate function)
+
+        # create the prediction
+        self.pred_datamodule = create_predict_datamodule(
+            pred_data=source,
+            data_type=data_type or self.cfg.data_config.data_type,
+            axes=axes or self.cfg.data_config.axes,
+            image_means=self.cfg.data_config.image_means,
+            image_stds=self.cfg.data_config.image_stds,
+            tile_size=tile_size,
+            tile_overlap=tile_overlap,
+            batch_size=batch_size or self.cfg.data_config.batch_size,
+            tta_transforms=tta_transforms,
+            read_source_func=read_source_func,
+            extension_filter=extension_filter,
+            dataloader_params=dataloader_params,
+        )
+
+        # predict (without returning predictions, saves memory)
+        self.trainer.predict(
+            model=self.model, datamodule=self.pred_datamodule, return_predictions=False
+        )
 
     def export_to_bmz(
         self,
