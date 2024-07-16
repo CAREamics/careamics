@@ -3,7 +3,7 @@ from torch import Tensor
 
 from careamics import CAREamist
 from careamics.model_io import export_to_bmz, load_pretrained
-from careamics.model_io.bioimage import format_bmz_path
+from careamics.model_io.bioimage.bioimage_utils import _format_bmz_name
 from careamics.model_io.bmz_io import _export_state_dict, _load_state_dict
 
 
@@ -113,7 +113,7 @@ def test_bmz_io_path_and_name(tmp_path, ordered_array, pre_trained):
         output_array=predicted,
     )
 
-    expected_path = path / (format_bmz_path(name) + ".zip")
+    expected_path = path / (_format_bmz_name(name) + ".zip")
     assert (
         expected_path.exists()
     ), "Export to non-existing folder without file name failed."
