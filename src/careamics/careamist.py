@@ -695,6 +695,12 @@ class CAREamist:
         write_func_kwargs: Optional[dict[str, Any]] = None,
         predict_dir: Optional[Path] = None,
     ) -> None:
+        if (
+            self.cfg.data_config.image_means is None
+            or self.cfg.data_config.image_stds is None
+        ):
+            raise ValueError("Mean and std must be provided in the configuration.")
+
         # TODO: raise error for predict dataset not iterable
 
         # assign predict dir
