@@ -2,7 +2,12 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict, field_validator
+from typing import Annotated
+
+from annotated_types import Len
+from pydantic import BaseModel, ConfigDict
+
+DimTuple = Annotated[tuple, Len(min_length=2, max_length=4)]
 
 
 class TileInformation(BaseModel):
@@ -17,7 +22,7 @@ class TileInformation(BaseModel):
 
     model_config = ConfigDict(validate_default=True)
 
-    array_shape: tuple[int, ...]
+    array_shape: DimTuple  # TODO: find a way to add custom error message?
     """Shape of the original (untiled) array."""
 
     last_tile: bool = False
@@ -34,35 +39,6 @@ class TileInformation(BaseModel):
     """Sample ID of the tile."""
 
     # TODO: Test that ZYX axes are not singleton ?
-
-    @field_validator("array_shape")
-    @classmethod
-    def n_dims(cls, v: tuple[int, ...]):
-        """
-        Check that array shape has 3 or 4 dimensions.
-
-        Reduces ambiguity between C and Z channels.
-
-        Parameters
-        ----------
-        v : tuple of int
-            Array shape to check.
-
-        Returns
-        -------
-        tuple of int
-            The array shape if it has 3 or 4 dimensions.
-
-        Raises
-        ------
-        ValueError
-            If the array shape does not have 3 or 4 dimensions.
-        """
-        if not ((len(v) == 3) or (len(v) == 4)):
-            raise ValueError(
-                "Array shape must have 3 or 4 dimensions - CYX or CZYX respectively."
-            )
-        return v
 
     def __eq__(self, other_tile: object):
         """Check if two tile information objects are equal.
