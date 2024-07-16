@@ -77,13 +77,8 @@ def stitch_prediction_single(
         Full image, with dimensions SC(Z)YX.
     """
     # retrieve whole array size
-    input_shape = tile_infos[0].array_shape
+    input_shape = (1, *tile_infos[0].array_shape)  # add S dim
     predicted_image = np.zeros(input_shape, dtype=np.float32)
-
-    # reshape
-    # TODO: can be more elegantly solved if TileInformation allows singleton dims
-    singleton_dims = tuple(np.where(np.array(tiles[0].shape) == 1)[0])
-    predicted_image = np.expand_dims(predicted_image, singleton_dims)
 
     for tile, tile_info in zip(tiles, tile_infos):
 
