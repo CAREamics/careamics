@@ -111,7 +111,7 @@ def test_bmz_io_path_and_name(tmp_path, ordered_array, pre_trained):
         output_array=predicted,
     )
 
-    expected_path = path / "MyModel_bmz__zip_.zip"
+    expected_path = path / "MyModel__bmz_zip_.zip"
     assert (
         expected_path.exists()
     ), "Export to non-existing folder without file name failed."
