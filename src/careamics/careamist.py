@@ -28,9 +28,11 @@ from careamics.lightning import (
     CAREamicsModule,
     HyperParametersCallback,
     PredictDataModule,
+    PredictionWriterCallback,
     ProgressBarCallback,
     TrainDataModule,
     create_predict_datamodule,
+    create_write_strategy,
 )
 from careamics.model_io import export_to_bmz, load_pretrained
 from careamics.prediction_utils import convert_outputs
@@ -174,8 +176,22 @@ class CAREamist:
             else:
                 self.model, self.cfg = load_pretrained(source)
 
+        # define in init
+        self.callbacks: list[Callback]
         # define the checkpoint saving callback
         self._define_callbacks(callbacks)
+
+        # TODO: move to method
+        # prediction writer callback reference
+        # placeholder write strategy — will be changed at runtime
+        write_strategy = create_write_strategy("tiff", tiled=False)
+        self.prediction_writer = PredictionWriterCallback(
+            write_strategy=write_strategy, dirpath=self.work_dir / "predictions"
+        )
+        # TODO: update so writing_predictions can be initialised as False ?
+        self.prediction_writer.writing_predictions = False
+        # not the most elegant
+        self.callbacks.append(self.prediction_writer)
 
         # instantiate logger
         if self.cfg.training_config.has_logger():
@@ -205,7 +221,7 @@ class CAREamist:
 
     def _define_callbacks(self, callbacks: Optional[list[Callback]] = None) -> None:
         """
-        Define the callbacks for the training loop.
+        Define the callbacks.
 
         Parameters
         ----------
