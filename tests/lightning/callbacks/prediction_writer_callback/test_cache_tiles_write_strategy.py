@@ -261,7 +261,7 @@ def test_have_last_tile_true(cache_tiles_strategy):
     tiles, tile_infos = create_tiles(n_samples=1)
     patch_tile_cache(cache_tiles_strategy, tiles, tile_infos)
 
-    assert cache_tiles_strategy._have_last_tile()
+    assert cache_tiles_strategy._has_last_tile()
 
 
 def test_have_last_tile_false(cache_tiles_strategy):
@@ -272,7 +272,7 @@ def test_have_last_tile_false(cache_tiles_strategy):
     # don't include last tile
     patch_tile_cache(cache_tiles_strategy, tiles[:-1], tile_infos[:-1])
 
-    assert not cache_tiles_strategy._have_last_tile()
+    assert not cache_tiles_strategy._has_last_tile()
 
 
 def test_clear_cache(cache_tiles_strategy):
