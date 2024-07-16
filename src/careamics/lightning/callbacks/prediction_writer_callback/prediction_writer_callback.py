@@ -77,7 +77,7 @@ class PredictionWriterCallback(BasePredictionWriter):
         self._dirpath: Path
         # property setter sets self_dirpath
         # mypy problem with properties https://github.com/python/mypy/issues/3004
-        self.dirpath = dirpath # type: ignore
+        self.dirpath = dirpath  # type: ignore
 
     @classmethod
     def from_write_func_params(
