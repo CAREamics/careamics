@@ -89,6 +89,8 @@ def export_to_bmz(
 
     Arrays are expected to be SC(Z)YX with singleton dimensions allowed for S and C.
 
+    `name` should consist of letters, numbers, dashes, underscores and parentheses only.
+
     If the parents of `path` do not exist, they will be created. If `path` is a
     directory, then `name` will be used to create the archive file. If `path` is a
     file, then the extension will be changed to ".zip" if is not already.
@@ -132,7 +134,7 @@ def export_to_bmz(
     # make sure it has the correct suffix
     if path.is_dir():
         # use name as file name, remove parentheses and replace spaces with underscores
-        file_name = name.replace("(", "").replace(")", "").replace(" ", "_")
+        file_name = name.replace("(", "_").replace(")", "_").replace(" ", "_")
         path = path / f"{file_name}.zip"
     else:
         # make sure that the extension is ".zip"

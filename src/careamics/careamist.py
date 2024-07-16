@@ -675,9 +675,15 @@ class CAREamist:
         `path` is the path in which to save the model, this can be a folder or a file.
         `name` is the name of the model as used in the metadata of the BMZ archive.
 
+        `name` should consist of letters, numbers, dashes, underscores and parentheses
+        only.
+
         If the parents of `path` do not exist, they will be created. If `path` is a
         directory, then `name` will be used to create the archive file. If `path` is a
         file, then the extension will be changed to ".zip" if is not already.
+
+        When using `name` to name the model archive, the spaces and parentheses are
+        replaced by underscores.
 
         Parameters
         ----------
