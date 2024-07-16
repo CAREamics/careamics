@@ -125,15 +125,18 @@ def export_to_bmz(
             "Exporting Custom models to BioImage Model Zoo format is not supported."
         )
 
-    # make sure that input and output arrays have the same shape
-    assert input_array.shape == output_array.shape, (
-        f"Input ({input_array.shape}) and output ({output_array.shape}) arrays "
-        f"have different shapes"
-    )
-
     # make sure it has the correct suffix
-    if path.suffix not in ".zip":
-        path = path.with_suffix(".zip")
+    if path.is_dir():
+        # use name as file name, remove parentheses and replace spaces with underscores
+        file_name = name.replace("(", "").replace(")", "").replace(" ", "_")
+        path = path / f"{file_name}.zip"
+    else:
+        # make sure that the extension is ".zip"
+        if path.suffix != ".zip":
+            path = path.with_suffix(".zip")
+
+    # make sure the parent exists
+    path.parent.mkdir(parents=True, exist_ok=True)
 
     # versions
     pytorch_version = __version__

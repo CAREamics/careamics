@@ -101,6 +101,7 @@ class CAREamicsModule(L.LightningModule):
         Any
             Loss value.
         """
+        # TODO can N2V be simplified by returning mask*original_patch
         x, *aux = batch
         out = self.model(x)
         loss = self.loss_func(out, *aux)
