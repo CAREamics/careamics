@@ -7,7 +7,7 @@ from typing import Annotated
 from annotated_types import Len
 from pydantic import BaseModel, ConfigDict
 
-DimTuple = Annotated[tuple, Len(min_length=2, max_length=4)]
+DimTuple = Annotated[tuple, Len(min_length=3, max_length=4)]
 
 
 class TileInformation(BaseModel):
