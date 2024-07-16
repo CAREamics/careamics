@@ -693,7 +693,6 @@ class CAREamist:
         write_extension: Optional[str] = None,
         write_func: Optional[WriteFunc] = None,
         write_func_kwargs: Optional[dict[str, Any]] = None,
-        predict_dir: Optional[Path] = None,
     ) -> None:
         if (
             self.cfg.data_config.image_means is None
@@ -702,11 +701,6 @@ class CAREamist:
             raise ValueError("Mean and std must be provided in the configuration.")
 
         # TODO: raise error for predict dataset not iterable
-
-        # assign predict dir
-        # TODO: absolute vs relative
-        if predict_dir is not None:
-            self.prediction_writer.dirpath = predict_dir
 
         tiled = tile_size is not None
         write_strategy = create_write_strategy(
