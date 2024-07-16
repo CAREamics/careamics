@@ -56,5 +56,8 @@ def get_write_func(data_type: SupportedWriteType) -> WriteFunc:
     """
     # error raised here if not supported
     data_type_ = SupportedData(data_type)  # new variable for mypy
+    # error if no write func.
+    if data_type_ not in WRITE_FUNCS:
+        raise NotImplementedError(f"No write function for data type '{data_type}'.")
 
     return WRITE_FUNCS[data_type_]
