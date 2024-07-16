@@ -36,7 +36,7 @@ class PredictionWriterCallback(BasePredictionWriter):
     dirpath : Path or str, default="predictions"
         The path to the directory where prediction outputs will be saved. If
         `dirpath` is not absolute it is assumed to be relative to current working
-        directory. Nested directories will not be automatically created.
+        directory.
 
     Attributes
     ----------
@@ -45,7 +45,7 @@ class PredictionWriterCallback(BasePredictionWriter):
     dirpath : pathlib.Path, default="predictions"
         The path to the directory where prediction outputs will be saved. If
         `dirpath` is not absolute it is assumed to be relative to current working
-        directory. Nested directories will not be automatically created.
+        directory.
     writing_predictions : bool
         If writing predictions is turned on or off.
     """
@@ -65,7 +65,7 @@ class PredictionWriterCallback(BasePredictionWriter):
         dirpath : pathlib.Path or str, default="predictions"
             The path to the directory where prediction outputs will be saved. If
             `dirpath` is not absolute it is assumed to be relative to current working
-            directory. Nested directories will not be automatically created.
+            directory.
         """
         super().__init__(write_interval="batch")
 
@@ -112,7 +112,7 @@ class PredictionWriterCallback(BasePredictionWriter):
         dirpath : pathlib.Path or str, default="predictions"
             The path to the directory where prediction outputs will be saved. If
             `dirpath` is not absolute it is assumed to be relative to current working
-            directory. Nested directories will not be automatically created.
+            directory.
 
         Returns
         -------
@@ -164,9 +164,8 @@ class PredictionWriterCallback(BasePredictionWriter):
         super().setup(trainer, pl_module, stage)
         if stage == "predict":
             # make prediction output directory
-            if not self.dirpath.is_dir():
-                logger.info("Making prediction output directory.")
-                self.dirpath.mkdir()
+            logger.info("Making prediction output directory.")
+            self.dirpath.mkdir(parents=True, exist_ok=True)
 
     def write_on_batch_end(
         self,
