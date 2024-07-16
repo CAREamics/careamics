@@ -74,9 +74,10 @@ class PredictionWriterCallback(BasePredictionWriter):
         self.write_strategy: WriteStrategy = write_strategy
 
         # forward declaration
-        self.dirpath: Path
-        # attribute initialisation
-        self._init_dirpath(dirpath)
+        self._dirpath: Path
+        # property setter sets self_dirpath
+        # mypy problem with properties https://github.com/python/mypy/issues/3004
+        self.dirpath = dirpath # type: ignore
 
     @classmethod
     def from_write_func_params(
@@ -127,23 +128,42 @@ class PredictionWriterCallback(BasePredictionWriter):
         )
         return cls(write_strategy=write_strategy, dirpath=dirpath)
 
-    def _init_dirpath(self, dirpath):
+    @property
+    def dirpath(self) -> Path:
         """
-        Initialize directory path. Should only be called from `__init__`.
+        The path to the directory where prediction outputs will be saved.
+
+        If `dirpath` is not absolute it is assumed to be relative to current working
+        directory.
+
+        Returns
+        -------
+        Path
+            Directory path.
+        """
+        return self._dirpath
+
+    @dirpath.setter
+    def dirpath(self, value: Union[Path, str]):
+        """
+        The path to the directory where prediction outputs will be saved.
+
+        If `dirpath` is not absolute it is assumed to be relative to current working
+        directory.
 
         Parameters
         ----------
-        dirpath : pathlib.Path
-            See `__init__` description.
+        value : pathlib.Path
+            New directory value.
         """
-        dirpath = Path(dirpath)
-        if not dirpath.is_absolute():
-            dirpath = Path.cwd() / dirpath
+        value_: Path = Path(value)  # new variable for mypy
+        if not value_.is_absolute():
+            value_ = Path.cwd() / value_
             logger.warning(
                 "Prediction output directory is not absolute, absolute path assumed to"
-                f"be '{dirpath}'"
+                f"be '{value}'"
             )
-        self.dirpath = dirpath
+        self._dirpath = value_
 
     def setup(self, trainer: Trainer, pl_module: LightningModule, stage: str) -> None:
         """

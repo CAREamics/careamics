@@ -212,21 +212,21 @@ def test_initialization(prediction_writer_callback, write_strategy, dirpath):
     assert prediction_writer_callback.dirpath == Path(dirpath).resolve()
 
 
-def test_init_dirpath_absolute_path(prediction_writer_callback):
+def test_set_dirpath_absolute_path(prediction_writer_callback):
     """Test initialization of dirpath with absolute path."""
     absolute_path = Path("/absolute/path").absolute()
-    prediction_writer_callback._init_dirpath(absolute_path)
-    assert prediction_writer_callback.dirpath == absolute_path
+    prediction_writer_callback.dirpath = absolute_path
+    assert prediction_writer_callback._dirpath == absolute_path
 
 
-def test_init_dirpath_relative_path(prediction_writer_callback):
+def test_set_dirpath_relative_path(prediction_writer_callback):
     """Test initialization of dirpath with relatice path."""
     relative_path = "relative/path"
     # patch pathlib.Path.cwd to return
     mock_cwd = Path("/current/working/dir")
     with patch("pathlib.Path.cwd", return_value=mock_cwd):
-        prediction_writer_callback._init_dirpath(relative_path)
-        assert prediction_writer_callback.dirpath == mock_cwd / relative_path
+        prediction_writer_callback.dirpath = relative_path
+        assert prediction_writer_callback._dirpath == mock_cwd / relative_path
 
 
 def test_setup_prediction_directory_creation(prediction_writer_callback, dirpath):
