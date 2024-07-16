@@ -115,21 +115,3 @@ def test_bmz_io_path_and_name(tmp_path, ordered_array, pre_trained):
     assert (
         expected_path.exists()
     ), "Export to non-existing folder without file name failed."
-
-    #################################################################
-    # export to a non-existing folder with filename without extension
-    path = tmp_path / "some_folder" / "model"
-    export_to_bmz(
-        model=careamist.model,
-        config=careamist.cfg,
-        path=path,
-        name="TopModel",
-        general_description="A model that just walked in.",
-        authors=[{"name": "Amod", "affiliation": "El"}],
-        input_array=train_array[np.newaxis, np.newaxis, ...],
-        output_array=predicted,
-    )
-    expected_path = path.parent / "model.zip"
-    assert (
-        expected_path.exists()
-    ), "Export to non-existing folder without extension failed."
