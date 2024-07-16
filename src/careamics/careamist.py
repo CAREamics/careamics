@@ -672,11 +672,17 @@ class CAREamist:
         Input array must be of the same dimensions as the axes recorded in the
         configuration of the `CAREamist`.
 
+        `path` is the path in which to save the model, this can be a folder or a file.
+        `name` is the name of the model as used in the metadata of the BMZ archive.
+
+        If the parents of `path` do not exist, they will be created. If `path` is a
+        directory, then `name` will be used to create the archive file. If `path` is a
+        file, then the extension will be changed to ".zip" if is not already.
+
         Parameters
         ----------
         path : pathlib.Path or str
-            Path to the file in which to save the model, this can include the
-            name of the file.
+            Path in which to save the model, this can be a folder or a file.
         name : str
             Name of the model (only letters, numbers, hyphens, underscores, spaces and
             parenthesis).

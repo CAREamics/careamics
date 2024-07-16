@@ -89,6 +89,10 @@ def export_to_bmz(
 
     Arrays are expected to be SC(Z)YX with singleton dimensions allowed for S and C.
 
+    If the parents of `path` do not exist, they will be created. If `path` is a
+    directory, then `name` will be used to create the archive file. If `path` is a
+    file, then the extension will be changed to ".zip" if is not already.
+
     Parameters
     ----------
     model : CAREamicsKiln
