@@ -716,10 +716,7 @@ class CAREamist:
             dataloader_params=dataloader_params,
         )
         dataset = self.pred_datamodule.predict_dataset
-        if not (
-            isinstance(dataset, IterablePredDataset)
-            or isinstance(IterableTiledPredDataset)
-        ):
+        if not isinstance(dataset, (IterablePredDataset, IterableTiledPredDataset)):
             raise TypeError()
 
         tiled = tile_size is not None
@@ -732,10 +729,13 @@ class CAREamist:
         )
         self.prediction_writer.write_strategy = write_strategy
 
-        # predict (without returning predictions, saves memory)
-        self.trainer.predict(
-            model=self.model, datamodule=self.pred_datamodule, return_predictions=False
-        )
+        with self.prediction_writer.writing_predictions_context(True):
+            # predict (without returning predictions, saves memory)
+            self.trainer.predict(
+                model=self.model,
+                datamodule=self.pred_datamodule,
+                return_predictions=False,
+            )
 
     def export_to_bmz(
         self,

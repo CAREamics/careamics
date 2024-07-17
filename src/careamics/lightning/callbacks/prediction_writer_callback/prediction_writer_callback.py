@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Optional, Sequence, Union
 
@@ -75,7 +76,7 @@ class PredictionWriterCallback(BasePredictionWriter):
 
         # forward declaration
         self._dirpath: Path
-        # property setter sets self_dirpath
+        # property setter sets self.dirpath
         # mypy problem with properties https://github.com/python/mypy/issues/3004
         self.dirpath = dirpath  # type: ignore
 
@@ -164,6 +165,19 @@ class PredictionWriterCallback(BasePredictionWriter):
                 f"be '{value}'"
             )
         self._dirpath = value_
+
+    @contextmanager
+    def writing_predictions_context(self, flag: bool):
+
+        # save current value to restore to after context
+        previous_value = self.writing_predictions
+
+        # set value and yield (state withing `with` statement block)
+        self.writing_predictions = flag
+        yield
+
+        # state after exiting `with` statement block
+        self.writing_predictions = previous_value
 
     def setup(self, trainer: Trainer, pl_module: LightningModule, stage: str) -> None:
         """
