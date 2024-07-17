@@ -210,7 +210,7 @@ def get_kl_divergence_loss_usplit(
 
 
 def get_kl_divergence_loss(topdown_layer_data_dict, img_shape, kl_key="kl"):
-    #TODO explain all params! 
+    # TODO explain all params!
     """kl[i] for each i has length batch_size resulting kl shape: (batch_size, layers)"""
     kl = torch.cat(
         [kl_layer.unsqueeze(1) for kl_layer in topdown_layer_data_dict[kl_key]],

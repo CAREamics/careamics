@@ -192,9 +192,7 @@ class CAREamist:
                         algorithm_config=self.cfg.algorithm_config,
                     )
                 else:
-                    raise NotImplementedError(
-                        "Architecture not supported."
-                    )
+                    raise NotImplementedError("Architecture not supported.")
 
             # attempt loading a pre-trained model
             else:
