@@ -34,10 +34,12 @@ def noise_model_factory(
         _description_
     """
     if model_config:
-        if model_config.type == "GaussianMixtureNoiseModel":
+        if model_config.model_type == "GaussianMixtureNoiseModel":
             return GaussianMixtureNoiseModel(**model_config.model_dump())
         else:
-            raise NotImplementedError(f"Model {model_config.type} is not implemented")
+            raise NotImplementedError(
+                f"Model {model_config.model_type} is not implemented"
+            )
     return None
 
 

@@ -12,6 +12,8 @@ import numpy as np
 import torch
 import torch.nn as nn
 
+from careamics.config.architectures import register_model
+
 from ..activation import get_activation
 from .layers import (
     BottomUpDeterministicResBlock,
@@ -20,9 +22,10 @@ from .layers import (
     TopDownLayer,
 )
 from .likelihoods import GaussianLikelihood, NoiseModelLikelihood
-from .utils import Interpolate, LossType, ModelType, crop_img_tensor, pad_img_tensor
+from .utils import Interpolate, ModelType, crop_img_tensor, pad_img_tensor
 
 
+@register_model("LVAE")
 class LadderVAE(nn.Module):
 
     def __init__(
@@ -196,7 +199,7 @@ class LadderVAE(nn.Module):
         )
 
         # Likelihood module
-        self.likelihood = self.create_likelihood_module()
+        # self.likelihood = self.create_likelihood_module()
 
         # Output layer --> Project to target_ch many channels
         logvar_ch_needed = self.predict_logvar is not None

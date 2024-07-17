@@ -30,7 +30,6 @@ from careamics.lightning import (
     PredictDataModule,
     ProgressBarCallback,
     TrainDataModule,
-    VAEModule,
     create_predict_datamodule,
 )
 from careamics.model_io import export_to_bmz, load_pretrained
@@ -192,12 +191,9 @@ class CAREamist:
                     self.model = FCNModule(
                         algorithm_config=self.cfg.algorithm_config,
                     )
-                elif (
-                    self.cfg.algorithm_config.model.architecture
-                    == SupportedArchitecture.LVAE
-                ):
-                    self.model = VAEModule(
-                        algorithm_config=self.cfg.algorithm_config,
+                else:
+                    raise NotImplementedError(
+                        "Architecture not supported."
                     )
 
             # attempt loading a pre-trained model

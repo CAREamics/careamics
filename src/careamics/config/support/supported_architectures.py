@@ -16,5 +16,5 @@ class SupportedArchitecture(str, BaseEnum):
     UNET = "UNet"
     LVAE = "LVAE"
     CUSTOM = (
-        "Custom"  # TODO all the others tags are small letters, except the architect
+        "custom"  # TODO all the others tags are small letters, except the architect
     )

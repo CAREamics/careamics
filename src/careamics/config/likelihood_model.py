@@ -17,7 +17,7 @@ class GaussianLikelihoodModel(BaseModel):
 
     model_config = ConfigDict(validate_assignment=True)
 
-    type: Literal["GaussianLikelihoodModel"]
+    model_type: Literal["GaussianLikelihoodModel"]
 
     color_channels: int  # TODO output channels, rename
     ch_in: int = Field(default=64)  # input to the likelihood model

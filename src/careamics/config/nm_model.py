@@ -10,7 +10,7 @@ class GaussianMixtureNoiseModel(BaseModel):
 
     model_config = ConfigDict(validate_assignment=True, arbitrary_types_allowed=True)
     # TODO What are all these parameters?
-    type: Literal["GaussianMixtureNoiseModel"]
+    model_type: Literal["GaussianMixtureNoiseModel"]
     weight: Any = None  # TODO wtf ?
     n_gaussian: int = Field(default=1, ge=1)
     n_coeff: int = Field(default=2, ge=2)

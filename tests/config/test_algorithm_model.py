@@ -21,13 +21,6 @@ def test_all_algorithms_are_supported():
         assert algo in algorithms
 
 
-def test_supported_losses(minimum_algorithm_custom):
-    """Test that all supported losses are accepted by the AlgorithmModel."""
-    for loss in SupportedLoss:
-        minimum_algorithm_custom["loss"] = loss.value
-        AlgorithmConfig(**minimum_algorithm_custom)
-
-
 def test_all_losses_are_supported():
     """Test that all losses defined in the Literal are supported."""
     # list of supported losses
@@ -56,7 +49,7 @@ def test_model_discriminator(minimum_algorithm_n2v):
     "algorithm, loss, model",
     [
         ("n2v", "n2v", {"architecture": "UNet", "n2v2": False}),
-        ("custom", "mae", {"architecture": "UNet", "n2v2": True}),
+        ("n2n", "mae", {"architecture": "UNet", "n2v2": False}),
     ],
 )
 def test_algorithm_constraints(algorithm: str, loss: str, model: dict):

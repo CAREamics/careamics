@@ -38,14 +38,6 @@ def test_careamics_fcn(minimum_algorithm_n2v):
     FCNModule(algo_config)
 
 
-def test_careamics_vae(minimum_algorithm_musplit):
-    """Test that the minimum algorithm allows instantiating a CAREamicsKiln."""
-    algo_config = AlgorithmConfig(**minimum_algorithm_musplit)
-
-    # instantiate CAREamicsKiln
-    VAEModule(algo_config)
-
-
 @pytest.mark.parametrize(
     "shape",
     [

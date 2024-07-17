@@ -8,17 +8,16 @@ from typing import Union
 
 import torch
 
-from ..config.architectures import CustomModel, LVAEModel, UNetModel, get_custom_model
+from ..config.architectures import CustomModel, UNetModel, get_custom_model
 from ..config.support import SupportedArchitecture
 from ..utils import get_logger
-from .lvae.lvae import LadderVAE as LVAE
 from .unet import UNet
 
 logger = get_logger(__name__)
 
 
 def model_factory(
-    model_configuration: Union[UNetModel, LVAEModel, CustomModel],
+    model_configuration: Union[UNetModel, CustomModel],
 ) -> torch.nn.Module:
     """
     Deep learning model factory.
@@ -42,12 +41,9 @@ def model_factory(
     """
     if model_configuration.architecture == SupportedArchitecture.UNET:
         return UNet(**model_configuration.model_dump())
-    elif model_configuration.architecture == SupportedArchitecture.LVAE:
-        return LVAE(**model_configuration.model_dump())
     elif model_configuration.architecture == SupportedArchitecture.CUSTOM:
         assert isinstance(model_configuration, CustomModel)
         model = get_custom_model(model_configuration.name)
-
         return model(**model_configuration.model_dump())
     else:
         raise NotImplementedError(

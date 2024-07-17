@@ -22,27 +22,6 @@ def create_tiff(path: Path, n_files: int):
 
 
 @pytest.fixture
-def minimum_algorithm_custom() -> dict:
-    """Create a minimum algorithm dictionary.
-
-    Returns
-    -------
-    dict
-        A minimum algorithm example.
-    """
-    # create dictionary
-    algorithm = {
-        "algorithm": "custom",
-        "loss": "mae",
-        "model": {
-            "architecture": "UNet",
-        },
-    }
-
-    return algorithm
-
-
-@pytest.fixture
 def minimum_algorithm_n2v() -> dict:
     """Create a minimum algorithm dictionary.
 
@@ -95,10 +74,10 @@ def minimum_algorithm_musplit() -> dict:
     """
     # create dictionary
     algorithm = {
-        "algorithm": "musplit",
+        "algorithm": "musplit", #TODO temporary
         "loss": "musplit",
         "model": {
-            "architecture": "LVAE",
+            "architecture": "musplit",
             "enable_noise_model": False,
             "z_dims": (128, 128, 128),
             "multiscale_count": 4,

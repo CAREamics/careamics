@@ -3,14 +3,12 @@
 from __future__ import annotations
 
 from pprint import pformat
-from typing import Literal, Optional, Union
+from typing import Literal, Union
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 from typing_extensions import Self
 
-from .architectures import CustomModel, LVAEModel, UNetModel
-from .likelihood_model import GaussianLikelihoodModel, NMLikelihoodModel
-from .nm_model import GaussianMixtureNoiseModel
+from .architectures import CustomModel, UNetModel
 from .optimizer_models import LrSchedulerModel, OptimizerModel
 
 
@@ -91,13 +89,14 @@ class AlgorithmConfig(BaseModel):
     model_config = ConfigDict(
         protected_namespaces=(),  # allows to use model_* as a field name
         validate_assignment=True,
+        extra="allow"
     )
 
     # Mandatory fields
     # defined in SupportedAlgorithm
-    algorithm: Literal["n2v", "care", "n2n", "musplit", "denoisplit", "custom"]
-    loss: Literal["n2v", "mae", "mse", "musplit", "denoisplit"]
-    model: Union[UNetModel, LVAEModel, CustomModel] = Field(
+    algorithm: Literal["n2v", "care", "n2n"]
+    loss: Literal["n2v", "mae", "mse"]
+    model: Union[UNetModel, CustomModel] = Field(
         discriminator="architecture"
     )
 
@@ -106,11 +105,6 @@ class AlgorithmConfig(BaseModel):
     """Optimizer to use, defined in SupportedOptimizer."""
 
     lr_scheduler: LrSchedulerModel = LrSchedulerModel()
-    # TODO spit algorithmConfig into separate classes because of this ?
-    likelihood: Optional[Union[GaussianLikelihoodModel, NMLikelihoodModel]] = Field(
-        discriminator="type", default=None
-    )
-    noise_model: Optional[GaussianMixtureNoiseModel] = None
 
     @model_validator(mode="after")
     def algorithm_cross_validation(self: Self) -> Self:
@@ -150,53 +144,7 @@ class AlgorithmConfig(BaseModel):
             if self.loss == "n2v":
                 raise ValueError("Supervised algorithms do not support loss `n2v`.")
 
-        if self.algorithm == "musplit":
-            if self.loss != "musplit":
-                raise ValueError(
-                    f"Algorithm {self.algorithm} only supports loss `musplit`."
-                )
-            if self.model.architecture != "LVAE":
-                raise ValueError(
-                    f"Model for algorithm {self.algorithm} must be a `LVAEModel`."
-                )
-
-        if self.algorithm == "denoisplit":
-            if self.loss != "denoisplit":
-                raise ValueError(
-                    f"Algorithm {self.algorithm} only supports loss `denoisplit`."
-                )
-            if self.model.architecture != "LVAE":
-                raise ValueError(
-                    f"Model for algorithm {self.algorithm} must be a `LVAEModel`."
-                )
-
         return self
-
-    @field_validator("noise_model")
-    def validate_noise_model(
-        cls, noise_model: GaussianMixtureNoiseModel
-    ) -> GaussianMixtureNoiseModel:
-        """Validate the noise model.
-
-        Parameters
-        ----------
-        noise_model : GaussianMixtureNoiseModel
-            Noise model.
-
-        Returns
-        -------
-        GaussianMixtureNoiseModel
-            Validated noise model.
-        """
-        if noise_model is not None:
-            try:
-                model_type = noise_model.type
-            except AttributeError as err:
-                raise ValueError("Noise model must have a `type` attribute.") from err
-            if model_type == "GaussianMixtureNoiseModel":
-                return noise_model
-            else:
-                raise ValueError(f"Unknown noise model type {model_type}.")
 
     def __str__(self) -> str:
         """Pretty string representing the configuration.

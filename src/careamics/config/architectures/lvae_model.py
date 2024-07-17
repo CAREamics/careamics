@@ -15,8 +15,8 @@ class LVAEModel(ArchitectureModel):
 
     architecture: Literal["LVAE"]
     input_shape: int = Field(default=64, ge=8, le=1024)
-    multiscale_count: int = Field(default=3)  # TODO clarify
-    # 0 - off, len(z_dims) - 1
+    multiscale_count: int = Field(default=5)  # TODO clarify
+    # 0 - off, len(z_dims) + 1
     z_dims: list = Field(default=[128, 128, 128, 128])
     output_channels: int = Field(default=1, ge=1)
     encoder_n_filters: int = Field(default=64, ge=8, le=1024)
