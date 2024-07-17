@@ -25,13 +25,19 @@ class LVAEModel(ArchitectureModel):
     decoder_dropout: float = Field(default=0.1, ge=0.0, le=0.9)
     nonlinearity: Literal[
         "None", "Sigmoid", "Softmax", "Tanh", "ReLU", "LeakyReLU", "ELU"
-    ] = Field(default="ELU", )
+    ] = Field(
+        default="ELU",
+    )
 
     predict_logvar: Literal[None, "global", "pixelwise", "channelwise"] = (
         None  # TODO Remove ?
     )
-    enable_noise_model: bool = Field(default=True, )
-    analytical_kl: bool = Field(default=False, )
+    enable_noise_model: bool = Field(
+        default=True,
+    )
+    analytical_kl: bool = Field(
+        default=False,
+    )
 
     @field_validator("encoder_n_filters")
     @classmethod
