@@ -7,8 +7,9 @@ __all__ = [
     "get_write_func",
     "ReadFunc",
     "WriteFunc",
+    "SupportedWriteType",
 ]
 
 from . import read, write
 from .read import ReadFunc, get_read_func
-from .write import WriteFunc, get_write_func
+from .write import SupportedWriteType, WriteFunc, get_write_func
