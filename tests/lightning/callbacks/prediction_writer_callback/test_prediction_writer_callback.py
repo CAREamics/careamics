@@ -229,6 +229,27 @@ def test_set_dirpath_relative_path(prediction_writer_callback):
         assert prediction_writer_callback._dirpath == mock_cwd / relative_path
 
 
+@pytest.mark.parametrize("initial_value", [True, False])
+def test_writing_predictions_context(prediction_writer_callback, initial_value):
+    """
+    Test that the context manager for writing predictions works as expected.
+    """
+    # initialize value
+    prediction_writer_callback.writing_predictions = initial_value
+
+    temp_value = True
+    with prediction_writer_callback.writing_predictions_context(temp_value):
+        assert prediction_writer_callback.writing_predictions == temp_value
+    # make sure it is restored to it's initial value
+    assert prediction_writer_callback.writing_predictions == initial_value
+
+    # for value is false
+    temp_value = False
+    with prediction_writer_callback.writing_predictions_context(temp_value):
+        assert prediction_writer_callback.writing_predictions == temp_value
+    assert prediction_writer_callback.writing_predictions == initial_value
+
+
 def test_setup_prediction_directory_creation(prediction_writer_callback, dirpath):
     """
     Test prediction directory is created when `setup` is called at `stage="predict"`.
