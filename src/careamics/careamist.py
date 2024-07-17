@@ -23,6 +23,7 @@ from careamics.config.support import (
     SupportedData,
     SupportedLogger,
 )
+from careamics.dataset import IterablePredDataset, IterableTiledPredDataset
 from careamics.dataset.dataset_utils import reshape_array
 from careamics.file_io import WriteFunc
 from careamics.lightning import (
@@ -36,7 +37,7 @@ from careamics.lightning import (
     create_write_strategy,
 )
 from careamics.model_io import export_to_bmz, load_pretrained
-from careamics.prediction_utils import convert_outputs
+from careamics.prediction_utils import convert_outputs, validate_unet_tile_size
 from careamics.utils import check_path_exists, get_logger
 
 logger = get_logger(__name__)
@@ -631,28 +632,16 @@ class CAREamist:
         ):
             raise ValueError("Mean and std must be provided in the configuration.")
 
+        # tile overlaps must be specified
+        if (tile_size is not None) and (tile_overlap is None):
+            raise ValueError("Tile overlap must be specified.")
+
         # tile size for UNets
-        if tile_size is not None:
-            model = self.cfg.algorithm_config.model
-
-            if model.architecture == SupportedArchitecture.UNET.value:
-                # tile size must be equal to k*2^n, where n is the number of pooling
-                # layers (equal to the depth) and k is an integer
-                depth = model.depth
-                tile_increment = 2**depth
-
-                for i, t in enumerate(tile_size):
-                    if t % tile_increment != 0:
-                        raise ValueError(
-                            f"Tile size must be divisible by {tile_increment} along "
-                            f"all axes (got {t} for axis {i}). If your image size is "
-                            f"smaller along one axis (e.g. Z), consider padding the "
-                            f"image."
-                        )
-
-            # tile overlaps must be specified
-            if tile_overlap is None:
-                raise ValueError("Tile overlap must be specified.")
+        model = self.cfg.algorithm_config.model
+        if (tile_size is not None) and (
+            model.architecture == SupportedArchitecture.UNET.value
+        ):
+            validate_unet_tile_size(model.depth, tile_size)
 
         # create the prediction
         self.pred_datamodule = create_predict_datamodule(
@@ -700,19 +689,16 @@ class CAREamist:
         ):
             raise ValueError("Mean and std must be provided in the configuration.")
 
-        # TODO: raise error for predict dataset not iterable
+        # tile overlaps must be specified
+        if (tile_size is not None) and (tile_overlap is None):
+            raise ValueError("Tile overlap must be specified.")
 
-        tiled = tile_size is not None
-        write_strategy = create_write_strategy(
-            write_type=write_type,
-            tiled=tiled,
-            write_func=write_func,
-            write_extension=write_extension,
-            write_func_kwargs=write_func_kwargs,
-        )
-        self.prediction_writer.write_strategy = write_strategy
-
-        # TODO: validate tile size (extract to seperate function)
+        # tile size for UNets
+        model = self.cfg.algorithm_config.model
+        if (tile_size is not None) and (
+            model.architecture == SupportedArchitecture.UNET.value
+        ):
+            validate_unet_tile_size(model.depth, tile_size)
 
         # create the prediction
         self.pred_datamodule = create_predict_datamodule(
@@ -729,6 +715,22 @@ class CAREamist:
             extension_filter=extension_filter,
             dataloader_params=dataloader_params,
         )
+        dataset = self.pred_datamodule.predict_dataset
+        if not (
+            isinstance(dataset, IterablePredDataset)
+            or isinstance(IterableTiledPredDataset)
+        ):
+            raise TypeError()
+
+        tiled = tile_size is not None
+        write_strategy = create_write_strategy(
+            write_type=write_type,
+            tiled=tiled,
+            write_func=write_func,
+            write_extension=write_extension,
+            write_func_kwargs=write_func_kwargs,
+        )
+        self.prediction_writer.write_strategy = write_strategy
 
         # predict (without returning predictions, saves memory)
         self.trainer.predict(
