@@ -13,8 +13,7 @@ class SupportedArchitecture(str, BaseEnum):
     - Custom: custom model registered with `@register_model` decorator
     """
 
+    # TODO all the others tags are small letters, except the architect
     UNET = "UNet"
     LVAE = "LVAE"
-    CUSTOM = (
-        "custom"  # TODO all the others tags are small letters, except the architect
-    )
+    CUSTOM = "custom"

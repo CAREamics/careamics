@@ -39,9 +39,9 @@ def model_factory(
     NotImplementedError
         If the requested architecture is not implemented.
     """
-    if model_configuration.architecture == SupportedArchitecture.UNET:
+    if model_configuration.architecture == SupportedArchitecture.UNET.value:
         return UNet(**model_configuration.model_dump())
-    elif model_configuration.architecture == SupportedArchitecture.CUSTOM:
+    elif model_configuration.architecture == SupportedArchitecture.CUSTOM.value:
         assert isinstance(model_configuration, CustomModel)
         model = get_custom_model(model_configuration.name)
         return model(**model_configuration.model_dump())

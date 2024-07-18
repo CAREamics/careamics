@@ -73,10 +73,10 @@ class AlgorithmConfig(BaseModel):
     ...        return (input @ self.weight) + self.bias
     ...
     >>> config_dict = {
-    ...     "algorithm": "custom",
+    ...     "algorithm": "care",
     ...     "loss": "mse",
     ...     "model": {
-    ...         "architecture": "Custom",
+    ...         "architecture": "custom",
     ...         "name": "linear_model",
     ...         "in_features": 10,
     ...         "out_features": 5,
