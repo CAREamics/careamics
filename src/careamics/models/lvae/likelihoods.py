@@ -80,7 +80,7 @@ class LikelihoodModule(nn.Module):
     def forward(
         self, input_: torch.Tensor, x: torch.Tensor
     ) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:
-
+        # TODO what are those params? shapes?
         distr_params = self.distr_params(input_)
         mean = self.mean(distr_params)
         mode = self.mode(distr_params)
@@ -274,7 +274,7 @@ class NoiseModelLikelihood(LikelihoodModule):
         ch_in: int,
         color_channels: int,
         data_mean: Union[Dict[str, torch.Tensor], torch.Tensor],
-        data_std: Union[Dict[str, torch.Tensor], torch.Tensor],
+        data_std: Union[Dict[str, torch.Tensor], torch.Tensor], # TODO why dict ? what keys?
         noiseModel: nn.Module,
     ):
         super().__init__()

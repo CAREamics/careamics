@@ -1,6 +1,6 @@
 """Likelihood model."""
 
-from typing import Literal, Union
+from typing import Literal, Union, Optional
 
 import torch
 from pydantic import BaseModel, ConfigDict, Field
@@ -19,7 +19,7 @@ class GaussianLikelihoodModel(BaseModel):
 
     model_type: Literal["GaussianLikelihoodModel"]
 
-    color_channels: int  # TODO output channels, rename
+    color_channels: int = Field(default=2, ge=1)  # TODO output channels, rename, vals?
     ch_in: int = Field(default=64)  # input to the likelihood model
     predict_logvar: Literal[None, "pixelwise", "global", "channelwise"] = None
     logvar_lowerbound: float = None
@@ -36,10 +36,10 @@ class NMLikelihoodModel(BaseModel):
 
     model_config = ConfigDict(validate_assignment=True, arbitrary_types_allowed=True)
 
-    type: Literal["NMLikelihoodModel"]
+    model_type: Literal["NMLikelihoodModel"]
 
-    ch_in: int
-    color_channels: int
-    data_mean: Union[dict[str, torch.Tensor], torch.Tensor]
-    data_std: Union[dict[str, torch.Tensor], torch.Tensor]
-    noiseModel: nn.Module
+    color_channels: int = Field(default=2, ge=1)
+    ch_in: int = Field(default=64)  # input to the likelihood model
+    data_mean: Union[dict[str, torch.Tensor], torch.Tensor] = {"target": 0.0}
+    data_std: Union[dict[str, torch.Tensor], torch.Tensor] = {"target": 0.0}
+    noise_model: Optional[nn.Module] = None

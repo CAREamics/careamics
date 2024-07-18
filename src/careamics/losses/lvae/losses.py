@@ -342,7 +342,7 @@ def denoisplit_loss(model_outputs, targets, loss_parameters) -> dict:
             predictions,
             targets,
             predict_logvar=None,
-            likelihood_NM=loss_parameters.noise_model,
+            likelihood_NM=loss_parameters.noise_model, # TODO is this correct ?
             likelihood_GM=loss_parameters.likelihood,
             denoise_weight=loss_parameters.denoisplit_weight,
             split_weight=loss_parameters.musplit_weight,

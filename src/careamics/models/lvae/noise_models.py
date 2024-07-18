@@ -138,12 +138,11 @@ class DisentNoiseModel(nn.Module):
         print(f"[{self.__class__.__name__}] Nmodels count:{self._nm_cnt}")
 
     def likelihood(self, obs: torch.Tensor, signal: torch.Tensor) -> torch.Tensor:
-
+        # TODO shapes ? names? wtf ?
         if obs.shape[1] == 1:
             assert signal.shape[1] == 1
             assert self.n2model is None
             return self.nmodel_0.likelihood(obs, signal)
-
         assert obs.shape[1] == self._nm_cnt, f"{obs.shape[1]} != {self._nm_cnt}"
 
         ll_list = []
