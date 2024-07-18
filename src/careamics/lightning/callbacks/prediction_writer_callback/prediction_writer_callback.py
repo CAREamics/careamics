@@ -198,7 +198,7 @@ class PredictionWriterCallback(BasePredictionWriter):
             Stage of training e.g. 'predict', 'fit', 'validate'.
         """
         super().setup(trainer, pl_module, stage)
-        if stage == "predict":
+        if (stage == "predict") and self._writing_predictions:
             # make prediction output directory
             logger.info("Making prediction output directory.")
             self.dirpath.mkdir(parents=True, exist_ok=True)

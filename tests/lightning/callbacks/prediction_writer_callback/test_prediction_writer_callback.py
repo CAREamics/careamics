@@ -266,8 +266,8 @@ def test_set_writing_predictions(prediction_writer_callback, initial_value):
     prediction_writer_callback.set_writing_predictions(new_value)
     assert prediction_writer_callback._writing_predictions == new_value
 
-
-def test_setup_prediction_directory_creation(prediction_writer_callback, dirpath):
+@pytest.mark.parametrize("writing_predictions", [True, False])
+def test_setup_prediction_directory_creation(prediction_writer_callback, dirpath, writing_predictions):
     """
     Test prediction directory is created when `setup` is called at `stage="predict"`.
     """
@@ -275,9 +275,11 @@ def test_setup_prediction_directory_creation(prediction_writer_callback, dirpath
     pl_module = Mock(spec=LightningModule)
     stage = "predict"
 
+    prediction_writer_callback._writing_predictions = writing_predictions
     prediction_writer_callback.setup(trainer=trainer, pl_module=pl_module, stage=stage)
 
-    assert os.path.isdir(dirpath)
+    # makes directory only if writing predictions is turned on
+    assert os.path.isdir(dirpath) == writing_predictions
 
 
 def test_write_on_batch_end(prediction_writer_callback):
