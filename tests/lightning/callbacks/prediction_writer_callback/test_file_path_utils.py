@@ -52,8 +52,6 @@ def test_get_sample_file_path_tiled(tmp_path, axes):
 def test_get_sample_file_path_untiled(tmp_path, axes):
     """Test file name generation for untiled prediction dataset."""
     input_shape = (2, 16, 16) if "S" in axes else (16, 16)
-    tile_size = (8, 8)
-    tile_overlap = (4, 4)
     # create files
     src_files = [tmp_path / f"{i}.tiff" for i in range(2)]
     for file_path in src_files:
@@ -62,8 +60,6 @@ def test_get_sample_file_path_untiled(tmp_path, axes):
 
     pred_config = InferenceConfig(
         data_type="tiff",
-        tile_size=tile_size,
-        tile_overlap=tile_overlap,
         axes=axes,
         image_means=[0],
         image_stds=[0],
