@@ -207,7 +207,7 @@ def test_smoke_n2v_untiled_tiff(tmp_path, minimum_configuration):
 
 def test_initialization(prediction_writer_callback, write_strategy, dirpath):
     """Test `PredictionWriterCallback` initializes as expected."""
-    assert prediction_writer_callback.writing_predictions is True
+    assert prediction_writer_callback._writing_predictions is True
     assert prediction_writer_callback.write_strategy is write_strategy
     assert prediction_writer_callback.dirpath == Path(dirpath).resolve()
 
@@ -235,19 +235,36 @@ def test_writing_predictions_context(prediction_writer_callback, initial_value):
     Test that the context manager for writing predictions works as expected.
     """
     # initialize value
-    prediction_writer_callback.writing_predictions = initial_value
+    prediction_writer_callback._writing_predictions = initial_value
 
     temp_value = True
-    with prediction_writer_callback.writing_predictions_context(temp_value):
-        assert prediction_writer_callback.writing_predictions == temp_value
+    with prediction_writer_callback.writing_predictions(temp_value):
+        assert prediction_writer_callback._writing_predictions == temp_value
     # make sure it is restored to it's initial value
-    assert prediction_writer_callback.writing_predictions == initial_value
+    assert prediction_writer_callback._writing_predictions == initial_value
 
     # for value is false
     temp_value = False
-    with prediction_writer_callback.writing_predictions_context(temp_value):
-        assert prediction_writer_callback.writing_predictions == temp_value
-    assert prediction_writer_callback.writing_predictions == initial_value
+    with prediction_writer_callback.writing_predictions(temp_value):
+        assert prediction_writer_callback._writing_predictions == temp_value
+    assert prediction_writer_callback._writing_predictions == initial_value
+
+
+@pytest.mark.parametrize("initial_value", [True, False])
+def test_set_writing_predictions(prediction_writer_callback, initial_value):
+    """
+    Test that `set_writing_predictions` changes the value of `_writing_predictions.
+    """
+    # initialize value
+    prediction_writer_callback._writing_predictions = initial_value
+
+    new_value = True
+    prediction_writer_callback.set_writing_predictions(new_value)
+    assert prediction_writer_callback._writing_predictions == new_value
+
+    new_value = False
+    prediction_writer_callback.set_writing_predictions(new_value)
+    assert prediction_writer_callback._writing_predictions == new_value
 
 
 def test_setup_prediction_directory_creation(prediction_writer_callback, dirpath):
@@ -308,7 +325,7 @@ def test_write_on_batch_end_writing_predictions_off(prediction_writer_callback):
     Ensure `PredictionWriterCallback.write_strategy.write_batch` is not called when
     `PredictionWriterCallback.writing_predictions=False`.
     """
-    prediction_writer_callback.writing_predictions = False
+    prediction_writer_callback._writing_predictions = False
 
     trainer = Mock(spec=Trainer)
     pl_module = Mock(spec=LightningModule)

@@ -70,7 +70,7 @@ class PredictionWriterCallback(BasePredictionWriter):
         super().__init__(write_interval="batch")
 
         # Toggle for CAREamist to switch off saving if desired
-        self.writing_predictions: bool = True
+        self._writing_predictions: bool = True
 
         self.write_strategy: WriteStrategy = write_strategy
 
@@ -167,17 +167,20 @@ class PredictionWriterCallback(BasePredictionWriter):
         self._dirpath = value_
 
     @contextmanager
-    def writing_predictions_context(self, flag: bool):
+    def writing_predictions(self, flag: bool):
 
         # save current value to restore to after context
-        previous_value = self.writing_predictions
+        previous_value = self._writing_predictions
 
         # set value and yield (state withing `with` statement block)
-        self.writing_predictions = flag
+        self._writing_predictions = flag
         yield
 
         # state after exiting `with` statement block
-        self.writing_predictions = previous_value
+        self._writing_predictions = previous_value
+
+    def set_writing_predictions(self, flag: bool) -> None:
+        self._writing_predictions = flag
 
     def setup(self, trainer: Trainer, pl_module: LightningModule, stage: str) -> None:
         """
@@ -233,7 +236,7 @@ class PredictionWriterCallback(BasePredictionWriter):
             Dataloader index.
         """
         # if writing prediction is turned off
-        if not self.writing_predictions:
+        if not self._writing_predictions:
             return
 
         dataloaders: Union[DataLoader, list[DataLoader]] = trainer.predict_dataloaders
@@ -243,10 +246,10 @@ class PredictionWriterCallback(BasePredictionWriter):
             else dataloaders
         )
         dataset: ValidPredDatasets = dataloader.dataset
-        if not (
-            isinstance(dataset, IterablePredDataset)
-            or isinstance(dataset, IterableTiledPredDataset)
-        ):
+
+        # Note: alternative is:
+        #   if not hasattr(dataset, data_files)
+        if not isinstance(dataset, (IterablePredDataset, IterableTiledPredDataset)):
             # Note: Error will be raised before here from the source type
             # This is for extra redundancy of errors.
             raise TypeError(
