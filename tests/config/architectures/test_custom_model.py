@@ -76,7 +76,7 @@ def test_custom_model_wrong_class():
     torch.nn.Module subclass."""
     # prepare model dictionary
     model_dict = {
-        "architecture": "Custom",
+        "architecture": SupportedArchitecture.CUSTOM.value,
         "name": "not_a_model",
         "parameters": {"id": 3},
     }
@@ -90,7 +90,7 @@ def test_wrong_parameters():
     """Test that the custom model raises an error if the parameters are not valid."""
     # prepare model dictionary
     model_dict = {
-        "architecture": "Custom",
+        "architecture": SupportedArchitecture.CUSTOM.value,
         "name": "linear",
         "parameters": {"in_features": 10},
     }

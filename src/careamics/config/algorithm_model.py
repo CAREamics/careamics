@@ -73,7 +73,7 @@ class AlgorithmConfig(BaseModel):
     ...        return (input @ self.weight) + self.bias
     ...
     >>> config_dict = {
-    ...     "algorithm": "care",
+    ...     "algorithm": "custom",
     ...     "loss": "mse",
     ...     "model": {
     ...         "architecture": "custom",
@@ -94,15 +94,24 @@ class AlgorithmConfig(BaseModel):
 
     # Mandatory fields
     # defined in SupportedAlgorithm
-    algorithm: Literal["n2v", "care", "n2n"]
+    algorithm: Literal["n2v", "care", "n2n", "custom"]
+    """Name of the algorithm, as defined in SupportedAlgorithm. Use `custom` for custom
+    model architecture."""
+
     loss: Literal["n2v", "mae", "mse"]
+    """Name of the algorithm, as defined in SupportedAlgorithm."""
+
     model: Union[UNetModel, CustomModel] = Field(discriminator="architecture")
+    """Model architecture to use, along with its parameters. Compatible architectures
+    are defined in SupportedArchitecture, and their Pydantic models in 
+    `careamics.config.architectures`."""
 
     # Optional fields
     optimizer: OptimizerModel = OptimizerModel()
     """Optimizer to use, defined in SupportedOptimizer."""
 
     lr_scheduler: LrSchedulerModel = LrSchedulerModel()
+    """Learning rate scheduler to use, defined in SupportedLrScheduler."""
 
     @model_validator(mode="after")
     def algorithm_cross_validation(self: Self) -> Self:
@@ -141,6 +150,11 @@ class AlgorithmConfig(BaseModel):
         if self.algorithm == "care" or self.algorithm == "n2n":
             if self.loss == "n2v":
                 raise ValueError("Supervised algorithms do not support loss `n2v`.")
+
+        if (self.algorithm == "custom") != (self.model.architecture == "custom"):
+            raise ValueError(
+                "Algorithm and model architecture must be both `custom` or not."
+            )
 
         return self
 

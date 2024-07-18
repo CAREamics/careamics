@@ -1,11 +1,27 @@
 import pytest
+from torch import nn, ones
 
+from careamics.config import register_model
 from careamics.config.algorithm_model import AlgorithmConfig
 from careamics.config.support import (
     SupportedAlgorithm,
     SupportedArchitecture,
     SupportedLoss,
 )
+
+
+@register_model(name="another_linear_model")
+class LinearModel(nn.Module):
+    def __init__(self, in_features, out_features):
+        super().__init__()
+
+        self.in_features = in_features
+        self.out_features = out_features
+        self.weight = nn.Parameter(ones(in_features, out_features))
+        self.bias = nn.Parameter(ones(out_features))
+
+    def forward(self, input):
+        return (input @ self.weight) + self.bias
 
 
 def test_all_algorithms_are_supported():
@@ -92,3 +108,34 @@ def test_comaptiblity_of_number_of_channels(algorithm, n_in, n_out):
     loss = "n2v" if algorithm == "n2v" else "mae"
 
     AlgorithmConfig(algorithm=algorithm, loss=loss, model=model)
+
+
+def test_custom_model():
+    """Test that a custom model can be instantiated."""
+    # create model dictionnary
+    model = {
+        "architecture": SupportedArchitecture.CUSTOM.value,
+        "name": "linear",
+        "in_features": 10,
+        "out_features": 5,
+    }
+
+    # create algorithm configuration
+    AlgorithmConfig(algorithm=SupportedAlgorithm.CUSTOM.value, loss="mse", model=model)
+
+
+def test_custom_model_wrong_algorithm():
+    """Test that a custom model fails if the algorithm is not custom."""
+    # create model dictionnary
+    model = {
+        "architecture": SupportedArchitecture.CUSTOM.value,
+        "name": "linear",
+        "in_features": 10,
+        "out_features": 5,
+    }
+
+    # create algorithm configuration
+    with pytest.raises(ValueError):
+        AlgorithmConfig(
+            algorithm=SupportedAlgorithm.CARE.value, loss="mse", model=model
+        )
