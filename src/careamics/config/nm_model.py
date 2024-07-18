@@ -5,10 +5,12 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 
-class GaussianMixtureNoiseModel(BaseModel):
+class GMNMModel(BaseModel):
     """Gaussian mixture noise model."""
 
-    model_config = ConfigDict(validate_assignment=True, arbitrary_types_allowed=True)
+    model_config = ConfigDict(
+        validate_assignment=True, arbitrary_types_allowed=True, extra="allow"
+    )
     # TODO What are all these parameters?
     model_type: Literal["GaussianMixtureNoiseModel"]
     weight: Any = None  # TODO wtf ?

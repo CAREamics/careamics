@@ -1,7 +1,9 @@
 import torch
 
+import numpy as np
+from pathlib import Path
 from careamics.config.likelihood_model import GaussianLikelihoodModel
-from careamics.config.nm_model import GaussianMixtureNoiseModel
+from careamics.config.nm_model import GMNMModel
 from careamics.losses.loss_factory import LVAELossParameters, loss_factory
 from careamics.losses.lvae.losses import denoisplit_loss, musplit_loss
 from careamics.models.lvae.likelihoods import likelihood_factory
@@ -27,7 +29,7 @@ def test_musplit_loss():
     ll_config = GaussianLikelihoodModel(
         model_type="GaussianLikelihoodModel", color_channels=2
     )
-    nm_config = GaussianMixtureNoiseModel(model_type="GaussianMixtureNoiseModel")
+    nm_config = GMNMModel(model_type="GaussianMixtureNoiseModel")
 
     # TODO rethink loss parameters
     loss_parameters.current_epoch = 0
@@ -40,7 +42,7 @@ def test_musplit_loss():
         assert not loss[k].isnan()
 
 
-def test_denoisplit_loss():
+def test_denoisplit_loss(tmp_path):
     loss_func = loss_factory("denoisplit")
     assert loss_func == denoisplit_loss
 
@@ -59,14 +61,26 @@ def test_denoisplit_loss():
     ll_config = GaussianLikelihoodModel(
         model_type="GaussianLikelihoodModel", color_channels=2
     )
-    nm_config = GaussianMixtureNoiseModel(model_type="GaussianMixtureNoiseModel")
+    nm_config = GMNMModel(model_type="GaussianMixtureNoiseModel")
 
+    trained_weight = np.random.rand(18, 4)
+    min_signal = np.random.rand(1)
+    max_signal = np.random.rand(1)
+    min_sigma = np.random.rand(1)
+    filename = Path(tmp_path) / "gm_noise_model.npz"
+    np.savez(
+        filename,
+        trained_weight=trained_weight,
+        min_signal=min_signal,
+        max_signal=max_signal,
+        min_sigma=min_sigma,
+    ) # TODO fuckin disentwhatever class throwing forward not implemented !
     # TODO rethink loss parameters
     loss_parameters.current_epoch = 0
     loss_parameters.inputs = torch.rand(2, 2, 5, 64, 64)
     loss_parameters.mask = ~((target == 0).reshape(len(target), -1).all(dim=1))
     loss_parameters.likelihood = likelihood_factory(ll_config)
-    loss_parameters.noise_model = noise_model_factory(nm_config)
+    loss_parameters.noise_model = noise_model_factory(nm_config, [filename])
     loss = loss_func((model_outputs, td_data), target, loss_parameters)
     for k in loss.keys():
         assert not loss[k].isnan()
