@@ -266,8 +266,11 @@ def test_set_writing_predictions(prediction_writer_callback, initial_value):
     prediction_writer_callback.set_writing_predictions(new_value)
     assert prediction_writer_callback._writing_predictions == new_value
 
+
 @pytest.mark.parametrize("writing_predictions", [True, False])
-def test_setup_prediction_directory_creation(prediction_writer_callback, dirpath, writing_predictions):
+def test_setup_prediction_directory_creation(
+    prediction_writer_callback, dirpath, writing_predictions
+):
     """
     Test prediction directory is created when `setup` is called at `stage="predict"`.
     """

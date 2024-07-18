@@ -185,13 +185,13 @@ class CAREamist:
 
         # TODO: move to method
         # prediction writer callback reference
-        # placeholder write strategy — will be changed at runtime
+        # placeholder write strategy — will be changed at predict_to_disk call
+        # TODO: use a placeholder write strategy that will raise an error?
         write_strategy = create_write_strategy("tiff", tiled=False)
         self.prediction_writer = PredictionWriterCallback(
             write_strategy=write_strategy, dirpath=self.work_dir / "predictions"
         )
-        # TODO: update so writing_predictions can be initialised as False ?
-        self.prediction_writer.writing_predictions = False
+        self.prediction_writer.set_writing_predictions(False)
         # not the most elegant
         self.callbacks.append(self.prediction_writer)
 
@@ -715,9 +715,9 @@ class CAREamist:
             extension_filter=extension_filter,
             dataloader_params=dataloader_params,
         )
-        dataset = self.pred_datamodule.predict_dataset
-        if not isinstance(dataset, (IterablePredDataset, IterableTiledPredDataset)):
-            raise TypeError()
+        # dataset = self.pred_datamodule.data
+        # if not isinstance(dataset, (IterablePredDataset, IterableTiledPredDataset)):
+        #     raise TypeError()
 
         tiled = tile_size is not None
         write_strategy = create_write_strategy(
@@ -729,7 +729,8 @@ class CAREamist:
         )
         self.prediction_writer.write_strategy = write_strategy
 
-        with self.prediction_writer.writing_predictions_context(True):
+        # turns writing predictions on 
+        with self.prediction_writer.writing_predictions(True):
             # predict (without returning predictions, saves memory)
             self.trainer.predict(
                 model=self.model,
