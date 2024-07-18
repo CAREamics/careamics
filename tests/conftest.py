@@ -74,7 +74,7 @@ def minimum_algorithm_musplit() -> dict:
     """
     # create dictionary
     algorithm = {
-        "algorithm": "musplit", #TODO temporary
+        "algorithm": "musplit",  # TODO temporary
         "loss": "musplit",
         "model": {
             "architecture": "musplit",

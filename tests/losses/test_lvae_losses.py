@@ -1,7 +1,8 @@
-import torch
+from pathlib import Path
 
 import numpy as np
-from pathlib import Path
+import torch
+
 from careamics.config.likelihood_model import GaussianLikelihoodModel
 from careamics.config.nm_model import GMNMModel
 from careamics.losses.loss_factory import LVAELossParameters, loss_factory
@@ -74,7 +75,7 @@ def test_denoisplit_loss(tmp_path):
         min_signal=min_signal,
         max_signal=max_signal,
         min_sigma=min_sigma,
-    ) # TODO fuckin disentwhatever class throwing forward not implemented !
+    )  # TODO fuckin disentwhatever class throwing forward not implemented !
     # TODO rethink loss parameters
     loss_parameters.current_epoch = 0
     loss_parameters.inputs = torch.rand(2, 2, 5, 64, 64)

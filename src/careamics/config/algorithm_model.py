@@ -89,16 +89,14 @@ class AlgorithmConfig(BaseModel):
     model_config = ConfigDict(
         protected_namespaces=(),  # allows to use model_* as a field name
         validate_assignment=True,
-        extra="allow"
+        extra="allow",
     )
 
     # Mandatory fields
     # defined in SupportedAlgorithm
     algorithm: Literal["n2v", "care", "n2n"]
     loss: Literal["n2v", "mae", "mse"]
-    model: Union[UNetModel, CustomModel] = Field(
-        discriminator="architecture"
-    )
+    model: Union[UNetModel, CustomModel] = Field(discriminator="architecture")
 
     # Optional fields
     optimizer: OptimizerModel = OptimizerModel()
