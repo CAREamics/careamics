@@ -7,8 +7,9 @@ The methods are responsible for the in-console logger.
 import logging
 import sys
 import time
+from collections.abc import Generator
 from pathlib import Path
-from typing import Any, Dict, Generator, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 LOGGERS: dict = {}
 

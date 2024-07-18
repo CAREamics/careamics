@@ -1,7 +1,8 @@
 """Tiled patching utilities."""
 
 import itertools
-from typing import Generator, List, Tuple, Union
+from collections.abc import Generator
+from typing import List, Tuple, Union
 
 import numpy as np
 
