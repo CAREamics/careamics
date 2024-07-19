@@ -15,8 +15,12 @@ class GaussianLikelihoodModel(BaseModel):
     BaseModel
     """
 
-    model_config = ConfigDict(validate_assignment=True)
+    model_config = ConfigDict(
+        validate_assignment=True,
+        protected_namespaces=(),  # to allow using model_type
+    )
 
+    # TODO consider changing name to not collide with pydantic model_ namespace
     model_type: Literal["GaussianLikelihoodModel"]
 
     color_channels: int  # TODO output channels, rename

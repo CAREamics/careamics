@@ -115,7 +115,7 @@ def test_custom_model():
     # create model dictionnary
     model = {
         "architecture": SupportedArchitecture.CUSTOM.value,
-        "name": "linear",
+        "name": "another_linear_model",
         "in_features": 10,
         "out_features": 5,
     }
@@ -129,7 +129,7 @@ def test_custom_model_wrong_algorithm():
     # create model dictionnary
     model = {
         "architecture": SupportedArchitecture.CUSTOM.value,
-        "name": "linear",
+        "name": "another_linear_model",
         "in_features": 10,
         "out_features": 5,
     }
