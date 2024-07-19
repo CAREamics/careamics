@@ -8,11 +8,13 @@ from typing import Literal, Union
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from typing_extensions import Self
 
-from .architectures import CustomModel, UNetModel
+from .architectures import CustomModel, LVAEModel
+from .likelihood_model import GaussianLikelihoodModel, NMLikelihoodModel
+from .nm_model import GMNMModel
 from .optimizer_models import LrSchedulerModel, OptimizerModel
 
 
-class AlgorithmConfig(BaseModel):
+class VAEAlgorithmConfig(BaseModel):
     """Algorithm configuration.
 
     This Pydantic model validates the parameters governing the components of the
@@ -89,15 +91,19 @@ class AlgorithmConfig(BaseModel):
     model_config = ConfigDict(
         protected_namespaces=(),  # allows to use model_* as a field name
         validate_assignment=True,
-        extra="allow"
+        extra="allow",
     )
 
     # Mandatory fields
     # defined in SupportedAlgorithm
-    algorithm: Literal["n2v", "care", "n2n"]
-    loss: Literal["n2v", "mae", "mse"]
-    model: Union[UNetModel, CustomModel] = Field(
-        discriminator="architecture"
+    algorithm_type: Literal["vae"]
+    algorithm: Literal["musplit", "denoisplit", "custom"]
+    loss: Literal["musplit_loss", "denoisplit_loss"]
+    model: Union[LVAEModel, CustomModel] = Field(discriminator="architecture")
+
+    noise_model: GMNMModel = Field(discriminator="model_type")
+    likelihood_model: Union[GaussianLikelihoodModel, NMLikelihoodModel] = Field(
+        discriminator="model_type"
     )
 
     # Optional fields
@@ -110,39 +116,24 @@ class AlgorithmConfig(BaseModel):
     def algorithm_cross_validation(self: Self) -> Self:
         """Validate the algorithm model based on `algorithm`.
 
-        N2V:
-        - loss must be n2v
-        - model must be a `UNetModel`
-
         Returns
         -------
         Self
             The validated model.
         """
-        # N2V
-        if self.algorithm == "n2v":
-            # n2v is only compatible with the n2v loss
-            if self.loss != "n2v":
+        # musplit
+        if self.algorithm == "musplit":
+            if self.loss != "musplit_loss":
                 raise ValueError(
-                    f"Algorithm {self.algorithm} only supports loss `n2v`."
+                    f"Algorithm {self.algorithm} only supports loss `musplit`."
                 )
+        # TODO add more checks
 
-            # n2v is only compatible with the UNet model
-            if not isinstance(self.model, UNetModel):
+        if self.algorithm == "denoisplit":
+            if self.loss == "denoisplit_loss":
                 raise ValueError(
-                    f"Model for algorithm {self.algorithm} must be a `UNetModel`."
+                    f"Algorithm {self.algorithm} only supports loss `denoisplit_loss`."
                 )
-
-            # n2v requires the number of input and output channels to be the same
-            if self.model.in_channels != self.model.num_classes:
-                raise ValueError(
-                    "N2V requires the same number of input and output channels. Make "
-                    "sure that `in_channels` and `num_classes` are the same."
-                )
-
-        if self.algorithm == "care" or self.algorithm == "n2n":
-            if self.loss == "n2v":
-                raise ValueError("Supervised algorithms do not support loss `n2v`.")
 
         return self
 

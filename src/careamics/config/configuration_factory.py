@@ -2,10 +2,10 @@
 
 from typing import Any, Dict, List, Literal, Optional
 
-from .algorithm_model import AlgorithmConfig
 from .architectures import UNetModel
 from .configuration_model import Configuration
 from .data_model import DataConfig
+from .fcn_algorithm_model import FCNAlgorithmConfig
 from .support import (
     SupportedAlgorithm,
     SupportedArchitecture,
@@ -16,7 +16,9 @@ from .support import (
 from .training_model import TrainingConfig
 
 
+# TODO rename ?
 def _create_supervised_configuration(
+    algorithm_type: Literal["fcn"],
     algorithm: Literal["care", "n2n"],
     experiment_name: str,
     data_type: Literal["array", "tiff", "custom"],
@@ -97,7 +99,8 @@ def _create_supervised_configuration(
     )
 
     # algorithm model
-    algorithm = AlgorithmConfig(
+    algorithm = FCNAlgorithmConfig(
+        algorithm_type=algorithm_type,
         algorithm=algorithm,
         loss=loss,
         model=unet_model,
@@ -215,6 +218,7 @@ def create_care_configuration(
         n_channels_out = n_channels_in
 
     return _create_supervised_configuration(
+        algorithm_type="fcn",
         algorithm="care",
         experiment_name=experiment_name,
         data_type=data_type,
@@ -304,6 +308,7 @@ def create_n2n_configuration(
         n_channels_out = n_channels_in
 
     return _create_supervised_configuration(
+        algorithm_type="fcn",
         algorithm="n2n",
         experiment_name=experiment_name,
         data_type=data_type,
@@ -514,7 +519,8 @@ def create_n2v_configuration(
     )
 
     # algorithm model
-    algorithm = AlgorithmConfig(
+    algorithm = FCNAlgorithmConfig(
+        algorithm_type="fcn",
         algorithm=SupportedAlgorithm.N2V.value,
         loss=SupportedLoss.N2V.value,
         model=unet_model,

@@ -1,5 +1,6 @@
 from careamics import Configuration
-from careamics.config.algorithm_model import AlgorithmConfig
+from careamics.config.vae_algorithm_model import VAEAlgorithmConfig
+from careamics.config.fcn_algorithm_model import FCNAlgorithmConfig
 from careamics.config.data_model import DataConfig
 from careamics.config.inference_model import InferenceConfig
 from careamics.config.training_model import TrainingConfig
@@ -7,7 +8,7 @@ from careamics.config.training_model import TrainingConfig
 
 def test_minimum_algorithm(minimum_algorithm_n2v):
     # create algorithm configuration
-    AlgorithmConfig(**minimum_algorithm_n2v)
+    FCNAlgorithmConfig(**minimum_algorithm_n2v)
 
 
 def test_minimum_data(minimum_data):

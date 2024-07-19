@@ -1,11 +1,11 @@
 """CAREamics Lightning module."""
 
-from typing import Any, Optional, Union
+from typing import Any, Literal, Optional, Union
 
 import pytorch_lightning as L
 from torch import Tensor, nn
 
-from careamics.config import AlgorithmConfig
+from careamics.config import FCNAlgorithmConfig
 from careamics.config.support import (
     SupportedAlgorithm,
     SupportedArchitecture,
@@ -48,7 +48,7 @@ class FCNModule(L.LightningModule):
         Learning rate scheduler name.
     """
 
-    def __init__(self, algorithm_config: Union[AlgorithmConfig, dict]) -> None:
+    def __init__(self, algorithm_config: Union[FCNAlgorithmConfig, dict]) -> None:
         """Lightning module for CAREamics.
 
         This class encapsulates the a PyTorch model along with the training, validation,
@@ -62,7 +62,7 @@ class FCNModule(L.LightningModule):
         super().__init__()
         # if loading from a checkpoint, AlgorithmModel needs to be instantiated
         if isinstance(algorithm_config, dict):
-            algorithm_config = AlgorithmConfig(**algorithm_config)
+            algorithm_config = FCNAlgorithmConfig(**algorithm_config)
 
         # create model and loss function
         self.model: nn.Module = model_factory(algorithm_config.model)
@@ -231,7 +231,7 @@ class VAEModule(L.LightningModule):
         Learning rate scheduler name.
     """
 
-    def __init__(self, algorithm_config: Union[AlgorithmConfig, dict]) -> None:
+    def __init__(self, algorithm_config: Union[FCNAlgorithmConfig, dict]) -> None:
         """Lightning module for CAREamics.
 
         This class encapsulates the a PyTorch model along with the training, validation,
@@ -245,7 +245,7 @@ class VAEModule(L.LightningModule):
         super().__init__()
         # if loading from a checkpoint, AlgorithmModel needs to be instantiated
         self.algorithm_config = (
-            AlgorithmConfig(**algorithm_config)
+            FCNAlgorithmConfig(**algorithm_config)
             if isinstance(algorithm_config, dict)
             else algorithm_config
         )
@@ -401,6 +401,7 @@ class VAEModule(L.LightningModule):
 
 
 def create_careamics_module(
+    algorithm_type: Literal["fcn", "vae"],
     algorithm: Union[SupportedAlgorithm, str],
     loss: Union[SupportedLoss, str],
     architecture: Union[SupportedArchitecture, str],
@@ -452,6 +453,7 @@ def create_careamics_module(
     if model_parameters is None:
         model_parameters = {}
     algorithm_configuration: dict[str, Any] = {
+        "algorithm_type": algorithm_type,
         "algorithm": algorithm,
         "loss": loss,
         "optimizer": {
@@ -470,10 +472,8 @@ def create_careamics_module(
     algorithm_configuration["model"] = model_configuration
 
     # call the parent init using an AlgorithmModel instance
-    if algorithm_configuration["model"]["architecture"] == "UNet":
-        return FCNModule(AlgorithmConfig(**algorithm_configuration))
-    elif algorithm_configuration["model"]["architecture"] == "LVAE":
-        return VAEModule(AlgorithmConfig(**algorithm_configuration))
+    if algorithm_configuration["algorithm_type"] == "fcn":
+        return FCNModule(FCNAlgorithmConfig(**algorithm_configuration))
     else:
         raise NotImplementedError(
             f"Model {algorithm_configuration['model']['architecture']} is not"

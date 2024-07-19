@@ -1,6 +1,7 @@
 import pytest
 
-from careamics.config.algorithm_model import AlgorithmConfig
+from careamics.config.vae_algorithm_model import VAEAlgorithmConfig
+from careamics.config.fcn_algorithm_model import FCNAlgorithmConfig
 from careamics.config.support import (
     SupportedAlgorithm,
     SupportedArchitecture,
@@ -14,7 +15,7 @@ def test_all_algorithms_are_supported():
     algorithms = list(SupportedAlgorithm)
 
     # Algorithm json schema to extract the literal value
-    schema = AlgorithmConfig.model_json_schema()
+    schema = FCNAlgorithmConfig.model_json_schema()
 
     # check that all algorithms are supported
     for algo in schema["properties"]["algorithm"]["enum"]:
@@ -27,7 +28,7 @@ def test_all_losses_are_supported():
     losses = list(SupportedLoss)
 
     # Algorithm json schema
-    schema = AlgorithmConfig.model_json_schema()
+    schema = FCNAlgorithmConfig.model_json_schema()
 
     # check that all losses are supported
     for loss in schema["properties"]["loss"]["enum"]:
@@ -41,20 +42,22 @@ def test_model_discriminator(minimum_algorithm_n2v):
         if model_name.value == "UNet":
             minimum_algorithm_n2v["model"]["architecture"] = model_name.value
 
-            algo = AlgorithmConfig(**minimum_algorithm_n2v)
+            algo = FCNAlgorithmConfig(**minimum_algorithm_n2v)
             assert algo.model.architecture == model_name.value
 
 
 @pytest.mark.parametrize(
-    "algorithm, loss, model",
+    "algorithm_type, algorithm, loss, model",
     [
-        ("n2v", "n2v", {"architecture": "UNet", "n2v2": False}),
-        ("n2n", "mae", {"architecture": "UNet", "n2v2": False}),
+        ("fcn", "n2v", "n2v", {"architecture": "UNet", "n2v2": False}),
+        ("fcn", "n2n", "mae", {"architecture": "UNet", "n2v2": False}),
     ],
 )
-def test_algorithm_constraints(algorithm: str, loss: str, model: dict):
+def test_algorithm_constraints(algorithm_type, algorithm: str, loss: str, model: dict):
     """Test that constraints are passed for each algorithm."""
-    AlgorithmConfig(algorithm=algorithm, loss=loss, model=model)
+    FCNAlgorithmConfig(
+        algorithm_type=algorithm_type, algorithm=algorithm, loss=loss, model=model
+    )
 
 
 def test_n_channels_n2v():
@@ -69,18 +72,18 @@ def test_n_channels_n2v():
     loss = "n2v"
 
     with pytest.raises(ValueError):
-        AlgorithmConfig(algorithm="n2v", loss=loss, model=model)
+        FCNAlgorithmConfig(algorithm="n2v", loss=loss, model=model)
 
 
 @pytest.mark.parametrize(
-    "algorithm, n_in, n_out",
+    "algorithm_type, algorithm, n_in, n_out",
     [
-        ("n2v", 2, 2),
-        ("n2n", 3, 3),
-        ("care", 1, 2),
+        ("fcn", "n2v", 2, 2),
+        ("fcn", "n2n", 3, 3),
+        ("fcn", "care", 1, 2),
     ],
 )
-def test_comaptiblity_of_number_of_channels(algorithm, n_in, n_out):
+def test_comaptiblity_of_number_of_channels(algorithm_type, algorithm, n_in, n_out):
     """Check that no error is thrown when instantiating the algorithm with a valid
     number of in and out channels."""
     model = {
@@ -91,4 +94,6 @@ def test_comaptiblity_of_number_of_channels(algorithm, n_in, n_out):
     }
     loss = "n2v" if algorithm == "n2v" else "mae"
 
-    AlgorithmConfig(algorithm=algorithm, loss=loss, model=model)
+    FCNAlgorithmConfig(
+        algorithm_type=algorithm_type, algorithm=algorithm, loss=loss, model=model
+    )

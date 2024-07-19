@@ -67,6 +67,7 @@ def test_set_3D(minimum_configuration: dict):
 def test_algorithm_and_data_default_transforms(minimum_configuration: dict):
     """Test that the default data transforms are compatible with n2v."""
     minimum_configuration["algorithm_config"] = {
+        "algorithm_type": "fcn",
         "algorithm": "n2v",
         "loss": "n2v",
         "model": {
@@ -77,19 +78,22 @@ def test_algorithm_and_data_default_transforms(minimum_configuration: dict):
 
 
 @pytest.mark.parametrize(
-    "algorithm, strategy",
+    "algorithm_type, algorithm, strategy",
     [
-        ("n2v", SupportedPixelManipulation.UNIFORM.value),
-        ("n2v", SupportedPixelManipulation.MEDIAN.value),
-        ("n2v2", SupportedPixelManipulation.UNIFORM.value),
-        ("n2v2", SupportedPixelManipulation.MEDIAN.value),
+        ("fcn", "n2v", SupportedPixelManipulation.UNIFORM.value),
+        ("fcn", "n2v", SupportedPixelManipulation.MEDIAN.value),
+        ("fcn", "n2v2", SupportedPixelManipulation.UNIFORM.value),
+        ("fcn", "n2v2", SupportedPixelManipulation.MEDIAN.value),
     ],
 )
-def test_n2v2_and_transforms(minimum_configuration: dict, algorithm, strategy):
+def test_n2v2_and_transforms(
+    minimum_configuration: dict, algorithm_type, algorithm, strategy
+):
     """Test that the manipulation strategy is corrected if the data transforms are
     incompatible with n2v2."""
     use_n2v2 = algorithm == "n2v2"
     minimum_configuration["algorithm_config"] = {
+        "algorithm_type": "fcn",
         "algorithm": "n2v",
         "loss": "n2v",
         "model": {

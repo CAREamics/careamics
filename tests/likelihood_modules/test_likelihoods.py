@@ -18,7 +18,7 @@ def test_gaussian_likelihood():
 
 def test_nm_likelihood(tmp_path):
     config = NMLikelihoodModel(model_type="NMLikelihoodModel")
-    inputs = torch.rand(1, 64, 64)
+    inputs = torch.rand(1, 1, 64, 64)
 
     config.data_mean = {"target": inputs.mean()}
     config.data_std = {"target": inputs.std()}

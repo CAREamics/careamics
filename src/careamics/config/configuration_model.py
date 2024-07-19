@@ -9,10 +9,12 @@ from typing import Literal, Union
 
 import yaml
 from bioimageio.spec.generic.v0_3 import CiteEntry
-from pydantic import BaseModel, ConfigDict, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from typing_extensions import Self
 
-from .algorithm_model import AlgorithmConfig
+from .fcn_algorithm_model import FCNAlgorithmConfig
+
+from .vae_algorithm_model import VAEAlgorithmConfig
 from .data_model import DataConfig
 from .references import (
     CARE,
@@ -155,7 +157,9 @@ class Configuration(BaseModel):
     """Name of the experiment, used to name logs and checkpoints."""
 
     # Sub-configurations
-    algorithm_config: AlgorithmConfig
+    algorithm_config: Union[FCNAlgorithmConfig, VAEAlgorithmConfig] = Field(
+        discriminator="algorithm_type"
+    )
     """Algorithm configuration, holding all parameters required to configure the
     model."""
 
