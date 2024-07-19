@@ -771,6 +771,95 @@ def test_predict_pretrained_bmz(tmp_path: Path, pre_trained_bmz: Path):
     )
 
 
+@pytest.mark.parametrize("tiled", [True, False])
+def test_predict_to_disk_YX_tiff(tmp_path, minimum_configuration, tiled):
+
+    n_samples = 2
+    train_array = random_array((32, 32))
+
+    # save files
+    train_dir = tmp_path / "train"
+    train_dir.mkdir()
+    file_names = [f"image_{i}.tiff" for i in range(n_samples)]
+    for file_name in file_names:
+        train_file = train_dir / file_name
+        tifffile.imwrite(train_file, train_array)
+
+    # create configuration
+    config = Configuration(**minimum_configuration)
+    config.training_config.num_epochs = 1
+    config.data_config.axes = "YX"
+    config.data_config.batch_size = 2
+    config.data_config.data_type = SupportedData.TIFF.value
+    config.data_config.patch_size = (8, 8)
+
+    # instantiate CAREamist
+    careamist = CAREamist(source=config, work_dir=tmp_path)
+
+    # train CAREamist
+    careamist.train(train_source=train_dir)
+
+    if tiled:
+        tile_size = (16, 16)
+        tile_overlap = (4, 4)
+    else:
+        tile_size = None
+        tile_overlap = None
+
+    # predict CAREamist
+    careamist.predict_to_disk(
+        train_dir, tile_size=tile_size, tile_overlap=tile_overlap, write_type="tiff"
+    )
+
+    predict_dir = tmp_path / "predictions"
+    for file_name in file_names:
+        predict_file = predict_dir / file_name
+        assert predict_file.is_file()
+
+
+@pytest.mark.parametrize("tiled", [True, False])
+def test_predict_to_disk_SYX_tiff(tmp_path, minimum_configuration, tiled):
+    n_samples = 2
+    train_array = random_array((n_samples, 32, 32))
+
+    # save files
+    train_dir = tmp_path / "train"
+    train_dir.mkdir()
+    file_name = "image.tiff"
+    tifffile.imwrite(train_dir / file_name, train_array)
+
+    # create configuration
+    config = Configuration(**minimum_configuration)
+    config.training_config.num_epochs = 1
+    config.data_config.axes = "SYX"
+    config.data_config.batch_size = 2
+    config.data_config.data_type = SupportedData.TIFF.value
+    config.data_config.patch_size = (8, 8)
+
+    # instantiate CAREamist
+    careamist = CAREamist(source=config, work_dir=tmp_path)
+
+    # train CAREamist
+    careamist.train(train_source=train_dir)
+
+    if tiled:
+        tile_size = (16, 16)
+        tile_overlap = (4, 4)
+    else:
+        tile_size = None
+        tile_overlap = None
+
+    # predict CAREamist
+    careamist.predict_to_disk(
+        train_dir, tile_size=tile_size, tile_overlap=tile_overlap, write_type="tiff"
+    )
+
+    predict_dir = tmp_path / "predictions"
+    for i in range(n_samples):
+        predict_file = predict_dir / f"{(Path(file_name).stem)}_{i}.tiff"
+        assert predict_file.is_file()
+
+
 def test_export_bmz_pretrained_prediction(tmp_path: Path, pre_trained: Path):
     """Test that CAREamics can be instantiated with a pre-trained network and exported
     to BMZ after prediction.
