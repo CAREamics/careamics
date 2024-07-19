@@ -8,6 +8,11 @@ from numpy.typing import NDArray
 from ..config.tile_information import TileInformation
 from .stitch_prediction import stitch_prediction
 
+# TODO: type hint functions correctly, pretty difficult with mypy
+TiledPredOutput = List[Tuple[NDArray, List[TileInformation]]]
+UnTiledPredOutput = List[NDArray]
+PredOutput = Union[TiledPredOutput]
+
 
 def convert_outputs(predictions: List[Any], tiled: bool) -> list[NDArray]:
     """

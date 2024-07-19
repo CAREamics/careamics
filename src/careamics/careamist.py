@@ -36,7 +36,11 @@ from careamics.lightning import (
     create_write_strategy,
 )
 from careamics.model_io import export_to_bmz, load_pretrained
-from careamics.prediction_utils import convert_outputs, validate_unet_tile_size
+from careamics.prediction_utils import (
+    PredOutput,
+    convert_outputs,
+    validate_unet_tile_size,
+)
 from careamics.utils import check_path_exists, get_logger
 
 logger = get_logger(__name__)
@@ -190,8 +194,8 @@ class CAREamist:
         self.prediction_writer = PredictionWriterCallback(
             write_strategy=write_strategy, dirpath=self.work_dir / "predictions"
         )
+        # writing predictions is turned off
         self.prediction_writer.set_writing_predictions(False)
-        # not the most elegant
         self.callbacks.append(self.prediction_writer)
 
         # instantiate logger
@@ -563,8 +567,128 @@ class CAREamist:
         dataloader_params: Optional[dict] = None,
         read_source_func: Optional[Callable] = None,
         extension_filter: str = "",
+        **kwargs,
+    ):
+        tiled = tile_size is not None
+        predictions = self._predict_implementation(
+            source,
+            batch_size=batch_size,
+            tile_size=tile_size,
+            tile_overlap=tile_overlap,
+            axes=axes,
+            data_type=data_type,
+            tta_transforms=tta_transforms,
+            dataloader_params=dataloader_params,
+            read_source_func=read_source_func,
+            extension_filter=extension_filter,
+            return_predictions=True,
+            **kwargs,
+        )
+        return convert_outputs(predictions, tiled=tiled)
+
+    def predict_to_disk(
+        self,
+        source: Union[PredictDataModule, Path, str],
+        *,
+        batch_size: int = 1,
+        tile_size: Optional[tuple[int, ...]] = None,
+        tile_overlap: tuple[int, ...] = (48, 48),
+        axes: Optional[str] = None,
+        data_type: Optional[Literal["array", "tiff", "custom"]] = None,
+        tta_transforms: bool = True,
+        dataloader_params: Optional[dict] = None,
+        read_source_func: Optional[Callable] = None,
+        extension_filter: str = "",
+        write_type: Literal["tiff", "custom"] = "tiff",
+        write_extension: Optional[str] = None,
+        write_func: Optional[WriteFunc] = None,
+        write_func_kwargs: Optional[dict[str, Any]] = None,
+        **kwargs,
+    ) -> None:
+
+        # create and set correct write strategy
+        tiled = tile_size is not None
+        write_strategy = create_write_strategy(
+            write_type=write_type,
+            tiled=tiled,
+            write_func=write_func,
+            write_extension=write_extension,
+            write_func_kwargs=write_func_kwargs,
+        )
+        self.prediction_writer.write_strategy = write_strategy
+
+        # turns writing predictions on
+        with self.prediction_writer.writing_predictions(True):
+            # predict (without returning predictions, saves memory)
+            self._predict_implementation(
+                source,
+                batch_size=batch_size,
+                tile_size=tile_size,
+                tile_overlap=tile_overlap,
+                axes=axes,
+                data_type=data_type,
+                tta_transforms=tta_transforms,
+                dataloader_params=dataloader_params,
+                read_source_func=read_source_func,
+                extension_filter=extension_filter,
+                return_predictions=False,
+                **kwargs,
+            )
+
+    # mypy: if `return_predictions=False` return value is prediction output type hint
+    @overload
+    def _predict_implementation(
+        self,
+        source: Union[PredictDataModule, Path, str, NDArray],
+        *,
+        batch_size: Optional[int],
+        tile_size: Optional[tuple[int, ...]],
+        tile_overlap: tuple[int, ...],
+        axes: Optional[str],
+        data_type: Optional[Literal["array", "tiff", "custom"]],
+        tta_transforms: bool,
+        dataloader_params: Optional[dict],
+        read_source_func: Optional[Callable],
+        extension_filter: str,
+        return_predictions: Literal[True],
         **kwargs: Any,
-    ) -> Union[list[NDArray], NDArray]:
+    ) -> PredOutput: ...
+
+    # mypy: if `return_predictions=False` return value is None
+    @overload
+    def _predict_implementation(
+        self,
+        source: Union[PredictDataModule, Path, str, NDArray],
+        *,
+        batch_size: Optional[int],
+        tile_size: Optional[tuple[int, ...]],
+        tile_overlap: tuple[int, ...],
+        axes: Optional[str],
+        data_type: Optional[Literal["array", "tiff", "custom"]],
+        tta_transforms: bool,
+        dataloader_params: Optional[dict],
+        read_source_func: Optional[Callable],
+        extension_filter: str,
+        return_predictions: Literal[False],
+        **kwargs: Any,
+    ) -> None: ...
+
+    def _predict_implementation(
+        self,
+        source: Union[PredictDataModule, Path, str, NDArray],
+        *,
+        batch_size: Optional[int] = None,
+        tile_size: Optional[tuple[int, ...]] = None,
+        tile_overlap: tuple[int, ...] = (48, 48),
+        axes: Optional[str] = None,
+        data_type: Optional[Literal["array", "tiff", "custom"]] = None,
+        tta_transforms: bool = True,
+        dataloader_params: Optional[dict] = None,
+        read_source_func: Optional[Callable] = None,
+        extension_filter: str = "",
+        return_predictions: bool = True,
+        **kwargs: Any,
+    ) -> Union[PredOutput, None]:
         """
         Make predictions on the provided data.
 
@@ -608,6 +732,8 @@ class CAREamist:
             Function to read the source data.
         extension_filter : str, default=""
             Filter for the file extension.
+        return_predictions
+            If predictions are returned or not.
         **kwargs : Any
             Unused.
 
@@ -660,82 +786,11 @@ class CAREamist:
 
         # predict
         predictions = self.trainer.predict(
-            model=self.model, datamodule=self.pred_datamodule
+            model=self.model,
+            datamodule=self.pred_datamodule,
+            return_predictions=return_predictions,
         )
-        return convert_outputs(predictions, self.pred_datamodule.tiled)
-
-    def predict_to_disk(
-        self,
-        source: Union[PredictDataModule, Path, str],
-        *,
-        batch_size: int = 1,
-        tile_size: Optional[tuple[int, ...]] = None,
-        tile_overlap: tuple[int, ...] = (48, 48),
-        axes: Optional[str] = None,
-        data_type: Optional[Literal["array", "tiff", "custom"]] = None,
-        tta_transforms: bool = True,
-        dataloader_params: Optional[dict] = None,
-        read_source_func: Optional[Callable] = None,
-        extension_filter: str = "",
-        write_type: Literal["tiff", "custom"] = "tiff",
-        write_extension: Optional[str] = None,
-        write_func: Optional[WriteFunc] = None,
-        write_func_kwargs: Optional[dict[str, Any]] = None,
-    ) -> None:
-        if (
-            self.cfg.data_config.image_means is None
-            or self.cfg.data_config.image_stds is None
-        ):
-            raise ValueError("Mean and std must be provided in the configuration.")
-
-        # tile overlaps must be specified
-        if (tile_size is not None) and (tile_overlap is None):
-            raise ValueError("Tile overlap must be specified.")
-
-        # tile size for UNets
-        model = self.cfg.algorithm_config.model
-        if (tile_size is not None) and (
-            model.architecture == SupportedArchitecture.UNET.value
-        ):
-            validate_unet_tile_size(model.depth, tile_size)
-
-        # create the prediction
-        self.pred_datamodule = create_predict_datamodule(
-            pred_data=source,
-            data_type=data_type or self.cfg.data_config.data_type,
-            axes=axes or self.cfg.data_config.axes,
-            image_means=self.cfg.data_config.image_means,
-            image_stds=self.cfg.data_config.image_stds,
-            tile_size=tile_size,
-            tile_overlap=tile_overlap,
-            batch_size=batch_size or self.cfg.data_config.batch_size,
-            tta_transforms=tta_transforms,
-            read_source_func=read_source_func,
-            extension_filter=extension_filter,
-            dataloader_params=dataloader_params,
-        )
-        # dataset = self.pred_datamodule.data
-        # if not isinstance(dataset, (IterablePredDataset, IterableTiledPredDataset)):
-        #     raise TypeError()
-
-        tiled = tile_size is not None
-        write_strategy = create_write_strategy(
-            write_type=write_type,
-            tiled=tiled,
-            write_func=write_func,
-            write_extension=write_extension,
-            write_func_kwargs=write_func_kwargs,
-        )
-        self.prediction_writer.write_strategy = write_strategy
-
-        # turns writing predictions on
-        with self.prediction_writer.writing_predictions(True):
-            # predict (without returning predictions, saves memory)
-            self.trainer.predict(
-                model=self.model,
-                datamodule=self.pred_datamodule,
-                return_predictions=False,
-            )
+        return predictions
 
     def export_to_bmz(
         self,
