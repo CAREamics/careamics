@@ -78,16 +78,16 @@ def test_algorithm_and_data_default_transforms(minimum_configuration: dict):
 
 
 @pytest.mark.parametrize(
-    "algorithm_type, algorithm, strategy",
+    "algorithm, strategy",
     [
-        ("fcn", "n2v", SupportedPixelManipulation.UNIFORM.value),
-        ("fcn", "n2v", SupportedPixelManipulation.MEDIAN.value),
-        ("fcn", "n2v2", SupportedPixelManipulation.UNIFORM.value),
-        ("fcn", "n2v2", SupportedPixelManipulation.MEDIAN.value),
+        ("n2v", SupportedPixelManipulation.UNIFORM.value),
+        ("n2v", SupportedPixelManipulation.MEDIAN.value),
+        ("n2v2", SupportedPixelManipulation.UNIFORM.value),
+        ("n2v2", SupportedPixelManipulation.MEDIAN.value),
     ],
 )
 def test_n2v2_and_transforms(
-    minimum_configuration: dict, algorithm_type, algorithm, strategy
+    minimum_configuration: dict, algorithm, strategy
 ):
     """Test that the manipulation strategy is corrected if the data transforms are
     incompatible with n2v2."""
