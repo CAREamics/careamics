@@ -110,32 +110,22 @@ def test_comaptiblity_of_number_of_channels(algorithm, n_in, n_out):
     AlgorithmConfig(algorithm=algorithm, loss=loss, model=model)
 
 
-def test_custom_model():
+def test_custom_model(custom_model_parameters):
     """Test that a custom model can be instantiated."""
-    # create model dictionnary
-    model = {
-        "architecture": SupportedArchitecture.CUSTOM.value,
-        "name": "another_linear_model",
-        "in_features": 10,
-        "out_features": 5,
-    }
-
     # create algorithm configuration
-    AlgorithmConfig(algorithm=SupportedAlgorithm.CUSTOM.value, loss="mse", model=model)
+    AlgorithmConfig(
+        algorithm=SupportedAlgorithm.CUSTOM.value,
+        loss="mse",
+        model=custom_model_parameters,
+    )
 
 
-def test_custom_model_wrong_algorithm():
+def test_custom_model_wrong_algorithm(custom_model_parameters):
     """Test that a custom model fails if the algorithm is not custom."""
-    # create model dictionnary
-    model = {
-        "architecture": SupportedArchitecture.CUSTOM.value,
-        "name": "another_linear_model",
-        "in_features": 10,
-        "out_features": 5,
-    }
-
     # create algorithm configuration
     with pytest.raises(ValueError):
         AlgorithmConfig(
-            algorithm=SupportedAlgorithm.CARE.value, loss="mse", model=model
+            algorithm=SupportedAlgorithm.CARE.value,
+            loss="mse",
+            model=custom_model_parameters,
         )
