@@ -531,7 +531,7 @@ class CAREamist:
         *,
         batch_size: int = 1,
         tile_size: Optional[tuple[int, ...]] = None,
-        tile_overlap: tuple[int, ...] = (48, 48),
+        tile_overlap: Optional[tuple[int, ...]] = (48, 48),
         axes: Optional[str] = None,
         data_type: Optional[Literal["tiff", "custom"]] = None,
         tta_transforms: bool = True,
@@ -547,7 +547,7 @@ class CAREamist:
         *,
         batch_size: int = 1,
         tile_size: Optional[tuple[int, ...]] = None,
-        tile_overlap: tuple[int, ...] = (48, 48),
+        tile_overlap: Optional[tuple[int, ...]] = (48, 48),
         axes: Optional[str] = None,
         data_type: Optional[Literal["array"]] = None,
         tta_transforms: bool = True,
@@ -560,7 +560,7 @@ class CAREamist:
         *,
         batch_size: Optional[int] = None,
         tile_size: Optional[tuple[int, ...]] = None,
-        tile_overlap: tuple[int, ...] = (48, 48),
+        tile_overlap: Optional[tuple[int, ...]] = (48, 48),
         axes: Optional[str] = None,
         data_type: Optional[Literal["array", "tiff", "custom"]] = None,
         tta_transforms: bool = True,
@@ -569,6 +569,66 @@ class CAREamist:
         extension_filter: str = "",
         **kwargs,
     ):
+        """
+        Make predictions on the provided data.
+
+        Input can be a CAREamicsPredData instance, a path to a data file, or a numpy
+        array.
+
+        If `data_type`, `axes` and `tile_size` are not provided, the training
+        configuration parameters will be used, with the `patch_size` instead of
+        `tile_size`.
+
+        Test-time augmentation (TTA) can be switched off using the `tta_transforms`
+        parameter. The TTA augmentation applies all possible flip and 90 degrees
+        rotations to the prediction input and averages the predictions. TTA augmentation
+        should not be used if you did not train with these augmentations.
+
+        Note that if you are using a UNet model and tiling, the tile size must be
+        divisible in every dimension by 2**d, where d is the depth of the model. This
+        avoids artefacts arising from the broken shift invariance induced by the
+        pooling layers of the UNet. If your image has less dimensions, as it may
+        happen in the Z dimension, consider padding your image.
+
+        Parameters
+        ----------
+        source : CAREamicsPredData, pathlib.Path, str or numpy.ndarray
+            Data to predict on.
+        batch_size : int, default=1
+            Batch size for prediction.
+        tile_size : tuple of int, optional
+            Size of the tiles to use for prediction.
+        tile_overlap : tuple of int, default=(48, 48)
+            Overlap between tiles.
+        axes : str, optional
+            Axes of the input data, by default None.
+        data_type : {"array", "tiff", "custom"}, optional
+            Type of the input data.
+        tta_transforms : bool, default=True
+            Whether to apply test-time augmentation.
+        dataloader_params : dict, optional
+            Parameters to pass to the dataloader.
+        read_source_func : Callable, optional
+            Function to read the source data.
+        extension_filter : str, default=""
+            Filter for the file extension.
+        **kwargs : Any
+            Unused.
+
+        Returns
+        -------
+        list of NDArray
+            Predictions made by the model.
+
+        Raises
+        ------
+        ValueError
+            If mean and std are not provided in the configuration.
+        ValueError
+            If tile size is not divisible by 2**depth for UNet models.
+        ValueError
+            If tile overlap is not specified.
+        """
         tiled = tile_size is not None
         predictions = self._predict_implementation(
             source,
@@ -592,7 +652,7 @@ class CAREamist:
         *,
         batch_size: int = 1,
         tile_size: Optional[tuple[int, ...]] = None,
-        tile_overlap: tuple[int, ...] = (48, 48),
+        tile_overlap: Optional[tuple[int, ...]] = (48, 48),
         axes: Optional[str] = None,
         data_type: Optional[Literal["array", "tiff", "custom"]] = None,
         tta_transforms: bool = True,
@@ -605,7 +665,81 @@ class CAREamist:
         write_func_kwargs: Optional[dict[str, Any]] = None,
         **kwargs,
     ) -> None:
+        """
+        Make predictions on the provided data and save outputs to files.
 
+        The predictions will be saved in a new directory 'predictions' within the set
+        working directory.
+
+        The `source` must be from files and not arrays. The file names of the
+        predictions will match those of the source. If there is more than one sample
+        within a file, the samples will be saved to seperate files. The file names of
+        samples will have the name of the corresponding source file but with the sample
+        index appended. E.g. If the the source file name is 'images.tiff' then the first
+        sample's prediction will be saved with the file name "image_0.tiff".
+
+        Input can be a CAREamicsPredData instance, a path to a data file, or a numpy
+        array.
+
+        If `data_type`, `axes` and `tile_size` are not provided, the training
+        configuration parameters will be used, with the `patch_size` instead of
+        `tile_size`.
+
+        Test-time augmentation (TTA) can be switched off using the `tta_transforms`
+        parameter. The TTA augmentation applies all possible flip and 90 degrees
+        rotations to the prediction input and averages the predictions. TTA augmentation
+        should not be used if you did not train with these augmentations.
+
+        Note that if you are using a UNet model and tiling, the tile size must be
+        divisible in every dimension by 2**d, where d is the depth of the model. This
+        avoids artefacts arising from the broken shift invariance induced by the
+        pooling layers of the UNet. If your image has less dimensions, as it may
+        happen in the Z dimension, consider padding your image.
+
+        Parameters
+        ----------
+        source : CAREamicsPredData, pathlib.Path or str
+            Data to predict on.
+        batch_size : int, default=1
+            Batch size for prediction.
+        tile_size : tuple of int, optional
+            Size of the tiles to use for prediction.
+        tile_overlap : tuple of int, default=(48, 48)
+            Overlap between tiles.
+        axes : str, optional
+            Axes of the input data, by default None.
+        data_type : {"array", "tiff", "custom"}, optional
+            Type of the input data.
+        tta_transforms : bool, default=True
+            Whether to apply test-time augmentation.
+        dataloader_params : dict, optional
+            Parameters to pass to the dataloader.
+        read_source_func : Callable, optional
+            Function to read the source data.
+        extension_filter : str, default=""
+            Filter for the file extension.
+        write_type : {"tiff", "custom"}, default="tiff"
+            The data type to save as, includes custom.
+        write_extension : str, optional
+            If a known `write_type` is selected this argument is ignored. For a custom
+            `write_type` an extension to save the data with must be passed.
+        write_func : WriteFunc, optional
+            If a known `write_type` is selected this argument is ignored. For a custom
+            `write_type` a function to save the data must be passed. See notes below.
+        write_func_kwargs : dict of {str: any}, optional
+            Additional keyword arguments to be passed to the save function.
+        **kwargs : Any
+            Unused.
+
+        Raises
+        ------
+        ValueError
+            If mean and std are not provided in the configuration.
+        ValueError
+            If tile size is not divisible by 2**depth for UNet models.
+        ValueError
+            If tile overlap is not specified.
+        """
         # create and set correct write strategy
         tiled = tile_size is not None
         write_strategy = create_write_strategy(
@@ -637,13 +771,13 @@ class CAREamist:
 
     # mypy: if `return_predictions=False` return value is prediction output type hint
     @overload
-    def _predict_implementation(
+    def _predict_implementation(  # numpydoc ignore=GL08
         self,
         source: Union[PredictDataModule, Path, str, NDArray],
         *,
         batch_size: Optional[int],
         tile_size: Optional[tuple[int, ...]],
-        tile_overlap: tuple[int, ...],
+        tile_overlap: Optional[tuple[int, ...]],
         axes: Optional[str],
         data_type: Optional[Literal["array", "tiff", "custom"]],
         tta_transforms: bool,
@@ -656,13 +790,13 @@ class CAREamist:
 
     # mypy: if `return_predictions=False` return value is None
     @overload
-    def _predict_implementation(
+    def _predict_implementation(  # numpydoc ignore=GL08
         self,
         source: Union[PredictDataModule, Path, str, NDArray],
         *,
         batch_size: Optional[int],
         tile_size: Optional[tuple[int, ...]],
-        tile_overlap: tuple[int, ...],
+        tile_overlap: Optional[tuple[int, ...]],
         axes: Optional[str],
         data_type: Optional[Literal["array", "tiff", "custom"]],
         tta_transforms: bool,
@@ -679,7 +813,7 @@ class CAREamist:
         *,
         batch_size: Optional[int] = None,
         tile_size: Optional[tuple[int, ...]] = None,
-        tile_overlap: tuple[int, ...] = (48, 48),
+        tile_overlap: Optional[tuple[int, ...]] = (48, 48),
         axes: Optional[str] = None,
         data_type: Optional[Literal["array", "tiff", "custom"]] = None,
         tta_transforms: bool = True,
@@ -732,15 +866,15 @@ class CAREamist:
             Function to read the source data.
         extension_filter : str, default=""
             Filter for the file extension.
-        return_predictions
+        return_predictions : bool, default=True
             If predictions are returned or not.
         **kwargs : Any
             Unused.
 
         Returns
         -------
-        list of NDArray or NDArray
-            Predictions made by the model.
+        list of predictions or None
+            Predictions made by the model, if `return_predictions=True` else None.
 
         Raises
         ------
