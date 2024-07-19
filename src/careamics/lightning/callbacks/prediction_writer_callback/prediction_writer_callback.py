@@ -168,7 +168,21 @@ class PredictionWriterCallback(BasePredictionWriter):
 
     @contextmanager
     def writing_predictions(self, flag: bool):
+        """
+        A context manager that will temporarily set writing predictions on or off.
 
+        The toggle will return to what it previously was after exiting the `with` block.
+
+        Parameters
+        ----------
+        flag : bool
+            Whether writing predictions will be set to on or off during the `with`
+            block.
+
+        Yields
+        ------
+        None
+        """
         # save current value to restore to after context
         previous_value = self._writing_predictions
 
@@ -180,6 +194,14 @@ class PredictionWriterCallback(BasePredictionWriter):
         self._writing_predictions = previous_value
 
     def set_writing_predictions(self, flag: bool) -> None:
+        """
+        Turn writing predictions on or off.
+
+        Parameters
+        ----------
+        flag : bool
+            Whether writing predictions will be set to on or off.
+        """
         self._writing_predictions = flag
 
     def setup(self, trainer: Trainer, pl_module: LightningModule, stage: str) -> None:
