@@ -1,5 +1,4 @@
 from pathlib import Path
-from typing import Tuple
 
 import numpy as np
 import pytest
@@ -13,7 +12,7 @@ from careamics.dataset.dataset_utils import reshape_array
 from careamics.lightning.callbacks import HyperParametersCallback, ProgressBarCallback
 
 
-def random_array(shape: Tuple[int, ...], seed: int = 42):
+def random_array(shape: tuple[int, ...], seed: int = 42):
     """Return a random array with values between 0 and 255."""
     rng = np.random.default_rng(seed)
     return (rng.integers(0, 255, shape)).astype(np.float32)
