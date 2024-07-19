@@ -9,7 +9,7 @@ import sys
 import time
 from collections.abc import Generator
 from pathlib import Path
-from typing import Any, Generator, Optional, Union
+from typing import Any, Optional, Union
 
 LOGGERS: dict = {}
 

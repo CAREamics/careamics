@@ -1,6 +1,7 @@
 """Random patching utilities."""
 
-from typing import Generator, Optional, Union
+from collections.abc import Generator
+from typing import Optional, Union
 
 import numpy as np
 import zarr
