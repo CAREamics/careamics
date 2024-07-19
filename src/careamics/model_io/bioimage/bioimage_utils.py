@@ -4,54 +4,6 @@ from pathlib import Path
 from typing import Union
 
 
-def _format_bmz_name(name: str) -> str:
-    """Format the bioimage.io model name.
-
-    Parameters
-    ----------
-    name : str
-        Name of the bioimage.io model.
-
-    Returns
-    -------
-    str
-        Formatted name.
-    """
-    return name.replace(" ", "_").replace("(", "_").replace(")", "_").lower()
-
-
-def format_bmz_path(path: Path, name: str) -> Path:
-    """Format the bioimage.io model filename.
-
-    Parameters
-    ----------
-    path : pathlib.Path
-        Path to the bioimage.io model.
-    name : str
-        Name of the bioimage.io model.
-
-    Returns
-    -------
-    pathlib.Path
-        Path to the bioimage.io model with the formatted filename.
-    """
-    if path.suffix == "":
-        # file represents a directory, we make sure it exists
-        path.mkdir(parents=True, exist_ok=True)
-
-        # add the name to the path
-        path = path / (_format_bmz_name(name) + ".zip")
-    else:
-        # path has a suffix, we make sure its prents exist
-        path.parent.mkdir(parents=True, exist_ok=True)
-
-        # make sure it has the correct suffix
-        if path.suffix != ".zip":
-            path = path.with_suffix(".zip")
-
-    return path
-
-
 def get_unzip_path(zip_path: Union[Path, str]) -> Path:
     """Generate unzipped folder path from the bioimage.io model path.
 

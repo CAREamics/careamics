@@ -659,8 +659,8 @@ class CAREamist:
 
     def export_to_bmz(
         self,
-        path: Union[Path, str],
-        name: str,
+        path_to_archive: Union[Path, str],
+        friendly_model_name: str,
         input_array: NDArray,
         authors: list[dict],
         general_description: str = "",
@@ -669,29 +669,27 @@ class CAREamist:
     ) -> None:
         """Export the model to the BioImage Model Zoo format.
 
+        This method packages the current weights into a zip file that can be uploaded
+        to the BioImage Model Zoo. The archive consists of the model weights, the model
+        specifications and various files (inputs, outputs, README, env.yaml etc.).
+
+        `path_to_archive` should point to a file with a ".zip" extension.
+
+        `friendly_model_name` is the name used for the model in the BMZ specs
+        and website, it should consist of letters, numbers, dashes, underscores and
+        parentheses only.
+
         Input array must be of the same dimensions as the axes recorded in the
         configuration of the `CAREamist`.
 
-        `path` is the path in which to save the model, this can be a folder or a file.
-        `name` is the name of the model as used in the metadata of the BMZ archive.
-
-        `name` should consist of letters, numbers, dashes, underscores and parentheses
-        only.
-
-        If the parents of `path` do not exist, they will be created. If `path` is a
-        directory, then `name` will be used to create the archive file. If `path` is a
-        file, then the extension will be changed to ".zip" if is not already.
-
-        When using `name` to name the model archive, the spaces and parentheses are
-        replaced by underscores.
-
         Parameters
         ----------
-        path : pathlib.Path or str
-            Path in which to save the model, this can be a folder or a file.
-        name : str
-            Name of the model (only letters, numbers, hyphens, underscores, spaces and
-            parenthesis).
+        path_to_archive : pathlib.Path or str
+            Path in which to save the model, including file name, which should end with
+            ".zip".
+        friendly_model_name : str
+            Name of the model as used in the BMZ specs, it should consist of letters,
+            numbers, dashes, underscores and parentheses only.
         input_array : NDArray
             Input array used to validate the model and as example.
         authors : list of dict
@@ -717,8 +715,8 @@ class CAREamist:
         export_to_bmz(
             model=self.model,
             config=self.cfg,
-            path=path,
-            name=name,
+            path_to_archive=path_to_archive,
+            model_name=friendly_model_name,
             general_description=general_description,
             authors=authors,
             input_array=input_array,
