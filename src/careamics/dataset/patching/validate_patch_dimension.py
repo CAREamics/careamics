@@ -1,13 +1,13 @@
 """Patch validation functions."""
 
-from typing import List, Tuple, Union
+from typing import Union
 
 import numpy as np
 
 
 def validate_patch_dimensions(
     arr: np.ndarray,
-    patch_size: Union[List[int], Tuple[int, ...]],
+    patch_size: Union[list[int], tuple[int, ...]],
     is_3d_patch: bool,
 ) -> None:
     """
@@ -24,9 +24,9 @@ def validate_patch_dimensions(
 
     Parameters
     ----------
-    arr : np.ndarray
+    arr : numpy.ndarray
         Input array.
-    patch_size : Union[List[int], Tuple[int, ...]]
+    patch_size : list or tuple of int
         Size of the patches along each dimension of the array, except the first.
     is_3d_patch : bool
         Whether the patch is 3D or not.

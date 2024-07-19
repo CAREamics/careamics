@@ -1,8 +1,7 @@
 """Tiled patching utilities."""
 
 import itertools
-from collections.abc import Generator
-from typing import List, Tuple, Union
+from typing import Generator, Union
 
 import numpy as np
 
@@ -11,7 +10,7 @@ from careamics.config.tile_information import TileInformation
 
 def _compute_crop_and_stitch_coords_1d(
     axis_size: int, tile_size: int, overlap: int
-) -> Tuple[List[Tuple[int, int]], List[Tuple[int, int]], List[Tuple[int, int]]]:
+) -> tuple[list[tuple[int, int]], list[tuple[int, int]], list[tuple[int, int]]]:
     """
     Compute the coordinates of each tile along an axis, given the overlap.
 
@@ -26,7 +25,7 @@ def _compute_crop_and_stitch_coords_1d(
 
     Returns
     -------
-    Tuple[Tuple[int, ...], ...]
+    (list of (int, int), list of (int, int), list of (int, int))
         Tuple of all coordinates for given axis.
     """
     # Compute the step between tiles
@@ -82,9 +81,9 @@ def _compute_crop_and_stitch_coords_1d(
 
 def extract_tiles(
     arr: np.ndarray,
-    tile_size: Union[List[int], Tuple[int, ...]],
-    overlaps: Union[List[int], Tuple[int, ...]],
-) -> Generator[Tuple[np.ndarray, TileInformation], None, None]:
+    tile_size: Union[list[int], tuple[int, ...]],
+    overlaps: Union[list[int], tuple[int, ...]],
+) -> Generator[tuple[np.ndarray, TileInformation], None, None]:
     """Generate tiles from the input array with specified overlap.
 
     The tiles cover the whole array. The method returns a generator that yields
@@ -97,16 +96,16 @@ def extract_tiles(
 
     Parameters
     ----------
-    arr : np.ndarray
+    arr : numpy.ndarray
         Array of shape (S, C, (Z), Y, X).
-    tile_size : Union[List[int], Tuple[int]]
+    tile_size : list or tuple of int
         Tile sizes in each dimension, of length 2 or 3.
-    overlaps : Union[List[int], Tuple[int]]
+    overlaps : list or tuple of int
         Overlap values in each dimension, of length 2 or 3.
 
     Yields
     ------
-    Generator[Tuple[np.ndarray, TileInformation], None, None]
+    Generator of (np.ndarray, TileInformation)
         Tile generator, yields the tile and additional information.
     """
     # Iterate over num samples (S)

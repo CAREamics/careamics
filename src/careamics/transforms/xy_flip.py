@@ -1,6 +1,6 @@
 """XY flip transform."""
 
-from typing import Optional, Tuple
+from typing import Optional
 
 import numpy as np
 
@@ -16,13 +16,13 @@ class XYFlip(Transform):
 
     Attributes
     ----------
-    axis_indices : List[int]
+    axis_indices : list of int
         Indices of the axes that can be flipped.
-    rng : np.random.Generator
+    rng : numpy.random.Generator
         Random number generator.
     p : float
         Probability of applying the transform.
-    seed : Optional[int]
+    seed : int, optional
         Random seed.
 
     Parameters
@@ -33,7 +33,7 @@ class XYFlip(Transform):
         Whether to flip along the Y axis, by default True.
     p : float, optional
         Probability of applying the transform, by default 0.5.
-    seed : Optional[int], optional
+    seed : int, optional
         Random seed, by default None.
     """
 
@@ -54,7 +54,7 @@ class XYFlip(Transform):
             Whether to flip along the Y axis, by default True.
         p : float
             Probability of applying the transform, by default 0.5.
-        seed : Optional[int], optional
+        seed : int, optional
             Random seed, by default None.
         """
         if p < 0 or p > 1:
@@ -79,19 +79,19 @@ class XYFlip(Transform):
 
     def __call__(
         self, patch: np.ndarray, target: Optional[np.ndarray] = None
-    ) -> Tuple[np.ndarray, Optional[np.ndarray]]:
+    ) -> tuple[np.ndarray, Optional[np.ndarray]]:
         """Apply the transform to the source patch and the target (optional).
 
         Parameters
         ----------
-        patch : np.ndarray
+        patch : numpy.ndarray
             Patch, 2D or 3D, shape C(Z)YX.
-        target : Optional[np.ndarray], optional
+        target : numpy.ndarray, optional
             Target for the patch, by default None.
 
         Returns
         -------
-        Tuple[np.ndarray, Optional[np.ndarray]]
+        (numpy.ndarray, numpy.ndarray or None)
             Transformed patch and target.
         """
         if self.rng.random() > self.p:
@@ -110,14 +110,14 @@ class XYFlip(Transform):
 
         Parameters
         ----------
-        patch : np.ndarray
+        patch : numpy.ndarray
             Image patch, 2D or 3D, shape C(Z)YX.
         axis : int
             Axis to flip.
 
         Returns
         -------
-        np.ndarray
+        numpy.ndarray
             Flipped image patch.
         """
         return np.ascontiguousarray(np.flip(patch, axis=axis))

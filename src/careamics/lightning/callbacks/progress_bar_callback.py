@@ -1,7 +1,7 @@
 """Progressbar callback."""
 
 import sys
-from typing import Dict, Union
+from typing import Union
 
 from pytorch_lightning import LightningModule, Trainer
 from pytorch_lightning.callbacks import TQDMProgressBar
@@ -71,7 +71,7 @@ class ProgressBarCallback(TQDMProgressBar):
 
     def get_metrics(
         self, trainer: Trainer, pl_module: LightningModule
-    ) -> Dict[str, Union[int, str, float, Dict[str, float]]]:
+    ) -> dict[str, Union[int, str, float, dict[str, float]]]:
         """Override this to customize the metrics displayed in the progress bar.
 
         Parameters
@@ -83,7 +83,7 @@ class ProgressBarCallback(TQDMProgressBar):
 
         Returns
         -------
-        dict
+        dict of {str: int or str or float or dict of {str: float}}
             A dictionary with the metrics to display in the progress bar.
         """
         pbar_metrics = trainer.progress_bar_metrics

@@ -1,6 +1,6 @@
 """Convenience functions to create configurations for training and inference."""
 
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Literal, Optional
 
 from .algorithm_model import AlgorithmConfig
 from .architectures import UNetModel
@@ -21,7 +21,7 @@ def _create_supervised_configuration(
     experiment_name: str,
     data_type: Literal["array", "tiff", "custom"],
     axes: str,
-    patch_size: List[int],
+    patch_size: list[int],
     batch_size: int,
     num_epochs: int,
     use_augmentations: bool = True,
@@ -37,15 +37,15 @@ def _create_supervised_configuration(
 
     Parameters
     ----------
-    algorithm : Literal["care", "n2n"]
+    algorithm : {"n2v", "care", "n2n", "custom"}
         Algorithm to use.
     experiment_name : str
         Name of the experiment.
-    data_type : Literal["array", "tiff", "custom"]
+    data_type : {"array", "tiff", "custom"}
         Type of the data.
     axes : str
         Axes of the data (e.g. SYX).
-    patch_size : List[int]
+    patch_size : list of int
         Size of the patches along the spatial dimensions (e.g. [64, 64]).
     batch_size : int
         Batch size.
@@ -55,13 +55,13 @@ def _create_supervised_configuration(
         Whether to use augmentations, by default True.
     independent_channels : bool, optional
         Whether to train all channels independently, by default False.
-    loss : Literal["mae", "mse"], optional
+    loss : {"mae", "mse"}, optional
         Loss function to use, by default "mae".
     n_channels_in : int, optional
         Number of channels in, by default 1.
     n_channels_out : int, optional
         Number of channels out, by default 1.
-    logger : Literal["wandb", "tensorboard", "none"], optional
+    logger : {"wandb", "tensorboard", "none"}, optional
         Logger to use, by default "none".
     model_kwargs : dict, optional
         UNetModel parameters, by default {}.
@@ -105,7 +105,7 @@ def _create_supervised_configuration(
 
     # augmentations
     if use_augmentations:
-        transforms: List[Dict[str, Any]] = [
+        transforms: list[dict[str, Any]] = [
             {
                 "name": SupportedTransform.XY_FLIP.value,
             },
@@ -147,7 +147,7 @@ def create_care_configuration(
     experiment_name: str,
     data_type: Literal["array", "tiff", "custom"],
     axes: str,
-    patch_size: List[int],
+    patch_size: list[int],
     batch_size: int,
     num_epochs: int,
     use_augmentations: bool = True,
@@ -185,7 +185,7 @@ def create_care_configuration(
         Type of the data.
     axes : str
         Axes of the data (e.g. SYX).
-    patch_size : List[int]
+    patch_size : list of int
         Size of the patches along the spatial dimensions (e.g. [64, 64]).
     batch_size : int
         Batch size.
@@ -236,7 +236,7 @@ def create_n2n_configuration(
     experiment_name: str,
     data_type: Literal["array", "tiff", "custom"],
     axes: str,
-    patch_size: List[int],
+    patch_size: list[int],
     batch_size: int,
     num_epochs: int,
     use_augmentations: bool = True,
@@ -270,11 +270,11 @@ def create_n2n_configuration(
     ----------
     experiment_name : str
         Name of the experiment.
-    data_type : Literal["array", "tiff", "custom"]
+    data_type : {"array", "tiff", "custom"}
         Type of the data.
     axes : str
         Axes of the data (e.g. SYX).
-    patch_size : List[int]
+    patch_size : list of int
         Size of the patches along the spatial dimensions (e.g. [64, 64]).
     batch_size : int
         Batch size.
@@ -284,13 +284,13 @@ def create_n2n_configuration(
         Whether to use augmentations, by default True.
     independent_channels : bool, optional
         Whether to train all channels independently, by default False.
-    loss : Literal["mae", "mse"], optional
+    loss : {"mae", "mse"}, optional
         Loss function to use, by default "mae".
     n_channels_in : int, optional
         Number of channels in, by default 1.
     n_channels_out : int, optional
         Number of channels out, by default -1.
-    logger : Literal["wandb", "tensorboard", "none"], optional
+    logger : {"wandb", "tensorboard", "none"}, optional
         Logger to use, by default "none".
     model_kwargs : dict, optional
         UNetModel parameters, by default {}.
@@ -325,7 +325,7 @@ def create_n2v_configuration(
     experiment_name: str,
     data_type: Literal["array", "tiff", "custom"],
     axes: str,
-    patch_size: List[int],
+    patch_size: list[int],
     batch_size: int,
     num_epochs: int,
     use_augmentations: bool = True,
@@ -378,11 +378,11 @@ def create_n2v_configuration(
     ----------
     experiment_name : str
         Name of the experiment.
-    data_type : Literal["array", "tiff", "custom"]
+    data_type : {"array", "tiff", "custom"}
         Type of the data.
     axes : str
         Axes of the data (e.g. SYX).
-    patch_size : List[int]
+    patch_size : list of int
         Size of the patches along the spatial dimensions (e.g. [64, 64]).
     batch_size : int
         Batch size.
@@ -400,11 +400,11 @@ def create_n2v_configuration(
         N2V pixel manipulation area, by default 11.
     masked_pixel_percentage : float, optional
         Percentage of pixels masked in each patch, by default 0.2.
-    struct_n2v_axis : Literal["horizontal", "vertical", "none"], optional
+    struct_n2v_axis : {"horizontal", "vertical", "none"}, optional
         Axis along which to apply structN2V mask, by default "none".
     struct_n2v_span : int, optional
         Span of the structN2V mask, by default 5.
-    logger : Literal["wandb", "tensorboard", "none"], optional
+    logger : {"wandb", "tensorboard", "none"}, optional
         Logger to use, by default "none".
     model_kwargs : dict, optional
         UNetModel parameters, by default {}.
@@ -522,7 +522,7 @@ def create_n2v_configuration(
 
     # augmentations
     if use_augmentations:
-        transforms: List[Dict[str, Any]] = [
+        transforms: list[dict[str, Any]] = [
             {
                 "name": SupportedTransform.XY_FLIP.value,
             },

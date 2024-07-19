@@ -1,7 +1,5 @@
 """Dataset utilities."""
 
-from typing import List, Tuple
-
 import numpy as np
 
 from careamics.utils.logging import get_logger
@@ -10,14 +8,14 @@ logger = get_logger(__name__)
 
 
 def _get_shape_order(
-    shape_in: Tuple[int, ...], axes_in: str, ref_axes: str = "STCZYX"
-) -> Tuple[Tuple[int, ...], str, List[int]]:
+    shape_in: tuple[int, ...], axes_in: str, ref_axes: str = "STCZYX"
+) -> tuple[tuple[int, ...], str, list[int]]:
     """
     Compute a new shape for the array based on the reference axes.
 
     Parameters
     ----------
-    shape_in : Tuple[int, ...]
+    shape_in : tuple of int
         Input shape.
     axes_in : str
         Input axes.
@@ -26,7 +24,7 @@ def _get_shape_order(
 
     Returns
     -------
-    Tuple[Tuple[int, ...], str, List[int]]
+    (tuple of int, str, list of int)
         New shape, new axes, indices of axes in the new axes order.
     """
     indices = [axes_in.find(k) for k in ref_axes]
