@@ -23,7 +23,6 @@ from careamics.config.support import (
     SupportedData,
     SupportedLogger,
 )
-from careamics.dataset import IterablePredDataset, IterableTiledPredDataset
 from careamics.dataset.dataset_utils import reshape_array
 from careamics.file_io import WriteFunc
 from careamics.lightning import (
@@ -223,7 +222,7 @@ class CAREamist:
 
     def _define_callbacks(self, callbacks: Optional[list[Callback]] = None) -> None:
         """
-        Define the callbacks.
+        Define the callbacks for the training loop.
 
         Parameters
         ----------
@@ -729,7 +728,7 @@ class CAREamist:
         )
         self.prediction_writer.write_strategy = write_strategy
 
-        # turns writing predictions on 
+        # turns writing predictions on
         with self.prediction_writer.writing_predictions(True):
             # predict (without returning predictions, saves memory)
             self.trainer.predict(
