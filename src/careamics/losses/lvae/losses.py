@@ -105,7 +105,7 @@ def _get_reconstruction_loss_vector(
     #         channel_1_w * output["ch1_loss"]
     #         + channel_2_w * output["ch2_loss"]
     #     ) / (channel_1_w + channel_2_w)
-    # TODO what's this ?
+    # TODO what's this ? This all can be removed
 
     # This `if` is not used by default config
     # if enable_mixed_rec:
@@ -169,7 +169,7 @@ def reconstruction_loss_musplit_denoisplit(
 
 def _get_weighted_likelihood(
     ll, ch1_recons_w=1, ch2_recons_w=1
-):  # TODO what's this ? added defaults
+):  # TODO what's this ? added defaults Thsi can be removed
     """Each of the channels gets multiplied with a different weight."""
     if ch1_recons_w == 1 and ch2_recons_w == 1:
         return ll
@@ -219,7 +219,7 @@ def get_kl_divergence_loss(topdown_layer_data_dict, img_shape, kl_key="kl"):
 
     # As compared to uSplit kl divergence,
     # more by a factor of 4 just because we do sum and not mean.
-    kl_loss = free_bits_kl(kl, 1).sum()  # TODO hardcoded free_bits=1
+    kl_loss = free_bits_kl(kl, 1).sum()  # TODO hardcoded free_bits 1
     # NOTE: at each hierarchy, it is more by a factor of 128/i**2).
     # 128/(2*2) = 32 (bottommost layer)
     # 128/(4*4) = 8
@@ -309,7 +309,7 @@ def denoisplit_loss(model_outputs, targets, loss_parameters) -> dict:
         reconstruction=predictions,
         target=targets,
         input=loss_parameters.inputs,
-        splitting_mask=loss_parameters.mask,
+        splitting_mask=loss_parameters.mask, # TODO splitting_mask is not used
         return_predicted_img=True,
         likelihood_obj=loss_parameters.likelihood,
     )

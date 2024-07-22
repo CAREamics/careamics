@@ -16,7 +16,7 @@ class LVAEModel(ArchitectureModel):
     architecture: Literal["LVAE"]
     input_shape: int = Field(default=64, ge=8, le=1024)
     multiscale_count: int = Field(default=5)  # TODO clarify
-    # 0 - off, len(z_dims) + 1
+    # 0 - off, len(z_dims) + 1 # TODO can/should be le to z_dims len + 1
     z_dims: list = Field(default=[128, 128, 128, 128])
     output_channels: int = Field(default=1, ge=1)
     encoder_n_filters: int = Field(default=64, ge=8, le=1024)
@@ -30,7 +30,7 @@ class LVAEModel(ArchitectureModel):
     )
 
     predict_logvar: Literal[None, "global", "pixelwise", "channelwise"] = (
-        None  # TODO Remove ?
+        None  # TODO can only be none or pixelwise
     )
     enable_noise_model: bool = Field(
         default=True,

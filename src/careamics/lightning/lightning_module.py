@@ -5,7 +5,7 @@ from typing import Any, Literal, Optional, Union
 import pytorch_lightning as L
 from torch import Tensor, nn
 
-from careamics.config import FCNAlgorithmConfig
+from careamics.config import FCNAlgorithmConfig, VAEAlgorithmConfig
 from careamics.config.support import (
     SupportedAlgorithm,
     SupportedArchitecture,
@@ -231,7 +231,7 @@ class VAEModule(L.LightningModule):
         Learning rate scheduler name.
     """
 
-    def __init__(self, algorithm_config: Union[FCNAlgorithmConfig, dict]) -> None:
+    def __init__(self, algorithm_config: Union[VAEAlgorithmConfig, dict]) -> None:
         """Lightning module for CAREamics.
 
         This class encapsulates the a PyTorch model along with the training, validation,
@@ -245,16 +245,20 @@ class VAEModule(L.LightningModule):
         super().__init__()
         # if loading from a checkpoint, AlgorithmModel needs to be instantiated
         self.algorithm_config = (
-            FCNAlgorithmConfig(**algorithm_config)
+            VAEAlgorithmConfig(**algorithm_config)
             if isinstance(algorithm_config, dict)
             else algorithm_config
         )
 
         # create model and loss function
         self.model: nn.Module = model_factory(self.algorithm_config.model)
-        self.likelihood = likelihood_factory(self.algorithm_config.likelihood)
         self.noise_model = noise_model_factory(self.algorithm_config.noise_model)
-        self.loss_parameters = LVAELossParameters
+        self.noise_model_likelihood = likelihood_factory(
+            self.algorithm_config.noise_model_likelihood_model
+        )
+        self.gaussian_likelihood = likelihood_factory(
+            self.algorithm_config.gaussian_likelihood_model
+        )
         # TODO how to modify these ?
         self.loss_func = loss_factory(self.algorithm_config.loss)
 
@@ -301,7 +305,9 @@ class VAEModule(L.LightningModule):
         self.loss_parameters.current_epoch = self.current_epoch
         self.loss_parameters.inputs = x
         self.loss_parameters.mask = ~((target == 0).reshape(len(target), -1).all(dim=1))
-        self.loss_parameters.likelihood = self.likelihood
+        self.loss_parameters.likelihood = (
+            self.likelihood
+        )  # TODO refac ?
         self.loss_parameters.noise_model = self.noise_model
         loss = self.loss_func(out, target, self.loss_parameters)  # TODO ugly ?
 

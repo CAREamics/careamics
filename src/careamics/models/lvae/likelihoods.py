@@ -26,7 +26,7 @@ def likelihood_factory(config: Union[GaussianLikelihoodModel, NMLikelihoodModel,
     nn.Module
         The likelihood module.
     """
-    if config.model_type == "GaussianLikelihoodModel":
+    if isinstance(config, GaussianLikelihoodModel):
         return GaussianLikelihood(
             ch_in=config.ch_in,
             color_channels=config.color_channels,
@@ -34,7 +34,7 @@ def likelihood_factory(config: Union[GaussianLikelihoodModel, NMLikelihoodModel,
             logvar_lowerbound=config.logvar_lowerbound,
             conv2d_bias=config.conv2d_bias,
         )
-    elif config.model_type == "NMLikelihoodModel":
+    elif isinstance(config, NMLikelihoodModel):
         return NoiseModelLikelihood(
             ch_in=config.ch_in,
             color_channels=config.color_channels,

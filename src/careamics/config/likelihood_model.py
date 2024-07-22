@@ -17,11 +17,9 @@ class GaussianLikelihoodModel(BaseModel):
 
     model_config = ConfigDict(validate_assignment=True)
 
-    model_type: Literal["GaussianLikelihoodModel"]
-
     color_channels: int = Field(default=2, ge=1)  # TODO output channels, rename, vals?
     ch_in: int = Field(default=64)  # input to the likelihood model
-    predict_logvar: Literal[None, "pixelwise", "global", "channelwise"] = None
+    predict_logvar: Literal[None, "pixelwise"] = None
     logvar_lowerbound: float = None
     conv2d_bias: bool = True
 
@@ -35,8 +33,6 @@ class NMLikelihoodModel(BaseModel):
     """
 
     model_config = ConfigDict(validate_assignment=True, arbitrary_types_allowed=True)
-
-    model_type: Literal["NMLikelihoodModel"]
 
     color_channels: int = Field(default=2, ge=1)
     ch_in: int = Field(default=64)  # input to the likelihood model

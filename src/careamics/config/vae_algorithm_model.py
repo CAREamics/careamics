@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pprint import pformat
-from typing import Literal, Union
+from typing import Literal, Union, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from typing_extensions import Self
@@ -102,9 +102,8 @@ class VAEAlgorithmConfig(BaseModel):
     model: Union[LVAEModel, CustomModel] = Field(discriminator="architecture")
 
     noise_model: GMNMModel = Field(discriminator="model_type")
-    likelihood_model: Union[GaussianLikelihoodModel, NMLikelihoodModel] = Field(
-        discriminator="model_type"
-    )
+    noise_model_likelihood_model: Optional[NMLikelihoodModel] = None
+    gaussian_likelihood_model: Optional[GaussianLikelihoodModel] = None
 
     # Optional fields
     optimizer: OptimizerModel = OptimizerModel()

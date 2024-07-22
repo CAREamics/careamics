@@ -209,7 +209,7 @@ class GaussianMixtureNoiseModel(nn.Module):
             Use `params` if one wishes to load a model with trained weights.
             While initializing a new object of the class `GaussianMixtureNoiseModel` from scratch, set this to `None`.
     """
-
+    # TODO training a NM relies on getting a clean data(N2V e.g,)
     def __init__(self, config: GMNMModel):
         super().__init__()
         self._learnable = False

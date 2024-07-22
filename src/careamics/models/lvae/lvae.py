@@ -71,7 +71,7 @@ class LadderVAE(nn.Module):
 
         # -------------------------------------------------------
         # Model attributes -> Hardcoded
-        self.model_type = ModelType.LadderVae  # TODO remove ?
+        self.model_type = ModelType.LadderVae  # TODO remove !
         self.encoder_blocks_per_layer = 1
         self.decoder_blocks_per_layer = 1
         self.bottomup_batchnorm = True
