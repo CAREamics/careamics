@@ -309,7 +309,7 @@ def denoisplit_loss(model_outputs, targets, loss_parameters) -> dict:
         reconstruction=predictions,
         target=targets,
         input=loss_parameters.inputs,
-        splitting_mask=loss_parameters.mask, # TODO splitting_mask is not used
+        splitting_mask=loss_parameters.mask,  # TODO splitting_mask is not used
         return_predicted_img=True,
         likelihood_obj=loss_parameters.likelihood,
     )

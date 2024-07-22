@@ -14,7 +14,6 @@ from careamics.config.support import (
     SupportedScheduler,
 )
 from careamics.losses import loss_factory
-from careamics.losses.loss_factory import LVAELossParameters
 from careamics.models.lvae.likelihoods import likelihood_factory
 from careamics.models.lvae.noise_models import noise_model_factory
 from careamics.models.model_factory import model_factory
@@ -305,9 +304,7 @@ class VAEModule(L.LightningModule):
         self.loss_parameters.current_epoch = self.current_epoch
         self.loss_parameters.inputs = x
         self.loss_parameters.mask = ~((target == 0).reshape(len(target), -1).all(dim=1))
-        self.loss_parameters.likelihood = (
-            self.likelihood
-        )  # TODO refac ?
+        self.loss_parameters.likelihood = self.likelihood  # TODO refac ?
         self.loss_parameters.noise_model = self.noise_model
         loss = self.loss_func(out, target, self.loss_parameters)  # TODO ugly ?
 
