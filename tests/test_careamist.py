@@ -819,14 +819,17 @@ def test_predict_to_disk_YX_tiff(tmp_path, minimum_configuration, tiled):
 
 @pytest.mark.parametrize("tiled", [True, False])
 def test_predict_to_disk_SYX_tiff(tmp_path, minimum_configuration, tiled):
+    n_files = 2
     n_samples = 2
     train_array = random_array((n_samples, 32, 32))
 
     # save files
     train_dir = tmp_path / "train"
     train_dir.mkdir()
-    file_name = "image.tiff"
-    tifffile.imwrite(train_dir / file_name, train_array)
+    file_names = [f"image_{i}.tiff" for i in range(n_files)]
+    for file_name in file_names:
+        train_file = train_dir / file_name
+        tifffile.imwrite(train_file, train_array)
 
     # create configuration
     config = Configuration(**minimum_configuration)
@@ -855,9 +858,10 @@ def test_predict_to_disk_SYX_tiff(tmp_path, minimum_configuration, tiled):
     )
 
     predict_dir = tmp_path / "predictions"
-    for i in range(n_samples):
-        predict_file = predict_dir / f"{(Path(file_name).stem)}_{i}.tiff"
-        assert predict_file.is_file()
+    for file_name in file_names:
+        for j in range(n_samples):
+            predict_file = predict_dir / f"{(Path(file_name).stem)}_{j}.tiff"
+            assert predict_file.is_file()
 
 
 def test_export_bmz_pretrained_prediction(tmp_path: Path, pre_trained: Path):
