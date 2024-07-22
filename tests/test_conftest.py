@@ -1,7 +1,6 @@
 from careamics import Configuration
-from careamics.config.vae_algorithm_model import VAEAlgorithmConfig
-from careamics.config.fcn_algorithm_model import FCNAlgorithmConfig
 from careamics.config.data_model import DataConfig
+from careamics.config.fcn_algorithm_model import FCNAlgorithmConfig
 from careamics.config.inference_model import InferenceConfig
 from careamics.config.training_model import TrainingConfig
 

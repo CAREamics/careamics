@@ -1,6 +1,6 @@
 """Likelihood model."""
 
-from typing import Literal, Union, Optional
+from typing import Literal, Optional, Union
 
 import torch
 from pydantic import BaseModel, ConfigDict, Field

@@ -274,7 +274,9 @@ class NoiseModelLikelihood(LikelihoodModule):
         ch_in: int,
         color_channels: int,
         data_mean: Union[Dict[str, torch.Tensor], torch.Tensor],
-        data_std: Union[Dict[str, torch.Tensor], torch.Tensor], # TODO why dict ? what keys?
+        data_std: Union[
+            Dict[str, torch.Tensor], torch.Tensor
+        ],  # TODO why dict ? what keys?
         noiseModel: nn.Module,
     ):
         super().__init__()

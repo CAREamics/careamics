@@ -12,10 +12,8 @@ from bioimageio.spec.generic.v0_3 import CiteEntry
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from typing_extensions import Self
 
-from .fcn_algorithm_model import FCNAlgorithmConfig
-
-from .vae_algorithm_model import VAEAlgorithmConfig
 from .data_model import DataConfig
+from .fcn_algorithm_model import FCNAlgorithmConfig
 from .references import (
     CARE,
     CUSTOM,
@@ -41,6 +39,7 @@ from .training_model import TrainingConfig
 from .transformations.n2v_manipulate_model import (
     N2VManipulateModel,
 )
+from .vae_algorithm_model import VAEAlgorithmConfig
 
 
 class Configuration(BaseModel):

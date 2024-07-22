@@ -21,10 +21,9 @@ def test_gm_noise_model(tmp_path):
         min_sigma=min_sigma,
     )
     noise_model = noise_model_factory(nm_config, [filename])
-    assert noise_model is not None # TODO wtf is nmodel_0 and why ?
+    assert noise_model is not None  # TODO wtf is nmodel_0 and why ?
     assert np.allclose(noise_model.nmodel_0.weight, trained_weight)
     assert np.allclose(noise_model.nmodel_0.min_signal, min_signal)
     assert np.allclose(noise_model.nmodel_0.max_signal, max_signal)
     assert np.allclose(noise_model.nmodel_0.min_sigma, min_sigma)
     # TODO add checks for other params, for training case
-

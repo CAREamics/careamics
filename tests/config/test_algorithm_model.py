@@ -1,6 +1,5 @@
 import pytest
 
-from careamics.config.vae_algorithm_model import VAEAlgorithmConfig
 from careamics.config.fcn_algorithm_model import FCNAlgorithmConfig
 from careamics.config.support import (
     SupportedAlgorithm,

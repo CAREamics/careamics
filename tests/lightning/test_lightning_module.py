@@ -4,7 +4,6 @@ import torch
 from careamics.config import FCNAlgorithmConfig
 from careamics.lightning.lightning_module import (
     FCNModule,
-    VAEModule,
     create_careamics_module,
 )
 
