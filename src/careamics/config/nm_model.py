@@ -5,7 +5,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 
-class GMNMModel(BaseModel):
+class GaussianMixtureNmModel(BaseModel):
     """Gaussian mixture noise model."""
 
     model_config = ConfigDict(

@@ -7,7 +7,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from careamics.config import GMNMModel
+from careamics.config import GaussianMixtureNmModel
 
 from .utils import ModelType
 
@@ -15,7 +15,7 @@ from .utils import ModelType
 
 
 def noise_model_factory(
-    model_config: Union[GMNMModel, None], paths: Optional[list[Union[str, Path]]] = None
+    model_config: Union[GaussianMixtureNmModel, None], paths: Optional[list[Union[str, Path]]] = None
 ) -> nn.Module:
     """Noise model factory.
 
@@ -209,8 +209,9 @@ class GaussianMixtureNoiseModel(nn.Module):
             Use `params` if one wishes to load a model with trained weights.
             While initializing a new object of the class `GaussianMixtureNoiseModel` from scratch, set this to `None`.
     """
+
     # TODO training a NM relies on getting a clean data(N2V e.g,)
-    def __init__(self, config: GMNMModel):
+    def __init__(self, config: GaussianMixtureNmModel):
         super().__init__()
         self._learnable = False
 

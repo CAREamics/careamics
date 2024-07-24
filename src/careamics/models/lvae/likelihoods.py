@@ -114,7 +114,7 @@ class GaussianLikelihood(LikelihoodModule):
         self,
         ch_in: int,
         color_channels: int,
-        predict_logvar: Literal[None, "pixelwise", "global", "channelwise"] = None,
+        predict_logvar: Literal[None, "pixelwise"] = None,
         logvar_lowerbound: Union[float, None] = None,
         conv2d_bias: bool = True,
     ):
@@ -141,7 +141,7 @@ class GaussianLikelihood(LikelihoodModule):
         self.predict_logvar = predict_logvar
         self.logvar_lowerbound = logvar_lowerbound
         self.conv2d_bias = conv2d_bias
-        assert self.predict_logvar in [None, "global", "pixelwise", "channelwise"]
+        assert self.predict_logvar in [None, "pixelwise"]
 
         # logvar_ch_needed = self.predict_logvar is not None
         # self.parameter_net = nn.Conv2d(ch_in,

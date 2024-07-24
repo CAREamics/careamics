@@ -3,14 +3,14 @@
 from __future__ import annotations
 
 from pprint import pformat
-from typing import Literal, Union, Optional
+from typing import Literal, Optional, Union
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from typing_extensions import Self
 
 from .architectures import CustomModel, LVAEModel
 from .likelihood_model import GaussianLikelihoodModel, NMLikelihoodModel
-from .nm_model import GMNMModel
+from .nm_model import GaussianMixtureNmModel
 from .optimizer_models import LrSchedulerModel, OptimizerModel
 
 
@@ -48,43 +48,7 @@ class VAEAlgorithmConfig(BaseModel):
 
     Examples
     --------
-    Minimum example:
-    >>> from careamics.config import AlgorithmConfig
-    >>> config_dict = {
-    ...     "algorithm": "n2v",
-    ...     "loss": "n2v",
-    ...     "model": {
-    ...         "architecture": "UNet",
-    ...     }
-    ... }
-    >>> config = AlgorithmConfig(**config_dict)
-
-    Using a custom model:
-    >>> from torch import nn, ones
-    >>> from careamics.config import AlgorithmConfig, register_model
-    ...
-    >>> @register_model(name="linear_model")
-    ... class LinearModel(nn.Module):
-    ...    def __init__(self, in_features, out_features, *args, **kwargs):
-    ...        super().__init__()
-    ...        self.in_features = in_features
-    ...        self.out_features = out_features
-    ...        self.weight = nn.Parameter(ones(in_features, out_features))
-    ...        self.bias = nn.Parameter(ones(out_features))
-    ...    def forward(self, input):
-    ...        return (input @ self.weight) + self.bias
-    ...
-    >>> config_dict = {
-    ...     "algorithm": "custom",
-    ...     "loss": "mse",
-    ...     "model": {
-    ...         "architecture": "Custom",
-    ...         "name": "linear_model",
-    ...         "in_features": 10,
-    ...         "out_features": 5,
-    ...     }
-    ... }
-    >>> config = AlgorithmConfig(**config_dict)
+    # TODO add once finalized
     """
 
     # Pydantic class configuration
@@ -101,7 +65,7 @@ class VAEAlgorithmConfig(BaseModel):
     loss: Literal["musplit_loss", "denoisplit_loss"]
     model: Union[LVAEModel, CustomModel] = Field(discriminator="architecture")
 
-    noise_model: GMNMModel = Field(discriminator="model_type")
+    noise_model: GaussianMixtureNmModel = Field(discriminator="model_type")
     noise_model_likelihood_model: Optional[NMLikelihoodModel] = None
     gaussian_likelihood_model: Optional[GaussianLikelihoodModel] = None
 

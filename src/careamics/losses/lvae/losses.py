@@ -95,52 +95,6 @@ def _get_reconstruction_loss_vector(
         output["ch1_loss"] = output["loss"]
         output["ch2_loss"] = output["loss"]
 
-    # if (
-    #     channel_1_w is not None
-    #     and channel_2_w is not None
-    #     and (channel_1_w != 1 or channel_2_w != 1)
-    # ):
-    #     assert ll.shape[1] == 2, "Only 2 channels are supported for now."
-    #     output["loss"] = (
-    #         channel_1_w * output["ch1_loss"]
-    #         + channel_2_w * output["ch2_loss"]
-    #     ) / (channel_1_w + channel_2_w)
-    # TODO what's this ? This all can be removed
-
-    # This `if` is not used by default config
-    # if enable_mixed_rec:
-    #     mixed_pred, mixed_logvar = get_mixed_prediction(
-    #         like_dict["params"]["mean"],
-    #         like_dict["params"]["logvar"],
-    #         data_mean,
-    #         data_std,
-    #     )
-    #     if (
-    #         model._multiscale_count is not None
-    #         and model._multiscale_count > 1
-    #     ):
-    #         assert input.shape[1] == model._multiscale_count
-    #         input = input[:, :1]
-
-    #     assert (
-    #         input.shape == mixed_pred.shape
-    #     ), "No fucking room for vectorization induced bugs."
-    #     mixed_recons_ll = model.likelihood.log_likelihood(
-    #         input, {"mean": mixed_pred, "logvar": mixed_logvar}
-    #     )
-    #     output["mixed_loss"] = compute_batch_mean(-1 * mixed_recons_ll)
-    # #TODO And this ?
-
-    # This `if` is not used by default config
-    # if _exclusion_loss_weight:
-    #     raise NotImplementedError(
-    #         "Exclusion loss is not well defined here, so it should not be used."
-    #     )
-    # imgs = like_dict["params"]["mean"]
-    # exclusion_loss = compute_exclusion_loss(imgs[:, :1], imgs[:, 1:])
-    # output["exclusion_loss"] = exclusion_loss
-    # TODO what's this ?
-
     if return_predicted_img:
         return output, like_dict["params"]["mean"]
 

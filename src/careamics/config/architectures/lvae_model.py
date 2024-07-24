@@ -29,9 +29,8 @@ class LVAEModel(ArchitectureModel):
         default="ELU",
     )
 
-    predict_logvar: Literal[None, "global", "pixelwise", "channelwise"] = (
-        None  # TODO can only be none or pixelwise
-    )
+    predict_logvar: Literal[None, "pixelwise"] = None
+
     enable_noise_model: bool = Field(
         default=True,
     )

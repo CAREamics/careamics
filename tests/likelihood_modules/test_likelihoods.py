@@ -4,7 +4,7 @@ import numpy as np
 import torch
 
 from careamics.config.likelihood_model import GaussianLikelihoodModel, NMLikelihoodModel
-from careamics.config.nm_model import GMNMModel
+from careamics.config.nm_model import GaussianMixtureNmModel
 from careamics.models.lvae.likelihoods import likelihood_factory
 from careamics.models.lvae.noise_models import noise_model_factory
 
@@ -24,7 +24,7 @@ def test_nm_likelihood(tmp_path):
     config.data_std = {"target": inputs.std()}
 
     # define noise model
-    nm_config = GMNMModel(model_type="GaussianMixtureNoiseModel")
+    nm_config = GaussianMixtureNmModel(model_type="GaussianMixtureNoiseModel")
     trained_weight = np.random.rand(18, 4)
     min_signal = np.random.rand(1)
     max_signal = np.random.rand(1)

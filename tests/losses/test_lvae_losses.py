@@ -4,7 +4,7 @@ import numpy as np
 import torch
 
 from careamics.config.likelihood_model import GaussianLikelihoodModel
-from careamics.config.nm_model import GMNMModel
+from careamics.config.nm_model import GaussianMixtureNmModel
 from careamics.losses.loss_factory import LVAELossParameters, loss_factory
 from careamics.losses.lvae.losses import denoisplit_loss, musplit_loss
 from careamics.models.lvae.likelihoods import likelihood_factory
@@ -30,7 +30,7 @@ def test_musplit_loss():
     ll_config = GaussianLikelihoodModel(
         model_type="GaussianLikelihoodModel", color_channels=2
     )
-    nm_config = GMNMModel(model_type="GaussianMixtureNoiseModel")
+    nm_config = GaussianMixtureNmModel(model_type="GaussianMixtureNoiseModel")
 
     # TODO rethink loss parameters
     loss_parameters.current_epoch = 0
@@ -62,7 +62,7 @@ def test_denoisplit_loss(tmp_path):
     ll_config = GaussianLikelihoodModel(
         model_type="GaussianLikelihoodModel", color_channels=2
     )
-    nm_config = GMNMModel(model_type="GaussianMixtureNoiseModel")
+    nm_config = GaussianMixtureNmModel(model_type="GaussianMixtureNoiseModel")
 
     trained_weight = np.random.rand(18, 4)
     min_signal = np.random.rand(1)
