@@ -259,7 +259,7 @@ class VAEModule(L.LightningModule):
         self.gaussian_likelihood = likelihood_factory(
             self.algorithm_config.gaussian_likelihood_model
         )
-        # TODO how to modify these ?
+        self.loss_parameters = LVAELossParameters()
         self.loss_func = loss_factory(self.algorithm_config.loss)
 
         # save optimizer and lr_scheduler names and parameters
@@ -305,9 +305,8 @@ class VAEModule(L.LightningModule):
         self.loss_parameters.current_epoch = self.current_epoch
         self.loss_parameters.inputs = x
         self.loss_parameters.mask = ~((target == 0).reshape(len(target), -1).all(dim=1))
-        self.loss_parameters.likelihood = (
-            self.likelihood
-        )  # TODO refac ?
+        self.loss_parameters.noise_model_likelihood = self.noise_model_likelihood
+        self.loss_parameters.gaussian_likelihood = self.gaussian_likelihood
         self.loss_parameters.noise_model = self.noise_model
         loss = self.loss_func(out, target, self.loss_parameters)  # TODO ugly ?
 
