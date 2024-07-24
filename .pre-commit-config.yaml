@@ -31,6 +31,7 @@ repos:
       - id: mypy
         files: "^src/"
         exclude: "^src/careamics/lvae_training/.*|^src/careamics/models/lvae/.*"
+        args: ['--config-file', 'mypy.ini']
         additional_dependencies:
           - numpy
           - types-PyYAML
