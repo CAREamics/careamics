@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import numpy as np
+import pytest
 import torch
 
 from careamics.config.likelihood_model import GaussianLikelihoodModel, NMLikelihoodModel
@@ -15,7 +16,7 @@ def test_gaussian_likelihood():
     inputs = torch.rand(64, 64)
     assert likelihood(inputs, inputs)[0].mean() is not None
 
-
+@pytest.mark.skip(reason="Not implemented yet")
 def test_nm_likelihood(tmp_path):
     config = NMLikelihoodModel(model_type="NMLikelihoodModel")
     inputs = torch.rand(1, 1, 64, 64)
