@@ -259,7 +259,7 @@ class VAEModule(L.LightningModule):
         self.gaussian_likelihood = likelihood_factory(
             self.algorithm_config.gaussian_likelihood_model
         )
-        self.loss_parameters = LVAELossParameters()
+        self.loss_parameters = LVAELossParameters() #type: ignore
         self.loss_func = loss_factory(self.algorithm_config.loss)
 
         # save optimizer and lr_scheduler names and parameters

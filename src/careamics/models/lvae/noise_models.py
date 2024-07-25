@@ -15,7 +15,8 @@ from .utils import ModelType
 
 
 def noise_model_factory(
-    model_config: Union[GaussianMixtureNmModel, None], paths: Optional[list[Union[str, Path]]] = None
+    model_config: Union[GaussianMixtureNmModel, None],
+    paths: Optional[list[Union[str, Path]]] = None,
 ) -> nn.Module:
     """Noise model factory.
 

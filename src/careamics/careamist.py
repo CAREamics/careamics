@@ -148,13 +148,11 @@ class CAREamist:
 
             # instantiate model
             if isinstance(self.cfg.algorithm_config, FCNAlgorithmConfig):
-                self.model: FCNModule = FCNModule(
+                self.model = FCNModule(
                     algorithm_config=self.cfg.algorithm_config,
                 )
             else:
-                raise NotImplementedError(
-                    "Architecture not supported."
-                )
+                raise NotImplementedError("Architecture not supported.")
 
         # path to configuration file or model
         else:
@@ -169,9 +167,9 @@ class CAREamist:
 
                 # instantiate model
                 if isinstance(self.cfg.algorithm_config, FCNAlgorithmConfig):
-                    self.model: FCNModule = FCNModule(
-                    algorithm_config=self.cfg.algorithm_config,
-                )
+                    self.model = FCNModule(
+                        algorithm_config=self.cfg.algorithm_config,
+                    ) # type: ignore
                 else:
                     raise NotImplementedError("Architecture not supported.")
 

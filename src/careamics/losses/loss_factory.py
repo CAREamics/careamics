@@ -35,8 +35,9 @@ class LVAELossParameters:
     targets: tensor
     inputs: tensor
     mask: tensor
-    likelihood: Callable
     noise_model: Callable
+    noise_model_likelihood: Callable
+    gaussian_likelihood: Callable
     current_epoch: int
     reconstruction_weight: float = 1.0
     musplit_weight: float = 0.0
