@@ -16,6 +16,7 @@ def test_gaussian_likelihood():
     inputs = torch.rand(64, 64)
     assert likelihood(inputs, inputs)[0].mean() is not None
 
+
 @pytest.mark.skip(reason="Not implemented yet")
 def test_nm_likelihood(tmp_path):
     config = NMLikelihoodModel(model_type="NMLikelihoodModel")

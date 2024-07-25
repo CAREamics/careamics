@@ -39,6 +39,8 @@ def _create_supervised_configuration(
 
     Parameters
     ----------
+    algorithm_type : Literal["fcn"]
+        Type of the algorithm.
     algorithm : Literal["care", "n2n"]
         Algorithm to use.
     experiment_name : str

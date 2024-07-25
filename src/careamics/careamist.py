@@ -169,7 +169,7 @@ class CAREamist:
                 if isinstance(self.cfg.algorithm_config, FCNAlgorithmConfig):
                     self.model = FCNModule(
                         algorithm_config=self.cfg.algorithm_config,
-                    ) # type: ignore
+                    )  # type: ignore
                 else:
                     raise NotImplementedError("Architecture not supported.")
 

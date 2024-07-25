@@ -214,7 +214,7 @@ class VAEModule(L.LightningModule):
 
     Parameters
     ----------
-    self.algorithm_config : Union[AlgorithmModel, dict]
+    algorithm_config : Union[AlgorithmModel, dict]
         Algorithm configuration.
 
     Attributes
@@ -239,7 +239,7 @@ class VAEModule(L.LightningModule):
 
         Parameters
         ----------
-        self.algorithm_config : Union[AlgorithmModel, dict]
+        algorithm_config : Union[AlgorithmModel, dict]
             Algorithm configuration.
         """
         super().__init__()
@@ -259,7 +259,7 @@ class VAEModule(L.LightningModule):
         self.gaussian_likelihood = likelihood_factory(
             self.algorithm_config.gaussian_likelihood_model
         )
-        self.loss_parameters = LVAELossParameters() #type: ignore
+        self.loss_parameters = LVAELossParameters()  # type: ignore
         self.loss_func = loss_factory(self.algorithm_config.loss)
 
         # save optimizer and lr_scheduler names and parameters
@@ -406,7 +406,7 @@ class VAEModule(L.LightningModule):
 
 
 def create_careamics_module(
-    algorithm_type: Literal["fcn", "vae"],
+    algorithm_type: Literal["fcn"],
     algorithm: Union[SupportedAlgorithm, str],
     loss: Union[SupportedLoss, str],
     architecture: Union[SupportedArchitecture, str],
@@ -423,6 +423,8 @@ def create_careamics_module(
 
     Parameters
     ----------
+    algorithm_type : Literal["fcn"]
+        Algorithm type to use for training.
     algorithm : SupportedAlgorithm or str
         Algorithm to use for training (see SupportedAlgorithm).
     loss : SupportedLoss or str
