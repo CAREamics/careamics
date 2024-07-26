@@ -181,7 +181,7 @@ class CAREamist:
         if self.cfg.training_config.has_logger():
             if self.cfg.training_config.logger == SupportedLogger.WANDB:
                 self.experiment_logger: LOGGER_TYPES = WandbLogger(
-                    name=experiment_name,
+                    name=self.cfg.experiment_name,
                     save_dir=self.work_dir / Path("logs"),
                 )
             elif self.cfg.training_config.logger == SupportedLogger.TENSORBOARD:
