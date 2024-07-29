@@ -32,6 +32,7 @@ class LadderVAE(nn.Module):
         self,
         input_shape: int,
         output_channels: int,
+        conv_dims: int,
         multiscale_count: int,
         z_dims: List[int],
         encoder_n_filters: int,
@@ -54,8 +55,9 @@ class LadderVAE(nn.Module):
 
         # -------------------------------------------------------
         # Customizable attributes
-        self.image_size = input_shape
+        self.image_size = input_shape # TODO: in the 3D case we'd like to accept also a tuple
         self.target_ch = output_channels
+        self.conv_dims = conv_dims
         self._multiscale_count = multiscale_count
         self.z_dims = z_dims
         self.encoder_n_filters = encoder_n_filters
@@ -140,7 +142,7 @@ class LadderVAE(nn.Module):
         # -------------------------------------------------------
         # Data attributes
         self.color_ch = 1
-        self.img_shape = (self.image_size, self.image_size)
+        self.img_shape = tuple([self.image_size] * self.conv_dims)
         self.normalized_input = True
         # -------------------------------------------------------
 
@@ -242,24 +244,23 @@ class LadderVAE(nn.Module):
             The number of BottomUpDeterministicResBlocks to include in the layer, default is 1.
         """
         nonlin = get_activation(self.nonlin)
-        modules = [
-            nn.Conv2d(
-                in_channels=self.color_ch,
-                out_channels=self.encoder_n_filters,
-                kernel_size=self.encoder_res_block_kernel,
-                padding=(
-                    0
-                    if self.encoder_res_block_skip_padding
-                    else self.encoder_res_block_kernel // 2
-                ),
-                stride=init_stride,
+        conv_block = getattr(nn, f"Conv{self.conv_dims}d")(
+            in_channels=self.color_ch,
+            out_channels=self.encoder_n_filters,
+            kernel_size=self.encoder_res_block_kernel,
+            padding=(
+                0
+                if self.encoder_res_block_skip_padding
+                else self.encoder_res_block_kernel // 2
             ),
-            nonlin,
-        ]
+            stride=init_stride,
+        )
+        modules = [conv_block, nonlin]
 
         for _ in range(num_res_blocks):
             modules.append(
                 BottomUpDeterministicResBlock(
+                    conv_dims=self.conv_dims,
                     c_in=self.encoder_n_filters,
                     c_out=self.encoder_n_filters,
                     nonlin=nonlin,
@@ -306,8 +307,9 @@ class LadderVAE(nn.Module):
             # N.B. Only used if layer_enable_multiscale == True, so we updated it only in that case
             multiscale_lowres_size_factor *= 1 + int(layer_enable_multiscale)
 
+            # TODO: check correctness of this
             output_expected_shape = (
-                (self.img_shape[0] // 2 ** (i + 1), self.img_shape[1] // 2 ** (i + 1))
+                self.img_shape // 2 ** (i + 1)
                 if self._multiscale_count > 1
                 else None
             )

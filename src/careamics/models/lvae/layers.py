@@ -22,6 +22,9 @@ from .utils import (
     pad_img_tensor,
 )
 
+ConvType = Union[nn.Conv2d, nn.Conv3d]
+NormType = Union[nn.BatchNorm2d, nn.BatchNorm3d]
+DropoutType = Union[nn.Dropout2d, nn.Dropout3d]
 
 class ResidualBlock(nn.Module):
     """
@@ -51,7 +54,8 @@ class ResidualBlock(nn.Module):
         self,
         channels: int,
         nonlin: Callable,
-        kernel: Union[int, Iterable[int]] = None,
+        conv_dims: int = 2,
+        kernel: Union[int, Iterable[int], None] = None,
         groups: int = 1,
         batchnorm: bool = True,
         block_type: str = None,
@@ -104,11 +108,16 @@ class ResidualBlock(nn.Module):
         self.skip_padding = skip_padding
         pad = [0] * len(kernel) if self.skip_padding else [k // 2 for k in kernel]
         # print(kernel, pad)
+        
+        # Define modules
+        conv_layer: ConvType = getattr(nn, f"Conv{conv_dims}d")
+        norm_layer: NormType = getattr(nn, f"BatchNorm{conv_dims}d")
+        dropout_layer: DropoutType = getattr(nn, f"Dropout{conv_dims}d")
 
         modules = []
         if block_type == "cabdcabd":
             for i in range(2):
-                conv = nn.Conv2d(
+                conv = conv_layer(
                     channels,
                     channels,
                     kernel[i],
@@ -119,15 +128,15 @@ class ResidualBlock(nn.Module):
                 modules.append(conv)
                 modules.append(nonlin)
                 if batchnorm:
-                    modules.append(nn.BatchNorm2d(channels))
+                    modules.append(norm_layer(channels))
                 if dropout is not None:
-                    modules.append(nn.Dropout2d(dropout))
+                    modules.append(dropout_layer(dropout))
         elif block_type == "bacdbac":
             for i in range(2):
                 if batchnorm:
-                    modules.append(nn.BatchNorm2d(channels))
+                    modules.append(norm_layer(channels))
                 modules.append(nonlin)
-                conv = nn.Conv2d(
+                conv = conv_layer(
                     channels,
                     channels,
                     kernel[i],
@@ -137,13 +146,13 @@ class ResidualBlock(nn.Module):
                 )
                 modules.append(conv)
                 if dropout is not None and i == 0:
-                    modules.append(nn.Dropout2d(dropout))
+                    modules.append(dropout_layer(dropout))
         elif block_type == "bacdbacd":
             for i in range(2):
                 if batchnorm:
-                    modules.append(nn.BatchNorm2d(channels))
+                    modules.append(norm_layer(channels))
                 modules.append(nonlin)
-                conv = nn.Conv2d(
+                conv = conv_layer(
                     channels,
                     channels,
                     kernel[i],
@@ -152,14 +161,14 @@ class ResidualBlock(nn.Module):
                     bias=conv2d_bias,
                 )
                 modules.append(conv)
-                modules.append(nn.Dropout2d(dropout))
+                modules.append(dropout_layer(dropout))
 
         else:
             raise ValueError(f"unrecognized block type '{block_type}'")
 
         self.gated = gated
         if gated:
-            modules.append(GateLayer2d(channels, 1, nonlin))
+            modules.append(GateLayer(channels, 1, nonlin))
 
         self.block = nn.Sequential(*modules)
 
@@ -178,17 +187,24 @@ class ResidualGatedBlock(ResidualBlock):
         super().__init__(*args, **kwargs, gated=True)
 
 
-class GateLayer2d(nn.Module):
+class GateLayer(nn.Module):
     """
     Double the number of channels through a convolutional layer, then use
     half the channels as gate for the other half.
     """
 
-    def __init__(self, channels, kernel_size, nonlin=nn.LeakyReLU):
+    def __init__(
+        self, 
+        channels: int, 
+        conv_dims: int = 2,
+        kernel_size: int = 3,
+        nonlin: Callable = nn.LeakyReLU
+    ):
         super().__init__()
         assert kernel_size % 2 == 1
         pad = kernel_size // 2
-        self.conv = nn.Conv2d(channels, 2 * channels, kernel_size, padding=pad)
+        conv_layer: ConvType = getattr(nn, f"Conv{conv_dims}d")
+        self.conv = conv_layer(*channels, 2 * channels, kernel_size, padding=pad)
         self.nonlin = nonlin
 
     def forward(self, x):
@@ -221,6 +237,7 @@ class ResBlockWithResampling(nn.Module):
         mode: Literal["top-down", "bottom-up"],
         c_in: int,
         c_out: int,
+        conv_dims: int = 2,
         min_inner_channels: int = None,
         nonlin: Callable = nn.LeakyReLU,
         resample: bool = False,
@@ -280,7 +297,10 @@ class ResBlockWithResampling(nn.Module):
         """
         super().__init__()
         assert mode in ["top-down", "bottom-up"]
-
+        
+        conv_layer: ConvType = getattr(nn, f"Conv{conv_dims}d")
+        transp_conv_layer: ConvType = getattr(nn, f"ConvTranspose{conv_dims}d")
+        
         if min_inner_channels is None:
             min_inner_channels = 0
         # inner_channels is the number of channels used in the inner layers
@@ -290,7 +310,7 @@ class ResBlockWithResampling(nn.Module):
         # Define first conv layer to change num channels and/or up/downsample
         if resample:
             if mode == "bottom-up":  # downsample
-                self.pre_conv = nn.Conv2d(
+                self.pre_conv = conv_layer(
                     in_channels=c_in,
                     out_channels=inner_channels,
                     kernel_size=3,
@@ -300,7 +320,7 @@ class ResBlockWithResampling(nn.Module):
                     bias=conv2d_bias,
                 )
             elif mode == "top-down":  # upsample
-                self.pre_conv = nn.ConvTranspose2d(
+                self.pre_conv = transp_conv_layer(
                     in_channels=c_in,
                     kernel_size=3,
                     out_channels=inner_channels,
@@ -311,7 +331,7 @@ class ResBlockWithResampling(nn.Module):
                     bias=conv2d_bias,
                 )
         elif c_in != inner_channels:
-            self.pre_conv = nn.Conv2d(
+            self.pre_conv = conv_layer(
                 c_in, inner_channels, 1, groups=groups, bias=conv2d_bias
             )
         else:
@@ -320,6 +340,7 @@ class ResBlockWithResampling(nn.Module):
         # Residual block
         self.res = ResidualBlock(
             channels=inner_channels,
+            conv_dims=conv_dims,
             nonlin=nonlin,
             kernel=res_block_kernel,
             groups=groups,
@@ -333,7 +354,7 @@ class ResBlockWithResampling(nn.Module):
 
         # Define last conv layer to get correct num output channels
         if inner_channels != c_out:
-            self.post_conv = nn.Conv2d(
+            self.post_conv = conv_layer(
                 inner_channels, c_out, 1, groups=groups, bias=conv2d_bias
             )
         else:
@@ -385,6 +406,7 @@ class BottomUpLayer(nn.Module):
         self,
         n_res_blocks: int,
         n_filters: int,
+        conv_dims: int = 2,
         downsampling_steps: int = 0,
         nonlin: Callable = None,
         batchnorm: bool = True,
@@ -467,6 +489,7 @@ class BottomUpLayer(nn.Module):
                 do_resample = True
                 downsampling_steps -= 1
             block = BottomUpDeterministicResBlock(
+                conv_dims=conv_dims,
                 c_in=n_filters,
                 c_out=n_filters,
                 nonlin=nonlin,
@@ -612,6 +635,7 @@ class MergeLayer(nn.Module):
         self,
         merge_type: Literal["linear", "residual", "residual_ungated"],
         channels: Union[int, Iterable[int]],
+        conv_dims: int = 2,
         nonlin: Callable = nn.LeakyReLU,
         batchnorm: bool = True,
         dropout: float = None,
@@ -636,6 +660,8 @@ class MergeLayer(nn.Module):
             If it is an Iterable (must have `len(channels)==3`):
                 - 1st 1x1 Conv2d: in_channels=sum(channels[:-1]), out_channels=channels[-1]
                 - (Optional) ResBlock: in_channels=channels[-1], out_channels=channels[-1]
+        conv_dims: int, optional
+            The number of dimensions of the convolutional layers (2D or 3D). Default is 2.
         nonlin: Callable, optional
             The non-linearity function used in the block. Default is `nn.LeakyReLU`.
         batchnorm: bool, optional
@@ -667,18 +693,21 @@ class MergeLayer(nn.Module):
 
         # assert len(channels) == 3
 
+        conv_layer: ConvType = getattr(nn, f"Conv{conv_dims}d")
+        
         if merge_type == "linear":
-            self.layer = nn.Conv2d(
+            self.layer = conv_layer(
                 sum(channels[:-1]), channels[-1], 1, bias=conv2d_bias
             )
         elif merge_type == "residual":
             self.layer = nn.Sequential(
-                nn.Conv2d(
+                conv_layer(
                     sum(channels[:-1]), channels[-1], 1, padding=0, bias=conv2d_bias
                 ),
                 ResidualGatedBlock(
-                    channels[-1],
-                    nonlin,
+                    conv_dims=conv_dims,
+                    channels=channels[-1],
+                    nonlin=nonlin,
                     batchnorm=batchnorm,
                     dropout=dropout,
                     block_type=res_block_type,
@@ -689,12 +718,13 @@ class MergeLayer(nn.Module):
             )
         elif merge_type == "residual_ungated":
             self.layer = nn.Sequential(
-                nn.Conv2d(
+                conv_layer(
                     sum(channels[:-1]), channels[-1], 1, padding=0, bias=conv2d_bias
                 ),
                 ResidualBlock(
-                    channels[-1],
-                    nonlin,
+                    conv_dims=conv_dims,
+                    channels=channels[-1],
+                    nonlin=nonlin,
                     batchnorm=batchnorm,
                     dropout=dropout,
                     block_type=res_block_type,
@@ -737,10 +767,10 @@ class MergeLowRes(MergeLayer):
         """
         if self.retain_spatial_dims:
             # Pad latent tensor to match lowres tensor's shape
-            latent = pad_img_tensor(latent, lowres.shape[2:])
+            latent = pad_img_tensor(latent, lowres.shape[2:]) # TODO: does this work for 3D?
         else:
             # Crop lowres tensor to match latent tensor's shape
-            lh, lw = lowres.shape[-2:]
+            lh, lw = lowres.shape[-2:]  # TODO: does this work for 3D? I bet not
             h = lh // self.multiscale_lowres_size_factor
             w = lw // self.multiscale_lowres_size_factor
             h_pad = (lh - h) // 2
@@ -762,6 +792,7 @@ class SkipConnectionMerger(MergeLayer):
         batchnorm: bool,
         dropout: float,
         res_block_type: str,
+        conv_dims: int = 2,
         merge_type: Literal["linear", "residual", "residual_ungated"] = "residual",
         conv2d_bias: bool = True,
         res_block_kernel: int = None,
@@ -780,15 +811,15 @@ class SkipConnectionMerger(MergeLayer):
             If it is an Iterable (must have `len(channels)==3`):
                 - 1st 1x1 Conv2d: in_channels=sum(channels[:-1]), out_channels=channels[-1]
                 - (Optional) ResBlock: in_channels=channels[-1], out_channels=channels[-1]
-        batchnorm: bool, optional
-            Whether to use batchnorm layers. Default is `True`.
-        dropout: float, optional
+        batchnorm: bool
+            Whether to use batchnorm layers.
+        dropout: float
             The dropout probability in dropout layers. If `None` dropout is not used.
-            Default is `None`.
-        res_block_type: str, optional
+        res_block_type: str
             A string specifying the structure of residual block.
             Check `ResidualBlock` doscstring for more information.
-            Default is `None`.
+        conv_dims: int, optional
+            The number of dimensions of the convolutional layers (2D or 3D). Default is 2.
         merge_type: Literal["linear", "residual", "residual_ungated"]
             The type of merge done in the layer. It can be chosen between "linear", "residual", and "residual_ungated".
             Check the class docstring for more information about the behaviour of different merge modalities.
@@ -802,6 +833,7 @@ class SkipConnectionMerger(MergeLayer):
             Whether to skip padding in convolutions in the Residual block. Default is `False`.
         """
         super().__init__(
+            conv_dims=conv_dims,    
             channels=channels,
             nonlin=nonlin,
             merge_type=merge_type,
@@ -815,21 +847,21 @@ class SkipConnectionMerger(MergeLayer):
 
 
 class TopDownLayer(nn.Module):
-    """
-    Top-down inference layer.
+    """Top-down inference layer.
+    
     It includes:
         - Stochastic sampling,
         - Computation of KL divergence,
         - A small deterministic ResNet that performs upsampling.
 
     NOTE 1:
-            The algorithm for generative inference approximately works as follows:
-                - p_params = output of top-down layer above
-                - bu = inferred bottom-up value at this layer
-                - q_params = merge(bu, p_params)
-                - z = stochastic_layer(q_params)
-                - (optional) get and merge skip connection from prev top-down layer
-                - top-down deterministic ResNet
+        The algorithm for generative inference approximately works as follows:
+            - p_params = output of top-down layer above
+            - bu = inferred bottom-up value at this layer
+            - q_params = merge(bu, p_params)
+            - z = stochastic_layer(q_params)
+            - (optional) get and merge skip connection from prev top-down layer
+            - top-down deterministic ResNet
 
     NOTE 2:
         The Top-Down layer can work in two modes: inference and prediction/generative.
@@ -856,6 +888,7 @@ class TopDownLayer(nn.Module):
         z_dim: int,
         n_res_blocks: int,
         n_filters: int,
+        conv_dims: int = 2,
         is_top_layer: bool = False,
         downsampling_steps: int = None,
         nonlin: Callable = None,
@@ -893,6 +926,8 @@ class TopDownLayer(nn.Module):
             The number of TopDownDeterministicResBlock blocks
         n_filters: int
             The number of channels present through out the layers of this block.
+        conv_dims: int, optional
+            The number of dimensions of the convolutional layers (2D or 3D). Default is 2.
         is_top_layer: bool, optional
             Whether the current layer is at the top of the Decoder hierarchy. Default is `False`.
         downsampling_steps: int, optional
@@ -1019,6 +1054,7 @@ class TopDownLayer(nn.Module):
                 TopDownDeterministicResBlock(
                     c_in=n_filters,
                     c_out=n_filters,
+                    conv_dims=conv_dims,
                     nonlin=nonlin,
                     upsample=do_resample,
                     batchnorm=batchnorm,
@@ -1033,7 +1069,7 @@ class TopDownLayer(nn.Module):
             )
         self.deterministic_block = nn.Sequential(*block_list)
 
-        # Define stochastic block with 2D convolutions
+        # Define stochastic block with convolutions
         if self.non_stochastic_version:
             self.stochastic = NonStochasticBlock2d(
                 c_in=n_filters,
@@ -1059,6 +1095,7 @@ class TopDownLayer(nn.Module):
             # generative outcomes to give posterior parameters
             self.merge = MergeLayer(
                 channels=n_filters,
+                conv_dims=conv_dims,
                 merge_type=merge_type,
                 nonlin=nonlin,
                 batchnorm=batchnorm,
@@ -1072,6 +1109,7 @@ class TopDownLayer(nn.Module):
             if stochastic_skip:
                 self.skip_connection_merger = SkipConnectionMerger(
                     channels=n_filters,
+                    conv_dims=conv_dims,
                     nonlin=nonlin,
                     batchnorm=batchnorm,
                     dropout=dropout,
