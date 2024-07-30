@@ -308,11 +308,13 @@ class LadderVAE(nn.Module):
             multiscale_lowres_size_factor *= 1 + int(layer_enable_multiscale)
 
             # TODO: check correctness of this
-            output_expected_shape = (
-                self.img_shape // 2 ** (i + 1)
-                if self._multiscale_count > 1
-                else None
-            )
+            if self._multiscale_count > 1:
+                output_expected_shape = (
+                    dim // 2 ** (i + 1)
+                    for dim in self.img_shape
+                )
+            else:
+                output_expected_shape = None
 
             # Add bottom-up deterministic layer at level i.
             # It's a sequence of residual blocks (BottomUpDeterministicResBlock), possibly with downsampling between them.
@@ -850,12 +852,12 @@ class LadderVAE(nn.Module):
         return x
 
     ### SET OF GETTERS
-    def get_padded_size(self, size):
+    def get_padded_size(self, size: tuple[int]) -> tuple[int]:
         """
-        Returns the smallest size (H, W) of the image with actual size given
+        Returns the smallest size ((Z), Y, X) of the image with actual size given
         as input, such that H and W are powers of 2.
-        :param size: input size, tuple either (N, C, H, w) or (H, W)
-        :return: 2-tuple (H, W)
+        :param size: input size, tuple either (N, C, (Z), Y, X) or ((Z), Y, X)
+        :return: 2-tuple ((Z), Y, X)
         """
         # Make size argument into (heigth, width)
         if len(size) == 4:

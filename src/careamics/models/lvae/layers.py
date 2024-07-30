@@ -168,7 +168,14 @@ class ResidualBlock(nn.Module):
 
         self.gated = gated
         if gated:
-            modules.append(GateLayer(channels, 1, nonlin))
+            modules.append(
+                GateLayer(
+                    channels=channels, 
+                    conv_dims=conv_dims,
+                    kernel_size=1, 
+                    nonlin=nonlin
+                )
+            )
 
         self.block = nn.Sequential(*modules)
 
@@ -204,7 +211,7 @@ class GateLayer(nn.Module):
         assert kernel_size % 2 == 1
         pad = kernel_size // 2
         conv_layer: ConvType = getattr(nn, f"Conv{conv_dims}d")
-        self.conv = conv_layer(*channels, 2 * channels, kernel_size, padding=pad)
+        self.conv = conv_layer(channels, 2 * channels, kernel_size, padding=pad)
         self.nonlin = nonlin
 
     def forward(self, x):
@@ -1208,6 +1215,7 @@ class TopDownLayer(nn.Module):
             The tensor defining the parameters /mu_q and /sigma_q computed during the bottom-up deterministic pass
             at the correspondent hierarchical layer.
         """
+        # TODO: this won't work for 3D
         if bu_value.shape[-2:] != p_params.shape[-2:]:
             assert self.bottomup_no_padding_mode is True  # TODO WTF ?
             if self.topdown_no_padding_mode is False:
@@ -1341,7 +1349,7 @@ class TopDownLayer(nn.Module):
             new_latent_shape = (
                 self.latent_shape[0] // 2 + extra_len,
                 self.latent_shape[1] // 2 + extra_len,
-            )
+            ) # TODO: this is 2D only
 
             # If the LC is not applied on all layers, then this can happen.
             if x.shape[-1] > new_latent_shape[-1]:
@@ -1399,6 +1407,7 @@ class NormalStochasticBlock2d(nn.Module):
         c_in: int,
         c_vars: int,
         c_out: int,
+        conv_dims: int = 2,
         kernel: int = 3,
         transform_p_params: bool = True,
         vanilla_latent_hw: int = None,
@@ -1415,6 +1424,9 @@ class NormalStochasticBlock2d(nn.Module):
         c_out:  int
             The output of the stochastic layer.
             Note that this is different from the sampled latent z.
+        conv_dims: int, optional
+            The number of dimensions of the convolutional layers (2D or 3D). 
+            Default is 2.
         kernel: int, optional
             The size of the kernel used in convolutional layers.
             Default is 3.
@@ -1442,14 +1454,17 @@ class NormalStochasticBlock2d(nn.Module):
         self.c_in = c_in
         self.c_out = c_out
         self.c_vars = c_vars
+        self.conv_dims = conv_dims
         self._use_naive_exponential = use_naive_exponential
         self._vanilla_latent_hw = vanilla_latent_hw
         self._restricted_kl = restricted_kl
 
+        conv_layer: ConvType = getattr(nn, f"Conv{conv_dims}d")
+        
         if transform_p_params:
-            self.conv_in_p = nn.Conv2d(c_in, 2 * c_vars, kernel, padding=pad)
-        self.conv_in_q = nn.Conv2d(c_in, 2 * c_vars, kernel, padding=pad)
-        self.conv_out = nn.Conv2d(c_vars, c_out, kernel, padding=pad)
+            self.conv_in_p = conv_layer(c_in, 2 * c_vars, kernel, padding=pad)
+        self.conv_in_q = conv_layer(c_in, 2 * c_vars, kernel, padding=pad)
+        self.conv_out = conv_layer(c_vars, c_out, kernel, padding=pad)
 
     # def forward_swapped(self, p_params, q_mu, q_lv):
     #
@@ -1482,7 +1497,7 @@ class NormalStochasticBlock2d(nn.Module):
     def get_z(
         self,
         sampling_distrib: torch.distributions.normal.Normal,
-        forced_latent: torch.Tensor,
+        forced_latent: Union[torch.Tensor, None],
         use_mode: bool,
         mode_pred: bool,
         use_uncond_mode: bool,
@@ -1595,20 +1610,20 @@ class NormalStochasticBlock2d(nn.Module):
             # summed over channel and spatial dimensions. [Shape: (batch, )]
             # NOTE: vanilla_latent_hw is the shape of the latent tensor used for prediction, hence
             # the restriction has shape [Shape: (batch, ch, vanilla_latent_hw[0], vanilla_latent_hw[1])]
-            if self._restricted_kl:
+            if self._restricted_kl: # TODO: this is 2D only
                 pad = (kl_elementwise.shape[-1] - self._vanilla_latent_hw) // 2
                 assert pad > 0, "Disable restricted kl since there is no restriction."
                 tmp = kl_elementwise[..., pad:-pad, pad:-pad]
                 kl_samplewise_restricted = tmp.sum((1, 2, 3))
 
             # KL term associated to each sample in the batch [Shape: (batch, )]
-            kl_samplewise = kl_elementwise.sum((1, 2, 3))
+            kl_samplewise = kl_elementwise.sum((1, 2, 3)) # TODO: this is 2D only
 
             # KL term associated to each sample and each channel [Shape: (batch, ch, )]
-            kl_channelwise = kl_elementwise.sum((2, 3))
+            kl_channelwise = kl_elementwise.sum((2, 3)) # TODO: this is 2D only
 
             # KL term summed over the channels, i.e., retaining the spatial dimensions [Shape: (batch, h, w)]
-            kl_spatial = kl_elementwise.sum(1)
+            kl_spatial = kl_elementwise.sum(1) # TODO: this is 2D only
         else:  # if predicting, no need to compute KL
             kl_elementwise = kl_samplewise = kl_spatial = kl_channelwise = None
 
@@ -1683,7 +1698,7 @@ class NormalStochasticBlock2d(nn.Module):
         if var_clip_max is not None:
             q_lv = torch.clip(q_lv, max=var_clip_max)
 
-        if q_mu.shape[-1] % 2 == 1 and allow_oddsizes is False:
+        if q_mu.shape[-1] % 2 == 1 and allow_oddsizes is False: # TODO: check if this work in 3D
             q_mu = F.center_crop(q_mu, q_mu.shape[-1] - 1)
             q_lv = F.center_crop(q_lv, q_lv.shape[-1] - 1)
             # clip_start = np.random.rand() > 0.5
