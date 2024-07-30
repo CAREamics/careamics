@@ -12,6 +12,7 @@ from ..config.architectures import CustomModel, UNetModel, LVAEModel, get_custom
 from ..config.support import SupportedArchitecture
 from ..utils import get_logger
 from .unet import UNet
+from .lvae import LadderVAE
 
 logger = get_logger(__name__)
 
@@ -42,7 +43,7 @@ def model_factory(
     if model_configuration.architecture == SupportedArchitecture.UNET:
         return UNet(**model_configuration.model_dump())
     elif model_configuration.architecture == SupportedArchitecture.LVAE:     
-        return LVAEModel(**model_configuration.model_dump())
+        return LadderVAE(**model_configuration.model_dump())
     elif model_configuration.architecture == SupportedArchitecture.CUSTOM:
         assert isinstance(model_configuration, CustomModel)
         model = get_custom_model(model_configuration.name)
