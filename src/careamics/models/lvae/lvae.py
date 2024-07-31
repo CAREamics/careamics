@@ -723,13 +723,10 @@ class LadderVAE(nn.Module):
         x: torch.Tensor
             The input tensor of shape (B, C, H, W).
         """
-        img_size = x.size()[2:]
-
-        # Pad input to size equal to the closest power of 2
-        x_pad = self.pad_input(x) # TODO: this should go, since we do it in the dataloader                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   
+        img_size = x.size()[2:]                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   
 
         # Bottom-up inference: return list of length n_layers (bottom to top)
-        bu_values = self.bottomup_pass(x_pad)
+        bu_values = self.bottomup_pass(x)
         for i in range(0, self.skip_bottomk_buvalues):
             bu_values[i] = None
 
@@ -808,16 +805,6 @@ class LadderVAE(nn.Module):
     #         sz = output_size // 2**(1 + i)
     #         self.bottom_up_layers[i].output_expected_shape = (sz, sz)
     #         self.top_down_layers[i].latent_shape = (output_size, output_size)
-
-    def pad_input(self, x):
-        """
-        Pads input x so that its sizes are powers of 2
-        :param x:
-        :return: Padded tensor
-        """
-        size = self.get_padded_size(x.size())
-        x = pad_img_tensor(x, size)
-        return x
 
     ### SET OF GETTERS
     def get_padded_size(self, size: tuple[int]) -> tuple[int]:
