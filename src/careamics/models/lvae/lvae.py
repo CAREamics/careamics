@@ -5,7 +5,7 @@ The current implementation is based on "Interpretable Unsupervised Diversity Den
 """
 
 from collections.abc import Iterable
-from typing import Dict, List, Tuple
+from typing import Tuple, Union
 
 # import ml_collections  # TODO: refactor this out
 import numpy as np
@@ -34,7 +34,7 @@ class LadderVAE(nn.Module):
         output_channels: int,
         conv_dims: int,
         multiscale_count: int,
-        z_dims: List[int],
+        z_dims: list[int],
         encoder_n_filters: int,
         decoder_n_filters: int,
         encoder_dropout: float,
@@ -511,7 +511,7 @@ class LadderVAE(nn.Module):
         )
 
     ### SET OF FORWARD-LIKE METHODS
-    def bottomup_pass(self, inp: torch.Tensor) -> List[torch.Tensor]:
+    def bottomup_pass(self, inp: torch.Tensor) -> list[torch.Tensor]:
         """
         Wrapper of _bottomup_pass().
         """
@@ -528,7 +528,7 @@ class LadderVAE(nn.Module):
         first_bottom_up: nn.Sequential,
         lowres_first_bottom_ups: nn.ModuleList,
         bottom_up_layers: nn.ModuleList,
-    ) -> List[torch.Tensor]:
+    ) -> list[torch.Tensor]:
         """
         This method defines the forward pass throught the LVAE Encoder, the so-called
         Bottom-Up pass.
@@ -567,14 +567,14 @@ class LadderVAE(nn.Module):
 
     def topdown_pass(
         self,
-        bu_values: torch.Tensor = None,
-        n_img_prior: torch.Tensor = None,
-        mode_layers: Iterable[int] = None,
-        constant_layers: Iterable[int] = None,
-        forced_latent: List[torch.Tensor] = None,
-        top_down_layers: nn.ModuleList = None,
-        final_top_down_layer: nn.Sequential = None,
-    ) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:
+        bu_values: Union[torch.Tensor, None] = None,
+        n_img_prior: Union[torch.Tensor, None] = None,
+        mode_layers: Union[Iterable[int], None] = None,
+        constant_layers: Union[Iterable[int], None] = None,
+        forced_latent: Union[list[torch.Tensor], None] = None,
+        top_down_layers: Union[nn.ModuleList, None] = None,
+        final_top_down_layer: Union[nn.Sequential, None] = None,
+    ) -> Tuple[torch.Tensor, dict[str, torch.Tensor]]:
         """
         This method defines the forward pass throught the LVAE Decoder, the so-called
         Top-Down pass.
@@ -593,7 +593,7 @@ class LadderVAE(nn.Module):
             A sequence of indexes associated to the layers in which a single instance's z is
             copied over the entire batch (bottom-up path is not used, so only prior is used here).
             Set to `None` to avoid this behaviour.
-        forced_latent: List[torch.Tensor], optional
+        forced_latent: list[torch.Tensor], optional
             A list of tensors that are used as fixed latent variables (hence, sampling doesn't take
             place in this case).
         top_down_layers: nn.ModuleList, optional
@@ -639,34 +639,24 @@ class LadderVAE(nn.Module):
 
         # Sampled latent variables at each layer
         z = [None] * self.n_layers
-
         # KL divergence of each layer
         kl = [None] * self.n_layers
         # Kl divergence restricted, only for the LC enabled setup denoiSplit.
         kl_restricted = [None] * self.n_layers
-
         # mean from which z is sampled.
         q_mu = [None] * self.n_layers
         # log(var) from which z is sampled.
         q_lv = [None] * self.n_layers
-
         # Spatial map of KL divergence for each layer
         kl_spatial = [None] * self.n_layers
-
         debug_qvar_max = [None] * self.n_layers
-
         kl_channelwise = [None] * self.n_layers
-
         if forced_latent is None:
             forced_latent = [None] * self.n_layers
-
-        # log p(z) where z is the sample in the topdown pass
-        # logprob_p = 0.
 
         # Top-down inference/generation loop
         out = out_pre_residual = None
         for i in reversed(range(self.n_layers)):
-
             # If available, get deterministic node from bottom-up inference
             try:
                 bu_value = bu_values[i]
@@ -726,7 +716,7 @@ class LadderVAE(nn.Module):
         }
         return out, data
 
-    def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:
+    def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, dict[str, torch.Tensor]]:
         """
         Parameters
         ----------
