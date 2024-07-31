@@ -61,7 +61,6 @@ class ResidualBlock(nn.Module):
         block_type: str = None,
         dropout: float = None,
         gated: bool = None,
-        skip_padding: bool = False,
         conv2d_bias: bool = True,
     ):
         """
@@ -89,8 +88,6 @@ class ResidualBlock(nn.Module):
             Default is `None`.
         gated: bool, optional
             Whether to use gated layer. Default is `None`.
-        skip_padding: bool, optional
-            Whether to skip padding in convolutions. Default is `False`.
         conv2d_bias: bool, optional
             Whether to use bias term in convolutions. Default is `True`.
         """
@@ -105,9 +102,6 @@ class ResidualBlock(nn.Module):
             raise ValueError("kernel has to be None, int, or an iterable of length 2")
         assert all([k % 2 == 1 for k in kernel]), "kernel sizes have to be odd"
         kernel = list(kernel)
-        self.skip_padding = skip_padding
-        pad = [0] * len(kernel) if self.skip_padding else [k // 2 for k in kernel]
-        # print(kernel, pad)
         
         # Define modules
         conv_layer: ConvType = getattr(nn, f"Conv{conv_dims}d")
@@ -121,7 +115,7 @@ class ResidualBlock(nn.Module):
                     channels,
                     channels,
                     kernel[i],
-                    padding=pad[i],
+                    padding="same",
                     groups=groups,
                     bias=conv2d_bias,
                 )
@@ -140,7 +134,7 @@ class ResidualBlock(nn.Module):
                     channels,
                     channels,
                     kernel[i],
-                    padding=pad[i],
+                    padding="same",
                     groups=groups,
                     bias=conv2d_bias,
                 )
@@ -156,7 +150,7 @@ class ResidualBlock(nn.Module):
                     channels,
                     channels,
                     kernel[i],
-                    padding=pad[i],
+                    padding="same",
                     groups=groups,
                     bias=conv2d_bias,
                 )
@@ -233,7 +227,7 @@ class ResBlockWithResampling(nn.Module):
 
     Some implementation notes:
     - Resampling is performed through a strided convolution layer at the beginning of the block.
-    - The strided convolution block has fixed kernel size of 3x3 and 1 layer of zero-padding.
+    - The strided convolution block has fixed kernel size of 3x3 and 1 layer of padding with zeros.
     - The number of channels is adjusted at the beginning and end of the block through 1x1 convolutional layers.
     - The number of internal channels is by default the same as the number of output channels, but
       min_inner_channels can override the behaviour.
@@ -245,7 +239,7 @@ class ResBlockWithResampling(nn.Module):
         c_in: int,
         c_out: int,
         conv_dims: int = 2,
-        min_inner_channels: int = None,
+        min_inner_channels: Union[int, None] = None,
         nonlin: Callable = nn.LeakyReLU,
         resample: bool = False,
         res_block_kernel: Union[int, Iterable[int]] = None,
@@ -254,7 +248,6 @@ class ResBlockWithResampling(nn.Module):
         res_block_type: str = None,
         dropout: float = None,
         gated: bool = None,
-        skip_padding: bool = False,
         conv2d_bias: bool = True,
         # lowres_input: bool = False,
     ):
@@ -297,8 +290,6 @@ class ResBlockWithResampling(nn.Module):
             Default is `None`.
         gated: bool, optional
             Whether to use gated layer. Default is `None`.
-        skip_padding: bool, optional
-            Whether to skip padding in convolutions. Default is `False`.
         conv2d_bias: bool, optional
             Whether to use bias term in convolutions. Default is `True`.
         """
@@ -355,7 +346,6 @@ class ResBlockWithResampling(nn.Module):
             dropout=dropout,
             gated=gated,
             block_type=res_block_type,
-            skip_padding=skip_padding,
             conv2d_bias=conv2d_bias,
         )
 
@@ -420,7 +410,6 @@ class BottomUpLayer(nn.Module):
         dropout: float = None,
         res_block_type: str = None,
         res_block_kernel: int = None,
-        res_block_skip_padding: bool = False,
         gated: bool = None,
         enable_multiscale: bool = False,
         multiscale_lowres_size_factor: int = None,
@@ -456,8 +445,6 @@ class BottomUpLayer(nn.Module):
             The kernel size used in the convolutions of the residual block.
             It can be either a single integer or a pair of integers defining the squared kernel.
             Default is `None`.
-        res_block_skip_padding: bool, optional
-            Whether to skip padding in convolutions in the Residual block. Default is `False`.
         gated: bool, optional
             Whether to use gated layer. Default is `None`.
         enable_multiscale: bool, optional
@@ -505,7 +492,6 @@ class BottomUpLayer(nn.Module):
                 dropout=dropout,
                 res_block_type=res_block_type,
                 res_block_kernel=res_block_kernel,
-                skip_padding=res_block_skip_padding,
                 gated=gated,
             )
             if do_resample:
@@ -648,7 +634,6 @@ class MergeLayer(nn.Module):
         dropout: float = None,
         res_block_type: str = None,
         res_block_kernel: int = None,
-        res_block_skip_padding: bool = False,
         conv2d_bias: bool = True,
     ):
         """
@@ -684,8 +669,6 @@ class MergeLayer(nn.Module):
             The kernel size used in the convolutions of the residual block.
             It can be either a single integer or a pair of integers defining the squared kernel.
             Default is `None`.
-        res_block_skip_padding: bool, optional
-            Whether to skip padding in convolutions in the Residual block. Default is `False`.
         conv2d_bias: bool, optional
             Whether to use bias term in convolutions. Default is `True`.
         """
@@ -709,8 +692,8 @@ class MergeLayer(nn.Module):
         elif merge_type == "residual":
             self.layer = nn.Sequential(
                 conv_layer(
-                    sum(channels[:-1]), channels[-1], 1, padding=0, bias=conv2d_bias
-                ),
+                    sum(channels[:-1]), channels[-1], 1, padding=0, bias=conv2d_bias 
+                ), # TODO: check padding=0
                 ResidualGatedBlock(
                     conv_dims=conv_dims,
                     channels=channels[-1],
@@ -720,14 +703,13 @@ class MergeLayer(nn.Module):
                     block_type=res_block_type,
                     kernel=res_block_kernel,
                     conv2d_bias=conv2d_bias,
-                    skip_padding=res_block_skip_padding,
                 ),
             )
         elif merge_type == "residual_ungated":
             self.layer = nn.Sequential(
                 conv_layer(
                     sum(channels[:-1]), channels[-1], 1, padding=0, bias=conv2d_bias
-                ),
+                ), # TODO: check padding=0
                 ResidualBlock(
                     conv_dims=conv_dims,
                     channels=channels[-1],
@@ -737,7 +719,6 @@ class MergeLayer(nn.Module):
                     block_type=res_block_type,
                     kernel=res_block_kernel,
                     conv2d_bias=conv2d_bias,
-                    skip_padding=res_block_skip_padding,
                 ),
             )
 
@@ -803,7 +784,6 @@ class SkipConnectionMerger(MergeLayer):
         merge_type: Literal["linear", "residual", "residual_ungated"] = "residual",
         conv2d_bias: bool = True,
         res_block_kernel: int = None,
-        res_block_skip_padding: bool = False,
     ):
         """
         Constructor.
@@ -836,8 +816,6 @@ class SkipConnectionMerger(MergeLayer):
             The kernel size used in the convolutions of the residual block.
             It can be either a single integer or a pair of integers defining the squared kernel.
             Default is `None`.
-        res_block_skip_padding: bool, optional
-            Whether to skip padding in convolutions in the Residual block. Default is `False`.
         """
         super().__init__(
             conv_dims=conv_dims,    
@@ -849,7 +827,6 @@ class SkipConnectionMerger(MergeLayer):
             res_block_type=res_block_type,
             res_block_kernel=res_block_kernel,
             conv2d_bias=conv2d_bias,
-            res_block_skip_padding=res_block_skip_padding,
         )
 
 
@@ -905,14 +882,11 @@ class TopDownLayer(nn.Module):
         stochastic_skip: bool = False,
         res_block_type: str = None,
         res_block_kernel: int = None,
-        res_block_skip_padding: bool = None,
         groups: int = 1,
         gated: bool = None,
         learn_top_prior: bool = False,
         top_prior_param_shape: Iterable[int] = None,
         analytical_kl: bool = False,
-        bottomup_no_padding_mode: bool = False,
-        topdown_no_padding_mode: bool = False,
         retain_spatial_dims: bool = False,
         restricted_kl: bool = False,
         vanilla_latent_hw: Iterable[int] = None,
@@ -963,8 +937,6 @@ class TopDownLayer(nn.Module):
             The kernel size used in the convolutions of the residual block.
             It can be either a single integer or a pair of integers defining the squared kernel.
             Default is `None`.
-        res_block_skip_padding: bool, optional
-            Whether to skip padding in convolutions in the Residual block. Default is `None`.
         groups: int, optional
             The number of groups to consider in the convolutions. Default is 1.
         gated: bool, optional
@@ -981,17 +953,6 @@ class TopDownLayer(nn.Module):
             If True, KL divergence is calculated according to the analytical formula.
             Otherwise, an MC approximation using sampled latents is calculated.
             Default is `False`.
-        bottomup_no_padding_mode: bool, optional
-            Whether padding is used in the different layers of the bottom-up pass.
-            It is meaningful to know this in advance in order to assess whether before
-            merging `bu_values` and `p_params` tensors any alignment is needed.
-            Default is `False`.
-        topdown_no_padding_mode: bool, optional
-            Whether padding is used in the different layers of the top-down pass.
-            It is meaningful to know this in advance in order to assess whether before
-            merging `bu_values` and `p_params` tensors any alignment is needed.
-            The same information is also needed in handling the skip connections between
-            top-down layers. Default is `False`.
         retain_spatial_dims: bool, optional
             If `True`, the size of Encoder's latent space is kept to `input_image_shape` within the topdown layer.
             This implies that the oput spatial size equals the input spatial size.
@@ -1032,8 +993,6 @@ class TopDownLayer(nn.Module):
         self.stochastic_skip = stochastic_skip
         self.learn_top_prior = learn_top_prior
         self.analytical_kl = analytical_kl
-        self.bottomup_no_padding_mode = bottomup_no_padding_mode
-        self.topdown_no_padding_mode = topdown_no_padding_mode
         self.retain_spatial_dims = retain_spatial_dims
         self.latent_shape = input_image_shape if self.retain_spatial_dims else None
         self.non_stochastic_version = non_stochastic_version
@@ -1068,7 +1027,6 @@ class TopDownLayer(nn.Module):
                     dropout=dropout,
                     res_block_type=res_block_type,
                     res_block_kernel=res_block_kernel,
-                    skip_padding=res_block_skip_padding,
                     gated=gated,
                     conv2d_bias=conv2d_bias,
                     groups=groups,
@@ -1124,7 +1082,6 @@ class TopDownLayer(nn.Module):
                     merge_type=merge_type,
                     conv2d_bias=conv2d_bias,
                     res_block_kernel=res_block_kernel,
-                    res_block_skip_padding=res_block_skip_padding,
                 )
 
         # print(f'[{self.__class__.__name__}] normalize_latent_factor:{self.normalize_latent_factor}')
@@ -1199,7 +1156,8 @@ class TopDownLayer(nn.Module):
 
         return p_params
 
-    def align_pparams_buvalue(
+    # TODO: this can go away with padding
+    def align_pparams_buvalue( 
         self, p_params: torch.Tensor, bu_value: torch.Tensor
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
@@ -1215,7 +1173,6 @@ class TopDownLayer(nn.Module):
             The tensor defining the parameters /mu_q and /sigma_q computed during the bottom-up deterministic pass
             at the correspondent hierarchical layer.
         """
-        # TODO: this won't work for 3D
         if bu_value.shape[-2:] != p_params.shape[-2:]:
             assert self.bottomup_no_padding_mode is True  # TODO WTF ?
             if self.topdown_no_padding_mode is False:

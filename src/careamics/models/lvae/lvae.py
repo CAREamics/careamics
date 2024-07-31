@@ -82,8 +82,6 @@ class LadderVAE(nn.Module):
         self.gated = True
         self.encoder_res_block_kernel = 3
         self.decoder_res_block_kernel = 3
-        self.encoder_res_block_skip_padding = False
-        self.decoder_res_block_skip_padding = False
         self.merge_type = "residual"
         self.no_initial_downscaling = True
         self.skip_bottomk_buvalues = 0
@@ -116,14 +114,6 @@ class LadderVAE(nn.Module):
 
         # Derived attributes
         self.n_layers = len(self.z_dims)
-        self.encoder_no_padding_mode = (
-            self.encoder_res_block_skip_padding is True
-            and self.encoder_res_block_kernel > 1
-        )
-        self.decoder_no_padding_mode = (
-            self.decoder_res_block_skip_padding is True
-            and self.decoder_res_block_kernel > 1
-        )
 
         # Others...
         self._tethered_to_input = False
@@ -248,11 +238,7 @@ class LadderVAE(nn.Module):
             in_channels=self.color_ch,
             out_channels=self.encoder_n_filters,
             kernel_size=self.encoder_res_block_kernel,
-            padding=(
-                0
-                if self.encoder_res_block_skip_padding
-                else self.encoder_res_block_kernel // 2
-            ),
+            padding=self.encoder_res_block_kernel // 2, # TODO: not entirely correct if kernel size > 3
             stride=init_stride,
         )
         modules = [conv_block, nonlin]
@@ -268,7 +254,6 @@ class LadderVAE(nn.Module):
                     batchnorm=self.bottomup_batchnorm,
                     dropout=self.encoder_dropout,
                     res_block_type=self.res_block_type,
-                    skip_padding=self.encoder_res_block_skip_padding,
                     res_block_kernel=self.encoder_res_block_kernel,
                 )
             )
@@ -328,7 +313,6 @@ class LadderVAE(nn.Module):
                     dropout=self.encoder_dropout,
                     res_block_type=self.res_block_type,
                     res_block_kernel=self.encoder_res_block_kernel,
-                    res_block_skip_padding=self.encoder_res_block_skip_padding,
                     gated=self.gated,
                     lowres_separate_branch=lowres_separate_branch,
                     enable_multiscale=self.enable_multiscale,  # shouldn't the arg be `layer_enable_multiscale` here?
@@ -395,14 +379,10 @@ class LadderVAE(nn.Module):
                     top_prior_param_shape=self.get_top_prior_param_shape(),
                     res_block_type=self.res_block_type,
                     res_block_kernel=self.decoder_res_block_kernel,
-                    res_block_skip_padding=self.decoder_res_block_skip_padding,
                     gated=self.gated,
                     analytical_kl=self.analytical_kl,
                     restricted_kl=self._restricted_kl,
                     vanilla_latent_hw=self.get_latent_spatial_size(i),
-                    # in no_padding_mode, what gets passed from the encoder are not multiples of 2 and so merging operation does not work natively.
-                    bottomup_no_padding_mode=self.encoder_no_padding_mode,
-                    topdown_no_padding_mode=self.decoder_no_padding_mode,
                     retain_spatial_dims=self.multiscale_decoder_retain_spatial_dims,
                     non_stochastic_version=self.non_stochastic_version,
                     input_image_shape=self.img_shape,
@@ -439,7 +419,6 @@ class LadderVAE(nn.Module):
                     dropout=self.decoder_dropout,
                     res_block_type=self.res_block_type,
                     res_block_kernel=self.decoder_res_block_kernel,
-                    skip_padding=self.decoder_res_block_skip_padding,
                     gated=self.gated,
                     conv2d_bias=self.topdown_conv2d_bias,
                 )
@@ -509,7 +488,7 @@ class LadderVAE(nn.Module):
                     in_channels=self.color_ch,
                     out_channels=self.encoder_n_filters,
                     kernel_size=5,
-                    padding=2,
+                    padding="same",
                     stride=stride,
                 ),
                 nonlin,
@@ -521,7 +500,6 @@ class LadderVAE(nn.Module):
                     batchnorm=self.bottomup_batchnorm,
                     dropout=self.encoder_dropout,
                     res_block_type=self.res_block_type,
-                    skip_padding=self.encoder_res_block_skip_padding,
                 ),
             )
             lowres_first_bottom_ups.append(first_bottom_up)
@@ -758,7 +736,7 @@ class LadderVAE(nn.Module):
         img_size = x.size()[2:]
 
         # Pad input to size equal to the closest power of 2
-        x_pad = self.pad_input(x)
+        x_pad = self.pad_input(x) # TODO: this should go, since we do it in the dataloader                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   
 
         # Bottom-up inference: return list of length n_layers (bottom to top)
         bu_values = self.bottomup_pass(x_pad)
@@ -859,15 +837,15 @@ class LadderVAE(nn.Module):
         :param size: input size, tuple either (N, C, (Z), Y, X) or ((Z), Y, X)
         :return: 2-tuple ((Z), Y, X)
         """
-        # Make size argument into (heigth, width)
-        if len(size) == 4:
-            size = size[2:]
-        if len(size) != 2:
-            msg = (
-                "input size must be either (N, C, H, W) or (H, W), but it "
-                f"has length {len(size)} (size={size})"
-            )
-            raise RuntimeError(msg)
+        # # Make size argument into (heigth, width)
+        # if len(size) == 4:
+        #     size = size[2:]
+        # if len(size) != 2:
+        #     msg = (
+        #         "input size must be either (N, C, H, W) or (H, W), but it "
+        #         f"has length {len(size)} (size={size})"
+        #     )
+        #     raise RuntimeError(msg)
 
         if self.multiscale_decoder_retain_spatial_dims is True:
             # In this case, we can go much more deeper and so this is not required
