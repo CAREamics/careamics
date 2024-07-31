@@ -250,6 +250,14 @@ class StableLogVar:
 
     def get_std(self) -> torch.Tensor:
         return torch.sqrt(self.get_var())
+    
+    @property
+    def is_3D(self) -> bool:
+        """Check if the _lv tensor is 3D.
+        
+        Recall that, in this framework, tensors have shape (B, C, [Z], Y, X).
+        """
+        return self._lv.dim() == 5
 
     def centercrop_to_size(self, size: Iterable[int]) -> None:
         """
@@ -260,6 +268,8 @@ class StableLogVar:
         size: torch.Tensor
             The desired size of the log-variance tensor.
         """
+        assert not self.is_3D, "Centercrop is implemented only for 2D tensors."
+        
         if self._lv.shape[-1] == size:
             return
 
@@ -275,24 +285,35 @@ class StableMean:
 
     def get(self) -> torch.Tensor:
         return self._mean
+    
+    @property
+    def is_3D(self) -> bool:
+        """Check if the _mean tensor is 3D.
+        
+        Recall that, in this framework, tensors have shape (B, C, [Z], Y, X).
+        """
+        return self._mean.dim() == 5
 
     def centercrop_to_size(self, size: Iterable[int]) -> None:
-        """
-        Centercrop the mean tensor to the desired size.
+        """Centercrop the mean tensor to the desired size.
 
+        Implemented only in the case of 2D tensors.
+        
         Parameters
         ----------
         size: torch.Tensor
             The desired size of the log-variance tensor.
         """
+        assert not self.is_3D, "Centercrop is implemented only for 2D tensors."
+        
         if self._mean.shape[-1] == size:
             return
 
         diff = self._mean.shape[-1] - size
         assert diff > 0 and diff % 2 == 0
         self._mean = F.center_crop(self._mean, (size, size))
-
-
+    
+    
 def allow_numpy(func):
     """
     All optional arguements are passed as is. positional arguments are checked. if they are numpy array,
