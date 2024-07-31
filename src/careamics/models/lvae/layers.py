@@ -618,7 +618,8 @@ class BottomUpLayer(nn.Module):
 
 class MergeLayer(nn.Module):
     """
-    This layer merges two or more 4D input tensors by concatenating along dim=1 and passes the result through:
+    This layer merges two or more (B, C, [Z], Y, X) input tensors by concatenating
+    them along dim=1 and passes the result through:
     a) a convolutional 1x1 layer (`merge_type == "linear"`), or
     b) a convolutional 1x1 layer and then a gated residual block (`merge_type == "residual"`), or
     c) a convolutional 1x1 layer and then an ungated residual block (`merge_type == "residual_ungated"`).
@@ -681,8 +682,6 @@ class MergeLayer(nn.Module):
             if len(channels) == 1:
                 channels = [channels[0]] * 3
 
-        # assert len(channels) == 3
-
         conv_layer: ConvType = getattr(nn, f"Conv{conv_dims}d")
         
         if merge_type == "linear":
@@ -693,7 +692,7 @@ class MergeLayer(nn.Module):
             self.layer = nn.Sequential(
                 conv_layer(
                     sum(channels[:-1]), channels[-1], 1, padding=0, bias=conv2d_bias 
-                ), # TODO: check padding=0
+                ),
                 ResidualGatedBlock(
                     conv_dims=conv_dims,
                     channels=channels[-1],
@@ -709,7 +708,7 @@ class MergeLayer(nn.Module):
             self.layer = nn.Sequential(
                 conv_layer(
                     sum(channels[:-1]), channels[-1], 1, padding=0, bias=conv2d_bias
-                ), # TODO: check padding=0
+                ),
                 ResidualBlock(
                     conv_dims=conv_dims,
                     channels=channels[-1],
@@ -1260,41 +1259,13 @@ class TopDownLayer(nn.Module):
 
         # Merge skip connection from previous layer
         if self.stochastic_skip and not self.is_top_layer:
-            if self.topdown_no_padding_mode is True:
-                # If no padding is done in the current top-down pass, there may be a shape mismatch between current tensor and skip connection input.
-                # As an example, if the output of last TopDownLayer was of size 64*64, due to lack of padding in the current layer, the current tensor
-                # might become different in shape, say 60*60.
-                # In order to avoid shape mismatch, we do central crop of the skip connection input.
-                skip_connection_input = F.center_crop(
-                    skip_connection_input, x.shape[-2:]
-                )
-
             x = self.skip_connection_merger(x, skip_connection_input)
 
         # Save activation before residual block as it can be the skip connection input in the next layer
         x_pre_residual = x
 
-        if self.retain_spatial_dims:
-            # when we don't want to do padding in topdown as well, we need to spare some boundary pixels which would be used up.
-            extra_len = (self.topdown_no_padding_mode is True) * 3
-
-            # this means that x should be of the same size as config.data.image_size. So, we have to centercrop by a factor of 2 at this point.
-            # assert x.shape[-1] >= self.latent_shape[-1] // 2 + extra_len
-            # we assume that one topdown layer will have exactly one upscaling layer.
-            new_latent_shape = (
-                self.latent_shape[0] // 2 + extra_len,
-                self.latent_shape[1] // 2 + extra_len,
-            ) # TODO: this is 2D only
-
-            # If the LC is not applied on all layers, then this can happen.
-            if x.shape[-1] > new_latent_shape[-1]:
-                x = F.center_crop(x, new_latent_shape)
-
-        # Last top-down block (sequence of residual blocks)
+        # Last top-down block (sequence of residual blocks w\ upsampling)
         x = self.deterministic_block(x)
-
-        if self.topdown_no_padding_mode:
-            x = F.center_crop(x, self.latent_shape)
 
         # Save some metrics that will be used in the loss computation
         keys = [
@@ -1303,7 +1274,6 @@ class TopDownLayer(nn.Module):
             "kl_samplewise_restricted",
             "kl_spatial",
             "kl_channelwise",
-            # 'logprob_p',
             "logprob_q",
             "qvar_max",
         ]
@@ -1314,7 +1284,6 @@ class TopDownLayer(nn.Module):
             q_mu, q_lv = data_stoch["q_params"]
             data["q_mu"] = q_mu
             data["q_lv"] = q_lv
-
         return x, x_pre_residual, data
 
 
