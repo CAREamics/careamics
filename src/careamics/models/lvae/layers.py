@@ -1769,87 +1769,43 @@ class NonStochasticBlock2d(nn.Module):
             c_vars, c_out, kernel, padding=pad, bias=conv2d_bias, groups=groups
         )
 
-    def compute_kl_metrics(
-        self,
-        p: torch.distributions.normal.Normal,
-        p_params: torch.Tensor,
-        q: torch.distributions.normal.Normal,
-        q_params: torch.Tensor,
-        mode_pred: bool,
-        analytical_kl: bool,
-        z: torch.Tensor,
-    ) -> Dict[str, None]:
-        """
-        Compute KL (analytical or MC estimate) and then process it, extracting composed versions of the metric.
-        Specifically, the different versions of the KL loss terms are:
-            - `kl_elementwise`: KL term for each single element of the latent tensor [Shape: (batch, ch, h, w)].
-            - `kl_samplewise`: KL term associated to each sample in the batch [Shape: (batch, )].
-            - `kl_samplewise_restricted`: KL term only associated to the portion of the latent tensor that is
-            used for prediction and summed over channel and spatial dimensions [Shape: (batch, )].
-            - `kl_channelwise`: KL term associated to each sample and each channel [Shape: (batch, ch, )].
-            - `kl_spatial`: # KL term summed over the channels, i.e., retaining the spatial dimensions [Shape: (batch, h, w)]
+    def compute_kl_metrics(self) -> dict[str, None]:
+        """Compute KL (analytical or MC estimate) and then process it, extracting composed versions of the metric.
 
         NOTE: in this class all the KL metrics are set to `None`.
-
-        Parameters
-        ----------
-        p: torch.distributions.normal.Normal
-            The prior generative distribution p(z_i|z_{i+1}) (or p(z_L)).
-        p_params: torch.Tensor
-            The parameters of the prior generative distribution.
-        q: torch.distributions.normal.Normal
-            The inference distribution q(z_i|z_{i+1}) (or q(z_L|x)).
-        q_params: torch.Tensor
-            The parameters of the inference distribution.
-        mode_pred: bool
-            Whether the model is in prediction mode.
-        analytical_kl: bool
-            Whether to compute the KL divergence analytically or using Monte Carlo estimation.
-        z: torch.Tensor
-            The sampled latent tensor.
         """
-        kl_dict = {
-            "kl_elementwise": None,  # (batch, ch, h, w)
-            "kl_samplewise": None,  # (batch, )
-            "kl_spatial": None,  # (batch, h, w)
-            "kl_channelwise": None,  # (batch, ch)
+        return {
+            "kl_elementwise": None,
+            "kl_samplewise": None,
+            "kl_spatial": None,
+            "kl_channelwise": None,
         }
-        return kl_dict
 
-    def process_p_params(self, p_params, var_clip_max):
+    def process_p_params(self, p_params: torch.Tensor) -> Tuple[torch.Tensor, None]:
         if self.transform_p_params:
             p_params = self.conv_in_p(p_params)
         else:
-
-            assert (
-                p_params.size(1) == 2 * self.c_vars
-            ), f"{p_params.shape} {self.c_vars}"
+            assert p_params.size(1) == 2 * self.c_vars, (
+                f"{p_params.size(1)} should match twice {self.c_vars}."
+            )
 
         # Define p(z)
-        p_mu, p_lv = p_params.chunk(2, dim=1)
+        p_mu, _ = p_params.chunk(2, dim=1)
         return p_mu, None
 
-    def process_q_params(self, q_params, var_clip_max, allow_oddsizes=False):
+    def process_q_params(self, q_params: torch.Tensor) -> Tuple[torch.Tensor, None]:
         # Define q(z)
         q_params = self.conv_in_q(q_params)
-        q_mu, q_lv = q_params.chunk(2, dim=1)
-
-        if q_mu.shape[-1] % 2 == 1 and allow_oddsizes is False:
-            q_mu = F.center_crop(q_mu, q_mu.shape[-1] - 1)
-
+        q_mu, _ = q_params.chunk(2, dim=1)
         return q_mu, None
 
     def forward(
         self,
         p_params: torch.Tensor,
-        q_params: torch.Tensor = None,
-        forced_latent: Union[None, torch.Tensor] = None,
+        q_params: Union[torch.Tensor, None] = None,
+        forced_latent: Union[torch.Tensor, None] = None,
         use_mode: bool = False,
         force_constant_output: bool = False,
-        analytical_kl: bool = False,
-        mode_pred: bool = False,
-        use_uncond_mode: bool = False,
-        var_clip_max: float = None,
     ) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:
         """
         Parameters
@@ -1870,43 +1826,24 @@ class NonStochasticBlock2d(nn.Module):
             Whether to copy the first sample (and rel. distrib parameters) over the whole batch.
             This is used when doing experiment from the prior - q is not used.
             Default is `False`.
-        analytical_kl: bool, optional
-            Whether to compute the KL divergence analytically or using Monte Carlo estimation.
-            Default is `False`.
-        mode_pred: bool, optional
-            Whether the model is in prediction mode. Default is `False`.
-        use_uncond_mode: bool, optional
-            Whether to use the uncoditional distribution p(z) to sample latents in prediction mode.
-            Default is `False`.
-        var_clip_max: float, optional
-            The maximum value reachable by the log-variance of the latent distribtion.
-            Values exceeding this threshold are clipped. Default is `None`.
         """
         debug_qvar_max = 0
         assert (forced_latent is None) or (not use_mode)
 
-        p_mu, _ = self.process_p_params(p_params, var_clip_max)
-
+        p_mu, _ = self.process_p_params(p_params)
         p_params = (p_mu, None)
 
         if q_params is not None:
             # At inference time, just don't centercrop the q_params even if they are odd in size.
-            q_mu, _ = self.process_q_params(
-                q_params, var_clip_max, allow_oddsizes=mode_pred is True
-            )
+            q_mu, _ = self.process_q_params(q_params)
             q_params = (q_mu, None)
             debug_qvar_max = torch.Tensor([1]).to(q_mu.device)
-            # Sample from q(z)
-            sampling_distrib = q_mu
-            q_size = q_mu.shape[-1]
-            if p_mu.shape[-1] != q_size and mode_pred is False:
-                p_mu.centercrop_to_size(q_size)
+            sampling_distrib_mode = q_mu
         else:
-            # Sample from p(z)
-            sampling_distrib = p_mu
+            sampling_distrib_mode = p_mu
 
-        # Generate latent variable (typically by sampling)
-        z = sampling_distrib
+        # Take latent variable as the mode (mean) of sampling distrib
+        z = sampling_distrib_mode
 
         # Copy one sample (and distrib parameters) over the whole batch.
         # This is used when doing experiment from the prior - q is not used.
@@ -1923,11 +1860,11 @@ class NonStochasticBlock2d(nn.Module):
         kl_dict = {}
         logprob_q = None
 
+        # Store meaningful quantities for later computation
         data = kl_dict
-        data["z"] = z  # sampled variable at this layer (batch, ch, h, w)
-        data["p_params"] = p_params  # (b, ch, h, w) where b is 1 or batch size
-        data["q_params"] = q_params  # (batch, ch, h, w)
-        data["logprob_q"] = logprob_q  # (batch, )
+        data["z"] = z  # sampled variable at this layer (B, C, [Z], Y, X)
+        data["p_params"] = p_params  # (B, C, [Z], Y, X) where B is 1 or batch size
+        data["q_params"] = q_params  # (B, C, [Z], Y, X)
+        data["logprob_q"] = logprob_q  # (B, )
         data["qvar_max"] = debug_qvar_max
-
         return out, data
