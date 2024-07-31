@@ -1129,9 +1129,11 @@ class TopDownLayer(nn.Module):
         input_: torch.Tensor,
         n_img_prior: int,
     ) -> torch.Tensor:
-        """
-        This method returns the parameters of the prior distribution p(z_i|z_{i+1}) for the latent tensor
-        depending on the hierarchical level of the layer and other specific conditions.
+        """Return the parameters of the prior distribution p(z_i|z_{i+1})
+        
+        The parameters depend on the hierarchical level of the layer:
+        - if it is the topmost level, parameters are the ones of the prior.
+        - else, the input from the layer above is the parameters itself.
 
         Parameters
         ----------
@@ -1155,35 +1157,6 @@ class TopDownLayer(nn.Module):
             p_params = input_
 
         return p_params
-
-    # TODO: this can go away with padding
-    def align_pparams_buvalue( 
-        self, p_params: torch.Tensor, bu_value: torch.Tensor
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
-        """
-        In case the padding is not used either (or both) in encoder and decoder, we could have a shape mismatch
-        in the spatial dimensions (usually, dim=2 & dim=3).
-        This method performs a centercrop to ensure that both remain aligned.
-
-        Parameters
-        ----------
-        p_params: torch.Tensor
-            The tensor defining the parameters /mu_p and /sigma_p for the latent distribution p(z_i|z_{i+1}).
-        bu_value: torch.Tensor
-            The tensor defining the parameters /mu_q and /sigma_q computed during the bottom-up deterministic pass
-            at the correspondent hierarchical layer.
-        """
-        if bu_value.shape[-2:] != p_params.shape[-2:]:
-            assert self.bottomup_no_padding_mode is True  # TODO WTF ?
-            if self.topdown_no_padding_mode is False:
-                assert bu_value.shape[-1] > p_params.shape[-1]
-                bu_value = F.center_crop(bu_value, p_params.shape[-2:])
-            else:
-                if bu_value.shape[-1] > p_params.shape[-1]:
-                    bu_value = F.center_crop(bu_value, p_params.shape[-2:])
-                else:
-                    p_params = F.center_crop(p_params, bu_value.shape[-2:])
-        return p_params, bu_value
 
     def forward(
         self,
@@ -1248,22 +1221,27 @@ class TopDownLayer(nn.Module):
             if self.is_top_layer:
                 q_params = bu_value
                 if mode_pred is False:
-                    p_params, bu_value = self.align_pparams_buvalue(p_params, bu_value)
+                    assert p_params.shape == bu_value.shape, (
+                        "Shapes of p_params and bu_value should match. "
+                        f"Instead, we got {p_params.shape} and {bu_value.shape}"
+                    )
             else:
                 if use_uncond_mode:
                     q_params = p_params
                 else:
-                    p_params, bu_value = self.align_pparams_buvalue(p_params, bu_value)
+                    assert p_params.shape == bu_value.shape, (
+                        "Shapes of p_params and bu_value should match. "
+                        f"Instead, we got {p_params.shape} and {bu_value.shape}"
+                    )
                     q_params = self.merge(bu_value, p_params)
-        # In generative mode, q is not used
-        else:
+        else: # In generative mode, q is not used
             q_params = None
 
         # NOTE: Sampling is done either from q(z_i | z_{i+1}, x) or p(z_i | z_{i+1})
         # depending on the mode (hence, in practice, by checking whether q_params is None).
 
-        # Normalization of latent space parameters:
-        # it is done, purely for stablity. See Very deep VAEs generalize autoregressive models.
+        # Normalization of latent space parameters for stablity. 
+        # See Very deep VAEs generalize autoregressive models.
         if self.normalize_latent_factor:
             q_params = q_params / self.normalize_latent_factor
 
