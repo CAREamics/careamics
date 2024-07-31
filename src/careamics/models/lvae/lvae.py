@@ -238,7 +238,7 @@ class LadderVAE(nn.Module):
             in_channels=self.color_ch,
             out_channels=self.encoder_n_filters,
             kernel_size=self.encoder_res_block_kernel,
-            padding=self.encoder_res_block_kernel // 2, # TODO: not entirely correct if kernel size > 3
+            padding=self.encoder_res_block_kernel // 2,
             stride=init_stride,
         )
         modules = [conv_block, nonlin]

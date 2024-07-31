@@ -176,10 +176,10 @@ class ResidualBlock(nn.Module):
     def forward(self, x):
 
         out = self.block(x)
-        if out.shape != x.shape:
-            return out + F.center_crop(x, out.shape[-2:])
-        else:
-            return out + x
+        assert out.shape == x.shape, (
+            f"output shape: {out.shape} != input shape: {x.shape}"
+        )
+        return out + x
 
 
 class ResidualGatedBlock(ResidualBlock):
@@ -1401,34 +1401,6 @@ class NormalStochasticBlock2d(nn.Module):
         self.conv_in_q = conv_layer(c_in, 2 * c_vars, kernel, padding=pad)
         self.conv_out = conv_layer(c_vars, c_out, kernel, padding=pad)
 
-    # def forward_swapped(self, p_params, q_mu, q_lv):
-    #
-    #     if self.transform_p_params:
-    #         p_params = self.conv_in_p(p_params)
-    #     else:
-    #         assert p_params.size(1) == 2 * self.c_vars
-    #
-    #     # Define p(z)
-    #     p_mu, p_lv = p_params.chunk(2, dim=1)
-    #     p = Normal(p_mu, (p_lv / 2).exp())
-    #
-    #     # Define q(z)
-    #     q = Normal(q_mu, (q_lv / 2).exp())
-    #     # Sample from q(z)
-    #     sampling_distrib = q
-    #
-    #     # Generate latent variable (typically by sampling)
-    #     z = sampling_distrib.rsample()
-    #
-    #     # Output of stochastic layer
-    #     out = self.conv_out(z)
-    #
-    #     data = {
-    #         'z': z,  # sampled variable at this layer (batch, ch, h, w)
-    #         'p_params': p_params,  # (b, ch, h, w) where b is 1 or batch size
-    #     }
-    #     return out, data
-
     def get_z(
         self,
         sampling_distrib: torch.distributions.normal.Normal,
@@ -1437,10 +1409,9 @@ class NormalStochasticBlock2d(nn.Module):
         mode_pred: bool,
         use_uncond_mode: bool,
     ) -> torch.Tensor:
-        """
-        This method enables to sample a latent tensor given the distribution to sample from.
+        """Sample a latent tensor from the given latent distribution.
 
-        Latent variable can be obtained is several ways:
+        Latent tensor can be obtained is several ways:
             - Sampled from the (Gaussian) latent distribution.
             - Taken as a pre-defined forced latent.
             - Taken as the mode (mean) of the latent distribution.
@@ -1532,50 +1503,49 @@ class NormalStochasticBlock2d(nn.Module):
         z: torch.Tensor
             The sampled latent tensor.
         """
-        kl_samplewise_restricted = None
-
         if mode_pred is False:  # if not in prediction mode
-            # KL term for each single element of the latent tensor [Shape: (batch, ch, h, w)]
+            # KL term for each entry of the latent tensor [Shape: (B, C, [Z], Y, X)]
             if analytical_kl:
                 kl_elementwise = kl_divergence(q, p)
             else:
                 kl_elementwise = kl_normal_mc(z, p_params, q_params)
 
             # KL term only associated to the portion of the latent tensor that is used for prediction and
-            # summed over channel and spatial dimensions. [Shape: (batch, )]
+            # summed over channel and spatial dimensions. [Shape: (B, )]
             # NOTE: vanilla_latent_hw is the shape of the latent tensor used for prediction, hence
-            # the restriction has shape [Shape: (batch, ch, vanilla_latent_hw[0], vanilla_latent_hw[1])]
-            if self._restricted_kl: # TODO: this is 2D only
+            # the restriction has shape [Shape: (B, C, vanilla_latent_hw[0], vanilla_latent_hw[1])]
+            kl_samplewise_restricted = None
+            if self._restricted_kl: 
+                assert self.conv_dims == 2, "Restricted KL is only implemented for 2D tensors."
                 pad = (kl_elementwise.shape[-1] - self._vanilla_latent_hw) // 2
                 assert pad > 0, "Disable restricted kl since there is no restriction."
                 tmp = kl_elementwise[..., pad:-pad, pad:-pad]
                 kl_samplewise_restricted = tmp.sum((1, 2, 3))
 
-            # KL term associated to each sample in the batch [Shape: (batch, )]
-            kl_samplewise = kl_elementwise.sum((1, 2, 3)) # TODO: this is 2D only
+            # KL term associated to each sample in the batch [Shape: (B, )]
+            kl_samplewise = kl_elementwise.sum(tuple(range(1, kl_elementwise.dim())))
 
-            # KL term associated to each sample and each channel [Shape: (batch, ch, )]
-            kl_channelwise = kl_elementwise.sum((2, 3)) # TODO: this is 2D only
+            # KL term associated to each sample and each channel [Shape: (B, C, )]
+            kl_channelwise = kl_elementwise.sum(tuple(range(2, kl_elementwise.dim())))
 
-            # KL term summed over the channels, i.e., retaining the spatial dimensions [Shape: (batch, h, w)]
-            kl_spatial = kl_elementwise.sum(1) # TODO: this is 2D only
+            # KL term summed over the channels [Shape: (B, [Z], Y, X)]
+            kl_spatial = kl_elementwise.sum(1)
         else:  # if predicting, no need to compute KL
             kl_elementwise = kl_samplewise = kl_spatial = kl_channelwise = None
 
         kl_dict = {
-            "kl_elementwise": kl_elementwise,  # (batch, ch, h, w)
-            "kl_samplewise": kl_samplewise,  # (batch, )
-            "kl_samplewise_restricted": kl_samplewise_restricted,  # (batch, )
-            "kl_channelwise": kl_channelwise,  # (batch, ch)
-            "kl_spatial": kl_spatial,  # (batch, h, w)
+            "kl_elementwise": kl_elementwise,  #  (B, C, [Z], Y, X)
+            "kl_samplewise": kl_samplewise,  # (B, )
+            "kl_samplewise_restricted": kl_samplewise_restricted,  # (B, )
+            "kl_channelwise": kl_channelwise,  # (B, C, )
+            "kl_spatial": kl_spatial,  # (B, [Z], Y, X))
         }
         return kl_dict
 
     def process_p_params(
         self, p_params: torch.Tensor, var_clip_max: float
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.distributions.normal.Normal]:
-        """
-        Process the input parameters to get the prior distribution p(z_i|z_{i+1}) (or p(z_L)).
+        """Process the input parameters to get the prior distribution p(z_i|z_{i+1}) (or p(z_L)).
 
         Processing consists in:
             - (optionally) 2D convolution on the input tensor to increase number of channels.
@@ -1607,14 +1577,14 @@ class NormalStochasticBlock2d(nn.Module):
         return p_mu, p_lv, p
 
     def process_q_params(
-        self, q_params: torch.Tensor, var_clip_max: float, allow_oddsizes: bool = False
+        self, q_params: torch.Tensor, var_clip_max: float
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.distributions.normal.Normal]:
         """
         Process the input parameters to get the inference distribution q(z_i|z_{i+1}) (or q(z|x)).
 
         Processing consists in:
-            - 2D convolution on the input tensor to increase number of channels.
-            - split the resulting tensor into two chunks, the mean and the log-variance.
+            - convolution on the input tensor to double the number of channels.
+            - split the resulting tensor into 2 chunks, respectively mean and log-var.
             - (optionally) clip the log-variance to an upper threshold.
             - (optionally) crop the resulting tensors to ensure that the last spatial dimension is even.
             - define the normal distribution q(z) given the parameter tensors above.
@@ -1633,13 +1603,6 @@ class NormalStochasticBlock2d(nn.Module):
         if var_clip_max is not None:
             q_lv = torch.clip(q_lv, max=var_clip_max)
 
-        if q_mu.shape[-1] % 2 == 1 and allow_oddsizes is False: # TODO: check if this work in 3D
-            q_mu = F.center_crop(q_mu, q_mu.shape[-1] - 1)
-            q_lv = F.center_crop(q_lv, q_lv.shape[-1] - 1)
-            # clip_start = np.random.rand() > 0.5
-            # q_mu = q_mu[:, :, 1:, 1:] if clip_start else q_mu[:, :, :-1, :-1]
-            # q_lv = q_lv[:, :, 1:, 1:] if clip_start else q_lv[:, :, :-1, :-1]
-
         q_mu = StableMean(q_mu)
         q_lv = StableLogVar(q_lv, enable_stable=not self._use_naive_exponential)
         q = Normal(q_mu.get(), q_lv.get_std())
@@ -1648,14 +1611,14 @@ class NormalStochasticBlock2d(nn.Module):
     def forward(
         self,
         p_params: torch.Tensor,
-        q_params: torch.Tensor = None,
-        forced_latent: torch.Tensor = None,
+        q_params: Union[torch.Tensor, None] = None,
+        forced_latent: Union[torch.Tensor, None]  = None,
         use_mode: bool = False,
         force_constant_output: bool = False,
         analytical_kl: bool = False,
         mode_pred: bool = False,
         use_uncond_mode: bool = False,
-        var_clip_max: float = None,
+        var_clip_max: Union[float, None] = None,
     ) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:
         """
         Parameters
@@ -1699,19 +1662,10 @@ class NormalStochasticBlock2d(nn.Module):
 
         if q_params is not None:
             # Get inference distribution q(z_i|z_{i+1})
-            # NOTE: At inference time, don't centercrop the q_params even if they are odd in size.
-            q_mu, q_lv, q = self.process_q_params(
-                q_params, var_clip_max, allow_oddsizes=mode_pred is True
-            )
+            q_mu, q_lv, q = self.process_q_params(q_params, var_clip_max)
             q_params = (q_mu, q_lv)
             sampling_distrib = q
             debug_qvar_max = torch.max(q_lv.get())
-
-            # Centercrop p_params so that their size matches the one of q_params
-            q_size = q_mu.get().shape[-1]
-            if p_mu.get().shape[-1] != q_size and mode_pred is False:
-                p_mu.centercrop_to_size(q_size)
-                p_lv.centercrop_to_size(q_size)
         else:
             sampling_distrib = p
 
@@ -1720,6 +1674,7 @@ class NormalStochasticBlock2d(nn.Module):
             sampling_distrib, forced_latent, use_mode, mode_pred, use_uncond_mode
         )
 
+        # TODO: not necessary, remove
         # Copy one sample (and distrib parameters) over the whole batch.
         # This is used when doing experiment from the prior - q is not used.
         if force_constant_output:
@@ -1729,18 +1684,12 @@ class NormalStochasticBlock2d(nn.Module):
                 p_params[1][0:1].expand_as(p_params[1]).clone(),
             )
 
-        # Pass the sampled latent througn the output convolutional layer of stochastic block
+        # Pass the sampled latent through the output convolution of stochastic block
         out = self.conv_out(z)
-
-        # Compute log p(z)# NOTE: disabling its computation.
-        # if mode_pred is False:
-        #     logprob_p =  p.log_prob(z).sum((1, 2, 3))
-        # else:
-        #     logprob_p = None
 
         if q_params is not None:
             # Compute log q(z)
-            logprob_q = q.log_prob(z).sum((1, 2, 3))
+            logprob_q = q.log_prob(z).sum(tuple(range(1, z.dim())))
             # Compute KL divergence metrics
             kl_dict = self.compute_kl_metrics(
                 p, p_params, q, q_params, mode_pred, analytical_kl, z
@@ -1749,12 +1698,11 @@ class NormalStochasticBlock2d(nn.Module):
             kl_dict = {}
             logprob_q = None
 
-        # Store meaningful quantities to use them in following layers
+        # Store meaningful quantities for later computation
         data = kl_dict
         data["z"] = z  # sampled variable at this layer (batch, ch, h, w)
         data["p_params"] = p_params  # (b, ch, h, w) where b is 1 or batch size
         data["q_params"] = q_params  # (batch, ch, h, w)
-        # data['logprob_p'] = logprob_p  # (batch, )
         data["logprob_q"] = logprob_q  # (batch, )
         data["qvar_max"] = debug_qvar_max
 
