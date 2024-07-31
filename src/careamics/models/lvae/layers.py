@@ -1700,12 +1700,11 @@ class NormalStochasticBlock2d(nn.Module):
 
         # Store meaningful quantities for later computation
         data = kl_dict
-        data["z"] = z  # sampled variable at this layer (batch, ch, h, w)
-        data["p_params"] = p_params  # (b, ch, h, w) where b is 1 or batch size
-        data["q_params"] = q_params  # (batch, ch, h, w)
-        data["logprob_q"] = logprob_q  # (batch, )
+        data["z"] = z  # sampled variable at this layer (B, C, [Z], Y, X)
+        data["p_params"] = p_params  # (B, C, [Z], Y, X) where B is 1 or batch size
+        data["q_params"] = q_params  # (B, C, [Z], Y, X)
+        data["logprob_q"] = logprob_q  # (B, )
         data["qvar_max"] = debug_qvar_max
-
         return out, data
 
 
