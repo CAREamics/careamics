@@ -1,7 +1,7 @@
 """Prediction utility functions."""
 
 import builtins
-from typing import List, Union
+from typing import Union
 
 import numpy as np
 from numpy.typing import NDArray
@@ -11,9 +11,9 @@ from careamics.config.tile_information import TileInformation
 
 # TODO: why not allow input and output of torch.tensor ?
 def stitch_prediction(
-    tiles: List[np.ndarray],
-    tile_infos: List[TileInformation],
-) -> List[np.ndarray]:
+    tiles: list[np.ndarray],
+    tile_infos: list[TileInformation],
+) -> list[np.ndarray]:
     """
     Stitch tiles back together to form a full image(s).
 
@@ -54,8 +54,8 @@ def stitch_prediction(
 
 
 def stitch_prediction_single(
-    tiles: List[NDArray],
-    tile_infos: List[TileInformation],
+    tiles: list[NDArray],
+    tile_infos: list[TileInformation],
 ) -> NDArray:
     """
     Stitch tiles back together to form a full image.

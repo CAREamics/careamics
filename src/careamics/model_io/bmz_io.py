@@ -2,7 +2,7 @@
 
 import tempfile
 from pathlib import Path
-from typing import List, Optional, Tuple, Union
+from typing import Optional, Union
 
 import numpy as np
 import pkg_resources
@@ -79,10 +79,10 @@ def export_to_bmz(
     path: Union[Path, str],
     name: str,
     general_description: str,
-    authors: List[dict],
+    authors: list[dict[str, str]],
     input_array: np.ndarray,
     output_array: np.ndarray,
-    channel_names: Optional[List[str]] = None,
+    channel_names: Optional[list[str]] = None,
     data_description: Optional[str] = None,
 ) -> None:
     """Export the model to BioImage Model Zoo format.
@@ -101,15 +101,15 @@ def export_to_bmz(
         Model name.
     general_description : str
         General description of the model.
-    authors : List[dict]
+    authors : list of {str: str}
         Authors of the model.
-    input_array : np.ndarray
+    input_array : numpy.ndarray
         Input array, should not have been normalized.
-    output_array : np.ndarray
+    output_array : numpy.ndarray
         Output array, should have been denormalized.
-    channel_names : Optional[List[str]], optional
+    channel_names : list of str, optional
         Channel names, by default None.
-    data_description : Optional[str], optional
+    data_description : str, optional
         Description of the data, by default None.
 
     Raises
@@ -186,17 +186,17 @@ def export_to_bmz(
         save_bioimageio_package(model_description, output_path=path)
 
 
-def load_from_bmz(path: Union[Path, str]) -> Tuple[CAREamicsModule, Configuration]:
+def load_from_bmz(path: Union[Path, str]) -> tuple[CAREamicsModule, Configuration]:
     """Load a model from a BioImage Model Zoo archive.
 
     Parameters
     ----------
-    path : Union[Path, str]
+    path : pathlib.Path or str
         Path to the BioImage Model Zoo archive.
 
     Returns
     -------
-    Tuple[CAREamicsKiln, Configuration]
+    (CAREamicsModule, Configuration)
         CAREamics model and configuration.
 
     Raises

@@ -1,6 +1,6 @@
 """Collate function for tiling."""
 
-from typing import Any, List, Tuple
+from typing import Any
 
 import numpy as np
 from torch.utils.data.dataloader import default_collate
@@ -8,7 +8,7 @@ from torch.utils.data.dataloader import default_collate
 from careamics.config.tile_information import TileInformation
 
 
-def collate_tiles(batch: List[Tuple[np.ndarray, TileInformation]]) -> Any:
+def collate_tiles(batch: list[tuple[np.ndarray, TileInformation]]) -> Any:
     """
     Collate tiles received from CAREamics prediction dataloader.
 
@@ -19,7 +19,7 @@ def collate_tiles(batch: List[Tuple[np.ndarray, TileInformation]]) -> Any:
 
     Parameters
     ----------
-    batch : List[Tuple[np.ndarray, TileInformation], ...]
+    batch : list of (numpy.ndarray, TileInformation)
         Batch of tiles.
 
     Returns

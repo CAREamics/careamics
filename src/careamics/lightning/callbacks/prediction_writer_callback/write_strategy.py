@@ -1,7 +1,8 @@
 """Module containing different strategies for writing predictions."""
 
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, Optional, Protocol, Sequence, Union
+from typing import Any, Optional, Protocol, Union
 
 import numpy as np
 from numpy.typing import NDArray

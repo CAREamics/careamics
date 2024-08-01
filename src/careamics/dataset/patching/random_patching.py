@@ -1,6 +1,7 @@
 """Random patching utilities."""
 
-from typing import Generator, List, Optional, Tuple, Union
+from collections.abc import Generator
+from typing import Optional, Union
 
 import numpy as np
 import zarr
@@ -11,10 +12,10 @@ from .validate_patch_dimension import validate_patch_dimensions
 # TOOD split in testable functions
 def extract_patches_random(
     arr: np.ndarray,
-    patch_size: Union[List[int], Tuple[int, ...]],
+    patch_size: Union[list[int], tuple[int, ...]],
     target: Optional[np.ndarray] = None,
     seed: Optional[int] = None,
-) -> Generator[Tuple[np.ndarray, Optional[np.ndarray]], None, None]:
+) -> Generator[tuple[np.ndarray, Optional[np.ndarray]], None, None]:
     """
     Generate patches from an array in a random manner.
 
@@ -31,11 +32,11 @@ def extract_patches_random(
     ----------
     arr : np.ndarray
         Input image array.
-    patch_size : Tuple[int]
+    patch_size : tuple of int
         Patch sizes in each dimension.
-    target : Optional[np.ndarray], optional
+    target : np.ndarray, optional
         Target array, by default None.
-    seed : Optional[int], optional
+    seed : int, optional
         Random seed, by default None.
 
     Yields
@@ -112,8 +113,8 @@ def extract_patches_random(
 
 def extract_patches_random_from_chunks(
     arr: zarr.Array,
-    patch_size: Union[List[int], Tuple[int, ...]],
-    chunk_size: Union[List[int], Tuple[int, ...]],
+    patch_size: Union[list[int], tuple[int, ...]],
+    chunk_size: Union[list[int], tuple[int, ...]],
     chunk_limit: Optional[int] = None,
     seed: Optional[int] = None,
 ) -> Generator[np.ndarray, None, None]:
@@ -127,13 +128,13 @@ def extract_patches_random_from_chunks(
     ----------
     arr : np.ndarray
         Input image array.
-    patch_size : Union[List[int], Tuple[int, ...]]
+    patch_size : list or tuple of int
         Patch sizes in each dimension.
-    chunk_size : Union[List[int], Tuple[int, ...]]
+    chunk_size : list or tuple of int
         Chunk sizes to load from the.
-    chunk_limit : Optional[int], optional
+    chunk_limit : int, optional
         Number of chunks to load, by default None.
-    seed : Optional[int], optional
+    seed : int, optional
         Random seed, by default None.
 
     Yields

@@ -1,7 +1,7 @@
 """Module use to build BMZ model description."""
 
 from pathlib import Path
-from typing import List, Optional, Tuple, Union
+from typing import Optional, Union
 
 import numpy as np
 from bioimageio.spec.model.v0_5 import (
@@ -35,27 +35,27 @@ from ._readme_factory import readme_factory
 def _create_axes(
     array: np.ndarray,
     data_config: DataConfig,
-    channel_names: Optional[List[str]] = None,
+    channel_names: Optional[list[str]] = None,
     is_input: bool = True,
-) -> List[AxisBase]:
+) -> list[AxisBase]:
     """Create axes description.
 
     Array shape is expected to be SC(Z)YX.
 
     Parameters
     ----------
-    array : np.ndarray
+    array : numpy.ndarray
         Array.
     data_config : DataModel
         CAREamics data configuration.
-    channel_names : Optional[List[str]], optional
+    channel_names : list of str, optional
         Channel names, by default None.
     is_input : bool, optional
         Whether the axes are input axes, by default True.
 
     Returns
     -------
-    List[AxisBase]
+    list of AxisBase
         List of axes description.
 
     Raises
@@ -104,30 +104,30 @@ def _create_inputs_ouputs(
     data_config: DataConfig,
     input_path: Union[Path, str],
     output_path: Union[Path, str],
-    channel_names: Optional[List[str]] = None,
-) -> Tuple[InputTensorDescr, OutputTensorDescr]:
+    channel_names: Optional[list[str]] = None,
+) -> tuple[InputTensorDescr, OutputTensorDescr]:
     """Create input and output tensor description.
 
     Input and output paths must point to a `.npy` file.
 
     Parameters
     ----------
-    input_array : np.ndarray
+    input_array : numpy.ndarray
         Input array.
-    output_array : np.ndarray
+    output_array : numpy.ndarray
         Output array.
     data_config : DataModel
         CAREamics data configuration.
-    input_path : Union[Path, str]
+    input_path : pathlib.Path or str
         Path to input .npy file.
-    output_path : Union[Path, str]
+    output_path : pathlib.Path or str
         Path to output .npy file.
-    channel_names : Optional[List[str]], optional
+    channel_names : list of str, optional
         Channel names, by default None.
 
     Returns
     -------
-    Tuple[InputTensorDescr, OutputTensorDescr]
+    tuple[InputTensorDescr, OutputTensorDescr]
         Input and output tensor descriptions.
     """
     input_axes = _create_axes(input_array, data_config, channel_names)
@@ -186,7 +186,7 @@ def create_model_description(
     config: Configuration,
     name: str,
     general_description: str,
-    authors: List[Author],
+    authors: list[Author],
     inputs: Union[Path, str],
     outputs: Union[Path, str],
     weights_path: Union[Path, str],
@@ -194,7 +194,7 @@ def create_model_description(
     careamics_version: str,
     config_path: Union[Path, str],
     env_path: Union[Path, str],
-    channel_names: Optional[List[str]] = None,
+    channel_names: Optional[list[str]] = None,
     data_description: Optional[str] = None,
 ) -> ModelDescr:
     """Create model description.
@@ -207,25 +207,25 @@ def create_model_description(
         Name fo the model.
     general_description : str
         General description of the model.
-    authors : List[Author]
+    authors : list of Author
         Authors of the model.
-    inputs : Union[Path, str]
+    inputs : pathlib.Path or str
         Path to input .npy file.
-    outputs : Union[Path, str]
+    outputs : pathlib.Path or str
         Path to output .npy file.
-    weights_path : Union[Path, str]
+    weights_path : pathlib.Path or str
         Path to model weights.
     torch_version : str
         Pytorch version.
     careamics_version : str
         CAREamics version.
-    config_path : Union[Path, str]
+    config_path : pathlib.Path or str
         Path to model configuration.
-    env_path : Union[Path, str]
+    env_path : pathlib.Path or str
         Path to environment file.
-    channel_names : Optional[List[str]], optional
+    channel_names : list of str, optional
         Channel names, by default None.
-    data_description : Optional[str], optional
+    data_description : str, optional
         Description of the data, by default None.
 
     Returns
@@ -298,7 +298,7 @@ def create_model_description(
     return model
 
 
-def extract_model_path(model_desc: ModelDescr) -> Tuple[Path, Path]:
+def extract_model_path(model_desc: ModelDescr) -> tuple[Path, Path]:
     """Return the relative path to the weights and configuration files.
 
     Parameters
@@ -308,7 +308,7 @@ def extract_model_path(model_desc: ModelDescr) -> Tuple[Path, Path]:
 
     Returns
     -------
-    Tuple[Path, Path]
+    (pathlib.Path, pathlib.Path)
         Weights and configuration paths.
     """
     weights_path = model_desc.weights.pytorch_state_dict.source.path

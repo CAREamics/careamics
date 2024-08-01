@@ -1,7 +1,7 @@
 """Module to get read functions."""
 
 from pathlib import Path
-from typing import Callable, Dict, Protocol, Union
+from typing import Callable, Protocol, Union
 
 from numpy.typing import NDArray
 
@@ -30,7 +30,7 @@ class ReadFunc(Protocol):
         """
 
 
-READ_FUNCS: Dict[SupportedData, ReadFunc] = {
+READ_FUNCS: dict[SupportedData, ReadFunc] = {
     SupportedData.TIFF: read_tiff,
 }
 

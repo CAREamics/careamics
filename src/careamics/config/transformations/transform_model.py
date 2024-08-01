@@ -1,6 +1,6 @@
 """Parent model for the transforms."""
 
-from typing import Any, Dict
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 
@@ -23,7 +23,7 @@ class TransformModel(BaseModel):
 
     name: str
 
-    def model_dump(self, **kwargs) -> Dict[str, Any]:
+    def model_dump(self, **kwargs) -> dict[str, Any]:
         """
         Return the model as a dictionary.
 
@@ -34,7 +34,7 @@ class TransformModel(BaseModel):
 
         Returns
         -------
-        Dict[str, Any]
+        dict of {str: Any}
             Dictionary representation of the model.
         """
         model_dict = super().model_dump(**kwargs)

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pprint import pformat
-from typing import Any, Literal, Optional, Union
+from typing import Annotated, Any, Literal, Optional, Union
 
 from numpy.typing import NDArray
 from pydantic import (
@@ -14,7 +14,7 @@ from pydantic import (
     field_validator,
     model_validator,
 )
-from typing_extensions import Annotated, Self
+from typing_extensions import Self
 
 from .support import SupportedTransform
 from .transformations.n2v_manipulate_model import N2VManipulateModel

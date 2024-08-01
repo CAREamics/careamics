@@ -1,7 +1,7 @@
 """Utility functions to load pretrained models."""
 
 from pathlib import Path
-from typing import Tuple, Union
+from typing import Union
 
 import torch
 
@@ -11,7 +11,7 @@ from careamics.model_io.bmz_io import load_from_bmz
 from careamics.utils import check_path_exists
 
 
-def load_pretrained(path: Union[Path, str]) -> Tuple[CAREamicsModule, Configuration]:
+def load_pretrained(path: Union[Path, str]) -> tuple[CAREamicsModule, Configuration]:
     """
     Load a pretrained model from a checkpoint or a BioImage Model Zoo model.
 
@@ -19,12 +19,12 @@ def load_pretrained(path: Union[Path, str]) -> Tuple[CAREamicsModule, Configurat
 
     Parameters
     ----------
-    path : Union[Path, str]
+    path : pathlib.Path or str
         Path to the pretrained model.
 
     Returns
     -------
-    Tuple[CAREamicsKiln, Configuration]
+    (CAREamicsModule, Configuration)
         Tuple of CAREamics model and its configuration.
 
     Raises
@@ -44,18 +44,18 @@ def load_pretrained(path: Union[Path, str]) -> Tuple[CAREamicsModule, Configurat
         )
 
 
-def _load_checkpoint(path: Union[Path, str]) -> Tuple[CAREamicsModule, Configuration]:
+def _load_checkpoint(path: Union[Path, str]) -> tuple[CAREamicsModule, Configuration]:
     """
     Load a model from a checkpoint and return both model and configuration.
 
     Parameters
     ----------
-    path : Union[Path, str]
+    path : pathlib.Path or str
         Path to the checkpoint.
 
     Returns
     -------
-    Tuple[CAREamicsKiln, Configuration]
+    (CAREamicsModule, Configuration)
         Tuple of CAREamics model and its configuration.
 
     Raises
