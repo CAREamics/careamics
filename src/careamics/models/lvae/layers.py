@@ -598,6 +598,7 @@ class BottomUpLayer(nn.Module):
         else:
             merged = primary_flow
 
+        # TODO: this need to be refactored, it is difficult to understand
         if (
             self.multiscale_retain_spatial_dims is False
             or self.decoder_retain_spatial_dims is True

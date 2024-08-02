@@ -27,7 +27,7 @@ from .utils import Interpolate, ModelType, crop_img_tensor, pad_img_tensor
 
 @register_model("LVAE")
 class LadderVAE(nn.Module):
-
+    # TODO: where has `data_mean` and `data_std` gone?
     def __init__(
         self,
         input_shape: int,
@@ -315,7 +315,7 @@ class LadderVAE(nn.Module):
                     res_block_kernel=self.encoder_res_block_kernel,
                     gated=self.gated,
                     lowres_separate_branch=lowres_separate_branch,
-                    enable_multiscale=self.enable_multiscale,  # shouldn't the arg be `layer_enable_multiscale` here?
+                    enable_multiscale=self.enable_multiscale,  # TODO: shouldn't the arg be `layer_enable_multiscale` here?
                     multiscale_retain_spatial_dims=self.multiscale_retain_spatial_dims,
                     multiscale_lowres_size_factor=multiscale_lowres_size_factor,
                     decoder_retain_spatial_dims=self.multiscale_decoder_retain_spatial_dims,
@@ -470,14 +470,17 @@ class LadderVAE(nn.Module):
         if self._multiscale_count is None:
             self._multiscale_count = 1
 
-        msg = "Multiscale count({}) should not exceed the number of bottom up layers ({}) by more than 1"
-        msg = msg.format(self._multiscale_count, self.n_layers)
+        msg = (
+            f"Multiscale count ({self._multiscale_count}) should not exceed the number"
+            f"of bottom up layers ({self.n_layers}) by more than 1.\n"
+        )
         assert (
             self._multiscale_count <= 1 or self._multiscale_count <= 1 + self.n_layers
         ), msg
 
         msg = (
-            "if multiscale is enabled, then we are just working with monocrome images."
+            "Multiscale approach only supports monocrome images. "
+            f"Found instead color_ch={self.color_ch}."
         )
         assert self._multiscale_count == 1 or self.color_ch == 1, msg
 
@@ -742,7 +745,7 @@ class LadderVAE(nn.Module):
         out = self.output_layer(out)
         if self._tethered_to_input:
             assert out.shape[1] == 1
-            ch2 = self.get_other_channel(out, x_pad)
+            ch2 = self.get_other_channel(out, x)
             out = torch.cat([out, ch2], dim=1)
 
         return out, td_data
