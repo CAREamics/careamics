@@ -1163,17 +1163,17 @@ class TopDownLayer(nn.Module):
 
     def forward(
         self,
-        input_: torch.Tensor = None,
-        skip_connection_input: torch.Tensor = None,
+        input_: Union[torch.Tensor, None] = None,
+        skip_connection_input: Union[torch.Tensor, None] = None,
         inference_mode: bool = False,
-        bu_value: torch.Tensor = None,
-        n_img_prior: int = None,
-        forced_latent: torch.Tensor = None,
+        bu_value: Union[torch.Tensor, None] = None,
+        n_img_prior: Union[int, None] = None,
+        forced_latent: Union[torch.Tensor, None] = None,
         use_mode: bool = False,
         force_constant_output: bool = False,
         mode_pred: bool = False,
         use_uncond_mode: bool = False,
-        var_clip_max: float = None,
+        var_clip_max: Union[float, None] = None,
     ) -> Tuple[torch.Tensor, torch.Tensor, Dict[str, torch.Tensor]]:
         """
         Parameters
