@@ -569,7 +569,7 @@ class BottomUpLayer(nn.Module):
         )
 
     def forward(
-        self, x: torch.Tensor, lowres_x: torch.Tensor = None
+        self, x: torch.Tensor, lowres_x: Union[torch.Tensor, None] = None
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Parameters
@@ -752,17 +752,20 @@ class MergeLowRes(MergeLayer):
         lowres: torch.Tensor
             The low-res patch image to be merged to increase the context.
         """
+        # TODO: treat (X, Y) and Z differently (e.g., line 762)
         if self.retain_spatial_dims:
             # Pad latent tensor to match lowres tensor's shape
-            latent = pad_img_tensor(latent, lowres.shape[2:]) # TODO: does this work for 3D?
+            latent = pad_img_tensor(latent, lowres.shape[2:]) 
         else:
             # Crop lowres tensor to match latent tensor's shape
-            lh, lw = lowres.shape[-2:]  # TODO: does this work for 3D? I bet not
-            h = lh // self.multiscale_lowres_size_factor
-            w = lw // self.multiscale_lowres_size_factor
-            h_pad = (lh - h) // 2
-            w_pad = (lw - w) // 2
-            lowres = lowres[:, :, h_pad:-h_pad, w_pad:-w_pad]
+            lz, ly, lx = lowres.shape[2:] 
+            z = lz // self.multiscale_lowres_size_factor 
+            y = ly // self.multiscale_lowres_size_factor
+            x = lx // self.multiscale_lowres_size_factor
+            z_pad = (lz - z) // 2
+            y_pad = (ly - y) // 2
+            x_pad = (lx - x) // 2
+            lowres = lowres[:, :, z_pad:-z_pad, y_pad:-y_pad, x_pad:-x_pad]
 
         return super().forward(latent, lowres)
 
