@@ -356,7 +356,7 @@ class LadderVAE(nn.Module):
             # Check if this is the top layer
             is_top = i == self.n_layers - 1
 
-            if self._enable_topdown_normalize_factor:
+            if self._enable_topdown_normalize_factor: # TODO: What is this?
                 normalize_latent_factor = (
                     1 / np.sqrt(2 * (1 + i)) if len(self.z_dims) > 4 else 1.0
                 )
@@ -810,45 +810,14 @@ class LadderVAE(nn.Module):
     #         self.top_down_layers[i].latent_shape = (output_size, output_size)
 
     ### SET OF GETTERS
-    def get_padded_size(self, size: tuple[int]) -> tuple[int]:
-        """
-        Returns the smallest size ((Z), Y, X) of the image with actual size given
-        as input, such that H and W are powers of 2.
-        :param size: input size, tuple either (N, C, (Z), Y, X) or ((Z), Y, X)
-        :return: 2-tuple ((Z), Y, X)
-        """
-        # # Make size argument into (heigth, width)
-        # if len(size) == 4:
-        #     size = size[2:]
-        # if len(size) != 2:
-        #     msg = (
-        #         "input size must be either (N, C, H, W) or (H, W), but it "
-        #         f"has length {len(size)} (size={size})"
-        #     )
-        #     raise RuntimeError(msg)
-
-        if self.multiscale_decoder_retain_spatial_dims is True:
-            # In this case, we can go much more deeper and so this is not required
-            # (in the way it is. ;). More work would be needed if this was to be correctly implemented )
-            return list(size)
-
-        # Overall downscale factor from input to top layer (power of 2)
-        dwnsc = self.overall_downscale_factor
-
-        # Output smallest powers of 2 that are larger than current sizes
-        padded_size = list(((s - 1) // dwnsc + 1) * dwnsc for s in size)
-
-        return padded_size
-
     def get_latent_spatial_size(self, level_idx: int):
         """
         level_idx: 0 is the bottommost layer, the highest resolution one.
         """
         actual_downsampling = level_idx + 1
         dwnsc = 2**actual_downsampling
-        sz = self.get_padded_size(self.img_shape)
-        h = sz[0] // dwnsc
-        w = sz[1] // dwnsc
+        h = self.img_shape[0] // dwnsc
+        w = self.img_shape[1] // dwnsc
         assert h == w
         return h
 
@@ -863,9 +832,8 @@ class LadderVAE(nn.Module):
             actual_downsampling = self.n_layers + 1 - self._multiscale_count
             dwnsc = 2**actual_downsampling
 
-        sz = self.get_padded_size(self.img_shape)
-        h = sz[0] // dwnsc
-        w = sz[1] // dwnsc
+        h = self.img_shape[0] // dwnsc
+        w = self.img_shape[1] // dwnsc
         c = self.z_dims[-1] * 2  # mu and logvar
         top_layer_shape = (n_imgs, c, h, w)
         return top_layer_shape
