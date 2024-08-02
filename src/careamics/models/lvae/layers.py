@@ -1220,24 +1220,26 @@ class TopDownLayer(nn.Module):
         p_params = self.get_p_params(input_, n_img_prior)
 
         # Get the parameters for the latent distribution to sample from
-        if inference_mode:  # TODO What's this ?
+        if inference_mode:  # in inference mode we compute q(z_i | z_{i+1}, x)
             if self.is_top_layer:
                 q_params = bu_value
                 if mode_pred is False:
-                    assert p_params.shape == bu_value.shape, (
-                        "Shapes of p_params and bu_value should match. "
-                        f"Instead, we got {p_params.shape} and {bu_value.shape}"
+                    assert p_params.shape[2:] == bu_value.shape[2:], (
+                        "Spatial dimensions of p_params and bu_value should match. "
+                        f"Instead, we got p_params={p_params.shape[2:]} and "
+                        f"bu_value={bu_value.shape[2:]}."
                     )
             else:
                 if use_uncond_mode:
                     q_params = p_params
                 else:
-                    assert p_params.shape == bu_value.shape, (
-                        "Shapes of p_params and bu_value should match. "
-                        f"Instead, we got {p_params.shape} and {bu_value.shape}"
+                    assert p_params.shape[2:] == bu_value.shape[2:], (
+                        "Spatial dimensions of p_params and bu_value should match. "
+                        f"Instead, we got p_params={p_params.shape[2:]} and "
+                        f"bu_value={bu_value.shape[2:]}."
                     )
                     q_params = self.merge(bu_value, p_params)
-        else: # In generative mode, q is not used
+        else: # generative mode, q is not used, we sample from p(z_i | z_{i+1})
             q_params = None
 
         # NOTE: Sampling is done either from q(z_i | z_{i+1}, x) or p(z_i | z_{i+1})
