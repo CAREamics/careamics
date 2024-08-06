@@ -185,6 +185,7 @@ def test_bottom_up_pass(
         if i + 1 > multiscale_count - 1:
             exp_img_size //= 2
         assert outputs[i].shape == (1, n_filters, exp_img_size, exp_img_size)
+    
         
 @pytest.mark.parametrize("img_size", [64, 128])
 @pytest.mark.parametrize("multiscale_count", [1, 3, 5])
@@ -200,6 +201,7 @@ def test_topmost_top_down_layer(img_size: int, multiscale_count: int) -> None:
     expected_z_shape = (1, model.z_dims[0], downscaled_size, downscaled_size) 
     assert output.shape == expected_out_shape
     assert data["z"].shape == expected_z_shape
+    
     
 @pytest.mark.parametrize("img_size", [64, 128])
 @pytest.mark.parametrize("multiscale_count", [1, 3, 5])
@@ -225,3 +227,17 @@ def test_topmost_top_down_layer(img_size: int, multiscale_count: int) -> None:
         expected_out_shape = (1, n_filters, downscaled_size, downscaled_size)  
         assert output.shape == expected_out_shape
         assert data["z"].shape == expected_z_shape
+
+
+@pytest.mark.parametrize("img_size", [64, 128])
+@pytest.mark.parametrize("multiscale_count", [1, 3, 5])
+def test_final_top_down(img_size: int, multiscale_count: int) -> None:
+    model = create_LVAE_model(input_shape=img_size, multiscale_count=multiscale_count)
+    final_top_down = model.final_top_down
+    n_filters = model.encoder_n_filters
+    final_upsampling = not model.no_initial_downscaling
+    inp_size = img_size // 2 if final_upsampling else img_size
+    input = torch.ones((1, n_filters, inp_size, inp_size))
+    output = final_top_down(input)
+    expected_out_shape = (1, n_filters, img_size, img_size) 
+    assert output.shape == expected_out_shape
