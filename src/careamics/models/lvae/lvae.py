@@ -394,9 +394,11 @@ class LadderVAE(nn.Module):
         return top_down_layers
 
     def create_final_topdown_layer(self, upsample: bool) -> nn.Sequential:
-        """
-        This method creates the final top-down layer of the Decoder.
-
+        """Create the final top-down layer of the Decoder.
+        
+        NOTE: In this layer, (optional) upsampling is performed by bilinear interpolation
+        instead of transposed convolution (like in other TD layers).
+        
         Parameters
         ----------
         upsample: bool

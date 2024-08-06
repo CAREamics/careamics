@@ -245,9 +245,9 @@ class ResBlockWithResampling(nn.Module):
         res_block_kernel: Union[int, Iterable[int]] = None,
         groups: int = 1,
         batchnorm: bool = True,
-        res_block_type: str = None,
-        dropout: float = None,
-        gated: bool = None,
+        res_block_type: Union[str, None] = None,
+        dropout: Union[float, None] = None,
+        gated: Union[bool, None] = None,
         conv2d_bias: bool = True,
         # lowres_input: bool = False,
     ):
