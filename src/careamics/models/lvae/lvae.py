@@ -658,7 +658,7 @@ class LadderVAE(nn.Module):
             forced_latent = [None] * self.n_layers
 
         # Top-down inference/generation loop
-        out = out_pre_residual = None
+        out = None
         for i in reversed(range(self.n_layers)):
             # If available, get deterministic node from bottom-up inference
             try:
@@ -674,7 +674,7 @@ class LadderVAE(nn.Module):
             skip_input = out  # TODO or n? or both?
 
             # Full top-down layer, including sampling and deterministic part
-            out, out_pre_residual, aux = top_down_layers[i](
+            out, aux = top_down_layers[i](
                 input_=out,
                 skip_connection_input=skip_input,
                 inference_mode=inference_mode,

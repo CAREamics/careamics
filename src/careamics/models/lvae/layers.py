@@ -1174,7 +1174,7 @@ class TopDownLayer(nn.Module):
         mode_pred: bool = False,
         use_uncond_mode: bool = False,
         var_clip_max: Union[float, None] = None,
-    ) -> Tuple[torch.Tensor, torch.Tensor, Dict[str, torch.Tensor]]:
+    ) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:
         """
         Parameters
         ----------
@@ -1267,9 +1267,6 @@ class TopDownLayer(nn.Module):
         if self.stochastic_skip and not self.is_top_layer:
             x = self.skip_connection_merger(x, skip_connection_input)
 
-        # Save activation before residual block as it can be the skip connection input in the next layer
-        x_pre_residual = x
-
         # Last top-down block (sequence of residual blocks w\ upsampling)
         x = self.deterministic_block(x)
 
@@ -1290,7 +1287,7 @@ class TopDownLayer(nn.Module):
             q_mu, q_lv = data_stoch["q_params"]
             data["q_mu"] = q_mu
             data["q_lv"] = q_lv
-        return x, x_pre_residual, data
+        return x, data
 
 
 class NormalStochasticBlock2d(nn.Module):
