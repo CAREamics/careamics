@@ -205,7 +205,7 @@ def test_topmost_top_down_layer(img_size: int, multiscale_count: int) -> None:
     
 @pytest.mark.parametrize("img_size", [64, 128])
 @pytest.mark.parametrize("multiscale_count", [1, 3, 5])
-def test_topmost_top_down_layer(img_size: int, multiscale_count: int) -> None:
+def test_all_top_down_layers(img_size: int, multiscale_count: int) -> None:
     model = create_LVAE_model(input_shape=img_size, multiscale_count=multiscale_count)
     top_down_layers = model.top_down_layers
     n_filters = model.encoder_n_filters
@@ -241,3 +241,4 @@ def test_final_top_down(img_size: int, multiscale_count: int) -> None:
     output = final_top_down(input)
     expected_out_shape = (1, n_filters, img_size, img_size) 
     assert output.shape == expected_out_shape
+    
