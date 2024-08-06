@@ -877,24 +877,24 @@ class TopDownLayer(nn.Module):
         n_filters: int,
         conv_dims: int = 2,
         is_top_layer: bool = False,
-        downsampling_steps: int = None,
-        nonlin: Callable = None,
-        merge_type: Literal["linear", "residual", "residual_ungated"] = None,
+        downsampling_steps: Union[int, None] = None,
+        nonlin: Union[Callable, None] = None,
+        merge_type: Union[Literal["linear", "residual", "residual_ungated"], None] = None,
         batchnorm: bool = True,
-        dropout: float = None,
+        dropout: Union[float, None] = None,
         stochastic_skip: bool = False,
-        res_block_type: str = None,
-        res_block_kernel: int = None,
+        res_block_type: Union[str, None] = None,
+        res_block_kernel: Union[int, None] = None,
         groups: int = 1,
-        gated: bool = None,
+        gated: Union[bool, None] = None,
         learn_top_prior: bool = False,
-        top_prior_param_shape: Iterable[int] = None,
+        top_prior_param_shape: Union[Iterable[int], None] = None,
         analytical_kl: bool = False,
         retain_spatial_dims: bool = False,
         restricted_kl: bool = False,
-        vanilla_latent_hw: Iterable[int] = None,
+        vanilla_latent_hw: Union[Iterable[int], None] = None,
         non_stochastic_version: bool = False,
-        input_image_shape: Union[None, Tuple[int, int]] = None,
+        input_image_shape: Union[Tuple[int, int], None] = None,
         normalize_latent_factor: float = 1.0,
         conv2d_bias: bool = True,
         stochastic_use_naive_exponential: bool = False,
@@ -1218,7 +1218,7 @@ class TopDownLayer(nn.Module):
             raise ValueError("In top layer, inputs should be None")
 
         p_params = self.get_p_params(input_, n_img_prior)
-
+        
         # Get the parameters for the latent distribution to sample from
         if inference_mode:  # in inference mode we compute q(z_i | z_{i+1}, x)
             if self.is_top_layer:
