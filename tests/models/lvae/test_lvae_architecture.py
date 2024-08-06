@@ -99,10 +99,9 @@ def test_LC_init(
     z_dims: list[int], 
     multiscale_count: int
 ) -> None:
-    # msg = (
-    #     f"Multiscale count ({multiscale_count}) should not exceed the number"
-    #     f"of bottom up layers ({len(z_dims)}) by more than 1.\n"
-    # )
+    # pattern = re.compile(
+    #     r"Multiscale count \((\d+)\) should not exceed the number of bottom up layers \((\d+)\) by more than 1\.\n"
+    # ) 
     with pytest.raises(AssertionError):
         create_LVAE_model(z_dims=z_dims, multiscale_count=multiscale_count)
         
@@ -186,3 +185,18 @@ def test_bottom_up_pass(
         if i + 1 > multiscale_count - 1:
             exp_img_size //= 2
         assert outputs[i].shape == (1, n_filters, exp_img_size, exp_img_size)
+        
+@pytest.mark.parametrize("img_size", [64, 128])
+@pytest.mark.parametrize("multiscale_count", [1, 3, 5])
+def test_topmost_top_down_layer(img_size: int, multiscale_count: int) -> None:
+    model = create_LVAE_model(input_shape=img_size, multiscale_count=multiscale_count)
+    topmost_top_down = model.top_down_layers[-1]
+    n_filters = model.encoder_n_filters
+    downscaling = 2**(model.n_layers + 1 - multiscale_count)
+    downscaled_size = img_size // downscaling
+    bu_value = torch.ones((1, n_filters, downscaled_size, downscaled_size))
+    output, data = topmost_top_down(bu_value=bu_value, inference_mode=True)
+    expected_out_shape = (1, n_filters, 2*downscaled_size, 2*downscaled_size) 
+    expected_z_shape = (1, model.z_dims[0], downscaled_size, downscaled_size) 
+    assert output.shape == expected_out_shape
+    assert data["z"].shape == expected_z_shape
