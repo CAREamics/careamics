@@ -369,7 +369,7 @@ class LadderVAE(nn.Module):
                     n_res_blocks=self.decoder_blocks_per_layer,
                     n_filters=self.decoder_n_filters,
                     is_top_layer=is_top,
-                    downsampling_steps=self.downsample[i],
+                    upsampling_steps=self.downsample[i],
                     nonlin=nonlin,
                     merge_type=self.merge_type,
                     batchnorm=self.topdown_batchnorm,

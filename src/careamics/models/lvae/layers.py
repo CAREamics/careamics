@@ -877,7 +877,7 @@ class TopDownLayer(nn.Module):
         n_filters: int,
         conv_dims: int = 2,
         is_top_layer: bool = False,
-        downsampling_steps: Union[int, None] = None,
+        upsampling_steps: Union[int, None] = None,
         nonlin: Union[Callable, None] = None,
         merge_type: Union[Literal["linear", "residual", "residual_ungated"], None] = None,
         batchnorm: bool = True,
@@ -914,9 +914,9 @@ class TopDownLayer(nn.Module):
             The number of dimensions of the convolutional layers (2D or 3D). Default is 2.
         is_top_layer: bool, optional
             Whether the current layer is at the top of the Decoder hierarchy. Default is `False`.
-        downsampling_steps: int, optional
-            The number of downsampling steps that has to be done in this layer (typically 1).
-            Default is `False`.
+        upsampling_steps: int, optional
+            The number of upsampling steps that has to be done in this layer (typically 1).
+            Default is `None`.
         nonlin: Callable, optional
             The non-linearity function used in the block (e.g., `nn.ReLU`). Deafault is `None`.
         merge_type: Literal["linear", "residual", "residual_ungated"], optional
@@ -1008,17 +1008,17 @@ class TopDownLayer(nn.Module):
                 torch.zeros(top_prior_param_shape), requires_grad=learn_top_prior
             )
 
-        # Downsampling steps left to do in this layer
-        dws_left = downsampling_steps
+        # Upsampling steps left to do in this layer
+        ups_left = upsampling_steps
 
         # Define deterministic top-down block, which is a sequence of deterministic
-        # residual blocks with (optional) downsampling.
+        # residual blocks with (optional) upsampling.
         block_list = []
         for _ in range(n_res_blocks):
             do_resample = False
-            if dws_left > 0:
+            if ups_left > 0:
                 do_resample = True
-                dws_left -= 1
+                ups_left -= 1
             block_list.append(
                 TopDownDeterministicResBlock(
                     c_in=n_filters,
