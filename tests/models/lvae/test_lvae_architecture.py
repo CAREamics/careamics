@@ -193,11 +193,17 @@ def test_topmost_top_down_layer(img_size: int, multiscale_count: int) -> None:
     model = create_LVAE_model(input_shape=img_size, multiscale_count=multiscale_count)
     topmost_top_down = model.top_down_layers[-1]
     n_filters = model.encoder_n_filters
+
     downscaling = 2**(model.n_layers + 1 - multiscale_count)
     downscaled_size = img_size // downscaling
     bu_value = torch.ones((1, n_filters, downscaled_size, downscaled_size))
     output, data = topmost_top_down(bu_value=bu_value, inference_mode=True)
-    expected_out_shape = (1, n_filters, 2*downscaled_size, 2*downscaled_size) 
+    
+    retain_sp_dims = (
+        topmost_top_down.retain_spatial_dims and downscaled_size == img_size 
+    )
+    exp_out_size = downscaled_size if retain_sp_dims else 2 * downscaled_size
+    expected_out_shape = (1, n_filters, exp_out_size, exp_out_size) 
     expected_z_shape = (1, model.z_dims[0], downscaled_size, downscaled_size) 
     assert output.shape == expected_out_shape
     assert data["z"].shape == expected_z_shape
@@ -222,11 +228,16 @@ def test_all_top_down_layers(img_size: int, multiscale_count: int) -> None:
             skip_connection_input=skip_input
         )
         input = bu_value = skip_input = output
+        
+        retain_sp_dims = (
+            td_layer.retain_spatial_dims and downscaled_size == img_size 
+        )
+        exp_out_size = downscaled_size if retain_sp_dims else 2 * downscaled_size
+        expected_out_shape = (1, n_filters, exp_out_size, exp_out_size) 
         expected_z_shape = (1, model.z_dims[0], downscaled_size, downscaled_size)
-        downscaled_size *= 2
-        expected_out_shape = (1, n_filters, downscaled_size, downscaled_size)  
-        assert output.shape == expected_out_shape
+        assert output.shape == expected_out_shape, f"Found problem in layer {i+1}, retain={td_layer.retain_spatial_dims}, dwsc={downscaled_size}"
         assert data["z"].shape == expected_z_shape
+        downscaled_size = exp_out_size
 
 
 @pytest.mark.parametrize("img_size", [64, 128])
@@ -242,3 +253,35 @@ def test_final_top_down(img_size: int, multiscale_count: int) -> None:
     expected_out_shape = (1, n_filters, img_size, img_size) 
     assert output.shape == expected_out_shape
     
+@pytest.mark.parametrize("img_size", [64, 128])
+@pytest.mark.parametrize("multiscale_count", [1, 3, 5])
+def test_top_down_pass(img_size: int, multiscale_count: int) -> None:
+    model = create_LVAE_model(input_shape=img_size, multiscale_count=multiscale_count)
+    top_down_layers = model.top_down_layers
+    final_top_down = model.final_top_down
+    n_filters = model.encoder_n_filters
+    n_layers = model.n_layers
+    
+    # Compute the bu_values for all the layers
+    bu_values = []
+    td_sizes = []
+    curr_size = img_size
+    for i in range(n_layers):
+        if i + 1 > multiscale_count - 1:
+            curr_size //= 2
+        td_sizes.append(curr_size)
+        bu_values.append(
+            torch.ones((1, n_filters, curr_size, curr_size))
+        )
+    
+    output, data = model.topdown_pass(
+        top_down_layers=top_down_layers,
+        final_top_down_layer=final_top_down,
+        bu_values=bu_values
+    )
+    
+    expected_out_shape = (1, n_filters, img_size, img_size)  
+    assert output.shape == expected_out_shape
+    for i in range(n_layers):
+        expected_z_shape = (1, model.z_dims[i], td_sizes[i], td_sizes[i])
+        assert data["z"][i].shape == expected_z_shape
