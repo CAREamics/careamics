@@ -1,3 +1,5 @@
+from typing import Union, Literal
+
 import pytest
 import torch
 from torch import nn
@@ -11,7 +13,9 @@ def create_LVAE_model(
     input_shape: int = 64,
     z_dims: list[int] = [128, 128, 128, 128],
     multiscale_count: int = 0,
-    analytical_kl: bool = False
+    output_channels: int = 1,
+    analytical_kl: bool = False,
+    predict_logvar: Union[Literal["pixelwise"], None] = None
 ) -> nn.Module:
     lvae_model_config = LVAEModel(
         architecture="LVAE",
@@ -19,7 +23,8 @@ def create_LVAE_model(
         input_shape=input_shape,
         z_dims=z_dims,
         multiscale_count=multiscale_count,
-        predict_logvar=None,
+        output_channels=output_channels,
+        predict_logvar=predict_logvar,
         enable_noise_model=False,
         analytical_kl=analytical_kl
     )
@@ -343,3 +348,29 @@ def test_KL_shape(
             assert data["kl_restricted"][i].shape == (batch_size, )
         assert data["kl_channelwise"][i].shape == (batch_size, model.z_dims[i])
         assert data["kl_spatial"][i].shape == (batch_size, td_sizes[i], td_sizes[i])
+        
+
+@pytest.mark.parametrize("img_size", [64, 128])
+@pytest.mark.parametrize("multiscale_count", [1, 3, 5])
+@pytest.mark.parametrize("predict_logvar", [None, "pixelwise"])
+@pytest.mark.parametrize("output_channels", [1, 2])
+def test_output_layer(
+    img_size: int, 
+    multiscale_count: int,
+    predict_logvar: Union[Literal["pixelwise"], None],
+    output_channels: int
+) -> None:
+    model = create_LVAE_model(
+        input_shape=img_size, 
+        multiscale_count=multiscale_count,
+        predict_logvar=predict_logvar,
+        output_channels=output_channels
+    )
+    out_layer = model.output_layer
+    n_filters = model.encoder_n_filters
+    input_ = torch.ones((1, n_filters, img_size, img_size))
+    output = out_layer(input_)
+
+    num_out_ch = output_channels * (2 if predict_logvar == "pixelwise" else 1)
+    exp_out_shape = (1, num_out_ch, img_size, img_size)
+    assert output.shape == exp_out_shape
