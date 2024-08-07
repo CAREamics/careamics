@@ -143,14 +143,6 @@ class GaussianLikelihood(LikelihoodModule):
         self.conv2d_bias = conv2d_bias
         assert self.predict_logvar in [None, "pixelwise"]
 
-        # logvar_ch_needed = self.predict_logvar is not None
-        # self.parameter_net = nn.Conv2d(ch_in,
-        #                                color_channels * (1 + logvar_ch_needed),
-        #                                kernel_size=3,
-        #                                padding=1,
-        #                                bias=self.conv2d_bias)
-        self.parameter_net = nn.Identity()
-
         print(
             f"[{self.__class__.__name__}] PredLVar:{self.predict_logvar} LowBLVar:{self.logvar_lowerbound}"
         )
@@ -163,12 +155,10 @@ class GaussianLikelihood(LikelihoodModule):
         Parameters
         ----------
         x: torch.Tensor
-            The input tensor to the likelihood module, i.e., the output of the top-down pass.
+            The input tensor to the likelihood module, i.e., the output of 
+            the 'output_layer'. Shape is: (B, 2 * C, H, W) in case `predict_logvar` 
+            is not None, or (B, C, H, W) otherwise.
         """
-        # Feed the output of the top-down pass to a parameter network
-        # This network can be either a Conv2d or Identity module
-        x = self.parameter_net(x)
-
         if self.predict_logvar is not None:
             # Get pixel-wise mean and logvar
             mean, lv = x.chunk(2, dim=1)
@@ -280,9 +270,6 @@ class NoiseModelLikelihood(LikelihoodModule):
         noiseModel: nn.Module,
     ):
         super().__init__()
-        self.parameter_net = (
-            nn.Identity()
-        )  # nn.Conv2d(ch_in, color_channels, kernel_size=3, padding=1)
         self.data_mean = data_mean
         self.data_std = data_std
         self.noiseModel = noiseModel
@@ -300,7 +287,7 @@ class NoiseModelLikelihood(LikelihoodModule):
                 self.data_std[key] = self.data_std[key].to(correct_device_tensor.device)
 
     def get_mean_lv(self, x):
-        return self.parameter_net(x), None
+        return x, None
 
     def distr_params(self, x):
         mean, lv = self.get_mean_lv(x)
