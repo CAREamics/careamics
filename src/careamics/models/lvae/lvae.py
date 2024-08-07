@@ -70,7 +70,7 @@ class LadderVAE(nn.Module):
         self.analytical_kl = analytical_kl
         # -------------------------------------------------------
         
-        if conv_dims == 2:
+        if conv_dims != 2:
             raise NotImplementedError("Only 2D convolutions are supported for now.")
         
         # -------------------------------------------------------
@@ -197,11 +197,11 @@ class LadderVAE(nn.Module):
 
         # Output layer --> Project to target_ch many channels
         logvar_ch_needed = self.predict_logvar is not None
-        self.output_layer = self.parameter_net = nn.Conv2d(
+        self.output_layer = self.parameter_net = getattr(nn, f"Conv{self.conv_dims}d")(
             self.decoder_n_filters,
             self.target_ch * (1 + logvar_ch_needed),
             kernel_size=3,
-            padding=1,
+            padding="same",
             bias=self.topdown_conv2d_bias,
         )
 
@@ -742,11 +742,14 @@ class LadderVAE(nn.Module):
         # Top-down inference/generation
         out, td_data = self.topdown_pass(bu_values, mode_layers=mode_layers)
 
+        # TODO: this should not be necessary anymore
         if out.shape[-1] > img_size[-1]:
             # Restore original image size
             out = crop_img_tensor(out, img_size)
 
         out = self.output_layer(out)
+        
+        # TODO: this should be removed
         if self._tethered_to_input:
             assert out.shape[1] == 1
             ch2 = self.get_other_channel(out, x)
