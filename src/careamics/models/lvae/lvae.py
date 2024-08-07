@@ -67,10 +67,12 @@ class LadderVAE(nn.Module):
         self.nonlin = nonlinearity
         self.predict_logvar = predict_logvar
         self.enable_noise_model = enable_noise_model
-
         self.analytical_kl = analytical_kl
         # -------------------------------------------------------
-
+        
+        if conv_dims == 2:
+            raise NotImplementedError("Only 2D convolutions are supported for now.")
+        
         # -------------------------------------------------------
         # Model attributes -> Hardcoded
         self.model_type = ModelType.LadderVae  # TODO remove !
