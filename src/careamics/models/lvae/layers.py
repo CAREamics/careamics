@@ -1,8 +1,5 @@
-"""
-Script containing the common basic blocks (nn.Module) reused by the LadderVAE architecture.
-
-Hierarchy in the model blocks:
-
+"""Script containing the common basic blocks (nn.Module) 
+reused by the LadderVAE architecture.
 """
 
 from copy import deepcopy
@@ -10,7 +7,6 @@ from typing import Callable, Dict, Iterable, Literal, Tuple, Union
 
 import torch
 import torch.nn as nn
-import torchvision.transforms.functional as F
 from torch.distributions import kl_divergence
 from torch.distributions.normal import Normal
 
@@ -459,7 +455,8 @@ class BottomUpLayer(nn.Module):
             Whether to pad the latent tensor resulting from the bottom-up layer's primary flow
             to match the size of the low-res input. Default is `False`.
         decoder_retain_spatial_dims: bool, optional
-            Default is `False`.
+            Whether in the corresponding top-down layer the shape of tensor is retained between 
+            input and output. Default is `False`.
         output_expected_shape: Iterable[int], optional
             The expected shape of the layer output (only used if `enable_multiscale == True`).
             Default is `None`.
@@ -579,6 +576,9 @@ class BottomUpLayer(nn.Module):
             previous layer.
         lowres_x: torch.Tensor, optional
             The low-res input used for Lateral Contextualization (LC). Default is `None`.
+            
+        NOTE: first returned tensor is used as input for the next BU layer, while the second
+        tensor is the bu_value passed to the top-down layer.
         """
         # The input is fed through the residual downsampling block(s)
         primary_flow = self.net_downsized(x)
@@ -598,13 +598,25 @@ class BottomUpLayer(nn.Module):
         else:
             merged = primary_flow
 
-        # TODO: this need to be refactored, it is difficult to understand
+        # NOTE: Explanation of possible cases for the conditionals:
+        # - if both are `True` -> `merged` has the same spatial dims as the input (`x`) since
+        #   spatial dims are retained by padding `primary_flow` in `MergeLowRes`. This is
+        #   OK for the corresp TopDown layer, as it also retains spatial dims.
+        # - if both are `False` -> `merged`'s spatial dims are equal to `self.net_downsized(x)`,
+        #   since no padding is done in `MergeLowRes` and, instead, the lowres input is cropped.
+        #   This is OK for the corresp TopDown layer, as it also halves the spatial dims.
+        # - if 1st is `False` and 2nd is `True` -> not a concern, it cannot happen 
+        #   (see lvae.py, line 111, intialization of `multiscale_decoder_retain_spatial_dims`).
         if (
             self.multiscale_retain_spatial_dims is False
             or self.decoder_retain_spatial_dims is True
         ):
             return merged, merged
 
+        # NOTE: if we reach here, it means that `multiscale_retain_spatial_dims` is `True`,
+        # but `decoder_retain_spatial_dims` is `False`, meaning that merging LC preserves 
+        # the spatial dimensions, but at the same time we don't want to retain the spatial 
+        # dims in the corresponding top-down layer. Therefore, we need to crop the tensor.
         if self.output_expected_shape is not None:
             expected_shape = self.output_expected_shape
         else:
@@ -756,6 +768,8 @@ class MergeLowRes(MergeLayer):
         # TODO: treat (X, Y) and Z differently (e.g., line 762)
         if self.retain_spatial_dims:
             # Pad latent tensor to match lowres tensor's shape
+            # Output.shape == Lowres.shape (== Input.shape), 
+            # where Input is the input to the BU layer
             latent = pad_img_tensor(latent, lowres.shape[2:]) 
         else:
             # Crop lowres tensor to match latent tensor's shape
@@ -1000,7 +1014,7 @@ class TopDownLayer(nn.Module):
         self.latent_shape = input_image_shape if self.retain_spatial_dims else None
         self.non_stochastic_version = non_stochastic_version
         self.normalize_latent_factor = normalize_latent_factor
-        self._vanilla_latent_hw = vanilla_latent_hw
+        self._vanilla_latent_hw = vanilla_latent_hw # TODO: check this, it is not used
 
         # Define top layer prior parameters, possibly learnable
         if is_top_layer:
@@ -1267,6 +1281,32 @@ class TopDownLayer(nn.Module):
         if self.stochastic_skip and not self.is_top_layer:
             x = self.skip_connection_merger(x, skip_connection_input)
 
+        if self.retain_spatial_dims:
+            # NOTE: we assume that one topdown layer will have exactly one upscaling layer.
+
+            # NOTE: in case, in the Bottom-Up layer, LC retains spatial dimensions,
+            # we have the following (see `MergeLowRes`):
+            # - the "primary-flow" tensor is padded to match the low-res patch size
+            #   (e.g., from 32x32 to 64x64)
+            # - padded tensor is then merged with the low-res patch (concatenation
+            #   along dim=1 + convolution)
+            # Therefore, we need to do the symmetric operation here, that is to
+            # crop `x` for the same amount we padded it in the correspondent BU layer.
+            
+            # NOTE: cropping is done to retain the shape of the input in the output.
+            # Therefore we need it only in the case `x` is the same shape of the input,
+            # because that's the only case in which we need to retain the shape.
+            # Here, it must be strictly greater than half the input shape, which is
+            # the case if and only if `x.shape == self.latent_shape`. 
+            new_latent_shape = tuple(dim // 2 for dim in self.latent_shape)
+            if x.shape[-1] > new_latent_shape[-1]:
+                x = crop_img_tensor(x, new_latent_shape)
+                
+        # TODO: `retain_spatial_dims` is the same for all the TD layers. 
+        # How to handle the case in which we do not have LC for all layers?
+        # The answer is in `self.latent_shape`, which is equal to `input_image_shape` 
+        # (e.g., (64, 64)) if `retain_spatial_dims` is `True`, else it is `None`.
+        
         # Last top-down block (sequence of residual blocks w\ upsampling)
         x = self.deterministic_block(x)
 
