@@ -1,4 +1,6 @@
 ##### REQUIRED Methods for Loss Computation #####
+from typing import Union
+
 import numpy as np
 import torch
 
@@ -10,9 +12,8 @@ from careamics.models.lvae.utils import compute_batch_mean
 def get_reconstruction_loss(
     reconstruction: torch.Tensor,
     target: torch.Tensor,
-    input: torch.Tensor,
     likelihood_obj: LikelihoodModule,
-    splitting_mask: torch.Tensor = None,
+    splitting_mask: Union[torch.Tensor, None] = None,
     return_predicted_img: bool = False,
 ) -> dict[str, torch.Tensor]:
     """
@@ -22,7 +23,6 @@ def get_reconstruction_loss(
     ----------
     reconstruction: torch.Tensor,
     target: torch.Tensor
-    input: torch.Tensor
     splitting_mask: torch.Tensor = None
         A boolean tensor that indicates which items to keep for reconstruction loss computation.
         If `None`, all the elements of the items are considered (i.e., the mask is all `True`).
@@ -32,7 +32,6 @@ def get_reconstruction_loss(
     output = _get_reconstruction_loss_vector(
         reconstruction=reconstruction,
         target=target,
-        input=input,
         return_predicted_img=return_predicted_img,
         likelihood_obj=likelihood_obj,
     )
@@ -48,8 +47,6 @@ def get_reconstruction_loss(
         key = f"ch{i}_loss"
         loss_dict[key] = loss_dict[key][splitting_mask].sum() / len(reconstruction)
 
-    if "mixed_loss" in loss_dict:
-        loss_dict["mixed_loss"] = torch.mean(loss_dict["mixed_loss"])
     if return_predicted_img:
         assert len(output) == 2
         return loss_dict, output[1]
@@ -60,7 +57,6 @@ def get_reconstruction_loss(
 def _get_reconstruction_loss_vector(
     reconstruction: torch.Tensor,
     target: torch.Tensor,
-    input: torch.Tensor,
     likelihood_obj: LikelihoodModule,
     return_predicted_img: bool = False,
 ):
@@ -73,10 +69,7 @@ def _get_reconstruction_loss_vector(
         If set to `True`, the besides the loss, the reconstructed image is also returned.
         Default is `False`.
     """
-    output = {
-        "loss": None,
-        "mixed_loss": None,
-    }
+    output = {"loss": None}
 
     for i in range(1, 1 + target.shape[1]):
         output[f"ch{i}_loss"] = None
