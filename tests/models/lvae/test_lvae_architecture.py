@@ -11,6 +11,7 @@ def create_LVAE_model(
     input_shape: int = 64,
     z_dims: list[int] = [128, 128, 128, 128],
     multiscale_count: int = 0,
+    analytical_kl: bool = False
 ) -> nn.Module:
     lvae_model_config = LVAEModel(
         architecture="LVAE",
@@ -20,6 +21,7 @@ def create_LVAE_model(
         multiscale_count=multiscale_count,
         predict_logvar=None,
         enable_noise_model=False,
+        analytical_kl=analytical_kl
     )
     # algorithm, loss and noise_model are not important here since
     # we are only interested in testing the model architecture
@@ -252,7 +254,8 @@ def test_final_top_down(img_size: int, multiscale_count: int) -> None:
     output = final_top_down(input)
     expected_out_shape = (1, n_filters, img_size, img_size) 
     assert output.shape == expected_out_shape
-    
+
+
 @pytest.mark.parametrize("img_size", [64, 128])
 @pytest.mark.parametrize("multiscale_count", [1, 3, 5])
 def test_top_down_pass(img_size: int, multiscale_count: int) -> None:
@@ -285,3 +288,58 @@ def test_top_down_pass(img_size: int, multiscale_count: int) -> None:
     for i in range(n_layers):
         expected_z_shape = (1, model.z_dims[i], td_sizes[i], td_sizes[i])
         assert data["z"][i].shape == expected_z_shape
+        
+
+@pytest.mark.parametrize("img_size", [64, 128])
+@pytest.mark.parametrize("multiscale_count", [1, 3, 5])
+@pytest.mark.parametrize("analytical_kl", [False, True])
+@pytest.mark.parametrize("batch_size", [1, 8])
+def test_KL_shape(
+    img_size: int, 
+    multiscale_count: int, 
+    analytical_kl: bool,
+    batch_size: int
+) -> None:
+    model = create_LVAE_model(
+        input_shape=img_size, 
+        multiscale_count=multiscale_count,
+        analytical_kl=analytical_kl
+    )
+    top_down_layers = model.top_down_layers
+    final_top_down = model.final_top_down
+    n_filters = model.encoder_n_filters
+    n_layers = model.n_layers
+    
+    # Compute the bu_values for all the layers
+    bu_values = []
+    td_sizes = []
+    curr_size = img_size
+    for i in range(n_layers):
+        if i + 1 > multiscale_count - 1:
+            curr_size //= 2
+        td_sizes.append(curr_size)
+        bu_values.append(
+            torch.ones((batch_size, n_filters, curr_size, curr_size))
+        )
+    
+    _, data = model.topdown_pass(
+        top_down_layers=top_down_layers,
+        final_top_down_layer=final_top_down,
+        bu_values=bu_values
+    )
+    
+    exp_keys = [
+        "kl", # samplewise
+        "kl_restricted",
+        "kl_channelwise",
+        "kl_spatial",
+    ]
+    assert all(k in data.keys() for k in exp_keys)
+    for i in range(n_layers):
+        expected_z_shape = (batch_size, model.z_dims[i], td_sizes[i], td_sizes[i])
+        assert data["z"][i].shape == expected_z_shape
+        assert data["kl"][i].shape == (batch_size, )
+        if model._restricted_kl:
+            assert data["kl_restricted"][i].shape == (batch_size, )
+        assert data["kl_channelwise"][i].shape == (batch_size, model.z_dims[i])
+        assert data["kl_spatial"][i].shape == (batch_size, td_sizes[i], td_sizes[i])
