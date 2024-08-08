@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Union
 
 import numpy as np
 import pytest
@@ -9,12 +10,29 @@ from careamics.config.nm_model import GaussianMixtureNmModel
 from careamics.models.lvae.likelihoods import likelihood_factory
 from careamics.models.lvae.noise_models import noise_model_factory
 
+# TODO: move it under models/lvae/ ??
 
-def test_gaussian_likelihood():
-    config = GaussianLikelihoodModel(model_type="GaussianLikelihoodModel")
+@pytest.mark.parametrize("target_ch", [1, 3])
+@pytest.mark.parametrize("predict_logvar", [None, "pixelwise"])
+def test_gaussian_likelihood_output(
+    target_ch: int, 
+    predict_logvar: Union[str, None]
+):
+    config = GaussianLikelihoodModel(
+        model_type="GaussianLikelihoodModel",
+        predict_logvar=predict_logvar,
+    )
     likelihood = likelihood_factory(config)
-    inputs = torch.rand(64, 64)
-    assert likelihood(inputs, inputs)[0].mean() is not None
+    
+    img_size = 64
+    inp_ch = target_ch * (1 + int(predict_logvar is not None))
+    reconstruction = torch.rand((1, inp_ch, img_size, img_size)) 
+    target = torch.rand((1, target_ch, img_size, img_size))
+    out, _ = likelihood(reconstruction, target)
+    
+    exp_out_shape = (1, target_ch, img_size, img_size) 
+    assert out.shape == exp_out_shape
+    assert out[0].mean() is not None
 
 
 @pytest.mark.skip(reason="Not implemented yet")
