@@ -32,6 +32,6 @@ from .configuration_model import (
 from .data_model import DataConfig
 from .fcn_algorithm_model import FCNAlgorithmConfig
 from .inference_model import InferenceConfig
-from .nm_model import GaussianMixtureNmModel
+from .nm_model import GaussianMixtureNmModel, NMModel
 from .training_model import TrainingConfig
 from .vae_algorithm_model import VAEAlgorithmConfig

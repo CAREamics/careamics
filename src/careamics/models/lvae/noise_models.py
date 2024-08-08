@@ -7,7 +7,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from careamics.config import GaussianMixtureNmModel
+from careamics.config import GaussianMixtureNmModel, NMModel
 
 from .utils import ModelType
 
@@ -15,14 +15,13 @@ from .utils import ModelType
 
 
 def noise_model_factory(
-    model_config: Union[GaussianMixtureNmModel, None],
-    paths: Optional[list[Union[str, Path]]] = None,
+    model_config: Union[NMModel, None]
 ) -> nn.Module:
     """Noise model factory.
 
     Parameters
     ----------
-    model_config : GaussianMixtureNoiseModel
+    model_config : Union[NMModel, None]
         _description_
 
     Returns
@@ -35,21 +34,21 @@ def noise_model_factory(
     NotImplementedError
         _description_
     """
-    if model_config and paths:
-        if model_config.model_type == "GaussianMixtureNoiseModel":
-            noise_models = []
-            for path in paths:
-                model_config.path = path
+    if model_config:
+        noise_models = []
+        for nm_config in model_config.noise_models:
+            if nm_config.model_type == "GaussianMixtureNoiseModel":
                 noise_models.append(GaussianMixtureNoiseModel(model_config))
-            return DisentNoiseModel(*noise_models)
-        else:
-            raise NotImplementedError(
-                f"Model {model_config.model_type} is not implemented"
-            )
-    # TODO should config and paths be mutually exclusive ?
+            else:
+                raise NotImplementedError(
+                    f"Model {model_config.model_type} is not implemented"
+                )
+        return DisentNoiseModel(*noise_models)
+    # TODO should config and paths be mutually exclusive? What you mean, Igor?
     return None
 
 
+# TODO: this should go away, replaced by noise_model_factory
 def get_noise_model(
     enable_noise_model: bool,
     model_type: ModelType,
@@ -177,10 +176,10 @@ def fastShuffle(series, num):
 
 
 class GaussianMixtureNoiseModel(nn.Module):
-    """
-    The GaussianMixtureNoiseModel class describes a noise model which is parameterized as a mixture of gaussians.
+    """Define a noise model parameterized as a mixture of gaussians.
 
-    If you would like to initialize a new object from scratch, then set `params`= None and specify the other parameters as keyword arguments.
+    If you would like to initialize a new object from scratch, then set `params=None`
+    and specify the other parameters as keyword arguments. 
     If you are instead loading a model, use only `params`.
 
     Parameters
@@ -217,7 +216,7 @@ class GaussianMixtureNoiseModel(nn.Module):
         self._learnable = False
 
         if config.path is None:
-            # TODO is this to train a nm ?
+            # TODO this is (probably) to train a nm. We leave it for later refactoring
             weight = config.weight
             n_gaussian = config.n_gaussian
             n_coeff = config.n_coeff
@@ -240,7 +239,7 @@ class GaussianMixtureNoiseModel(nn.Module):
             self.max_signal = torch.Tensor([max_signal])  # .to(self.device)
             self.tol = torch.Tensor([1e-10])  # .to(self.device)
         else:
-            params = np.load(config.path)
+            params = np.load(config.path) # TODO: check the fuck is loaded here
             # self.device = kwargs.get('device')
 
             self.min_signal = torch.Tensor(params["min_signal"])  # .to(self.device)
@@ -260,7 +259,6 @@ class GaussianMixtureNoiseModel(nn.Module):
 
     def make_learnable(self):
         print(f"[{self.__class__.__name__}] Making noise model learnable")
-
         self._learnable = True
         self.weight.requires_grad = True
 
@@ -319,22 +317,27 @@ class GaussianMixtureNoiseModel(nn.Module):
         tmp = tmp / torch.sqrt((2.0 * np.pi) * std_ * std_)
         return tmp
 
-    def likelihood(self, observations, signals):
-        """Evaluates the likelihood of observations given the signals and the corresponding gaussian parameters.
+    def likelihood(
+        self, 
+        observations: torch.Tensor, 
+        signals: torch.Tensor
+    ) -> torch.Tensor:
+        """Evaluate the likelihood of observations given the signals and the 
+        corresponding gaussian parameters.
 
         Parameters
         ----------
         observations : torch.cuda.FloatTensor
-            Noisy observations
+            Noisy observations.
         signals : torch.cuda.FloatTensor
-            Underlying signals
+            Underlying signals.
 
         Returns
         -------
         value :p + self.tol
             Likelihood of observations given the signals and the GMM noise model
         """
-        self.to_device(signals)
+        self.to_device(signals) # move al needed stuff to the same device as `signals``
         gaussianParameters = self.getGaussianParameters(signals)
         p = 0
         for gaussian in range(self.n_gaussian):
@@ -348,7 +351,7 @@ class GaussianMixtureNoiseModel(nn.Module):
             )
         return p + self.tol
 
-    def getGaussianParameters(self, signals):
+    def getGaussianParameters(self, signals: torch.Tensor):
         """Returns the noise model for given signals.
 
         Parameters

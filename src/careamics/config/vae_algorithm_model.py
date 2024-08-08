@@ -10,7 +10,7 @@ from typing_extensions import Self
 
 from .architectures import CustomModel, LVAEModel
 from .likelihood_model import GaussianLikelihoodModel, NMLikelihoodModel
-from .nm_model import GaussianMixtureNmModel
+from .nm_model import NMModel
 from .optimizer_models import LrSchedulerModel, OptimizerModel
 
 
@@ -65,7 +65,7 @@ class VAEAlgorithmConfig(BaseModel):
     loss: Literal["musplit_loss", "denoisplit_loss"]
     model: Union[LVAEModel, CustomModel] = Field(discriminator="architecture")
 
-    noise_model: GaussianMixtureNmModel = Field(discriminator="model_type")
+    noise_model: NMModel = None
     noise_model_likelihood_model: Optional[NMLikelihoodModel] = None
     gaussian_likelihood_model: Optional[GaussianLikelihoodModel] = None
 
