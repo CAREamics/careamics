@@ -28,12 +28,16 @@ def test_gaussian_likelihood_output(
     inp_ch = target_ch * (1 + int(predict_logvar is not None))
     reconstruction = torch.rand((1, inp_ch, img_size, img_size)) 
     target = torch.rand((1, target_ch, img_size, img_size))
-    out, _ = likelihood(reconstruction, target)
+    out, data = likelihood(reconstruction, target)
     
     exp_out_shape = (1, target_ch, img_size, img_size) 
     assert out.shape == exp_out_shape
     assert out[0].mean() is not None
-
+    assert data["mean"].shape == exp_out_shape
+    if predict_logvar == "pixelwise":
+        assert data["logvar"].shape == exp_out_shape
+    else:
+        assert data["logvar"] is None
 
 @pytest.mark.skip(reason="Not implemented yet")
 def test_nm_likelihood(tmp_path):
