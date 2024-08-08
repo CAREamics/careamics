@@ -9,9 +9,7 @@ from ..config.tile_information import TileInformation
 from .stitch_prediction import stitch_prediction
 
 
-def convert_outputs(
-    predictions: List[Any], tiled: bool
-) -> Union[List[NDArray], NDArray]:
+def convert_outputs(predictions: List[Any], tiled: bool) -> list[NDArray]:
     """
     Convert the Lightning trainer outputs to the desired form.
 

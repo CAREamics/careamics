@@ -2,7 +2,12 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict, field_validator
+from typing import Annotated
+
+from annotated_types import Len
+from pydantic import BaseModel, ConfigDict
+
+DimTuple = Annotated[tuple, Len(min_length=3, max_length=4)]
 
 
 class TileInformation(BaseModel):
@@ -12,13 +17,12 @@ class TileInformation(BaseModel):
     This model is used to represent the information required to stitch back a tile into
     a larger image. It is used throughout the prediction pipeline of CAREamics.
 
-    Array shape should be (C)(Z)YX, where C and Z are optional dimensions, and must not
-    contain singleton dimensions.
+    Array shape should be C(Z)YX, where Z is an optional dimensions.
     """
 
     model_config = ConfigDict(validate_default=True)
 
-    array_shape: tuple[int, ...]
+    array_shape: DimTuple  # TODO: find a way to add custom error message?
     """Shape of the original (untiled) array."""
 
     last_tile: bool = False
@@ -34,30 +38,7 @@ class TileInformation(BaseModel):
     sample_id: int
     """Sample ID of the tile."""
 
-    @field_validator("array_shape")
-    @classmethod
-    def no_singleton_dimensions(cls, v: tuple[int, ...]):
-        """
-        Check that the array shape does not have any singleton dimensions.
-
-        Parameters
-        ----------
-        v : tuple of int
-            Array shape to check.
-
-        Returns
-        -------
-        tuple of int
-            The array shape if it does not contain singleton dimensions.
-
-        Raises
-        ------
-        ValueError
-            If the array shape contains singleton dimensions.
-        """
-        if any(dim == 1 for dim in v):
-            raise ValueError("Array shape must not contain singleton dimensions.")
-        return v
+    # TODO: Test that ZYX axes are not singleton ?
 
     def __eq__(self, other_tile: object):
         """Check if two tile information objects are equal.

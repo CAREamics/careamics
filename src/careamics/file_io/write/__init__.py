@@ -3,7 +3,13 @@
 __all__ = [
     "get_write_func",
     "write_tiff",
+    "WriteFunc",
+    "SupportedWriteType",
 ]
 
-from .get_func import get_write_func
+from .get_func import (
+    SupportedWriteType,
+    WriteFunc,
+    get_write_func,
+)
 from .tiff import write_tiff
