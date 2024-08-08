@@ -8,6 +8,9 @@ from pydantic import BaseModel, ConfigDict, Field
 class GaussianMixtureNmModel(BaseModel):
     """Gaussian mixture noise model."""
 
+    model_config = ConfigDict(
+        validate_assignment=True, arbitrary_types_allowed=True, extra="allow"
+    )
     # TODO What are all these parameters?
     model_type: Literal["GaussianMixtureNoiseModel"]
     path: str = None
