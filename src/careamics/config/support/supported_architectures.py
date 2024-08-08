@@ -10,11 +10,10 @@ class SupportedArchitecture(str, BaseEnum):
 
     - UNet: classical UNet compatible with N2V2
     - VAE: variational Autoencoder
-    - Custom: custom model registered with `@register_model` decorator
+    - custom: custom model registered with `@register_model` decorator
     """
 
+    # TODO all the others tags are small letters, except the architect
     UNET = "UNet"
-    VAE = "VAE"
-    CUSTOM = (
-        "Custom"  # TODO all the others tags are small letters, except the architect
-    )
+    LVAE = "LVAE"
+    CUSTOM = "custom"

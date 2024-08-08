@@ -1,11 +1,27 @@
 import pytest
+from torch import nn, ones
 
+from careamics.config import register_model
 from careamics.config.algorithm_model import AlgorithmConfig
 from careamics.config.support import (
     SupportedAlgorithm,
     SupportedArchitecture,
     SupportedLoss,
 )
+
+
+@register_model(name="another_linear_model")
+class LinearModel(nn.Module):
+    def __init__(self, in_features, out_features):
+        super().__init__()
+
+        self.in_features = in_features
+        self.out_features = out_features
+        self.weight = nn.Parameter(ones(in_features, out_features))
+        self.bias = nn.Parameter(ones(out_features))
+
+    def forward(self, input):
+        return (input @ self.weight) + self.bias
 
 
 def test_all_algorithms_are_supported():
@@ -19,13 +35,6 @@ def test_all_algorithms_are_supported():
     # check that all algorithms are supported
     for algo in schema["properties"]["algorithm"]["enum"]:
         assert algo in algorithms
-
-
-def test_supported_losses(minimum_algorithm_custom):
-    """Test that all supported losses are accepted by the AlgorithmModel."""
-    for loss in SupportedLoss:
-        minimum_algorithm_custom["loss"] = loss.value
-        AlgorithmConfig(**minimum_algorithm_custom)
 
 
 def test_all_losses_are_supported():
@@ -56,7 +65,7 @@ def test_model_discriminator(minimum_algorithm_n2v):
     "algorithm, loss, model",
     [
         ("n2v", "n2v", {"architecture": "UNet", "n2v2": False}),
-        ("custom", "mae", {"architecture": "UNet", "n2v2": True}),
+        ("n2n", "mae", {"architecture": "UNet", "n2v2": False}),
     ],
 )
 def test_algorithm_constraints(algorithm: str, loss: str, model: dict):
@@ -99,3 +108,24 @@ def test_comaptiblity_of_number_of_channels(algorithm, n_in, n_out):
     loss = "n2v" if algorithm == "n2v" else "mae"
 
     AlgorithmConfig(algorithm=algorithm, loss=loss, model=model)
+
+
+def test_custom_model(custom_model_parameters):
+    """Test that a custom model can be instantiated."""
+    # create algorithm configuration
+    AlgorithmConfig(
+        algorithm=SupportedAlgorithm.CUSTOM.value,
+        loss="mse",
+        model=custom_model_parameters,
+    )
+
+
+def test_custom_model_wrong_algorithm(custom_model_parameters):
+    """Test that a custom model fails if the algorithm is not custom."""
+    # create algorithm configuration
+    with pytest.raises(ValueError):
+        AlgorithmConfig(
+            algorithm=SupportedAlgorithm.CARE.value,
+            loss="mse",
+            model=custom_model_parameters,
+        )

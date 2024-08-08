@@ -8,7 +8,7 @@ from typing import Literal, Union
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from typing_extensions import Self
 
-from .architectures import CustomModel, UNetModel, VAEModel
+from .architectures import CustomModel, UNetModel
 from .optimizer_models import LrSchedulerModel, OptimizerModel
 
 
@@ -30,7 +30,7 @@ class AlgorithmConfig(BaseModel):
         Algorithm to use.
     loss : Literal["n2v", "mae", "mse"]
         Loss function to use.
-    model : Union[UNetModel, VAEModel, CustomModel]
+    model : Union[UNetModel, LVAEModel, CustomModel]
         Model architecture to use.
     optimizer : OptimizerModel, optional
         Optimizer to use.
@@ -76,7 +76,7 @@ class AlgorithmConfig(BaseModel):
     ...     "algorithm": "custom",
     ...     "loss": "mse",
     ...     "model": {
-    ...         "architecture": "Custom",
+    ...         "architecture": "custom",
     ...         "name": "linear_model",
     ...         "in_features": 10,
     ...         "out_features": 5,
@@ -89,24 +89,29 @@ class AlgorithmConfig(BaseModel):
     model_config = ConfigDict(
         protected_namespaces=(),  # allows to use model_* as a field name
         validate_assignment=True,
+        extra="allow",
     )
 
     # Mandatory fields
-    algorithm: Literal["n2v", "care", "n2n", "custom"]  # defined in SupportedAlgorithm
-    """Name of the algorithm, as defined in SupportedAlgorithm."""
+    # defined in SupportedAlgorithm
+    algorithm: Literal["n2v", "care", "n2n", "custom"]
+    """Name of the algorithm, as defined in SupportedAlgorithm. Use `custom` for custom
+    model architecture."""
 
     loss: Literal["n2v", "mae", "mse"]
-    """Loss function to use, as defined in SupportedLoss."""
+    """Name of the algorithm, as defined in SupportedAlgorithm."""
 
-    model: Union[UNetModel, VAEModel, CustomModel] = Field(discriminator="architecture")
-    """Model architecture to use, defined in SupportedArchitecture."""
+    model: Union[UNetModel, CustomModel] = Field(discriminator="architecture")
+    """Model architecture to use, along with its parameters. Compatible architectures
+    are defined in SupportedArchitecture, and their Pydantic models in 
+    `careamics.config.architectures`."""
 
     # Optional fields
     optimizer: OptimizerModel = OptimizerModel()
     """Optimizer to use, defined in SupportedOptimizer."""
 
     lr_scheduler: LrSchedulerModel = LrSchedulerModel()
-    """Learning rate scheduler to use, defined in SupportedScheduler."""
+    """Learning rate scheduler to use, defined in SupportedLrScheduler."""
 
     @model_validator(mode="after")
     def algorithm_cross_validation(self: Self) -> Self:
@@ -146,8 +151,10 @@ class AlgorithmConfig(BaseModel):
             if self.loss == "n2v":
                 raise ValueError("Supervised algorithms do not support loss `n2v`.")
 
-        if isinstance(self.model, VAEModel):
-            raise ValueError("VAE are currently not implemented.")
+        if (self.algorithm == "custom") != (self.model.architecture == "custom"):
+            raise ValueError(
+                "Algorithm and model architecture must be both `custom` or not."
+            )
 
         return self
 

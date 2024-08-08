@@ -25,7 +25,7 @@ from careamics.config.support import (
 )
 from careamics.dataset.dataset_utils import reshape_array
 from careamics.lightning import (
-    CAREamicsModule,
+    FCNModule,
     HyperParametersCallback,
     PredictDataModule,
     ProgressBarCallback,
@@ -148,9 +148,17 @@ class CAREamist:
             self.cfg = source
 
             # instantiate model
-            self.model = CAREamicsModule(
-                algorithm_config=self.cfg.algorithm_config,
-            )
+            if (
+                self.cfg.algorithm_config.model.architecture
+                == SupportedArchitecture.UNET
+            ):
+                self.model: FCNModule = FCNModule(
+                    algorithm_config=self.cfg.algorithm_config,
+                )
+            else:
+                raise NotImplementedError(
+                    "Architecture not supported. Please use UNet or Custom."
+                )
 
         # path to configuration file or model
         else:
@@ -164,9 +172,15 @@ class CAREamist:
                 self.cfg = load_configuration(source)
 
                 # instantiate model
-                self.model = CAREamicsModule(
-                    algorithm_config=self.cfg.algorithm_config,
-                )
+                if (
+                    self.cfg.algorithm_config.model.architecture
+                    == SupportedArchitecture.UNET
+                ):
+                    self.model = FCNModule(
+                        algorithm_config=self.cfg.algorithm_config,
+                    )
+                else:
+                    raise NotImplementedError("Architecture not supported.")
 
             # attempt loading a pre-trained model
             else:
