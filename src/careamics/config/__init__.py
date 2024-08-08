@@ -2,7 +2,8 @@
 
 __all__ = [
     "FCNAlgorithmConfig",
-    "VAEAlgorithmConfig" "DataConfig",
+    "VAEAlgorithmConfig",
+    "DataConfig",
     "Configuration",
     "CheckpointModel",
     "InferenceConfig",

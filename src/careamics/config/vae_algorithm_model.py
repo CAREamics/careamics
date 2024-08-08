@@ -90,6 +90,10 @@ class VAEAlgorithmConfig(BaseModel):
                 raise ValueError(
                     f"Algorithm {self.algorithm} only supports loss `musplit`."
                 )
+            if self.model.predict_logvar != "pixelwise":
+                raise ValueError(
+                    "Algorithm `musplit` only supports `predict_logvar` as `pixelwise`."
+                )
         # TODO add more checks
 
         if self.algorithm == "denoisplit":
@@ -97,7 +101,10 @@ class VAEAlgorithmConfig(BaseModel):
                 raise ValueError(
                     f"Algorithm {self.algorithm} only supports loss `denoisplit_loss`."
                 )
-
+            if self.model.predict_logvar is not None:
+                raise ValueError(
+                    "Algorithm `denoisplit` only supports `predict_logvar` as `None`."
+                )
         return self
 
     def __str__(self) -> str:
