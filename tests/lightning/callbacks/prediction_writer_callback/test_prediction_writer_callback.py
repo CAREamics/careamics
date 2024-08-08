@@ -207,29 +207,70 @@ def test_smoke_n2v_untiled_tiff(tmp_path, minimum_configuration):
 
 def test_initialization(prediction_writer_callback, write_strategy, dirpath):
     """Test `PredictionWriterCallback` initializes as expected."""
-    assert prediction_writer_callback.writing_predictions is True
+    assert prediction_writer_callback._writing_predictions is True
     assert prediction_writer_callback.write_strategy is write_strategy
     assert prediction_writer_callback.dirpath == Path(dirpath).resolve()
 
 
-def test_init_dirpath_absolute_path(prediction_writer_callback):
+def test_set_dirpath_absolute_path(prediction_writer_callback):
     """Test initialization of dirpath with absolute path."""
     absolute_path = Path("/absolute/path").absolute()
-    prediction_writer_callback._init_dirpath(absolute_path)
-    assert prediction_writer_callback.dirpath == absolute_path
+    prediction_writer_callback.dirpath = absolute_path
+    assert prediction_writer_callback._dirpath == absolute_path
 
 
-def test_init_dirpath_relative_path(prediction_writer_callback):
+def test_set_dirpath_relative_path(prediction_writer_callback):
     """Test initialization of dirpath with relatice path."""
     relative_path = "relative/path"
     # patch pathlib.Path.cwd to return
     mock_cwd = Path("/current/working/dir")
     with patch("pathlib.Path.cwd", return_value=mock_cwd):
-        prediction_writer_callback._init_dirpath(relative_path)
-        assert prediction_writer_callback.dirpath == mock_cwd / relative_path
+        prediction_writer_callback.dirpath = relative_path
+        assert prediction_writer_callback._dirpath == mock_cwd / relative_path
 
 
-def test_setup_prediction_directory_creation(prediction_writer_callback, dirpath):
+@pytest.mark.parametrize("initial_value", [True, False])
+def test_writing_predictions_context(prediction_writer_callback, initial_value):
+    """
+    Test that the context manager for writing predictions works as expected.
+    """
+    # initialize value
+    prediction_writer_callback._writing_predictions = initial_value
+
+    temp_value = True
+    with prediction_writer_callback.writing_predictions(temp_value):
+        assert prediction_writer_callback._writing_predictions == temp_value
+    # make sure it is restored to it's initial value
+    assert prediction_writer_callback._writing_predictions == initial_value
+
+    # for value is false
+    temp_value = False
+    with prediction_writer_callback.writing_predictions(temp_value):
+        assert prediction_writer_callback._writing_predictions == temp_value
+    assert prediction_writer_callback._writing_predictions == initial_value
+
+
+@pytest.mark.parametrize("initial_value", [True, False])
+def test_set_writing_predictions(prediction_writer_callback, initial_value):
+    """
+    Test that `set_writing_predictions` changes the value of `_writing_predictions.
+    """
+    # initialize value
+    prediction_writer_callback._writing_predictions = initial_value
+
+    new_value = True
+    prediction_writer_callback.set_writing_predictions(new_value)
+    assert prediction_writer_callback._writing_predictions == new_value
+
+    new_value = False
+    prediction_writer_callback.set_writing_predictions(new_value)
+    assert prediction_writer_callback._writing_predictions == new_value
+
+
+@pytest.mark.parametrize("writing_predictions", [True, False])
+def test_setup_prediction_directory_creation(
+    prediction_writer_callback, dirpath, writing_predictions
+):
     """
     Test prediction directory is created when `setup` is called at `stage="predict"`.
     """
@@ -237,9 +278,11 @@ def test_setup_prediction_directory_creation(prediction_writer_callback, dirpath
     pl_module = Mock(spec=LightningModule)
     stage = "predict"
 
+    prediction_writer_callback._writing_predictions = writing_predictions
     prediction_writer_callback.setup(trainer=trainer, pl_module=pl_module, stage=stage)
 
-    assert os.path.isdir(dirpath)
+    # makes directory only if writing predictions is turned on
+    assert os.path.isdir(dirpath) == writing_predictions
 
 
 def test_write_on_batch_end(prediction_writer_callback):
@@ -287,7 +330,7 @@ def test_write_on_batch_end_writing_predictions_off(prediction_writer_callback):
     Ensure `PredictionWriterCallback.write_strategy.write_batch` is not called when
     `PredictionWriterCallback.writing_predictions=False`.
     """
-    prediction_writer_callback.writing_predictions = False
+    prediction_writer_callback._writing_predictions = False
 
     trainer = Mock(spec=Trainer)
     pl_module = Mock(spec=LightningModule)

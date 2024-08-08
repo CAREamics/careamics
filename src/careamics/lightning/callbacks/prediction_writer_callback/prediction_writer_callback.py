@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Optional, Sequence, Union
 
@@ -69,14 +70,15 @@ class PredictionWriterCallback(BasePredictionWriter):
         super().__init__(write_interval="batch")
 
         # Toggle for CAREamist to switch off saving if desired
-        self.writing_predictions: bool = True
+        self._writing_predictions: bool = True
 
         self.write_strategy: WriteStrategy = write_strategy
 
         # forward declaration
-        self.dirpath: Path
-        # attribute initialisation
-        self._init_dirpath(dirpath)
+        self._dirpath: Path
+        # property setter sets self.dirpath
+        # mypy problem with properties https://github.com/python/mypy/issues/3004
+        self.dirpath = dirpath  # type: ignore
 
     @classmethod
     def from_write_func_params(
@@ -127,23 +129,80 @@ class PredictionWriterCallback(BasePredictionWriter):
         )
         return cls(write_strategy=write_strategy, dirpath=dirpath)
 
-    def _init_dirpath(self, dirpath):
+    @property
+    def dirpath(self) -> Path:
         """
-        Initialize directory path. Should only be called from `__init__`.
+        The path to the directory where prediction outputs will be saved.
+
+        If `dirpath` is not absolute it is assumed to be relative to current working
+        directory.
+
+        Returns
+        -------
+        Path
+            Directory path.
+        """
+        return self._dirpath
+
+    @dirpath.setter
+    def dirpath(self, value: Union[Path, str]):
+        """
+        The path to the directory where prediction outputs will be saved.
+
+        If `dirpath` is not absolute it is assumed to be relative to current working
+        directory.
 
         Parameters
         ----------
-        dirpath : pathlib.Path
-            See `__init__` description.
+        value : pathlib.Path
+            New directory value.
         """
-        dirpath = Path(dirpath)
-        if not dirpath.is_absolute():
-            dirpath = Path.cwd() / dirpath
+        value_: Path = Path(value)  # new variable for mypy
+        if not value_.is_absolute():
+            value_ = Path.cwd() / value_
             logger.warning(
                 "Prediction output directory is not absolute, absolute path assumed to"
-                f"be '{dirpath}'"
+                f"be '{value}'"
             )
-        self.dirpath = dirpath
+        self._dirpath = value_
+
+    @contextmanager
+    def writing_predictions(self, flag: bool):
+        """
+        A context manager that will temporarily set writing predictions on or off.
+
+        The toggle will return to what it previously was after exiting the `with` block.
+
+        Parameters
+        ----------
+        flag : bool
+            Whether writing predictions will be set to on or off during the `with`
+            block.
+
+        Yields
+        ------
+        None
+        """
+        # save current value to restore to after context
+        previous_value = self._writing_predictions
+
+        # set value and yield (state withing `with` statement block)
+        self._writing_predictions = flag
+        yield
+
+        # state after exiting `with` statement block
+        self._writing_predictions = previous_value
+
+    def set_writing_predictions(self, flag: bool) -> None:
+        """
+        Turn writing predictions on or off.
+
+        Parameters
+        ----------
+        flag : bool
+            Whether writing predictions will be set to on or off.
+        """
+        self._writing_predictions = flag
 
     def setup(self, trainer: Trainer, pl_module: LightningModule, stage: str) -> None:
         """
@@ -161,7 +220,7 @@ class PredictionWriterCallback(BasePredictionWriter):
             Stage of training e.g. 'predict', 'fit', 'validate'.
         """
         super().setup(trainer, pl_module, stage)
-        if stage == "predict":
+        if (stage == "predict") and self._writing_predictions:
             # make prediction output directory
             logger.info("Making prediction output directory.")
             self.dirpath.mkdir(parents=True, exist_ok=True)
@@ -199,7 +258,7 @@ class PredictionWriterCallback(BasePredictionWriter):
             Dataloader index.
         """
         # if writing prediction is turned off
-        if not self.writing_predictions:
+        if not self._writing_predictions:
             return
 
         dataloaders: Union[DataLoader, list[DataLoader]] = trainer.predict_dataloaders
@@ -209,10 +268,10 @@ class PredictionWriterCallback(BasePredictionWriter):
             else dataloaders
         )
         dataset: ValidPredDatasets = dataloader.dataset
-        if not (
-            isinstance(dataset, IterablePredDataset)
-            or isinstance(dataset, IterableTiledPredDataset)
-        ):
+
+        # Note: alternative is:
+        #   if not hasattr(dataset, data_files)
+        if not isinstance(dataset, (IterablePredDataset, IterableTiledPredDataset)):
             # Note: Error will be raised before here from the source type
             # This is for extra redundancy of errors.
             raise TypeError(

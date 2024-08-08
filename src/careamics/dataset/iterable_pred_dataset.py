@@ -73,6 +73,8 @@ class IterablePredDataset(IterableDataset):
         self.data_files = src_files
         self.axes = prediction_config.axes
         self.read_source_func = read_source_func
+        # keep track of the file index that corresponds with each sample
+        self.sample_file_indices: list[int] = []
 
         # check mean and std and create normalize transform
         if (
@@ -109,14 +111,21 @@ class IterablePredDataset(IterableDataset):
             self.image_means is not None and self.image_stds is not None
         ), "Mean and std must be provided"
 
-        for sample, _ in iterate_over_files(
-            self.prediction_config,
-            self.data_files,
-            read_source_func=self.read_source_func,
+        # reset file index list
+        self.sample_file_indices = []
+
+        for file_index, (sample, _) in enumerate(
+            iterate_over_files(
+                self.prediction_config,
+                self.data_files,
+                read_source_func=self.read_source_func,
+            )
         ):
             # sample has S dimension
             for i in range(sample.shape[0]):
 
-                transformed_sample, _ = self.patch_transform(patch=sample[i])
+                # save file index that corresponds to each sample
+                self.sample_file_indices.append(file_index)
 
+                transformed_sample, _ = self.patch_transform(patch=sample[i])
                 yield transformed_sample

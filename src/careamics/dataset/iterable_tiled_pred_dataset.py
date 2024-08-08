@@ -85,6 +85,8 @@ class IterableTiledPredDataset(IterableDataset):
         self.tile_size = prediction_config.tile_size
         self.tile_overlap = prediction_config.tile_overlap
         self.read_source_func = read_source_func
+        # keep track of the file index that corresponds with each sample
+        self.sample_file_indices: list[int] = []
 
         # check mean and std and create normalize transform
         if (
@@ -121,11 +123,20 @@ class IterableTiledPredDataset(IterableDataset):
             self.image_means is not None and self.image_stds is not None
         ), "Mean and std must be provided"
 
-        for sample, _ in iterate_over_files(
-            self.prediction_config,
-            self.data_files,
-            read_source_func=self.read_source_func,
+        # reset file index list
+        self.sample_file_indices = []
+
+        for file_index, (sample, _) in enumerate(
+            iterate_over_files(
+                self.prediction_config,
+                self.data_files,
+                read_source_func=self.read_source_func,
+            )
         ):
+            # save file index that corresponds to each sample
+            for _ in range(sample.shape[0]):
+                self.sample_file_indices.append(file_index)
+
             # generate patches, return a generator of single tiles
             patch_gen = extract_tiles(
                 arr=sample,
