@@ -442,7 +442,7 @@ class LadderVAE(nn.Module):
             )
         return nn.Sequential(*modules)
 
-    def create_likelihood_module(self):
+    def create_likelihood_module(self): # TODO: remove, replaced by `likelihood_factory`
         """
         This method defines the likelihood module for the current LVAE model.
         The existing likelihood modules are `GaussianLikelihood` and `NoiseModelLikelihood`.
