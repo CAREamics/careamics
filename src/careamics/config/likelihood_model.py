@@ -6,6 +6,7 @@ import torch
 from pydantic import BaseModel, ConfigDict, Field
 from torch import nn
 
+from careamics.models.lvae.noise_models import GaussianMixtureNoiseModel
 
 class GaussianLikelihoodModel(BaseModel):
     """Gaussion likelihood model.
@@ -33,4 +34,4 @@ class NMLikelihoodModel(BaseModel):
 
     data_mean: Union[dict[str, torch.Tensor], torch.Tensor] = {"target": 0.0}
     data_std: Union[dict[str, torch.Tensor], torch.Tensor] = {"target": 0.0}
-    noise_model: Optional[nn.Module] = None
+    noise_model: Union[GaussianMixtureNoiseModel, None] = None

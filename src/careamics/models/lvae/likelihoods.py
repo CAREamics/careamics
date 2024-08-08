@@ -10,7 +10,7 @@ import torch
 from torch import nn
 
 from careamics.config.likelihood_model import GaussianLikelihoodModel, NMLikelihoodModel
-
+from careamics.models.lvae.noise_models import GaussianMixtureNoiseModel
 
 def likelihood_factory(config: Union[GaussianLikelihoodModel, NMLikelihoodModel, None]):
     """
@@ -277,7 +277,7 @@ class NoiseModelLikelihood(LikelihoodModule):
         data_std: Union[
             Dict[str, torch.Tensor], torch.Tensor
         ],  # TODO why dict ? what keys? -> I guess 'target' and 'input' or smth like that
-        noiseModel: nn.Module,
+        noiseModel: GaussianMixtureNoiseModel,
     ):
         super().__init__()
         self.data_mean = data_mean
@@ -321,7 +321,16 @@ class NoiseModelLikelihood(LikelihoodModule):
 
     def log_likelihood(self, x: torch.Tensor, params: dict[str, torch.Tensor]):
         """
-        Compute the log-likelihood given the parameters `params` obtained from the reconstruction tensor and the target tensor `x`.
+        Compute the log-likelihood given the parameters `params` obtained from the
+        reconstruction tensor and the target tensor `x`.
+        
+        Parameters
+        ----------
+        x: torch.Tensor
+            The target tensor. Shape is (B, C, [Z], Y, X).        
+        params: dict[str, Union[torch.Tensor, None]]
+            The tensors obtained from output of the top-down pass.
+            Here, "mean" correspond to the whole output, while logvar is `None`.
         """
         # TODO: check how to handle the denormalization
         predicted_s_denormalized = (
