@@ -28,15 +28,11 @@ def likelihood_factory(config: Union[GaussianLikelihoodModel, NMLikelihoodModel,
     """
     if isinstance(config, GaussianLikelihoodModel):
         return GaussianLikelihood(
-            ch_in=config.ch_in,
-            color_channels=config.color_channels,
             predict_logvar=config.predict_logvar,
             logvar_lowerbound=config.logvar_lowerbound,
         )
     elif isinstance(config, NMLikelihoodModel):
         return NoiseModelLikelihood(
-            ch_in=config.ch_in,
-            color_channels=config.color_channels,
             data_mean=config.data_mean,
             data_std=config.data_std,
             noiseModel=config.noise_model,
@@ -85,7 +81,8 @@ class LikelihoodModule(nn.Module):
         Parameters:
         -----------
         input_: torch.Tensor
-            The output of the top-down pass.
+            The output of the top-down pass (e.g., reconstructed image in HDN,
+            or the unmixed images in 'Split' models).
         x: Union[torch.Tensor, None]
             The target tensor. If None, the log-likelihood is not computed.
         """
@@ -152,7 +149,7 @@ class GaussianLikelihood(LikelihoodModule):
         ----------
         x: torch.Tensor
             The input tensor to the likelihood module, i.e., the output
-            the 'output_layer'. Shape is: (B, 2 * C, [Z], Y, X) in case 
+            the LVAE 'output_layer'. Shape is: (B, 2 * C, [Z], Y, X) in case 
             `predict_logvar` is not None, or (B, C, [Z], Y, X) otherwise.
         """
         if self.predict_logvar is not None:
@@ -196,7 +193,7 @@ class GaussianLikelihood(LikelihoodModule):
         ----------
         x: torch.Tensor
             The input tensor to the likelihood module, i.e., the output
-            the 'output_layer'. Shape is: (B, 2 * C, [Z], Y, X) in case 
+            the LVAE 'output_layer'. Shape is: (B, 2 * C, [Z], Y, X) in case 
             `predict_logvar` is not None, or (B, C, [Z], Y, X) otherwise.
         """
         mean, lv = self.get_mean_lv(x)

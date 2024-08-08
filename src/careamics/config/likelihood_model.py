@@ -19,7 +19,6 @@ class GaussianLikelihoodModel(BaseModel):
 
     predict_logvar: Literal[None, "pixelwise"] = None
     logvar_lowerbound: float = None
-    conv2d_bias: bool = True
 
 
 class NMLikelihoodModel(BaseModel):
