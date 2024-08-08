@@ -15,6 +15,7 @@ __all__ = [
     "register_model",
     "CustomModel",
     "clear_custom_models",
+    "GMNMModel",
 ]
 
 from .algorithm_model import AlgorithmConfig
@@ -32,4 +33,5 @@ from .configuration_model import (
 )
 from .data_model import DataConfig
 from .inference_model import InferenceConfig
+from .nm_model import GMNMModel
 from .training_model import TrainingConfig

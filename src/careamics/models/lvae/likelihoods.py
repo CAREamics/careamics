@@ -9,6 +9,42 @@ import numpy as np
 import torch
 from torch import nn
 
+from careamics.config.likelihood_model import GaussianLikelihoodModel, NMLikelihoodModel
+
+
+def likelihood_factory(config: Union[GaussianLikelihoodModel, NMLikelihoodModel, None]):
+    """
+    Factory function for creating likelihood modules.
+
+    Parameters
+    ----------
+    config: Union[GaussianLikelihoodModel, NMLikelihoodModel]
+        The configuration object for the likelihood module.
+
+    Returns
+    -------
+    nn.Module
+        The likelihood module.
+    """
+    if config.model_type == "GaussianLikelihoodModel":
+        return GaussianLikelihood(
+            ch_in=config.ch_in,
+            color_channels=config.color_channels,
+            predict_logvar=config.predict_logvar,
+            logvar_lowerbound=config.logvar_lowerbound,
+            conv2d_bias=config.conv2d_bias,
+        )
+    elif config.model_type == "NMLikelihoodModel":
+        return NoiseModelLikelihood(
+            ch_in=config.ch_in,
+            color_channels=config.color_channels,
+            data_mean=config.data_mean,
+            data_std=config.data_std,
+            noiseModel=config.noise_model,
+        )
+    else:
+        raise ValueError(f"Invalid likelihood model type: {config.model_type}")
+
 
 class LikelihoodModule(nn.Module):
     """
@@ -44,7 +80,7 @@ class LikelihoodModule(nn.Module):
     def forward(
         self, input_: torch.Tensor, x: torch.Tensor
     ) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:
-
+        # TODO what are those params? shapes?
         distr_params = self.distr_params(input_)
         mean = self.mean(distr_params)
         mode = self.mode(distr_params)
@@ -68,8 +104,7 @@ class LikelihoodModule(nn.Module):
 
 
 class GaussianLikelihood(LikelihoodModule):
-    r"""
-    A specialize `LikelihoodModule` for Gaussian likelihood.
+    r"""A specialize `LikelihoodModule` for Gaussian likelihood.
 
     Specifically, in the LVAE model, the likelihood is defined as:
         p(x|z_1) = N(x|\mu_{p,1}, \sigma_{p,1}^2)
@@ -80,7 +115,7 @@ class GaussianLikelihood(LikelihoodModule):
         ch_in: int,
         color_channels: int,
         predict_logvar: Literal[None, "pixelwise", "global", "channelwise"] = None,
-        logvar_lowerbound: float = None,
+        logvar_lowerbound: Union[float, None] = None,
         conv2d_bias: bool = True,
     ):
         """
@@ -239,7 +274,9 @@ class NoiseModelLikelihood(LikelihoodModule):
         ch_in: int,
         color_channels: int,
         data_mean: Union[Dict[str, torch.Tensor], torch.Tensor],
-        data_std: Union[Dict[str, torch.Tensor], torch.Tensor],
+        data_std: Union[
+            Dict[str, torch.Tensor], torch.Tensor
+        ],  # TODO why dict ? what keys?
         noiseModel: nn.Module,
     ):
         super().__init__()

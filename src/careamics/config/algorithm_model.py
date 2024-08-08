@@ -8,7 +8,7 @@ from typing import Literal, Union
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from typing_extensions import Self
 
-from .architectures import CustomModel, UNetModel, VAEModel
+from .architectures import CustomModel, UNetModel
 from .optimizer_models import LrSchedulerModel, OptimizerModel
 
 
@@ -30,7 +30,7 @@ class AlgorithmConfig(BaseModel):
         Algorithm to use.
     loss : Literal["n2v", "mae", "mse"]
         Loss function to use.
-    model : Union[UNetModel, VAEModel, CustomModel]
+    model : Union[UNetModel, LVAEModel, CustomModel]
         Model architecture to use.
     optimizer : OptimizerModel, optional
         Optimizer to use.
@@ -89,24 +89,20 @@ class AlgorithmConfig(BaseModel):
     model_config = ConfigDict(
         protected_namespaces=(),  # allows to use model_* as a field name
         validate_assignment=True,
+        extra="allow",
     )
 
     # Mandatory fields
-    algorithm: Literal["n2v", "care", "n2n", "custom"]  # defined in SupportedAlgorithm
-    """Name of the algorithm, as defined in SupportedAlgorithm."""
-
+    # defined in SupportedAlgorithm
+    algorithm: Literal["n2v", "care", "n2n"]
     loss: Literal["n2v", "mae", "mse"]
-    """Loss function to use, as defined in SupportedLoss."""
-
-    model: Union[UNetModel, VAEModel, CustomModel] = Field(discriminator="architecture")
-    """Model architecture to use, defined in SupportedArchitecture."""
+    model: Union[UNetModel, CustomModel] = Field(discriminator="architecture")
 
     # Optional fields
     optimizer: OptimizerModel = OptimizerModel()
     """Optimizer to use, defined in SupportedOptimizer."""
 
     lr_scheduler: LrSchedulerModel = LrSchedulerModel()
-    """Learning rate scheduler to use, defined in SupportedScheduler."""
 
     @model_validator(mode="after")
     def algorithm_cross_validation(self: Self) -> Self:
@@ -145,9 +141,6 @@ class AlgorithmConfig(BaseModel):
         if self.algorithm == "care" or self.algorithm == "n2n":
             if self.loss == "n2v":
                 raise ValueError("Supervised algorithms do not support loss `n2v`.")
-
-        if isinstance(self.model, VAEModel):
-            raise ValueError("VAE are currently not implemented.")
 
         return self
 

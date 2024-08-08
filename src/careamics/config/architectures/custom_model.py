@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import inspect
 from pprint import pformat
 from typing import Any, Literal
 
@@ -28,7 +29,8 @@ class CustomModel(ArchitectureModel):
     name : str
         Name of the custom model.
     parameters : CustomParametersModel
-        Parameters of the custom model.
+        All parameters, required for the initialization of the torch module have to be
+        passed here.
 
     Raises
     ------
@@ -71,7 +73,7 @@ class CustomModel(ArchitectureModel):
     )
 
     # discriminator used for choosing the pydantic model in Model
-    architecture: Literal["Custom"]
+    architecture: Literal["custom"]
     """Name of the architecture."""
 
     # name of the custom model
@@ -120,10 +122,12 @@ class CustomModel(ArchitectureModel):
             get_custom_model(self.name)(**self.model_dump())
         except Exception as e:
             raise ValueError(
-                f"error while passing parameters to the model {e}. Verify that all "
+                f"while passing parameters to the model {e}. Verify that all "
                 f"mandatory parameters are provided, and that either the {e} accepts "
                 f"*args and **kwargs in its __init__() method, or that no additional"
-                f"parameter is provided."
+                f"parameter is provided. Trace: "
+                f"filename: {inspect.trace()[-1].filename}, function: "
+                f"{inspect.trace()[-1].function}, line: {inspect.trace()[-1].lineno}"
             ) from None
 
         return self

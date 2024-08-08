@@ -25,7 +25,7 @@ from careamics.config.support import (
 )
 from careamics.dataset.dataset_utils import reshape_array
 from careamics.lightning import (
-    CAREamicsModule,
+    FCNModule,
     HyperParametersCallback,
     PredictDataModule,
     ProgressBarCallback,
@@ -148,9 +148,27 @@ class CAREamist:
             self.cfg = source
 
             # instantiate model
-            self.model = CAREamicsModule(
-                algorithm_config=self.cfg.algorithm_config,
-            )
+            if (
+                self.cfg.algorithm_config.model.architecture
+                == SupportedArchitecture.UNET
+            ):
+                self.model: FCNModule = FCNModule(
+                    algorithm_config=self.cfg.algorithm_config,
+                )
+            elif (
+                self.cfg.algorithm_config.model.architecture
+                == SupportedArchitecture.LVAE
+            ):  # TODO fuckin mypy thinks model "already defined on line 158"
+                # self.model: VAEModule = VAEModule(
+                #     algorithm_config=self.cfg.algorithm_config,
+                # )
+                raise NotImplementedError(
+                    "LVAE is currently only supported through lightning api"
+                )
+            else:
+                raise NotImplementedError(
+                    "Architecture not supported. Please use UNet or LVAE."
+                )
 
         # path to configuration file or model
         else:
@@ -164,9 +182,15 @@ class CAREamist:
                 self.cfg = load_configuration(source)
 
                 # instantiate model
-                self.model = CAREamicsModule(
-                    algorithm_config=self.cfg.algorithm_config,
-                )
+                if (
+                    self.cfg.algorithm_config.model.architecture
+                    == SupportedArchitecture.UNET
+                ):
+                    self.model = FCNModule(
+                        algorithm_config=self.cfg.algorithm_config,
+                    )
+                else:
+                    raise NotImplementedError("Architecture not supported.")
 
             # attempt loading a pre-trained model
             else:
