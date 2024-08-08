@@ -76,8 +76,8 @@ def _load_state_dict(model: CAREamicsModule, path: Union[Path, str]) -> None:
 def export_to_bmz(
     model: CAREamicsModule,
     config: Configuration,
-    path: Union[Path, str],
-    name: str,
+    path_to_archive: Union[Path, str],
+    model_name: str,
     general_description: str,
     authors: List[dict],
     input_array: np.ndarray,
@@ -89,15 +89,18 @@ def export_to_bmz(
 
     Arrays are expected to be SC(Z)YX with singleton dimensions allowed for S and C.
 
+    `model_name` should consist of letters, numbers, dashes, underscores and parentheses
+    only.
+
     Parameters
     ----------
-    model : CAREamicsKiln
+    model : CAREamicsModule
         CAREamics model to export.
     config : Configuration
         Model configuration.
-    path : Union[Path, str]
+    path_to_archive : Union[Path, str]
         Path to the output file.
-    name : str
+    model_name : str
         Model name.
     general_description : str
         General description of the model.
@@ -117,7 +120,7 @@ def export_to_bmz(
     ValueError
         If the model is a Custom model.
     """
-    path = Path(path)
+    path_to_archive = Path(path_to_archive)
 
     # method is not compatible with Custom models
     if config.algorithm_config.model.architecture == SupportedArchitecture.CUSTOM:
@@ -125,15 +128,13 @@ def export_to_bmz(
             "Exporting Custom models to BioImage Model Zoo format is not supported."
         )
 
-    # make sure that input and output arrays have the same shape
-    assert input_array.shape == output_array.shape, (
-        f"Input ({input_array.shape}) and output ({output_array.shape}) arrays "
-        f"have different shapes"
-    )
+    if path_to_archive.suffix != ".zip":
+        raise ValueError(
+            f"Path to archive must point to a zip file, got {path_to_archive}."
+        )
 
-    # make sure it has the correct suffix
-    if path.suffix not in ".zip":
-        path = path.with_suffix(".zip")
+    if not path_to_archive.parent.exists():
+        path_to_archive.parent.mkdir(parents=True, exist_ok=True)
 
     # versions
     pytorch_version = __version__
@@ -163,7 +164,7 @@ def export_to_bmz(
         # create model description
         model_description = create_model_description(
             config=config,
-            name=name,
+            name=model_name,
             general_description=general_description,
             authors=authors,
             inputs=inputs,
@@ -183,7 +184,7 @@ def export_to_bmz(
             raise ValueError(f"Model description test failed: {summary}")
 
         # save bmz model
-        save_bioimageio_package(model_description, output_path=path)
+        save_bioimageio_package(model_description, output_path=path_to_archive)
 
 
 def load_from_bmz(path: Union[Path, str]) -> Tuple[CAREamicsModule, Configuration]:

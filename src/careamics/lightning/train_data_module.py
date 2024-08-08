@@ -249,7 +249,7 @@ class TrainDataModule(L.LightningDataModule):
         self.val_minimum_split = val_minimum_split
 
         # read source function corresponding to the requested type
-        if data_config.data_type == SupportedData.CUSTOM:
+        if data_config.data_type == SupportedData.CUSTOM.value:
             # mypy check
             assert read_source_func is not None
 
