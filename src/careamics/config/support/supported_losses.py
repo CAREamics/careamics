@@ -17,12 +17,12 @@ class SupportedLoss(str, BaseEnum):
         Noise2Void loss.
     """
 
-    MSE = "mse"
-    MAE = "mae"
-    N2V = "n2v"
+    MSE = "mse_loss"
+    MAE = "mae_loss"
+    N2V = "n2v_loss"
     # PN2V = "pn2v"
     # HDN = "hdn"
-    MUSPLIT = "musplit"
-    DENOISPLIT = "denoisplit"
+    MUSPLIT = "musplit_loss"
+    DENOISPLIT = "denoisplit_loss"
     # CE = "ce"
     # DICE = "dice"

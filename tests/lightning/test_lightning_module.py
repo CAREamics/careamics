@@ -57,7 +57,7 @@ def test_careamics_kiln_unet_2D_depth_2_shape(shape):
             "num_classes": 1,
             "depth": 2,
         },
-        "loss": "mae",
+        "loss": "mae_loss",
     }
     algo_config = FCNAlgorithmConfig(**algo_dict)
 
@@ -93,7 +93,7 @@ def test_careamics_kiln_unet_2D_depth_3_shape(shape):
             "num_classes": 1,
             "depth": 3,
         },
-        "loss": "mae",
+        "loss": "mae_loss",
     }
     algo_config = FCNAlgorithmConfig(**algo_dict)
 
@@ -127,7 +127,7 @@ def test_careamics_kiln_unet_depth_2_3D(shape):
             "num_classes": 1,
             "depth": 2,
         },
-        "loss": "mae",
+        "loss": "mae_loss",
     }
     algo_config = FCNAlgorithmConfig(**algo_dict)
 
@@ -161,7 +161,7 @@ def test_careamics_kiln_unet_depth_3_3D(shape):
             "num_classes": 1,
             "depth": 3,
         },
-        "loss": "mae",
+        "loss": "mae_loss",
     }
     algo_config = FCNAlgorithmConfig(**algo_dict)
 
@@ -196,7 +196,7 @@ def test_careamics_kiln_unet_depth_3_3D_n2v2(shape):
             "depth": 3,
             "n2v2": True,
         },
-        "loss": "n2v",
+        "loss": "n2v_loss",
     }
     algo_config = FCNAlgorithmConfig(**algo_dict)
 
@@ -222,7 +222,7 @@ def test_careamics_kiln_unet_depth_2_channels_2D(n_channels):
             "num_classes": n_channels,
             "depth": 2,
         },
-        "loss": "mae",
+        "loss": "mae_loss",
     }
     algo_config = FCNAlgorithmConfig(**algo_dict)
 
@@ -252,7 +252,7 @@ def test_careamics_kiln_unet_depth_3_channels_2D(n_channels, independent_channel
             "depth": 3,
             "independent_channels": independent_channels,
         },
-        "loss": "mae",
+        "loss": "mae_loss",
     }
     algo_config = FCNAlgorithmConfig(**algo_dict)
 
@@ -278,7 +278,7 @@ def test_careamics_kiln_unet_depth_2_channels_3D(n_channels):
             "num_classes": n_channels,
             "depth": 2,
         },
-        "loss": "mae",
+        "loss": "mae_loss",
     }
     algo_config = FCNAlgorithmConfig(**algo_dict)
 
@@ -304,7 +304,7 @@ def test_careamics_kiln_unet_depth_3_channels_3D(n_channels):
             "num_classes": n_channels,
             "depth": 3,
         },
-        "loss": "mae",
+        "loss": "mae_loss",
     }
     algo_config = FCNAlgorithmConfig(**algo_dict)
 

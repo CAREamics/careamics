@@ -48,8 +48,8 @@ def test_model_discriminator(minimum_algorithm_n2v):
 @pytest.mark.parametrize(
     "algorithm_type, algorithm, loss, model",
     [
-        ("fcn", "n2v", "n2v", {"architecture": "UNet", "n2v2": False}),
-        ("fcn", "n2n", "mae", {"architecture": "UNet", "n2v2": False}),
+        ("fcn", "n2v", "n2v_loss", {"architecture": "UNet", "n2v2": False}),
+        ("fcn", "n2n", "mae_loss", {"architecture": "UNet", "n2v2": False}),
     ],
 )
 def test_algorithm_constraints(algorithm_type, algorithm: str, loss: str, model: dict):
@@ -91,7 +91,7 @@ def test_comaptiblity_of_number_of_channels(algorithm_type, algorithm, n_in, n_o
         "num_classes": n_out,
         "n2v2": False,
     }
-    loss = "n2v" if algorithm == "n2v" else "mae"
+    loss = "n2v_loss" if algorithm == "n2v" else "mae_loss"
 
     FCNAlgorithmConfig(
         algorithm_type=algorithm_type, algorithm=algorithm, loss=loss, model=model

@@ -43,42 +43,16 @@ class FCNAlgorithmConfig(BaseModel):
     Examples
     --------
     Minimum example:
-    >>> from careamics.config import AlgorithmConfig
+    >>> from careamics.config import FCNAlgorithmConfig
     >>> config_dict = {
     ...     "algorithm": "n2v",
-    ...     "loss": "n2v",
+    ...     "algorithm_type": "fcn",
+    ...     "loss": "n2v_loss",
     ...     "model": {
     ...         "architecture": "UNet",
     ...     }
     ... }
-    >>> config = AlgorithmConfig(**config_dict)
-
-    Using a custom model:
-    >>> from torch import nn, ones
-    >>> from careamics.config import AlgorithmConfig, register_model
-    ...
-    >>> @register_model(name="linear_model")
-    ... class LinearModel(nn.Module):
-    ...    def __init__(self, in_features, out_features, *args, **kwargs):
-    ...        super().__init__()
-    ...        self.in_features = in_features
-    ...        self.out_features = out_features
-    ...        self.weight = nn.Parameter(ones(in_features, out_features))
-    ...        self.bias = nn.Parameter(ones(out_features))
-    ...    def forward(self, input):
-    ...        return (input @ self.weight) + self.bias
-    ...
-    >>> config_dict = {
-    ...     "algorithm": "custom",
-    ...     "loss": "mse",
-    ...     "model": {
-    ...         "architecture": "Custom",
-    ...         "name": "linear_model",
-    ...         "in_features": 10,
-    ...         "out_features": 5,
-    ...     }
-    ... }
-    >>> config = AlgorithmConfig(**config_dict)
+    >>> config = FCNAlgorithmConfig(**config_dict)
     """
 
     # Pydantic class configuration
@@ -92,7 +66,7 @@ class FCNAlgorithmConfig(BaseModel):
     # defined in SupportedAlgorithm
     algorithm_type: Literal["fcn"]
     algorithm: Literal["n2v", "care", "n2n"]
-    loss: Literal["n2v", "mae", "mse"]
+    loss: Literal["n2v_loss", "mae_loss", "mse_loss"]
     model: Union[UNetModel, CustomModel] = Field(discriminator="architecture")
 
     # Optional fields
@@ -115,9 +89,9 @@ class FCNAlgorithmConfig(BaseModel):
             The validated model.
         """
         # N2V
-        if self.algorithm == "n2v":
+        if self.algorithm == "n2v_loss":
             # n2v is only compatible with the n2v loss
-            if self.loss != "n2v":
+            if self.loss != "n2v_loss":
                 raise ValueError(
                     f"Algorithm {self.algorithm} only supports loss `n2v`."
                 )
@@ -135,8 +109,8 @@ class FCNAlgorithmConfig(BaseModel):
                     "sure that `in_channels` and `num_classes` are the same."
                 )
 
-        if self.algorithm == "care" or self.algorithm == "n2n":
-            if self.loss == "n2v":
+        if self.algorithm == "care" or self.algorithm == "n2n_loss":
+            if self.loss == "n2v_loss":
                 raise ValueError("Supervised algorithms do not support loss `n2v`.")
 
         return self
