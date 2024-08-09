@@ -4,14 +4,81 @@ Loss factory module.
 This module contains a factory function for creating loss functions.
 """
 
+from dataclasses import dataclass
 from typing import Callable, Union
 
+from torch import Tensor as tensor
+
 from ..config.support import SupportedLoss
-from .losses import mae_loss, mse_loss, n2v_loss
+from .fcn.losses import mae_loss, mse_loss, n2v_loss
+from .lvae.losses import denoisplit_loss, musplit_loss
 
 
-# TODO add tests
-# TODO add custom?
+@dataclass
+class FCNLossParameters:
+    """Dataclass for FCN loss."""
+
+    # TODO check
+    prediction: tensor
+    targets: tensor
+    mask: tensor
+    current_epoch: int
+    loss_weight: float
+
+
+@dataclass
+class LVAELossParameters:
+    """Dataclass for LVAE loss."""
+
+    prediction: tensor
+    prediction_data: tensor  # td_data
+    targets: tensor
+    inputs: tensor
+    mask: tensor
+    noise_model: Callable
+    noise_model_likelihood: Callable
+    gaussian_likelihood: Callable
+    current_epoch: int
+    reconstruction_weight: float = 1.0
+    musplit_weight: float = 0.0
+    denoisplit_weight: float = 1.0
+    kl_annealing: bool = False
+    kl_start: int = -1
+    kl_annealtime: int = 10
+    kl_weight: float = 1.0
+    non_stochastic: bool = False
+
+
+def loss_parameters_factory(
+    type: SupportedLoss,
+) -> Union[FCNLossParameters, LVAELossParameters]:
+    """Return loss parameters.
+
+    Parameters
+    ----------
+    type : SupportedLoss
+        Requested loss.
+
+    Returns
+    -------
+    Union[FCNLossParameters, LVAELossParameters]
+        Loss parameters.
+
+    Raises
+    ------
+    NotImplementedError
+        If the loss is unknown.
+    """
+    if type in [SupportedLoss.N2V, SupportedLoss.MSE, SupportedLoss.MAE]:
+        return FCNLossParameters
+
+    elif type in [SupportedLoss.MUSPLIT, SupportedLoss.DENOISPLIT]:
+        return LVAELossParameters
+
+    else:
+        raise NotImplementedError(f"Loss {type} is not yet supported.")
+
+
 def loss_factory(loss: Union[SupportedLoss, str]) -> Callable:
     """Return loss function.
 
@@ -42,8 +109,11 @@ def loss_factory(loss: Union[SupportedLoss, str]) -> Callable:
     elif loss == SupportedLoss.MSE:
         return mse_loss
 
-    # elif loss_type == SupportedLoss.DICE:
-    #     return dice_loss
+    elif loss == SupportedLoss.MUSPLIT:
+        return musplit_loss
+
+    elif loss == SupportedLoss.DENOISPLIT:
+        return denoisplit_loss
 
     else:
         raise NotImplementedError(f"Loss {loss} is not yet supported.")

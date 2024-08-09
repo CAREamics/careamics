@@ -30,7 +30,8 @@ repos:
     hooks:
       - id: mypy
         files: "^src/"
-        exclude: "^src/careamics/lvae_training/.*|^src/careamics/models/lvae/.*"
+        exclude: "^src/careamics/lvae_training/.*|^src/careamics/models/lvae/.*|^src/careamics/config/likelihood_model.py|^src/careamics/losses/loss_factory.py|^src/careamics/losses/lvae/losses.py"
+        args: ['--config-file', 'mypy.ini']
         additional_dependencies:
           - numpy
           - types-PyYAML

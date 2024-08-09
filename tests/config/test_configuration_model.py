@@ -67,8 +67,9 @@ def test_set_3D(minimum_configuration: dict):
 def test_algorithm_and_data_default_transforms(minimum_configuration: dict):
     """Test that the default data transforms are compatible with n2v."""
     minimum_configuration["algorithm_config"] = {
+        "algorithm_type": "fcn",
         "algorithm": "n2v",
-        "loss": "n2v",
+        "loss": "n2v_loss",
         "model": {
             "architecture": "UNet",
         },
@@ -90,8 +91,9 @@ def test_n2v2_and_transforms(minimum_configuration: dict, algorithm, strategy):
     incompatible with n2v2."""
     use_n2v2 = algorithm == "n2v2"
     minimum_configuration["algorithm_config"] = {
+        "algorithm_type": "fcn",
         "algorithm": "n2v",
-        "loss": "n2v",
+        "loss": "n2v_loss",
         "model": {
             "architecture": "UNet",
             "n2v2": use_n2v2,
