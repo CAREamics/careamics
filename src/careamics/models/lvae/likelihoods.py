@@ -3,14 +3,19 @@ Script containing modules for definining different likelihood functions (as nn.M
 """
 
 import math
-from typing import Dict, Literal, Tuple, Union
+from typing import Dict, Literal, Tuple, Union, TYPE_CHECKING, Any
 
 import numpy as np
 import torch
 from torch import nn
 
 from careamics.config.likelihood_model import GaussianLikelihoodModel, NMLikelihoodModel
-from careamics.models.lvae.noise_models import GaussianMixtureNoiseModel
+
+# TODO: check typing
+# if TYPE_CHECKING:
+#     from careamics.models.lvae.noise_models import GaussianMixtureNoiseModel, MultiChannelNoiseModel
+    
+# NoiseModel = Union[GaussianMixtureNoiseModel, MultiChannelNoiseModel]
 
 def likelihood_factory(config: Union[GaussianLikelihoodModel, NMLikelihoodModel, None]):
     """
@@ -277,7 +282,7 @@ class NoiseModelLikelihood(LikelihoodModule):
         data_std: Union[
             Dict[str, torch.Tensor], torch.Tensor
         ],  # TODO why dict ? what keys? -> I guess 'target' and 'input' or smth like that
-        noiseModel: GaussianMixtureNoiseModel,
+        noiseModel: Any, # TODO: check the type
     ):
         super().__init__()
         self.data_mean = data_mean

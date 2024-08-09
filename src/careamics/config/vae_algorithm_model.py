@@ -10,8 +10,8 @@ from typing_extensions import Self
 
 from .architectures import CustomModel, LVAEModel
 from .likelihood_model import GaussianLikelihoodModel, NMLikelihoodModel
-from .nm_model import NMModel
 from .optimizer_models import LrSchedulerModel, OptimizerModel
+from .nm_model import NMModel
 
 
 class VAEAlgorithmConfig(BaseModel):

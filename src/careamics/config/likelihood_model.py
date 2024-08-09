@@ -1,12 +1,13 @@
 """Likelihood model."""
 
-from typing import Literal, Optional, Union
+from typing import Literal, Union
 
 import torch
-from pydantic import BaseModel, ConfigDict, Field
-from torch import nn
+from pydantic import BaseModel, ConfigDict
 
-from careamics.models.lvae.noise_models import GaussianMixtureNoiseModel
+from careamics.models.lvae.noise_models import GaussianMixtureNoiseModel, MultiChannelNoiseModel
+    
+NoiseModel = Union[GaussianMixtureNoiseModel, MultiChannelNoiseModel]
 
 class GaussianLikelihoodModel(BaseModel):
     """Gaussion likelihood model.
@@ -34,4 +35,4 @@ class NMLikelihoodModel(BaseModel):
 
     data_mean: Union[dict[str, torch.Tensor], torch.Tensor] = {"target": 0.0}
     data_std: Union[dict[str, torch.Tensor], torch.Tensor] = {"target": 0.0}
-    noise_model: Union[GaussianMixtureNoiseModel, None] = None
+    noise_model: Union[NoiseModel, None] = None

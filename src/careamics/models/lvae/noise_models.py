@@ -1,15 +1,17 @@
+from __future__ import annotations
+
 import json
 import os
 from pathlib import Path
-from typing import Optional, Union
+from typing import Union, TYPE_CHECKING, Any
 
 import numpy as np
 import torch
 import torch.nn as nn
 
-from careamics.config import GaussianMixtureNmModel, NMModel
-
 from .utils import ModelType
+if TYPE_CHECKING:
+    from careamics.config import GaussianMixtureNmModel, NMModel
 
 # TODO this module shouldn't be in lvae folder
 
@@ -179,7 +181,6 @@ class MultiChannelNoiseModel(nn.Module):
                     obs[:, ch_idx : ch_idx + 1], signal[:, ch_idx : ch_idx + 1]
                 ) # slicing to keep the channel dimension
             )
-
         return torch.cat(ll_list, dim=1)
 
 
