@@ -78,7 +78,7 @@ class CAREamist:
     def __init__(  # numpydoc ignore=GL08
         self,
         source: Union[Path, str],
-        work_dir: Optional[str] = None,
+        work_dir: Optional[Union[Path, str]] = None,
         experiment_name: str = "CAREamics",
         callbacks: Optional[list[Callback]] = None,
     ) -> None: ...
@@ -87,7 +87,7 @@ class CAREamist:
     def __init__(  # numpydoc ignore=GL08
         self,
         source: Configuration,
-        work_dir: Optional[str] = None,
+        work_dir: Optional[Union[Path, str]] = None,
         experiment_name: str = "CAREamics",
         callbacks: Optional[list[Callback]] = None,
     ) -> None: ...
