@@ -327,21 +327,27 @@ class GaussianMixtureNoiseModel(nn.Module):
             )
         return value
 
-    def normalDens(self, x, m_=0.0, std_=None):
-        """Evaluates the normal probability density at `x` given the mean `m` and standard deviation `std`.
+    def normalDens(
+        self, 
+        x: torch.Tensor, 
+        m_: torch.Tensor = 0.0, 
+        std_: torch.Tensor = None
+    ) -> torch.Tensor:
+        """Evaluates the normal probability density at `x` given the mean `m` and
+        standard deviation `std`.
 
         Parameters
         ----------
-        x: torch.cuda.FloatTensor
-            Observations
-        m_: torch.cuda.FloatTensor
-            Mean
-        std_: torch.cuda.FloatTensor
-            Standard-deviation
+        x: torch.Tensor
+            Observations (i.e., noisy image).
+        m_: torch.Tensor
+            Pixel-wise mean.
+        std_: torch.Tensor
+            Pixel-wise standard deviation.
 
         Returns
         -------
-        tmp: torch.cuda.FloatTensor
+        tmp: torch.Tensor
             Normal probability density of `x` given `m_` and `std_`
         """
         tmp = -((x - m_) ** 2)
@@ -376,9 +382,9 @@ class GaussianMixtureNoiseModel(nn.Module):
         for gaussian in range(self.n_gaussian):
             p += (
                 self.normalDens(
-                    observations,
-                    gaussianParameters[gaussian],
-                    gaussianParameters[self.n_gaussian + gaussian],
+                    x=observations,
+                    m_=gaussianParameters[gaussian],
+                    std_=gaussianParameters[self.n_gaussian + gaussian],
                 )
                 * gaussianParameters[2 * self.n_gaussian + gaussian]
             )
@@ -451,6 +457,7 @@ class GaussianMixtureNoiseModel(nn.Module):
 
         return gmmParams
 
+    # TODO: this method is not used anywhere. Remove?
     def getSignalObservationPairs(self, signal, observation, lowerClip, upperClip):
         """Returns the Signal-Observation pixel intensities as a two-column array.
 
