@@ -147,20 +147,37 @@ class MultiChannelNoiseModel(nn.Module):
         print(f"[{self.__class__.__name__}] Nmodels count:{self._nm_cnt}")
 
     def likelihood(self, obs: torch.Tensor, signal: torch.Tensor) -> torch.Tensor:
-        # TODO shapes ? names? wtf ?
+        """Compute the likelihood of observations given signals for each channel.
+        
+        Parameters
+        ----------
+        obs : torch.Tensor
+            Noisy observations, i.e., the target(s). Specifically, the input noisy 
+            image for HDN, or the noisy unmixed images used for supervision 
+            for denoiSplit. Shape: (B, C, [Z], Y, X), where C is the number of
+            unmixed channels.
+        signal : torch.Tensor
+            Underlying signals, i.e., the (clean) output of the model. Specifically, the 
+            denoised image for HDN, or the unmixed images for denoiSplit. 
+            Shape: (B, C, [Z], Y, X), where C is the number of unmixed channels.
+        """
+        # Case 1: obs and signal have a single channel (e.g., denoising)
         if obs.shape[1] == 1:
             assert signal.shape[1] == 1
-            assert self.n2model is None
             return self.nmodel_0.likelihood(obs, signal)
-        assert obs.shape[1] == self._nm_cnt, f"{obs.shape[1]} != {self._nm_cnt}"
-
+        
+        # Case 2: obs and signal have multiple channels (e.g., denoiSplit)
+        assert obs.shape[1] == self._nm_cnt, (
+            "The number of channels in `obs` must match the number of noise models."
+            f" Got instead: obs={obs.shape[1]},  nm={self._nm_cnt}"
+        )
         ll_list = []
         for ch_idx in range(obs.shape[1]):
             nmodel = getattr(self, f"nmodel_{ch_idx}")
             ll_list.append(
                 nmodel.likelihood(
-                    obs[:, ch_idx : ch_idx + 1], signal[:, ch_idx : ch_idx + 1] # TODO wtf is this slicing ?
-                )
+                    obs[:, ch_idx : ch_idx + 1], signal[:, ch_idx : ch_idx + 1]
+                ) # slicing to keep the channel dimension
             )
 
         return torch.cat(ll_list, dim=1)
