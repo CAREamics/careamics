@@ -223,8 +223,12 @@ class GaussianMixtureNoiseModel(nn.Module):
         Path to the directory where the trained noise model (*.npz) is saved in the `train` method.
     weight : torch.nn.Parameter
         A [3*n_gaussian, n_coeff] sized array containing the values of the weights 
-        describing the GMM noise model. Specifically, each row correspond to one 
+        describing the GMM noise model, with each row corresponding to one 
         parameter of each gaussian, namely [mean, standard deviation and weight].
+        Specifically, rows are organized as follows:
+        - first n_gaussian rows correspond to the means
+        - next n_gaussian rows correspond to the weights
+        - last n_gaussian rows correspond to the standard deviations
         If `weight=None`, the weight array is initialized using the `min_signal`
         and `max_signal` parameters.
     n_gaussian: int
@@ -380,43 +384,44 @@ class GaussianMixtureNoiseModel(nn.Module):
             )
         return p + self.tol
 
-    def getGaussianParameters(self, signals: torch.Tensor):
+    def getGaussianParameters(
+        self, 
+        signals: torch.Tensor
+    ) -> list[torch.Tensor]:
         """Returns the noise model for given signals.
 
         Parameters
         ----------
-        signals : torch.cuda.FloatTensor
+        signals : torch.Tensor
             Underlying signals
 
         Returns
         -------
-        noiseModel: list of torch.cuda.FloatTensor
-            Contains a list of `mu`, `sigma` and `alpha` for the `signals`
+        gmmParams: list[torch.Tensor]
+            A list containing tensors representing `mu`, `sigma` and `alpha` 
+            parameters for the `n_gaussian` gaussians in the mixture.
 
         """
-        noiseModel = []
+        gmmParams = []
         mu = []
         sigma = []
         alpha = []
         kernels = self.weight.shape[0] // 3
         for num in range(kernels):
+            # For each Gaussian in the mixture, evaluate mean, std and weight
             mu.append(self.polynomialRegressor(self.weight[num, :], signals))
-            # expval = torch.exp(torch.clamp(self.weight[kernels + num, :], max=MAX_VAR_W))
-            expval = torch.exp(self.weight[kernels + num, :])
-            # self.maxval = max(self.maxval, expval.max().item())
+            
+            expval = torch.exp(self.weight[kernels + num, :]) 
+            # TODO: why taking the exp? it is not in PPN2V paper...
             sigmaTemp = self.polynomialRegressor(expval, signals)
             sigmaTemp = torch.clamp(sigmaTemp, min=self.min_sigma)
             sigma.append(torch.sqrt(sigmaTemp))
 
-            # expval = torch.exp(
-            #     torch.clamp(
-            #         self.polynomialRegressor(self.weight[2 * kernels + num, :], signals) + self.tol, MAX_ALPHA_W))
             expval = torch.exp(
                 self.polynomialRegressor(self.weight[2 * kernels + num, :], signals)
                 + self.tol
             )
-            # self.maxval = max(self.maxval, expval.max().item())
-            alpha.append(expval)
+            alpha.append(expval) # NOTE: these are the numerators of weights
 
         sum_alpha = 0
         for al in range(kernels):
@@ -431,21 +436,20 @@ class GaussianMixtureNoiseModel(nn.Module):
         for ker in range(kernels):
             sum_means = alpha[ker] * mu[ker] + sum_means
 
-        mu_shifted = []
         # subtracting the alpha weighted average of the means from the means
         # ensures that the GMM has the inclination to have the mean=signals.
-        # its like a residual conection. I don't understand why we need to learn the mean?
+        # TODO: I don't understand why we need to learn the mean?
         for ker in range(kernels):
             mu[ker] = mu[ker] - sum_means + signals
 
         for i in range(kernels):
-            noiseModel.append(mu[i])
+            gmmParams.append(mu[i])
         for j in range(kernels):
-            noiseModel.append(sigma[j])
+            gmmParams.append(sigma[j])
         for k in range(kernels):
-            noiseModel.append(alpha[k])
+            gmmParams.append(alpha[k])
 
-        return noiseModel
+        return gmmParams
 
     def getSignalObservationPairs(self, signal, observation, lowerClip, upperClip):
         """Returns the Signal-Observation pixel intensities as a two-column array.
@@ -463,7 +467,7 @@ class GaussianMixtureNoiseModel(nn.Module):
 
         Returns
         -------
-        noiseModel: list of torch floats
+        gmmParams: list of torch floats
             Contains a list of `mu`, `sigma` and `alpha` for the `signals`
         """
         lb = np.percentile(signal, lowerClip)
