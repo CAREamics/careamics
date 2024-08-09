@@ -51,71 +51,71 @@ def noise_model_factory(
 
 
 # TODO: this should go away, replaced by noise_model_factory
-def get_noise_model(
-    enable_noise_model: bool,
-    model_type: ModelType,
-    noise_model_type: str,
-    noise_model_ch1_fpath: str,
-    noise_model_ch2_fpath: str,
-    noise_model_learnable: bool = False,
-    denoise_channel: str = "input",  # TODO hardcoded ?
-):
-    if enable_noise_model:
-        nmodels = []
-        # HDN -> one single output -> one single noise model
-        if model_type == ModelType.Denoiser:
-            if noise_model_type == "hist":
-                raise NotImplementedError(
-                    '"hist" noise model is not supported for now.'
-                )
-            elif noise_model_type == "gmm":
-                if denoise_channel == "Ch1":
-                    nmodel_fpath = noise_model_ch1_fpath
-                    print(f"Noise model Ch1: {nmodel_fpath}")
-                    nmodel1 = GaussianMixtureNoiseModel(params=np.load(nmodel_fpath))
-                    nmodel2 = None
-                    nmodels = [nmodel1, nmodel2]
-                elif denoise_channel == "Ch2":
-                    nmodel_fpath = noise_model_ch2_fpath
-                    print(f"Noise model Ch2: {nmodel_fpath}")
-                    nmodel1 = GaussianMixtureNoiseModel(params=np.load(nmodel_fpath))
-                    nmodel2 = None
-                    nmodels = [nmodel1, nmodel2]
-                elif denoise_channel == "input":
-                    nmodel_fpath = noise_model_ch1_fpath
-                    print(f"Noise model input: {nmodel_fpath}")
-                    nmodel1 = GaussianMixtureNoiseModel(params=np.load(nmodel_fpath))
-                    nmodel2 = None
-                    nmodels = [nmodel1, nmodel2]
-                else:
-                    raise ValueError(f"Invalid denoise_channel: {denoise_channel}")
-                # TODO WTF are input and ch1 the same ?
-        # muSplit -> two outputs -> two noise models
-        elif noise_model_type == "gmm":
-            print(f"Noise model Ch1: {noise_model_ch1_fpath}")
-            print(f"Noise model Ch2: {noise_model_ch2_fpath}")
+# def get_noise_model(
+#     enable_noise_model: bool,
+#     model_type: ModelType,
+#     noise_model_type: str,
+#     noise_model_ch1_fpath: str,
+#     noise_model_ch2_fpath: str,
+#     noise_model_learnable: bool = False,
+#     denoise_channel: str = "input",  # TODO hardcoded ?
+# ):
+#     if enable_noise_model:
+#         nmodels = []
+#         # HDN -> one single output -> one single noise model
+#         if model_type == ModelType.Denoiser:
+#             if noise_model_type == "hist":
+#                 raise NotImplementedError(
+#                     '"hist" noise model is not supported for now.'
+#                 )
+#             elif noise_model_type == "gmm":
+#                 if denoise_channel == "Ch1":
+#                     nmodel_fpath = noise_model_ch1_fpath
+#                     print(f"Noise model Ch1: {nmodel_fpath}")
+#                     nmodel1 = GaussianMixtureNoiseModel(params=np.load(nmodel_fpath))
+#                     nmodel2 = None
+#                     nmodels = [nmodel1, nmodel2]
+#                 elif denoise_channel == "Ch2":
+#                     nmodel_fpath = noise_model_ch2_fpath
+#                     print(f"Noise model Ch2: {nmodel_fpath}")
+#                     nmodel1 = GaussianMixtureNoiseModel(params=np.load(nmodel_fpath))
+#                     nmodel2 = None
+#                     nmodels = [nmodel1, nmodel2]
+#                 elif denoise_channel == "input":
+#                     nmodel_fpath = noise_model_ch1_fpath
+#                     print(f"Noise model input: {nmodel_fpath}")
+#                     nmodel1 = GaussianMixtureNoiseModel(params=np.load(nmodel_fpath))
+#                     nmodel2 = None
+#                     nmodels = [nmodel1, nmodel2]
+#                 else:
+#                     raise ValueError(f"Invalid denoise_channel: {denoise_channel}")
+#                 # TODO WTF are input and ch1 the same ?
+#         # muSplit -> two outputs -> two noise models
+#         elif noise_model_type == "gmm":
+#             print(f"Noise model Ch1: {noise_model_ch1_fpath}")
+#             print(f"Noise model Ch2: {noise_model_ch2_fpath}")
 
-            nmodel1 = GaussianMixtureNoiseModel(params=np.load(noise_model_ch1_fpath))
-            nmodel2 = GaussianMixtureNoiseModel(params=np.load(noise_model_ch2_fpath))
+#             nmodel1 = GaussianMixtureNoiseModel(params=np.load(noise_model_ch1_fpath))
+#             nmodel2 = GaussianMixtureNoiseModel(params=np.load(noise_model_ch2_fpath))
 
-            nmodels = [nmodel1, nmodel2]
+#             nmodels = [nmodel1, nmodel2]
 
-            # if 'noise_model_ch3_fpath' in config.model:
-            #     print(f'Noise model Ch3: {config.model.noise_model_ch3_fpath}')
-            #     nmodel3 = GaussianMixtureNoiseModel(params=np.load(config.model.noise_model_ch3_fpath))
-            #     nmodels = [nmodel1, nmodel2, nmodel3]
-            # else:
-            #     nmodels = [nmodel1, nmodel2]
-        else:
-            raise ValueError(f"Invalid noise_model_type: {noise_model_type}")
+#             # if 'noise_model_ch3_fpath' in config.model:
+#             #     print(f'Noise model Ch3: {config.model.noise_model_ch3_fpath}')
+#             #     nmodel3 = GaussianMixtureNoiseModel(params=np.load(config.model.noise_model_ch3_fpath))
+#             #     nmodels = [nmodel1, nmodel2, nmodel3]
+#             # else:
+#             #     nmodels = [nmodel1, nmodel2]
+#         else:
+#             raise ValueError(f"Invalid noise_model_type: {noise_model_type}")
 
-        if noise_model_learnable:
-            for nmodel in nmodels:
-                if nmodel is not None:
-                    nmodel.make_learnable()
+#         if noise_model_learnable:
+#             for nmodel in nmodels:
+#                 if nmodel is not None:
+#                     nmodel.make_learnable()
 
-        return MultiChannelNoiseModel(*nmodels)
-    return None
+#         return MultiChannelNoiseModel(*nmodels)
+#     return None
 
 
 class MultiChannelNoiseModel(nn.Module):
@@ -184,15 +184,15 @@ class MultiChannelNoiseModel(nn.Module):
         return torch.cat(ll_list, dim=1)
 
 
-def last2path(fpath: str):
-    return os.path.join(*fpath.split("/")[-2:])
+# def last2path(fpath: str):
+#     return os.path.join(*fpath.split("/")[-2:])
 
 
-def get_nm_config(noise_model_fpath: str):
-    config_fpath = os.path.join(os.path.dirname(noise_model_fpath), "config.json")
-    with open(config_fpath) as f:
-        noise_model_config = json.load(f)
-    return noise_model_config
+# def get_nm_config(noise_model_fpath: str):
+#     config_fpath = os.path.join(os.path.dirname(noise_model_fpath), "config.json")
+#     with open(config_fpath) as f:
+#         noise_model_config = json.load(f)
+#     return noise_model_config
 
 
 def fastShuffle(series, num):
@@ -205,36 +205,38 @@ def fastShuffle(series, num):
 class GaussianMixtureNoiseModel(nn.Module):
     """Define a noise model parameterized as a mixture of gaussians.
 
-    If you would like to initialize a new object from scratch, then set `params=None`
-    and specify the other parameters as keyword arguments. 
-    If you are instead loading a model, use only `params`.
+    If `config.path` is not provided a new object is initialized from scratch.
+    Otherwise, a model is loaded from `config.path`.
 
     Parameters
     ----------
-    **kwargs: keyworded, variable-length argument dictionary.
-    Arguments include:
-        min_signal : float
-            Minimum signal intensity expected in the image.
-        max_signal : float
-            Maximum signal intensity expected in the image.
-        path: string
-            Path to the directory where the trained noise model (*.npz) is saved in the `train` method.
-        weight : array
-            A [3*n_gaussian, n_coeff] sized array containing the values of the weights describing the noise model.
-            Each gaussian contributes three parameters (mean, standard deviation and weight), hence the number of rows in `weight` are 3*n_gaussian.
-            If `weight=None`, the weight array is initialized using the `min_signal` and `max_signal` parameters.
-        n_gaussian: int
-            Number of gaussians.
-        n_coeff: int
-            Number of coefficients to describe the functional relationship between gaussian parameters and the signal.
-            2 implies a linear relationship, 3 implies a quadratic relationship and so on.
-        device: device
-            GPU device.
-        min_sigma: int
-            All values of sigma (`standard deviation`) below min_sigma are clamped to become equal to min_sigma.
-        params: dictionary
-            Use `params` if one wishes to load a model with trained weights.
-            While initializing a new object of the class `GaussianMixtureNoiseModel` from scratch, set this to `None`.
+    config : GaussianMixtureNmModel
+        A `pydantic` model that defines the configuration of the GMM noise model. 
+            
+    Attributes
+    ----------
+    min_signal : float
+        Minimum signal intensity expected in the image.
+    max_signal : float
+        Maximum signal intensity expected in the image.
+    path: string
+        Path to the directory where the trained noise model (*.npz) is saved in the `train` method.
+    weight : torch.nn.Parameter
+        A [3*n_gaussian, n_coeff] sized array containing the values of the weights 
+        describing the GMM noise model. Specifically, each row correspond to one 
+        parameter of each gaussian, namely [mean, standard deviation and weight].
+        If `weight=None`, the weight array is initialized using the `min_signal`
+        and `max_signal` parameters.
+    n_gaussian: int
+        Number of gaussians in the mixture.
+    n_coeff: int
+        Number of coefficients to describe the functional relationship between gaussian
+        parameters and the signal. 2 implies a linear relationship, 3 implies a quadratic
+        relationship and so on.
+    device: device
+        GPU device.
+    min_sigma: float
+        All values of `standard deviation` below this are clamped to this value.
     """
 
     # TODO training a NM relies on getting a clean data(N2V e.g,)
@@ -266,7 +268,7 @@ class GaussianMixtureNoiseModel(nn.Module):
             self.max_signal = torch.Tensor([max_signal])  # .to(self.device)
             self.tol = torch.Tensor([1e-10])  # .to(self.device)
         else:
-            params = np.load(config.path) # TODO: check the fuck is loaded here
+            params = np.load(config.path)
             # self.device = kwargs.get('device')
 
             self.min_signal = torch.Tensor(params["min_signal"])  # .to(self.device)
