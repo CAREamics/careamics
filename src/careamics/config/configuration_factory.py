@@ -28,7 +28,7 @@ def _create_supervised_configuration(
     num_epochs: int,
     use_augmentations: bool = True,
     independent_channels: bool = False,
-    loss: Literal["mae", "mse"] = "mae",
+    loss: Literal["mae_loss", "mse_loss"] = "mae_loss",
     n_channels_in: int = 1,
     n_channels_out: int = 1,
     logger: Literal["wandb", "tensorboard", "none"] = "none",
