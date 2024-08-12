@@ -34,7 +34,13 @@ class NMLikelihoodModel(BaseModel):
 
     Parameters
     ----------
-    BaseModel
+    data_mean: torch.Tensor
+        The mean of the data, used to unnormalize data for noise model evaluation.
+    data_std: torch.Tensor
+        The standard deviation of the data, used to unnormalize data for noise 
+        model evaluation.
+    noiseModel: NoiseModel
+        The noise model instance used to compute the likelihood.
     """
 
     model_config = ConfigDict(validate_assignment=True, arbitrary_types_allowed=True)

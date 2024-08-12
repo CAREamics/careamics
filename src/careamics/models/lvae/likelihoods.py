@@ -282,6 +282,18 @@ class NoiseModelLikelihood(LikelihoodModule):
         data_std: torch.Tensor,
         noiseModel: Any, # TODO: check the type -> couldn't manage due to circular imports...
     ):
+        """Constructor.
+        
+        Parameters
+        ----------
+        data_mean: torch.Tensor
+            The mean of the data, used to unnormalize data for noise model evaluation.
+        data_std: torch.Tensor
+            The standard deviation of the data, used to unnormalize data for noise 
+            model evaluation.
+        noiseModel: NoiseModel
+            The noise model instance used to compute the likelihood.
+        """
         super().__init__()
         self.data_mean = data_mean
         self.data_std = data_std
