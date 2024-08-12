@@ -1,3 +1,5 @@
+"""Module containing `FCNAlgorithmConfig` class."""
+
 from pprint import pformat
 from typing import Literal, Union
 
@@ -43,42 +45,16 @@ class FCNAlgorithmConfig(BaseModel):
     Examples
     --------
     Minimum example:
-    >>> from careamics.config import AlgorithmConfig
+    >>> from careamics.config import FCNAlgorithmConfig
     >>> config_dict = {
     ...     "algorithm": "n2v",
+    ...     "algorithm_type": "fcn",
     ...     "loss": "n2v",
     ...     "model": {
     ...         "architecture": "UNet",
     ...     }
     ... }
-    >>> config = AlgorithmConfig(**config_dict)
-
-    Using a custom model:
-    >>> from torch import nn, ones
-    >>> from careamics.config import AlgorithmConfig, register_model
-    ...
-    >>> @register_model(name="linear_model")
-    ... class LinearModel(nn.Module):
-    ...    def __init__(self, in_features, out_features, *args, **kwargs):
-    ...        super().__init__()
-    ...        self.in_features = in_features
-    ...        self.out_features = out_features
-    ...        self.weight = nn.Parameter(ones(in_features, out_features))
-    ...        self.bias = nn.Parameter(ones(out_features))
-    ...    def forward(self, input):
-    ...        return (input @ self.weight) + self.bias
-    ...
-    >>> config_dict = {
-    ...     "algorithm": "custom",
-    ...     "loss": "mse",
-    ...     "model": {
-    ...         "architecture": "Custom",
-    ...         "name": "linear_model",
-    ...         "in_features": 10,
-    ...         "out_features": 5,
-    ...     }
-    ... }
-    >>> config = AlgorithmConfig(**config_dict)
+    >>> config = FCNAlgorithmConfig(**config_dict)
     """
 
     # Pydantic class configuration
