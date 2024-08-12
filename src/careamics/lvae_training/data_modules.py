@@ -137,6 +137,7 @@ class MultiChDloader:
         allow_generation: bool = False,
         max_val: float = None,
         grid_alignment=GridAlignement.LeftTop,
+        trim_boundary=True,
         overlapping_padding_kwargs=None,
         print_vars: bool = True,
     ):
@@ -153,12 +154,15 @@ class MultiChDloader:
         self._data_type = data_config.data_type
         self._fpath = fpath
         self._data = self.N = self._noise_data = None
-
+        self.Z = 1
+        self._trim_boundary = trim_boundary
         # Hardcoded params, not included in the config file.
 
         # by default, if the noise is present, add it to the input and target.
         self._disable_noise = False  # to add synthetic noise
+        self._poisson_noise_factor = None
         self._train_index_switcher = None
+        self._depth3D = data_config.get("depth3D", 1)
         # NOTE: Input is the sum of the different channels. It is not the average of the different channels.
         self._input_is_sum = data_config.get("input_is_sum", False)
         self._num_channels = data_config.get("num_channels", 2)
@@ -205,6 +209,17 @@ class MultiChDloader:
             assert (
                 self._overlapping_padding_kwargs is not None
             ), "With Center grid alignment, padding is needed."
+        if self._trim_boundary:
+            if (
+                self._overlapping_padding_kwargs is None
+                or data_config.multiscale_lowres_count is not None
+            ):
+                # raise warning
+                print("Padding is not used with this alignement style")
+        else:
+            assert (
+                self._overlapping_padding_kwargs is not None
+            ), "When not trimming boudnary, padding is needed."
 
         self._is_train = datasplit_type == DataSplitType.Train
 
@@ -216,9 +231,11 @@ class MultiChDloader:
 
         self._img_sz = self._grid_sz = self._repeat_factor = self.idx_manager = None
         if self._is_train:
-            self._start_alpha_arr = None
-            self._end_alpha_arr = None
-            self._alpha_weighted_target = False
+            self._start_alpha_arr = data_config.get("start_alpha", None)
+            self._end_alpha_arr = data_config.get("end_alpha", None)
+            self._alpha_weighted_target = data_config.get(
+                "alpha_weighted_target", False
+            )
 
             self.set_img_sz(
                 data_config.image_size,
@@ -229,11 +246,14 @@ class MultiChDloader:
                 ),
             )
 
-            # if self._validtarget_rand_fract is not None:
-            #     self._train_index_switcher = IndexSwitcher(self.idx_manager, data_config, self._img_sz)
-            #     self._std_background_arr = None
+            if self._validtarget_rand_fract is not None:
+                self._train_index_switcher = IndexSwitcher(
+                    self.idx_manager, data_config, self._img_sz
+                )
+                self._std_background_arr = data_config.get("std_background_arr", None)
 
         else:
+
             self.set_img_sz(
                 data_config.image_size,
                 (
@@ -246,17 +266,24 @@ class MultiChDloader:
         self._return_alpha = False
         self._return_index = False
 
-        # self._empty_patch_replacement_enabled = data_config.get("empty_patch_replacement_enabled",
-        #                                                         False) and self._is_train
-        # if self._empty_patch_replacement_enabled:
-        #     self._empty_patch_replacement_channel_idx = data_config.empty_patch_replacement_channel_idx
-        #     self._empty_patch_replacement_probab = data_config.empty_patch_replacement_probab
-        #     data_frames = self._data[..., self._empty_patch_replacement_channel_idx]
-        #     # NOTE: This is on the raw data. So, it must be called before removing the background.
-        #     self._empty_patch_fetcher = EmptyPatchFetcher(self.idx_manager,
-        #                                                   self._img_sz,
-        #                                                   data_frames,
-        #                                                   max_val_threshold=data_config.empty_patch_max_val_threshold)
+        self._empty_patch_replacement_enabled = (
+            data_config.get("empty_patch_replacement_enabled", False) and self._is_train
+        )
+        if self._empty_patch_replacement_enabled:
+            self._empty_patch_replacement_channel_idx = (
+                data_config.empty_patch_replacement_channel_idx
+            )
+            self._empty_patch_replacement_probab = (
+                data_config.empty_patch_replacement_probab
+            )
+            data_frames = self._data[..., self._empty_patch_replacement_channel_idx]
+            # NOTE: This is on the raw data. So, it must be called before removing the background.
+            self._empty_patch_fetcher = EmptyPatchFetcher(
+                self.idx_manager,
+                self._img_sz,
+                data_frames,
+                max_val_threshold=data_config.empty_patch_max_val_threshold,
+            )
 
         self.rm_bkground_set_max_val_and_upperclip_data(max_val, datasplit_type)
 
@@ -360,7 +387,13 @@ class MultiChDloader:
                 self._noise_data[..., 0] = np.mean(self._noise_data[..., 1:], axis=-1)
         print(msg)
 
-        self.N = len(self._data)
+        self._5Ddata = len(self._data.shape) == 5
+        if self._5Ddata:
+            self.Z = self._data.shape[1]
+
+        if self._depth3D > 1:
+            assert self._5Ddata, "Data must be 5D:NxZxHxWxC for 3D data"
+
         assert (
             self._data.shape[-1] == self._num_channels
         ), "Number of channels in data and config do not match."
@@ -441,9 +474,13 @@ class MultiChDloader:
     def get_img_sz(self):
         return self._img_sz
 
+    def get_num_frames(self):
+        return self._data.shape[0]
+
     def reduce_data(
         self, t_list=None, h_start=None, h_end=None, w_start=None, w_end=None
     ):
+        assert not self._5Ddata, "This function is not supported for 3D data."
         if t_list is None:
             t_list = list(range(self._data.shape[0]))
         if h_start is None:
@@ -461,11 +498,21 @@ class MultiChDloader:
                 t_list, h_start:h_end, w_start:w_end, :
             ].copy()
 
-        self.N = len(t_list)
         self.set_img_sz(self._img_sz, self._grid_sz)
         print(
             f"[{self.__class__.__name__}] Data reduced. New data shape: {self._data.shape}"
         )
+
+    def get_idx_manager_shapes(self, patch_size: int, grid_size: int):
+        numC = self._data.shape[-1]
+        if self._5Ddata:
+            grid_shape = (1, 1, grid_size, grid_size, numC)
+            patch_shape = (1, self._depth3D, patch_size, patch_size, numC)
+        else:
+            grid_shape = (1, grid_size, grid_size, numC)
+            patch_shape = (1, patch_size, patch_size, numC)
+
+        return patch_shape, grid_shape
 
     def set_img_sz(self, image_size, grid_size):
         """
@@ -474,12 +521,23 @@ class MultiChDloader:
             image_size: size of one patch
             grid_size: frame is divided into square grids of this size. A patch centered on a grid having size `image_size` is returned.
         """
+
         self._img_sz = image_size
         self._grid_sz = grid_size
-        self.idx_manager = GridIndexManager(
-            self._data.shape, self._grid_sz, self._img_sz, self._grid_alignment
+        shape = self._data.shape
+
+        patch_shape, grid_shape = self.get_idx_manager_shapes(
+            self._img_sz, self._grid_sz
         )
-        self.set_repeat_factor()
+        self.idx_manager = GridIndexManager(
+            shape, grid_shape, patch_shape, self._trim_boundary
+        )
+        # self.set_repeat_factor()
+
+    def __len__(self):
+        # Vera: N is the number of frames in Z stack
+        # Repeat factor is n_rows * n_cols
+        return self.idx_manager.total_grid_count()
 
     def set_repeat_factor(self):
         if self._grid_sz > 1:
@@ -497,7 +555,14 @@ class MultiChDloader:
         msg = (
             f"[{self.__class__.__name__}] Train:{int(self._is_train)} Sz:{self._img_sz}"
         )
+        dim_sizes = [
+            self.idx_manager.get_individual_dim_grid_count(dim)
+            for dim in range(len(self._data.shape))
+        ]
+        dim_sizes = ",".join([str(x) for x in dim_sizes])
         msg += f" N:{self.N} NumPatchPerN:{self._repeat_factor}"
+        msg += f"{self.idx_manager.total_grid_count()} DimSz:({dim_sizes})"
+        msg += f" TrimB:{self._trim_boundary}"
         # msg += f' NormInp:{self._normalized_input}'
         # msg += f' SingleNorm:{self._use_one_mu_std}'
         msg += f" Rot:{self._enable_rotation}"
@@ -529,40 +594,54 @@ class MultiChDloader:
             )
 
         if self._enable_random_cropping:
-            h_start, w_start = self._get_random_hw(h, w)
+            patch_start_loc = self._get_random_hw(h, w)
+            if self._5Ddata:
+                patch_start_loc = (
+                    np.random.choice(img_tuples[0].shape[-3] - self._depth3D),
+                ) + patch_start_loc
         else:
-            h_start, w_start = self._get_deterministic_hw(index)
+            patch_start_loc = self._get_deterministic_loc(index)
 
         cropped_imgs = []
         for img in img_tuples:
-            img = self._crop_flip_img(img, h_start, w_start, False, False)
+            img = self._crop_flip_img(img, patch_start_loc, False, False)
             cropped_imgs.append(img)
 
         return (
             *tuple(cropped_imgs),
             {
-                "h": [h_start, h_start + self._img_sz],
-                "w": [w_start, w_start + self._img_sz],
+                # "h": [h_start, h_start + self._img_sz],
+                # "w": [w_start, w_start + self._img_sz],
                 "hflip": False,
                 "wflip": False,
             },
         )
 
-    def _crop_img(self, img: np.ndarray, h_start: int, w_start: int):
-        if self._grid_alignment == GridAlignement.LeftTop:
+    def _crop_img(self, img: np.ndarray, patch_start_loc: Tuple):
+        if self._trim_boundary:
             # In training, this is used.
             # NOTE: It is my opinion that if I just use self._crop_img_with_padding, it will work perfectly fine.
             # The only benefit this if else loop provides is that it makes it easier to see what happens during training.
-            new_img = img[
-                ..., h_start : h_start + self._img_sz, w_start : w_start + self._img_sz
-            ]
+            patch_end_loc = (
+                np.array(patch_start_loc, dtype=np.int32)
+                + self.idx_manager.patch_shape[1:-1]
+            )
+            if self._5Ddata:
+                z_start, h_start, w_start = patch_start_loc
+                z_end, h_end, w_end = patch_end_loc
+                new_img = img[..., z_start:z_end, h_start:h_end, w_start:w_end]
+            else:
+                h_start, w_start = patch_start_loc
+                h_end, w_end = patch_end_loc
+                new_img = img[..., h_start:h_end, w_start:w_end]
+
             return new_img
-        elif self._grid_alignment == GridAlignement.Center:
+        else:
             # During evaluation, this is used. In this situation, we can have negative h_start, w_start. Or h_start +self._img_sz can be larger than frame
             # In these situations, we need some sort of padding. This is not needed  in the LeftTop alignement.
-            return self._crop_img_with_padding(img, h_start, w_start)
+            return self._crop_img_with_padding(img, patch_start_loc)
 
-    def get_begin_end_padding(self, start_pos, max_len):
+    def get_begin_end_padding(self, start_pos, end_pos, max_len):
         """
         The effect is that the image with size self._grid_sz is in the center of the patch with sufficient
         padding on all four sides so that the final patch size is self._img_sz.
@@ -572,53 +651,62 @@ class MultiChDloader:
         if start_pos < 0:
             pad_start = -1 * start_pos
 
-        pad_end = max(0, start_pos + self._img_sz - max_len)
+        pad_end = max(0, end_pos - max_len)
 
         return pad_start, pad_end
 
-    def _crop_img_with_padding(self, img: np.ndarray, h_start: int, w_start: int):
-        _, H, W = img.shape
-        h_on_boundary = self.on_boundary(h_start, H)
-        w_on_boundary = self.on_boundary(w_start, W)
-
-        assert h_start < H
-        assert w_start < W
-
-        assert h_start + self._img_sz <= H or h_on_boundary
-        assert w_start + self._img_sz <= W or w_on_boundary
+    def _crop_img_with_padding(
+        self, img: np.ndarray, patch_start_loc, max_len_vals=None
+    ):
+        if max_len_vals is None:
+            max_len_vals = self.idx_manager.data_shape[1:-1]
+        patch_end_loc = np.array(patch_start_loc, dtype=int) + np.array(
+            self.idx_manager.patch_shape[1:-1], dtype=int
+        )
+        boundary_crossed = []
+        valid_slice = []
+        padding = [[0, 0]]
+        for start_idx, end_idx, max_len in zip(
+            patch_start_loc, patch_end_loc, max_len_vals
+        ):
+            boundary_crossed.append(end_idx > max_len or start_idx < 0)
+            valid_slice.append((max(0, start_idx), min(max_len, end_idx)))
+            pad = [0, 0]
+            if boundary_crossed[-1]:
+                pad = self.get_begin_end_padding(start_idx, end_idx, max_len)
+            padding.append(pad)
         # max() is needed since h_start could be negative.
-        new_img = img[
-            ...,
-            max(0, h_start) : h_start + self._img_sz,
-            max(0, w_start) : w_start + self._img_sz,
-        ]
-        padding = np.array([[0, 0], [0, 0], [0, 0]])
+        if self._5Ddata:
+            new_img = img[
+                ...,
+                valid_slice[0][0] : valid_slice[0][1],
+                valid_slice[1][0] : valid_slice[1][1],
+                valid_slice[2][0] : valid_slice[2][1],
+            ]
+        else:
+            new_img = img[
+                ...,
+                valid_slice[0][0] : valid_slice[0][1],
+                valid_slice[1][0] : valid_slice[1][1],
+            ]
 
-        if h_on_boundary:
-            pad = self.get_begin_end_padding(h_start, H)
-            padding[1] = pad
-        if w_on_boundary:
-            pad = self.get_begin_end_padding(w_start, W)
-            padding[2] = pad
-
+        # print(np.array(padding).shape, img.shape, new_img.shape)
+        # print(padding)
         if not np.all(padding == 0):
             new_img = np.pad(new_img, padding, **self._overlapping_padding_kwargs)
 
         return new_img
 
     def _crop_flip_img(
-        self, img: np.ndarray, h_start: int, w_start: int, h_flip: bool, w_flip: bool
+        self, img: np.ndarray, patch_start_loc: Tuple, h_flip: bool, w_flip: bool
     ):
-        new_img = self._crop_img(img, h_start, w_start)
+        new_img = self._crop_img(img, patch_start_loc)
         if h_flip:
             new_img = new_img[..., ::-1, :]
         if w_flip:
             new_img = new_img[..., :, ::-1]
 
         return new_img.astype(np.float32)
-
-    def __len__(self):
-        return self.N * self._repeat_factor
 
     def _load_img(
         self, index: Union[int, Tuple[int, int]]
@@ -631,12 +719,21 @@ class MultiChDloader:
         else:
             idx = index[0]
 
-        imgs = self._data[self.idx_manager.get_t(idx)]
+        patch_loc_list = self.idx_manager.get_patch_location_from_dataset_idx(idx)
+        imgs = self._data[patch_loc_list[0]]
+        # if self._5Ddata:
+        #     assert self._noise_data is None, 'Noise is not supported for 5D data'
+        #     n_loc, z_loc = patch_loc_list[:2]
+        #     z_loc_interval = range(z_loc, z_loc + self._depth3D)
+        #     imgs = self._data[n_loc, z_loc_interval]
+        # else:
+        #     imgs = self._data[patch_loc_list[0]]
+
         loaded_imgs = [imgs[None, ..., i] for i in range(imgs.shape[-1])]
         noise = []
         if self._noise_data is not None and not self._disable_noise:
             noise = [
-                self._noise_data[self.idx_manager.get_t(idx)][None, ..., i]
+                self._noise_data[patch_loc_list[0]][None, ..., i]
                 for i in range(self._noise_data.shape[-1])
             ]
         return tuple(loaded_imgs), tuple(noise)
@@ -669,27 +766,16 @@ class MultiChDloader:
     def per_side_overlap_pixelcount(self):
         return (self._img_sz - self._grid_sz) // 2
 
-    def on_boundary(self, cur_loc, frame_size):
-        return cur_loc + self._img_sz > frame_size or cur_loc < 0
+    # def on_boundary(self, cur_loc, frame_size):
+    #     return cur_loc + self._img_sz > frame_size or cur_loc < 0
 
-    def _get_deterministic_hw(self, index: Union[int, Tuple[int, int]]):
+    def _get_deterministic_loc(self, index: int):
         """
         It returns the top-left corner of the patch corresponding to index.
         """
-        if isinstance(index, int) or isinstance(index, np.int64):
-            idx = index
-            grid_size = self._grid_sz
-        else:
-            idx, grid_size = index
-
-        h_start, w_start = self.idx_manager.get_deterministic_hw(
-            idx, grid_size=grid_size
-        )
-        if self._grid_alignment == GridAlignement.LeftTop:
-            return h_start, w_start
-        elif self._grid_alignment == GridAlignement.Center:
-            pad = self.per_side_overlap_pixelcount()
-            return h_start - pad, w_start - pad
+        loc_list = self.idx_manager.get_patch_location_from_dataset_idx(index)
+        # last dim is channel. we need to take the third and the second last element.
+        return loc_list[1:-1]
 
     def compute_individual_mean_std(self):
         # numpy 1.19.2 has issues in computing for large arrays. https://github.com/numpy/numpy/issues/8869
@@ -715,6 +801,10 @@ class MultiChDloader:
 
         mean = np.array(mean_arr)
         std = np.array(std_arr)
+        if (
+            self._5Ddata
+        ):  # NOTE: IDEALLY this should be only when the model expects 3D data.
+            return mean[None, :, None, None, None], std[None, :, None, None, None]
 
         return mean[None, :, None, None], std[None, :, None, None]
 
@@ -776,6 +866,10 @@ class MultiChDloader:
         if self._skip_normalization_using_mean:
             mean = np.zeros_like(mean)
 
+        if self._5Ddata:
+            mean = mean[:, :, None]
+            std = std[:, :, None]
+
         mean_dict = {"input": mean}  # , 'target':mean}
         std_dict = {"input": std}  # , 'target':std}
 
@@ -811,7 +905,10 @@ class MultiChDloader:
 
     def replace_with_empty_patch(self, img_tuples):
         empty_index = self._empty_patch_fetcher.sample()
-        empty_img_tuples = self._get_img(empty_index)
+        empty_img_tuples, empty_img_noise_tuples = self._get_img(empty_index)
+        assert (
+            len(empty_img_noise_tuples) == 0
+        ), "Noise is not supported with empty patch replacement"
         final_img_tuples = []
         for tuple_idx in range(len(img_tuples)):
             if tuple_idx == self._empty_patch_replacement_channel_idx:
@@ -902,9 +999,6 @@ class MultiChDloader:
                 index = self._train_index_switcher.get_invalid_target_index()
         return index
 
-    def _rotate(self, img_tuples, noise_tuples):
-        return self._rotate2D(img_tuples, noise_tuples)
-
     def _rotate2D(self, img_tuples, noise_tuples):
         img_kwargs = {}
         for i, img in enumerate(img_tuples):
@@ -921,6 +1015,7 @@ class MultiChDloader:
         rot_dic = self._rotation_transform(
             image=img_tuples[0][0], **img_kwargs, **noise_kwargs
         )
+
         rotated_img_tuples = []
         for i, img in enumerate(img_tuples):
             if len(img) == 1:
@@ -946,6 +1041,84 @@ class MultiChDloader:
 
         return rotated_img_tuples, rotated_noise_tuples
 
+    def _rotate(self, img_tuples, noise_tuples):
+        if self._depth3D > 1:
+            return self._rotate3D(img_tuples, noise_tuples)
+        else:
+            return self._rotate2D(img_tuples, noise_tuples)
+
+    def _rotate3D(self, img_tuples, noise_tuples):
+        img_kwargs = {}
+        for i, img in enumerate(img_tuples):
+            for j in range(self._depth3D):
+                for k in range(len(img)):
+                    img_kwargs[f"img{i}_{j}_{k}"] = img[k, j]
+
+        noise_kwargs = {}
+        for i, nimg in enumerate(noise_tuples):
+            for j in range(self._depth3D):
+                for k in range(len(nimg)):
+                    noise_kwargs[f"noise{i}_{j}_{k}"] = nimg[k, j]
+
+        keys = list(img_kwargs.keys()) + list(noise_kwargs.keys())
+        self._rotation_transform.add_targets({k: "image" for k in keys})
+        rot_dic = self._rotation_transform(
+            image=img_tuples[0][0], **img_kwargs, **noise_kwargs
+        )
+        rotated_img_tuples = []
+        for i, img in enumerate(img_tuples):
+            if len(img) == 1:
+                rotated_img_tuples.append(
+                    np.concatenate(
+                        [
+                            rot_dic[f"img{i}_{j}_0"][None, None]
+                            for j in range(self._depth3D)
+                        ],
+                        axis=1,
+                    )
+                )
+            else:
+                temp_arr = []
+                for k in range(len(img)):
+                    temp_arr.append(
+                        np.concatenate(
+                            [
+                                rot_dic[f"img{i}_{j}_{k}"][None, None]
+                                for j in range(self._depth3D)
+                            ],
+                            axis=1,
+                        )
+                    )
+                rotated_img_tuples.append(np.concatenate(temp_arr, axis=0))
+
+        rotated_noise_tuples = []
+        for i, nimg in enumerate(noise_tuples):
+            if len(nimg) == 1:
+                rotated_noise_tuples.append(
+                    np.concatenate(
+                        [
+                            rot_dic[f"noise{i}_{j}_0"][None, None]
+                            for j in range(self._depth3D)
+                        ],
+                        axis=1,
+                    )
+                )
+            else:
+                temp_arr = []
+                for k in range(len(nimg)):
+                    temp_arr.append(
+                        np.concatenate(
+                            [
+                                rot_dic[f"noise{i}_{j}_{k}"][None, None]
+                                for j in range(self._depth3D)
+                            ],
+                            axis=1,
+                        )
+                    )
+                rotated_noise_tuples.append(np.concatenate(temp_arr, axis=0))
+
+        return rotated_img_tuples, rotated_noise_tuples
+
     def get_uncorrelated_img_tuples(self, index):
         img_tuples, noise_tuples = self._get_img(index)
         assert len(noise_tuples) == 0
@@ -962,6 +1135,11 @@ class MultiChDloader:
         if self._train_index_switcher is not None:
             index = self._get_index_from_valid_target_logic(index)
 
+        # Vera: input can be both real microscopic image and two separate channels that are summed in the code
+
+        # TODO Vera: dump _uncorrelated_channels, not nessesary
+        # Update - by default nuclei and actin are "correlated" in location, take nuclei and actin from different
+        # places in the image, so their location becomes "uncorrelated"
         if self._uncorrelated_channels:
             img_tuples, noise_tuples = self.get_uncorrelated_img_tuples(index)
         else:
@@ -971,10 +1149,12 @@ class MultiChDloader:
             self._empty_patch_replacement_enabled != True
         ), "This is not supported with noise"
 
+        # Vera: Replace the content of one of the channels with background with given probability
         if self._empty_patch_replacement_enabled:
             if np.random.rand() < self._empty_patch_replacement_probab:
                 img_tuples = self.replace_with_empty_patch(img_tuples)
 
+        # Noise tuples are not needed for the paper, the image tuples are noisy by default
         if self._enable_rotation:
             img_tuples, noise_tuples = self._rotate(img_tuples, noise_tuples)
 
@@ -984,6 +1164,7 @@ class MultiChDloader:
             input_tuples = [x + noise_tuples[0] * factor for x in img_tuples]
         else:
             input_tuples = img_tuples
+        # weight the individual channels, typically fixed alpha
         inp, alpha = self._compute_input(input_tuples)
 
         # add noise to target.
@@ -1026,6 +1207,7 @@ class LCMultiChDloader(MultiChDloader):
         allow_generation: bool = False,
         lowres_supervision=None,
         max_val=None,
+        trim_boundary=True,
         grid_alignment=GridAlignement.LeftTop,
         overlapping_padding_kwargs=None,
         print_vars=True,
@@ -1038,6 +1220,10 @@ class LCMultiChDloader(MultiChDloader):
         self._padding_kwargs = (
             padding_kwargs  # mode=padding_mode, constant_values=constant_value
         )
+        self._uncorrelated_channel_probab = data_config.get(
+            "uncorrelated_channel_probab", 0.5
+        )
+
         if overlapping_padding_kwargs is not None:
             assert (
                 self._padding_kwargs == overlapping_padding_kwargs
@@ -1059,7 +1245,8 @@ class LCMultiChDloader(MultiChDloader):
             use_one_mu_std=use_one_mu_std,
             allow_generation=allow_generation,
             max_val=max_val,
-            grid_alignment=grid_alignment,
+            trim_boundary=trim_boundary,
+            #  grid_alignment=grid_alignment,
             overlapping_padding_kwargs=overlapping_padding_kwargs,
             print_vars=print_vars,
         )
@@ -1094,9 +1281,38 @@ class LCMultiChDloader(MultiChDloader):
                 noise_data = resize(self._scaled_noise_data[-1], new_shape)
                 self._scaled_noise_data.append(noise_data)
 
+    def reduce_data(
+        self, t_list=None, h_start=None, h_end=None, w_start=None, w_end=None
+    ):
+        assert t_list is not None
+        assert h_start is None
+        assert h_end is None
+        assert w_start is None
+        assert w_end is None
+
+        self._data = self._data[t_list].copy()
+        self._scaled_data = [
+            self._scaled_data[i][t_list].copy() for i in range(len(self._scaled_data))
+        ]
+
+        if self._noise_data is not None:
+            self._noise_data = self._noise_data[t_list].copy()
+            self._scaled_noise_data = [
+                self._scaled_noise_data[i][t_list].copy()
+                for i in range(len(self._scaled_noise_data))
+            ]
+
+        self.N = len(t_list)
+        self.set_img_sz(self._img_sz, self._grid_sz)
+        print(
+            f"[{self.__class__.__name__}] Data reduced. New data shape: {self._data.shape}"
+        )
+
     def _init_msg(self):
         msg = super()._init_msg()
         msg += f" Pad:{self._padding_kwargs}"
+        if self._uncorrelated_channels:
+            msg += f" UncorrChProbab:{self._uncorrelated_channel_probab}"
         return msg
 
     def _load_scaled_img(
@@ -1106,52 +1322,72 @@ class LCMultiChDloader(MultiChDloader):
             idx = index
         else:
             idx, _ = index
-        imgs = self._scaled_data[scaled_index][idx % self.N]
-        imgs = tuple([imgs[None, :, :, i] for i in range(imgs.shape[-1])])
+
+        # tidx = self.idx_manager.get_t(idx)
+        patch_loc_list = self.idx_manager.get_patch_location_from_dataset_idx(idx)
+        nidx = patch_loc_list[0]
+
+        imgs = self._scaled_data[scaled_index][nidx]
+        imgs = tuple([imgs[None, ..., i] for i in range(imgs.shape[-1])])
         if self._noise_data is not None:
-            noisedata = self._scaled_noise_data[scaled_index][idx % self.N]
-            noise = tuple(
-                [noisedata[None, :, :, i] for i in range(noisedata.shape[-1])]
-            )
+            noisedata = self._scaled_noise_data[scaled_index][nidx]
+            noise = tuple([noisedata[None, ..., i] for i in range(noisedata.shape[-1])])
             factor = np.sqrt(2) if self._input_is_sum else 1.0
             # since we are using this lowres images for just the input, we need to add the noise of the input.
             assert self._lowres_supervision is None or self._lowres_supervision is False
             imgs = tuple([img + noise[0] * factor for img in imgs])
         return imgs
 
-    def _crop_img(self, img: np.ndarray, h_start: int, w_start: int):
+    def _crop_img(self, img: np.ndarray, patch_start_loc: Tuple):
         """
         Here, h_start, w_start could be negative. That simply means we need to pick the content from 0. So,
         the cropped image will be smaller than self._img_sz * self._img_sz
         """
-        return self._crop_img_with_padding(img, h_start, w_start)
+        max_len_vals = list(self.idx_manager.data_shape[1:-1])
+        max_len_vals[-2:] = img.shape[-2:]
+        return self._crop_img_with_padding(
+            img, patch_start_loc, max_len_vals=max_len_vals
+        )
 
     def _get_img(self, index: int):
         """
         Returns the primary patch along with low resolution patches centered on the primary patch.
         """
+        # Vera: noise_tuples is populated when there is synthetic noise in training,
+        # Used in denoiSplit, maybe Nature methods paper
+        # Should have similar type of noise with the noise model
+        # Starting with microsplit, dump the noise, use it instead as an augmentation if nessesary
         img_tuples, noise_tuples = self._load_img(index)
         assert self._img_sz is not None
         h, w = img_tuples[0].shape[-2:]
         if self._enable_random_cropping:
-            h_start, w_start = self._get_random_hw(h, w)
+            patch_start_loc = self._get_random_hw(h, w)
+            if self._5Ddata:
+                patch_start_loc = (
+                    np.random.choice(img_tuples[0].shape[-3] - self._depth3D),
+                ) + patch_start_loc
         else:
-            h_start, w_start = self._get_deterministic_hw(index)
+            patch_start_loc = self._get_deterministic_loc(index)
 
+        # Vera: LC logic here
+        # Vera: simply crops the image of the highest resolution
         cropped_img_tuples = [
-            self._crop_flip_img(img, h_start, w_start, False, False)
+            self._crop_flip_img(img, patch_start_loc, False, False)
             for img in img_tuples
         ]
         cropped_noise_tuples = [
-            self._crop_flip_img(noise, h_start, w_start, False, False)
+            self._crop_flip_img(noise, patch_start_loc, False, False)
             for noise in noise_tuples
         ]
+        patch_start_loc = list(patch_start_loc)
+        h_start, w_start = patch_start_loc[-2], patch_start_loc[-1]
         h_center = h_start + self._img_sz // 2
         w_center = w_start + self._img_sz // 2
         allres_versions = {
             i: [cropped_img_tuples[i]] for i in range(len(cropped_img_tuples))
         }
         for scale_idx in range(1, self.num_scales):
+            # Vera: returning the image of the lower resolution
             scaled_img_tuples = self._load_scaled_img(scale_idx, index)
 
             h_center = h_center // 2
@@ -1159,9 +1395,9 @@ class LCMultiChDloader(MultiChDloader):
 
             h_start = h_center - self._img_sz // 2
             w_start = w_center - self._img_sz // 2
-
+            patch_start_loc[-2:] = [h_start, w_start]
             scaled_cropped_img_tuples = [
-                self._crop_flip_img(img, h_start, w_start, False, False)
+                self._crop_flip_img(img, patch_start_loc, False, False)
                 for img in scaled_img_tuples
             ]
             for ch_idx in range(len(img_tuples)):
@@ -1176,16 +1412,32 @@ class LCMultiChDloader(MultiChDloader):
         return output_img_tuples, cropped_noise_tuples
 
     def __getitem__(self, index: Union[int, Tuple[int, int]]):
+        img_tuples, noise_tuples = self._get_img(index)
         if self._uncorrelated_channels:
-            img_tuples, noise_tuples = self.get_uncorrelated_img_tuples(index)
-        else:
-            img_tuples, noise_tuples = self._get_img(index)
+            assert (
+                self._input_idx is None
+            ), "Uncorrelated channels is not implemented when there is a separate input channel."
+            if np.random.rand() < self._uncorrelated_channel_probab:
+                img_tuples_new = [None] * len(img_tuples)
+                img_tuples_new[0] = img_tuples[0]
+                for i in range(1, len(img_tuples)):
+                    new_index = np.random.randint(len(self))
+                    img_tuples_tmp, _ = self._get_img(new_index)
+                    img_tuples_new[i] = img_tuples_tmp[i]
+                img_tuples = img_tuples_new
+
+        if self._is_train:
+            if self._empty_patch_replacement_enabled:
+                if np.random.rand() < self._empty_patch_replacement_probab:
+                    img_tuples = self.replace_with_empty_patch(img_tuples)
 
         if self._enable_rotation:
             img_tuples, noise_tuples = self._rotate(img_tuples, noise_tuples)
 
         assert self._lowres_supervision != True
         # add noise to input
+        # Vera: if noise is present combine it with the image
+        # factor is for the compute input not to have too much noise because the average of two gaussians
         if len(noise_tuples) > 0:
             factor = np.sqrt(2) if self._input_is_sum else 1.0
             input_tuples = []
@@ -1196,6 +1448,9 @@ class LCMultiChDloader(MultiChDloader):
         else:
             input_tuples = img_tuples
 
+        # Vera: compute the input by sum / average the channels
+        # Vera: alpha is an amount of weight which is applied to the channels when combining them
+        # Vera: how to sample alpha is still under research
         inp, alpha = self._compute_input(input_tuples)
         # assert self._alpha_weighted_target in [False, None]
         target_tuples = [img[:1] for img in img_tuples]
