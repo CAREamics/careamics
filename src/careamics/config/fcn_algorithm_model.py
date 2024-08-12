@@ -1,6 +1,4 @@
-"""Algorithm configuration."""
-
-from __future__ import annotations
+"""Module containing `FCNAlgorithmConfig` class."""
 
 from pprint import pformat
 from typing import Literal, Union
@@ -8,11 +6,11 @@ from typing import Literal, Union
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from typing_extensions import Self
 
-from .architectures import CustomModel, UNetModel, VAEModel
-from .optimizer_models import LrSchedulerModel, OptimizerModel
+from careamics.config.architectures import CustomModel, UNetModel
+from careamics.config.optimizer_models import LrSchedulerModel, OptimizerModel
 
 
-class AlgorithmConfig(BaseModel):
+class FCNAlgorithmConfig(BaseModel):
     """Algorithm configuration.
 
     This Pydantic model validates the parameters governing the components of the
@@ -30,7 +28,7 @@ class AlgorithmConfig(BaseModel):
         Algorithm to use.
     loss : Literal["n2v", "mae", "mse"]
         Loss function to use.
-    model : Union[UNetModel, VAEModel, CustomModel]
+    model : Union[UNetModel, LVAEModel, CustomModel]
         Model architecture to use.
     optimizer : OptimizerModel, optional
         Optimizer to use.
@@ -47,66 +45,37 @@ class AlgorithmConfig(BaseModel):
     Examples
     --------
     Minimum example:
-    >>> from careamics.config import AlgorithmConfig
+    >>> from careamics.config import FCNAlgorithmConfig
     >>> config_dict = {
     ...     "algorithm": "n2v",
+    ...     "algorithm_type": "fcn",
     ...     "loss": "n2v",
     ...     "model": {
     ...         "architecture": "UNet",
     ...     }
     ... }
-    >>> config = AlgorithmConfig(**config_dict)
-
-    Using a custom model:
-    >>> from torch import nn, ones
-    >>> from careamics.config import AlgorithmConfig, register_model
-    ...
-    >>> @register_model(name="linear_model")
-    ... class LinearModel(nn.Module):
-    ...    def __init__(self, in_features, out_features, *args, **kwargs):
-    ...        super().__init__()
-    ...        self.in_features = in_features
-    ...        self.out_features = out_features
-    ...        self.weight = nn.Parameter(ones(in_features, out_features))
-    ...        self.bias = nn.Parameter(ones(out_features))
-    ...    def forward(self, input):
-    ...        return (input @ self.weight) + self.bias
-    ...
-    >>> config_dict = {
-    ...     "algorithm": "custom",
-    ...     "loss": "mse",
-    ...     "model": {
-    ...         "architecture": "Custom",
-    ...         "name": "linear_model",
-    ...         "in_features": 10,
-    ...         "out_features": 5,
-    ...     }
-    ... }
-    >>> config = AlgorithmConfig(**config_dict)
+    >>> config = FCNAlgorithmConfig(**config_dict)
     """
 
     # Pydantic class configuration
     model_config = ConfigDict(
         protected_namespaces=(),  # allows to use model_* as a field name
         validate_assignment=True,
+        extra="allow",
     )
 
     # Mandatory fields
-    algorithm: Literal["n2v", "care", "n2n", "custom"]  # defined in SupportedAlgorithm
-    """Name of the algorithm, as defined in SupportedAlgorithm."""
-
+    # defined in SupportedAlgorithm
+    algorithm_type: Literal["fcn"]
+    algorithm: Literal["n2v", "care", "n2n"]
     loss: Literal["n2v", "mae", "mse"]
-    """Loss function to use, as defined in SupportedLoss."""
-
-    model: Union[UNetModel, VAEModel, CustomModel] = Field(discriminator="architecture")
-    """Model architecture to use, defined in SupportedArchitecture."""
+    model: Union[UNetModel, CustomModel] = Field(discriminator="architecture")
 
     # Optional fields
     optimizer: OptimizerModel = OptimizerModel()
     """Optimizer to use, defined in SupportedOptimizer."""
 
     lr_scheduler: LrSchedulerModel = LrSchedulerModel()
-    """Learning rate scheduler to use, defined in SupportedScheduler."""
 
     @model_validator(mode="after")
     def algorithm_cross_validation(self: Self) -> Self:
@@ -145,9 +114,6 @@ class AlgorithmConfig(BaseModel):
         if self.algorithm == "care" or self.algorithm == "n2n":
             if self.loss == "n2v":
                 raise ValueError("Supervised algorithms do not support loss `n2v`.")
-
-        if isinstance(self.model, VAEModel):
-            raise ValueError("VAE are currently not implemented.")
 
         return self
 
