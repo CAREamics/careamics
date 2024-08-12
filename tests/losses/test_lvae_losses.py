@@ -13,7 +13,7 @@ from careamics.models.lvae.noise_models import noise_model_factory
 
 
 def test_musplit_loss():
-    loss_func = loss_factory("musplit_loss")
+    loss_func = loss_factory("musplit")
     assert loss_func == musplit_loss
 
     loss_parameters = LVAELossParameters
@@ -46,7 +46,7 @@ def test_musplit_loss():
 
 @pytest.mark.skip(reason="Not implemented yet")
 def test_denoisplit_loss(tmp_path):
-    loss_func = loss_factory("denoisplit_loss")
+    loss_func = loss_factory("denoisplit")
     assert loss_func == denoisplit_loss
 
     loss_parameters = LVAELossParameters

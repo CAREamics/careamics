@@ -24,9 +24,8 @@ def get_reconstruction_loss(
     target: torch.Tensor
     input: torch.Tensor
     splitting_mask: torch.Tensor = None
-        A boolean tensor that indicates which items to keep for reconstruction loss
-        computation. If `None`, all the elements of the items are considered
-        (i.e., the mask is all `True`).
+        A boolean tensor that indicates which items to keep for reconstruction loss computation.
+        If `None`, all the elements of the items are considered (i.e., the mask is all `True`).
     return_predicted_img: bool = False
     likelihood_obj: LikelihoodModule = None
 
@@ -81,7 +80,7 @@ def _get_reconstruction_loss_vector(
     Parameters
     ----------
     return_predicted_img: bool
-        If set to `True`, the besides the loss, the reconstructed image is returned.
+        If set to `True`, the besides the loss, the reconstructed image is also returned.
         Default is `False`.
     """
     output = {
@@ -96,8 +95,7 @@ def _get_reconstruction_loss_vector(
     ll, like_dict = likelihood_obj(reconstruction, target)
     ll = _get_weighted_likelihood(ll)
 
-    # assert ll.shape[1] == 2, f"Change the code below to handle >2 channels first.
-    # ll.shape {ll.shape}"
+    # assert ll.shape[1] == 2, f"Change the code below to handle >2 channels first. ll.shape {ll.shape}"
     output = {"loss": compute_batch_mean(-1 * ll)}
     if ll.shape[1] > 1:
         for i in range(1, 1 + target.shape[1]):
@@ -122,30 +120,6 @@ def reconstruction_loss_musplit_denoisplit(
     denoise_weight,
     split_weight,
 ):
-    """.
-
-    Parameters
-    ----------
-    predictions : _type_
-        _description_
-    targets : _type_
-        _description_
-    predict_logvar : _type_
-        _description_
-    likelihood_NM : _type_
-        _description_
-    likelihood_GM : _type_
-        _description_
-    denoise_weight : _type_
-        _description_
-    split_weight : _type_
-        _description_
-
-    Returns
-    -------
-    _type_
-        _description_
-    """
     if predict_logvar is not None:
         out_mean, _ = predictions.chunk(2, dim=1)
     else:
@@ -183,7 +157,7 @@ def get_kl_divergence_loss_usplit(
     )
     # NOTE: kl.shape = (16,4) 16 is batch size. 4 is number of layers.
     # Values are sum() and so are of the order 30000
-    # Example values: 30626.6758, 31028.8145, 29509.8809, 29945.4922, 28919.1875
+    # Example values: 30626.6758, 31028.8145, 29509.8809, 29945.4922, 28919.1875, 29075.2988
 
     nlayers = kl.shape[1]
     for i in range(nlayers):
@@ -201,7 +175,7 @@ def get_kl_divergence_loss_usplit(
 
 def get_kl_divergence_loss(topdown_layer_data_dict, img_shape, kl_key="kl"):
     # TODO explain all params!
-    """kl[i] for each i has length batch_size resulting kl shape: (bs, layers)."""
+    """kl[i] for each i has length batch_size resulting kl shape: (batch_size, layers)"""
     kl = torch.cat(
         [kl_layer.unsqueeze(1) for kl_layer in topdown_layer_data_dict[kl_key]],
         dim=1,
@@ -285,8 +259,7 @@ def denoisplit_loss(model_outputs, targets, loss_parameters) -> dict:
     Parameters
     ----------
     module : "CAREamicsModuleWrapper"
-        "CAREamicsModuleWrapper" instance. This function is called from the
-        "CAREamicsModuleWrapper".
+        "CAREamicsModuleWrapper" instance. This function is called from the "CAREamicsModuleWrapper".
 
     Returns
     -------
@@ -315,7 +288,7 @@ def denoisplit_loss(model_outputs, targets, loss_parameters) -> dict:
         net_loss = recons_loss
     else:
         # NOTE: 'kl' key stands for the 'kl_samplewise' key in the TopDownLayer class.
-        # The different naming comes from `top_down_pass()` method in the LadderVAE.
+        # The different naming comes from `top_down_pass()` method in the LadderVAE class.
         denoisplit_kl = get_kl_divergence_loss(
             topdown_layer_data_dict=td_data,
             img_shape=loss_parameters.inputs.shape,
