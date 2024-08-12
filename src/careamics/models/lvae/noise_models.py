@@ -12,9 +12,7 @@ if TYPE_CHECKING:
 # TODO this module shouldn't be in lvae folder
 
 
-def noise_model_factory(
-    model_config: Union[NMModel, None]
-) -> nn.Module:
+def noise_model_factory(model_config: Union[NMModel, None]) -> nn.Module:
     """Noise model factory.
 
     Parameters
@@ -52,12 +50,12 @@ class MultiChannelNoiseModel(nn.Module):
 
         To handle noise models and the relative likelihood computation for multiple
         output channels (e.g., muSplit, denoiseSplit).
-        
+
         This class:
         - receives as input a variable number of noise models, one for each channel.
         - computes the likelihood of observations given signals for each channel.
         - returns the concatenation of these likelihoods.
-        
+
         Parameters
         ----------
         nmodels : list[GaussianMixtureNoiseModel]
@@ -66,7 +64,9 @@ class MultiChannelNoiseModel(nn.Module):
         super().__init__()
         for i, nmodel in enumerate(nmodels):
             if nmodel is not None:
-                self.add_module(f"nmodel_{i}", nmodel) # TODO: wouldn't be easier to use a list?
+                self.add_module(
+                    f"nmodel_{i}", nmodel
+                )  # TODO: wouldn't be easier to use a list?
 
         self._nm_cnt = 0
         for nmodel in nmodels:
@@ -77,24 +77,24 @@ class MultiChannelNoiseModel(nn.Module):
 
     def likelihood(self, obs: torch.Tensor, signal: torch.Tensor) -> torch.Tensor:
         """Compute the likelihood of observations given signals for each channel.
-        
+
         Parameters
         ----------
         obs : torch.Tensor
-            Noisy observations, i.e., the target(s). Specifically, the input noisy 
-            image for HDN, or the noisy unmixed images used for supervision 
+            Noisy observations, i.e., the target(s). Specifically, the input noisy
+            image for HDN, or the noisy unmixed images used for supervision
             for denoiSplit. Shape: (B, C, [Z], Y, X), where C is the number of
             unmixed channels.
         signal : torch.Tensor
-            Underlying signals, i.e., the (clean) output of the model. Specifically, the 
-            denoised image for HDN, or the unmixed images for denoiSplit. 
+            Underlying signals, i.e., the (clean) output of the model. Specifically, the
+            denoised image for HDN, or the unmixed images for denoiSplit.
             Shape: (B, C, [Z], Y, X), where C is the number of unmixed channels.
         """
         # Case 1: obs and signal have a single channel (e.g., denoising)
         if obs.shape[1] == 1:
             assert signal.shape[1] == 1
             return self.nmodel_0.likelihood(obs, signal)
-        
+
         # Case 2: obs and signal have multiple channels (e.g., denoiSplit)
         assert obs.shape[1] == self._nm_cnt, (
             "The number of channels in `obs` must match the number of noise models."
@@ -106,12 +106,12 @@ class MultiChannelNoiseModel(nn.Module):
             ll_list.append(
                 nmodel.likelihood(
                     obs[:, ch_idx : ch_idx + 1], signal[:, ch_idx : ch_idx + 1]
-                ) # slicing to keep the channel dimension
+                )  # slicing to keep the channel dimension
             )
         return torch.cat(ll_list, dim=1)
 
 
-# TODO: is this needed? 
+# TODO: is this needed?
 def fastShuffle(series, num):
     length = series.shape[0]
     for i in range(num):
@@ -128,8 +128,8 @@ class GaussianMixtureNoiseModel(nn.Module):
     Parameters
     ----------
     config : GaussianMixtureNmModel
-        A `pydantic` model that defines the configuration of the GMM noise model. 
-            
+        A `pydantic` model that defines the configuration of the GMM noise model.
+
     Attributes
     ----------
     min_signal : float
@@ -139,8 +139,8 @@ class GaussianMixtureNoiseModel(nn.Module):
     path: Union[str, Path]
         Path to the directory where the trained noise model (*.npz) is saved in the `train` method.
     weight : torch.nn.Parameter
-        A [3*n_gaussian, n_coeff] sized array containing the values of the weights 
-        describing the GMM noise model, with each row corresponding to one 
+        A [3*n_gaussian, n_coeff] sized array containing the values of the weights
+        describing the GMM noise model, with each row corresponding to one
         parameter of each gaussian, namely [mean, standard deviation and weight].
         Specifically, rows are organized as follows:
         - first n_gaussian rows correspond to the means
@@ -245,10 +245,7 @@ class GaussianMixtureNoiseModel(nn.Module):
         return value
 
     def normalDens(
-        self, 
-        x: torch.Tensor, 
-        m_: torch.Tensor = 0.0, 
-        std_: torch.Tensor = None
+        self, x: torch.Tensor, m_: torch.Tensor = 0.0, std_: torch.Tensor = None
     ) -> torch.Tensor:
         """Evaluates the normal probability density at `x` given the mean `m` and
         standard deviation `std`.
@@ -274,11 +271,9 @@ class GaussianMixtureNoiseModel(nn.Module):
         return tmp
 
     def likelihood(
-        self, 
-        observations: torch.Tensor, 
-        signals: torch.Tensor
+        self, observations: torch.Tensor, signals: torch.Tensor
     ) -> torch.Tensor:
-        """Evaluate the likelihood of observations given the signals and the 
+        """Evaluate the likelihood of observations given the signals and the
         corresponding gaussian parameters.
 
         Parameters
@@ -293,7 +288,7 @@ class GaussianMixtureNoiseModel(nn.Module):
         value :p + self.tol
             Likelihood of observations given the signals and the GMM noise model
         """
-        self.to_device(signals) # move al needed stuff to the same device as `signals``
+        self.to_device(signals)  # move al needed stuff to the same device as `signals``
         gaussianParameters = self.getGaussianParameters(signals)
         p = 0
         for gaussian in range(self.n_gaussian):
@@ -307,10 +302,7 @@ class GaussianMixtureNoiseModel(nn.Module):
             )
         return p + self.tol
 
-    def getGaussianParameters(
-        self, 
-        signals: torch.Tensor
-    ) -> list[torch.Tensor]:
+    def getGaussianParameters(self, signals: torch.Tensor) -> list[torch.Tensor]:
         """Returns the noise model for given signals.
 
         Parameters
@@ -321,7 +313,7 @@ class GaussianMixtureNoiseModel(nn.Module):
         Returns
         -------
         gmmParams: list[torch.Tensor]
-            A list containing tensors representing `mu`, `sigma` and `alpha` 
+            A list containing tensors representing `mu`, `sigma` and `alpha`
             parameters for the `n_gaussian` gaussians in the mixture.
 
         """
@@ -333,8 +325,8 @@ class GaussianMixtureNoiseModel(nn.Module):
         for num in range(kernels):
             # For each Gaussian in the mixture, evaluate mean, std and weight
             mu.append(self.polynomialRegressor(self.weight[num, :], signals))
-            
-            expval = torch.exp(self.weight[kernels + num, :]) 
+
+            expval = torch.exp(self.weight[kernels + num, :])
             # TODO: why taking the exp? it is not in PPN2V paper...
             sigmaTemp = self.polynomialRegressor(expval, signals)
             sigmaTemp = torch.clamp(sigmaTemp, min=self.min_sigma)
@@ -344,7 +336,7 @@ class GaussianMixtureNoiseModel(nn.Module):
                 self.polynomialRegressor(self.weight[2 * kernels + num, :], signals)
                 + self.tol
             )
-            alpha.append(expval) # NOTE: these are the numerators of weights
+            alpha.append(expval)  # NOTE: these are the numerators of weights
 
         sum_alpha = 0
         for al in range(kernels):
@@ -374,7 +366,7 @@ class GaussianMixtureNoiseModel(nn.Module):
 
         return gmmParams
 
-    # TODO: this method is not used anywhere. Remove?
+    # TODO: this is to train the noise model
     def getSignalObservationPairs(self, signal, observation, lowerClip, upperClip):
         """Returns the Signal-Observation pixel intensities as a two-column array.
 
@@ -410,7 +402,7 @@ class GaussianMixtureNoiseModel(nn.Module):
         ]
         return fastShuffle(sig_obs_pairs, 2)
 
-    # TODO: what's the use of this method? 
+    # TODO: what's the use of this method?
     def forward(self, x, y):
         """Temporary dummy forward method."""
         return x, y

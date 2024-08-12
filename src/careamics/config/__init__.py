@@ -2,7 +2,8 @@
 
 __all__ = [
     "FCNAlgorithmConfig",
-    "VAEAlgorithmConfig" "DataConfig",
+    "VAEAlgorithmConfig",
+    "DataConfig",
     "Configuration",
     "CheckpointModel",
     "InferenceConfig",
@@ -16,6 +17,7 @@ __all__ = [
     "CustomModel",
     "clear_custom_models",
     "GaussianMixtureNmModel",
+    "NMModel",
 ]
 from .architectures import CustomModel, clear_custom_models, register_model
 from .callback_model import CheckpointModel

@@ -14,8 +14,9 @@ from careamics.config.likelihood_model import GaussianLikelihoodModel, NMLikelih
 # TODO: check typing
 # if TYPE_CHECKING:
 #     from careamics.models.lvae.noise_models import GaussianMixtureNoiseModel, MultiChannelNoiseModel
-    
+
 # NoiseModel = Union[GaussianMixtureNoiseModel, MultiChannelNoiseModel]
+
 
 def likelihood_factory(config: Union[GaussianLikelihoodModel, NMLikelihoodModel, None]):
     """
@@ -79,9 +80,7 @@ class LikelihoodModule(nn.Module):
         return None
 
     def forward(
-        self, 
-        input_: torch.Tensor, 
-        x: Union[torch.Tensor, None]
+        self, input_: torch.Tensor, x: Union[torch.Tensor, None]
     ) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
         """
         Parameters:
@@ -155,14 +154,14 @@ class GaussianLikelihood(LikelihoodModule):
         ----------
         x: torch.Tensor
             The input tensor to the likelihood module, i.e., the output
-            the LVAE 'output_layer'. Shape is: (B, 2 * C, [Z], Y, X) in case 
+            the LVAE 'output_layer'. Shape is: (B, 2 * C, [Z], Y, X) in case
             `predict_logvar` is not None, or (B, C, [Z], Y, X) otherwise.
         """
         if self.predict_logvar is not None:
             # Get pixel-wise mean and logvar
             mean, lv = x.chunk(2, dim=1)
 
-            # Optionally, compute the global or channel-wise logvar 
+            # Optionally, compute the global or channel-wise logvar
             # TODO: to remove, since logvar can only be 'pixelwise' (??)
             if self.predict_logvar in ["channelwise", "global"]:
                 if self.predict_logvar == "channelwise":
@@ -171,7 +170,7 @@ class GaussianLikelihood(LikelihoodModule):
                     N = np.prod(lv.shape[:2])
                     new_shape = (*mean.shape[:2], *([1] * len(mean.shape[2:])))
                 elif self.predict_logvar == "global":
-                    # logvar should be of the following shape (batch, ). 
+                    # logvar should be of the following shape (batch, ).
                     # Other dims would be singletons.
                     N = lv.shape[0]
                     new_shape = (*mean.shape[:1], *([1] * len(mean.shape[1:])))
@@ -199,7 +198,7 @@ class GaussianLikelihood(LikelihoodModule):
         ----------
         x: torch.Tensor
             The input tensor to the likelihood module, i.e., the output
-            the LVAE 'output_layer'. Shape is: (B, 2 * C, [Z], Y, X) in case 
+            the LVAE 'output_layer'. Shape is: (B, 2 * C, [Z], Y, X) in case
             `predict_logvar` is not None, or (B, C, [Z], Y, X) otherwise.
         """
         mean, lv = self.get_mean_lv(x)
@@ -228,18 +227,16 @@ class GaussianLikelihood(LikelihoodModule):
         return params["logvar"]
 
     def log_likelihood(
-        self, 
-        x: torch.Tensor, 
-        params: dict[str, Union[torch.Tensor, None]]
+        self, x: torch.Tensor, params: dict[str, Union[torch.Tensor, None]]
     ):
         """Compute Gaussian log-likelihood
-        
+
         Parameters
         ----------
         x: torch.Tensor
-            The target tensor. Shape is (B, C, [Z], Y, X).        
+            The target tensor. Shape is (B, C, [Z], Y, X).
         params: dict[str, Union[torch.Tensor, None]]
-            The tensors obtained by chunking the output of the top-down pass, 
+            The tensors obtained by chunking the output of the top-down pass,
             here used as parameters of the Gaussian distribution.
         """
         if self.predict_logvar is not None:
@@ -281,16 +278,16 @@ class NoiseModelLikelihood(LikelihoodModule):
         self,
         data_mean: torch.Tensor,
         data_std: torch.Tensor,
-        noiseModel: Any, # TODO: check the type -> couldn't manage due to circular imports...
+        noiseModel: Any,  # TODO: check the type -> couldn't manage due to circular imports...
     ):
         """Constructor.
-        
+
         Parameters
         ----------
         data_mean: torch.Tensor
             The mean of the data, used to unnormalize data for noise model evaluation.
         data_std: torch.Tensor
-            The standard deviation of the data, used to unnormalize data for noise 
+            The standard deviation of the data, used to unnormalize data for noise
             model evaluation.
         noiseModel: NoiseModel
             The noise model instance used to compute the likelihood.
@@ -301,13 +298,12 @@ class NoiseModelLikelihood(LikelihoodModule):
         self.noiseModel = noiseModel
 
     def set_params_to_same_device_as(
-        self, 
-        correct_device_tensor: torch.Tensor
-    ) -> None: # TODO: needed?
+        self, correct_device_tensor: torch.Tensor
+    ) -> None:  # TODO: needed?
         if self.data_mean.device != correct_device_tensor.device:
             self.data_mean = self.data_mean.to(correct_device_tensor.device)
             self.data_std = self.data_std.to(correct_device_tensor.device)
-                
+
     def get_mean_lv(self, x: torch.Tensor) -> tuple[torch.Tensor, None]:
         return x, None
 
@@ -332,18 +328,18 @@ class NoiseModelLikelihood(LikelihoodModule):
         return params["mean"]
 
     def log_likelihood(self, x: torch.Tensor, params: dict[str, torch.Tensor]):
-        """Compute the log-likelihood given the parameters `params` obtained 
+        """Compute the log-likelihood given the parameters `params` obtained
         from the reconstruction tensor and the target tensor `x`.
-        
+
         Parameters
         ----------
         x: torch.Tensor
-            The target tensor. Shape is (B, C, [Z], Y, X).        
+            The target tensor. Shape is (B, C, [Z], Y, X).
         params: dict[str, Union[torch.Tensor, None]]
             The tensors obtained from output of the top-down pass.
             Here, "mean" correspond to the whole output, while logvar is `None`.
         """
-        predicted_s_denormalized = (params["mean"] * self.data_std + self.data_mean)
+        predicted_s_denormalized = params["mean"] * self.data_std + self.data_mean
         x_denormalized = x * self.data_std + self.data_mean
         likelihoods = self.noiseModel.likelihood(
             x_denormalized, predicted_s_denormalized

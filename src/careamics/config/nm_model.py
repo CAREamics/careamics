@@ -12,7 +12,7 @@ class GaussianMixtureNmModel(BaseModel):
     model_config = ConfigDict(
         validate_assignment=True, arbitrary_types_allowed=True, extra="allow"
     )
-    model_type: Literal["GaussianMixtureNoiseModel"] # TODO: why do we need this? 
+    model_type: Literal["GaussianMixtureNoiseModel"]  # TODO: why do we need this?
     path: Union[Path, str, None] = None
     weight: Any = None
     n_gaussian: int = Field(default=1, ge=1)
@@ -22,11 +22,12 @@ class GaussianMixtureNmModel(BaseModel):
     min_sigma: Any = None
     tol: float = Field(default=1e-10)
 
+
 # The noise model is given by a set of GMMs, one for each target
 # e.g., 2 target channels, 2 noise models
 class NMModel(BaseModel):
-    """Noise Model that aggregates the noise models for single channels"""
-    
+    """Noise Model that aggregates the noise models for single channels."""
+
     # TODO: check that this model config is OK
     model_config = ConfigDict(
         validate_assignment=True, arbitrary_types_allowed=True, extra="allow"
