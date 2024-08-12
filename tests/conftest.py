@@ -320,8 +320,8 @@ def pre_trained_bmz(tmp_path, pre_trained) -> Path:
     export_to_bmz(
         model=careamist.model,
         config=careamist.cfg,
-        path=path,
-        name="TopModel",
+        path_to_archive=path,
+        model_name="TopModel",
         general_description="A model that just walked in.",
         authors=[{"name": "Amod", "affiliation": "El"}],
         input_array=train_array[np.newaxis, np.newaxis, ...],

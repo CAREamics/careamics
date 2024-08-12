@@ -130,8 +130,6 @@ class CAREamist:
         ValueError
             If no data module hyper parameters are found in the checkpoint.
         """
-        super().__init__()
-
         # select current working directory if work_dir is None
         if work_dir is None:
             self.work_dir = Path.cwd()
@@ -184,7 +182,7 @@ class CAREamist:
         if self.cfg.training_config.has_logger():
             if self.cfg.training_config.logger == SupportedLogger.WANDB:
                 self.experiment_logger: LOGGER_TYPES = WandbLogger(
-                    name=experiment_name,
+                    name=self.cfg.experiment_name,
                     save_dir=self.work_dir / Path("logs"),
                 )
             elif self.cfg.training_config.logger == SupportedLogger.TENSORBOARD:
@@ -207,8 +205,7 @@ class CAREamist:
         self.pred_datamodule: Optional[PredictDataModule] = None
 
     def _define_callbacks(self, callbacks: Optional[list[Callback]] = None) -> None:
-        """
-        Define the callbacks for the training loop.
+        """Define the callbacks for the training loop.
 
         Parameters
         ----------
@@ -253,6 +250,7 @@ class CAREamist:
                 EarlyStopping(self.cfg.training_config.early_stopping_callback)
             )
 
+    # TODO: is there are more elegant way than calling train again after _train_on_paths
     def train(
         self,
         *,
@@ -313,7 +311,7 @@ class CAREamist:
         ValueError
             If neither a datamodule nor a source is provided.
         """
-        if datamodule is not None and train_source:
+        if datamodule is not None and train_source is not None:
             raise ValueError(
                 "Only one of `datamodule` and `train_source` can be provided."
             )
@@ -542,7 +540,7 @@ class CAREamist:
         *,
         batch_size: Optional[int] = None,
         tile_size: Optional[tuple[int, ...]] = None,
-        tile_overlap: tuple[int, ...] = (48, 48),
+        tile_overlap: Optional[tuple[int, ...]] = (48, 48),
         axes: Optional[str] = None,
         data_type: Optional[Literal["array", "tiff", "custom"]] = None,
         tta_transforms: bool = True,
@@ -581,7 +579,7 @@ class CAREamist:
         tile_size : tuple of int, optional
             Size of the tiles to use for prediction.
         tile_overlap : tuple of int, default=(48, 48)
-            Overlap between tiles.
+            Overlap between tiles, can be None.
         axes : str, optional
             Axes of the input data, by default None.
         data_type : {"array", "tiff", "custom"}, optional
@@ -664,8 +662,8 @@ class CAREamist:
 
     def export_to_bmz(
         self,
-        path: Union[Path, str],
-        name: str,
+        path_to_archive: Union[Path, str],
+        friendly_model_name: str,
         input_array: NDArray,
         authors: list[dict],
         general_description: str = "",
@@ -674,15 +672,27 @@ class CAREamist:
     ) -> None:
         """Export the model to the BioImage Model Zoo format.
 
+        This method packages the current weights into a zip file that can be uploaded
+        to the BioImage Model Zoo. The archive consists of the model weights, the model
+        specifications and various files (inputs, outputs, README, env.yaml etc.).
+
+        `path_to_archive` should point to a file with a ".zip" extension.
+
+        `friendly_model_name` is the name used for the model in the BMZ specs
+        and website, it should consist of letters, numbers, dashes, underscores and
+        parentheses only.
+
         Input array must be of the same dimensions as the axes recorded in the
         configuration of the `CAREamist`.
 
         Parameters
         ----------
-        path : pathlib.Path or str
-            Path to save the model.
-        name : str
-            Name of the model.
+        path_to_archive : pathlib.Path or str
+            Path in which to save the model, including file name, which should end with
+            ".zip".
+        friendly_model_name : str
+            Name of the model as used in the BMZ specs, it should consist of letters,
+            numbers, dashes, underscores and parentheses only.
         input_array : NDArray
             Input array used to validate the model and as example.
         authors : list of dict
@@ -708,8 +718,8 @@ class CAREamist:
         export_to_bmz(
             model=self.model,
             config=self.cfg,
-            path=path,
-            name=name,
+            path_to_archive=path_to_archive,
+            model_name=friendly_model_name,
             general_description=general_description,
             authors=authors,
             input_array=input_array,
