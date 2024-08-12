@@ -21,6 +21,7 @@ def test_all_algorithms_are_supported():
         assert algo in algorithms
 
 
+# TODO: this should not support musplit and denoisplit losses
 def test_all_losses_are_supported():
     """Test that all losses defined in the Literal are supported."""
     # list of supported losses
