@@ -8,6 +8,8 @@ from typing import Literal, Optional, Union
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from typing_extensions import Self
 
+from careamics.config.support import SupportedLoss
+
 from .architectures import CustomModel, LVAEModel
 from .likelihood_model import GaussianLikelihoodModel, NMLikelihoodModel
 from .nm_model import GaussianMixtureNmModel
@@ -62,7 +64,7 @@ class VAEAlgorithmConfig(BaseModel):
     # defined in SupportedAlgorithm
     algorithm_type: Literal["vae"]
     algorithm: Literal["musplit", "denoisplit", "custom"]
-    loss: Literal["musplit_loss", "denoisplit_loss"]
+    loss: Literal["musplit", "denoisplit"]
     model: Union[LVAEModel, CustomModel] = Field(discriminator="architecture")
 
     noise_model: GaussianMixtureNmModel = Field(discriminator="model_type")
@@ -86,7 +88,7 @@ class VAEAlgorithmConfig(BaseModel):
         """
         # musplit
         if self.algorithm == "musplit":
-            if self.loss != "musplit_loss":
+            if self.loss != SupportedLoss.MUSPLIT:
                 raise ValueError(
                     f"Algorithm {self.algorithm} only supports loss `musplit`."
                 )
@@ -97,9 +99,9 @@ class VAEAlgorithmConfig(BaseModel):
         # TODO add more checks
 
         if self.algorithm == "denoisplit":
-            if self.loss == "denoisplit_loss":
+            if self.loss == SupportedLoss.DENOISPLIT:
                 raise ValueError(
-                    f"Algorithm {self.algorithm} only supports loss `denoisplit_loss`."
+                    f"Algorithm {self.algorithm} only supports loss `denoisplit`."
                 )
             if self.model.predict_logvar is not None:
                 raise ValueError(
