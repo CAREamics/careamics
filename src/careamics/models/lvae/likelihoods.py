@@ -46,16 +46,17 @@ def likelihood_factory(config: Union[GaussianLikelihoodModel, NMLikelihoodModel,
         raise ValueError(f"Invalid likelihood model type: {config.model_type}")
 
 
+# TODO: is it really worth to have this class? Or it just adds complexity?
 class LikelihoodModule(nn.Module):
     """
     The base class for all likelihood modules.
     It defines the fundamental structure and methods for specialized likelihood models.
     """
 
-    def distr_params(self, x):
+    def distr_params(self, x: Any) -> None:
         return None
 
-    def set_params_to_same_device_as(self, correct_device_tensor):
+    def set_params_to_same_device_as(self, correct_device_tensor: Any) -> None:
         pass
 
     @staticmethod
