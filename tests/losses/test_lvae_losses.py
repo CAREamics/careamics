@@ -19,10 +19,8 @@ def test_musplit_loss():
     loss_parameters = LVAELossParameters
     model_outputs = torch.rand(2, 5, 64, 64)
     td_data = {
-        "z": [
-            torch.rand(2, 5, 64, 64) for _ in range(4)
-        ],  
-        # z is list of tensors with shape (batch, channels, height, width) for each 
+        "z": [torch.rand(2, 5, 64, 64) for _ in range(4)],
+        # z is list of tensors with shape (batch, channels, height, width) for each
         # hierarchy level
         "kl": [
             torch.rand(2) for _ in range(4)
@@ -54,10 +52,8 @@ def test_denoisplit_loss(tmp_path):
     loss_parameters = LVAELossParameters
     model_outputs = torch.rand(2, 5, 64, 64)
     td_data = {
-        "z": [
-            torch.rand(2, 5, 64, 64) for _ in range(4)
-        ],  
-        # z is list of tensors with shape (batch, channels, height, width) for each 
+        "z": [torch.rand(2, 5, 64, 64) for _ in range(4)],
+        # z is list of tensors with shape (batch, channels, height, width) for each
         # hierarchy level
         "kl": [
             torch.rand(2) for _ in range(4)
