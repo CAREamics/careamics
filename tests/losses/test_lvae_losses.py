@@ -11,6 +11,7 @@ from careamics.losses.lvae.losses import denoisplit_loss, musplit_loss
 from careamics.models.lvae.likelihoods import likelihood_factory
 from careamics.models.lvae.noise_models import noise_model_factory
 
+
 @pytest.mark.skip(reason="Implementation is likely to change soon.")
 def test_musplit_loss():
     loss_func = loss_factory("musplit")
@@ -19,9 +20,9 @@ def test_musplit_loss():
     loss_parameters = LVAELossParameters
     model_outputs = torch.rand(2, 5, 64, 64)
     td_data = {
-        "z": [
-            torch.rand(2, 5, 64, 64) for _ in range(4)
-        ],  # list of tensors with shape (batch, channels, height, width) for each hierarchy level
+        "z": [torch.rand(2, 5, 64, 64) for _ in range(4)],
+        # z is list of tensors with shape (batch, channels, height, width) for each
+        # hierarchy level
         "kl": [
             torch.rand(2) for _ in range(4)
         ],  # list of tensors with shape (batch, ) for each hierarchy level
@@ -52,9 +53,9 @@ def test_denoisplit_loss(tmp_path):
     loss_parameters = LVAELossParameters
     model_outputs = torch.rand(2, 5, 64, 64)
     td_data = {
-        "z": [
-            torch.rand(2, 5, 64, 64) for _ in range(4)
-        ],  # list of tensors with shape (batch, channels, height, width) for each hierarchy level
+        "z": [torch.rand(2, 5, 64, 64) for _ in range(4)],
+        # z is list of tensors with shape (batch, channels, height, width) for each
+        # hierarchy level
         "kl": [
             torch.rand(2) for _ in range(4)
         ],  # list of tensors with shape (batch, ) for each hierarchy level
