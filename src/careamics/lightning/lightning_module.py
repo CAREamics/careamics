@@ -15,11 +15,21 @@ from careamics.config.support import (
 )
 from careamics.losses import loss_factory
 from careamics.losses.loss_factory import LVAELossParameters
-from careamics.models.lvae.likelihoods import likelihood_factory
-from careamics.models.lvae.noise_models import noise_model_factory
+from careamics.models.lvae.likelihoods import (
+    GaussianLikelihood,
+    NoiseModelLikelihood,
+    likelihood_factory,
+)
+from careamics.models.lvae.noise_models import (
+    GaussianMixtureNoiseModel,
+    MultiChannelNoiseModel,
+    noise_model_factory,
+)
 from careamics.models.model_factory import model_factory
 from careamics.transforms import Denormalize, ImageRestorationTTA
 from careamics.utils.torch_utils import get_optimizer, get_scheduler
+
+NoiseModel = Union[GaussianMixtureNoiseModel, MultiChannelNoiseModel]
 
 
 class FCNModule(L.LightningModule):
@@ -253,11 +263,13 @@ class VAEModule(L.LightningModule):
 
         # create model and loss function
         self.model: nn.Module = model_factory(self.algorithm_config.model)
-        self.noise_model = noise_model_factory(self.algorithm_config.noise_model)
-        self.noise_model_likelihood = likelihood_factory(
+        self.noise_model: NoiseModel = noise_model_factory(
+            self.algorithm_config.noise_model
+        )
+        self.noise_model_likelihood: NoiseModelLikelihood = likelihood_factory(
             self.algorithm_config.noise_model_likelihood_model
         )
-        self.gaussian_likelihood = likelihood_factory(
+        self.gaussian_likelihood: GaussianLikelihood = likelihood_factory(
             self.algorithm_config.gaussian_likelihood_model
         )
         self.loss_parameters = LVAELossParameters()  # type: ignore
@@ -306,9 +318,13 @@ class VAEModule(L.LightningModule):
         self.loss_parameters.current_epoch = self.current_epoch
         self.loss_parameters.inputs = x
         self.loss_parameters.mask = ~((target == 0).reshape(len(target), -1).all(dim=1))
-        self.loss_parameters.noise_model_likelihood = self.noise_model_likelihood
-        self.loss_parameters.gaussian_likelihood = self.gaussian_likelihood
-        self.loss_parameters.noise_model = self.noise_model
+        self.loss_parameters.noise_model_likelihood = (
+            self.noise_model_likelihood
+        )  # TODO: why?
+        self.loss_parameters.gaussian_likelihood = (
+            self.gaussian_likelihood
+        )  # TODO: why?
+        self.loss_parameters.noise_model = self.noise_model  # TODO: why?
         loss = self.loss_func(out, target, self.loss_parameters)  # TODO ugly ?
 
         self.log_dict(loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)

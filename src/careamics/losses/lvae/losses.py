@@ -1,5 +1,5 @@
 ##### REQUIRED Methods for Loss Computation #####
-from typing import Union
+from typing import Optional
 
 import numpy as np
 import torch
@@ -13,56 +13,48 @@ def get_reconstruction_loss(
     reconstruction: torch.Tensor,
     target: torch.Tensor,
     likelihood_obj: LikelihoodModule,
-    splitting_mask: Union[torch.Tensor, None] = None,
-    return_predicted_img: bool = False,
+    splitting_mask: Optional[torch.Tensor] = None,
 ) -> dict[str, torch.Tensor]:
-    """
-    Function to compute the reconstruction loss.
+    """Compute the reconstruction loss.
 
     Parameters
     ----------
-    reconstruction: torch.Tensor,
+    reconstruction: torch.Tensor
+        The output of the LVAE decoder. Shape is (B, C, [Z], Y, X), where C is the
+        number of output channels (e.g., 1 in HDN, >1 in muSplit/denoiSplit).
     target: torch.Tensor
-    splitting_mask: torch.Tensor = None
+        The target image used to compute the reconstruction loss. Shape is
+        (B, C, [Z], Y, X), where C is the number of output channels
+        (e.g., 1 in HDN, >1 in muSplit/denoiSplit).
+    splitting_mask: Optional[torch.Tensor] = None
         A boolean tensor that indicates which items to keep for reconstruction loss
         computation. If `None`, all the elements of the items are considered
-        (i.e., the mask is all `True`).
-    return_predicted_img: bool = False
+        (i.e., the mask is all `True`). Default is `None`.
     likelihood_obj: LikelihoodModule = None
     """
-    output = _get_reconstruction_loss_vector(
+    loss_dict = _get_reconstruction_loss_vector(
         reconstruction=reconstruction,
         target=target,
-        return_predicted_img=return_predicted_img,
         likelihood_obj=likelihood_obj,
     )
-    loss_dict = output[0] if return_predicted_img else output
 
     if splitting_mask is None:
         splitting_mask = torch.ones_like(loss_dict["loss"]).bool()
-
-    # print(len(target) - (torch.isnan(loss_dict['loss'])).sum())
 
     loss_dict["loss"] = loss_dict["loss"][splitting_mask].sum() / len(reconstruction)
     for i in range(1, 1 + target.shape[1]):
         key = f"ch{i}_loss"
         loss_dict[key] = loss_dict[key][splitting_mask].sum() / len(reconstruction)
 
-    if return_predicted_img:
-        assert len(output) == 2
-        return loss_dict, output[1]
-    else:
-        return loss_dict
+    return loss_dict
 
 
 def _get_reconstruction_loss_vector(
     reconstruction: torch.Tensor,
     target: torch.Tensor,
     likelihood_obj: LikelihoodModule,
-    return_predicted_img: bool = False,
 ):
-    """
-    Function to compute the reconstruction loss.
+    """Compute the reconstruction loss.
 
     Parameters
     ----------
@@ -71,16 +63,13 @@ def _get_reconstruction_loss_vector(
         Default is `False`.
     """
     output = {"loss": None}
-
     for i in range(1, 1 + target.shape[1]):
         output[f"ch{i}_loss"] = None
 
-    # Log likelihood
-    ll, like_dict = likelihood_obj(reconstruction, target)
+    # Compute Log likelihood
+    ll, _ = likelihood_obj(reconstruction, target)
     ll = _get_weighted_likelihood(ll)
 
-    # assert ll.shape[1] == 2, f"Change the code below to handle >2 channels first.
-    # ll.shape {ll.shape}"
     output = {"loss": compute_batch_mean(-1 * ll)}
     if ll.shape[1] > 1:
         for i in range(1, 1 + target.shape[1]):
@@ -89,9 +78,6 @@ def _get_reconstruction_loss_vector(
         assert ll.shape[1] == 1
         output["ch1_loss"] = output["loss"]
         output["ch2_loss"] = output["loss"]
-
-    if return_predicted_img:
-        return output, like_dict["params"]["mean"]
 
     return output
 

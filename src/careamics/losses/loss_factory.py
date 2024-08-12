@@ -26,7 +26,7 @@ class FCNLossParameters:
     loss_weight: float
 
 
-@dataclass
+@dataclass  # TODO why not pydantic?
 class LVAELossParameters:
     """Dataclass for LVAE loss."""
 
