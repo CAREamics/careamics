@@ -6,21 +6,37 @@ import pytest
 import torch
 
 from careamics.config.likelihood_model import GaussianLikelihoodModel, NMLikelihoodModel
-from careamics.config.nm_model import GaussianMixtureNmModel
+from careamics.config.nm_model import GaussianMixtureNmModel, NMModel
 from careamics.models.lvae.likelihoods import likelihood_factory
 from careamics.models.lvae.noise_models import noise_model_factory
+
+def create_dummy_noise_model(
+    tmp_path: Path,
+    n_gaussians: int = 3,
+    n_coeffs: int = 3,
+) -> None:
+    weights = np.random.rand(3*n_gaussians, n_coeffs)
+    nm_dict = {
+        "trained_weight": weights,
+        "min_signal": np.array([0]),
+        "max_signal": np.array([2**16 - 1]),
+        "min_sigma": 0.125,
+    }
+    np.savez(tmp_path / "dummy_noise_model.npz", **nm_dict)
 
 # TODO: move it under models/lvae/ ??
 
 @pytest.mark.parametrize("target_ch", [1, 3])
 @pytest.mark.parametrize("predict_logvar", [None, "pixelwise"])
-def test_gaussian_likelihood_output(
+@pytest.mark.parametrize("logvar_lowerbound", [None, 0.1])
+def test_gaussian_likelihood(
     target_ch: int, 
-    predict_logvar: Union[str, None]
-):
+    predict_logvar: Union[str, None],
+    logvar_lowerbound: Union[float, None]
+) -> None:
     config = GaussianLikelihoodModel(
-        model_type="GaussianLikelihoodModel",
         predict_logvar=predict_logvar,
+        logvar_lowerbound=logvar_lowerbound
     )
     likelihood = likelihood_factory(config)
     
@@ -39,29 +55,42 @@ def test_gaussian_likelihood_output(
     else:
         assert data["logvar"] is None
 
-@pytest.mark.skip(reason="Not implemented yet")
-def test_nm_likelihood(tmp_path):
-    config = NMLikelihoodModel(model_type="NMLikelihoodModel")
-    inputs = torch.rand(1, 1, 64, 64)
 
-    config.data_mean = {"target": inputs.mean()}
-    config.data_std = {"target": inputs.std()}
-
-    # define noise model
-    nm_config = GaussianMixtureNmModel(model_type="GaussianMixtureNoiseModel")
-    trained_weight = np.random.rand(18, 4)
-    min_signal = np.random.rand(1)
-    max_signal = np.random.rand(1)
-    min_sigma = np.random.rand(1)
-    filename = Path(tmp_path) / "gm_noise_model.npz"
-    np.savez(
-        filename,
-        trained_weight=trained_weight,
-        min_signal=min_signal,
-        max_signal=max_signal,
-        min_sigma=min_sigma,
+@pytest.mark.parametrize("img_size", [64, 128])
+@pytest.mark.parametrize("target_ch", [1, 3, 5])
+def test_noise_model_likelihood(
+    tmp_path: Path,
+    img_size: int,
+    target_ch: int
+) -> None:
+    # Instantiate the noise model
+    create_dummy_noise_model(tmp_path, n_gaussians=4, n_coeffs=3)
+    gmm = GaussianMixtureNmModel(
+        model_type="GaussianMixtureNoiseModel",
+        path=tmp_path  / "dummy_noise_model.npz",
+        # all other params are default
+    )  
+    noise_model_config = NMModel(
+        noise_models=[gmm] * target_ch
     )
-    config.noise_model = noise_model_factory(nm_config, [filename])
+    nm = noise_model_factory(noise_model_config)
+    
+    # Instantiate the likelihood
+    inp_shape = (1, target_ch, img_size, img_size)
+    reconstruction = target = torch.rand(inp_shape) 
+    # NOTE: `input_` is actually the output of LVAE decoder
+    data_mean = target.mean()
+    data_std = target.std()
+    config = NMLikelihoodModel(
+        data_mean=data_mean,
+        data_std=data_std,
+        noise_model=nm
+    )    
     likelihood = likelihood_factory(config)
-    assert likelihood(inputs, inputs)[0].mean() is not None
-    # TODO add more meaningful tests
+    
+    out, data = likelihood(reconstruction, target)
+    exp_out_shape = inp_shape
+    assert out.shape == exp_out_shape
+    assert out[0].mean() is not None
+    assert data["mean"].shape == exp_out_shape
+    assert data["logvar"] is None
