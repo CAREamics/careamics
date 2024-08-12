@@ -88,7 +88,8 @@ def _load_checkpoint(
         model = VAEModule.load_from_checkpoint(path)
     else:
         raise ValueError(
-            f"Invalid model architecture: {cfg_dict['algorithm_config']['model']['architecture']}"
+            "Invalid model architecture: "
+            f"{cfg_dict['algorithm_config']['model']['architecture']}"
         )
 
     return model, Configuration(**cfg_dict)

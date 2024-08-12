@@ -21,7 +21,9 @@ def test_musplit_loss():
     td_data = {
         "z": [
             torch.rand(2, 5, 64, 64) for _ in range(4)
-        ],  # list of tensors with shape (batch, channels, height, width) for each hierarchy level
+        ],  
+        # z is list of tensors with shape (batch, channels, height, width) for each 
+        # hierarchy level
         "kl": [
             torch.rand(2) for _ in range(4)
         ],  # list of tensors with shape (batch, ) for each hierarchy level
@@ -54,7 +56,9 @@ def test_denoisplit_loss(tmp_path):
     td_data = {
         "z": [
             torch.rand(2, 5, 64, 64) for _ in range(4)
-        ],  # list of tensors with shape (batch, channels, height, width) for each hierarchy level
+        ],  
+        # z is list of tensors with shape (batch, channels, height, width) for each 
+        # hierarchy level
         "kl": [
             torch.rand(2) for _ in range(4)
         ],  # list of tensors with shape (batch, ) for each hierarchy level
