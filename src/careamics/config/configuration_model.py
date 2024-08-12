@@ -124,6 +124,7 @@ class Configuration(BaseModel):
     >>> config_dict = {
     ...         "experiment_name": "N2V_experiment",
     ...         "algorithm_config": {
+    ...             "algorithm_type": "fcn",
     ...             "algorithm": "n2v",
     ...             "loss": "n2v",
     ...             "model": {
