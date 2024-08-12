@@ -143,7 +143,7 @@ class LVAEModel(ArchitectureModel):
         # if self.multiscale_count != 0:
         #     if self.multiscale_count != len(self.z_dims) - 1:
         #         raise ValueError(
-        #             f"Multiscale count must be 0 or equal to the number of Z dimensions"
+        #             f"Multiscale count must be 0 or equal to the number of Z dims"
         #             f" - 1 (got {self.multiscale_count} and {len(self.z_dims)})."
         #         )
 
