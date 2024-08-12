@@ -1,15 +1,11 @@
 from __future__ import annotations
 
-import json
-import os
-from pathlib import Path
 from typing import Union, TYPE_CHECKING, Any
 
 import numpy as np
 import torch
 import torch.nn as nn
 
-from .utils import ModelType
 if TYPE_CHECKING:
     from careamics.config import GaussianMixtureNmModel, NMModel
 
@@ -140,7 +136,7 @@ class GaussianMixtureNoiseModel(nn.Module):
         Minimum signal intensity expected in the image.
     max_signal : float
         Maximum signal intensity expected in the image.
-    path: string
+    path: Union[str, Path]
         Path to the directory where the trained noise model (*.npz) is saved in the `train` method.
     weight : torch.nn.Parameter
         A [3*n_gaussian, n_coeff] sized array containing the values of the weights 
