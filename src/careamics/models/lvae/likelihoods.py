@@ -3,7 +3,7 @@ Script containing modules for definining different likelihood functions (as nn.M
 """
 
 import math
-from typing import Dict, Literal, Tuple, Union, TYPE_CHECKING, Any
+from typing import Literal, Union, TYPE_CHECKING, Any
 
 import numpy as np
 import torch
@@ -59,29 +59,29 @@ class LikelihoodModule(nn.Module):
         pass
 
     @staticmethod
-    def logvar(params):
+    def logvar(params: Any) -> None:
         return None
 
     @staticmethod
-    def mean(params):
+    def mean(params: Any) -> None:
         return None
 
     @staticmethod
-    def mode(params):
+    def mode(params: Any) -> None:
         return None
 
     @staticmethod
-    def sample(params):
+    def sample(params: Any) -> None:
         return None
 
-    def log_likelihood(self, x, params):
+    def log_likelihood(self, x: Any, params: Any) -> None:
         return None
 
     def forward(
         self, 
         input_: torch.Tensor, 
         x: Union[torch.Tensor, None]
-    ) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:
+    ) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
         """
         Parameters:
         -----------
@@ -145,7 +145,7 @@ class GaussianLikelihood(LikelihoodModule):
             f"[{self.__class__.__name__}] PredLVar:{self.predict_logvar} LowBLVar:{self.logvar_lowerbound}"
         )
 
-    def get_mean_lv(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+    def get_mean_lv(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         """
         Given the output of the top-down pass, compute the mean and log-variance of the
         Gaussian distribution defining the likelihood.
@@ -162,7 +162,7 @@ class GaussianLikelihood(LikelihoodModule):
             mean, lv = x.chunk(2, dim=1)
 
             # Optionally, compute the global or channel-wise logvar 
-            # TODO: to remove??
+            # TODO: to remove, since logvar can only be 'pixelwise' (??)
             if self.predict_logvar in ["channelwise", "global"]:
                 if self.predict_logvar == "channelwise":
                     # logvar should be of the following shape (batch, num_channels, ).
@@ -190,7 +190,7 @@ class GaussianLikelihood(LikelihoodModule):
             lv = None
         return mean, lv
 
-    def distr_params(self, x: torch.Tensor) -> Dict[str, torch.Tensor]:
+    def distr_params(self, x: torch.Tensor) -> dict[str, torch.Tensor]:
         """
         Get parameters (mean, log-var) of the Gaussian distribution defined by the likelihood.
 
@@ -209,21 +209,21 @@ class GaussianLikelihood(LikelihoodModule):
         return params
 
     @staticmethod
-    def mean(params):
+    def mean(params: dict[str, torch.Tensor]) -> torch.Tensor:
         return params["mean"]
 
     @staticmethod
-    def mode(params):
+    def mode(params: dict[str, torch.Tensor]) -> torch.Tensor:
         return params["mean"]
 
     @staticmethod
-    def sample(params):
+    def sample(params: dict[str, torch.Tensor]) -> torch.Tensor:
         # p = Normal(params['mean'], (params['logvar'] / 2).exp())
         # return p.rsample()
         return params["mean"]
 
     @staticmethod
-    def logvar(params):
+    def logvar(params: dict[str, torch.Tensor]) -> torch.Tensor:
         return params["logvar"]
 
     def log_likelihood(
@@ -278,33 +278,27 @@ class NoiseModelLikelihood(LikelihoodModule):
 
     def __init__(
         self,
-        data_mean: Union[Dict[str, torch.Tensor], torch.Tensor],
-        data_std: Union[
-            Dict[str, torch.Tensor], torch.Tensor
-        ],  # TODO why dict ? what keys? -> I guess 'target' and 'input' or smth like that
-        noiseModel: Any, # TODO: check the type
+        data_mean: torch.Tensor,
+        data_std: torch.Tensor,
+        noiseModel: Any, # TODO: check the type -> couldn't manage due to circular imports...
     ):
         super().__init__()
         self.data_mean = data_mean
         self.data_std = data_std
         self.noiseModel = noiseModel
 
-    def set_params_to_same_device_as(self, correct_device_tensor): # TODO: needed?
-        if isinstance(self.data_mean, torch.Tensor):
-            if self.data_mean.device != correct_device_tensor.device:
-                self.data_mean = self.data_mean.to(correct_device_tensor.device)
-                self.data_std = self.data_std.to(correct_device_tensor.device)
-        elif isinstance(self.data_mean, dict):
-            for key in self.data_mean.keys():
-                self.data_mean[key] = self.data_mean[key].to(
-                    correct_device_tensor.device
-                )
-                self.data_std[key] = self.data_std[key].to(correct_device_tensor.device)
-
-    def get_mean_lv(self, x):
+    def set_params_to_same_device_as(
+        self, 
+        correct_device_tensor: torch.Tensor
+    ) -> None: # TODO: needed?
+        if self.data_mean.device != correct_device_tensor.device:
+            self.data_mean = self.data_mean.to(correct_device_tensor.device)
+            self.data_std = self.data_std.to(correct_device_tensor.device)
+                
+    def get_mean_lv(self, x: torch.Tensor) -> tuple[torch.Tensor, None]:
         return x, None
 
-    def distr_params(self, x):
+    def distr_params(self, x: torch.Tensor) -> dict[str, torch.Tensor]:
         mean, lv = self.get_mean_lv(x)
         params = {
             "mean": mean,
@@ -313,21 +307,20 @@ class NoiseModelLikelihood(LikelihoodModule):
         return params
 
     @staticmethod
-    def mean(params):
+    def mean(params: dict[str, torch.Tensor]) -> torch.Tensor:
         return params["mean"]
 
     @staticmethod
-    def mode(params):
+    def mode(params: dict[str, torch.Tensor]) -> torch.Tensor:
         return params["mean"]
 
     @staticmethod
-    def sample(params):
+    def sample(params: dict[str, torch.Tensor]) -> torch.Tensor:
         return params["mean"]
 
     def log_likelihood(self, x: torch.Tensor, params: dict[str, torch.Tensor]):
-        """
-        Compute the log-likelihood given the parameters `params` obtained from the
-        reconstruction tensor and the target tensor `x`.
+        """Compute the log-likelihood given the parameters `params` obtained 
+        from the reconstruction tensor and the target tensor `x`.
         
         Parameters
         ----------
@@ -337,11 +330,8 @@ class NoiseModelLikelihood(LikelihoodModule):
             The tensors obtained from output of the top-down pass.
             Here, "mean" correspond to the whole output, while logvar is `None`.
         """
-        # TODO: check how to handle the denormalization
-        predicted_s_denormalized = (
-            params["mean"] * self.data_std["target"] + self.data_mean["target"]
-        )
-        x_denormalized = x * self.data_std["target"] + self.data_mean["target"]
+        predicted_s_denormalized = (params["mean"] * self.data_std + self.data_mean)
+        x_denormalized = x * self.data_std + self.data_mean
         likelihoods = self.noiseModel.likelihood(
             x_denormalized, predicted_s_denormalized
         )
