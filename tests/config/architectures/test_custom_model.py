@@ -34,7 +34,7 @@ def test_any_custom_parameters():
     Note that those fields are validated by instantiating the
     model.
     """
-    CustomModel(architecture="Custom", name="linear", in_features=10, out_features=5)
+    CustomModel(architecture="custom", name="linear", in_features=10, out_features=5)
 
 
 def test_linear_model():
