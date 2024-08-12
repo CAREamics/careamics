@@ -28,16 +28,6 @@ def get_reconstruction_loss(
         If `None`, all the elements of the items are considered (i.e., the mask is all `True`).
     return_predicted_img: bool = False
     likelihood_obj: LikelihoodModule = None
-
-    Returns
-    -------
-    dict
-        "loss": float
-            it is the reconstruction loss, ie, likelihood loss
-        "ch1_loss", "ch2_loss"',... "chi_loss": float
-            likelihood loss for the ith channel.
-        "splitting_mask": None
-
     """
     output = _get_reconstruction_loss_vector(
         reconstruction=reconstruction,

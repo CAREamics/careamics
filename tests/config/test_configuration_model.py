@@ -69,7 +69,7 @@ def test_algorithm_and_data_default_transforms(minimum_configuration: dict):
     minimum_configuration["algorithm_config"] = {
         "algorithm_type": "fcn",
         "algorithm": "n2v",
-        "loss": "n2v_loss",
+        "loss": "n2v",
         "model": {
             "architecture": "UNet",
         },
@@ -93,7 +93,7 @@ def test_n2v2_and_transforms(minimum_configuration: dict, algorithm, strategy):
     minimum_configuration["algorithm_config"] = {
         "algorithm_type": "fcn",
         "algorithm": "n2v",
-        "loss": "n2v_loss",
+        "loss": "n2v",
         "model": {
             "architecture": "UNet",
             "n2v2": use_n2v2,
