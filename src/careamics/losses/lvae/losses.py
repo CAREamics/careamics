@@ -1,5 +1,5 @@
 ##### REQUIRED Methods for Loss Computation #####
-from typing import Optional, Union
+from typing import Optional, Union, Any
 
 import numpy as np
 import torch
@@ -10,6 +10,7 @@ from careamics.models.lvae.likelihoods import (
     GaussianLikelihood,
     NoiseModelLikelihood
 )
+from careamics.losses.loss_factory import LVAELossParameters #TODO: may cause circular import
 from careamics.models.lvae.utils import compute_batch_mean
 
 Likelihood = Union[LikelihoodModule, GaussianLikelihood, NoiseModelLikelihood]
@@ -185,27 +186,33 @@ def _get_weighted_likelihood(
 
 
 def get_kl_divergence_loss_usplit(
-    topdown_layer_data_dict: dict[str, torch.Tensor]
+    topdown_layer_data_dict: dict[str, list[torch.Tensor]]
 ) -> torch.Tensor:
-    """Function to compute the KL divergence loss for uSplit."""
+    """Compute the KL divergence loss for uSplit.
+    
+    Parameters
+    ----------
+    topdown_layer_data_dict : dict[str, list[torch.Tensor]]
+        The top-down layer data dictionary containing the KL-loss values for each
+        layer. The dictionary should contain the following keys:
+        - "kl": The KL-loss values for each layer. Shape of each tensor is (B,).
+        - "z": The sampled latents for each layer. Shape of each tensor is 
+        (B, layers, `z_dims[i]`, H, W).
+    """
     kl = torch.cat(
         [kl_layer.unsqueeze(1) for kl_layer in topdown_layer_data_dict["kl"]], dim=1
-    )
-    # NOTE: kl.shape = (16,4) 16 is batch size. 4 is number of layers.
-    # Values are sum() and so are of the order 30000
-    # Example values: 30626.6758, 31028.8145, 29509.8809, 29945.4922, 28919.1875
+    ) # shape: (B, n_layers)
+    # NOTE: Values are sum() and so are of the order 30000
 
     nlayers = kl.shape[1]
     for i in range(nlayers):
-        # topdown_layer_data_dict['z'][2].shape[-3:] = 128 * 32 * 32
-        norm_factor = np.prod(topdown_layer_data_dict["z"][i].shape[-3:])
-        # if _restricted_kl:
-        #     pow = np.power(2,min(i + 1, _multiscale_count-1))
-        #     norm_factor /= pow * pow
-
+        # NOTE: we want to normalize the KL-loss w.r.t. the latent space dimensions,
+        # i.e., the number of entries in the latent space tensors (C, [Z], Y, X).
+        # We assume z has shape (B, C, [Z], Y, X), where `C = z_dims[i]`.
+        norm_factor = np.prod(topdown_layer_data_dict["z"][i].shape[1:])
         kl[:, i] = kl[:, i] / norm_factor
 
-    kl_loss = free_bits_kl(kl, 0.0).mean()
+    kl_loss = free_bits_kl(kl, 0.0).mean() # shape: (1, )
     return kl_loss
 
 
@@ -235,26 +242,36 @@ def get_kl_divergence_loss(topdown_layer_data_dict, img_shape, kl_key="kl"):
 # mask = torch.isnan(target.reshape(len(x), -1)).all(dim=1)
 
 
-def musplit_loss(model_outputs, targets, loss_parameters) -> dict:
-    """Loss function for MuSplit.
+def musplit_loss(
+    model_outputs: tuple[torch.Tensor, dict[str, Any]], 
+    targets: torch.Tensor, 
+    loss_parameters: LVAELossParameters
+) -> Optional[dict[str, torch.Tensor]]:
+    """Loss function for muSplit.
 
     Parameters
     ----------
-    module : "CAREamicsModuleWrapper"
-        This function is called from the "CAREamicsModuleWrapper".
+    model_outputs : tuple[torch.Tensor, dict[str, Any]]
+        Tuple containing the model predictions (shape is (B, `target_ch`, [Z], Y, X)) 
+        and the top-down layer data (e.g., sampled latents, KL-loss values, etc.).
+    targets : torch.Tensor
+        The target image used to compute the reconstruction loss. Shape is
+        (B, `target_ch`, [Z], Y, X).
+    loss_parameters : LVAELossParameters
+        The loss parameters for muSplit (e.g., KL hyperparameters, likelihood module,
+        noise model, etc.).
 
     Returns
     -------
-    dict
-        _description_
+    output : Optional[dict[str, torch.Tensor]]
+        A dictionary containing the overall loss `["loss"]`, the reconstruction loss
+        `["reconstruction_loss"]`, and the KL divergence loss `["kl_loss"]`.
     """
     predictions, td_data = model_outputs
-    recons_loss_dict, imgs = get_reconstruction_loss(
+    recons_loss_dict = get_reconstruction_loss(
         reconstruction=predictions,
         target=targets,
-        input=loss_parameters.inputs,
         splitting_mask=loss_parameters.mask,
-        return_predicted_img=True,
         likelihood_obj=loss_parameters.likelihood,
     )
 
@@ -263,13 +280,14 @@ def musplit_loss(model_outputs, targets, loss_parameters) -> dict:
     if torch.isnan(recons_loss).any():
         recons_loss = 0.0
 
-    kl_loss = get_kl_weight(
+    kl_weight = get_kl_weight(
         loss_parameters.kl_annealing,
         loss_parameters.kl_start,
         loss_parameters.kl_annealtime,
         loss_parameters.kl_weight,
         loss_parameters.current_epoch,
-    ) * get_kl_divergence_loss_usplit(td_data)
+    )
+    kl_loss = kl_weight * get_kl_divergence_loss_usplit(td_data)
 
     net_loss = recons_loss + kl_loss
 

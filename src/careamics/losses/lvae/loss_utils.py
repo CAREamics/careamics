@@ -2,14 +2,16 @@ import torch
 
 
 def free_bits_kl(
-    kl: torch.Tensor, free_bits: float, batch_average: bool = False, eps: float = 1e-6
+    kl: torch.Tensor, 
+    free_bits: float, 
+    batch_average: bool = False, 
+    eps: float = 1e-6
 ) -> torch.Tensor:
-    """
-    Computes free-bits version of KL divergence.
+    """Compute free-bits version of KL divergence.
 
-    Ensures that the KL doesn't go to zero for any latent dimension.
-    Hence, it contributes to use latent variables more efficiently,
-    leading to better representation learning.
+    This function ensures that the KL doesn't go to zero for any latent dimension.
+    Hence, it contributes to use latent variables more efficiently, leading to 
+    better representation learning.
 
     NOTE:
     Takes in the KL with shape (batch size, layers), returns the KL with
@@ -21,15 +23,21 @@ def free_bits_kl(
     average is returned, so it's simply a matter of doing mean(clamp(KL))
     or clamp(mean(KL)).
 
-    Args:
-        kl (torch.Tensor)
-        free_bits (float)
-        batch_average (bool, optional))
-        eps (float, optional)
-
+    Parameters
+    ----------
+    kl : torch.Tensor
+        The KL divergence tensor with shape (batch size, layers).
+    free_bits : float
+        The free bits value.
+    batch_average : bool
+        Whether to average over the batch before clamping to `free_bits`.
+    eps : float
+        A small value to avoid numerical instability.
+    
     Returns
     -------
-        The KL with free bits
+    torch.Tensor
+        The free-bits version of the KL divergence with shape (layers,).
     """
     assert kl.dim() == 2
     if free_bits < eps:
@@ -39,11 +47,28 @@ def free_bits_kl(
     return kl.clamp(min=free_bits).mean(0)
 
 
-def get_kl_weight(kl_annealing, kl_start, kl_annealtime, kl_weight, current_epoch):
-    """
-    KL loss can be weighted depending whether any annealing procedure is used.
-
-    This function computes the weight of the KL loss in case of annealing.
+def get_kl_weight(
+    kl_annealing: bool, 
+    kl_start: int,
+    kl_annealtime: int, 
+    kl_weight: float, 
+    current_epoch: int
+) -> float:
+    """Compute the weight of the KL loss in case of annealing.
+    
+    Parameters
+    ----------
+    kl_annealing : bool
+        Whether to use KL annealing.
+    kl_start : int
+        The epoch at which to start
+    kl_annealtime : int
+        The number of epochs for which annealing is applied.
+    kl_weight : float
+        The weight for the KL loss. If `None`, the weight is computed
+        using annealing, else it is set to a default of 1.
+    current_epoch : int
+        The current epoch.
     """
     if kl_annealing:
         # calculate relative weight
