@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 
 
 def noise_model_factory(
-    model_config: Optional[NMModel]
+    model_config: Optional[NMModel],
 ) -> Optional[MultiChannelNoiseModel]:
     """Noise model factory.
 
