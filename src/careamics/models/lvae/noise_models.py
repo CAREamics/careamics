@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Union, TYPE_CHECKING, Any
+from typing import Union, TYPE_CHECKING, Optional
 
 import numpy as np
 import torch
@@ -12,23 +12,27 @@ if TYPE_CHECKING:
 # TODO this module shouldn't be in lvae folder
 
 
-def noise_model_factory(model_config: Union[NMModel, None]) -> nn.Module:
+def noise_model_factory(
+    model_config: Optional[NMModel]
+) -> Optional[MultiChannelNoiseModel]:
     """Noise model factory.
 
     Parameters
     ----------
-    model_config : Union[NMModel, None]
-        _description_
+    model_config : Optional[NMModel]
+        Noise model configuration, a `NMModel` config that defines
+        noise models for the different output channels.
 
     Returns
     -------
-    nn.Module
-        _description_
+    Optional[MultiChannelNoiseModel]
+        A noise model instance.
 
     Raises
     ------
     NotImplementedError
-        _description_
+        If the chosen noise model `model_type` is not implemented.
+        Currently only `GaussianMixtureNoiseModel` is implemented.
     """
     if model_config:
         noise_models = []
