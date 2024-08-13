@@ -1,18 +1,23 @@
 ##### REQUIRED Methods for Loss Computation #####
-from typing import Optional
+from typing import Optional, Union
 
 import numpy as np
 import torch
 
 from careamics.losses.lvae.loss_utils import free_bits_kl, get_kl_weight
-from careamics.models.lvae.likelihoods import LikelihoodModule
+from careamics.models.lvae.likelihoods import (
+    LikelihoodModule,
+    GaussianLikelihood,
+    NoiseModelLikelihood
+)
 from careamics.models.lvae.utils import compute_batch_mean
 
+Likelihood = Union[LikelihoodModule, GaussianLikelihood, NoiseModelLikelihood]
 
 def get_reconstruction_loss(
     reconstruction: torch.Tensor,
     target: torch.Tensor,
-    likelihood_obj: LikelihoodModule,
+    likelihood_obj: Likelihood,
     splitting_mask: Optional[torch.Tensor] = None,
 ) -> dict[str, torch.Tensor]:
     """Compute the reconstruction loss.
@@ -26,11 +31,18 @@ def get_reconstruction_loss(
         The target image used to compute the reconstruction loss. Shape is
         (B, C, [Z], Y, X), where C is the number of output channels
         (e.g., 1 in HDN, >1 in muSplit/denoiSplit).
+    likelihood_obj: Likelihood
+        The likelihood object used to compute the reconstruction loss.
     splitting_mask: Optional[torch.Tensor] = None
         A boolean tensor that indicates which items to keep for reconstruction loss
         computation. If `None`, all the elements of the items are considered
         (i.e., the mask is all `True`). Default is `None`.
-    likelihood_obj: LikelihoodModule = None
+    
+    Returns
+    -------
+    dict[str, torch.Tensor]
+        A dictionary containing the overall loss `["loss"]` and the loss for 
+        individual output channels `["ch{i}_loss"]`.
     """
     loss_dict = _get_reconstruction_loss_vector(
         reconstruction=reconstruction,
@@ -53,7 +65,7 @@ def _get_reconstruction_loss_vector(
     reconstruction: torch.Tensor,
     target: torch.Tensor,
     likelihood_obj: LikelihoodModule,
-):
+) -> dict[str, torch.Tensor]:
     """Compute the reconstruction loss.
 
     Parameters
@@ -61,7 +73,13 @@ def _get_reconstruction_loss_vector(
     return_predicted_img: bool
         If set to `True`, the besides the loss, the reconstructed image is returned.
         Default is `False`.
-    """
+    
+    Returns
+    -------
+    dict[str, torch.Tensor]
+        A dictionary containing the overall loss `["loss"]` and the loss for 
+        individual output channels `["ch{i}_loss"]`.
+    """                                                                                                     
     output = {"loss": None}
     for i in range(1, 1 + target.shape[1]):
         output[f"ch{i}_loss"] = None
