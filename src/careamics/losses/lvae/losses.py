@@ -173,6 +173,7 @@ def _get_weighted_likelihood(
     """
     if ch1_recons_w == 1 and ch2_recons_w == 1:
         return ll
+    
     assert ll.shape[1] == 2, "This function is only for 2 channel images"
 
     mask1 = torch.zeros((len(ll), ll.shape[1], 1, 1), device=ll.device)

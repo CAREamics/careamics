@@ -238,7 +238,7 @@ class GaussianLikelihood(LikelihoodModule):
         params: dict[str, Union[torch.Tensor, None]]
             The tensors obtained by chunking the output of the top-down pass,
             here used as parameters of the Gaussian distribution.
-            
+
         Returns
         -------
         torch.Tensor
@@ -343,7 +343,7 @@ class NoiseModelLikelihood(LikelihoodModule):
         params: dict[str, Union[torch.Tensor, None]]
             The tensors obtained from output of the top-down pass.
             Here, "mean" correspond to the whole output, while logvar is `None`.
-            
+
         Returns
         -------
         torch.Tensor
