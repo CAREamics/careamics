@@ -5,7 +5,7 @@ This module contains a factory function for creating loss functions.
 """
 
 from dataclasses import dataclass
-from typing import Callable, Union
+from typing import Callable, Union, Literal
 
 from torch import Tensor as tensor
 
@@ -42,6 +42,7 @@ class LVAELossParameters:
     reconstruction_weight: float = 1.0
     musplit_weight: float = 0.0
     denoisplit_weight: float = 1.0
+    kl_type: Literal["kl", "kl_restricted", "kl_spatial", "kl_channelwise"] = "kl"
     kl_annealing: bool = False
     kl_start: int = -1
     kl_annealtime: int = 10

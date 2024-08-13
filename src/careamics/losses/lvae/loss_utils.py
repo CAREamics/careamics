@@ -28,7 +28,7 @@ def free_bits_kl(
     kl : torch.Tensor
         The KL divergence tensor with shape (batch size, layers).
     free_bits : float
-        The free bits value.
+        The free bits value. Set to 0.0 to disable free bits.
     batch_average : bool
         Whether to average over the batch before clamping to `free_bits`.
     eps : float
