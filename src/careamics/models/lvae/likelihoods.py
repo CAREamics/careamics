@@ -238,6 +238,11 @@ class GaussianLikelihood(LikelihoodModule):
         params: dict[str, Union[torch.Tensor, None]]
             The tensors obtained by chunking the output of the top-down pass,
             here used as parameters of the Gaussian distribution.
+            
+        Returns
+        -------
+        torch.Tensor
+            The log-likelihood tensor. Shape is (B, C, [Z], Y, X).
         """
         if self.predict_logvar is not None:
             logprob = log_normal(x, params["mean"], params["logvar"])
@@ -338,6 +343,11 @@ class NoiseModelLikelihood(LikelihoodModule):
         params: dict[str, Union[torch.Tensor, None]]
             The tensors obtained from output of the top-down pass.
             Here, "mean" correspond to the whole output, while logvar is `None`.
+            
+        Returns
+        -------
+        torch.Tensor
+            The log-likelihood tensor. Shape is (B, C, [Z], Y, X).
         """
         predicted_s_denormalized = params["mean"] * self.data_std + self.data_mean
         x_denormalized = x * self.data_std + self.data_mean

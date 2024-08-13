@@ -78,21 +78,23 @@ def _get_reconstruction_loss_vector(
     -------
     dict[str, torch.Tensor]
         A dictionary containing the overall loss `["loss"]` and the loss for 
-        individual output channels `["ch{i}_loss"]`.
+        individual output channels `["ch{i}_loss"]`. Shape of individual 
+        tensors is (B, ).
     """                                                                                                     
     output = {"loss": None}
     for i in range(1, 1 + target.shape[1]):
         output[f"ch{i}_loss"] = None
 
     # Compute Log likelihood
-    ll, _ = likelihood_obj(reconstruction, target)
-    ll = _get_weighted_likelihood(ll)
+    ll, _ = likelihood_obj(reconstruction, target) # shape: (B, C, [Z], Y, X)
+    ll = _get_weighted_likelihood(ll) # TODO: needed?
 
-    output = {"loss": compute_batch_mean(-1 * ll)}
-    if ll.shape[1] > 1:
+    output = {"loss": compute_batch_mean(-1 * ll)} # shape: (B, )
+    if ll.shape[1] > 1: # target_ch > 1
         for i in range(1, 1 + target.shape[1]):
-            output[f"ch{i}_loss"] = compute_batch_mean(-ll[:, i - 1])
-    else:
+            output[f"ch{i}_loss"] = compute_batch_mean(-ll[:, i - 1]) # shape: (B, )
+    else: # target_ch == 1
+        # TODO: hacky!!! Refactor this
         assert ll.shape[1] == 1
         output["ch1_loss"] = output["loss"]
         output["ch2_loss"] = output["loss"]
@@ -100,6 +102,7 @@ def _get_reconstruction_loss_vector(
     return output
 
 
+# TODO: check if this is correct
 def reconstruction_loss_musplit_denoisplit(
     predictions,
     targets,
@@ -143,11 +146,31 @@ def reconstruction_loss_musplit_denoisplit(
     recons_loss = denoise_weight * recons_loss_nm + split_weight * recons_loss_gm
     return recons_loss
 
-
+# TODO: refactor this (if needed)
+# - cannot handle >2 target channels
+# - cannot handle 3D inputs
 def _get_weighted_likelihood(
-    ll, ch1_recons_w=1, ch2_recons_w=1
-):  # TODO what's this ? added defaults Thsi can be removed
-    """Each of the channels gets multiplied with a different weight."""
+    ll: torch.Tensor,
+    ch1_recons_w: float = 1, 
+    ch2_recons_w: float = 1
+) -> torch.Tensor:
+    """Multiply each channels with a different weight to get a weighted loss.
+    
+    Parameters
+    ----------
+    ll : torch.Tensor
+        The log-likelihood tensor. Shape is (B, C, [Z], Y, X), where C is the number
+        of channels.
+    ch1_recons_w : float
+        The weight for the first channel. Default is 1.
+    ch2_recons_w : float
+        The weight for the second channel. Default is 1.
+    
+    Returns
+    -------
+    torch.Tensor
+        The weighted log-likelihood tensor. Shape is (B, C, [Z], Y, X).
+    """
     if ch1_recons_w == 1 and ch2_recons_w == 1:
         return ll
     # TODO Should these weights be removed?
