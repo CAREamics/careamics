@@ -20,8 +20,8 @@ from torch.utils.data import DataLoader
 sys.path.append(os.path.join(os.path.dirname(__file__), "../.."))
 print(sys.path)
 
-from careamics.lvae_training.data_modules import LCMultiChDloader, MultiChDloader
-from careamics.lvae_training.data_utils import DataSplitType
+from careamics.lvae_training.dataset.data_modules import LCMultiChDloader, MultiChDloader
+from careamics.lvae_training.dataset.data_utils import DataSplitType
 from careamics.lvae_training.lightning_module import LadderVAELight
 from careamics.lvae_training.train_utils import *
 

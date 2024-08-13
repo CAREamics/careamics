@@ -2,193 +2,66 @@
 A place for Datasets and Dataloaders.
 """
 
-import os
 from typing import Tuple, Union
 
-# import albumentations as A
-import ml_collections
 import numpy as np
 from skimage.transform import resize
 
+from .data_config import VaeDatasetConfig, DataSplitType, GridAlignement
 from .data_utils import (
-    DataSplitType,
-    DataType,
-    GridAlignement,
     GridIndexManager,
     IndexSwitcher,
-    get_datasplit_tuples,
-    get_mrc_data,
-    load_tiff,
+    get_train_val_data,
 )
 
 
-def get_train_val_data(
-    data_config,
-    fpath,
-    datasplit_type: DataSplitType,
-    val_fraction=None,
-    test_fraction=None,
-    allow_generation=None,
-    ignore_specific_datapoints=None,
-):
-    """
-    Load the data from the given path and split them in training, validation and test sets.
-
-    Ensure that the shape of data should be N*H*W*C: N is number of data points. H,W are the image dimensions.
-    C is the number of channels.
-    """
-    if data_config.data_type == DataType.SeparateTiffData:
-        fpath1 = os.path.join(fpath, data_config.ch1_fname)
-        fpath2 = os.path.join(fpath, data_config.ch2_fname)
-        fpaths = [fpath1, fpath2]
-        fpath0 = ""
-        if "ch_input_fname" in data_config:
-            fpath0 = os.path.join(fpath, data_config.ch_input_fname)
-            fpaths = [fpath0] + fpaths
-
-        print(
-            f"Loading from {fpath} Channels: "
-            f"{fpath1},{fpath2}, inp:{fpath0} Mode:{DataSplitType.name(datasplit_type)}"
-        )
-
-        data = np.concatenate([load_tiff(fpath)[..., None] for fpath in fpaths], axis=3)
-        if data_config.data_type == DataType.PredictedTiffData:
-            assert len(data.shape) == 5 and data.shape[-1] == 1
-            data = data[..., 0].copy()
-        # data = data[::3].copy()
-        # NOTE: This was not the correct way to do it. It is so because the noise present in the input was directly related
-        # to the noise present in the channels and so this is not the way we would get the data.
-        # We need to add the noise independently to the input and the target.
-
-        # if data_config.get('poisson_noise_factor', False):
-        #     data = np.random.poisson(data)
-        # if data_config.get('enable_gaussian_noise', False):
-        #     synthetic_scale = data_config.get('synthetic_gaussian_scale', 0.1)
-        #     print('Adding Gaussian noise with scale', synthetic_scale)
-        #     noise = np.random.normal(0, synthetic_scale, data.shape)
-        #     data = data + noise
-
-        if datasplit_type == DataSplitType.All:
-            return data.astype(np.float32)
-
-        train_idx, val_idx, test_idx = get_datasplit_tuples(
-            val_fraction, test_fraction, len(data), starting_test=True
-        )
-        if datasplit_type == DataSplitType.Train:
-            return data[train_idx].astype(np.float32)
-        elif datasplit_type == DataSplitType.Val:
-            return data[val_idx].astype(np.float32)
-        elif datasplit_type == DataSplitType.Test:
-            return data[test_idx].astype(np.float32)
-
-    elif data_config.data_type == DataType.BioSR_MRC:
-        num_channels = data_config.get("num_channels", 2)
-        fpaths = []
-        data_list = []
-        for i in range(num_channels):
-            fpath1 = os.path.join(fpath, data_config.get(f"ch{i + 1}_fname"))
-            fpaths.append(fpath1)
-            data = get_mrc_data(fpath1)[..., None]
-            data_list.append(data)
-
-        dirname = os.path.dirname(os.path.dirname(fpaths[0])) + "/"
-
-        msg = ",".join([x[len(dirname) :] for x in fpaths])
-        print(
-            f"Loaded from {dirname} Channels:{len(fpaths)} {msg} Mode:{DataSplitType.name(datasplit_type)}"
-        )
-        N = data_list[0].shape[0]
-        for data in data_list:
-            N = min(N, data.shape[0])
-
-        cropped_data = []
-        for data in data_list:
-            cropped_data.append(data[:N])
-
-        data = np.concatenate(cropped_data, axis=3)
-
-        if datasplit_type == DataSplitType.All:
-            return data.astype(np.float32)
-
-        train_idx, val_idx, test_idx = get_datasplit_tuples(
-            val_fraction, test_fraction, len(data), starting_test=True
-        )
-        if datasplit_type == DataSplitType.Train:
-            return data[train_idx].astype(np.float32)
-        elif datasplit_type == DataSplitType.Val:
-            return data[val_idx].astype(np.float32)
-        elif datasplit_type == DataSplitType.Test:
-            return data[test_idx].astype(np.float32)
-
-
 class MultiChDloader:
-
     def __init__(
         self,
-        data_config: ml_collections.ConfigDict,
+        data_config: VaeDatasetConfig,
         fpath: str,
-        datasplit_type: DataSplitType = None,
         val_fraction: float = None,
         test_fraction: float = None,
-        normalized_input=None,
-        enable_rotation_aug: bool = False,
-        enable_random_cropping: bool = False,
-        use_one_mu_std=None,
-        allow_generation: bool = False,
-        max_val: float = None,
-        grid_alignment=GridAlignement.LeftTop,
-        trim_boundary=True,
-        overlapping_padding_kwargs=None,
-        print_vars: bool = True,
     ):
-        """
-        Here, an image is split into grids of size img_sz.
-        Args:
-            repeat_factor: Since we are doing a random crop, repeat_factor is
-                given which can repeatedly sample from the same image. If self.N=12
-                and repeat_factor is 5, then index upto 12*5 = 60 is allowed.
-            use_one_mu_std: If this is set to true, then one mean and stdev is used
-                for both channels. Otherwise, two different meean and stdev are used.
-
-        """
+        """ """
         self._data_type = data_config.data_type
         self._fpath = fpath
         self._data = self.N = self._noise_data = None
         self.Z = 1
-        self._trim_boundary = trim_boundary
+        self._trim_boundary = data_config.trim_boundary
         # Hardcoded params, not included in the config file.
 
         # by default, if the noise is present, add it to the input and target.
         self._disable_noise = False  # to add synthetic noise
         self._poisson_noise_factor = None
         self._train_index_switcher = None
-        self._depth3D = data_config.get("depth3D", 1)
+        self._depth3D = data_config.depth3D
         # NOTE: Input is the sum of the different channels. It is not the average of the different channels.
-        self._input_is_sum = data_config.get("input_is_sum", False)
-        self._num_channels = data_config.get("num_channels", 2)
-        self._input_idx = data_config.get("input_idx", None)
-        self._tar_idx_list = data_config.get("target_idx_list", None)
+        self._input_is_sum = data_config.input_is_sum
+        self._num_channels = data_config.num_channels
+        self._input_idx = data_config.input_idx
+        self._tar_idx_list = data_config.target_idx_list
 
-        if datasplit_type == DataSplitType.Train:
+        if data_config.datasplit_type == DataSplitType.Train.value:
             self._datausage_fraction = 1.0
             # assert self._datausage_fraction == 1.0, 'Not supported. Use validtarget_random_fraction and training_validtarget_fraction to get the same effect'
             self._validtarget_rand_fract = None
             # self._validtarget_random_fraction_final = data_config.get('validtarget_random_fraction_final', None)
             # self._validtarget_random_fraction_stepepoch = data_config.get('validtarget_random_fraction_stepepoch', None)
             # self._idx_count = 0
-        elif datasplit_type == DataSplitType.Val:
+        elif data_config.datasplit_type == DataSplitType.Val:
             self._datausage_fraction = 1.0
         else:
             self._datausage_fraction = 1.0
 
         self.load_data(
             data_config,
-            datasplit_type,
+            data_config.datasplit_type,
             val_fraction=val_fraction,
             test_fraction=test_fraction,
-            allow_generation=allow_generation,
+            allow_generation=data_config.allow_generation,
         )
-        self._normalized_input = normalized_input
+        self._normalized_input = data_config.normalized_input
         self._quantile = 1.0
         self._channelwise_quantile = False
         self._background_quantile = 0.0
@@ -198,8 +71,8 @@ class MultiChDloader:
 
         self._background_values = None
 
-        self._grid_alignment = grid_alignment
-        self._overlapping_padding_kwargs = overlapping_padding_kwargs
+        self._grid_alignment = data_config.grid_alignment
+        self._overlapping_padding_kwargs = data_config.overlapping_padding_kwargs
         if self._grid_alignment == GridAlignement.LeftTop:
             assert (
                 self._overlapping_padding_kwargs is None
@@ -221,7 +94,7 @@ class MultiChDloader:
                 self._overlapping_padding_kwargs is not None
             ), "When not trimming boudnary, padding is needed."
 
-        self._is_train = datasplit_type == DataSplitType.Train
+        self._is_train = data_config.datasplit_type == DataSplitType.Train.value
 
         # input = alpha * ch1 + (1-alpha)*ch2.
         # alpha is sampled randomly between these two extremes
@@ -231,11 +104,9 @@ class MultiChDloader:
 
         self._img_sz = self._grid_sz = self._repeat_factor = self.idx_manager = None
         if self._is_train:
-            self._start_alpha_arr = data_config.get("start_alpha", None)
-            self._end_alpha_arr = data_config.get("end_alpha", None)
-            self._alpha_weighted_target = data_config.get(
-                "alpha_weighted_target", False
-            )
+            self._start_alpha_arr = data_config.start_alpha
+            self._end_alpha_arr = data_config.end_alpha
+            self._alpha_weighted_target = data_config.alpha_weighted_target
 
             self.set_img_sz(
                 data_config.image_size,
@@ -250,7 +121,7 @@ class MultiChDloader:
                 self._train_index_switcher = IndexSwitcher(
                     self.idx_manager, data_config, self._img_sz
                 )
-                self._std_background_arr = data_config.get("std_background_arr", None)
+                self._std_background_arr = data_config.std_background_arr
 
         else:
 
@@ -267,7 +138,7 @@ class MultiChDloader:
         self._return_index = False
 
         self._empty_patch_replacement_enabled = (
-            data_config.get("empty_patch_replacement_enabled", False) and self._is_train
+            data_config.empty_patch_replacement_enabled and self._is_train
         )
         if self._empty_patch_replacement_enabled:
             self._empty_patch_replacement_channel_idx = (
@@ -278,6 +149,7 @@ class MultiChDloader:
             )
             data_frames = self._data[..., self._empty_patch_replacement_channel_idx]
             # NOTE: This is on the raw data. So, it must be called before removing the background.
+            # TODO: throws error for now, fix!!
             self._empty_patch_fetcher = EmptyPatchFetcher(
                 self.idx_manager,
                 self._img_sz,
@@ -285,20 +157,22 @@ class MultiChDloader:
                 max_val_threshold=data_config.empty_patch_max_val_threshold,
             )
 
-        self.rm_bkground_set_max_val_and_upperclip_data(max_val, datasplit_type)
+        self.rm_bkground_set_max_val_and_upperclip_data(
+            data_config.max_val, data_config.datasplit_type
+        )
 
         # For overlapping dloader, image_size and repeat_factors are not related. hence a different function.
 
         self._mean = None
         self._std = None
-        self._use_one_mu_std = use_one_mu_std
+        self._use_one_mu_std = data_config.use_one_mu_std
         # Hardcoded
         self._target_separate_normalization = True
 
-        self._enable_rotation = enable_rotation_aug
-        self._enable_random_cropping = enable_random_cropping
+        self._enable_rotation = data_config.enable_rotation_aug
+        self._enable_random_cropping = data_config.enable_random_cropping
         self._uncorrelated_channels = (
-            data_config.get("uncorrelated_channels", False) and self._is_train
+            data_config.uncorrelated_channels and self._is_train
         )
         assert self._is_train or self._uncorrelated_channels is False
         assert (
@@ -313,9 +187,10 @@ class MultiChDloader:
             )
             self._rotation_transform = A.Compose([A.Flip(), A.RandomRotate90()])
 
-        if print_vars:
-            msg = self._init_msg()
-            print(msg)
+        # TODO: yoink
+        # if print_vars:
+        #     msg = self._init_msg()
+        #     print(msg)
 
     def disable_noise(self):
         assert (
@@ -366,7 +241,7 @@ class MultiChDloader:
             )
 
         msg = ""
-        if data_config.get("poisson_noise_factor", -1) > 0:
+        if data_config.poisson_noise_factor > 0:
             self._poisson_noise_factor = data_config.poisson_noise_factor
             msg += f"Adding Poisson noise with factor {self._poisson_noise_factor}.\t"
             self._data = (
@@ -374,15 +249,15 @@ class MultiChDloader:
                 * self._poisson_noise_factor
             )
 
-        if data_config.get("enable_gaussian_noise", False):
-            synthetic_scale = data_config.get("synthetic_gaussian_scale", 0.1)
+        if data_config.enable_gaussian_noise:
+            synthetic_scale = data_config.synthetic_gaussian_scale
             msg += f"Adding Gaussian noise with scale {synthetic_scale}"
             # 0 => noise for input. 1: => noise for all targets.
             shape = self._data.shape
             self._noise_data = np.random.normal(
                 0, synthetic_scale, (*shape[:-1], shape[-1] + 1)
             )
-            if data_config.get("input_has_dependant_noise", False):
+            if data_config.input_has_dependant_noise:
                 msg += ". Moreover, input has dependent noise"
                 self._noise_data[..., 0] = np.mean(self._noise_data[..., 1:], axis=-1)
         print(msg)
@@ -462,7 +337,7 @@ class MultiChDloader:
     def set_max_val(self, max_val, datasplit_type):
 
         if max_val is None:
-            assert datasplit_type == DataSplitType.Train
+            assert datasplit_type == DataSplitType.Train.value
             self.max_val = self.compute_max_val()
         else:
             assert max_val is not None
@@ -610,8 +485,6 @@ class MultiChDloader:
         return (
             *tuple(cropped_imgs),
             {
-                # "h": [h_start, h_start + self._img_sz],
-                # "w": [w_start, w_start + self._img_sz],
                 "hflip": False,
                 "wflip": False,
             },
@@ -904,6 +777,9 @@ class MultiChDloader:
         return cropped_img_tuples, cropped_noise_tuples
 
     def replace_with_empty_patch(self, img_tuples):
+        """
+        Replaces the content of one of the channels with background
+        """
         empty_index = self._empty_patch_fetcher.sample()
         empty_img_tuples, empty_img_noise_tuples = self._get_img(empty_index)
         assert (
@@ -1120,6 +996,11 @@ class MultiChDloader:
         return rotated_img_tuples, rotated_noise_tuples
 
     def get_uncorrelated_img_tuples(self, index):
+        """
+        Content of channels like actin and nuclei is "correlated" in its
+        respective location, this function allows to pick channels' content
+        from different patches of the image to make it "uncorrelated".
+        """
         img_tuples, noise_tuples = self._get_img(index)
         assert len(noise_tuples) == 0
         img_tuples = [img_tuples[0]]
@@ -1132,14 +1013,11 @@ class MultiChDloader:
     def __getitem__(
         self, index: Union[int, Tuple[int, int]]
     ) -> Tuple[np.ndarray, np.ndarray]:
+        # Vera: input can be both real microscopic image and two separate channels that are summed in the code
+
         if self._train_index_switcher is not None:
             index = self._get_index_from_valid_target_logic(index)
 
-        # Vera: input can be both real microscopic image and two separate channels that are summed in the code
-
-        # TODO Vera: dump _uncorrelated_channels, not nessesary
-        # Update - by default nuclei and actin are "correlated" in location, take nuclei and actin from different
-        # places in the image, so their location becomes "uncorrelated"
         if self._uncorrelated_channels:
             img_tuples, noise_tuples = self.get_uncorrelated_img_tuples(index)
         else:
@@ -1149,25 +1027,29 @@ class MultiChDloader:
             self._empty_patch_replacement_enabled != True
         ), "This is not supported with noise"
 
-        # Vera: Replace the content of one of the channels with background with given probability
+        # Replace the content of one of the channels
+        # with background with given probability
         if self._empty_patch_replacement_enabled:
             if np.random.rand() < self._empty_patch_replacement_probab:
                 img_tuples = self.replace_with_empty_patch(img_tuples)
 
-        # Noise tuples are not needed for the paper, the image tuples are noisy by default
+        # Noise tuples are not needed for the paper
+        # the image tuples are noisy by default
+        # TODO: remove noise tuples completely?
         if self._enable_rotation:
             img_tuples, noise_tuples = self._rotate(img_tuples, noise_tuples)
 
-        # add noise to input
+        # Add noise tuples with image tuples to create the input
         if len(noise_tuples) > 0:
             factor = np.sqrt(2) if self._input_is_sum else 1.0
             input_tuples = [x + noise_tuples[0] * factor for x in img_tuples]
         else:
             input_tuples = img_tuples
-        # weight the individual channels, typically fixed alpha
+
+        # Weight the individual channels, typically alpha is fixed
         inp, alpha = self._compute_input(input_tuples)
 
-        # add noise to target.
+        # Add noise tuples to the image tuples to create the target
         if len(noise_tuples) >= 1:
             img_tuples = [x + noise for x, noise in zip(img_tuples, noise_tuples[1:])]
 
@@ -1181,6 +1063,7 @@ class MultiChDloader:
         if self._return_index:
             output.append(index)
 
+        # TODO: Is not int index used anywhere in the training code?
         if isinstance(index, int) or isinstance(index, np.int64):
             return tuple(output)
 
@@ -1220,9 +1103,7 @@ class LCMultiChDloader(MultiChDloader):
         self._padding_kwargs = (
             padding_kwargs  # mode=padding_mode, constant_values=constant_value
         )
-        self._uncorrelated_channel_probab = data_config.get(
-            "uncorrelated_channel_probab", 0.5
-        )
+        self._uncorrelated_channel_probab = data_config.uncorrelated_channel_probab
 
         if overlapping_padding_kwargs is not None:
             assert (

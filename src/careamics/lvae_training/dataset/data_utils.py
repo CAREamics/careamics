@@ -2,61 +2,16 @@
 Utility functions needed by dataloader & co.
 """
 
+import os
 from typing import List
 
-import numpy as np
 from skimage.io import imread, imsave
 
+from careamics.lvae_training.dataset.data_config import DataSplitType, DataType
 from careamics.models.lvae.utils import Enum
 
 
-class DataType(Enum):
-    MNIST = 0
-    Places365 = 1
-    NotMNIST = 2
-    OptiMEM100_014 = 3
-    CustomSinosoid = 4
-    Prevedel_EMBL = 5
-    AllenCellMito = 6
-    SeparateTiffData = 7
-    CustomSinosoidThreeCurve = 8
-    SemiSupBloodVesselsEMBL = 9
-    Pavia2 = 10
-    Pavia2VanillaSplitting = 11
-    ExpansionMicroscopyMitoTub = 12
-    ShroffMitoEr = 13
-    HTIba1Ki67 = 14
-    BSD68 = 15
-    BioSR_MRC = 16
-    TavernaSox2Golgi = 17
-    Dao3Channel = 18
-    ExpMicroscopyV2 = 19
-    Dao3ChannelWithInput = 20
-    TavernaSox2GolgiV2 = 21
-    TwoDset = 22
-    PredictedTiffData = 23
-    Pavia3SeqData = 24
-    # Here, we have 16 splitting tasks.
-    NicolaData = 25
-
-
-class DataSplitType(Enum):
-    All = 0
-    Train = 1
-    Val = 2
-    Test = 3
-
-
-class GridAlignement(Enum):
-    """
-    A patch is formed by padding the grid with content. If the grids are 'Center' aligned, then padding is to done equally on all 4 sides.
-    On the other hand, if grids are 'LeftTop' aligned, padding is to be done on the right and bottom end of the grid.
-    In the former case, one needs (patch_size - grid_size)//2 amount of content on the right end of the frame.
-    In the latter case, one needs patch_size - grid_size amount of content on the right end of the frame.
-    """
-
-    LeftTop = 0
-    Center = 1
+# import albumentations as
 
 
 def load_tiff(path):
@@ -113,6 +68,104 @@ def adjust_for_imbalance_in_fraction_value(
             val += test[:imb_count]
             test = test[imb_count:]
     return val, test
+
+
+def get_train_val_data(
+    data_config,
+    fpath,
+    datasplit_type: DataSplitType,
+    val_fraction=None,
+    test_fraction=None,
+    allow_generation=False,  # TODO: wtf is this
+):
+    """
+    Load the data from the given path and split them in training, validation and test sets.
+
+    Ensure that the shape of data should be N*H*W*C: N is number of data points. H,W are the image dimensions.
+    C is the number of channels.
+    """
+    if data_config.data_type == DataType.SeparateTiffData.value:
+        fpath1 = os.path.join(fpath, data_config.ch1_fname)
+        fpath2 = os.path.join(fpath, data_config.ch2_fname)
+        fpaths = [fpath1, fpath2]
+        fpath0 = ""
+        if "ch_input_fname" in data_config:
+            fpath0 = os.path.join(fpath, data_config.ch_input_fname)
+            fpaths = [fpath0] + fpaths
+
+        print(
+            f"Loading from {fpath} Channels: "
+            f"{fpath1},{fpath2}, inp:{fpath0} Mode:{DataSplitType.name(datasplit_type)}"
+        )
+
+        data = np.concatenate([load_tiff(fpath)[..., None] for fpath in fpaths], axis=3)
+        if data_config.data_type == DataType.PredictedTiffData.value:
+            assert len(data.shape) == 5 and data.shape[-1] == 1
+            data = data[..., 0].copy()
+        # data = data[::3].copy()
+        # NOTE: This was not the correct way to do it. It is so because the noise present in the input was directly related
+        # to the noise present in the channels and so this is not the way we would get the data.
+        # We need to add the noise independently to the input and the target.
+
+        # if data_config.get('poisson_noise_factor', False):
+        #     data = np.random.poisson(data)
+        # if data_config.get('enable_gaussian_noise', False):
+        #     synthetic_scale = data_config.get('synthetic_gaussian_scale', 0.1)
+        #     print('Adding Gaussian noise with scale', synthetic_scale)
+        #     noise = np.random.normal(0, synthetic_scale, data.shape)
+        #     data = data + noise
+
+        if datasplit_type == DataSplitType.All.value:
+            return data.astype(np.float32)
+
+        train_idx, val_idx, test_idx = get_datasplit_tuples(
+            val_fraction, test_fraction, len(data), starting_test=True
+        )
+        if datasplit_type == DataSplitType.Train.value:
+            return data[train_idx].astype(np.float32)
+        elif datasplit_type == DataSplitType.Val.value:
+            return data[val_idx].astype(np.float32)
+        elif datasplit_type == DataSplitType.Test.value:
+            return data[test_idx].astype(np.float32)
+
+    elif data_config.data_type == DataType.BioSR_MRC.value:
+        num_channels = data_config.num_channels
+        fpaths = []
+        data_list = []
+        for i in range(num_channels):
+            fpath1 = os.path.join(fpath, getattr(data_config, f"ch{i + 1}_fname"))
+            fpaths.append(fpath1)
+            data = get_mrc_data(fpath1)[..., None]
+            data_list.append(data)
+
+        dirname = os.path.dirname(os.path.dirname(fpaths[0])) + "/"
+
+        msg = ",".join([x[len(dirname) :] for x in fpaths])
+        print(
+            f"Loaded from {dirname} Channels:{len(fpaths)} {msg} Mode:{datasplit_type}"
+        )
+        N = data_list[0].shape[0]
+        for data in data_list:
+            N = min(N, data.shape[0])
+
+        cropped_data = []
+        for data in data_list:
+            cropped_data.append(data[:N])
+
+        data = np.concatenate(cropped_data, axis=3)
+
+        if datasplit_type == DataSplitType.All.value:
+            return data.astype(np.float32)
+
+        train_idx, val_idx, test_idx = get_datasplit_tuples(
+            val_fraction, test_fraction, len(data), starting_test=True
+        )
+        if datasplit_type == DataSplitType.Train.value:
+            return data[train_idx].astype(np.float32)
+        elif datasplit_type == DataSplitType.Val.value:
+            return data[val_idx].astype(np.float32)
+        elif datasplit_type == DataSplitType.Test.value:
+            return data[test_idx].astype(np.float32)
 
 
 def get_datasplit_tuples(
