@@ -45,6 +45,8 @@ def lvae_predict_single_sample(
     #   optionally clips the logvavr if logvar_lowerbound is not None
     sample_prediction, log_var = likelihood_obj.get_mean_lv(output)
 
+    # TODO: output denormalization using target stats that will be saved in data config
+
     return sample_prediction, log_var
 
 
