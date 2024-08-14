@@ -69,6 +69,7 @@ class VAEAlgorithmConfig(BaseModel):
     loss: Literal["musplit", "denoisplit"]
     model: Union[LVAEModel, CustomModel] = Field(discriminator="architecture")
 
+    # TODO different channels for nm should be where ?
     noise_model: GaussianMixtureNmModel = Field(discriminator="model_type")
     noise_model_likelihood_model: Optional[NMLikelihoodModel] = None
     gaussian_likelihood_model: Optional[GaussianLikelihoodModel] = None

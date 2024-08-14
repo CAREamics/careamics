@@ -31,6 +31,7 @@ class LVAEModel(ArchitectureModel):
 
     predict_logvar: Literal[None, "pixelwise"] = None
 
+    # TODO this parameter is exessive ?
     enable_noise_model: bool = Field(
         default=True,
     )

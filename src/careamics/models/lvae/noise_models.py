@@ -35,7 +35,8 @@ def noise_model_factory(
     NotImplementedError
         _description_
     """
-    if model_config and paths:
+    # TODO in case path are provided, load. Should they be in the config ?
+    if paths:
         if model_config.model_type == "GaussianMixtureNoiseModel":
             noise_models = []
             for path in paths:
@@ -47,7 +48,36 @@ def noise_model_factory(
                 f"Model {model_config.model_type} is not implemented"
             )
     # TODO should config and paths be mutually exclusive ?
+    else:
+        # TODO train a new model. Config should always be provided?
+        if model_config.model_type == "GaussianMixtureNoiseModel":
+            # TODO one model for each channel all make this choise inside the model?
+            return train_gaussian_mixture_noise_model(model_config)
     return None
+
+
+def train_gaussian_mixture_noise_model(model_config: GaussianMixtureNmModel):
+    """Train a Gaussian mixture noise model.
+
+    Parameters
+    ----------
+    model_config : GaussianMixtureNoiseModel
+        _description_
+
+    Returns
+    -------
+    _description_
+    """
+    # TODO pseudocode
+    """
+    noise_models = []
+    # TODO any training params ? Different channels ?
+    for ch in channels:
+        noise_model = GaussianMixtureNoiseModel(model_config)
+        noise_model.train()
+        noise_models.append(noise_model)
+    """
+    return DisentNoiseModel(*noise_models)
 
 
 def get_noise_model(
@@ -453,3 +483,70 @@ class GaussianMixtureNoiseModel(nn.Module):
     def forward(self, x, y):
         """THIS IS A DUMMY METHOD BECAUSE THIS WHOLE MODULE IS A TOTAL MESS."""
         return x, y
+
+    # TODO taken from pn2v. Ashesh needs to clarify this
+    def train(self, signal, observation, learning_rate=1e-1, batchSize=250000, n_epochs=2000, name= 'GMMNoiseModel.npz', lowerClip=0, upperClip=100):
+        """Training to learn the noise model from signal - observation pairs.
+
+        Parameters
+        ----------
+        signal: numpy array
+            Clean Signal Data
+        observation: numpy array
+            Noisy Observation Data
+        learning_rate: float
+            Learning rate. Default = 1e-1.
+        batchSize: int
+            Nini-batch size. Default = 250000.
+        n_epochs: int
+            Number of epochs. Default = 2000.
+        name: string
+
+            Model name. Default is `GMMNoiseModel`. This model after being trained is saved at the location `path`.
+
+        lowerClip : int
+            Lower percentile for clipping. Default is 0.
+        upperClip : int
+            Upper percentile for clipping. Default is 100.
+
+
+        """
+        sig_obs_pairs=self.getSignalObservationPairs(signal, observation, lowerClip, upperClip)
+        counter=0
+        optimizer = torch.optim.Adam([self.weight], lr=learning_rate)
+        for t in range(n_epochs):
+
+            jointLoss=0
+            if (counter+1)*batchSize >= sig_obs_pairs.shape[0]:
+                counter=0
+                sig_obs_pairs=fastShuffle(sig_obs_pairs,1)
+
+            batch_vectors = sig_obs_pairs[counter*batchSize:(counter+1)*batchSize, :]
+            observations = batch_vectors[:,1].astype(np.float32)
+            signals = batch_vectors[:,0].astype(np.float32)
+            observations = torch.from_numpy(observations.astype(np.float32)).float().to(self.device)
+            signals = torch.from_numpy(signals).float().to(self.device)
+            p = self.likelihood(observations, signals)
+            loss=torch.mean(-torch.log(p))
+            jointLoss=jointLoss+loss
+
+            if t%100==0:
+                print(t, jointLoss.item())
+
+
+            if (t%(int(n_epochs*0.5))==0):
+                trained_weight = self.weight.cpu().detach().numpy()
+                min_signal = self.min_signal.cpu().detach().numpy()
+                max_signal = self.max_signal.cpu().detach().numpy()
+                np.savez(self.path+name, trained_weight=trained_weight, min_signal = min_signal, max_signal = max_signal, min_sigma = self.min_sigma)
+
+
+
+
+            optimizer.zero_grad()
+            jointLoss.backward()
+            optimizer.step()
+            counter+=1
+
+        print("===================\n")
+        print("The trained parameters (" + name + ") is saved at location: "+ self.path)
