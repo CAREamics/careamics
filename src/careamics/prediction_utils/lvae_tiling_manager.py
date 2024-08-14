@@ -1,3 +1,5 @@
+from typing import Any, Optional
+
 import numpy as np
 from numpy.typing import NDArray
 
@@ -5,16 +7,51 @@ from careamics.config.tile_information import TileInformation
 from careamics.config.validators import check_axes_validity
 
 
-def extract_tile(
-    img: np.ndarray, patch_start_loc: tuple[int, ...], patch_size: tuple[int, ...]
+def calculate_padding(
+    patch_start_location: NDArray,
+    patch_size: NDArray,
+    data_shape: NDArray,
 ) -> NDArray:
+    patch_end_location = patch_start_location + patch_size
+
+    pad_before = np.zeros_like(patch_start_location)
+    start_out_of_bounds = patch_start_location < 0
+    pad_before[start_out_of_bounds] = - patch_start_location[start_out_of_bounds]
+
+    pad_after = np.zeros_like(patch_start_location)
+    end_out_of_bounds = patch_end_location > data_shape
+    pad_after[end_out_of_bounds] = (patch_end_location - data_shape)[end_out_of_bounds]
+
+    return np.stack([pad_before, pad_after], axis=1)
+
+
+def extract_tile(
+    img: np.ndarray,
+    grid_start_loc: tuple[int, ...],
+    patch_size: tuple[int, ...],
+    overlap: tuple[int, ...],
+    padding: bool,
+    padding_kwargs: Optional[dict[str, Any]] = None,
+) -> NDArray:
+    if padding_kwargs is None:
+        padding_kwargs = {}
+
     data_shape = img.shape
-    patch_start_loc = np.array(patch_start_loc) - np.array(overlap) // 2
+    patch_start_loc = np.array(grid_start_loc) - np.array(overlap) // 2
     crop_slices = tuple(
         slice(max(0, start), min(start + size, dim_shape))
         for start, size, dim_shape in zip(patch_start_loc, patch_size, data_shape)
     )
-    return img[crop_slices]
+    crop = img[crop_slices]
+    if padding:
+        pad = calculate_padding(
+            patch_start_location=patch_start_loc,
+            patch_size=patch_size,
+            data_shape=data_shape,
+        )
+        crop = np.pad(crop, pad, **padding_kwargs)
+
+    return crop
 
 
 class TilingManager:
