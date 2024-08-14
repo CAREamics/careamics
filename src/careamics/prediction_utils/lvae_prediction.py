@@ -70,9 +70,10 @@ def lvae_predict_mmse(model: LVAE, input: torch.Tensor, mmse_count: int):
         log-variance. The log-variance will be None if `model.predict_logvar is None`.
     """
     input_shape = input.shape
+    output_shape = (input_shape[0], model.target_ch, *input_shape[2:])
     log_var: Optional[torch.Tensor]
     # pre-declare empty array to fill with individual sample predictions
-    sample_predictions = torch.zeros(size=(mmse_count, *input_shape))
+    sample_predictions = torch.zeros(size=(mmse_count, *output_shape))
     for mmse_idx in range(mmse_count):
         sample_prediction, lv = lvae_predict_single_sample(model, input)
         # only keep the log variance of the first sample prediction
@@ -84,5 +85,5 @@ def lvae_predict_mmse(model: LVAE, input: torch.Tensor, mmse_count: int):
         sample_predictions[mmse_idx, ...] = sample_prediction
 
     # take the mean of the sample predictions
-    mmse_prediction = torch.mean(sample_prediction, dim=0)
+    mmse_prediction = torch.mean(sample_prediction, dim=0, keepdim=True)
     return mmse_prediction, log_var
