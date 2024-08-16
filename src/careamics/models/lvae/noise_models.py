@@ -254,31 +254,30 @@ class GaussianMixtureNoiseModel(nn.Module):
             min_signal = config.min_signal
             max_signal = config.max_signal
             # self.device = kwargs.get('device')
+            # TODO min_sigma cant be None ?
             self.min_sigma = config.min_sigma
             if weight is None:
                 weight = np.random.randn(n_gaussian * 3, n_coeff)
                 weight[n_gaussian : 2 * n_gaussian, 1] = np.log(max_signal - min_signal)
-                weight = torch.from_numpy(
-                    weight.astype(np.float32)
-                ).float()  # .to(self.device)
-                weight = nn.Parameter(weight, requires_grad=True)
+                weight = torch.from_numpy(weight.astype(np.float32)).float().cuda()
+                weight.requires_grad = True
 
             self.n_gaussian = weight.shape[0] // 3
             self.n_coeff = weight.shape[1]
             self.weight = weight
-            self.min_signal = torch.Tensor([min_signal])  # .to(self.device)
-            self.max_signal = torch.Tensor([max_signal])  # .to(self.device)
-            self.tol = torch.Tensor([1e-10])  # .to(self.device)
+            self.min_signal = torch.Tensor([min_signal])
+            self.max_signal = torch.Tensor([max_signal])
+            self.tol = torch.Tensor([1e-10])
         else:
             params = np.load(config.path)
             # self.device = kwargs.get('device')
 
-            self.min_signal = torch.Tensor(params["min_signal"])  # .to(self.device)
-            self.max_signal = torch.Tensor(params["max_signal"])  # .to(self.device)
+            self.min_signal = torch.Tensor(params["min_signal"])
+            self.max_signal = torch.Tensor(params["max_signal"])
 
             self.weight = torch.nn.Parameter(
                 torch.Tensor(params["trained_weight"]), requires_grad=False
-            )  # .to(self.device)
+            )
             self.min_sigma = params["min_sigma"].item()
             self.n_gaussian = self.weight.shape[0] // 3
             self.n_coeff = self.weight.shape[1]
@@ -295,12 +294,13 @@ class GaussianMixtureNoiseModel(nn.Module):
         self.weight.requires_grad = True
 
     def to_device(self, cuda_tensor):
+        # TODO wtf is this ?
         # move everything to GPU
         if self.min_signal.device != cuda_tensor.device:
-            self.max_signal = self.max_signal.to(cuda_tensor.device)
-            self.min_signal = self.min_signal.to(cuda_tensor.device)
-            self.tol = self.tol.to(cuda_tensor.device)
-            self.weight = self.weight.to(cuda_tensor.device)
+            self.max_signal = self.max_signal.cuda()
+            self.min_signal = self.min_signal.cuda()
+            self.tol = self.tol.cuda()
+            # self.weight = self.weight.cuda()
             if self._learnable:
                 self.weight.requires_grad = True
 
@@ -485,7 +485,17 @@ class GaussianMixtureNoiseModel(nn.Module):
         return x, y
 
     # TODO taken from pn2v. Ashesh needs to clarify this
-    def train(self, signal, observation, learning_rate=1e-1, batchSize=250000, n_epochs=2000, name= 'GMMNoiseModel.npz', lowerClip=0, upperClip=100):
+    def train(
+        self,
+        signal,
+        observation,
+        learning_rate=1e-1,
+        batchSize=250000,
+        n_epochs=2000,
+        name="GMMNoiseModel.npz",
+        lowerClip=0,
+        upperClip=100,
+    ):
         """Training to learn the noise model from signal - observation pairs.
 
         Parameters
@@ -511,42 +521,48 @@ class GaussianMixtureNoiseModel(nn.Module):
 
 
         """
-        sig_obs_pairs=self.getSignalObservationPairs(signal, observation, lowerClip, upperClip)
-        counter=0
+        sig_obs_pairs = self.getSignalObservationPairs(
+            signal, observation, lowerClip, upperClip
+        )
+        counter = 0
         optimizer = torch.optim.Adam([self.weight], lr=learning_rate)
         for t in range(n_epochs):
 
-            jointLoss=0
-            if (counter+1)*batchSize >= sig_obs_pairs.shape[0]:
-                counter=0
-                sig_obs_pairs=fastShuffle(sig_obs_pairs,1)
+            jointLoss = 0
+            if (counter + 1) * batchSize >= sig_obs_pairs.shape[0]:
+                counter = 0
+                sig_obs_pairs = fastShuffle(sig_obs_pairs, 1)
 
-            batch_vectors = sig_obs_pairs[counter*batchSize:(counter+1)*batchSize, :]
-            observations = batch_vectors[:,1].astype(np.float32)
-            signals = batch_vectors[:,0].astype(np.float32)
-            observations = torch.from_numpy(observations.astype(np.float32)).float().to(self.device)
-            signals = torch.from_numpy(signals).float().to(self.device)
+            batch_vectors = sig_obs_pairs[
+                counter * batchSize : (counter + 1) * batchSize, :
+            ]
+            observations = batch_vectors[:, 1].astype(np.float32)
+            signals = batch_vectors[:, 0].astype(np.float32)
+            # TODO do we absolutely need to move to GPU?
+            observations = (
+                torch.from_numpy(observations.astype(np.float32)).float().cuda()
+            )
+            signals = torch.from_numpy(signals).float().cuda()
             p = self.likelihood(observations, signals)
-            loss=torch.mean(-torch.log(p))
-            jointLoss=jointLoss+loss
+            loss = torch.mean(-torch.log(p))
+            jointLoss = jointLoss + loss
 
-            if t%100==0:
+            if t % 100 == 0:
                 print(t, jointLoss.item())
 
-
-            if (t%(int(n_epochs*0.5))==0):
+            if t % (int(n_epochs * 0.5)) == 0:
                 trained_weight = self.weight.cpu().detach().numpy()
                 min_signal = self.min_signal.cpu().detach().numpy()
                 max_signal = self.max_signal.cpu().detach().numpy()
-                np.savez(self.path+name, trained_weight=trained_weight, min_signal = min_signal, max_signal = max_signal, min_sigma = self.min_sigma)
-
-
-
+                # TODO do we need to save?
+                # np.savez(self.path+name, trained_weight=trained_weight, min_signal = min_signal, max_signal = max_signal, min_sigma = self.min_sigma)
 
             optimizer.zero_grad()
             jointLoss.backward()
             optimizer.step()
-            counter+=1
+            counter += 1
 
         print("===================\n")
-        print("The trained parameters (" + name + ") is saved at location: "+ self.path)
+        # print("The trained parameters (" + name + ") is saved at location: "+ self.path)
+        # TODO return istead of save ?
+        return trained_weight, min_signal, max_signal, self.min_sigma

@@ -1,9 +1,12 @@
 from pathlib import Path
 
 import numpy as np
-
+import torch
 from careamics.config.nm_model import GaussianMixtureNmModel
-from careamics.models.lvae.noise_models import noise_model_factory
+from careamics.models.lvae.noise_models import (
+    noise_model_factory,
+    GaussianMixtureNoiseModel,
+)
 
 
 def test_gm_noise_model(tmp_path):
@@ -27,3 +30,17 @@ def test_gm_noise_model(tmp_path):
     assert np.allclose(noise_model.nmodel_0.max_signal, max_signal)
     assert np.allclose(noise_model.nmodel_0.min_sigma, min_sigma)
     # TODO add checks for other params, for training case
+
+
+def test_gm_noise_model_training(tmp_path):
+    nm_config = GaussianMixtureNmModel(model_type="GaussianMixtureNoiseModel")
+
+    noise_model = GaussianMixtureNoiseModel(nm_config)
+
+    # Test training
+    x = np.random.rand(3)
+    y = np.random.rand(3)
+    output = noise_model.train(x, y, n_epochs=2)
+    assert output is not None
+    # TODO do something with output ?
+
