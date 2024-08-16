@@ -7,7 +7,6 @@ The current implementation is based on "Interpretable Unsupervised Diversity Den
 from collections.abc import Iterable
 from typing import Dict, List, Tuple
 
-# import ml_collections  # TODO: refactor this out
 import numpy as np
 import torch
 import torch.nn as nn
@@ -21,7 +20,6 @@ from .layers import (
     TopDownDeterministicResBlock,
     TopDownLayer,
 )
-from .likelihoods import GaussianLikelihood, NoiseModelLikelihood
 from .utils import Interpolate, ModelType, crop_img_tensor, pad_img_tensor
 
 
@@ -71,6 +69,7 @@ class LadderVAE(nn.Module):
 
         # -------------------------------------------------------
         # Model attributes -> Hardcoded
+        self.model_type = ModelType.LadderVae  # TODO remove !
         self.model_type = ModelType.LadderVae  # TODO remove !
         self.encoder_blocks_per_layer = 1
         self.decoder_blocks_per_layer = 1
@@ -441,30 +440,6 @@ class LadderVAE(nn.Module):
                 )
             )
         return nn.Sequential(*modules)
-
-    def create_likelihood_module(self):
-        """
-        This method defines the likelihood module for the current LVAE model.
-        The existing likelihood modules are `GaussianLikelihood` and `NoiseModelLikelihood`.
-        """
-        if self.enable_noise_model:
-            raise NotImplementedError("Noise model not implemented yet.")
-            self.likelihood_NM = NoiseModelLikelihood(
-                self.decoder_n_filters,
-                self.target_ch,
-                self.data_mean,
-                self.data_std,
-                self.noiseModel,
-            )
-        else:
-            self.likelihood_gm = GaussianLikelihood(
-                self.decoder_n_filters,
-                self.target_ch,
-                predict_logvar=self.predict_logvar,
-                logvar_lowerbound=self.logvar_lowerbound,
-                conv2d_bias=self.topdown_conv2d_bias,
-            )
-            return self.likelihood_gm
 
     def _init_multires(
         self, config=None

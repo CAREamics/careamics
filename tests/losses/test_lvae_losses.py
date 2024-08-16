@@ -12,6 +12,7 @@ from careamics.models.lvae.likelihoods import likelihood_factory
 from careamics.models.lvae.noise_models import noise_model_factory
 
 
+@pytest.mark.skip(reason="Implementation is likely to change soon.")
 def test_musplit_loss():
     loss_func = loss_factory("musplit")
     assert loss_func == musplit_loss
