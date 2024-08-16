@@ -87,5 +87,5 @@ def lvae_predict_mmse(model: LVAE, input: torch.Tensor, mmse_count: int):
         sample_predictions[mmse_idx, ...] = sample_prediction
 
     # take the mean of the sample predictions
-    mmse_prediction = torch.mean(sample_prediction, dim=0, keepdim=True)
+    mmse_prediction = torch.mean(sample_predictions, dim=0)
     return mmse_prediction, log_var
