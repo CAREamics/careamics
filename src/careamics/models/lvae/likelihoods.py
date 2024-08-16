@@ -5,7 +5,6 @@ Script containing modules for definining different likelihood functions (as nn.M
 import math
 from typing import Dict, Literal, Tuple, Union, Optional
 
-import numpy as np
 import torch
 from torch import nn
 

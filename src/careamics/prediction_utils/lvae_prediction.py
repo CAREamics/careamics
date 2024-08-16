@@ -39,8 +39,6 @@ def lvae_predict_single_sample(
     #   -> potentially log_var is always None ?
     likelihood_obj = model.likelihood_gm
 
-    sample_prediction: torch.Tensor
-    log_var: Optional[torch.Tensor]
     # presently, get_mean_lv just splits the output in 2 if predict_logvar=True,
     #   optionally clips the logvavr if logvar_lowerbound is not None
     sample_prediction, log_var = likelihood_obj.get_mean_lv(output)
@@ -71,9 +69,12 @@ def lvae_predict_mmse(model: LVAE, input: torch.Tensor, mmse_count: int):
         The first element is the MMSE prediction, and the second element is the
         log-variance. The log-variance will be None if `model.predict_logvar is None`.
     """
+    if mmse_count <= 0:
+        raise ValueError("MMSE count must be greater than zero.")
+
     input_shape = input.shape
     output_shape = (input_shape[0], model.target_ch, *input_shape[2:])
-    log_var: Optional[torch.Tensor]
+    log_var: Optional[torch.Tensor] = 0
     # pre-declare empty array to fill with individual sample predictions
     sample_predictions = torch.zeros(size=(mmse_count, *output_shape))
     for mmse_idx in range(mmse_count):
