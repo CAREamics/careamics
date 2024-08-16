@@ -5,13 +5,14 @@ from typing import Optional
 import torch
 
 from careamics.models import LVAE
+from careamics.models.lvae.likelihoods import LikelihoodModule
 
 # TODO: convert these functions to lightning module `predict_step`
 #   -> mmse_count will have to be an instance attribute?
 
 
 def lvae_predict_single_sample(
-    model: LVAE, input: torch.Tensor
+    model: LVAE, likelihood_obj: LikelihoodModule, input: torch.Tensor
 ) -> tuple[torch.Tensor, Optional[torch.Tensor]]:
     """
     Generate a single sample prediction from an LVAE model, for a given input.
@@ -20,6 +21,8 @@ def lvae_predict_single_sample(
     ----------
     model : LVAE
         Trained LVAE model.
+    likelihood_obj : LikelihoodModule
+        Instance of a likelihood class.
     input : torch.tensor
         Input to generate prediction for. Expected shape is (S, C, Y, X).
 
@@ -34,11 +37,6 @@ def lvae_predict_single_sample(
         output: torch.Tensor
         output, _ = model(input)  # 2nd item is top-down data dict
 
-    # TODO: what if this is likelihood_NM (Not implemented at the moment)
-    # not sure how this will be fully implemented
-    #   -> potentially log_var is always None ?
-    likelihood_obj = model.likelihood_gm
-
     # presently, get_mean_lv just splits the output in 2 if predict_logvar=True,
     #   optionally clips the logvavr if logvar_lowerbound is not None
     # TODO: consider refactoring to remove use of the likelihood object
@@ -49,7 +47,9 @@ def lvae_predict_single_sample(
     return sample_prediction, log_var
 
 
-def lvae_predict_mmse(model: LVAE, input: torch.Tensor, mmse_count: int):
+def lvae_predict_mmse(
+    model: LVAE, likelihood_obj: LikelihoodModule, input: torch.Tensor, mmse_count: int
+):
     """
     Generate the MMSE (minimum mean squared error) prediction, for a given input.
 
@@ -59,6 +59,8 @@ def lvae_predict_mmse(model: LVAE, input: torch.Tensor, mmse_count: int):
     ----------
     model : LVAE
         Trained LVAE model.
+    likelihood_obj : LikelihoodModule
+        Instance of a likelihood class.
     input : torch.tensor
         Input to generate prediction for. Expected shape is (S, C, Y, X).
     mmse_count : int
@@ -79,7 +81,7 @@ def lvae_predict_mmse(model: LVAE, input: torch.Tensor, mmse_count: int):
     # pre-declare empty array to fill with individual sample predictions
     sample_predictions = torch.zeros(size=(mmse_count, *output_shape))
     for mmse_idx in range(mmse_count):
-        sample_prediction, lv = lvae_predict_single_sample(model, input)
+        sample_prediction, lv = lvae_predict_single_sample(model, likelihood_obj, input)
         # only keep the log variance of the first sample prediction
         # TODO: confirm
         if mmse_idx == 0:

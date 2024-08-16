@@ -79,6 +79,10 @@ class LikelihoodModule(nn.Module):
     def log_likelihood(self, x: Any, params: Any) -> None:
         return None
 
+    def get_mean_lv(
+        self, x: torch.Tensor
+    ) -> tuple[torch.Tensor, Optional[torch.Tensor]]: ...
+
     def forward(
         self, input_: torch.Tensor, x: Union[torch.Tensor, None]
     ) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
