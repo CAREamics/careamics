@@ -13,31 +13,67 @@ def extract_tiles(
     overlaps: tuple[int, ...],
     padding_kwargs: Optional[dict[str, Any]] = None,
 ) -> Generator[tuple[NDArray, TileInformation], None, None]:
+    """Generate tiles from the input array with specified overlap.
 
+    The tiles cover the whole array; which will be additionally padded, to ensure that
+    the section of the tile that contributes to the final image comes from the center
+    of the tile.
+
+    The method returns a generator that yields tuples of array and tile information,
+    the latter includes whether the tile is the last one, the coordinates of the
+    overlap crop, and the coordinates of the stitched tile.
+
+    Input array should have shape SC(Z)YX, while the returned tiles have shape C(Z)YX,
+    where C can be a singleton.
+
+    Parameters
+    ----------
+    arr : np.ndarray
+        Array of shape (S, C, (Z), Y, X).
+    tile_size : Union[List[int], Tuple[int]]
+        Tile sizes in each dimension, of length 2 or 3.
+    overlaps : Union[List[int], Tuple[int]]
+        Overlap values in each dimension, of length 2 or 3.
+    padding_kwargs : dict, optional
+        The arguments of `np.pad` after the first two arguments, `array` and
+        `pad_width`. If not specified the default will be `{"mode": "reflect"}`. See
+        `np.pad` docs: https://numpy.org/doc/stable/reference/generated/numpy.pad.html.
+
+    Yields
+    ------
+    Generator[Tuple[np.ndarray, TileInformation], None, None]
+        Tile generator, yields the tile and additional information.
+    """
     if padding_kwargs is None:
-        padding_kwargs = {"mode": "refect"}
+        padding_kwargs = {"mode": "reflect"}
 
     data_shape = arr.shape
 
-    # add padding
-    padding = compute_padding(
+    # add padding to ensure evenly spaced & overlapping tiles.
+    spatial_padding = compute_padding(
         np.array(data_shape), np.array(tile_size), np.array(overlaps)
     )
+    padding = ((0, 0), (0, 0), *spatial_padding)
     arr = np.pad(arr, padding, **padding_kwargs)
 
-    # split array
-    spatial_dims_shape = data_shape[-len(tile_size) :]
-    grid_coords_iter = itertools.product(
-        *[
-            range(0, spatial_dims_shape[i], tile_size[i] - overlaps[i])
-            for i in range(len(tile_size))
+    tile_grid_shape = _compute_tile_grid_shape(data_shape, tile_size, overlaps)
+    for tile_grid_coords in itertools.product(
+        *[range(size) for size in tile_grid_shape]
+    ):
+        stitch_size = np.array(tile_size) - np.array(overlaps)
+        crop_coords_start = np.array(tile_grid_coords) * stitch_size
+        crop_slices = [
+            slice(coords, coords + extent)
+            for coords, extent in zip(crop_coords_start, np.array(tile_size))
         ]
-    )
-    for tile_grid_coords in grid_coords_iter:
-        crop_slices = [slice(i, i + tile_size) for i in tile_grid_coords]
         tile = arr[(..., *crop_slices)]
 
-        tile_info = compute_tile_info(tile_grid_coords, data_shape, tile_size, overlaps)
+        tile_info = compute_tile_info(
+            np.array(tile_grid_coords),
+            np.array(data_shape),
+            np.array(tile_size),
+            np.array(overlaps),
+        )
         # TODO: kinda weird this is a generator,
         #   -> doesn't really save memory ? Don't think there are any places the tiles
         #    are not exracted all at the same time.
@@ -108,7 +144,7 @@ def compute_padding(
     covered_shape = (tile_size - overlaps) * tile_grid_shape + overlaps
 
     pad_before = overlaps // 2
-    pad_after = covered_shape - data_shape - pad_before
+    pad_after = covered_shape - data_shape[-len(tile_size) :] - pad_before
 
     return tuple((before, after) for before, after in zip(pad_before, pad_after))
 
