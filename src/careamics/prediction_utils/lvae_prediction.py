@@ -41,6 +41,7 @@ def lvae_predict_single_sample(
 
     # presently, get_mean_lv just splits the output in 2 if predict_logvar=True,
     #   optionally clips the logvavr if logvar_lowerbound is not None
+    # TODO: consider refactoring to remove use of the likelihood object
     sample_prediction, log_var = likelihood_obj.get_mean_lv(output)
 
     # TODO: output denormalization using target stats that will be saved in data config
