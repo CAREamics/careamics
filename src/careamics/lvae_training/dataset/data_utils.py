@@ -84,7 +84,7 @@ def get_train_val_data(
     Ensure that the shape of data should be N*H*W*C: N is number of data points. H,W are the image dimensions.
     C is the number of channels.
     """
-    if data_config.data_type == DataType.SeparateTiffData.value:
+    if data_config.data_type == DataType.SeparateTiffData:
         fpath1 = os.path.join(fpath, data_config.ch1_fname)
         fpath2 = os.path.join(fpath, data_config.ch2_fname)
         fpaths = [fpath1, fpath2]
@@ -99,7 +99,7 @@ def get_train_val_data(
         )
 
         data = np.concatenate([load_tiff(fpath)[..., None] for fpath in fpaths], axis=3)
-        if data_config.data_type == DataType.PredictedTiffData.value:
+        if data_config.data_type == DataType.PredictedTiffData:
             assert len(data.shape) == 5 and data.shape[-1] == 1
             data = data[..., 0].copy()
         # data = data[::3].copy()
@@ -115,20 +115,20 @@ def get_train_val_data(
         #     noise = np.random.normal(0, synthetic_scale, data.shape)
         #     data = data + noise
 
-        if datasplit_type == DataSplitType.All.value:
+        if datasplit_type == DataSplitType.All:
             return data.astype(np.float32)
 
         train_idx, val_idx, test_idx = get_datasplit_tuples(
             val_fraction, test_fraction, len(data), starting_test=True
         )
-        if datasplit_type == DataSplitType.Train.value:
+        if datasplit_type == DataSplitType.Train:
             return data[train_idx].astype(np.float32)
-        elif datasplit_type == DataSplitType.Val.value:
+        elif datasplit_type == DataSplitType.Val:
             return data[val_idx].astype(np.float32)
-        elif datasplit_type == DataSplitType.Test.value:
+        elif datasplit_type == DataSplitType.Test:
             return data[test_idx].astype(np.float32)
 
-    elif data_config.data_type == DataType.BioSR_MRC.value:
+    elif data_config.data_type == DataType.BioSR_MRC:
         num_channels = data_config.num_channels
         fpaths = []
         data_list = []
@@ -154,17 +154,17 @@ def get_train_val_data(
 
         data = np.concatenate(cropped_data, axis=3)
 
-        if datasplit_type == DataSplitType.All.value:
+        if datasplit_type == DataSplitType.All:
             return data.astype(np.float32)
 
         train_idx, val_idx, test_idx = get_datasplit_tuples(
             val_fraction, test_fraction, len(data), starting_test=True
         )
-        if datasplit_type == DataSplitType.Train.value:
+        if datasplit_type == DataSplitType.Train:
             return data[train_idx].astype(np.float32)
-        elif datasplit_type == DataSplitType.Val.value:
+        elif datasplit_type == DataSplitType.Val:
             return data[val_idx].astype(np.float32)
-        elif datasplit_type == DataSplitType.Test.value:
+        elif datasplit_type == DataSplitType.Test:
             return data[test_idx].astype(np.float32)
 
 

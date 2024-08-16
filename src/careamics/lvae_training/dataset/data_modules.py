@@ -42,7 +42,7 @@ class MultiChDloader:
         self._input_idx = data_config.input_idx
         self._tar_idx_list = data_config.target_idx_list
 
-        if data_config.datasplit_type == DataSplitType.Train.value:
+        if data_config.datasplit_type == DataSplitType.Train:
             self._datausage_fraction = 1.0
             # assert self._datausage_fraction == 1.0, 'Not supported. Use validtarget_random_fraction and training_validtarget_fraction to get the same effect'
             self._validtarget_rand_fract = None
@@ -94,7 +94,7 @@ class MultiChDloader:
                 self._overlapping_padding_kwargs is not None
             ), "When not trimming boudnary, padding is needed."
 
-        self._is_train = data_config.datasplit_type == DataSplitType.Train.value
+        self._is_train = data_config.datasplit_type == DataSplitType.Train
 
         # input = alpha * ch1 + (1-alpha)*ch2.
         # alpha is sampled randomly between these two extremes
@@ -337,7 +337,7 @@ class MultiChDloader:
     def set_max_val(self, max_val, datasplit_type):
 
         if max_val is None:
-            assert datasplit_type == DataSplitType.Train.value
+            assert datasplit_type == DataSplitType.Train
             self.max_val = self.compute_max_val()
         else:
             assert max_val is not None

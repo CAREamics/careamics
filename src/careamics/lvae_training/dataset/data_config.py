@@ -4,7 +4,6 @@ from enum import Enum
 from pydantic import BaseModel, ConfigDict, computed_field
 
 
-# TODO: enums work weird with pydantic, investigate
 class DataType(Enum):
     MNIST = 0
     Places365 = 1
@@ -57,7 +56,7 @@ class GridAlignement(Enum):
 # TODO: for all bool params check if they are taking different values in Disentangle repo
 # TODO: check if any bool logic can be removed
 class VaeDatasetConfig(BaseModel):
-    model_config = ConfigDict(validate_assignment=True, use_enum_values=True)
+    model_config = ConfigDict(validate_assignment=True)
 
     data_type: Optional[DataType]
     multiscale_lowres_count: Optional[int] = None
