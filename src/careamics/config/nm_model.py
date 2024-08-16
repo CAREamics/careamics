@@ -5,6 +5,8 @@ from typing import Any, Literal, Union
 
 from pydantic import BaseModel, ConfigDict, Field
 
+# TODO: add histogram-based noise model
+
 
 class GaussianMixtureNmModel(BaseModel):
     """Gaussian mixture noise model."""

@@ -12,6 +12,7 @@ from careamics.models.lvae.noise_models import (
 )
 
 
+# TODO: move to conftest.py as pytest.fixture
 def create_dummy_noise_model(
     tmp_path: Path,
     n_gaussians: int = 3,

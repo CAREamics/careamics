@@ -47,7 +47,7 @@ def likelihood_factory(config: Union[GaussianLikelihoodModel, NMLikelihoodModel,
         raise ValueError(f"Invalid likelihood model type: {config.model_type}")
 
 
-# TODO: is it really worth to have this class? Or it just adds complexity?
+# TODO: is it really worth to have this class? Or it just adds complexity? --> REFACTOR
 class LikelihoodModule(nn.Module):
     """
     The base class for all likelihood modules.
