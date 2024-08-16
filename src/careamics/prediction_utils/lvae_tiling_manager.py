@@ -16,7 +16,7 @@ def calculate_padding(
 
     pad_before = np.zeros_like(patch_start_location)
     start_out_of_bounds = patch_start_location < 0
-    pad_before[start_out_of_bounds] = - patch_start_location[start_out_of_bounds]
+    pad_before[start_out_of_bounds] = -patch_start_location[start_out_of_bounds]
 
     pad_after = np.zeros_like(patch_start_location)
     end_out_of_bounds = patch_end_location > data_shape
@@ -88,67 +88,6 @@ class TilingManager:
         self.grid_shape = tuple(np.array(tile_size) - np.array(overlaps))
         self.patch_shape = tile_size
         self.trim_boundary = trim_boundary
-
-    # TODO: v1 and v2 not equivalent but both work, v1 same as Ashesh's original
-    def compute_tile_info_v2(self, index: int, axes: str):
-
-        # TODO: better axis validation, data should already be in the form SC(Z)YX
-
-        # validate axes
-        check_axes_validity(axes)
-        # z will be -1 if not present
-        spatial_axes = [axes.find("Z"), axes.find("Y"), axes.find("X")]
-
-        # convert to numpy for convenience
-        data_shape = np.array(self.data_shape)
-        patch_shape = np.array(self.patch_shape)
-
-        # --- calculate stitch coords
-        stitch_coords_start = np.array(self.get_location_from_dataset_idx(index))
-        stitch_coords_end = stitch_coords_start + np.array(self.grid_shape)
-
-        # --- calculate overlap crop coords
-        overlap_crop_coords_start = np.array(self.overlaps) // 2
-        overlap_crop_coords_end = (
-            np.array(self.patch_shape) - np.array(self.overlaps) // 2
-        )
-
-        # --- replace out of bounds indices
-
-        out_of_lower_bound = stitch_coords_start < 0
-        out_of_upper_bound = stitch_coords_end > data_shape
-
-        stitch_coords_start[out_of_lower_bound] = 0
-        stitch_coords_end[out_of_upper_bound] = data_shape[out_of_upper_bound]
-
-        overlap_crop_coords_start[out_of_lower_bound] = 0
-        overlap_crop_coords_end[out_of_upper_bound] = patch_shape[out_of_upper_bound]
-
-        # --- combine start and end
-        stitch_coords = tuple(
-            (stitch_coords_start[axis], stitch_coords_end[axis])
-            for axis in spatial_axes
-            if axis != -1
-        )
-        overlap_crop_coords = tuple(
-            (overlap_crop_coords_start[axis], overlap_crop_coords_end[axis])
-            for axis in spatial_axes
-            if axis != -1
-        )
-
-        channel_axis = axes.find("C")
-        array_shape_processed = tuple(
-            data_shape[axis] for axis in [channel_axis, *spatial_axes] if axis != -1
-        )
-
-        tile_info = TileInformation(
-            array_shape=array_shape_processed,
-            last_tile=index == self.total_grid_count() - 1,
-            overlap_crop_coords=overlap_crop_coords,
-            stitch_coords=stitch_coords,
-            sample_id=0,  # TODO: in iterable dataset this is also always 0 pretty sure
-        )
-        return tile_info
 
     def compute_tile_info(self, index: int, axes: str):
 
