@@ -165,9 +165,6 @@ class GaussianLikelihood(LikelihoodModule):
             log-variance. If the attribute `predict_logvar` is `None` then the second
             element will be `None`.
         """
-        # Feed the output of the top-down pass to a parameter network
-        # This network can be either a Conv2d or Identity module
-        x = self.parameter_net(x)
 
         # if LadderVAE.predict_logvar is None, dim 1 of `x`` has no. of target channels
         if self.predict_logvar is None:
