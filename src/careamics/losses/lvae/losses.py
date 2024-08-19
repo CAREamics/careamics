@@ -1,5 +1,5 @@
 ##### REQUIRED Methods for Loss Computation #####
-from typing import Optional, Union, Any
+from typing import Optional, Union, Any, Literal
 
 import numpy as np
 import torch
@@ -16,7 +16,7 @@ from careamics.models.lvae.utils import compute_batch_mean
 Likelihood = Union[LikelihoodModule, GaussianLikelihood, NoiseModelLikelihood]
 
 def get_reconstruction_loss(
-    reconstruction: torch.Tensor,
+    reconstruction: torch.Tensor, #TODO: naming -> predictions?
     target: torch.Tensor,
     likelihood_obj: Likelihood,
     splitting_mask: Optional[torch.Tensor] = None,
@@ -63,7 +63,7 @@ def get_reconstruction_loss(
 
 
 def _get_reconstruction_loss_vector(
-    reconstruction: torch.Tensor,
+    reconstruction: torch.Tensor, #TODO: naming -> predictions?
     target: torch.Tensor,
     likelihood_obj: LikelihoodModule,
 ) -> dict[str, torch.Tensor]:
@@ -103,49 +103,56 @@ def _get_reconstruction_loss_vector(
     return output
 
 
-# TODO: check if this is correct
 def reconstruction_loss_musplit_denoisplit(
-    predictions,
-    targets,
-    predict_logvar,
-    likelihood_NM,
-    likelihood_GM,
-    denoise_weight,
-    split_weight,
-):
-    """.
+    predictions: Union[torch.Tensor, tuple[torch.Tensor, torch.Tensor]],
+    targets: torch.Tensor,
+    nm_likelihood: NoiseModelLikelihood,
+    gaussian_likelihood: GaussianLikelihood,
+    nm_weight: float,
+    gaussian_weight: float,
+) -> torch.Tensor:
+    """Compute the reconstruction loss for muSplit-denoiSplit loss.
 
+    The resulting loss is a weighted mean of the noise model likelihood and the
+    Gaussian likelihood.
+    
     Parameters
     ----------
-    predictions : _type_
-        _description_
-    targets : _type_
-        _description_
-    predict_logvar : _type_
-        _description_
-    likelihood_NM : _type_
-        _description_
-    likelihood_GM : _type_
-        _description_
-    denoise_weight : _type_
-        _description_
-    split_weight : _type_
-        _description_
+    predictions : torch.Tensor
+        The output of the LVAE decoder. Shape is (B, C, [Z], Y, X), or
+        (B, 2*C, [Z], Y, X), where C is the number of output channels,
+        and the factor of 2 is for the case of predicted log-variance.
+    targets : torch.Tensor
+        The target image used to compute the reconstruction loss. Shape is
+        (B, C, [Z], Y, X), where C is the number of output channels
+        (e.g., 1 in HDN, >1 in muSplit/denoiSplit).
+    nm_likelihood : NoiseModelLikelihood
+        A `NoiseModelLikelihood` object used to compute the noise model likelihood.
+    gaussian_likelihood : GaussianLikelihood
+        A `GaussianLikelihood` object used to compute the Gaussian likelihood.
+    nm_weight : float
+        The weight for the noise model likelihood.
+    gaussian_weight : float
+        The weight for the Gaussian likelihood.
 
     Returns
     -------
-    _type_
-        _description_
+    recons_loss : torch.Tensor
+        The reconstruction loss. Shape is (1, ).
     """
-    if predict_logvar is not None:
+    # TODO: is this safe to check for predict_logvar value?
+    # otherwise use `gaussian_likelihood.predict_logvar` (or both)
+    if predictions.shape[1] == 2*targets.shape[1]:
+        # predictions contain both mean and log-variance
         out_mean, _ = predictions.chunk(2, dim=1)
     else:
         out_mean = predictions
 
-    recons_loss_nm = -1 * likelihood_NM(out_mean, targets)[0].mean()
-    recons_loss_gm = -1 * likelihood_GM(predictions, targets)[0].mean()
-    recons_loss = denoise_weight * recons_loss_nm + split_weight * recons_loss_gm
+    recons_loss_nm = -1 * nm_likelihood(out_mean, targets)[0].mean()
+    recons_loss_gm = -1 * gaussian_likelihood(predictions, targets)[0].mean()
+    recons_loss = nm_weight * recons_loss_nm + gaussian_weight * recons_loss_gm
     return recons_loss
+
 
 # TODO: refactor this (if needed)
 # - cannot handle >2 target channels
@@ -261,7 +268,7 @@ def get_kl_divergence_loss_denoisplit(
     # 128/(8*8) = 2
     # 128/(16*16) = 0.5 (topmost layer)
 
-    # Normalize the KL-loss w.r.t. the latent space size
+    # Normalize the KL-loss w.r.t. the input image spatial dimensions (e.g., 64x64)
     kl_loss = kl_loss / np.prod(img_shape)
     return kl_loss
 
@@ -292,18 +299,19 @@ def musplit_loss(
         `["reconstruction_loss"]`, and the KL divergence loss `["kl_loss"]`.
     """
     predictions, td_data = model_outputs
+    
+    # Reconstruction loss computation
     recons_loss_dict = get_reconstruction_loss(
         reconstruction=predictions,
         target=targets,
         splitting_mask=loss_parameters.mask,
         likelihood_obj=loss_parameters.likelihood,
     )
-
     recons_loss = recons_loss_dict["loss"] * loss_parameters.reconstruction_weight
-
     if torch.isnan(recons_loss).any():
         recons_loss = 0.0
 
+    # KL loss computation
     kl_weight = get_kl_weight(
         loss_parameters.kl_annealing,
         loss_parameters.kl_start,
@@ -314,7 +322,6 @@ def musplit_loss(
     kl_loss = kl_weight * get_kl_divergence_loss_usplit(td_data)
 
     net_loss = recons_loss + kl_loss
-
     output = {
         "loss": net_loss,
         "reconstruction_loss": (
@@ -359,6 +366,7 @@ def denoisplit_loss(
     predictions, td_data = model_outputs
     
     # Reconstruction loss computation
+    # TODO: reconstruction loss part is common to all loss functions. Refactor?
     recons_loss_dict = get_reconstruction_loss(
         reconstruction=predictions,
         target=targets,
@@ -381,7 +389,8 @@ def denoisplit_loss(
             loss_parameters.current_epoch,
         ) 
         kl_loss = kl_weight * get_kl_divergence_loss_denoisplit(
-            td_data, img_shape=loss_parameters.inputs.shape
+            topdown_layer_data_dict=td_data, \
+            img_shape=targets.shape[2:], # input img spatial dims
         )
         
     net_loss = recons_loss + kl_loss
@@ -397,7 +406,7 @@ def denoisplit_loss(
     # https://github.com/openai/vdvae/blob/main/train.py#L26
     if torch.isnan(net_loss).any():
         return None
-
+    
     return output
 
 
@@ -430,13 +439,12 @@ def denoisplit_musplit_loss(
     
     # Reconstruction loss computation
     recons_loss = reconstruction_loss_musplit_denoisplit(
-            predictions,
-            targets,
-            predict_logvar=None,
-            likelihood_NM=loss_parameters.noise_model,  # TODO is this correct ?
-            likelihood_GM=loss_parameters.likelihood,
-            denoise_weight=loss_parameters.denoisplit_weight,
-            split_weight=loss_parameters.musplit_weight,
+            predictions=predictions,
+            targets=targets,
+            nm_likelihood=loss_parameters.noise_model_likelihood,
+            gaussian_likelihood=loss_parameters.gaussian_likelihood,
+            nm_weight=loss_parameters.denoisplit_weight,
+            gaussian_weight=loss_parameters.musplit_weight,
         )
     if torch.isnan(recons_loss).any():
         recons_loss = 0.0
@@ -449,10 +457,9 @@ def denoisplit_musplit_loss(
         # The different naming comes from `top_down_pass()` method in the LadderVAE.
         denoisplit_kl = get_kl_divergence_loss_denoisplit(
             topdown_layer_data_dict=td_data,
-            img_shape=loss_parameters.inputs.shape,
-            kl_key="kl",  # TODO hardcoded
+            img_shape=targets.shape[2:], # input img spatial dims
         )
-        musplit_kl = get_kl_divergence_loss_usplit(topdown_layer_data_dict=td_data)
+        musplit_kl = get_kl_divergence_loss_usplit(td_data)
         kl_loss = (
             loss_parameters.denoisplit_weight * denoisplit_kl
             + loss_parameters.musplit_weight * musplit_kl
@@ -473,5 +480,5 @@ def denoisplit_musplit_loss(
     # https://github.com/openai/vdvae/blob/main/train.py#L26
     if torch.isnan(net_loss).any():
         return None
-
+    
     return output
