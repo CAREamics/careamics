@@ -6,10 +6,39 @@ import torch
 
 from careamics.config.likelihood_model import GaussianLikelihoodModel
 from careamics.config.nm_model import GaussianMixtureNmModel
-from careamics.losses.loss_factory import LVAELossParameters, loss_factory
+from careamics.losses.loss_factory import (
+    LVAELossParameters, loss_factory, SupportedLoss
+)
 from careamics.losses.lvae.losses import denoisplit_loss, musplit_loss
 from careamics.models.lvae.likelihoods import likelihood_factory
 from careamics.models.lvae.noise_models import noise_model_factory
+
+# TODO: add this to fixtures (?)
+def init_loss_parameters() -> LVAELossParameters:
+    pass
+
+@pytest.mark.parametrize(
+    "loss_type", 
+    [
+        SupportedLoss.MUSPLIT, 
+        SupportedLoss.DENOISPLIT,
+        SupportedLoss.DENOISPLIT_MUSPLIT,
+        "musplit",
+        "denoisplit",
+        "denoisplit_musplit",
+        "made_up_loss",
+    ]
+)
+def test_lvae_loss_factory(loss_type):
+    if loss_type == "made_up_loss":
+        with pytest.raises(NotImplementedError):
+            loss_factory(loss_type)
+    else:
+        loss_func = loss_factory(loss_type)
+        assert loss_func is not None
+        assert callable(loss_func)
+        
+
 
 
 @pytest.mark.skip(reason="Implementation is likely to change soon.")
