@@ -1,6 +1,7 @@
 """
 Script containing modules for definining different likelihood functions (as nn.Module).
 """
+from __future__ import annotations
 
 import math
 from typing import Literal, Union, TYPE_CHECKING, Any, Optional
@@ -10,11 +11,12 @@ from torch import nn
 
 from careamics.config.likelihood_model import GaussianLikelihoodModel, NMLikelihoodModel
 
-# TODO: check typing
-# if TYPE_CHECKING:
-#     from careamics.models.lvae.noise_models import GaussianMixtureNoiseModel, MultiChannelNoiseModel
-
-# NoiseModel = Union[GaussianMixtureNoiseModel, MultiChannelNoiseModel]
+if TYPE_CHECKING:
+    from careamics.models.lvae.noise_models import (
+        GaussianMixtureNoiseModel, MultiChannelNoiseModel
+    )
+    
+    NoiseModel = Union[GaussianMixtureNoiseModel, MultiChannelNoiseModel]
 
 
 def likelihood_factory(config: Union[GaussianLikelihoodModel, NMLikelihoodModel, None]):
@@ -277,7 +279,7 @@ class NoiseModelLikelihood(LikelihoodModule):
         self,
         data_mean: torch.Tensor,
         data_std: torch.Tensor,
-        noiseModel: Any,  # TODO: check the type -> couldn't manage due to circular imports...
+        noiseModel: NoiseModel,  # TODO: check the type -> couldn't manage due to circular imports...
     ):
         """Constructor.
 
