@@ -1,44 +1,161 @@
+from __future__ import annotations
+
 from pathlib import Path
+from contextlib import nullcontext as does_not_raise
+from typing import Callable, Union, TYPE_CHECKING
 
 import numpy as np
 import pytest
 import torch
 
-from careamics.config.likelihood_model import GaussianLikelihoodModel
-from careamics.config.nm_model import GaussianMixtureNmModel
+from careamics.config.likelihood_model import GaussianLikelihoodModel, NMLikelihoodModel
+from careamics.config.nm_model import GaussianMixtureNmModel, MultiChannelNmModel
 from careamics.losses.loss_factory import (
     LVAELossParameters, loss_factory, SupportedLoss
 )
-from careamics.losses.lvae.losses import denoisplit_loss, musplit_loss
+from careamics.losses.lvae.losses import ( 
+    get_reconstruction_loss,
+    reconstruction_loss_musplit_denoisplit,
+    get_kl_divergence_loss_usplit,
+    get_kl_divergence_loss_denoisplit,  
+    musplit_loss,
+    denoisplit_loss,
+    denoisplit_musplit_loss,
+)
 from careamics.models.lvae.likelihoods import likelihood_factory
 from careamics.models.lvae.noise_models import noise_model_factory
+
+if TYPE_CHECKING:
+    from careamics.models.lvae.noise_models import MultiChannelNoiseModel
+#     from careamics.models.lvae.likelihoods import (
+#         LikelihoodModule,
+#         GaussianLikelihood,
+#         NoiseModelLikelihood    
+#     )
+#     Likelihood = Union[LikelihoodModule, GaussianLikelihood, NoiseModelLikelihood]
+
 
 # TODO: add this to fixtures (?)
 def init_loss_parameters() -> LVAELossParameters:
     pass
 
+# TODO: move to conftest.py as pytest.fixture
+def create_dummy_noise_model(
+    tmp_path: Path,
+    n_gaussians: int = 3,
+    n_coeffs: int = 3,
+) -> None:
+    """Create a dummy noise model and save it in a `.npz` file."""
+    weights = np.random.rand(3 * n_gaussians, n_coeffs)
+    nm_dict = {
+        "trained_weight": weights,
+        "min_signal": np.array([0]),
+        "max_signal": np.array([2**16 - 1]),
+        "min_sigma": 0.125,
+    }
+    np.savez(tmp_path / "dummy_noise_model.npz", **nm_dict)
+
+def init_noise_model(
+    tmp_path: Path,
+    target_ch: int,
+    n_gaussians: int = 3,
+    n_coeffs: int = 3,    
+) -> MultiChannelNoiseModel:
+    """Instantiate a dummy noise model."""
+    create_dummy_noise_model(tmp_path, n_gaussians, n_coeffs)
+    gmm = GaussianMixtureNmModel(
+            model_type="GaussianMixtureNoiseModel",
+            path=tmp_path / "dummy_noise_model.npz",
+            # all other params are default
+        )
+    noise_model_config = MultiChannelNmModel(noise_models=[gmm] * target_ch)
+    return noise_model_factory(noise_model_config)
+    
+    
+
 @pytest.mark.parametrize(
-    "loss_type", 
+    "loss_type, expectation", 
     [
-        SupportedLoss.MUSPLIT, 
-        SupportedLoss.DENOISPLIT,
-        SupportedLoss.DENOISPLIT_MUSPLIT,
-        "musplit",
-        "denoisplit",
-        "denoisplit_musplit",
-        "made_up_loss",
+        (SupportedLoss.MUSPLIT, does_not_raise()),
+        (SupportedLoss.DENOISPLIT, does_not_raise()),
+        (SupportedLoss.DENOISPLIT_MUSPLIT, does_not_raise()),
+        ("musplit", does_not_raise()),
+        ("denoisplit", does_not_raise()),
+        ("denoisplit_musplit", does_not_raise()),
+        ("made_up_loss", pytest.raises(NotImplementedError)),
     ]
 )
-def test_lvae_loss_factory(loss_type):
-    if loss_type == "made_up_loss":
-        with pytest.raises(NotImplementedError):
-            loss_factory(loss_type)
-    else:
+def test_lvae_loss_factory(
+    loss_type: Union[SupportedLoss, str], 
+    expectation: Callable
+):
+    with expectation:
         loss_func = loss_factory(loss_type)
         assert loss_func is not None
         assert callable(loss_func)
         
+        
+@pytest.mark.parametrize(
+    "batch_size, target_ch, predict_logvar, likelihood_type", 
+    [
+        (1, 1, None, "noise_model"), 
+        (1, 1, None, "gaussian"),
+        (1, 1, "pixelwise", "gaussian"),
+        (8, 1, None, "noise_model"), 
+        (8, 1, None, "gaussian"),
+        (8, 1, "pixelwise", "gaussian"),
+        (1, 3, None, "noise_model"), 
+        (1, 3, None, "gaussian"),
+        (1, 3, "pixelwise", "gaussian"),
+        (8, 3, None, "noise_model"), 
+        (8, 3, None, "gaussian"),
+        (8, 3, "pixelwise", "gaussian"),
+    ]
+)
+def test_reconstruction_loss(
+    tmp_path: Path,
+    batch_size: int,
+    target_ch: int, 
+    predict_logvar: str,
+    likelihood_type: str
+):
+    # create test data
+    img_size = 64
+    inp_ch = target_ch * (1 + int(predict_logvar is not None))
+    reconstruction = torch.rand((batch_size, inp_ch, img_size, img_size))
+    target = torch.rand((batch_size, target_ch, img_size, img_size))
+    
+    # create likelihood object
+    if likelihood_type == "noise_model":
+        nm = init_noise_model(tmp_path, target_ch)
+        data_mean = target.mean(dim=(0, 2, 3), keepdim=True)
+        data_std = target.std(dim=(0, 2, 3), keepdim=True)
+        config = NMLikelihoodModel(
+            data_mean=data_mean, data_std=data_std, noise_model=nm
+        )
+    else:
+        config = GaussianLikelihoodModel(predict_logvar=predict_logvar)
+    likelihood = likelihood_factory(config)
+    
+    # compute the loss
+    rec_loss = get_reconstruction_loss(
+        reconstruction=reconstruction,
+        target=target,
+        likelihood_obj=likelihood
+    )
+    
+    # check outputs
+    assert rec_loss is not None
+    for i in range(target_ch):
+        assert rec_loss[f"ch{i+1}_loss"] is not None
 
+
+def test_reconstruction_loss_musplit_denoisplit():
+    pass
+    
+    
+def test_kl_loss():
+    pass
 
 
 @pytest.mark.skip(reason="Implementation is likely to change soon.")
