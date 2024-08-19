@@ -149,9 +149,47 @@ def test_reconstruction_loss(
     for i in range(target_ch):
         assert rec_loss[f"ch{i+1}_loss"] is not None
 
-
-def test_reconstruction_loss_musplit_denoisplit():
-    pass
+@pytest.mark.parametrize("batch_size", [1, 8]) 
+@pytest.mark.parametrize("target_ch", [1, 3]) 
+@pytest.mark.parametrize("predict_logvar", [None, "pixelwise"])
+@pytest.mark.parametrize("nm_weight", [0.0, 0.5, 1.0])
+def test_reconstruction_loss_musplit_denoisplit(
+    tmp_path: Path,
+    batch_size: int,
+    target_ch: int, 
+    predict_logvar: str,
+    nm_weight: float
+):
+    # create test data
+    img_size = 64
+    inp_ch = target_ch * (1 + int(predict_logvar is not None))
+    reconstruction = torch.rand((batch_size, inp_ch, img_size, img_size))
+    target = torch.rand((batch_size, target_ch, img_size, img_size))
+    
+    # create likelihood objects
+    nm = init_noise_model(tmp_path, target_ch)
+    data_mean = target.mean(dim=(0, 2, 3), keepdim=True)
+    data_std = target.std(dim=(0, 2, 3), keepdim=True)
+    nm_config = NMLikelihoodModel(
+        data_mean=data_mean, data_std=data_std, noise_model=nm
+    )
+    nm_likelihood = likelihood_factory(nm_config)
+    gaussian_config = GaussianLikelihoodModel(predict_logvar=predict_logvar)
+    gaussian_likelihood = likelihood_factory(gaussian_config)
+    
+    # compute the loss
+    rec_loss = reconstruction_loss_musplit_denoisplit(
+        predictions=reconstruction,
+        targets=target,
+        nm_likelihood=nm_likelihood,
+        gaussian_likelihood=gaussian_likelihood,
+        nm_weight=nm_weight,
+        gaussian_weight=1.0 - nm_weight
+    )
+    
+    # check outputs
+    assert rec_loss is not None
+    assert isinstance(rec_loss, torch.Tensor)
     
     
 def test_kl_loss():
