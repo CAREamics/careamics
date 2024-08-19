@@ -1,12 +1,10 @@
-##### REQUIRED Methods for Loss Computation #####
-from typing import Any, Optional, Union
+"""Methods for Loss Computation"""
+from __future__ import annotations
+from typing import Any, Optional, Union, TYPE_CHECKING
 
 import numpy as np
 import torch
 
-from careamics.losses.loss_factory import (
-    LVAELossParameters,  # TODO: may cause circular import
-)
 from careamics.losses.lvae.loss_utils import free_bits_kl, get_kl_weight
 from careamics.models.lvae.likelihoods import (
     GaussianLikelihood,
@@ -14,6 +12,9 @@ from careamics.models.lvae.likelihoods import (
     NoiseModelLikelihood,
 )
 from careamics.models.lvae.utils import compute_batch_mean
+
+if TYPE_CHECKING:
+    from careamics.losses.loss_factory import LVAELossParameters
 
 Likelihood = Union[LikelihoodModule, GaussianLikelihood, NoiseModelLikelihood]
 
