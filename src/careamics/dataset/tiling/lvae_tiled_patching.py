@@ -51,41 +51,46 @@ def extract_tiles(
     if padding_kwargs is None:
         padding_kwargs = {"mode": "reflect"}
 
-    data_shape = np.array(arr.shape)
+    # Iterate over num samples (S)
+    for sample_idx in range(arr.shape[0]):
+        sample = arr[sample_idx, ...]
+        data_shape = np.array(sample.shape)
 
-    # add padding to ensure evenly spaced & overlapping tiles.
-    spatial_padding = compute_padding(data_shape, tile_size, overlaps)
-    padding = ((0, 0), (0, 0), *spatial_padding)
-    arr = np.pad(arr, padding, **padding_kwargs)
+        # add padding to ensure evenly spaced & overlapping tiles.
+        spatial_padding = compute_padding(data_shape, tile_size, overlaps)
+        padding = ((0, 0), *spatial_padding)
+        sample = np.pad(sample, padding, **padding_kwargs)
 
-    # The number of tiles in each dimension, should be of length 2 or 3
-    tile_grid_shape = compute_tile_grid_shape(data_shape, tile_size, overlaps)
-    # itertools.product is equivalent of nested loops
-    for tile_grid_coords in itertools.product(*[range(n) for n in tile_grid_shape]):
+        # The number of tiles in each dimension, should be of length 2 or 3
+        tile_grid_shape = compute_tile_grid_shape(data_shape, tile_size, overlaps)
+        # itertools.product is equivalent of nested loops
 
-        # calculate crop coordinates
-        stitch_size = np.array(tile_size) - np.array(overlaps)
-        crop_coords_start = np.array(tile_grid_coords) * stitch_size
-        crop_slices: tuple[Union[builtins.ellipsis, slice], ...] = (
-            ...,
-            *[
-                slice(coords, coords + extent)
-                for coords, extent in zip(crop_coords_start, np.array(tile_size))
-            ],
-        )
-        tile = arr[crop_slices]
+        stitch_size = tile_size - overlaps
+        for tile_grid_coords in itertools.product(*[range(n) for n in tile_grid_shape]):
 
-        tile_info = compute_tile_info(
-            np.array(tile_grid_coords),
-            np.array(data_shape),
-            np.array(tile_size),
-            np.array(overlaps),
-        )
-        # TODO: kinda weird this is a generator,
-        #   -> doesn't really save memory ? Don't think there are any places the tiles
-        #    are not exracted all at the same time.
-        #   Although I guess it would make sense for a zarr tile extractor.
-        yield tile, tile_info
+            # calculate crop coordinates
+            crop_coords_start = np.array(tile_grid_coords) * stitch_size
+            crop_slices: tuple[Union[builtins.ellipsis, slice], ...] = (
+                ...,
+                *[
+                    slice(coords, coords + extent)
+                    for coords, extent in zip(crop_coords_start, tile_size)
+                ],
+            )
+            tile = sample[crop_slices]
+
+            tile_info = compute_tile_info(
+                np.array(tile_grid_coords),
+                np.array(data_shape),
+                np.array(tile_size),
+                np.array(overlaps),
+                sample_idx,
+            )
+            # TODO: kinda weird this is a generator,
+            #   -> doesn't really save memory ? Don't think there are any places the
+            #    tiles are not exracted all at the same time.
+            #   Although I guess it would make sense for a zarr tile extractor.
+            yield tile, tile_info
 
 
 def compute_tile_info(
@@ -93,6 +98,7 @@ def compute_tile_info(
     data_shape: NDArray[np.int_],
     tile_size: NDArray[np.int_],
     overlaps: NDArray[np.int_],
+    sample_id: int = 0,
 ) -> TileInformation:
     """
     Compute the tile information for a tile with the coordinates `tile_grid_coords`.
@@ -104,11 +110,13 @@ def compute_tile_info(
         tiling the coordinates for the second tile in the first row of tiles would be
         (0, 1).
     data_shape : 1D np.array of int
-        The shape of the data, should be (S, C, (Z), Y, X) where Z is optional.
+        The shape of the data, should be (C, (Z), Y, X) where Z is optional.
     tile_size : 1D np.array of int
        Tile sizes in each dimension, of length 2 or 3.
     overlaps : 1D np.array of int
         Overlap values in each dimension, of length 2 or 3.
+    sample_id : int, default=0
+        An ID to identify which sample a tile belongs to.
 
     Returns
     -------
@@ -150,11 +158,11 @@ def compute_tile_info(
     last_tile = (tile_grid_coords == (tile_grid_shape - 1)).all()
 
     tile_info = TileInformation(
-        array_shape=data_shape[1:],  # ignore S dim
+        array_shape=data_shape,
         last_tile=last_tile,
         overlap_crop_coords=overlap_crop_coords,
         stitch_coords=stitch_coords,
-        sample_id=0,  # TODO: in iterable dataset this is also always 0 pretty sure
+        sample_id=sample_id,
     )
     return tile_info
 
