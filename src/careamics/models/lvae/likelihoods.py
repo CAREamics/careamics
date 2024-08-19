@@ -3,9 +3,8 @@ Script containing modules for definining different likelihood functions (as nn.M
 """
 
 import math
-from typing import Literal, Union, TYPE_CHECKING, Any
+from typing import Literal, Union, TYPE_CHECKING, Any, Optional
 
-import numpy as np
 import torch
 from torch import nn
 
@@ -47,7 +46,7 @@ def likelihood_factory(config: Union[GaussianLikelihoodModel, NMLikelihoodModel,
         raise ValueError(f"Invalid likelihood model type: {config.model_type}")
 
 
-# TODO: is it really worth to have this class? Or it just adds complexity?
+# TODO: is it really worth to have this class? Or it just adds complexity? --> REFACTOR
 class LikelihoodModule(nn.Module):
     """
     The base class for all likelihood modules.
@@ -78,6 +77,10 @@ class LikelihoodModule(nn.Module):
 
     def log_likelihood(self, x: Any, params: Any) -> None:
         return None
+
+    def get_mean_lv(
+        self, x: torch.Tensor
+    ) -> tuple[torch.Tensor, Optional[torch.Tensor]]: ...
 
     def forward(
         self, input_: torch.Tensor, x: Union[torch.Tensor, None]
@@ -145,7 +148,9 @@ class GaussianLikelihood(LikelihoodModule):
             f"[{self.__class__.__name__}] PredLVar:{self.predict_logvar} LowBLVar:{self.logvar_lowerbound}"
         )
 
-    def get_mean_lv(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+    def get_mean_lv(
+        self, x: torch.Tensor
+    ) -> tuple[torch.Tensor, Optional[torch.Tensor]]:
         """
         Given the output of the top-down pass, compute the mean and log-variance of the
         Gaussian distribution defining the likelihood.
@@ -153,41 +158,30 @@ class GaussianLikelihood(LikelihoodModule):
         Parameters
         ----------
         x: torch.Tensor
-            The input tensor to the likelihood module, i.e., the output
-            the LVAE 'output_layer'. Shape is: (B, 2 * C, [Z], Y, X) in case
-            `predict_logvar` is not None, or (B, C, [Z], Y, X) otherwise.
+            The input tensor to the likelihood module, i.e., the output of the top-down
+            pass.
+
+        Returns
+        -------
+        tuple of (torch.tensor, optional torch.tensor)
+            The first element of the tuple is the mean, the second element is the
+            log-variance. If the attribute `predict_logvar` is `None` then the second
+            element will be `None`.
         """
-        if self.predict_logvar is not None:
-            # Get pixel-wise mean and logvar
-            mean, lv = x.chunk(2, dim=1)
 
-            # Optionally, compute the global or channel-wise logvar
-            # TODO: to remove, since logvar can only be 'pixelwise' (??)
-            if self.predict_logvar in ["channelwise", "global"]:
-                if self.predict_logvar == "channelwise":
-                    # logvar should be of the following shape (batch, num_channels, ).
-                    # Other dims would be singletons.
-                    N = np.prod(lv.shape[:2])
-                    new_shape = (*mean.shape[:2], *([1] * len(mean.shape[2:])))
-                elif self.predict_logvar == "global":
-                    # logvar should be of the following shape (batch, ).
-                    # Other dims would be singletons.
-                    N = lv.shape[0]
-                    new_shape = (*mean.shape[:1], *([1] * len(mean.shape[1:])))
-                else:
-                    raise ValueError(
-                        f"Invalid value for self.predict_logvar:{self.predict_logvar}"
-                    )
+        # if LadderVAE.predict_logvar is None, dim 1 of `x`` has no. of target channels
+        if self.predict_logvar is None:
+            return x, None
 
-                lv = torch.mean(lv.reshape(N, -1), dim=1)
-                lv = lv.reshape(new_shape)
+        # Get pixel-wise mean and logvar
+        # if LadderVAE.predict_logvar is not None,
+        #   dim 1 has double no. of target channels
+        mean, lv = x.chunk(2, dim=1)
 
-            # Optionally, clip log-var to a lower bound
-            if self.logvar_lowerbound is not None:
-                lv = torch.clip(lv, min=self.logvar_lowerbound)
-        else:
-            mean = x
-            lv = None
+        # Optionally, clip log-var to a lower bound
+        if self.logvar_lowerbound is not None:
+            lv = torch.clip(lv, min=self.logvar_lowerbound)
+
         return mean, lv
 
     def distr_params(self, x: torch.Tensor) -> dict[str, torch.Tensor]:

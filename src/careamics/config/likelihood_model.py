@@ -14,7 +14,7 @@ NoiseModel = Union[GaussianMixtureNoiseModel, MultiChannelNoiseModel]
 
 
 class GaussianLikelihoodModel(BaseModel):
-    """Gaussion likelihood model."""
+    """Gaussian likelihood model."""
 
     model_config = ConfigDict(validate_assignment=True)
 

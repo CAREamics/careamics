@@ -6,11 +6,12 @@ import pytest
 import torch
 
 from careamics.config.likelihood_model import GaussianLikelihoodModel, NMLikelihoodModel
-from careamics.config.nm_model import GaussianMixtureNmModel, NMModel
+from careamics.config.nm_model import GaussianMixtureNmModel, MultiChannelNmModel
 from careamics.models.lvae.likelihoods import likelihood_factory
 from careamics.models.lvae.noise_models import noise_model_factory
 
 
+# TODO: move to conftest.py as pytest.fixture
 def create_dummy_noise_model(
     tmp_path: Path,
     n_gaussians: int = 3,
@@ -68,7 +69,7 @@ def test_noise_model_likelihood(tmp_path: Path, img_size: int, target_ch: int) -
         path=tmp_path / "dummy_noise_model.npz",
         # all other params are default
     )
-    noise_model_config = NMModel(noise_models=[gmm] * target_ch)
+    noise_model_config = MultiChannelNmModel(noise_models=[gmm] * target_ch)
     nm = noise_model_factory(noise_model_config)
 
     # Instantiate the likelihood

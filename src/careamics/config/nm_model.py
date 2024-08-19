@@ -5,6 +5,8 @@ from typing import Any, Literal, Union
 
 from pydantic import BaseModel, ConfigDict, Field
 
+# TODO: add histogram-based noise model
+
 
 class GaussianMixtureNmModel(BaseModel):
     """Gaussian mixture noise model."""
@@ -53,7 +55,7 @@ class GaussianMixtureNmModel(BaseModel):
 
 # The noise model is given by a set of GMMs, one for each target
 # e.g., 2 target channels, 2 noise models
-class NMModel(BaseModel):
+class MultiChannelNmModel(BaseModel):
     """Noise Model that aggregates the noise models for single channels."""
 
     # TODO: check that this model config is OK
