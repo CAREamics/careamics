@@ -29,6 +29,7 @@ def create_dummy_noise_model(
 
 # TODO: move it under models/lvae/ ??
 
+
 @pytest.mark.parametrize("batch_size", [1, 8])
 @pytest.mark.parametrize("target_ch", [1, 3])
 @pytest.mark.parametrize("predict_logvar", [None, "pixelwise"])
@@ -64,10 +65,7 @@ def test_gaussian_likelihood(
 @pytest.mark.parametrize("batch_size", [1, 8])
 @pytest.mark.parametrize("target_ch", [1, 3, 5])
 def test_noise_model_likelihood(
-    tmp_path: Path,
-    batch_size: int, 
-    img_size: int, 
-    target_ch: int
+    tmp_path: Path, batch_size: int, img_size: int, target_ch: int
 ) -> None:
     # Instantiate the noise model
     create_dummy_noise_model(tmp_path, n_gaussians=4, n_coeffs=3)

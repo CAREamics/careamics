@@ -1,6 +1,8 @@
-"""Methods for Loss Computation"""
+"""Methods for Loss Computation."""
+
 from __future__ import annotations
-from typing import Any, Optional, Union, TYPE_CHECKING
+
+from typing import TYPE_CHECKING, Any, Optional, Union
 
 import numpy as np
 import torch
@@ -55,7 +57,7 @@ def get_reconstruction_loss(
         likelihood_obj=likelihood_obj,
     )
 
-    if splitting_mask is None:
+    if splitting_mask is None:  # TODO: is this needed?
         splitting_mask = torch.ones_like(loss_dict["loss"]).bool()
 
     loss_dict["loss"] = loss_dict["loss"][splitting_mask].sum() / len(reconstruction)
@@ -368,7 +370,6 @@ def denoisplit_loss(
     predictions, td_data = model_outputs
 
     # Reconstruction loss computation
-    # TODO: reconstruction loss part is common to all loss functions. Refactor?
     recons_loss_dict = get_reconstruction_loss(
         reconstruction=predictions,
         target=targets,

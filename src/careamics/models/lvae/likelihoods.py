@@ -1,6 +1,7 @@
 """
 Script containing modules for definining different likelihood functions (as nn.Module).
 """
+
 from __future__ import annotations
 
 import math
@@ -13,9 +14,10 @@ from careamics.config.likelihood_model import GaussianLikelihoodModel, NMLikelih
 
 if TYPE_CHECKING:
     from careamics.models.lvae.noise_models import (
-        GaussianMixtureNoiseModel, MultiChannelNoiseModel
+        GaussianMixtureNoiseModel,
+        MultiChannelNoiseModel,
     )
-    
+
     NoiseModel = Union[GaussianMixtureNoiseModel, MultiChannelNoiseModel]
 
 
