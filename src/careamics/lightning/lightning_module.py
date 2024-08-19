@@ -273,6 +273,13 @@ class VAEModule(L.LightningModule):
             self.algorithm_config.gaussian_likelihood_model
         )
         self.loss_parameters = LVAELossParameters()  # type: ignore
+        self.loss_parameters.noise_model_likelihood = (
+            self.noise_model_likelihood
+        )
+        self.loss_parameters.gaussian_likelihood = (
+            self.gaussian_likelihood
+        ) 
+        self.loss_parameters.noise_model = self.noise_model  # TODO: apparently not needed
         self.loss_func = loss_factory(self.algorithm_config.loss)
 
         # save optimizer and lr_scheduler names and parameters
@@ -311,20 +318,17 @@ class VAEModule(L.LightningModule):
         Any
             Loss value.
         """
-        x, *aux = batch
+        x, *aux = batch # TODO: check what is a `batch`
         out = self.model(x)
         target = aux[0]
+        
+        # Update loss parameters
         # TODO rethink loss parameters
         self.loss_parameters.current_epoch = self.current_epoch
         self.loss_parameters.inputs = x
         self.loss_parameters.mask = ~((target == 0).reshape(len(target), -1).all(dim=1))
-        self.loss_parameters.noise_model_likelihood = (
-            self.noise_model_likelihood
-        )  # TODO: why?
-        self.loss_parameters.gaussian_likelihood = (
-            self.gaussian_likelihood
-        )  # TODO: why?
-        self.loss_parameters.noise_model = self.noise_model  # TODO: why?
+
+        # Compute loss
         loss = self.loss_func(out, target, self.loss_parameters)  # TODO ugly ?
 
         self.log_dict(loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
