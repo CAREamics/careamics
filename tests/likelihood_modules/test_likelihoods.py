@@ -29,11 +29,12 @@ def create_dummy_noise_model(
 
 # TODO: move it under models/lvae/ ??
 
-
+@pytest.mark.parametrize("batch_size", [1, 8])
 @pytest.mark.parametrize("target_ch", [1, 3])
 @pytest.mark.parametrize("predict_logvar", [None, "pixelwise"])
 @pytest.mark.parametrize("logvar_lowerbound", [None, 0.1])
 def test_gaussian_likelihood(
+    batch_size: int,
     target_ch: int,
     predict_logvar: Union[str, None],
     logvar_lowerbound: Union[float, None],
@@ -45,11 +46,11 @@ def test_gaussian_likelihood(
 
     img_size = 64
     inp_ch = target_ch * (1 + int(predict_logvar is not None))
-    reconstruction = torch.rand((1, inp_ch, img_size, img_size))
-    target = torch.rand((1, target_ch, img_size, img_size))
+    reconstruction = torch.rand((batch_size, inp_ch, img_size, img_size))
+    target = torch.rand((batch_size, target_ch, img_size, img_size))
     out, data = likelihood(reconstruction, target)
 
-    exp_out_shape = (1, target_ch, img_size, img_size)
+    exp_out_shape = (batch_size, target_ch, img_size, img_size)
     assert out.shape == exp_out_shape
     assert out[0].mean() is not None
     assert data["mean"].shape == exp_out_shape
@@ -60,8 +61,14 @@ def test_gaussian_likelihood(
 
 
 @pytest.mark.parametrize("img_size", [64, 128])
+@pytest.mark.parametrize("batch_size", [1, 8])
 @pytest.mark.parametrize("target_ch", [1, 3, 5])
-def test_noise_model_likelihood(tmp_path: Path, img_size: int, target_ch: int) -> None:
+def test_noise_model_likelihood(
+    tmp_path: Path,
+    batch_size: int, 
+    img_size: int, 
+    target_ch: int
+) -> None:
     # Instantiate the noise model
     create_dummy_noise_model(tmp_path, n_gaussians=4, n_coeffs=3)
     gmm = GaussianMixtureNmModel(
@@ -73,11 +80,11 @@ def test_noise_model_likelihood(tmp_path: Path, img_size: int, target_ch: int) -
     nm = noise_model_factory(noise_model_config)
 
     # Instantiate the likelihood
-    inp_shape = (1, target_ch, img_size, img_size)
+    inp_shape = (batch_size, target_ch, img_size, img_size)
     reconstruction = target = torch.rand(inp_shape)
     # NOTE: `input_` is actually the output of LVAE decoder
-    data_mean = target.mean(dim=1)
-    data_std = target.std(dim=1)
+    data_mean = target.mean(dim=(0, 2, 3), keepdim=True)
+    data_std = target.std(dim=(0, 2, 3), keepdim=True)
     config = NMLikelihoodModel(data_mean=data_mean, data_std=data_std, noise_model=nm)
     likelihood = likelihood_factory(config)
 
