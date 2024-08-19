@@ -4,6 +4,7 @@ from enum import Enum
 from pydantic import BaseModel, ConfigDict, computed_field
 
 
+# TODO: get rid of unnecessary enums
 class DataType(Enum):
     MNIST = 0
     Places365 = 1
@@ -48,7 +49,6 @@ class GridAlignement(Enum):
     In the former case, one needs (patch_size - grid_size)//2 amount of content on the right end of the frame.
     In the latter case, one needs patch_size - grid_size amount of content on the right end of the frame.
     """
-
     LeftTop = 0
     Center = 1
 
@@ -59,56 +59,97 @@ class VaeDatasetConfig(BaseModel):
     model_config = ConfigDict(validate_assignment=True)
 
     data_type: Optional[DataType]
-    multiscale_lowres_count: Optional[int] = None
+    """Type of the dataset, should be one of DataType"""
 
     depth3D: Optional[int] = 1
+    """Number of slices in 3D. If data is 2D depth3D is equal to 1"""
 
     datasplit_type: Optional[DataSplitType] = None
+    """Whether to return training, validation or test split, should be one of 
+    DataSplitType"""
 
     num_channels: Optional[int] = 2
+    """Number of channels in the input"""
+
+    # TODO: remove ch*_fname parameters, should be parsed automatically from a name list
     ch1_fname: Optional[str] = None
     ch2_fname: Optional[str] = None
     ch_input_fname: Optional[str] = None
 
     input_is_sum: Optional[bool] = False
-    input_idx: Optional[int] = None
-    target_idx_list: Optional[Any] = None
+    """Whether the input is the sum or average of channels"""
 
+    input_idx: Optional[int] = None
+    """Index of the channel where the input is stored in the data"""
+
+    target_idx_list: Optional[list[int]] = None
+    """Indices of the channels where the targets are stored in the data"""
+
+    # TODO: where are there used?
     start_alpha: Optional[Any] = None
     end_alpha: Optional[Any] = None
+
+    # TODO: is this used in vae_dataset?
     alpha_weighted_target: Optional[bool] = False
+    """A weight which is applied to the channels when combining them"""
 
     image_size: int
-    grid_size: Optional[int] = None
+    """Size of one patch of data"""
 
+    grid_size: Optional[int] = None
+    """Frame is divided into square grids of this size. A patch centered on a grid 
+    having size `image_size` is returned. Grid size not used in training,
+    used only during val / test, grid size controls the overlap of the patches"""
+
+    # TODO: is this used in vae_dataset?
     std_background_arr: Optional[Any] = None
 
     empty_patch_replacement_enabled: Optional[bool] = False
+    """Whether to replace the content of one of the channels
+    with background with given probability"""
     empty_patch_replacement_channel_idx: Optional[Any] = None
     empty_patch_replacement_probab: Optional[Any] = None
     empty_patch_max_val_threshold: Optional[Any] = None
 
     uncorrelated_channels: Optional[bool] = False
+    """Replace the content in one of the channels with given probability to make 
+    channel content 'uncorrelated'"""
     uncorrelated_channel_probab: Optional[float] = 0.5
 
     poisson_noise_factor: Optional[float] = -1
+    """The added poisson noise factor"""
+
     synthetic_gaussian_scale: Optional[float] = 0.1
+
+    # TODO: set to True in training code, recheck
     input_has_dependant_noise: Optional[bool] = False
+
     enable_gaussian_noise: Optional[bool] = False
+    """Whether to enable gaussian noise"""
+
+    # TODO: is this parameter used?
     allow_generation: bool = False
 
-    # Not used
+    # TODO: both used in IndexSwitcher, insure correct passing
     training_validtarget_fraction: Any = None
     deterministic_grid: Any = None
 
+    # TODO: why is this not used?
     enable_rotation_aug: Optional[bool] = False
 
     grid_alignment: GridAlignement = GridAlignement.LeftTop
 
     max_val: Optional[float] = None
+    """Maximum data in the dataset. Is calculated for train split, and should be 
+    externally set for val and test splits."""
+
     trim_boundary: Optional[bool] = True
+    """Whether to trim boundary of the image"""
 
     overlapping_padding_kwargs: Any = None
+    """Parameters for np.pad method"""
+
+    # TODO: remove this parameter, controls debug print
     print_vars: Optional[bool] = False
 
     # Hard-coded parameters (used to be in the config file)
@@ -116,9 +157,13 @@ class VaeDatasetConfig(BaseModel):
     """If this is set to true, then one mean and stdev is used
                 for both channels. Otherwise, two different mean and stdev are used."""
     use_one_mu_std: Optional[bool] = True
+
+    # TODO: is this parameter used?
     train_aug_rotate: Optional[bool] = False
     enable_random_cropping: Optional[bool] = True
-    lowres_supervision: Optional[bool] = False
+
+    # TODO: not used?
+    multiscale_lowres_count: Optional[int] = None
 
     @computed_field
     @property
@@ -137,16 +182,3 @@ class VaeDatasetConfig(BaseModel):
             else:
                 padding_kwargs = kwargs_dict.pop("padding_kwargs")
         return padding_kwargs
-
-    # # from Disentangle biosr config
-    # sampler_type: Any
-    # threshold: Any
-    # normalized_input: Any
-    # clip_percentile: Any
-    # channelwise_quantile: Any
-    # use_one_mu_std: Any
-    # train_aug_rotate: Any
-    # randomized_channels: Any
-    # padding_mode: Any
-    # padding_value: Any
-    # target_separate_normalization: Any
