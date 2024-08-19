@@ -7,7 +7,7 @@ from typing import List
 
 from skimage.io import imread, imsave
 
-from careamics.lvae_training.dataset.data_config import DataSplitType, DataType
+from careamics.lvae_training.dataset.vae_data_config import DataSplitType, DataType
 from careamics.models.lvae.utils import Enum
 
 

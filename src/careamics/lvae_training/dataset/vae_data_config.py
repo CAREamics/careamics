@@ -95,6 +95,7 @@ class VaeDatasetConfig(BaseModel):
     synthetic_gaussian_scale: Optional[float] = 0.1
     input_has_dependant_noise: Optional[bool] = False
     enable_gaussian_noise: Optional[bool] = False
+    allow_generation: bool = False
 
     # Not used
     training_validtarget_fraction: Any = None
@@ -118,7 +119,6 @@ class VaeDatasetConfig(BaseModel):
     train_aug_rotate: Optional[bool] = False
     enable_random_cropping: Optional[bool] = True
     lowres_supervision: Optional[bool] = False
-    allow_generation: Optional[bool] = True
 
     @computed_field
     @property
