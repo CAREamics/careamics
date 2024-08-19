@@ -148,7 +148,7 @@ class MultiChDloader:
             )
             data_frames = self._data[..., self._empty_patch_replacement_channel_idx]
             # NOTE: This is on the raw data. So, it must be called before removing the background.
-            # TODO: throws error for now, fix!!
+            # TODO: missing import, needs fixing asap!
             self._empty_patch_fetcher = EmptyPatchFetcher(
                 self.idx_manager,
                 self._img_sz,
@@ -186,7 +186,7 @@ class MultiChDloader:
             )
             self._rotation_transform = A.Compose([A.Flip(), A.RandomRotate90()])
 
-        # TODO: yoink
+        # TODO: remove print log messages
         # if print_vars:
         #     msg = self._init_msg()
         #     print(msg)

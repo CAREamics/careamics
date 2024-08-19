@@ -76,7 +76,7 @@ def get_train_val_data(
     datasplit_type: DataSplitType,
     val_fraction=None,
     test_fraction=None,
-    allow_generation=False,  # TODO: wtf is this
+    allow_generation=False,  # TODO: what is this
 ):
     """
     Load the data from the given path and split them in training, validation and test sets.
