@@ -272,14 +272,13 @@ class VAEModule(L.LightningModule):
         self.gaussian_likelihood: GaussianLikelihood = likelihood_factory(
             self.algorithm_config.gaussian_likelihood_model
         )
-        self.loss_parameters = LVAELossParameters()  # type: ignore
-        self.loss_parameters.noise_model_likelihood = (
-            self.noise_model_likelihood
-        )
-        self.loss_parameters.gaussian_likelihood = (
-            self.gaussian_likelihood
-        ) 
-        self.loss_parameters.noise_model = self.noise_model  # TODO: apparently not needed
+        # TODO: use `loss_parameters_factory` instead of `LVAELossParameters` (?)
+        self.loss_parameters = LVAELossParameters(
+            noise_model_likelihood=self.noise_model_likelihood,
+            gaussian_likelihood=self.gaussian_likelihood,
+            noise_model=self.noise_model, # TODO: apparently not needed
+            # TODO: musplit/denoisplit weights ?
+        )  # type: ignore
         self.loss_func = loss_factory(self.algorithm_config.loss)
 
         # save optimizer and lr_scheduler names and parameters
