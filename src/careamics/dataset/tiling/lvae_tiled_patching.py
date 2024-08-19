@@ -1,5 +1,8 @@
+"""Functions to reimpliment the tiling in the Disentangle repository."""
+
+import builtins
 import itertools
-from typing import Any, Generator, Optional
+from typing import Any, Generator, Optional, Union
 
 import numpy as np
 from numpy.typing import NDArray
@@ -9,8 +12,8 @@ from careamics.config.tile_information import TileInformation
 
 def extract_tiles(
     arr: NDArray,
-    tile_size: tuple[int, ...],
-    overlaps: tuple[int, ...],
+    tile_size: NDArray[np.int_],
+    overlaps: NDArray[np.int_],
     padding_kwargs: Optional[dict[str, Any]] = None,
 ) -> Generator[tuple[NDArray, TileInformation], None, None]:
     """Generate tiles from the input array with specified overlap.
@@ -30,14 +33,15 @@ def extract_tiles(
     ----------
     arr : np.ndarray
         Array of shape (S, C, (Z), Y, X).
-    tile_size : Union[List[int], Tuple[int]]
+    tile_size : 1D numpy.ndarray of tuple
         Tile sizes in each dimension, of length 2 or 3.
-    overlaps : Union[List[int], Tuple[int]]
+    overlaps : 1D numpy.ndarray of tuple
         Overlap values in each dimension, of length 2 or 3.
     padding_kwargs : dict, optional
         The arguments of `np.pad` after the first two arguments, `array` and
         `pad_width`. If not specified the default will be `{"mode": "reflect"}`. See
-        `np.pad` docs: https://numpy.org/doc/stable/reference/generated/numpy.pad.html.
+        `numpy.pad` docs:
+        https://numpy.org/doc/stable/reference/generated/numpy.pad.html.
 
     Yields
     ------
@@ -47,26 +51,29 @@ def extract_tiles(
     if padding_kwargs is None:
         padding_kwargs = {"mode": "reflect"}
 
-    data_shape = arr.shape
+    data_shape = np.array(arr.shape)
 
     # add padding to ensure evenly spaced & overlapping tiles.
-    spatial_padding = compute_padding(
-        np.array(data_shape), np.array(tile_size), np.array(overlaps)
-    )
+    spatial_padding = compute_padding(data_shape, tile_size, overlaps)
     padding = ((0, 0), (0, 0), *spatial_padding)
     arr = np.pad(arr, padding, **padding_kwargs)
 
-    tile_grid_shape = _compute_tile_grid_shape(data_shape, tile_size, overlaps)
-    for tile_grid_coords in itertools.product(
-        *[range(size) for size in tile_grid_shape]
-    ):
+    # The number of tiles in each dimension, should be of length 2 or 3
+    tile_grid_shape = compute_tile_grid_shape(data_shape, tile_size, overlaps)
+    # itertools.product is equivalent of nested loops
+    for tile_grid_coords in itertools.product(*[range(n) for n in tile_grid_shape]):
+
+        # calculate crop coordinates
         stitch_size = np.array(tile_size) - np.array(overlaps)
         crop_coords_start = np.array(tile_grid_coords) * stitch_size
-        crop_slices = [
-            slice(coords, coords + extent)
-            for coords, extent in zip(crop_coords_start, np.array(tile_size))
-        ]
-        tile = arr[(..., *crop_slices)]
+        crop_slices: tuple[Union[builtins.ellipsis, slice], ...] = (
+            ...,
+            *[
+                slice(coords, coords + extent)
+                for coords, extent in zip(crop_coords_start, np.array(tile_size))
+            ],
+        )
+        tile = arr[crop_slices]
 
         tile_info = compute_tile_info(
             np.array(tile_grid_coords),
@@ -87,9 +94,30 @@ def compute_tile_info(
     tile_size: NDArray[np.int_],
     overlaps: NDArray[np.int_],
 ) -> TileInformation:
+    """
+    Compute the tile information for a tile with the coordinates `tile_grid_coords`.
 
+    Parameters
+    ----------
+    tile_grid_coords : 1D np.array of int
+        The coordinates of the tile within the tile grid, ((Z), Y, X), i.e. for 2D
+        tiling the coordinates for the second tile in the first row of tiles would be
+        (0, 1).
+    data_shape : 1D np.array of int
+        The shape of the data, should be (S, C, (Z), Y, X) where Z is optional.
+    tile_size : 1D np.array of int
+       Tile sizes in each dimension, of length 2 or 3.
+    overlaps : 1D np.array of int
+        Overlap values in each dimension, of length 2 or 3.
+
+    Returns
+    -------
+    TileInformation
+        Information that describes how to crop and stitch a tile to create a full image.
+    """
     spatial_dims_shape = data_shape[-len(tile_size) :]
 
+    # The extent of the tile which will make up part of the stitched image.
     stitch_size = tile_size - overlaps
     stitch_coords_start = tile_grid_coords * stitch_size
     stitch_coords_end = stitch_coords_start + stitch_size
@@ -117,9 +145,8 @@ def compute_tile_info(
         for start, end in zip(overlap_crop_coords_start, overlap_crop_coords_end)
     )
 
-    tile_grid_shape = np.array(
-        _compute_tile_grid_shape(data_shape, tile_size, overlaps)
-    )
+    # --- Check if last tile
+    tile_grid_shape = np.array(compute_tile_grid_shape(data_shape, tile_size, overlaps))
     last_tile = (tile_grid_coords == (tile_grid_shape - 1)).all()
 
     tile_info = TileInformation(
@@ -136,11 +163,31 @@ def compute_padding(
     data_shape: NDArray[np.int_],
     tile_size: NDArray[np.int_],
     overlaps: NDArray[np.int_],
-) -> tuple[int, int]:
+) -> tuple[tuple[int, int], ...]:
+    """
+    Calculate padding to ensure stitched data comes from the center of a tile.
 
-    tile_grid_shape = np.array(
-        _compute_tile_grid_shape(data_shape, tile_size, overlaps)
-    )
+    Padding is added to an array with shape `data_shape` so that when tiles are
+    stitched together, the data used always comes from the center of a tile, even for
+    tiles at the boundaries of the array.
+
+    Parameters
+    ----------
+    data_shape : 1D numpy.array of int
+        The shape of the data to be tiled and stitched together, (S, C, (Z), Y, X).
+    tile_size : 1D numpy.array of int
+        The tile size in each dimension, ((Z), Y, X).
+    overlaps : 1D numpy.array of int
+        The tile overlap in each dimension, ((Z), Y, X).
+
+    Returns
+    -------
+    tuple of (int, int)
+        A tuple specifying the padding to add in each dimension, each element is a two
+        element tuple specifying the padding to add before and after the data. This
+        can be used as the `pad_width` argument to `numpy.pad`.
+    """
+    tile_grid_shape = np.array(compute_tile_grid_shape(data_shape, tile_size, overlaps))
     covered_shape = (tile_size - overlaps) * tile_grid_shape + overlaps
 
     pad_before = overlaps // 2
@@ -150,13 +197,45 @@ def compute_padding(
 
 
 def n_tiles_1d(axis_size: int, tile_size: int, overlap: int) -> int:
+    """Calculate the number of tiles in a specific dimension.
+
+    Parameters
+    ----------
+    axis_size : int
+        The length of the data for in a specific dimension.
+    tile_size : int
+        The length of the tiles in a specific dimension.
+    overlap : int
+        The tile overlap in a specific dimension.
+
+    Returns
+    -------
+    int
+        The number of tiles that fit in one dimension given the arguments.
+    """
     return int(np.ceil(axis_size / (tile_size - overlap)))
 
 
 def total_n_tiles(
     data_shape: tuple[int, ...], tile_size: tuple[int, ...], overlaps: tuple[int, ...]
 ) -> int:
+    """Calculate The total number of tiles over all dimensions.
 
+    Parameters
+    ----------
+    data_shape : 1D numpy.array of int
+        The shape of the data to be tiled and stitched together, (S, C, (Z), Y, X).
+    tile_size : 1D numpy.array of int
+        The tile size in each dimension, ((Z), Y, X).
+    overlaps : 1D numpy.array of int
+        The tile overlap in each dimension, ((Z), Y, X).
+
+
+    Returns
+    -------
+    int
+        The total number of tiles over all dimensions.
+    """
     result = 1
     # assume spatial dimension are the last dimensions so iterate backwards
     for i in range(-1, -len(tile_size) - 1, -1):
@@ -165,11 +244,29 @@ def total_n_tiles(
     return result
 
 
-def _compute_tile_grid_shape(
+def compute_tile_grid_shape(
     data_shape: NDArray[np.int_],
     tile_size: NDArray[np.int_],
     overlaps: NDArray[np.int_],
 ) -> tuple[int, ...]:
+    """Calculate the number of tiles in each dimension.
+
+    This can be thought of as a grid of tiles.
+
+    Parameters
+    ----------
+    data_shape : 1D numpy.array of int
+        The shape of the data to be tiled and stitched together, (S, C, (Z), Y, X).
+    tile_size : 1D numpy.array of int
+        The tile size in each dimension, ((Z), Y, X).
+    overlaps : 1D numpy.array of int
+        The tile overlap in each dimension, ((Z), Y, X).
+
+    Returns
+    -------
+    tuple of int
+        The number of tiles in each direction, ((Z, Y, X)).
+    """
     shape = [0 for _ in range(len(tile_size))]
     # assume spatial dimension are the last dimensions so iterate backwards
     for i in range(-1, -len(tile_size) - 1, -1):
