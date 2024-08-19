@@ -2,15 +2,12 @@ import torch
 
 
 def free_bits_kl(
-    kl: torch.Tensor, 
-    free_bits: float, 
-    batch_average: bool = False, 
-    eps: float = 1e-6
+    kl: torch.Tensor, free_bits: float, batch_average: bool = False, eps: float = 1e-6
 ) -> torch.Tensor:
     """Compute free-bits version of KL divergence.
 
     This function ensures that the KL doesn't go to zero for any latent dimension.
-    Hence, it contributes to use latent variables more efficiently, leading to 
+    Hence, it contributes to use latent variables more efficiently, leading to
     better representation learning.
 
     NOTE:
@@ -33,7 +30,7 @@ def free_bits_kl(
         Whether to average over the batch before clamping to `free_bits`.
     eps : float
         A small value to avoid numerical instability.
-    
+
     Returns
     -------
     torch.Tensor
@@ -48,14 +45,14 @@ def free_bits_kl(
 
 
 def get_kl_weight(
-    kl_annealing: bool, 
+    kl_annealing: bool,
     kl_start: int,
-    kl_annealtime: int, 
-    kl_weight: float, 
-    current_epoch: int
+    kl_annealtime: int,
+    kl_weight: float,
+    current_epoch: int,
 ) -> float:
     """Compute the weight of the KL loss in case of annealing.
-    
+
     Parameters
     ----------
     kl_annealing : bool

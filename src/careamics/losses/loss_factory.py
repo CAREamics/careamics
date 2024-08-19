@@ -5,13 +5,13 @@ This module contains a factory function for creating loss functions.
 """
 
 from dataclasses import dataclass
-from typing import Callable, Union, Literal
+from typing import Callable, Literal, Union
 
 from torch import Tensor as tensor
 
 from ..config.support import SupportedLoss
 from .fcn.losses import mae_loss, mse_loss, n2v_loss
-from .lvae.losses import denoisplit_loss, musplit_loss, denoisplit_musplit_loss
+from .lvae.losses import denoisplit_loss, denoisplit_musplit_loss, musplit_loss
 
 
 @dataclass
@@ -73,7 +73,11 @@ def loss_parameters_factory(
     if type in [SupportedLoss.N2V, SupportedLoss.MSE, SupportedLoss.MAE]:
         return FCNLossParameters
 
-    elif type in [SupportedLoss.MUSPLIT, SupportedLoss.DENOISPLIT, SupportedLoss.DENOISPLIT_MUSPLIT]:
+    elif type in [
+        SupportedLoss.MUSPLIT,
+        SupportedLoss.DENOISPLIT,
+        SupportedLoss.DENOISPLIT_MUSPLIT,
+    ]:
         return LVAELossParameters
 
     else:
@@ -115,7 +119,7 @@ def loss_factory(loss: Union[SupportedLoss, str]) -> Callable:
 
     elif loss == SupportedLoss.DENOISPLIT:
         return denoisplit_loss
-    
+
     elif loss == SupportedLoss.DENOISPLIT_MUSPLIT:
         return denoisplit_musplit_loss
 

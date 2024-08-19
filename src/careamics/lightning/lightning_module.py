@@ -276,7 +276,7 @@ class VAEModule(L.LightningModule):
         self.loss_parameters = LVAELossParameters(
             noise_model_likelihood=self.noise_model_likelihood,
             gaussian_likelihood=self.gaussian_likelihood,
-            noise_model=self.noise_model, # TODO: apparently not needed
+            noise_model=self.noise_model,  # TODO: apparently not needed
             # TODO: musplit/denoisplit weights ?
         )  # type: ignore
         self.loss_func = loss_factory(self.algorithm_config.loss)
@@ -317,10 +317,10 @@ class VAEModule(L.LightningModule):
         Any
             Loss value.
         """
-        x, *aux = batch # TODO: check what is a `batch`
+        x, *aux = batch  # TODO: check what is a `batch`
         out = self.model(x)
         target = aux[0]
-        
+
         # Update loss parameters
         # TODO rethink loss parameters
         self.loss_parameters.current_epoch = self.current_epoch

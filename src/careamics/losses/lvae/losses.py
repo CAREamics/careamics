@@ -1,22 +1,25 @@
 ##### REQUIRED Methods for Loss Computation #####
-from typing import Optional, Union, Any, Literal
+from typing import Any, Optional, Union
 
 import numpy as np
 import torch
 
+from careamics.losses.loss_factory import (
+    LVAELossParameters,  # TODO: may cause circular import
+)
 from careamics.losses.lvae.loss_utils import free_bits_kl, get_kl_weight
 from careamics.models.lvae.likelihoods import (
-    LikelihoodModule,
     GaussianLikelihood,
-    NoiseModelLikelihood
+    LikelihoodModule,
+    NoiseModelLikelihood,
 )
-from careamics.losses.loss_factory import LVAELossParameters #TODO: may cause circular import
 from careamics.models.lvae.utils import compute_batch_mean
 
 Likelihood = Union[LikelihoodModule, GaussianLikelihood, NoiseModelLikelihood]
 
+
 def get_reconstruction_loss(
-    reconstruction: torch.Tensor, #TODO: naming -> predictions?
+    reconstruction: torch.Tensor,  # TODO: naming -> predictions?
     target: torch.Tensor,
     likelihood_obj: Likelihood,
     splitting_mask: Optional[torch.Tensor] = None,
@@ -38,11 +41,11 @@ def get_reconstruction_loss(
         A boolean tensor that indicates which items to keep for reconstruction loss
         computation. If `None`, all the elements of the items are considered
         (i.e., the mask is all `True`). Default is `None`.
-    
+
     Returns
     -------
     dict[str, torch.Tensor]
-        A dictionary containing the overall loss `["loss"]` and the loss for 
+        A dictionary containing the overall loss `["loss"]` and the loss for
         individual output channels `["ch{i}_loss"]`.
     """
     loss_dict = _get_reconstruction_loss_vector(
@@ -63,7 +66,7 @@ def get_reconstruction_loss(
 
 
 def _get_reconstruction_loss_vector(
-    reconstruction: torch.Tensor, #TODO: naming -> predictions?
+    reconstruction: torch.Tensor,  # TODO: naming -> predictions?
     target: torch.Tensor,
     likelihood_obj: LikelihoodModule,
 ) -> dict[str, torch.Tensor]:
@@ -74,27 +77,27 @@ def _get_reconstruction_loss_vector(
     return_predicted_img: bool
         If set to `True`, the besides the loss, the reconstructed image is returned.
         Default is `False`.
-    
+
     Returns
     -------
     dict[str, torch.Tensor]
-        A dictionary containing the overall loss `["loss"]` and the loss for 
-        individual output channels `["ch{i}_loss"]`. Shape of individual 
+        A dictionary containing the overall loss `["loss"]` and the loss for
+        individual output channels `["ch{i}_loss"]`. Shape of individual
         tensors is (B, ).
-    """                                                                                                     
+    """
     output = {"loss": None}
     for i in range(1, 1 + target.shape[1]):
         output[f"ch{i}_loss"] = None
 
     # Compute Log likelihood
-    ll, _ = likelihood_obj(reconstruction, target) # shape: (B, C, [Z], Y, X)
-    ll = _get_weighted_likelihood(ll) # TODO: needed?
+    ll, _ = likelihood_obj(reconstruction, target)  # shape: (B, C, [Z], Y, X)
+    ll = _get_weighted_likelihood(ll)  # TODO: needed?
 
-    output = {"loss": compute_batch_mean(-1 * ll)} # shape: (B, )
-    if ll.shape[1] > 1: # target_ch > 1
+    output = {"loss": compute_batch_mean(-1 * ll)}  # shape: (B, )
+    if ll.shape[1] > 1:  # target_ch > 1
         for i in range(1, 1 + target.shape[1]):
-            output[f"ch{i}_loss"] = compute_batch_mean(-ll[:, i - 1]) # shape: (B, )
-    else: # target_ch == 1
+            output[f"ch{i}_loss"] = compute_batch_mean(-ll[:, i - 1])  # shape: (B, )
+    else:  # target_ch == 1
         # TODO: hacky!!! Refactor this
         assert ll.shape[1] == 1
         output["ch1_loss"] = output["loss"]
@@ -115,7 +118,7 @@ def reconstruction_loss_musplit_denoisplit(
 
     The resulting loss is a weighted mean of the noise model likelihood and the
     Gaussian likelihood.
-    
+
     Parameters
     ----------
     predictions : torch.Tensor
@@ -142,7 +145,7 @@ def reconstruction_loss_musplit_denoisplit(
     """
     # TODO: is this safe to check for predict_logvar value?
     # otherwise use `gaussian_likelihood.predict_logvar` (or both)
-    if predictions.shape[1] == 2*targets.shape[1]:
+    if predictions.shape[1] == 2 * targets.shape[1]:
         # predictions contain both mean and log-variance
         out_mean, _ = predictions.chunk(2, dim=1)
     else:
@@ -158,12 +161,10 @@ def reconstruction_loss_musplit_denoisplit(
 # - cannot handle >2 target channels
 # - cannot handle 3D inputs
 def _get_weighted_likelihood(
-    ll: torch.Tensor,
-    ch1_recons_w: float = 1, 
-    ch2_recons_w: float = 1
+    ll: torch.Tensor, ch1_recons_w: float = 1, ch2_recons_w: float = 1
 ) -> torch.Tensor:
     """Multiply each channels with a different weight to get a weighted loss.
-    
+
     Parameters
     ----------
     ll : torch.Tensor
@@ -173,7 +174,7 @@ def _get_weighted_likelihood(
         The weight for the first channel. Default is 1.
     ch2_recons_w : float
         The weight for the second channel. Default is 1.
-    
+
     Returns
     -------
     torch.Tensor
@@ -181,7 +182,7 @@ def _get_weighted_likelihood(
     """
     if ch1_recons_w == 1 and ch2_recons_w == 1:
         return ll
-    
+
     assert ll.shape[1] == 2, "This function is only for 2 channel images"
 
     mask1 = torch.zeros((len(ll), ll.shape[1], 1, 1), device=ll.device)
@@ -193,27 +194,26 @@ def _get_weighted_likelihood(
 
 
 def get_kl_divergence_loss_usplit(
-    topdown_layer_data_dict: dict[str, list[torch.Tensor]],
-    kl_key: str = "kl"
+    topdown_layer_data_dict: dict[str, list[torch.Tensor]], kl_key: str = "kl"
 ) -> torch.Tensor:
     """Compute the KL divergence loss for muSplit.
-    
+
     Parameters
     ----------
     topdown_layer_data_dict : dict[str, list[torch.Tensor]]
         The top-down layer data dictionary containing the KL-loss values for each
         layer. The dictionary should contain the following keys:
         - "kl": The KL-loss values for each layer. Shape of each tensor is (B,).
-        - "z": The sampled latents for each layer. Shape of each tensor is 
+        - "z": The sampled latents for each layer. Shape of each tensor is
         (B, layers, `z_dims[i]`, H, W).
     kl_key : str
-        The key for the KL-loss values in the top-down layer data dictionary. 
+        The key for the KL-loss values in the top-down layer data dictionary.
         To choose among ["kl", "kl_restricted", "kl_spatial", "kl_channelwise"]
         Default is "kl".
     """
     kl = torch.cat(
         [kl_layer.unsqueeze(1) for kl_layer in topdown_layer_data_dict[kl_key]], dim=1
-    ) # shape: (B, n_layers)
+    )  # shape: (B, n_layers)
     # NOTE: Values are sum() and so are of the order 30000
 
     nlayers = kl.shape[1]
@@ -224,34 +224,35 @@ def get_kl_divergence_loss_usplit(
         norm_factor = np.prod(topdown_layer_data_dict["z"][i].shape[1:])
         kl[:, i] = kl[:, i] / norm_factor
 
-    kl_loss = free_bits_kl(kl, 0.0).mean() # shape: (1, )
+    kl_loss = free_bits_kl(kl, 0.0).mean()  # shape: (1, )
     # NOTE: free_bits disabled!
     return kl_loss
 
 
 def get_kl_divergence_loss_denoisplit(
-    topdown_layer_data_dict: dict[str, torch.Tensor], 
-    img_shape: tuple[int], 
-    kl_key: str = "kl"
+    topdown_layer_data_dict: dict[str, torch.Tensor],
+    img_shape: tuple[int],
+    kl_key: str = "kl",
 ) -> torch.Tensor:
     """Compute the KL divergence loss for denoiSplit.
-    
+
     Parameters
     ----------
     topdown_layer_data_dict : dict[str, torch.Tensor]
         The top-down layer data dictionary containing the KL-loss values for each
         layer. The dictionary should contain the following keys:
         - "kl": The KL-loss values for each layer. Shape of each tensor is (B,).
-        - "z": The sampled latents for each layer. Shape of each tensor is 
+        - "z": The sampled latents for each layer. Shape of each tensor is
         (B, layers, `z_dims[i]`, H, W).
     img_shape : tuple[int]
         The shape of the input image to the LVAE model. Shape is ([Z], Y, X).
     kl_key : str
-        The key for the KL-loss values in the top-down layer data dictionary. 
+        The key for the KL-loss values in the top-down layer data dictionary.
         To choose among ["kl", "kl_restricted", "kl_spatial", "kl_channelwise"]
         Default is "kl"
-    
-    kl[i] for each i has length batch_size resulting kl shape: (bs, layers)."""
+
+    kl[i] for each i has length batch_size resulting kl shape: (bs, layers).
+    """
     kl = torch.cat(
         [kl_layer.unsqueeze(1) for kl_layer in topdown_layer_data_dict[kl_key]],
         dim=1,
@@ -261,7 +262,7 @@ def get_kl_divergence_loss_denoisplit(
     # NOTE: as compared to uSplit kl divergence, this KL loss is larger by a factor of
     # `n_layers` since we sum KL contributions from different layers instead of taking
     # the mean.
-    
+
     # NOTE: at each hierarchy, the KL loss is larger by a factor of (128/i**2).
     # 128/(2*2) = 32 (bottommost layer)
     # 128/(4*4) = 8
@@ -274,16 +275,16 @@ def get_kl_divergence_loss_denoisplit(
 
 
 def musplit_loss(
-    model_outputs: tuple[torch.Tensor, dict[str, Any]], 
-    targets: torch.Tensor, 
-    loss_parameters: LVAELossParameters
+    model_outputs: tuple[torch.Tensor, dict[str, Any]],
+    targets: torch.Tensor,
+    loss_parameters: LVAELossParameters,
 ) -> Optional[dict[str, torch.Tensor]]:
     """Loss function for muSplit.
 
     Parameters
     ----------
     model_outputs : tuple[torch.Tensor, dict[str, Any]]
-        Tuple containing the model predictions (shape is (B, `target_ch`, [Z], Y, X)) 
+        Tuple containing the model predictions (shape is (B, `target_ch`, [Z], Y, X))
         and the top-down layer data (e.g., sampled latents, KL-loss values, etc.).
     targets : torch.Tensor
         The target image used to compute the reconstruction loss. Shape is
@@ -299,7 +300,7 @@ def musplit_loss(
         `["reconstruction_loss"]`, and the KL divergence loss `["kl_loss"]`.
     """
     predictions, td_data = model_outputs
-    
+
     # Reconstruction loss computation
     recons_loss_dict = get_reconstruction_loss(
         reconstruction=predictions,
@@ -339,16 +340,16 @@ def musplit_loss(
 
 
 def denoisplit_loss(
-    model_outputs: tuple[torch.Tensor, dict[str, Any]], 
-    targets: torch.Tensor, 
-    loss_parameters: LVAELossParameters
+    model_outputs: tuple[torch.Tensor, dict[str, Any]],
+    targets: torch.Tensor,
+    loss_parameters: LVAELossParameters,
 ) -> Optional[dict[str, torch.Tensor]]:
     """Loss function for DenoiSplit.
 
     Parameters
     ----------
     model_outputs : tuple[torch.Tensor, dict[str, Any]]
-        Tuple containing the model predictions (shape is (B, `target_ch`, [Z], Y, X)) 
+        Tuple containing the model predictions (shape is (B, `target_ch`, [Z], Y, X))
         and the top-down layer data (e.g., sampled latents, KL-loss values, etc.).
     targets : torch.Tensor
         The target image used to compute the reconstruction loss. Shape is
@@ -364,7 +365,7 @@ def denoisplit_loss(
         `["reconstruction_loss"]`, and the KL divergence loss `["kl_loss"]`.
     """
     predictions, td_data = model_outputs
-    
+
     # Reconstruction loss computation
     # TODO: reconstruction loss part is common to all loss functions. Refactor?
     recons_loss_dict = get_reconstruction_loss(
@@ -380,19 +381,19 @@ def denoisplit_loss(
     # KL loss computation
     if loss_parameters.non_stochastic:  # TODO always false ?
         kl_loss = torch.Tensor([0.0]).cuda()
-    else: 
+    else:
         kl_weight = get_kl_weight(
             loss_parameters.kl_annealing,
             loss_parameters.kl_start,
             loss_parameters.kl_annealtime,
             loss_parameters.kl_weight,
             loss_parameters.current_epoch,
-        ) 
-        kl_loss = kl_weight * get_kl_divergence_loss_denoisplit(
-            topdown_layer_data_dict=td_data, \
-            img_shape=targets.shape[2:], # input img spatial dims
         )
-        
+        kl_loss = kl_weight * get_kl_divergence_loss_denoisplit(
+            topdown_layer_data_dict=td_data,
+            img_shape=targets.shape[2:],  # input img spatial dims
+        )
+
     net_loss = recons_loss + kl_loss
     output = {
         "loss": net_loss,
@@ -406,21 +407,21 @@ def denoisplit_loss(
     # https://github.com/openai/vdvae/blob/main/train.py#L26
     if torch.isnan(net_loss).any():
         return None
-    
+
     return output
 
 
 def denoisplit_musplit_loss(
-    model_outputs: tuple[torch.Tensor, dict[str, Any]], 
-    targets: torch.Tensor, 
-    loss_parameters: LVAELossParameters
+    model_outputs: tuple[torch.Tensor, dict[str, Any]],
+    targets: torch.Tensor,
+    loss_parameters: LVAELossParameters,
 ) -> Optional[dict[str, torch.Tensor]]:
     """Loss function for DenoiSplit.
 
     Parameters
     ----------
     model_outputs : tuple[torch.Tensor, dict[str, Any]]
-        Tuple containing the model predictions (shape is (B, `target_ch`, [Z], Y, X)) 
+        Tuple containing the model predictions (shape is (B, `target_ch`, [Z], Y, X))
         and the top-down layer data (e.g., sampled latents, KL-loss values, etc.).
     targets : torch.Tensor
         The target image used to compute the reconstruction loss. Shape is
@@ -436,16 +437,16 @@ def denoisplit_musplit_loss(
         `["reconstruction_loss"]`, and the KL divergence loss `["kl_loss"]`.
     """
     predictions, td_data = model_outputs
-    
+
     # Reconstruction loss computation
     recons_loss = reconstruction_loss_musplit_denoisplit(
-            predictions=predictions,
-            targets=targets,
-            nm_likelihood=loss_parameters.noise_model_likelihood,
-            gaussian_likelihood=loss_parameters.gaussian_likelihood,
-            nm_weight=loss_parameters.denoisplit_weight,
-            gaussian_weight=loss_parameters.musplit_weight,
-        )
+        predictions=predictions,
+        targets=targets,
+        nm_likelihood=loss_parameters.noise_model_likelihood,
+        gaussian_likelihood=loss_parameters.gaussian_likelihood,
+        nm_weight=loss_parameters.denoisplit_weight,
+        gaussian_weight=loss_parameters.musplit_weight,
+    )
     if torch.isnan(recons_loss).any():
         recons_loss = 0.0
 
@@ -457,7 +458,7 @@ def denoisplit_musplit_loss(
         # The different naming comes from `top_down_pass()` method in the LadderVAE.
         denoisplit_kl = get_kl_divergence_loss_denoisplit(
             topdown_layer_data_dict=td_data,
-            img_shape=targets.shape[2:], # input img spatial dims
+            img_shape=targets.shape[2:],  # input img spatial dims
         )
         musplit_kl = get_kl_divergence_loss_usplit(td_data)
         kl_loss = (
@@ -480,5 +481,5 @@ def denoisplit_musplit_loss(
     # https://github.com/openai/vdvae/blob/main/train.py#L26
     if torch.isnan(net_loss).any():
         return None
-    
+
     return output
