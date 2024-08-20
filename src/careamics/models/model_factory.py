@@ -8,16 +8,16 @@ from typing import Union
 
 import torch
 
-from ..config.architectures import CustomModel, UNetModel, get_custom_model
-from ..config.support import SupportedArchitecture
-from ..utils import get_logger
-from .unet import UNet
+from careamics.config.architectures import CustomModel, UNetModel, LVAEModel, get_custom_model
+from careamics.config.support import SupportedArchitecture
+from careamics.utils import get_logger
+from careamics.models import UNet, LVAE
 
 logger = get_logger(__name__)
 
 
 def model_factory(
-    model_configuration: Union[UNetModel, CustomModel],
+    model_configuration: Union[UNetModel, LVAEModel, CustomModel],
 ) -> torch.nn.Module:
     """
     Deep learning model factory.
@@ -41,6 +41,8 @@ def model_factory(
     """
     if model_configuration.architecture == SupportedArchitecture.UNET:
         return UNet(**model_configuration.model_dump())
+    elif model_configuration.architecture == SupportedArchitecture.LVAE:     
+        return LVAE(**model_configuration.model_dump())
     elif model_configuration.architecture == SupportedArchitecture.CUSTOM:
         assert isinstance(model_configuration, CustomModel)
         model = get_custom_model(model_configuration.name)
