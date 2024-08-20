@@ -225,7 +225,7 @@ class VAEModule(L.LightningModule):
 
     Parameters
     ----------
-    algorithm_config : Union[AlgorithmModel, dict]
+    algorithm_config : Union[VAEAlgorithmConfig, dict]
         Algorithm configuration.
 
     Attributes
