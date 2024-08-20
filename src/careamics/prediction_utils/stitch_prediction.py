@@ -76,8 +76,9 @@ def stitch_prediction_single(
     numpy.ndarray
         Full image, with dimensions SC(Z)YX.
     """
-    # retrieve whole array size
-    input_shape = (1, *tile_infos[0].array_shape)  # add S dim
+    tile_channels = tiles[0].shape[1]
+    # retrieve whole array size, add S dim and use number of channels in tile
+    input_shape = (1, tile_channels, *tile_infos[0].array_shape[1:])
     predicted_image = np.zeros(input_shape, dtype=np.float32)
 
     for tile, tile_info in zip(tiles, tile_infos):
