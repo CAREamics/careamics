@@ -51,7 +51,7 @@ def get_reconstruction_loss(
         target=target,
         likelihood_obj=likelihood_obj,
     )
-    
+
     loss_dict["loss"] = loss_dict["loss"].sum() / len(reconstruction)
     for i in range(1, 1 + target.shape[1]):
         key = f"ch{i}_loss"

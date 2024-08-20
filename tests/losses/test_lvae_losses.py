@@ -16,11 +16,11 @@ from careamics.losses.loss_factory import (
     loss_factory,
 )
 from careamics.losses.lvae.losses import (
-    get_reconstruction_loss,
-    reconstruction_loss_musplit_denoisplit,
-    musplit_loss,
     denoisplit_loss,
-    denoisplit_musplit_loss
+    denoisplit_musplit_loss,
+    get_reconstruction_loss,
+    musplit_loss,
+    reconstruction_loss_musplit_denoisplit,
 )
 from careamics.models.lvae.likelihoods import likelihood_factory
 from careamics.models.lvae.noise_models import noise_model_factory
@@ -82,9 +82,7 @@ def init_noise_model(
     ],
 )
 def test_lvae_loss_factory(
-    loss_type: Union[SupportedLoss, str],
-    exp_loss_func: Callable,
-    exp_error: Callable
+    loss_type: Union[SupportedLoss, str], exp_loss_func: Callable, exp_error: Callable
 ):
     with exp_error:
         loss_func = loss_factory(loss_type)
@@ -195,12 +193,12 @@ def test_reconstruction_loss_musplit_denoisplit(
 @pytest.mark.parametrize("n_layers", [1, 4])
 @pytest.mark.parametrize("enable_LC", [False, True])
 def test_musplit_loss(
-    batch_size: int, 
-    target_ch: int, 
-    predict_logvar: str, 
+    batch_size: int,
+    target_ch: int,
+    predict_logvar: str,
     n_layers: int,
     enable_LC: bool,
-):  
+):
     # create test data
     img_size = 64
     inp_ch = target_ch * (1 + int(predict_logvar is not None))
@@ -209,27 +207,27 @@ def test_musplit_loss(
     if enable_LC:
         z = [torch.rand(batch_size, 128, img_size, img_size) for _ in range(n_layers)]
     else:
-        sizes = [img_size // 2**(i+1) for i in range(n_layers)]
+        sizes = [img_size // 2 ** (i + 1) for i in range(n_layers)]
         sizes = sizes[::-1]
         z = [torch.rand(batch_size, 128, sz, sz) for sz in sizes]
     td_data = {
-        "z": z, 
+        "z": z,
         "kl": [torch.rand(batch_size) for _ in range(n_layers)],
     }
 
     # create likelihood
     config = GaussianLikelihoodModel(predict_logvar=predict_logvar)
     likelihood = likelihood_factory(config)
-    
+
     # compute the loss
     loss_parameters = LVAELossParameters(
         gaussian_likelihood=likelihood,
     )
     output = musplit_loss((reconstruction, td_data), target, loss_parameters)
-    
+
     # check outputs
     # NOTE: output should not be None in these test cases
-    assert output is not None 
+    assert output is not None
     assert isinstance(output, dict)
     assert "loss" in output
     assert "reconstruction_loss" in output
@@ -241,7 +239,7 @@ def test_musplit_loss(
 @pytest.mark.parametrize("n_layers", [1, 4])
 def test_denoisplit_loss(
     tmp_path: Path,
-    batch_size: int, 
+    batch_size: int,
     target_ch: int,
     n_layers: int,
 ):
@@ -262,21 +260,21 @@ def test_denoisplit_loss(
         data_mean=data_mean, data_std=data_std, noise_model=nm
     )
     likelihood = likelihood_factory(nm_config)
-    
+
     # compute the loss
     loss_parameters = LVAELossParameters(
         noise_model_likelihood=likelihood,
     )
     output = denoisplit_loss((reconstruction, td_data), target, loss_parameters)
-    
+
     # check outputs
     # NOTE: output should not be None in these test cases
-    assert output is not None 
+    assert output is not None
     assert isinstance(output, dict)
     assert "loss" in output
     assert "reconstruction_loss" in output
     assert "kl_loss" in output
-    
+
 
 @pytest.mark.parametrize("batch_size", [1, 8])
 @pytest.mark.parametrize("target_ch", [1, 3])
@@ -285,9 +283,9 @@ def test_denoisplit_loss(
 @pytest.mark.parametrize("enable_LC", [False, True])
 def test_denoisplit_musplit_loss(
     tmp_path: Path,
-    batch_size: int, 
-    target_ch: int, 
-    predict_logvar: str, 
+    batch_size: int,
+    target_ch: int,
+    predict_logvar: str,
     n_layers: int,
     enable_LC: bool,
 ):
@@ -299,11 +297,11 @@ def test_denoisplit_musplit_loss(
     if enable_LC:
         z = [torch.rand(batch_size, 128, img_size, img_size) for _ in range(n_layers)]
     else:
-        sizes = [img_size // 2**(i+1) for i in range(n_layers)]
+        sizes = [img_size // 2 ** (i + 1) for i in range(n_layers)]
         sizes = sizes[::-1]
         z = [torch.rand(batch_size, 128, sz, sz) for sz in sizes]
     td_data = {
-        "z": z, 
+        "z": z,
         "kl": [torch.rand(batch_size) for _ in range(n_layers)],
     }
 
@@ -317,19 +315,17 @@ def test_denoisplit_musplit_loss(
     nm_likelihood = likelihood_factory(nm_config)
     gaussian_config = GaussianLikelihoodModel(predict_logvar=predict_logvar)
     gaussian_likelihood = likelihood_factory(gaussian_config)
-    
+
     # compute the loss
     loss_parameters = LVAELossParameters(
         gaussian_likelihood=gaussian_likelihood,
         noise_model_likelihood=nm_likelihood,
     )
-    output = denoisplit_musplit_loss(
-        (reconstruction, td_data), target, loss_parameters
-    )
-    
+    output = denoisplit_musplit_loss((reconstruction, td_data), target, loss_parameters)
+
     # check outputs
     # NOTE: output should not be None in these test cases
-    assert output is not None 
+    assert output is not None
     assert isinstance(output, dict)
     assert "loss" in output
     assert "reconstruction_loss" in output

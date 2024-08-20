@@ -3,10 +3,11 @@ Loss factory module.
 
 This module contains a factory function for creating loss functions.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Callable, Literal, Optional, Union, TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable, Literal, Optional, Union
 
 from torch import Tensor as tensor
 
@@ -15,12 +16,15 @@ from .fcn.losses import mae_loss, mse_loss, n2v_loss
 from .lvae.losses import denoisplit_loss, denoisplit_musplit_loss, musplit_loss
 
 if TYPE_CHECKING:
-    from careamics.models.lvae.noise_models import (
-        GaussianMixtureNoiseModel, MultiChannelNoiseModel
-    )
     from careamics.models.lvae.likelihoods import (
-        GaussianLikelihood, NoiseModelLikelihood
+        GaussianLikelihood,
+        NoiseModelLikelihood,
     )
+    from careamics.models.lvae.noise_models import (
+        GaussianMixtureNoiseModel,
+        MultiChannelNoiseModel,
+    )
+
     NoiseModel = Union[GaussianMixtureNoiseModel, MultiChannelNoiseModel]
 
 
@@ -39,6 +43,7 @@ class FCNLossParameters:
 @dataclass  # TODO why not pydantic?
 class LVAELossParameters:
     """Dataclass for LVAE loss."""
+
     # TODO: refactor in more modular blocks (otherwise it gets messy very easily)
     # e.g., - weights, - kl_params, ...
 
@@ -49,7 +54,7 @@ class LVAELossParameters:
     current_epoch: int = 0
     """Current epoch in the training loop."""
     reconstruction_weight: float = 1.0
-    """Weight for the reconstruction loss in the total net loss 
+    """Weight for the reconstruction loss in the total net loss
     (i.e., `net_loss = reconstruction_weight * rec_loss + kl_weight * kl_loss`)."""
     musplit_weight: float = 0.0
     """Weight for the muSplit loss (used in the muSplit-deonoiSplit loss)."""
@@ -69,8 +74,9 @@ class LVAELossParameters:
     non_stochastic: bool = False
     """Whether to sample latents and compute KL."""
 
+
 # TODO: really needed?
-# like it is now, it is difficult to use, we need a way to specify the 
+# like it is now, it is difficult to use, we need a way to specify the
 # loss parameters in a more user-friendly way.
 def loss_parameters_factory(
     type: SupportedLoss,
@@ -100,7 +106,7 @@ def loss_parameters_factory(
         SupportedLoss.DENOISPLIT,
         SupportedLoss.DENOISPLIT_MUSPLIT,
     ]:
-        return LVAELossParameters # it returns the class, not an instance
+        return LVAELossParameters  # it returns the class, not an instance
 
     else:
         raise NotImplementedError(f"Loss {type} is not yet supported.")
