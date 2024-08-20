@@ -8,6 +8,7 @@ from typing_extensions import Self
 from .architecture_model import ArchitectureModel
 
 
+# TODO: it is quite confusing to call this LVAEModel, as it is basically a config
 class LVAEModel(ArchitectureModel):
     """LVAE model."""
 
