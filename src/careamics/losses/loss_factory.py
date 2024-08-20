@@ -42,8 +42,6 @@ class LVAELossParameters:
     # TODO: refactor in more modular blocks (otherwise it gets messy very easily)
     # e.g., - weights, - kl_params, ...
 
-    noise_model: Optional[NoiseModel] = None # TODO: not sure if needed
-    """Noise model instance."""
     noise_model_likelihood: Optional[NoiseModelLikelihood] = None
     """Noise model likelihood instance."""
     gaussian_likelihood: Optional[GaussianLikelihood] = None

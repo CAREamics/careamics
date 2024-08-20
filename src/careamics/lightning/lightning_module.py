@@ -275,7 +275,6 @@ class VAEModule(L.LightningModule):
         self.loss_parameters = LVAELossParameters(
             noise_model_likelihood=self.noise_model_likelihood,
             gaussian_likelihood=self.gaussian_likelihood,
-            noise_model=self.noise_model,  # TODO: apparently not needed
             # TODO: musplit/denoisplit weights ?
         )  # type: ignore
         self.loss_func = loss_factory(self.algorithm_config.loss)
