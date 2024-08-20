@@ -35,6 +35,9 @@ def likelihood_factory(config: Union[GaussianLikelihoodModel, NMLikelihoodModel,
     nn.Module
         The likelihood module.
     """
+    if config is None:
+        return None
+    
     if isinstance(config, GaussianLikelihoodModel):
         return GaussianLikelihood(
             predict_logvar=config.predict_logvar,
