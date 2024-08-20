@@ -118,6 +118,23 @@ class VAEAlgorithmConfig(BaseModel):
 
         # TODO: what if algorithm is not musplit or denoisplit (HDN?)
         return self
+    
+    @model_validator(mode="after")
+    def output_channels_validation(self: Self) -> Self:
+        """Validate the consistency between the number of output channels and the
+        number of noise models.
+
+        Returns
+        -------
+        Self
+            The validated model.
+        """
+        assert self.model.output_channels == len(self.noise_model.noise_models), (
+            f"Number of output channels ({self.model.output_channels}) must match "
+            f"the number of noise models ({len(self.noise_model.noise_models)})."
+        )
+        return self
+        
 
     def __str__(self) -> str:
         """Pretty string representing the configuration.
