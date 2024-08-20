@@ -277,3 +277,60 @@ def test_denoisplit_loss(
     assert "reconstruction_loss" in output
     assert "kl_loss" in output
     
+
+@pytest.mark.parametrize("batch_size", [1, 8])
+@pytest.mark.parametrize("target_ch", [1, 3])
+@pytest.mark.parametrize("predict_logvar", [None, "pixelwise"])
+@pytest.mark.parametrize("n_layers", [1, 4])
+@pytest.mark.parametrize("enable_LC", [False, True])
+def test_denoisplit_musplit_loss(
+    tmp_path: Path,
+    batch_size: int, 
+    target_ch: int, 
+    predict_logvar: str, 
+    n_layers: int,
+    enable_LC: bool,
+):
+    # create test data
+    img_size = 64
+    inp_ch = target_ch * (1 + int(predict_logvar is not None))
+    reconstruction = torch.rand((batch_size, inp_ch, img_size, img_size))
+    target = torch.rand((batch_size, target_ch, img_size, img_size))
+    if enable_LC:
+        z = [torch.rand(batch_size, 128, img_size, img_size) for _ in range(n_layers)]
+    else:
+        sizes = [img_size // 2**(i+1) for i in range(n_layers)]
+        sizes = sizes[::-1]
+        z = [torch.rand(batch_size, 128, sz, sz) for sz in sizes]
+    td_data = {
+        "z": z, 
+        "kl": [torch.rand(batch_size) for _ in range(n_layers)],
+    }
+
+    # create likelihood objects
+    nm = init_noise_model(tmp_path, target_ch)
+    data_mean = target.mean(dim=(0, 2, 3), keepdim=True)
+    data_std = target.std(dim=(0, 2, 3), keepdim=True)
+    nm_config = NMLikelihoodModel(
+        data_mean=data_mean, data_std=data_std, noise_model=nm
+    )
+    nm_likelihood = likelihood_factory(nm_config)
+    gaussian_config = GaussianLikelihoodModel(predict_logvar=predict_logvar)
+    gaussian_likelihood = likelihood_factory(gaussian_config)
+    
+    # compute the loss
+    loss_parameters = LVAELossParameters(
+        gaussian_likelihood=gaussian_likelihood,
+        noise_model_likelihood=nm_likelihood,
+    )
+    output = denoisplit_musplit_loss(
+        (reconstruction, td_data), target, loss_parameters
+    )
+    
+    # check outputs
+    # NOTE: output should not be None in these test cases
+    assert output is not None 
+    assert isinstance(output, dict)
+    assert "loss" in output
+    assert "reconstruction_loss" in output
+    assert "kl_loss" in output
