@@ -338,19 +338,27 @@ class VAEModule(L.LightningModule):
         self.log_dict(loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
         return loss
 
-    def validation_step(self, batch: Tensor, batch_idx: Any) -> None:
+    def validation_step(self, batch: tuple[Tensor, Tensor], batch_idx: Any) -> None:
         """Validation step.
 
         Parameters
         ----------
-        batch : Tensor
-            Input batch.
+        batch : tuple[Tensor, Tensor]
+            Input batch. It is a tuple with the input tensor and the target tensor.
+            The input tensor has shape (B, (1 + n_LC), [Z], Y, X), where n_LC is the
+            number of lateral inputs. The target tensor has shape (B, C, [Z], Y, X),
+            where C is the number of target channels (e.g., 1 in HDN, >1 in 
+            muSplit/denoiSplit).
         batch_idx : Any
             Batch index.
         """
-        x, *aux = batch
+        x, target = batch
+        
+        # Forward pass
         out = self.model(x)
-        val_loss = self.loss_func(out, *aux)
+        
+        # Compute loss
+        val_loss = self.loss_func(out, target, self.loss_parameters)
 
         # log validation loss
         self.log_dict(
@@ -430,6 +438,7 @@ class VAEModule(L.LightningModule):
         }
 
 
+# TODO: make this LVAE compatible (?)
 def create_careamics_module(
     algorithm_type: Literal["fcn"],
     algorithm: Union[SupportedAlgorithm, str],
@@ -441,7 +450,7 @@ def create_careamics_module(
     lr_scheduler: Union[SupportedScheduler, str] = "ReduceLROnPlateau",
     lr_scheduler_parameters: Optional[dict] = None,
 ) -> Union[FCNModule, VAEModule]:
-    """Create a CAREamics Lithgning module.
+    """Create a CAREamics Lightning module.
 
     This function exposes parameters used to create an AlgorithmModel instance,
     triggering parameters validation.
