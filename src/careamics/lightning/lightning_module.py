@@ -285,28 +285,35 @@ class VAEModule(L.LightningModule):
         self.lr_scheduler_name = self.algorithm_config.lr_scheduler.name
         self.lr_scheduler_params = self.algorithm_config.lr_scheduler.parameters
 
-    def forward(self, x: Any) -> Any:
+    def forward(self, x: Tensor) -> tuple[Tensor, dict[str, Any]]:
         """Forward pass.
 
         Parameters
         ----------
-        x : Any
-            Input tensor.
+        x : Tensor
+            Input tensor of shape (B, (1 + n_LC), [Z], Y, X), where n_LC is the
+            number of lateral inputs.
 
         Returns
         -------
-        Any
-            Output tensor.
+        tuple[Tensor, dict[str, Any]]
+            A tuple with the output tensor and additional data from the top-down pass.
         """
         return self.model(x)  # TODO Different model can have more than one output
 
-    def training_step(self, batch: Tensor, batch_idx: Any) -> Any:
+    def training_step(
+        self, batch: tuple[Tensor, Tensor], batch_idx: Any
+    ) -> Optional[dict[str, Tensor]]:
         """Training step.
 
         Parameters
         ----------
-        batch : Tensor
-            Input batch.
+        batch : tuple[Tensor, Tensor]
+            Input batch. It is a tuple with the input tensor and the target tensor.
+            The input tensor has shape (B, (1 + n_LC), [Z], Y, X), where n_LC is the
+            number of lateral inputs. The target tensor has shape (B, C, [Z], Y, X),
+            where C is the number of target channels (e.g., 1 in HDN, >1 in 
+            muSplit/denoiSplit).
         batch_idx : Any
             Batch index.
 
@@ -315,9 +322,10 @@ class VAEModule(L.LightningModule):
         Any
             Loss value.
         """
-        x, *aux = batch  # TODO: check what is a `batch`
+        x, target = batch
+        
+        # Forward pass
         out = self.model(x)
-        target = aux[0]
 
         # Update loss parameters
         # TODO rethink loss parameters
@@ -326,6 +334,7 @@ class VAEModule(L.LightningModule):
         # Compute loss
         loss = self.loss_func(out, target, self.loss_parameters)  # TODO ugly ?
 
+        # TODO: check logging
         self.log_dict(loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
         return loss
 
