@@ -16,10 +16,11 @@ from careamics.losses.loss_factory import (
     loss_factory,
 )
 from careamics.losses.lvae.losses import (
-    denoisplit_loss,
     get_reconstruction_loss,
-    musplit_loss,
     reconstruction_loss_musplit_denoisplit,
+    musplit_loss,
+    denoisplit_loss,
+    denoisplit_musplit_loss
 )
 from careamics.models.lvae.likelihoods import likelihood_factory
 from careamics.models.lvae.noise_models import noise_model_factory
@@ -69,22 +70,27 @@ def init_noise_model(
 
 
 @pytest.mark.parametrize(
-    "loss_type, expectation",
+    "loss_type, exp_loss_func, exp_error",
     [
-        (SupportedLoss.MUSPLIT, does_not_raise()),
-        (SupportedLoss.DENOISPLIT, does_not_raise()),
-        (SupportedLoss.DENOISPLIT_MUSPLIT, does_not_raise()),
-        ("musplit", does_not_raise()),
-        ("denoisplit", does_not_raise()),
-        ("denoisplit_musplit", does_not_raise()),
-        ("made_up_loss", pytest.raises(NotImplementedError)),
+        (SupportedLoss.MUSPLIT, musplit_loss, does_not_raise()),
+        (SupportedLoss.DENOISPLIT, denoisplit_loss, does_not_raise()),
+        (SupportedLoss.DENOISPLIT_MUSPLIT, denoisplit_musplit_loss, does_not_raise()),
+        ("musplit", musplit_loss, does_not_raise()),
+        ("denoisplit", denoisplit_loss, does_not_raise()),
+        ("denoisplit_musplit", denoisplit_musplit_loss, does_not_raise()),
+        ("made_up_loss", None, pytest.raises(NotImplementedError)),
     ],
 )
-def test_lvae_loss_factory(loss_type: Union[SupportedLoss, str], expectation: Callable):
-    with expectation:
+def test_lvae_loss_factory(
+    loss_type: Union[SupportedLoss, str],
+    exp_loss_func: Callable,
+    exp_error: Callable
+):
+    with exp_error:
         loss_func = loss_factory(loss_type)
         assert loss_func is not None
         assert callable(loss_func)
+        assert loss_func == exp_loss_func
 
 
 @pytest.mark.parametrize(
@@ -194,10 +200,7 @@ def test_musplit_loss(
     predict_logvar: str, 
     n_layers: int,
     enable_LC: bool,
-):
-    loss_func = loss_factory(SupportedLoss.MUSPLIT)
-    assert loss_func == musplit_loss
-    
+):  
     # create test data
     img_size = 64
     inp_ch = target_ch * (1 + int(predict_logvar is not None))
@@ -222,7 +225,7 @@ def test_musplit_loss(
     loss_parameters = LVAELossParameters(
         gaussian_likelihood=likelihood,
     )
-    output = loss_func((reconstruction, td_data), target, loss_parameters)
+    output = musplit_loss((reconstruction, td_data), target, loss_parameters)
     
     # check outputs
     # NOTE: output should not be None in these test cases
@@ -233,46 +236,44 @@ def test_musplit_loss(
     assert "kl_loss" in output
 
 
-@pytest.mark.skip(reason="Not implemented yet")
-def test_denoisplit_loss(tmp_path):
-    loss_func = loss_factory("denoisplit")
-    assert loss_func == denoisplit_loss
-
-    loss_parameters = LVAELossParameters
-    model_outputs = torch.rand(2, 5, 64, 64)
+@pytest.mark.parametrize("batch_size", [1, 8])
+@pytest.mark.parametrize("target_ch", [1, 3])
+@pytest.mark.parametrize("n_layers", [1, 4])
+def test_denoisplit_loss(
+    tmp_path: Path,
+    batch_size: int, 
+    target_ch: int,
+    n_layers: int,
+):
+    # create test data
+    img_size = 64
+    reconstruction = torch.rand((batch_size, target_ch, img_size, img_size))
+    target = torch.rand((batch_size, target_ch, img_size, img_size))
     td_data = {
-        "z": [torch.rand(2, 5, 64, 64) for _ in range(4)],
-        # z is list of tensors with shape (batch, channels, height, width) for each
-        # hierarchy level
-        "kl": [
-            torch.rand(2) for _ in range(4)
-        ],  # list of tensors with shape (batch, ) for each hierarchy level
+        "z": [torch.rand(batch_size, 128, img_size, img_size) for _ in range(n_layers)],
+        "kl": [torch.rand(batch_size) for _ in range(n_layers)],
     }
-    target = torch.rand(2, 5, 64, 64)
 
-    ll_config = GaussianLikelihoodModel(
-        model_type="GaussianLikelihoodModel", color_channels=2
+    # create likelihood
+    nm = init_noise_model(tmp_path, target_ch)
+    data_mean = target.mean(dim=(0, 2, 3), keepdim=True)
+    data_std = target.std(dim=(0, 2, 3), keepdim=True)
+    nm_config = NMLikelihoodModel(
+        data_mean=data_mean, data_std=data_std, noise_model=nm
     )
-    nm_config = GaussianMixtureNmModel(model_type="GaussianMixtureNoiseModel")
-
-    trained_weight = np.random.rand(18, 4)
-    min_signal = np.random.rand(1)
-    max_signal = np.random.rand(1)
-    min_sigma = np.random.rand(1)
-    filename = Path(tmp_path) / "gm_noise_model.npz"
-    np.savez(
-        filename,
-        trained_weight=trained_weight,
-        min_signal=min_signal,
-        max_signal=max_signal,
-        min_sigma=min_sigma,
-    )  # TODO fuckin disentwhatever class throwing forward not implemented !
-    # TODO rethink loss parameters
-    loss_parameters.current_epoch = 0
-    loss_parameters.inputs = torch.rand(2, 2, 5, 64, 64)
-    loss_parameters.mask = ~((target == 0).reshape(len(target), -1).all(dim=1))
-    loss_parameters.likelihood = likelihood_factory(ll_config)
-    loss_parameters.noise_model = noise_model_factory(nm_config, [filename])
-    loss = loss_func((model_outputs, td_data), target, loss_parameters)
-    for k in loss.keys():
-        assert not loss[k].isnan()
+    likelihood = likelihood_factory(nm_config)
+    
+    # compute the loss
+    loss_parameters = LVAELossParameters(
+        noise_model_likelihood=likelihood,
+    )
+    output = denoisplit_loss((reconstruction, td_data), target, loss_parameters)
+    
+    # check outputs
+    # NOTE: output should not be None in these test cases
+    assert output is not None 
+    assert isinstance(output, dict)
+    assert "loss" in output
+    assert "reconstruction_loss" in output
+    assert "kl_loss" in output
+    
