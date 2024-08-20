@@ -8,7 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field
 # TODO: add histogram-based noise model
 
 
-class GaussianMixtureNmModel(BaseModel):
+class GaussianMixtureNMConfig(BaseModel):
     """Gaussian mixture noise model."""
 
     model_config = ConfigDict(
@@ -64,5 +64,5 @@ class MultiChannelNMConfig(BaseModel):
     model_config = ConfigDict(
         validate_assignment=True, arbitrary_types_allowed=True, extra="allow"
     )
-    noise_models: list[GaussianMixtureNmModel]
+    noise_models: list[GaussianMixtureNMConfig]
     """List of noise models, one for each target channel."""

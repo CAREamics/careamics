@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 import torch
 
-from careamics.config import GaussianMixtureNmModel, MultiChannelNMConfig
+from careamics.config import GaussianMixtureNMConfig, MultiChannelNMConfig
 from careamics.models.lvae.noise_models import (
     GaussianMixtureNoiseModel,
     MultiChannelNoiseModel,
@@ -33,7 +33,7 @@ def test_instantiate_noise_model(tmp_path: Path) -> None:
     create_dummy_noise_model(tmp_path, 3, 3)
 
     # Instantiate the noise model
-    gmm = GaussianMixtureNmModel(
+    gmm = GaussianMixtureNMConfig(
         model_type="GaussianMixtureNoiseModel",
         path=tmp_path / "dummy_noise_model.npz",
         # all other params are default
@@ -52,7 +52,7 @@ def test_instantiate_multiple_noise_models(tmp_path: Path) -> None:
     create_dummy_noise_model(tmp_path, 3, 3)
 
     # Instantiate the noise model
-    gmm = GaussianMixtureNmModel(
+    gmm = GaussianMixtureNMConfig(
         model_type="GaussianMixtureNoiseModel",
         path=tmp_path / "dummy_noise_model.npz",
         # all other params are default
@@ -85,7 +85,7 @@ def test_noise_model_likelihood(
 ) -> None:
     create_dummy_noise_model(tmp_path, n_gaussians, n_coeffs)
 
-    gmm_config = GaussianMixtureNmModel(
+    gmm_config = GaussianMixtureNMConfig(
         model_type="GaussianMixtureNoiseModel",
         path=tmp_path / "dummy_noise_model.npz",
         # all other params are default
@@ -110,7 +110,7 @@ def test_multi_channel_noise_model_likelihood(
 ) -> None:
     create_dummy_noise_model(tmp_path, n_gaussians, n_coeffs)
 
-    gmm = GaussianMixtureNmModel(
+    gmm = GaussianMixtureNMConfig(
         model_type="GaussianMixtureNoiseModel",
         path=tmp_path / "dummy_noise_model.npz",
         # all other params are default
