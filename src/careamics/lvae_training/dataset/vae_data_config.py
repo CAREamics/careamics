@@ -124,6 +124,7 @@ class VaeDatasetConfig(BaseModel):
     # TODO: set to True in training code, recheck
     input_has_dependant_noise: Optional[bool] = False
 
+    # TODO: sometimes max_val differs between runs with fixed seeds with noise enabled
     enable_gaussian_noise: Optional[bool] = False
     """Whether to enable gaussian noise"""
 
@@ -177,8 +178,8 @@ class VaeDatasetConfig(BaseModel):
             # Get padding attributes
             if "padding_kwargs" not in kwargs_dict:
                 padding_kwargs = {}
-                padding_kwargs["mode"] = "reflect"
-                padding_kwargs["constant_values"] = None
+                padding_kwargs["mode"] = "constant"
+                padding_kwargs["constant_values"] = 0
             else:
                 padding_kwargs = kwargs_dict.pop("padding_kwargs")
         return padding_kwargs
