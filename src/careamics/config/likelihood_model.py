@@ -32,11 +32,12 @@ class NMLikelihoodModel(BaseModel):
     model_config = ConfigDict(validate_assignment=True, arbitrary_types_allowed=True)
 
     data_mean: Union[torch.Tensor] = torch.zeros(1)
-    """The mean of the data, used to unnormalize data for noise model evaluation."""
+    """The mean of the data, used to unnormalize data for noise model evaluation.
+    Shape is (target_ch,) (or (1, target_ch, [1], 1, 1))."""
 
     data_std: Union[torch.Tensor] = torch.ones(1)
     """The standard deviation of the data, used to unnormalize data for noise
-    model evaluation. Shape is (target_ch,)"""
+    model evaluation. Shape is (target_ch,) (or (1, target_ch, [1], 1, 1))."""
 
     noise_model: Union[NoiseModel, None] = None
     """The noise model instance used to compute the likelihood."""

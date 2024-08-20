@@ -2,8 +2,9 @@
 Script containing modules for definining different likelihood functions (as nn.Module).
 """
 
-import math
+from __future__ import annotations
 
+import math
 from typing import Literal, Union, TYPE_CHECKING, Any, Optional
 
 import torch
@@ -11,11 +12,13 @@ from torch import nn
 
 from careamics.config.likelihood_model import GaussianLikelihoodModel, NMLikelihoodModel
 
-# TODO: check typing
-# if TYPE_CHECKING:
-#     from careamics.models.lvae.noise_models import GaussianMixtureNoiseModel, MultiChannelNoiseModel
+if TYPE_CHECKING:
+    from careamics.models.lvae.noise_models import (
+        GaussianMixtureNoiseModel,
+        MultiChannelNoiseModel,
+    )
 
-# NoiseModel = Union[GaussianMixtureNoiseModel, MultiChannelNoiseModel]
+    NoiseModel = Union[GaussianMixtureNoiseModel, MultiChannelNoiseModel]
 
 
 def likelihood_factory(config: Union[GaussianLikelihoodModel, NMLikelihoodModel, None]):
@@ -233,6 +236,11 @@ class GaussianLikelihood(LikelihoodModule):
         params: dict[str, Union[torch.Tensor, None]]
             The tensors obtained by chunking the output of the top-down pass,
             here used as parameters of the Gaussian distribution.
+
+        Returns
+        -------
+        torch.Tensor
+            The log-likelihood tensor. Shape is (B, C, [Z], Y, X).
         """
         if self.predict_logvar is not None:
             logprob = log_normal(x, params["mean"], params["logvar"])
@@ -273,7 +281,7 @@ class NoiseModelLikelihood(LikelihoodModule):
         self,
         data_mean: torch.Tensor,
         data_std: torch.Tensor,
-        noiseModel: Any,  # TODO: check the type -> couldn't manage due to circular imports...
+        noiseModel: NoiseModel,  # TODO: check the type -> couldn't manage due to circular imports...
     ):
         """Constructor.
 
@@ -333,6 +341,11 @@ class NoiseModelLikelihood(LikelihoodModule):
         params: dict[str, Union[torch.Tensor, None]]
             The tensors obtained from output of the top-down pass.
             Here, "mean" correspond to the whole output, while logvar is `None`.
+
+        Returns
+        -------
+        torch.Tensor
+            The log-likelihood tensor. Shape is (B, C, [Z], Y, X).
         """
         predicted_s_denormalized = params["mean"] * self.data_std + self.data_mean
         x_denormalized = x * self.data_std + self.data_mean
