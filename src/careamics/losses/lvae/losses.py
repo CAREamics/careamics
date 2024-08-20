@@ -300,7 +300,7 @@ def musplit_loss(
     recons_loss_dict = get_reconstruction_loss(
         reconstruction=predictions,
         target=targets,
-        likelihood_obj=loss_parameters.likelihood,
+        likelihood_obj=loss_parameters.gaussian_likelihood,
     )
     recons_loss = recons_loss_dict["loss"] * loss_parameters.reconstruction_weight
     if torch.isnan(recons_loss).any():
