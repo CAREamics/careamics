@@ -129,10 +129,11 @@ class VAEAlgorithmConfig(BaseModel):
         Self
             The validated model.
         """
-        assert self.model.output_channels == len(self.noise_model.noise_models), (
-            f"Number of output channels ({self.model.output_channels}) must match "
-            f"the number of noise models ({len(self.noise_model.noise_models)})."
-        )
+        if self.noise_model is not None:
+            assert self.model.output_channels == len(self.noise_model.noise_models), (
+                f"Number of output channels ({self.model.output_channels}) must match "
+                f"the number of noise models ({len(self.noise_model.noise_models)})."
+            )
         return self
     
     @model_validator(mode="after")
@@ -145,12 +146,12 @@ class VAEAlgorithmConfig(BaseModel):
         Self
             The validated model.
         """
-        assert (
-            self.model.predict_logvar == self.gaussian_likelihood_model.predict_logvar,
-            f"Model `predict_logvar` ({self.model.predict_logvar}) must match "
-            "Gaussian likelihood model `predict_logvar` "
-            f"({self.gaussian_likelihood_model.predict_logvar}).",
-        )
+        if self.gaussian_likelihood_model is not None:
+            assert self.model.predict_logvar == self.gaussian_likelihood_model.predict_logvar, (
+                f"Model `predict_logvar` ({self.model.predict_logvar}) must match "
+                "Gaussian likelihood model `predict_logvar` "
+                f"({self.gaussian_likelihood_model.predict_logvar}).",
+            )
         return self
         
 
