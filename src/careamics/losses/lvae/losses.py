@@ -189,15 +189,15 @@ def _get_weighted_likelihood(
 
 
 def get_kl_divergence_loss_usplit(
-    topdown_layer_data_dict: dict[str, list[torch.Tensor]], kl_key: str = "kl"
+    topdown_data: dict[str, list[torch.Tensor]], kl_key: str = "kl"
 ) -> torch.Tensor:
     """Compute the KL divergence loss for muSplit.
 
     Parameters
     ----------
-    topdown_layer_data_dict : dict[str, list[torch.Tensor]]
-        The top-down layer data dictionary containing the KL-loss values for each
-        layer. The dictionary should contain the following keys:
+    topdown_data : dict[str, list[torch.Tensor]]
+        A dictionary containing information computed for each layer during the top-down
+        pass. The dictionary must include the following keys:
         - "kl": The KL-loss values for each layer. Shape of each tensor is (B,).
         - "z": The sampled latents for each layer. Shape of each tensor is
         (B, layers, `z_dims[i]`, H, W).
@@ -207,7 +207,7 @@ def get_kl_divergence_loss_usplit(
         Default is "kl".
     """
     kl = torch.cat(
-        [kl_layer.unsqueeze(1) for kl_layer in topdown_layer_data_dict[kl_key]], dim=1
+        [kl_layer.unsqueeze(1) for kl_layer in topdown_data[kl_key]], dim=1
     )  # shape: (B, n_layers)
     # NOTE: Values are sum() and so are of the order 30000
 
@@ -216,7 +216,7 @@ def get_kl_divergence_loss_usplit(
         # NOTE: we want to normalize the KL-loss w.r.t. the latent space dimensions,
         # i.e., the number of entries in the latent space tensors (C, [Z], Y, X).
         # We assume z has shape (B, C, [Z], Y, X), where `C = z_dims[i]`.
-        norm_factor = np.prod(topdown_layer_data_dict["z"][i].shape[1:])
+        norm_factor = np.prod(topdown_data["z"][i].shape[1:])
         kl[:, i] = kl[:, i] / norm_factor
 
     kl_loss = free_bits_kl(kl, 0.0).mean()  # shape: (1, )
@@ -225,7 +225,7 @@ def get_kl_divergence_loss_usplit(
 
 
 def get_kl_divergence_loss_denoisplit(
-    topdown_layer_data_dict: dict[str, torch.Tensor],
+    topdown_data: dict[str, torch.Tensor],
     img_shape: tuple[int],
     kl_key: str = "kl",
 ) -> torch.Tensor:
@@ -233,9 +233,9 @@ def get_kl_divergence_loss_denoisplit(
 
     Parameters
     ----------
-    topdown_layer_data_dict : dict[str, torch.Tensor]
-        The top-down layer data dictionary containing the KL-loss values for each
-        layer. The dictionary should contain the following keys:
+    topdown_data : dict[str, torch.Tensor]
+        A dictionary containing information computed for each layer during the top-down
+        pass. The dictionary must include the following keys:
         - "kl": The KL-loss values for each layer. Shape of each tensor is (B,).
         - "z": The sampled latents for each layer. Shape of each tensor is
         (B, layers, `z_dims[i]`, H, W).
@@ -249,7 +249,7 @@ def get_kl_divergence_loss_denoisplit(
     kl[i] for each i has length batch_size resulting kl shape: (bs, layers).
     """
     kl = torch.cat(
-        [kl_layer.unsqueeze(1) for kl_layer in topdown_layer_data_dict[kl_key]],
+        [kl_layer.unsqueeze(1) for kl_layer in topdown_data[kl_key]],
         dim=1,
     )
 
@@ -382,7 +382,7 @@ def denoisplit_loss(
             loss_parameters.current_epoch,
         )
         kl_loss = kl_weight * get_kl_divergence_loss_denoisplit(
-            topdown_layer_data_dict=td_data,
+            topdown_data=td_data,
             img_shape=targets.shape[2:],  # input img spatial dims
         )
 
@@ -449,7 +449,7 @@ def denoisplit_musplit_loss(
         # NOTE: 'kl' key stands for the 'kl_samplewise' key in the TopDownLayer class.
         # The different naming comes from `top_down_pass()` method in the LadderVAE.
         denoisplit_kl = get_kl_divergence_loss_denoisplit(
-            topdown_layer_data_dict=td_data,
+            topdown_data=td_data,
             img_shape=targets.shape[2:],  # input img spatial dims
         )
         musplit_kl = get_kl_divergence_loss_usplit(td_data)

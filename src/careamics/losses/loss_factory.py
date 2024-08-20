@@ -6,7 +6,7 @@ This module contains a factory function for creating loss functions.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Callable, Literal, Union, TYPE_CHECKING
+from typing import Callable, Literal, Optional, Union, TYPE_CHECKING
 
 from torch import Tensor as tensor
 
@@ -39,25 +39,16 @@ class FCNLossParameters:
 @dataclass  # TODO why not pydantic?
 class LVAELossParameters:
     """Dataclass for LVAE loss."""
+    # TODO: refactor in more modular blocks (otherwise it gets messy very easily)
+    # e.g., - weights, - kl_params, ...
 
-    prediction: tensor
-    """Prediction tensor for loss computation, i.e., the output of the LVAE
-    top-down pass. Shape: (B, C, [Z], Y, X), C is number of target channels."""
-    prediction_data: tensor  # td_data
-    """Additional data used for loss computation. They comprise:
-    - "z": List of latent tensors. Shape: (B, C, [Z], Y, X).
-    - "kl": List of KL divergence tensors. Shape: (B,) (or other types of KL terms,
-    see below)."""
-    targets: tensor
-    """Target tensor for loss computation. Shape: (B, C, [Z], Y, X)."""
-    inputs: tensor  # TODO: not sure if needed
-    noise_model: NoiseModel  # TODO: not sure if needed
+    noise_model: Optional[NoiseModel] = None # TODO: not sure if needed
     """Noise model instance."""
-    noise_model_likelihood: NoiseModelLikelihood
+    noise_model_likelihood: Optional[NoiseModelLikelihood] = None
     """Noise model likelihood instance."""
-    gaussian_likelihood: GaussianLikelihood
+    gaussian_likelihood: Optional[GaussianLikelihood] = None
     """Gaussian likelihood instance."""
-    current_epoch: int
+    current_epoch: int = 0
     """Current epoch in the training loop."""
     reconstruction_weight: float = 1.0
     """Weight for the reconstruction loss in the total net loss 
@@ -80,7 +71,9 @@ class LVAELossParameters:
     non_stochastic: bool = False
     """Whether to sample latents and compute KL."""
 
-
+# TODO: really needed?
+# like it is now, it is difficult to use, we need a way to specify the 
+# loss parameters in a more user-friendly way.
 def loss_parameters_factory(
     type: SupportedLoss,
 ) -> Union[FCNLossParameters, LVAELossParameters]:
@@ -109,7 +102,7 @@ def loss_parameters_factory(
         SupportedLoss.DENOISPLIT,
         SupportedLoss.DENOISPLIT_MUSPLIT,
     ]:
-        return LVAELossParameters
+        return LVAELossParameters # it returns the class, not an instance
 
     else:
         raise NotImplementedError(f"Loss {type} is not yet supported.")

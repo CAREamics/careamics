@@ -272,7 +272,6 @@ class VAEModule(L.LightningModule):
         self.gaussian_likelihood: GaussianLikelihood = likelihood_factory(
             self.algorithm_config.gaussian_likelihood_model
         )
-        # TODO: use `loss_parameters_factory` instead of `LVAELossParameters` (?)
         self.loss_parameters = LVAELossParameters(
             noise_model_likelihood=self.noise_model_likelihood,
             gaussian_likelihood=self.gaussian_likelihood,
@@ -324,8 +323,6 @@ class VAEModule(L.LightningModule):
         # Update loss parameters
         # TODO rethink loss parameters
         self.loss_parameters.current_epoch = self.current_epoch
-        self.loss_parameters.inputs = x
-        self.loss_parameters.mask = ~((target == 0).reshape(len(target), -1).all(dim=1))
 
         # Compute loss
         loss = self.loss_func(out, target, self.loss_parameters)  # TODO ugly ?
