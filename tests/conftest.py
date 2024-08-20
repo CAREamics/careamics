@@ -64,7 +64,7 @@ def minimum_algorithm_supervised() -> dict:
 
     return algorithm
 
-
+# TODO: need to update/remove this fixture
 @pytest.fixture
 def minimum_algorithm_musplit() -> dict:
     """Create a minimum algorithm dictionary.
@@ -84,12 +84,12 @@ def minimum_algorithm_musplit() -> dict:
             "z_dims": (128, 128, 128),
             "multiscale_count": 4,
         },
-        "likelihood": {"type": "GaussianLikelihoodModel", "color_channels": 2},
+        "likelihood": {"type": "GaussianLikelihoodConfig", "color_channels": 2},
     }
 
     return algorithm
 
-
+# TODO: Need to update/remove this fixture
 @pytest.fixture
 def minimum_algorithm_denoisplit() -> dict:
     """Create a minimum algorithm dictionary.
@@ -109,7 +109,7 @@ def minimum_algorithm_denoisplit() -> dict:
             "z_dims": (128, 128, 128),
             "multiscale_count": 4,
         },
-        "likelihood": {"type": "GaussianLikelihoodModel", "color_channels": 2},
+        "likelihood": {"type": "GaussianLikelihoodConfig", "color_channels": 2},
         "noise_model": {"type": "GaussianMixtureNoiseModel"},
     }
 

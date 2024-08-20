@@ -5,7 +5,10 @@ import numpy as np
 import pytest
 import torch
 
-from careamics.config.likelihood_model import GaussianLikelihoodModel, NMLikelihoodModel
+from careamics.config.likelihood_model import (
+    GaussianLikelihoodConfig,
+    NMLikelihoodConfig,
+)
 from careamics.config.nm_model import GaussianMixtureNMConfig, MultiChannelNMConfig
 from careamics.models.lvae.likelihoods import likelihood_factory
 from careamics.models.lvae.noise_models import noise_model_factory
@@ -40,7 +43,7 @@ def test_gaussian_likelihood(
     predict_logvar: Union[str, None],
     logvar_lowerbound: Union[float, None],
 ) -> None:
-    config = GaussianLikelihoodModel(
+    config = GaussianLikelihoodConfig(
         predict_logvar=predict_logvar, logvar_lowerbound=logvar_lowerbound
     )
     likelihood = likelihood_factory(config)
@@ -83,7 +86,7 @@ def test_noise_model_likelihood(
     # NOTE: `input_` is actually the output of LVAE decoder
     data_mean = target.mean(dim=(0, 2, 3), keepdim=True)
     data_std = target.std(dim=(0, 2, 3), keepdim=True)
-    config = NMLikelihoodModel(data_mean=data_mean, data_std=data_std, noise_model=nm)
+    config = NMLikelihoodConfig(data_mean=data_mean, data_std=data_std, noise_model=nm)
     likelihood = likelihood_factory(config)
 
     out, data = likelihood(reconstruction, target)

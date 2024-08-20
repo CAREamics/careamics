@@ -11,7 +11,7 @@ from typing_extensions import Self
 from careamics.config.support import SupportedAlgorithm, SupportedLoss
 
 from .architectures import CustomModel, LVAEModel
-from .likelihood_model import GaussianLikelihoodModel, NMLikelihoodModel
+from .likelihood_model import GaussianLikelihoodConfig, NMLikelihoodConfig
 from .nm_model import MultiChannelNMConfig
 from .optimizer_models import LrSchedulerModel, OptimizerModel
 
@@ -70,8 +70,8 @@ class VAEAlgorithmConfig(BaseModel):
     model: Union[LVAEModel, CustomModel] = Field(discriminator="architecture")
 
     noise_model: Optional[MultiChannelNMConfig] = None
-    noise_model_likelihood_model: Optional[NMLikelihoodModel] = None
-    gaussian_likelihood_model: Optional[GaussianLikelihoodModel] = None
+    noise_model_likelihood_model: Optional[NMLikelihoodConfig] = None
+    gaussian_likelihood_model: Optional[GaussianLikelihoodConfig] = None
 
     # Optional fields
     optimizer: OptimizerModel = OptimizerModel()
