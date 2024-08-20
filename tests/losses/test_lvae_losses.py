@@ -34,11 +34,6 @@ if TYPE_CHECKING:
 #     Likelihood = Union[LikelihoodModule, GaussianLikelihood, NoiseModelLikelihood]
 
 
-# TODO: add this to fixtures (?)
-def init_loss_parameters() -> LVAELossParameters:
-    pass
-
-
 # TODO: move to conftest.py as pytest.fixture
 def create_dummy_noise_model(
     tmp_path: Path,
@@ -188,41 +183,54 @@ def test_reconstruction_loss_musplit_denoisplit(
     assert isinstance(rec_loss, torch.Tensor)
 
 
-def test_kl_loss():
-    pass
-
-
-@pytest.mark.skip(reason="Implementation is likely to change soon.")
-def test_musplit_loss():
-    loss_func = loss_factory("musplit")
+@pytest.mark.parametrize("batch_size", [1, 8])
+@pytest.mark.parametrize("target_ch", [1, 3])
+@pytest.mark.parametrize("predict_logvar", [None, "pixelwise"])
+@pytest.mark.parametrize("n_layers", [1, 4])
+@pytest.mark.parametrize("enable_LC", [False, True])
+def test_musplit_loss(
+    batch_size: int, 
+    target_ch: int, 
+    predict_logvar: str, 
+    n_layers: int,
+    enable_LC: bool,
+):
+    loss_func = loss_factory(SupportedLoss.MUSPLIT)
     assert loss_func == musplit_loss
-
-    loss_parameters = LVAELossParameters
-    model_outputs = torch.rand(2, 5, 64, 64)
+    
+    # create test data
+    img_size = 64
+    inp_ch = target_ch * (1 + int(predict_logvar is not None))
+    reconstruction = torch.rand((batch_size, inp_ch, img_size, img_size))
+    target = torch.rand((batch_size, target_ch, img_size, img_size))
+    if enable_LC:
+        z = [torch.rand(batch_size, 128, img_size, img_size) for _ in range(n_layers)]
+    else:
+        sizes = [img_size // 2**(i+1) for i in range(n_layers)]
+        sizes = sizes[::-1]
+        z = [torch.rand(batch_size, 128, sz, sz) for sz in sizes]
     td_data = {
-        "z": [torch.rand(2, 5, 64, 64) for _ in range(4)],
-        # z is list of tensors with shape (batch, channels, height, width) for each
-        # hierarchy level
-        "kl": [
-            torch.rand(2) for _ in range(4)
-        ],  # list of tensors with shape (batch, ) for each hierarchy level
+        "z": z, 
+        "kl": [torch.rand(batch_size) for _ in range(n_layers)],
     }
-    target = torch.rand(2, 5, 64, 64)
 
-    ll_config = GaussianLikelihoodModel(
-        model_type="GaussianLikelihoodModel", color_channels=2
+    # create likelihood
+    config = GaussianLikelihoodModel(predict_logvar=predict_logvar)
+    likelihood = likelihood_factory(config)
+    
+    # compute the loss
+    loss_parameters = LVAELossParameters(
+        gaussian_likelihood=likelihood,
     )
-    nm_config = GaussianMixtureNmModel(model_type="GaussianMixtureNoiseModel")
-
-    # TODO rethink loss parameters
-    loss_parameters.current_epoch = 0
-    loss_parameters.inputs = torch.rand(2, 2, 5, 64, 64)
-    loss_parameters.mask = ~((target == 0).reshape(len(target), -1).all(dim=1))
-    loss_parameters.likelihood = likelihood_factory(ll_config)
-    loss_parameters.noise_model = noise_model_factory(nm_config)
-    loss = loss_func((model_outputs, td_data), target, loss_parameters)
-    for k in loss.keys():
-        assert not loss[k].isnan()
+    output = loss_func((reconstruction, td_data), target, loss_parameters)
+    
+    # check outputs
+    # NOTE: output should not be None in these test cases
+    assert output is not None 
+    assert isinstance(output, dict)
+    assert "loss" in output
+    assert "reconstruction_loss" in output
+    assert "kl_loss" in output
 
 
 @pytest.mark.skip(reason="Not implemented yet")
