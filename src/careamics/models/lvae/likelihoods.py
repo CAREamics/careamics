@@ -151,9 +151,9 @@ class GaussianLikelihood(LikelihoodModule):
         self.logvar_lowerbound = logvar_lowerbound
         assert self.predict_logvar in [None, "pixelwise"]
 
-        print(
-            f"[{self.__class__.__name__}] PredLVar:{self.predict_logvar} LowBLVar:{self.logvar_lowerbound}"
-        )
+        # print(
+        #     f"[{self.__class__.__name__}] PredLVar:{self.predict_logvar} LowBLVar:{self.logvar_lowerbound}"
+        # )
 
     def get_mean_lv(
         self, x: torch.Tensor
