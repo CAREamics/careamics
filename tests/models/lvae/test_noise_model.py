@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 import torch
 
-from careamics.config import GaussianMixtureNmModel, MultiChannelNmModel
+from careamics.config import GaussianMixtureNmModel, MultiChannelNMConfig
 from careamics.models.lvae.noise_models import (
     GaussianMixtureNoiseModel,
     MultiChannelNoiseModel,
@@ -38,7 +38,7 @@ def test_instantiate_noise_model(tmp_path: Path) -> None:
         path=tmp_path / "dummy_noise_model.npz",
         # all other params are default
     )
-    noise_model_config = MultiChannelNmModel(noise_models=[gmm])
+    noise_model_config = MultiChannelNMConfig(noise_models=[gmm])
     noise_model = noise_model_factory(noise_model_config)
     assert noise_model is not None
     assert noise_model.nmodel_0.weight.shape == (9, 3)
@@ -57,7 +57,7 @@ def test_instantiate_multiple_noise_models(tmp_path: Path) -> None:
         path=tmp_path / "dummy_noise_model.npz",
         # all other params are default
     )
-    noise_model_config = MultiChannelNmModel(noise_models=[gmm, gmm, gmm])
+    noise_model_config = MultiChannelNMConfig(noise_models=[gmm, gmm, gmm])
     noise_model = noise_model_factory(noise_model_config)
     assert noise_model is not None
     assert noise_model.nmodel_0 is not None
@@ -115,7 +115,7 @@ def test_multi_channel_noise_model_likelihood(
         path=tmp_path / "dummy_noise_model.npz",
         # all other params are default
     )
-    noise_model_config = MultiChannelNmModel(noise_models=[gmm] * target_ch)
+    noise_model_config = MultiChannelNMConfig(noise_models=[gmm] * target_ch)
     nm = noise_model_factory(noise_model_config)
     assert nm is not None
     assert isinstance(nm, MultiChannelNoiseModel)

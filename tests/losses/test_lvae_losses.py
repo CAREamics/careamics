@@ -9,7 +9,7 @@ import pytest
 import torch
 
 from careamics.config.likelihood_model import GaussianLikelihoodModel, NMLikelihoodModel
-from careamics.config.nm_model import GaussianMixtureNmModel, MultiChannelNmModel
+from careamics.config.nm_model import GaussianMixtureNmModel, MultiChannelNMConfig
 from careamics.losses.loss_factory import (
     LVAELossParameters,
     SupportedLoss,
@@ -65,7 +65,7 @@ def init_noise_model(
         path=tmp_path / "dummy_noise_model.npz",
         # all other params are default
     )
-    noise_model_config = MultiChannelNmModel(noise_models=[gmm] * target_ch)
+    noise_model_config = MultiChannelNMConfig(noise_models=[gmm] * target_ch)
     return noise_model_factory(noise_model_config)
 
 

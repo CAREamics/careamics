@@ -55,8 +55,10 @@ class GaussianMixtureNmModel(BaseModel):
 
 # The noise model is given by a set of GMMs, one for each target
 # e.g., 2 target channels, 2 noise models
-class MultiChannelNmModel(BaseModel):
-    """Noise Model that aggregates the noise models for single channels."""
+class MultiChannelNMConfig(BaseModel):
+    """Noise Model configuration that aggregates the noise models for single
+    output channels.
+    """
 
     # TODO: check that this model config is OK
     model_config = ConfigDict(

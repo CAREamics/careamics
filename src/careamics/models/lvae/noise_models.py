@@ -7,20 +7,20 @@ import torch
 import torch.nn as nn
 
 if TYPE_CHECKING:
-    from careamics.config import GaussianMixtureNmModel, MultiChannelNmModel
+    from careamics.config import GaussianMixtureNmModel, MultiChannelNMConfig
 
 # TODO this module shouldn't be in lvae folder
 
 
 def noise_model_factory(
-    model_config: Optional[MultiChannelNmModel],
+    model_config: Optional[MultiChannelNMConfig],
 ) -> Optional[MultiChannelNoiseModel]:
     """Noise model factory.
 
     Parameters
     ----------
-    model_config : Optional[MultiChannelNmModel]
-        Noise model configuration, a `MultiChannelNmModel` config that defines
+    model_config : Optional[MultiChannelNMConfig]
+        Noise model configuration, a `MultiChannelNMConfig` config that defines
         noise models for the different output channels.
 
     Returns
