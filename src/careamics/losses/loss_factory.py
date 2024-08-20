@@ -3,15 +3,25 @@ Loss factory module.
 
 This module contains a factory function for creating loss functions.
 """
+from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Callable, Literal, Union
+from typing import Callable, Literal, Union, TYPE_CHECKING
 
 from torch import Tensor as tensor
 
 from ..config.support import SupportedLoss
 from .fcn.losses import mae_loss, mse_loss, n2v_loss
 from .lvae.losses import denoisplit_loss, denoisplit_musplit_loss, musplit_loss
+
+if TYPE_CHECKING:
+    from careamics.models.lvae.noise_models import (
+        GaussianMixtureNoiseModel, MultiChannelNoiseModel
+    )
+    from careamics.models.lvae.likelihoods import (
+        GaussianLikelihood, NoiseModelLikelihood
+    )
+    NoiseModel = Union[GaussianMixtureNoiseModel, MultiChannelNoiseModel]
 
 
 @dataclass
@@ -31,22 +41,44 @@ class LVAELossParameters:
     """Dataclass for LVAE loss."""
 
     prediction: tensor
+    """Prediction tensor for loss computation, i.e., the output of the LVAE
+    top-down pass. Shape: (B, C, [Z], Y, X), C is number of target channels."""
     prediction_data: tensor  # td_data
+    """Additional data used for loss computation. They comprise:
+    - "z": List of latent tensors. Shape: (B, C, [Z], Y, X).
+    - "kl": List of KL divergence tensors. Shape: (B,) (or other types of KL terms,
+    see below)."""
     targets: tensor
+    """Target tensor for loss computation. Shape: (B, C, [Z], Y, X)."""
     inputs: tensor  # TODO: not sure if needed
-    noise_model: Callable  # TODO: not sure if needed, typing
-    noise_model_likelihood: Callable  # TODO: typing
-    gaussian_likelihood: Callable  # TODO: typing
+    noise_model: NoiseModel  # TODO: not sure if needed
+    """Noise model instance."""
+    noise_model_likelihood: NoiseModelLikelihood
+    """Noise model likelihood instance."""
+    gaussian_likelihood: GaussianLikelihood
+    """Gaussian likelihood instance."""
     current_epoch: int
+    """Current epoch in the training loop."""
     reconstruction_weight: float = 1.0
+    """Weight for the reconstruction loss in the total net loss 
+    (i.e., `net_loss = reconstruction_weight * rec_loss + kl_weight * kl_loss`)."""
     musplit_weight: float = 0.0
+    """Weight for the muSplit loss (used in the muSplit-deonoiSplit loss)."""
     denoisplit_weight: float = 1.0
+    """Weight for the denoiSplit loss (used in the muSplit-deonoiSplit loss)."""
     kl_type: Literal["kl", "kl_restricted", "kl_spatial", "kl_channelwise"] = "kl"
-    kl_annealing: bool = False
-    kl_start: int = -1
-    kl_annealtime: int = 10
+    """Type of KL divergence used as KL loss."""
     kl_weight: float = 1.0
+    """Weight for the KL loss in the total net loss.
+    (i.e., `net_loss = reconstruction_weight * rec_loss + kl_weight * kl_loss`)."""
+    kl_annealing: bool = False
+    """Whether to apply KL loss annealing."""
+    kl_start: int = -1
+    """Epoch at which KL loss annealing starts."""
+    kl_annealtime: int = 10
+    """Number of epochs for which KL loss annealing is applied."""
     non_stochastic: bool = False
+    """Whether to sample latents and compute KL."""
 
 
 def loss_parameters_factory(
