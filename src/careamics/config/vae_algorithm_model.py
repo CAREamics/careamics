@@ -134,6 +134,24 @@ class VAEAlgorithmConfig(BaseModel):
             f"the number of noise models ({len(self.noise_model.noise_models)})."
         )
         return self
+    
+    @model_validator(mode="after")
+    def predict_logvar_validation(self: Self) -> Self:
+        """Validate the consistency of `predict_logvar` in the different places
+        in which it is used.
+
+        Returns
+        -------
+        Self
+            The validated model.
+        """
+        assert (
+            self.model.predict_logvar == self.gaussian_likelihood_model.predict_logvar,
+            f"Model `predict_logvar` ({self.model.predict_logvar}) must match "
+            "Gaussian likelihood model `predict_logvar` "
+            f"({self.gaussian_likelihood_model.predict_logvar}).",
+        )
+        return self
         
 
     def __str__(self) -> str:
