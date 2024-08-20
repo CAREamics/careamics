@@ -34,7 +34,6 @@ class LVAELossParameters:
     prediction_data: tensor  # td_data
     targets: tensor
     inputs: tensor  # TODO: not sure if needed
-    mask: tensor
     noise_model: Callable  # TODO: not sure if needed, typing
     noise_model_likelihood: Callable  # TODO: typing
     gaussian_likelihood: Callable  # TODO: typing

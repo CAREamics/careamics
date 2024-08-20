@@ -25,7 +25,6 @@ def get_reconstruction_loss(
     reconstruction: torch.Tensor,  # TODO: naming -> predictions?
     target: torch.Tensor,
     likelihood_obj: Likelihood,
-    splitting_mask: Optional[torch.Tensor] = None,
 ) -> dict[str, torch.Tensor]:
     """Compute the reconstruction loss.
 
@@ -40,10 +39,6 @@ def get_reconstruction_loss(
         (e.g., 1 in HDN, >1 in muSplit/denoiSplit).
     likelihood_obj: Likelihood
         The likelihood object used to compute the reconstruction loss.
-    splitting_mask: Optional[torch.Tensor] = None
-        A boolean tensor that indicates which items to keep for reconstruction loss
-        computation. If `None`, all the elements of the items are considered
-        (i.e., the mask is all `True`). Default is `None`.
 
     Returns
     -------
@@ -56,14 +51,11 @@ def get_reconstruction_loss(
         target=target,
         likelihood_obj=likelihood_obj,
     )
-
-    if splitting_mask is None:  # TODO: is this needed?
-        splitting_mask = torch.ones_like(loss_dict["loss"]).bool()
-
-    loss_dict["loss"] = loss_dict["loss"][splitting_mask].sum() / len(reconstruction)
+    
+    loss_dict["loss"] = loss_dict["loss"].sum() / len(reconstruction)
     for i in range(1, 1 + target.shape[1]):
         key = f"ch{i}_loss"
-        loss_dict[key] = loss_dict[key][splitting_mask].sum() / len(reconstruction)
+        loss_dict[key] = loss_dict[key].sum() / len(reconstruction)
 
     return loss_dict
 
@@ -308,7 +300,6 @@ def musplit_loss(
     recons_loss_dict = get_reconstruction_loss(
         reconstruction=predictions,
         target=targets,
-        splitting_mask=loss_parameters.mask,
         likelihood_obj=loss_parameters.likelihood,
     )
     recons_loss = recons_loss_dict["loss"] * loss_parameters.reconstruction_weight
@@ -373,7 +364,6 @@ def denoisplit_loss(
     recons_loss_dict = get_reconstruction_loss(
         reconstruction=predictions,
         target=targets,
-        splitting_mask=loss_parameters.mask,  # TODO splitting_mask is not used
         likelihood_obj=loss_parameters.likelihood,
     )
     recons_loss = recons_loss_dict["loss"] * loss_parameters.reconstruction_weight
