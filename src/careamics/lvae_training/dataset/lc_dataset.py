@@ -7,7 +7,7 @@ from typing import Tuple, Union
 import numpy as np
 from skimage.transform import resize
 
-from .vae_data_config import DataSplitType, GridAlignement
+from .lc_dataset_config import LCVaeDatasetConfig
 from .vae_dataset import MultiChDloader
 
 
@@ -15,24 +15,10 @@ class LCMultiChDloader(MultiChDloader):
 
     def __init__(
         self,
-        data_config,
+        data_config: LCVaeDatasetConfig,
         fpath: str,
-        datasplit_type: DataSplitType = None,
         val_fraction=None,
         test_fraction=None,
-        normalized_input=None,
-        enable_rotation_aug: bool = False,
-        use_one_mu_std=None,
-        num_scales: int = None,
-        enable_random_cropping=False,
-        padding_kwargs: dict = None,
-        allow_generation: bool = False,
-        lowres_supervision=None,
-        max_val=None,
-        trim_boundary=True,
-        grid_alignment=GridAlignement.LeftTop,
-        overlapping_padding_kwargs=None,
-        print_vars=True,
     ):
         """
         Args:
@@ -40,43 +26,29 @@ class LCMultiChDloader(MultiChDloader):
                         highest resolution.
         """
         self._padding_kwargs = (
-            padding_kwargs  # mode=padding_mode, constant_values=constant_value
+            data_config.padding_kwargs  # mode=padding_mode, constant_values=constant_value
         )
         self._uncorrelated_channel_probab = data_config.uncorrelated_channel_probab
 
-        if overlapping_padding_kwargs is not None:
+        if data_config.overlapping_padding_kwargs is not None:
             assert (
-                self._padding_kwargs == overlapping_padding_kwargs
+                self._padding_kwargs == data_config.overlapping_padding_kwargs
             ), "During evaluation, overlapping_padding_kwargs should be same as padding_args. \
                 It should be so since we just use overlapping_padding_kwargs when it is not None"
 
         else:
-            overlapping_padding_kwargs = padding_kwargs
+            overlapping_padding_kwargs = data_config.padding_kwargs
 
         super().__init__(
-            data_config,
-            fpath,
-            datasplit_type=datasplit_type,
-            val_fraction=val_fraction,
-            test_fraction=test_fraction,
-            normalized_input=normalized_input,
-            enable_rotation_aug=enable_rotation_aug,
-            enable_random_cropping=enable_random_cropping,
-            use_one_mu_std=use_one_mu_std,
-            allow_generation=allow_generation,
-            max_val=max_val,
-            trim_boundary=trim_boundary,
-            #  grid_alignment=grid_alignment,
-            overlapping_padding_kwargs=overlapping_padding_kwargs,
-            print_vars=print_vars,
+            data_config, fpath, val_fraction=val_fraction, test_fraction=test_fraction
         )
-        self.num_scales = num_scales
+        self.num_scales = data_config.num_scales
         assert self.num_scales is not None
         self._scaled_data = [self._data]
         self._scaled_noise_data = [self._noise_data]
 
         assert isinstance(self.num_scales, int) and self.num_scales >= 1
-        self._lowres_supervision = lowres_supervision
+        self._lowres_supervision = data_config.lowres_supervision
         assert isinstance(self._padding_kwargs, dict)
         assert "mode" in self._padding_kwargs
 
@@ -173,8 +145,7 @@ class LCMultiChDloader(MultiChDloader):
         """
         Returns the primary patch along with low resolution patches centered on the primary patch.
         """
-        # Vera: noise_tuples is populated when there is synthetic noise in training,
-        # Used in denoiSplit, maybe Nature methods paper
+        # Noise_tuples is populated when there is synthetic noise in training
         # Should have similar type of noise with the noise model
         # Starting with microsplit, dump the noise, use it instead as an augmentation if nessesary
         img_tuples, noise_tuples = self._load_img(index)
@@ -189,8 +160,7 @@ class LCMultiChDloader(MultiChDloader):
         else:
             patch_start_loc = self._get_deterministic_loc(index)
 
-        # Vera: LC logic here
-        # Vera: simply crops the image of the highest resolution
+        # LC logic is located here, the function crops the image of the highest resolution
         cropped_img_tuples = [
             self._crop_flip_img(img, patch_start_loc, False, False)
             for img in img_tuples
@@ -207,7 +177,7 @@ class LCMultiChDloader(MultiChDloader):
             i: [cropped_img_tuples[i]] for i in range(len(cropped_img_tuples))
         }
         for scale_idx in range(1, self.num_scales):
-            # Vera: returning the image of the lower resolution
+            # Returning the image of the lower resolution
             scaled_img_tuples = self._load_scaled_img(scale_idx, index)
 
             h_center = h_center // 2
@@ -255,8 +225,7 @@ class LCMultiChDloader(MultiChDloader):
             img_tuples, noise_tuples = self._rotate(img_tuples, noise_tuples)
 
         assert self._lowres_supervision != True
-        # add noise to input
-        # Vera: if noise is present combine it with the image
+        # add noise to input, if noise is present combine it with the image
         # factor is for the compute input not to have too much noise because the average of two gaussians
         if len(noise_tuples) > 0:
             factor = np.sqrt(2) if self._input_is_sum else 1.0
@@ -268,9 +237,9 @@ class LCMultiChDloader(MultiChDloader):
         else:
             input_tuples = img_tuples
 
-        # Vera: compute the input by sum / average the channels
-        # Vera: alpha is an amount of weight which is applied to the channels when combining them
-        # Vera: how to sample alpha is still under research
+        # Compute the input by sum / average the channels
+        # Alpha is an amount of weight which is applied to the channels when combining them
+        # How to sample alpha is still under research
         inp, alpha = self._compute_input(input_tuples)
         # assert self._alpha_weighted_target in [False, None]
         target_tuples = [img[:1] for img in img_tuples]
