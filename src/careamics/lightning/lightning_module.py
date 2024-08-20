@@ -312,7 +312,7 @@ class VAEModule(L.LightningModule):
             Input batch. It is a tuple with the input tensor and the target tensor.
             The input tensor has shape (B, (1 + n_LC), [Z], Y, X), where n_LC is the
             number of lateral inputs. The target tensor has shape (B, C, [Z], Y, X),
-            where C is the number of target channels (e.g., 1 in HDN, >1 in 
+            where C is the number of target channels (e.g., 1 in HDN, >1 in
             muSplit/denoiSplit).
         batch_idx : Any
             Batch index.
@@ -323,7 +323,7 @@ class VAEModule(L.LightningModule):
             Loss value.
         """
         x, target = batch
-        
+
         # Forward pass
         out = self.model(x)
 
@@ -347,16 +347,16 @@ class VAEModule(L.LightningModule):
             Input batch. It is a tuple with the input tensor and the target tensor.
             The input tensor has shape (B, (1 + n_LC), [Z], Y, X), where n_LC is the
             number of lateral inputs. The target tensor has shape (B, C, [Z], Y, X),
-            where C is the number of target channels (e.g., 1 in HDN, >1 in 
+            where C is the number of target channels (e.g., 1 in HDN, >1 in
             muSplit/denoiSplit).
         batch_idx : Any
             Batch index.
         """
         x, target = batch
-        
+
         # Forward pass
         out = self.model(x)
-        
+
         # Compute loss
         val_loss = self.loss_func(out, target, self.loss_parameters)
 
