@@ -86,7 +86,6 @@ def _get_reconstruction_loss_vector(
 
     # Compute Log likelihood
     ll, _ = likelihood_obj(reconstruction, target)  # shape: (B, C, [Z], Y, X)
-    ll = _get_weighted_likelihood(ll)  # TODO: needed?
 
     output = {"loss": compute_batch_mean(-1 * ll)}  # shape: (B, )
     if ll.shape[1] > 1:  # target_ch > 1
@@ -150,42 +149,6 @@ def reconstruction_loss_musplit_denoisplit(
     recons_loss_gm = -1 * gaussian_likelihood(predictions, targets)[0].mean()
     recons_loss = nm_weight * recons_loss_nm + gaussian_weight * recons_loss_gm
     return recons_loss
-
-
-# TODO: refactor this (if needed)
-# - cannot handle >2 target channels
-# - cannot handle 3D inputs
-def _get_weighted_likelihood(
-    ll: torch.Tensor, ch1_recons_w: float = 1, ch2_recons_w: float = 1
-) -> torch.Tensor:
-    """Multiply each channels with a different weight to get a weighted loss.
-
-    Parameters
-    ----------
-    ll : torch.Tensor
-        The log-likelihood tensor. Shape is (B, C, [Z], Y, X), where C is the number
-        of channels.
-    ch1_recons_w : float
-        The weight for the first channel. Default is 1.
-    ch2_recons_w : float
-        The weight for the second channel. Default is 1.
-
-    Returns
-    -------
-    torch.Tensor
-        The weighted log-likelihood tensor. Shape is (B, C, [Z], Y, X).
-    """
-    if ch1_recons_w == 1 and ch2_recons_w == 1:
-        return ll
-
-    assert ll.shape[1] == 2, "This function is only for 2 channel images"
-
-    mask1 = torch.zeros((len(ll), ll.shape[1], 1, 1), device=ll.device)
-    mask1[:, 0] = 1
-    mask2 = torch.zeros((len(ll), ll.shape[1], 1, 1), device=ll.device)
-    mask2[:, 1] = 1
-
-    return ll * mask1 * ch1_recons_w + ll * mask2 * ch2_recons_w
 
 
 def get_kl_divergence_loss_usplit(
@@ -268,7 +231,11 @@ def get_kl_divergence_loss_denoisplit(
     kl_loss = kl_loss / np.prod(img_shape)
     return kl_loss
 
-
+# TODO: @melisande-c suggested to refactor this as a class (see PR #208)
+# - loss computation happens by calling the `__call__` method
+# - `__init__` method initializes the loss parameters now contained in 
+# the `LVAELossParameters` class
+# NOTE: same for the other loss functions
 def musplit_loss(
     model_outputs: tuple[torch.Tensor, dict[str, Any]],
     targets: torch.Tensor,
