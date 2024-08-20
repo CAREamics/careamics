@@ -231,9 +231,10 @@ def get_kl_divergence_loss_denoisplit(
     kl_loss = kl_loss / np.prod(img_shape)
     return kl_loss
 
+
 # TODO: @melisande-c suggested to refactor this as a class (see PR #208)
 # - loss computation happens by calling the `__call__` method
-# - `__init__` method initializes the loss parameters now contained in 
+# - `__init__` method initializes the loss parameters now contained in
 # the `LVAELossParameters` class
 # NOTE: same for the other loss functions
 def musplit_loss(
