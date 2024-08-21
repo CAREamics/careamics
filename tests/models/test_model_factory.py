@@ -52,6 +52,7 @@ def test_model_registry_custom():
     assert model.in_features == 10
     assert model.out_features == 5
 
+
 # TODO: add test for LVAE
 @pytest.mark.skip(reason="This test is outdated. LVAE is now supported.")
 def test_lvae():

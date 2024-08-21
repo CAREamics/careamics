@@ -1,9 +1,9 @@
 """Noise models config."""
 
-import torch
 from pathlib import Path
 from typing import Literal, Union
 
+import torch
 from pydantic import BaseModel, ConfigDict, Field
 
 # TODO: add histogram-based noise model
@@ -50,7 +50,7 @@ class GaussianMixtureNMConfig(BaseModel):
     max_signal: float = Field(default=1.0, ge=0.0)
     """Maximum signal intensity expected in the image."""
 
-    min_sigma: float = None
+    min_sigma: float = 0.125
     """All values of `standard deviation` below this are clamped to this value."""
 
     tol: float = Field(default=1e-10)

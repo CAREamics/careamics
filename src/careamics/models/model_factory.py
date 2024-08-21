@@ -3,9 +3,10 @@ Model factory.
 
 Model creation factory functions.
 """
+
 from __future__ import annotations
 
-from typing import Union, TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 
 import torch
 
@@ -19,9 +20,9 @@ from careamics.utils import get_logger
 
 if TYPE_CHECKING:
     from careamics.config.architectures import (
+        CustomModel,
         LVAEModel,
         UNetModel,
-        CustomModel,
     )
 
 

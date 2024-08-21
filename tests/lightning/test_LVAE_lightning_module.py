@@ -1,6 +1,6 @@
 from contextlib import nullcontext as does_not_raise
 from pathlib import Path
-from typing import Callable
+from typing import Callable, Literal, Optional
 
 import numpy as np
 import pytest
@@ -46,9 +46,9 @@ def create_split_lightning_model(
     algorithm: str,
     loss_type: str,
     multiscale_count: int = 1,
-    predict_logvar: str = None,
+    predict_logvar: Optional[Literal["pixelwise"]] = None,
     target_ch: int = 1,
-) -> VAEModule:  
+) -> VAEModule:
     """Instantiate the muSplit lightining model."""
     lvae_config = LVAEModel(
         architecture="LVAE",
@@ -90,10 +90,11 @@ def create_split_lightning_model(
         noise_model=noise_model_config,
         noise_model_likelihood_model=nm_lik_config,
     )
-    
+
     return VAEModule(
         algorithm_config=vae_config,
     )
+
 
 def create_dummy_batch_LVAE(
     batch_size: int = 1,
@@ -103,10 +104,10 @@ def create_dummy_batch_LVAE(
 ):
     """Get a dummy batch for LVAE model."""
     assert multiscale_count > 0, "Multiscale count must be greater than 0."
-    
-    input = torch.randn(batch_size, multiscale_count, img_size, img_size)
+
+    input_ = torch.randn(batch_size, multiscale_count, img_size, img_size)
     target = torch.randn(batch_size, target_ch, img_size, img_size)
-    return input, target
+    return input_, target
 
 
 @pytest.mark.parametrize(
@@ -251,7 +252,7 @@ def test_musplit_training_step(
     multiscale_count: int,
     predict_logvar: str,
     target_ch: int,
-):  
+):
     lightning_model = create_split_lightning_model(
         tmp_path=None,
         algorithm="musplit",
@@ -267,7 +268,7 @@ def test_musplit_training_step(
         target_ch=target_ch,
     )
     train_loss = lightning_model.training_step(batch=batch, batch_idx=0)
-    
+
     # check outputs
     assert train_loss is not None
     assert isinstance(train_loss, dict)
@@ -285,7 +286,7 @@ def test_musplit_validation_step(
     multiscale_count: int,
     predict_logvar: str,
     target_ch: int,
-):  
+):
     lightning_model = create_split_lightning_model(
         tmp_path=None,
         algorithm="musplit",
@@ -327,7 +328,7 @@ def test_denoisplit_training_step(
     predict_logvar: str,
     target_ch: int,
     loss_type: str,
-):  
+):
     lightning_model = create_split_lightning_model(
         tmp_path=tmp_path,
         algorithm="denoisplit",
@@ -343,7 +344,7 @@ def test_denoisplit_training_step(
         target_ch=target_ch,
     )
     train_loss = lightning_model.training_step(batch=batch, batch_idx=0)
-    
+
     # check outputs
     assert train_loss is not None
     assert isinstance(train_loss, dict)
