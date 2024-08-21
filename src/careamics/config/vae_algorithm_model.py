@@ -75,6 +75,7 @@ class VAEAlgorithmConfig(BaseModel):
     loss: Literal["musplit", "denoisplit", "denoisplit_musplit"]
     model: Union[LVAEModel, CustomModel] = Field(discriminator="architecture")
 
+    # TODO: these are configs, change naming of attrs
     noise_model: Optional[MultiChannelNMConfig] = None
     noise_model_likelihood_model: Optional[NMLikelihoodConfig] = None
     gaussian_likelihood_model: Optional[GaussianLikelihoodConfig] = None
@@ -102,7 +103,7 @@ class VAEAlgorithmConfig(BaseModel):
                 )
             
         if self.algorithm == SupportedAlgorithm.DENOISPLIT:
-            if self.loss in [
+            if self.loss not in [
                 SupportedLoss.DENOISPLIT, 
                 SupportedLoss.DENOISPLIT_MUSPLIT
             ]:
