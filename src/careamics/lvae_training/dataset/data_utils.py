@@ -3,15 +3,13 @@ Utility functions needed by dataloader & co.
 """
 
 import os
+from dataclasses import dataclass
 from typing import List
 
+import numpy as np
 from skimage.io import imread, imsave
 
 from careamics.lvae_training.dataset.vae_data_config import DataSplitType, DataType
-from careamics.models.lvae.utils import Enum
-
-
-# import albumentations as
 
 
 def load_tiff(path):
@@ -226,17 +224,13 @@ def get_mrc_data(fpath):
     return data[..., 0]
 
 
-from dataclasses import dataclass
-
-import numpy as np
-
-
 @dataclass
 class GridIndexManager:
     data_shape: tuple
     grid_shape: tuple
     patch_shape: tuple
     trim_boundary: bool
+
     # Vera: patch is centered on index in the grid, grid size not used in training,
     # used only during val / test, grid size controls the overlap of the patches
     # in training you only get random patches every time
@@ -462,7 +456,7 @@ class IndexSwitcher:
             self._w_validmax = 0
 
         print(
-            f"[{self.__class__.__name__}] Target Indices: [0,{self._validtarget_ceilT-1}]. Index={self._validtarget_ceilT-1} has shape [:{self._h_validmax},:{self._w_validmax}].  Available data: {self._data_shape[0]}"
+            f"[{self.__class__.__name__}] Target Indices: [0,{self._validtarget_ceilT - 1}]. Index={self._validtarget_ceilT - 1} has shape [:{self._h_validmax},:{self._w_validmax}].  Available data: {self._data_shape[0]}"
         )
 
     def get_valid_target_index(self):
@@ -678,7 +672,6 @@ rec_header_dtd = [
 
 
 def read_mrc(filename, filetype="image"):
-
     fd = open(filename, "rb")
     header = np.fromfile(fd, dtype=rec_header_dtd, count=1)
 
