@@ -1,9 +1,11 @@
 import numpy as np
 import pytest
 import torch
+from torch.utils.data import DataLoader
 
 from careamics.config.inference_model import InferenceConfig
-from careamics.lightning import PredictDataModule
+from careamics.dataset import InMemoryTiledPredDataset
+from careamics.dataset.tiling.collate_tiles import collate_tiles
 from careamics.models.lvae.likelihoods import GaussianLikelihood
 from careamics.models.lvae.lvae import LadderVAE
 from careamics.prediction_utils import convert_outputs
@@ -62,8 +64,8 @@ def test_smoke_lvae_prediction(
     N_samples = 3
     data_shape = (N_samples, input_shape * 4 + 23, input_shape * 4 + 23)
     data = np.random.random_sample(size=data_shape)
-    data_module = PredictDataModule(inference_config, pred_data=data)
-    data_module.setup()  # simulate being called by lightning predict loop
+    dataset = InMemoryTiledPredDataset(inference_config, data)
+    dataloader = DataLoader(dataset, collate_fn=collate_tiles)
 
     # initialize model
     model = LadderVAE(**minimum_lvae_params)
@@ -72,7 +74,7 @@ def test_smoke_lvae_prediction(
 
     tiled_predictions = []
     log_vars = []
-    for batch in data_module.predict_dataloader():
+    for batch in dataloader:
         y, log_var = lvae_predict_single_sample(model, likelihood_obj, batch)
         tiled_predictions.append(y)
         log_vars.append(log_var)
