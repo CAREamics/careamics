@@ -10,7 +10,10 @@ from typing import Literal, Union, TYPE_CHECKING, Any, Optional
 import torch
 from torch import nn
 
-from careamics.config.likelihood_model import GaussianLikelihoodModel, NMLikelihoodModel
+from careamics.config.likelihood_model import (
+    GaussianLikelihoodConfig,
+    NMLikelihoodConfig,
+)
 
 if TYPE_CHECKING:
     from careamics.models.lvae.noise_models import (
@@ -21,13 +24,15 @@ if TYPE_CHECKING:
     NoiseModel = Union[GaussianMixtureNoiseModel, MultiChannelNoiseModel]
 
 
-def likelihood_factory(config: Union[GaussianLikelihoodModel, NMLikelihoodModel, None]):
+def likelihood_factory(
+    config: Union[GaussianLikelihoodConfig, NMLikelihoodConfig, None]
+):
     """
     Factory function for creating likelihood modules.
 
     Parameters
     ----------
-    config: Union[GaussianLikelihoodModel, NMLikelihoodModel]
+    config: Union[GaussianLikelihoodConfig, NMLikelihoodConfig]
         The configuration object for the likelihood module.
 
     Returns
@@ -38,12 +43,12 @@ def likelihood_factory(config: Union[GaussianLikelihoodModel, NMLikelihoodModel,
     if config is None:
         return None
     
-    if isinstance(config, GaussianLikelihoodModel):
+    if isinstance(config, GaussianLikelihoodConfig):
         return GaussianLikelihood(
             predict_logvar=config.predict_logvar,
             logvar_lowerbound=config.logvar_lowerbound,
         )
-    elif isinstance(config, NMLikelihoodModel):
+    elif isinstance(config, NMLikelihoodConfig):
         return NoiseModelLikelihood(
             data_mean=config.data_mean,
             data_std=config.data_std,
