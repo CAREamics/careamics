@@ -97,15 +97,12 @@ class MultiChDloader:
 
         # input = alpha * ch1 + (1-alpha)*ch2.
         # alpha is sampled randomly between these two extremes
-        self._start_alpha_arr = self._end_alpha_arr = self._return_alpha = (
-            self._alpha_weighted_target
-        ) = None
+        self._start_alpha_arr = self._end_alpha_arr = self._return_alpha = None
 
         self._img_sz = self._grid_sz = self._repeat_factor = self.idx_manager = None
         if self._is_train:
             self._start_alpha_arr = data_config.start_alpha
             self._end_alpha_arr = data_config.end_alpha
-            self._alpha_weighted_target = data_config.alpha_weighted_target
 
             self.set_img_sz(
                 data_config.image_size,
@@ -806,14 +803,7 @@ class MultiChDloader:
                 )
                 img_tuples = [img_tuples[i] for i in self._tar_idx_list]
 
-            if self._alpha_weighted_target:
-                assert self._input_is_sum is False
-                target = []
-                for i in range(len(img_tuples)):
-                    target.append(img_tuples[i] * alpha[i])
-                target = np.concatenate(target, axis=0)
-            else:
-                target = np.concatenate(img_tuples, axis=0)
+            target = np.concatenate(img_tuples, axis=0)
         return target
 
     def _compute_input_with_alpha(self, img_tuples, alpha_list):

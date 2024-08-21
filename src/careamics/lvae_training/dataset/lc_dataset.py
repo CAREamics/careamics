@@ -237,7 +237,6 @@ class LCMultiChDloader(MultiChDloader):
         # Alpha is an amount of weight which is applied to the channels when combining them
         # How to sample alpha is still under research
         inp, alpha = self._compute_input(input_tuples)
-        # assert self._alpha_weighted_target in [False, None]
         target_tuples = [img[:1] for img in img_tuples]
         # add noise to target.
         if len(noise_tuples) >= 1:

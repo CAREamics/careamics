@@ -89,10 +89,6 @@ class VaeDatasetConfig(BaseModel):
     start_alpha: Optional[Any] = None
     end_alpha: Optional[Any] = None
 
-    # TODO: is this used in vae_dataset?
-    alpha_weighted_target: Optional[bool] = False
-    """A weight which is applied to the channels when combining them"""
-
     image_size: int
     """Size of one patch of data"""
 
