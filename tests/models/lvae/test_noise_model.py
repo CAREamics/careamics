@@ -9,7 +9,6 @@ from careamics.models.lvae.noise_models import (
     GaussianMixtureNoiseModel,
     MultiChannelNoiseModel,
     noise_model_factory,
-    train_gm_noise_model,
 )
 
 

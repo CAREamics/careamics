@@ -53,7 +53,7 @@ class GaussianMixtureNmModel(BaseModel):
         self : Self
             _description_
         """
-        if (self.path and (self.signal is not None or self.observation is not None)):
+        if self.path and (self.signal is not None or self.observation is not None):
             raise ValueError(
                 "Either 'path' to pre-trained noise model should be"
                 "provided or both signal and observation in form of paths"
@@ -78,4 +78,3 @@ class MultiChannelNmModel(BaseModel):
     )
     """List of noise models, one for each target channel."""
     noise_models: list[GaussianMixtureNmModel]
-
