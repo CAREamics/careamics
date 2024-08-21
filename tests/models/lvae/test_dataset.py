@@ -12,11 +12,11 @@ from careamics.lvae_training.dataset.vae_data_config import (
 )
 from careamics.lvae_training.dataset.vae_dataset import MultiChDloader
 
-import SimpleITK as sitk
-
 
 @pytest.fixture
 def dummy_data_path_biorc_format(tmp_path: Path) -> str:
+    import SimpleITK as sitk
+
     (tmp_path / "ER").mkdir(exist_ok=True)
     (tmp_path / "Microtubules").mkdir(exist_ok=True)
 
@@ -56,7 +56,7 @@ def default_config() -> VaeDatasetConfig:
     )
 
 
-# TODO: change real data to synthetic or add code to download relevant stacks
+@pytest.mark.skip(reason="SimpleITK is not in the list of dependencies now")
 def test_create_biosr_vae_dataset(default_config, dummy_data_path_biorc_format):
     dataset = MultiChDloader(
         default_config,
@@ -91,6 +91,7 @@ def test_create_biosr_vae_dataset(default_config, dummy_data_path_biorc_format):
     assert targets[0].std() > 1
 
 
+@pytest.mark.skip(reason="SimpleITK is not in the list of dependencies now")
 @pytest.mark.parametrize("num_scales", [1, 2, 3])
 def test_create_biosr_lc_dataset(
     default_config, dummy_data_path_biorc_format, num_scales: int
@@ -123,7 +124,6 @@ def test_create_biosr_lc_dataset(
     assert input.mean() < 1
     assert input.std() < 1
 
-    # TODO: check the outputs sum
     # output is not normalized
     assert targets[0].mean() > 1
     assert targets[0].std() > 1
