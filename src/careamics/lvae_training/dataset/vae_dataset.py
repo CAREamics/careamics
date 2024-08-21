@@ -117,7 +117,6 @@ class MultiChDloader:
                 self._train_index_switcher = IndexSwitcher(
                     self.idx_manager, data_config, self._img_sz
                 )
-                self._std_background_arr = data_config.std_background_arr
 
         else:
 

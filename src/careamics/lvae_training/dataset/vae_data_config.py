@@ -97,9 +97,6 @@ class VaeDatasetConfig(BaseModel):
     having size `image_size` is returned. Grid size not used in training,
     used only during val / test, grid size controls the overlap of the patches"""
 
-    # TODO: is this used in vae_dataset?
-    std_background_arr: Optional[Any] = None
-
     empty_patch_replacement_enabled: Optional[bool] = False
     """Whether to replace the content of one of the channels
     with background with given probability"""
