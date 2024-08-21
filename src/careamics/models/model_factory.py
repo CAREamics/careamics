@@ -3,20 +3,27 @@ Model factory.
 
 Model creation factory functions.
 """
+from __future__ import annotations
 
-from typing import Union
+from typing import Union, TYPE_CHECKING
 
 import torch
 
 from careamics.config.architectures import (
     CustomModel,
-    LVAEModel,
-    UNetModel,
     get_custom_model,
 )
 from careamics.config.support import SupportedArchitecture
 from careamics.models import LVAE, UNet
 from careamics.utils import get_logger
+
+if TYPE_CHECKING:
+    from careamics.config.architectures import (
+        LVAEModel,
+        UNetModel,
+        CustomModel,
+    )
+
 
 logger = get_logger(__name__)
 
