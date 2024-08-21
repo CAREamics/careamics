@@ -11,6 +11,3 @@ class LCVaeDatasetConfig(VaeDatasetConfig):
     num_scales: int = 1
     """The number of resolutions at which we want the input. The target is formed at the
     highest resolution."""
-
-    # TODO: asserted to be always false, remove
-    lowres_supervision: Optional[bool] = False

@@ -48,7 +48,6 @@ class LCMultiChDloader(MultiChDloader):
         self._scaled_noise_data = [self._noise_data]
 
         assert isinstance(self.num_scales, int) and self.num_scales >= 1
-        self._lowres_supervision = data_config.lowres_supervision
         assert isinstance(self._padding_kwargs, dict)
         assert "mode" in self._padding_kwargs
 
@@ -125,8 +124,6 @@ class LCMultiChDloader(MultiChDloader):
             noisedata = self._scaled_noise_data[scaled_index][nidx]
             noise = tuple([noisedata[None, ..., i] for i in range(noisedata.shape[-1])])
             factor = np.sqrt(2) if self._input_is_sum else 1.0
-            # since we are using this lowres images for just the input, we need to add the noise of the input.
-            assert self._lowres_supervision is None or self._lowres_supervision is False
             imgs = tuple([img + noise[0] * factor for img in imgs])
         return imgs
 
@@ -224,7 +221,6 @@ class LCMultiChDloader(MultiChDloader):
         if self._enable_rotation:
             img_tuples, noise_tuples = self._rotate(img_tuples, noise_tuples)
 
-        assert self._lowres_supervision != True
         # add noise to input, if noise is present combine it with the image
         # factor is for the compute input not to have too much noise because the average of two gaussians
         if len(noise_tuples) > 0:
