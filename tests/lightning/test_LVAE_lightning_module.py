@@ -94,6 +94,20 @@ def create_dummy_noise_model(
         "min_sigma": 0.125,
     }
     np.savez(tmp_path / "dummy_noise_model.npz", **nm_dict)
+    
+
+def create_dummy_batch_LVAE(
+    batch_size: int = 1,
+    img_size: int = 64,
+    multiscale_count: int = 1,
+    target_ch: int = 1,
+):
+    """Get a dummy batch for LVAE model."""
+    assert multiscale_count > 0, "Multiscale count must be greater than 0."
+    
+    input = torch.randn(batch_size, multiscale_count, img_size, img_size)
+    target = torch.randn(batch_size, target_ch, img_size, img_size)
+    return input, target
 
 
 @pytest.mark.parametrize(
@@ -229,49 +243,66 @@ def test_denoisplit_lightining_init(
             assert lightning_model.loss_func == denoisplit_loss
 
 
-@pytest.mark.skip(reason="Not implemented yet")
+@pytest.mark.parametrize("batch_size", [1, 8])
+@pytest.mark.parametrize("multiscale_count", [1, 5])
+@pytest.mark.parametrize("predict_logvar", [None, "pixelwise"])
+@pytest.mark.parametrize("target_ch", [1, 3])
 def test_musplit_training_step(
+    batch_size: int,
     multiscale_count: int,
     predict_logvar: str,
     target_ch: int,
 ):  
-    # instantiate the  lightining model
-    lvae_config = LVAEModel(
-        architecture="LVAE",
-        input_shape=64,
-        multiscale_count=multiscale_count,
-        z_dims=[128, 128, 128, 128],
-        output_channels=target_ch,
-        predict_logvar=predict_logvar,
-    )
-
-    likelihood_config = GaussianLikelihoodConfig(
-        predict_logvar=predict_logvar,
-        logvar_lowerbound=0.0,
-    )
-
-    vae_config = VAEAlgorithmConfig(
-        algorithm_type="vae",
+    lightning_model = create_split_lightning_model(
+        tmp_path=None,
         algorithm="musplit",
-        loss="musplit",
-        model=lvae_config,
-        gaussian_likelihood_model=likelihood_config,
+        loss_type="musplit",
+        multiscale_count=multiscale_count,
+        predict_logvar=predict_logvar,
+        target_ch=target_ch,
     )
+    batch = create_dummy_batch_LVAE(
+        batch_size=batch_size,
+        img_size=64,
+        multiscale_count=multiscale_count,
+        target_ch=target_ch,
+    )
+    train_loss = lightning_model.training_step(batch=batch, batch_idx=0)
     
-    lightning_model = VAEModule(
-        algorithm_config=vae_config,
+    # check outputs
+    assert train_loss is not None
+    assert isinstance(train_loss, dict)
+    assert "loss" in train_loss
+    assert "reconstruction_loss" in train_loss
+    assert "kl_loss" in train_loss
+
+
+@pytest.mark.parametrize("batch_size", [1, 8])
+@pytest.mark.parametrize("multiscale_count", [1, 5])
+@pytest.mark.parametrize("predict_logvar", [None, "pixelwise"])
+@pytest.mark.parametrize("target_ch", [1, 3])
+def test_musplit_validation_step(
+    batch_size: int,
+    multiscale_count: int,
+    predict_logvar: str,
+    target_ch: int,
+):  
+    lightning_model = create_split_lightning_model(
+        tmp_path=None,
+        algorithm="musplit",
+        loss_type="musplit",
+        multiscale_count=multiscale_count,
+        predict_logvar=predict_logvar,
+        target_ch=target_ch,
     )
-
-
-@pytest.mark.skip(reason="Not implemented yet")
-def test_musplit_validation_step():
-    pass
-
-
-@pytest.mark.skip(reason="Not implemented yet")
-def test_musplit_logging():
-    pass
-
+    batch = create_dummy_batch_LVAE(
+        batch_size=batch_size,
+        img_size=64,
+        multiscale_count=multiscale_count,
+        target_ch=target_ch,
+    )
+    lightning_model.validation_step(batch=batch, batch_idx=0)
+    # NOTE: `validation_step` does not return anything...
 
 @pytest.mark.skip(reason="Not implemented yet")
 def test_denoisplit_training_step():
@@ -280,9 +311,4 @@ def test_denoisplit_training_step():
 
 @pytest.mark.skip(reason="Not implemented yet")
 def test_denoisplit_validation_step():
-    pass
-
-
-@pytest.mark.skip(reason="Not implemented yet")
-def test_denoisplit_logging():
     pass
