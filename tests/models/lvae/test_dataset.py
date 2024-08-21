@@ -14,7 +14,7 @@ from careamics.lvae_training.dataset.vae_dataset import MultiChDloader
 
 
 @pytest.fixture
-def dummy_data_path_biorc_format(tmp_path: Path) -> str:
+def dummy_data_path_biorc(tmp_path: Path) -> str:
     import SimpleITK as sitk
 
     (tmp_path / "ER").mkdir(exist_ok=True)
@@ -57,10 +57,10 @@ def default_config() -> VaeDatasetConfig:
 
 
 @pytest.mark.skip(reason="SimpleITK is not in the list of dependencies now")
-def test_create_biosr_vae_dataset(default_config, dummy_data_path_biorc_format):
+def test_create_biosr_vae_dataset(default_config, dummy_data_path_biorc):
     dataset = MultiChDloader(
         default_config,
-        dummy_data_path_biorc_format,
+        dummy_data_path_biorc,
         val_fraction=0.1,
         test_fraction=0.1,
     )
@@ -74,16 +74,16 @@ def test_create_biosr_vae_dataset(default_config, dummy_data_path_biorc_format):
     sample = dataset[0]
     assert len(sample) == 2
 
-    input, targets = sample
-    assert input.shape == (1, 128, 128)
+    inputs, targets = sample
+    assert inputs.shape == (1, 128, 128)
     assert len(targets) == 2
 
     for channel in targets:
         assert channel.shape == (128, 128)
 
     # input is normalized
-    assert input.mean() < 1
-    assert input.std() < 1
+    assert inputs.mean() < 1
+    assert inputs.std() < 1
 
     # TODO: check the outputs sum
     # output is not normalized
@@ -94,7 +94,7 @@ def test_create_biosr_vae_dataset(default_config, dummy_data_path_biorc_format):
 @pytest.mark.skip(reason="SimpleITK is not in the list of dependencies now")
 @pytest.mark.parametrize("num_scales", [1, 2, 3])
 def test_create_biosr_lc_dataset(
-    default_config, dummy_data_path_biorc_format, num_scales: int
+    default_config, dummy_data_path_biorc, num_scales: int
 ):
     lc_config = LCVaeDatasetConfig(**default_config.model_dump(exclude_none=True))
     lc_config.num_scales = num_scales
@@ -102,7 +102,7 @@ def test_create_biosr_lc_dataset(
     lc_config.overlapping_padding_kwargs = lc_config.padding_kwargs
 
     dataset = LCMultiChDloader(
-        lc_config, dummy_data_path_biorc_format, val_fraction=0.1, test_fraction=0.1
+        lc_config, dummy_data_path_biorc, val_fraction=0.1, test_fraction=0.1
     )
 
     max_val = dataset.get_max_val()
@@ -115,16 +115,16 @@ def test_create_biosr_lc_dataset(
     sample = dataset[0]
     assert len(sample) == 2
 
-    input, targets = sample
-    assert input.shape == (num_scales, 128, 128)
+    inputs, targets = sample
+    assert inputs.shape == (num_scales, 128, 128)
     assert len(targets) == 2
 
     for channel in targets:
         assert channel.shape == (128, 128)
 
     # input is normalized
-    assert input.mean() < 1
-    assert input.std() < 1
+    assert inputs.mean() < 1
+    assert inputs.std() < 1
 
     # output is not normalized
     assert targets[0].mean() > 1
