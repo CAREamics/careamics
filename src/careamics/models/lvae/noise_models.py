@@ -36,6 +36,7 @@ def noise_model_factory(
         _description_
     """
     # TODO in case path are provided, load. Should they be in the config ?
+    # TODO probably yes, should be a list of models per channel
     if paths:
         if model_config.model_type == "GaussianMixtureNoiseModel":
             noise_models = []
@@ -52,11 +53,11 @@ def noise_model_factory(
         # TODO train a new model. Config should always be provided?
         if model_config.model_type == "GaussianMixtureNoiseModel":
             # TODO one model for each channel all make this choise inside the model?
-            return train_gaussian_mixture_noise_model(model_config)
+            return train_gm_noise_models(model_config)
     return None
 
 
-def train_gaussian_mixture_noise_model(model_config: GaussianMixtureNmModel):
+def train_gm_noise_models(model_configs: list[GaussianMixtureNmModel]):
     """Train a Gaussian mixture noise model.
 
     Parameters
@@ -68,15 +69,13 @@ def train_gaussian_mixture_noise_model(model_config: GaussianMixtureNmModel):
     -------
     _description_
     """
-    # TODO pseudocode
-    """
+    # TODO where to put train params?
     noise_models = []
     # TODO any training params ? Different channels ?
-    for ch in channels:
-        noise_model = GaussianMixtureNoiseModel(model_config)
+    for model in model_configs:
+        noise_model = GaussianMixtureNoiseModel(model)
         noise_model.train()
         noise_models.append(noise_model)
-    """
     return DisentNoiseModel(*noise_models)
 
 

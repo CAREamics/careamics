@@ -1,11 +1,13 @@
 from pathlib import Path
-
+import pytest
 import numpy as np
 import torch
 from careamics.config.nm_model import GaussianMixtureNmModel
 from careamics.models.lvae.noise_models import (
     noise_model_factory,
     GaussianMixtureNoiseModel,
+    DisentNoiseModel,
+    train_gm_noise_models,
 )
 
 
@@ -44,3 +46,21 @@ def test_gm_noise_model_training(tmp_path):
     assert output is not None
     # TODO do something with output ?
 
+
+@pytest.mark.parametrize("n_channels", [1, 2])
+def test_train_gmm_with_config(n_channels):
+    model_configs = []
+
+    # Define dummy signal and observation pairs
+    x = np.random.rand(3)
+    y = np.random.rand(3)
+
+    for _ in range(n_channels):
+        model_configs.append(
+            GaussianMixtureNmModel(
+                model_type="GaussianMixtureNoiseModel", signal=x, observation=y
+            )
+        )
+
+
+    train_gm_noise_models(model_configs)
