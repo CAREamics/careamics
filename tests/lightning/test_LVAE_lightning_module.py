@@ -22,46 +22,16 @@ from careamics.models.lvae.noise_models import (
     noise_model_factory,
 )
 
-# TODO: move to conftest.py as pytest.fixture
-def create_musplit_lightning_model(
-    multiscale_count: int = 1,
-    predict_logvar: str = None,
-    target_ch: int = 1,
-) -> VAEModule:  
-    """Instantiate the muSplit lightining model."""
-    lvae_config = LVAEModel(
-        architecture="LVAE",
-        input_shape=64,
-        multiscale_count=multiscale_count,
-        z_dims=[128, 128, 128, 128],
-        output_channels=target_ch,
-        predict_logvar=predict_logvar,
-    )
-
-    likelihood_config = GaussianLikelihoodConfig(
-        predict_logvar=predict_logvar,
-        logvar_lowerbound=0.0,
-    )
-
-    vae_config = VAEAlgorithmConfig(
-        algorithm_type="vae",
-        algorithm="musplit",
-        loss="musplit",
-        model=lvae_config,
-        gaussian_likelihood_model=likelihood_config,
-    )
-    
-    return VAEModule(
-        algorithm_config=vae_config,
-    )
     
 # TODO: move to conftest.py as pytest.fixture
-def create_denoisplit_lightning_model(
+# TODO: can be modularized for more clarity
+def create_split_lightning_model(
     tmp_path: str,
+    algorithm: str,
+    loss_type: str,
     multiscale_count: int = 1,
     predict_logvar: str = None,
     target_ch: int = 1,
-    loss_type: str = "denoisplit",
 ) -> VAEModule:  
     """Instantiate the muSplit lightining model."""
     lvae_config = LVAEModel(
@@ -73,25 +43,31 @@ def create_denoisplit_lightning_model(
         predict_logvar=predict_logvar,
     )
 
-    if loss_type == "denoisplit_musplit":
+    # gaussian likelihood
+    if loss_type in ["musplit", "denoisplit_musplit"]:
         gaussian_lik_config = GaussianLikelihoodConfig(
             predict_logvar=predict_logvar,
             logvar_lowerbound=0.0,
         )
     else:
         gaussian_lik_config = None
-    create_dummy_noise_model(tmp_path, 3, 3)
-    gmm = GaussianMixtureNMConfig(
-        model_type="GaussianMixtureNoiseModel",
-        path=tmp_path / "dummy_noise_model.npz",
-    )
-    noise_model_config = MultiChannelNMConfig(noise_models=[gmm] * target_ch)
-    nm = noise_model_factory(noise_model_config)
-    nm_lik_config = NMLikelihoodConfig(noise_model=nm)
+    # noise model likelihood
+    if loss_type in ["denoisplit", "denoisplit_musplit"]:
+        create_dummy_noise_model(tmp_path, 3, 3)
+        gmm = GaussianMixtureNMConfig(
+            model_type="GaussianMixtureNoiseModel",
+            path=tmp_path / "dummy_noise_model.npz",
+        )
+        noise_model_config = MultiChannelNMConfig(noise_models=[gmm] * target_ch)
+        nm = noise_model_factory(noise_model_config)
+        nm_lik_config = NMLikelihoodConfig(noise_model=nm)
+    else:
+        noise_model_config = None
+        nm_lik_config = None
 
     vae_config = VAEAlgorithmConfig(
         algorithm_type="vae",
-        algorithm="denoisplit",
+        algorithm=algorithm,
         loss=loss_type,
         model=lvae_config,
         gaussian_likelihood_model=gaussian_lik_config,
@@ -102,7 +78,6 @@ def create_denoisplit_lightning_model(
     return VAEModule(
         algorithm_config=vae_config,
     )
-
 
 
 # TODO: move to conftest.py as pytest.fixture
