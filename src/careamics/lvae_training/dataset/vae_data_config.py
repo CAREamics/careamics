@@ -49,6 +49,7 @@ class GridAlignement(Enum):
     In the former case, one needs (patch_size - grid_size)//2 amount of content on the right end of the frame.
     In the latter case, one needs patch_size - grid_size amount of content on the right end of the frame.
     """
+
     LeftTop = 0
     Center = 1
 

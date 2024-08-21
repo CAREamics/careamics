@@ -6,9 +6,9 @@ import pytest
 from careamics.lvae_training.dataset.lc_dataset import LCMultiChDloader
 from careamics.lvae_training.dataset.lc_dataset_config import LCVaeDatasetConfig
 from careamics.lvae_training.dataset.vae_data_config import (
-    VaeDatasetConfig,
-    DataType,
     DataSplitType,
+    DataType,
+    VaeDatasetConfig,
 )
 from careamics.lvae_training.dataset.vae_dataset import MultiChDloader
 
@@ -101,7 +101,9 @@ def test_create_biosr_lc_dataset(
     lc_config.multiscale_lowres_count = num_scales
     lc_config.overlapping_padding_kwargs = lc_config.padding_kwargs
 
-    dataset = LCMultiChDloader(lc_config, dummy_data_path_biorc_format, val_fraction=0.1, test_fraction=0.1)
+    dataset = LCMultiChDloader(
+        lc_config, dummy_data_path_biorc_format, val_fraction=0.1, test_fraction=0.1
+    )
 
     max_val = dataset.get_max_val()
     assert max_val is not None, max_val > 0
