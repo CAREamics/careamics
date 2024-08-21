@@ -4,14 +4,15 @@ import torch
 from torch.utils.data import DataLoader
 
 from careamics.config.inference_model import InferenceConfig
+from careamics.config.tile_information import TileInformation
 from careamics.dataset import InMemoryTiledPredDataset
 from careamics.dataset.tiling.collate_tiles import collate_tiles
 from careamics.models.lvae.likelihoods import GaussianLikelihood
 from careamics.models.lvae.lvae import LadderVAE
 from careamics.prediction_utils import convert_outputs
 from careamics.prediction_utils.lvae_prediction import (
-    lvae_predict_mmse,
-    lvae_predict_single_sample,
+    lvae_predict_mmse_tiled_batch,
+    lvae_predict_tiled_batch,
 )
 
 
@@ -75,7 +76,7 @@ def test_smoke_lvae_prediction(
     tiled_predictions = []
     log_vars = []
     for batch in dataloader:
-        y, log_var = lvae_predict_single_sample(model, likelihood_obj, batch)
+        y, log_var = lvae_predict_tiled_batch(model, likelihood_obj, batch)
         tiled_predictions.append(y)
         log_vars.append(log_var)
 
@@ -111,19 +112,29 @@ def test_lvae_predict_single_sample(
 
     # dummy input
     x = torch.rand(size=(1, 1, input_shape, input_shape))
+    tile_info = TileInformation(
+        array_shape=(1, input_shape * 4, input_shape * 4),
+        last_tile=False,
+        overlap_crop_coords=((8, 8 + input_shape), (8, 8 + input_shape)),
+        stitch_coords=((0, input_shape), (0, input_shape)),
+        sample_id=0,
+    )
+    input_ = (x, [tile_info])  # simulate output of datasets
     # prediction
-    y, log_var = lvae_predict_single_sample(model, likelihood_obj, x)
+    y_tiled, log_var_tiled = lvae_predict_tiled_batch(model, likelihood_obj, input_)
+    y = y_tiled[0]
 
     assert y.shape == (1, output_channels, input_shape, input_shape)
     if predict_logvar == "pixelwise":
+        log_var = log_var_tiled[0]
         assert log_var.shape == (1, output_channels, input_shape, input_shape)
     elif predict_logvar is None:
-        assert log_var is None
+        assert log_var_tiled is None
 
 
 @pytest.mark.parametrize("predict_logvar", ["pixelwise", None])
 @pytest.mark.parametrize("output_channels", [2, 3])
-def test_lvae_predict_mmse(
+def test_lvae_predict_mmse_tiled_batch(
     minimum_lvae_params, gaussian_likelihood_params, predict_logvar, output_channels
 ):
     """Test MMSE prediction."""
@@ -140,11 +151,23 @@ def test_lvae_predict_mmse(
 
     # dummy input
     x = torch.rand(size=(1, 1, input_shape, input_shape))
+    tile_info = TileInformation(
+        array_shape=(1, input_shape * 4, input_shape * 4),
+        last_tile=False,
+        overlap_crop_coords=((8, 8 + input_shape), (8, 8 + input_shape)),
+        stitch_coords=((0, input_shape), (0, input_shape)),
+        sample_id=0,
+    )
+    input_ = (x, [tile_info])  # simulate output of datasets
     # prediction
-    y, log_var = lvae_predict_mmse(model, likelihood_obj, x, mmse_count=5)
+    y_tiled, log_var_tiled = lvae_predict_mmse_tiled_batch(
+        model, likelihood_obj, input_, mmse_count=5
+    )
+    y = y_tiled[0]
 
     assert y.shape == (1, output_channels, input_shape, input_shape)
     if predict_logvar == "pixelwise":
+        log_var = log_var_tiled[0]
         assert log_var.shape == (1, output_channels, input_shape, input_shape)
     elif predict_logvar is None:
-        assert log_var is None
+        assert log_var_tiled is None

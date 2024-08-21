@@ -1,6 +1,6 @@
 """Module containing pytorch implementations for obtaining predictions from an LVAE."""
 
-from typing import Any, Optional, Union, overload
+from typing import Any, Optional
 
 import torch
 
@@ -14,7 +14,7 @@ from careamics.models.lvae.likelihoods import LikelihoodModule
 # This function is needed because the output of the datasets (input here) can include
 #   auxillary items, such as the TileInformation. This function allows for easier reuse
 #   between lvae_predict_single_sample and lvae_predict_mmse.
-def _pure_lvae_predict_single_sample(
+def lvae_predict_single_sample(
     model: LVAE,
     likelihood_obj: LikelihoodModule,
     input: torch.Tensor,
@@ -53,25 +53,11 @@ def _pure_lvae_predict_single_sample(
     return sample_prediction, log_var
 
 
-@overload
-def lvae_predict_single_sample(  # numpydoc ignore=GL08
-    model: LVAE, likelihood_obj: LikelihoodModule, input: tuple[Any]
-) -> tuple[tuple[Any], Optional[tuple[Any]]]: ...
-
-
-@overload
-def lvae_predict_single_sample(  # numpydoc ignore=GL08
-    model: LVAE, likelihood_obj: LikelihoodModule, input: torch.Tensor
-) -> tuple[torch.Tensor, Optional[torch.Tensor]]: ...
-
-
-def lvae_predict_single_sample(
+def lvae_predict_tiled_batch(
     model: LVAE,
     likelihood_obj: LikelihoodModule,
-    input: Union[torch.Tensor, tuple[Any]],
-) -> Union[
-    tuple[torch.Tensor, Optional[torch.Tensor]], tuple[tuple[Any], Optional[tuple[Any]]]
-]:
+    input: tuple[Any],
+) -> tuple[tuple[Any], Optional[tuple[Any]]]:
     # TODO: fix docstring return types, ... too many output options
     """
     Generate a single sample prediction from an LVAE model, for a given input.
@@ -95,48 +81,25 @@ def lvae_predict_single_sample(
         Any auxillary data included in the input will also be include with both the
         sample prediction and the log-variance.
     """
-    if isinstance(input, tuple):
-        x, *aux = input
-    elif isinstance(input, torch.Tensor):
-        x = input
-        aux = []
-    else:
-        raise ValueError(f"Unknown input type '{type(input)}'")
+    x: torch.Tensor
+    aux: list[Any]
+    x, *aux = input
 
-    sample_prediction, log_var = _pure_lvae_predict_single_sample(
+    sample_prediction, log_var = lvae_predict_single_sample(
         model=model, likelihood_obj=likelihood_obj, input=x
     )
 
-    # TODO: don't like how this is handled
-    #   this is how it is done in FCNModule.predict_step
-    if len(aux) == 0:
-        return sample_prediction, log_var
-    else:
-        log_var_output = (log_var, *aux) if log_var is not None else None
-        return (sample_prediction, *aux), log_var_output
+    log_var_output = (log_var, *aux) if log_var is not None else None
+    return (sample_prediction, *aux), log_var_output
 
 
-@overload
-def lvae_predict_mmse(  # numpydoc ignore=GL08
-    model: LVAE, likelihood_obj: LikelihoodModule, input: tuple[Any], mmse_count: int
-) -> tuple[tuple[Any], Optional[tuple[Any]]]: ...
-
-
-@overload
-def lvae_predict_mmse(  # numpydoc ignore=GL08
-    model: LVAE, likelihood_obj: LikelihoodModule, input: torch.Tensor, mmse_count: int
-) -> tuple[torch.Tensor, Optional[torch.Tensor]]: ...
-
-
-def lvae_predict_mmse(
+def lvae_predict_mmse_tiled_batch(
     model: LVAE,
     likelihood_obj: LikelihoodModule,
-    input: Union[torch.Tensor, tuple[Any]],
+    input: tuple[Any],
     mmse_count: int,
-) -> Union[
-    tuple[torch.Tensor, Optional[torch.Tensor]], tuple[tuple[Any], Optional[tuple[Any]]]
-]:
-    # TODO: fix docstring return types, ... too many output options
+) -> tuple[tuple[Any], Optional[tuple[Any]]]:
+    # TODO: fix docstring return types, ... hard to make readable
     """
     Generate the MMSE (minimum mean squared error) prediction, for a given input.
 
@@ -163,16 +126,12 @@ def lvae_predict_mmse(
         Any auxillary data included in the input will also be include with both the
         MMSE prediction and the log-variance.
     """
-    if isinstance(input, tuple):
-        x, *aux = input
-    elif isinstance(input, torch.Tensor):
-        x = input
-        aux = []
-    else:
-        raise ValueError(f"Unknown input type '{type(input)}'")
-
     if mmse_count <= 0:
         raise ValueError("MMSE count must be greater than zero.")
+
+    x: torch.Tensor
+    aux: list[Any]
+    x, *aux = input
 
     input_shape = x.shape
     output_shape = (input_shape[0], model.target_ch, *input_shape[2:])
@@ -180,7 +139,7 @@ def lvae_predict_mmse(
     # pre-declare empty array to fill with individual sample predictions
     sample_predictions = torch.zeros(size=(mmse_count, *output_shape))
     for mmse_idx in range(mmse_count):
-        sample_prediction, lv = _pure_lvae_predict_single_sample(
+        sample_prediction, lv = lvae_predict_single_sample(
             model=model, likelihood_obj=likelihood_obj, input=x
         )
         # only keep the log variance of the first sample prediction
@@ -191,12 +150,7 @@ def lvae_predict_mmse(
         # store sample predictions
         sample_predictions[mmse_idx, ...] = sample_prediction
 
-    # TODO: don't like how this is handled
-    #   this is how it is done in FCNModule.predict_step
-    # take the mean of the sample predictions
     mmse_prediction = torch.mean(sample_predictions, dim=0)
-    if len(aux) == 0:
-        return mmse_prediction, log_var
-    else:
-        log_var_output = (log_var, *aux) if log_var is not None else None
-        return (mmse_prediction, *aux), log_var_output
+
+    log_var_output = (log_var, *aux) if log_var is not None else None
+    return (mmse_prediction, *aux), log_var_output
