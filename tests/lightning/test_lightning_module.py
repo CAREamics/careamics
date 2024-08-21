@@ -9,6 +9,7 @@ from careamics.lightning.lightning_module import (
 
 # TODO: rename to test_FCN_lightining_module.py
 
+
 def test_careamics_module(minimum_algorithm_n2v):
     """Test that the minimum algorithm allows instantiating a the Lightning API
     intermediate layer."""

@@ -42,7 +42,7 @@ def likelihood_factory(
     """
     if config is None:
         return None
-    
+
     if isinstance(config, GaussianLikelihoodConfig):
         return GaussianLikelihood(
             predict_logvar=config.predict_logvar,

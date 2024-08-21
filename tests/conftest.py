@@ -64,6 +64,7 @@ def minimum_algorithm_supervised() -> dict:
 
     return algorithm
 
+
 # TODO: need to update/remove this fixture
 @pytest.fixture
 def minimum_algorithm_musplit() -> dict:
@@ -88,6 +89,7 @@ def minimum_algorithm_musplit() -> dict:
     }
 
     return algorithm
+
 
 # TODO: Need to update/remove this fixture
 @pytest.fixture

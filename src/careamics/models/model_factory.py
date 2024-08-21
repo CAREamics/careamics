@@ -8,10 +8,15 @@ from typing import Union
 
 import torch
 
-from careamics.config.architectures import CustomModel, UNetModel, LVAEModel, get_custom_model
+from careamics.config.architectures import (
+    CustomModel,
+    LVAEModel,
+    UNetModel,
+    get_custom_model,
+)
 from careamics.config.support import SupportedArchitecture
+from careamics.models import LVAE, UNet
 from careamics.utils import get_logger
-from careamics.models import UNet, LVAE
 
 logger = get_logger(__name__)
 
@@ -41,7 +46,7 @@ def model_factory(
     """
     if model_configuration.architecture == SupportedArchitecture.UNET:
         return UNet(**model_configuration.model_dump())
-    elif model_configuration.architecture == SupportedArchitecture.LVAE:     
+    elif model_configuration.architecture == SupportedArchitecture.LVAE:
         return LVAE(**model_configuration.model_dump())
     elif model_configuration.architecture == SupportedArchitecture.CUSTOM:
         assert isinstance(model_configuration, CustomModel)

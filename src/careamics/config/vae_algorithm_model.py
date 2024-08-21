@@ -101,17 +101,20 @@ class VAEAlgorithmConfig(BaseModel):
                 raise ValueError(
                     f"Algorithm {self.algorithm} only supports loss `musplit`."
                 )
-            
+
         if self.algorithm == SupportedAlgorithm.DENOISPLIT:
             if self.loss not in [
-                SupportedLoss.DENOISPLIT, 
-                SupportedLoss.DENOISPLIT_MUSPLIT
+                SupportedLoss.DENOISPLIT,
+                SupportedLoss.DENOISPLIT_MUSPLIT,
             ]:
                 raise ValueError(
                     f"Algorithm {self.algorithm} only supports loss `denoisplit` "
                     "or `denoisplit_musplit."
                 )
-            if self.loss == SupportedLoss.DENOISPLIT and self.model.predict_logvar is not None:
+            if (
+                self.loss == SupportedLoss.DENOISPLIT
+                and self.model.predict_logvar is not None
+            ):
                 raise ValueError(
                     "Algorithm `denoisplit` with loss `denoisplit` only supports "
                     "`predict_logvar` as `None`."
@@ -119,11 +122,10 @@ class VAEAlgorithmConfig(BaseModel):
 
         # TODO: what if algorithm is not musplit or denoisplit (HDN?)
         return self
-    
+
     @model_validator(mode="after")
     def output_channels_validation(self: Self) -> Self:
-        """Validate the consistency between the number of output channels and the
-        number of noise models.
+        """Validate the consistency between number of out channels and noise models.
 
         Returns
         -------
@@ -136,11 +138,10 @@ class VAEAlgorithmConfig(BaseModel):
                 f"the number of noise models ({len(self.noise_model.noise_models)})."
             )
         return self
-    
+
     @model_validator(mode="after")
     def predict_logvar_validation(self: Self) -> Self:
-        """Validate the consistency of `predict_logvar` in the different places
-        in which it is used.
+        """Validate the consistency of `predict_logvar` throughout the model.
 
         Returns
         -------
@@ -148,13 +149,15 @@ class VAEAlgorithmConfig(BaseModel):
             The validated model.
         """
         if self.gaussian_likelihood_model is not None:
-            assert self.model.predict_logvar == self.gaussian_likelihood_model.predict_logvar, (
+            assert (
+                self.model.predict_logvar
+                == self.gaussian_likelihood_model.predict_logvar
+            ), (
                 f"Model `predict_logvar` ({self.model.predict_logvar}) must match "
                 "Gaussian likelihood model `predict_logvar` "
                 f"({self.gaussian_likelihood_model.predict_logvar}).",
             )
         return self
-        
 
     def __str__(self) -> str:
         """Pretty string representing the configuration.

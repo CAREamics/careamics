@@ -2,19 +2,25 @@ from contextlib import nullcontext as does_not_raise
 from pathlib import Path
 from typing import Callable
 
+import numpy as np
 import pytest
 import torch
-import numpy as np
 from pydantic import ValidationError
 
-from careamics.config.architectures import LVAEModel
-from careamics.config.nm_model import GaussianMixtureNMConfig, MultiChannelNMConfig
-from careamics.config.likelihood_model import GaussianLikelihoodConfig, NMLikelihoodConfig
-from careamics.models.lvae.likelihoods import GaussianLikelihood, NoiseModelLikelihood
-from careamics.models.lvae.noise_models import noise_model_factory, MultiChannelNoiseModel
 from careamics.config import VAEAlgorithmConfig
+from careamics.config.architectures import LVAEModel
+from careamics.config.likelihood_model import (
+    GaussianLikelihoodConfig,
+    NMLikelihoodConfig,
+)
+from careamics.config.nm_model import GaussianMixtureNMConfig, MultiChannelNMConfig
 from careamics.lightning import VAEModule
-from careamics.losses import musplit_loss, denoisplit_loss, denoisplit_musplit_loss
+from careamics.losses import denoisplit_loss, denoisplit_musplit_loss, musplit_loss
+from careamics.models.lvae.likelihoods import GaussianLikelihood, NoiseModelLikelihood
+from careamics.models.lvae.noise_models import (
+    MultiChannelNoiseModel,
+    noise_model_factory,
+)
 
 
 # TODO: move to conftest.py as pytest.fixture
@@ -36,11 +42,11 @@ def create_dummy_noise_model(
 @pytest.mark.parametrize(
     "multiscale_count, predict_logvar, loss_type, exp_error",
     [
-        (1, None, 'musplit', does_not_raise()),
-        (1, "pixelwise", 'musplit', does_not_raise()),
-        (5, None, 'musplit', does_not_raise()),
-        (5, "pixelwise", 'musplit', does_not_raise()),
-        (1, None, 'denoisplit', pytest.raises(ValueError)),
+        (1, None, "musplit", does_not_raise()),
+        (1, "pixelwise", "musplit", does_not_raise()),
+        (5, None, "musplit", does_not_raise()),
+        (5, "pixelwise", "musplit", does_not_raise()),
+        (1, None, "denoisplit", pytest.raises(ValueError)),
     ],
 )
 def test_musplit_lightining_init(
@@ -85,22 +91,22 @@ def test_musplit_lightining_init(
 @pytest.mark.parametrize(
     "multiscale_count, predict_logvar, target_ch, nm_cnt, loss_type, exp_error",
     [
-        (1, None, 1, 1, 'denoisplit', does_not_raise()),
-        (5, None, 1, 1, 'denoisplit', does_not_raise()),
-        (1, None, 3, 3, 'denoisplit', does_not_raise()),
-        (5, None, 3, 3, 'denoisplit', does_not_raise()),
-        (1, None, 2, 4, 'denoisplit', pytest.raises(ValidationError)),
-        (1, None, 1, 1, 'denoisplit_musplit', does_not_raise()),
-        (1, None, 3, 3, 'denoisplit_musplit', does_not_raise()),
-        (1, "pixelwise", 1, 1, 'denoisplit_musplit', does_not_raise()),
-        (1, "pixelwise", 3, 3, 'denoisplit_musplit', does_not_raise()),
-        (5, None, 1, 1, 'denoisplit_musplit', does_not_raise()),
-        (5, None, 3, 3, 'denoisplit_musplit', does_not_raise()),
-        (5, "pixelwise", 1, 1, 'denoisplit_musplit', does_not_raise()),
-        (5, "pixelwise", 3, 3, 'denoisplit_musplit', does_not_raise()),
-        (5, "pixelwise", 2, 4, 'denoisplit_musplit', pytest.raises(ValidationError)),
-        (1, "pixelwise", 1, 1, 'denoisplit', pytest.raises(ValidationError)),
-        (1, None, 1, 1, 'musplit', pytest.raises(ValueError)),
+        (1, None, 1, 1, "denoisplit", does_not_raise()),
+        (5, None, 1, 1, "denoisplit", does_not_raise()),
+        (1, None, 3, 3, "denoisplit", does_not_raise()),
+        (5, None, 3, 3, "denoisplit", does_not_raise()),
+        (1, None, 2, 4, "denoisplit", pytest.raises(ValidationError)),
+        (1, None, 1, 1, "denoisplit_musplit", does_not_raise()),
+        (1, None, 3, 3, "denoisplit_musplit", does_not_raise()),
+        (1, "pixelwise", 1, 1, "denoisplit_musplit", does_not_raise()),
+        (1, "pixelwise", 3, 3, "denoisplit_musplit", does_not_raise()),
+        (5, None, 1, 1, "denoisplit_musplit", does_not_raise()),
+        (5, None, 3, 3, "denoisplit_musplit", does_not_raise()),
+        (5, "pixelwise", 1, 1, "denoisplit_musplit", does_not_raise()),
+        (5, "pixelwise", 3, 3, "denoisplit_musplit", does_not_raise()),
+        (5, "pixelwise", 2, 4, "denoisplit_musplit", pytest.raises(ValidationError)),
+        (1, "pixelwise", 1, 1, "denoisplit", pytest.raises(ValidationError)),
+        (1, None, 1, 1, "musplit", pytest.raises(ValueError)),
     ],
 )
 def test_denoisplit_lightining_init(
@@ -111,7 +117,7 @@ def test_denoisplit_lightining_init(
     nm_cnt: int,
     loss_type: str,
     exp_error: Callable,
-):  
+):
     # Create the model config
     lvae_config = LVAEModel(
         architecture="LVAE",
@@ -121,10 +127,10 @@ def test_denoisplit_lightining_init(
         output_channels=target_ch,
         predict_logvar=predict_logvar,
     )
-    
-    # Create the likelihood(s)
+
+    # Create the likelihood config(s)
     # gaussian
-    if loss_type == 'denoisplit_musplit': 
+    if loss_type == "denoisplit_musplit":
         gaussian_lik_config = GaussianLikelihoodConfig(
             predict_logvar=predict_logvar,
             logvar_lowerbound=0.0,
@@ -134,9 +140,9 @@ def test_denoisplit_lightining_init(
     # noise model
     create_dummy_noise_model(tmp_path, 3, 3)
     gmm = GaussianMixtureNMConfig(
-            model_type="GaussianMixtureNoiseModel",
-            path=tmp_path / "dummy_noise_model.npz",
-        )
+        model_type="GaussianMixtureNoiseModel",
+        path=tmp_path / "dummy_noise_model.npz",
+    )
     noise_model_config = MultiChannelNMConfig(noise_models=[gmm] * nm_cnt)
     nm = noise_model_factory(noise_model_config)
     nm_lik_config = NMLikelihoodConfig(noise_model=nm)
@@ -149,7 +155,7 @@ def test_denoisplit_lightining_init(
             model=lvae_config,
             gaussian_likelihood_model=gaussian_lik_config,
             noise_model=noise_model_config,
-            noise_model_likelihood_model=nm_lik_config
+            noise_model_likelihood_model=nm_lik_config,
         )
         lightning_model = VAEModule(
             algorithm_config=vae_config,
@@ -158,7 +164,7 @@ def test_denoisplit_lightining_init(
         assert isinstance(lightning_model.model, torch.nn.Module)
         assert isinstance(lightning_model.noise_model, MultiChannelNoiseModel)
         assert isinstance(lightning_model.noise_model_likelihood, NoiseModelLikelihood)
-        if loss_type == 'denoisplit_musplit':
+        if loss_type == "denoisplit_musplit":
             assert isinstance(lightning_model.gaussian_likelihood, GaussianLikelihood)
             assert lightning_model.loss_func == denoisplit_musplit_loss
         else:
