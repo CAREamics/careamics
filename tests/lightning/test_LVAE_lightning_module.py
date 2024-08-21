@@ -22,11 +22,27 @@ from careamics.models.lvae.noise_models import (
     noise_model_factory,
 )
 
-    
+
 # TODO: move to conftest.py as pytest.fixture
-# TODO: can be modularized for more clarity
+def create_dummy_noise_model(
+    tmp_path: Path,
+    n_gaussians: int = 3,
+    n_coeffs: int = 3,
+) -> None:
+    weights = np.random.rand(3 * n_gaussians, n_coeffs)
+    nm_dict = {
+        "trained_weight": weights,
+        "min_signal": np.array([0]),
+        "max_signal": np.array([2**16 - 1]),
+        "min_sigma": 0.125,
+    }
+    np.savez(tmp_path / "dummy_noise_model.npz", **nm_dict)
+
+
+# TODO: move to conftest.py as pytest.fixture
+# it can be split into modules for more clarity (?)
 def create_split_lightning_model(
-    tmp_path: str,
+    tmp_path: Path,
     algorithm: str,
     loss_type: str,
     multiscale_count: int = 1,
@@ -78,23 +94,6 @@ def create_split_lightning_model(
     return VAEModule(
         algorithm_config=vae_config,
     )
-
-
-# TODO: move to conftest.py as pytest.fixture
-def create_dummy_noise_model(
-    tmp_path: Path,
-    n_gaussians: int = 3,
-    n_coeffs: int = 3,
-) -> None:
-    weights = np.random.rand(3 * n_gaussians, n_coeffs)
-    nm_dict = {
-        "trained_weight": weights,
-        "min_signal": np.array([0]),
-        "max_signal": np.array([2**16 - 1]),
-        "min_sigma": 0.125,
-    }
-    np.savez(tmp_path / "dummy_noise_model.npz", **nm_dict)
-    
 
 def create_dummy_batch_LVAE(
     batch_size: int = 1,
@@ -304,11 +303,91 @@ def test_musplit_validation_step(
     lightning_model.validation_step(batch=batch, batch_idx=0)
     # NOTE: `validation_step` does not return anything...
 
-@pytest.mark.skip(reason="Not implemented yet")
-def test_denoisplit_training_step():
-    pass
+
+@pytest.mark.parametrize(
+    "multiscale_count, predict_logvar, target_ch, loss_type",
+    [
+        (1, None, 1, "denoisplit"),
+        (5, None, 1, "denoisplit"),
+        (1, None, 3, "denoisplit"),
+        (5, None, 3, "denoisplit"),
+        (1, None, 1, "denoisplit_musplit"),
+        (1, None, 3, "denoisplit_musplit"),
+        (1, "pixelwise", 1, "denoisplit_musplit"),
+        (1, "pixelwise", 3, "denoisplit_musplit"),
+        (5, None, 1, "denoisplit_musplit"),
+        (5, None, 3, "denoisplit_musplit"),
+        (5, "pixelwise", 1, "denoisplit_musplit"),
+        (5, "pixelwise", 3, "denoisplit_musplit"),
+    ],
+)
+def test_denoisplit_training_step(
+    tmp_path: Path,
+    multiscale_count: int,
+    predict_logvar: str,
+    target_ch: int,
+    loss_type: str,
+):  
+    lightning_model = create_split_lightning_model(
+        tmp_path=tmp_path,
+        algorithm="denoisplit",
+        loss_type=loss_type,
+        multiscale_count=multiscale_count,
+        predict_logvar=predict_logvar,
+        target_ch=target_ch,
+    )
+    batch = create_dummy_batch_LVAE(
+        batch_size=8,
+        img_size=64,
+        multiscale_count=multiscale_count,
+        target_ch=target_ch,
+    )
+    train_loss = lightning_model.training_step(batch=batch, batch_idx=0)
+    
+    # check outputs
+    assert train_loss is not None
+    assert isinstance(train_loss, dict)
+    assert "loss" in train_loss
+    assert "reconstruction_loss" in train_loss
+    assert "kl_loss" in train_loss
 
 
-@pytest.mark.skip(reason="Not implemented yet")
-def test_denoisplit_validation_step():
-    pass
+@pytest.mark.parametrize(
+    "multiscale_count, predict_logvar, target_ch, loss_type",
+    [
+        (1, None, 1, "denoisplit"),
+        (5, None, 1, "denoisplit"),
+        (1, None, 3, "denoisplit"),
+        (5, None, 3, "denoisplit"),
+        (1, None, 1, "denoisplit_musplit"),
+        (1, None, 3, "denoisplit_musplit"),
+        (1, "pixelwise", 1, "denoisplit_musplit"),
+        (1, "pixelwise", 3, "denoisplit_musplit"),
+        (5, None, 1, "denoisplit_musplit"),
+        (5, None, 3, "denoisplit_musplit"),
+        (5, "pixelwise", 1, "denoisplit_musplit"),
+        (5, "pixelwise", 3, "denoisplit_musplit"),
+    ],
+)
+def test_denoisplit_validation_step(
+    tmp_path: Path,
+    multiscale_count: int,
+    predict_logvar: str,
+    target_ch: int,
+    loss_type: str,
+):
+    lightning_model = create_split_lightning_model(
+        tmp_path=tmp_path,
+        algorithm="denoisplit",
+        loss_type=loss_type,
+        multiscale_count=multiscale_count,
+        predict_logvar=predict_logvar,
+        target_ch=target_ch,
+    )
+    batch = create_dummy_batch_LVAE(
+        batch_size=8,
+        img_size=64,
+        multiscale_count=multiscale_count,
+        target_ch=target_ch,
+    )
+    lightning_model.validation_step(batch=batch, batch_idx=0)
