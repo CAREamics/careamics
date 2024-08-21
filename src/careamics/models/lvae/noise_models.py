@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Union, TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional
 
 import numpy as np
 import torch
@@ -36,27 +36,29 @@ def noise_model_factory(
     """
     # TODO in case path are provided, load. Should they be in the config ?
     # TODO probably yes, should be a list of models per channel
-    if paths:
-        if model_config.model_type == "GaussianMixtureNoiseModel":
-            noise_models = []
-            for path in paths:
-                model_config.path = path
-                noise_models.append(GaussianMixtureNoiseModel(model_config))
-            return DisentNoiseModel(*noise_models)
-        else:
-            raise NotImplementedError(
-                f"Model {model_config.model_type} is not implemented"
-            )
-    # TODO should config and paths be mutually exclusive ?
-    else:
-        # TODO train a new model. Config should always be provided?
-        if model_config.model_type == "GaussianMixtureNoiseModel":
-            # TODO one model for each channel all make this choise inside the model?
-            return train_gm_noise_models(model_config)
-    return None
+    noise_models = []
+    for nm in model_config.noise_models:
+        if nm.path:
+            if nm.model_type == "GaussianMixtureNoiseModel":
+                noise_models.append(GaussianMixtureNoiseModel(nm))
+            else:
+                raise NotImplementedError(
+                    f"Model {nm.model_type} is not implemented"
+                )
+
+        else: # TODO this means signal/obs are provided. Controlled in pydantic model
+            # TODO train a new model. Config should always be provided?
+            if nm.model_type == "GaussianMixtureNoiseModel":
+                # TODO one model for each channel all make this choise inside the model?
+                return train_gm_noise_model(nm)
+            else:
+                raise NotImplementedError(
+                    f"Model {nm.model_type} is not implemented"
+                )
+    return MultiChannelNoiseModel(noise_models)
 
 
-def train_gm_noise_models(model_configs: list[GaussianMixtureNmModel]):
+def train_gm_noise_model(model_config: GaussianMixtureNmModel):
     """Train a Gaussian mixture noise model.
 
     Parameters
@@ -69,35 +71,34 @@ def train_gm_noise_models(model_configs: list[GaussianMixtureNmModel]):
     _description_
     """
     # TODO where to put train params?
-    noise_models = []
     # TODO any training params ? Different channels ?
-    for model in model_configs:
-        noise_model = GaussianMixtureNoiseModel(model)
-        noise_model.train()
-        noise_models.append(noise_model)
-    return DisentNoiseModel(*noise_models)
+    noise_model = GaussianMixtureNoiseModel(model_config)
+    # TODO revisit config unpacking
+    noise_model.train(noise_model.signal, noise_model.observation)
+    return noise_model
 
 
-def get_noise_model(
-    enable_noise_model: bool,
-    model_type: ModelType,
-    noise_model_type: str,
-    noise_model_ch1_fpath: str,
-    noise_model_ch2_fpath: str,
-    noise_model_learnable: bool = False,
-    denoise_channel: str = "input",  # TODO hardcoded ?
-):
-    if enable_noise_model:
-        nmodels = []
-        # HDN -> one single output -> one single noise model
-        if model_type == ModelType.Denoiser:
-            if noise_model_type == "hist":
-                raise NotImplementedError(
-                    f"Model {nm_config.model_type} is not implemented"
-                )
-        return MultiChannelNoiseModel(noise_models)
-    # TODO should config and paths be mutually exclusive? What you mean, Igor?
-    return None
+# def get_noise_model(
+#     enable_noise_model: bool,
+#     model_type: ModelType,
+#     noise_model_type: str,
+#     noise_model_ch1_fpath: str,
+#     noise_model_ch2_fpath: str,
+#     noise_model_learnable: bool = False,
+#     denoise_channel: str = "input",  # TODO hardcoded ?
+# ):
+#     if enable_noise_model:
+#         nmodels = []
+#         # HDN -> one single output -> one single noise model
+#         if model_type == ModelType.Denoiser:
+#             if noise_model_type == "hist":
+#                 raise NotImplementedError(
+#                     f"Model {nm_config.model_type} is not implemented"
+#                 )
+#         return MultiChannelNoiseModel(noise_models)
+#     # TODO should config and paths be mutually exclusive? What you mean, Igor?
+#     # TODO not sure we need this func
+#     return None
 
 
 class MultiChannelNoiseModel(nn.Module):
@@ -169,8 +170,22 @@ class MultiChannelNoiseModel(nn.Module):
 
 # TODO: is this needed?
 def fastShuffle(series, num):
+    """_summary_.
+
+    Parameters
+    ----------
+    series : _type_
+        _description_
+    num : _type_
+        _description_
+
+    Returns
+    -------
+    _type_
+        _description_
+    """
     length = series.shape[0]
-    for i in range(num):
+    for _ in range(num):
         series = series[np.random.permutation(length), :]
     return series
 
