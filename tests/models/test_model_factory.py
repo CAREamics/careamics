@@ -8,7 +8,8 @@ from careamics.config.architectures import (
     register_model,
 )
 from careamics.config.support import SupportedArchitecture
-from careamics.models import UNet, model_factory
+from careamics.models import model_factory
+from careamics.models.unet import UNet
 
 
 def test_model_registry_unet():
