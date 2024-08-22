@@ -337,7 +337,12 @@ class VAEModule(L.LightningModule):
         # Compute loss
         loss = self.loss_func(out, target, self.loss_parameters)  # TODO ugly ?
 
-        self.log_dict(loss, on_step=False, on_epoch=True, prog_bar=True, logger=True)
+        # Logging
+        # TODO: implement a separate logging method?
+        self.log("train_loss", loss["loss"], on_epoch=True)
+        self.log("train_kl_loss", loss["kl_loss"], on_epoch=True)
+        self.log("train_rec_loss", loss["reconstruction_loss"], on_epoch=True)
+        # self.log("lr", self, on_epoch=True)
         return loss
 
     def validation_step(self, batch: tuple[Tensor, Tensor], batch_idx: Any) -> None:
@@ -360,21 +365,29 @@ class VAEModule(L.LightningModule):
         out = self.model(x)
 
         # Compute loss
-        val_loss = self.loss_func(out, target, self.loss_parameters)
+        loss = self.loss_func(out, target, self.loss_parameters)
         
         # Rename val_loss dict
-        val_loss = {
-            "_".join(["val", key]): value for key, value in val_loss.items()
+        loss = {
+            "_".join(["val", key]): value for key, value in loss.items()
         }
 
-        # log validation loss
-        self.log_dict(
-            val_loss,
-            on_step=False,
-            on_epoch=True,
-            prog_bar=True,
-            logger=True,
-        )
+        # TODO: implement running PSNR computation
+        
+        # Logging
+        # TODO: implement a separate logging method?
+        self.log("val_loss", loss["loss"], on_epoch=True)
+        self.log("val_kl_loss", loss["kl_loss"], on_epoch=True)
+        self.log("val_rec_loss", loss["reconstruction_loss"], on_epoch=True)
+        # self.log("lr", self, on_epoch=True)
+        
+    
+    def on_validation_epoch_end(self) -> None:
+        # TODO: aggregate running PSNR
+        # self.log('val_psnr', psnr, on_epoch=True)
+        pass
+        
+    
 
     def predict_step(self, batch: Tensor, batch_idx: Any) -> Any:
         """Prediction step.
