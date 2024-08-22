@@ -6,6 +6,8 @@ import numpy as np
 import pytest
 import torch
 from pydantic import ValidationError
+from pytorch_lightning import Trainer
+from torch.utils.data import DataLoader, Dataset
 
 from careamics.config import VAEAlgorithmConfig
 from careamics.config.architectures import LVAEModel
@@ -96,18 +98,39 @@ def create_split_lightning_model(
     )
 
 
-def create_dummy_batch_LVAE(
+class DummyDataset(Dataset):
+    def __init__(
+        self,
+        img_size: int = 64,
+        target_ch: int = 1,
+        multiscale_count: int = 1,
+    ):
+        self.num_samples = 3
+        self.img_size = img_size
+        self.target_ch = target_ch
+        self.multiscale_count = multiscale_count
+
+    def __len__(self):
+        return self.num_samples
+
+    def __getitem__(self, idx: int):
+        input_ = torch.randn(self.multiscale_count, self.img_size, self.img_size)
+        target = torch.randn(self.target_ch, self.img_size, self.img_size)
+        return input_, target
+
+
+def create_dummy_dloader(
     batch_size: int = 1,
     img_size: int = 64,
-    multiscale_count: int = 1,
     target_ch: int = 1,
+    multiscale_count: int = 1,
 ):
-    """Get a dummy batch for LVAE model."""
-    assert multiscale_count > 0, "Multiscale count must be greater than 0."
-
-    input_ = torch.randn(batch_size, multiscale_count, img_size, img_size)
-    target = torch.randn(batch_size, target_ch, img_size, img_size)
-    return input_, target
+    dataset = DummyDataset(
+        img_size=img_size,
+        target_ch=target_ch,
+        multiscale_count=multiscale_count,
+    )
+    return DataLoader(dataset, batch_size=batch_size, shuffle=False)
 
 
 @pytest.mark.parametrize(
@@ -261,12 +284,13 @@ def test_musplit_training_step(
         predict_logvar=predict_logvar,
         target_ch=target_ch,
     )
-    batch = create_dummy_batch_LVAE(
+    dloader = create_dummy_dloader(
         batch_size=batch_size,
         img_size=64,
         multiscale_count=multiscale_count,
         target_ch=target_ch,
     )
+    batch = next(iter(dloader))
     train_loss = lightning_model.training_step(batch=batch, batch_idx=0)
 
     # check outputs
@@ -295,12 +319,13 @@ def test_musplit_validation_step(
         predict_logvar=predict_logvar,
         target_ch=target_ch,
     )
-    batch = create_dummy_batch_LVAE(
+    dloader = create_dummy_dloader(
         batch_size=batch_size,
         img_size=64,
         multiscale_count=multiscale_count,
         target_ch=target_ch,
     )
+    batch = next(iter(dloader))
     lightning_model.validation_step(batch=batch, batch_idx=0)
     # NOTE: `validation_step` does not return anything...
 
@@ -337,12 +362,13 @@ def test_denoisplit_training_step(
         predict_logvar=predict_logvar,
         target_ch=target_ch,
     )
-    batch = create_dummy_batch_LVAE(
+    dloader = create_dummy_dloader(
         batch_size=8,
         img_size=64,
         multiscale_count=multiscale_count,
         target_ch=target_ch,
     )
+    batch = next(iter(dloader))
     train_loss = lightning_model.training_step(batch=batch, batch_idx=0)
 
     # check outputs
@@ -385,10 +411,97 @@ def test_denoisplit_validation_step(
         predict_logvar=predict_logvar,
         target_ch=target_ch,
     )
-    batch = create_dummy_batch_LVAE(
+    dloader = create_dummy_dloader(
         batch_size=8,
         img_size=64,
         multiscale_count=multiscale_count,
         target_ch=target_ch,
     )
+    batch = next(iter(dloader))
     lightning_model.validation_step(batch=batch, batch_idx=0)
+
+
+@pytest.mark.parametrize("batch_size", [1, 8])
+@pytest.mark.parametrize("multiscale_count", [1, 5])
+@pytest.mark.parametrize("predict_logvar", [None, "pixelwise"])
+@pytest.mark.parametrize("target_ch", [1, 3])
+def test_training_loop_musplit(
+    batch_size: int,
+    multiscale_count: int,
+    predict_logvar: str,
+    target_ch: int,
+):
+    lightning_model = create_split_lightning_model(
+        tmp_path=None,
+        algorithm="musplit",
+        loss_type="musplit",
+        multiscale_count=multiscale_count,
+        predict_logvar=predict_logvar,
+        target_ch=target_ch,
+    )
+    dloader = create_dummy_dloader(
+        batch_size=batch_size,
+        img_size=64,
+        multiscale_count=multiscale_count,
+        target_ch=target_ch,
+    )
+    trainer = Trainer(accelerator="cpu", max_epochs=2, logger=False, callbacks=[])
+
+    try:
+        trainer.fit(
+            model=lightning_model,
+            train_dataloaders=dloader,
+            val_dataloaders=dloader,
+        )
+    except Exception as e:
+        pytest.fail(f"Training routine failed with exception: {e}")
+
+
+@pytest.mark.parametrize(
+    "batch_size, predict_logvar, target_ch, loss_type",
+    [
+        (1, None, 1, "denoisplit"),
+        (4, None, 1, "denoisplit"),
+        (1, None, 3, "denoisplit"),
+        (4, None, 3, "denoisplit"),
+        (1, None, 1, "denoisplit_musplit"),
+        (1, None, 3, "denoisplit_musplit"),
+        (1, "pixelwise", 1, "denoisplit_musplit"),
+        (1, "pixelwise", 3, "denoisplit_musplit"),
+        (4, None, 1, "denoisplit_musplit"),
+        (4, None, 3, "denoisplit_musplit"),
+        (4, "pixelwise", 1, "denoisplit_musplit"),
+        (4, "pixelwise", 3, "denoisplit_musplit"),
+    ],
+)
+def test_training_loop_denoisplit(
+    tmp_path: Path,
+    batch_size: int,
+    predict_logvar: str,
+    target_ch: int,
+    loss_type: str,
+):
+    lightning_model = create_split_lightning_model(
+        tmp_path=tmp_path,
+        algorithm="denoisplit",
+        loss_type=loss_type,
+        multiscale_count=1,
+        predict_logvar=predict_logvar,
+        target_ch=target_ch,
+    )
+    dloader = create_dummy_dloader(
+        batch_size=batch_size,
+        img_size=64,
+        multiscale_count=1,
+        target_ch=target_ch,
+    )
+    trainer = Trainer(accelerator="cpu", max_epochs=2, logger=False, callbacks=[])
+
+    try:
+        trainer.fit(
+            model=lightning_model,
+            train_dataloaders=dloader,
+            val_dataloaders=dloader,
+        )
+    except Exception as e:
+        pytest.fail(f"Training routine failed with exception: {e}")
