@@ -45,7 +45,7 @@ def noise_model_factory(
                         f"Model {nm.model_type} is not implemented"
                     )
 
-            else: # TODO this means signal/obs are provided. Controlled in pydantic model
+            else:  # TODO this means signal/obs are provided. Controlled in pydantic model
                 # TODO train a new model. Config should always be provided?
                 if nm.model_type == "GaussianMixtureNoiseModel":
                     # TODO one model for each channel all make this choise inside the model?
@@ -59,7 +59,9 @@ def noise_model_factory(
     return None
 
 
-def train_gm_noise_model(model_config: GaussianMixtureNmModel):
+def train_gm_noise_model(
+    model_config: GaussianMixtureNMConfig,
+) -> GaussianMixtureNoiseModel:
     """Train a Gaussian mixture noise model.
 
     Parameters

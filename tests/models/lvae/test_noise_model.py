@@ -29,7 +29,7 @@ def create_dummy_noise_model(
 
 
 def test_factory_no_noise_model():
-    noise_model_config = MultiChannelNmModel(noise_models=[])
+    noise_model_config = MultiChannelNMConfig(noise_models=[])
     noise_model = noise_model_factory(noise_model_config)
     assert noise_model is None
 
@@ -142,7 +142,7 @@ def test_gm_noise_model_training(tmp_path):
     x = np.random.rand(3)
     y = np.random.rand(3)
 
-    nm_config = GaussianMixtureNmModel(
+    nm_config = GaussianMixtureNMConfig(
         model_type="GaussianMixtureNoiseModel", signal=x, observation=y
     )
 
