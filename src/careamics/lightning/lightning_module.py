@@ -260,7 +260,10 @@ class VAEModule(L.LightningModule):
             if isinstance(algorithm_config, dict)
             else algorithm_config
         )
-
+        
+        # TODO: log algorithm config
+        # self.save_hyperparameters(self.algorithm_config.model_dump())
+        
         # create model and loss function
         self.model: nn.Module = model_factory(self.algorithm_config.model)
         self.noise_model: NoiseModel = noise_model_factory(
