@@ -16,8 +16,8 @@ __all__ = [
     "register_model",
     "CustomModel",
     "clear_custom_models",
-    "GaussianMixtureNmModel",
-    "MultiChannelNmModel",
+    "GaussianMixtureNMConfig",
+    "MultiChannelNMConfig",
 ]
 from .architectures import CustomModel, clear_custom_models, register_model
 from .callback_model import CheckpointModel
@@ -34,6 +34,6 @@ from .configuration_model import (
 from .data_model import DataConfig
 from .fcn_algorithm_model import FCNAlgorithmConfig
 from .inference_model import InferenceConfig
-from .nm_model import GaussianMixtureNmModel, MultiChannelNmModel
+from .nm_model import GaussianMixtureNMConfig, MultiChannelNMConfig
 from .training_model import TrainingConfig
 from .vae_algorithm_model import VAEAlgorithmConfig
