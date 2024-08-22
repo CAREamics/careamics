@@ -7,7 +7,7 @@ This module contains various metrics and a metrics tracking class.
 # NOTE: this doesn't work with torch tensors, since `torch` refuses to
 # compute the `mean()` or `std()` of a tensor whose dtype is not float.
 
-
+from warnings import warn
 from typing import Union
 
 import numpy as np
@@ -45,6 +45,10 @@ def _zero_mean(x: Array) -> Array:
     """
     Zero the mean of an array.
 
+    NOTE: `torch` does not support the `mean()` method for tensors whose
+    `dtype` is not `float`. Hence, this function will raise a warning and
+    automatically cast the input tensor to `float` if it is a `torch.Tensor`.
+    
     Parameters
     ----------
     x : Array
@@ -55,14 +59,8 @@ def _zero_mean(x: Array) -> Array:
     Array
         Zero-mean array.
     """
-    type_ = type(x)
-    dtype_ = x.dtype
-    x = np.asarray(x)
-    res = x - x.mean()
-    if type_ == torch.Tensor:
-        return torch.tensor(res, dtype=dtype_)
-    elif type_ == np.ndarray:
-        return res
+    x = cast_torch(x)
+    return x - x.mean()
 
 
 def _fix_range(gt: Array, x: Array) -> Array:
@@ -108,6 +106,10 @@ def _fix(gt: Array, x: Array) -> Array:
 def scale_invariant_psnr(gt: Array, pred: Array) -> Union[float, torch.tensor]:
     """
     Scale invariant PSNR.
+    
+    NOTE: `torch` does not support the `mean()` method for tensors whose
+    `dtype` is not `float`. Hence, this function will raise a warning and
+    automatically cast the input tensor to `float` if it is a `torch.Tensor`.
 
     Parameters
     ----------
@@ -121,9 +123,30 @@ def scale_invariant_psnr(gt: Array, pred: Array) -> Union[float, torch.tensor]:
     Union[float, torch.tensor]
         Scale invariant PSNR value.
     """
+    gt = cast_torch(gt)
     range_parameter = (gt.max() - gt.min()) / gt.std()
     gt_ = _zero_mean(gt) / gt.std()
     return psnr(_zero_mean(gt_), _fix(gt_, pred), range_parameter)
+
+
+def cast_torch(x: Array) -> Array:
+    """
+    Cast a tensor to float.
+
+    Parameters
+    ----------
+    x : Array
+        Input tensor.
+
+    Returns
+    -------
+    Array
+        Float tensor.
+    """
+    if isinstance(x, torch.Tensor) and x.dtype != torch.float:
+        warn(f"Casting tensor  of type {x.dtype} to float.", UserWarning)
+        return x.float()
+    return x
 
 
 class RunningPSNR:
