@@ -5,6 +5,7 @@ from __future__ import annotations
 from pprint import pformat
 from typing import Any, Literal, Optional, Union
 
+import numpy as np
 from numpy.typing import NDArray
 from pydantic import (
     BaseModel,
@@ -24,11 +25,11 @@ from .transformations.xy_random_rotate90_model import XYRandomRotate90Model
 from .validators import check_axes_validity, patch_size_ge_than_8_power_of_2
 
 
-def np_float_to_str(x: float) -> str:
-    """Return a string representation of a float.
+def np_float_to_scientific_str(x: float) -> str:
+    """Return a string scientific representation of a float.
 
     In particular, this method is used to serialize floats to strings, allowing
-    numpy.float32 to passed in the Pydantic model and written to a yaml file as str.
+    numpy.float32 to be passed in the Pydantic model and written to a yaml file as str.
 
     Parameters
     ----------
@@ -38,12 +39,12 @@ def np_float_to_str(x: float) -> str:
     Returns
     -------
     str
-        String representation of the input value.
+        Scientific string representation of the input value.
     """
-    return str(x)
+    return np.format_float_scientific(x, precision=7)
 
 
-Float = Annotated[float, PlainSerializer(np_float_to_str, return_type=str)]
+Float = Annotated[float, PlainSerializer(np_float_to_scientific_str, return_type=str)]
 """Annotated float type, used to serialize floats to strings."""
 
 

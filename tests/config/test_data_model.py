@@ -341,7 +341,7 @@ def test_export_to_yaml_float32_stats(tmp_path, minimum_data: dict):
     data = DataConfig(**minimum_data)
 
     # set np.float32 stats values
-    data.set_means_and_stds([np.float32(57.891)], [np.float32(21.73)])
+    data.set_means_and_stds([np.float32(1234.5678)], [np.float32(21.73)])
 
     # export to yaml
     config_path = tmp_path / "data_config.yaml"
