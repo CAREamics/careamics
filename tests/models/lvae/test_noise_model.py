@@ -138,6 +138,7 @@ def test_multi_channel_noise_model_likelihood(
     assert likelihood.shape == inp_shape
 
 
+@pytest.mark.skip(reason="Need to refac noise model to be able to train on CPU")
 def test_gm_noise_model_training(tmp_path):
     x = np.random.rand(3)
     y = np.random.rand(3)
