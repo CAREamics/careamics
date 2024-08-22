@@ -103,6 +103,7 @@ class VAEAlgorithmConfig(BaseModel):
                 )
 
         if self.algorithm == SupportedAlgorithm.DENOISPLIT:
+            # TODO: check that noise model and relative likelihood model are well-defined
             if self.loss not in [
                 SupportedLoss.DENOISPLIT,
                 SupportedLoss.DENOISPLIT_MUSPLIT,

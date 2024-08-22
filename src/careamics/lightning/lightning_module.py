@@ -334,8 +334,7 @@ class VAEModule(L.LightningModule):
         # Compute loss
         loss = self.loss_func(out, target, self.loss_parameters)  # TODO ugly ?
 
-        # TODO: check logging
-        self.log_dict(loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+        self.log_dict(loss, on_step=False, on_epoch=True, prog_bar=True, logger=True)
         return loss
 
     def validation_step(self, batch: tuple[Tensor, Tensor], batch_idx: Any) -> None:
@@ -359,6 +358,11 @@ class VAEModule(L.LightningModule):
 
         # Compute loss
         val_loss = self.loss_func(out, target, self.loss_parameters)
+        
+        # Rename val_loss dict
+        val_loss = {
+            "_".join(["val", key]): value for key, value in val_loss.items()
+        }
 
         # log validation loss
         self.log_dict(
