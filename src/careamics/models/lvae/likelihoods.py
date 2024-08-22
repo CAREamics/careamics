@@ -1,5 +1,5 @@
 """
-Script containing modules for definining different likelihood functions (as nn.Module).
+Script containing modules for defining different likelihood functions (as nn.Module).
 """
 
 from __future__ import annotations

@@ -1,4 +1,4 @@
-"""Functions to reimpliment the tiling in the Disentangle repository."""
+"""Functions to reimplement the tiling in the Disentangle repository."""
 
 import builtins
 import itertools
@@ -112,7 +112,7 @@ def compute_tile_info(
     data_shape : 1D np.array of int
         The shape of the data, should be (C, (Z), Y, X) where Z is optional.
     tile_size : 1D np.array of int
-       Tile sizes in each dimension, of length 2 or 3.
+        Tile sizes in each dimension, of length 2 or 3.
     overlaps : 1D np.array of int
         Overlap values in each dimension, of length 2 or 3.
     sample_id : int, default=0
