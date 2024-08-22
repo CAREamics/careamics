@@ -19,8 +19,8 @@ def noise_model_factory(
 
     Parameters
     ----------
-    model_config : Optional[MultiChannelNmModel]
-        Noise model configuration, a `MultiChannelNmModel` config that defines
+    model_config : Optional[MultiChannelNMConfig]
+        Noise model configuration, a `MultiChannelNMConfig` config that defines
         noise models for the different output channels.
 
     Returns
@@ -34,28 +34,28 @@ def noise_model_factory(
         If the chosen noise model `model_type` is not implemented.
         Currently only `GaussianMixtureNoiseModel` is implemented.
     """
-    # TODO in case path are provided, load. Should they be in the config ?
-    # TODO probably yes, should be a list of models per channel
-    noise_models = []
-    for nm in model_config.noise_models:
-        if nm.path:
-            if nm.model_type == "GaussianMixtureNoiseModel":
-                noise_models.append(GaussianMixtureNoiseModel(nm))
-            else:
-                raise NotImplementedError(
-                    f"Model {nm.model_type} is not implemented"
-                )
+    if model_config:
+        noise_models = []
+        for nm in model_config.noise_models:
+            if nm.path:
+                if nm.model_type == "GaussianMixtureNoiseModel":
+                    noise_models.append(GaussianMixtureNoiseModel(nm))
+                else:
+                    raise NotImplementedError(
+                        f"Model {nm.model_type} is not implemented"
+                    )
 
-        else: # TODO this means signal/obs are provided. Controlled in pydantic model
-            # TODO train a new model. Config should always be provided?
-            if nm.model_type == "GaussianMixtureNoiseModel":
-                # TODO one model for each channel all make this choise inside the model?
-                return train_gm_noise_model(nm)
-            else:
-                raise NotImplementedError(
-                    f"Model {nm.model_type} is not implemented"
-                )
-    return MultiChannelNoiseModel(noise_models)
+            else: # TODO this means signal/obs are provided. Controlled in pydantic model
+                # TODO train a new model. Config should always be provided?
+                if nm.model_type == "GaussianMixtureNoiseModel":
+                    # TODO one model for each channel all make this choise inside the model?
+                    return train_gm_noise_model(nm)
+                else:
+                    raise NotImplementedError(
+                        f"Model {nm.model_type} is not implemented"
+                    )
+        return MultiChannelNoiseModel(noise_models)
+    return None
 
 
 def train_gm_noise_model(model_config: GaussianMixtureNmModel):
