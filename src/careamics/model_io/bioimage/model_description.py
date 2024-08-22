@@ -204,7 +204,7 @@ def create_model_description(
     config : Configuration
         CAREamics configuration.
     name : str
-        Name fo the model.
+        Name of the model.
     general_description : str
         General description of the model.
     authors : List[Author]
