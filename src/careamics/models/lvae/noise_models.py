@@ -49,7 +49,8 @@ def noise_model_factory(
                 # TODO train a new model. Config should always be provided?
                 if nm.model_type == "GaussianMixtureNoiseModel":
                     # TODO one model for each channel all make this choise inside the model?
-                    return train_gm_noise_model(nm)
+                    trained_nm = train_gm_noise_model(nm)
+                    noise_models.append(trained_nm)
                 else:
                     raise NotImplementedError(
                         f"Model {nm.model_type} is not implemented"
