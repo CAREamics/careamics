@@ -1,5 +1,6 @@
 import numpy as np
 import pytest
+import torch
 
 from careamics.utils.metrics import (
     _zero_mean,
@@ -10,9 +11,10 @@ from careamics.utils.metrics import (
 @pytest.mark.parametrize(
     "x",
     [
-        5.6,
         np.array([1, 2, 3, 4, 5]),
         np.array([[1, 2, 3], [4, 5, 6]]),
+        torch.tensor([1, 2, 3, 4, 5]),
+        torch.tensor([[1, 2, 3], [4, 5, 6]]),
     ],
 )
 def test_zero_mean(x):
@@ -24,7 +26,16 @@ def test_zero_mean(x):
     [
         (np.array([1, 2, 3, 4, 5, 6]), np.array([1, 2, 3, 4, 5, 6]), 332.22),
         (np.array([[1, 2, 3], [4, 5, 6]]), np.array([[1, 2, 3], [4, 5, 6]]), 332.22),
+        (torch.tensor([1, 2, 3, 4, 5, 6]), torch.tensor([1, 2, 3, 4, 5, 6]), 332.22),
+        (
+            torch.tensor([[1, 2, 3], [4, 5, 6]]),
+            torch.tensor([[1, 2, 3], [4, 5, 6]]),
+            332.22,
+        ),
     ],
 )
 def test_scale_invariant_psnr(gt, pred, result):
     assert scale_invariant_psnr(gt, pred) == pytest.approx(result, rel=5e-3)
+
+
+# TODO: add tests for RunningPSNR
