@@ -18,6 +18,7 @@ from careamics.utils.metrics import (
     ],
 )
 def test_zero_mean(x):
+    x = np.asarray(x)
     assert np.allclose(_zero_mean(x), x - np.mean(x))
 
 

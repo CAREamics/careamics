@@ -4,6 +4,10 @@ Metrics submodule.
 This module contains various metrics and a metrics tracking class.
 """
 
+# NOTE: this doesn't work with torch tensors, since `torch` refuses to
+# compute the `mean()` or `std()` of a tensor whose dtype is not float.
+
+
 from typing import Union
 
 import numpy as np
@@ -51,7 +55,14 @@ def _zero_mean(x: Array) -> Array:
     Array
         Zero-mean array.
     """
-    return x - x.mean()
+    type_ = type(x)
+    dtype_ = x.dtype
+    x = np.asarray(x)
+    res = x - x.mean()
+    if type_ == torch.Tensor:
+        return torch.tensor(res, dtype=dtype_)
+    elif type_ == np.ndarray:
+        return res
 
 
 def _fix_range(gt: Array, x: Array) -> Array:
