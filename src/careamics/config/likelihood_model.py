@@ -13,8 +13,8 @@ from careamics.models.lvae.noise_models import (
 NoiseModel = Union[GaussianMixtureNoiseModel, MultiChannelNoiseModel]
 
 
-class GaussianLikelihoodModel(BaseModel):
-    """Gaussian likelihood model."""
+class GaussianLikelihoodConfig(BaseModel):
+    """Gaussian likelihood configuration."""
 
     model_config = ConfigDict(validate_assignment=True)
 
@@ -26,8 +26,8 @@ class GaussianLikelihoodModel(BaseModel):
     """The lowerbound value for log-variance."""
 
 
-class NMLikelihoodModel(BaseModel):
-    """Likelihood model for noise model."""
+class NMLikelihoodConfig(BaseModel):
+    """Noise model likelihood configuration."""
 
     model_config = ConfigDict(validate_assignment=True, arbitrary_types_allowed=True)
 

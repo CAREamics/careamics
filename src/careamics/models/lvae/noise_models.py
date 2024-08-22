@@ -7,13 +7,13 @@ import torch
 import torch.nn as nn
 
 if TYPE_CHECKING:
-    from careamics.config import GaussianMixtureNmModel, MultiChannelNmModel
+    from careamics.config import GaussianMixtureNMConfig, MultiChannelNMConfig
 
 # TODO this module shouldn't be in lvae folder
 
 
 def noise_model_factory(
-    model_config: MultiChannelNmModel,
+    model_config: Optional[MultiChannelNMConfig],
 ) -> Optional[MultiChannelNoiseModel]:
     """Noise model factory.
 
@@ -199,7 +199,7 @@ class GaussianMixtureNoiseModel(nn.Module):
 
     Parameters
     ----------
-    config : GaussianMixtureNmModel
+    config : GaussianMixtureNMConfig
         A `pydantic` model that defines the configuration of the GMM noise model.
 
     Attributes
@@ -233,7 +233,7 @@ class GaussianMixtureNoiseModel(nn.Module):
     """
 
     # TODO training a NM relies on getting a clean data(N2V e.g,)
-    def __init__(self, config: GaussianMixtureNmModel):
+    def __init__(self, config: GaussianMixtureNMConfig):
         super().__init__()
         self._learnable = False
 

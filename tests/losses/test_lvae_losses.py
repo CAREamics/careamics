@@ -8,8 +8,11 @@ import numpy as np
 import pytest
 import torch
 
-from careamics.config.likelihood_model import GaussianLikelihoodModel, NMLikelihoodModel
-from careamics.config.nm_model import GaussianMixtureNmModel, MultiChannelNmModel
+from careamics.config.likelihood_model import (
+    GaussianLikelihoodConfig,
+    NMLikelihoodConfig,
+)
+from careamics.config.nm_model import GaussianMixtureNMConfig, MultiChannelNMConfig
 from careamics.losses.loss_factory import (
     LVAELossParameters,
     SupportedLoss,
@@ -60,12 +63,12 @@ def init_noise_model(
 ) -> MultiChannelNoiseModel:
     """Instantiate a dummy noise model."""
     create_dummy_noise_model(tmp_path, n_gaussians, n_coeffs)
-    gmm = GaussianMixtureNmModel(
+    gmm = GaussianMixtureNMConfig(
         model_type="GaussianMixtureNoiseModel",
         path=tmp_path / "dummy_noise_model.npz",
         # all other params are default
     )
-    noise_model_config = MultiChannelNmModel(noise_models=[gmm] * target_ch)
+    noise_model_config = MultiChannelNMConfig(noise_models=[gmm] * target_ch)
     return noise_model_factory(noise_model_config)
 
 
@@ -126,11 +129,11 @@ def test_reconstruction_loss(
         nm = init_noise_model(tmp_path, target_ch)
         data_mean = target.mean(dim=(0, 2, 3), keepdim=True)
         data_std = target.std(dim=(0, 2, 3), keepdim=True)
-        config = NMLikelihoodModel(
+        config = NMLikelihoodConfig(
             data_mean=data_mean, data_std=data_std, noise_model=nm
         )
     else:
-        config = GaussianLikelihoodModel(predict_logvar=predict_logvar)
+        config = GaussianLikelihoodConfig(predict_logvar=predict_logvar)
     likelihood = likelihood_factory(config)
 
     # compute the loss
@@ -165,11 +168,11 @@ def test_reconstruction_loss_musplit_denoisplit(
     nm = init_noise_model(tmp_path, target_ch)
     data_mean = target.mean(dim=(0, 2, 3), keepdim=True)
     data_std = target.std(dim=(0, 2, 3), keepdim=True)
-    nm_config = NMLikelihoodModel(
+    nm_config = NMLikelihoodConfig(
         data_mean=data_mean, data_std=data_std, noise_model=nm
     )
     nm_likelihood = likelihood_factory(nm_config)
-    gaussian_config = GaussianLikelihoodModel(predict_logvar=predict_logvar)
+    gaussian_config = GaussianLikelihoodConfig(predict_logvar=predict_logvar)
     gaussian_likelihood = likelihood_factory(gaussian_config)
 
     # compute the loss
@@ -216,7 +219,7 @@ def test_musplit_loss(
     }
 
     # create likelihood
-    config = GaussianLikelihoodModel(predict_logvar=predict_logvar)
+    config = GaussianLikelihoodConfig(predict_logvar=predict_logvar)
     likelihood = likelihood_factory(config)
 
     # compute the loss
@@ -256,7 +259,7 @@ def test_denoisplit_loss(
     nm = init_noise_model(tmp_path, target_ch)
     data_mean = target.mean(dim=(0, 2, 3), keepdim=True)
     data_std = target.std(dim=(0, 2, 3), keepdim=True)
-    nm_config = NMLikelihoodModel(
+    nm_config = NMLikelihoodConfig(
         data_mean=data_mean, data_std=data_std, noise_model=nm
     )
     likelihood = likelihood_factory(nm_config)
@@ -309,11 +312,11 @@ def test_denoisplit_musplit_loss(
     nm = init_noise_model(tmp_path, target_ch)
     data_mean = target.mean(dim=(0, 2, 3), keepdim=True)
     data_std = target.std(dim=(0, 2, 3), keepdim=True)
-    nm_config = NMLikelihoodModel(
+    nm_config = NMLikelihoodConfig(
         data_mean=data_mean, data_std=data_std, noise_model=nm
     )
     nm_likelihood = likelihood_factory(nm_config)
-    gaussian_config = GaussianLikelihoodModel(predict_logvar=predict_logvar)
+    gaussian_config = GaussianLikelihoodConfig(predict_logvar=predict_logvar)
     gaussian_likelihood = likelihood_factory(gaussian_config)
 
     # compute the loss
