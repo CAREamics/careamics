@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 
 
 def noise_model_factory(
-    model_config: Optional[MultiChannelNmModel],
+    model_config: MultiChannelNmModel,
 ) -> Optional[MultiChannelNoiseModel]:
     """Noise model factory.
 
@@ -34,7 +34,7 @@ def noise_model_factory(
         If the chosen noise model `model_type` is not implemented.
         Currently only `GaussianMixtureNoiseModel` is implemented.
     """
-    if model_config:
+    if model_config.noise_models:
         noise_models = []
         for nm in model_config.noise_models:
             if nm.path:

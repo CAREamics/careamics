@@ -28,6 +28,12 @@ def create_dummy_noise_model(
     np.savez(tmp_path / "dummy_noise_model.npz", **nm_dict)
 
 
+def test_factory_no_noise_model():
+    noise_model_config = MultiChannelNmModel(noise_models=[])
+    noise_model = noise_model_factory(noise_model_config)
+    assert noise_model is None
+
+
 def test_instantiate_noise_model(tmp_path: Path) -> None:
     # Create a dummy noise model
     create_dummy_noise_model(tmp_path, 3, 3)
