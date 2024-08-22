@@ -3,6 +3,7 @@
 from typing import Any, Literal, Optional, Union
 
 import pytorch_lightning as L
+import numpy as np
 from torch import Tensor, nn
 
 from careamics.config import FCNAlgorithmConfig, VAEAlgorithmConfig
@@ -27,6 +28,7 @@ from careamics.models.lvae.noise_models import (
 )
 from careamics.models.model_factory import model_factory
 from careamics.transforms import Denormalize, ImageRestorationTTA
+from careamics.utils.metrics import scale_invariant_psnr, RunningPSNR
 from careamics.utils.torch_utils import get_optimizer, get_scheduler
 
 NoiseModel = Union[GaussianMixtureNoiseModel, MultiChannelNoiseModel]
@@ -287,6 +289,9 @@ class VAEModule(L.LightningModule):
         self.optimizer_params = self.algorithm_config.optimizer.parameters
         self.lr_scheduler_name = self.algorithm_config.lr_scheduler.name
         self.lr_scheduler_params = self.algorithm_config.lr_scheduler.parameters
+        
+        # initialize running PSNR
+        self.running_psnr = [RunningPSNR() for _ in range(self.algorithm_config.model.output_channels)]
 
     def forward(self, x: Tensor) -> tuple[Tensor, dict[str, Any]]:
         """Forward pass.
@@ -339,9 +344,7 @@ class VAEModule(L.LightningModule):
 
         # Logging
         # TODO: implement a separate logging method?
-        self.log("train_loss", loss["loss"], on_epoch=True)
-        self.log("train_kl_loss", loss["kl_loss"], on_epoch=True)
-        self.log("train_rec_loss", loss["reconstruction_loss"], on_epoch=True)
+        self.log_dict(loss, on_epoch=True)
         # self.log("lr", self, on_epoch=True)
         return loss
 
@@ -366,26 +369,48 @@ class VAEModule(L.LightningModule):
 
         # Compute loss
         loss = self.loss_func(out, target, self.loss_parameters)
-        
-        # Rename val_loss dict
-        loss = {
-            "_".join(["val", key]): value for key, value in loss.items()
-        }
 
+        # TODO: move this to a separate method
         # TODO: implement running PSNR computation
+        # get the reconstructed image
+        recons_img = self.get_reconstructed_tensor(out)
         
+        # scale_invariant_psnr for each channel in the current batch
+        out_channels = self.algorithm_config.model.output_channels
+        curr_scale_inv_psnr = [
+            scale_invariant_psnr(
+                gt=target[:, i].clone(), pred=recons_img[:, i].clone()
+            )
+            for i in range(out_channels)
+        ]
+        # psnr = torch_nanmean(psnr).item() # TODO: check if this is needed
+        
+        # compute running psnr
+        for i in range(out_channels):
+            self.running_psnr[i].update(rec=recons_img[:, i], tar=target[:, i])
+
         # Logging
-        # TODO: implement a separate logging method?
-        self.log("val_loss", loss["loss"], on_epoch=True)
-        self.log("val_kl_loss", loss["kl_loss"], on_epoch=True)
-        self.log("val_rec_loss", loss["reconstruction_loss"], on_epoch=True)
-        # self.log("lr", self, on_epoch=True)
-        
+        # Rename val_loss dict
+        loss = {"_".join(["val", k]): v for k, v in loss.items()}
+        self.log_dict(loss, on_epoch=True)
+        for i, psnr in enumerate(curr_scale_inv_psnr):
+            self.log(f"val_rinvpsnr_ch{i+1}", psnr, on_epoch=True)
     
     def on_validation_epoch_end(self) -> None:
-        # TODO: aggregate running PSNR
-        # self.log('val_psnr', psnr, on_epoch=True)
-        pass
+        psnr_arr = []
+        for i in range(len(self.running_psnr)):
+            psnr = self.running_psnr[i].get()
+            if psnr is None:
+                psnr_arr = None
+                break
+            psnr_arr.append(psnr.cpu().numpy())
+            self.running_psnr[i].reset()
+
+        if psnr_arr is not None:
+            psnr = np.mean(psnr_arr)
+            self.log('val_psnr', psnr, on_epoch=True)
+        else:
+            self.log('val_psnr', 0.0, on_epoch=True)
         
     
 
@@ -456,6 +481,31 @@ class VAEModule(L.LightningModule):
             "lr_scheduler": scheduler,
             "monitor": "val_loss",  # otherwise triggers MisconfigurationException
         }
+    
+    # TODO: this same operation is done in many other places, like in loss_func
+    # should we refactor LadderVAE so that it already outputs tuple(`mean`, `logvar`, `td_data`)?
+    def get_reconstructed_tensor(
+        self,
+        model_outputs: tuple[Tensor, dict[str, Any]]    
+    ) -> Tensor:
+        """Get the reconstructed tensor from the LVAE model outputs.
+        
+        Parameters
+        ----------
+        model_outputs : tuple[Tensor, dict[str, Any]]
+            Model outputs. It is a tuple with a tensor representing the predicted mean
+            and (optionally) logvar, and the top-down data dictionary.
+            
+        Returns
+        -------
+        Tensor
+            Reconstructed tensor, i.e., the predicted mean.
+        """
+        predictions, _ = model_outputs
+        if self.model.predict_logvar is None:
+            return predictions
+        elif self.model.predict_logvar == "pixelwise":
+            return predictions.chunk(2, dim=1)[0]
 
 
 # TODO: make this LVAE compatible (?)
