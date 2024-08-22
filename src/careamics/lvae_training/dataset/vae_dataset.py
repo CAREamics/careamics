@@ -1051,10 +1051,4 @@ class MultiChDloader:
         if self._return_index:
             output.append(index)
 
-        # TODO: Is not int index used anywhere in the training code?
-        if isinstance(index, int) or isinstance(index, np.int64):
-            return tuple(output)
-
-        _, grid_size = index
-        output.append(grid_size)
         return tuple(output)
