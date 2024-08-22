@@ -3,12 +3,13 @@ from torch import nn, ones
 
 from careamics.config.architectures import (
     CustomModel,
+    LVAEModel,
     UNetModel,
-    VAEModel,
     register_model,
 )
 from careamics.config.support import SupportedArchitecture
-from careamics.models import UNet, model_factory
+from careamics.models import model_factory
+from careamics.models.unet import UNet
 
 
 def test_model_registry_unet():
@@ -53,11 +54,11 @@ def test_model_registry_custom():
     assert model.out_features == 5
 
 
-def test_vae():
+def test_lvae():
     """Test that VAE are currently not supported."""
     model_config = {
-        "architecture": SupportedArchitecture.VAE.value,
+        "architecture": SupportedArchitecture.LVAE.value,
     }
 
     with pytest.raises(NotImplementedError):
-        model_factory(VAEModel(**model_config))
+        model_factory(LVAEModel(**model_config))

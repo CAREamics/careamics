@@ -117,7 +117,7 @@ class ResidualBlock(nn.Module):
                     bias=conv2d_bias,
                 )
                 modules.append(conv)
-                modules.append(nonlin())
+                modules.append(nonlin)
                 if batchnorm:
                     modules.append(nn.BatchNorm2d(channels))
                 if dropout is not None:
@@ -126,7 +126,7 @@ class ResidualBlock(nn.Module):
             for i in range(2):
                 if batchnorm:
                     modules.append(nn.BatchNorm2d(channels))
-                modules.append(nonlin())
+                modules.append(nonlin)
                 conv = nn.Conv2d(
                     channels,
                     channels,
@@ -142,7 +142,7 @@ class ResidualBlock(nn.Module):
             for i in range(2):
                 if batchnorm:
                     modules.append(nn.BatchNorm2d(channels))
-                modules.append(nonlin())
+                modules.append(nonlin)
                 conv = nn.Conv2d(
                     channels,
                     channels,
@@ -189,7 +189,7 @@ class GateLayer2d(nn.Module):
         assert kernel_size % 2 == 1
         pad = kernel_size // 2
         self.conv = nn.Conv2d(channels, 2 * channels, kernel_size, padding=pad)
-        self.nonlin = nonlin()
+        self.nonlin = nonlin
 
     def forward(self, x):
         x = self.conv(x)
@@ -1171,7 +1171,7 @@ class TopDownLayer(nn.Module):
             at the correspondent hierarchical layer.
         """
         if bu_value.shape[-2:] != p_params.shape[-2:]:
-            assert self.bottomup_no_padding_mode is True
+            assert self.bottomup_no_padding_mode is True  # TODO WTF ?
             if self.topdown_no_padding_mode is False:
                 assert bu_value.shape[-1] > p_params.shape[-1]
                 bu_value = F.center_crop(bu_value, p_params.shape[-2:])
@@ -1241,7 +1241,7 @@ class TopDownLayer(nn.Module):
         p_params = self.get_p_params(input_, n_img_prior)
 
         # Get the parameters for the latent distribution to sample from
-        if inference_mode:
+        if inference_mode:  # TODO What's this ?
             if self.is_top_layer:
                 q_params = bu_value
                 if mode_pred is False:

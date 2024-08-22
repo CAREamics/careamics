@@ -22,27 +22,6 @@ def create_tiff(path: Path, n_files: int):
 
 
 @pytest.fixture
-def minimum_algorithm_custom() -> dict:
-    """Create a minimum algorithm dictionary.
-
-    Returns
-    -------
-    dict
-        A minimum algorithm example.
-    """
-    # create dictionary
-    algorithm = {
-        "algorithm": "custom",
-        "loss": "mae",
-        "model": {
-            "architecture": "UNet",
-        },
-    }
-
-    return algorithm
-
-
-@pytest.fixture
 def minimum_algorithm_n2v() -> dict:
     """Create a minimum algorithm dictionary.
 
@@ -53,6 +32,7 @@ def minimum_algorithm_n2v() -> dict:
     """
     # create dictionary
     algorithm = {
+        "algorithm_type": "fcn",
         "algorithm": "n2v",
         "loss": "n2v",
         "model": {
@@ -74,11 +54,65 @@ def minimum_algorithm_supervised() -> dict:
     """
     # create dictionary
     algorithm = {
+        "algorithm_type": "fcn",
         "algorithm": "n2n",
         "loss": "mae",
         "model": {
             "architecture": "UNet",
         },
+    }
+
+    return algorithm
+
+
+# TODO: need to update/remove this fixture
+@pytest.fixture
+def minimum_algorithm_musplit() -> dict:
+    """Create a minimum algorithm dictionary.
+
+    Returns
+    -------
+    dict
+        A minimum algorithm example.
+    """
+    # create dictionary
+    algorithm = {
+        "algorithm": "musplit",  # TODO temporary
+        "loss": "musplit",
+        "model": {
+            "architecture": "musplit",
+            "enable_noise_model": False,
+            "z_dims": (128, 128, 128),
+            "multiscale_count": 4,
+        },
+        "likelihood": {"type": "GaussianLikelihoodConfig", "color_channels": 2},
+    }
+
+    return algorithm
+
+
+# TODO: Need to update/remove this fixture
+@pytest.fixture
+def minimum_algorithm_denoisplit() -> dict:
+    """Create a minimum algorithm dictionary.
+
+    Returns
+    -------
+    dict
+        A minimum algorithm example.
+    """
+    # create dictionary
+    algorithm = {
+        "algorithm": "denoisplit",
+        "loss": "denoisplit",
+        "model": {
+            "architecture": "LVAE",
+            "enable_noise_model": False,
+            "z_dims": (128, 128, 128),
+            "multiscale_count": 4,
+        },
+        "likelihood": {"type": "GaussianLikelihoodConfig", "color_channels": 2},
+        "noise_model": {"type": "GaussianMixtureNoiseModel"},
     }
 
     return algorithm
@@ -288,8 +322,8 @@ def pre_trained_bmz(tmp_path, pre_trained) -> Path:
     export_to_bmz(
         model=careamist.model,
         config=careamist.cfg,
-        path=path,
-        name="TopModel",
+        path_to_archive=path,
+        model_name="TopModel",
         general_description="A model that just walked in.",
         authors=[{"name": "Amod", "affiliation": "El"}],
         input_array=train_array[np.newaxis, np.newaxis, ...],
