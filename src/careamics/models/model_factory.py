@@ -15,7 +15,8 @@ from careamics.config.architectures import (
     get_custom_model,
 )
 from careamics.config.support import SupportedArchitecture
-from careamics.models import LVAE, UNet
+from careamics.models.lvae import LadderVAE as LVAE
+from careamics.models.unet import UNet
 from careamics.utils import get_logger
 
 if TYPE_CHECKING:
