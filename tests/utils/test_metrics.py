@@ -7,6 +7,7 @@ from careamics.utils.metrics import (
     scale_invariant_psnr,
 )
 
+# TODO: add tests for cudaTensors
 
 @pytest.mark.parametrize(
     "x",
