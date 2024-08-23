@@ -505,3 +505,29 @@ def test_training_loop_denoisplit(
         )
     except Exception as e:
         pytest.fail(f"Training routine failed with exception: {e}")
+
+
+@pytest.mark.parametrize("predict_logvar", [None, "pixelwise"])
+@pytest.mark.parametrize("target_ch", [1, 3])
+def test_get_reconstructed_tensor(
+    predict_logvar: str,
+    target_ch: int,
+):
+    lightning_model = create_split_lightning_model(
+        tmp_path=None,
+        algorithm="musplit",
+        loss_type="musplit",
+        multiscale_count=1,
+        predict_logvar=predict_logvar,
+        target_ch=target_ch,
+    )
+    dloader = create_dummy_dloader(
+        batch_size=1,
+        img_size=64,
+        multiscale_count=1,
+        target_ch=target_ch,
+    )
+    input_, target = next(iter(dloader))
+    output = lightning_model(input_)
+    rec_img = lightning_model.get_reconstructed_tensor(output)
+    assert rec_img.shape == target.shape # same shape as target
