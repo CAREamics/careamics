@@ -25,7 +25,7 @@ def get_unzip_path(zip_path: Union[Path, str]) -> Path:
 def create_env_text(pytorch_version: str) -> str:
     """Create environment yaml content for the bioimage model.
 
-    This installs an environemnt with the specified pytorch version and the latest
+    This installs an environment with the specified pytorch version and the latest
     changes to careamics.
 
     Parameters
