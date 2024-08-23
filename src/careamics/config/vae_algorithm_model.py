@@ -101,7 +101,7 @@ class VAEAlgorithmConfig(BaseModel):
         # TODO add more checks
 
         if self.algorithm == SupportedAlgorithm.DENOISPLIT:
-            if self.loss == SupportedLoss.DENOISPLIT:
+            if self.loss != SupportedLoss.DENOISPLIT:
                 raise ValueError(
                     f"Algorithm {self.algorithm} only supports loss `denoisplit`."
                 )

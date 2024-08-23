@@ -36,18 +36,25 @@ def noise_model_factory(
     """
     if model_config:
         noise_models = []
-        for nm_config in model_config.noise_models:
-            if nm_config.model_type == "GaussianMixtureNoiseModel":
-                if nm_config.path:
-                    noise_models.append(GaussianMixtureNoiseModel(nm_config))
-                else:  # TODO this means signal/obs are provided. Controlled in pydantic model
-                    # TODO train a new model. Config should always be provided?
-                    trained_nm = train_gm_noise_model(nm_config)
+        for nm in model_config.noise_models:
+            if nm.path:
+                if nm.model_type == "GaussianMixtureNoiseModel":
+                    noise_models.append(GaussianMixtureNoiseModel(nm))
+                else:
+                    raise NotImplementedError(
+                        f"Model {nm.model_type} is not implemented"
+                    )
+
+            else:  # TODO this means signal/obs are provided. Controlled in pydantic model
+                # TODO train a new model. Config should always be provided?
+                if nm.model_type == "GaussianMixtureNoiseModel":
+                    # TODO one model for each channel all make this choise inside the model?
+                    trained_nm = train_gm_noise_model(nm)
                     noise_models.append(trained_nm)
-            else:
-                raise NotImplementedError(
-                    f"Model {nm_config.model_type} is not implemented"
-                )
+                else:
+                    raise NotImplementedError(
+                        f"Model {nm.model_type} is not implemented"
+                    )
         return MultiChannelNoiseModel(noise_models)
     return None
 
@@ -256,6 +263,7 @@ class GaussianMixtureNoiseModel(nn.Module):
         self.weight.requires_grad = True
 
     def to_device(self, cuda_tensor):
+        # TODO wtf is this ?
         # move everything to GPU
         if self.min_signal.device != cuda_tensor.device:
             self.max_signal = self.max_signal.cuda()
@@ -450,7 +458,7 @@ class GaussianMixtureNoiseModel(nn.Module):
         """Temporary dummy forward method."""
         return x, y
 
-    # TODO taken from pn2v, might need clarification
+    # TODO taken from pn2v. Ashesh needs to clarify this
     def train(
         self,
         signal,
