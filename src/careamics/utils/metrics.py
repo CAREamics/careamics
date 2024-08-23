@@ -38,6 +38,9 @@ def psnr(gt: Array, pred: Array, range: float = 255.0) -> float:
     float
         PSNR value.
     """
+    # TODO: replace with explicit formula (?) it'd be a couple lines of code
+    # and won't impact performance. On the contrary it would make the code
+    # more explicit and easier to test.
     return peak_signal_noise_ratio(
         np.asarray(gt), 
         np.asarray(pred), 
