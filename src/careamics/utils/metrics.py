@@ -4,7 +4,7 @@ Metrics submodule.
 This module contains various metrics and a metrics tracking class.
 """
 
-from typing import Union
+from typing import Optional, Union
 
 import numpy as np
 import torch
@@ -117,10 +117,10 @@ def scale_invariant_psnr(
 
 class RunningPSNR:
     """Compute the running PSNR during validation step in training.
-    
+
     This class allows to compute the PSNR on the entire validation set
     one batch at the time.
-    
+
     Attributes
     ----------
     N : int
@@ -132,34 +132,32 @@ class RunningPSNR:
     min : float
         Running min value of the N target images seen so far.
     """
+
     def __init__(self):
+        """Constructor."""
         self.N = None
         self.mse_sum = None
         self.max = self.min = None
         self.reset()
 
     def reset(self):
-        """Reset the running PSNR computation. 
-        
+        """Reset the running PSNR computation.
+
         Usually called at the end of each epoch.
         """
         self.mse_sum = 0
         self.N = 0
         self.max = self.min = None
 
-    def update(
-        self, 
-        rec: torch.Tensor, 
-        tar: torch.Tensor
-    ) -> None:
+    def update(self, rec: torch.Tensor, tar: torch.Tensor) -> None:
         """Update the running PSNR statistics given a new batch.
-        
+
         Parameters
         ----------
-        rec: torch.Tensor
-            Batch of reconstructed images (B, C, H, W).
-        tar: torch.Tensor
-            Batch of target images (B, C, H, W).
+        rec : torch.Tensor
+            Reconstructed batch.
+        tar : torch.Tensor
+            Target batch.
         """
         ins_max = torch.max(tar).item()
         ins_min = torch.min(tar).item()
@@ -171,13 +169,19 @@ class RunningPSNR:
             self.max = max(self.max, ins_max)
             self.min = min(self.min, ins_min)
 
-        mse = (rec - tar)**2
+        mse = (rec - tar) ** 2
         elementwise_mse = torch.mean(mse.view(len(mse), -1), dim=1)
         self.mse_sum += torch.nansum(elementwise_mse)
         self.N += len(elementwise_mse) - torch.sum(torch.isnan(elementwise_mse))
 
-    def get(self):
-        """Get the actual PSNR value given the running statistics."""
+    def get(self) -> Optional[torch.Tensor]:
+        """Get the actual PSNR value given the running statistics.
+
+        Returns
+        -------
+        Optional[torch.Tensor]
+            PSNR value.
+        """
         if self.N == 0 or self.N is None:
             return None
         rmse = torch.sqrt(self.mse_sum / self.N)

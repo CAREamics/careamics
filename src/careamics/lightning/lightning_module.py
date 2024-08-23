@@ -2,8 +2,8 @@
 
 from typing import Any, Callable, Literal, Optional, Union
 
-import pytorch_lightning as L
 import numpy as np
+import pytorch_lightning as L
 from torch import Tensor, nn
 
 from careamics.config import FCNAlgorithmConfig, VAEAlgorithmConfig
@@ -28,7 +28,7 @@ from careamics.models.lvae.noise_models import (
 )
 from careamics.models.model_factory import model_factory
 from careamics.transforms import Denormalize, ImageRestorationTTA
-from careamics.utils.metrics import scale_invariant_psnr, RunningPSNR
+from careamics.utils.metrics import RunningPSNR, scale_invariant_psnr
 from careamics.utils.torch_utils import get_optimizer, get_scheduler
 
 NoiseModel = Union[GaussianMixtureNoiseModel, MultiChannelNoiseModel]
@@ -262,10 +262,10 @@ class VAEModule(L.LightningModule):
             if isinstance(algorithm_config, dict)
             else algorithm_config
         )
-        
+
         # TODO: log algorithm config
         # self.save_hyperparameters(self.algorithm_config.model_dump())
-        
+
         # create model and loss function
         self.model: nn.Module = model_factory(self.algorithm_config.model)
         self.noise_model: NoiseModel = noise_model_factory(
@@ -289,9 +289,11 @@ class VAEModule(L.LightningModule):
         self.optimizer_params = self.algorithm_config.optimizer.parameters
         self.lr_scheduler_name = self.algorithm_config.lr_scheduler.name
         self.lr_scheduler_params = self.algorithm_config.lr_scheduler.parameters
-        
+
         # initialize running PSNR
-        self.running_psnr = [RunningPSNR() for _ in range(self.algorithm_config.model.output_channels)]
+        self.running_psnr = [
+            RunningPSNR() for _ in range(self.algorithm_config.model.output_channels)
+        ]
 
     def forward(self, x: Tensor) -> tuple[Tensor, dict[str, Any]]:
         """Forward pass.
@@ -377,15 +379,14 @@ class VAEModule(L.LightningModule):
         curr_psnr = self.compute_val_psnr(out, target)
         for i, psnr in enumerate(curr_psnr):
             self.log(f"val_psnr_ch{i+1}_batch", psnr, on_epoch=True)
-    
-    
+
     def on_validation_epoch_end(self) -> None:
+        """Validation epoch end."""
         psnr_ = self.reduce_running_psnr()
         if psnr_ is not None:
-            self.log('val_psnr', psnr_, on_epoch=True, prog_bar=True)
+            self.log("val_psnr", psnr_, on_epoch=True, prog_bar=True)
         else:
-            self.log('val_psnr', 0.0, on_epoch=True, prog_bar=True)
-        
+            self.log("val_psnr", 0.0, on_epoch=True, prog_bar=True)
 
     def predict_step(self, batch: Tensor, batch_idx: Any) -> Any:
         """Prediction step.
@@ -454,22 +455,22 @@ class VAEModule(L.LightningModule):
             "lr_scheduler": scheduler,
             "monitor": "val_loss",  # otherwise triggers MisconfigurationException
         }
-    
-    # TODO: find a way to move the following methods to a separate module 
+
+    # TODO: find a way to move the following methods to a separate module
     # TODO: this same operation is done in many other places, like in loss_func
-    # should we refactor LadderVAE so that it already outputs tuple(`mean`, `logvar`, `td_data`)?
+    # should we refactor LadderVAE so that it already outputs
+    # tuple(`mean`, `logvar`, `td_data`)?
     def get_reconstructed_tensor(
-        self,
-        model_outputs: tuple[Tensor, dict[str, Any]]    
+        self, model_outputs: tuple[Tensor, dict[str, Any]]
     ) -> Tensor:
         """Get the reconstructed tensor from the LVAE model outputs.
-        
+
         Parameters
         ----------
         model_outputs : tuple[Tensor, dict[str, Any]]
             Model outputs. It is a tuple with a tensor representing the predicted mean
             and (optionally) logvar, and the top-down data dictionary.
-            
+
         Returns
         -------
         Tensor
@@ -480,38 +481,50 @@ class VAEModule(L.LightningModule):
             return predictions
         elif self.model.predict_logvar == "pixelwise":
             return predictions.chunk(2, dim=1)[0]
-    
-    
+
     def compute_val_psnr(
         self,
         model_output: tuple[Tensor, dict[str, Any]],
         target: Tensor,
-        psnr_func: Optional[Callable] = scale_invariant_psnr 
+        psnr_func: Callable = scale_invariant_psnr,
     ) -> list[float]:
         """Compute the PSNR for the current validation batch.
-        
+
+        Parameters
+        ----------
+        model_output : tuple[Tensor, dict[str, Any]]
+            Model output, a tuple with the predicted mean and (optionally) logvar,
+            and the top-down data dictionary.
+        target : Tensor
+            Target tensor.
+        psnr_func : Callable, optional
+            PSNR function to use, by default `scale_invariant_psnr`.
+
+        Returns
+        -------
+        list[float]
+            PSNR for each channel in the current batch.
         """
         out_channels = target.shape[1]
-        
+
         # get the reconstructed image
         recons_img = self.get_reconstructed_tensor(model_output)
-        
+
         # update running psnr
         for i in range(out_channels):
             self.running_psnr[i].update(rec=recons_img[:, i], tar=target[:, i])
-        
+
         # compute psnr for each channel in the current batch
         # TODO: this doesn't need do be a method of this class
         # and hence can be moved to a separate module
         return [
             psnr_func(
                 gt=target[:, i].clone().detach().cpu().numpy(),
-                pred=recons_img[:, i].clone().detach().cpu().numpy()
+                pred=recons_img[:, i].clone().detach().cpu().numpy(),
             )
             for i in range(out_channels)
         ]
-        
-    
+
     def reduce_running_psnr(self) -> Optional[float]:
         """Reduce the running PSNR statistics and reset the running PSNR.
 
@@ -520,20 +533,20 @@ class VAEModule(L.LightningModule):
         Optional[float]
             Running PSNR averaged over the different output channels.
         """
-        psnr_arr = []
+        psnr_arr = []  # type: ignore
         for i in range(len(self.running_psnr)):
             psnr = self.running_psnr[i].get()
             if psnr is None:
                 psnr_arr = None
                 break
             psnr_arr.append(psnr.cpu().numpy())
-            self.running_psnr[i].reset() 
+            self.running_psnr[i].reset()
             # TODO: this line forces it to be a method of this class
             # alternative is returning also the reset `running_psnr`
         if psnr_arr is not None:
             psnr = np.mean(psnr_arr)
         return psnr
-        
+
 
 # TODO: make this LVAE compatible (?)
 def create_careamics_module(

@@ -531,8 +531,8 @@ def test_get_reconstructed_tensor(
     input_, target = next(iter(dloader))
     output = lightning_model(input_)
     rec_img = lightning_model.get_reconstructed_tensor(output)
-    assert rec_img.shape == target.shape # same shape as target
-    
+    assert rec_img.shape == target.shape  # same shape as target
+
 
 @pytest.mark.parametrize("predict_logvar", [None, "pixelwise"])
 @pytest.mark.parametrize("target_ch", [1, 3])
@@ -552,7 +552,7 @@ def test_val_PSNR_computation(
     assert len(lightning_model.running_psnr) == target_ch
     for item in lightning_model.running_psnr:
         assert isinstance(item, RunningPSNR)
-    
+
     dloader = create_dummy_dloader(
         batch_size=1,
         img_size=64,
@@ -561,7 +561,7 @@ def test_val_PSNR_computation(
     )
     input_, target = next(iter(dloader))
     output = lightning_model(input_)
-    
+
     curr_psnr = lightning_model.compute_val_psnr(output, target)
     assert curr_psnr is not None
     assert len(curr_psnr) == target_ch
@@ -577,4 +577,3 @@ def test_val_PSNR_computation(
         assert lightning_model.running_psnr[i].min is None
         assert lightning_model.running_psnr[i].max is None
         assert lightning_model.running_psnr[i].get() is None
-        
