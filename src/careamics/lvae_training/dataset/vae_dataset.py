@@ -6,11 +6,10 @@ from typing import Tuple, Union
 
 import numpy as np
 
-from .data_utils import (
-    GridIndexManager,
-    IndexSwitcher,
-    get_train_val_data,
-)
+from .data_utils import get_train_val_data
+from .empty_patch_fetcher import EmptyPatchFetcher
+from .index_manager import GridIndexManager
+from .index_switcher import IndexSwitcher
 from .vae_data_config import VaeDatasetConfig, DataSplitType, GridAlignement
 
 
@@ -144,7 +143,6 @@ class MultiChDloader:
             )
             data_frames = self._data[..., self._empty_patch_replacement_channel_idx]
             # NOTE: This is on the raw data. So, it must be called before removing the background.
-            # TODO: missing import, needs fixing asap!
             self._empty_patch_fetcher = EmptyPatchFetcher(
                 self.idx_manager,
                 self._img_sz,
