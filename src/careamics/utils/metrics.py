@@ -7,8 +7,8 @@ This module contains various metrics and a metrics tracking class.
 # NOTE: this doesn't work with torch tensors, since `torch` refuses to
 # compute the `mean()` or `std()` of a tensor whose dtype is not float.
 
-from warnings import warn
 from typing import Union
+from warnings import warn
 
 import numpy as np
 import torch
@@ -39,8 +39,8 @@ def psnr(gt: Array, pred: Array, range: float = 255.0) -> float:
         PSNR value.
     """
     return peak_signal_noise_ratio(
-        np.asarray(gt), 
-        np.asarray(pred), 
+        np.asarray(gt),
+        np.asarray(pred),
         data_range=range,
     )
 
@@ -52,7 +52,7 @@ def _zero_mean(x: Array) -> Array:
     NOTE: `torch` does not support the `mean()` method for tensors whose
     `dtype` is not `float`. Hence, this function will raise a warning and
     automatically cast the input tensor to `float` if it is a `torch.Tensor`.
-    
+
     Parameters
     ----------
     x : Array
@@ -110,11 +110,11 @@ def _fix(gt: Array, x: Array) -> Array:
 def scale_invariant_psnr(gt: Array, pred: Array) -> Union[float, torch.tensor]:
     """
     Scale invariant PSNR.
-    
+
     NOTE: `torch` does not support the `mean()` method for tensors whose
     `dtype` is not `float`. Hence, this function will raise a warning and
     automatically cast the input tensor to `float` if it is a `torch.Tensor`.
-    
+
     NOTE: results may vary slightly between `numpy` and `torch` due to the way
     `var()` is computed. In `torch`, the unbiased estimator is used (i.e., SSE/n-1),
     while in `numpy` the biased estimator is used (i.e., SSE/n).
@@ -155,6 +155,9 @@ def _torch_cast_to_double(x: Array) -> Array:
         Float tensor.
     """
     if isinstance(x, torch.Tensor) and x.dtype != torch.float64:
-        warn(f"Casting tensor  of type `{x.dtype}` to double (`torch.float64`).", UserWarning)
+        warn(
+            f"Casting tensor  of type `{x.dtype}` to double (`torch.float64`).",
+            UserWarning,
+        )
         return x.double()
     return x
