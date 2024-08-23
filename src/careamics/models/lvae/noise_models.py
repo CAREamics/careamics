@@ -34,27 +34,20 @@ def noise_model_factory(
         If the chosen noise model `model_type` is not implemented.
         Currently only `GaussianMixtureNoiseModel` is implemented.
     """
-    if model_config.noise_models:
+    if model_config:
         noise_models = []
-        for nm in model_config.noise_models:
-            if nm.path:
-                if nm.model_type == "GaussianMixtureNoiseModel":
-                    noise_models.append(GaussianMixtureNoiseModel(nm))
-                else:
-                    raise NotImplementedError(
-                        f"Model {nm.model_type} is not implemented"
-                    )
-
-            else:  # TODO this means signal/obs are provided. Controlled in pydantic model
-                # TODO train a new model. Config should always be provided?
-                if nm.model_type == "GaussianMixtureNoiseModel":
-                    # TODO one model for each channel all make this choise inside the model?
-                    trained_nm = train_gm_noise_model(nm)
+        for nm_config in model_config.noise_models:
+            if nm_config.model_type == "GaussianMixtureNoiseModel":
+                if nm_config.path:
+                        noise_models.append(GaussianMixtureNoiseModel(nm_config))
+                else:  # TODO this means signal/obs are provided. Controlled in pydantic model
+                    # TODO train a new model. Config should always be provided?
+                    trained_nm = train_gm_noise_model(nm_config)
                     noise_models.append(trained_nm)
-                else:
-                    raise NotImplementedError(
-                        f"Model {nm.model_type} is not implemented"
-                    )
+            else:
+                raise NotImplementedError(
+                    f"Model {nm_config.model_type} is not implemented"
+                )
         return MultiChannelNoiseModel(noise_models)
     return None
 
@@ -79,29 +72,6 @@ def train_gm_noise_model(
     # TODO revisit config unpacking
     noise_model.train(noise_model.signal, noise_model.observation)
     return noise_model
-
-
-# def get_noise_model(
-#     enable_noise_model: bool,
-#     model_type: ModelType,
-#     noise_model_type: str,
-#     noise_model_ch1_fpath: str,
-#     noise_model_ch2_fpath: str,
-#     noise_model_learnable: bool = False,
-#     denoise_channel: str = "input",  # TODO hardcoded ?
-# ):
-#     if enable_noise_model:
-#         nmodels = []
-#         # HDN -> one single output -> one single noise model
-#         if model_type == ModelType.Denoiser:
-#             if noise_model_type == "hist":
-#                 raise NotImplementedError(
-#                     f"Model {nm_config.model_type} is not implemented"
-#                 )
-#         return MultiChannelNoiseModel(noise_models)
-#     # TODO should config and paths be mutually exclusive? What you mean, Igor?
-#     # TODO not sure we need this func
-#     return None
 
 
 class MultiChannelNoiseModel(nn.Module):
@@ -286,7 +256,6 @@ class GaussianMixtureNoiseModel(nn.Module):
         self.weight.requires_grad = True
 
     def to_device(self, cuda_tensor):
-        # TODO wtf is this ?
         # move everything to GPU
         if self.min_signal.device != cuda_tensor.device:
             self.max_signal = self.max_signal.cuda()
@@ -481,7 +450,7 @@ class GaussianMixtureNoiseModel(nn.Module):
         """Temporary dummy forward method."""
         return x, y
 
-    # TODO taken from pn2v. Ashesh needs to clarify this
+    # TODO taken from pn2v, might need clarification
     def train(
         self,
         signal,
