@@ -9,6 +9,7 @@ from careamics.utils.metrics import (
 
 # TODO: add tests for cudaTensors
 
+
 @pytest.mark.parametrize(
     "x",
     [
