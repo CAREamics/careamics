@@ -39,7 +39,7 @@ def noise_model_factory(
         for nm_config in model_config.noise_models:
             if nm_config.model_type == "GaussianMixtureNoiseModel":
                 if nm_config.path:
-                        noise_models.append(GaussianMixtureNoiseModel(nm_config))
+                    noise_models.append(GaussianMixtureNoiseModel(nm_config))
                 else:  # TODO this means signal/obs are provided. Controlled in pydantic model
                     # TODO train a new model. Config should always be provided?
                     trained_nm = train_gm_noise_model(nm_config)
