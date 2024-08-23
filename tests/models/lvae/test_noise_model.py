@@ -12,32 +12,14 @@ from careamics.models.lvae.noise_models import (
 )
 
 
-# TODO: move to conftest.py as pytest.fixture
-def create_dummy_noise_model(
-    tmp_path: Path,
-    n_gaussians: int = 3,
-    n_coeffs: int = 3,
-) -> None:
-    weights = np.random.rand(3 * n_gaussians, n_coeffs)
-    nm_dict = {
-        "trained_weight": weights,
-        "min_signal": np.array([0]),
-        "max_signal": np.array([2**16 - 1]),
-        "min_sigma": 0.125,
-    }
-    np.savez(tmp_path / "dummy_noise_model.npz", **nm_dict)
-
-
-@pytest.mark.skip(reason="Conflicting with the current implementation")
 def test_factory_no_noise_model():
-    noise_model_config = MultiChannelNMConfig(noise_models=[])
-    noise_model = noise_model_factory(noise_model_config)
+    noise_model = noise_model_factory(None)
     assert noise_model is None
 
 
-def test_instantiate_noise_model(tmp_path: Path) -> None:
+def test_instantiate_noise_model(tmp_path: Path, create_dummy_noise_model) -> None:
     # Create a dummy noise model
-    create_dummy_noise_model(tmp_path, 3, 3)
+    np.savez(tmp_path / "dummy_noise_model.npz", **create_dummy_noise_model)
 
     # Instantiate the noise model
     gmm = GaussianMixtureNMConfig(
@@ -54,9 +36,11 @@ def test_instantiate_noise_model(tmp_path: Path) -> None:
     assert noise_model.nmodel_0.min_sigma == 0.125
 
 
-def test_instantiate_multiple_noise_models(tmp_path: Path) -> None:
+def test_instantiate_multiple_noise_models(
+    tmp_path: Path, create_dummy_noise_model
+) -> None:
     # Create a dummy noise model
-    create_dummy_noise_model(tmp_path, 3, 3)
+    np.savez(tmp_path / "dummy_noise_model.npz", **create_dummy_noise_model)
 
     # Instantiate the noise model
     gmm = GaussianMixtureNMConfig(
@@ -88,9 +72,13 @@ def test_instantiate_multiple_noise_models(tmp_path: Path) -> None:
 @pytest.mark.parametrize("n_coeffs", [2, 4])
 @pytest.mark.parametrize("img_size", [64, 128])
 def test_noise_model_likelihood(
-    tmp_path: Path, n_gaussians: int, n_coeffs: int, img_size: int
+    tmp_path: Path,
+    n_gaussians: int,
+    n_coeffs: int,
+    img_size: int,
+    create_dummy_noise_model,
 ) -> None:
-    create_dummy_noise_model(tmp_path, n_gaussians, n_coeffs)
+    np.savez(tmp_path / "dummy_noise_model.npz", **create_dummy_noise_model)
 
     gmm_config = GaussianMixtureNMConfig(
         model_type="GaussianMixtureNoiseModel",
@@ -113,9 +101,14 @@ def test_noise_model_likelihood(
 @pytest.mark.parametrize("img_size", [64, 128])
 @pytest.mark.parametrize("target_ch", [1, 3, 5])
 def test_multi_channel_noise_model_likelihood(
-    tmp_path: Path, n_gaussians: int, n_coeffs: int, img_size: int, target_ch: int
+    tmp_path: Path,
+    n_gaussians: int,
+    n_coeffs: int,
+    img_size: int,
+    target_ch: int,
+    create_dummy_noise_model,
 ) -> None:
-    create_dummy_noise_model(tmp_path, n_gaussians, n_coeffs)
+    np.savez(tmp_path / "dummy_noise_model.npz", **create_dummy_noise_model)
 
     gmm = GaussianMixtureNMConfig(
         model_type="GaussianMixtureNoiseModel",

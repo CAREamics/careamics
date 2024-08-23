@@ -110,6 +110,10 @@ class VAEAlgorithmConfig(BaseModel):
                     "Algorithm `denoisplit` only supports `predict_logvar` as `None`."
                 )
 
+            if self.noise_model is None:
+                raise ValueError(
+                    "Algorithm `denoisplit` requires a noise model."
+                )
         # TODO: what if algorithm is not musplit or denoisplit
         return self
 
