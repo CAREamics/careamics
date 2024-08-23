@@ -42,19 +42,16 @@ class DataSplitType(Enum):
     Test = 3
 
 
-class GridAlignement(Enum):
+class TilingMode:
     """
-    A patch is formed by padding the grid with content. If the grids are 'Center' aligned, then padding is to done equally on all 4 sides.
-    On the other hand, if grids are 'LeftTop' aligned, padding is to be done on the right and bottom end of the grid.
-    In the former case, one needs (patch_size - grid_size)//2 amount of content on the right end of the frame.
-    In the latter case, one needs patch_size - grid_size amount of content on the right end of the frame.
+    Enum for the tiling mode.
     """
 
-    LeftTop = 0
-    Center = 1
+    TrimBoundary = 0
+    PadBoundary = 1
+    ShiftBoundary = 2
 
 
-# TODO: for all bool params check if they are taking different values in Disentangle repo
 # TODO: check if any bool logic can be removed
 class VaeDatasetConfig(BaseModel):
     model_config = ConfigDict(validate_assignment=True)
@@ -132,14 +129,9 @@ class VaeDatasetConfig(BaseModel):
     # TODO: why is this not used?
     enable_rotation_aug: Optional[bool] = False
 
-    grid_alignment: GridAlignement = GridAlignement.LeftTop
-
     max_val: Optional[float] = None
     """Maximum data in the dataset. Is calculated for train split, and should be 
     externally set for val and test splits."""
-
-    trim_boundary: Optional[bool] = True
-    """Whether to trim boundary of the image"""
 
     overlapping_padding_kwargs: Any = None
     """Parameters for np.pad method"""
@@ -159,6 +151,19 @@ class VaeDatasetConfig(BaseModel):
 
     # TODO: not used?
     multiscale_lowres_count: Optional[int] = None
+
+    tiling_mode: Optional[TilingMode] = TilingMode.ShiftBoundary
+
+    target_separate_normalization: Optional[bool] = True
+
+    mode_3D: Optional[bool] = False
+    """If training in 3D mode or not"""
+
+    trainig_datausage_fraction: Optional[float] = 1.0
+
+    validtarget_random_fraction: Optional[float] = None
+
+    validation_datausage_fraction: Optional[float] = 1.0
 
     @computed_field
     @property

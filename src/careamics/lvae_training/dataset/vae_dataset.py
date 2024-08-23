@@ -4,6 +4,7 @@ A place for Datasets and Dataloaders.
 
 from typing import Tuple, Union
 
+import albumentations as A
 import numpy as np
 
 from careamics.lvae_training.dataset.utils.data_utils import get_train_val_data
@@ -13,7 +14,7 @@ from careamics.lvae_training.dataset.utils.index_switcher import IndexSwitcher
 from careamics.lvae_training.dataset.configs.vae_data_config import (
     VaeDatasetConfig,
     DataSplitType,
-    GridAlignement,
+    TilingMode,
 )
 
 
@@ -28,16 +29,16 @@ class MultiChDloader:
         """ """
         self._data_type = data_config.data_type
         self._fpath = fpath
-        self._data = self.N = self._noise_data = None
+        self._data = self._noise_data = None
         self.Z = 1
-        self._trim_boundary = data_config.trim_boundary
-        # Hardcoded params, not included in the config file.
-
+        self._5Ddata = False
+        self._tiling_mode = data_config.tiling_mode
         # by default, if the noise is present, add it to the input and target.
         self._disable_noise = False  # to add synthetic noise
         self._poisson_noise_factor = None
         self._train_index_switcher = None
         self._depth3D = data_config.depth3D
+        self._mode_3D = data_config.mode_3D
         # NOTE: Input is the sum of the different channels. It is not the average of the different channels.
         self._input_is_sum = data_config.input_is_sum
         self._num_channels = data_config.num_channels
@@ -45,14 +46,14 @@ class MultiChDloader:
         self._tar_idx_list = data_config.target_idx_list
 
         if data_config.datasplit_type == DataSplitType.Train:
-            self._datausage_fraction = 1.0
+            self._datausage_fraction = data_config.trainig_datausage_fraction
             # assert self._datausage_fraction == 1.0, 'Not supported. Use validtarget_random_fraction and training_validtarget_fraction to get the same effect'
-            self._validtarget_rand_fract = None
+            self._validtarget_rand_fract = data_config.validtarget_random_fraction
             # self._validtarget_random_fraction_final = data_config.get('validtarget_random_fraction_final', None)
             # self._validtarget_random_fraction_stepepoch = data_config.get('validtarget_random_fraction_stepepoch', None)
             # self._idx_count = 0
         elif data_config.datasplit_type == DataSplitType.Val:
-            self._datausage_fraction = 1.0
+            self._datausage_fraction = data_config.validation_datausage_fraction
         else:
             self._datausage_fraction = 1.0
 
@@ -73,18 +74,8 @@ class MultiChDloader:
 
         self._background_values = None
 
-        self._grid_alignment = data_config.grid_alignment
         self._overlapping_padding_kwargs = data_config.overlapping_padding_kwargs
-        if self._grid_alignment == GridAlignement.LeftTop:
-            assert (
-                self._overlapping_padding_kwargs is None
-                or data_config.multiscale_lowres_count is not None
-            ), "Padding is not used with this alignement style"
-        elif self._grid_alignment == GridAlignement.Center:
-            assert (
-                self._overlapping_padding_kwargs is not None
-            ), "With Center grid alignment, padding is needed."
-        if self._trim_boundary:
+        if self._tiling_mode in [TilingMode.TrimBoundary, TilingMode.ShiftBoundary]:
             if (
                 self._overlapping_padding_kwargs is None
                 or data_config.multiscale_lowres_count is not None
@@ -163,14 +154,18 @@ class MultiChDloader:
         self._mean = None
         self._std = None
         self._use_one_mu_std = data_config.use_one_mu_std
-        # Hardcoded
-        self._target_separate_normalization = True
+
+        self._target_separate_normalization = data_config.target_separate_normalization
 
         self._enable_rotation = data_config.enable_rotation_aug
+        flipz_3D = data_config.get("random_flip_z_3D", False)
+        self._flipz_3D = flipz_3D and self._enable_rotation
+
         self._enable_random_cropping = data_config.enable_random_cropping
         self._uncorrelated_channels = (
             data_config.uncorrelated_channels and self._is_train
         )
+        self._uncorrelated_channel_probab = data_config.uncorrelated_channel_probab
         assert self._is_train or self._uncorrelated_channels is False
         assert (
             self._enable_random_cropping is True or self._uncorrelated_channels is False
@@ -179,9 +174,6 @@ class MultiChDloader:
 
         self._rotation_transform = None
         if self._enable_rotation:
-            raise NotImplementedError(
-                "Augmentation by means of rotation is not supported yet."
-            )
             self._rotation_transform = A.Compose([A.Flip(), A.RandomRotate90()])
 
         # TODO: remove print log messages
@@ -217,7 +209,9 @@ class MultiChDloader:
             test_fraction=test_fraction,
             allow_generation=allow_generation,
         )
+        self._loaded_data_preprocessing(data_config)
 
+    def _loaded_data_preprocessing(self, data_config):
         old_shape = self._data.shape
         if self._datausage_fraction < 1.0:
             framepixelcount = np.prod(self._data.shape[1:3])
@@ -241,10 +235,7 @@ class MultiChDloader:
         if data_config.poisson_noise_factor > 0:
             self._poisson_noise_factor = data_config.poisson_noise_factor
             msg += f"Adding Poisson noise with factor {self._poisson_noise_factor}.\t"
-            self._data = (
-                np.random.poisson(self._data / self._poisson_noise_factor)
-                * self._poisson_noise_factor
-            )
+            self._data = np.random.poisson(self._data / self._poisson_noise_factor)
 
         if data_config.enable_gaussian_noise:
             synthetic_scale = data_config.synthetic_gaussian_scale
@@ -259,7 +250,13 @@ class MultiChDloader:
                 self._noise_data[..., 0] = np.mean(self._noise_data[..., 1:], axis=-1)
         print(msg)
 
-        self._5Ddata = len(self._data.shape) == 5
+        if len(self._data.shape) == 5:
+            if self._mode_3D:
+                self._5Ddata = True
+            else:
+                assert self._depth3D == 1, "Depth3D must be 1 for 2D training"
+                self._data = self._data.reshape(-1, *self._data.shape[2:])
+
         if self._5Ddata:
             self.Z = self._data.shape[1]
 
@@ -375,18 +372,28 @@ class MultiChDloader:
             f"[{self.__class__.__name__}] Data reduced. New data shape: {self._data.shape}"
         )
 
-    def get_idx_manager_shapes(self, patch_size: int, grid_size: int):
+    def get_idx_manager_shapes(
+        self, patch_size: int, grid_size: Union[int, Tuple[int, int, int]]
+    ):
         numC = self._data.shape[-1]
         if self._5Ddata:
-            grid_shape = (1, 1, grid_size, grid_size, numC)
             patch_shape = (1, self._depth3D, patch_size, patch_size, numC)
+            if isinstance(grid_size, int):
+                grid_shape = (1, 1, grid_size, grid_size, numC)
+            else:
+                assert len(grid_size) == 3
+                assert all(
+                    [g <= p for g, p in zip(grid_size, patch_shape[1:-1])]
+                ), f"Grid size {grid_size} must be less than patch size {patch_shape[1:-1]}"
+                grid_shape = (1, grid_size[0], grid_size[1], grid_size[2], numC)
         else:
+            assert isinstance(grid_size, int)
             grid_shape = (1, grid_size, grid_size, numC)
             patch_shape = (1, patch_size, patch_size, numC)
 
         return patch_shape, grid_shape
 
-    def set_img_sz(self, image_size, grid_size):
+    def set_img_sz(self, image_size, grid_size: Union[int, Tuple[int, int, int]]):
         """
         If one wants to change the image size on the go, then this can be used.
         Args:
@@ -402,7 +409,7 @@ class MultiChDloader:
             self._img_sz, self._grid_sz
         )
         self.idx_manager = GridIndexManager(
-            shape, grid_shape, patch_shape, self._trim_boundary
+            shape, grid_shape, patch_shape, self._tiling_mode
         )
         # self.set_repeat_factor()
 
@@ -434,10 +441,13 @@ class MultiChDloader:
         dim_sizes = ",".join([str(x) for x in dim_sizes])
         msg += f" N:{self.N} NumPatchPerN:{self._repeat_factor}"
         msg += f"{self.idx_manager.total_grid_count()} DimSz:({dim_sizes})"
-        msg += f" TrimB:{self._trim_boundary}"
+        msg += f" TrimB:{self._tiling_mode}"
         # msg += f' NormInp:{self._normalized_input}'
         # msg += f' SingleNorm:{self._use_one_mu_std}'
         msg += f" Rot:{self._enable_rotation}"
+        if self._flipz_3D:
+            msg += f" FlipZ:{self._flipz_3D}"
+
         msg += f" RandCrop:{self._enable_random_cropping}"
         msg += f" Channel:{self._num_channels}"
         # msg += f' Q:{self._quantile}'
@@ -469,7 +479,7 @@ class MultiChDloader:
             patch_start_loc = self._get_random_hw(h, w)
             if self._5Ddata:
                 patch_start_loc = (
-                    np.random.choice(img_tuples[0].shape[-3] - self._depth3D),
+                    np.random.choice(1 + img_tuples[0].shape[-3] - self._depth3D),
                 ) + patch_start_loc
         else:
             patch_start_loc = self._get_deterministic_loc(index)
@@ -488,7 +498,7 @@ class MultiChDloader:
         )
 
     def _crop_img(self, img: np.ndarray, patch_start_loc: Tuple):
-        if self._trim_boundary:
+        if self._tiling_mode in [TilingMode.TrimBoundary, TilingMode.ShiftBoundary]:
             # In training, this is used.
             # NOTE: It is my opinion that if I just use self._crop_img_with_padding, it will work perfectly fine.
             # The only benefit this if else loop provides is that it makes it easier to see what happens during training.
@@ -908,28 +918,39 @@ class MultiChDloader:
         return rotated_img_tuples, rotated_noise_tuples
 
     def _rotate(self, img_tuples, noise_tuples):
-        if self._depth3D > 1:
+
+        if self._5Ddata:
             return self._rotate3D(img_tuples, noise_tuples)
         else:
             return self._rotate2D(img_tuples, noise_tuples)
 
     def _rotate3D(self, img_tuples, noise_tuples):
         img_kwargs = {}
+        # random flip in z direction
+        flip_z = self._flipz_3D and np.random.rand() < 0.5
         for i, img in enumerate(img_tuples):
             for j in range(self._depth3D):
                 for k in range(len(img)):
-                    img_kwargs[f"img{i}_{j}_{k}"] = img[k, j]
+                    if flip_z:
+                        z_idx = self._depth3D - 1 - j
+                    else:
+                        z_idx = j
+                    img_kwargs[f"img{i}_{z_idx}_{k}"] = img[k, j]
 
         noise_kwargs = {}
         for i, nimg in enumerate(noise_tuples):
             for j in range(self._depth3D):
                 for k in range(len(nimg)):
-                    noise_kwargs[f"noise{i}_{j}_{k}"] = nimg[k, j]
+                    if flip_z:
+                        z_idx = self._depth3D - 1 - j
+                    else:
+                        z_idx = j
+                    noise_kwargs[f"noise{i}_{z_idx}_{k}"] = nimg[k, j]
 
         keys = list(img_kwargs.keys()) + list(noise_kwargs.keys())
         self._rotation_transform.add_targets({k: "image" for k in keys})
         rot_dic = self._rotation_transform(
-            image=img_tuples[0][0], **img_kwargs, **noise_kwargs
+            image=img_tuples[0][0][0], **img_kwargs, **noise_kwargs
         )
         rotated_img_tuples = []
         for i, img in enumerate(img_tuples):
@@ -1008,7 +1029,10 @@ class MultiChDloader:
         if self._train_index_switcher is not None:
             index = self._get_index_from_valid_target_logic(index)
 
-        if self._uncorrelated_channels:
+        if (
+            self._uncorrelated_channels
+            and np.random.rand() < self._uncorrelated_channel_probab
+        ):
             img_tuples, noise_tuples = self.get_uncorrelated_img_tuples(index)
         else:
             img_tuples, noise_tuples = self._get_img(index)

@@ -2,15 +2,17 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from careamics.lvae_training.dataset.configs.vae_data_config import TilingMode
+
 
 @dataclass
 class GridIndexManager:
     data_shape: tuple
     grid_shape: tuple
     patch_shape: tuple
-    trim_boundary: bool
+    tiling_mode: TilingMode
 
-    # Vera: patch is centered on index in the grid, grid size not used in training,
+    # Patch is centered on index in the grid, grid size not used in training,
     # used only during val / test, grid size controls the overlap of the patches
     # in training you only get random patches every time
     # For borders - just cropped the data, so it perfectly divisible
@@ -47,8 +49,13 @@ class GridIndexManager:
 
         if self.grid_shape[dim] == 1 and self.patch_shape[dim] == 1:
             return self.data_shape[dim]
-        elif self.trim_boundary is False:
+        elif self.tiling_mode == TilingMode.PadBoundary:
             return int(np.ceil(self.data_shape[dim] / self.grid_shape[dim]))
+        elif self.tiling_mode == TilingMode.ShiftBoundary:
+            excess_size = self.patch_shape[dim] - self.grid_shape[dim]
+            return int(
+                np.ceil((self.data_shape[dim] - excess_size) / self.grid_shape[dim])
+            )
         else:
             excess_size = self.patch_shape[dim] - self.grid_shape[dim]
             return int(
@@ -88,12 +95,24 @@ class GridIndexManager:
 
         if self.grid_shape[dim] == 1 and self.patch_shape[dim] == 1:
             return coordinate
-        elif self.trim_boundary is False:
+        elif self.tiling_mode == TilingMode.PadBoundary:  # self.trim_boundary is False:
             return np.floor(coordinate / self.grid_shape[dim])
-        else:
+        elif self.tiling_mode == TilingMode.TrimBoundary:
             excess_size = (self.patch_shape[dim] - self.grid_shape[dim]) // 2
             # can be <0 if coordinate is in [0,grid_shape[dim]]
             return max(0, np.floor((coordinate - excess_size) / self.grid_shape[dim]))
+        elif self.tiling_mode == TilingMode.ShiftBoundary:
+            excess_size = (self.patch_shape[dim] - self.grid_shape[dim]) // 2
+            if coordinate + self.grid_shape[dim] + excess_size == self.data_shape[dim]:
+                return self.get_individual_dim_grid_count(dim) - 1
+            else:
+                # can be <0 if coordinate is in [0,grid_shape[dim]]
+                return max(
+                    0, np.floor((coordinate - excess_size) / self.grid_shape[dim])
+                )
+
+        else:
+            raise ValueError(f"Unsupported tiling mode {self.tiling_mode}")
 
     def dataset_idx_from_grid_idx(self, grid_idx: tuple):
         """
@@ -111,9 +130,9 @@ class GridIndexManager:
         """
         Returns the patch location of the grid in the dataset.
         """
-        location = self.get_location_from_dataset_idx(dataset_idx)
+        grid_location = self.get_location_from_dataset_idx(dataset_idx)
         offset = self.patch_offset()
-        return tuple(np.array(location) - np.array(offset))
+        return tuple(np.array(grid_location) - np.array(offset))
 
     def get_dataset_idx_from_grid_location(self, location: tuple):
         assert len(location) == len(
@@ -138,13 +157,25 @@ class GridIndexManager:
 
         if self.grid_shape[dim] == 1 and self.patch_shape[dim] == 1:
             return dim_index
-        elif self.trim_boundary is False:
+        elif self.tiling_mode == TilingMode.PadBoundary:
             return dim_index * self.grid_shape[dim]
-        else:
+        elif self.tiling_mode == TilingMode.TrimBoundary:
             excess_size = (self.patch_shape[dim] - self.grid_shape[dim]) // 2
             return dim_index * self.grid_shape[dim] + excess_size
+        elif self.tiling_mode == TilingMode.ShiftBoundary:
+            excess_size = (self.patch_shape[dim] - self.grid_shape[dim]) // 2
+            if dim_index < self.get_individual_dim_grid_count(dim) - 1:
+                return dim_index * self.grid_shape[dim] + excess_size
+            else:
+                # on boundary. grid should be placed such that the patch covers the entire data.
+                return self.data_shape[dim] - self.grid_shape[dim] - excess_size
+        else:
+            raise ValueError(f"Unsupported tiling mode {self.tiling_mode}")
 
     def get_location_from_dataset_idx(self, dataset_idx: int):
+        """
+        Returns the start location of the grid in the dataset.
+        """
         grid_idx = []
         for dim in range(len(self.data_shape)):
             grid_idx.append(dataset_idx // self.grid_count(dim))
@@ -155,7 +186,7 @@ class GridIndexManager:
         ]
         return tuple(location)
 
-    def on_boundary(self, dataset_idx: int, dim: int):
+    def on_boundary(self, dataset_idx: int, dim: int, only_end: bool = False):
         """
         Returns True if the grid is on the boundary in the specified dimension.
         """
@@ -168,6 +199,9 @@ class GridIndexManager:
             dataset_idx = dataset_idx % self.grid_count(dim - 1)
 
         dim_index = dataset_idx // self.grid_count(dim)
+        if only_end:
+            return dim_index == self.get_individual_dim_grid_count(dim) - 1
+
         return (
             dim_index == 0 or dim_index == self.get_individual_dim_grid_count(dim) - 1
         )
