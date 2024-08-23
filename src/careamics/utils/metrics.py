@@ -38,7 +38,11 @@ def psnr(gt: Array, pred: Array, range: float = 255.0) -> float:
     float
         PSNR value.
     """
-    return peak_signal_noise_ratio(gt, pred, data_range=range)
+    return peak_signal_noise_ratio(
+        np.asarray(gt), 
+        np.asarray(pred), 
+        data_range=range,
+    )
 
 
 def _zero_mean(x: Array) -> Array:
@@ -59,7 +63,7 @@ def _zero_mean(x: Array) -> Array:
     Array
         Zero-mean array.
     """
-    x = cast_torch(x)
+    x = _torch_cast_to_double(x)
     return x - x.mean()
 
 
@@ -110,6 +114,10 @@ def scale_invariant_psnr(gt: Array, pred: Array) -> Union[float, torch.tensor]:
     NOTE: `torch` does not support the `mean()` method for tensors whose
     `dtype` is not `float`. Hence, this function will raise a warning and
     automatically cast the input tensor to `float` if it is a `torch.Tensor`.
+    
+    NOTE: results may vary slightly between `numpy` and `torch` due to the way
+    `var()` is computed. In `torch`, the unbiased estimator is used (i.e., SSE/n-1),
+    while in `numpy` the biased estimator is used (i.e., SSE/n).
 
     Parameters
     ----------
@@ -123,13 +131,16 @@ def scale_invariant_psnr(gt: Array, pred: Array) -> Union[float, torch.tensor]:
     Union[float, torch.tensor]
         Scale invariant PSNR value.
     """
-    gt = cast_torch(gt)
+    # cast tensors to double dtype
+    gt = _torch_cast_to_double(gt)
+    pred = _torch_cast_to_double(pred)
+    # compute scale-invariant PSNR
     range_parameter = (gt.max() - gt.min()) / gt.std()
     gt_ = _zero_mean(gt) / gt.std()
     return psnr(_zero_mean(gt_), _fix(gt_, pred), range_parameter)
 
 
-def cast_torch(x: Array) -> Array:
+def _torch_cast_to_double(x: Array) -> Array:
     """
     Cast a tensor to float.
 
@@ -143,9 +154,9 @@ def cast_torch(x: Array) -> Array:
     Array
         Float tensor.
     """
-    if isinstance(x, torch.Tensor) and x.dtype != torch.float:
-        warn(f"Casting tensor  of type {x.dtype} to float.", UserWarning)
-        return x.float()
+    if isinstance(x, torch.Tensor) and x.dtype != torch.float64:
+        warn(f"Casting tensor  of type `{x.dtype}` to double (`torch.float64`).", UserWarning)
+        return x.double()
     return x
 
 
