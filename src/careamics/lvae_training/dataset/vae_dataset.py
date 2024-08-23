@@ -158,7 +158,7 @@ class MultiChDloader:
         self._target_separate_normalization = data_config.target_separate_normalization
 
         self._enable_rotation = data_config.enable_rotation_aug
-        flipz_3D = data_config.get("random_flip_z_3D", False)
+        flipz_3D = data_config.random_flip_z_3D
         self._flipz_3D = flipz_3D and self._enable_rotation
 
         self._enable_random_cropping = data_config.enable_random_cropping

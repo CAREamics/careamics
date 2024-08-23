@@ -42,7 +42,7 @@ class DataSplitType(Enum):
     Test = 3
 
 
-class TilingMode:
+class TilingMode(Enum):
     """
     Enum for the tiling mode.
     """
@@ -164,6 +164,8 @@ class VaeDatasetConfig(BaseModel):
     validtarget_random_fraction: Optional[float] = None
 
     validation_datausage_fraction: Optional[float] = 1.0
+
+    random_flip_z_3D: Optional[bool] = False
 
     @computed_field
     @property

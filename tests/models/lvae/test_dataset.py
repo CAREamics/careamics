@@ -2,6 +2,7 @@ from pathlib import Path
 
 import numpy as np
 import pytest
+import tifffile
 
 from careamics.lvae_training.dataset.configs.lc_dataset_config import LCVaeDatasetConfig
 from careamics.lvae_training.dataset.configs.vae_data_config import (
@@ -14,26 +15,19 @@ from careamics.lvae_training.dataset.vae_dataset import MultiChDloader
 
 
 @pytest.fixture
-def dummy_data_path_biorc(tmp_path: Path) -> str:
-    import SimpleITK as sitk
-
-    (tmp_path / "ER").mkdir(exist_ok=True)
-    (tmp_path / "Microtubules").mkdir(exist_ok=True)
-
+def dummy_data_path(tmp_path: Path) -> str:
     max_val = 65535
 
-    er_data = np.random.rand(68, 1004, 1004)
-    er_data = er_data * max_val
-    er_data = er_data.astype(np.uint16)
-    er_image = sitk.GetImageFromArray(er_data)
+    example_data_ch1 = np.random.rand(55, 512, 512)
+    example_data_ch1 = example_data_ch1 * max_val
+    example_data_ch1 = example_data_ch1.astype(np.uint16)
 
-    microtubules_data = np.random.rand(55, 1004, 1004)
-    microtubules_data = microtubules_data * max_val
-    microtubules_data = microtubules_data.astype(np.uint16)
-    microtubules_image = sitk.GetImageFromArray(microtubules_data)
+    example_data_ch2 = np.random.rand(55, 512, 512)
+    example_data_ch2 = example_data_ch2 * max_val
+    example_data_ch2 = example_data_ch2.astype(np.uint16)
 
-    sitk.WriteImage(er_image, tmp_path / "ER/GT_all.mrc")
-    sitk.WriteImage(microtubules_image, tmp_path / "Microtubules/GT_all.mrc")
+    tifffile.imwrite(tmp_path / "ch1.tiff", example_data_ch1)
+    tifffile.imwrite(tmp_path / "ch2.tiff", example_data_ch2)
 
     return str(tmp_path)
 
@@ -41,11 +35,11 @@ def dummy_data_path_biorc(tmp_path: Path) -> str:
 @pytest.fixture
 def default_config() -> VaeDatasetConfig:
     return VaeDatasetConfig(
-        ch1_fname="ER/GT_all.mrc",
-        ch2_fname="Microtubules/GT_all.mrc",
+        ch1_fname="ch1.tiff",
+        ch2_fname="ch2.tiff",
         # TODO: something breaks when set to ALL
         datasplit_type=DataSplitType.Train,
-        data_type=DataType.BioSR_MRC,
+        data_type=DataType.SeparateTiffData,
         enable_gaussian_noise=False,
         image_size=128,
         input_has_dependant_noise=True,
@@ -57,10 +51,10 @@ def default_config() -> VaeDatasetConfig:
 
 
 @pytest.mark.skip(reason="SimpleITK is not in the list of dependencies now")
-def test_create_biosr_vae_dataset(default_config, dummy_data_path_biorc):
+def test_create_vae_dataset(default_config, dummy_data_path):
     dataset = MultiChDloader(
         default_config,
-        dummy_data_path_biorc,
+        dummy_data_path,
         val_fraction=0.1,
         test_fraction=0.1,
     )
@@ -93,16 +87,14 @@ def test_create_biosr_vae_dataset(default_config, dummy_data_path_biorc):
 
 @pytest.mark.skip(reason="SimpleITK is not in the list of dependencies now")
 @pytest.mark.parametrize("num_scales", [1, 2, 3])
-def test_create_biosr_lc_dataset(
-    default_config, dummy_data_path_biorc, num_scales: int
-):
+def test_create_lc_dataset(default_config, dummy_data_path, num_scales: int):
     lc_config = LCVaeDatasetConfig(**default_config.model_dump(exclude_none=True))
     lc_config.num_scales = num_scales
     lc_config.multiscale_lowres_count = num_scales
     lc_config.overlapping_padding_kwargs = lc_config.padding_kwargs
 
     dataset = LCMultiChDloader(
-        lc_config, dummy_data_path_biorc, val_fraction=0.1, test_fraction=0.1
+        lc_config, dummy_data_path, val_fraction=0.1, test_fraction=0.1
     )
 
     max_val = dataset.get_max_val()
