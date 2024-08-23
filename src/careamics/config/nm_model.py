@@ -1,7 +1,7 @@
 """Noise models config."""
 
 from pathlib import Path
-from typing import Any, Literal, Union
+from typing import Literal, Optional, Union
 
 import numpy as np
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -20,52 +20,55 @@ class GaussianMixtureNMConfig(BaseModel):
     # model type
     model_type: Literal["GaussianMixtureNoiseModel"]
 
+    path: Optional[Union[Path, str]] = None
     """Path to the directory where the trained noise model (*.npz) is saved in the
     `train` method."""
-    path: Union[Path, str, None] = None
 
-    # Path to the file containing signal or respective numpy array
-    signal: Union[str, Path, np.ndarray] = None
+    signal: Optional[Union[str, Path, np.ndarray]] = None
+    """Path to the file containing signal or respective numpy array."""
 
-    # Path to the file containing observation or respective numpy array
-    observation: Union[str, Path, np.ndarray] = None
+    observation: Optional[Union[str, Path, np.ndarray]] = None
+    """Path to the file containing observation or respective numpy array."""
 
-    # A [3*n_gaussian, n_coeff] sized array containing the values of the weights
-    # describing the GMM noise model, with each row corresponding to one
-    # parameter of each gaussian, namely [mean, standard deviation and weight].
-    # Specifically, rows are organized as follows:
-    # - first n_gaussian rows correspond to the means
-    # - next n_gaussian rows correspond to the weights
-    # - last n_gaussian rows correspond to the standard deviations
-    # If `weight=None`, the weight array is initialized using the `min_signal`
-    # and `max_signal` parameters.
-    weight: Any = None  # TODO wtf ?
+    weight: Optional[np.ndarray] = None
+    """A [3*n_gaussian, n_coeff] sized array containing the values of the weights
+    describing the GMM noise model, with each row corresponding to one
+    parameter of each gaussian, namely [mean, standard deviation and weight].
+    Specifically, rows are organized as follows:
+    - first n_gaussian rows correspond to the means
+    - next n_gaussian rows correspond to the weights
+    - last n_gaussian rows correspond to the standard deviations
+    If `weight=None`, the weight array is initialized using the `min_signal`
+    and `max_signal` parameters."""
 
-    # Number of gaussians in the GMM
     n_gaussian: int = Field(default=1, ge=1)
+    """Number of gaussians used for the GMM."""
 
+    n_coeff: int = Field(default=2, ge=2)
     """Number of coefficients to describe the functional relationship between gaussian
     parameters and the signal. 2 implies a linear relationship, 3 implies a quadratic
     relationship and so on."""
-    n_coeff: int = Field(default=2, ge=2)
 
-    # Minimum signal intensity expected in the image
     min_signal: float = Field(default=0.0, ge=0.0)
+    """Minimum signal intensity expected in the image."""
 
-    # Maximum signal intensity expected in the image
     max_signal: float = Field(default=1.0, ge=0.0)
+    """Maximum signal intensity expected in the image."""
 
-    # All values of `standard deviation` below this are clamped to this value
-    min_sigma: Any = Field(default=200.0, ge=0.0)  # TODO took from nb in pn2v
+    min_sigma: float = Field(default=200.0, ge=0.0)  # TODO took from nb in pn2v
+    """Minimum value of `standard deviation` allowed in the GMM.
+    All values of `standard deviation` below this are clamped to this value."""
 
-    # Tolerance used in the computation of the noise model likelihood
     tol: float = Field(default=1e-10)
+    """Tolerance used in the computation of the noise model likelihood."""
 
-    @model_validator(mode="after")  # TODO isn't it the best ever fucntion name ? :)
-    def validate_path_to_pretrained_vs_data_to_train(self: Self):
-        """_summary_.
+    @model_validator(mode="after")
+    def validate_path_to_pretrained_vs_data_to_train(self: Self) -> Self:
+        """Validate consistency of `path` and `signal`/`observation` in the config.
 
-        _extended_summary_
+        Specifically, it checks that either only the path to a pre-trained NM is
+        provided or a pair of `signal` and `observation` tensors to train the NM
+        from scratch.
 
         Parameters
         ----------
@@ -74,15 +77,15 @@ class GaussianMixtureNMConfig(BaseModel):
         """
         if self.path and (self.signal is not None or self.observation is not None):
             raise ValueError(
-                "Either 'path' to pre-trained noise model should be"
-                "provided or both signal and observation in form of paths"
-                "or numpy arrays"
+                "Either only 'path' to pre-trained noise model should be"
+                "provided or only signal and observation in form of paths"
+                "or numpy arrays."
             )
         if not self.path and (self.signal is None or self.observation is None):
             raise ValueError(
-                "Either 'path' to pre-trained noise model should be"
-                "provided or both signal and observation in form of paths"
-                "or numpy arrays"
+                "Either only 'path' to pre-trained noise model should be"
+                "provided or only signal and observation in form of paths"
+                "or numpy arrays."
             )
         return self
 
