@@ -88,29 +88,25 @@ class MultiFileDset:
     Here, we handle dataset having multiple files. Each file can have a different spatial dimension and number of frames (Z stack).
     """
 
-    def __init__(
-        self,
-        data_config,
-        fpath: str,
-        datasplit_type: DataSplitType = None,
-        val_fraction=None,
-        test_fraction=None,
-        max_val=None,
-    ):
+    def __init__(self, data_config, fpath: str, val_fraction=None, test_fraction=None):
 
         self._fpath = fpath
-        self._background_quantile = data_config.get("background_quantile", 0.0)
         data = get_train_val_data(
             data_config,
             self._fpath,
-            datasplit_type,
+            data_config.datasplit_type,
             val_fraction=val_fraction,
             test_fraction=test_fraction,
         )
         self.dsets = []
 
         for i in range(len(data)):
-            prefetched_data, fpath_tuple = data[i]
+            # TODO: what is the expected format of data here?
+            if len(data[i]) == 1:
+                fpath_tuple = fpath
+                prefetched_data = data[i]
+            else:
+                prefetched_data, fpath_tuple = data[i]
             if (
                 data_config.multiscale_lowres_count is not None
                 and data_config.multiscale_lowres_count > 1
@@ -137,7 +133,9 @@ class MultiFileDset:
                     )
                 )
 
-        self.rm_bkground_set_max_val_and_upperclip_data(max_val, datasplit_type)
+        self.rm_bkground_set_max_val_and_upperclip_data(
+            data_config.max_val, data_config.datasplit_type
+        )
         count = 0
         avg_height = 0
         avg_width = 0
@@ -154,7 +152,6 @@ class MultiFileDset:
         )
 
     def rm_bkground_set_max_val_and_upperclip_data(self, max_val, datasplit_type):
-        assert self._background_quantile == 0.0
         self.set_max_val(max_val, datasplit_type)
         self.upperclip_data()
 

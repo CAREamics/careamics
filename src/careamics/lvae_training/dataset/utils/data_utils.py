@@ -13,6 +13,19 @@ from careamics.lvae_training.dataset.configs.vae_data_config import (
     DataType,
 )
 
+Multifile_Datasets = [
+    "Pavia3SeqData",
+    "TavernaSox2GolgiV2",
+    "Dao3ChannelWithInput",
+    "ExpMicroscopyV2",
+    "Dao3Channel",
+    "TavernaSox2Golgi",
+    "ExpMicroscopyV1",
+    "OptiMEM100_014",
+]
+
+Singlefile_Datasets = ["Elisa3DData", "NicolaData", "HTIba1Ki67", "SeparateTiffData"]
+
 
 def load_tiff(path):
     """
@@ -84,7 +97,7 @@ def get_train_val_data(
     Ensure that the shape of data should be N*H*W*C: N is number of data points. H,W are the image dimensions.
     C is the number of channels.
     """
-    if data_config.data_type == DataType.SeparateTiffData:
+    if data_config.data_type.name in Singlefile_Datasets:
         fpath1 = os.path.join(fpath, data_config.ch1_fname)
         fpath2 = os.path.join(fpath, data_config.ch2_fname)
         fpaths = [fpath1, fpath2]
@@ -102,18 +115,6 @@ def get_train_val_data(
         if data_config.data_type == DataType.PredictedTiffData:
             assert len(data.shape) == 5 and data.shape[-1] == 1
             data = data[..., 0].copy()
-        # data = data[::3].copy()
-        # NOTE: This was not the correct way to do it. It is so because the noise present in the input was directly related
-        # to the noise present in the channels and so this is not the way we would get the data.
-        # We need to add the noise independently to the input and the target.
-
-        # if data_config.get('poisson_noise_factor', False):
-        #     data = np.random.poisson(data)
-        # if data_config.get('enable_gaussian_noise', False):
-        #     synthetic_scale = data_config.get('synthetic_gaussian_scale', 0.1)
-        #     print('Adding Gaussian noise with scale', synthetic_scale)
-        #     noise = np.random.normal(0, synthetic_scale, data.shape)
-        #     data = data + noise
 
         if datasplit_type == DataSplitType.All:
             return data.astype(np.float32)
@@ -127,6 +128,20 @@ def get_train_val_data(
             return data[val_idx].astype(np.float32)
         elif datasplit_type == DataSplitType.Test:
             return data[test_idx].astype(np.float32)
+
+    elif data_config.data_type.name in Multifile_Datasets:
+        files = fpath.glob("*.tif*")
+        data = [load_tiff(fpath) for fpath in files]
+
+        train_idx, val_idx, test_idx = get_datasplit_tuples(
+            val_fraction, test_fraction, len(data), starting_test=False
+        )
+        if datasplit_type == DataSplitType.Train:
+            return np.take(data, train_idx, axis=0).astype(np.float32)
+        elif datasplit_type == DataSplitType.Val:
+            return np.take(data, val_idx, axis=0).astype(np.float32)
+        elif datasplit_type == DataSplitType.Test:
+            return np.take(data, test_idx, axis=0).astype(np.float32)
 
     else:
         raise TypeError(f"Data type {data_config.data_type} not supported")
