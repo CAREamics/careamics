@@ -1,5 +1,5 @@
 """
-This script is meant to load data, intialize the model, and provide the logic for training it.
+This script is meant to load data, initialize the model, and provide the logic for training it.
 """
 
 import glob

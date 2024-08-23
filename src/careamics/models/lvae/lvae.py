@@ -236,7 +236,7 @@ class LadderVAE(nn.Module):
         Parameters
         ----------
         init_stride: int
-            The stride used by the intial Conv2d block.
+            The stride used by the initial Conv2d block.
         num_res_blocks: int, optional
             The number of BottomUpDeterministicResBlocks to include in the layer, default is 1.
         """
@@ -523,7 +523,7 @@ class LadderVAE(nn.Module):
         bottom_up_layers: nn.ModuleList,
     ) -> List[torch.Tensor]:
         """
-        This method defines the forward pass throught the LVAE Encoder, the so-called
+        This method defines the forward pass through the LVAE Encoder, the so-called
         Bottom-Up pass.
 
         Parameters
@@ -569,7 +569,7 @@ class LadderVAE(nn.Module):
         final_top_down_layer: nn.Sequential = None,
     ) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:
         """
-        This method defines the forward pass throught the LVAE Decoder, the so-called
+        This method defines the forward pass through the LVAE Decoder, the so-called
         Top-Down pass.
 
         Parameters
@@ -591,10 +591,10 @@ class LadderVAE(nn.Module):
             place in this case).
         top_down_layers: nn.ModuleList, optional
             A list of top-down layers to use in the top-down pass. If `None`, the method uses the
-            default layers defined in the contructor.
+            default layers defined in the constructor.
         final_top_down_layer: nn.Sequential, optional
             The last top-down layer of the top-down pass. If `None`, the method uses the default
-            layers defined in the contructor.
+            layers defined in the constructor.
         """
         if top_down_layers is None:
             top_down_layers = self.top_down_layers
