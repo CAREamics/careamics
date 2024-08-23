@@ -1,6 +1,6 @@
 """CAREamics Lightning module."""
 
-from typing import Any, Literal, Optional, Union
+from typing import Any, Callable, Literal, Optional, Union
 
 import pytorch_lightning as L
 import numpy as np
@@ -370,31 +370,13 @@ class VAEModule(L.LightningModule):
         # Compute loss
         loss = self.loss_func(out, target, self.loss_parameters)
 
-        # TODO: move this to a separate method
-        # TODO: implement running PSNR computation
-        # get the reconstructed image
-        recons_img = self.get_reconstructed_tensor(out)
-        
-        # scale_invariant_psnr for each channel in the current batch
-        out_channels = self.algorithm_config.model.output_channels
-        curr_scale_inv_psnr = [
-            scale_invariant_psnr(
-                gt=target[:, i].clone().detach().cpu().numpy(),
-                pred=recons_img[:, i].clone().detach().cpu().numpy()
-            )
-            for i in range(out_channels)
-        ]
-        
-        # compute running psnr
-        for i in range(out_channels):
-            self.running_psnr[i].update(rec=recons_img[:, i], tar=target[:, i])
-
         # Logging
         # Rename val_loss dict
         loss = {"_".join(["val", k]): v for k, v in loss.items()}
         self.log_dict(loss, on_epoch=True)
-        for i, psnr in enumerate(curr_scale_inv_psnr):
-            self.log(f"val_rinvpsnr_ch{i+1}", psnr, on_epoch=True)
+        curr_psnr = self.compute_val_psnr(out, target)
+        for i, psnr in enumerate(curr_psnr):
+            self.log(f"val_psnr_ch{i+1}_batch", psnr, on_epoch=True)
     
     
     def on_validation_epoch_end(self) -> None:
@@ -473,6 +455,7 @@ class VAEModule(L.LightningModule):
             "monitor": "val_loss",  # otherwise triggers MisconfigurationException
         }
     
+    # TODO: find a way to move the following methods to a separate module 
     # TODO: this same operation is done in many other places, like in loss_func
     # should we refactor LadderVAE so that it already outputs tuple(`mean`, `logvar`, `td_data`)?
     def get_reconstructed_tensor(
@@ -497,6 +480,36 @@ class VAEModule(L.LightningModule):
             return predictions
         elif self.model.predict_logvar == "pixelwise":
             return predictions.chunk(2, dim=1)[0]
+    
+    
+    def compute_val_psnr(
+        self,
+        model_output: tuple[Tensor, dict[str, Any]],
+        target: Tensor,
+        psnr_func: Optional[Callable] = scale_invariant_psnr 
+    ) -> list[float]:
+        """Compute the PSNR for the current validation batch.
+        
+        """
+        out_channels = target.shape[1]
+        
+        # get the reconstructed image
+        recons_img = self.get_reconstructed_tensor(model_output)
+        
+        # update running psnr
+        for i in range(out_channels):
+            self.running_psnr[i].update(rec=recons_img[:, i], tar=target[:, i])
+        
+        # compute psnr for each channel in the current batch
+        # TODO: this doesn't need do be a method of this class
+        # and hence can be moved to a separate module
+        return [
+            psnr_func(
+                gt=target[:, i].clone().detach().cpu().numpy(),
+                pred=recons_img[:, i].clone().detach().cpu().numpy()
+            )
+            for i in range(out_channels)
+        ]
         
     
     def reduce_running_psnr(self) -> Optional[float]:
