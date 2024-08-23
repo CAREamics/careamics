@@ -344,7 +344,7 @@ class VAEModule(L.LightningModule):
 
         # Logging
         # TODO: implement a separate logging method?
-        self.log_dict(loss, on_epoch=True)
+        self.log_dict(loss, on_step=True, on_epoch=True)
         # self.log("lr", self, on_epoch=True)
         return loss
 
@@ -373,7 +373,7 @@ class VAEModule(L.LightningModule):
         # Logging
         # Rename val_loss dict
         loss = {"_".join(["val", k]): v for k, v in loss.items()}
-        self.log_dict(loss, on_epoch=True)
+        self.log_dict(loss, on_epoch=True, prog_bar=True)
         curr_psnr = self.compute_val_psnr(out, target)
         for i, psnr in enumerate(curr_psnr):
             self.log(f"val_psnr_ch{i+1}_batch", psnr, on_epoch=True)
@@ -382,9 +382,9 @@ class VAEModule(L.LightningModule):
     def on_validation_epoch_end(self) -> None:
         psnr_ = self.reduce_running_psnr()
         if psnr_ is not None:
-            self.log('val_psnr', psnr_, on_epoch=True)
+            self.log('val_psnr', psnr_, on_epoch=True, prog_bar=True)
         else:
-            self.log('val_psnr', 0.0, on_epoch=True)
+            self.log('val_psnr', 0.0, on_epoch=True, prog_bar=True)
         
 
     def predict_step(self, batch: Tensor, batch_idx: Any) -> Any:
