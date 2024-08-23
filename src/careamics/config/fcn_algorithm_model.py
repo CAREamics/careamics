@@ -67,7 +67,7 @@ class FCNAlgorithmConfig(BaseModel):
     # Mandatory fields
     # defined in SupportedAlgorithm
     algorithm_type: Literal["fcn"]
-    algorithm: Literal["n2v", "care", "n2n"]
+    algorithm: Literal["n2v", "care", "n2n", "custom"]
     loss: Literal["n2v", "mae", "mse"]
     model: Union[UNetModel, CustomModel] = Field(discriminator="architecture")
 
