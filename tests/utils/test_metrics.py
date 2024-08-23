@@ -21,7 +21,9 @@ def test_zero_mean(x):
     x = np.asarray(x)
     assert np.allclose(_zero_mean(x), x - np.mean(x))
 
-
+# NOTE: the behavior of the PSNR function for np.arrays is weird. Indeed, PSNR computed over
+# identical vectors should be infinite, but the function returns a finite value. 
+# Using torch it gives instead `inf`. 
 @pytest.mark.parametrize(
     "gt, pred, result",
     [
