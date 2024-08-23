@@ -111,9 +111,7 @@ class VAEAlgorithmConfig(BaseModel):
                 )
 
             if self.noise_model is None:
-                raise ValueError(
-                    "Algorithm `denoisplit` requires a noise model."
-                )
+                raise ValueError("Algorithm `denoisplit` requires a noise model.")
         # TODO: what if algorithm is not musplit or denoisplit
         return self
 
