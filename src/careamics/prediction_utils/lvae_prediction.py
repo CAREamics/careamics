@@ -98,7 +98,7 @@ def lvae_predict_mmse_tiled_batch(
     likelihood_obj: LikelihoodModule,
     input: tuple[Any],
     mmse_count: int,
-) -> tuple[tuple[Any], Optional[tuple[Any]]]:
+) -> tuple[tuple[Any], tuple[Any], Optional[tuple[Any]]]:
     # TODO: fix docstring return types, ... hard to make readable
     """
     Generate the MMSE (minimum mean squared error) prediction, for a given input.
@@ -120,11 +120,13 @@ def lvae_predict_mmse_tiled_batch(
 
     Returns
     -------
-    tuple of ((torch.tensor, Any, ...), optional tuple of (torch.tensor, Any, ...))
-        The first element is the MMSE prediction, and the second element is the
-        log-variance. The log-variance will be None if `model.predict_logvar is None`.
-        Any auxillary data included in the input will also be include with both the
-        MMSE prediction and the log-variance.
+    tuple of (tuple of (torch.Tensor[Any], Any, ...))
+        A tuple of 3 elements. The first element contains the MMSE prediction, the
+        second contains the standard deviation of the samples used to create the MMSE
+        prediction. Finally the last element contains the log-variance of the
+        likelihood, this will be `None` if `likelihood.predict_logvar` is `None`.
+        Any auxillary data included in the input will also be include with all of the
+        MMSE prediction, the standard deviation, and the log-variance.
     """
     if mmse_count <= 0:
         raise ValueError("MMSE count must be greater than zero.")
@@ -143,7 +145,6 @@ def lvae_predict_mmse_tiled_batch(
             model=model, likelihood_obj=likelihood_obj, input=x
         )
         # only keep the log variance of the first sample prediction
-        # TODO: confirm
         if mmse_idx == 0:
             log_var = lv
 
@@ -151,6 +152,7 @@ def lvae_predict_mmse_tiled_batch(
         sample_predictions[mmse_idx, ...] = sample_prediction
 
     mmse_prediction = torch.mean(sample_predictions, dim=0)
+    mmse_prediction_std = torch.std(sample_predictions, dim=0)
 
     log_var_output = (log_var, *aux) if log_var is not None else None
-    return (mmse_prediction, *aux), log_var_output
+    return (mmse_prediction, *aux), (mmse_prediction_std, *aux), log_var_output

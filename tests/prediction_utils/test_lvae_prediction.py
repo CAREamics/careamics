@@ -39,9 +39,18 @@ def gaussian_likelihood_params():
     return {"predict_logvar": "pixelwise", "logvar_lowerbound": -5}
 
 
+# TODO: Test with mock LCMultiChDloader
+
+
+@pytest.mark.skip(
+    reason=(
+        "Doesn't make sense to use `InMemoryTiledPredDataset` dataset because it does "
+        "not handle lateral context inputs."
+    )
+)
 @pytest.mark.parametrize("predict_logvar", ["pixelwise", None])
 @pytest.mark.parametrize("output_channels", [2, 3])
-def test_smoke_lvae_prediction(
+def test_smoke_careamics_dset_lvae_prediction(
     minimum_lvae_params, gaussian_likelihood_params, predict_logvar, output_channels
 ):
     minimum_lvae_params["predict_logvar"] = predict_logvar
@@ -49,7 +58,12 @@ def test_smoke_lvae_prediction(
     gaussian_likelihood_params["predict_logvar"] = predict_logvar
     input_shape = minimum_lvae_params["input_shape"]
 
-    # --- create inference config
+    # initialize model
+    model = LadderVAE(**minimum_lvae_params)
+    # initialize likelihood
+    likelihood_obj = GaussianLikelihood(**gaussian_likelihood_params)
+
+    # create predict dataset
     inference_dict = {
         "data_type": "array",
         "axes": "SYX",
@@ -60,18 +74,11 @@ def test_smoke_lvae_prediction(
         "tta_transforms": False,
     }
     inference_config = InferenceConfig(**inference_dict)
-
-    # --- create dummy dataset
     N_samples = 3
     data_shape = (N_samples, input_shape * 4 + 23, input_shape * 4 + 23)
     data = np.random.random_sample(size=data_shape)
     dataset = InMemoryTiledPredDataset(inference_config, data)
     dataloader = DataLoader(dataset, collate_fn=collate_tiles)
-
-    # initialize model
-    model = LadderVAE(**minimum_lvae_params)
-    # initialize likelihood
-    likelihood_obj = GaussianLikelihood(**gaussian_likelihood_params)
 
     tiled_predictions = []
     log_vars = []
@@ -160,12 +167,14 @@ def test_lvae_predict_mmse_tiled_batch(
     )
     input_ = (x, [tile_info])  # simulate output of datasets
     # prediction
-    y_tiled, log_var_tiled = lvae_predict_mmse_tiled_batch(
+    y_tiled, y_std_tiled, log_var_tiled = lvae_predict_mmse_tiled_batch(
         model, likelihood_obj, input_, mmse_count=5
     )
     y = y_tiled[0]
+    y_std = y_std_tiled[0]
 
     assert y.shape == (1, output_channels, input_shape, input_shape)
+    assert y_std.shape == (1, output_channels, input_shape, input_shape)
     if predict_logvar == "pixelwise":
         log_var = log_var_tiled[0]
         assert log_var.shape == (1, output_channels, input_shape, input_shape)
