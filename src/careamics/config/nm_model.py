@@ -16,21 +16,19 @@ class GaussianMixtureNMConfig(BaseModel):
     model_config = ConfigDict(
         validate_assignment=True, arbitrary_types_allowed=True, extra="allow"
     )
-    # TODO What are all these parameters?
     # model type
     model_type: Literal["GaussianMixtureNoiseModel"]
 
-    path: Optional[Union[Path, str]] = None
     """Path to the directory where the trained noise model (*.npz) is saved in the
     `train` method."""
+    path: Optional[Union[Path, str]] = None
 
-    signal: Optional[Union[str, Path, np.ndarray]] = None
     """Path to the file containing signal or respective numpy array."""
+    signal: Optional[Union[str, Path, np.ndarray]] = None
 
-    observation: Optional[Union[str, Path, np.ndarray]] = None
     """Path to the file containing observation or respective numpy array."""
+    observation: Optional[Union[str, Path, np.ndarray]] = None
 
-    weight: Optional[np.ndarray] = None
     """A [3*n_gaussian, n_coeff] sized array containing the values of the weights
     describing the GMM noise model, with each row corresponding to one
     parameter of each gaussian, namely [mean, standard deviation and weight].
@@ -40,40 +38,37 @@ class GaussianMixtureNMConfig(BaseModel):
     - last n_gaussian rows correspond to the standard deviations
     If `weight=None`, the weight array is initialized using the `min_signal`
     and `max_signal` parameters."""
+    weight: Optional[np.ndarray] = None
 
-    n_gaussian: int = Field(default=1, ge=1)
     """Number of gaussians used for the GMM."""
+    n_gaussian: int = Field(default=1, ge=1)
 
-    n_coeff: int = Field(default=2, ge=2)
     """Number of coefficients to describe the functional relationship between gaussian
     parameters and the signal. 2 implies a linear relationship, 3 implies a quadratic
     relationship and so on."""
+    n_coeff: int = Field(default=2, ge=2)
 
-    min_signal: float = Field(default=0.0, ge=0.0)
     """Minimum signal intensity expected in the image."""
+    min_signal: float = Field(default=0.0, ge=0.0)
 
-    max_signal: float = Field(default=1.0, ge=0.0)
     """Maximum signal intensity expected in the image."""
+    max_signal: float = Field(default=1.0, ge=0.0)
 
-    min_sigma: float = Field(default=200.0, ge=0.0)  # TODO took from nb in pn2v
     """Minimum value of `standard deviation` allowed in the GMM.
     All values of `standard deviation` below this are clamped to this value."""
+    min_sigma: float = Field(default=200.0, ge=0.0)  # TODO took from nb in pn2v
 
-    tol: float = Field(default=1e-10)
     """Tolerance used in the computation of the noise model likelihood."""
+    tol: float = Field(default=1e-10)
 
     @model_validator(mode="after")
-    def validate_path_to_pretrained_vs_data_to_train(self: Self) -> Self:
-        """Validate consistency of `path` and `signal`/`observation` in the config.
+    def validate_path_to_pretrained_vs_training_data(self: Self) -> Self:
+        """Validate paths provided in the config.
 
-        Specifically, it checks that either only the path to a pre-trained NM is
-        provided or a pair of `signal` and `observation` tensors to train the NM
-        from scratch.
-
-        Parameters
-        ----------
-        self : Self
-            _description_
+        Returns
+        -------
+        Self
+            Returns itself.
         """
         if self.path and (self.signal is not None or self.observation is not None):
             raise ValueError(

@@ -87,7 +87,10 @@ def minimum_algorithm_musplit() -> dict:
             "multiscale_count": 4,
             "predict_logvar": "pixelwise",
         },
-        "likelihood": {"type": "GaussianLikelihoodConfig", "color_channels": 2}, # TODO this is incorrect
+        "likelihood": {
+            "type": "GaussianLikelihoodConfig",
+            "color_channels": 2,
+        },  # TODO this is incorrect
     }
 
     return algorithm
