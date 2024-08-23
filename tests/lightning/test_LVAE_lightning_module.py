@@ -23,6 +23,7 @@ from careamics.models.lvae.noise_models import (
     MultiChannelNoiseModel,
     noise_model_factory,
 )
+from careamics.utils.metrics import RunningPSNR
 
 
 # TODO: move to conftest.py as pytest.fixture
@@ -531,3 +532,49 @@ def test_get_reconstructed_tensor(
     output = lightning_model(input_)
     rec_img = lightning_model.get_reconstructed_tensor(output)
     assert rec_img.shape == target.shape # same shape as target
+    
+
+@pytest.mark.parametrize("predict_logvar", [None, "pixelwise"])
+@pytest.mark.parametrize("target_ch", [1, 3])
+def test_val_PSNR_computation(
+    predict_logvar: str,
+    target_ch: int,
+):
+    lightning_model = create_split_lightning_model(
+        tmp_path=None,
+        algorithm="musplit",
+        loss_type="musplit",
+        multiscale_count=1,
+        predict_logvar=predict_logvar,
+        target_ch=target_ch,
+    )
+    assert lightning_model.running_psnr is not None
+    assert len(lightning_model.running_psnr) == target_ch
+    for item in lightning_model.running_psnr:
+        assert isinstance(item, RunningPSNR)
+    
+    dloader = create_dummy_dloader(
+        batch_size=1,
+        img_size=64,
+        multiscale_count=1,
+        target_ch=target_ch,
+    )
+    input_, target = next(iter(dloader))
+    output = lightning_model(input_)
+    
+    curr_psnr = lightning_model.compute_val_psnr(output, target)
+    assert curr_psnr is not None
+    assert len(curr_psnr) == target_ch
+    for i in range(target_ch):
+        assert lightning_model.running_psnr[i].mse_sum != 0
+        assert lightning_model.running_psnr[i].N == 1
+        assert lightning_model.running_psnr[i].min is not None
+        assert lightning_model.running_psnr[i].max is not None
+        assert lightning_model.running_psnr[i].get() is not None
+        lightning_model.running_psnr[i].reset()
+        assert lightning_model.running_psnr[i].mse_sum == 0
+        assert lightning_model.running_psnr[i].N == 0
+        assert lightning_model.running_psnr[i].min is None
+        assert lightning_model.running_psnr[i].max is None
+        assert lightning_model.running_psnr[i].get() is None
+        
