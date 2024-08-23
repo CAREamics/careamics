@@ -6,11 +6,15 @@ from typing import Tuple, Union
 
 import numpy as np
 
-from .data_utils import get_train_val_data
-from .empty_patch_fetcher import EmptyPatchFetcher
-from .index_manager import GridIndexManager
-from .index_switcher import IndexSwitcher
-from .vae_data_config import VaeDatasetConfig, DataSplitType, GridAlignement
+from careamics.lvae_training.dataset.utils.data_utils import get_train_val_data
+from careamics.lvae_training.dataset.utils.empty_patch_fetcher import EmptyPatchFetcher
+from careamics.lvae_training.dataset.utils.index_manager import GridIndexManager
+from careamics.lvae_training.dataset.utils.index_switcher import IndexSwitcher
+from careamics.lvae_training.dataset.configs.vae_data_config import (
+    VaeDatasetConfig,
+    DataSplitType,
+    GridAlignement,
+)
 
 
 class MultiChDloader:

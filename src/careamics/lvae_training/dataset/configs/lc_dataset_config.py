@@ -1,8 +1,6 @@
-from typing import Optional
+from pydantic import ConfigDict
 
-from pydantic import ConfigDict, computed_field
-
-from careamics.lvae_training.dataset.vae_data_config import VaeDatasetConfig
+from careamics.lvae_training.dataset.configs.vae_data_config import VaeDatasetConfig
 
 
 class LCVaeDatasetConfig(VaeDatasetConfig):

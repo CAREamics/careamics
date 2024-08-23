@@ -3,13 +3,13 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from careamics.lvae_training.dataset.lc_dataset import LCMultiChDloader
-from careamics.lvae_training.dataset.lc_dataset_config import LCVaeDatasetConfig
-from careamics.lvae_training.dataset.vae_data_config import (
+from careamics.lvae_training.dataset.configs.lc_dataset_config import LCVaeDatasetConfig
+from careamics.lvae_training.dataset.configs.vae_data_config import (
     DataSplitType,
     DataType,
     VaeDatasetConfig,
 )
+from careamics.lvae_training.dataset.lc_dataset import LCMultiChDloader
 from careamics.lvae_training.dataset.vae_dataset import MultiChDloader
 
 

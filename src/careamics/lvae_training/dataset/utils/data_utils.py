@@ -8,7 +8,10 @@ from typing import List
 import numpy as np
 from skimage.io import imread, imsave
 
-from careamics.lvae_training.dataset.vae_data_config import DataSplitType, DataType
+from careamics.lvae_training.dataset.configs.vae_data_config import (
+    DataSplitType,
+    DataType,
+)
 
 
 def load_tiff(path):

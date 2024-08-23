@@ -7,7 +7,7 @@ from typing import Tuple, Union
 import numpy as np
 from skimage.transform import resize
 
-from .lc_dataset_config import LCVaeDatasetConfig
+from careamics.lvae_training.dataset.configs.lc_dataset_config import LCVaeDatasetConfig
 from .vae_dataset import MultiChDloader
 
 
