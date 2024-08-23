@@ -379,11 +379,11 @@ class VAEModule(L.LightningModule):
         out_channels = self.algorithm_config.model.output_channels
         curr_scale_inv_psnr = [
             scale_invariant_psnr(
-                gt=target[:, i].clone(), pred=recons_img[:, i].clone()
+                gt=target[:, i].clone().detach().cpu().numpy(),
+                pred=recons_img[:, i].clone().detach().cpu().numpy()
             )
             for i in range(out_channels)
         ]
-        # psnr = torch_nanmean(psnr).item() # TODO: check if this is needed
         
         # compute running psnr
         for i in range(out_channels):
@@ -396,23 +396,14 @@ class VAEModule(L.LightningModule):
         for i, psnr in enumerate(curr_scale_inv_psnr):
             self.log(f"val_rinvpsnr_ch{i+1}", psnr, on_epoch=True)
     
+    
     def on_validation_epoch_end(self) -> None:
-        psnr_arr = []
-        for i in range(len(self.running_psnr)):
-            psnr = self.running_psnr[i].get()
-            if psnr is None:
-                psnr_arr = None
-                break
-            psnr_arr.append(psnr.cpu().numpy())
-            self.running_psnr[i].reset()
-
-        if psnr_arr is not None:
-            psnr = np.mean(psnr_arr)
-            self.log('val_psnr', psnr, on_epoch=True)
+        psnr_ = self.reduce_running_psnr()
+        if psnr_ is not None:
+            self.log('val_psnr', psnr_, on_epoch=True)
         else:
             self.log('val_psnr', 0.0, on_epoch=True)
         
-    
 
     def predict_step(self, batch: Tensor, batch_idx: Any) -> Any:
         """Prediction step.
@@ -506,7 +497,30 @@ class VAEModule(L.LightningModule):
             return predictions
         elif self.model.predict_logvar == "pixelwise":
             return predictions.chunk(2, dim=1)[0]
+        
+    
+    def reduce_running_psnr(self) -> Optional[float]:
+        """Reduce the running PSNR statistics and reset the running PSNR.
 
+        Returns
+        -------
+        Optional[float]
+            Running PSNR averaged over the different output channels.
+        """
+        psnr_arr = []
+        for i in range(len(self.running_psnr)):
+            psnr = self.running_psnr[i].get()
+            if psnr is None:
+                psnr_arr = None
+                break
+            psnr_arr.append(psnr.cpu().numpy())
+            self.running_psnr[i].reset() 
+            # TODO: this line forces it to be a method of this class
+            # alternative is returning also the reset `running_psnr`
+        if psnr_arr is not None:
+            psnr = np.mean(psnr_arr)
+        return psnr
+        
 
 # TODO: make this LVAE compatible (?)
 def create_careamics_module(
