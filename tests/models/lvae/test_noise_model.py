@@ -12,25 +12,14 @@ from careamics.models.lvae.noise_models import (
 )
 
 
-# TODO: move to conftest.py as pytest.fixture
-def create_dummy_noise_model(
-    tmp_path: Path,
-    n_gaussians: int = 3,
-    n_coeffs: int = 3,
-) -> None:
-    weights = np.random.rand(3 * n_gaussians, n_coeffs)
-    nm_dict = {
-        "trained_weight": weights,
-        "min_signal": np.array([0]),
-        "max_signal": np.array([2**16 - 1]),
-        "min_sigma": 0.125,
-    }
-    np.savez(tmp_path / "dummy_noise_model.npz", **nm_dict)
+def test_factory_no_noise_model():
+    noise_model = noise_model_factory(None)
+    assert noise_model is None
 
 
-def test_instantiate_noise_model(tmp_path: Path) -> None:
+def test_instantiate_noise_model(tmp_path: Path, create_dummy_noise_model) -> None:
     # Create a dummy noise model
-    create_dummy_noise_model(tmp_path, 3, 3)
+    np.savez(tmp_path / "dummy_noise_model.npz", **create_dummy_noise_model)
 
     # Instantiate the noise model
     gmm = GaussianMixtureNMConfig(
@@ -47,9 +36,11 @@ def test_instantiate_noise_model(tmp_path: Path) -> None:
     assert noise_model.nmodel_0.min_sigma == 0.125
 
 
-def test_instantiate_multiple_noise_models(tmp_path: Path) -> None:
+def test_instantiate_multiple_noise_models(
+    tmp_path: Path, create_dummy_noise_model
+) -> None:
     # Create a dummy noise model
-    create_dummy_noise_model(tmp_path, 3, 3)
+    np.savez(tmp_path / "dummy_noise_model.npz", **create_dummy_noise_model)
 
     # Instantiate the noise model
     gmm = GaussianMixtureNMConfig(
@@ -77,13 +68,13 @@ def test_instantiate_multiple_noise_models(tmp_path: Path) -> None:
     assert noise_model.nmodel_2.min_sigma == 0.125
 
 
-@pytest.mark.parametrize("n_gaussians", [3, 5])
-@pytest.mark.parametrize("n_coeffs", [2, 4])
 @pytest.mark.parametrize("img_size", [64, 128])
 def test_noise_model_likelihood(
-    tmp_path: Path, n_gaussians: int, n_coeffs: int, img_size: int
+    tmp_path: Path,
+    img_size: int,
+    create_dummy_noise_model,
 ) -> None:
-    create_dummy_noise_model(tmp_path, n_gaussians, n_coeffs)
+    np.savez(tmp_path / "dummy_noise_model.npz", **create_dummy_noise_model)
 
     gmm_config = GaussianMixtureNMConfig(
         model_type="GaussianMixtureNoiseModel",
@@ -101,14 +92,15 @@ def test_noise_model_likelihood(
     assert likelihood.shape == inp_shape
 
 
-@pytest.mark.parametrize("n_gaussians", [3, 5])
-@pytest.mark.parametrize("n_coeffs", [2, 4])
 @pytest.mark.parametrize("img_size", [64, 128])
 @pytest.mark.parametrize("target_ch", [1, 3, 5])
 def test_multi_channel_noise_model_likelihood(
-    tmp_path: Path, n_gaussians: int, n_coeffs: int, img_size: int, target_ch: int
+    tmp_path: Path,
+    img_size: int,
+    target_ch: int,
+    create_dummy_noise_model,
 ) -> None:
-    create_dummy_noise_model(tmp_path, n_gaussians, n_coeffs)
+    np.savez(tmp_path / "dummy_noise_model.npz", **create_dummy_noise_model)
 
     gmm = GaussianMixtureNMConfig(
         model_type="GaussianMixtureNoiseModel",
@@ -130,3 +122,20 @@ def test_multi_channel_noise_model_likelihood(
     obs = signal + torch.randn(inp_shape) * 0.1
     likelihood = nm.likelihood(obs, signal)
     assert likelihood.shape == inp_shape
+
+
+@pytest.mark.skip(reason="Need to refac noise model to be able to train on CPU")
+def test_gm_noise_model_training(tmp_path):
+    x = np.random.rand(3)
+    y = np.random.rand(3)
+
+    nm_config = GaussianMixtureNMConfig(
+        model_type="GaussianMixtureNoiseModel", signal=x, observation=y
+    )
+
+    noise_model = GaussianMixtureNoiseModel(nm_config)
+
+    # Test training
+    output = noise_model.train(x, y, n_epochs=2)
+    assert output is not None
+    # TODO do something with output ?
