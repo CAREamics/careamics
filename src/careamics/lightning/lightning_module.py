@@ -1,6 +1,6 @@
 """CAREamics Lightning module."""
 
-from typing import Any, Literal, Optional, Union
+from typing import Any, Optional, Union
 
 import pytorch_lightning as L
 from torch import Tensor, nn
@@ -422,7 +422,6 @@ class VAEModule(L.LightningModule):
 
 
 def create_careamics_module(
-    algorithm_type: Literal["fcn"],
     algorithm: Union[SupportedAlgorithm, str],
     loss: Union[SupportedLoss, str],
     architecture: Union[SupportedArchitecture, str],
@@ -439,8 +438,6 @@ def create_careamics_module(
 
     Parameters
     ----------
-    algorithm_type : Literal["fcn"]
-        Algorithm type to use for training.
     algorithm : SupportedAlgorithm or str
         Algorithm to use for training (see SupportedAlgorithm).
     loss : SupportedLoss or str
@@ -476,7 +473,6 @@ def create_careamics_module(
     if model_parameters is None:
         model_parameters = {}
     algorithm_configuration: dict[str, Any] = {
-        "algorithm_type": algorithm_type,
         "algorithm": algorithm,
         "loss": loss,
         "optimizer": {
@@ -495,10 +491,10 @@ def create_careamics_module(
     algorithm_configuration["model"] = model_configuration
 
     # call the parent init using an AlgorithmModel instance
-    if algorithm_configuration["algorithm_type"] == "fcn":
+    algorithm_str = algorithm_configuration["algorithm"]
+    if algorithm_str in FCNAlgorithmConfig.get_compatible_algorithms():
         return FCNModule(FCNAlgorithmConfig(**algorithm_configuration))
     else:
         raise NotImplementedError(
-            f"Model {algorithm_configuration['model']['architecture']} is not"
-            f"implemented or unknown."
+            f"Model {algorithm_str} is not implemented or unknown."
         )

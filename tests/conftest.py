@@ -32,7 +32,6 @@ def minimum_algorithm_n2v() -> dict:
     """
     # create dictionary
     algorithm = {
-        "algorithm_type": "fcn",
         "algorithm": "n2v",
         "loss": "n2v",
         "model": {
@@ -54,7 +53,6 @@ def minimum_algorithm_supervised() -> dict:
     """
     # create dictionary
     algorithm = {
-        "algorithm_type": "fcn",
         "algorithm": "n2n",
         "loss": "mae",
         "model": {

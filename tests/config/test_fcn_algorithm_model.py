@@ -47,17 +47,15 @@ def test_model_discriminator(minimum_algorithm_n2v):
 
 
 @pytest.mark.parametrize(
-    "algorithm_type, algorithm, loss, model",
+    "algorithm, loss, model",
     [
-        ("fcn", "n2v", "n2v", {"architecture": "UNet", "n2v2": False}),
-        ("fcn", "n2n", "mae", {"architecture": "UNet", "n2v2": False}),
+        ("n2v", "n2v", {"architecture": "UNet", "n2v2": False}),
+        ("n2n", "mae", {"architecture": "UNet", "n2v2": False}),
     ],
 )
-def test_algorithm_constraints(algorithm_type, algorithm: str, loss: str, model: dict):
+def test_algorithm_constraints(algorithm: str, loss: str, model: dict):
     """Test that constraints are passed for each algorithm."""
-    FCNAlgorithmConfig(
-        algorithm_type=algorithm_type, algorithm=algorithm, loss=loss, model=model
-    )
+    FCNAlgorithmConfig(algorithm=algorithm, loss=loss, model=model)
 
 
 def test_n_channels_n2v():
@@ -76,14 +74,14 @@ def test_n_channels_n2v():
 
 
 @pytest.mark.parametrize(
-    "algorithm_type, algorithm, n_in, n_out",
+    "algorithm, n_in, n_out",
     [
-        ("fcn", "n2v", 2, 2),
-        ("fcn", "n2n", 3, 3),
-        ("fcn", "care", 1, 2),
+        ("n2v", 2, 2),
+        ("n2n", 3, 3),
+        ("care", 1, 2),
     ],
 )
-def test_comaptiblity_of_number_of_channels(algorithm_type, algorithm, n_in, n_out):
+def test_comaptiblity_of_number_of_channels(algorithm, n_in, n_out):
     """Check that no error is thrown when instantiating the algorithm with a valid
     number of in and out channels."""
     model = {
@@ -94,6 +92,4 @@ def test_comaptiblity_of_number_of_channels(algorithm_type, algorithm, n_in, n_o
     }
     loss = "n2v" if algorithm == "n2v" else "mae"
 
-    FCNAlgorithmConfig(
-        algorithm_type=algorithm_type, algorithm=algorithm, loss=loss, model=model
-    )
+    FCNAlgorithmConfig(algorithm=algorithm, loss=loss, model=model)
