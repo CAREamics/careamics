@@ -537,7 +537,7 @@ class VAEModule(L.LightningModule):
         for i in range(len(self.running_psnr)):
             psnr = self.running_psnr[i].get()
             if psnr is None:
-                psnr_arr = None
+                psnr_arr = None  # type: ignore
                 break
             psnr_arr.append(psnr.cpu().numpy())
             self.running_psnr[i].reset()
