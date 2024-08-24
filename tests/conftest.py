@@ -3,10 +3,53 @@ from typing import Callable, Tuple
 
 import numpy as np
 import pytest
+from torch import nn, ones
 
 from careamics import CAREamist, Configuration
-from careamics.config.support import SupportedData
+from careamics.config import register_model
+from careamics.config.support import SupportedArchitecture, SupportedData
 from careamics.model_io import export_to_bmz
+
+######################################
+## fixture for custom model testing ##
+##
+## - config/algorithm_model
+## - config/architectures/custom_model
+## - models/model_factory
+##
+######################################
+
+
+@register_model(name="linear")
+class LinearModel(nn.Module):
+    def __init__(self, in_features, out_features):
+        super().__init__()
+
+        self.in_features = in_features
+        self.out_features = out_features
+        self.weight = nn.Parameter(ones(in_features, out_features))
+        self.bias = nn.Parameter(ones(out_features))
+
+    def forward(self, input):
+        return (input @ self.weight) + self.bias
+
+
+@pytest.fixture
+def custom_model_name() -> str:
+    return "linear"
+
+
+@pytest.fixture
+def custom_model_parameters(custom_model_name) -> dict:
+    return {
+        "architecture": SupportedArchitecture.CUSTOM.value,
+        "name": custom_model_name,
+        "in_features": 10,
+        "out_features": 5,
+    }
+
+
+######################################
 
 
 # TODO add details about where each of these fixture is used (e.g. smoke test)
