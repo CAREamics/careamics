@@ -76,7 +76,7 @@ def train_gm_noise_model(
     # TODO any training params ? Different channels ?
     noise_model = GaussianMixtureNoiseModel(model_config)
     # TODO revisit config unpacking
-    noise_model.train(noise_model.signal, noise_model.observation)
+    noise_model.train_noise_model(noise_model.signal, noise_model.observation)
     return noise_model
 
 
@@ -458,7 +458,7 @@ class GaussianMixtureNoiseModel(nn.Module):
         return x, y
 
     # TODO taken from pn2v. Ashesh needs to clarify this
-    def train(
+    def train_noise_model(
         self,
         signal,
         observation,
