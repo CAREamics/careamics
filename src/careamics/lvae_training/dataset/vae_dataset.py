@@ -4,7 +4,6 @@ A place for Datasets and Dataloaders.
 
 from typing import Tuple, Union
 
-import albumentations as A
 import numpy as np
 
 from careamics.lvae_training.dataset.utils.data_utils import get_train_val_data
@@ -174,6 +173,9 @@ class MultiChDloader:
 
         self._rotation_transform = None
         if self._enable_rotation:
+            # TODO: fix this import
+            import albumentations as A
+
             self._rotation_transform = A.Compose([A.Flip(), A.RandomRotate90()])
 
         # TODO: remove print log messages
