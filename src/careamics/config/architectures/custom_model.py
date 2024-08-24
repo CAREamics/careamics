@@ -76,7 +76,6 @@ class CustomModel(ArchitectureModel):
     architecture: Literal["custom"]
     """Name of the architecture."""
 
-    # name of the custom model
     name: str
     """Name of the custom model."""
 
