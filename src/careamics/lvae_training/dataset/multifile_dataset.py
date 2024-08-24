@@ -101,8 +101,8 @@ class MultiFileDset:
         self.dsets = []
 
         for i in range(len(data)):
-            # TODO: what is the expected format of data here?
-            if len(data[i]) == 1:
+            # TODO: temporary fix, what is the expected format of data here?
+            if len(data[i]) != 2:
                 fpath_tuple = fpath
                 prefetched_data = data[i]
             else:
