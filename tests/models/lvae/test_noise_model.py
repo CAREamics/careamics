@@ -136,6 +136,6 @@ def test_gm_noise_model_training(tmp_path):
     noise_model = GaussianMixtureNoiseModel(nm_config)
 
     # Test training
-    output = noise_model.train(x, y, n_epochs=2)
+    output = noise_model.train_noise_model(x, y, n_epochs=2)
     assert output is not None
     # TODO do something with output ?

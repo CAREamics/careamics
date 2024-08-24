@@ -14,7 +14,10 @@ class GaussianMixtureNMConfig(BaseModel):
     """Gaussian mixture noise model."""
 
     model_config = ConfigDict(
-        validate_assignment=True, arbitrary_types_allowed=True, extra="allow"
+        protected_namespaces=(),
+        validate_assignment=True,
+        arbitrary_types_allowed=True,
+        extra="allow",
     )
     # model type
     model_type: Literal["GaussianMixtureNoiseModel"]

@@ -36,24 +36,23 @@ def noise_model_factory(
     """
     if model_config:
         noise_models = []
-        for nm in model_config.noise_models:
-            if nm.path:
-                if nm.model_type == "GaussianMixtureNoiseModel":
-                    noise_models.append(GaussianMixtureNoiseModel(nm))
+        for nm_config in model_config.noise_models:
+            if nm_config.path:
+                if nm_config.model_type == "GaussianMixtureNoiseModel":
+                    noise_models.append(GaussianMixtureNoiseModel(nm_config))
                 else:
                     raise NotImplementedError(
-                        f"Model {nm.model_type} is not implemented"
+                        f"Model {nm_config.model_type} is not implemented"
                     )
 
             else:  # TODO this means signal/obs are provided. Controlled in pydantic model
                 # TODO train a new model. Config should always be provided?
-                if nm.model_type == "GaussianMixtureNoiseModel":
-                    # TODO one model for each channel all make this choise inside the model?
-                    trained_nm = train_gm_noise_model(nm)
+                if nm_config.model_type == "GaussianMixtureNoiseModel":
+                    trained_nm = train_gm_noise_model(nm_config)
                     noise_models.append(trained_nm)
                 else:
                     raise NotImplementedError(
-                        f"Model {nm.model_type} is not implemented"
+                        f"Model {nm_config.model_type} is not implemented"
                     )
         return MultiChannelNoiseModel(noise_models)
     return None
@@ -77,7 +76,7 @@ def train_gm_noise_model(
     # TODO any training params ? Different channels ?
     noise_model = GaussianMixtureNoiseModel(model_config)
     # TODO revisit config unpacking
-    noise_model.train(noise_model.signal, noise_model.observation)
+    noise_model.train_noise_model(noise_model.signal, noise_model.observation)
     return noise_model
 
 
@@ -459,7 +458,7 @@ class GaussianMixtureNoiseModel(nn.Module):
         return x, y
 
     # TODO taken from pn2v. Ashesh needs to clarify this
-    def train(
+    def train_noise_model(
         self,
         signal,
         observation,
