@@ -68,13 +68,9 @@ def test_instantiate_multiple_noise_models(
     assert noise_model.nmodel_2.min_sigma == 0.125
 
 
-@pytest.mark.parametrize("n_gaussians", [3, 5])
-@pytest.mark.parametrize("n_coeffs", [2, 4])
 @pytest.mark.parametrize("img_size", [64, 128])
 def test_noise_model_likelihood(
     tmp_path: Path,
-    n_gaussians: int,
-    n_coeffs: int,
     img_size: int,
     create_dummy_noise_model,
 ) -> None:
@@ -96,14 +92,10 @@ def test_noise_model_likelihood(
     assert likelihood.shape == inp_shape
 
 
-@pytest.mark.parametrize("n_gaussians", [3, 5])
-@pytest.mark.parametrize("n_coeffs", [2, 4])
 @pytest.mark.parametrize("img_size", [64, 128])
 @pytest.mark.parametrize("target_ch", [1, 3, 5])
 def test_multi_channel_noise_model_likelihood(
     tmp_path: Path,
-    n_gaussians: int,
-    n_coeffs: int,
     img_size: int,
     target_ch: int,
     create_dummy_noise_model,
