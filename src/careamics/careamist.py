@@ -25,10 +25,10 @@ from careamics.lightning import (
     FCNModule,
     HyperParametersCallback,
     PredictDataModule,
-    ProgressBarCallback,
     TrainDataModule,
     create_predict_datamodule,
 )
+from careamics.lightning.callbacks.progress_bar_callback import LitProgressBar
 from careamics.model_io import export_to_bmz, load_pretrained
 from careamics.prediction_utils import convert_outputs
 from careamics.utils import check_path_exists, get_logger
@@ -223,13 +223,13 @@ class CAREamist:
                     "training configuration (see TrainingConfig)."
                 )
 
-            if isinstance(c, HyperParametersCallback) or isinstance(
-                c, ProgressBarCallback
-            ):
+            if isinstance(c, HyperParametersCallback):
                 raise ValueError(
-                    "HyperParameter and ProgressBar callbacks are defined internally "
-                    "and should not be passed as callbacks."
+                    "HyperParameter is defined internally "
+                    "and should not be passed as a callback."
                 )
+        if not any(isinstance(c, LitProgressBar) for c in self.callbacks):
+            self.callbacks.extend([LitProgressBar()])
 
         # checkpoint callback saves checkpoints during training
         self.callbacks.extend(
@@ -240,7 +240,6 @@ class CAREamist:
                     filename=self.cfg.experiment_name,
                     **self.cfg.training_config.checkpoint_callback.model_dump(),
                 ),
-                ProgressBarCallback(),
             ]
         )
 
