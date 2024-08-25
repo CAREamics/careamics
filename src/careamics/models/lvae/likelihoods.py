@@ -357,7 +357,7 @@ class NoiseModelLikelihood(LikelihoodModule):
             The log-likelihood tensor. Shape is (B, C, [Z], Y, X).
         """
         self.data_mean = self.data_mean.to(x.device)
-        self.data_std = self.data_std.to(x.device) # TODO this is ugly fix !!
+        self.data_std = self.data_std.to(x.device)  # TODO this is ugly fix !!
         predicted_s_denormalized = params["mean"] * self.data_std + self.data_mean
         x_denormalized = x * self.data_std + self.data_mean
         likelihoods = self.noiseModel.likelihood(
