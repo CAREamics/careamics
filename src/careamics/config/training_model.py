@@ -38,18 +38,18 @@ class TrainingConfig(BaseModel):
     """Number of epochs, greater than 0."""
 
     precision: Literal['64', '32', '16-mixed', 'bf16-mixed'] = Field(default='32')
-    """Numerical precision"""s
+    """Numerical precision"""
     max_steps: int = Field(default=-1, ge=-1, exclude=0)
     """Maximum number of steps to train for. -1 means no limit."""
     check_val_every_n_epoch: Optional[int] = Field(default=1, ge=1)
     """Validation step frequency."""
     enable_progress_bar: Optional[bool] = Field(default=True)
     """Whether to enable the progress bar."""
-    accumulate_grad_batches: int = 1,
+    accumulate_grad_batches: int = Field(default=1, ge=1)
     """Number of batches to accumulate gradients over before stepping the optimizer."""
-    gradient_clip_val: Optional[Union[int, float]] = None,
+    gradient_clip_val: Optional[Union[int, float]] = None
     """The value to which to clip the gradient"""
-    gradient_clip_algorithm: Optional[Literal["value", "norm"]] = None,
+    gradient_clip_algorithm: Optional[Literal["value", "norm"]] = "norm"
     """The algorithm to use for gradient clipping (see lightning `Trainer`)."""
     logger: Optional[Literal["wandb", "tensorboard"]] = None
     """Logger to use during training. If None, no logger will be used. Available
