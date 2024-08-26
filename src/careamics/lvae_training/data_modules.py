@@ -661,6 +661,18 @@ class MultiChDloader:
             img = (img - mean[i]) / std[i]
             normalized_imgs.append(img)
         return tuple(normalized_imgs)
+    
+    def normalize_input(self, x):
+        mean_dict, std_dict = self.get_mean_std()
+        mean_ = mean_dict["input"].mean()
+        std_ = std_dict["input"].mean()
+        return (x - mean_) / std_
+
+    def normalize_target(self, target):
+        mean_dict, std_dict = self.get_mean_std()
+        mean_ = mean_dict["target"].squeeze(0)
+        std_ = std_dict["target"].squeeze(0)
+        return (target - mean_) / std_
 
     def get_grid_size(self):
         return self._grid_sz
@@ -997,11 +1009,10 @@ class MultiChDloader:
         target = self._compute_target(img_tuples, alpha)
 
         # normalize
-        norm_inp = self.normalize_img(inp)
-        norm_target = self.normalize_img(target)
+        norm_inp = self.normalize_input(inp)
+        norm_target = self.normalize_target(target)
 
-        output = (norm_inp, norm_target)
-        return output
+        return norm_inp, norm_target
 
         # if self._return_alpha:
         #     output.append(alpha)
@@ -1217,11 +1228,10 @@ class LCMultiChDloader(MultiChDloader):
         target = self._compute_target(target_tuples, alpha)
 
         # normalize
-        norm_inp = self.normalize_img(inp)
-        norm_target = self.normalize_img(target)
+        norm_inp = self.normalize_input(inp)
+        norm_target = self.normalize_target(target)
 
-        output = (norm_inp, norm_target)
-        return output
+        return norm_inp, norm_target
 
         # if self._return_alpha:
         #     output.append(alpha)
