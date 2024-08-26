@@ -37,7 +37,7 @@ class TrainingConfig(BaseModel):
     num_epochs: int = Field(default=20, ge=1)
     """Number of epochs, greater than 0."""
 
-    precision: Literal['64', '32', '16-mixed', 'bf16-mixed'] = Field(default='32')
+    precision: Literal["64", "32", "16-mixed", "bf16-mixed"] = Field(default="32")
     """Numerical precision"""
     max_steps: int = Field(default=-1, ge=-1, exclude=0)
     """Maximum number of steps to train for. -1 means no limit."""

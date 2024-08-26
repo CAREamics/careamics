@@ -19,4 +19,3 @@ def test_training_wrong_values_by_assignments(minimum_training: dict):
     training.precision = "16-mixed"
     with pytest.raises(ValueError):
         training.precision = "16"
-
