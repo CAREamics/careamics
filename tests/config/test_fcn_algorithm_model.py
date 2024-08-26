@@ -51,6 +51,7 @@ def test_model_discriminator(minimum_algorithm_n2v):
     [
         ("n2v", "n2v", {"architecture": "UNet", "n2v2": False}),
         ("n2n", "mae", {"architecture": "UNet", "n2v2": False}),
+        ("care", "mae", {"architecture": "UNet", "n2v2": False}),
     ],
 )
 def test_algorithm_constraints(algorithm: str, loss: str, model: dict):
@@ -93,3 +94,24 @@ def test_comaptiblity_of_number_of_channels(algorithm, n_in, n_out):
     loss = "n2v" if algorithm == "n2v" else "mae"
 
     FCNAlgorithmConfig(algorithm=algorithm, loss=loss, model=model)
+
+
+def test_custom_model(custom_model_parameters):
+    """Test that a custom model can be instantiated."""
+    # create algorithm configuration
+    FCNAlgorithmConfig(
+        algorithm=SupportedAlgorithm.CUSTOM.value,
+        loss="mse",
+        model=custom_model_parameters,
+    )
+
+
+def test_custom_model_wrong_algorithm(custom_model_parameters):
+    """Test that a custom model fails if the algorithm is not custom."""
+    # create algorithm configuration
+    with pytest.raises(ValueError):
+        FCNAlgorithmConfig(
+            algorithm=SupportedAlgorithm.CARE.value,
+            loss="mse",
+            model=custom_model_parameters,
+        )
