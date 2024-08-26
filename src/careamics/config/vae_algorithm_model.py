@@ -103,7 +103,6 @@ class VAEAlgorithmConfig(BaseModel):
                 )
 
         if self.algorithm == SupportedAlgorithm.DENOISPLIT:
-            # TODO: check that noise model and relative likelihood model are well-def
             if self.loss not in [
                 SupportedLoss.DENOISPLIT,
                 SupportedLoss.DENOISPLIT_MUSPLIT,
@@ -120,7 +119,8 @@ class VAEAlgorithmConfig(BaseModel):
                     "Algorithm `denoisplit` with loss `denoisplit` only supports "
                     "`predict_logvar` as `None`."
                 )
-
+            if self.noise_model is None:
+                raise ValueError("Algorithm `denoisplit` requires a noise model.")
         # TODO: what if algorithm is not musplit or denoisplit (HDN?)
         return self
 
