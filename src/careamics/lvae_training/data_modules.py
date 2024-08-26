@@ -764,6 +764,7 @@ class MultiChDloader:
                 keepdims=True,
             )[0]
         else:
+            # mean&std are computed for all the channels at the same time
             mean = np.mean(self._data, keepdims=True).reshape(1, 1, 1, 1)
             if self._noise_data is not None:
                 std = np.std(
@@ -781,7 +782,8 @@ class MultiChDloader:
         mean_dict = {"input": mean}  # , 'target':mean}
         std_dict = {"input": std}  # , 'target':std}
 
-        if self._target_separate_normalization:
+        if self._target_separate_normalization: # True
+            # this is computed for each channel separately
             mean, std = self.compute_individual_mean_std()
 
         mean_dict["target"] = mean
@@ -995,13 +997,11 @@ class MultiChDloader:
         target = self._compute_target(img_tuples, alpha)
 
         # normalize
-        mean_val, std_val = self.compute_mean_std()
-        self.set_mean_std(mean_val, std_val)
         norm_inp = self.normalize_img(inp)
         norm_target = self.normalize_img(target)
 
-        output = [norm_inp, norm_target]
-        return tuple(output)
+        output = (norm_inp, norm_target)
+        return output
 
         # if self._return_alpha:
         #     output.append(alpha)
@@ -1217,13 +1217,11 @@ class LCMultiChDloader(MultiChDloader):
         target = self._compute_target(target_tuples, alpha)
 
         # normalize
-        mean_val, std_val = self.compute_mean_std()
-        self.set_mean_std(mean_val, std_val)
         norm_inp = self.normalize_img(inp)
         norm_target = self.normalize_img(target)
 
-        output = [norm_inp, norm_target]
-        return tuple(output)
+        output = (norm_inp, norm_target)
+        return output
 
         # if self._return_alpha:
         #     output.append(alpha)
