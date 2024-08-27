@@ -4,7 +4,7 @@ Metrics submodule.
 This module contains various metrics and a metrics tracking class.
 """
 
-from typing import Optional, Union
+from typing import Callable, Optional, Union
 
 import numpy as np
 import torch
@@ -193,8 +193,8 @@ class RunningPSNR:
 def _range_invariant_multiscale_ssim(
     gt_: Union[np.ndarray, torch.Tensor], 
     pred_: Union[np.ndarray, torch.Tensor]
-):
-    """Compute range invariant multiscale SSIM for one channel.
+) -> float:
+    """Compute range invariant multiscale SSIM for a single channel.
     
     The advantage of this metric in comparison to commonly used SSIM is that
     it is invariant to scalar multiplications in the prediction.
@@ -205,9 +205,14 @@ def _range_invariant_multiscale_ssim(
     Parameters:
     ----------
     gt_: Union[np.ndarray, torch.Tensor]
-        Ground truth image with shape (N, H, W, C).
+        Ground truth image with shape (N, H, W).
     pred_: Union[np.ndarray, torch.Tensor]
-        Predicted image with shape (N, H, W, C).
+        Predicted image with shape (N, H, W).
+    
+    Returns:
+    -------
+    float
+        Range invariant multiscale SSIM value.
     """
     shape = gt_.shape
     gt_ = torch.Tensor(gt_.reshape((shape[0], -1)))
@@ -228,7 +233,7 @@ def multiscale_ssim(
     gt_: Union[np.ndarray, torch.Tensor], 
     pred_: Union[np.ndarray, torch.Tensor],
     range_invariant: bool = True
-):
+) -> list[float]:
     """Compute channel-wise multiscale SSIM for each channel.
     
     It allows to use either standard multiscale SSIM or its range-invariant version.
@@ -244,6 +249,11 @@ def multiscale_ssim(
         Predicted image with shape (N, H, W, C).
     range_invariant: bool 
         Whether to use standard or range invariant multiscale SSIM.
+        
+    Returns:
+    -------
+    list[float]
+        List of SSIM values for each channel.
     """
     ms_ssim_values = {i: None for i in range(gt_.shape[-1])}
     for ch_idx in range(gt_.shape[-1]):
@@ -263,3 +273,64 @@ def multiscale_ssim(
 
     output = [ms_ssim_values[i] for i in range(gt_.shape[-1])]
     return output
+
+
+def _avg_psnr(target: np.ndarray, prediction: np.ndarray, psnr_fn: Callable) -> float:
+    """Compute the average PSNR over a batch of images.
+    
+    Parameters:
+    ----------
+    target: np.ndarray
+        Array of ground truth images, shape is (N, C, H, W).
+    prediction: np.ndarray
+        Array of predicted images, shape is (N, C, H, W).
+    psnr_fn: Callable
+        PSNR function to use.
+    
+    Returns:
+    -------
+    float
+        Average PSNR value over the batch.
+    """
+    return np.mean(
+        [
+            psnr_fn(target[i : i + 1], prediction[i : i + 1]).item()
+            for i in range(len(prediction))
+        ]
+    )
+
+
+def avg_range_inv_psnr(target: np.ndarray, prediction: np.ndarray) -> float:
+    """Compute the average range-invariant PSNR over a batch of images.
+    
+    Parameters:
+    ----------
+    target: np.ndarray
+        Array of ground truth images, shape is (N, C, H, W).
+    prediction: np.ndarray
+        Array of predicted images, shape is (N, C, H, W).
+    
+    Returns:
+    -------
+    float
+        Average range-invariant PSNR value over the batch.
+    """
+    return _avg_psnr(target, prediction, scale_invariant_psnr)
+
+
+def avg_psnr(target: np.ndarray, prediction: np.ndarray) -> float:
+    """Compute the average PSNR over a batch of images.
+    
+    Parameters:
+    ----------
+    target: np.ndarray
+        Array of ground truth images, shape is (N, C, H, W).
+    prediction: np.ndarray
+        Array of predicted images, shape is (N, C, H, W).
+    
+    Returns:
+    -------
+    float
+        Average PSNR value over the batch.
+    """
+    return _avg_psnr(target, prediction, psnr)
