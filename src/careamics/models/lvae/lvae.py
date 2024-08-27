@@ -38,7 +38,6 @@ class LadderVAE(nn.Module):
         decoder_dropout: float,
         nonlinearity: str,
         predict_logvar: bool,
-        enable_noise_model: bool,
         analytical_kl: bool,
     ):
         """
@@ -62,7 +61,6 @@ class LadderVAE(nn.Module):
         self.decoder_dropout = decoder_dropout
         self.nonlin = nonlinearity
         self.predict_logvar = predict_logvar
-        self.enable_noise_model = enable_noise_model
 
         self.analytical_kl = analytical_kl
         # -------------------------------------------------------
