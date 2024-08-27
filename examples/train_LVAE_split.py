@@ -1,9 +1,11 @@
 import os
+import json
 import socket
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, Literal, Union
+from typing import Any, Optional, Literal, Union
 
+import git
 import ml_collections
 from torch.utils.data import Dataset, DataLoader
 from pytorch_lightning import Trainer
@@ -332,6 +334,15 @@ def get_workdir(
         )
     return cur_workdir, rel_path
 
+def get_git_status() -> dict[Any]:
+    curr_dir = os.path.dirname(os.path.realpath(__file__))
+    repo = git.Repo(curr_dir, search_parent_directories=True)
+    git_config = {}
+    git_config["changedFiles"] = [item.a_path for item in repo.index.diff(None)]
+    git_config["branch"] = repo.active_branch.name
+    git_config["untracked_files"] = repo.untracked_files
+    git_config["latest_commit"] = repo.head.object.hexsha
+    return git_config
 
 
 def main():
@@ -404,12 +415,15 @@ def main():
         LearningRateMonitor(logging_interval="epoch")
     ]
     
-    # Save AlgorithmConfig
+    # Save configs and git status (for debugging)
     with open(os.path.join(workdir, "algorithm_config.json"), "w") as f:
         f.write(lightning_model.algorithm_config.model_dump_json())
 
     with open(os.path.join(workdir, "training_config.json"), "w") as f:
         f.write(train_config.model_dump_json())
+        
+    with open(os.path.join(workdir, "git_config.json"), "w") as f:
+        json.dump(get_git_status(), f)
         
     # Train the model
     trainer = Trainer(
