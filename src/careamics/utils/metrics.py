@@ -46,21 +46,21 @@ def psnr(gt: np.ndarray, pred: np.ndarray, range_: Optional[float] = None) -> fl
     return peak_signal_noise_ratio(gt, pred, data_range=range_)
 
 
-def _zero_mean(x: np.ndarray) -> np.ndarray:
+def _zero_mean(x: Union[np.ndarray, torch.Tensor]) -> Union[np.ndarray, torch.Tensor]:
     """
     Zero the mean of an array.
 
     Parameters
     ----------
-    x : np.ndarray
+    x : Union[np.ndarray, torch.Tensor]
         Input array.
 
     Returns
     -------
-    np.ndarray
+    Union[np.ndarray, torch.Tensor]
         Zero-mean array.
     """
-    return x - np.mean(x)
+    return x - x.mean()
 
 
 def _fix_range(gt: np.ndarray, x: np.ndarray) -> np.ndarray:
@@ -79,7 +79,7 @@ def _fix_range(gt: np.ndarray, x: np.ndarray) -> np.ndarray:
     np.ndarray
         Range-adjusted array.
     """
-    a = np.sum(gt * x) / (np.sum(x * x))
+    a = (gt * x).sum() / (x * x).sum()
     return x * a
 
 
