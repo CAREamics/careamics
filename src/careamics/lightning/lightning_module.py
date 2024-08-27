@@ -287,6 +287,8 @@ class VAEModule(L.LightningModule):
         # save optimizer and lr_scheduler names and parameters
         self.optimizer_name = self.algorithm_config.optimizer.name
         self.optimizer_params = self.algorithm_config.optimizer.parameters
+        if self.optimizer_name == SupportedOptimizer.ADAMAX:
+            self.optimizer_params["params"] = self.model.parameters()
         self.lr_scheduler_name = self.algorithm_config.lr_scheduler.name
         self.lr_scheduler_params = self.algorithm_config.lr_scheduler.parameters
 
