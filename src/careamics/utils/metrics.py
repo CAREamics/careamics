@@ -4,6 +4,7 @@ Metrics submodule.
 This module contains various metrics and a metrics tracking class.
 """
 
+from warnings import warn
 from typing import Callable, Optional, Union
 
 import numpy as np
@@ -13,7 +14,7 @@ from torchmetrics.image import MultiScaleStructuralSimilarityIndexMeasure
 # TODO: does this add additional dependency? 
 
 
-def psnr(gt: np.ndarray, pred: np.ndarray, range_: float = None) -> float:
+def psnr(gt: np.ndarray, pred: np.ndarray, range_: Optional[float] = None) -> float:
     """
     Peak Signal to Noise Ratio.
 
@@ -37,6 +38,11 @@ def psnr(gt: np.ndarray, pred: np.ndarray, range_: float = None) -> float:
     float
         PSNR value.
     """
+    if range_ is None:
+        warn(
+            "`range_` is `None`, so it will be inferred by `np.dtype`."
+            "This can lead to unexpected results."
+        )
     return peak_signal_noise_ratio(gt, pred, data_range=range_)
 
 
