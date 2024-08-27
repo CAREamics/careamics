@@ -25,10 +25,10 @@ def psnr(gt: np.ndarray, pred: np.ndarray, range_: float = 255.0) -> float:
 
     Parameters
     ----------
-    gt : NumPy array
-        Ground truth image.
-    pred : NumPy array
-        Predicted image.
+    gt : np.ndarray
+        Ground truth array.
+    pred : np.ndarray
+        Predicted array.
     range_ : float, optional
         The images pixel range, by default 255.0.
 
@@ -46,12 +46,12 @@ def _zero_mean(x: np.ndarray) -> np.ndarray:
 
     Parameters
     ----------
-    x : NumPy array
+    x : np.ndarray
         Input array.
 
     Returns
     -------
-    NumPy array
+    np.ndarray
         Zero-mean array.
     """
     return x - np.mean(x)
@@ -64,7 +64,7 @@ def _fix_range(gt: np.ndarray, x: np.ndarray) -> np.ndarray:
     Parameters
     ----------
     gt : np.ndarray
-        Ground truth image.
+        Ground truth array.
     x : np.ndarray
         Input array.
 
