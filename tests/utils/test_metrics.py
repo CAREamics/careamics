@@ -13,6 +13,7 @@ from careamics.utils.metrics import (
 # - `psnr` result
 # - `_fix` and `fix_range`
 # - `RunningPSNR`
+# - `multiscale_ssim` result
 
 
 @pytest.mark.parametrize(
@@ -20,10 +21,12 @@ from careamics.utils.metrics import (
     [
         np.array([1, 2, 3, 4, 5]),
         np.array([[1, 2, 3], [4, 5, 6]]),
+        torch.tensor([1., 2., 3., 4., 5.]),
+        torch.tensor([[1., 2., 3.], [4., 5., 6.]]),
     ],
 )
 def test_zero_mean(x: np.ndarray):
-    assert np.allclose(_zero_mean(x), x - np.mean(x))
+    assert np.allclose(_zero_mean(x), x - x.mean())
 
 
 # TODO: with 2 identical arrays, shouldn't the result be `inf`?
