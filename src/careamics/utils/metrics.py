@@ -334,3 +334,30 @@ def avg_psnr(target: np.ndarray, prediction: np.ndarray) -> float:
         Average PSNR value over the batch.
     """
     return _avg_psnr(target, prediction, psnr)
+
+
+def avg_ssim(
+    target: Union[np.ndarray, torch.Tensor], 
+    prediction: Union[np.ndarray, torch.Tensor]
+) -> tuple[float, float]:
+    """Compute the average Structural Similarity (SSIM) over a batch of images.
+    
+    Parameters:
+    ----------
+    target: np.ndarray
+        Array of ground truth images, shape is (N, C, H, W).
+    prediction: np.ndarray
+        Array of predicted images, shape is (N, C, H, W).
+    
+    Returns:
+    -------
+    tuple[float, float]
+        Mean and standard deviation of SSIM values over the batch.
+    """        
+    ssim = [
+        structural_similarity(
+            target[i], prediction[i], data_range=(target[i].max() - target[i].min())
+        )
+        for i in range(len(target))
+    ]
+    return np.mean(ssim), np.std(ssim)
