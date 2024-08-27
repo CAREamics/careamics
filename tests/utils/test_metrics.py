@@ -1,10 +1,12 @@
 import numpy as np
 import pytest
+import torch
 
 from careamics.utils.metrics import (
     _zero_mean,
     scale_invariant_psnr,
-    psnr
+    psnr,
+    multiscale_ssim
 )
 
 # TODO: add missing test cases
@@ -54,3 +56,18 @@ def test_psnr(data_type: np.dtype):
     range_ = gt_.max() - gt_.min()
     assert psnr(gt_, pred_, range_) is not None
     # add check on the result
+    
+@pytest.mark.parametrize("type_", ["torch", "numpy"])
+@pytest.mark.parametrize("num_ch", [1, 4])
+def test_multiscale_ssim(type_: str, num_ch: int):
+    if type_ == "torch":
+        gt = torch.rand(4, 256, 256, num_ch)
+        pred = torch.rand(4, 256, 256, num_ch)
+    elif type_ == "numpy":
+        gt = np.random.rand(4, 256, 256, num_ch)
+        pred = np.random.rand(4, 256, 256, num_ch)
+    
+    rinv_mssim = multiscale_ssim(gt, pred, range_invariant=True)
+    mssim = multiscale_ssim(gt, pred, range_invariant=False) 
+    assert len(rinv_mssim) == num_ch
+    assert len(mssim) == num_ch
