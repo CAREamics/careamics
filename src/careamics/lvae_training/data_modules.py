@@ -1009,10 +1009,9 @@ class MultiChDloader:
         target = self._compute_target(img_tuples, alpha)
 
         # normalize
-        norm_inp = self.normalize_input(inp)
         norm_target = self.normalize_target(target)
 
-        return norm_inp, norm_target
+        return inp, norm_target
 
         # if self._return_alpha:
         #     output.append(alpha)
@@ -1228,10 +1227,9 @@ class LCMultiChDloader(MultiChDloader):
         target = self._compute_target(target_tuples, alpha)
 
         # normalize
-        norm_inp = self.normalize_input(inp)
         norm_target = self.normalize_target(target)
 
-        return norm_inp, norm_target
+        return inp, norm_target
 
         # if self._return_alpha:
         #     output.append(alpha)
