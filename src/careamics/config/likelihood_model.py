@@ -10,8 +10,6 @@ from careamics.models.lvae.noise_models import (
     MultiChannelNoiseModel,
 )
 
-NoiseModel = Union[GaussianMixtureNoiseModel, MultiChannelNoiseModel]
-
 
 class GaussianLikelihoodConfig(BaseModel):
     """Gaussian likelihood configuration."""
@@ -39,5 +37,7 @@ class NMLikelihoodConfig(BaseModel):
     """The standard deviation of the data, used to unnormalize data for noise
     model evaluation. Shape is (target_ch,) (or (1, target_ch, [1], 1, 1))."""
 
-    noise_model: Union[NoiseModel, None] = None
+    noise_model: Union[
+        Union[GaussianMixtureNoiseModel, MultiChannelNoiseModel], None
+    ] = None
     """The noise model instance used to compute the likelihood."""
