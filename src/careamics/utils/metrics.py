@@ -13,12 +13,15 @@ from torchmetrics.image import MultiScaleStructuralSimilarityIndexMeasure
 # TODO: does this add additional dependency? 
 
 
-def psnr(gt: np.ndarray, pred: np.ndarray, range: float = 255.0) -> float:
+def psnr(gt: np.ndarray, pred: np.ndarray, range_: float = 255.0) -> float:
     """
     Peak Signal to Noise Ratio.
 
     This method calls skimage.metrics.peak_signal_noise_ratio. See:
     https://scikit-image.org/docs/dev/api/skimage.metrics.html.
+    
+    NOTE: if `range_` is `None`, the `skimage` psnr function will try to infer it
+    from the data type. This can lead to unexpected results.
 
     Parameters
     ----------
@@ -26,7 +29,7 @@ def psnr(gt: np.ndarray, pred: np.ndarray, range: float = 255.0) -> float:
         Ground truth image.
     pred : NumPy array
         Predicted image.
-    range : float, optional
+    range_ : float, optional
         The images pixel range, by default 255.0.
 
     Returns
@@ -34,7 +37,7 @@ def psnr(gt: np.ndarray, pred: np.ndarray, range: float = 255.0) -> float:
     float
         PSNR value.
     """
-    return peak_signal_noise_ratio(gt, pred, data_range=range)
+    return peak_signal_noise_ratio(gt, pred, data_range=range_)
 
 
 def _zero_mean(x: np.ndarray) -> np.ndarray:
