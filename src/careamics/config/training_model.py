@@ -5,11 +5,7 @@ from __future__ import annotations
 from pprint import pformat
 from typing import Literal, Optional, Union
 
-from pydantic import (
-    BaseModel,
-    ConfigDict,
-    Field,
-)
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from .callback_model import CheckpointModel, EarlyStoppingModel
 
@@ -39,7 +35,7 @@ class TrainingConfig(BaseModel):
 
     precision: Literal["64", "32", "16-mixed", "bf16-mixed"] = Field(default="32")
     """Numerical precision"""
-    max_steps: int = Field(default=-1, ge=-1, exclude=0)
+    max_steps: int = Field(default=-1, ge=-1)
     """Maximum number of steps to train for. -1 means no limit."""
     check_val_every_n_epoch: Optional[int] = Field(default=1, ge=1)
     """Validation step frequency."""
@@ -84,3 +80,11 @@ class TrainingConfig(BaseModel):
             Whether the logger is defined or not.
         """
         return self.logger is not None
+
+    @field_validator("max_steps")
+    @classmethod
+    def validate_max_steps(cls, max_steps: int) -> int:
+        """Validate the max_steps parameter."""
+        if max_steps == 0:
+            raise ValueError("max_steps must be greater than 0. Use -1 for no limit.")
+        return max_steps
