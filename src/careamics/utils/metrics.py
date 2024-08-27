@@ -8,7 +8,9 @@ from typing import Optional, Union
 
 import numpy as np
 import torch
-from skimage.metrics import peak_signal_noise_ratio
+from skimage.metrics import peak_signal_noise_ratio, structural_similarity
+from torchmetrics.image import MultiScaleStructuralSimilarityIndexMeasure
+# TODO: does this add additional dependency? 
 
 
 def psnr(gt: np.ndarray, pred: np.ndarray, range: float = 255.0) -> float:
@@ -186,3 +188,78 @@ class RunningPSNR:
             return None
         rmse = torch.sqrt(self.mse_sum / self.N)
         return 20 * torch.log10((self.max - self.min) / rmse)
+    
+
+def _range_invariant_multiscale_ssim(
+    gt_: Union[np.ndarray, torch.Tensor], 
+    pred_: Union[np.ndarray, torch.Tensor]
+):
+    """Compute range invariant multiscale SSIM for one channel.
+    
+    The advantage of this metric in comparison to commonly used SSIM is that
+    it is invariant to scalar multiplications in the prediction.
+    # TODO: Add reference to the paper.
+    
+    NOTE: images fed to this function should have channels dimension as the last one.
+    
+    Parameters:
+    ----------
+    gt_: Union[np.ndarray, torch.Tensor]
+        Ground truth image with shape (N, H, W, C).
+    pred_: Union[np.ndarray, torch.Tensor]
+        Predicted image with shape (N, H, W, C).
+    """
+    shape = gt_.shape
+    gt_ = torch.Tensor(gt_.reshape((shape[0], -1)))
+    pred_ = torch.Tensor(pred_.reshape((shape[0], -1)))
+    gt_ = _zero_mean(gt_)
+    pred_ = _zero_mean(pred_)
+    pred_ = _fix(gt_, pred_)
+    pred_ = pred_.reshape(shape)
+    gt_ = gt_.reshape(shape)
+
+    ms_ssim = MultiScaleStructuralSimilarityIndexMeasure(
+        data_range=gt_.max() - gt_.min()
+    )
+    return ms_ssim(torch.Tensor(pred_[:, None]), torch.Tensor(gt_[:, None])).item()
+
+
+def multiscale_ssim(
+    gt_: Union[np.ndarray, torch.Tensor], 
+    pred_: Union[np.ndarray, torch.Tensor],
+    range_invariant: bool = True
+):
+    """Compute channel-wise multiscale SSIM for each channel.
+    
+    It allows to use either standard multiscale SSIM or its range-invariant version.
+    
+    NOTE: images fed to this function should have channels dimension as the last one.
+    # TODO: do we want to allow this behavior? or we want the usual (N, C, H, W)?
+    
+    Parameters:
+    ----------
+    gt_: Union[np.ndarray, torch.Tensor]
+        Ground truth image with shape (N, H, W, C).
+    pred_: Union[np.ndarray, torch.Tensor]
+        Predicted image with shape (N, H, W, C).
+    range_invariant: bool 
+        Whether to use standard or range invariant multiscale SSIM.
+    """
+    ms_ssim_values = {i: None for i in range(gt_.shape[-1])}
+    for ch_idx in range(gt_.shape[-1]):
+        tar_tmp = gt_[..., ch_idx]
+        pred_tmp = pred_[..., ch_idx]
+        if range_invariant:
+            ms_ssim_values[ch_idx] = _range_invariant_multiscale_ssim(
+                gt_=tar_tmp, pred_=pred_tmp
+            )
+        else:
+            ms_ssim = MultiScaleStructuralSimilarityIndexMeasure(
+                data_range=tar_tmp.max() - tar_tmp.min()
+            )
+            ms_ssim_values[ch_idx] = ms_ssim(
+                torch.Tensor(pred_tmp[:, None]), torch.Tensor(tar_tmp[:, None])
+            ).item()
+
+    output = [ms_ssim_values[i] for i in range(gt_.shape[-1])]
+    return output
