@@ -13,7 +13,7 @@ from torchmetrics.image import MultiScaleStructuralSimilarityIndexMeasure
 # TODO: does this add additional dependency? 
 
 
-def psnr(gt: np.ndarray, pred: np.ndarray, range_: float = 255.0) -> float:
+def psnr(gt: np.ndarray, pred: np.ndarray, range_: float = None) -> float:
     """
     Peak Signal to Noise Ratio.
 
@@ -30,7 +30,7 @@ def psnr(gt: np.ndarray, pred: np.ndarray, range_: float = 255.0) -> float:
     pred : np.ndarray
         Predicted array.
     range_ : float, optional
-        The images pixel range, by default 255.0.
+        The images pixel range, by default `None`.
 
     Returns
     -------
