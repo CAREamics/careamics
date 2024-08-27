@@ -258,11 +258,8 @@ def create_split_lightning_model(
         noise_model_config = None
         nm_lik_config = None
     
-    # TODO: change optimizer to ADAMAX
-    # problem: ADAMAX requires model.parameters() as input
-    # this can be tricky with how careamics is structured
     opt_config = OptimizerModel(
-        name="Adam",
+        name="Adamax",
         parameters={
             "lr": training_config.lr,
             "weight_decay": 0,   
