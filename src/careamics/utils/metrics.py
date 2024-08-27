@@ -4,14 +4,15 @@ Metrics submodule.
 This module contains various metrics and a metrics tracking class.
 """
 
-from warnings import warn
 from typing import Callable, Optional, Union
+from warnings import warn
 
 import numpy as np
 import torch
 from skimage.metrics import peak_signal_noise_ratio, structural_similarity
 from torchmetrics.image import MultiScaleStructuralSimilarityIndexMeasure
-# TODO: does this add additional dependency? 
+
+# TODO: does this add additional dependency?
 
 
 def psnr(gt: np.ndarray, pred: np.ndarray, range_: Optional[float] = None) -> float:
@@ -20,7 +21,7 @@ def psnr(gt: np.ndarray, pred: np.ndarray, range_: Optional[float] = None) -> fl
 
     This method calls skimage.metrics.peak_signal_noise_ratio. See:
     https://scikit-image.org/docs/dev/api/skimage.metrics.html.
-    
+
     NOTE: if `range_` is `None`, the `skimage` psnr function will try to infer it
     from the data type. This can lead to unexpected results.
 
@@ -41,7 +42,8 @@ def psnr(gt: np.ndarray, pred: np.ndarray, range_: Optional[float] = None) -> fl
     if range_ is None:
         warn(
             "`range_` is `None`, so it will be inferred by `np.dtype`."
-            "This can lead to unexpected results."
+            "This can lead to unexpected results.",
+            stacklevel=2,
         )
     return peak_signal_noise_ratio(gt, pred, data_range=range_)
 
@@ -197,28 +199,28 @@ class RunningPSNR:
             return None
         rmse = torch.sqrt(self.mse_sum / self.N)
         return 20 * torch.log10((self.max - self.min) / rmse)
-    
+
 
 def _range_invariant_multiscale_ssim(
-    gt_: Union[np.ndarray, torch.Tensor], 
+    gt_: Union[np.ndarray, torch.Tensor],
     pred_: Union[np.ndarray, torch.Tensor]
 ) -> float:
     """Compute range invariant multiscale SSIM for a single channel.
-    
+
     The advantage of this metric in comparison to commonly used SSIM is that
     it is invariant to scalar multiplications in the prediction.
     # TODO: Add reference to the paper.
-    
+
     NOTE: images fed to this function should have channels dimension as the last one.
-    
-    Parameters:
+
+    Parameters
     ----------
-    gt_: Union[np.ndarray, torch.Tensor]
+    gt_ : Union[np.ndarray, torch.Tensor]
         Ground truth image with shape (N, H, W).
-    pred_: Union[np.ndarray, torch.Tensor]
+    pred_ : Union[np.ndarray, torch.Tensor]
         Predicted image with shape (N, H, W).
-    
-    Returns:
+
+    Returns
     -------
     float
         Range invariant multiscale SSIM value.
@@ -239,32 +241,32 @@ def _range_invariant_multiscale_ssim(
 
 
 def multiscale_ssim(
-    gt_: Union[np.ndarray, torch.Tensor], 
+    gt_: Union[np.ndarray, torch.Tensor],
     pred_: Union[np.ndarray, torch.Tensor],
-    range_invariant: bool = True
-) -> list[float]:
+    range_invariant: bool = True,
+) -> list[Union[float, None]]:
     """Compute channel-wise multiscale SSIM for each channel.
-    
+
     It allows to use either standard multiscale SSIM or its range-invariant version.
-    
+
     NOTE: images fed to this function should have channels dimension as the last one.
     # TODO: do we want to allow this behavior? or we want the usual (N, C, H, W)?
-    
-    Parameters:
+
+    Parameters
     ----------
-    gt_: Union[np.ndarray, torch.Tensor]
+    gt_ : Union[np.ndarray, torch.Tensor]
         Ground truth image with shape (N, H, W, C).
-    pred_: Union[np.ndarray, torch.Tensor]
+    pred_ : Union[np.ndarray, torch.Tensor]
         Predicted image with shape (N, H, W, C).
-    range_invariant: bool 
+    range_invariant : bool
         Whether to use standard or range invariant multiscale SSIM.
-        
-    Returns:
+
+    Returns
     -------
     list[float]
         List of SSIM values for each channel.
     """
-    ms_ssim_values = {i: None for i in range(gt_.shape[-1])}
+    ms_ssim_values = {}
     for ch_idx in range(gt_.shape[-1]):
         tar_tmp = gt_[..., ch_idx]
         pred_tmp = pred_[..., ch_idx]
@@ -280,23 +282,22 @@ def multiscale_ssim(
                 torch.Tensor(pred_tmp[:, None]), torch.Tensor(tar_tmp[:, None])
             ).item()
 
-    output = [ms_ssim_values[i] for i in range(gt_.shape[-1])]
-    return output
+    return [ms_ssim_values[i] for i in range(gt_.shape[-1])]  # type: ignore
 
 
 def _avg_psnr(target: np.ndarray, prediction: np.ndarray, psnr_fn: Callable) -> float:
     """Compute the average PSNR over a batch of images.
-    
-    Parameters:
+
+    Parameters
     ----------
-    target: np.ndarray
+    target : np.ndarray
         Array of ground truth images, shape is (N, C, H, W).
-    prediction: np.ndarray
+    prediction : np.ndarray
         Array of predicted images, shape is (N, C, H, W).
-    psnr_fn: Callable
+    psnr_fn : Callable
         PSNR function to use.
-    
-    Returns:
+
+    Returns
     -------
     float
         Average PSNR value over the batch.
@@ -311,15 +312,15 @@ def _avg_psnr(target: np.ndarray, prediction: np.ndarray, psnr_fn: Callable) -> 
 
 def avg_range_inv_psnr(target: np.ndarray, prediction: np.ndarray) -> float:
     """Compute the average range-invariant PSNR over a batch of images.
-    
-    Parameters:
+
+    Parameters
     ----------
-    target: np.ndarray
+    target : np.ndarray
         Array of ground truth images, shape is (N, C, H, W).
-    prediction: np.ndarray
+    prediction : np.ndarray
         Array of predicted images, shape is (N, C, H, W).
-    
-    Returns:
+
+    Returns
     -------
     float
         Average range-invariant PSNR value over the batch.
@@ -329,15 +330,15 @@ def avg_range_inv_psnr(target: np.ndarray, prediction: np.ndarray) -> float:
 
 def avg_psnr(target: np.ndarray, prediction: np.ndarray) -> float:
     """Compute the average PSNR over a batch of images.
-    
-    Parameters:
+
+    Parameters
     ----------
-    target: np.ndarray
+    target : np.ndarray
         Array of ground truth images, shape is (N, C, H, W).
-    prediction: np.ndarray
+    prediction : np.ndarray
         Array of predicted images, shape is (N, C, H, W).
-    
-    Returns:
+
+    Returns
     -------
     float
         Average PSNR value over the batch.
@@ -346,23 +347,23 @@ def avg_psnr(target: np.ndarray, prediction: np.ndarray) -> float:
 
 
 def avg_ssim(
-    target: Union[np.ndarray, torch.Tensor], 
+    target: Union[np.ndarray, torch.Tensor],
     prediction: Union[np.ndarray, torch.Tensor]
 ) -> tuple[float, float]:
     """Compute the average Structural Similarity (SSIM) over a batch of images.
-    
-    Parameters:
+
+    Parameters
     ----------
-    target: np.ndarray
+    target : np.ndarray
         Array of ground truth images, shape is (N, C, H, W).
-    prediction: np.ndarray
+    prediction : np.ndarray
         Array of predicted images, shape is (N, C, H, W).
-    
-    Returns:
+
+    Returns
     -------
     tuple[float, float]
         Mean and standard deviation of SSIM values over the batch.
-    """        
+    """
     ssim = [
         structural_similarity(
             target[i], prediction[i], data_range=(target[i].max() - target[i].min())

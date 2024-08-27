@@ -4,9 +4,9 @@ import torch
 
 from careamics.utils.metrics import (
     _zero_mean,
-    scale_invariant_psnr,
+    multiscale_ssim,
     psnr,
-    multiscale_ssim
+    scale_invariant_psnr,
 )
 
 # TODO: add missing test cases
@@ -21,8 +21,8 @@ from careamics.utils.metrics import (
     [
         np.array([1, 2, 3, 4, 5]),
         np.array([[1, 2, 3], [4, 5, 6]]),
-        torch.tensor([1., 2., 3., 4., 5.]),
-        torch.tensor([[1., 2., 3.], [4., 5., 6.]]),
+        torch.tensor([1.0, 2.0, 3.0, 4.0, 5.0]),
+        torch.tensor([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]),
     ],
 )
 def test_zero_mean(x: np.ndarray):
@@ -43,12 +43,7 @@ def test_scale_invariant_psnr(gt: np.ndarray, pred: np.ndarray, result: float):
 
 @pytest.mark.parametrize(
     "data_type",
-    [
-        np.uint8,
-        np.uint16,
-        np.float32,
-        np.int64
-    ],
+    [np.uint8, np.uint16, np.float32, np.int64],
 )
 def test_psnr(data_type: np.dtype):
     gt_ = np.random.randint(0, 255, size=(16, 16)).astype(data_type)
@@ -59,7 +54,8 @@ def test_psnr(data_type: np.dtype):
     range_ = gt_.max() - gt_.min()
     assert psnr(gt_, pred_, range_) is not None
     # add check on the result
-    
+
+
 @pytest.mark.parametrize("type_", ["torch", "numpy"])
 @pytest.mark.parametrize("num_ch", [1, 4])
 def test_multiscale_ssim(type_: str, num_ch: int):
@@ -69,8 +65,8 @@ def test_multiscale_ssim(type_: str, num_ch: int):
     elif type_ == "numpy":
         gt = np.random.rand(4, 256, 256, num_ch)
         pred = np.random.rand(4, 256, 256, num_ch)
-    
+
     rinv_mssim = multiscale_ssim(gt, pred, range_invariant=True)
-    mssim = multiscale_ssim(gt, pred, range_invariant=False) 
+    mssim = multiscale_ssim(gt, pred, range_invariant=False)
     assert len(rinv_mssim) == num_ch
     assert len(mssim) == num_ch
