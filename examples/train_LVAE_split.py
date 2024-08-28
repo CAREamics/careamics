@@ -394,7 +394,7 @@ def main():
             verbose=True,        
         ), 
         ModelCheckpoint(
-            dirpath=os.path.join(workdir, "checkpoints"),
+            dirpath=workdir,
             filename="best-{epoch}",
             monitor="val_loss",
             save_top_k=1,
