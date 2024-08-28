@@ -377,10 +377,11 @@ def main():
     
     
     # Define the logger
+    lc_tag = "enabled" if multiscale_count > 1 else "disabled"
     custom_logger = WandbLogger(
         name=os.path.join(socket.gethostname(), exp_tag),
         save_dir=workdir,
-        project="_".join(("careamics", algo, "LC", str(multiscale_count))),
+        project="_".join(("careamics", algo)),
     )
 
     
