@@ -1,3 +1,4 @@
+import json
 import os
 import socket
 from datetime import datetime
@@ -31,7 +32,7 @@ img_size: int = 64
 """Spatial size of the input image."""
 target_channels: int = 2
 """Number of channels in the target image."""
-multiscale_count: int = 1
+multiscale_count: int = 3
 """The number of LC inputs plus one (the actual input)."""
 predict_logvar: Optional[Literal["pixelwise"]] = "pixelwise"
 """Whether to compute also the log-variance as LVAE output."""
@@ -65,17 +66,16 @@ class TrainingConfig(BaseModel):
     """The value to use for gradient clipping (see lightning `Trainer`)."""
     gradient_clip_algorithm: int = 'value'
     """The algorithm to use for gradient clipping (see lightning `Trainer`)."""
-    
-train_config = TrainingConfig()
 
 
 ### --- Data parameters
 def get_data_config(
 ):
     data_config = ml_collections.ConfigDict()
+    data_config.data_dir = "/group/jug/federico/careamics_training/data/BioSR"
     data_config.image_size = img_size
     data_config.target_channels = target_channels
-    data_config.multiscale_lowres_count = multiscale_count #wrong -> 3
+    data_config.multiscale_lowres_count = multiscale_count
     data_config.data_type = DataType.BioSR_MRC
     data_config.ch1_fname = "ER/GT_all.mrc"
     data_config.ch2_fname = "CCPs/GT_all.mrc" 
@@ -89,7 +89,6 @@ def get_data_config(
 ### --- Functions to create datasets and model
 def create_dataset(
     config: ml_collections.ConfigDict,
-    datadir: str,
     eval_datasplit_type = DataSplitType.Val,
     skip_train_dataset = False,
     kwargs_dict = None,
@@ -97,7 +96,7 @@ def create_dataset(
     if kwargs_dict is None:
         kwargs_dict = {}
 
-    datapath = datadir
+    datapath = config.data_dir
 
     # Hard-coded parameters (used to be in the config file)
     normalized_input = True
@@ -115,10 +114,11 @@ def create_dataset(
                 padding_kwargs["mode"] = config.padding_mode
             else:
                 padding_kwargs["mode"] = "reflect" 
-            if "padding_value" in config and config.padding_value is not None:
-                padding_kwargs["constant_values"] = config.padding_value
-            else:
-                padding_kwargs["constant_values"] = None 
+            if padding_kwargs["mode"] == "constant":
+                if "padding_value" in config and config.padding_value is not None:
+                    padding_kwargs["constant_values"] = config.padding_value
+                else:
+                    padding_kwargs["constant_values"] = None
         else:
             padding_kwargs = kwargs_dict.pop("padding_kwargs")
 
@@ -341,21 +341,20 @@ def main():
     # --- Get dloader
     train_dset, val_dset, data_stats = create_dataset(
         config=get_data_config(),
-        datadir="/group/jug/federico/careamics_training/data/BioSR",
         eval_datasplit_type=DataSplitType.Val,
         skip_train_dataset=False,
         kwargs_dict=None,
     )
     train_dloader = DataLoader(
         train_dset, 
-        batch_size=train_config.batch_size, 
-        num_workers=train_config.num_workers, 
+        batch_size=training_config.batch_size, 
+        num_workers=training_config.num_workers, 
         shuffle=True
     )
     val_dloader = DataLoader(
         val_dset, 
-        batch_size=train_config.batch_size, 
-        num_workers=train_config.num_workers, 
+        batch_size=training_config.batch_size, 
+        num_workers=training_config.num_workers, 
         shuffle=False
     )
     
@@ -368,11 +367,12 @@ def main():
         predict_logvar=predict_logvar,
         target_ch=target_channels,
         NM_path=None,
-        training_config=train_config
+        training_config=training_config
     )
     
     ROOT_DIR = "/group/jug/federico/careamics_training/refac_v2/"
-    workdir, exp_tag = get_workdir(ROOT_DIR, "musplit_no_LC")
+    lc_tag = "with" if multiscale_count > 1 else "no"
+    workdir, exp_tag = get_workdir(ROOT_DIR, f"musplit_{lc_tag}_LC")
     print(f"Current workdir: {workdir}")
     
     
@@ -389,7 +389,7 @@ def main():
         EarlyStopping(
             monitor="val_loss",
             min_delta=1e-6,
-            patience=train_config.earlystop_patience,
+            patience=training_config.earlystop_patience,
             mode="min",
             verbose=True,        
         ), 
@@ -404,23 +404,26 @@ def main():
         LearningRateMonitor(logging_interval="epoch")
     ]
     
-    # Save AlgorithmConfig
+    # Save configs
     with open(os.path.join(workdir, "algorithm_config.json"), "w") as f:
         f.write(lightning_model.algorithm_config.model_dump_json())
 
     with open(os.path.join(workdir, "training_config.json"), "w") as f:
-        f.write(train_config.model_dump_json())
+        f.write(training_config.model_dump_json())
+    
+    with open(os.path.join(workdir, "data_config.json"), "w") as f:
+        json.dump(get_data_config().to_dict(), f)
         
     # Train the model
     trainer = Trainer(
-        max_epochs=train_config.max_epochs,
+        max_epochs=training_config.max_epochs,
         accelerator="gpu",
         enable_progress_bar=True,
         logger=custom_logger,
         callbacks=custom_callbacks,
-        precision=train_config.precision,
-        gradient_clip_val=train_config.grad_clip_norm_value, # only works with `accelerator="gpu"`
-        gradient_clip_algorithm=train_config.gradient_clip_algorithm,
+        precision=training_config.precision,
+        gradient_clip_val=training_config.grad_clip_norm_value, # only works with `accelerator="gpu"`
+        gradient_clip_algorithm=training_config.gradient_clip_algorithm,
     )
     trainer.fit(
         model=lightning_model,
