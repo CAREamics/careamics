@@ -43,19 +43,19 @@ def clean_ax(ax):
     ax.tick_params(left=False, right=False, top=False, bottom=False)
 
 
-def get_plots_output_dir(
+def get_eval_output_dir(
     saveplotsdir: str, patch_size: int, mmse_count: int = 50
 ) -> str:
     """
     Given the path to a root directory to save plots, patch size, and mmse count,
     it returns the specific directory to save the plots.
     """
-    plotsrootdir = os.path.join(
-        saveplotsdir, f"plots/patch_{patch_size}_mmse_{mmse_count}"
+    eval_out_dir = os.path.join(
+        saveplotsdir, f"eval_outputs/patch_{patch_size}_mmse_{mmse_count}"
     )
-    os.makedirs(plotsrootdir, exist_ok=True)
-    print(plotsrootdir)
-    return plotsrootdir
+    os.makedirs(eval_out_dir, exist_ok=True)
+    print(eval_out_dir)
+    return eval_out_dir
 
 
 def get_psnr_str(tar_hsnr, pred, col_idx):
