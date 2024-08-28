@@ -203,8 +203,7 @@ class RunningPSNR:
 
 
 def _range_invariant_multiscale_ssim(
-    gt_: Union[np.ndarray, torch.Tensor],
-    pred_: Union[np.ndarray, torch.Tensor]
+    gt_: Union[np.ndarray, torch.Tensor], pred_: Union[np.ndarray, torch.Tensor]
 ) -> float:
     """Compute range invariant multiscale SSIM for a single channel.
 
@@ -348,8 +347,7 @@ def avg_psnr(target: np.ndarray, prediction: np.ndarray) -> float:
 
 
 def avg_ssim(
-    target: Union[np.ndarray, torch.Tensor],
-    prediction: Union[np.ndarray, torch.Tensor]
+    target: Union[np.ndarray, torch.Tensor], prediction: Union[np.ndarray, torch.Tensor]
 ) -> tuple[float, float]:
     """Compute the average Structural Similarity (SSIM) over a batch of images.
 
