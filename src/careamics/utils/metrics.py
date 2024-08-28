@@ -66,40 +66,44 @@ def _zero_mean(x: Union[np.ndarray, torch.Tensor]) -> Union[np.ndarray, torch.Te
     return x - x.mean()
 
 
-def _fix_range(gt: np.ndarray, x: np.ndarray) -> np.ndarray:
+def _fix_range(
+    gt: Union[np.ndarray, torch.Tensor], x: Union[np.ndarray, torch.Tensor]
+) -> Union[np.ndarray, torch.Tensor]:
     """
     Adjust the range of an array based on a reference ground-truth array.
 
     Parameters
     ----------
-    gt : np.ndarray
+    gt : Union[np.ndarray, torch.Tensor]
         Ground truth array.
-    x : np.ndarray
+    x : Union[np.ndarray, torch.Tensor]
         Input array.
 
     Returns
     -------
-    np.ndarray
+    Union[np.ndarray, torch.Tensor]
         Range-adjusted array.
     """
     a = (gt * x).sum() / (x * x).sum()
     return x * a
 
 
-def _fix(gt: np.ndarray, x: np.ndarray) -> np.ndarray:
+def _fix(
+    gt: Union[np.ndarray, torch.Tensor], x: Union[np.ndarray, torch.Tensor]
+) -> Union[np.ndarray, torch.Tensor]:
     """
     Zero mean a groud truth array and adjust the range of the array.
 
     Parameters
     ----------
-    gt : np.ndarray
+    gt : Union[np.ndarray, torch.Tensor]
         Ground truth image.
-    x : np.ndarray
+    x : Union[np.ndarray, torch.Tensor]
         Input array.
 
     Returns
     -------
-    np.ndarray
+    Union[np.ndarray, torch.Tensor]
         Zero-mean and range-adjusted array.
     """
     gt_ = _zero_mean(gt)
@@ -203,8 +207,7 @@ class RunningPSNR:
 
 
 def _range_invariant_multiscale_ssim(
-    gt_: Union[np.ndarray, torch.Tensor],
-    pred_: Union[np.ndarray, torch.Tensor]
+    gt_: Union[np.ndarray, torch.Tensor], pred_: Union[np.ndarray, torch.Tensor]
 ) -> float:
     """Compute range invariant multiscale SSIM for a single channel.
 
@@ -348,8 +351,7 @@ def avg_psnr(target: np.ndarray, prediction: np.ndarray) -> float:
 
 
 def avg_ssim(
-    target: Union[np.ndarray, torch.Tensor],
-    prediction: Union[np.ndarray, torch.Tensor]
+    target: Union[np.ndarray, torch.Tensor], prediction: Union[np.ndarray, torch.Tensor]
 ) -> tuple[float, float]:
     """Compute the average Structural Similarity (SSIM) over a batch of images.
 
