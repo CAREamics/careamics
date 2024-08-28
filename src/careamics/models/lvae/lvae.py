@@ -95,11 +95,11 @@ class LadderVAE(nn.Module):
         self._enable_topdown_normalize_factor = True
 
         # Noise model attributes -> Hardcoded
-        self.noise_model_type = "gmm"
+        self.noise_model_type = "gmm" # TODO: remove
         self.denoise_channel = (
             "input"  # 4 values for denoise_channel {'Ch1', 'Ch2', 'input','all'}
-        )
-        self.noise_model_learnable = False
+        ) # used for HDN
+        self.noise_model_learnable = False # TODO: remove
 
         # Attributes that handle LC -> Hardcoded
         self.enable_multiscale = (
