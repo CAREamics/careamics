@@ -45,6 +45,7 @@ def psnr(gt: np.ndarray, pred: np.ndarray, range_: Optional[float] = None) -> fl
             "This can lead to unexpected results.",
             stacklevel=2,
         )
+        # TODO: compute the min-max range manually (?)
     return peak_signal_noise_ratio(gt, pred, data_range=range_)
 
 
