@@ -57,7 +57,7 @@ class LVAELossParameters:
     """Weight for the reconstruction loss in the total net loss
     (i.e., `net_loss = reconstruction_weight * rec_loss + kl_weight * kl_loss`)."""
     musplit_weight: float = 0.0
-    """Weight for the muSplit loss (used in the muSplit-deonoiSplit loss)."""
+    """Weight for the muSplit loss (used in the muSplit-denoiSplit loss)."""
     denoisplit_weight: float = 1.0
     """Weight for the denoiSplit loss (used in the muSplit-deonoiSplit loss)."""
     kl_type: Literal["kl", "kl_restricted", "kl_spatial", "kl_channelwise"] = "kl"
