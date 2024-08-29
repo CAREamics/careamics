@@ -591,7 +591,7 @@ def get_dset_predictions(
                     logvar = np.array([-1])
                 else:
                     rec_img, logvar = torch.chunk(rec, chunks=2, dim=1)
-                rec_img_list.append(rec_img.cpu())
+                rec_img_list.append(rec_img.cpu().unsqueeze(0)) # add MMSE dim
                 logvar_arr.append(logvar.cpu().numpy())
                 
                 # compute reconstruction loss
@@ -629,8 +629,8 @@ def get_dset_predictions(
 
             # aggregate results
             samples = torch.cat(rec_img_list, dim=0)
-            mmse_imgs = torch.mean(samples, dim=0, keepdim=True)
-            mmse_std = torch.std(samples, dim=0, keepdim=True)
+            mmse_imgs = torch.mean(samples, dim=0) # avg over MMSE dim
+            mmse_std = torch.std(samples, dim=0)
             predictions.append(mmse_imgs.cpu().numpy())
             predictions_std.append(mmse_std.cpu().numpy())
 
