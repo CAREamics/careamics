@@ -273,7 +273,7 @@ class VAEModule(L.LightningModule):
         )
         self.noise_model_likelihood: NoiseModelLikelihood = likelihood_factory(
             self.algorithm_config.noise_model_likelihood_model
-        ) # TODO: extract `data_mean` and `data_std` from here
+        )
         self.gaussian_likelihood: GaussianLikelihood = likelihood_factory(
             self.algorithm_config.gaussian_likelihood_model
         )
@@ -287,7 +287,6 @@ class VAEModule(L.LightningModule):
         # save optimizer and lr_scheduler names and parameters
         self.optimizer_name = self.algorithm_config.optimizer.name
         self.optimizer_params = self.algorithm_config.optimizer.parameters
-        # TODO: add here `self.model.parameters()` as ADAMAX input (?)
         self.lr_scheduler_name = self.algorithm_config.lr_scheduler.name
         self.lr_scheduler_params = self.algorithm_config.lr_scheduler.parameters
 
