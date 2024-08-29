@@ -3,14 +3,19 @@ import os
 import socket
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, Literal, Union
+from typing import Any, Literal, Optional, Union
 
+import git
 import ml_collections
-from torch.utils.data import Dataset, DataLoader
-from pytorch_lightning import Trainer
-from pytorch_lightning.loggers import WandbLogger
-from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint, EarlyStopping
 from pydantic import BaseModel, ConfigDict
+from pytorch_lightning import Trainer
+from pytorch_lightning.callbacks import (
+    EarlyStopping,
+    LearningRateMonitor,
+    ModelCheckpoint,
+)
+from pytorch_lightning.loggers import WandbLogger
+from torch.utils.data import DataLoader, Dataset
 
 from careamics.config import VAEAlgorithmConfig
 from careamics.config.architectures import LVAEModel
@@ -19,13 +24,12 @@ from careamics.config.likelihood_model import (
     NMLikelihoodConfig,
 )
 from careamics.config.nm_model import GaussianMixtureNMConfig, MultiChannelNMConfig
-from careamics.config.optimizer_models import OptimizerModel, LrSchedulerModel
+from careamics.config.optimizer_models import LrSchedulerModel, OptimizerModel
 from careamics.lightning import VAEModule
-from careamics.models.lvae.noise_models import noise_model_factory
-from careamics.lvae_training.data_modules import MultiChDloader, LCMultiChDloader
-from careamics.lvae_training.data_utils import DataType, DataSplitType
+from careamics.lvae_training.data_modules import LCMultiChDloader, MultiChDloader
+from careamics.lvae_training.data_utils import DataSplitType, DataType
 from careamics.lvae_training.train_utils import get_new_model_version
-
+from careamics.models.lvae.noise_models import noise_model_factory
 
 # --- Custom parameters
 img_size: int = 64
@@ -39,11 +43,12 @@ predict_logvar: Optional[Literal["pixelwise"]] = "pixelwise"
 loss_type: Optional[Literal["musplit", "denoisplit", "denoisplit_musplit"]] = "musplit"
 """The type of reconstruction loss (i.e., likelihood) to use."""
 
+
 # --- Training parameters
 # TODO: replace with PR #225
 class TrainingConfig(BaseModel):
     """Configuration for training a VAE model."""
-    
+
     model_config = ConfigDict(
         validate_assignment=True, arbitrary_types_allowed=True, extra="allow"
     )
@@ -64,13 +69,12 @@ class TrainingConfig(BaseModel):
     """The number of workers to use for data loading."""
     grad_clip_norm_value: int = 0.5
     """The value to use for gradient clipping (see lightning `Trainer`)."""
-    gradient_clip_algorithm: int = 'value'
+    gradient_clip_algorithm: int = "value"
     """The algorithm to use for gradient clipping (see lightning `Trainer`)."""
 
 
 ### --- Data parameters
-def get_data_config(
-):
+def get_data_config():
     data_config = ml_collections.ConfigDict()
     data_config.data_dir = "/group/jug/federico/careamics_training/data/BioSR"
     data_config.image_size = img_size
@@ -78,7 +82,7 @@ def get_data_config(
     data_config.multiscale_lowres_count = multiscale_count
     data_config.data_type = DataType.BioSR_MRC
     data_config.ch1_fname = "ER/GT_all.mrc"
-    data_config.ch2_fname = "CCPs/GT_all.mrc" 
+    data_config.ch2_fname = "CCPs/GT_all.mrc"
     data_config.poisson_noise_factor = -1
     data_config.enable_gaussian_noise = True
     data_config.synthetic_gaussian_scale = 5100
@@ -89,9 +93,9 @@ def get_data_config(
 ### --- Functions to create datasets and model
 def create_dataset(
     config: ml_collections.ConfigDict,
-    eval_datasplit_type = DataSplitType.Val,
-    skip_train_dataset = False,
-    kwargs_dict = None,
+    eval_datasplit_type=DataSplitType.Val,
+    skip_train_dataset=False,
+    kwargs_dict=None,
 ) -> tuple[Dataset, Dataset, tuple[float, float]]:
     if kwargs_dict is None:
         kwargs_dict = {}
@@ -113,7 +117,7 @@ def create_dataset(
             if "padding_mode" in config and config.padding_mode is not None:
                 padding_kwargs["mode"] = config.padding_mode
             else:
-                padding_kwargs["mode"] = "reflect" 
+                padding_kwargs["mode"] = "reflect"
             if padding_kwargs["mode"] == "constant":
                 if "padding_value" in config and config.padding_value is not None:
                     padding_kwargs["constant_values"] = config.padding_value
@@ -199,15 +203,15 @@ def create_dataset(
             max_val=max_val,
             **val_data_kwargs,
         )
-    
+
     mean_val, std_val = train_data.compute_mean_std()
     train_data.set_mean_std(mean_val, std_val)
     val_data.set_mean_std(mean_val, std_val)
     data_stats = train_data.get_mean_std()
-    
+
     # NOTE: "input" mean & std are computed over the entire dataset and repeated for each channel.
     # On the contrary, "target" mean & std are computed separately for each channel.
-    
+
     return train_data, val_data, data_stats
 
 
@@ -219,7 +223,7 @@ def create_split_lightning_model(
     predict_logvar: Optional[Literal["pixelwise"]] = None,
     target_ch: int = 1,
     NM_path: Optional[Path] = None,
-    training_config: TrainingConfig = TrainingConfig() 
+    training_config: TrainingConfig = TrainingConfig(),
 ) -> VAEModule:
     """Instantiate the muSplit lightining model."""
     lvae_config = LVAEModel(
@@ -229,7 +233,7 @@ def create_split_lightning_model(
         z_dims=[128, 128, 128, 128],
         output_channels=target_ch,
         predict_logvar=predict_logvar,
-        analytical_kl=False, 
+        analytical_kl=False,
     )
 
     # gaussian likelihood
@@ -243,7 +247,7 @@ def create_split_lightning_model(
     # noise model likelihood
     if loss_type in ["denoisplit", "denoisplit_musplit"]:
         assert NM_path is not None, "A path to a pre-trained noise model is required."
-        
+
         gmm = GaussianMixtureNMConfig(
             model_type="GaussianMixtureNoiseModel",
             path=NM_path,
@@ -257,12 +261,12 @@ def create_split_lightning_model(
     else:
         noise_model_config = None
         nm_lik_config = None
-    
+
     opt_config = OptimizerModel(
         name="Adamax",
         parameters={
             "lr": training_config.lr,
-            "weight_decay": 0,   
+            "weight_decay": 0,
         },
     )
     lr_scheduler_config = LrSchedulerModel(
@@ -290,6 +294,7 @@ def create_split_lightning_model(
 
     return VAEModule(algorithm_config=vae_config)
 
+
 # --- Utils
 def get_new_model_version(model_dir: Union[Path, str]) -> int:
     """Create a unique version ID for a new model run."""
@@ -306,12 +311,13 @@ def get_new_model_version(model_dir: Union[Path, str]) -> int:
         return "0"
     return f"{max(versions) + 1}"
 
+
 def get_workdir(
     root_dir: str,
     model_name: str,
 ) -> tuple[Path, Path]:
     """Get the workdir for the current model.
-    
+
     It has the following structure: "root_dir/YYMM/model_name/version"
     """
     rel_path = datetime.now().strftime("%y%m")
@@ -327,17 +333,25 @@ def get_workdir(
     try:
         Path(cur_workdir).mkdir(exist_ok=False)
     except FileExistsError:
-        print(
-            f"Workdir {cur_workdir} already exists."
-        )
+        print(f"Workdir {cur_workdir} already exists.")
     return cur_workdir, rel_path
 
 
+def get_git_status() -> dict[Any]:
+    curr_dir = os.path.dirname(os.path.realpath(__file__))
+    repo = git.Repo(curr_dir, search_parent_directories=True)
+    git_config = {}
+    git_config["changedFiles"] = [item.a_path for item in repo.index.diff(None)]
+    git_config["branch"] = repo.active_branch.name
+    git_config["untracked_files"] = repo.untracked_files
+    git_config["latest_commit"] = repo.head.object.hexsha
+    return git_config
+
 
 def main():
-    
-    training_config = TrainingConfig() 
-    
+
+    training_config = TrainingConfig()
+
     # --- Get dloader
     train_dset, val_dset, data_stats = create_dataset(
         config=get_data_config(),
@@ -346,18 +360,18 @@ def main():
         kwargs_dict=None,
     )
     train_dloader = DataLoader(
-        train_dset, 
-        batch_size=training_config.batch_size, 
-        num_workers=training_config.num_workers, 
-        shuffle=True
+        train_dset,
+        batch_size=training_config.batch_size,
+        num_workers=training_config.num_workers,
+        shuffle=True,
     )
     val_dloader = DataLoader(
-        val_dset, 
-        batch_size=training_config.batch_size, 
-        num_workers=training_config.num_workers, 
-        shuffle=False
+        val_dset,
+        batch_size=training_config.batch_size,
+        num_workers=training_config.num_workers,
+        shuffle=False,
     )
-    
+
     algo = "musplit" if loss_type == "musplit" else "denoisplit"
     lightning_model = create_split_lightning_model(
         algorithm=algo,
@@ -367,15 +381,14 @@ def main():
         predict_logvar=predict_logvar,
         target_ch=target_channels,
         NM_path=None,
-        training_config=training_config
+        training_config=training_config,
     )
-    
+
     ROOT_DIR = "/group/jug/federico/careamics_training/refac_v2/"
     lc_tag = "with" if multiscale_count > 1 else "no"
     workdir, exp_tag = get_workdir(ROOT_DIR, f"musplit_{lc_tag}_LC")
     print(f"Current workdir: {workdir}")
-    
-    
+
     # Define the logger
     lc_tag = "enabled" if multiscale_count > 1 else "disabled"
     custom_logger = WandbLogger(
@@ -384,7 +397,6 @@ def main():
         project="_".join(("careamics", algo)),
     )
 
-    
     # Define callbacks (e.g., ModelCheckpoint, EarlyStopping, etc.)
     custom_callbacks = [
         EarlyStopping(
@@ -392,42 +404,43 @@ def main():
             min_delta=1e-6,
             patience=training_config.earlystop_patience,
             mode="min",
-            verbose=True,        
-        ), 
+            verbose=True,
+        ),
         ModelCheckpoint(
             dirpath=workdir,
             filename="best-{epoch}",
             monitor="val_loss",
             save_top_k=1,
             save_last=True,
-            mode="min",    
+            mode="min",
         ),
-        LearningRateMonitor(logging_interval="epoch")
+        LearningRateMonitor(logging_interval="epoch"),
     ]
-    
-    # Save configs locally
+
+    # Save configs and git status (for debugging)
     with open(os.path.join(workdir, "algorithm_config.json"), "w") as f:
         f.write(lightning_model.algorithm_config.model_dump_json(indent=4))
 
     with open(os.path.join(workdir, "training_config.json"), "w") as f:
         f.write(training_config.model_dump_json(indent=4))
-    
+
     with open(os.path.join(workdir, "data_config.json"), "w") as f:
         json.dump(get_data_config().to_dict(), f, indent=4)
-        
+
+    with open(os.path.join(workdir, "git_config.json"), "w") as f:
+        json.dump(get_git_status(), f, indent=4)
+
     # Save Configs in WANDB
-    custom_logger.experiment.config.update({
-        "algorithm": lightning_model.algorithm_config.model_dump() # exclude=["noise_model", "noise_model_likelihood_model"]
-    })
+    custom_logger.experiment.config.update(
+        {
+            "algorithm": lightning_model.algorithm_config.model_dump()  # exclude=["noise_model", "noise_model_likelihood_model"]
+        }
+    )
 
-    custom_logger.experiment.config.update({
-        "training": training_config.model_dump()
-    })
+    custom_logger.experiment.config.update({"training": training_config.model_dump()})
 
-    custom_logger.experiment.config.update({
-        "data": get_data_config().to_dict()
-    })
-        
+    custom_logger.experiment.config.update({"data": get_data_config().to_dict()})
+
     # Train the model
     trainer = Trainer(
         max_epochs=training_config.max_epochs,
@@ -436,7 +449,7 @@ def main():
         logger=custom_logger,
         callbacks=custom_callbacks,
         precision=training_config.precision,
-        gradient_clip_val=training_config.grad_clip_norm_value, # only works with `accelerator="gpu"`
+        gradient_clip_val=training_config.grad_clip_norm_value,  # only works with `accelerator="gpu"`
         gradient_clip_algorithm=training_config.gradient_clip_algorithm,
     )
     trainer.fit(
@@ -444,7 +457,7 @@ def main():
         train_dataloaders=train_dloader,
         val_dataloaders=val_dloader,
     )
-  
-  
+
+
 if __name__ == "__main__":
-    main()    
+    main()
