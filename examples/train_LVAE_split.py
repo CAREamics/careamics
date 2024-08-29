@@ -405,7 +405,7 @@ def main():
         LearningRateMonitor(logging_interval="epoch")
     ]
     
-    # Save configs
+    # Save configs locally
     with open(os.path.join(workdir, "algorithm_config.json"), "w") as f:
         f.write(lightning_model.algorithm_config.model_dump_json(indent=4))
 
@@ -414,6 +414,19 @@ def main():
     
     with open(os.path.join(workdir, "data_config.json"), "w") as f:
         json.dump(get_data_config().to_dict(), f, indent=4)
+        
+    # Save Configs in WANDB
+    custom_logger.experiment.config.update({
+        "algorithm": lightning_model.algorithm_config.model_dump() # exclude=["noise_model", "noise_model_likelihood_model"]
+    })
+
+    custom_logger.experiment.config.update({
+        "training": training_config.model_dump()
+    })
+
+    custom_logger.experiment.config.update({
+        "data": get_data_config().to_dict()
+    })
         
     # Train the model
     trainer = Trainer(
