@@ -7,6 +7,8 @@ from typing import Any, Literal, Optional, Union
 
 import git
 import ml_collections
+import torch
+import wandb
 from pydantic import BaseModel, ConfigDict
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import (
@@ -36,12 +38,17 @@ img_size: int = 64
 """Spatial size of the input image."""
 target_channels: int = 2
 """Number of channels in the target image."""
-multiscale_count: int = 3
+multiscale_count: int = 1
 """The number of LC inputs plus one (the actual input)."""
-predict_logvar: Optional[Literal["pixelwise"]] = "pixelwise"
+predict_logvar: Optional[Literal["pixelwise"]] = None
 """Whether to compute also the log-variance as LVAE output."""
-loss_type: Optional[Literal["musplit", "denoisplit", "denoisplit_musplit"]] = "musplit"
+loss_type: Optional[Literal["musplit", "denoisplit", "denoisplit_musplit"]] = "denoisplit"
 """The type of reconstruction loss (i.e., likelihood) to use."""
+nm_paths: Optional[tuple[str]] = [
+    "/group/jug/ashesh/training_pre_eccv/noise_model/2402/221/GMMNoiseModel_ER-GT_all.mrc__6_4_Clip0.0-1.0_Sig0.125_UpNone_Norm0_bootstrap.npz",
+    "/group/jug/ashesh/training_pre_eccv/noise_model/2402/225/GMMNoiseModel_Microtubules-GT_all.mrc__6_4_Clip0.0-1.0_Sig0.125_UpNone_Norm0_bootstrap.npz"
+]
+"""The paths to the pre-trained noise models for the different channels."""
 
 
 # --- Training parameters
@@ -211,7 +218,13 @@ def create_dataset(
 
     # NOTE: "input" mean & std are computed over the entire dataset and repeated for each channel.
     # On the contrary, "target" mean & std are computed separately for each channel.
-
+    assert isinstance(data_stats, tuple)
+    assert isinstance(data_stats[0], dict)
+    data_stats = (
+        torch.tensor(data_stats[0]["target"]),
+        torch.tensor(data_stats[1]["target"])
+    )
+    
     return train_data, val_data, data_stats
 
 
@@ -222,8 +235,10 @@ def create_split_lightning_model(
     multiscale_count: int = 1,
     predict_logvar: Optional[Literal["pixelwise"]] = None,
     target_ch: int = 1,
-    NM_path: Optional[Path] = None,
+    NM_paths: Optional[list[Path]] = None,
     training_config: TrainingConfig = TrainingConfig(),
+    data_mean: Optional[torch.Tensor] = None,
+    data_std: Optional[torch.Tensor] = None,
 ) -> VAEModule:
     """Instantiate the muSplit lightining model."""
     lvae_config = LVAEModel(
@@ -246,17 +261,21 @@ def create_split_lightning_model(
         gaussian_lik_config = None
     # noise model likelihood
     if loss_type in ["denoisplit", "denoisplit_musplit"]:
-        assert NM_path is not None, "A path to a pre-trained noise model is required."
-
-        gmm = GaussianMixtureNMConfig(
-            model_type="GaussianMixtureNoiseModel",
-            path=NM_path,
-        )
-        noise_model_config = MultiChannelNMConfig(noise_models=[gmm] * target_ch)
+        assert NM_paths is not None, "A path to a pre-trained noise model is required."
+        gmm_list = []
+        for NM_path in NM_paths:
+            gmm_list.append(
+                GaussianMixtureNMConfig(
+                    model_type="GaussianMixtureNoiseModel",
+                    path=NM_path,
+                )
+            )
+        noise_model_config = MultiChannelNMConfig(noise_models=gmm_list)
         nm = noise_model_factory(noise_model_config)
         nm_lik_config = NMLikelihoodConfig(
-            noise_model=nm
-            # TODO: pass data_mean and data_std from dataset
+            noise_model=nm,
+            data_mean=data_mean,
+            data_std=data_std,
         )
     else:
         noise_model_config = None
@@ -380,17 +399,18 @@ def main():
         multiscale_count=multiscale_count,
         predict_logvar=predict_logvar,
         target_ch=target_channels,
-        NM_path=None,
+        NM_paths=nm_paths,
         training_config=training_config,
+        data_mean=data_stats[0],
+        data_std=data_stats[1],
     )
 
     ROOT_DIR = "/group/jug/federico/careamics_training/refac_v2/"
     lc_tag = "with" if multiscale_count > 1 else "no"
-    workdir, exp_tag = get_workdir(ROOT_DIR, f"musplit_{lc_tag}_LC")
+    workdir, exp_tag = get_workdir(ROOT_DIR, f"{algo}_{lc_tag}_LC")
     print(f"Current workdir: {workdir}")
 
     # Define the logger
-    lc_tag = "enabled" if multiscale_count > 1 else "disabled"
     custom_logger = WandbLogger(
         name=os.path.join(socket.gethostname(), exp_tag),
         save_dir=workdir,
@@ -431,15 +451,17 @@ def main():
         json.dump(get_git_status(), f, indent=4)
 
     # Save Configs in WANDB
-    custom_logger.experiment.config.update(
-        {
-            "algorithm": lightning_model.algorithm_config.model_dump()  # exclude=["noise_model", "noise_model_likelihood_model"]
-        }
-    )
+    custom_logger.experiment.config.update({
+        "algorithm": lightning_model.algorithm_config.model_dump()
+    })
 
-    custom_logger.experiment.config.update({"training": training_config.model_dump()})
+    custom_logger.experiment.config.update({
+        "training": training_config.model_dump()
+    })
 
-    custom_logger.experiment.config.update({"data": get_data_config().to_dict()})
+    custom_logger.experiment.config.update({
+        "data": get_data_config().to_dict()
+    })
 
     # Train the model
     trainer = Trainer(
@@ -457,6 +479,7 @@ def main():
         train_dataloaders=train_dloader,
         val_dataloaders=val_dloader,
     )
+    wandb.finish()
 
 
 if __name__ == "__main__":
