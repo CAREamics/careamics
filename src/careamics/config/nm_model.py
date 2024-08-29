@@ -1,19 +1,17 @@
 """Noise models config."""
 
-import json
 from pathlib import Path
 from typing import Literal, Optional, Union
 
 import numpy as np
-from pydantic import BaseModel, ConfigDict, Field, model_validator, PlainSerializer
 import torch
+from pydantic import BaseModel, ConfigDict, Field, PlainSerializer, model_validator
 from typing_extensions import Annotated, Self
 
 from careamics.utils.serializers import array_to_json
 
 Array = Annotated[
-    Union[np.ndarray, torch.Tensor], 
-    PlainSerializer(array_to_json, return_type=str)
+    Union[np.ndarray, torch.Tensor], PlainSerializer(array_to_json, return_type=str)
 ]
 """Annotated float type, used to serialize arrays or tensors to JSON strings."""
 
@@ -37,12 +35,14 @@ class GaussianMixtureNMConfig(BaseModel):
     """Path to the directory where the trained noise model (*.npz) is saved in the
     `train` method."""
 
-    # TODO remove and use as parameters to the NM functions? 
+    # TODO remove and use as parameters to the NM functions?
     signal: Optional[Union[str, Path, np.ndarray]] = Field(default=None, exclude=True)
     """Path to the file containing signal or respective numpy array."""
 
     # TODO remove and use as parameters to the NM functions?
-    observation: Optional[Union[str, Path, np.ndarray]] = Field(default=None, exclude=True)
+    observation: Optional[Union[str, Path, np.ndarray]] = Field(
+        default=None, exclude=True
+    )
     """Path to the file containing observation or respective numpy array."""
 
     weight: Optional[Array] = None

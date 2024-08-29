@@ -9,12 +9,12 @@ import torch
 
 def array_to_json(arr: Union[np.ndarray, torch.Tensor]) -> str:
     """Convert an array to a list and then to a JSON string.
-    
+
     Parameters
     ----------
     arr : Union[np.ndarray, torch.Tensor]
         Array to be serialized.
-    
+
     Returns
     -------
     str
