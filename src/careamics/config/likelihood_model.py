@@ -12,23 +12,9 @@ from careamics.models.lvae.noise_models import (
     GaussianMixtureNoiseModel,
     MultiChannelNoiseModel,
 )
+from careamics.utils.serializers import array_to_json
 
 NoiseModel = Union[GaussianMixtureNoiseModel, MultiChannelNoiseModel]
-
-def array_to_json(arr: Union[np.ndarray, torch.Tensor]) -> str:
-    """Convert an array to a list and then to a JSON string.
-    
-    Parameters
-    ----------
-    arr : Union[np.ndarray, torch.Tensor]
-        Array to be serialized.
-    
-    Returns
-    -------
-    str
-        JSON string representing the array.
-    """
-    return json.dumps(arr.tolist())
 
 Array = Annotated[
     Union[np.ndarray, torch.Tensor], 

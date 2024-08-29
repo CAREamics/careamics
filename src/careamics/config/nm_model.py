@@ -9,21 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator, PlainSeriali
 import torch
 from typing_extensions import Annotated, Self
 
-
-def array_to_json(arr: Union[np.ndarray, torch.Tensor]) -> str:
-    """Convert an array to a list and then to a JSON string.
-    
-    Parameters
-    ----------
-    arr : Union[np.ndarray, torch.Tensor]
-        Array to be serialized.
-    
-    Returns
-    -------
-    str
-        JSON string representing the array.
-    """
-    return json.dumps(arr.tolist())
+from careamics.utils.serializers import array_to_json
 
 Array = Annotated[
     Union[np.ndarray, torch.Tensor], 
