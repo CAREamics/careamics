@@ -1,10 +1,12 @@
 """Likelihood model."""
 
+import json
 from typing import Literal, Optional, Union
 
 import numpy as np
 import torch
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, PlainSerializer
+from typing_extensions import Annotated
 
 from careamics.models.lvae.noise_models import (
     GaussianMixtureNoiseModel,
@@ -12,6 +14,27 @@ from careamics.models.lvae.noise_models import (
 )
 
 NoiseModel = Union[GaussianMixtureNoiseModel, MultiChannelNoiseModel]
+
+def array_to_json(v: Union[np.ndarray, torch.Tensor]) -> str:
+    """Convert an array to a list and then to a JSON string.
+    
+    Parameters
+    ----------
+    v : Union[np.ndarray, torch.Tensor]
+        Array to be serialized.
+    
+    Returns
+    -------
+    str
+        JSON string representing the array.
+    """
+    return json.dumps(v.tolist())
+
+Array = Annotated[
+    Union[np.ndarray, torch.Tensor], 
+    PlainSerializer(array_to_json, return_type=str)
+]
+"""Annotated float type, used to serialize arrays or tensors to JSON strings."""
 
 
 class GaussianLikelihoodConfig(BaseModel):
@@ -33,12 +56,12 @@ class NMLikelihoodConfig(BaseModel):
     model_config = ConfigDict(validate_assignment=True, arbitrary_types_allowed=True)
 
     # TODO remove and use as parameters to the likelihood functions? 
-    data_mean: Union[np.ndarray, torch.Tensor] = Field(default=torch.zeros(1), exclude=True)
+    data_mean: Array = torch.zeros(1)
     """The mean of the data, used to unnormalize data for noise model evaluation.
     Shape is (target_ch,) (or (1, target_ch, [1], 1, 1))."""
 
     # TODO remove and use as parameters to the likelihood functions? 
-    data_std: Union[np.ndarray, torch.Tensor] = Field(default=torch.ones(1), exclude=True)
+    data_std: Array = torch.ones(1)
     """The standard deviation of the data, used to unnormalize data for noise
     model evaluation. Shape is (target_ch,) (or (1, target_ch, [1], 1, 1))."""
 

@@ -6,15 +6,16 @@ from typing import Literal, Optional, Union
 
 import numpy as np
 from pydantic import BaseModel, ConfigDict, Field, model_validator, PlainSerializer
+import torch
 from typing_extensions import Annotated, Self
 
 
-def array_to_json(v: np.ndarray) -> str:
+def array_to_json(v: Union[np.ndarray, torch.Tensor]) -> str:
     """Convert an array to a list and then to a JSON string.
     
     Parameters
     ----------
-    v : np.ndarray
+    v : Union[np.ndarray, torch.Tensor]
         Array to be serialized.
     
     Returns
@@ -24,8 +25,11 @@ def array_to_json(v: np.ndarray) -> str:
     """
     return json.dumps(v.tolist())
 
-Array = Annotated[np.ndarray, PlainSerializer(array_to_json, return_type=str)]
-"""Annotated float type, used to serialize numpy arrays to JSON strings."""
+Array = Annotated[
+    Union[np.ndarray, torch.Tensor], 
+    PlainSerializer(array_to_json, return_type=str)
+]
+"""Annotated float type, used to serialize arrays or tensors to JSON strings."""
 
 
 # TODO: add histogram-based noise model
