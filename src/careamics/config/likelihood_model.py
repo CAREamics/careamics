@@ -2,6 +2,7 @@
 
 from typing import Literal, Optional, Union
 
+import numpy as np
 import torch
 from pydantic import BaseModel, ConfigDict
 
@@ -31,11 +32,11 @@ class NMLikelihoodConfig(BaseModel):
 
     model_config = ConfigDict(validate_assignment=True, arbitrary_types_allowed=True)
 
-    data_mean: Union[torch.Tensor] = torch.zeros(1)
+    data_mean: Union[np.ndarray, torch.Tensor] = torch.zeros(1)
     """The mean of the data, used to unnormalize data for noise model evaluation.
     Shape is (target_ch,) (or (1, target_ch, [1], 1, 1))."""
 
-    data_std: Union[torch.Tensor] = torch.ones(1)
+    data_std: Union[np.ndarray, torch.Tensor] = torch.ones(1)
     """The standard deviation of the data, used to unnormalize data for noise
     model evaluation. Shape is (target_ch,) (or (1, target_ch, [1], 1, 1))."""
 
