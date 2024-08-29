@@ -407,13 +407,13 @@ def main():
     
     # Save configs
     with open(os.path.join(workdir, "algorithm_config.json"), "w") as f:
-        f.write(lightning_model.algorithm_config.model_dump_json())
+        f.write(lightning_model.algorithm_config.model_dump_json(indent=4))
 
     with open(os.path.join(workdir, "training_config.json"), "w") as f:
-        f.write(training_config.model_dump_json())
+        f.write(training_config.model_dump_json(indent=4))
     
     with open(os.path.join(workdir, "data_config.json"), "w") as f:
-        json.dump(get_data_config().to_dict(), f)
+        json.dump(get_data_config().to_dict(), f, indent=4)
         
     # Train the model
     trainer = Trainer(
