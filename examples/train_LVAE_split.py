@@ -120,16 +120,7 @@ def create_dataset(
     if config.multiscale_lowres_count > 1:
         # Get padding attributes
         if "padding_kwargs" not in kwargs_dict:
-            padding_kwargs = {}
-            if "padding_mode" in config and config.padding_mode is not None:
-                padding_kwargs["mode"] = config.padding_mode
-            else:
-                padding_kwargs["mode"] = "reflect"
-            if padding_kwargs["mode"] == "constant":
-                if "padding_value" in config and config.padding_value is not None:
-                    padding_kwargs["constant_values"] = config.padding_value
-                else:
-                    padding_kwargs["constant_values"] = None
+            padding_kwargs = {"mode": "reflect"} 
         else:
             padding_kwargs = kwargs_dict.pop("padding_kwargs")
 
