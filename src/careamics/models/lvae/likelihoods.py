@@ -289,7 +289,7 @@ class NoiseModelLikelihood(LikelihoodModule):
         self,
         data_mean: torch.Tensor,
         data_std: torch.Tensor,
-        noiseModel: NoiseModel,  # TODO: check the type -> couldn't manage due to circular imports...
+        noiseModel: NoiseModel,
     ):
         """Constructor.
 
