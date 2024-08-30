@@ -246,7 +246,7 @@ def create_split_lightning_model(
     if loss_type in ["musplit", "denoisplit_musplit"]:
         gaussian_lik_config = GaussianLikelihoodConfig(
             predict_logvar=predict_logvar,
-            logvar_lowerbound=0.0,
+            logvar_lowerbound=-5., # TODO: find a better way to fix this
         )
     else:
         gaussian_lik_config = None
