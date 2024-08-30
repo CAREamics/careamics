@@ -43,7 +43,7 @@ class TrainingConfig(BaseModel):
     """Whether to enable the progress bar."""
     accumulate_grad_batches: int = Field(default=1, ge=1)
     """Number of batches to accumulate gradients over before stepping the optimizer."""
-    gradient_clip_val: Union[int, float] = None
+    gradient_clip_val: Optional[Union[int, float]] = None
     """The value to which to clip the gradient"""
     gradient_clip_algorithm: Literal["value", "norm"] = "norm"
     """The algorithm to use for gradient clipping (see lightning `Trainer`)."""
