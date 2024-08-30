@@ -25,7 +25,7 @@ def array_to_json(arr: Union[np.ndarray, torch.Tensor]) -> str:
 
 def list_to_numpy(lst: np.ndarray) -> str:
     """Deserialize a list into `np.array`.
-    
+
     NOTE: this deserializer takes a list as input, since whenever a config file is
     loaded (e.g., json, yml, pkl), the strings representing arrays are loaded as lists.
 
@@ -44,7 +44,7 @@ def list_to_numpy(lst: np.ndarray) -> str:
 
 def list_to_torch(lst: list) -> str:
     """Deserialize list into `torch.Tensor`.
-    
+
     NOTE: this deserializer takes a list as input, since whenever a config file is
     loaded (e.g., json, yml, pkl), the strings representing arrays are loaded as lists.
 

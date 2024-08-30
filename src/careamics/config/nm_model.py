@@ -6,16 +6,21 @@ from typing import Literal, Optional, Union
 import numpy as np
 import torch
 from pydantic import (
-    BaseModel, ConfigDict, Field, PlainSerializer, PlainValidator, model_validator
+    BaseModel,
+    ConfigDict,
+    Field,
+    PlainSerializer,
+    PlainValidator,
+    model_validator,
 )
 from typing_extensions import Annotated, Self
 
 from careamics.utils.serializers import array_to_json, list_to_numpy
 
 Array = Annotated[
-    Union[np.ndarray, torch.Tensor], 
+    Union[np.ndarray, torch.Tensor],
     PlainSerializer(array_to_json, return_type=str),
-    PlainValidator(list_to_numpy)
+    PlainValidator(list_to_numpy),
 ]
 """Annotated array type, used to serialize arrays or tensors to JSON strings
 and deserialize them back to arrays."""
