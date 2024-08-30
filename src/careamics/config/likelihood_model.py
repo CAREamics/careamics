@@ -16,9 +16,9 @@ from careamics.utils.serializers import array_to_json, list_to_torch
 NoiseModel = Union[GaussianMixtureNoiseModel, MultiChannelNoiseModel]
 
 Tensor = Annotated[
-    Union[np.ndarray, torch.Tensor], 
+    Union[np.ndarray, torch.Tensor],
     PlainSerializer(array_to_json, return_type=str),
-    PlainValidator(list_to_torch)
+    PlainValidator(list_to_torch),
 ]
 """Annotated tensor type, used to serialize arrays or tensors to JSON strings
 and deserialize them back to tensors."""
