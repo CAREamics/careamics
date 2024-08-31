@@ -98,7 +98,7 @@ class ResidualBlock(nn.Module):
             raise ValueError("kernel has to be None, int, or an iterable of length 2")
         assert all([k % 2 == 1 for k in kernel]), "kernel sizes have to be odd"
         kernel = list(kernel)
-        
+
         # Define modules
         conv_layer: ConvType = getattr(nn, f"Conv{conv_dims}d")
         norm_layer: NormType = getattr(nn, f"BatchNorm{conv_dims}d")
@@ -124,9 +124,9 @@ class ResidualBlock(nn.Module):
         elif block_type == "bacdbac":
             for i in range(2):
                 if batchnorm:
-                    modules.append(nn.BatchNorm2d(channels))
+                    modules.append(norm_layer(channels))
                 modules.append(nonlin)
-                conv = nn.Conv2d(
+                conv = conv_layer(
                     channels,
                     channels,
                     kernel[i],
@@ -140,9 +140,9 @@ class ResidualBlock(nn.Module):
         elif block_type == "bacdbacd":
             for i in range(2):
                 if batchnorm:
-                    modules.append(nn.BatchNorm2d(channels))
+                    modules.append(norm_layer(channels))
                 modules.append(nonlin)
-                conv = nn.Conv2d(
+                conv = conv_layer(
                     channels,
                     channels,
                     kernel[i],
@@ -200,7 +200,8 @@ class GateLayer(nn.Module):
         super().__init__()
         assert kernel_size % 2 == 1
         pad = kernel_size // 2
-        self.conv = nn.Conv2d(channels, 2 * channels, kernel_size, padding=pad)
+        conv_layer: ConvType = getattr(nn, f"Conv{conv_dims}d")
+        self.conv = conv_layer(channels, 2 * channels, kernel_size, padding=pad)
         self.nonlin = nonlin
 
     def forward(self, x):
@@ -1173,34 +1174,6 @@ class TopDownLayer(nn.Module):
             p_params = input_
 
         return p_params
-
-    def align_pparams_buvalue(
-        self, p_params: torch.Tensor, bu_value: torch.Tensor
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
-        """
-        In case the padding is not used either (or both) in encoder and decoder, we could have a shape mismatch
-        in the spatial dimensions (usually, dim=2 & dim=3).
-        This method performs a centercrop to ensure that both remain aligned.
-
-        Parameters
-        ----------
-        p_params: torch.Tensor
-            The tensor defining the parameters /mu_p and /sigma_p for the latent distribution p(z_i|z_{i+1}).
-        bu_value: torch.Tensor
-            The tensor defining the parameters /mu_q and /sigma_q computed during the bottom-up deterministic pass
-            at the correspondent hierarchical layer.
-        """
-        if bu_value.shape[-2:] != p_params.shape[-2:]:
-            assert self.bottomup_no_padding_mode is True  # TODO WTF ?
-            if self.topdown_no_padding_mode is False:
-                assert bu_value.shape[-1] > p_params.shape[-1]
-                bu_value = F.center_crop(bu_value, p_params.shape[-2:])
-            else:
-                if bu_value.shape[-1] > p_params.shape[-1]:
-                    bu_value = F.center_crop(bu_value, p_params.shape[-2:])
-                else:
-                    p_params = F.center_crop(p_params, bu_value.shape[-2:])
-        return p_params, bu_value
 
     def forward(
         self,
