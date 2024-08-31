@@ -3,39 +3,41 @@
 from typing import Literal, Optional, Union
 
 import torch
-from pydantic import BaseModel, ConfigDict, Field
-from torch import nn
+from pydantic import BaseModel, ConfigDict
+
+from careamics.models.lvae.noise_models import (
+    GaussianMixtureNoiseModel,
+    MultiChannelNoiseModel,
+)
+
+NoiseModel = Union[GaussianMixtureNoiseModel, MultiChannelNoiseModel]
 
 
-class GaussianLikelihoodModel(BaseModel):
-    """Gaussion likelihood model.
-
-    Parameters
-    ----------
-    BaseModel
-    """
+class GaussianLikelihoodConfig(BaseModel):
+    """Gaussian likelihood configuration."""
 
     model_config = ConfigDict(validate_assignment=True)
 
-    color_channels: int = Field(default=2, ge=1)  # TODO output channels, rename, vals?
-    ch_in: int = Field(default=64)  # input to the likelihood model
-    predict_logvar: Literal[None, "pixelwise"] = None
-    logvar_lowerbound: float = None
-    conv2d_bias: bool = True
+    predict_logvar: Optional[Literal["pixelwise"]] = None
+    """If `pixelwise`, log-variance is computed for each pixel, else log-variance
+    is not computed."""
+
+    logvar_lowerbound: Union[float, None] = None
+    """The lowerbound value for log-variance."""
 
 
-class NMLikelihoodModel(BaseModel):
-    """Likelihood model for noise model.
-
-    Parameters
-    ----------
-    BaseModel
-    """
+class NMLikelihoodConfig(BaseModel):
+    """Noise model likelihood configuration."""
 
     model_config = ConfigDict(validate_assignment=True, arbitrary_types_allowed=True)
 
-    color_channels: int = Field(default=2, ge=1)
-    ch_in: int = Field(default=64)  # input to the likelihood model
-    data_mean: Union[dict[str, torch.Tensor], torch.Tensor] = {"target": 0.0}
-    data_std: Union[dict[str, torch.Tensor], torch.Tensor] = {"target": 0.0}
-    noise_model: Optional[nn.Module] = None
+    data_mean: Union[torch.Tensor] = torch.zeros(1)
+    """The mean of the data, used to unnormalize data for noise model evaluation.
+    Shape is (target_ch,) (or (1, target_ch, [1], 1, 1))."""
+
+    data_std: Union[torch.Tensor] = torch.ones(1)
+    """The standard deviation of the data, used to unnormalize data for noise
+    model evaluation. Shape is (target_ch,) (or (1, target_ch, [1], 1, 1))."""
+
+    noise_model: Union[NoiseModel, None] = None
+    """The noise model instance used to compute the likelihood."""

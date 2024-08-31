@@ -124,9 +124,9 @@ class ResidualBlock(nn.Module):
         elif block_type == "bacdbac":
             for i in range(2):
                 if batchnorm:
-                    modules.append(norm_layer(channels))
+                    modules.append(nn.BatchNorm2d(channels))
                 modules.append(nonlin)
-                conv = conv_layer(
+                conv = nn.Conv2d(
                     channels,
                     channels,
                     kernel[i],
@@ -140,9 +140,9 @@ class ResidualBlock(nn.Module):
         elif block_type == "bacdbacd":
             for i in range(2):
                 if batchnorm:
-                    modules.append(norm_layer(channels))
+                    modules.append(nn.BatchNorm2d(channels))
                 modules.append(nonlin)
-                conv = conv_layer(
+                conv = nn.Conv2d(
                     channels,
                     channels,
                     kernel[i],
@@ -200,8 +200,7 @@ class GateLayer(nn.Module):
         super().__init__()
         assert kernel_size % 2 == 1
         pad = kernel_size // 2
-        conv_layer: ConvType = getattr(nn, f"Conv{conv_dims}d")
-        self.conv = conv_layer(channels, 2 * channels, kernel_size, padding=pad)
+        self.conv = nn.Conv2d(channels, 2 * channels, kernel_size, padding=pad)
         self.nonlin = nonlin
 
     def forward(self, x):
@@ -268,7 +267,7 @@ class ResBlockWithResampling(nn.Module):
         resample: bool, optional
             Whether to perform resampling in the first convolutional layer.
             If `False`, the first convolutional layer just maps the input to a tensor with
-            `inner_channels` channels through 1x1 convolution. Deafult is `False`.
+            `inner_channels` channels through 1x1 convolution. Default is `False`.
         res_block_kernel: Union[int, Iterable[int]], optional
             The kernel size used in the convolutions of the residual block.
             It can be either a single integer or a pair of integers defining the squared kernel.
@@ -870,7 +869,7 @@ class TopDownLayer(nn.Module):
         - In inference mode, parameters of q(z_i|z_i+1) are obtained from the inference path,
         by merging outcomes of bottom-up and top-down passes. The exception is the top layer,
         in which the parameters of q(z_L|x) are set as the output of the topmost bottom-up layer.
-        - On the contrary in prediciton/generative mode, parameters of q(z_i|z_i+1) can be obtained
+        - On the contrary in predicition/generative mode, parameters of q(z_i|z_i+1) can be obtained
         once again by merging bottom-up and top-down outputs (CONDITIONAL GENERATION), or it is
         possible to directly sample from the prior p(z_i|z_i+1) (UNCONDITIONAL GENERATION).
 
@@ -932,7 +931,7 @@ class TopDownLayer(nn.Module):
             The number of upsampling steps that has to be done in this layer (typically 1).
             Default is `None`.
         nonlin: Callable, optional
-            The non-linearity function used in the block (e.g., `nn.ReLU`). Deafault is `None`.
+            The non-linearity function used in the block (e.g., `nn.ReLU`). Default is `None`.
         merge_type: Literal["linear", "residual", "residual_ungated"], optional
             The type of merge done in the layer. It can be chosen between "linear", "residual",
             and "residual_ungated". Check the `MergeLayer` class docstring for more information
@@ -962,7 +961,7 @@ class TopDownLayer(nn.Module):
             Whether to set the top prior as learnable.
             If this is set to `False`, in the top-most layer the prior will be N(0,1).
             Otherwise, we will still have a normal distribution whose parameters will be learnt.
-            Deafult is `False`.
+            Default is `False`.
         top_prior_param_shape: Iterable[int], optional
             The size of the tensor which expresses the mean and the variance
             of the prior for the top most layer. Default is `None`.
@@ -1121,7 +1120,7 @@ class TopDownLayer(nn.Module):
             The tensor defining the parameters /mu_q and /sigma_q computed during the bottom-up deterministic pass
             at the correspondent hierarchical layer.
         var_clip_max: float, optional
-            The maximum value reachable by the log-variance of the latent distribtion.
+            The maximum value reachable by the log-variance of the latent distribution.
             Values exceeding this threshold are clipped. Default is `None`.
         mask: Union[None, torch.Tensor], optional
             A tensor that is used to mask the sampled latent tensor. Default is `None`.
@@ -1175,6 +1174,34 @@ class TopDownLayer(nn.Module):
 
         return p_params
 
+    def align_pparams_buvalue(
+        self, p_params: torch.Tensor, bu_value: torch.Tensor
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        """
+        In case the padding is not used either (or both) in encoder and decoder, we could have a shape mismatch
+        in the spatial dimensions (usually, dim=2 & dim=3).
+        This method performs a centercrop to ensure that both remain aligned.
+
+        Parameters
+        ----------
+        p_params: torch.Tensor
+            The tensor defining the parameters /mu_p and /sigma_p for the latent distribution p(z_i|z_{i+1}).
+        bu_value: torch.Tensor
+            The tensor defining the parameters /mu_q and /sigma_q computed during the bottom-up deterministic pass
+            at the correspondent hierarchical layer.
+        """
+        if bu_value.shape[-2:] != p_params.shape[-2:]:
+            assert self.bottomup_no_padding_mode is True  # TODO WTF ?
+            if self.topdown_no_padding_mode is False:
+                assert bu_value.shape[-1] > p_params.shape[-1]
+                bu_value = F.center_crop(bu_value, p_params.shape[-2:])
+            else:
+                if bu_value.shape[-1] > p_params.shape[-1]:
+                    bu_value = F.center_crop(bu_value, p_params.shape[-2:])
+                else:
+                    p_params = F.center_crop(p_params, bu_value.shape[-2:])
+        return p_params, bu_value
+
     def forward(
         self,
         input_: Union[torch.Tensor, None] = None,
@@ -1211,7 +1238,7 @@ class TopDownLayer(nn.Module):
             A pre-defined latent tensor. If it is not `None`, than it is used as the actual latent tensor and,
             hence, sampling does not happen. Default is `None`.
         use_mode: bool, optional
-            Wheteher the latent tensor should be set as the latent distribution mode.
+            Whether the latent tensor should be set as the latent distribution mode.
             In the case of Gaussian, the mode coincides with the mean of the distribution.
             Default is `False`.
         force_constant_output: bool, optional
@@ -1223,7 +1250,7 @@ class TopDownLayer(nn.Module):
         use_uncond_mode: bool, optional
             Whether to use the uncoditional distribution p(z) to sample latents in prediction mode.
         var_clip_max: float
-            The maximum value reachable by the log-variance of the latent distribtion.
+            The maximum value reachable by the log-variance of the latent distribution.
             Values exceeding this threshold are clipped.
         """
         # Check consistency of arguments
@@ -1234,7 +1261,7 @@ class TopDownLayer(nn.Module):
         p_params = self.get_p_params(input_, n_img_prior)
         
         # Get the parameters for the latent distribution to sample from
-        if inference_mode:  # in inference mode we compute q(z_i | z_{i+1}, x)
+        if inference_mode:  # TODO What's this ?
             if self.is_top_layer:
                 q_params = bu_value
                 if mode_pred is False:
@@ -1437,7 +1464,7 @@ class NormalStochasticBlock2d(nn.Module):
             A pre-defined latent tensor. If it is not `None`, than it is used as the actual latent tensor and,
             hence, sampling does not happen.
         use_mode: bool
-            Wheteher the latent tensor should be set as the latent distribution mode.
+            Whether the latent tensor should be set as the latent distribution mode.
             In the case of Gaussian, the mode coincides with the mean of the distribution.
         mode_pred: bool
             Whether the model is prediction mode.
@@ -1472,7 +1499,7 @@ class NormalStochasticBlock2d(nn.Module):
         q_params: torch.Tensor
             The input tensor to be processed.
         var_clip_max: float
-            The maximum value reachable by the log-variance of the latent distribtion.
+            The maximum value reachable by the log-variance of the latent distribution.
             Values exceeding this threshold are clipped.
         """
         _, _, q = self.process_q_params(q_params, var_clip_max)
@@ -1570,7 +1597,7 @@ class NormalStochasticBlock2d(nn.Module):
         p_params: torch.Tensor
             The input tensor to be processed.
         var_clip_max: float
-            The maximum value reachable by the log-variance of the latent distribtion.
+            The maximum value reachable by the log-variance of the latent distribution.
             Values exceeding this threshold are clipped.
         """
         if self.transform_p_params:
@@ -1606,7 +1633,7 @@ class NormalStochasticBlock2d(nn.Module):
         p_params: torch.Tensor
             The input tensor to be processed.
         var_clip_max: float
-            The maximum value reachable by the log-variance of the latent distribtion.
+            The maximum value reachable by the log-variance of the latent distribution.
             Values exceeding this threshold are clipped.
         """
         q_params = self.conv_in_q(q_params)
@@ -1644,7 +1671,7 @@ class NormalStochasticBlock2d(nn.Module):
             A pre-defined latent tensor. If it is not `None`, than it is used as the actual latent
             tensor and, hence, sampling does not happen. Default is `None`.
         use_mode: bool, optional
-            Wheteher the latent tensor should be set as the latent distribution mode.
+            Whether the latent tensor should be set as the latent distribution mode.
             In the case of Gaussian, the mode coincides with the mean of the distribution.
             Default is `False`.
         force_constant_output: bool, optional
@@ -1660,7 +1687,7 @@ class NormalStochasticBlock2d(nn.Module):
             Whether to use the uncoditional distribution p(z) to sample latents in prediction mode.
             Default is `False`.
         var_clip_max: float, optional
-            The maximum value reachable by the log-variance of the latent distribtion.
+            The maximum value reachable by the log-variance of the latent distribution.
             Values exceeding this threshold are clipped. Default is `None`.
         """
         debug_qvar_max = 0
@@ -1831,13 +1858,24 @@ class NonStochasticBlock2d(nn.Module):
             A pre-defined latent tensor. If it is not `None`, than it is used as the actual latent
             tensor and, hence, sampling does not happen. Default is `None`.
         use_mode: bool, optional
-            Wheteher the latent tensor should be set as the latent distribution mode.
+            Whether the latent tensor should be set as the latent distribution mode.
             In the case of Gaussian, the mode coincides with the mean of the distribution.
             Default is `False`.
         force_constant_output: bool, optional
             Whether to copy the first sample (and rel. distrib parameters) over the whole batch.
             This is used when doing experiment from the prior - q is not used.
             Default is `False`.
+        analytical_kl: bool, optional
+            Whether to compute the KL divergence analytically or using Monte Carlo estimation.
+            Default is `False`.
+        mode_pred: bool, optional
+            Whether the model is in prediction mode. Default is `False`.
+        use_uncond_mode: bool, optional
+            Whether to use the uncoditional distribution p(z) to sample latents in prediction mode.
+            Default is `False`.
+        var_clip_max: float, optional
+            The maximum value reachable by the log-variance of the latent distribution.
+            Values exceeding this threshold are clipped. Default is `None`.
         """
         debug_qvar_max = 0
         assert (forced_latent is None) or (not use_mode)

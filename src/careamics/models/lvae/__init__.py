@@ -1,3 +1,3 @@
-from .lvae import LadderVAE
+__all__ = ["LadderVAE"]
 
-__all__ = ['LadderVAE']
+from .lvae import LadderVAE

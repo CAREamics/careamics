@@ -5,9 +5,8 @@ The current implementation is based on "Interpretable Unsupervised Diversity Den
 """
 
 from collections.abc import Iterable
-from typing import Tuple, Union
+from typing import Dict, List, Tuple
 
-# import ml_collections  # TODO: refactor this out
 import numpy as np
 import torch
 import torch.nn as nn
@@ -21,7 +20,6 @@ from .layers import (
     TopDownDeterministicResBlock,
     TopDownLayer,
 )
-from .likelihoods import GaussianLikelihood, NoiseModelLikelihood
 from .utils import Interpolate, ModelType, crop_img_tensor, pad_img_tensor
 
 
@@ -30,6 +28,18 @@ class LadderVAE(nn.Module):
     # TODO: where has `data_mean` and `data_std` gone?
     def __init__(
         self,
+        input_shape: int,
+        output_channels: int,
+        multiscale_count: int,
+        z_dims: List[int],
+        encoder_n_filters: int,
+        decoder_n_filters: int,
+        encoder_dropout: float,
+        decoder_dropout: float,
+        nonlinearity: str,
+        predict_logvar: bool,
+        enable_noise_model: bool,
+        analytical_kl: bool,
         input_shape: int,
         output_channels: int,
         conv_dims: int,
@@ -50,12 +60,13 @@ class LadderVAE(nn.Module):
         Parameters
         ----------
 
+
         """
         super().__init__()
 
         # -------------------------------------------------------
         # Customizable attributes
-        self.image_size = input_shape # TODO: in the 3D case we'd like to accept also a tuple
+        self.image_size = input_shape
         self.target_ch = output_channels
         self.conv_dims = conv_dims
         self._multiscale_count = multiscale_count
@@ -90,6 +101,7 @@ class LadderVAE(nn.Module):
         self.non_stochastic_version = False
         self.stochastic_skip = True
         self.learn_top_prior = True
+        self.res_block_type = "bacdbacd"  # TODO remove !
         self.res_block_type = "bacdbacd"  # TODO remove !
         self.mode_pred = False
         self.logvar_lowerbound = -5
@@ -145,6 +157,17 @@ class LadderVAE(nn.Module):
         self.mixed_rec_w = 0
         self.nbr_consistency_w = 0
 
+        # -------------------------------------------------------
+
+        # -------------------------------------------------------
+        # # Training attributes
+        # # can be used to tile the validation predictions
+        # self._val_idx_manager = val_idx_manager
+        # self._val_frame_creator = None
+        # # initialize the learning rate scheduler params.
+        # self.lr_scheduler_monitor = self.lr_scheduler_mode = None
+        # self._init_lr_scheduler_params(config)
+        # self._global_step = 0
         # -------------------------------------------------------
 
         # -------------------------------------------------------
@@ -213,19 +236,25 @@ class LadderVAE(nn.Module):
         Parameters
         ----------
         init_stride: int
-            The stride used by the intial Conv2d block.
+            The stride used by the initial Conv2d block.
         num_res_blocks: int, optional
             The number of BottomUpDeterministicResBlocks to include in the layer, default is 1.
         """
         nonlin = get_activation(self.nonlin)
-        conv_block = getattr(nn, f"Conv{self.conv_dims}d")(
-            in_channels=self.color_ch,
-            out_channels=self.encoder_n_filters,
-            kernel_size=self.encoder_res_block_kernel,
-            padding=self.encoder_res_block_kernel // 2,
-            stride=init_stride,
-        )
-        modules = [conv_block, nonlin]
+        modules = [
+            nn.Conv2d(
+                in_channels=self.color_ch,
+                out_channels=self.encoder_n_filters,
+                kernel_size=self.encoder_res_block_kernel,
+                padding=(
+                    0
+                    if self.encoder_res_block_skip_padding
+                    else self.encoder_res_block_kernel // 2
+                ),
+                stride=init_stride,
+            ),
+            nonlin,
+        ]
 
         for _ in range(num_res_blocks):
             modules.append(
@@ -411,30 +440,6 @@ class LadderVAE(nn.Module):
             )
         return nn.Sequential(*modules)
 
-    def create_likelihood_module(self):
-        """
-        This method defines the likelihood module for the current LVAE model.
-        The existing likelihood modules are `GaussianLikelihood` and `NoiseModelLikelihood`.
-        """
-        if self.enable_noise_model:
-            raise NotImplementedError("Noise model not implemented yet.")
-            self.likelihood_NM = NoiseModelLikelihood(
-                self.decoder_n_filters,
-                self.target_ch,
-                self.data_mean,
-                self.data_std,
-                self.noiseModel,
-            )
-        else:
-            self.likelihood_gm = GaussianLikelihood(
-                self.decoder_n_filters,
-                self.target_ch,
-                predict_logvar=self.predict_logvar,
-                logvar_lowerbound=self.logvar_lowerbound,
-                conv2d_bias=self.topdown_conv2d_bias,
-            )
-            return self.likelihood_gm
-
     def _init_multires(
         self, config=None
     ) -> nn.ModuleList:  # TODO config: ml_collections.ConfigDict refactor
@@ -519,7 +524,7 @@ class LadderVAE(nn.Module):
         bottom_up_layers: nn.ModuleList,
     ) -> list[torch.Tensor]:
         """
-        This method defines the forward pass throught the LVAE Encoder, the so-called
+        This method defines the forward pass through the LVAE Encoder, the so-called
         Bottom-Up pass.
 
         Parameters
@@ -565,7 +570,7 @@ class LadderVAE(nn.Module):
         final_top_down_layer: Union[nn.Sequential, None] = None,
     ) -> Tuple[torch.Tensor, dict[str, torch.Tensor]]:
         """
-        This method defines the forward pass throught the LVAE Decoder, the so-called
+        This method defines the forward pass through the LVAE Decoder, the so-called
         Top-Down pass.
 
         Parameters
@@ -587,10 +592,10 @@ class LadderVAE(nn.Module):
             place in this case).
         top_down_layers: nn.ModuleList, optional
             A list of top-down layers to use in the top-down pass. If `None`, the method uses the
-            default layers defined in the contructor.
+            default layers defined in the constructor.
         final_top_down_layer: nn.Sequential, optional
             The last top-down layer of the top-down pass. If `None`, the method uses the default
-            layers defined in the contructor.
+            layers defined in the constructor.
         """
         if top_down_layers is None:
             top_down_layers = self.top_down_layers
@@ -741,6 +746,36 @@ class LadderVAE(nn.Module):
     
 
     ### SET OF GETTERS
+    def get_padded_size(self, size):
+        """
+        Returns the smallest size (H, W) of the image with actual size given
+        as input, such that H and W are powers of 2.
+        :param size: input size, tuple either (N, C, H, w) or (H, W)
+        :return: 2-tuple (H, W)
+        """
+        # Make size argument into (heigth, width)
+        if len(size) == 4:
+            size = size[2:]
+        if len(size) != 2:
+            msg = (
+                "input size must be either (N, C, H, W) or (H, W), but it "
+                f"has length {len(size)} (size={size})"
+            )
+            raise RuntimeError(msg)
+
+        if self.multiscale_decoder_retain_spatial_dims is True:
+            # In this case, we can go much more deeper and so this is not required
+            # (in the way it is. ;). More work would be needed if this was to be correctly implemented )
+            return list(size)
+
+        # Overall downscale factor from input to top layer (power of 2)
+        dwnsc = self.overall_downscale_factor
+
+        # Output smallest powers of 2 that are larger than current sizes
+        padded_size = list(((s - 1) // dwnsc + 1) * dwnsc for s in size)
+
+        return padded_size
+
     def get_latent_spatial_size(self, level_idx: int):
         """
         level_idx: 0 is the bottommost layer, the highest resolution one.

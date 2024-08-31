@@ -8,16 +8,13 @@ from typing_extensions import Self
 from .architecture_model import ArchitectureModel
 
 
+# TODO: it is quite confusing to call this LVAEModel, as it is basically a config
 class LVAEModel(ArchitectureModel):
     """LVAE model."""
 
     model_config = ConfigDict(validate_assignment=True, validate_default=True)
 
     architecture: Literal["LVAE"]
-    
-    conv_dims: Literal[2, 3] = Field(default=2, validate_default=True)
-    """Dimensions (2D or 3D) of the convolutional layers."""
-    
     input_shape: int = Field(default=64, ge=8, le=1024)
     multiscale_count: int = Field(default=5)  # TODO clarify
     # 0 - off, len(z_dims) + 1 # TODO can/should be le to z_dims len + 1
@@ -35,6 +32,7 @@ class LVAEModel(ArchitectureModel):
 
     predict_logvar: Literal[None, "pixelwise"] = None
 
+    # TODO this parameter is exessive -> Remove & refactor
     enable_noise_model: bool = Field(
         default=True,
     )
@@ -147,8 +145,8 @@ class LVAEModel(ArchitectureModel):
         # if self.multiscale_count != 0:
         #     if self.multiscale_count != len(self.z_dims) - 1:
         #         raise ValueError(
-        #             f"Multiscale count must be 0 or equal to the number of Z dimensions"
-        #             f" - 1 (got {self.multiscale_count} and {len(self.z_dims)})."
+        #             f"Multiscale count must be 0 or equal to the number of Z "
+        #             f"dims - 1 (got {self.multiscale_count} and {len(self.z_dims)})."
         #         )
 
         return self
@@ -162,10 +160,7 @@ class LVAEModel(ArchitectureModel):
         is_3D : bool
             Whether the algorithm is 3D or not.
         """
-        if is_3D:
-            self.conv_dims = 3
-        else:
-            self.conv_dims = 2
+        raise NotImplementedError("VAE is not implemented yet.")
 
     def is_3D(self) -> bool:
         """
@@ -176,4 +171,4 @@ class LVAEModel(ArchitectureModel):
         bool
             Whether the model is 3D or not.
         """
-        return self.conv_dims == 3
+        raise NotImplementedError("VAE is not implemented yet.")

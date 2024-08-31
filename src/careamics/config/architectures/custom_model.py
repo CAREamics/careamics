@@ -24,8 +24,8 @@ class CustomModel(ArchitectureModel):
 
     Attributes
     ----------
-    architecture : Literal["Custom"]
-        Discriminator for the custom model, must be set to "Custom".
+    architecture : Literal["custom"]
+        Discriminator for the custom model, must be set to "custom".
     name : str
         Name of the custom model.
     parameters : CustomParametersModel
@@ -59,7 +59,7 @@ class CustomModel(ArchitectureModel):
     ...
     >>> # Create a configuration
     >>> config_dict = {
-    ...     "architecture": "Custom",
+    ...     "architecture": "custom",
     ...     "name": "my_linear",
     ...     "in_features": 10,
     ...     "out_features": 5,
@@ -76,7 +76,6 @@ class CustomModel(ArchitectureModel):
     architecture: Literal["custom"]
     """Name of the architecture."""
 
-    # name of the custom model
     name: str
     """Name of the custom model."""
 

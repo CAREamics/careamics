@@ -1,7 +1,8 @@
 """CAREamics Lightning module."""
 
-from typing import Any, Literal, Optional, Union
+from typing import Any, Callable, Literal, Optional, Union
 
+import numpy as np
 import pytorch_lightning as L
 from torch import Tensor, nn
 
@@ -15,11 +16,22 @@ from careamics.config.support import (
 )
 from careamics.losses import loss_factory
 from careamics.losses.loss_factory import LVAELossParameters
-from careamics.models.lvae.likelihoods import likelihood_factory
-from careamics.models.lvae.noise_models import noise_model_factory
+from careamics.models.lvae.likelihoods import (
+    GaussianLikelihood,
+    NoiseModelLikelihood,
+    likelihood_factory,
+)
+from careamics.models.lvae.noise_models import (
+    GaussianMixtureNoiseModel,
+    MultiChannelNoiseModel,
+    noise_model_factory,
+)
 from careamics.models.model_factory import model_factory
 from careamics.transforms import Denormalize, ImageRestorationTTA
+from careamics.utils.metrics import RunningPSNR, scale_invariant_psnr
 from careamics.utils.torch_utils import get_optimizer, get_scheduler
+
+NoiseModel = Union[GaussianMixtureNoiseModel, MultiChannelNoiseModel]
 
 
 class FCNModule(L.LightningModule):
@@ -104,6 +116,7 @@ class FCNModule(L.LightningModule):
         Any
             Loss value.
         """
+        # TODO can N2V be simplified by returning mask*original_patch
         x, *aux = batch
         out = self.model(x)
         loss = self.loss_func(out, *aux)
@@ -214,7 +227,7 @@ class VAEModule(L.LightningModule):
 
     Parameters
     ----------
-    algorithm_config : Union[AlgorithmModel, dict]
+    algorithm_config : Union[VAEAlgorithmConfig, dict]
         Algorithm configuration.
 
     Attributes
@@ -250,16 +263,25 @@ class VAEModule(L.LightningModule):
             else algorithm_config
         )
 
+        # TODO: log algorithm config
+        # self.save_hyperparameters(self.algorithm_config.model_dump())
+
         # create model and loss function
         self.model: nn.Module = model_factory(self.algorithm_config.model)
-        self.noise_model = noise_model_factory(self.algorithm_config.noise_model)
-        self.noise_model_likelihood = likelihood_factory(
+        self.noise_model: NoiseModel = noise_model_factory(
+            self.algorithm_config.noise_model
+        )
+        self.noise_model_likelihood: NoiseModelLikelihood = likelihood_factory(
             self.algorithm_config.noise_model_likelihood_model
         )
-        self.gaussian_likelihood = likelihood_factory(
+        self.gaussian_likelihood: GaussianLikelihood = likelihood_factory(
             self.algorithm_config.gaussian_likelihood_model
         )
-        self.loss_parameters = LVAELossParameters()  # type: ignore
+        self.loss_parameters = LVAELossParameters(
+            noise_model_likelihood=self.noise_model_likelihood,
+            gaussian_likelihood=self.gaussian_likelihood,
+            # TODO: musplit/denoisplit weights ?
+        )  # type: ignore
         self.loss_func = loss_factory(self.algorithm_config.loss)
 
         # save optimizer and lr_scheduler names and parameters
@@ -268,28 +290,40 @@ class VAEModule(L.LightningModule):
         self.lr_scheduler_name = self.algorithm_config.lr_scheduler.name
         self.lr_scheduler_params = self.algorithm_config.lr_scheduler.parameters
 
-    def forward(self, x: Any) -> Any:
+        # initialize running PSNR
+        self.running_psnr = [
+            RunningPSNR() for _ in range(self.algorithm_config.model.output_channels)
+        ]
+
+    def forward(self, x: Tensor) -> tuple[Tensor, dict[str, Any]]:
         """Forward pass.
 
         Parameters
         ----------
-        x : Any
-            Input tensor.
+        x : Tensor
+            Input tensor of shape (B, (1 + n_LC), [Z], Y, X), where n_LC is the
+            number of lateral inputs.
 
         Returns
         -------
-        Any
-            Output tensor.
+        tuple[Tensor, dict[str, Any]]
+            A tuple with the output tensor and additional data from the top-down pass.
         """
         return self.model(x)  # TODO Different model can have more than one output
 
-    def training_step(self, batch: Tensor, batch_idx: Any) -> Any:
+    def training_step(
+        self, batch: tuple[Tensor, Tensor], batch_idx: Any
+    ) -> Optional[dict[str, Tensor]]:
         """Training step.
 
         Parameters
         ----------
-        batch : Tensor
-            Input batch.
+        batch : tuple[Tensor, Tensor]
+            Input batch. It is a tuple with the input tensor and the target tensor.
+            The input tensor has shape (B, (1 + n_LC), [Z], Y, X), where n_LC is the
+            number of lateral inputs. The target tensor has shape (B, C, [Z], Y, X),
+            where C is the number of target channels (e.g., 1 in HDN, >1 in
+            muSplit/denoiSplit).
         batch_idx : Any
             Batch index.
 
@@ -298,43 +332,61 @@ class VAEModule(L.LightningModule):
         Any
             Loss value.
         """
-        x, *aux = batch
+        x, target = batch
+
+        # Forward pass
         out = self.model(x)
-        target = aux[0]
+
+        # Update loss parameters
         # TODO rethink loss parameters
         self.loss_parameters.current_epoch = self.current_epoch
-        self.loss_parameters.inputs = x
-        self.loss_parameters.mask = ~((target == 0).reshape(len(target), -1).all(dim=1))
-        self.loss_parameters.noise_model_likelihood = self.noise_model_likelihood
-        self.loss_parameters.gaussian_likelihood = self.gaussian_likelihood
-        self.loss_parameters.noise_model = self.noise_model
+
+        # Compute loss
         loss = self.loss_func(out, target, self.loss_parameters)  # TODO ugly ?
 
-        self.log_dict(loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+        # Logging
+        # TODO: implement a separate logging method?
+        self.log_dict(loss, on_step=True, on_epoch=True)
+        # self.log("lr", self, on_epoch=True)
         return loss
 
-    def validation_step(self, batch: Tensor, batch_idx: Any) -> None:
+    def validation_step(self, batch: tuple[Tensor, Tensor], batch_idx: Any) -> None:
         """Validation step.
 
         Parameters
         ----------
-        batch : Tensor
-            Input batch.
+        batch : tuple[Tensor, Tensor]
+            Input batch. It is a tuple with the input tensor and the target tensor.
+            The input tensor has shape (B, (1 + n_LC), [Z], Y, X), where n_LC is the
+            number of lateral inputs. The target tensor has shape (B, C, [Z], Y, X),
+            where C is the number of target channels (e.g., 1 in HDN, >1 in
+            muSplit/denoiSplit).
         batch_idx : Any
             Batch index.
         """
-        x, *aux = batch
-        out = self.model(x)
-        val_loss = self.loss_func(out, *aux)
+        x, target = batch
 
-        # log validation loss
-        self.log_dict(
-            val_loss,
-            on_step=False,
-            on_epoch=True,
-            prog_bar=True,
-            logger=True,
-        )
+        # Forward pass
+        out = self.model(x)
+
+        # Compute loss
+        loss = self.loss_func(out, target, self.loss_parameters)
+
+        # Logging
+        # Rename val_loss dict
+        loss = {"_".join(["val", k]): v for k, v in loss.items()}
+        self.log_dict(loss, on_epoch=True, prog_bar=True)
+        curr_psnr = self.compute_val_psnr(out, target)
+        for i, psnr in enumerate(curr_psnr):
+            self.log(f"val_psnr_ch{i+1}_batch", psnr, on_epoch=True)
+
+    def on_validation_epoch_end(self) -> None:
+        """Validation epoch end."""
+        psnr_ = self.reduce_running_psnr()
+        if psnr_ is not None:
+            self.log("val_psnr", psnr_, on_epoch=True, prog_bar=True)
+        else:
+            self.log("val_psnr", 0.0, on_epoch=True, prog_bar=True)
 
     def predict_step(self, batch: Tensor, batch_idx: Any) -> Any:
         """Prediction step.
@@ -404,7 +456,99 @@ class VAEModule(L.LightningModule):
             "monitor": "val_loss",  # otherwise triggers MisconfigurationException
         }
 
+    # TODO: find a way to move the following methods to a separate module
+    # TODO: this same operation is done in many other places, like in loss_func
+    # should we refactor LadderVAE so that it already outputs
+    # tuple(`mean`, `logvar`, `td_data`)?
+    def get_reconstructed_tensor(
+        self, model_outputs: tuple[Tensor, dict[str, Any]]
+    ) -> Tensor:
+        """Get the reconstructed tensor from the LVAE model outputs.
 
+        Parameters
+        ----------
+        model_outputs : tuple[Tensor, dict[str, Any]]
+            Model outputs. It is a tuple with a tensor representing the predicted mean
+            and (optionally) logvar, and the top-down data dictionary.
+
+        Returns
+        -------
+        Tensor
+            Reconstructed tensor, i.e., the predicted mean.
+        """
+        predictions, _ = model_outputs
+        if self.model.predict_logvar is None:
+            return predictions
+        elif self.model.predict_logvar == "pixelwise":
+            return predictions.chunk(2, dim=1)[0]
+
+    def compute_val_psnr(
+        self,
+        model_output: tuple[Tensor, dict[str, Any]],
+        target: Tensor,
+        psnr_func: Callable = scale_invariant_psnr,
+    ) -> list[float]:
+        """Compute the PSNR for the current validation batch.
+
+        Parameters
+        ----------
+        model_output : tuple[Tensor, dict[str, Any]]
+            Model output, a tuple with the predicted mean and (optionally) logvar,
+            and the top-down data dictionary.
+        target : Tensor
+            Target tensor.
+        psnr_func : Callable, optional
+            PSNR function to use, by default `scale_invariant_psnr`.
+
+        Returns
+        -------
+        list[float]
+            PSNR for each channel in the current batch.
+        """
+        out_channels = target.shape[1]
+
+        # get the reconstructed image
+        recons_img = self.get_reconstructed_tensor(model_output)
+
+        # update running psnr
+        for i in range(out_channels):
+            self.running_psnr[i].update(rec=recons_img[:, i], tar=target[:, i])
+
+        # compute psnr for each channel in the current batch
+        # TODO: this doesn't need do be a method of this class
+        # and hence can be moved to a separate module
+        return [
+            psnr_func(
+                gt=target[:, i].clone().detach().cpu().numpy(),
+                pred=recons_img[:, i].clone().detach().cpu().numpy(),
+            )
+            for i in range(out_channels)
+        ]
+
+    def reduce_running_psnr(self) -> Optional[float]:
+        """Reduce the running PSNR statistics and reset the running PSNR.
+
+        Returns
+        -------
+        Optional[float]
+            Running PSNR averaged over the different output channels.
+        """
+        psnr_arr = []  # type: ignore
+        for i in range(len(self.running_psnr)):
+            psnr = self.running_psnr[i].get()
+            if psnr is None:
+                psnr_arr = None  # type: ignore
+                break
+            psnr_arr.append(psnr.cpu().numpy())
+            self.running_psnr[i].reset()
+            # TODO: this line forces it to be a method of this class
+            # alternative is returning also the reset `running_psnr`
+        if psnr_arr is not None:
+            psnr = np.mean(psnr_arr)
+        return psnr
+
+
+# TODO: make this LVAE compatible (?)
 def create_careamics_module(
     algorithm_type: Literal["fcn"],
     algorithm: Union[SupportedAlgorithm, str],
@@ -416,7 +560,7 @@ def create_careamics_module(
     lr_scheduler: Union[SupportedScheduler, str] = "ReduceLROnPlateau",
     lr_scheduler_parameters: Optional[dict] = None,
 ) -> Union[FCNModule, VAEModule]:
-    """Create a CAREamics Lithgning module.
+    """Create a CAREamics Lightning module.
 
     This function exposes parameters used to create an AlgorithmModel instance,
     triggering parameters validation.
