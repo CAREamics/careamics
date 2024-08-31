@@ -61,13 +61,11 @@ class LadderVAE(nn.Module):
         self.decoder_dropout = decoder_dropout
         self.nonlin = nonlinearity
         self.predict_logvar = predict_logvar
-
         self.analytical_kl = analytical_kl
         # -------------------------------------------------------
 
         # -------------------------------------------------------
         # Model attributes -> Hardcoded
-        self.model_type = ModelType.LadderVae  # TODO remove !
         self.model_type = ModelType.LadderVae  # TODO remove !
         self.encoder_blocks_per_layer = 1
         self.decoder_blocks_per_layer = 1
@@ -91,14 +89,6 @@ class LadderVAE(nn.Module):
         self._var_clip_max = 20
         self._stochastic_use_naive_exponential = False
         self._enable_topdown_normalize_factor = True
-
-        # Noise model attributes -> Hardcoded
-        # TODO: now noise model is handled separately --> REMOVE!
-        self.noise_model_type = "gmm"
-        self.denoise_channel = (
-            "input"  # 4 values for denoise_channel {'Ch1', 'Ch2', 'input','all'}
-        ) # maybe this is still needed for evaluation
-        self.noise_model_learnable = False
 
         # Attributes that handle LC -> Hardcoded
         self.enable_multiscale = (
