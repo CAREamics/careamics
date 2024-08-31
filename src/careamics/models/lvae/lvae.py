@@ -1,11 +1,12 @@
 """
-Ladder VAE (LVAE) Model
+Ladder VAE (LVAE) Model.
 
-The current implementation is based on "Interpretable Unsupervised Diversity Denoising and Artefact Removal, Prakash et al."
+The current implementation is based on "Interpretable Unsupervised Diversity Denoising
+and Artefact Removal, Prakash et al."
 """
 
 from collections.abc import Iterable
-from typing import List, Tuple, Union
+from typing import Union
 
 import numpy as np
 import torch
@@ -25,189 +26,83 @@ from .utils import Interpolate, ModelType, crop_img_tensor
 
 @register_model("LVAE")
 class LadderVAE(nn.Module):
-    # TODO: where has `data_mean` and `data_std` gone?
+    """
+    Constructor.
+
+    Parameters
+    ----------
+    input_shape : int
+        The size of the input image.
+    output_channels : int
+        The number of output channels.
+    multiscale_count : int
+        The number of scales for multiscale processing.
+    z_dims : list[int]
+        The dimensions of the latent space for each layer.
+    encoder_n_filters : int
+        The number of filters in the encoder.
+    decoder_n_filters : int
+        The number of filters in the decoder.
+    encoder_dropout : float
+        The dropout rate for the encoder.
+    decoder_dropout : float
+        The dropout rate for the decoder.
+    nonlinearity : str
+        The nonlinearity function to use.
+    predict_logvar : bool
+        Whether to predict the log variance.
+    enable_noise_model : bool
+        Whether to enable the noise model.
+    analytical_kl : bool
+        Whether to use analytical KL divergence.
+    conv_dims : list[int]
+        The strides for the convolutional layers.
+
+    Raises
+    ------
+    NotImplementedError
+        If only 2D convolutions are supported.
+    """
+
     def __init__(
-        self,
-        input_shape: int,
-        output_channels: int,
-        multiscale_count: int,
-        z_dims: List[int],
-        encoder_n_filters: int,
-        decoder_n_filters: int,
-        encoder_dropout: float,
-        decoder_dropout: float,
-        nonlinearity: str,
-        predict_logvar: bool,
-        enable_noise_model: bool,
-        analytical_kl: bool,
-        conv_dims: int,
-    ):
-        """
-        Constructor.
+            self,
+            input_shape: int,
+            output_channels: int,
+            multiscale_count: int,
+            z_dims: list[int],
+            encoder_n_filters: int,
+            decoder_n_filters: int,
+            encoder_dropout: float,
+            decoder_dropout: float,
+            nonlinearity: str,
+            predict_logvar: bool,
+            enable_noise_model: bool,
+            analytical_kl: bool,
+            conv_dims: list[int],
+        ):
+            super().__init__()
 
-        Parameters
-        ----------
+            # -------------------------------------------------------
+            # Customizable attributes
+            self.image_size = input_shape
+            self.target_ch = output_channels
+            self.conv_dims = conv_dims
+            self._multiscale_count = multiscale_count
+            self.z_dims = z_dims
+            self.encoder_n_filters = encoder_n_filters
+            self.decoder_n_filters = decoder_n_filters
+            self.encoder_dropout = encoder_dropout
+            self.decoder_dropout = decoder_dropout
+            self.nonlin = nonlinearity
+            self.predict_logvar = predict_logvar
+            self.enable_noise_model = enable_noise_model
+            self.analytical_kl = analytical_kl
+            # -------------------------------------------------------
 
+            if conv_dims != 2:
+                raise NotImplementedError("Only 2D convolutions are supported for now.")
 
-        """
-        super().__init__()
-
-        # -------------------------------------------------------
-        # Customizable attributes
-        self.image_size = input_shape
-        self.target_ch = output_channels
-        self.conv_dims = conv_dims
-        self._multiscale_count = multiscale_count
-        self.z_dims = z_dims
-        self.encoder_n_filters = encoder_n_filters
-        self.decoder_n_filters = decoder_n_filters
-        self.encoder_dropout = encoder_dropout
-        self.decoder_dropout = decoder_dropout
-        self.nonlin = nonlinearity
-        self.predict_logvar = predict_logvar
-        self.enable_noise_model = enable_noise_model
-        self.analytical_kl = analytical_kl
-        # -------------------------------------------------------
-
-        if conv_dims != 2:
-            raise NotImplementedError("Only 2D convolutions are supported for now.")
-
-        # -------------------------------------------------------
-        # Model attributes -> Hardcoded
-        self.model_type = ModelType.LadderVae  # TODO remove !
-        self.encoder_blocks_per_layer = 1
-        self.decoder_blocks_per_layer = 1
-        self.bottomup_batchnorm = True
-        self.topdown_batchnorm = True
-        self.topdown_conv2d_bias = True
-        self.gated = True
-        self.encoder_res_block_kernel = 3
-        self.decoder_res_block_kernel = 3
-        self.merge_type = "residual"
-        self.no_initial_downscaling = True
-        self.skip_bottomk_buvalues = 0
-        self.non_stochastic_version = False
-        self.stochastic_skip = True
-        self.learn_top_prior = True
-        self.res_block_type = "bacdbacd"  # TODO remove !
-        self.res_block_type = "bacdbacd"  # TODO remove !
-        self.mode_pred = False
-        self.logvar_lowerbound = -5
-        self._var_clip_max = 20
-        self._stochastic_use_naive_exponential = False
-        self._enable_topdown_normalize_factor = True
-
-        # Noise model attributes -> Hardcoded
-        self.noise_model_type = "gmm"
-        self.denoise_channel = (
-            "input"  # 4 values for denoise_channel {'Ch1', 'Ch2', 'input','all'}
-        )
-        self.noise_model_learnable = False
-
-        # Attributes that handle LC -> Hardcoded
-        self.enable_multiscale = (
-            self._multiscale_count is not None and self._multiscale_count > 1
-        )
-        self.multiscale_retain_spatial_dims = True
-        self.multiscale_lowres_separate_branch = False
-        self.multiscale_decoder_retain_spatial_dims = (
-            self.multiscale_retain_spatial_dims and self.enable_multiscale
-        )
-
-        # Derived attributes
-        self.n_layers = len(self.z_dims)
-
-        # Others...
-        self._tethered_to_input = False
-        self._tethered_ch1_scalar = self._tethered_ch2_scalar = None
-        if self._tethered_to_input:
-            target_ch = 1
-            requires_grad = False
-            self._tethered_ch1_scalar = nn.Parameter(
-                torch.ones(1) * 0.5, requires_grad=requires_grad
-            )
-            self._tethered_ch2_scalar = nn.Parameter(
-                torch.ones(1) * 2.0, requires_grad=requires_grad
-            )
-        # -------------------------------------------------------
-
-        # -------------------------------------------------------
-        # Data attributes
-        self.color_ch = 1
-        self.img_shape = tuple([self.image_size] * self.conv_dims)
-        self.normalized_input = True
-        # -------------------------------------------------------
-
-        # -------------------------------------------------------
-        # Loss attributes
-        self._restricted_kl = False  # HC
-        # enabling reconstruction loss on mixed input
-        self.mixed_rec_w = 0
-        self.nbr_consistency_w = 0
-
-        # -------------------------------------------------------
-
-        # -------------------------------------------------------
-        # # Training attributes
-        # # can be used to tile the validation predictions
-        # self._val_idx_manager = val_idx_manager
-        # self._val_frame_creator = None
-        # # initialize the learning rate scheduler params.
-        # self.lr_scheduler_monitor = self.lr_scheduler_mode = None
-        # self._init_lr_scheduler_params(config)
-        # self._global_step = 0
-        # -------------------------------------------------------
-
-        # -------------------------------------------------------
-
-        # Calculate the downsampling happening in the network
-        self.downsample = [1] * self.n_layers
-        self.overall_downscale_factor = np.power(2, sum(self.downsample))
-        if not self.no_initial_downscaling:  # by default do another downscaling
-            self.overall_downscale_factor *= 2
-
-        assert max(self.downsample) <= self.encoder_blocks_per_layer
-        assert len(self.downsample) == self.n_layers
-        # -------------------------------------------------------
-
-        # -------------------------------------------------------
-        ### CREATE MODEL BLOCKS
-        # First bottom-up layer: change num channels + downsample by factor 2
-        # unless we want to prevent this
-        stride = 1 if self.no_initial_downscaling else 2
-        self.first_bottom_up = self.create_first_bottom_up(stride)
-
-        # Input Branches for Lateral Contextualization
-        self.lowres_first_bottom_ups = None
-        self._init_multires()
-
-        # Other bottom-up layers
-        self.bottom_up_layers = self.create_bottom_up_layers(
-            self.multiscale_lowres_separate_branch
-        )
-
-        # Top-down layers
-        self.top_down_layers = self.create_top_down_layers()
-        self.final_top_down = self.create_final_topdown_layer(
-            not self.no_initial_downscaling
-        )
-
-        # Likelihood module
-        # self.likelihood = self.create_likelihood_module()
-
-        # Output layer --> Project to target_ch many channels
-        logvar_ch_needed = self.predict_logvar is not None
-        self.output_layer = self.parameter_net = getattr(nn, f"Conv{self.conv_dims}d")(
-            self.decoder_n_filters,
-            self.target_ch * (1 + logvar_ch_needed),
-            kernel_size=3,
-            padding="same",
-            bias=self.topdown_conv2d_bias,
-        )
-
-        # msg =f'[{self.__class__.__name__}] Stoc:{not self.non_stochastic_version} RecMode:{self.reconstruction_mode} TethInput:{self._tethered_to_input}'
-        # msg += f' TargetCh: {self.target_ch}'
-        # print(msg)
+            # ...
 
     ### SET OF METHODS TO CREATE MODEL BLOCKS
     def create_first_bottom_up(
@@ -216,7 +111,8 @@ class LadderVAE(nn.Module):
         num_res_blocks: int = 1,
     ) -> nn.Sequential:
         """
-        This method creates the first bottom-up block of the Encoder.
+        Method creates the first bottom-up block of the Encoder.
+
         Its role is to perform a first image compression step.
         It is composed by a sequence of nn.Conv2d + non-linearity +
         BottomUpDeterministicResBlock (1 or more, default is 1).
@@ -226,7 +122,7 @@ class LadderVAE(nn.Module):
         init_stride: int
             The stride used by the intial Conv2d block.
         num_res_blocks: int, optional
-            The number of BottomUpDeterministicResBlocks to include in the layer, default is 1.
+            The number of BottomUpDeterministicResBlocks, default is 1.
         """
         nonlin = get_activation(self.nonlin)
         conv_block = getattr(nn, f"Conv{self.conv_dims}d")(
@@ -255,9 +151,10 @@ class LadderVAE(nn.Module):
 
         return nn.Sequential(*modules)
 
-    def create_bottom_up_layers(self, lowres_separate_branch: bool) -> nn.ModuleList:
+    def create_bottom_up_layers(self, lowres_separate_branch: bool) -> nn.Modulelist:
         """
-        This method creates the stack of bottom-up layers of the Encoder
+        Method creates the stack of bottom-up layers of the Encoder.
+
         that are used to generate the so-called `bu_values`.
 
         NOTE:
@@ -267,13 +164,14 @@ class LadderVAE(nn.Module):
         Parameters
         ----------
         lowres_separate_branch: bool
-            Whether the residual block(s) used for encoding the low-res input are shared (`False`) or
-            not (`True`) with the "same-size" residual block(s) in the `BottomUpLayer`'s primary flow.
+            Whether the residual block(s) used for encoding the low-res input are shared
+            (`False`) or not (`True`) with the "same-size" residual block(s) in the
+            `BottomUpLayer`'s primary flow.
         """
         multiscale_lowres_size_factor = 1
         nonlin = get_activation(self.nonlin)
 
-        bottom_up_layers = nn.ModuleList([])
+        bottom_up_layers = nn.Modulelist([])
         for i in range(self.n_layers):
             # Whether this is the top layer
             is_top = i == self.n_layers - 1
@@ -321,9 +219,10 @@ class LadderVAE(nn.Module):
 
         return bottom_up_layers
 
-    def create_top_down_layers(self) -> nn.ModuleList:
+    def create_top_down_layers(self) -> nn.Modulelist:
         """
-        This method creates the stack of top-down layers of the Decoder.
+        Method creates the stack of top-down layers of the Decoder.
+
         In these layer the `bu`_values` from the Encoder are merged with the `p_params` from the previous layer
         of the Decoder to get `q_params`. Then, a stochastic layer generates a sample from the latent distribution
         with parameters `q_params`. Finally, this sample is fed through a TopDownDeterministicResBlock to
@@ -342,10 +241,8 @@ class LadderVAE(nn.Module):
             When doing unconditional generation, bu_value is not available. Hence the
             merge layer is not used, and z is sampled directly from p_params.
 
-        Parameters
-        ----------
         """
-        top_down_layers = nn.ModuleList([])
+        top_down_layers = nn.Modulelist([])
         nonlin = get_activation(self.nonlin)
         # NOTE: top-down layers are created starting from the bottom-most
         for i in range(self.n_layers):
@@ -425,19 +322,25 @@ class LadderVAE(nn.Module):
 
     def _init_multires(
         self, config=None
-    ) -> nn.ModuleList:  # TODO config: ml_collections.ConfigDict refactor
+    ) -> nn.Modulelist:  # TODO config: ml_collections.ConfigDict refactor
         """
-        This method defines the input block/branch to encode/compress low-res lateral inputs at different hierarchical levels
-        in the multiresolution approach (LC). The role of the input branches is similar to the one of the first bottom-up layer
-        in the primary flow of the Encoder, namely to compress the lateral input image to a degree that is compatible with the
-        one of the primary flow.
+        Method defines the input block/branch to encode/compress low-res lateral inputs.
 
-        NOTE 1: Each input branch consists of a sequence of Conv2d + non-linearity + BottomUpDeterministicResBlock.
-        It is meaningful to observe that the `BottomUpDeterministicResBlock` shares the same model attributes with the blocks
-        in the primary flow of the Encoder (e.g., c_in, c_out, dropout, etc. etc.). Moreover, it does not perform downsampling.
+        at different hierarchical levels
+        in the multiresolution approach (LC). The role of the input branches is similar
+        to the one of the first bottom-up layer in the primary flow of the Encoder,
+        namely to compress the lateral input image to a degree that is compatible with
+        the one of the primary flow.
 
-        NOTE 2: `_multiscale_count` attribute defines the total number of inputs to the bottom-up pass.
-        In other terms if we have the input patch and n_LC additional lateral inputs, we will have a total of (n_LC + 1) inputs.
+        NOTE 1: Each input branch consists of a sequence of Conv2d + non-linearity
+        + BottomUpDeterministicResBlock. It is meaningful to observe that the
+        `BottomUpDeterministicResBlock` shares the same model attributes with the blocks
+        in the primary flow of the Encoder (e.g., c_in, c_out, dropout, etc. etc.).
+        Moreover, it does not perform downsampling.
+
+        NOTE 2: `_multiscale_count` attribute defines the total number of inputs to the
+        bottom-up pass. In other terms if we have the input patch and n_LC additional
+        lateral inputs, we will have a total of (n_LC + 1) inputs.
         """
         stride = 1 if self.no_initial_downscaling else 2
         nonlin = get_activation(self.nonlin)
@@ -482,16 +385,14 @@ class LadderVAE(nn.Module):
             lowres_first_bottom_ups.append(first_bottom_up)
 
         self.lowres_first_bottom_ups = (
-            nn.ModuleList(lowres_first_bottom_ups)
+            nn.Modulelist(lowres_first_bottom_ups)
             if len(lowres_first_bottom_ups)
             else None
         )
 
     ### SET OF FORWARD-LIKE METHODS
     def bottomup_pass(self, inp: torch.Tensor) -> list[torch.Tensor]:
-        """
-        Wrapper of _bottomup_pass().
-        """
+        """Wrapper of _bottomup_pass()."""
         return self._bottomup_pass(
             inp,
             self.first_bottom_up,
@@ -503,11 +404,12 @@ class LadderVAE(nn.Module):
         self,
         inp: torch.Tensor,
         first_bottom_up: nn.Sequential,
-        lowres_first_bottom_ups: nn.ModuleList,
-        bottom_up_layers: nn.ModuleList,
+        lowres_first_bottom_ups: nn.Modulelist,
+        bottom_up_layers: nn.Modulelist,
     ) -> list[torch.Tensor]:
         """
-        This method defines the forward pass through the LVAE Encoder, the so-called
+        Method defines the forward pass through the LVAE Encoder, the so-called.
+
         Bottom-Up pass.
 
         Parameters
@@ -519,9 +421,9 @@ class LadderVAE(nn.Module):
             remaining ones are associated to the lateral low-res inputs.
         first_bottom_up: nn.Sequential
             The module defining the first bottom-up layer of the Encoder.
-        lowres_first_bottom_ups: nn.ModuleList
+        lowres_first_bottom_ups: nn.Modulelist
             The list of modules defining Lateral Contextualization.
-        bottom_up_layers: nn.ModuleList
+        bottom_up_layers: nn.Modulelist
             The list of modules defining the stack of bottom-up layers of the Encoder.
         """
         if self._multiscale_count > 1:
@@ -549,36 +451,40 @@ class LadderVAE(nn.Module):
         mode_layers: Union[Iterable[int], None] = None,
         constant_layers: Union[Iterable[int], None] = None,
         forced_latent: Union[list[torch.Tensor], None] = None,
-        top_down_layers: Union[nn.ModuleList, None] = None,
+        top_down_layers: Union[nn.Modulelist, None] = None,
         final_top_down_layer: Union[nn.Sequential, None] = None,
-    ) -> Tuple[torch.Tensor, dict[str, torch.Tensor]]:
+    ) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
         """
-        This method defines the forward pass through the LVAE Decoder, the so-called
+        Method defines the forward pass through the LVAE Decoder, the so-called.
+
         Top-Down pass.
 
         Parameters
         ----------
         bu_values: torch.Tensor, optional
-            Output of the bottom-up pass. It will have values from multiple layers of the ladder.
+            Output of the bottom-up pass. It will have values from multiple layers of
+            the ladder.
         n_img_prior: optional
-            When `bu_values` is `None`, `n_img_prior` indicates the number of images to generate
+            When `bu_values` is `None`, `n_img_prior` indicates the number of images to
+            generate
             from the prior (so bottom-up pass is not used at all here).
         mode_layers: Iterable[int], optional
-            A sequence of indexes associated to the layers in which sampling is disabled and
-            the mode (mean value) is used instead. Set to `None` to avoid this behaviour.
+            A sequence of indexes associated to the layers in which sampling is disabled
+            and the mode (mean value) is used instead. Set to `None` to avoid this
+            behaviour.
         constant_layers: Iterable[int], optional
-            A sequence of indexes associated to the layers in which a single instance's z is
-            copied over the entire batch (bottom-up path is not used, so only prior is used here).
-            Set to `None` to avoid this behaviour.
+            A sequence of indexes associated to the layers in which a single instance's
+            z is copied over the entire batch (bottom-up path is not used, so only prior
+            is used here). Set to `None` to avoid this behaviour.
         forced_latent: list[torch.Tensor], optional
-            A list of tensors that are used as fixed latent variables (hence, sampling doesn't take
-            place in this case).
-        top_down_layers: nn.ModuleList, optional
-            A list of top-down layers to use in the top-down pass. If `None`, the method uses the
-            default layers defined in the constructor.
+            A list of tensors that are used as fixed latent variables (hence, sampling
+            doesn't take place in this case).
+        top_down_layers: nn.Modulelist, optional
+            A list of top-down layers to use in the top-down pass. If `None`, the method
+            uses the default layers defined in the constructor.
         final_top_down_layer: nn.Sequential, optional
-            The last top-down layer of the top-down pass. If `None`, the method uses the default
-            layers defined in the constructor.
+            The last top-down layer of the top-down pass. If `None`, the method uses the
+            default layers defined in the constructor.
         """
         if top_down_layers is None:
             top_down_layers = self.top_down_layers
@@ -693,8 +599,10 @@ class LadderVAE(nn.Module):
         }
         return out, data
 
-    def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, dict[str, torch.Tensor]]:
+    def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
         """
+        Forward pass through the LVAE model.
+
         Parameters
         ----------
         x: torch.Tensor
@@ -731,7 +639,8 @@ class LadderVAE(nn.Module):
     ### SET OF GETTERS
     def get_padded_size(self, size):
         """
-        Returns the smallest size (H, W) of the image with actual size given
+        Returns the smallest size (H, W) of the image with actual size given.
+
         as input, such that H and W are powers of 2.
         :param size: input size, tuple either (N, C, H, w) or (H, W)
         :return: 2-tuple (H, W)
@@ -755,14 +664,12 @@ class LadderVAE(nn.Module):
         dwnsc = self.overall_downscale_factor
 
         # Output smallest powers of 2 that are larger than current sizes
-        padded_size = list(((s - 1) // dwnsc + 1) * dwnsc for s in size)
+        padded_size = [((s - 1) // dwnsc + 1) * dwnsc for s in size]
 
         return padded_size
 
     def get_latent_spatial_size(self, level_idx: int):
-        """
-        level_idx: 0 is the bottommost layer, the highest resolution one.
-        """
+        """Level_idx: 0 is the bottommost layer, the highest resolution one."""
         actual_downsampling = level_idx + 1
         dwnsc = 2**actual_downsampling
         h = self.img_shape[0] // dwnsc
@@ -788,6 +695,22 @@ class LadderVAE(nn.Module):
         return top_layer_shape
 
     def get_other_channel(self, ch1, input):
+        """Summary.
+
+        # TODO add description
+
+        Parameters
+        ----------
+        ch1 : _type_
+            _description_
+        input : _type_
+            _description_
+
+        Returns
+        -------
+        _type_
+            _description_
+        """
         assert self.data_std["target"].squeeze().shape == (2,)
         assert self.data_mean["target"].squeeze().shape == (2,)
         assert self.target_ch == 2
