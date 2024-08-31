@@ -271,6 +271,12 @@ class VAEModule(L.LightningModule):
         self.noise_model: NoiseModel = noise_model_factory(
             self.algorithm_config.noise_model
         )
+        # TODO: here we can add some code to check whether the noise model is not None
+        # and `self.algorithm_config.noise_model_likelihood_model.noise_model` is,
+        # instead, None. In that case we could assign the noise model to the latter.
+        # This is particular useful when loading an algorithm config from file. 
+        # Indeed, in that case the noise model in the nm likelihood is likely
+        # not available since excluded from serializaion.
         self.noise_model_likelihood: NoiseModelLikelihood = likelihood_factory(
             self.algorithm_config.noise_model_likelihood_model
         )
