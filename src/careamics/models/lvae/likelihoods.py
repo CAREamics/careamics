@@ -7,6 +7,7 @@ from __future__ import annotations
 import math
 from typing import Literal, Union, TYPE_CHECKING, Any, Optional
 
+import numpy as np
 import torch
 from torch import nn
 
@@ -287,25 +288,25 @@ class NoiseModelLikelihood(LikelihoodModule):
 
     def __init__(
         self,
-        data_mean: torch.Tensor,
-        data_std: torch.Tensor,
+        data_mean: Union[np.ndarray, torch.Tensor],
+        data_std:  Union[np.ndarray, torch.Tensor],
         noiseModel: NoiseModel,
     ):
         """Constructor.
 
         Parameters
         ----------
-        data_mean: torch.Tensor
+        data_mean: Union[np.ndarray, torch.Tensor]
             The mean of the data, used to unnormalize data for noise model evaluation.
-        data_std: torch.Tensor
+        data_std: Union[np.ndarray, torch.Tensor]
             The standard deviation of the data, used to unnormalize data for noise
             model evaluation.
         noiseModel: NoiseModel
             The noise model instance used to compute the likelihood.
         """
         super().__init__()
-        self.data_mean = data_mean
-        self.data_std = data_std
+        self.data_mean = torch.Tensor(data_mean)
+        self.data_std = torch.Tensor(data_std)
         self.noiseModel = noiseModel
 
     def _set_params_to_same_device_as(
