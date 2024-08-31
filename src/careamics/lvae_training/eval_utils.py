@@ -588,7 +588,7 @@ def get_dset_predictions(
                 # get reconstructed img
                 if model.model.predict_logvar is None:
                     rec_img = rec
-                    logvar = np.array([-1])
+                    logvar = torch.tensor([-1])
                 else:
                     rec_img, logvar = torch.chunk(rec, chunks=2, dim=1)
                 rec_img_list.append(rec_img.cpu().unsqueeze(0)) # add MMSE dim
