@@ -5,7 +5,7 @@ The current implementation is based on "Interpretable Unsupervised Diversity Den
 """
 
 from collections.abc import Iterable
-from typing import Dict, List, Tuple
+from typing import List, Tuple, Union
 
 import numpy as np
 import torch
@@ -20,7 +20,7 @@ from .layers import (
     TopDownDeterministicResBlock,
     TopDownLayer,
 )
-from .utils import Interpolate, ModelType, crop_img_tensor, pad_img_tensor
+from .utils import Interpolate, ModelType, crop_img_tensor
 
 
 @register_model("LVAE")
@@ -40,19 +40,7 @@ class LadderVAE(nn.Module):
         predict_logvar: bool,
         enable_noise_model: bool,
         analytical_kl: bool,
-        input_shape: int,
-        output_channels: int,
         conv_dims: int,
-        multiscale_count: int,
-        z_dims: list[int],
-        encoder_n_filters: int,
-        decoder_n_filters: int,
-        encoder_dropout: float,
-        decoder_dropout: float,
-        nonlinearity: str,
-        predict_logvar: bool,
-        enable_noise_model: bool,
-        analytical_kl: bool,
     ):
         """
         Constructor.
@@ -80,10 +68,10 @@ class LadderVAE(nn.Module):
         self.enable_noise_model = enable_noise_model
         self.analytical_kl = analytical_kl
         # -------------------------------------------------------
-        
+
         if conv_dims != 2:
             raise NotImplementedError("Only 2D convolutions are supported for now.")
-        
+
         # -------------------------------------------------------
         # Model attributes -> Hardcoded
         self.model_type = ModelType.LadderVae  # TODO remove !
@@ -236,25 +224,19 @@ class LadderVAE(nn.Module):
         Parameters
         ----------
         init_stride: int
-            The stride used by the initial Conv2d block.
+            The stride used by the intial Conv2d block.
         num_res_blocks: int, optional
             The number of BottomUpDeterministicResBlocks to include in the layer, default is 1.
         """
         nonlin = get_activation(self.nonlin)
-        modules = [
-            nn.Conv2d(
-                in_channels=self.color_ch,
-                out_channels=self.encoder_n_filters,
-                kernel_size=self.encoder_res_block_kernel,
-                padding=(
-                    0
-                    if self.encoder_res_block_skip_padding
-                    else self.encoder_res_block_kernel // 2
-                ),
-                stride=init_stride,
-            ),
-            nonlin,
-        ]
+        conv_block = getattr(nn, f"Conv{self.conv_dims}d")(
+            in_channels=self.color_ch,
+            out_channels=self.encoder_n_filters,
+            kernel_size=self.encoder_res_block_kernel,
+            padding=self.encoder_res_block_kernel // 2,
+            stride=init_stride,
+        )
+        modules = [conv_block, nonlin]
 
         for _ in range(num_res_blocks):
             modules.append(
@@ -322,6 +304,7 @@ class LadderVAE(nn.Module):
                     n_filters=self.encoder_n_filters,
                     downsampling_steps=self.downsample[i],
                     nonlin=nonlin,
+                    conv_dims=self.conv_dims,
                     batchnorm=self.bottomup_batchnorm,
                     dropout=self.encoder_dropout,
                     res_block_type=self.res_block_type,
@@ -408,10 +391,10 @@ class LadderVAE(nn.Module):
 
     def create_final_topdown_layer(self, upsample: bool) -> nn.Sequential:
         """Create the final top-down layer of the Decoder.
-        
+
         NOTE: In this layer, (optional) upsampling is performed by bilinear interpolation
         instead of transposed convolution (like in other TD layers).
-        
+
         Parameters
         ----------
         upsample: bool
@@ -717,7 +700,7 @@ class LadderVAE(nn.Module):
         x: torch.Tensor
             The input tensor of shape (B, C, H, W).
         """
-        img_size = x.size()[2:]                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   
+        img_size = x.size()[2:]
 
         # Bottom-up inference: return list of length n_layers (bottom to top)
         bu_values = self.bottomup_pass(x)
@@ -735,7 +718,7 @@ class LadderVAE(nn.Module):
             out = crop_img_tensor(out, img_size)
 
         out = self.output_layer(out)
-        
+
         # TODO: this should be removed
         if self._tethered_to_input:
             assert out.shape[1] == 1
@@ -743,7 +726,7 @@ class LadderVAE(nn.Module):
             out = torch.cat([out, ch2], dim=1)
 
         return out, td_data
-    
+
 
     ### SET OF GETTERS
     def get_padded_size(self, size):

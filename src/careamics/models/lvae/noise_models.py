@@ -104,6 +104,70 @@ class MultiChannelNoiseModel(nn.Module):
                     f"nmodel_{i}", nmodel
                 )  # TODO: wouldn't be easier to use a list?
 
+        self._nm_cnt = 0
+        for nmodel in nmodels:
+            if nmodel is not None:
+                self._nm_cnt += 1
+
+        print(f"[{self.__class__.__name__}] Nmodels count:{self._nm_cnt}")
+
+    def likelihood(self, obs: torch.Tensor, signal: torch.Tensor) -> torch.Tensor:
+        """Compute the likelihood of observations given signals for each channel.
+
+        Parameters
+        ----------
+        obs : torch.Tensor
+            Noisy observations, i.e., the target(s). Specifically, the input noisy
+            image for HDN, or the noisy unmixed images used for supervision
+            for denoiSplit. Shape: (B, C, [Z], Y, X), where C is the number of
+            unmixed channels.
+        signal : torch.Tensor
+            Underlying signals, i.e., the (clean) output of the model. Specifically, the
+            denoised image for HDN, or the unmixed images for denoiSplit.
+            Shape: (B, C, [Z], Y, X), where C is the number of unmixed channels.
+        """
+        # Case 1: obs and signal have a single channel (e.g., denoising)
+        if obs.shape[1] == 1:
+            assert signal.shape[1] == 1
+            return self.nmodel_0.likelihood(obs, signal)
+
+        # Case 2: obs and signal have multiple channels (e.g., denoiSplit)
+        assert obs.shape[1] == self._nm_cnt, (
+            "The number of channels in `obs` must match the number of noise models."
+            f" Got instead: obs={obs.shape[1]},  nm={self._nm_cnt}"
+        )
+        ll_list = []
+        for ch_idx in range(obs.shape[1]):
+            nmodel = getattr(self, f"nmodel_{ch_idx}")
+            ll_list.append(
+                nmodel.likelihood(
+                    obs[:, ch_idx : ch_idx + 1], signal[:, ch_idx : ch_idx + 1]
+                )  # slicing to keep the channel dimension
+            )
+        return torch.cat(ll_list, dim=1)
+
+
+# TODO: is this needed?
+def fastShuffle(series, num):
+    """_summary_.
+
+    Parameters
+    ----------
+    series : _type_
+        _description_
+    num : _type_
+        _description_
+
+    Returns
+    -------
+    _type_
+        _description_
+    """
+    length = series.shape[0]
+    for _ in range(num):
+        series = series[np.random.permutation(length), :]
+    return series
+
 
 class GaussianMixtureNoiseModel(nn.Module):
     """Define a noise model parameterized as a mixture of gaussians.
