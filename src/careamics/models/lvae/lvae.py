@@ -55,7 +55,7 @@ class LadderVAE(nn.Module):
         Whether to enable the noise model.
     analytical_kl : bool
         Whether to use analytical KL divergence.
-    conv_dims : list[int]
+    conv_strides : list[int]
         The strides for the convolutional layers.
 
     Raises
@@ -65,44 +65,194 @@ class LadderVAE(nn.Module):
     """
 
     def __init__(
-            self,
-            input_shape: int,
-            output_channels: int,
-            multiscale_count: int,
-            z_dims: list[int],
-            encoder_n_filters: int,
-            decoder_n_filters: int,
-            encoder_dropout: float,
-            decoder_dropout: float,
-            nonlinearity: str,
-            predict_logvar: bool,
-            enable_noise_model: bool,
-            analytical_kl: bool,
-            conv_dims: list[int],
-        ):
-            super().__init__()
+        self,
+        input_shape: int,
+        output_channels: int,
+        multiscale_count: int,
+        z_dims: list[int],
+        encoder_n_filters: int,
+        decoder_n_filters: int,
+        encoder_dropout: float,
+        decoder_dropout: float,
+        nonlinearity: str,
+        predict_logvar: bool,
+        enable_noise_model: bool,
+        analytical_kl: bool,
+        conv_strides: list[int],
+    ):
+        super().__init__()
 
-            # -------------------------------------------------------
-            # Customizable attributes
-            self.image_size = input_shape
-            self.target_ch = output_channels
-            self.conv_dims = conv_dims
-            self._multiscale_count = multiscale_count
-            self.z_dims = z_dims
-            self.encoder_n_filters = encoder_n_filters
-            self.decoder_n_filters = decoder_n_filters
-            self.encoder_dropout = encoder_dropout
-            self.decoder_dropout = decoder_dropout
-            self.nonlin = nonlinearity
-            self.predict_logvar = predict_logvar
-            self.enable_noise_model = enable_noise_model
-            self.analytical_kl = analytical_kl
-            # -------------------------------------------------------
+        # -------------------------------------------------------
+        # Customizable attributes
+        self.image_size = input_shape
+        self.target_ch = output_channels
+        self.conv_strides = conv_strides
+        self._multiscale_count = multiscale_count
+        self.z_dims = z_dims
+        self.encoder_n_filters = encoder_n_filters
+        self.decoder_n_filters = decoder_n_filters
+        self.encoder_dropout = encoder_dropout
+        self.decoder_dropout = decoder_dropout
+        self.nonlin = nonlinearity
+        self.predict_logvar = predict_logvar
+        self.enable_noise_model = enable_noise_model
 
-            if conv_dims != 2:
-                raise NotImplementedError("Only 2D convolutions are supported for now.")
+        self.analytical_kl = analytical_kl
+        # -------------------------------------------------------
 
-            # ...
+        # -------------------------------------------------------
+        # Model attributes -> Hardcoded
+        self.model_type = ModelType.LadderVae  # TODO remove !
+        self.model_type = ModelType.LadderVae  # TODO remove !
+        self.encoder_blocks_per_layer = 1
+        self.decoder_blocks_per_layer = 1
+        self.bottomup_batchnorm = True
+        self.topdown_batchnorm = True
+        self.topdown_conv2d_bias = True
+        self.gated = True
+        self.encoder_res_block_kernel = 3
+        self.decoder_res_block_kernel = 3
+        self.encoder_res_block_skip_padding = False
+        self.decoder_res_block_skip_padding = False
+        self.merge_type = "residual"
+        self.no_initial_downscaling = True
+        self.skip_bottomk_buvalues = 0
+        self.non_stochastic_version = False
+        self.stochastic_skip = True
+        self.learn_top_prior = True
+        self.res_block_type = "bacdbacd"  # TODO remove !
+        self.mode_pred = False
+        self.logvar_lowerbound = -5
+        self._var_clip_max = 20
+        self._stochastic_use_naive_exponential = False
+        self._enable_topdown_normalize_factor = True
+
+        # Noise model attributes -> Hardcoded
+        self.noise_model_type = "gmm"
+        self.denoise_channel = (
+            "input"  # 4 values for denoise_channel {'Ch1', 'Ch2', 'input','all'}
+        )
+        self.noise_model_learnable = False
+
+        # Attributes that handle LC -> Hardcoded
+        self.enable_multiscale = (
+            self._multiscale_count is not None and self._multiscale_count > 1
+        )
+        self.multiscale_retain_spatial_dims = True
+        self.multiscale_lowres_separate_branch = False
+        self.multiscale_decoder_retain_spatial_dims = (
+            self.multiscale_retain_spatial_dims and self.enable_multiscale
+        )
+
+        # Derived attributes
+        self.n_layers = len(self.z_dims)
+        self.encoder_no_padding_mode = (
+            self.encoder_res_block_skip_padding is True
+            and self.encoder_res_block_kernel > 1
+        )
+        self.decoder_no_padding_mode = (
+            self.decoder_res_block_skip_padding is True
+            and self.decoder_res_block_kernel > 1
+        )
+
+        # Others...
+        self._tethered_to_input = False
+        self._tethered_ch1_scalar = self._tethered_ch2_scalar = None
+        if self._tethered_to_input:
+            target_ch = 1
+            requires_grad = False
+            self._tethered_ch1_scalar = nn.Parameter(
+                torch.ones(1) * 0.5, requires_grad=requires_grad
+            )
+            self._tethered_ch2_scalar = nn.Parameter(
+                torch.ones(1) * 2.0, requires_grad=requires_grad
+            )
+        # -------------------------------------------------------
+
+        # -------------------------------------------------------
+        # Data attributes
+        self.color_ch = 1
+        self.img_shape = (self.image_size, self.image_size)
+        self.normalized_input = True
+        # -------------------------------------------------------
+
+        # -------------------------------------------------------
+        # Loss attributes
+        self._restricted_kl = False  # HC
+        # enabling reconstruction loss on mixed input
+        self.mixed_rec_w = 0
+        self.nbr_consistency_w = 0
+
+        # -------------------------------------------------------
+
+        # -------------------------------------------------------
+        # # Training attributes
+        # # can be used to tile the validation predictions
+        # self._val_idx_manager = val_idx_manager
+        # self._val_frame_creator = None
+        # # initialize the learning rate scheduler params.
+        # self.lr_scheduler_monitor = self.lr_scheduler_mode = None
+        # self._init_lr_scheduler_params(config)
+        # self._global_step = 0
+        # -------------------------------------------------------
+
+        # -------------------------------------------------------
+
+        # Calculate the downsampling happening in the network
+        self.downsample = [1] * self.n_layers
+        self.overall_downscale_factor = np.power(2, sum(self.downsample))
+        if not self.no_initial_downscaling:  # by default do another downscaling
+            self.overall_downscale_factor *= 2
+
+        assert max(self.downsample) <= self.encoder_blocks_per_layer
+        assert len(self.downsample) == self.n_layers
+        # -------------------------------------------------------
+
+        # -------------------------------------------------------
+        ### CREATE MODEL BLOCKS
+        # First bottom-up layer: change num channels + downsample by factor 2
+        # unless we want to prevent this
+        stride = 1 if self.no_initial_downscaling else 2
+        self.first_bottom_up = self.create_first_bottom_up(stride)
+
+        # Input Branches for Lateral Contextualization
+        self.lowres_first_bottom_ups = None
+        self._init_multires()
+
+        # Other bottom-up layers
+        self.bottom_up_layers = self.create_bottom_up_layers(
+            self.multiscale_lowres_separate_branch
+        )
+
+        # Top-down layers
+        self.top_down_layers = self.create_top_down_layers()
+        self.final_top_down = self.create_final_topdown_layer(
+            not self.no_initial_downscaling
+        )
+
+        # Likelihood module
+        # self.likelihood = self.create_likelihood_module()
+
+        # Output layer --> Project to target_ch many channels
+        logvar_ch_needed = self.predict_logvar is not None
+        self.output_layer = self.parameter_net = nn.Conv2d(
+            self.decoder_n_filters,
+            self.target_ch * (1 + logvar_ch_needed),
+            kernel_size=3,
+            padding=1,
+            bias=self.topdown_conv2d_bias,
+        )
+
+        # # gradient norms. updated while training. this is also logged.
+        # self.grad_norm_bottom_up = 0.0
+        # self.grad_norm_top_down = 0.0
+        # PSNR computation on validation.
+        # self.label1_psnr = RunningPSNR()
+        # self.label2_psnr = RunningPSNR()
+
+        # msg =f'[{self.__class__.__name__}] Stoc:{not self.non_stochastic_version} RecMode:{self.reconstruction_mode} TethInput:{self._tethered_to_input}'
+        # msg += f' TargetCh: {self.target_ch}'
+        # print(msg)
 
     ### SET OF METHODS TO CREATE MODEL BLOCKS
     def create_first_bottom_up(
@@ -124,8 +274,9 @@ class LadderVAE(nn.Module):
         num_res_blocks: int, optional
             The number of BottomUpDeterministicResBlocks, default is 1.
         """
+        # TODO Question, we use default stride for the first layer?
         nonlin = get_activation(self.nonlin)
-        conv_block = getattr(nn, f"Conv{self.conv_dims}d")(
+        conv_block = getattr(nn, f"Conv{len(self.conv_strides)}d")(
             in_channels=self.color_ch,
             out_channels=self.encoder_n_filters,
             kernel_size=self.encoder_res_block_kernel,
@@ -137,7 +288,7 @@ class LadderVAE(nn.Module):
         for _ in range(num_res_blocks):
             modules.append(
                 BottomUpDeterministicResBlock(
-                    conv_dims=self.conv_dims,
+                    conv_strides=self.conv_strides,
                     c_in=self.encoder_n_filters,
                     c_out=self.encoder_n_filters,
                     nonlin=nonlin,
@@ -151,7 +302,7 @@ class LadderVAE(nn.Module):
 
         return nn.Sequential(*modules)
 
-    def create_bottom_up_layers(self, lowres_separate_branch: bool) -> nn.Modulelist:
+    def create_bottom_up_layers(self, lowres_separate_branch: bool) -> nn.ModuleList:
         """
         Method creates the stack of bottom-up layers of the Encoder.
 
@@ -171,7 +322,7 @@ class LadderVAE(nn.Module):
         multiscale_lowres_size_factor = 1
         nonlin = get_activation(self.nonlin)
 
-        bottom_up_layers = nn.Modulelist([])
+        bottom_up_layers = nn.ModuleList([])
         for i in range(self.n_layers):
             # Whether this is the top layer
             is_top = i == self.n_layers - 1
@@ -202,7 +353,7 @@ class LadderVAE(nn.Module):
                     n_filters=self.encoder_n_filters,
                     downsampling_steps=self.downsample[i],
                     nonlin=nonlin,
-                    conv_dims=self.conv_dims,
+                    conv_strides=self.conv_strides,
                     batchnorm=self.bottomup_batchnorm,
                     dropout=self.encoder_dropout,
                     res_block_type=self.res_block_type,
@@ -219,7 +370,7 @@ class LadderVAE(nn.Module):
 
         return bottom_up_layers
 
-    def create_top_down_layers(self) -> nn.Modulelist:
+    def create_top_down_layers(self) -> nn.ModuleList:
         """
         Method creates the stack of top-down layers of the Decoder.
 
@@ -242,7 +393,7 @@ class LadderVAE(nn.Module):
             merge layer is not used, and z is sampled directly from p_params.
 
         """
-        top_down_layers = nn.Modulelist([])
+        top_down_layers = nn.ModuleList([])
         nonlin = get_activation(self.nonlin)
         # NOTE: top-down layers are created starting from the bottom-most
         for i in range(self.n_layers):
@@ -322,7 +473,7 @@ class LadderVAE(nn.Module):
 
     def _init_multires(
         self, config=None
-    ) -> nn.Modulelist:  # TODO config: ml_collections.ConfigDict refactor
+    ) -> nn.ModuleList:  # TODO config: ml_collections.ConfigDict refactor
         """
         Method defines the input block/branch to encode/compress low-res lateral inputs.
 
@@ -385,7 +536,7 @@ class LadderVAE(nn.Module):
             lowres_first_bottom_ups.append(first_bottom_up)
 
         self.lowres_first_bottom_ups = (
-            nn.Modulelist(lowres_first_bottom_ups)
+            nn.ModuleList(lowres_first_bottom_ups)
             if len(lowres_first_bottom_ups)
             else None
         )
@@ -404,8 +555,8 @@ class LadderVAE(nn.Module):
         self,
         inp: torch.Tensor,
         first_bottom_up: nn.Sequential,
-        lowres_first_bottom_ups: nn.Modulelist,
-        bottom_up_layers: nn.Modulelist,
+        lowres_first_bottom_ups: nn.ModuleList,
+        bottom_up_layers: nn.ModuleList,
     ) -> list[torch.Tensor]:
         """
         Method defines the forward pass through the LVAE Encoder, the so-called.
@@ -421,9 +572,9 @@ class LadderVAE(nn.Module):
             remaining ones are associated to the lateral low-res inputs.
         first_bottom_up: nn.Sequential
             The module defining the first bottom-up layer of the Encoder.
-        lowres_first_bottom_ups: nn.Modulelist
+        lowres_first_bottom_ups: nn.ModuleList
             The list of modules defining Lateral Contextualization.
-        bottom_up_layers: nn.Modulelist
+        bottom_up_layers: nn.ModuleList
             The list of modules defining the stack of bottom-up layers of the Encoder.
         """
         if self._multiscale_count > 1:
@@ -451,7 +602,7 @@ class LadderVAE(nn.Module):
         mode_layers: Union[Iterable[int], None] = None,
         constant_layers: Union[Iterable[int], None] = None,
         forced_latent: Union[list[torch.Tensor], None] = None,
-        top_down_layers: Union[nn.Modulelist, None] = None,
+        top_down_layers: Union[nn.ModuleList, None] = None,
         final_top_down_layer: Union[nn.Sequential, None] = None,
     ) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
         """
@@ -479,7 +630,7 @@ class LadderVAE(nn.Module):
         forced_latent: list[torch.Tensor], optional
             A list of tensors that are used as fixed latent variables (hence, sampling
             doesn't take place in this case).
-        top_down_layers: nn.Modulelist, optional
+        top_down_layers: nn.ModuleList, optional
             A list of top-down layers to use in the top-down pass. If `None`, the method
             uses the default layers defined in the constructor.
         final_top_down_layer: nn.Sequential, optional

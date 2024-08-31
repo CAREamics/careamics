@@ -15,7 +15,7 @@ class LVAEModel(ArchitectureModel):
     model_config = ConfigDict(validate_assignment=True, validate_default=True)
 
     architecture: Literal["LVAE"]
-    conv_dims: Literal[2, 3] = Field(default=2, validate_default=True)
+    conv_strides: list = Field(default=[2, 2], validate_default=True)
     """Dimensions (2D or 3D) of the convolutional layers."""
     input_shape: int = Field(default=64, ge=8, le=1024)
     multiscale_count: int = Field(default=5)  # TODO clarify
@@ -41,6 +41,34 @@ class LVAEModel(ArchitectureModel):
     analytical_kl: bool = Field(
         default=False,
     )
+    
+    @field_validator("conv_strides")
+    @classmethod
+    def validate_conv_strides(cls, conv_strides: list) -> list:
+        """
+        Validate the convolutional strides.
+
+        Parameters
+        ----------
+        conv_strides : list
+            List of strides.
+
+        Returns
+        -------
+        list
+            Validated strides.
+
+        Raises
+        ------
+        ValueError
+            If the number of strides is not 2.
+        """
+        if len(conv_strides) < 2 or len(conv_strides) > 3:
+            raise ValueError(
+                f"Number of strides must be 2 or 3 (got {len(conv_strides)})."
+            )
+
+        return conv_strides
 
     @field_validator("encoder_n_filters")
     @classmethod

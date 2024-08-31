@@ -403,7 +403,7 @@ def minimum_lvae_params():
         "input_shape": 64,
         "output_channels": 2,
         "multiscale_count": None,
-        "conv_dims": 2,
+        "conv_strides": [2, 2],
         "z_dims": [128, 128, 128, 128],
         "encoder_n_filters": 64,
         "decoder_n_filters": 64,
