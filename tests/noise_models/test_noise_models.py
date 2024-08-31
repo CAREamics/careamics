@@ -2,12 +2,12 @@ from pathlib import Path
 
 import numpy as np
 
-from careamics.config.nm_model import GaussianMixtureNmModel
+from careamics.config.nm_model import GaussianMixtureNMConfig
 from careamics.models.lvae.noise_models import noise_model_factory
 
 
 def test_gm_noise_model(tmp_path):
-    nm_config = GaussianMixtureNmModel(model_type="GaussianMixtureNoiseModel")
+    nm_config = GaussianMixtureNMConfig(model_type="GaussianMixtureNoiseModel")
     trained_weight = np.random.rand(18, 4)
     min_signal = np.random.rand(1)
     max_signal = np.random.rand(1)

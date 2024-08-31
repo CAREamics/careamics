@@ -2,7 +2,6 @@ from torch import nn, ones
 
 from careamics.config.architectures import (
     CustomModel,
-    LVAEModel,
     UNetModel,
     register_model,
 )

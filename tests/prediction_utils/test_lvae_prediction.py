@@ -15,30 +15,6 @@ from careamics.prediction_utils.lvae_prediction import (
     lvae_predict_tiled_batch,
 )
 
-
-@pytest.fixture
-def minimum_lvae_params():
-    return {
-        "input_shape": 64,
-        "output_channels": 2,
-        "multiscale_count": None,
-        "z_dims": [128, 128, 128, 128],
-        "encoder_n_filters": 64,
-        "decoder_n_filters": 64,
-        "encoder_dropout": 0.1,
-        "decoder_dropout": 0.1,
-        "nonlinearity": "ELU",
-        "predict_logvar": "pixelwise",
-        "enable_noise_model": False,
-        "analytical_kl": False,
-    }
-
-
-@pytest.fixture
-def gaussian_likelihood_params():
-    return {"predict_logvar": "pixelwise", "logvar_lowerbound": -5}
-
-
 # TODO: Test with mock LCMultiChDloader
 
 

@@ -120,6 +120,7 @@ def minimum_algorithm_musplit() -> dict:
     """
     # create dictionary
     algorithm = {
+        "algorithm_type": "vae",
         "algorithm": "musplit",  # TODO temporary
         "loss": "musplit",
         "model": {
@@ -132,8 +133,6 @@ def minimum_algorithm_musplit() -> dict:
         "likelihood": {
             "type": "GaussianLikelihoodConfig",
         },
-        "likelihood": {"type": "GaussianLikelihoodModel", "color_channels": 2},
-        "noise_model": {"type": "GaussianMixtureNoiseModel"},
     }
 
     return algorithm
@@ -396,3 +395,27 @@ def create_dummy_noise_model(
         "min_sigma": 0.125,
     }
     return nm_dict
+
+
+@pytest.fixture
+def minimum_lvae_params():
+    return {
+        "input_shape": 64,
+        "output_channels": 2,
+        "multiscale_count": None,
+        "conv_dims": 2,
+        "z_dims": [128, 128, 128, 128],
+        "encoder_n_filters": 64,
+        "decoder_n_filters": 64,
+        "encoder_dropout": 0.1,
+        "decoder_dropout": 0.1,
+        "nonlinearity": "ELU",
+        "predict_logvar": "pixelwise",
+        "enable_noise_model": False,
+        "analytical_kl": False,
+    }
+
+
+@pytest.fixture
+def gaussian_likelihood_params():
+    return {"predict_logvar": "pixelwise", "logvar_lowerbound": -5}

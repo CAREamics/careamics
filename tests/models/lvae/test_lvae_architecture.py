@@ -7,7 +7,7 @@ from torch import nn
 from careamics.config.architectures import LVAEModel
 from careamics.config import VAEAlgorithmConfig
 from careamics.models.model_factory import model_factory
-from careamics.config.nm_model import GaussianMixtureNmModel
+from careamics.config.nm_model import GaussianMixtureNMConfig
 
 def create_LVAE_model(
     input_shape: int = 64,
@@ -35,7 +35,7 @@ def create_LVAE_model(
         algorithm="musplit",
         loss="musplit_loss",
         model=lvae_model_config,
-        noise_model=GaussianMixtureNmModel(model_type="GaussianMixtureNoiseModel"),
+        noise_model=GaussianMixtureNMConfig(model_type="GaussianMixtureNoiseModel"),
     )
     return model_factory(config.model)
 
