@@ -613,8 +613,10 @@ def get_dset_predictions(
                         targets=tar,
                         gaussian_likelihood=gauss_likelihood,
                         nm_likelihood=nm_likelihood,
-                        # TODO: add weights
+                        nm_weight=model.loss_parameters.denoisplit_weight,
+                        gaussian_weight=model.loss_parameters.musplit_weight
                     )
+                    rec_loss = {"loss": rec_loss} # hacky, but ok for now
 
                 # store rec loss values for first pred
                 if mmse_idx == 0:
