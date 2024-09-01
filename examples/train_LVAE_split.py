@@ -42,7 +42,7 @@ multiscale_count: int = 1
 """The number of LC inputs plus one (the actual input)."""
 predict_logvar: Optional[Literal["pixelwise"]] = None
 """Whether to compute also the log-variance as LVAE output."""
-loss_type: Optional[Literal["musplit", "denoisplit", "denoisplit_musplit"]] = "denoisplit"
+loss_type: Optional[Literal["musplit", "denoisplit", "denoisplit_musplit"]] = "denoisplit_musplit"
 """The type of reconstruction loss (i.e., likelihood) to use."""
 nm_paths: Optional[tuple[str]] = [
     "/group/jug/ashesh/training_pre_eccv/noise_model/2402/221/GMMNoiseModel_ER-GT_all.mrc__6_4_Clip0.0-1.0_Sig0.125_UpNone_Norm0_bootstrap.npz",
@@ -429,21 +429,28 @@ def main():
     ]
 
     # Save configs and git status (for debugging)
+    algo_config = lightning_model.algorithm_config
+    data_config = get_data_config()
+    loss_config = lightning_model.loss_parameters
+    
+    with open(os.path.join(workdir, "git_config.json"), "w") as f:
+        json.dump(get_git_status(), f, indent=4)
+        
     with open(os.path.join(workdir, "algorithm_config.json"), "w") as f:
-        f.write(lightning_model.algorithm_config.model_dump_json(indent=4))
+        f.write(algo_config.model_dump_json(indent=4))
 
     with open(os.path.join(workdir, "training_config.json"), "w") as f:
         f.write(training_config.model_dump_json(indent=4))
-
+        
     with open(os.path.join(workdir, "data_config.json"), "w") as f:
-        json.dump(get_data_config().to_dict(), f, indent=4)
-
-    with open(os.path.join(workdir, "git_config.json"), "w") as f:
-        json.dump(get_git_status(), f, indent=4)
+        json.dump(data_config.to_dict(), f, indent=4)
+        
+    with open(os.path.join(workdir, "loss_config.json"), "w") as f:
+        f.write(loss_config.model_dump_json(indent=4))
 
     # Save Configs in WANDB
     custom_logger.experiment.config.update({
-        "algorithm": lightning_model.algorithm_config.model_dump()
+        "algorithm": algo_config.model_dump()
     })
 
     custom_logger.experiment.config.update({
@@ -451,7 +458,11 @@ def main():
     })
 
     custom_logger.experiment.config.update({
-        "data": get_data_config().to_dict()
+        "data": data_config.to_dict()
+    }) 
+
+    custom_logger.experiment.config.update({
+        "loss_params": loss_config.model_dump()
     })
 
     # Train the model
