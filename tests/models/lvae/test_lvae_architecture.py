@@ -264,6 +264,7 @@ def test_topmost_top_down_layer(
     img_size: int, multiscale_count: int, tmp_path, create_dummy_noise_model
 ) -> None:
     model = create_LVAE_model(
+        input_shape=img_size,
         tmp_path=tmp_path,
         create_dummy_noise_model=create_dummy_noise_model,
         multiscale_count=multiscale_count,

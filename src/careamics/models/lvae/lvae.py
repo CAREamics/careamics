@@ -20,6 +20,7 @@ from .layers import (
     BottomUpLayer,
     TopDownDeterministicResBlock,
     TopDownLayer,
+    GateLayer
 )
 from .utils import Interpolate, ModelType, crop_img_tensor
 
@@ -184,6 +185,15 @@ class LadderVAE(nn.Module):
         self.nbr_consistency_w = 0
 
         # -------------------------------------------------------
+        # 3D related stuff
+        # self._mode_3D = mode_3d
+        # self._model_3D_depth = depth_3d
+        # self._decoder_mode_3D = 
+        # if self._mode_3D and not self._decoder_mode_3D:
+        #     assert self._model_3D_depth%2 ==1, '3D model depth should be odd'
+        # assert self._mode_3D is True or self._decoder_mode_3D is False, 'Decoder cannot be 3D when encoder is 2D'
+        # self._squish3d = self._mode_3D and not self._decoder_mode_3D
+        # self._3D_squisher = None if not self._squish3d else nn.ModuleList([GateLayer(config.model.encoder.n_filters,3, True) for k in range(len(config.model.z_dims))])
 
         # -------------------------------------------------------
         # # Training attributes
@@ -212,6 +222,7 @@ class LadderVAE(nn.Module):
         ### CREATE MODEL BLOCKS
         # First bottom-up layer: change num channels + downsample by factor 2
         # unless we want to prevent this
+        self.conv_op = getattr(nn, f"Conv{len(self.conv_strides)}d")
         stride = 1 if self.no_initial_downscaling else 2
         self.first_bottom_up = self.create_first_bottom_up(stride)
 
@@ -235,7 +246,7 @@ class LadderVAE(nn.Module):
 
         # Output layer --> Project to target_ch many channels
         logvar_ch_needed = self.predict_logvar is not None
-        self.output_layer = self.parameter_net = nn.Conv2d(
+        self.output_layer = self.parameter_net = self.conv_op(
             self.decoder_n_filters,
             self.target_ch * (1 + logvar_ch_needed),
             kernel_size=3,
@@ -276,13 +287,18 @@ class LadderVAE(nn.Module):
         """
         # TODO Question, we use default stride for the first layer?
         nonlin = get_activation(self.nonlin)
-        conv_block = getattr(nn, f"Conv{len(self.conv_strides)}d")(
+        conv_block = self.conv_op(
             in_channels=self.color_ch,
             out_channels=self.encoder_n_filters,
             kernel_size=self.encoder_res_block_kernel,
-            padding=self.encoder_res_block_kernel // 2,
+            padding=(
+                0
+                if self.encoder_res_block_skip_padding
+                else self.encoder_res_block_kernel // 2
+            ),
             stride=init_stride,
         )
+
         modules = [conv_block, nonlin]
 
         for _ in range(num_res_blocks):
@@ -338,10 +354,7 @@ class LadderVAE(nn.Module):
 
             # TODO: check correctness of this
             if self._multiscale_count > 1:
-                output_expected_shape = (
-                    dim // 2 ** (i + 1)
-                    for dim in self.img_shape
-                )
+                output_expected_shape = (dim // 2 ** (i + 1) for dim in self.img_shape)
             else:
                 output_expected_shape = None
 
@@ -400,7 +413,7 @@ class LadderVAE(nn.Module):
             # Check if this is the top layer
             is_top = i == self.n_layers - 1
 
-            if self._enable_topdown_normalize_factor: # TODO: What is this?
+            if self._enable_topdown_normalize_factor:  # TODO: What is this?
                 normalize_latent_factor = (
                     1 / np.sqrt(2 * (1 + i)) if len(self.z_dims) > 4 else 1.0
                 )
@@ -515,7 +528,7 @@ class LadderVAE(nn.Module):
         lowres_first_bottom_ups = []
         for _ in range(1, self._multiscale_count):
             first_bottom_up = nn.Sequential(
-                nn.Conv2d(
+                self.conv_op(
                     in_channels=self.color_ch,
                     out_channels=self.encoder_n_filters,
                     kernel_size=5,
@@ -785,7 +798,6 @@ class LadderVAE(nn.Module):
             out = torch.cat([out, ch2], dim=1)
 
         return out, td_data
-
 
     ### SET OF GETTERS
     def get_padded_size(self, size):
