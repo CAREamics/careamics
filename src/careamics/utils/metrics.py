@@ -5,7 +5,6 @@ This module contains various metrics and a metrics tracking class.
 """
 
 from typing import Callable, Optional, Union
-from warnings import warn
 
 import numpy as np
 import torch
@@ -15,15 +14,15 @@ from torchmetrics.image import MultiScaleStructuralSimilarityIndexMeasure
 # TODO: does this add additional dependency?
 
 
-def psnr(gt: np.ndarray, pred: np.ndarray, range_: Optional[float] = None) -> float:
+def psnr(gt: np.ndarray, pred: np.ndarray, range_: float) -> float:
     """
     Peak Signal to Noise Ratio.
 
     This method calls skimage.metrics.peak_signal_noise_ratio. See:
     https://scikit-image.org/docs/dev/api/skimage.metrics.html.
-
-    NOTE: if `range_` is `None`, the `skimage` psnr function will try to infer it
-    from the data type. This can lead to unexpected results.
+    
+    NOTE: to avoid unwanted behaviors (e.g., data_range inferred from array dtype),
+    the range_ parameter is now mandatory.
 
     Parameters
     ----------
@@ -31,21 +30,14 @@ def psnr(gt: np.ndarray, pred: np.ndarray, range_: Optional[float] = None) -> fl
         Ground truth array.
     pred : np.ndarray
         Predicted array.
-    range_ : float, optional
-        The images pixel range, by default `None`.
+    range_ : float
+        The images pixel range.
 
     Returns
     -------
     float
         PSNR value.
     """
-    if range_ is None:
-        warn(
-            "`range_` is `None`, so it will be inferred by `np.dtype`."
-            "This can lead to unexpected results.",
-            stacklevel=2,
-        )
-        # TODO: compute the min-max range manually (?)
     return peak_signal_noise_ratio(gt, pred, data_range=range_)
 
 
