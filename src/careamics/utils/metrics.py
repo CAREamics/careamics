@@ -20,7 +20,7 @@ def psnr(gt: np.ndarray, pred: np.ndarray, data_range: float) -> float:
 
     This method calls skimage.metrics.peak_signal_noise_ratio. See:
     https://scikit-image.org/docs/dev/api/skimage.metrics.html.
-    
+
     NOTE: to avoid unwanted behaviors (e.g., data_range inferred from array dtype),
     the data_range parameter is mandatory.
 
