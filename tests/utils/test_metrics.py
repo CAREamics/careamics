@@ -54,6 +54,13 @@ def test_psnr(data_type: np.dtype):
     range_ = gt_.max() - gt_.min()
     assert psnr(gt_, pred_, range_) is not None
     # add check on the result
+    
+    
+def test_psnr_no_range():
+    gt = np.random.rand(16, 16)
+    pred = np.random.rand(16, 16)
+    with pytest.raises(ValueError):
+        psnr(gt, pred, None)
 
 
 @pytest.mark.parametrize("type_", ["torch", "numpy"])
