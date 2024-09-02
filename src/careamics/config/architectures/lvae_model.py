@@ -15,12 +15,12 @@ class LVAEModel(ArchitectureModel):
     model_config = ConfigDict(validate_assignment=True, validate_default=True)
 
     architecture: Literal["LVAE"]
-    encoder_conv_strides: list = Field(default=[2, 2], validate_default=True)
-    decoder_conv_strides: list = Field(default=[2, 2], validate_default=True)
-    # TODO make this per hierarchy step ?
-    """Dimensions (2D or 3D) of the convolutional layers."""
     input_shape: list[int] = Field(default=(1, 64, 64), validate_default=True)
     """Shape of the input patch (C, Z, Y, X) or (C, Y, X) if the data is 2D."""
+    encoder_conv_strides: list = Field(default=[2, 2], validate_default=True)
+    # TODO make this per hierarchy step ?
+    decoder_conv_strides: list = Field(default=[2, 2], validate_default=True)
+    """Dimensions (2D or 3D) of the convolutional layers."""
     multiscale_count: int = Field(default=3)  # TODO clarify
     # 0 - off, len(z_dims) + 1 # TODO can/should be le to z_dims len + 1
     z_dims: list = Field(default=[128, 128, 128, 128])

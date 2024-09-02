@@ -44,6 +44,10 @@ class LadderVAE(nn.Module):
         The number of filters in the encoder.
     decoder_n_filters : int
         The number of filters in the decoder.
+    encoder_conv_strides : list[int]
+        The strides for the conv layers encoder.
+    decoder_conv_strides : list[int]
+        The strides for the conv layers decoder.
     encoder_dropout : float
         The dropout rate for the encoder.
     decoder_dropout : float
@@ -56,8 +60,6 @@ class LadderVAE(nn.Module):
         Whether to enable the noise model.
     analytical_kl : bool
         Whether to use analytical KL divergence.
-    conv_strides : list[int]
-        The strides for the convolutional layers.
 
     Raises
     ------
@@ -73,21 +75,24 @@ class LadderVAE(nn.Module):
         z_dims: list[int],
         encoder_n_filters: int,
         decoder_n_filters: int,
+        encoder_conv_strides: list[int],
+        decoder_conv_strides: list[int],
         encoder_dropout: float,
         decoder_dropout: float,
         nonlinearity: str,
         predict_logvar: bool,
         enable_noise_model: bool,
         analytical_kl: bool,
-        conv_strides: list[int],
     ):
         super().__init__()
 
         # -------------------------------------------------------
         # Customizable attributes
         self.image_size = input_shape
+        """Input image size. (C, Z, Y, X) or (C, Y, X) if the data is 2D."""
         self.target_ch = output_channels
-        self.conv_strides = conv_strides
+        self.encoder_conv_strides = encoder_conv_strides
+        self.decoder_conv_strides = decoder_conv_strides
         self._multiscale_count = multiscale_count
         self.z_dims = z_dims
         self.encoder_n_filters = encoder_n_filters
@@ -172,8 +177,7 @@ class LadderVAE(nn.Module):
 
         # -------------------------------------------------------
         # Data attributes
-        self.color_ch = 1
-        self.img_shape = (self.image_size, self.image_size)
+        self.color_ch = self.image_size[0]
         self.normalized_input = True
         # -------------------------------------------------------
 
@@ -186,14 +190,14 @@ class LadderVAE(nn.Module):
 
         # -------------------------------------------------------
         # 3D related stuff
-        # self._mode_3D = mode_3d
-        # self._model_3D_depth = depth_3d
-        # self._decoder_mode_3D = 
-        # if self._mode_3D and not self._decoder_mode_3D:
-        #     assert self._model_3D_depth%2 ==1, '3D model depth should be odd'
-        # assert self._mode_3D is True or self._decoder_mode_3D is False, 'Decoder cannot be 3D when encoder is 2D'
-        # self._squish3d = self._mode_3D and not self._decoder_mode_3D
-        # self._3D_squisher = None if not self._squish3d else nn.ModuleList([GateLayer(config.model.encoder.n_filters,3, True) for k in range(len(config.model.z_dims))])
+        self._mode_3D = len(self.image_size) == 4
+        self._model_3D_depth = self.image_size[1] if self._mode_3D else 1
+        self._decoder_mode_3D = len(self.decoder_conv_strides) == 3
+        if self._mode_3D and not self._decoder_mode_3D:
+            assert self._model_3D_depth%2 ==1, '3D model depth should be odd'
+        assert self._mode_3D is True or self._decoder_mode_3D is False, 'Decoder cannot be 3D when encoder is 2D'
+        self._squish3d = self._mode_3D and not self._decoder_mode_3D
+        self._3D_squisher = None if not self._squish3d else nn.ModuleList([GateLayer(self.encoder.n_filters,3, True) for k in range(len(self.z_dims))])
 
         # -------------------------------------------------------
         # # Training attributes
@@ -222,7 +226,8 @@ class LadderVAE(nn.Module):
         ### CREATE MODEL BLOCKS
         # First bottom-up layer: change num channels + downsample by factor 2
         # unless we want to prevent this
-        self.conv_op = getattr(nn, f"Conv{len(self.conv_strides)}d")
+        self.encoder_conv_op = getattr(nn, f"Conv{len(self.encoder_conv_strides)}d")
+        self.decoder_conv_op = getattr(nn, f"Conv{len(self.decoder_conv_strides)}d")
         stride = 1 if self.no_initial_downscaling else 2
         self.first_bottom_up = self.create_first_bottom_up(stride)
 
@@ -246,7 +251,7 @@ class LadderVAE(nn.Module):
 
         # Output layer --> Project to target_ch many channels
         logvar_ch_needed = self.predict_logvar is not None
-        self.output_layer = self.parameter_net = self.conv_op(
+        self.output_layer = self.parameter_net = self.decoder_conv_op(
             self.decoder_n_filters,
             self.target_ch * (1 + logvar_ch_needed),
             kernel_size=3,
@@ -287,7 +292,7 @@ class LadderVAE(nn.Module):
         """
         # TODO Question, we use default stride for the first layer?
         nonlin = get_activation(self.nonlin)
-        conv_block = self.conv_op(
+        conv_block = self.encoder_conv_op(
             in_channels=self.color_ch,
             out_channels=self.encoder_n_filters,
             kernel_size=self.encoder_res_block_kernel,
@@ -304,7 +309,7 @@ class LadderVAE(nn.Module):
         for _ in range(num_res_blocks):
             modules.append(
                 BottomUpDeterministicResBlock(
-                    conv_strides=self.conv_strides,
+                    conv_strides=self.encoder_conv_strides,
                     c_in=self.encoder_n_filters,
                     c_out=self.encoder_n_filters,
                     nonlin=nonlin,
@@ -354,7 +359,7 @@ class LadderVAE(nn.Module):
 
             # TODO: check correctness of this
             if self._multiscale_count > 1:
-                output_expected_shape = (dim // 2 ** (i + 1) for dim in self.img_shape)
+                output_expected_shape = (dim // 2 ** (i + 1) for dim in self.image_size)
             else:
                 output_expected_shape = None
 
@@ -366,7 +371,7 @@ class LadderVAE(nn.Module):
                     n_filters=self.encoder_n_filters,
                     downsampling_steps=self.downsample[i],
                     nonlin=nonlin,
-                    conv_strides=self.conv_strides,
+                    conv_strides=self.encoder_conv_strides,
                     batchnorm=self.bottomup_batchnorm,
                     dropout=self.encoder_dropout,
                     res_block_type=self.res_block_type,
@@ -426,6 +431,7 @@ class LadderVAE(nn.Module):
                     n_res_blocks=self.decoder_blocks_per_layer,
                     n_filters=self.decoder_n_filters,
                     is_top_layer=is_top,
+                    conv_strides=self.decoder_conv_strides,
                     upsampling_steps=self.downsample[i],
                     nonlin=nonlin,
                     merge_type=self.merge_type,
@@ -442,7 +448,7 @@ class LadderVAE(nn.Module):
                     vanilla_latent_hw=self.get_latent_spatial_size(i),
                     retain_spatial_dims=self.multiscale_decoder_retain_spatial_dims,
                     non_stochastic_version=self.non_stochastic_version,
-                    input_image_shape=self.img_shape,
+                    input_image_shape=self.image_size,
                     normalize_latent_factor=normalize_latent_factor,
                     conv2d_bias=self.topdown_conv2d_bias,
                     stochastic_use_naive_exponential=self._stochastic_use_naive_exponential,
@@ -474,6 +480,7 @@ class LadderVAE(nn.Module):
                     c_in=self.decoder_n_filters,
                     c_out=self.decoder_n_filters,
                     nonlin=get_activation(self.nonlin),
+                    conv_strides=self.decoder_conv_strides,
                     batchnorm=self.topdown_batchnorm,
                     dropout=self.decoder_dropout,
                     res_block_type=self.res_block_type,
@@ -528,7 +535,7 @@ class LadderVAE(nn.Module):
         lowres_first_bottom_ups = []
         for _ in range(1, self._multiscale_count):
             first_bottom_up = nn.Sequential(
-                self.conv_op(
+                self.encoder_conv_op(
                     in_channels=self.color_ch,
                     out_channels=self.encoder_n_filters,
                     kernel_size=5,
@@ -802,21 +809,16 @@ class LadderVAE(nn.Module):
     ### SET OF GETTERS
     def get_padded_size(self, size):
         """
-        Returns the smallest size (H, W) of the image with actual size given.
-
+        Returns the smallest size (H, W) of the image with actual size given
         as input, such that H and W are powers of 2.
-        :param size: input size, tuple either (N, C, H, w) or (H, W)
+        :param size: input size, tuple either (N, C, H, W) or (H, W)
         :return: 2-tuple (H, W)
         """
+
         # Make size argument into (heigth, width)
-        if len(size) == 4:
-            size = size[2:]
-        if len(size) != 2:
-            msg = (
-                "input size must be either (N, C, H, W) or (H, W), but it "
-                f"has length {len(size)} (size={size})"
-            )
-            raise RuntimeError(msg)
+        # assert len(size) in [2, 4, 5] # TODO commented out cuz it's weird
+        # We're only interested in the Y,X dimensions
+        size = size[-2:]
 
         if self.multiscale_decoder_retain_spatial_dims is True:
             # In this case, we can go much more deeper and so this is not required
@@ -828,15 +830,16 @@ class LadderVAE(nn.Module):
 
         # Output smallest powers of 2 that are larger than current sizes
         padded_size = [((s - 1) // dwnsc + 1) * dwnsc for s in size]
-
+        #TODO do we need this ?
         return padded_size
 
     def get_latent_spatial_size(self, level_idx: int):
         """Level_idx: 0 is the bottommost layer, the highest resolution one."""
         actual_downsampling = level_idx + 1
         dwnsc = 2**actual_downsampling
-        h = self.img_shape[0] // dwnsc
-        w = self.img_shape[1] // dwnsc
+        sz = self.get_padded_size(self.image_size)
+        h = sz[0] // dwnsc
+        w = sz[1] // dwnsc
         assert h == w
         return h
 
@@ -851,10 +854,14 @@ class LadderVAE(nn.Module):
             actual_downsampling = self.n_layers + 1 - self._multiscale_count
             dwnsc = 2**actual_downsampling
 
-        h = self.img_shape[0] // dwnsc
-        w = self.img_shape[1] // dwnsc
-        c = self.z_dims[-1] * 2  # mu and logvar
-        top_layer_shape = (n_imgs, c, h, w)
+        h = self.image_size[-2] // dwnsc
+        w = self.image_size[-1] // dwnsc
+        mu_logvar = self.z_dims[-1] * 2  # mu and logvar
+        top_layer_shape = (n_imgs, mu_logvar, h, w)
+        # TODO what if encoder is 3D but decoder is 2D?
+        # TODO refactor!
+        if self._model_3D_depth > 1 and self._decoder_mode_3D is True:
+            top_layer_shape = (n_imgs, mu_logvar, self.image_size[1], h, w)
         return top_layer_shape
 
     def get_other_channel(self, ch1, input):
