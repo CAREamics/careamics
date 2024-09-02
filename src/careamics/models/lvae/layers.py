@@ -103,6 +103,7 @@ class ResidualBlock(nn.Module):
         conv_layer: ConvType = getattr(nn, f"Conv{len(conv_strides)}d")
         norm_layer: NormType = getattr(nn, f"BatchNorm{len(conv_strides)}d")
         dropout_layer: DropoutType = getattr(nn, f"Dropout{len(conv_strides)}d")
+        # TODO: same comment as in lvae.py, would be more readable to have `conv_dims` or similar
 
         modules = []
         if block_type == "cabdcabd":
@@ -1838,17 +1839,6 @@ class NonStochasticBlock2d(nn.Module):
             Whether to copy the first sample (and rel. distrib parameters) over the whole batch.
             This is used when doing experiment from the prior - q is not used.
             Default is `False`.
-        analytical_kl: bool, optional
-            Whether to compute the KL divergence analytically or using Monte Carlo estimation.
-            Default is `False`.
-        mode_pred: bool, optional
-            Whether the model is in prediction mode. Default is `False`.
-        use_uncond_mode: bool, optional
-            Whether to use the uncoditional distribution p(z) to sample latents in prediction mode.
-            Default is `False`.
-        var_clip_max: float, optional
-            The maximum value reachable by the log-variance of the latent distribution.
-            Values exceeding this threshold are clipped. Default is `None`.
         """
         debug_qvar_max = 0
         assert (forced_latent is None) or (not use_mode)
