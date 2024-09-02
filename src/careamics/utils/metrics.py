@@ -13,13 +13,13 @@ from skimage.metrics import peak_signal_noise_ratio
 
 def psnr(gt: np.ndarray, pred: np.ndarray, data_range: float) -> float:
     """Peak Signal to Noise Ratio.
-    
+
     This method calls skimage.metrics.peak_signal_noise_ratio. See:
     https://scikit-image.org/docs/dev/api/skimage.metrics.html.
-    
+
     NOTE: to avoid unwanted behaviors (e.g., data_range inferred from array dtype),
     the data_range parameter is mandatory.
-    
+
     Parameters
     ----------
     gt : np.ndarray
@@ -37,7 +37,6 @@ def psnr(gt: np.ndarray, pred: np.ndarray, data_range: float) -> float:
     if data_range is None:
         raise ValueError("data_range must be provided")
     return peak_signal_noise_ratio(gt, pred, data_range=data_range)
-
 
 
 def _zero_mean(x: np.ndarray) -> np.ndarray:

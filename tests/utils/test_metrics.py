@@ -1,11 +1,7 @@
 import numpy as np
 import pytest
 
-from careamics.utils.metrics import (
-    _zero_mean,
-    scale_invariant_psnr,
-    psnr
-)
+from careamics.utils.metrics import _zero_mean, psnr, scale_invariant_psnr
 
 
 @pytest.mark.parametrize(
