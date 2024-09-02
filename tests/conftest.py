@@ -120,15 +120,19 @@ def minimum_algorithm_musplit() -> dict:
     """
     # create dictionary
     algorithm = {
+        "algorithm_type": "vae",
         "algorithm": "musplit",  # TODO temporary
         "loss": "musplit",
         "model": {
-            "architecture": "musplit",
+            "architecture": "LVAE",
             "enable_noise_model": False,
             "z_dims": (128, 128, 128),
             "multiscale_count": 4,
+            "predict_logvar": "pixelwise",
         },
-        "likelihood": {"type": "GaussianLikelihoodConfig", "color_channels": 2},
+        "likelihood": {
+            "type": "GaussianLikelihoodConfig",
+        },
     }
 
     return algorithm
@@ -146,6 +150,7 @@ def minimum_algorithm_denoisplit() -> dict:
     """
     # create dictionary
     algorithm = {
+        "algorithm_type": "vae",
         "algorithm": "denoisplit",
         "loss": "denoisplit",
         "model": {
@@ -155,7 +160,7 @@ def minimum_algorithm_denoisplit() -> dict:
             "multiscale_count": 4,
         },
         "likelihood": {"type": "GaussianLikelihoodConfig", "color_channels": 2},
-        "noise_model": {"type": "GaussianMixtureNoiseModel"},
+        "noise_model": "MultiChannelNMConfig",
     }
 
     return algorithm
@@ -375,3 +380,18 @@ def pre_trained_bmz(tmp_path, pre_trained) -> Path:
     assert path.exists()
 
     return path
+
+
+@pytest.fixture
+def create_dummy_noise_model(
+    n_gaussians: int = 3,
+    n_coeffs: int = 3,
+) -> None:
+    weights = np.random.rand(3 * n_gaussians, n_coeffs)
+    nm_dict = {
+        "trained_weight": weights,
+        "min_signal": np.array([0]),
+        "max_signal": np.array([2**16 - 1]),
+        "min_sigma": 0.125,
+    }
+    return nm_dict

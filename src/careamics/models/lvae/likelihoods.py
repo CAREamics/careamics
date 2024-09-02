@@ -40,6 +40,9 @@ def likelihood_factory(
     nn.Module
         The likelihood module.
     """
+    if config is None:
+        return None
+
     if isinstance(config, GaussianLikelihoodConfig):
         return GaussianLikelihood(
             predict_logvar=config.predict_logvar,
