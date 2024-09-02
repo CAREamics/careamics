@@ -1,6 +1,8 @@
 import json
 import os
 import socket
+from copy import deepcopy
+from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Literal, Optional, Union
@@ -34,7 +36,7 @@ from careamics.lvae_training.train_utils import get_new_model_version
 from careamics.models.lvae.noise_models import noise_model_factory
 
 # --- Custom parameters
-img_size: int = 64
+img_size: int = 128
 """Spatial size of the input image."""
 target_channels: int = 2
 """Number of channels in the target image."""
@@ -49,6 +51,7 @@ nm_paths: Optional[tuple[str]] = [
     "/group/jug/ashesh/training_pre_eccv/noise_model/2402/225/GMMNoiseModel_Microtubules-GT_all.mrc__6_4_Clip0.0-1.0_Sig0.125_UpNone_Norm0_bootstrap.npz"
 ]
 """The paths to the pre-trained noise models for the different channels."""
+# TODO: add denoisplit-musplit weights
 
 
 # --- Training parameters
@@ -431,7 +434,10 @@ def main():
     # Save configs and git status (for debugging)
     algo_config = lightning_model.algorithm_config
     data_config = get_data_config()
-    loss_config = lightning_model.loss_parameters
+    # temp -> remove fields that we don't want to save
+    loss_config = deepcopy(asdict(lightning_model.loss_parameters))
+    del loss_config["noise_model_likelihood"]
+    del loss_config["gaussian_likelihood"]
     
     with open(os.path.join(workdir, "git_config.json"), "w") as f:
         json.dump(get_git_status(), f, indent=4)
@@ -446,7 +452,7 @@ def main():
         json.dump(data_config.to_dict(), f, indent=4)
         
     with open(os.path.join(workdir, "loss_config.json"), "w") as f:
-        f.write(loss_config.model_dump_json(indent=4))
+        json.dump(loss_config, f, indent=4)
 
     # Save Configs in WANDB
     custom_logger.experiment.config.update({
@@ -462,7 +468,7 @@ def main():
     }) 
 
     custom_logger.experiment.config.update({
-        "loss_params": loss_config.model_dump()
+        "loss_params": loss_config
     })
 
     # Train the model
