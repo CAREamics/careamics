@@ -14,7 +14,7 @@ from torchmetrics.image import MultiScaleStructuralSimilarityIndexMeasure
 # TODO: does this add additional dependency?
 
 
-def psnr(gt: np.ndarray, pred: np.ndarray, range_: float) -> float:
+def psnr(gt: np.ndarray, pred: np.ndarray, data_range: float) -> float:
     """
     Peak Signal to Noise Ratio.
 
@@ -22,7 +22,7 @@ def psnr(gt: np.ndarray, pred: np.ndarray, range_: float) -> float:
     https://scikit-image.org/docs/dev/api/skimage.metrics.html.
     
     NOTE: to avoid unwanted behaviors (e.g., data_range inferred from array dtype),
-    the range_ parameter is now mandatory.
+    the data_range parameter is mandatory.
 
     Parameters
     ----------
@@ -30,7 +30,7 @@ def psnr(gt: np.ndarray, pred: np.ndarray, range_: float) -> float:
         Ground truth array.
     pred : np.ndarray
         Predicted array.
-    range_ : float
+    data_range : float
         The images pixel range.
 
     Returns
@@ -38,7 +38,9 @@ def psnr(gt: np.ndarray, pred: np.ndarray, range_: float) -> float:
     float
         PSNR value.
     """
-    return peak_signal_noise_ratio(gt, pred, data_range=range_)
+    if data_range is None:
+        raise ValueError("data_range must be provided")
+    return peak_signal_noise_ratio(gt, pred, data_range=data_range)
 
 
 def _zero_mean(x: Union[np.ndarray, torch.Tensor]) -> Union[np.ndarray, torch.Tensor]:
