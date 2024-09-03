@@ -79,7 +79,7 @@ class LVAEModel(ArchitectureModel):
         if len(self.input_shape) != len(self.encoder_conv_strides) + 1:
             raise ValueError(
                 f"Number of input dimensions must be equal to the number of encoder conv strides"
-                f" (got {len(self.encoder_conv_strides)} and {len(self.decoder_conv_strides)})."
+                f" (got {len(self.input_shape)} and {len(self.encoder_conv_strides)})."
             )
 
         if len(self.encoder_conv_strides) < len(self.decoder_conv_strides):

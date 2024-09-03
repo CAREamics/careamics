@@ -89,63 +89,63 @@ def test_first_bottom_up(
 
 
 @pytest.mark.parametrize(
-    "z_dims",
+    "img_size, z_dims, multiscale_count, encoder_conv_stride, decoder_conv_stride",
     [
-        [128, 128],
-        [128, 128, 128],
-        [128, 128, 128, 128],
-        [128, 128, 128, 128, 128],
+        ([1, 64, 64], [128, 128, 128], 0, (2, 2), (2, 2)),
+        ([1, 64, 64], [128, 128, 128], 2, (2, 2), (2, 2)),
+        ([1, 128, 128], [128, 128, 128], 0, (2, 2), (2, 2)),
+        ([1, 128, 128], [128, 128, 128], 2, (2, 2), (2, 2)),
+        ([1, 64, 64], [128, 128, 128, 128], 0, (2, 2), (2, 2)),
+        ([1, 64, 64], [128, 128, 128, 128], 3, (2, 2), (2, 2)),
+        ([1, 128, 128], [128, 128, 128, 128], 0, (2, 2), (2, 2)),
+        ([1, 128, 128], [128, 128, 128, 128], 3, (2, 2), (2, 2)),
+        ([1, 16, 64, 64], [128, 128, 128], 0, (1, 2, 2), (1, 2, 2)),
+        ([1, 16, 64, 64], [128, 128, 128], 2, (1, 2, 2), (1, 2, 2)),
+        ([1, 16, 128, 128], [128, 128, 128], 0, (1, 2, 2), (1, 2, 2)),
+        ([1, 16, 128, 128], [128, 128, 128], 2, (1, 2, 2), (1, 2, 2)),
+        ([1, 16, 64, 64], [128, 128, 128, 128], 0, (1, 2, 2), (1, 2, 2)),
+        ([1, 16, 64, 64], [128, 128, 128, 128], 3, (1, 2, 2), (1, 2, 2)),
+        ([1, 16, 128, 128], [128, 128, 128, 128], 0, (1, 2, 2), (1, 2, 2)),
+        ([1, 16, 128, 128], [128, 128, 128, 128], 3, (1, 2, 2), (1, 2, 2)),
     ],
 )
-def test_bottom_up_layers_no_LC(
-    z_dims: list[int], tmp_path, create_dummy_noise_model
+def test_bottom_up_layers(
+    img_size: list[int],
+    z_dims: list[int],
+    multiscale_count,
+    encoder_conv_stride,
+    decoder_conv_stride,
+    tmp_path,
+    create_dummy_noise_model,
 ) -> None:
     model = create_LVAE_model(
         tmp_path=tmp_path,
+        input_shape=img_size,
         create_dummy_noise_model=create_dummy_noise_model,
         z_dims=z_dims,
+        multiscale_count=multiscale_count,
+        encoder_conv_strides=encoder_conv_stride,
+        decoder_conv_strides=decoder_conv_stride,
     )
     bottom_up_layers = model.bottom_up_layers
     assert len(bottom_up_layers) == len(z_dims)
-    img_size = model.image_size
     n_filters = model.encoder_n_filters
-    input = torch.ones((1, n_filters, img_size, img_size))
-    exp_img_size = img_size // 2
-    for layer in bottom_up_layers:
-        input, input2 = layer(input)
-        assert input.shape == (1, n_filters, exp_img_size, exp_img_size)
-        assert input2.shape == (1, n_filters, exp_img_size, exp_img_size)
-        exp_img_size //= 2
-
-
-@pytest.mark.parametrize(
-    "z_dims",
-    [
-        [128, 128],
-        [128, 128, 128],
-        [128, 128, 128, 128],
-        [128, 128, 128, 128, 128],
-    ],
-)
-def test_bottom_up_layers_no_LC(
-    z_dims: list[int], tmp_path, create_dummy_noise_model
-) -> None:
-    model = create_LVAE_model(
-        tmp_path=tmp_path,
-        create_dummy_noise_model=create_dummy_noise_model,
-        z_dims=z_dims,
+    downscale_factor = [2 for _ in model.image_size[-2:]]
+    if len(model.image_size) == 4:
+        downscale_factor.insert(0, 1)
+    downscale_factor = (1, 1, *downscale_factor)
+    expected_img_size = np.array((1, n_filters, *model.image_size[1:])) // np.array(
+        downscale_factor
     )
-    bottom_up_layers = model.bottom_up_layers
-    assert len(bottom_up_layers) == len(z_dims)
-    img_size = model.image_size
-    n_filters = model.encoder_n_filters
-    inputs = torch.ones((1, n_filters, img_size, img_size))
-    exp_img_size = img_size // 2
+    input_size = (1, n_filters, *model.image_size[1:])
+    inputs = torch.ones(input_size)
     for layer in bottom_up_layers:
         input1, input2 = layer(inputs)
-        assert input1.shape == (1, n_filters, exp_img_size, exp_img_size)
-        assert input2.shape == (1, n_filters, exp_img_size, exp_img_size)
-        exp_img_size //= 2
+        assert input1.shape == tuple(expected_img_size)
+        assert input2.shape == tuple(expected_img_size)
+        # this is cuz /= gives ufunc error
+        # expected_img_size = expected_img_size / np.array(downscale_factor)
+        # TODO why do we need to do this?
 
 
 @pytest.mark.parametrize(
@@ -174,74 +174,28 @@ def test_LC_init(
 
 
 @pytest.mark.parametrize(
-    "z_dims, multiscale_count",
+    "img_size, z_dims, multiscale_count, encoder_conv_stride, decoder_conv_stride",
     [
-        ([128, 128, 128], 2),
-        ([128, 128, 128], 4),
-        ([128, 128, 128, 128], 4),
-        ([128, 128, 128, 128], 5),
-    ],
-)
-def test_bottom_up_layers_with_LC(
-    z_dims: list[int],
-    multiscale_count: int,
-    tmp_path,
-    create_dummy_noise_model,
-) -> None:
-
-    model = create_LVAE_model(
-        tmp_path=tmp_path,
-        create_dummy_noise_model=create_dummy_noise_model,
-        z_dims=z_dims,
-        multiscale_count=multiscale_count,
-    )
-    bottom_up_layers = model.bottom_up_layers
-
-    assert len(bottom_up_layers) == len(
-        z_dims
-    ), "Different number of bottom_up_layers and z_dims"
-    # Check we have the right number of lowres_net's
-    for i in range(multiscale_count - 1):
-        assert bottom_up_layers[i].lowres_net is not None, "Missing lowres_net"
-
-    img_size = model.image_size
-    n_filters = model.encoder_n_filters
-    input = torch.ones((1, n_filters, img_size, img_size))
-    lowres_input = torch.ones((1, n_filters, img_size, img_size))
-    exp_img_size = img_size
-    for i, layer in enumerate(bottom_up_layers):
-        if i + 1 > multiscale_count - 1:
-            # assert layer.enable_multiscale is False, f"mc={multiscale_count}, i={i}"
-            exp_img_size //= 2
-            lowres_input = None
-        input, merged = layer(input, lowres_input)
-        assert input.shape == (1, n_filters, exp_img_size, exp_img_size)
-        assert merged.shape == (1, n_filters, exp_img_size, exp_img_size)
-
-
-@pytest.mark.parametrize(
-    "z_dims, multiscale_count, encoder_conv_stride, decoder_conv_stride",
-    [
-        ([128, 128, 128], 0, (2, 2), (2, 2)),
-        ([128, 128, 128], 1, (2, 2), (2, 2)),
-        ([128, 128, 128], 2, (2, 2), (2, 2)),
-        ([128, 128, 128], 4, (2, 2), (2, 2)),
-        ([128, 128, 128], 4, (1, 2), (1, 2)),
-        ([128, 128, 128, 128], 0, (2, 2), (2, 2)),
-        ([128, 128, 128, 128], 1, (2, 2), (2, 2)),
-        ([128, 128, 128, 128], 4, (2, 2), (2, 2)),
-        ([128, 128, 128, 128], 5, (2, 2), (2, 2)),
-        ([128, 128, 128], 0, (2, 2, 2), (2, 2, 2)),
-        ([128, 128, 128], 1, (2, 2, 2), (2, 2, 2)),
-        ([128, 128, 128], 2, (2, 2, 2), (2, 2, 2)),
-        ([128, 128, 128], 4, (2, 2, 2), (2, 2, 2)),
-        ([128, 128, 128, 128], 0, (2, 2, 2), (2, 2, 2)),
-        ([128, 128, 128, 128], 1, (2, 2, 2), (2, 2, 2)),
-        ([128, 128, 128, 128], 4, (2, 2, 2), (2, 2, 2)),
-        ([128, 128, 128, 128], 5, (2, 2, 2), (2, 2, 2)),
+        ([1, 64, 64], [128, 128, 128], 0, (2, 2), (2, 2)),
+        ([1, 64, 64], [128, 128, 128], 2, (2, 2), (2, 2)),
+        ([1, 128, 128], [128, 128, 128], 0, (2, 2), (2, 2)),
+        ([1, 128, 128], [128, 128, 128], 2, (2, 2), (2, 2)),
+        ([1, 64, 64], [128, 128, 128, 128], 0, (2, 2), (2, 2)),
+        ([1, 64, 64], [128, 128, 128, 128], 3, (2, 2), (2, 2)),
+        ([1, 128, 128], [128, 128, 128, 128], 0, (2, 2), (2, 2)),
+        ([1, 128, 128], [128, 128, 128, 128], 3, (2, 2), (2, 2)),
+        ([1, 16, 64, 64], [128, 128, 128], 0, (1, 2, 2), (1, 2, 2)),
+        ([1, 16, 64, 64], [128, 128, 128], 2, (1, 2, 2), (1, 2, 2)),
+        ([1, 16, 128, 128], [128, 128, 128], 0, (1, 2, 2), (1, 2, 2)),
+        ([1, 16, 128, 128], [128, 128, 128], 2, (1, 2, 2), (1, 2, 2)),
+        ([1, 16, 64, 64], [128, 128, 128, 128], 0, (1, 2, 2), (1, 2, 2)),
+        ([1, 16, 64, 64], [128, 128, 128, 128], 3, (1, 2, 2), (1, 2, 2)),
+        ([1, 16, 128, 128], [128, 128, 128, 128], 0, (1, 2, 2), (1, 2, 2)),
+        ([1, 16, 128, 128], [128, 128, 128, 128], 3, (1, 2, 2), (1, 2, 2)),
     ],
 )
 def test_bottom_up_pass(
+    img_size: list[int],
     z_dims: list[int],
     multiscale_count: int,
     encoder_conv_stride,
@@ -251,6 +205,7 @@ def test_bottom_up_pass(
 ) -> None:
 
     model = create_LVAE_model(
+        input_shape=img_size,
         tmp_path=tmp_path,
         create_dummy_noise_model=create_dummy_noise_model,
         z_dims=z_dims,
@@ -272,9 +227,9 @@ def test_bottom_up_pass(
     img_size = model.image_size
     n_filters = model.encoder_n_filters
     n_channels = multiscale_count if multiscale_count else 1
-    input = torch.ones((1, n_channels, img_size, img_size))
+    inputs = torch.ones((1, *img_size))
     outputs = model._bottomup_pass(
-        inp=input,
+        inp=inputs,
         first_bottom_up=first_bottom_up_layer,
         lowres_first_bottom_ups=lowres_first_bottom_up_layers,
         bottom_up_layers=bottom_up_layers,
@@ -282,8 +237,8 @@ def test_bottom_up_pass(
     exp_img_size = img_size
     for i in range(len(bottom_up_layers)):
         if i + 1 > multiscale_count - 1:
-            exp_img_size //= 2
-        assert outputs[i].shape == (1, n_filters, exp_img_size, exp_img_size)
+            exp_img_size[1:] = [s // 2 for s in exp_img_size[1:]]
+        assert outputs[i].shape == (1, n_filters, *exp_img_size[1:])
 
 
 @pytest.mark.parametrize("img_size", [64, 128])
@@ -323,8 +278,8 @@ def test_topmost_top_down_layer(
         ((1, 64, 64), (64, 64, 64, 64), 3, (2, 2), (2, 2)),
         ((1, 128, 128), (64, 64, 64, 64), 3, (2, 2), (2, 2)),
         ((1, 64, 64), (64, 64, 64, 64, 64), 5, (2, 2), (2, 2)),
-        ((1, 64, 64), (64, 64), 1, (1, 2, 2), (1, 2, 2)),
-        ((1, 64, 64), (64, 64), 1, (1, 2, 2), (2, 2)),
+        ((1, 1, 64, 64), (64, 64), 1, (1, 2, 2), (1, 2, 2)),
+        ((1, 1, 64, 64), (64, 64), 1, (1, 2, 2), (2, 2)),
     ],
 )
 def test_all_top_down_layers(
@@ -349,6 +304,8 @@ def test_all_top_down_layers(
     n_filters = model.encoder_n_filters
     downscaling = 2 ** (model.n_layers + 1 - multiscale_count)
     downscaled_size = [img_sz // downscaling for img_sz in img_size[-2:]]
+    if len(img_size) == 4:
+        downscaled_size = downscaled_size.insert(1, img_size[1])
     inputs = skip_input = None
     bu_value = torch.ones((1, img_size[1], *downscaled_size))
     for i in reversed(range(model.n_layers)):
@@ -361,10 +318,14 @@ def test_all_top_down_layers(
         )
         inputs = bu_value = skip_input = output
 
-        retain_sp_dims = td_layer.retain_spatial_dims and downscaled_size == img_size
-        exp_out_size = downscaled_size if retain_sp_dims else 2 * downscaled_size
-        expected_out_shape = (1, n_filters, exp_out_size, exp_out_size)
-        expected_z_shape = (1, model.z_dims[0], downscaled_size, downscaled_size)
+        retain_sp_dims = (
+            td_layer.retain_spatial_dims and downscaled_size == img_size[-2:]
+        )
+        exp_out_size = (
+            downscaled_size if retain_sp_dims else [2 * s for s in downscaled_size]
+        )
+        expected_out_shape = (1, n_filters, *exp_out_size)
+        expected_z_shape = (1, model.z_dims[0], *downscaled_size)
         assert (
             output.shape == expected_out_shape
         ), f"Found problem in layer {i+1}, retain={td_layer.retain_spatial_dims}, dwsc={downscaled_size}"
@@ -517,3 +478,48 @@ def test_output_layer(
     num_out_ch = output_channels * (2 if predict_logvar == "pixelwise" else 1)
     exp_out_shape = (1, num_out_ch, img_size, img_size)
     assert output.shape == exp_out_shape
+
+
+@pytest.mark.parametrize(
+    "img_size, z_dims, multiscale_count, encoder_conv_stride, decoder_conv_stride",
+    [
+        ([1, 64, 64], [128, 128, 128], 0, (2, 2), (2, 2)),
+        ([1, 64, 64], [128, 128, 128], 2, (2, 2), (2, 2)),
+        ([1, 128, 128], [128, 128, 128], 0, (2, 2), (2, 2)),
+        ([1, 128, 128], [128, 128, 128], 2, (2, 2), (2, 2)),
+        ([1, 64, 64], [128, 128, 128, 128], 0, (2, 2), (2, 2)),
+        ([1, 64, 64], [128, 128, 128, 128], 3, (2, 2), (2, 2)),
+        ([1, 128, 128], [128, 128, 128, 128], 0, (2, 2), (2, 2)),
+        ([1, 128, 128], [128, 128, 128, 128], 3, (2, 2), (2, 2)),
+        ([1, 16, 64, 64], [128, 128, 128], 0, (1, 2, 2), (1, 2, 2)),
+        ([1, 16, 64, 64], [128, 128, 128], 2, (1, 2, 2), (1, 2, 2)),
+        ([1, 16, 128, 128], [128, 128, 128], 0, (1, 2, 2), (1, 2, 2)),
+        ([1, 16, 128, 128], [128, 128, 128], 2, (1, 2, 2), (1, 2, 2)),
+        ([1, 16, 64, 64], [128, 128, 128, 128], 0, (1, 2, 2), (1, 2, 2)),
+        ([1, 16, 64, 64], [128, 128, 128, 128], 3, (1, 2, 2), (1, 2, 2)),
+        ([1, 16, 128, 128], [128, 128, 128, 128], 0, (1, 2, 2), (1, 2, 2)),
+        ([1, 16, 128, 128], [128, 128, 128, 128], 3, (1, 2, 2), (1, 2, 2)),
+    ],
+)
+def test_lvae(
+    img_size: list[int],
+    z_dims: list[int],
+    multiscale_count: int,
+    encoder_conv_stride,
+    decoder_conv_stride,
+    tmp_path,
+    create_dummy_noise_model,
+) -> None:
+    model = create_LVAE_model(
+        tmp_path=tmp_path,
+        create_dummy_noise_model=create_dummy_noise_model,
+        input_shape=img_size,
+        z_dims=z_dims,
+        multiscale_count=multiscale_count,
+        encoder_conv_strides=encoder_conv_stride,
+        decoder_conv_strides=decoder_conv_stride,
+    )
+    inputs = torch.ones((1, *img_size))
+    output = model(inputs)
+    assert output[0].shape == (1, *img_size)
+    # TODO add tests for td_data

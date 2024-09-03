@@ -152,14 +152,6 @@ class LadderVAE(nn.Module):
 
         # Derived attributes
         self.n_layers = len(self.z_dims)
-        self.encoder_no_padding_mode = (
-            self.encoder_res_block_skip_padding is True
-            and self.encoder_res_block_kernel > 1
-        )
-        self.decoder_no_padding_mode = (
-            self.decoder_res_block_skip_padding is True
-            and self.decoder_res_block_kernel > 1
-        )
 
         # Others...
         self._tethered_to_input = False
@@ -546,6 +538,7 @@ class LadderVAE(nn.Module):
                 BottomUpDeterministicResBlock(
                     c_in=self.encoder_n_filters,
                     c_out=self.encoder_n_filters,
+                    conv_strides=self.encoder_conv_strides,
                     nonlin=nonlin,
                     downsample=False,
                     batchnorm=self.bottomup_batchnorm,
@@ -564,6 +557,7 @@ class LadderVAE(nn.Module):
     ### SET OF FORWARD-LIKE METHODS
     def bottomup_pass(self, inp: torch.Tensor) -> list[torch.Tensor]:
         """Wrapper of _bottomup_pass()."""
+        # TODO why is this a wrapper?
         return self._bottomup_pass(
             inp,
             self.first_bottom_up,
@@ -835,6 +829,7 @@ class LadderVAE(nn.Module):
 
     def get_latent_spatial_size(self, level_idx: int):
         """Level_idx: 0 is the bottommost layer, the highest resolution one."""
+        # TODO why is this only for 2D?
         actual_downsampling = level_idx + 1
         dwnsc = 2**actual_downsampling
         sz = self.get_padded_size(self.image_size)
