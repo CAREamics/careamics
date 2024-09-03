@@ -220,7 +220,7 @@ class LadderVAE(nn.Module):
         # unless we want to prevent this
         self.encoder_conv_op = getattr(nn, f"Conv{len(self.encoder_conv_strides)}d")
         self.decoder_conv_op = getattr(nn, f"Conv{len(self.decoder_conv_strides)}d")
-        stride = 1 if self.no_initial_downscaling else 2
+        stride = 1 if self.no_initial_downscaling else 2 # TODO: can this be 2 ?
         self.first_bottom_up = self.create_first_bottom_up(stride)
 
         # Input Branches for Lateral Contextualization

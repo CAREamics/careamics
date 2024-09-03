@@ -317,10 +317,10 @@ class ResBlockWithResampling(nn.Module):
                     in_channels=c_in,
                     kernel_size=3,
                     out_channels=inner_channels,
-                    padding=1,
+                    padding=1, # TODO maybe don't hardcode this?
                     stride=conv_strides,
                     groups=groups,
-                    output_padding=1,
+                    output_padding=1 if len(conv_strides) == 2 else (0, 1, 1),
                     bias=conv2d_bias,
                 )
         elif c_in != inner_channels:
@@ -1056,15 +1056,18 @@ class TopDownLayer(nn.Module):
                 c_in=n_filters,
                 c_vars=z_dim,
                 c_out=n_filters,
+                mode_3D=len(conv_strides) == 3,
                 transform_p_params=(not is_top_layer),
                 groups=groups,
                 conv2d_bias=conv2d_bias,
+                restricted_kl=restricted_kl,
             )
         else:
             self.stochastic = NormalStochasticBlock(
                 c_in=n_filters,
                 c_vars=z_dim,
                 c_out=n_filters,
+                mode_3D=len(conv_strides) == 3,
                 transform_p_params=(not is_top_layer),
                 vanilla_latent_hw=vanilla_latent_hw,
                 restricted_kl=restricted_kl,
@@ -1174,6 +1177,27 @@ class TopDownLayer(nn.Module):
 
         return p_params
 
+    # def align_pparams_buvalue(self, p_params, bu_value):
+    #     """
+    #     In case the padding is not used either (or both) in encoder and decoder.
+
+    #     we could have a mismatch. Doing a centercrop to ensure that both remain aligned.
+    #     """
+    #     # TODO why would they ever be not equal?
+    #     if bu_value.shape[-2:] != p_params.shape[-2:]:
+    #         assert self.bottomup_no_padding_mode is True, f'{bu_value.shape[-2:]} != {p_params.shape[-2:]}'
+    #         if self.topdown_no_padding_mode is False:
+    #             assert bu_value.shape[-1] > p_params.shape[-1]
+    #             bu_value = F.center_crop(bu_value, p_params.shape[-2:])
+    #         else:
+    #             if bu_value.shape[-1] > p_params.shape[-1]:
+    #                 bu_value = F.center_crop(bu_value, p_params.shape[-2:])
+    #             else:
+    #                 p_params = F.center_crop(p_params, bu_value.shape[-2:])
+    #     return p_params, bu_value
+        # TODO What is this for?
+
+
     def forward(
         self,
         input_: Union[torch.Tensor, None] = None,
@@ -1231,26 +1255,23 @@ class TopDownLayer(nn.Module):
             raise ValueError("In top layer, inputs should be None")
 
         p_params = self.get_p_params(input_, n_img_prior)
-        
-        
-        '''
-                if inference_mode:
-            if self.is_top_layer:
-                q_params = bu_value
-                if mode_pred is False:
-                    p_params, bu_value = self.align_pparams_buvalue(p_params, bu_value)
-            else:
-                if use_uncond_mode:
-                    q_params = p_params
-                else:
-                    p_params, bu_value = self.align_pparams_buvalue(p_params, bu_value)
-                    q_params = self.merge(bu_value, p_params)
 
-        # In generative mode, q is not used
-        else:
-            q_params = None
-        '''
-        
+        # if inference_mode:
+        #     if self.is_top_layer:
+        #         q_params = bu_value
+        #         if mode_pred is False:
+        #             p_params, bu_value = self.align_pparams_buvalue(p_params, bu_value)
+        #     else:
+        #         if use_uncond_mode:
+        #             q_params = p_params
+        #         else:
+        #             p_params, bu_value = self.align_pparams_buvalue(p_params, bu_value)
+        #             q_params = self.merge(bu_value, p_params)
+
+        # # In generative mode, q is not used
+        # else:
+        #     q_params = None
+
         # Get the parameters for the latent distribution to sample from
         if inference_mode:  # TODO What's this ?
             if self.is_top_layer:
