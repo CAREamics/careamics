@@ -8,7 +8,7 @@ import numpy as np
 from numpy.typing import NDArray
 from skimage.transform import resize
 
-from careamics.lvae_training.dataset.configs.lc_dataset_config import LCVaeDatasetConfig
+from careamics.lvae_training.dataset.configs.lc_dataset_config import LCDatasetConfig
 from .multich_dataset import MultiChDloader
 
 
@@ -16,7 +16,7 @@ class LCMultiChDloader(MultiChDloader):
 
     def __init__(
         self,
-        data_config: LCVaeDatasetConfig,
+        data_config: LCDatasetConfig,
         fpath: str,
         load_data_fn: Callable[..., NDArray],
         val_fraction=None,

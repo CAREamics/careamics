@@ -10,8 +10,8 @@ from numpy.typing import NDArray
 from careamics.lvae_training.dataset.utils.empty_patch_fetcher import EmptyPatchFetcher
 from careamics.lvae_training.dataset.utils.index_manager import GridIndexManager
 from careamics.lvae_training.dataset.utils.index_switcher import IndexSwitcher
-from careamics.lvae_training.dataset.configs.vae_data_config import (
-    VaeDatasetConfig,
+from careamics.lvae_training.dataset.configs.multich_data_config import (
+    MultiChDatasetConfig,
     DataSplitType,
     TilingMode,
 )
@@ -20,7 +20,7 @@ from careamics.lvae_training.dataset.configs.vae_data_config import (
 class MultiChDloader:
     def __init__(
         self,
-        data_config: VaeDatasetConfig,
+        data_config: MultiChDatasetConfig,
         fpath: str,
         load_data_fn: Callable[..., NDArray],
         val_fraction: float = None,

@@ -1,9 +1,11 @@
 from pydantic import ConfigDict
 
-from careamics.lvae_training.dataset.configs.vae_data_config import VaeDatasetConfig
+from careamics.lvae_training.dataset.configs.multich_data_config import (
+    MultiChDatasetConfig,
+)
 
 
-class LCVaeDatasetConfig(VaeDatasetConfig):
+class LCDatasetConfig(MultiChDatasetConfig):
     model_config = ConfigDict(validate_assignment=True)
 
     num_scales: int = 1

@@ -4,11 +4,11 @@ from typing import Union
 import numpy as np
 import tifffile
 
-from careamics.lvae_training.dataset.configs.lc_dataset_config import LCVaeDatasetConfig
-from careamics.lvae_training.dataset.configs.vae_data_config import (
+from careamics.lvae_training.dataset.configs.lc_dataset_config import LCDatasetConfig
+from careamics.lvae_training.dataset.configs.multich_data_config import (
     DataSplitType,
     DataType,
-    VaeDatasetConfig,
+    MultiChDatasetConfig,
 )
 from careamics.lvae_training.dataset.multifile_dataset import MultiFileDset
 from careamics.lvae_training.dataset.utils.data_utils import (
@@ -25,7 +25,7 @@ def random_uint16_data(shape, max_value):
 
 
 def load_data_fn_example(
-    data_config: Union[VaeDatasetConfig, LCVaeDatasetConfig],
+    data_config: Union[MultiChDatasetConfig, LCDatasetConfig],
     fpath: str,
     datasplit_type: DataSplitType,
     val_fraction=None,
@@ -51,7 +51,7 @@ def test_create_vae_dataset(tmp_path: Path, num_files=3):
         example_data = random_uint16_data((25, 512, 512, 3), max_value=65535)
         tifffile.imwrite(tmp_path / f"{i}.tif", example_data)
 
-    config = VaeDatasetConfig(
+    config = MultiChDatasetConfig(
         image_size=64,
         num_channels=3,
         input_idx=2,

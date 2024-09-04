@@ -53,7 +53,7 @@ class TilingMode(Enum):
 
 
 # TODO: check if any bool logic can be removed
-class VaeDatasetConfig(BaseModel):
+class MultiChDatasetConfig(BaseModel):
     model_config = ConfigDict(validate_assignment=True)
 
     data_type: Optional[DataType]

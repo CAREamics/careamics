@@ -3,11 +3,11 @@ from typing import Union, Callable
 import numpy as np
 from numpy.typing import NDArray
 
-from careamics.lvae_training.dataset.configs.lc_dataset_config import LCVaeDatasetConfig
+from careamics.lvae_training.dataset.configs.lc_dataset_config import LCDatasetConfig
 from careamics.lvae_training.dataset.lc_dataset import LCMultiChDloader
-from careamics.lvae_training.dataset.configs.vae_data_config import (
+from careamics.lvae_training.dataset.configs.multich_data_config import (
     DataSplitType,
-    VaeDatasetConfig,
+    MultiChDatasetConfig,
 )
 from careamics.lvae_training.dataset.multich_dataset import MultiChDloader
 
@@ -16,7 +16,7 @@ class SingleFileLCDset(LCMultiChDloader):
     def __init__(
         self,
         preloaded_data: NDArray,
-        data_config: Union[VaeDatasetConfig, LCVaeDatasetConfig],
+        data_config: Union[MultiChDatasetConfig, LCDatasetConfig],
         fpath: str,
         load_data_fn: Callable[..., NDArray],
         val_fraction=None,
@@ -40,7 +40,7 @@ class SingleFileLCDset(LCMultiChDloader):
 
     def load_data(
         self,
-        data_config: Union[VaeDatasetConfig, LCVaeDatasetConfig],
+        data_config: Union[MultiChDatasetConfig, LCDatasetConfig],
         datasplit_type: DataSplitType,
         load_data_fn: Callable[..., NDArray],
         val_fraction=None,
@@ -58,7 +58,7 @@ class SingleFileDset(MultiChDloader):
     def __init__(
         self,
         preloaded_data: NDArray,
-        data_config: Union[VaeDatasetConfig, LCVaeDatasetConfig],
+        data_config: Union[MultiChDatasetConfig, LCDatasetConfig],
         fpath: str,
         load_data_fn: Callable[..., NDArray],
         val_fraction=None,
@@ -82,7 +82,7 @@ class SingleFileDset(MultiChDloader):
 
     def load_data(
         self,
-        data_config: Union[VaeDatasetConfig, LCVaeDatasetConfig],
+        data_config: Union[MultiChDatasetConfig, LCDatasetConfig],
         datasplit_type: DataSplitType,
         load_data_fn: Callable[..., NDArray],
         val_fraction=None,
@@ -109,7 +109,7 @@ class MultiFileDset:
 
     def __init__(
         self,
-        data_config: Union[VaeDatasetConfig, LCVaeDatasetConfig],
+        data_config: Union[MultiChDatasetConfig, LCDatasetConfig],
         fpath: str,
         load_data_fn: Callable[..., NDArray],
         val_fraction=None,
