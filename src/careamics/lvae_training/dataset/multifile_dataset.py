@@ -1,17 +1,24 @@
-import numpy as np
+from typing import Union, Callable
 
-from careamics.lvae_training.dataset.utils.data_utils import get_train_val_data
+import numpy as np
+from numpy.typing import NDArray
+
+from careamics.lvae_training.dataset.configs.lc_dataset_config import LCVaeDatasetConfig
 from careamics.lvae_training.dataset.lc_dataset import LCMultiChDloader
-from careamics.lvae_training.dataset.configs.vae_data_config import DataSplitType
-from careamics.lvae_training.dataset.vae_dataset import MultiChDloader
+from careamics.lvae_training.dataset.configs.vae_data_config import (
+    DataSplitType,
+    VaeDatasetConfig,
+)
+from careamics.lvae_training.dataset.multich_dataset import MultiChDloader
 
 
 class SingleFileLCDset(LCMultiChDloader):
     def __init__(
         self,
-        preloaded_data,
-        data_config,
+        preloaded_data: NDArray,
+        data_config: Union[VaeDatasetConfig, LCVaeDatasetConfig],
         fpath: str,
+        load_data_fn: Callable[..., NDArray],
         val_fraction=None,
         test_fraction=None,
     ):
@@ -19,6 +26,7 @@ class SingleFileLCDset(LCMultiChDloader):
         super().__init__(
             data_config,
             fpath,
+            load_data_fn=load_data_fn,
             val_fraction=val_fraction,
             test_fraction=test_fraction,
         )
@@ -30,7 +38,15 @@ class SingleFileLCDset(LCMultiChDloader):
     def rm_bkground_set_max_val_and_upperclip_data(self, max_val, datasplit_type):
         pass
 
-    def load_data(self, data_config):
+    def load_data(
+        self,
+        data_config: Union[VaeDatasetConfig, LCVaeDatasetConfig],
+        datasplit_type: DataSplitType,
+        load_data_fn: Callable[..., NDArray],
+        val_fraction=None,
+        test_fraction=None,
+        allow_generation=None,
+    ):
         self._data = self._preloaded_data
         assert "channel_1" not in data_config or isinstance(data_config.channel_1, str)
         assert "channel_2" not in data_config or isinstance(data_config.channel_2, str)
@@ -41,9 +57,10 @@ class SingleFileLCDset(LCMultiChDloader):
 class SingleFileDset(MultiChDloader):
     def __init__(
         self,
-        preloaded_data,
-        data_config,
+        preloaded_data: NDArray,
+        data_config: Union[VaeDatasetConfig, LCVaeDatasetConfig],
         fpath: str,
+        load_data_fn: Callable[..., NDArray],
         val_fraction=None,
         test_fraction=None,
     ):
@@ -51,6 +68,7 @@ class SingleFileDset(MultiChDloader):
         super().__init__(
             data_config,
             fpath,
+            load_data_fn=load_data_fn,
             val_fraction=val_fraction,
             test_fraction=test_fraction,
         )
@@ -64,8 +82,9 @@ class SingleFileDset(MultiChDloader):
 
     def load_data(
         self,
-        data_config,
-        datasplit_type,
+        data_config: Union[VaeDatasetConfig, LCVaeDatasetConfig],
+        datasplit_type: DataSplitType,
+        load_data_fn: Callable[..., NDArray],
         val_fraction=None,
         test_fraction=None,
         allow_generation=None,
@@ -88,10 +107,16 @@ class MultiFileDset:
     Here, we handle dataset having multiple files. Each file can have a different spatial dimension and number of frames (Z stack).
     """
 
-    def __init__(self, data_config, fpath: str, val_fraction=None, test_fraction=None):
-
+    def __init__(
+        self,
+        data_config: Union[VaeDatasetConfig, LCVaeDatasetConfig],
+        fpath: str,
+        load_data_fn: Callable[..., NDArray],
+        val_fraction=None,
+        test_fraction=None,
+    ):
         self._fpath = fpath
-        data = get_train_val_data(
+        data = load_data_fn(
             data_config,
             self._fpath,
             data_config.datasplit_type,
@@ -117,6 +142,7 @@ class MultiFileDset:
                         prefetched_data[None],
                         data_config,
                         fpath_tuple,
+                        load_data_fn,
                         val_fraction=val_fraction,
                         test_fraction=test_fraction,
                     )
@@ -128,6 +154,7 @@ class MultiFileDset:
                         prefetched_data[None],
                         data_config,
                         fpath_tuple,
+                        load_data_fn,
                         val_fraction=val_fraction,
                         test_fraction=test_fraction,
                     )

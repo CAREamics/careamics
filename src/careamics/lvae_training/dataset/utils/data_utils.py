@@ -2,29 +2,10 @@
 Utility functions needed by dataloader & co.
 """
 
-import os
 from typing import List
 
 import numpy as np
 from skimage.io import imread, imsave
-
-from careamics.lvae_training.dataset.configs.vae_data_config import (
-    DataSplitType,
-    DataType,
-)
-
-Multifile_Datasets = [
-    "Pavia3SeqData",
-    "TavernaSox2GolgiV2",
-    "Dao3ChannelWithInput",
-    "ExpMicroscopyV2",
-    "Dao3Channel",
-    "TavernaSox2Golgi",
-    "ExpMicroscopyV1",
-    "OptiMEM100_014",
-]
-
-Singlefile_Datasets = ["Elisa3DData", "NicolaData", "HTIba1Ki67", "SeparateTiffData"]
 
 
 def load_tiff(path):
@@ -81,70 +62,6 @@ def adjust_for_imbalance_in_fraction_value(
             val += test[:imb_count]
             test = test[imb_count:]
     return val, test
-
-
-def get_train_val_data(
-    data_config,
-    fpath,
-    datasplit_type: DataSplitType,
-    val_fraction=None,
-    test_fraction=None,
-    allow_generation=False,  # TODO: what is this
-):
-    """
-    Load the data from the given path and split them in training, validation and test sets.
-
-    Ensure that the shape of data should be N*H*W*C: N is number of data points. H,W are the image dimensions.
-    C is the number of channels.
-    """
-    if data_config.data_type.name in Singlefile_Datasets:
-        fpath1 = os.path.join(fpath, data_config.ch1_fname)
-        fpath2 = os.path.join(fpath, data_config.ch2_fname)
-        fpaths = [fpath1, fpath2]
-        fpath0 = ""
-        if "ch_input_fname" in data_config:
-            fpath0 = os.path.join(fpath, data_config.ch_input_fname)
-            fpaths = [fpath0] + fpaths
-
-        print(
-            f"Loading from {fpath} Channels: "
-            f"{fpath1},{fpath2}, inp:{fpath0} Mode:{data_config.data_type}"
-        )
-
-        data = np.concatenate([load_tiff(fpath)[..., None] for fpath in fpaths], axis=3)
-        if data_config.data_type == DataType.PredictedTiffData:
-            assert len(data.shape) == 5 and data.shape[-1] == 1
-            data = data[..., 0].copy()
-
-        if datasplit_type == DataSplitType.All:
-            return data.astype(np.float32)
-
-        train_idx, val_idx, test_idx = get_datasplit_tuples(
-            val_fraction, test_fraction, len(data), starting_test=True
-        )
-        if datasplit_type == DataSplitType.Train:
-            return data[train_idx].astype(np.float32)
-        elif datasplit_type == DataSplitType.Val:
-            return data[val_idx].astype(np.float32)
-        elif datasplit_type == DataSplitType.Test:
-            return data[test_idx].astype(np.float32)
-
-    elif data_config.data_type.name in Multifile_Datasets:
-        files = fpath.glob("*.tif*")
-        data = [load_tiff(fpath) for fpath in files]
-
-        train_idx, val_idx, test_idx = get_datasplit_tuples(
-            val_fraction, test_fraction, len(data), starting_test=False
-        )
-        if datasplit_type == DataSplitType.Train:
-            return np.take(data, train_idx, axis=0).astype(np.float32)
-        elif datasplit_type == DataSplitType.Val:
-            return np.take(data, val_idx, axis=0).astype(np.float32)
-        elif datasplit_type == DataSplitType.Test:
-            return np.take(data, test_idx, axis=0).astype(np.float32)
-
-    else:
-        raise TypeError(f"Data type {data_config.data_type} not supported")
 
 
 def get_datasplit_tuples(

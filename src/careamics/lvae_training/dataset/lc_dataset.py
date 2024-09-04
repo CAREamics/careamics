@@ -2,13 +2,14 @@
 A place for Datasets and Dataloaders.
 """
 
-from typing import Tuple, Union
+from typing import Tuple, Union, Callable
 
 import numpy as np
+from numpy.typing import NDArray
 from skimage.transform import resize
 
 from careamics.lvae_training.dataset.configs.lc_dataset_config import LCVaeDatasetConfig
-from .vae_dataset import MultiChDloader
+from .multich_dataset import MultiChDloader
 
 
 class LCMultiChDloader(MultiChDloader):
@@ -17,6 +18,7 @@ class LCMultiChDloader(MultiChDloader):
         self,
         data_config: LCVaeDatasetConfig,
         fpath: str,
+        load_data_fn: Callable[..., NDArray],
         val_fraction=None,
         test_fraction=None,
     ):
@@ -40,7 +42,11 @@ class LCMultiChDloader(MultiChDloader):
             overlapping_padding_kwargs = data_config.padding_kwargs
 
         super().__init__(
-            data_config, fpath, val_fraction=val_fraction, test_fraction=test_fraction
+            data_config,
+            fpath,
+            load_data_fn=load_data_fn,
+            val_fraction=val_fraction,
+            test_fraction=test_fraction,
         )
         self.num_scales = data_config.num_scales
         assert self.num_scales is not None

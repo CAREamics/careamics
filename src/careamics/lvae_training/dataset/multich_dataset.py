@@ -2,11 +2,11 @@
 A place for Datasets and Dataloaders.
 """
 
-from typing import Tuple, Union
+from typing import Tuple, Union, Callable
 
 import numpy as np
+from numpy.typing import NDArray
 
-from careamics.lvae_training.dataset.utils.data_utils import get_train_val_data
 from careamics.lvae_training.dataset.utils.empty_patch_fetcher import EmptyPatchFetcher
 from careamics.lvae_training.dataset.utils.index_manager import GridIndexManager
 from careamics.lvae_training.dataset.utils.index_switcher import IndexSwitcher
@@ -22,6 +22,7 @@ class MultiChDloader:
         self,
         data_config: VaeDatasetConfig,
         fpath: str,
+        load_data_fn: Callable[..., NDArray],
         val_fraction: float = None,
         test_fraction: float = None,
     ):
@@ -59,6 +60,7 @@ class MultiChDloader:
         self.load_data(
             data_config,
             data_config.datasplit_type,
+            load_data_fn=load_data_fn,
             val_fraction=val_fraction,
             test_fraction=test_fraction,
             allow_generation=data_config.allow_generation,
@@ -199,11 +201,12 @@ class MultiChDloader:
         self,
         data_config,
         datasplit_type,
+        load_data_fn: Callable[..., NDArray],
         val_fraction=None,
         test_fraction=None,
         allow_generation=None,
     ):
-        self._data = get_train_val_data(
+        self._data = load_data_fn(
             data_config,
             self._fpath,
             datasplit_type,

@@ -1,14 +1,20 @@
 from pathlib import Path
+from typing import Union
 
 import numpy as np
 import tifffile
 
+from careamics.lvae_training.dataset.configs.lc_dataset_config import LCVaeDatasetConfig
 from careamics.lvae_training.dataset.configs.vae_data_config import (
     DataSplitType,
     DataType,
     VaeDatasetConfig,
 )
 from careamics.lvae_training.dataset.multifile_dataset import MultiFileDset
+from careamics.lvae_training.dataset.utils.data_utils import (
+    get_datasplit_tuples,
+    load_tiff,
+)
 
 
 def random_uint16_data(shape, max_value):
@@ -16,6 +22,28 @@ def random_uint16_data(shape, max_value):
     data = data * max_value
     data = data.astype(np.uint16)
     return data
+
+
+def load_data_fn_example(
+    data_config: Union[VaeDatasetConfig, LCVaeDatasetConfig],
+    fpath: str,
+    datasplit_type: DataSplitType,
+    val_fraction=None,
+    test_fraction=None,
+    **kwargs,
+):
+    files = Path(fpath).glob("*.tif*")
+    data = [load_tiff(fpath) for fpath in files]
+
+    train_idx, val_idx, test_idx = get_datasplit_tuples(
+        val_fraction, test_fraction, len(data), starting_test=False
+    )
+    if datasplit_type == DataSplitType.Train:
+        return np.take(data, train_idx, axis=0).astype(np.float32)
+    elif datasplit_type == DataSplitType.Val:
+        return np.take(data, val_idx, axis=0).astype(np.float32)
+    elif datasplit_type == DataSplitType.Test:
+        return np.take(data, test_idx, axis=0).astype(np.float32)
 
 
 def test_create_vae_dataset(tmp_path: Path, num_files=3):
@@ -37,7 +65,13 @@ def test_create_vae_dataset(tmp_path: Path, num_files=3):
         enable_rotation_aug=False,
     )
 
-    dataset = MultiFileDset(config, tmp_path, val_fraction=0.1, test_fraction=0.1)
+    dataset = MultiFileDset(
+        config,
+        tmp_path,
+        load_data_fn=load_data_fn_example,
+        val_fraction=0.1,
+        test_fraction=0.1,
+    )
 
     max_val = dataset.get_max_val()
     assert max_val is not None, max_val > 0

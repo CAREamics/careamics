@@ -1,4 +1,6 @@
+import os
 from pathlib import Path
+from typing import Union
 
 import numpy as np
 import pytest
@@ -11,7 +13,46 @@ from careamics.lvae_training.dataset.configs.vae_data_config import (
     VaeDatasetConfig,
 )
 from careamics.lvae_training.dataset.lc_dataset import LCMultiChDloader
-from careamics.lvae_training.dataset.vae_dataset import MultiChDloader
+from careamics.lvae_training.dataset.multich_dataset import MultiChDloader
+from careamics.lvae_training.dataset.utils.data_utils import (
+    get_datasplit_tuples,
+    load_tiff,
+)
+
+
+def load_data_fn_example(
+    data_config: Union[VaeDatasetConfig, LCVaeDatasetConfig],
+    fpath: str,
+    datasplit_type: DataSplitType,
+    val_fraction=None,
+    test_fraction=None,
+    **kwargs,
+):
+    fpath1 = os.path.join(fpath, data_config.ch1_fname)
+    fpath2 = os.path.join(fpath, data_config.ch2_fname)
+    fpaths = [fpath1, fpath2]
+
+    if "ch_input_fname" in data_config:
+        fpath0 = os.path.join(fpath, data_config.ch_input_fname)
+        fpaths = [fpath0] + fpaths
+
+    data = np.concatenate([load_tiff(fpath)[..., None] for fpath in fpaths], axis=3)
+    if data_config.data_type == DataType.PredictedTiffData:
+        assert len(data.shape) == 5 and data.shape[-1] == 1
+        data = data[..., 0].copy()
+
+    if datasplit_type == DataSplitType.All:
+        return data.astype(np.float32)
+
+    train_idx, val_idx, test_idx = get_datasplit_tuples(
+        val_fraction, test_fraction, len(data), starting_test=True
+    )
+    if datasplit_type == DataSplitType.Train:
+        return data[train_idx].astype(np.float32)
+    elif datasplit_type == DataSplitType.Val:
+        return data[val_idx].astype(np.float32)
+    elif datasplit_type == DataSplitType.Test:
+        return data[test_idx].astype(np.float32)
 
 
 @pytest.fixture
@@ -54,6 +95,7 @@ def test_create_vae_dataset(default_config, dummy_data_path):
     dataset = MultiChDloader(
         default_config,
         dummy_data_path,
+        load_data_fn=load_data_fn_example,
         val_fraction=0.1,
         test_fraction=0.1,
     )
@@ -92,7 +134,11 @@ def test_create_lc_dataset(default_config, dummy_data_path, num_scales: int):
     lc_config.overlapping_padding_kwargs = lc_config.padding_kwargs
 
     dataset = LCMultiChDloader(
-        lc_config, dummy_data_path, val_fraction=0.1, test_fraction=0.1
+        lc_config,
+        dummy_data_path,
+        load_data_fn=load_data_fn_example,
+        val_fraction=0.1,
+        test_fraction=0.1,
     )
 
     max_val = dataset.get_max_val()
