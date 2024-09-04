@@ -38,7 +38,6 @@ class LadderVAE(nn.Module):
         decoder_dropout: float,
         nonlinearity: str,
         predict_logvar: bool,
-        enable_noise_model: bool,
         analytical_kl: bool,
     ):
         """
@@ -62,14 +61,11 @@ class LadderVAE(nn.Module):
         self.decoder_dropout = decoder_dropout
         self.nonlin = nonlinearity
         self.predict_logvar = predict_logvar
-        self.enable_noise_model = enable_noise_model
-
         self.analytical_kl = analytical_kl
         # -------------------------------------------------------
 
         # -------------------------------------------------------
         # Model attributes -> Hardcoded
-        self.model_type = ModelType.LadderVae  # TODO remove !
         self.model_type = ModelType.LadderVae  # TODO remove !
         self.encoder_blocks_per_layer = 1
         self.decoder_blocks_per_layer = 1
@@ -93,13 +89,6 @@ class LadderVAE(nn.Module):
         self._var_clip_max = 20
         self._stochastic_use_naive_exponential = False
         self._enable_topdown_normalize_factor = True
-
-        # Noise model attributes -> Hardcoded
-        self.noise_model_type = "gmm" # TODO: remove
-        self.denoise_channel = (
-            "input"  # 4 values for denoise_channel {'Ch1', 'Ch2', 'input','all'}
-        ) # used for HDN
-        self.noise_model_learnable = False # TODO: remove
 
         # Attributes that handle LC -> Hardcoded
         self.enable_multiscale = (
@@ -808,14 +797,14 @@ class LadderVAE(nn.Module):
 
     def reset_for_different_output_size(self, output_size: int) -> None:
         """Reset shape of output and latent tensors for different output size.
-        
+
         Used during evaluation to reset expected shapes of tensors when
-        input/output shape changes. 
-        For instance, it is needed when the model was trained on, say, 64x64 sized 
+        input/output shape changes.
+        For instance, it is needed when the model was trained on, say, 64x64 sized
         patches, but prediction is done on 128x128 patches.
         """
         for i in range(self.n_layers):
-            sz = output_size // 2**(1 + i)
+            sz = output_size // 2 ** (1 + i)
             self.bottom_up_layers[i].output_expected_shape = (sz, sz)
             self.top_down_layers[i].latent_shape = (output_size, output_size)
 

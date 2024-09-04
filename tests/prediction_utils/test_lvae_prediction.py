@@ -29,7 +29,6 @@ def minimum_lvae_params():
         "decoder_dropout": 0.1,
         "nonlinearity": "ELU",
         "predict_logvar": "pixelwise",
-        "enable_noise_model": False,
         "analytical_kl": False,
     }
 
