@@ -90,9 +90,12 @@ class LadderVAE(nn.Module):
         # Customizable attributes
         self.image_size = input_shape
         """Input image size. (C, Z, Y, X) or (C, Y, X) if the data is 2D."""
+        # TODO: we need to be careful with this since used to be an int.
+        # the tuple of shapes used to be `self.input_shape`.
         self.target_ch = output_channels
         self.encoder_conv_strides = encoder_conv_strides
         self.decoder_conv_strides = decoder_conv_strides
+        # TODO: why possibility of 2 different conv strides for encoder and decoder?
         self._multiscale_count = multiscale_count
         self.z_dims = z_dims
         self.encoder_n_filters = encoder_n_filters
@@ -190,7 +193,8 @@ class LadderVAE(nn.Module):
         assert self._mode_3D is True or self._decoder_mode_3D is False, 'Decoder cannot be 3D when encoder is 2D'
         self._squish3d = self._mode_3D and not self._decoder_mode_3D
         self._3D_squisher = None if not self._squish3d else nn.ModuleList([GateLayer(self.encoder.n_filters,3, True) for k in range(len(self.z_dims))])
-
+        # TODO: this bit is in the Ashesh's confusing-hacky style... Can we do better?
+        
         # -------------------------------------------------------
         # # Training attributes
         # # can be used to tile the validation predictions
@@ -221,7 +225,9 @@ class LadderVAE(nn.Module):
         self.encoder_conv_op = getattr(nn, f"Conv{len(self.encoder_conv_strides)}d")
         # TODO these should be defined for all layers here ?
         self.decoder_conv_op = getattr(nn, f"Conv{len(self.decoder_conv_strides)}d")
-        stride = 1 if self.no_initial_downscaling else 2 # TODO: can this be 2 ?
+        # TODO: would be more readable to have a derived parameters to use like
+        # `conv_dims = len(self.encoder_conv_strides)` and then use `Conv{conv_dims}d`
+        stride = 1 if self.no_initial_downscaling else 2
         self.first_bottom_up = self.create_first_bottom_up(stride)
 
         # Input Branches for Lateral Contextualization
@@ -258,6 +264,7 @@ class LadderVAE(nn.Module):
         # PSNR computation on validation.
         # self.label1_psnr = RunningPSNR()
         # self.label2_psnr = RunningPSNR()
+        # TODO: did you add this? 
 
         # msg =f'[{self.__class__.__name__}] Stoc:{not self.non_stochastic_version} RecMode:{self.reconstruction_mode} TethInput:{self._tethered_to_input}'
         # msg += f' TargetCh: {self.target_ch}'
@@ -284,6 +291,7 @@ class LadderVAE(nn.Module):
             The number of BottomUpDeterministicResBlocks, default is 1.
         """
         # TODO Question, we use default stride for the first layer?
+        # From what I got from Ashesh, Z should not be touched in any case.
         nonlin = get_activation(self.nonlin)
         conv_block = self.encoder_conv_op(
             in_channels=self.color_ch, #TODO should be 1 
