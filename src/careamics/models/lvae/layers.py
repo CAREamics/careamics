@@ -4,7 +4,7 @@ reused by the LadderVAE architecture.
 
 from copy import deepcopy
 from typing import Callable, Dict, Iterable, Literal, Tuple, Union
-
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -21,6 +21,7 @@ from .utils import (
 ConvType = Union[nn.Conv2d, nn.Conv3d]
 NormType = Union[nn.BatchNorm2d, nn.BatchNorm3d]
 DropoutType = Union[nn.Dropout2d, nn.Dropout3d]
+
 
 class ResidualBlock(nn.Module):
     """
@@ -163,7 +164,7 @@ class ResidualBlock(nn.Module):
                     channels=channels,
                     conv_strides=conv_strides,
                     kernel_size=1,
-                    nonlin=nonlin
+                    nonlin=nonlin,
                 )
             )
 
@@ -172,9 +173,9 @@ class ResidualBlock(nn.Module):
     def forward(self, x):
 
         out = self.block(x)
-        assert out.shape == x.shape, (
-            f"output shape: {out.shape} != input shape: {x.shape}"
-        )
+        assert (
+            out.shape == x.shape
+        ), f"output shape: {out.shape} != input shape: {x.shape}"
         return out + x
 
 
@@ -191,11 +192,11 @@ class GateLayer(nn.Module):
     """
 
     def __init__(
-        self, 
+        self,
         channels: int,
-        conv_strides:tuple[int] = (2, 2),
+        conv_strides: tuple[int] = (2, 2),
         kernel_size: int = 3,
-        nonlin: Callable = nn.LeakyReLU
+        nonlin: Callable = nn.LeakyReLU,
     ):
         super().__init__()
         assert kernel_size % 2 == 1
@@ -318,7 +319,7 @@ class ResBlockWithResampling(nn.Module):
                     in_channels=c_in,
                     kernel_size=3,
                     out_channels=inner_channels,
-                    padding=1, # TODO maybe don't hardcode this?
+                    padding=1,  # TODO maybe don't hardcode this?
                     stride=conv_strides,
                     groups=groups,
                     output_padding=1 if len(conv_strides) == 2 else (0, 1, 1),
@@ -455,7 +456,7 @@ class BottomUpLayer(nn.Module):
             Whether to pad the latent tensor resulting from the bottom-up layer's primary flow
             to match the size of the low-res input. Default is `False`.
         decoder_retain_spatial_dims: bool, optional
-            Whether in the corresponding top-down layer the shape of tensor is retained between 
+            Whether in the corresponding top-down layer the shape of tensor is retained between
             input and output. Default is `False`.
         output_expected_shape: Iterable[int], optional
             The expected shape of the layer output (only used if `enable_multiscale == True`).
@@ -579,7 +580,7 @@ class BottomUpLayer(nn.Module):
             previous layer.
         lowres_x: torch.Tensor, optional
             The low-res input used for Lateral Contextualization (LC). Default is `None`.
-            
+
         NOTE: first returned tensor is used as input for the next BU layer, while the second
         tensor is the bu_value passed to the top-down layer.
         """
@@ -608,7 +609,7 @@ class BottomUpLayer(nn.Module):
         # - if both are `False` -> `merged`'s spatial dims are equal to `self.net_downsized(x)`,
         #   since no padding is done in `MergeLowRes` and, instead, the lowres input is cropped.
         #   This is OK for the corresp TopDown layer, as it also halves the spatial dims.
-        # - if 1st is `False` and 2nd is `True` -> not a concern, it cannot happen 
+        # - if 1st is `False` and 2nd is `True` -> not a concern, it cannot happen
         #   (see lvae.py, line 111, intialization of `multiscale_decoder_retain_spatial_dims`).
         if (
             self.multiscale_retain_spatial_dims is False
@@ -617,8 +618,8 @@ class BottomUpLayer(nn.Module):
             return merged, merged
 
         # NOTE: if we reach here, it means that `multiscale_retain_spatial_dims` is `True`,
-        # but `decoder_retain_spatial_dims` is `False`, meaning that merging LC preserves 
-        # the spatial dimensions, but at the same time we don't want to retain the spatial 
+        # but `decoder_retain_spatial_dims` is `False`, meaning that merging LC preserves
+        # the spatial dimensions, but at the same time we don't want to retain the spatial
         # dims in the corresponding top-down layer. Therefore, we need to crop the tensor.
         if self.output_expected_shape is not None:
             expected_shape = self.output_expected_shape
@@ -852,7 +853,7 @@ class SkipConnectionMerger(MergeLayer):
 
 class TopDownLayer(nn.Module):
     """Top-down inference layer.
-    
+
     It includes:
         - Stochastic sampling,
         - Computation of KL divergence,
@@ -896,7 +897,9 @@ class TopDownLayer(nn.Module):
         is_top_layer: bool = False,
         upsampling_steps: Union[int, None] = None,
         nonlin: Union[Callable, None] = None,
-        merge_type: Union[Literal["linear", "residual", "residual_ungated"], None] = None,
+        merge_type: Union[
+            Literal["linear", "residual", "residual_ungated"], None
+        ] = None,
         batchnorm: bool = True,
         dropout: Union[float, None] = None,
         stochastic_skip: bool = False,
@@ -1017,7 +1020,7 @@ class TopDownLayer(nn.Module):
         self.latent_shape = input_image_shape if self.retain_spatial_dims else None
         self.non_stochastic_version = non_stochastic_version
         self.normalize_latent_factor = normalize_latent_factor
-        self._vanilla_latent_hw = vanilla_latent_hw # TODO: check this, it is not used
+        self._vanilla_latent_hw = vanilla_latent_hw  # TODO: check this, it is not used
 
         # Define top layer prior parameters, possibly learnable
         if is_top_layer:
@@ -1107,8 +1110,6 @@ class TopDownLayer(nn.Module):
                     res_block_kernel=res_block_kernel,
                 )
 
-        # print(f'[{self.__class__.__name__}] normalize_latent_factor:{self.normalize_latent_factor}')
-
     def sample_from_q(
         self,
         input_: torch.Tensor,
@@ -1153,7 +1154,7 @@ class TopDownLayer(nn.Module):
         n_img_prior: int,
     ) -> torch.Tensor:
         """Return the parameters of the prior distribution p(z_i|z_{i+1})
-        
+
         The parameters depend on the hierarchical level of the layer:
         - if it is the topmost level, parameters are the ones of the prior.
         - else, the input from the layer above is the parameters itself.
@@ -1189,7 +1190,9 @@ class TopDownLayer(nn.Module):
         """
         # TODO why would they ever be not equal?
         if bu_value.shape[-2:] != p_params.shape[-2:]:
-            assert self.bottomup_no_padding_mode is True, f'{bu_value.shape[-2:]} != {p_params.shape[-2:]}'
+            assert (
+                self.bottomup_no_padding_mode is True
+            ), f"{bu_value.shape[-2:]} != {p_params.shape[-2:]}"
             if self.topdown_no_padding_mode is False:
                 assert bu_value.shape[-1] > p_params.shape[-1]
                 bu_value = F.center_crop(bu_value, p_params.shape[-2:])
@@ -1200,7 +1203,6 @@ class TopDownLayer(nn.Module):
                     p_params = F.center_crop(p_params, bu_value.shape[-2:])
         return p_params, bu_value
         # TODO What is this for?
-
 
     def forward(
         self,
@@ -1302,7 +1304,7 @@ class TopDownLayer(nn.Module):
         # NOTE: Sampling is done either from q(z_i | z_{i+1}, x) or p(z_i | z_{i+1})
         # depending on the mode (hence, in practice, by checking whether q_params is None).
 
-        # Normalization of latent space parameters for stablity. 
+        # Normalization of latent space parameters for stablity.
         # See Very deep VAEs generalize autoregressive models.
         if self.normalize_latent_factor:
             q_params = q_params / self.normalize_latent_factor
@@ -1319,11 +1321,9 @@ class TopDownLayer(nn.Module):
             use_uncond_mode=use_uncond_mode,
             var_clip_max=var_clip_max,
         )
-
         # Merge skip connection from previous layer
         if self.stochastic_skip and not self.is_top_layer:
             x = self.skip_connection_merger(x, skip_connection_input)
-
         if self.retain_spatial_dims:
             # NOTE: we assume that one topdown layer will have exactly one upscaling layer.
 
@@ -1335,24 +1335,24 @@ class TopDownLayer(nn.Module):
             #   along dim=1 + convolution)
             # Therefore, we need to do the symmetric operation here, that is to
             # crop `x` for the same amount we padded it in the correspondent BU layer.
-            
+
             # NOTE: cropping is done to retain the shape of the input in the output.
             # Therefore we need it only in the case `x` is the same shape of the input,
             # because that's the only case in which we need to retain the shape.
             # Here, it must be strictly greater than half the input shape, which is
-            # the case if and only if `x.shape == self.latent_shape`. 
-            new_latent_shape = tuple(dim // 2 for dim in self.latent_shape)
+            # the case if and only if `x.shape == self.latent_shape`.
+            rescale = (
+                np.array((1, 2, 2)) if len(self.latent_shape) == 3 else np.array((2, 2))
+            )
+            new_latent_shape = tuple(np.array(self.latent_shape) // rescale)
             if x.shape[-1] > new_latent_shape[-1]:
                 x = crop_img_tensor(x, new_latent_shape)
-                
-        # TODO: `retain_spatial_dims` is the same for all the TD layers. 
+        # TODO: `retain_spatial_dims` is the same for all the TD layers.
         # How to handle the case in which we do not have LC for all layers?
-        # The answer is in `self.latent_shape`, which is equal to `input_image_shape` 
+        # The answer is in `self.latent_shape`, which is equal to `input_image_shape`
         # (e.g., (64, 64)) if `retain_spatial_dims` is `True`, else it is `None`.
-        
         # Last top-down block (sequence of residual blocks w\ upsampling)
         x = self.deterministic_block(x)
-
         # Save some metrics that will be used in the loss computation
         keys = [
             "z",

@@ -101,7 +101,7 @@ class ModelType(Enum):
 
 
 def _pad_crop_img(
-    x: torch.Tensor, 
+    x: torch.Tensor,
     size: Iterable[int],
     mode: Literal["crop", "pad"]
 ) -> torch.Tensor:
@@ -120,22 +120,22 @@ def _pad_crop_img(
     """
     # TODO: Support cropping/padding on selected dimensions
     assert (x.dim() == 4 and len(size) == 2) or (x.dim() == 5 and len(size) == 3)
-    
+
     size = tuple(size)
     x_size = x.size()[2:]
-    
+
     if mode == "pad":
         cond = any(x_size[i] > size[i] for i in range(len(size)))
     elif mode == "crop":
         cond = any(x_size[i] < size[i] for i in range(len(size)))
-    
+
     if cond:
         raise ValueError(f"Trying to {mode} from size {x_size} to size {size}")
-    
+
     diffs = [abs(x - s) for x, s in zip(x_size, size)]
     d1 = [d // 2 for d in diffs]
     d2 = [d - (d // 2) for d in diffs]
-    
+
     if mode == "pad":
         if x.dim() == 4:
             padding = [d1[1], d2[1], d1[0], d2[0], 0, 0, 0, 0]

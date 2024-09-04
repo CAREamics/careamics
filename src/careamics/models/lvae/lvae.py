@@ -731,7 +731,6 @@ class LadderVAE(nn.Module):
                 mode_pred=self.mode_pred,
                 var_clip_max=self._var_clip_max,
             )
-
             # Save useful variables
             z[i] = aux["z"]  # sampled variable at this layer (batch, ch, h, w)
             kl[i] = aux["kl_samplewise"]  # (batch, )
