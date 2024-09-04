@@ -7,6 +7,7 @@ from typing import Callable, Dict, Iterable, Literal, Tuple, Union
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from torch.distributions import kl_divergence
 from torch.distributions.normal import Normal
 
@@ -503,6 +504,7 @@ class BottomUpLayer(nn.Module):
         if self.enable_multiscale:
             self._init_multiscale(
                 n_filters=n_filters,
+                conv_strides=conv_strides,
                 nonlin=nonlin,
                 batchnorm=batchnorm,
                 dropout=dropout,
@@ -518,6 +520,7 @@ class BottomUpLayer(nn.Module):
         self,
         nonlin: Callable = None,
         n_filters: int = None,
+        conv_strides: tuple[int] = (2, 2),
         batchnorm: bool = None,
         dropout: float = None,
         res_block_type: str = None,
@@ -555,6 +558,7 @@ class BottomUpLayer(nn.Module):
 
         self.lowres_merge = MergeLowRes(
             channels=n_filters,
+            conv_strides=conv_strides,
             merge_type="residual",
             nonlin=nonlin,
             batchnorm=batchnorm,
@@ -694,16 +698,16 @@ class MergeLayer(nn.Module):
             if len(channels) == 1:
                 channels = [channels[0]] * 3
 
-        conv_layer: ConvType = getattr(nn, f"Conv{len(conv_strides)}d")
+        self.conv_layer: ConvType = getattr(nn, f"Conv{len(conv_strides)}d")
 
         if merge_type == "linear":
-            self.layer = conv_layer(
+            self.layer = self.conv_layer(
                 sum(channels[:-1]), channels[-1], 1, bias=conv2d_bias
             )
         elif merge_type == "residual":
             self.layer = nn.Sequential(
-                conv_layer(
-                    sum(channels[:-1]), channels[-1], 1, padding=0, bias=conv2d_bias 
+                self.conv_layer(
+                    sum(channels[:-1]), channels[-1], 1, padding=0, bias=conv2d_bias
                 ),
                 ResidualGatedBlock(
                     conv_strides=conv_strides,
@@ -718,7 +722,7 @@ class MergeLayer(nn.Module):
             )
         elif merge_type == "residual_ungated":
             self.layer = nn.Sequential(
-                conv_layer(
+                self.conv_layer(
                     sum(channels[:-1]), channels[-1], 1, padding=0, bias=conv2d_bias
                 ),
                 ResidualBlock(
@@ -767,13 +771,13 @@ class MergeLowRes(MergeLayer):
         # TODO: treat (X, Y) and Z differently (e.g., line 762)
         if self.retain_spatial_dims:
             # Pad latent tensor to match lowres tensor's shape
-            # Output.shape == Lowres.shape (== Input.shape), 
+            # Output.shape == Lowres.shape (== Input.shape),
             # where Input is the input to the BU layer
-            latent = pad_img_tensor(latent, lowres.shape[2:]) 
+            latent = pad_img_tensor(latent, lowres.shape[2:])
         else:
             # Crop lowres tensor to match latent tensor's shape
-            lz, ly, lx = lowres.shape[2:] 
-            z = lz // self.multiscale_lowres_size_factor 
+            lz, ly, lx = lowres.shape[2:]
+            z = lz // self.multiscale_lowres_size_factor
             y = ly // self.multiscale_lowres_size_factor
             x = lx // self.multiscale_lowres_size_factor
             z_pad = (lz - z) // 2
@@ -1177,24 +1181,24 @@ class TopDownLayer(nn.Module):
 
         return p_params
 
-    # def align_pparams_buvalue(self, p_params, bu_value):
-    #     """
-    #     In case the padding is not used either (or both) in encoder and decoder.
+    def align_pparams_buvalue(self, p_params, bu_value):
+        """
+        In case the padding is not used either (or both) in encoder and decoder.
 
-    #     we could have a mismatch. Doing a centercrop to ensure that both remain aligned.
-    #     """
-    #     # TODO why would they ever be not equal?
-    #     if bu_value.shape[-2:] != p_params.shape[-2:]:
-    #         assert self.bottomup_no_padding_mode is True, f'{bu_value.shape[-2:]} != {p_params.shape[-2:]}'
-    #         if self.topdown_no_padding_mode is False:
-    #             assert bu_value.shape[-1] > p_params.shape[-1]
-    #             bu_value = F.center_crop(bu_value, p_params.shape[-2:])
-    #         else:
-    #             if bu_value.shape[-1] > p_params.shape[-1]:
-    #                 bu_value = F.center_crop(bu_value, p_params.shape[-2:])
-    #             else:
-    #                 p_params = F.center_crop(p_params, bu_value.shape[-2:])
-    #     return p_params, bu_value
+        we could have a mismatch. Doing a centercrop to ensure that both remain aligned.
+        """
+        # TODO why would they ever be not equal?
+        if bu_value.shape[-2:] != p_params.shape[-2:]:
+            assert self.bottomup_no_padding_mode is True, f'{bu_value.shape[-2:]} != {p_params.shape[-2:]}'
+            if self.topdown_no_padding_mode is False:
+                assert bu_value.shape[-1] > p_params.shape[-1]
+                bu_value = F.center_crop(bu_value, p_params.shape[-2:])
+            else:
+                if bu_value.shape[-1] > p_params.shape[-1]:
+                    bu_value = F.center_crop(bu_value, p_params.shape[-2:])
+                else:
+                    p_params = F.center_crop(p_params, bu_value.shape[-2:])
+        return p_params, bu_value
         # TODO What is this for?
 
 
@@ -1256,44 +1260,44 @@ class TopDownLayer(nn.Module):
 
         p_params = self.get_p_params(input_, n_img_prior)
 
-        # if inference_mode:
-        #     if self.is_top_layer:
-        #         q_params = bu_value
-        #         if mode_pred is False:
-        #             p_params, bu_value = self.align_pparams_buvalue(p_params, bu_value)
-        #     else:
-        #         if use_uncond_mode:
-        #             q_params = p_params
-        #         else:
-        #             p_params, bu_value = self.align_pparams_buvalue(p_params, bu_value)
-        #             q_params = self.merge(bu_value, p_params)
-
-        # # In generative mode, q is not used
-        # else:
-        #     q_params = None
-
-        # Get the parameters for the latent distribution to sample from
-        if inference_mode:  # TODO What's this ?
+        if inference_mode:
             if self.is_top_layer:
                 q_params = bu_value
                 if mode_pred is False:
-                    assert p_params.shape[2:] == bu_value.shape[2:], (
-                        "Spatial dimensions of p_params and bu_value should match. "
-                        f"Instead, we got p_params={p_params.shape[2:]} and "
-                        f"bu_value={bu_value.shape[2:]}."
-                    )
+                    p_params, bu_value = self.align_pparams_buvalue(p_params, bu_value)
             else:
                 if use_uncond_mode:
                     q_params = p_params
                 else:
-                    assert p_params.shape[2:] == bu_value.shape[2:], (
-                        "Spatial dimensions of p_params and bu_value should match. "
-                        f"Instead, we got p_params={p_params.shape[2:]} and "
-                        f"bu_value={bu_value.shape[2:]}."
-                    )
+                    p_params, bu_value = self.align_pparams_buvalue(p_params, bu_value)
                     q_params = self.merge(bu_value, p_params)
-        else: # generative mode, q is not used, we sample from p(z_i | z_{i+1})
+
+        # In generative mode, q is not used
+        else:
             q_params = None
+
+        # Get the parameters for the latent distribution to sample from
+        # if inference_mode:  # TODO What's this ?
+        #     if self.is_top_layer:
+        #         q_params = bu_value
+        #         if mode_pred is False:
+        #             assert p_params.shape[2:] == bu_value.shape[2:], (
+        #                 "Spatial dimensions of p_params and bu_value should match. "
+        #                 f"Instead, we got p_params={p_params.shape[2:]} and "
+        #                 f"bu_value={bu_value.shape[2:]}."
+        #             )
+        #     else:
+        #         if use_uncond_mode:
+        #             q_params = p_params
+        #         else:
+        #             assert p_params.shape[2:] == bu_value.shape[2:], (
+        #                 "Spatial dimensions of p_params and bu_value should match. "
+        #                 f"Instead, we got p_params={p_params.shape[2:]} and "
+        #                 f"bu_value={bu_value.shape[2:]}."
+        #             )
+        #             q_params = self.merge(bu_value, p_params)
+        # else: # generative mode, q is not used, we sample from p(z_i | z_{i+1})
+        #     q_params = None
 
         # NOTE: Sampling is done either from q(z_i | z_{i+1}, x) or p(z_i | z_{i+1})
         # depending on the mode (hence, in practice, by checking whether q_params is None).

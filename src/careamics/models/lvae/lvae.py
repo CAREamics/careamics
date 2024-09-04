@@ -169,7 +169,7 @@ class LadderVAE(nn.Module):
 
         # -------------------------------------------------------
         # Data attributes
-        self.color_ch = self.image_size[0]
+        self.color_ch = 1 # TODO for now we only support 1 channel
         self.normalized_input = True
         # -------------------------------------------------------
 
@@ -182,8 +182,8 @@ class LadderVAE(nn.Module):
 
         # -------------------------------------------------------
         # 3D related stuff
-        self._mode_3D = len(self.image_size) == 4
-        self._model_3D_depth = self.image_size[1] if self._mode_3D else 1
+        self._mode_3D = len(self.image_size) == 3 # TODO refac
+        self._model_3D_depth = self.image_size[0] if self._mode_3D else 1
         self._decoder_mode_3D = len(self.decoder_conv_strides) == 3
         if self._mode_3D and not self._decoder_mode_3D:
             assert self._model_3D_depth%2 ==1, '3D model depth should be odd'
@@ -219,6 +219,7 @@ class LadderVAE(nn.Module):
         # First bottom-up layer: change num channels + downsample by factor 2
         # unless we want to prevent this
         self.encoder_conv_op = getattr(nn, f"Conv{len(self.encoder_conv_strides)}d")
+        # TODO these should be defined for all layers here ?
         self.decoder_conv_op = getattr(nn, f"Conv{len(self.decoder_conv_strides)}d")
         stride = 1 if self.no_initial_downscaling else 2 # TODO: can this be 2 ?
         self.first_bottom_up = self.create_first_bottom_up(stride)
@@ -285,7 +286,7 @@ class LadderVAE(nn.Module):
         # TODO Question, we use default stride for the first layer?
         nonlin = get_activation(self.nonlin)
         conv_block = self.encoder_conv_op(
-            in_channels=self.color_ch,
+            in_channels=self.color_ch, #TODO should be 1 
             out_channels=self.encoder_n_filters,
             kernel_size=self.encoder_res_block_kernel,
             padding=(
@@ -516,13 +517,13 @@ class LadderVAE(nn.Module):
         )
         assert (
             self._multiscale_count <= 1 or self._multiscale_count <= 1 + self.n_layers
-        ), msg
+        ), msg # TODO how ?
 
         msg = (
             "Multiscale approach only supports monocrome images. "
             f"Found instead color_ch={self.color_ch}."
         )
-        assert self._multiscale_count == 1 or self.color_ch == 1, msg
+        # assert self._multiscale_count == 1 or self.color_ch == 1, msg
 
         lowres_first_bottom_ups = []
         for _ in range(1, self._multiscale_count):
@@ -603,7 +604,6 @@ class LadderVAE(nn.Module):
             lowres_x = None
             if self._multiscale_count > 1 and i + 1 < inp.shape[1]:
                 lowres_x = lowres_first_bottom_ups[i](inp[:, i + 1 : i + 2])
-
             x, bu_value = bottom_up_layers[i](x, lowres_x=lowres_x)
             bu_values.append(bu_value)
 
@@ -856,7 +856,8 @@ class LadderVAE(nn.Module):
         # TODO what if encoder is 3D but decoder is 2D?
         # TODO refactor!
         if self._model_3D_depth > 1 and self._decoder_mode_3D is True:
-            top_layer_shape = (n_imgs, mu_logvar, self.image_size[1], h, w)
+            # TODO check if model_3D_depth is needed ?
+            top_layer_shape = (n_imgs, mu_logvar, self._model_3D_depth, h, w)
         return top_layer_shape
 
     def get_other_channel(self, ch1, input):
