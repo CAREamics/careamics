@@ -11,7 +11,7 @@ from careamics.models.lvae.noise_models import (
     GaussianMixtureNoiseModel,
     MultiChannelNoiseModel,
 )
-from careamics.utils.serializers import array_to_json, list_to_torch
+from careamics.utils.serializers import _array_to_json, _to_torch
 
 NoiseModel = Union[GaussianMixtureNoiseModel, MultiChannelNoiseModel]
 
@@ -20,8 +20,8 @@ NoiseModel = Union[GaussianMixtureNoiseModel, MultiChannelNoiseModel]
 # with such tensors to/from JSON files during, resp., training and evaluation.
 Tensor = Annotated[
     Union[np.ndarray, torch.Tensor],
-    PlainSerializer(array_to_json, return_type=str),
-    PlainValidator(list_to_torch),
+    PlainSerializer(_array_to_json, return_type=str),
+    PlainValidator(_to_torch),
 ]
 """Annotated tensor type, used to serialize arrays or tensors to JSON strings
 and deserialize them back to tensors."""

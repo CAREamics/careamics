@@ -1,5 +1,6 @@
 """A script for serializers in the careamics package."""
 
+import ast
 import json
 from typing import Union
 
@@ -7,7 +8,7 @@ import numpy as np
 import torch
 
 
-def array_to_json(arr: Union[np.ndarray, torch.Tensor]) -> str:
+def _array_to_json(arr: Union[np.ndarray, torch.Tensor]) -> str:
     """Convert an array to a list and then to a JSON string.
 
     Parameters
@@ -23,39 +24,37 @@ def array_to_json(arr: Union[np.ndarray, torch.Tensor]) -> str:
     return json.dumps(arr.tolist())
 
 
-def list_to_numpy(lst: list) -> np.ndarray:
-    """Deserialize a list into `np.ndarray`.
-
-    NOTE: this deserializer takes a list as input, since whenever a config file is
-    loaded (e.g., json, yml, pkl), the strings representing arrays are loaded as lists.
+def _to_numpy(lst: Union[str, list]) -> np.ndarray:
+    """Deserialize a list or string representing a list into `np.ndarray`.
 
     Parameters
     ----------
     lst : list
-        List with the array content to be deserialized.
+        List or string representing a list with the array content to be deserialized.
 
     Returns
     -------
     np.ndarray
         The deserialized array.
     """
+    if isinstance(lst, str):
+        lst = ast.literal_eval(lst)
     return np.asarray(lst)
 
 
-def list_to_torch(lst: list) -> torch.Tensor:
-    """Deserialize list into `torch.Tensor`.
-
-    NOTE: this deserializer takes a list as input, since whenever a config file is
-    loaded (e.g., json, yml, pkl), the strings representing arrays are loaded as lists.
+def _to_torch(lst: Union[str, list]) -> torch.Tensor:
+    """Deserialize list or string representing a list into `torch.Tensor`.
 
     Parameters
     ----------
-    lst : list
-        List with the array content to be deserialized.
+    lst : Union[str, list]
+        List or string representing a list swith the array content to be deserialized.
 
     Returns
     -------
     torch.Tensor
         The deserialized tensor.
     """
+    if isinstance(lst, str):
+        lst = ast.literal_eval(lst)
     return torch.tensor(lst)

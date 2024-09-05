@@ -15,15 +15,15 @@ from pydantic import (
 )
 from typing_extensions import Annotated, Self
 
-from careamics.utils.serializers import array_to_json, list_to_numpy
+from careamics.utils.serializers import _array_to_json, _to_numpy
 
 # TODO: this is a temporary solution to serialize and deserialize array fields
 # in pydantic models. Specifically, the aim is to enable saving and loading configs
 # with such arrays to/from JSON files during, resp., training and evaluation.
 Array = Annotated[
     Union[np.ndarray, torch.Tensor],
-    PlainSerializer(array_to_json, return_type=str),
-    PlainValidator(list_to_numpy),
+    PlainSerializer(_array_to_json, return_type=str),
+    PlainValidator(_to_numpy),
 ]
 """Annotated array type, used to serialize arrays or tensors to JSON strings
 and deserialize them back to arrays."""

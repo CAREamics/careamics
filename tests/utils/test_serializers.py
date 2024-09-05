@@ -39,27 +39,27 @@ def test_serialize_tensor(arr: Union[np.ndarray, torch.Tensor]):
     assert arr_model.model_dump() == {"arr": "[1, 2]"}
 
 
-def test_deserialize_array(tmp: Path):
+def test_deserialize_array(tmp_path: Path):
     """Test list_to_numpy function."""
     arr_model = MyArray(arr=np.array([1, 2]))
     # save to JSON
-    with open(tmp / "array_config.json", "w") as f:
+    with open(tmp_path / "array_config.json", "w") as f:
         f.write(arr_model.model_dump_json())
     # load from JSON
-    with open(tmp / "array_config.json") as f:
+    with open(tmp_path / "array_config.json") as f:
         config = json.load(f)
     new_arr_model = MyArray(**config)
     assert np.array_equal(new_arr_model.arr, np.array([1, 2]))
 
 
-def test_deserialize_tensor(tmp: Path):
+def test_deserialize_tensor(tmp_path: Path):
     """Test list_to_tensor function."""
     arr_model = MyTensor(arr=torch.tensor([1, 2]))
     # save to JSON
-    with open(tmp / "tensor_config.json", "w") as f:
+    with open(tmp_path / "tensor_config.json", "w") as f:
         f.write(arr_model.model_dump_json())
     # load from JSON
-    with open(tmp / "tensor_config.json") as f:
+    with open(tmp_path / "tensor_config.json") as f:
         config = json.load(f)
     new_arr_model = MyTensor(**config)
     assert torch.equal(new_arr_model.arr, torch.tensor([1, 2]))
