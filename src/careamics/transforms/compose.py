@@ -104,7 +104,7 @@ class Compose:
         target: Optional[NDArray],
         **additional_arrays: NDArray,
     ) -> Tuple[NDArray, Optional[NDArray], dict[str, NDArray]]:
-        """Chain transforms on the input data.
+        """Chain transforms on the input data, with additional arrays.
 
         Parameters
         ----------
@@ -112,6 +112,9 @@ class Compose:
             Input data.
         target : Optional[np.ndarray]
             Target data, by default None.
+        **additional_arrays : NDArray
+            Additional arrays that will be tranformed identically to `patch` and
+            `target`.
 
         Returns
         -------
@@ -152,6 +155,28 @@ class Compose:
         target: Optional[NDArray] = None,
         **additional_arrays: NDArray,
     ) -> tuple[NDArray, Optional[NDArray], dict[str, NDArray]]:
+        """Apply the transforms to the input data, including additional arrays.
+
+        Parameters
+        ----------
+        patch : np.ndarray
+            The input data.
+        target : Optional[np.ndarray], optional
+            Target data, by default None.
+        **additional_arrays : NDArray
+            Additional arrays that will be tranformed identically to `patch` and
+            `target`.
+
+        Returns
+        -------
+        NDArray
+            The tranformed patch.
+        NDArray | None
+            The tranformed target.
+        dict of {str, NDArray}
+            Transformed additional arrays. Keys correspond to the keyword argument
+            names.
+        """
         return self._chain_transforms_additional_arrays(
             patch, target, **additional_arrays
         )

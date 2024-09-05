@@ -63,6 +63,9 @@ class XYRandomRotate90(Transform):
             Patch, 2D or 3D, shape C(Z)YX.
         target : Optional[np.ndarray], optional
             Target for the patch, by default None.
+        **additional_arrays : NDArray
+            Additional arrays that will be tranformed identically to `patch` and
+            `target`.
 
         Returns
         -------
