@@ -6,20 +6,8 @@ import torch
 from pydantic import BaseModel, ConfigDict, PlainSerializer, PlainValidator
 from typing_extensions import Annotated
 
-from careamics.utils.serializers import array_to_json, list_to_numpy, list_to_torch
-
-Array = Annotated[
-    Union[np.ndarray, torch.Tensor],
-    PlainSerializer(array_to_json, return_type=str),
-    PlainValidator(list_to_numpy),
-]
-
-Tensor = Annotated[
-    Union[np.ndarray, torch.Tensor],
-    PlainSerializer(array_to_json, return_type=str),
-    PlainValidator(list_to_torch),
-]
-
+from careamics.config.nm_model import Array
+from careamics.config.likelihood_model import Tensor
 
 class MyArray(BaseModel):
 
