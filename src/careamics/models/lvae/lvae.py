@@ -95,7 +95,6 @@ class LadderVAE(nn.Module):
         self.target_ch = output_channels
         self.encoder_conv_strides = encoder_conv_strides
         self.decoder_conv_strides = decoder_conv_strides
-        # TODO: why possibility of 2 different conv strides for encoder and decoder?
         self._multiscale_count = multiscale_count
         self.z_dims = z_dims
         self.encoder_n_filters = encoder_n_filters
@@ -172,7 +171,7 @@ class LadderVAE(nn.Module):
 
         # -------------------------------------------------------
         # Data attributes
-        self.color_ch = 1 # TODO for now we only support 1 channel
+        self.color_ch = 1  # TODO for now we only support 1 channel
         self.normalized_input = True
         # -------------------------------------------------------
 
@@ -185,14 +184,28 @@ class LadderVAE(nn.Module):
 
         # -------------------------------------------------------
         # 3D related stuff
-        self._mode_3D = len(self.image_size) == 3 # TODO refac
+        self._mode_3D = len(self.image_size) == 3  # TODO refac
         self._model_3D_depth = self.image_size[0] if self._mode_3D else 1
         self._decoder_mode_3D = len(self.decoder_conv_strides) == 3
         if self._mode_3D and not self._decoder_mode_3D:
-            assert self._model_3D_depth%2 ==1, '3D model depth should be odd'
-        assert self._mode_3D is True or self._decoder_mode_3D is False, 'Decoder cannot be 3D when encoder is 2D'
+            assert self._model_3D_depth % 2 == 1, "3D model depth should be odd"
+        assert (
+            self._mode_3D is True or self._decoder_mode_3D is False
+        ), "Decoder cannot be 3D when encoder is 2D"
         self._squish3d = self._mode_3D and not self._decoder_mode_3D
-        self._3D_squisher = None if not self._squish3d else nn.ModuleList([GateLayer(self.encoder.n_filters,3, True) for k in range(len(self.z_dims))])
+        self._3D_squisher = (
+            None
+            if not self._squish3d
+            else nn.ModuleList(
+                [
+                    GateLayer(
+                        channels=self.encoder_n_filters,
+                        conv_strides=self.encoder_conv_strides,
+                    )
+                    for k in range(len(self.z_dims))
+                ]
+            )
+        )
         # TODO: this bit is in the Ashesh's confusing-hacky style... Can we do better?
 
         # -------------------------------------------------------
@@ -294,7 +307,7 @@ class LadderVAE(nn.Module):
         # From what I got from Ashesh, Z should not be touched in any case.
         nonlin = get_activation(self.nonlin)
         conv_block = self.encoder_conv_op(
-            in_channels=self.color_ch, #TODO should be 1
+            in_channels=self.color_ch,
             out_channels=self.encoder_n_filters,
             kernel_size=self.encoder_res_block_kernel,
             padding=(
@@ -525,7 +538,7 @@ class LadderVAE(nn.Module):
         )
         assert (
             self._multiscale_count <= 1 or self._multiscale_count <= 1 + self.n_layers
-        ), msg # TODO how ?
+        ), msg  # TODO how ?
 
         msg = (
             "Multiscale approach only supports monocrome images. "
@@ -799,12 +812,6 @@ class LadderVAE(nn.Module):
 
         out = self.output_layer(out)
 
-        # TODO: this should be removed
-        if self._tethered_to_input:
-            assert out.shape[1] == 1
-            ch2 = self.get_other_channel(out, x)
-            out = torch.cat([out, ch2], dim=1)
-
         return out, td_data
 
     ### SET OF GETTERS
@@ -830,7 +837,7 @@ class LadderVAE(nn.Module):
 
         # Output smallest powers of 2 that are larger than current sizes
         padded_size = [((s - 1) // dwnsc + 1) * dwnsc for s in size]
-        #TODO do we need this ?
+        # TODO do we need this ?
         return padded_size
 
     def get_latent_spatial_size(self, level_idx: int):
@@ -859,7 +866,6 @@ class LadderVAE(nn.Module):
         w = self.image_size[-1] // dwnsc
         mu_logvar = self.z_dims[-1] * 2  # mu and logvar
         top_layer_shape = (n_imgs, mu_logvar, h, w)
-        # TODO what if encoder is 3D but decoder is 2D?
         # TODO refactor!
         if self._model_3D_depth > 1 and self._decoder_mode_3D is True:
             # TODO check if model_3D_depth is needed ?
