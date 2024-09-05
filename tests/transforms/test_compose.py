@@ -139,3 +139,25 @@ def test_random_composition(ordered_array, shape):
         result_array, result_mask = compose(array, mask)
         assert not np.array_equal(result_array, array)
         assert not np.array_equal(result_mask, mask)
+
+
+def test_compose_additional_arrays(ordered_array):
+    """Test additional arrays get tranformed in the same way as the patch."""
+    seed = 24
+    # create inputs
+    shape = (2, 2, 5, 5)
+    array = ordered_array(shape)
+    additional_arrays = {"arr": ordered_array(shape)}
+
+    # create tranforms
+    transforms = [
+        XYFlipModel(name="XYFlip", seed=seed),
+        XYRandomRotate90Model(name="XYRandomRotate90", seed=seed),
+    ]
+
+    compose = Compose(transforms)
+
+    augmented, _, additional_augmented = compose.tranform_with_additional_arrays(
+        array, **additional_arrays
+    )
+    assert np.array_equal(augmented, additional_augmented["arr"])
