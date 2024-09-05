@@ -113,7 +113,7 @@ class Compose:
         target : Optional[np.ndarray]
             Target data, by default None.
         **additional_arrays : NDArray
-            Additional arrays that will be tranformed identically to `patch` and
+            Additional arrays that will be transformed identically to `patch` and
             `target`.
 
         Returns
@@ -164,15 +164,15 @@ class Compose:
         target : Optional[np.ndarray], optional
             Target data, by default None.
         **additional_arrays : NDArray
-            Additional arrays that will be tranformed identically to `patch` and
+            Additional arrays that will be transformed identically to `patch` and
             `target`.
 
         Returns
         -------
         NDArray
-            The tranformed patch.
+            The transformed patch.
         NDArray | None
-            The tranformed target.
+            The transformed target.
         dict of {str, NDArray}
             Transformed additional arrays. Keys correspond to the keyword argument
             names.

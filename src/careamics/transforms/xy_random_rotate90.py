@@ -64,7 +64,7 @@ class XYRandomRotate90(Transform):
         target : Optional[np.ndarray], optional
             Target for the patch, by default None.
         **additional_arrays : NDArray
-            Additional arrays that will be tranformed identically to `patch` and
+            Additional arrays that will be transformed identically to `patch` and
             `target`.
 
         Returns
