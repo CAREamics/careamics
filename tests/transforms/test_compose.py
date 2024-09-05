@@ -157,7 +157,7 @@ def test_compose_additional_arrays(ordered_array):
 
     compose = Compose(transforms)
 
-    augmented, _, additional_augmented = compose.tranform_with_additional_arrays(
+    augmented, _, additional_augmented = compose.transform_with_additional_arrays(
         array, **additional_arrays
     )
     assert np.array_equal(augmented, additional_augmented["arr"])
