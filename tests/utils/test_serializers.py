@@ -3,11 +3,11 @@ from typing import Union
 import numpy as np
 import pytest
 import torch
-from pydantic import BaseModel, ConfigDict, PlainSerializer, PlainValidator
-from typing_extensions import Annotated
+from pydantic import BaseModel, ConfigDict
 
-from careamics.config.nm_model import Array
 from careamics.config.likelihood_model import Tensor
+from careamics.config.nm_model import Array
+
 
 class MyArray(BaseModel):
 
