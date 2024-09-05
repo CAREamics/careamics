@@ -3,6 +3,7 @@
 from typing import Optional, Tuple
 
 import numpy as np
+from numpy.typing import NDArray
 
 from careamics.transforms.transform import Transform
 
@@ -49,8 +50,11 @@ class XYRandomRotate90(Transform):
         self.rng = np.random.default_rng(seed=seed)
 
     def __call__(
-        self, patch: np.ndarray, target: Optional[np.ndarray] = None
-    ) -> Tuple[np.ndarray, Optional[np.ndarray]]:
+        self,
+        patch: NDArray,
+        target: Optional[NDArray] = None,
+        **additional_arrays: NDArray,
+    ) -> tuple[NDArray, Optional[NDArray], dict[str, NDArray]]:
         """Apply the transform to the source patch and the target (optional).
 
         Parameters
@@ -66,7 +70,7 @@ class XYRandomRotate90(Transform):
             Transformed patch and target.
         """
         if self.rng.random() > self.p:
-            return patch, target
+            return patch, target, additional_arrays
 
         # number of rotations
         n_rot = self.rng.integers(1, 4)
@@ -76,12 +80,14 @@ class XYRandomRotate90(Transform):
         target_transformed = (
             self._apply(target, n_rot, axes) if target is not None else None
         )
+        additional_transformed = {
+            key: self._apply(array, n_rot, axes)
+            for key, array in additional_arrays.items()
+        }
 
-        return patch_transformed, target_transformed
+        return patch_transformed, target_transformed, additional_transformed
 
-    def _apply(
-        self, patch: np.ndarray, n_rot: int, axes: Tuple[int, int]
-    ) -> np.ndarray:
+    def _apply(self, patch: NDArray, n_rot: int, axes: Tuple[int, int]) -> NDArray:
         """Apply the transform to the image.
 
         Parameters
