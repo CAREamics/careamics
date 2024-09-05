@@ -1,18 +1,17 @@
-"""Script containing the common basic blocks (nn.Module) 
+"""Script containing the common basic blocks (nn.Module)
 reused by the LadderVAE architecture.
 """
 
+from collections.abc import Iterable
 from copy import deepcopy
-from typing import Callable, Dict, Iterable, Literal, Tuple, Union
+from typing import Callable, Dict, Literal, Tuple, Union
+
 import numpy as np
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-from torch.distributions import kl_divergence
-from torch.distributions.normal import Normal
 
-from .stochastic import NormalStochasticBlock
 from .non_stochastic import NonStochasticBlock
+from .stochastic import NormalStochasticBlock
 from .utils import (
     crop_img_tensor,
     pad_img_tensor,
@@ -1064,7 +1063,7 @@ class TopDownLayer(nn.Module):
                 c_in=n_filters,
                 c_vars=z_dim,
                 c_out=n_filters,
-                mode_3D=len(conv_strides) == 3,
+                conv_dims=len(conv_strides),
                 transform_p_params=(not is_top_layer),
                 groups=groups,
                 conv2d_bias=conv2d_bias,
@@ -1075,7 +1074,7 @@ class TopDownLayer(nn.Module):
                 c_in=n_filters,
                 c_vars=z_dim,
                 c_out=n_filters,
-                mode_3D=len(conv_strides) == 3,
+                conv_dims=len(conv_strides),
                 transform_p_params=(not is_top_layer),
                 vanilla_latent_hw=vanilla_latent_hw,
                 restricted_kl=restricted_kl,
@@ -1183,28 +1182,6 @@ class TopDownLayer(nn.Module):
 
         return p_params
 
-    def align_pparams_buvalue(self, p_params, bu_value):
-        """
-        In case the padding is not used either (or both) in encoder and decoder.
-
-        we could have a mismatch. Doing a centercrop to ensure that both remain aligned.
-        """
-        # TODO why would they ever be not equal?
-        if bu_value.shape[-2:] != p_params.shape[-2:]:
-            assert (
-                self.bottomup_no_padding_mode is True
-            ), f"{bu_value.shape[-2:]} != {p_params.shape[-2:]}"
-            if self.topdown_no_padding_mode is False:
-                assert bu_value.shape[-1] > p_params.shape[-1]
-                bu_value = F.center_crop(bu_value, p_params.shape[-2:])
-            else:
-                if bu_value.shape[-1] > p_params.shape[-1]:
-                    bu_value = F.center_crop(bu_value, p_params.shape[-2:])
-                else:
-                    p_params = F.center_crop(p_params, bu_value.shape[-2:])
-        return p_params, bu_value
-        # TODO What is this for?
-
     def forward(
         self,
         input_: Union[torch.Tensor, None] = None,
@@ -1263,44 +1240,28 @@ class TopDownLayer(nn.Module):
 
         p_params = self.get_p_params(input_, n_img_prior)
 
-        if inference_mode:
+        # Get the parameters for the latent distribution to sample from
+        if inference_mode:  # TODO What's this ? reuse Fede's code?
             if self.is_top_layer:
                 q_params = bu_value
                 if mode_pred is False:
-                    p_params, bu_value = self.align_pparams_buvalue(p_params, bu_value)
+                    assert p_params.shape[2:] == bu_value.shape[2:], (
+                        "Spatial dimensions of p_params and bu_value should match. "
+                        f"Instead, we got p_params={p_params.shape[2:]} and "
+                        f"bu_value={bu_value.shape[2:]}."
+                    )
             else:
                 if use_uncond_mode:
                     q_params = p_params
                 else:
-                    p_params, bu_value = self.align_pparams_buvalue(p_params, bu_value)
+                    assert p_params.shape[2:] == bu_value.shape[2:], (
+                        "Spatial dimensions of p_params and bu_value should match. "
+                        f"Instead, we got p_params={p_params.shape[2:]} and "
+                        f"bu_value={bu_value.shape[2:]}."
+                    )
                     q_params = self.merge(bu_value, p_params)
-
-        # In generative mode, q is not used
-        else:
+        else: # generative mode, q is not used, we sample from p(z_i | z_{i+1})
             q_params = None
-
-        # Get the parameters for the latent distribution to sample from
-        # if inference_mode:  # TODO What's this ?
-        #     if self.is_top_layer:
-        #         q_params = bu_value
-        #         if mode_pred is False:
-        #             assert p_params.shape[2:] == bu_value.shape[2:], (
-        #                 "Spatial dimensions of p_params and bu_value should match. "
-        #                 f"Instead, we got p_params={p_params.shape[2:]} and "
-        #                 f"bu_value={bu_value.shape[2:]}."
-        #             )
-        #     else:
-        #         if use_uncond_mode:
-        #             q_params = p_params
-        #         else:
-        #             assert p_params.shape[2:] == bu_value.shape[2:], (
-        #                 "Spatial dimensions of p_params and bu_value should match. "
-        #                 f"Instead, we got p_params={p_params.shape[2:]} and "
-        #                 f"bu_value={bu_value.shape[2:]}."
-        #             )
-        #             q_params = self.merge(bu_value, p_params)
-        # else: # generative mode, q is not used, we sample from p(z_i | z_{i+1})
-        #     q_params = None
 
         # NOTE: Sampling is done either from q(z_i | z_{i+1}, x) or p(z_i | z_{i+1})
         # depending on the mode (hence, in practice, by checking whether q_params is None).
@@ -1344,7 +1305,7 @@ class TopDownLayer(nn.Module):
             # the case if and only if `x.shape == self.latent_shape`.
             rescale = (
                 np.array((1, 2, 2)) if len(self.latent_shape) == 3 else np.array((2, 2))
-            )
+            ) # TODO better way?
             new_latent_shape = tuple(np.array(self.latent_shape) // rescale)
             if x.shape[-1] > new_latent_shape[-1]:
                 x = crop_img_tensor(x, new_latent_shape)

@@ -15,7 +15,7 @@ class LVAEModel(ArchitectureModel):
     model_config = ConfigDict(validate_assignment=True, validate_default=True)
 
     architecture: Literal["LVAE"]
-    input_shape: list[int] = Field(default=(1, 64, 64), validate_default=True)
+    input_shape: list[int] = Field(default=(64, 64), validate_default=True)
     """Shape of the input patch (C, Z, Y, X) or (C, Y, X) if the data is 2D."""
     encoder_conv_strides: list = Field(default=[2, 2], validate_default=True)
     # TODO make this per hierarchy step ?

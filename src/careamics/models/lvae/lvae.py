@@ -18,9 +18,9 @@ from ..activation import get_activation
 from .layers import (
     BottomUpDeterministicResBlock,
     BottomUpLayer,
+    GateLayer,
     TopDownDeterministicResBlock,
     TopDownLayer,
-    GateLayer
 )
 from .utils import Interpolate, ModelType, crop_img_tensor
 
@@ -194,7 +194,7 @@ class LadderVAE(nn.Module):
         self._squish3d = self._mode_3D and not self._decoder_mode_3D
         self._3D_squisher = None if not self._squish3d else nn.ModuleList([GateLayer(self.encoder.n_filters,3, True) for k in range(len(self.z_dims))])
         # TODO: this bit is in the Ashesh's confusing-hacky style... Can we do better?
-        
+
         # -------------------------------------------------------
         # # Training attributes
         # # can be used to tile the validation predictions
@@ -264,7 +264,7 @@ class LadderVAE(nn.Module):
         # PSNR computation on validation.
         # self.label1_psnr = RunningPSNR()
         # self.label2_psnr = RunningPSNR()
-        # TODO: did you add this? 
+        # TODO: did you add this?
 
         # msg =f'[{self.__class__.__name__}] Stoc:{not self.non_stochastic_version} RecMode:{self.reconstruction_mode} TethInput:{self._tethered_to_input}'
         # msg += f' TargetCh: {self.target_ch}'
@@ -294,7 +294,7 @@ class LadderVAE(nn.Module):
         # From what I got from Ashesh, Z should not be touched in any case.
         nonlin = get_activation(self.nonlin)
         conv_block = self.encoder_conv_op(
-            in_channels=self.color_ch, #TODO should be 1 
+            in_channels=self.color_ch, #TODO should be 1
             out_channels=self.encoder_n_filters,
             kernel_size=self.encoder_res_block_kernel,
             padding=(
@@ -815,7 +815,6 @@ class LadderVAE(nn.Module):
         :param size: input size, tuple either (N, C, H, W) or (H, W)
         :return: 2-tuple (H, W)
         """
-
         # Make size argument into (heigth, width)
         # assert len(size) in [2, 4, 5] # TODO commented out cuz it's weird
         # We're only interested in the Y,X dimensions
