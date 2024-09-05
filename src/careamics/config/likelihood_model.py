@@ -15,6 +15,9 @@ from careamics.utils.serializers import array_to_json, list_to_torch
 
 NoiseModel = Union[GaussianMixtureNoiseModel, MultiChannelNoiseModel]
 
+# TODO: this is a temporary solution to serialize and deserialize tensor fields
+# in pydantic models. Specifically, the aim is to enable saving and loading configs
+# with such tensors to/from JSON files during, resp., training and evaluation.
 Tensor = Annotated[
     Union[np.ndarray, torch.Tensor],
     PlainSerializer(array_to_json, return_type=str),

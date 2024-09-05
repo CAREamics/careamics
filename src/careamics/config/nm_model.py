@@ -17,6 +17,9 @@ from typing_extensions import Annotated, Self
 
 from careamics.utils.serializers import array_to_json, list_to_numpy
 
+# TODO: this is a temporary solution to serialize and deserialize array fields
+# in pydantic models. Specifically, the aim is to enable saving and loading configs
+# with such arrays to/from JSON files during, resp., training and evaluation.
 Array = Annotated[
     Union[np.ndarray, torch.Tensor],
     PlainSerializer(array_to_json, return_type=str),
