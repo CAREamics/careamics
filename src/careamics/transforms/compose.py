@@ -149,7 +149,7 @@ class Compose:
         # TODO: solve casting Compose.__call__ ouput
         return cast(Tuple[NDArray, ...], self._chain_transforms(patch, target))
 
-    def tranform_with_additional_arrays(
+    def transform_with_additional_arrays(
         self,
         patch: NDArray,
         target: Optional[NDArray] = None,
