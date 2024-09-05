@@ -34,7 +34,7 @@ def test_xy_rotate(ordered_array, shape):
     # check rotations
     for _ in range(5):
         r.random()  # consume random number
-        augmented, _ = aug(array)
+        augmented, *_ = aug(array)
 
         assert np.array_equal(augmented, rots[r.integers(1, 4) - 1])
 
@@ -65,7 +65,7 @@ def test_mask_rotate(ordered_array):
     # apply augmentation 10 times
     for _ in range(5):
         r.random()  # consume random number
-        augmented_p, augmented_m = aug(array, mask)
+        augmented_p, augmented_m, _ = aug(array, mask)
         n_rot = r.integers(1, 4)
 
         assert np.array_equal(augmented_p, array_rots[n_rot - 1])
@@ -82,7 +82,7 @@ def test_p(ordered_array):
 
     # apply augmentation 5 times
     for _ in range(5):
-        augmented, _ = aug(array)
+        augmented, *_ = aug(array)
 
         assert np.array_equal(augmented, array)
 
@@ -91,6 +91,6 @@ def test_p(ordered_array):
 
     # apply augmentation 5 times
     for _ in range(5):
-        augmented, _ = aug(array)
+        augmented, *_ = aug(array)
 
         assert not np.array_equal(augmented, array)

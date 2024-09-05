@@ -47,8 +47,8 @@ def test_compose_with_target(ordered_array):
     source_transformed, target_transformed = compose(source, target)
 
     # apply them manually
-    t1_source, t1_target = transform_list[0](source, target)
-    t2_source, t2_target = transform_list[1](t1_source, t1_target)
+    t1_source, t1_target, _ = transform_list[0](source, target)
+    t2_source, t2_target, _ = transform_list[1](t1_source, t1_target)
 
     # check the results
     assert (source_transformed == t2_source).all()
@@ -72,9 +72,12 @@ def test_compose_n2v(ordered_array):
     # apply the transforms
     normalize = Normalize(image_means=means, image_stds=stds)
     xyflip = XYFlip(seed=seed)
-
     xyrotate = XYRandomRotate90(seed=seed)
-    array_aug, _ = xyrotate(*xyflip(*normalize(array[0])))
+    array_aug, *_ = xyrotate(
+        *xyflip(*normalize(array[0])[:2])[  # ignore additional_arrays (element no. 3)
+            :2
+        ]  # ignore additional_arrays (element no. 3)
+    )
 
     # instantiate Compose
     compose = Compose(transform_list_pydantic)

@@ -56,7 +56,7 @@ def test_normalize_denormalize(channels):
     )
 
     # Apply the transform, removing the sample dimension
-    normalized, _ = norm(patch=array[0])
+    normalized, *_ = norm(patch=array[0])
     assert np.abs(normalized.mean()) < 0.02
     assert np.abs(normalized.std() - 1) < 0.2
 
