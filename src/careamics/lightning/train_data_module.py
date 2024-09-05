@@ -9,8 +9,8 @@ from numpy.typing import NDArray
 from torch.utils.data import DataLoader
 
 from careamics.config import DataConfig
-from careamics.config.data_model import TRANSFORMS_UNION
 from careamics.config.support import SupportedData
+from careamics.config.transformations import TRANSFORMS_UNION
 from careamics.dataset.dataset_utils import (
     get_files_size,
     list_files,

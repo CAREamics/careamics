@@ -4,7 +4,7 @@ from typing import Dict, List, Optional, Tuple, cast
 
 import numpy as np
 
-from careamics.config.data_model import TRANSFORMS_UNION
+from careamics.config.transformations import TRANSFORMS_UNION
 
 from .n2v_manipulate import N2VManipulate
 from .normalize import Normalize

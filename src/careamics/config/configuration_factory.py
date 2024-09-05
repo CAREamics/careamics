@@ -1,33 +1,186 @@
 """Convenience functions to create configurations for training and inference."""
 
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Literal, Optional
 
 from .architectures import UNetModel
 from .configuration_model import Configuration
 from .data_model import DataConfig
 from .fcn_algorithm_model import FCNAlgorithmConfig
 from .support import (
-    SupportedAlgorithm,
     SupportedArchitecture,
-    SupportedLoss,
     SupportedPixelManipulation,
     SupportedTransform,
 )
 from .training_model import TrainingConfig
+from .transformations import (
+    TRANSFORMS_UNION,
+    N2VManipulateModel,
+    TransformModel,
+    XYFlipModel,
+    XYRandomRotate90Model,
+)
 
 
-# TODO rename ?
+def _create_unet(
+    axes: str,
+    n_channels_in: int,
+    n_channels_out: int,
+    independent_channels: bool,
+    use_n2v2: bool,
+    model_kwargs: Optional[dict[str, Any]] = None,
+) -> UNetModel:
+    """
+    Create a dictionary with the parameters of the UNet model.
+
+    Parameters
+    ----------
+    axes : str
+        Axes of the data.
+    n_channels_in : int
+        Number of input channels.
+    n_channels_out : int
+        Number of output channels.
+    independent_channels : bool
+        Whether to train all channels independently.
+    use_n2v2 : bool
+        Whether to use N2V2.
+    model_kwargs : dict
+        UNetModel parameters.
+
+    Returns
+    -------
+    UNetModel
+        UNet model with the specified parameters.
+    """
+    if model_kwargs is None:
+        model_kwargs = {}
+
+    model_kwargs["n2v2"] = use_n2v2
+    model_kwargs["conv_dims"] = 3 if "Z" in axes else 2
+    model_kwargs["in_channels"] = n_channels_in
+    model_kwargs["num_classes"] = n_channels_out
+    model_kwargs["independent_channels"] = independent_channels
+
+    return UNetModel(
+        architecture=SupportedArchitecture.UNET.value,
+        **model_kwargs,
+    )
+
+
+def _create_configuration(
+    algorithm: Literal["n2v", "care", "n2n"],
+    experiment_name: str,
+    data_type: Literal["array", "tiff", "custom"],
+    axes: str,
+    patch_size: list[int],
+    batch_size: int,
+    num_epochs: int,
+    augmentations: list[TRANSFORMS_UNION],
+    independent_channels: bool,
+    loss: Literal["n2v", "mae", "mse"],
+    n_channels_in: int,
+    n_channels_out: int,
+    logger: Literal["wandb", "tensorboard", "none"],
+    model_kwargs: Optional[dict],
+    use_n2v2: bool = False,
+) -> Configuration:
+    """
+    Create a configuration for training N2V, CARE or Noise2Noise.
+
+    Parameters
+    ----------
+    algorithm : {"n2v", "care", "n2n"}
+        Algorithm to use.
+    experiment_name : str
+        Name of the experiment.
+    data_type : {"array", "tiff", "custom"}
+        Type of the data.
+    axes : str
+        Axes of the data (e.g. SYX).
+    patch_size : list of int
+        Size of the patches along the spatial dimensions (e.g. [64, 64]).
+    batch_size : int
+        Batch size.
+    num_epochs : int
+        Number of epochs.
+    augmentations : list of TransformModel
+        List of transforms to apply.
+    independent_channels : bool
+        Whether to train all channels independently.
+    loss : {"n2v", "mae", "mse"}
+        Loss function to use.
+    n_channels_in : int
+        Number of channels in.
+    n_channels_out : int
+        Number of channels out.
+    logger : {"wandb", "tensorboard", "none"}
+        Logger to use.
+    model_kwargs : dict
+        UNetModel parameters.
+    use_n2v2 : bool, optional
+        Whether to use N2V2, by default False.
+
+    Returns
+    -------
+    Configuration
+        Configuration for training N2V, CARE or Noise2Noise.
+    """
+    # model
+    unet_model = _create_unet(
+        axes=axes,
+        n_channels_in=n_channels_in,
+        n_channels_out=n_channels_out,
+        independent_channels=independent_channels,
+        use_n2v2=use_n2v2,
+        model_kwargs=model_kwargs,
+    )
+
+    # algorithm model
+    algorithm_config = FCNAlgorithmConfig(
+        algorithm_type="fcn",
+        algorithm=algorithm,
+        loss=loss,
+        model=unet_model,
+    )
+
+    # data model
+    data = DataConfig(
+        data_type=data_type,
+        axes=axes,
+        patch_size=patch_size,
+        batch_size=batch_size,
+        transforms=augmentations,
+    )
+
+    # training model
+    training = TrainingConfig(
+        num_epochs=num_epochs,
+        batch_size=batch_size,
+        logger=None if logger == "none" else logger,
+    )
+
+    # create configuration
+    configuration = Configuration(
+        experiment_name=experiment_name,
+        algorithm_config=algorithm_config,
+        data_config=data,
+        training_config=training,
+    )
+
+    return configuration
+
+
 def _create_supervised_configuration(
-    algorithm_type: Literal["fcn"],
     algorithm: Literal["care", "n2n"],
     experiment_name: str,
     data_type: Literal["array", "tiff", "custom"],
     axes: str,
-    patch_size: List[int],
+    patch_size: list[int],
     batch_size: int,
     num_epochs: int,
     use_augmentations: bool = True,
-    independent_channels: bool = False,
+    augmentations: Optional[list[TRANSFORMS_UNION]] = None,
+    independent_channels: bool = True,
     loss: Literal["mae", "mse"] = "mae",
     n_channels_in: int = 1,
     n_channels_out: int = 1,
@@ -39,8 +192,6 @@ def _create_supervised_configuration(
 
     Parameters
     ----------
-    algorithm_type : Literal["fcn"]
-        Type of the algorithm.
     algorithm : Literal["care", "n2n"]
         Algorithm to use.
     experiment_name : str
@@ -57,6 +208,9 @@ def _create_supervised_configuration(
         Number of epochs.
     use_augmentations : bool, optional
         Whether to use augmentations, by default True.
+    augmentations : list of TransformModel, optional
+        List of transforms (augmentations) to apply instead of the default ones, by
+        default None.
     independent_channels : bool, optional
         Whether to train all channels independently, by default False.
     loss : Literal["mae", "mse"], optional
@@ -87,76 +241,46 @@ def _create_supervised_configuration(
             f"(got {n_channels_in} channels)."
         )
 
-    # model
-    if model_kwargs is None:
-        model_kwargs = {}
-    model_kwargs["conv_dims"] = 3 if "Z" in axes else 2
-    model_kwargs["in_channels"] = n_channels_in
-    model_kwargs["num_classes"] = n_channels_out
-    model_kwargs["independent_channels"] = independent_channels
-
-    unet_model = UNetModel(
-        architecture=SupportedArchitecture.UNET.value,
-        **model_kwargs,
-    )
-
-    # algorithm model
-    algorithm = FCNAlgorithmConfig(
-        algorithm_type=algorithm_type,
-        algorithm=algorithm,
-        loss=loss,
-        model=unet_model,
-    )
-
     # augmentations
     if use_augmentations:
-        transforms: List[Dict[str, Any]] = [
-            {
-                "name": SupportedTransform.XY_FLIP.value,
-            },
-            {
-                "name": SupportedTransform.XY_RANDOM_ROTATE90.value,
-            },
-        ]
+        if augmentations is None:
+            transform_list: list[TRANSFORMS_UNION] = [
+                XYFlipModel(),
+                XYRandomRotate90Model(),
+            ]
+        else:
+            transform_list = augmentations
     else:
-        transforms = []
+        transform_list = []
 
-    # data model
-    data = DataConfig(
+    return _create_configuration(
+        algorithm=algorithm,
+        experiment_name=experiment_name,
         data_type=data_type,
         axes=axes,
         patch_size=patch_size,
         batch_size=batch_size,
-        transforms=transforms,
-    )
-
-    # training model
-    training = TrainingConfig(
         num_epochs=num_epochs,
-        batch_size=batch_size,
-        logger=None if logger == "none" else logger,
+        augmentations=transform_list,
+        independent_channels=independent_channels,
+        loss=loss,
+        n_channels_in=n_channels_in,
+        n_channels_out=n_channels_out,
+        logger=logger,
+        model_kwargs=model_kwargs,
     )
-
-    # create configuration
-    configuration = Configuration(
-        experiment_name=experiment_name,
-        algorithm_config=algorithm,
-        data_config=data,
-        training_config=training,
-    )
-
-    return configuration
 
 
 def create_care_configuration(
     experiment_name: str,
     data_type: Literal["array", "tiff", "custom"],
     axes: str,
-    patch_size: List[int],
+    patch_size: list[int],
     batch_size: int,
     num_epochs: int,
     use_augmentations: bool = True,
-    independent_channels: bool = False,
+    augmentations: Optional[list[TRANSFORMS_UNION]] = None,
+    independent_channels: bool = True,
     loss: Literal["mae", "mse"] = "mae",
     n_channels_in: int = 1,
     n_channels_out: int = -1,
@@ -179,8 +303,10 @@ def create_care_configuration(
     By default, all channels are trained together. To train all channels independently,
     set `independent_channels` to True.
 
-    By setting `use_augmentations` to False, the only transformation applied will be
-    normalization.
+    By setting `use_augmentations` to False, the only transformations applied will be
+    normalization. Rather than the default transforms, a list of transforms can be
+    passed to the `augmentations` parameter, but will be ignored if `use_augmentations`
+    is set to False.
 
     Parameters
     ----------
@@ -198,6 +324,9 @@ def create_care_configuration(
         Number of epochs.
     use_augmentations : bool, optional
         Whether to use augmentations, by default True.
+    augmentations : list of TransformModel, optional
+        List of transforms (augmentations) to apply instead of the default ones, by
+        default None.
     independent_channels : bool, optional
         Whether to train all channels independently, by default False.
     loss : Literal["mae", "mse"], optional
@@ -215,12 +344,78 @@ def create_care_configuration(
     -------
     Configuration
         Configuration for training CARE.
+
+    Examples
+    --------
+    Minimum example:
+    >>> config = create_care_configuration(
+    ...     experiment_name="care_experiment",
+    ...     data_type="array",
+    ...     axes="YX",
+    ...     patch_size=[64, 64],
+    ...     batch_size=32,
+    ...     num_epochs=100
+    ... )
+
+    To disable transforms, simply set `use_augmentations` to False:
+    >>> config = create_care_configuration(
+    ...     experiment_name="care_experiment",
+    ...     data_type="array",
+    ...     axes="YX",
+    ...     patch_size=[64, 64],
+    ...     batch_size=32,
+    ...     num_epochs=100,
+    ...     use_augmentations=False
+    ... )
+
+    A list of transforms can be passed to the `augmentations` parameter to replace the
+    default augmentations:
+    >>> from careamics.config.transformations import XYFlipModel
+    >>> config = create_care_configuration(
+    ...     experiment_name="care_experiment",
+    ...     data_type="array",
+    ...     axes="YX",
+    ...     patch_size=[64, 64],
+    ...     batch_size=32,
+    ...     num_epochs=100,
+    ...     augmentations=[
+    ...         # No rotation and only Y flipping
+    ...         XYFlipModel(flip_x = False, flip_y = True)
+    ...     ]
+    ... )
+
+    If you are training multiple channels they will be trained independently by default,
+    you simply need to specify the number of channels input (and optionally, the number
+    of channels output):
+    >>> config = create_care_configuration(
+    ...     experiment_name="care_experiment",
+    ...     data_type="array",
+    ...     axes="YXC", # channels must be in the axes
+    ...     patch_size=[64, 64],
+    ...     batch_size=32,
+    ...     num_epochs=100,
+    ...     n_channels_in=3, # number of input channels
+    ...     n_channels_out=1 # if applicable
+    ... )
+
+    If instead you want to train multiple channels together, you need to turn off the
+    `independent_channels` parameter:
+    >>> config = create_care_configuration(
+    ...     experiment_name="care_experiment",
+    ...     data_type="array",
+    ...     axes="YXC", # channels must be in the axes
+    ...     patch_size=[64, 64],
+    ...     batch_size=32,
+    ...     num_epochs=100,
+    ...     independent_channels=False,
+    ...     n_channels_in=3,
+    ...     n_channels_out=1 # if applicable
+    ... )
     """
     if n_channels_out == -1:
         n_channels_out = n_channels_in
 
     return _create_supervised_configuration(
-        algorithm_type="fcn",
         algorithm="care",
         experiment_name=experiment_name,
         data_type=data_type,
@@ -229,6 +424,7 @@ def create_care_configuration(
         batch_size=batch_size,
         num_epochs=num_epochs,
         use_augmentations=use_augmentations,
+        augmentations=augmentations,
         independent_channels=independent_channels,
         loss=loss,
         n_channels_in=n_channels_in,
@@ -242,11 +438,12 @@ def create_n2n_configuration(
     experiment_name: str,
     data_type: Literal["array", "tiff", "custom"],
     axes: str,
-    patch_size: List[int],
+    patch_size: list[int],
     batch_size: int,
     num_epochs: int,
     use_augmentations: bool = True,
-    independent_channels: bool = False,
+    augmentations: Optional[list[TRANSFORMS_UNION]] = None,
+    independent_channels: bool = True,
     loss: Literal["mae", "mse"] = "mae",
     n_channels_in: int = 1,
     n_channels_out: int = -1,
@@ -269,8 +466,10 @@ def create_n2n_configuration(
     By default, all channels are trained together. To train all channels independently,
     set `independent_channels` to True.
 
-    By setting `use_augmentations` to False, the only transformation applied will be
-    normalization.
+    By setting `use_augmentations` to False, the only transformations applied will be
+    normalization. Rather than the default transforms, a list of transforms can be
+    passed to the `augmentations` parameter, but will be ignored if `use_augmentations`
+    is set to False.
 
     Parameters
     ----------
@@ -288,6 +487,9 @@ def create_n2n_configuration(
         Number of epochs.
     use_augmentations : bool, optional
         Whether to use augmentations, by default True.
+    augmentations : list of TransformModel, optional
+        List of transforms (augmentations) to apply instead of the default ones, by
+        default None.
     independent_channels : bool, optional
         Whether to train all channels independently, by default False.
     loss : Literal["mae", "mse"], optional
@@ -305,12 +507,78 @@ def create_n2n_configuration(
     -------
     Configuration
         Configuration for training Noise2Noise.
+
+    Examples
+    --------
+    Minimum example:
+    >>> config = create_n2n_configuration(
+    ...     experiment_name="n2n_experiment",
+    ...     data_type="array",
+    ...     axes="YX",
+    ...     patch_size=[64, 64],
+    ...     batch_size=32,
+    ...     num_epochs=100
+    ... )
+
+    To disable transforms, simply set `use_augmentations` to False:
+    >>> config = create_n2n_configuration(
+    ...     experiment_name="n2n_experiment",
+    ...     data_type="array",
+    ...     axes="YX",
+    ...     patch_size=[64, 64],
+    ...     batch_size=32,
+    ...     num_epochs=100,
+    ...     use_augmentations=False
+    ... )
+
+    A list of transforms can be passed to the `augmentations` parameter to replace the
+    default augmentations:
+    >>> from careamics.config.transformations import XYFlipModel
+    >>> config = create_n2n_configuration(
+    ...     experiment_name="n2n_experiment",
+    ...     data_type="array",
+    ...     axes="YX",
+    ...     patch_size=[64, 64],
+    ...     batch_size=32,
+    ...     num_epochs=100,
+    ...     augmentations=[
+    ...         # No rotation and only Y flipping
+    ...         XYFlipModel(flip_x = False, flip_y = True)
+    ...     ]
+    ... )
+
+    If you are training multiple channels they will be trained independently by default,
+    you simply need to specify the number of channels input (and optionally, the number
+    of channels output):
+    >>> config = create_n2n_configuration(
+    ...     experiment_name="n2n_experiment",
+    ...     data_type="array",
+    ...     axes="YXC", # channels must be in the axes
+    ...     patch_size=[64, 64],
+    ...     batch_size=32,
+    ...     num_epochs=100,
+    ...     n_channels_in=3, # number of input channels
+    ...     n_channels_out=1 # if applicable
+    ... )
+
+    If instead you want to train multiple channels together, you need to turn off the
+    `independent_channels` parameter:
+    >>> config = create_n2n_configuration(
+    ...     experiment_name="n2n_experiment",
+    ...     data_type="array",
+    ...     axes="YXC", # channels must be in the axes
+    ...     patch_size=[64, 64],
+    ...     batch_size=32,
+    ...     num_epochs=100,
+    ...     independent_channels=False,
+    ...     n_channels_in=3,
+    ...     n_channels_out=1 # if applicable
+    ... )
     """
     if n_channels_out == -1:
         n_channels_out = n_channels_in
 
     return _create_supervised_configuration(
-        algorithm_type="fcn",
         algorithm="n2n",
         experiment_name=experiment_name,
         data_type=data_type,
@@ -319,6 +587,7 @@ def create_n2n_configuration(
         batch_size=batch_size,
         num_epochs=num_epochs,
         use_augmentations=use_augmentations,
+        augmentations=augmentations,
         independent_channels=independent_channels,
         loss=loss,
         n_channels_in=n_channels_in,
@@ -332,10 +601,11 @@ def create_n2v_configuration(
     experiment_name: str,
     data_type: Literal["array", "tiff", "custom"],
     axes: str,
-    patch_size: List[int],
+    patch_size: list[int],
     batch_size: int,
     num_epochs: int,
     use_augmentations: bool = True,
+    augmentations: Optional[list[TRANSFORMS_UNION]] = None,
     independent_channels: bool = True,
     use_n2v2: bool = False,
     n_channels: int = 1,
@@ -367,8 +637,16 @@ def create_n2v_configuration(
     By default, all channels are trained independently. To train all channels together,
     set `independent_channels` to False.
 
+    By default, the transformations applied are a random flip along X or Y, and a random
+    90 degrees rotation in the XY plane. Normalization is always applied, as well as the
+    N2V manipulation.
+
     By setting `use_augmentations` to False, the only transformations applied will be
-    normalization and N2V manipulation.
+    normalization and N2V manipulation. Rather than the default transforms, a list of
+    transforms can be passed to the `augmentations` parameter, but will be ignored if
+    `use_augmentations` is set to False. Note that the `N2VManipulate` transform is
+    added to the transforms list according to the parameters of this function, and will
+    replace any instance passed in `augmentations`.
 
     The `roi_size` parameter specifies the size of the area around each pixel that will
     be manipulated by N2V. The `masked_pixel_percentage` parameter specifies how many
@@ -395,8 +673,11 @@ def create_n2v_configuration(
         Batch size.
     num_epochs : int
         Number of epochs.
-    use_augmentations : bool, optional
+    use_augmentations : bool
         Whether to use augmentations, by default True.
+    augmentations : list of TransformModel, optional
+        List of transforms (augmentations) to apply instead of the default ones, by
+        default None.
     independent_channels : bool, optional
         Whether to train all channels together, by default True.
     use_n2v2 : bool, optional
@@ -433,6 +714,32 @@ def create_n2v_configuration(
     ...     num_epochs=100
     ... )
 
+    To disable transforms, simply set `use_augmentations` to False:
+    >>> config = create_n2v_configuration(
+    ...     experiment_name="n2v_experiment",
+    ...     data_type="array",
+    ...     axes="YX",
+    ...     patch_size=[64, 64],
+    ...     batch_size=32,
+    ...     num_epochs=100,
+    ...     use_augmentations=False
+    ... )
+
+    A list of transforms can be passed to the `augmentations` parameter:
+    >>> from careamics.config.transformations import XYFlipModel
+    >>> config = create_n2v_configuration(
+    ...     experiment_name="n2v_experiment",
+    ...     data_type="array",
+    ...     axes="YX",
+    ...     patch_size=[64, 64],
+    ...     batch_size=32,
+    ...     num_epochs=100,
+    ...     augmentations=[
+    ...         # No rotation and only Y flipping
+    ...         XYFlipModel(flip_x = False, flip_y = True)
+    ...     ]
+    ... )
+
     To use N2V2, simply pass the `use_n2v2` parameter:
     >>> config = create_n2v_configuration(
     ...     experiment_name="n2v2_experiment",
@@ -457,8 +764,8 @@ def create_n2v_configuration(
     ...     struct_n2v_span=7
     ... )
 
-    If you are training multiple channels independently, then you need to specify the
-    number of channels:
+    If you are training multiple channels they will be trained independently by default,
+    you simply need to specify the number of channels:
     >>> config = create_n2v_configuration(
     ...     experiment_name="n2v_experiment",
     ...     data_type="array",
@@ -481,18 +788,6 @@ def create_n2v_configuration(
     ...     independent_channels=False,
     ...     n_channels=3
     ... )
-
-    To turn off the augmentations, except normalization and N2V manipulation, use the
-    relevant keyword argument:
-    >>> config = create_n2v_configuration(
-    ...     experiment_name="n2v_experiment",
-    ...     data_type="array",
-    ...     axes="YX",
-    ...     patch_size=[64, 64],
-    ...     batch_size=32,
-    ...     num_epochs=100,
-    ...     use_augmentations=False
-    ... )
     """
     # if there are channels, we need to specify their number
     if "C" in axes and n_channels == 1:
@@ -506,78 +801,59 @@ def create_n2v_configuration(
             f"(got {n_channels} channel)."
         )
 
-    # model
-    if model_kwargs is None:
-        model_kwargs = {}
-    model_kwargs["n2v2"] = use_n2v2
-    model_kwargs["conv_dims"] = 3 if "Z" in axes else 2
-    model_kwargs["in_channels"] = n_channels
-    model_kwargs["num_classes"] = n_channels
-    model_kwargs["independent_channels"] = independent_channels
-
-    unet_model = UNetModel(
-        architecture=SupportedArchitecture.UNET.value,
-        **model_kwargs,
-    )
-
-    # algorithm model
-    algorithm = FCNAlgorithmConfig(
-        algorithm_type="fcn",
-        algorithm=SupportedAlgorithm.N2V.value,
-        loss=SupportedLoss.N2V.value,
-        model=unet_model,
-    )
-
     # augmentations
     if use_augmentations:
-        transforms: List[Dict[str, Any]] = [
-            {
-                "name": SupportedTransform.XY_FLIP.value,
-            },
-            {
-                "name": SupportedTransform.XY_RANDOM_ROTATE90.value,
-            },
-        ]
-    else:
-        transforms = []
+        if augmentations is None:
+            transform_list: list[TRANSFORMS_UNION] = [
+                XYFlipModel(),
+                XYRandomRotate90Model(),
+            ]
+        else:
+            # throw error if not all transforms are pydantic models
+            if not all(isinstance(t, TransformModel) for t in augmentations):
+                raise ValueError(
+                    "All transforms must be of type TransformModel, "
+                    "i.e. they must be pydantic models."
+                )
 
-    # n2v2 and structn2v
-    nv2_transform = {
-        "name": SupportedTransform.N2V_MANIPULATE.value,
-        "strategy": (
+            # remove N2VManipulate transform
+            transform_list = [
+                t
+                for t in augmentations
+                if t.name != SupportedTransform.N2V_MANIPULATE.value
+            ]
+    else:
+        transform_list = []
+
+    # create the N2VManipulate transform using the supplied parameters
+    n2v_transform = N2VManipulateModel(
+        name=SupportedTransform.N2V_MANIPULATE.value,
+        strategy=(
             SupportedPixelManipulation.MEDIAN.value
             if use_n2v2
             else SupportedPixelManipulation.UNIFORM.value
         ),
-        "roi_size": roi_size,
-        "masked_pixel_percentage": masked_pixel_percentage,
-        "struct_mask_axis": struct_n2v_axis,
-        "struct_mask_span": struct_n2v_span,
-    }
-    transforms.append(nv2_transform)
+        roi_size=roi_size,
+        masked_pixel_percentage=masked_pixel_percentage,
+        struct_mask_axis=struct_n2v_axis,
+        struct_mask_span=struct_n2v_span,
+    )
+    transform_list.append(n2v_transform)
 
-    # data model
-    data = DataConfig(
+    return _create_configuration(
+        algorithm="n2v",
+        experiment_name=experiment_name,
         data_type=data_type,
         axes=axes,
         patch_size=patch_size,
         batch_size=batch_size,
-        transforms=transforms,
-    )
-
-    # training model
-    training = TrainingConfig(
         num_epochs=num_epochs,
-        batch_size=batch_size,
-        logger=None if logger == "none" else logger,
+        augmentations=transform_list,
+        independent_channels=independent_channels,
+        loss="n2v",
+        use_n2v2=use_n2v2,
+        n_channels_in=n_channels,
+        n_channels_out=n_channels,
+        logger=logger,
+        model_kwargs=model_kwargs,
     )
-
-    # create configuration
-    configuration = Configuration(
-        experiment_name=experiment_name,
-        algorithm_config=algorithm,
-        data_config=data,
-        training_config=training,
-    )
-
-    return configuration
