@@ -27,7 +27,7 @@ def _create_unet(
     n_channels_out: int,
     independent_channels: bool,
     use_n2v2: bool,
-    model_kwargs: Optional[dict[str, Any]] = None,
+    model_params: Optional[dict[str, Any]] = None,
 ) -> UNetModel:
     """
     Create a dictionary with the parameters of the UNet model.
@@ -44,7 +44,7 @@ def _create_unet(
         Whether to train all channels independently.
     use_n2v2 : bool
         Whether to use N2V2.
-    model_kwargs : dict
+    model_params : dict
         UNetModel parameters.
 
     Returns
@@ -52,18 +52,18 @@ def _create_unet(
     UNetModel
         UNet model with the specified parameters.
     """
-    if model_kwargs is None:
-        model_kwargs = {}
+    if model_params is None:
+        model_params = {}
 
-    model_kwargs["n2v2"] = use_n2v2
-    model_kwargs["conv_dims"] = 3 if "Z" in axes else 2
-    model_kwargs["in_channels"] = n_channels_in
-    model_kwargs["num_classes"] = n_channels_out
-    model_kwargs["independent_channels"] = independent_channels
+    model_params["n2v2"] = use_n2v2
+    model_params["conv_dims"] = 3 if "Z" in axes else 2
+    model_params["in_channels"] = n_channels_in
+    model_params["num_classes"] = n_channels_out
+    model_params["independent_channels"] = independent_channels
 
     return UNetModel(
         architecture=SupportedArchitecture.UNET.value,
-        **model_kwargs,
+        **model_params,
     )
 
 
@@ -81,8 +81,9 @@ def _create_configuration(
     n_channels_in: int,
     n_channels_out: int,
     logger: Literal["wandb", "tensorboard", "none"],
-    model_kwargs: Optional[dict],
     use_n2v2: bool = False,
+    model_params: Optional[dict] = None,
+    dataloader_params: Optional[dict] = None,
 ) -> Configuration:
     """
     Create a configuration for training N2V, CARE or Noise2Noise.
@@ -115,10 +116,12 @@ def _create_configuration(
         Number of channels out.
     logger : {"wandb", "tensorboard", "none"}
         Logger to use.
-    model_kwargs : dict
-        UNetModel parameters.
     use_n2v2 : bool, optional
         Whether to use N2V2, by default False.
+    model_params : dict
+        UNetModel parameters.
+    dataloader_params : dict
+        Parameters for the dataloader, see PyTorch notes, by default None.
 
     Returns
     -------
@@ -132,7 +135,7 @@ def _create_configuration(
         n_channels_out=n_channels_out,
         independent_channels=independent_channels,
         use_n2v2=use_n2v2,
-        model_kwargs=model_kwargs,
+        model_params=model_params,
     )
 
     # algorithm model
@@ -150,6 +153,7 @@ def _create_configuration(
         patch_size=patch_size,
         batch_size=batch_size,
         transforms=augmentations,
+        dataloader_params=dataloader_params,
     )
 
     # training model
@@ -185,7 +189,8 @@ def _create_supervised_configuration(
     n_channels_in: int = 1,
     n_channels_out: int = 1,
     logger: Literal["wandb", "tensorboard", "none"] = "none",
-    model_kwargs: Optional[dict] = None,
+    model_params: Optional[dict] = None,
+    dataloader_params: Optional[dict] = None,
 ) -> Configuration:
     """
     Create a configuration for training CARE or Noise2Noise.
@@ -221,8 +226,10 @@ def _create_supervised_configuration(
         Number of channels out, by default 1.
     logger : Literal["wandb", "tensorboard", "none"], optional
         Logger to use, by default "none".
-    model_kwargs : dict, optional
+    model_params : dict, optional
         UNetModel parameters, by default {}.
+    dataloader_params : dict, optional
+        Parameters for the dataloader, see PyTorch notes, by default None.
 
     Returns
     -------
@@ -267,7 +274,8 @@ def _create_supervised_configuration(
         n_channels_in=n_channels_in,
         n_channels_out=n_channels_out,
         logger=logger,
-        model_kwargs=model_kwargs,
+        model_params=model_params,
+        dataloader_params=dataloader_params,
     )
 
 
@@ -285,7 +293,8 @@ def create_care_configuration(
     n_channels_in: int = 1,
     n_channels_out: int = -1,
     logger: Literal["wandb", "tensorboard", "none"] = "none",
-    model_kwargs: Optional[dict] = None,
+    model_params: Optional[dict] = None,
+    dataloader_params: Optional[dict] = None,
 ) -> Configuration:
     """
     Create a configuration for training CARE.
@@ -337,8 +346,10 @@ def create_care_configuration(
         Number of channels out, by default -1.
     logger : Literal["wandb", "tensorboard", "none"], optional
         Logger to use, by default "none".
-    model_kwargs : dict, optional
-        UNetModel parameters, by default {}.
+    model_params : dict, optional
+        UNetModel parameters, by default None.
+    dataloader_params : dict, optional
+        Parameters for the dataloader, see PyTorch notes, by default None.
 
     Returns
     -------
@@ -430,7 +441,8 @@ def create_care_configuration(
         n_channels_in=n_channels_in,
         n_channels_out=n_channels_out,
         logger=logger,
-        model_kwargs=model_kwargs,
+        model_params=model_params,
+        dataloader_params=dataloader_params,
     )
 
 
@@ -448,7 +460,8 @@ def create_n2n_configuration(
     n_channels_in: int = 1,
     n_channels_out: int = -1,
     logger: Literal["wandb", "tensorboard", "none"] = "none",
-    model_kwargs: Optional[dict] = None,
+    model_params: Optional[dict] = None,
+    dataloader_params: Optional[dict] = None,
 ) -> Configuration:
     """
     Create a configuration for training Noise2Noise.
@@ -500,8 +513,10 @@ def create_n2n_configuration(
         Number of channels out, by default -1.
     logger : Literal["wandb", "tensorboard", "none"], optional
         Logger to use, by default "none".
-    model_kwargs : dict, optional
+    model_params : dict, optional
         UNetModel parameters, by default {}.
+    dataloader_params : dict, optional
+        Parameters for the dataloader, see PyTorch notes, by default None.
 
     Returns
     -------
@@ -593,7 +608,8 @@ def create_n2n_configuration(
         n_channels_in=n_channels_in,
         n_channels_out=n_channels_out,
         logger=logger,
-        model_kwargs=model_kwargs,
+        model_params=model_params,
+        dataloader_params=dataloader_params,
     )
 
 
@@ -614,7 +630,8 @@ def create_n2v_configuration(
     struct_n2v_axis: Literal["horizontal", "vertical", "none"] = "none",
     struct_n2v_span: int = 5,
     logger: Literal["wandb", "tensorboard", "none"] = "none",
-    model_kwargs: Optional[dict] = None,
+    model_params: Optional[dict] = None,
+    dataloader_params: Optional[dict] = None,
 ) -> Configuration:
     """
     Create a configuration for training Noise2Void.
@@ -652,9 +669,9 @@ def create_n2v_configuration(
     be manipulated by N2V. The `masked_pixel_percentage` parameter specifies how many
     pixels per patch will be manipulated.
 
-    The parameters of the UNet can be specified in the `model_kwargs` (passed as a
+    The parameters of the UNet can be specified in the `model_params` (passed as a
     parameter-value dictionary). Note that `use_n2v2` and 'n_channels' override the
-    corresponding parameters passed in `model_kwargs`.
+    corresponding parameters passed in `model_params`.
 
     If you pass "horizontal" or "vertical" to `struct_n2v_axis`, then structN2V mask
     will be applied to each manipulated pixel.
@@ -694,8 +711,10 @@ def create_n2v_configuration(
         Span of the structN2V mask, by default 5.
     logger : Literal["wandb", "tensorboard", "none"], optional
         Logger to use, by default "none".
-    model_kwargs : dict, optional
-        UNetModel parameters, by default {}.
+    model_params : dict, optional
+        UNetModel parameters, by default None.
+    dataloader_params : dict, optional
+        Parameters for the dataloader, see PyTorch notes, by default None.
 
     Returns
     -------
@@ -855,5 +874,6 @@ def create_n2v_configuration(
         n_channels_in=n_channels,
         n_channels_out=n_channels,
         logger=logger,
-        model_kwargs=model_kwargs,
+        model_params=model_params,
+        dataloader_params=dataloader_params,
     )
