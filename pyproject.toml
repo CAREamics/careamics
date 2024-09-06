@@ -61,7 +61,8 @@ dev = [
     "pre-commit",
     "pytest",
     "pytest-cov",
-    "sybil",      # doctesting
+    "sybil",        # doctesting
+    "pytest-xdist", # parallel testing
 ]
 
 # notebooks
