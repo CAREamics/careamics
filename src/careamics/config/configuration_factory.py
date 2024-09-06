@@ -577,7 +577,7 @@ def create_n2n_configuration(
     ...     patch_size=[64, 64],
     ...     batch_size=32,
     ...     num_epochs=100,
-    ...     use_augmentations=[]
+    ...     augmentations=[]
     ... )
 
     A list of transforms can be passed to the `augmentations` parameter to replace the
