@@ -5,27 +5,29 @@ from pathlib import Path
 from typing import Literal, Optional, Union
 
 import numpy as np
-from pydantic import BaseModel, ConfigDict, Field, model_validator, PlainSerializer
+import torch
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    PlainSerializer,
+    PlainValidator,
+    model_validator,
+)
 from typing_extensions import Annotated, Self
 
+from careamics.utils.serializers import _array_to_json, _to_numpy
 
-def array_to_json(v: np.ndarray) -> str:
-    """Convert an array to a list and then to a JSON string.
-    
-    Parameters
-    ----------
-    v : np.ndarray
-        Array to be serialized.
-    
-    Returns
-    -------
-    str
-        JSON string representing the array.
-    """
-    return json.dumps(v.tolist())
-
-Array = Annotated[np.ndarray, PlainSerializer(array_to_json, return_type=str)]
-"""Annotated float type, used to serialize numpy arrays to JSON strings."""
+# TODO: this is a temporary solution to serialize and deserialize array fields
+# in pydantic models. Specifically, the aim is to enable saving and loading configs
+# with such arrays to/from JSON files during, resp., training and evaluation.
+Array = Annotated[
+    Union[np.ndarray, torch.Tensor],
+    PlainSerializer(_array_to_json, return_type=str),
+    PlainValidator(_to_numpy),
+]
+"""Annotated array type, used to serialize arrays or tensors to JSON strings
+and deserialize them back to arrays."""
 
 
 # TODO: add histogram-based noise model
@@ -47,12 +49,14 @@ class GaussianMixtureNMConfig(BaseModel):
     """Path to the directory where the trained noise model (*.npz) is saved in the
     `train` method."""
 
-    # TODO remove and use as parameters to the NM functions? 
+    # TODO remove and use as parameters to the NM functions?
     signal: Optional[Union[str, Path, np.ndarray]] = Field(default=None, exclude=True)
     """Path to the file containing signal or respective numpy array."""
 
     # TODO remove and use as parameters to the NM functions?
-    observation: Optional[Union[str, Path, np.ndarray]] = Field(default=None, exclude=True)
+    observation: Optional[Union[str, Path, np.ndarray]] = Field(
+        default=None, exclude=True
+    )
     """Path to the file containing observation or respective numpy array."""
 
     weight: Optional[Array] = None
