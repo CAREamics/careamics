@@ -260,9 +260,10 @@ def _create_supervised_configuration(
         Batch size.
     num_epochs : int
         Number of epochs.
-    augmentations : list of transforms, optional
+    augmentations : list of transforms, default=None
         List of transforms to apply, either both or one of XYFlipModel and
-        XYRandomRotate90Model.
+        XYRandomRotate90Model. By default, it applies both XYFlip (on X and Y)
+        and XYRandomRotate90 (in XY) to the images.
     independent_channels : bool, optional
         Whether to train all channels independently, by default False.
     loss : Literal["mae", "mse"], optional
@@ -368,9 +369,10 @@ def create_care_configuration(
         Batch size.
     num_epochs : int
         Number of epochs.
-    augmentations : list of transforms, optional
+    augmentations : list of transforms, default=None
         List of transforms to apply, either both or one of XYFlipModel and
-        XYRandomRotate90Model.
+        XYRandomRotate90Model. By default, it applies both XYFlip (on X and Y)
+        and XYRandomRotate90 (in XY) to the images.
     independent_channels : bool, optional
         Whether to train all channels independently, by default False.
     loss : Literal["mae", "mse"], optional
@@ -531,9 +533,10 @@ def create_n2n_configuration(
         Batch size.
     num_epochs : int
         Number of epochs.
-    augmentations : list of transforms, optional
+    augmentations : list of transforms, default=None
         List of transforms to apply, either both or one of XYFlipModel and
-        XYRandomRotate90Model.
+        XYRandomRotate90Model. By default, it applies both XYFlip (on X and Y)
+        and XYRandomRotate90 (in XY) to the images.
     independent_channels : bool, optional
         Whether to train all channels independently, by default False.
     loss : Literal["mae", "mse"], optional
@@ -717,9 +720,10 @@ def create_n2v_configuration(
         Batch size.
     num_epochs : int
         Number of epochs.
-    augmentations : list of transforms, optional
+    augmentations : list of transforms, default=None
         List of transforms to apply, either both or one of XYFlipModel and
-        XYRandomRotate90Model.
+        XYRandomRotate90Model. By default, it applies both XYFlip (on X and Y)
+        and XYRandomRotate90 (in XY) to the images.
     independent_channels : bool, optional
         Whether to train all channels together, by default True.
     use_n2v2 : bool, optional
