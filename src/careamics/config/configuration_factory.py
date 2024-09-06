@@ -13,7 +13,6 @@ from .support import (
 )
 from .training_model import TrainingConfig
 from .transformations import (
-    TRANSFORMS_UNION,
     N2VManipulateModel,
     TransformModel,
     XYFlipModel,
@@ -75,7 +74,7 @@ def _create_configuration(
     patch_size: list[int],
     batch_size: int,
     num_epochs: int,
-    augmentations: list[TRANSFORMS_UNION],
+    augmentations: list[TransformModel],
     independent_channels: bool,
     loss: Literal["n2v", "mae", "mse"],
     n_channels_in: int,
@@ -183,7 +182,7 @@ def _create_supervised_configuration(
     batch_size: int,
     num_epochs: int,
     use_augmentations: bool = True,
-    augmentations: Optional[list[TRANSFORMS_UNION]] = None,
+    augmentations: Optional[list[TransformModel]] = None,
     independent_channels: bool = True,
     loss: Literal["mae", "mse"] = "mae",
     n_channels_in: int = 1,
@@ -251,7 +250,7 @@ def _create_supervised_configuration(
     # augmentations
     if use_augmentations:
         if augmentations is None:
-            transform_list: list[TRANSFORMS_UNION] = [
+            transform_list: list[TransformModel] = [
                 XYFlipModel(),
                 XYRandomRotate90Model(),
             ]
@@ -287,7 +286,7 @@ def create_care_configuration(
     batch_size: int,
     num_epochs: int,
     use_augmentations: bool = True,
-    augmentations: Optional[list[TRANSFORMS_UNION]] = None,
+    augmentations: Optional[list[TransformModel]] = None,
     independent_channels: bool = True,
     loss: Literal["mae", "mse"] = "mae",
     n_channels_in: int = 1,
@@ -454,7 +453,7 @@ def create_n2n_configuration(
     batch_size: int,
     num_epochs: int,
     use_augmentations: bool = True,
-    augmentations: Optional[list[TRANSFORMS_UNION]] = None,
+    augmentations: Optional[list[TransformModel]] = None,
     independent_channels: bool = True,
     loss: Literal["mae", "mse"] = "mae",
     n_channels_in: int = 1,
@@ -621,7 +620,7 @@ def create_n2v_configuration(
     batch_size: int,
     num_epochs: int,
     use_augmentations: bool = True,
-    augmentations: Optional[list[TRANSFORMS_UNION]] = None,
+    augmentations: Optional[list[TransformModel]] = None,
     independent_channels: bool = True,
     use_n2v2: bool = False,
     n_channels: int = 1,
@@ -823,7 +822,7 @@ def create_n2v_configuration(
     # augmentations
     if use_augmentations:
         if augmentations is None:
-            transform_list: list[TRANSFORMS_UNION] = [
+            transform_list: list[TransformModel] = [
                 XYFlipModel(),
                 XYRandomRotate90Model(),
             ]

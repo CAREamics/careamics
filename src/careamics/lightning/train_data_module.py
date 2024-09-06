@@ -10,7 +10,7 @@ from torch.utils.data import DataLoader
 
 from careamics.config import DataConfig
 from careamics.config.support import SupportedData
-from careamics.config.transformations import TRANSFORMS_UNION
+from careamics.config.transformations import TransformModel
 from careamics.dataset.dataset_utils import (
     get_files_size,
     list_files,
@@ -472,7 +472,7 @@ def create_train_datamodule(
     axes: str,
     batch_size: int,
     val_data: Optional[Union[str, Path, NDArray]] = None,
-    transforms: Optional[list[TRANSFORMS_UNION]] = None,
+    transforms: Optional[list[TransformModel]] = None,
     train_target_data: Optional[Union[str, Path, NDArray]] = None,
     val_target_data: Optional[Union[str, Path, NDArray]] = None,
     read_source_func: Optional[Callable] = None,
