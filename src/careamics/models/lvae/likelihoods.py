@@ -289,7 +289,7 @@ class NoiseModelLikelihood(LikelihoodModule):
     def __init__(
         self,
         data_mean: Union[np.ndarray, torch.Tensor],
-        data_std:  Union[np.ndarray, torch.Tensor],
+        data_std: Union[np.ndarray, torch.Tensor],
         noiseModel: NoiseModel,
     ):
         """Constructor.
@@ -313,7 +313,7 @@ class NoiseModelLikelihood(LikelihoodModule):
         self, correct_device_tensor: torch.Tensor
     ) -> None:
         """Set the parameters to the same device as the input tensor.
-        
+
         Parameters
         ----------
         correct_device_tensor: torch.Tensor

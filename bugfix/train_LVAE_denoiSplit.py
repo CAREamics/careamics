@@ -44,11 +44,13 @@ multiscale_count: int = 1
 """The number of LC inputs plus one (the actual input)."""
 predict_logvar: Optional[Literal["pixelwise"]] = None
 """Whether to compute also the log-variance as LVAE output."""
-loss_type: Optional[Literal["musplit", "denoisplit", "denoisplit_musplit"]] = "denoisplit_musplit"
+loss_type: Optional[Literal["musplit", "denoisplit", "denoisplit_musplit"]] = (
+    "denoisplit_musplit"
+)
 """The type of reconstruction loss (i.e., likelihood) to use."""
 nm_paths: Optional[tuple[str]] = [
     "/group/jug/ashesh/training_pre_eccv/noise_model/2402/221/GMMNoiseModel_ER-GT_all.mrc__6_4_Clip0.0-1.0_Sig0.125_UpNone_Norm0_bootstrap.npz",
-    "/group/jug/ashesh/training_pre_eccv/noise_model/2402/225/GMMNoiseModel_Microtubules-GT_all.mrc__6_4_Clip0.0-1.0_Sig0.125_UpNone_Norm0_bootstrap.npz"
+    "/group/jug/ashesh/training_pre_eccv/noise_model/2402/225/GMMNoiseModel_Microtubules-GT_all.mrc__6_4_Clip0.0-1.0_Sig0.125_UpNone_Norm0_bootstrap.npz",
 ]
 """The paths to the pre-trained noise models for the different channels."""
 # TODO: add denoisplit-musplit weights
@@ -123,7 +125,7 @@ def create_dataset(
     if config.multiscale_lowres_count > 1:
         # Get padding attributes
         if "padding_kwargs" not in kwargs_dict:
-            padding_kwargs = {"mode": "reflect"} 
+            padding_kwargs = {"mode": "reflect"}
         else:
             padding_kwargs = kwargs_dict.pop("padding_kwargs")
 
@@ -216,9 +218,9 @@ def create_dataset(
     assert isinstance(data_stats[0], dict)
     data_stats = (
         torch.tensor(data_stats[0]["target"]),
-        torch.tensor(data_stats[1]["target"])
+        torch.tensor(data_stats[1]["target"]),
     )
-    
+
     return train_data, val_data, data_stats
 
 
@@ -249,7 +251,7 @@ def create_split_lightning_model(
     if loss_type in ["musplit", "denoisplit_musplit"]:
         gaussian_lik_config = GaussianLikelihoodConfig(
             predict_logvar=predict_logvar,
-            logvar_lowerbound=-5., # TODO: find a better way to fix this
+            logvar_lowerbound=-5.0,  # TODO: find a better way to fix this
         )
     else:
         gaussian_lik_config = None
@@ -438,38 +440,30 @@ def main():
     loss_config = deepcopy(asdict(lightning_model.loss_parameters))
     del loss_config["noise_model_likelihood"]
     del loss_config["gaussian_likelihood"]
-    
+
     with open(os.path.join(workdir, "git_config.json"), "w") as f:
         json.dump(get_git_status(), f, indent=4)
-        
+
     with open(os.path.join(workdir, "algorithm_config.json"), "w") as f:
         f.write(algo_config.model_dump_json(indent=4))
 
     with open(os.path.join(workdir, "training_config.json"), "w") as f:
         f.write(training_config.model_dump_json(indent=4))
-        
+
     with open(os.path.join(workdir, "data_config.json"), "w") as f:
         json.dump(data_config.to_dict(), f, indent=4)
-        
+
     with open(os.path.join(workdir, "loss_config.json"), "w") as f:
         json.dump(loss_config, f, indent=4)
 
     # Save Configs in WANDB
-    custom_logger.experiment.config.update({
-        "algorithm": algo_config.model_dump()
-    })
+    custom_logger.experiment.config.update({"algorithm": algo_config.model_dump()})
 
-    custom_logger.experiment.config.update({
-        "training": training_config.model_dump()
-    })
+    custom_logger.experiment.config.update({"training": training_config.model_dump()})
 
-    custom_logger.experiment.config.update({
-        "data": data_config.to_dict()
-    }) 
+    custom_logger.experiment.config.update({"data": data_config.to_dict()})
 
-    custom_logger.experiment.config.update({
-        "loss_params": loss_config
-    })
+    custom_logger.experiment.config.update({"loss_params": loss_config})
 
     # Train the model
     trainer = Trainer(

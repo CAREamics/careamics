@@ -21,7 +21,10 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from careamics.lightning import VAEModule
-from careamics.losses.lvae.losses import get_reconstruction_loss, reconstruction_loss_musplit_denoisplit
+from careamics.losses.lvae.losses import (
+    get_reconstruction_loss,
+    reconstruction_loss_musplit_denoisplit,
+)
 from careamics.models.lvae.utils import ModelType
 from careamics.utils.metrics import scale_invariant_psnr, RunningPSNR
 
@@ -62,9 +65,7 @@ def get_psnr_str(tar_hsnr, pred, col_idx):
     """
     Compute PSNR between the ground truth (`tar_hsnr`) and the predicted image (`pred`).
     """
-    return (
-        f"{scale_invariant_psnr(tar_hsnr[col_idx][None], pred[col_idx][None]).item():.1f}"
-    )
+    return f"{scale_invariant_psnr(tar_hsnr[col_idx][None], pred[col_idx][None]).item():.1f}"
 
 
 def add_psnr_str(ax_, psnr):
@@ -519,14 +520,14 @@ def get_dset_predictions(
         Dataset to predict on.
     batch_size : int
         Batch size to use for prediction.
-    loss_type : 
+    loss_type :
         Type of reconstruction loss used by the model, by default `None`.
     mmse_count : int, optional
         Number of samples to generate for each input and then to average over for
         MMSE estimation, by default 1.
     num_workers : int, optional
         Number of workers to use for DataLoader, by default 4.
-        
+
     Returns
     -------
     tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, List[float]]
@@ -544,10 +545,10 @@ def get_dset_predictions(
         shuffle=False,
         batch_size=batch_size,
     )
-    
+
     gauss_likelihood = model.gaussian_likelihood
     nm_likelihood = model.noise_model_likelihood
-    
+
     predictions = []
     predictions_std = []
     losses = []
@@ -562,7 +563,7 @@ def get_dset_predictions(
 
             rec_img_list = []
             for mmse_idx in range(mmse_count):
-                
+
                 # TODO: case of HDN left for future refactoring
                 # if model_type == ModelType.Denoiser:
                 #     assert model.denoise_channel in [
@@ -581,42 +582,38 @@ def get_dset_predictions(
                 #         x_normalized_new,
                 #         return_predicted_img=True,
                 #     )
-                
+
                 # get model output
                 rec, _ = model(inp)
-                
+
                 # get reconstructed img
                 if model.model.predict_logvar is None:
                     rec_img = rec
                     logvar = torch.tensor([-1])
                 else:
                     rec_img, logvar = torch.chunk(rec, chunks=2, dim=1)
-                rec_img_list.append(rec_img.cpu().unsqueeze(0)) # add MMSE dim
+                rec_img_list.append(rec_img.cpu().unsqueeze(0))  # add MMSE dim
                 logvar_arr.append(logvar.cpu().numpy())
-                
+
                 # compute reconstruction loss
                 if loss_type == "musplit":
                     rec_loss = get_reconstruction_loss(
-                        reconstruction=rec, 
-                        target=tar,
-                        likelihood_obj=gauss_likelihood
+                        reconstruction=rec, target=tar, likelihood_obj=gauss_likelihood
                     )
                 elif loss_type == "denoisplit":
                     rec_loss = get_reconstruction_loss(
-                        reconstruction=rec, 
-                        target=tar,
-                        likelihood_obj=nm_likelihood
+                        reconstruction=rec, target=tar, likelihood_obj=nm_likelihood
                     )
                 elif loss_type == "denoisplit_musplit":
                     rec_loss = reconstruction_loss_musplit_denoisplit(
-                        predictions=rec, 
+                        predictions=rec,
                         targets=tar,
                         gaussian_likelihood=gauss_likelihood,
                         nm_likelihood=nm_likelihood,
                         nm_weight=model.loss_parameters.denoisplit_weight,
-                        gaussian_weight=model.loss_parameters.musplit_weight
+                        gaussian_weight=model.loss_parameters.musplit_weight,
                     )
-                    rec_loss = {"loss": rec_loss} # hacky, but ok for now
+                    rec_loss = {"loss": rec_loss}  # hacky, but ok for now
 
                 # store rec loss values for first pred
                 if mmse_idx == 0:
@@ -624,14 +621,14 @@ def get_dset_predictions(
                         losses.append(rec_loss["loss"].cpu().numpy())
                     except:
                         losses.append(rec_loss["loss"])
-                
+
                 # update running PSNR
                 for i in range(num_channels):
                     patch_psnr_channels[i].update(rec_img[:, i], tar[:, i])
 
             # aggregate results
             samples = torch.cat(rec_img_list, dim=0)
-            mmse_imgs = torch.mean(samples, dim=0) # avg over MMSE dim
+            mmse_imgs = torch.mean(samples, dim=0)  # avg over MMSE dim
             mmse_std = torch.std(samples, dim=0)
             predictions.append(mmse_imgs.cpu().numpy())
             predictions_std.append(mmse_std.cpu().numpy())

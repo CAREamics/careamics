@@ -661,7 +661,7 @@ class MultiChDloader:
             img = (img - mean[i]) / std[i]
             normalized_imgs.append(img)
         return tuple(normalized_imgs)
-    
+
     def normalize_input(self, x):
         mean_dict, std_dict = self.get_mean_std()
         mean_ = mean_dict["input"].mean()
@@ -794,7 +794,7 @@ class MultiChDloader:
         mean_dict = {"input": mean}  # , 'target':mean}
         std_dict = {"input": std}  # , 'target':std}
 
-        if self._target_separate_normalization: # True
+        if self._target_separate_normalization:  # True
             # this is computed for each channel separately
             mean, std = self.compute_individual_mean_std()
 
