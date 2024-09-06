@@ -1,6 +1,6 @@
 """Convenience functions to create configurations for training and inference."""
 
-from typing import Any, Literal, Optional
+from typing import Any, Literal, Optional, Union
 
 from .architectures import UNetModel
 from .configuration_model import Configuration
@@ -14,13 +14,62 @@ from .support import (
 from .training_model import TrainingConfig
 from .transformations import (
     N2VManipulateModel,
-    TransformModel,
     XYFlipModel,
     XYRandomRotate90Model,
 )
 
 
-def _create_unet(
+def _list_augmentations(
+    augmentations: Optional[list[Union[XYFlipModel, XYRandomRotate90Model]]],
+) -> list[Union[XYFlipModel, XYRandomRotate90Model]]:
+    """
+    List the augmentations to apply.
+
+    Parameters
+    ----------
+    augmentations : list of transforms, optional
+        List of transforms to apply, either both or one of XYFlipModel and
+        XYRandomRotate90Model.
+
+    Returns
+    -------
+    list of transforms
+        List of transforms to apply.
+
+    Raises
+    ------
+    ValueError
+        If the transforms are not XYFlipModel or XYRandomRotate90Model.
+    ValueError
+        If there are duplicate transforms.
+    """
+    if augmentations is None:
+        transform_list: list[Union[XYFlipModel, XYRandomRotate90Model]] = [
+            XYFlipModel(),
+            XYRandomRotate90Model(),
+        ]
+    else:
+        # throw error if not all transforms are pydantic models
+        if not all(
+            isinstance(t, XYFlipModel) or isinstance(t, XYRandomRotate90Model)
+            for t in augmentations
+        ):
+            raise ValueError(
+                "Accepted transforms are either XYFlipModel or "
+                "XYRandomRotate90Model."
+            )
+
+        # check that there is no duplication
+        aug_types = [t.__class__ for t in augmentations]
+        if len(set(aug_types)) != len(aug_types):
+            raise ValueError("Duplicate transforms are not allowed.")
+
+        transform_list = augmentations
+
+    return transform_list
+
+
+def _create_unet_configuration(
     axes: str,
     n_channels_in: int,
     n_channels_out: int,
@@ -74,7 +123,7 @@ def _create_configuration(
     patch_size: list[int],
     batch_size: int,
     num_epochs: int,
-    augmentations: list[TransformModel],
+    augmentations: list[Union[XYFlipModel, XYRandomRotate90Model]],
     independent_channels: bool,
     loss: Literal["n2v", "mae", "mse"],
     n_channels_in: int,
@@ -103,8 +152,9 @@ def _create_configuration(
         Batch size.
     num_epochs : int
         Number of epochs.
-    augmentations : list of TransformModel
-        List of transforms to apply.
+    augmentations : list of transforms
+        List of transforms to apply, either both or one of XYFlipModel and
+        XYRandomRotate90Model.
     independent_channels : bool
         Whether to train all channels independently.
     loss : {"n2v", "mae", "mse"}
@@ -128,7 +178,7 @@ def _create_configuration(
         Configuration for training N2V, CARE or Noise2Noise.
     """
     # model
-    unet_model = _create_unet(
+    unet_model = _create_unet_configuration(
         axes=axes,
         n_channels_in=n_channels_in,
         n_channels_out=n_channels_out,
@@ -173,6 +223,7 @@ def _create_configuration(
     return configuration
 
 
+# TODO reconsider naming once we officially support LVAE approaches
 def _create_supervised_configuration(
     algorithm: Literal["care", "n2n"],
     experiment_name: str,
@@ -181,8 +232,7 @@ def _create_supervised_configuration(
     patch_size: list[int],
     batch_size: int,
     num_epochs: int,
-    use_augmentations: bool = True,
-    augmentations: Optional[list[TransformModel]] = None,
+    augmentations: Optional[list[Union[XYFlipModel, XYRandomRotate90Model]]] = None,
     independent_channels: bool = True,
     loss: Literal["mae", "mse"] = "mae",
     n_channels_in: int = 1,
@@ -210,11 +260,9 @@ def _create_supervised_configuration(
         Batch size.
     num_epochs : int
         Number of epochs.
-    use_augmentations : bool, optional
-        Whether to use augmentations, by default True.
-    augmentations : list of TransformModel, optional
-        List of transforms (augmentations) to apply instead of the default ones, by
-        default None.
+    augmentations : list of transforms, optional
+        List of transforms to apply, either both or one of XYFlipModel and
+        XYRandomRotate90Model.
     independent_channels : bool, optional
         Whether to train all channels independently, by default False.
     loss : Literal["mae", "mse"], optional
@@ -248,16 +296,7 @@ def _create_supervised_configuration(
         )
 
     # augmentations
-    if use_augmentations:
-        if augmentations is None:
-            transform_list: list[TransformModel] = [
-                XYFlipModel(),
-                XYRandomRotate90Model(),
-            ]
-        else:
-            transform_list = augmentations
-    else:
-        transform_list = []
+    transform_list = _list_augmentations(augmentations)
 
     return _create_configuration(
         algorithm=algorithm,
@@ -285,8 +324,7 @@ def create_care_configuration(
     patch_size: list[int],
     batch_size: int,
     num_epochs: int,
-    use_augmentations: bool = True,
-    augmentations: Optional[list[TransformModel]] = None,
+    augmentations: Optional[list[Union[XYFlipModel, XYRandomRotate90Model]]] = None,
     independent_channels: bool = True,
     loss: Literal["mae", "mse"] = "mae",
     n_channels_in: int = 1,
@@ -311,10 +349,10 @@ def create_care_configuration(
     By default, all channels are trained together. To train all channels independently,
     set `independent_channels` to True.
 
-    By setting `use_augmentations` to False, the only transformations applied will be
-    normalization. Rather than the default transforms, a list of transforms can be
-    passed to the `augmentations` parameter, but will be ignored if `use_augmentations`
-    is set to False.
+    By setting `augmentations` to `None`, the default transformations (flip in X and Y,
+    rotations by 90 degrees in the XY plane) are applied. Rather than the default
+    transforms, a list of transforms can be passed to the `augmentations` parameter. To
+    disable the transforms, simply pass an empty list.
 
     Parameters
     ----------
@@ -330,11 +368,9 @@ def create_care_configuration(
         Batch size.
     num_epochs : int
         Number of epochs.
-    use_augmentations : bool, optional
-        Whether to use augmentations, by default True.
-    augmentations : list of TransformModel, optional
-        List of transforms (augmentations) to apply instead of the default ones, by
-        default None.
+    augmentations : list of transforms, optional
+        List of transforms to apply, either both or one of XYFlipModel and
+        XYRandomRotate90Model.
     independent_channels : bool, optional
         Whether to train all channels independently, by default False.
     loss : Literal["mae", "mse"], optional
@@ -367,7 +403,7 @@ def create_care_configuration(
     ...     num_epochs=100
     ... )
 
-    To disable transforms, simply set `use_augmentations` to False:
+    To disable transforms, simply set `augmentations` to an empty list:
     >>> config = create_care_configuration(
     ...     experiment_name="care_experiment",
     ...     data_type="array",
@@ -375,7 +411,7 @@ def create_care_configuration(
     ...     patch_size=[64, 64],
     ...     batch_size=32,
     ...     num_epochs=100,
-    ...     use_augmentations=False
+    ...     augmentations=[]
     ... )
 
     A list of transforms can be passed to the `augmentations` parameter to replace the
@@ -433,7 +469,6 @@ def create_care_configuration(
         patch_size=patch_size,
         batch_size=batch_size,
         num_epochs=num_epochs,
-        use_augmentations=use_augmentations,
         augmentations=augmentations,
         independent_channels=independent_channels,
         loss=loss,
@@ -452,8 +487,7 @@ def create_n2n_configuration(
     patch_size: list[int],
     batch_size: int,
     num_epochs: int,
-    use_augmentations: bool = True,
-    augmentations: Optional[list[TransformModel]] = None,
+    augmentations: Optional[list[Union[XYFlipModel, XYRandomRotate90Model]]] = None,
     independent_channels: bool = True,
     loss: Literal["mae", "mse"] = "mae",
     n_channels_in: int = 1,
@@ -478,10 +512,10 @@ def create_n2n_configuration(
     By default, all channels are trained together. To train all channels independently,
     set `independent_channels` to True.
 
-    By setting `use_augmentations` to False, the only transformations applied will be
-    normalization. Rather than the default transforms, a list of transforms can be
-    passed to the `augmentations` parameter, but will be ignored if `use_augmentations`
-    is set to False.
+    By setting `augmentations` to `None`, the default transformations (flip in X and Y,
+    rotations by 90 degrees in the XY plane) are applied. Rather than the default
+    transforms, a list of transforms can be passed to the `augmentations` parameter. To
+    disable the transforms, simply pass an empty list.
 
     Parameters
     ----------
@@ -497,11 +531,9 @@ def create_n2n_configuration(
         Batch size.
     num_epochs : int
         Number of epochs.
-    use_augmentations : bool, optional
-        Whether to use augmentations, by default True.
-    augmentations : list of TransformModel, optional
-        List of transforms (augmentations) to apply instead of the default ones, by
-        default None.
+    augmentations : list of transforms, optional
+        List of transforms to apply, either both or one of XYFlipModel and
+        XYRandomRotate90Model.
     independent_channels : bool, optional
         Whether to train all channels independently, by default False.
     loss : Literal["mae", "mse"], optional
@@ -534,7 +566,7 @@ def create_n2n_configuration(
     ...     num_epochs=100
     ... )
 
-    To disable transforms, simply set `use_augmentations` to False:
+    To disable transforms, simply set `augmentations` to an empty list:
     >>> config = create_n2n_configuration(
     ...     experiment_name="n2n_experiment",
     ...     data_type="array",
@@ -542,7 +574,7 @@ def create_n2n_configuration(
     ...     patch_size=[64, 64],
     ...     batch_size=32,
     ...     num_epochs=100,
-    ...     use_augmentations=False
+    ...     use_augmentations=[]
     ... )
 
     A list of transforms can be passed to the `augmentations` parameter to replace the
@@ -600,7 +632,6 @@ def create_n2n_configuration(
         patch_size=patch_size,
         batch_size=batch_size,
         num_epochs=num_epochs,
-        use_augmentations=use_augmentations,
         augmentations=augmentations,
         independent_channels=independent_channels,
         loss=loss,
@@ -619,8 +650,7 @@ def create_n2v_configuration(
     patch_size: list[int],
     batch_size: int,
     num_epochs: int,
-    use_augmentations: bool = True,
-    augmentations: Optional[list[TransformModel]] = None,
+    augmentations: Optional[list[Union[XYFlipModel, XYRandomRotate90Model]]] = None,
     independent_channels: bool = True,
     use_n2v2: bool = False,
     n_channels: int = 1,
@@ -657,12 +687,10 @@ def create_n2v_configuration(
     90 degrees rotation in the XY plane. Normalization is always applied, as well as the
     N2V manipulation.
 
-    By setting `use_augmentations` to False, the only transformations applied will be
-    normalization and N2V manipulation. Rather than the default transforms, a list of
-    transforms can be passed to the `augmentations` parameter, but will be ignored if
-    `use_augmentations` is set to False. Note that the `N2VManipulate` transform is
-    added to the transforms list according to the parameters of this function, and will
-    replace any instance passed in `augmentations`.
+    By setting `augmentations` to `None`, the default transformations (flip in X and Y,
+    rotations by 90 degrees in the XY plane) are applied. Rather than the default
+    transforms, a list of transforms can be passed to the `augmentations` parameter. To
+    disable the transforms, simply pass an empty list.
 
     The `roi_size` parameter specifies the size of the area around each pixel that will
     be manipulated by N2V. The `masked_pixel_percentage` parameter specifies how many
@@ -689,11 +717,9 @@ def create_n2v_configuration(
         Batch size.
     num_epochs : int
         Number of epochs.
-    use_augmentations : bool
-        Whether to use augmentations, by default True.
-    augmentations : list of TransformModel, optional
-        List of transforms (augmentations) to apply instead of the default ones, by
-        default None.
+    augmentations : list of transforms, optional
+        List of transforms to apply, either both or one of XYFlipModel and
+        XYRandomRotate90Model.
     independent_channels : bool, optional
         Whether to train all channels together, by default True.
     use_n2v2 : bool, optional
@@ -732,7 +758,7 @@ def create_n2v_configuration(
     ...     num_epochs=100
     ... )
 
-    To disable transforms, simply set `use_augmentations` to False:
+    To disable transforms, simply set `augmentations` to an empty list:
     >>> config = create_n2v_configuration(
     ...     experiment_name="n2v_experiment",
     ...     data_type="array",
@@ -740,7 +766,7 @@ def create_n2v_configuration(
     ...     patch_size=[64, 64],
     ...     batch_size=32,
     ...     num_epochs=100,
-    ...     use_augmentations=False
+    ...     augmentations=[]
     ... )
 
     A list of transforms can be passed to the `augmentations` parameter:
@@ -820,28 +846,7 @@ def create_n2v_configuration(
         )
 
     # augmentations
-    if use_augmentations:
-        if augmentations is None:
-            transform_list: list[TransformModel] = [
-                XYFlipModel(),
-                XYRandomRotate90Model(),
-            ]
-        else:
-            # throw error if not all transforms are pydantic models
-            if not all(isinstance(t, TransformModel) for t in augmentations):
-                raise ValueError(
-                    "All transforms must be of type TransformModel, "
-                    "i.e. they must be pydantic models."
-                )
-
-            # remove N2VManipulate transform
-            transform_list = [
-                t
-                for t in augmentations
-                if t.name != SupportedTransform.N2V_MANIPULATE.value
-            ]
-    else:
-        transform_list = []
+    transform_list = _list_augmentations(augmentations)
 
     # create the N2VManipulate transform using the supplied parameters
     n2v_transform = N2VManipulateModel(

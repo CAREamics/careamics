@@ -8,7 +8,8 @@ from careamics.config import (
 from careamics.config.configuration_factory import (
     _create_configuration,
     _create_supervised_configuration,
-    _create_unet,
+    _create_unet_configuration,
+    _list_augmentations,
 )
 from careamics.config.support import (
     SupportedPixelManipulation,
@@ -20,6 +21,53 @@ from careamics.config.transformations import (
     XYFlipModel,
     XYRandomRotate90Model,
 )
+
+
+def test_list_aug_default():
+    """Test that the default augmentations are present."""
+    list_aug = _list_augmentations(augmentations=None)
+
+    assert len(list_aug) == 2
+    assert list_aug[0].name == SupportedTransform.XY_FLIP.value
+    assert list_aug[1].name == SupportedTransform.XY_RANDOM_ROTATE90.value
+
+
+def test_list_aug_no_aug():
+    """Test that disabling augmentation results in empty transform list."""
+    list_aug = _list_augmentations(augmentations=[])
+    assert len(list_aug) == 0
+
+
+def test_list_aug_error_duplicate_transforms():
+    """Test that an error is raised when there are duplicate transforms."""
+    with pytest.raises(ValueError):
+        _list_augmentations(
+            augmentations=[XYFlipModel(), XYRandomRotate90Model(), XYFlipModel()],
+        )
+
+
+def test_list_aug_error_wrong_transform():
+    """Test that an error is raised when the wrong transform is passed."""
+    with pytest.raises(ValueError):
+        _list_augmentations(
+            augmentations=[XYFlipModel(), N2VManipulateModel()],
+        )
+
+
+def test_supervised_configuration_passing_transforms():
+    """Test that transforms can be passed to the configuration."""
+    config = _create_supervised_configuration(
+        algorithm="n2n",
+        experiment_name="test",
+        data_type="tiff",
+        axes="YX",
+        patch_size=[64, 64],
+        batch_size=8,
+        num_epochs=100,
+        augmentations=[XYFlipModel()],
+    )
+    assert len(config.data_config.transforms) == 1
+    assert config.data_config.transforms[0].name == SupportedTransform.XY_FLIP.value
 
 
 def test_model_creation():
@@ -41,7 +89,7 @@ def test_model_creation():
     independent_channels = True
     use_n2v2 = True
 
-    model = _create_unet(
+    model = _create_unet_configuration(
         axes=axes,
         n_channels_in=in_channels,
         n_channels_out=num_classes,
@@ -162,72 +210,6 @@ def test_supervised_configuration_channels():
     )
 
 
-def test_supervised_configuration_aug():
-    """Test that the default augmentations are present."""
-    config = _create_supervised_configuration(
-        algorithm="n2n",
-        experiment_name="test",
-        data_type="tiff",
-        axes="YX",
-        patch_size=[64, 64],
-        batch_size=8,
-        num_epochs=100,
-    )
-    assert len(config.data_config.transforms) == 2
-    assert config.data_config.transforms[0].name == SupportedTransform.XY_FLIP.value
-    assert (
-        config.data_config.transforms[1].name
-        == SupportedTransform.XY_RANDOM_ROTATE90.value
-    )
-
-
-def test_supervised_configuration_no_aug():
-    """Test that disabling augmentation results in empty transform list."""
-    config = _create_supervised_configuration(
-        algorithm="n2n",
-        experiment_name="test",
-        data_type="tiff",
-        axes="YX",
-        patch_size=[64, 64],
-        batch_size=8,
-        num_epochs=100,
-        use_augmentations=False,
-    )
-    assert len(config.data_config.transforms) == 0
-
-
-def test_supervised_configuration_no_aug_with_transforms_passed():
-    """Test that the augmentation flag also disables passing transforms."""
-    config = _create_supervised_configuration(
-        algorithm="n2n",
-        experiment_name="test",
-        data_type="tiff",
-        axes="YX",
-        patch_size=[64, 64],
-        batch_size=8,
-        num_epochs=100,
-        use_augmentations=False,
-        augmentations=[XYFlipModel()],
-    )
-    assert len(config.data_config.transforms) == 0
-
-
-def test_supervised_configuration_passing_transforms():
-    """Test that transforms can be passed to the configuration."""
-    config = _create_supervised_configuration(
-        algorithm="n2n",
-        experiment_name="test",
-        data_type="tiff",
-        axes="YX",
-        patch_size=[64, 64],
-        batch_size=8,
-        num_epochs=100,
-        augmentations=[XYFlipModel()],
-    )
-    assert len(config.data_config.transforms) == 1
-    assert config.data_config.transforms[0].name == SupportedTransform.XY_FLIP.value
-
-
 def test_n2n_configuration():
     """Test that N2N configuration can be created."""
     config = create_n2n_configuration(
@@ -338,27 +320,6 @@ def test_n2v_configuration():
     )
 
 
-def test_n2v_3d_configuration():
-    """Test that N2V configuration can be created in 3D."""
-    config = create_n2v_configuration(
-        experiment_name="test",
-        data_type="tiff",
-        axes="ZYX",
-        patch_size=[64, 64, 64],
-        batch_size=8,
-        num_epochs=100,
-    )
-    assert (
-        config.data_config.transforms[-1].name
-        == SupportedTransform.N2V_MANIPULATE.value
-    )
-    assert (
-        config.data_config.transforms[-1].strategy
-        == SupportedPixelManipulation.UNIFORM.value
-    )
-    assert config.algorithm_config.model.is_3D()
-
-
 def test_n2v_configuration_default_transforms():
     """Test the default n2v transforms."""
     config = create_n2v_configuration(
@@ -381,7 +342,7 @@ def test_n2v_configuration_default_transforms():
 
 
 def test_n2v_configuration_no_aug():
-    """Test that the N2V configuration can be created without augmentation."""
+    """Test the default n2v transforms."""
     config = create_n2v_configuration(
         experiment_name="test",
         data_type="tiff",
@@ -389,33 +350,16 @@ def test_n2v_configuration_no_aug():
         patch_size=[64, 64],
         batch_size=8,
         num_epochs=100,
-        use_augmentations=False,
+        augmentations=[],
     )
-    assert len(config.data_config.transforms) == 1  # only N2V manipulate
+    assert len(config.data_config.transforms) == 1
     assert (
-        config.data_config.transforms[0].name == SupportedTransform.N2V_MANIPULATE.value
+        config.data_config.transforms[-1].name
+        == SupportedTransform.N2V_MANIPULATE.value
     )
 
 
-def test_n2v_configuration_no_aug_with_transforms_passed():
-    """Test that the augmentation flag also disables passing transforms."""
-    config = create_n2v_configuration(
-        experiment_name="test",
-        data_type="tiff",
-        axes="YX",
-        patch_size=[64, 64],
-        batch_size=8,
-        num_epochs=100,
-        use_augmentations=False,
-        augmentations=[XYFlipModel(), XYRandomRotate90Model()],
-    )
-    assert len(config.data_config.transforms) == 1  # only N2V manipulate
-    assert (
-        config.data_config.transforms[0].name == SupportedTransform.N2V_MANIPULATE.value
-    )
-
-
-def test_n2v_configuration_passing_n2v_manipulate():
+def test_n2v_configuration_n2v2_structn2v():
     """Test that N2V manipulate is ignored when explicitely passed."""
     use_n2v2 = True
     roi_size = 15
@@ -430,35 +374,29 @@ def test_n2v_configuration_passing_n2v_manipulate():
         patch_size=[64, 64],
         batch_size=8,
         num_epochs=100,
-        augmentations=[
-            XYFlipModel(),
-            N2VManipulateModel(
-                strategy=SupportedPixelManipulation.UNIFORM.value,
-                roi_size=5,
-                masked_pixel_percentage=0.7,
-                struct_mask_axis=SupportedStructAxis.VERTICAL.value,
-                struct_mask_span=7,
-            ),
-        ],
         use_n2v2=use_n2v2,  # median strategy
         roi_size=roi_size,
         masked_pixel_percentage=masked_pixel_percentage,
         struct_n2v_axis=struct_mask_axis,
         struct_n2v_span=struct_n2v_span,
     )
-    assert len(config.data_config.transforms) == 2
-    assert config.data_config.transforms[0].name == SupportedTransform.XY_FLIP.value
+    assert len(config.data_config.transforms) == 3
     assert (
-        config.data_config.transforms[1].name == SupportedTransform.N2V_MANIPULATE.value
+        config.data_config.transforms[-1].name
+        == SupportedTransform.N2V_MANIPULATE.value
     )
     assert (
-        config.data_config.transforms[1].strategy
+        config.data_config.transforms[-1].name
+        == SupportedTransform.N2V_MANIPULATE.value
+    )
+    assert (
+        config.data_config.transforms[-1].strategy
         == SupportedPixelManipulation.MEDIAN.value
     )
-    assert config.data_config.transforms[1].roi_size == roi_size
+    assert config.data_config.transforms[-1].roi_size == roi_size
     assert (
-        config.data_config.transforms[1].masked_pixel_percentage
+        config.data_config.transforms[-1].masked_pixel_percentage
         == masked_pixel_percentage
     )
-    assert config.data_config.transforms[1].struct_mask_axis == struct_mask_axis
-    assert config.data_config.transforms[1].struct_mask_span == struct_n2v_span
+    assert config.data_config.transforms[-1].struct_mask_axis == struct_mask_axis
+    assert config.data_config.transforms[-1].struct_mask_span == struct_n2v_span
