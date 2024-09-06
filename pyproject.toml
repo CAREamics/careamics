@@ -48,7 +48,7 @@ dependencies = [
     'bioimageio.core>=0.6.0',
     'tifffile',
     'psutil',
-    'pydantic>=2.5',
+    'pydantic>=2.5,<2.9',
     'pytorch_lightning>=2.2.0',
     'pyyaml',
     'scikit-image<=0.23.2',
