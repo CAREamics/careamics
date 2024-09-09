@@ -25,6 +25,8 @@ from careamics.models.lvae.noise_models import (
 )
 from careamics.utils.metrics import RunningPSNR
 
+pytestmark = pytest.mark.lvae
+
 
 # TODO: move to conftest.py as pytest.fixture
 def create_dummy_noise_model(
