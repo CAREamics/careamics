@@ -85,7 +85,6 @@ def create_split_lightning_model(
         nm_lik_config = None
 
     vae_config = VAEAlgorithmConfig(
-        algorithm_type="vae",
         algorithm=algorithm,
         loss=loss_type,
         model=lvae_config,
@@ -166,7 +165,6 @@ def test_musplit_lightining_init(
 
     with exp_error:
         vae_config = VAEAlgorithmConfig(
-            algorithm_type="vae",
             algorithm="musplit",
             loss=loss_type,
             model=lvae_config,
@@ -244,7 +242,6 @@ def test_denoisplit_lightining_init(
 
     with exp_error:
         vae_config = VAEAlgorithmConfig(
-            algorithm_type="vae",
             algorithm="denoisplit",
             loss=loss_type,
             model=lvae_config,
