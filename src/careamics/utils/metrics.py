@@ -13,7 +13,6 @@ from torchmetrics.image import MultiScaleStructuralSimilarityIndexMeasure
 
 # TODO: does this add additional dependency?
 
-
 def psnr(gt: np.ndarray, pred: np.ndarray, data_range: float) -> float:
     """
     Peak Signal to Noise Ratio.
@@ -49,12 +48,12 @@ def _zero_mean(x: Union[np.ndarray, torch.Tensor]) -> Union[np.ndarray, torch.Te
 
     Parameters
     ----------
-    x : Union[np.ndarray, torch.Tensor]
+    x : numpy.ndarray or torch.Tensor
         Input array.
 
     Returns
     -------
-    Union[np.ndarray, torch.Tensor]
+    numpy.ndarray or torch.Tensor
         Zero-mean array.
     """
     return x - x.mean()
