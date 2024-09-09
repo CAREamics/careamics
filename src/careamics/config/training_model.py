@@ -84,7 +84,18 @@ class TrainingConfig(BaseModel):
     @field_validator("max_steps")
     @classmethod
     def validate_max_steps(cls, max_steps: int) -> int:
-        """Validate the max_steps parameter."""
+        """Validate the max_steps parameter.
+
+        Parameters
+        ----------
+        max_steps : int
+            Maximum number of steps to train for. -1 means no limit.
+
+        Returns
+        -------
+        int
+            Validated max_steps.
+        """
         if max_steps == 0:
             raise ValueError("max_steps must be greater than 0. Use -1 for no limit.")
         return max_steps
