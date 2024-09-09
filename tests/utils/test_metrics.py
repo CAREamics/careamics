@@ -48,20 +48,13 @@ def test_scale_invariant_psnr(gt: np.ndarray, pred: np.ndarray, result: float):
 def test_psnr(data_type: np.dtype):
     gt_ = np.random.randint(0, 255, size=(16, 16)).astype(data_type)
     pred_ = np.random.randint(0, 255, size=(16, 16)).astype(data_type)
-    if data_type != np.float32:
-        assert psnr(gt_, pred_, None) is not None
+
     assert psnr(gt_, pred_, 255) is not None
+
     range_ = gt_.max() - gt_.min()
     assert psnr(gt_, pred_, range_) is not None
     # add check on the result
-
-
-def test_psnr_no_range():
-    gt = np.random.rand(16, 16)
-    pred = np.random.rand(16, 16)
-    with pytest.raises(ValueError):
-        psnr(gt, pred, None)
-
+    
 
 @pytest.mark.parametrize("type_", ["torch", "numpy"])
 @pytest.mark.parametrize("num_ch", [1, 4])

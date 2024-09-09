@@ -38,8 +38,6 @@ def psnr(gt: np.ndarray, pred: np.ndarray, data_range: float) -> float:
     float
         PSNR value.
     """
-    if data_range is None:
-        raise ValueError("data_range must be provided")
     return peak_signal_noise_ratio(gt, pred, data_range=data_range)
 
 
