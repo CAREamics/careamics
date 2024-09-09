@@ -125,9 +125,8 @@ def minimum_algorithm_musplit() -> dict:
         "loss": "musplit",
         "model": {
             "architecture": "LVAE",
-            "enable_noise_model": False,
             "z_dims": (128, 128, 128),
-            "multiscale_count": 4,
+            "multiscale_count": 2,
             "predict_logvar": "pixelwise",
         },
         "likelihood": {
@@ -155,9 +154,8 @@ def minimum_algorithm_denoisplit() -> dict:
         "loss": "denoisplit",
         "model": {
             "architecture": "LVAE",
-            "enable_noise_model": False,
             "z_dims": (128, 128, 128),
-            "multiscale_count": 4,
+            "multiscale_count": 2,
         },
         "likelihood": {"type": "GaussianLikelihoodConfig", "color_channels": 2},
         "noise_model": "MultiChannelNMConfig",
@@ -400,10 +398,11 @@ def create_dummy_noise_model(
 @pytest.fixture
 def minimum_lvae_params():
     return {
-        "input_shape": 64,
+        "input_shape": (64, 64),
         "output_channels": 2,
-        "multiscale_count": None,
-        "conv_strides": [2, 2],
+        "multiscale_count": 1,
+        "encoder_conv_strides": [2, 2],
+        "decoder_conv_strides": [2, 2],
         "z_dims": [128, 128, 128, 128],
         "encoder_n_filters": 64,
         "decoder_n_filters": 64,
@@ -411,7 +410,6 @@ def minimum_lvae_params():
         "decoder_dropout": 0.1,
         "nonlinearity": "ELU",
         "predict_logvar": "pixelwise",
-        "enable_noise_model": False,
         "analytical_kl": False,
     }
 

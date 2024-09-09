@@ -94,12 +94,12 @@ def test_lvae_predict_single_sample(
     likelihood_obj = GaussianLikelihood(**gaussian_likelihood_params)
 
     # dummy input
-    x = torch.rand(size=(1, 1, input_shape, input_shape))
+    x = torch.rand(size=(1, 1, *input_shape))
     tile_info = TileInformation(
-        array_shape=(1, input_shape * 4, input_shape * 4),
+        array_shape=(1, input_shape[0] * 4, input_shape[1] * 4),
         last_tile=False,
-        overlap_crop_coords=((8, 8 + input_shape), (8, 8 + input_shape)),
-        stitch_coords=((0, input_shape), (0, input_shape)),
+        overlap_crop_coords=((8, 8 + input_shape[0]), (8, 8 + input_shape[1])),
+        stitch_coords=((0, input_shape[0]), (0, input_shape[1])),
         sample_id=0,
     )
     input_ = (x, [tile_info])  # simulate output of datasets
@@ -107,10 +107,10 @@ def test_lvae_predict_single_sample(
     y_tiled, log_var_tiled = lvae_predict_tiled_batch(model, likelihood_obj, input_)
     y = y_tiled[0]
 
-    assert y.shape == (1, output_channels, input_shape, input_shape)
+    assert y.shape == (1, output_channels, *input_shape)
     if predict_logvar == "pixelwise":
         log_var = log_var_tiled[0]
-        assert log_var.shape == (1, output_channels, input_shape, input_shape)
+        assert log_var.shape == (1, output_channels, *input_shape)
     elif predict_logvar is None:
         assert log_var_tiled is None
 
@@ -133,14 +133,14 @@ def test_lvae_predict_mmse_tiled_batch(
     likelihood_obj = GaussianLikelihood(**gaussian_likelihood_params)
 
     # dummy input
-    x = torch.rand(size=(1, 1, input_shape, input_shape))
+    x = torch.rand(size=(1, 1, *input_shape))
     tile_info = TileInformation(
-        array_shape=(1, input_shape * 4, input_shape * 4),
+        array_shape=(1, input_shape[0] * 4, input_shape[1] * 4),
         last_tile=False,
-        overlap_crop_coords=((8, 8 + input_shape), (8, 8 + input_shape)),
-        stitch_coords=((0, input_shape), (0, input_shape)),
+        overlap_crop_coords=((8, 8 + input_shape[0]), (8, 8 + input_shape[1])),
+        stitch_coords=((0, input_shape[0]), (0, input_shape[1])),
         sample_id=0,
-    )
+    ) #TODO add 3D case
     input_ = (x, [tile_info])  # simulate output of datasets
     # prediction
     y_tiled, y_std_tiled, log_var_tiled = lvae_predict_mmse_tiled_batch(
@@ -149,10 +149,10 @@ def test_lvae_predict_mmse_tiled_batch(
     y = y_tiled[0]
     y_std = y_std_tiled[0]
 
-    assert y.shape == (1, output_channels, input_shape, input_shape)
-    assert y_std.shape == (1, output_channels, input_shape, input_shape)
+    assert y.shape == (1, output_channels, *input_shape)
+    assert y_std.shape == (1, output_channels, *input_shape)
     if predict_logvar == "pixelwise":
         log_var = log_var_tiled[0]
-        assert log_var.shape == (1, output_channels, input_shape, input_shape)
+        assert log_var.shape == (1, output_channels, *input_shape)
     elif predict_logvar is None:
         assert log_var_tiled is None

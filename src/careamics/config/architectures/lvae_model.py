@@ -37,10 +37,6 @@ class LVAEModel(ArchitectureModel):
 
     predict_logvar: Literal[None, "pixelwise"] = None
 
-    # TODO this parameter is exessive -> Remove & refactor
-    enable_noise_model: bool = Field(
-        default=True,
-    )
     analytical_kl: bool = Field(
         default=False,
     )
@@ -84,7 +80,7 @@ class LVAEModel(ArchitectureModel):
 
         if len(self.encoder_conv_strides) < len(self.decoder_conv_strides):
             raise ValueError(
-                f"Decoder can be 3D when encoder is 2D (got"
+                f"Decoder can't be 3D when encoder is 2D (got"
                 f" {len(self.encoder_conv_strides)} and {len(self.decoder_conv_strides)})."
             )
 
@@ -92,7 +88,8 @@ class LVAEModel(ArchitectureModel):
             s < 1 for s in self.decoder_conv_strides
         ):
             raise ValueError(
-                f"Strides must be greater than 1 (got {self.encoder_conv_strides} and {self.decoder_conv_strides})."
+                f"All strides must be greater or equal to 1"
+                f"(got {self.encoder_conv_strides} and {self.decoder_conv_strides})."
             )
         # TODO: validate max stride size ?
         return self
@@ -124,7 +121,8 @@ class LVAEModel(ArchitectureModel):
             )
 
         if any(s < 1 for s in input_shape):
-            raise ValueError(f"Input shape must be greater than 1 (got {input_shape}).")
+            raise ValueError(f"Input shape must be greater than 1 in all dimensions"
+                             f"(got {input_shape}).")
         return input_shape
 
     @field_validator("encoder_n_filters")
@@ -232,13 +230,15 @@ class LVAEModel(ArchitectureModel):
         if self.multiscale_count > 1:
             if self.multiscale_count != len(self.z_dims) - 1:
                 raise ValueError(
-                    f"Multiscale count must be 0 or equal to the number of Z "
+                    f"Multiscale count must be 1 or equal to the number of Z "
                     f"dims - 1 (got {self.multiscale_count} and {len(self.z_dims)})."
                 )
         elif self.multiscale_count == 1:
-            pass # TODO add multicsale/z dims validation
+            pass  # TODO add multicsale/z dims validation
         else:
-            raise ValueError(f"Multiscale count must be greater or equal to 1 (got {self.multiscale_count}).")
+            raise ValueError(
+                f"Multiscale count must be greater or equal to 1 (got {self.multiscale_count})."
+            )
 
         return self
 
