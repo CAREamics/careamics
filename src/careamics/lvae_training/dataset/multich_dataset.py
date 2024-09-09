@@ -22,7 +22,7 @@ class MultiChDloader:
         self,
         data_config: MultiChDatasetConfig,
         fpath: str,
-        load_data_fn: Callable[..., NDArray],
+        load_data_fn: Callable,
         val_fraction: float = None,
         test_fraction: float = None,
     ):
@@ -201,7 +201,7 @@ class MultiChDloader:
         self,
         data_config,
         datasplit_type,
-        load_data_fn: Callable[..., NDArray],
+        load_data_fn: Callable,
         val_fraction=None,
         test_fraction=None,
         allow_generation=None,

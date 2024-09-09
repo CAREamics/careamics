@@ -1,4 +1,4 @@
-from typing import Union, Callable
+from typing import Union, Callable, Sequence
 
 import numpy as np
 from numpy.typing import NDArray
@@ -12,13 +12,81 @@ from careamics.lvae_training.dataset.configs.multich_data_config import (
 from careamics.lvae_training.dataset.multich_dataset import MultiChDloader
 
 
+class TwoChannelData(Sequence):
+    """
+    each element in data_arr should be a N*H*W array
+    """
+
+    def __init__(self, data_arr1, data_arr2, paths_data1=None, paths_data2=None):
+        assert len(data_arr1) == len(data_arr2)
+        self.paths1 = paths_data1
+        self.paths2 = paths_data2
+
+        self._data = []
+        for i in range(len(data_arr1)):
+            assert data_arr1[i].shape == data_arr2[i].shape
+            assert (
+                len(data_arr1[i].shape) == 3
+            ), f"Each element in data arrays should be a N*H*W, but {data_arr1[i].shape}"
+            self._data.append(
+                np.concatenate(
+                    [data_arr1[i][..., None], data_arr2[i][..., None]], axis=-1
+                )
+            )
+
+    def __len__(self):
+        n = 0
+        for x in self._data:
+            n += x.shape[0]
+        return n
+
+    def __getitem__(self, idx):
+        n = 0
+        for dataidx, x in enumerate(self._data):
+            if idx < n + x.shape[0]:
+                if self.paths1 is None:
+                    return x[idx - n], None
+                else:
+                    return x[idx - n], (self.paths1[dataidx], self.paths2[dataidx])
+            n += x.shape[0]
+        raise IndexError("Index out of range")
+
+
+class MultiChannelData(Sequence):
+    """
+    each element in data_arr should be a N*H*W array
+    """
+
+    def __init__(self, data_arr, paths=None):
+        self.paths = paths
+
+        self._data = data_arr
+
+    def __len__(self):
+        n = 0
+        for x in self._data:
+            n += x.shape[0]
+        return n
+
+    def __getitem__(self, idx):
+        n = 0
+        for dataidx, x in enumerate(self._data):
+            if idx < n + x.shape[0]:
+                if self.paths is None:
+                    return x[idx - n], None
+                else:
+                    return x[idx - n], (self.paths[dataidx])
+            n += x.shape[0]
+        raise IndexError("Index out of range")
+
+
 class SingleFileLCDset(LCMultiChDloader):
     def __init__(
         self,
         preloaded_data: NDArray,
         data_config: Union[MultiChDatasetConfig, LCDatasetConfig],
         fpath: str,
-        load_data_fn: Callable[..., NDArray],
+        load_data_fn: Callable,
         val_fraction=None,
         test_fraction=None,
     ):
@@ -42,7 +110,7 @@ class SingleFileLCDset(LCMultiChDloader):
         self,
         data_config: Union[MultiChDatasetConfig, LCDatasetConfig],
         datasplit_type: DataSplitType,
-        load_data_fn: Callable[..., NDArray],
+        load_data_fn: Callable,
         val_fraction=None,
         test_fraction=None,
         allow_generation=None,
@@ -60,7 +128,7 @@ class SingleFileDset(MultiChDloader):
         preloaded_data: NDArray,
         data_config: Union[MultiChDatasetConfig, LCDatasetConfig],
         fpath: str,
-        load_data_fn: Callable[..., NDArray],
+        load_data_fn: Callable,
         val_fraction=None,
         test_fraction=None,
     ):
@@ -111,12 +179,12 @@ class MultiFileDset:
         self,
         data_config: Union[MultiChDatasetConfig, LCDatasetConfig],
         fpath: str,
-        load_data_fn: Callable[..., NDArray],
+        load_data_fn: Callable[..., Union[TwoChannelData, MultiChannelData]],
         val_fraction=None,
         test_fraction=None,
     ):
         self._fpath = fpath
-        data = load_data_fn(
+        data: Union[TwoChannelData, MultiChannelData] = load_data_fn(
             data_config,
             self._fpath,
             data_config.datasplit_type,
@@ -126,12 +194,7 @@ class MultiFileDset:
         self.dsets = []
 
         for i in range(len(data)):
-            # TODO: temporary fix, what is the expected format of data here?
-            if len(data[i]) != 2:
-                fpath_tuple = fpath
-                prefetched_data = data[i]
-            else:
-                prefetched_data, fpath_tuple = data[i]
+            prefetched_data, fpath_tuple = data[i]
             if (
                 data_config.multiscale_lowres_count is not None
                 and data_config.multiscale_lowres_count > 1

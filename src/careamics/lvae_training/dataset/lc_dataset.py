@@ -18,7 +18,7 @@ class LCMultiChDloader(MultiChDloader):
         self,
         data_config: LCDatasetConfig,
         fpath: str,
-        load_data_fn: Callable[..., NDArray],
+        load_data_fn: Callable,
         val_fraction=None,
         test_fraction=None,
     ):

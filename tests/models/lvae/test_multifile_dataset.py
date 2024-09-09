@@ -11,11 +11,12 @@ from careamics.lvae_training.dataset.configs.multich_data_config import (
     DataType,
     MultiChDatasetConfig,
 )
-from careamics.lvae_training.dataset.multifile_dataset import MultiFileDset
-from careamics.lvae_training.dataset.utils.data_utils import (
-    get_datasplit_tuples,
-    load_tiff,
+from careamics.lvae_training.dataset.multifile_dataset import (
+    MultiChannelData,
+    MultiFileDset,
+    TwoChannelData,
 )
+from careamics.lvae_training.dataset.utils.data_utils import load_tiff
 
 pytestmark = pytest.mark.lvae
 
@@ -34,19 +35,10 @@ def load_data_fn_example(
     val_fraction=None,
     test_fraction=None,
     **kwargs,
-):
-    files = Path(fpath).glob("*.tif*")
+) -> Union[TwoChannelData, MultiChannelData]:
+    files = sorted(Path(fpath).glob("*.tif*"))
     data = [load_tiff(fpath) for fpath in files]
-
-    train_idx, val_idx, test_idx = get_datasplit_tuples(
-        val_fraction, test_fraction, len(data), starting_test=False
-    )
-    if datasplit_type == DataSplitType.Train:
-        return np.take(data, train_idx, axis=0).astype(np.float32)
-    elif datasplit_type == DataSplitType.Val:
-        return np.take(data, val_idx, axis=0).astype(np.float32)
-    elif datasplit_type == DataSplitType.Test:
-        return np.take(data, test_idx, axis=0).astype(np.float32)
+    return MultiChannelData(data, paths=files)
 
 
 def test_create_vae_dataset(tmp_path: Path, num_files=3):
