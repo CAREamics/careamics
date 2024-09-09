@@ -48,7 +48,7 @@ dependencies = [
     'bioimageio.core>=0.6.0',
     'tifffile',
     'psutil',
-    'pydantic>=2.5',
+    'pydantic>=2.5,<2.9',
     'pytorch_lightning>=2.2.0',
     'pyyaml',
     'scikit-image<=0.23.2',
@@ -141,7 +141,10 @@ filterwarnings = [
 ]
 addopts = "-p no:doctest"
 
-#markers = ["gpu: marks tests as requiring gpu"]
+markers = [
+    # "gpu: marks tests as requiring gpu",
+    "lvae: marks tests as testing lvae",
+]
 
 # https://coverage.readthedocs.io/en/6.4/config.html
 [tool.coverage.report]
