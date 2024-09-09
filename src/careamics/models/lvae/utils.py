@@ -2,7 +2,8 @@
 Script for utility functions needed by the LVAE model.
 """
 
-from typing import Iterable, Literal
+from collections.abc import Iterable
+from typing import Literal
 
 import numpy as np
 import torch
@@ -101,25 +102,25 @@ class ModelType(Enum):
 
 
 def _pad_crop_img(
-    x: torch.Tensor,
-    size: Iterable[int],
-    mode: Literal["crop", "pad"]
+    x: torch.Tensor, size: Iterable[int], mode: Literal["crop", "pad"]
 ) -> torch.Tensor:
     """Pads or crops a tensor.
-    
+
     Pads or crops a tensor of shape (B, C, [Z], Y, X) to new shape.
-    
-    Parameters:
-    -----------
+
+    Parameters
+    ----------
         x (torch.Tensor): Input image of shape (B, C, [Z], Y, X)
         size (list or tuple): Desired size ([Z*], Y*, X*)
         mode (str): Mode, either 'pad' or 'crop'
-    Returns:
-    --------
+
+    Returns
+    -------
         The padded or cropped tensor
     """
     # TODO: Support cropping/padding on selected dimensions
     assert (x.dim() == 4 and len(size) == 2) or (x.dim() == 5 and len(size) == 3)
+    # assert x.dim() in [4,5] and len(size) == 2
 
     size = tuple(size)
     x_size = x.size()[2:]
@@ -144,23 +145,29 @@ def _pad_crop_img(
         return nn.functional.pad(x, padding)
     elif mode == "crop":
         if x.dim() == 4:
-            return x[:, :, d1[0]:(x_size[0] - d2[0]), d1[1]:(x_size[1] - d2[1])]
+            return x[:, :, d1[0] : (x_size[0] - d2[0]), d1[1] : (x_size[1] - d2[1])]
         elif x.dim() == 5:
-            return x[:, :, d1[0]:(x_size[0] - d2[0]), d1[1]:(x_size[1] - d2[1]), d1[2]:(x_size[2] - d2[2])]
+            return x[
+                :,
+                :,
+                d1[0] : (x_size[0] - d2[0]),
+                d1[1] : (x_size[1] - d2[1]),
+                d1[2] : (x_size[2] - d2[2]),
+            ]
 
 
 def pad_img_tensor(x: torch.Tensor, size: Iterable[int]) -> torch.Tensor:
     """Pads a tensor
-    
+
     Pads a tensor of shape (B, C, [Z], Y, X) to desired spatial dimensions.
-    
-    Parameters:
-    -----------
+
+    Parameters
+    ----------
         x (torch.Tensor): Input image of shape (B, C, [Z], Y, X)
         size (list or tuple): Desired size  ([Z*], Y*, X*)
 
-    Returns:
-    --------
+    Returns
+    -------
         The padded tensor
     """
     return _pad_crop_img(x, size, "pad")
@@ -271,11 +278,11 @@ class StableLogVar:
 
     def get_std(self) -> torch.Tensor:
         return torch.sqrt(self.get_var())
-    
+
     @property
     def is_3D(self) -> bool:
         """Check if the _lv tensor is 3D.
-        
+
         Recall that, in this framework, tensors have shape (B, C, [Z], Y, X).
         """
         return self._lv.dim() == 5
@@ -290,7 +297,7 @@ class StableLogVar:
             The desired size of the log-variance tensor.
         """
         assert not self.is_3D, "Centercrop is implemented only for 2D tensors."
-        
+
         if self._lv.shape[-1] == size:
             return
 
@@ -306,11 +313,11 @@ class StableMean:
 
     def get(self) -> torch.Tensor:
         return self._mean
-    
+
     @property
     def is_3D(self) -> bool:
         """Check if the _mean tensor is 3D.
-        
+
         Recall that, in this framework, tensors have shape (B, C, [Z], Y, X).
         """
         return self._mean.dim() == 5
@@ -319,22 +326,22 @@ class StableMean:
         """Centercrop the mean tensor to the desired size.
 
         Implemented only in the case of 2D tensors.
-        
+
         Parameters
         ----------
         size: torch.Tensor
             The desired size of the log-variance tensor.
         """
         assert not self.is_3D, "Centercrop is implemented only for 2D tensors."
-        
+
         if self._mean.shape[-1] == size:
             return
 
         diff = self._mean.shape[-1] - size
         assert diff > 0 and diff % 2 == 0
         self._mean = F.center_crop(self._mean, (size, size))
-    
-    
+
+
 def allow_numpy(func):
     """
     All optional arguments are passed as is. positional arguments are checked. if they are numpy array,

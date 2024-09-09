@@ -800,6 +800,12 @@ class LadderVAE(nn.Module):
         for i in range(0, self.skip_bottomk_buvalues):
             bu_values[i] = None
 
+        if self._squish3d:
+            bu_values = [
+                torch.mean(self._3D_squisher[k](bu_value), dim=2)
+                for k, bu_value in enumerate(bu_values)
+            ]
+
         mode_layers = range(self.n_layers) if self.non_stochastic_version else None
 
         # Top-down inference/generation

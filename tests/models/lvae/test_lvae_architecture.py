@@ -57,6 +57,7 @@ def create_LVAE_model(
     )
     return model_factory(config.model)
 
+
 @pytest.mark.skip(reason="Needs to be updated")
 @pytest.mark.parametrize(
     "img_size, encoder_conv_strides, decoder_conv_strides",
@@ -86,6 +87,7 @@ def test_first_bottom_up(
     inputs = torch.ones((1, *img_size))
     output = first_bottom_up(inputs)
     assert output.shape == (1, model.encoder_n_filters, *img_size[1:])
+
 
 @pytest.mark.skip(reason="Needs to be updated")
 @pytest.mark.parametrize(
@@ -147,6 +149,7 @@ def test_bottom_up_layers(
         # expected_img_size = expected_img_size / np.array(downscale_factor)
         # TODO why do we need to do this?
 
+
 @pytest.mark.skip(reason="Needs to be updated")
 @pytest.mark.parametrize(
     "z_dims, multiscale_count",
@@ -171,6 +174,7 @@ def test_LC_init(
             z_dims=z_dims,
             multiscale_count=multiscale_count,
         )
+
 
 @pytest.mark.skip(reason="Needs to be updated")
 @pytest.mark.parametrize(
@@ -240,6 +244,7 @@ def test_bottom_up_pass(
             exp_img_size[1:] = [s // 2 for s in exp_img_size[1:]]
         assert outputs[i].shape == (1, n_filters, *exp_img_size[1:])
 
+
 @pytest.mark.skip(reason="Needs to be updated")
 @pytest.mark.parametrize("img_size", [64, 128])
 @pytest.mark.parametrize("multiscale_count", [1, 3, 5])
@@ -268,6 +273,7 @@ def test_topmost_top_down_layer(
     expected_z_shape = (1, model.z_dims[0], downscaled_size, downscaled_size)
     assert output.shape == expected_out_shape
     assert data["z"].shape == expected_z_shape
+
 
 @pytest.mark.skip(reason="Needs to be updated")
 @pytest.mark.parametrize(
@@ -332,6 +338,7 @@ def test_all_top_down_layers(
         assert data["z"].shape == expected_z_shape
         downscaled_size = exp_out_size
 
+
 @pytest.mark.skip(reason="Needs to be updated")
 @pytest.mark.parametrize("img_size", [64, 128])
 @pytest.mark.parametrize("multiscale_count", [1, 3, 5])
@@ -352,6 +359,7 @@ def test_final_top_down(
     output = final_top_down(input)
     expected_out_shape = (1, n_filters, img_size, img_size)
     assert output.shape == expected_out_shape
+
 
 @pytest.mark.skip(reason="Needs to be updated")
 @pytest.mark.parametrize("img_size", [64, 128])
@@ -391,6 +399,7 @@ def test_top_down_pass(
     for i in range(n_layers):
         expected_z_shape = (1, model.z_dims[i], td_sizes[i], td_sizes[i])
         assert data["z"][i].shape == expected_z_shape
+
 
 @pytest.mark.skip(reason="Needs to be updated")
 @pytest.mark.parametrize("img_size", [64, 128])
@@ -449,6 +458,7 @@ def test_KL_shape(
         assert data["kl_channelwise"][i].shape == (batch_size, model.z_dims[i])
         assert data["kl_spatial"][i].shape == (batch_size, td_sizes[i], td_sizes[i])
 
+
 @pytest.mark.skip(reason="Needs to be updated")
 @pytest.mark.parametrize("img_size", [64, 128])
 @pytest.mark.parametrize("multiscale_count", [1, 3, 5])
@@ -483,7 +493,13 @@ def test_output_layer(
 @pytest.mark.parametrize(
     "img_size, z_dims, multiscale_count, encoder_conv_stride, decoder_conv_stride",
     [
-        ([64, 64], [128, 128, 128], 1, (2, 2), (2, 2)), #TODO 1 means LC off, 0 not allowed
+        (
+            [64, 64],
+            [128, 128, 128],
+            1,
+            (2, 2),
+            (2, 2),
+        ),  # TODO 1 means LC off, 0 not allowed
         ([64, 64], [128, 128, 128], 2, (2, 2), (2, 2)),
         ([128, 128], [128, 128, 128], 1, (2, 2), (2, 2)),
         ([128, 128], [128, 128, 128], 2, (2, 2), (2, 2)),
@@ -499,9 +515,10 @@ def test_output_layer(
         ([16, 64, 64], [128, 128, 128, 128], 3, (1, 2, 2), (1, 2, 2)),
         ([16, 128, 128], [128, 128, 128, 128], 1, (1, 2, 2), (1, 2, 2)),
         ([16, 128, 128], [128, 128, 128, 128], 3, (1, 2, 2), (1, 2, 2)),
-        # ((1, 64, 64), [128, 128, 128], 1, (1, 2, 2), (2, 2)),
+        ((15, 64, 64), [128, 128, 128], 1, (1, 2, 2), (2, 2)),
+        ((15, 64, 64), [128, 128, 128], 2, (1, 2, 2), (2, 2)),
     ],
-) # TODO LC input in channels
+)  # TODO LC input in channels
 def test_lvae(
     img_size: list[int],
     z_dims: list[int],
@@ -522,5 +539,9 @@ def test_lvae(
     )
     inputs = torch.ones((1, multiscale_count, *img_size))
     output = model(inputs)
-    assert output[0].shape == (1, 1, *img_size) #TODO, what should be the channel dim ?
+    assert (
+        output[0].shape == (1, 1, *img_size)
+        if len(encoder_conv_stride) == len(decoder_conv_stride)
+        else (1, 1, *img_size[1:])
+    )
     # TODO add tests for td_data

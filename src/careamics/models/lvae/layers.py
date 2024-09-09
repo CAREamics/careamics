@@ -196,7 +196,7 @@ class GateLayer(nn.Module):
         channels: int,
         conv_strides: tuple[int] = (2, 2),
         kernel_size: int = 3,
-        nonlin: Callable = nn.LeakyReLU,
+        nonlin: Callable = nn.LeakyReLU(),
     ):
         super().__init__()
         assert kernel_size % 2 == 1
@@ -237,7 +237,7 @@ class ResBlockWithResampling(nn.Module):
         c_out: int,
         conv_strides: tuple[int],
         min_inner_channels: Union[int, None] = None,
-        nonlin: Callable = nn.LeakyReLU,
+        nonlin: Callable = nn.LeakyReLU(),
         resample: bool = False,
         res_block_kernel: Union[int, Iterable[int]] = None,
         groups: int = 1,
@@ -647,7 +647,7 @@ class MergeLayer(nn.Module):
         merge_type: Literal["linear", "residual", "residual_ungated"],
         channels: Union[int, Iterable[int]],
         conv_strides: tuple[int] = (2, 2),
-        nonlin: Callable = nn.LeakyReLU,
+        nonlin: Callable = nn.LeakyReLU(),
         batchnorm: bool = True,
         dropout: float = None,
         res_block_type: str = None,
@@ -1017,7 +1017,10 @@ class TopDownLayer(nn.Module):
         self.learn_top_prior = learn_top_prior
         self.analytical_kl = analytical_kl
         self.retain_spatial_dims = retain_spatial_dims
-        self.latent_shape = input_image_shape if self.retain_spatial_dims else None
+        self.input_image_shape = (
+            input_image_shape if len(conv_strides) == 3 else input_image_shape[1:]
+        )
+        self.latent_shape = self.input_image_shape if self.retain_spatial_dims else None
         self.non_stochastic_version = non_stochastic_version
         self.normalize_latent_factor = normalize_latent_factor
         self._vanilla_latent_hw = vanilla_latent_hw  # TODO: check this, it is not used
@@ -1260,7 +1263,7 @@ class TopDownLayer(nn.Module):
                         f"bu_value={bu_value.shape[2:]}."
                     )
                     q_params = self.merge(bu_value, p_params)
-        else: # generative mode, q is not used, we sample from p(z_i | z_{i+1})
+        else:  # generative mode, q is not used, we sample from p(z_i | z_{i+1})
             q_params = None
 
         # NOTE: Sampling is done either from q(z_i | z_{i+1}, x) or p(z_i | z_{i+1})
@@ -1305,7 +1308,7 @@ class TopDownLayer(nn.Module):
             # the case if and only if `x.shape == self.latent_shape`.
             rescale = (
                 np.array((1, 2, 2)) if len(self.latent_shape) == 3 else np.array((2, 2))
-            ) # TODO better way?
+            )  # TODO better way?
             new_latent_shape = tuple(np.array(self.latent_shape) // rescale)
             if x.shape[-1] > new_latent_shape[-1]:
                 x = crop_img_tensor(x, new_latent_shape)
