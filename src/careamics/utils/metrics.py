@@ -13,6 +13,7 @@ from torchmetrics.image import MultiScaleStructuralSimilarityIndexMeasure
 
 # TODO: does this add additional dependency?
 
+
 def psnr(gt: np.ndarray, pred: np.ndarray, data_range: float) -> float:
     """
     Peak Signal to Noise Ratio.
