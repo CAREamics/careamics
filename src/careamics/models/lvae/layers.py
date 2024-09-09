@@ -10,7 +10,6 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from .non_stochastic import NonStochasticBlock
 from .stochastic import NormalStochasticBlock
 from .utils import (
     crop_img_tensor,
@@ -913,7 +912,6 @@ class TopDownLayer(nn.Module):
         retain_spatial_dims: bool = False,
         restricted_kl: bool = False,
         vanilla_latent_hw: Union[Iterable[int], None] = None,
-        non_stochastic_version: bool = False,
         input_image_shape: Union[tuple[int, int], None] = None,
         normalize_latent_factor: float = 1.0,
         conv2d_bias: bool = True,
@@ -988,10 +986,6 @@ class TopDownLayer(nn.Module):
         vanilla_latent_hw: Iterable[int], optional
             The shape of the latent tensor used for prediction (i.e., it influences the computation of restricted KL).
             Default is `None`.
-        non_stochastic_version: bool, optional
-            Whether to replace the stochastic layer that samples a latent variable from the latent distribiution with
-            a non-stochastic layer that simply drwas a sample as the mode of the latent distribution.
-            Default is `False`.
         input_image_shape: Tuple[int, int], optionalut
             The shape of the input image tensor.
             When `retain_spatial_dims` is set to `True`, this is used to ensure that the shape of this layer
@@ -1021,7 +1015,6 @@ class TopDownLayer(nn.Module):
             input_image_shape if len(conv_strides) == 3 else input_image_shape[1:]
         )
         self.latent_shape = self.input_image_shape if self.retain_spatial_dims else None
-        self.non_stochastic_version = non_stochastic_version
         self.normalize_latent_factor = normalize_latent_factor
         self._vanilla_latent_hw = vanilla_latent_hw  # TODO: check this, it is not used
 
@@ -1061,19 +1054,8 @@ class TopDownLayer(nn.Module):
         self.deterministic_block = nn.Sequential(*block_list)
 
         # Define stochastic block with convolutions
-        if self.non_stochastic_version:
-            self.stochastic = NonStochasticBlock(
-                c_in=n_filters,
-                c_vars=z_dim,
-                c_out=n_filters,
-                conv_dims=len(conv_strides),
-                transform_p_params=(not is_top_layer),
-                groups=groups,
-                conv2d_bias=conv2d_bias,
-                restricted_kl=restricted_kl,
-            )
-        else:
-            self.stochastic = NormalStochasticBlock(
+
+        self.stochastic = NormalStochasticBlock(
                 c_in=n_filters,
                 c_vars=z_dim,
                 c_out=n_filters,
@@ -1193,7 +1175,6 @@ class TopDownLayer(nn.Module):
         bu_value: Union[torch.Tensor, None] = None,
         n_img_prior: Union[int, None] = None,
         forced_latent: Union[torch.Tensor, None] = None,
-        use_mode: bool = False,
         force_constant_output: bool = False,
         mode_pred: bool = False,
         use_uncond_mode: bool = False,
@@ -1220,10 +1201,6 @@ class TopDownLayer(nn.Module):
         forced_latent: torch.Tensor, optional
             A pre-defined latent tensor. If it is not `None`, than it is used as the actual latent tensor and,
             hence, sampling does not happen. Default is `None`.
-        use_mode: bool, optional
-            Whether the latent tensor should be set as the latent distribution mode.
-            In the case of Gaussian, the mode coincides with the mean of the distribution.
-            Default is `False`.
         force_constant_output: bool, optional
             Whether to copy the first sample (and rel. distrib parameters) over the whole batch.
             This is used when doing experiment from the prior - q is not used.
@@ -1279,7 +1256,6 @@ class TopDownLayer(nn.Module):
             p_params=p_params,
             q_params=q_params,
             forced_latent=forced_latent,
-            use_mode=use_mode,
             force_constant_output=force_constant_output,
             analytical_kl=self.analytical_kl,
             mode_pred=mode_pred,

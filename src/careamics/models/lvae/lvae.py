@@ -121,7 +121,6 @@ class LadderVAE(nn.Module):
         self.merge_type = "residual"
         self.no_initial_downscaling = True
         self.skip_bottomk_buvalues = 0
-        self.non_stochastic_version = False
         self.stochastic_skip = True
         self.learn_top_prior = True
         self.res_block_type = "bacdbacd"  # TODO remove !
@@ -457,7 +456,6 @@ class LadderVAE(nn.Module):
                     restricted_kl=self._restricted_kl,
                     vanilla_latent_hw=self.get_latent_spatial_size(i),
                     retain_spatial_dims=self.multiscale_decoder_retain_spatial_dims,
-                    non_stochastic_version=self.non_stochastic_version,
                     input_image_shape=self.image_size,
                     normalize_latent_factor=normalize_latent_factor,
                     conv2d_bias=self.topdown_conv2d_bias,
@@ -630,7 +628,6 @@ class LadderVAE(nn.Module):
         self,
         bu_values: Union[torch.Tensor, None] = None,
         n_img_prior: Union[torch.Tensor, None] = None,
-        mode_layers: Union[Iterable[int], None] = None,
         constant_layers: Union[Iterable[int], None] = None,
         forced_latent: Union[list[torch.Tensor], None] = None,
         top_down_layers: Union[nn.ModuleList, None] = None,
@@ -650,10 +647,6 @@ class LadderVAE(nn.Module):
             When `bu_values` is `None`, `n_img_prior` indicates the number of images to
             generate
             from the prior (so bottom-up pass is not used at all here).
-        mode_layers: Iterable[int], optional
-            A sequence of indexes associated to the layers in which sampling is disabled
-            and the mode (mean value) is used instead. Set to `None` to avoid this
-            behaviour.
         constant_layers: Iterable[int], optional
             A sequence of indexes associated to the layers in which a single instance's
             z is copied over the entire batch (bottom-up path is not used, so only prior
@@ -674,11 +667,9 @@ class LadderVAE(nn.Module):
             final_top_down_layer = self.final_top_down
 
         # Default: no layer is sampled from the distribution's mode
-        if mode_layers is None:
-            mode_layers = []
         if constant_layers is None:
             constant_layers = []
-        prior_experiment = len(mode_layers) > 0 or len(constant_layers) > 0
+        prior_experiment = len(constant_layers) > 0
 
         # If the bottom-up inference values are not given, don't do
         # inference, sample from prior instead
@@ -691,11 +682,7 @@ class LadderVAE(nn.Module):
                 "if and only if we're not doing inference"
             )
             raise RuntimeError(msg)
-        if (
-            inference_mode
-            and prior_experiment
-            and (self.non_stochastic_version is False)
-        ):
+        if inference_mode and prior_experiment:
             msg = (
                 "Prior experiments (e.g. sampling from mode) are not"
                 " compatible with inference mode"
@@ -729,7 +716,6 @@ class LadderVAE(nn.Module):
                 bu_value = None
 
             # Whether the current layer should be sampled from the mode
-            use_mode = i in mode_layers
             constant_out = i in constant_layers
 
             # Input for skip connection
@@ -742,7 +728,6 @@ class LadderVAE(nn.Module):
                 inference_mode=inference_mode,
                 bu_value=bu_value,
                 n_img_prior=n_img_prior,
-                use_mode=use_mode,
                 force_constant_output=constant_out,
                 forced_latent=forced_latent[i],
                 mode_pred=self.mode_pred,
@@ -802,10 +787,8 @@ class LadderVAE(nn.Module):
                 for k, bu_value in enumerate(bu_values)
             ]
 
-        mode_layers = range(self.n_layers) if self.non_stochastic_version else None
-
         # Top-down inference/generation
-        out, td_data = self.topdown_pass(bu_values, mode_layers=mode_layers)
+        out, td_data = self.topdown_pass(bu_values)
 
         # TODO: this should not be necessary anymore
         if out.shape[-1] > img_size[-1]:

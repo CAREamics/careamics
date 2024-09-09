@@ -107,7 +107,6 @@ class NormalStochasticBlock(nn.Module):
         self,
         sampling_distrib: torch.distributions.normal.Normal,
         forced_latent: Union[torch.Tensor, None],
-        use_mode: bool,
         mode_pred: bool,
         use_uncond_mode: bool,
     ) -> torch.Tensor:
@@ -126,25 +125,19 @@ class NormalStochasticBlock(nn.Module):
         forced_latent: torch.Tensor
             A pre-defined latent tensor. If it is not `None`, than it is used as the actual latent tensor and,
             hence, sampling does not happen.
-        use_mode: bool
-            Whether the latent tensor should be set as the latent distribution mode.
-            In the case of Gaussian, the mode coincides with the mean of the distribution.
         mode_pred: bool
             Whether the model is prediction mode.
         use_uncond_mode: bool
             Whether to use the uncoditional distribution p(z) to sample latents in prediction mode.
         """
         if forced_latent is None:
-            if use_mode:
-                z = sampling_distrib.mean
-            else:
-                if mode_pred:
-                    if use_uncond_mode:
-                        z = sampling_distrib.mean
-                    else:
-                        z = sampling_distrib.rsample()
+            if mode_pred:
+                if use_uncond_mode:
+                    z = sampling_distrib.mean
                 else:
                     z = sampling_distrib.rsample()
+            else:
+                z = sampling_distrib.rsample()
         else:
             z = forced_latent
         return z
@@ -317,7 +310,6 @@ class NormalStochasticBlock(nn.Module):
         p_params: torch.Tensor,
         q_params: Union[torch.Tensor, None] = None,
         forced_latent: Union[torch.Tensor, None] = None,
-        use_mode: bool = False,
         force_constant_output: bool = False,
         analytical_kl: bool = False,
         mode_pred: bool = False,
@@ -335,10 +327,6 @@ class NormalStochasticBlock(nn.Module):
         forced_latent: torch.Tensor, optional
             A pre-defined latent tensor. If it is not `None`, than it is used as the actual latent
             tensor and, hence, sampling does not happen. Default is `None`.
-        use_mode: bool, optional
-            Whether the latent tensor should be set as the latent distribution mode.
-            In the case of Gaussian, the mode coincides with the mean of the distribution.
-            Default is `False`.
         force_constant_output: bool, optional
             Whether to copy the first sample (and rel. distrib parameters) over the whole batch.
             This is used when doing experiment from the prior - q is not used.
@@ -358,7 +346,7 @@ class NormalStochasticBlock(nn.Module):
         debug_qvar_max = 0
 
         # Check sampling options consistency
-        assert (forced_latent is None) or (not use_mode)
+        assert forced_latent is None
 
         # Get generative distribution p(z_i|z_{i+1})
         p_mu, p_lv, p = self.process_p_params(p_params, var_clip_max)
@@ -374,9 +362,7 @@ class NormalStochasticBlock(nn.Module):
             sampling_distrib = p
 
         # Sample latent variable
-        z = self.get_z(
-            sampling_distrib, forced_latent, use_mode, mode_pred, use_uncond_mode
-        )
+        z = self.get_z(sampling_distrib, forced_latent, mode_pred, use_uncond_mode)
 
         # TODO: not necessary, remove
         # Copy one sample (and distrib parameters) over the whole batch.
