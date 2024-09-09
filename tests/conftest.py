@@ -122,7 +122,6 @@ def minimum_algorithm_musplit() -> dict:
         "loss": "musplit",
         "model": {
             "architecture": "LVAE",
-            "enable_noise_model": False,
             "z_dims": (128, 128, 128),
             "multiscale_count": 4,
             "predict_logvar": "pixelwise",
@@ -151,7 +150,6 @@ def minimum_algorithm_denoisplit() -> dict:
         "loss": "denoisplit",
         "model": {
             "architecture": "LVAE",
-            "enable_noise_model": False,
             "z_dims": (128, 128, 128),
             "multiscale_count": 4,
         },

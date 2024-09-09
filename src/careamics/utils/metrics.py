@@ -11,28 +11,32 @@ import torch
 from skimage.metrics import peak_signal_noise_ratio
 
 
-def psnr(gt: np.ndarray, pred: np.ndarray, range: float = 255.0) -> float:
-    """
-    Peak Signal to Noise Ratio.
+def psnr(gt: np.ndarray, pred: np.ndarray, data_range: float) -> float:
+    """Peak Signal to Noise Ratio.
 
     This method calls skimage.metrics.peak_signal_noise_ratio. See:
     https://scikit-image.org/docs/dev/api/skimage.metrics.html.
 
+    NOTE: to avoid unwanted behaviors (e.g., data_range inferred from array dtype),
+    the data_range parameter is mandatory.
+
     Parameters
     ----------
-    gt : NumPy array
-        Ground truth image.
-    pred : NumPy array
-        Predicted image.
-    range : float, optional
-        The images pixel range, by default 255.0.
+    gt : np.ndarray
+        Ground truth array.
+    pred : np.ndarray
+        Predicted array.
+    data_range : float
+        The images pixel range.
 
     Returns
     -------
     float
         PSNR value.
     """
-    return peak_signal_noise_ratio(gt, pred, data_range=range)
+    if data_range is None:
+        raise ValueError("data_range must be provided")
+    return peak_signal_noise_ratio(gt, pred, data_range=data_range)
 
 
 def _zero_mean(x: np.ndarray) -> np.ndarray:
