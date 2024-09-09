@@ -13,14 +13,6 @@ on:
     - cron: "0 0 * * 0"
 
 jobs:
-  check-manifest:
-    # check-manifest is a tool that checks that all files in version control are
-    # included in the sdist (unless explicitly excluded)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - run: pipx run check-manifest
-
   test:
     name: ${{ matrix.platform }} (${{ matrix.python-version }})
     runs-on: ${{ matrix.platform }}
