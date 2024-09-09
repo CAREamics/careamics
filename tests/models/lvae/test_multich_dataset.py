@@ -19,6 +19,8 @@ from careamics.lvae_training.dataset.utils.data_utils import (
     load_tiff,
 )
 
+pytestmark = pytest.mark.lvae
+
 
 def load_data_fn_example(
     data_config: Union[MultiChDatasetConfig, LCDatasetConfig],

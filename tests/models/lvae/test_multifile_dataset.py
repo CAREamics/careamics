@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import Union
 
 import numpy as np
+import pytest
 import tifffile
 
 from careamics.lvae_training.dataset.configs.lc_dataset_config import LCDatasetConfig
@@ -15,6 +16,8 @@ from careamics.lvae_training.dataset.utils.data_utils import (
     get_datasplit_tuples,
     load_tiff,
 )
+
+pytestmark = pytest.mark.lvae
 
 
 def random_uint16_data(shape, max_value):
