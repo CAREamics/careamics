@@ -189,7 +189,6 @@ def _create_configuration(
 
     # algorithm model
     algorithm_config = FCNAlgorithmConfig(
-        algorithm_type="fcn",
         algorithm=algorithm,
         loss=loss,
         model=unet_model,

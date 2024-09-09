@@ -45,12 +45,12 @@ def _zero_mean(x: np.ndarray) -> np.ndarray:
 
     Parameters
     ----------
-    x : NumPy array
+    x : np.ndarray
         Input array.
 
     Returns
     -------
-    NumPy array
+    np.ndarray
         Zero-mean array.
     """
     return x - np.mean(x)
