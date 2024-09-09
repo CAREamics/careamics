@@ -8,6 +8,7 @@ from typing_extensions import Self
 from .architecture_model import ArchitectureModel
 
 
+# TODO: it is quite confusing to call this LVAEModel, as it is basically a config
 class LVAEModel(ArchitectureModel):
     """LVAE model."""
 
@@ -31,9 +32,6 @@ class LVAEModel(ArchitectureModel):
 
     predict_logvar: Literal[None, "pixelwise"] = None
 
-    enable_noise_model: bool = Field(
-        default=True,
-    )
     analytical_kl: bool = Field(
         default=False,
     )
