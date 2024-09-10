@@ -13,6 +13,8 @@ from careamics.config.nm_model import GaussianMixtureNMConfig, MultiChannelNMCon
 from careamics.models.lvae.likelihoods import likelihood_factory
 from careamics.models.lvae.noise_models import noise_model_factory
 
+pytestmark = pytest.mark.lvae
+
 
 
 # TODO: move it under models/lvae/ ??
