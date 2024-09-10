@@ -1,10 +1,8 @@
-"""Script containing the common basic blocks (nn.Module)
-reused by the LadderVAE architecture.
-"""
+"""Script containing the common basic blocks (nn.Module) reused by the LadderVAE."""
 
 from collections.abc import Iterable
 from copy import deepcopy
-from typing import Callable, Dict, Literal, Tuple, Union
+from typing import Callable, Literal, Optional, Union
 
 import numpy as np
 import torch
@@ -95,14 +93,14 @@ class ResidualBlock(nn.Module):
             kernel = (kernel, kernel)
         elif len(kernel) != 2:
             raise ValueError("kernel has to be None, int, or an iterable of length 2")
-        assert all([k % 2 == 1 for k in kernel]), "kernel sizes have to be odd"
+        assert all(k % 2 == 1 for k in kernel), "kernel sizes have to be odd"
         kernel = list(kernel)
 
         # Define modules
         conv_layer: ConvType = getattr(nn, f"Conv{len(conv_strides)}d")
         norm_layer: NormType = getattr(nn, f"BatchNorm{len(conv_strides)}d")
         dropout_layer: DropoutType = getattr(nn, f"Dropout{len(conv_strides)}d")
-        # TODO: same comment as in lvae.py, would be more readable to have `conv_dims` or similar
+        # TODO: same comment as in lvae.py, would be more readable to have `conv_dims`
 
         modules = []
         if block_type == "cabdcabd":
@@ -169,8 +167,19 @@ class ResidualBlock(nn.Module):
 
         self.block = nn.Sequential(*modules)
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Forward pass.
 
+        Parameters
+        ----------
+        x : torch.Tensor
+            input tensor # TODO add shape
+
+        Returns
+        -------
+        torch.Tensor
+            output tensor # TODO add shape
+        """
         out = self.block(x)
         assert (
             out.shape == x.shape
@@ -179,6 +188,7 @@ class ResidualBlock(nn.Module):
 
 
 class ResidualGatedBlock(ResidualBlock):
+    """Layer class that implements a residual block with a gating mechanism."""
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs, gated=True)
@@ -186,6 +196,8 @@ class ResidualGatedBlock(ResidualBlock):
 
 class GateLayer(nn.Module):
     """
+    Layer class that implements a gating mechanism.
+
     Double the number of channels through a convolutional layer, then use
     half the channels as gate for the other half.
     """
@@ -204,7 +216,19 @@ class GateLayer(nn.Module):
         self.conv = conv_layer(channels, 2 * channels, kernel_size, padding=pad)
         self.nonlin = nonlin
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Forward pass.
+
+        Parameters
+        ----------
+        x : torch.Tensor
+            input # TODO add shape
+
+        Returns
+        -------
+        torch.Tensor
+            output # TODO add shape
+        """
         x = self.conv(x)
         x, gate = torch.chunk(x, 2, dim=1)
         x = self.nonlin(x)  # TODO remove this?
@@ -214,6 +238,8 @@ class GateLayer(nn.Module):
 
 class ResBlockWithResampling(nn.Module):
     """
+    Residual block with resampling.
+
     Residual block that takes care of resampling (i.e. downsampling or upsampling) steps (by a factor 2).
     It is structured as follows:
         1. `pre_conv`: a downsampling or upsampling strided convolutional layer in case of resampling, or
@@ -238,7 +264,7 @@ class ResBlockWithResampling(nn.Module):
         min_inner_channels: Union[int, None] = None,
         nonlin: Callable = nn.LeakyReLU(),
         resample: bool = False,
-        res_block_kernel: Union[int, Iterable[int]] = None,
+        res_block_kernel: Optional[Union[int, Iterable[int]]] = None,
         groups: int = 1,
         batchnorm: bool = True,
         res_block_type: Union[str, None] = None,
@@ -353,7 +379,19 @@ class ResBlockWithResampling(nn.Module):
         else:
             self.post_conv = None
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Forward pass.
+
+        Parameters
+        ----------
+        x : torch.Tensor
+            input # TODO add shape
+
+        Returns
+        -------
+        torch.Tensor
+            output # TODO add shape
+        """
         if self.pre_conv is not None:
             x = self.pre_conv(x)
 
@@ -365,6 +403,7 @@ class ResBlockWithResampling(nn.Module):
 
 
 class TopDownDeterministicResBlock(ResBlockWithResampling):
+    """Resnet block for top-down deterministic layers."""
 
     def __init__(self, *args, upsample: bool = False, **kwargs):
         kwargs["resample"] = upsample
@@ -372,6 +411,7 @@ class TopDownDeterministicResBlock(ResBlockWithResampling):
 
 
 class BottomUpDeterministicResBlock(ResBlockWithResampling):
+    """Resnet block for bottom-up deterministic layers."""
 
     def __init__(self, *args, downsample: bool = False, **kwargs):
         kwargs["resample"] = downsample
@@ -381,6 +421,7 @@ class BottomUpDeterministicResBlock(ResBlockWithResampling):
 class BottomUpLayer(nn.Module):
     """
     Bottom-up deterministic layer.
+
     It consists of one or a stack of `BottomUpDeterministicResBlock`'s.
     The outputs are the so-called `bu_values` that are later used in the Decoder to update the
     generative distributions.
@@ -401,18 +442,18 @@ class BottomUpLayer(nn.Module):
         n_filters: int,
         conv_strides: tuple[int] = (2, 2),
         downsampling_steps: int = 0,
-        nonlin: Callable = None,
+        nonlin: Optional[Callable] = None,
         batchnorm: bool = True,
-        dropout: float = None,
-        res_block_type: str = None,
-        res_block_kernel: int = None,
-        gated: bool = None,
+        dropout: Optional[float] = None,
+        res_block_type: Optional[str] = None,
+        res_block_kernel: Optional[int] = None,
+        gated: Optional[bool] = None,
         enable_multiscale: bool = False,
-        multiscale_lowres_size_factor: int = None,
+        multiscale_lowres_size_factor: Optional[int] = None,
         lowres_separate_branch: bool = False,
         multiscale_retain_spatial_dims: bool = False,
         decoder_retain_spatial_dims: bool = False,
-        output_expected_shape: Iterable[int] = None,
+        output_expected_shape: Optional[Iterable[int]] = None,
     ):
         """
         Constructor.
@@ -526,15 +567,19 @@ class BottomUpLayer(nn.Module):
         res_block_type: str = None,
     ) -> None:
         """
-        This method defines the modules responsible of merging compressed lateral inputs to the outputs
-        of the primary flow at different hierarchical levels in the multiresolution approach (LC).
+        Bottom-up layer's method that initializes the LC modules.
 
-        Specifically, the method initializes `lowres_net`, which is a stack of `BottomUpDeterministicBlock`'s
-        (w/out downsampling) that takes care of additionally processing the low-res input, and `lowres_merge`,
-        which is the module responsible of merging the compressed lateral input to the main flow.
+        Defines the modules responsible of merging compressed lateral inputs to the
+        outputs of the primary flow at different hierarchical levels in the
+        multiresolution approach (LC). Specifically, the method initializes `lowres_net`
+        , which is a stack of `BottomUpDeterministicBlock`'s (w/out downsampling) that
+        takes care of additionally processing the low-res input, and `lowres_merge`,
+        which is the module responsible of merging the compressed lateral input to the
+        main flow.
 
-        NOTE: The merge modality is set by default to "residual", meaning that the merge layer
-        performs concatenation on dim=1, followed by 1x1 convolution and a Residual Gated block.
+        NOTE: The merge modality is set by default to "residual", meaning that the
+        merge layer performs concatenation on dim=1, followed by 1x1 convolution and
+        a Residual Gated block.
 
         Parameters
         ----------
@@ -570,8 +615,9 @@ class BottomUpLayer(nn.Module):
 
     def forward(
         self, x: torch.Tensor, lowres_x: Union[torch.Tensor, None] = None
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
-        """
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        """Forward pass.
+
         Parameters
         ----------
         x: torch.Tensor
@@ -634,7 +680,9 @@ class BottomUpLayer(nn.Module):
 
 class MergeLayer(nn.Module):
     """
-    This layer merges two or more (B, C, [Z], Y, X) input tensors by concatenating
+    Layer class that merges two or more input tensors.
+
+    Merges two or more (B, C, [Z], Y, X) input tensors by concatenating
     them along dim=1 and passes the result through:
     a) a convolutional 1x1 layer (`merge_type == "linear"`), or
     b) a convolutional 1x1 layer and then a gated residual block (`merge_type == "residual"`), or
@@ -648,10 +696,10 @@ class MergeLayer(nn.Module):
         conv_strides: tuple[int] = (2, 2),
         nonlin: Callable = nn.LeakyReLU(),
         batchnorm: bool = True,
-        dropout: float = None,
-        res_block_type: str = None,
-        res_block_kernel: int = None,
-        conv2d_bias: bool = True,
+        dropout: Optional[float] = None,
+        res_block_type: Optional[str] = None,
+        res_block_kernel: Optional[int] = None,
+        conv2d_bias: Optional[bool] = True,
     ):
         """
         Constructor.
@@ -659,16 +707,19 @@ class MergeLayer(nn.Module):
         Parameters
         ----------
         merge_type: Literal["linear", "residual", "residual_ungated"]
-            The type of merge done in the layer. It can be chosen between "linear", "residual", and "residual_ungated".
-            Check the class docstring for more information about the behaviour of different merge modalities.
+            The type of merge done in the layer. It can be chosen between "linear",
+            "residual", and "residual_ungated". Check the class docstring for more
+            information about the behaviour of different merge modalities.
         channels: Union[int, Iterable[int]]
             The number of channels used in the convolutional blocks of this layer.
             If it is an `int`:
                 - 1st 1x1 Conv2d: in_channels=2*channels, out_channels=channels
                 - (Optional) ResBlock: in_channels=channels, out_channels=channels
             If it is an Iterable (must have `len(channels)==3`):
-                - 1st 1x1 Conv2d: in_channels=sum(channels[:-1]), out_channels=channels[-1]
-                - (Optional) ResBlock: in_channels=channels[-1], out_channels=channels[-1]
+                - 1st 1x1 Conv2d: in_channels=sum(channels[:-1]),
+                out_channels=channels[-1]
+                - (Optional) ResBlock: in_channels=channels[-1],
+                out_channels=channels[-1]
         conv_strides: tuple, optional
             The strides used in the convolutions. Default is `(2, 2)`.
         nonlin: Callable, optional
@@ -684,7 +735,8 @@ class MergeLayer(nn.Module):
             Default is `None`.
         res_block_kernel: Union[int, Iterable[int]], optional
             The kernel size used in the convolutions of the residual block.
-            It can be either a single integer or a pair of integers defining the squared kernel.
+            It can be either a single integer or a pair of integers defining the squared
+            kernel.
             Default is `None`.
         conv2d_bias: bool, optional
             Whether to use bias term in convolutions. Default is `True`.
@@ -750,7 +802,9 @@ class MergeLayer(nn.Module):
 
 class MergeLowRes(MergeLayer):
     """
-    Child class of `MergeLayer`, specifically designed to merge the low-resolution patches
+    Child class of `MergeLayer`.
+
+    Specifically designed to merge the low-resolution patches
     that are used in Lateral Contextualization approach.
     """
 
@@ -760,7 +814,8 @@ class MergeLowRes(MergeLayer):
         super().__init__(*args, **kwargs)
 
     def forward(self, latent: torch.Tensor, lowres: torch.Tensor) -> torch.Tensor:
-        """
+        """Forward pass.
+
         Parameters
         ----------
         latent: torch.Tensor
@@ -789,9 +844,7 @@ class MergeLowRes(MergeLayer):
 
 
 class SkipConnectionMerger(MergeLayer):
-    """
-    A specialized `MergeLayer` module, designed to handle skip connections in the model.
-    """
+    """Specialized `MergeLayer` module, handles skip connections in the model."""
 
     def __init__(
         self,
@@ -803,7 +856,7 @@ class SkipConnectionMerger(MergeLayer):
         conv_strides: tuple[int] = (2, 2),
         merge_type: Literal["linear", "residual", "residual_ungated"] = "residual",
         conv2d_bias: bool = True,
-        res_block_kernel: int = None,
+        res_block_kernel: Optional[int] = None,
     ):
         """
         Constructor.
@@ -1056,15 +1109,15 @@ class TopDownLayer(nn.Module):
         # Define stochastic block with convolutions
 
         self.stochastic = NormalStochasticBlock(
-                c_in=n_filters,
-                c_vars=z_dim,
-                c_out=n_filters,
-                conv_dims=len(conv_strides),
-                transform_p_params=(not is_top_layer),
-                vanilla_latent_hw=vanilla_latent_hw,
-                restricted_kl=restricted_kl,
-                use_naive_exponential=stochastic_use_naive_exponential,
-            )
+            c_in=n_filters,
+            c_vars=z_dim,
+            c_out=n_filters,
+            conv_dims=len(conv_strides),
+            transform_p_params=(not is_top_layer),
+            vanilla_latent_hw=vanilla_latent_hw,
+            restricted_kl=restricted_kl,
+            use_naive_exponential=stochastic_use_naive_exponential,
+        )
 
         if not is_top_layer:
             # Merge layer: it combines bottom-up inference and top-down
@@ -1099,19 +1152,21 @@ class TopDownLayer(nn.Module):
         self,
         input_: torch.Tensor,
         bu_value: torch.Tensor,
-        var_clip_max: float = None,
+        var_clip_max: Optional[float] = None,
         mask: torch.Tensor = None,
     ) -> torch.Tensor:
         """
-        This method computes the latent inference distribution q(z_i|z_{i+1}) amd samples a latent tensor from it.
+        Method computes the latent inference distribution q(z_i|z_{i+1}).
+
+        Used for sampling a latent tensor from it.
 
         Parameters
         ----------
         input_: torch.Tensor
-            The input tensor to the layer, which is the output of the top-down layer above.
+            The input tensor to the layer, which is the output of the top-down layer.
         bu_value: torch.Tensor
-            The tensor defining the parameters /mu_q and /sigma_q computed during the bottom-up deterministic pass
-            at the correspondent hierarchical layer.
+            The tensor defining the parameters /mu_q and /sigma_q computed during the
+            bottom-up deterministic pass at the correspondent hierarchical layer.
         var_clip_max: float, optional
             The maximum value reachable by the log-variance of the latent distribution.
             Values exceeding this threshold are clipped. Default is `None`.
@@ -1138,7 +1193,7 @@ class TopDownLayer(nn.Module):
         input_: torch.Tensor,
         n_img_prior: int,
     ) -> torch.Tensor:
-        """Return the parameters of the prior distribution p(z_i|z_{i+1})
+        """Return the parameters of the prior distribution p(z_i|z_{i+1}).
 
         The parameters depend on the hierarchical level of the layer:
         - if it is the topmost level, parameters are the ones of the prior.
@@ -1179,36 +1234,44 @@ class TopDownLayer(nn.Module):
         mode_pred: bool = False,
         use_uncond_mode: bool = False,
         var_clip_max: Union[float, None] = None,
-    ) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:
-        """
+    ) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
+        """Forward pass.
+
         Parameters
         ----------
         input_: torch.Tensor, optional
-            The input tensor to the layer, which is the output of the top-down layer above.
+            The input tensor to the layer, which is the output of the top-down layer.
             Default is `None`.
         skip_connection_input: torch.Tensor, optional
-            The tensor brought by the skip connection between the current and the previous top-down layer.
+            The tensor brought by the skip connection between the current and the
+            previous top-down layer.
             Default is `None`.
         inference_mode: bool, optional
-            Whether the layer is in inference mode. See NOTE 2 in class description for more info.
+            Whether the layer is in inference mode. See NOTE 2 in class description
+            for more info.
             Default is `False`.
         bu_value: torch.Tensor, optional
-            The tensor defining the parameters /mu_q and /sigma_q computed during the bottom-up deterministic pass
+            The tensor defining the parameters /mu_q and /sigma_q computed during the
+            bottom-up deterministic pass
             at the correspondent hierarchical layer. Default is `None`.
         n_img_prior: int, optional
-            The number of images to be generated from the unconditional prior distribution p(z_L).
+            The number of images to be generated from the unconditional prior
+            distribution p(z_L).
             Default is `None`.
         forced_latent: torch.Tensor, optional
-            A pre-defined latent tensor. If it is not `None`, than it is used as the actual latent tensor and,
+            A pre-defined latent tensor. If it is not `None`, than it is used as the
+            actual latent tensor and,
             hence, sampling does not happen. Default is `None`.
         force_constant_output: bool, optional
-            Whether to copy the first sample (and rel. distrib parameters) over the whole batch.
+            Whether to copy the first sample (and rel. distrib parameters) over the
+            whole batch.
             This is used when doing experiment from the prior - q is not used.
             Default is `False`.
         mode_pred: bool, optional
             Whether the model is in prediction mode. Default is `False`.
         use_uncond_mode: bool, optional
-            Whether to use the uncoditional distribution p(z) to sample latents in prediction mode.
+            Whether to use the uncoditional distribution p(z) to sample latents in
+            prediction mode.
         var_clip_max: float
             The maximum value reachable by the log-variance of the latent distribution.
             Values exceeding this threshold are clipped.

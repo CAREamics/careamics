@@ -298,7 +298,6 @@ class LadderVAE(nn.Module):
         num_res_blocks: int, optional
             The number of BottomUpDeterministicResBlocks, default is 1.
         """
-        # TODO Question, we use default stride for the first layer?
         # From what I got from Ashesh, Z should not be touched in any case.
         nonlin = get_activation(self.nonlin)
         conv_block = self.encoder_conv_op(
@@ -501,7 +500,7 @@ class LadderVAE(nn.Module):
 
     def _init_multires(
         self, config=None
-    ) -> nn.ModuleList:  # TODO config: ml_collections.ConfigDict refactor
+    ) -> nn.ModuleList:
         """
         Method defines the input block/branch to encode/compress low-res lateral inputs.
 
@@ -573,7 +572,7 @@ class LadderVAE(nn.Module):
     ### SET OF FORWARD-LIKE METHODS
     def bottomup_pass(self, inp: torch.Tensor) -> list[torch.Tensor]:
         """Wrapper of _bottomup_pass()."""
-        # TODO why is this a wrapper?
+        # TODO Remove wrapper
         return self._bottomup_pass(
             inp,
             self.first_bottom_up,
@@ -719,7 +718,7 @@ class LadderVAE(nn.Module):
             constant_out = i in constant_layers
 
             # Input for skip connection
-            skip_input = out  # TODO or n? or both?
+            skip_input = out
 
             # Full top-down layer, including sampling and deterministic part
             out, aux = top_down_layers[i](
@@ -790,7 +789,6 @@ class LadderVAE(nn.Module):
         # Top-down inference/generation
         out, td_data = self.topdown_pass(bu_values)
 
-        # TODO: this should not be necessary anymore
         if out.shape[-1] > img_size[-1]:
             # Restore original image size
             out = crop_img_tensor(out, img_size)
@@ -822,12 +820,11 @@ class LadderVAE(nn.Module):
 
         # Output smallest powers of 2 that are larger than current sizes
         padded_size = [((s - 1) // dwnsc + 1) * dwnsc for s in size]
-        # TODO do we need this ?
+        # TODO Needed for pad/crop odd sizes. Move to dataset?
         return padded_size
 
     def get_latent_spatial_size(self, level_idx: int):
         """Level_idx: 0 is the bottommost layer, the highest resolution one."""
-        # TODO why is this only for 2D?
         actual_downsampling = level_idx + 1
         dwnsc = 2**actual_downsampling
         sz = self.get_padded_size(self.image_size)
@@ -837,7 +834,6 @@ class LadderVAE(nn.Module):
         return h
 
     def get_top_prior_param_shape(self, n_imgs: int = 1):
-        # TODO num channels depends on random variable we're using
 
         # Compute the total downscaling performed in the Encoder
         if self.multiscale_decoder_retain_spatial_dims is False:
@@ -856,36 +852,3 @@ class LadderVAE(nn.Module):
             # TODO check if model_3D_depth is needed ?
             top_layer_shape = (n_imgs, mu_logvar, self._model_3D_depth, h, w)
         return top_layer_shape
-
-    def get_other_channel(self, ch1, input):
-        """Summary.
-
-        # TODO add description
-
-        Parameters
-        ----------
-        ch1 : _type_
-            _description_
-        input : _type_
-            _description_
-
-        Returns
-        -------
-        _type_
-            _description_
-        """
-        assert self.data_std["target"].squeeze().shape == (2,)
-        assert self.data_mean["target"].squeeze().shape == (2,)
-        assert self.target_ch == 2
-        ch1_un = (
-            ch1[:, :1] * self.data_std["target"][:, :1]
-            + self.data_mean["target"][:, :1]
-        )
-        input_un = input * self.data_std["input"] + self.data_mean["input"]
-        ch2_un = self._tethered_ch2_scalar * (
-            input_un - ch1_un * self._tethered_ch1_scalar
-        )
-        ch2 = (ch2_un - self.data_mean["target"][:, -1:]) / self.data_std["target"][
-            :, -1:
-        ]
-        return ch2
