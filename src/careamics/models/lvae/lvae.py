@@ -100,10 +100,7 @@ class LadderVAE(nn.Module):
         self.decoder_dropout = decoder_dropout
         self.nonlin = nonlinearity
         self.predict_logvar = predict_logvar
-<<<<<<< HEAD
 
-=======
->>>>>>> origin/main
         self.analytical_kl = analytical_kl
         # -------------------------------------------------------
 
@@ -491,9 +488,7 @@ class LadderVAE(nn.Module):
             )
         return nn.Sequential(*modules)
 
-    def _init_multires(
-        self, config=None
-    ) -> nn.ModuleList:
+    def _init_multires(self, config=None) -> nn.ModuleList:
         """
         Method defines the input block/branch to encode/compress low-res lateral inputs.
 
@@ -790,85 +785,6 @@ class LadderVAE(nn.Module):
 
         return out, td_data
 
-<<<<<<< HEAD
-=======
-    ### SET OF UTILS METHODS
-    # def sample_prior(
-    #         self,
-    #         n_imgs,
-    #         mode_layers=None,
-    #         constant_layers=None
-    #     ):
-
-    #     # Generate from prior
-    #     out, _ = self.topdown_pass(n_img_prior=n_imgs, mode_layers=mode_layers, constant_layers=constant_layers)
-    #     out = crop_img_tensor(out, self.img_shape)
-
-    #     # Log likelihood and other info (per data point)
-    #     _, likelihood_data = self.likelihood(out, None)
-
-    #     return likelihood_data['sample']
-
-    # ### ???
-    # def sample_from_q(self, x, masks=None):
-    #     """
-    #     This method performs the bottomup_pass() and samples from the
-    #     obtained distribution.
-    #     """
-    #     img_size = x.size()[2:]
-
-    #     # Pad input to make everything easier with conv strides
-    #     x_pad = self.pad_input(x)
-
-    #     # Bottom-up inference: return list of length n_layers (bottom to top)
-    #     bu_values = self.bottomup_pass(x_pad)
-    #     return self._sample_from_q(bu_values, masks=masks)
-    # ### ???
-
-    # def _sample_from_q(self, bu_values, top_down_layers=None, final_top_down_layer=None, masks=None):
-    #     if top_down_layers is None:
-    #         top_down_layers = self.top_down_layers
-    #     if final_top_down_layer is None:
-    #         final_top_down_layer = self.final_top_down
-    #     if masks is None:
-    #         masks = [None] * len(bu_values)
-
-    #     msg = "Multiscale is not supported as of now. You need the output from the previous layers to do this."
-    #     assert self.n_layers == 1, msg
-    #     samples = []
-    #     for i in reversed(range(self.n_layers)):
-    #         bu_value = bu_values[i]
-
-    #         # Note that the first argument can be set to None since we are just dealing with one level
-    #         sample = top_down_layers[i].sample_from_q(None, bu_value, var_clip_max=self._var_clip_max, mask=masks[i])
-    #         samples.append(sample)
-
-    #     return samples
-
-    def reset_for_different_output_size(self, output_size: int) -> None:
-        """Reset shape of output and latent tensors for different output size.
-
-        Used during evaluation to reset expected shapes of tensors when
-        input/output shape changes.
-        For instance, it is needed when the model was trained on, say, 64x64 sized
-        patches, but prediction is done on 128x128 patches.
-        """
-        for i in range(self.n_layers):
-            sz = output_size // 2 ** (1 + i)
-            self.bottom_up_layers[i].output_expected_shape = (sz, sz)
-            self.top_down_layers[i].latent_shape = (output_size, output_size)
-
-    def pad_input(self, x):
-        """
-        Pads input x so that its sizes are powers of 2
-        :param x:
-        :return: Padded tensor
-        """
-        size = self.get_padded_size(x.size())
-        x = pad_img_tensor(x, size)
-        return x
-
->>>>>>> origin/main
     ### SET OF GETTERS
     def get_padded_size(self, size):
         """

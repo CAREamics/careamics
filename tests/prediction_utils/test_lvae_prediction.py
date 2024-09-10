@@ -15,29 +15,6 @@ from careamics.prediction_utils.lvae_prediction import (
     lvae_predict_tiled_batch,
 )
 
-
-@pytest.fixture
-def minimum_lvae_params():
-    return {
-        "input_shape": 64,
-        "output_channels": 2,
-        "multiscale_count": None,
-        "z_dims": [128, 128, 128, 128],
-        "encoder_n_filters": 64,
-        "decoder_n_filters": 64,
-        "encoder_dropout": 0.1,
-        "decoder_dropout": 0.1,
-        "nonlinearity": "ELU",
-        "predict_logvar": "pixelwise",
-        "analytical_kl": False,
-    }
-
-
-@pytest.fixture
-def gaussian_likelihood_params():
-    return {"predict_logvar": "pixelwise", "logvar_lowerbound": -5}
-
-
 # TODO: Test with mock LCMultiChDloader
 
 
@@ -163,7 +140,7 @@ def test_lvae_predict_mmse_tiled_batch(
         overlap_crop_coords=((8, 8 + input_shape[0]), (8, 8 + input_shape[1])),
         stitch_coords=((0, input_shape[0]), (0, input_shape[1])),
         sample_id=0,
-    ) #TODO add 3D case
+    )  # TODO add 3D case
     input_ = (x, [tile_info])  # simulate output of datasets
     # prediction
     y_tiled, y_std_tiled, log_var_tiled = lvae_predict_mmse_tiled_batch(

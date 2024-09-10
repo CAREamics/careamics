@@ -16,7 +16,6 @@ from careamics.models.lvae.noise_models import noise_model_factory
 pytestmark = pytest.mark.lvae
 
 
-
 # TODO: move it under models/lvae/ ??
 
 
@@ -55,7 +54,11 @@ def test_gaussian_likelihood(
 @pytest.mark.parametrize("batch_size", [1, 8])
 @pytest.mark.parametrize("target_ch", [1, 3, 5])
 def test_noise_model_likelihood(
-    tmp_path: Path, batch_size: int, img_size: int, target_ch: int, create_dummy_noise_model
+    tmp_path: Path,
+    batch_size: int,
+    img_size: int,
+    target_ch: int,
+    create_dummy_noise_model,
 ) -> None:
     # Instantiate the noise model
     np.savez(tmp_path / "dummy_noise_model.npz", **create_dummy_noise_model)

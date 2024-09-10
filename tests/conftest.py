@@ -52,6 +52,11 @@ def custom_model_parameters(custom_model_name) -> dict:
 ######################################
 
 
+@pytest.fixture
+def gaussian_likelihood_params():
+    return {"predict_logvar": "pixelwise", "logvar_lowerbound": -5}
+
+
 # TODO add details about where each of these fixture is used (e.g. smoke test)
 @pytest.fixture
 def create_tiff(path: Path, n_files: int):
@@ -408,8 +413,3 @@ def minimum_lvae_params():
         "predict_logvar": "pixelwise",
         "analytical_kl": False,
     }
-
-
-@pytest.fixture
-def gaussian_likelihood_params():
-    return {"predict_logvar": "pixelwise", "logvar_lowerbound": -5}

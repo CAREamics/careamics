@@ -164,9 +164,7 @@ def test_LC_init(
     tmp_path,
     create_dummy_noise_model,
 ) -> None:
-    # pattern = re.compile(
-    #     r"Multiscale count \((\d+)\) should not exceed the number of bottom up layers \((\d+)\) by more than 1\.\n"
-    # )
+
     with pytest.raises(AssertionError):
         create_LVAE_model(
             tmp_path=tmp_path,
@@ -230,7 +228,6 @@ def test_bottom_up_pass(
 
     img_size = model.image_size
     n_filters = model.encoder_n_filters
-    n_channels = multiscale_count if multiscale_count else 1
     inputs = torch.ones((1, *img_size))
     outputs = model._bottomup_pass(
         inp=inputs,
@@ -334,7 +331,8 @@ def test_all_top_down_layers(
         expected_z_shape = (1, model.z_dims[0], *downscaled_size)
         assert (
             output.shape == expected_out_shape
-        ), f"Found problem in layer {i+1}, retain={td_layer.retain_spatial_dims}, dwsc={downscaled_size}"
+        ), f"Found problem in layer {i+1}, retain={td_layer.retain_spatial_dims},"
+        f"dwsc={downscaled_size}"
         assert data["z"].shape == expected_z_shape
         downscaled_size = exp_out_size
 
@@ -355,8 +353,8 @@ def test_final_top_down(
     n_filters = model.encoder_n_filters
     final_upsampling = not model.no_initial_downscaling
     inp_size = img_size // 2 if final_upsampling else img_size
-    input = torch.ones((1, n_filters, inp_size, inp_size))
-    output = final_top_down(input)
+    inputs = torch.ones((1, n_filters, inp_size, inp_size))
+    output = final_top_down(inputs)
     expected_out_shape = (1, n_filters, img_size, img_size)
     assert output.shape == expected_out_shape
 

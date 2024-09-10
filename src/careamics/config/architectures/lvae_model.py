@@ -42,14 +42,9 @@ class LVAEModel(ArchitectureModel):
     )
 
     @model_validator(mode="after")
-    def validate_conv_strides(cls, self: Self) -> Self:
+    def validate_conv_strides(self: Self) -> Self:
         """
         Validate the convolutional strides.
-
-        Parameters
-        ----------
-        conv_strides : list
-            List of strides.
 
         Returns
         -------
@@ -63,25 +58,26 @@ class LVAEModel(ArchitectureModel):
         """
         if len(self.encoder_conv_strides) < 2 or len(self.encoder_conv_strides) > 3:
             raise ValueError(
-                f"Number of strides must be 2 or 3 (got {len(self.encoder_conv_strides)})."
+                f"Strides must be 2 or 3 (got {len(self.encoder_conv_strides)})."
             )
 
         if len(self.decoder_conv_strides) < 2 or len(self.decoder_conv_strides) > 3:
             raise ValueError(
-                f"Number of strides must be 2 or 3 (got {len(self.decoder_conv_strides)})."
+                f"Strides must be 2 or 3 (got {len(self.decoder_conv_strides)})."
             )
 
         # adding 1 to encoder strides for the number of input channels
         if len(self.input_shape) != len(self.encoder_conv_strides):
             raise ValueError(
-                f"Number of input dimensions must be equal to the number of encoder conv strides"
+                f"Input dimensions must be equal to the number of encoder conv strides"
                 f" (got {len(self.input_shape)} and {len(self.encoder_conv_strides)})."
             )
 
         if len(self.encoder_conv_strides) < len(self.decoder_conv_strides):
             raise ValueError(
                 f"Decoder can't be 3D when encoder is 2D (got"
-                f" {len(self.encoder_conv_strides)} and {len(self.decoder_conv_strides)})."
+                f" {len(self.encoder_conv_strides)} and"
+                f"{len(self.decoder_conv_strides)})."
             )
 
         if any(s < 1 for s in self.encoder_conv_strides) or any(
@@ -117,12 +113,15 @@ class LVAEModel(ArchitectureModel):
         """
         if len(input_shape) < 2 or len(input_shape) > 3:
             raise ValueError(
-                f"Number of input dimensions must be 2 for 2D data 3 for 3D (got {len(input_shape)})."
+                f"Number of input dimensions must be 2 for 2D data 3 for 3D"
+                f"(got {len(input_shape)})."
             )
 
         if any(s < 1 for s in input_shape):
-            raise ValueError(f"Input shape must be greater than 1 in all dimensions"
-                             f"(got {input_shape}).")
+            raise ValueError(
+                f"Input shape must be greater than 1 in all dimensions"
+                f"(got {input_shape})."
+            )
         return input_shape
 
     @field_validator("encoder_n_filters")
@@ -213,14 +212,9 @@ class LVAEModel(ArchitectureModel):
         return z_dims
 
     @model_validator(mode="after")
-    def validate_multiscale_count(cls, self: Self) -> Self:
+    def validate_multiscale_count(self: Self) -> Self:
         """
         Validate the multiscale count.
-
-        Parameters
-        ----------
-        self : Self
-            The model.
 
         Returns
         -------
@@ -229,9 +223,9 @@ class LVAEModel(ArchitectureModel):
         """
         if self.multiscale_count < 1 or self.multiscale_count > len(self.z_dims) + 1:
             raise ValueError(
-                    f"Multiscale count must be 1 for LC off or equal to the number of Z"
-                    f"dims + 1 (got {self.multiscale_count} and {len(self.z_dims)})."
-                )
+                f"Multiscale count must be 1 for LC off or equal to the number of Z"
+                f"dims + 1 (got {self.multiscale_count} and {len(self.z_dims)})."
+            )
         return self
 
     def set_3D(self, is_3D: bool) -> None:
