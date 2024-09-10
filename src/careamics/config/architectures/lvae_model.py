@@ -22,7 +22,7 @@ class LVAEModel(ArchitectureModel):
     decoder_conv_strides: list = Field(default=[2, 2], validate_default=True)
     """Dimensions (2D or 3D) of the convolutional layers."""
     multiscale_count: int = Field(default=1)  # TODO clarify
-    # 1 - off, len(z_dims) + 1 # TODO can/should be le to z_dims len + 1 or ?
+    # 1 - off, len(z_dims) + 1 # TODO Consider starting from 0
     z_dims: list = Field(default=[128, 128, 128, 128])
     output_channels: int = Field(default=1, ge=1)
     encoder_n_filters: int = Field(default=64, ge=8, le=1024)
@@ -227,19 +227,11 @@ class LVAEModel(ArchitectureModel):
         Self
             The validated model.
         """
-        if self.multiscale_count > 1:
-            if self.multiscale_count != len(self.z_dims) - 1:
-                raise ValueError(
-                    f"Multiscale count must be 1 or equal to the number of Z "
-                    f"dims - 1 (got {self.multiscale_count} and {len(self.z_dims)})."
-                )
-        elif self.multiscale_count == 1:
-            pass  # TODO add multicsale/z dims validation
-        else:
+        if self.multiscale_count < 1 or self.multiscale_count > len(self.z_dims) + 1:
             raise ValueError(
-                f"Multiscale count must be greater or equal to 1 (got {self.multiscale_count})."
-            )
-
+                    f"Multiscale count must be 1 for LC off or equal to the number of Z"
+                    f"dims + 1 (got {self.multiscale_count} and {len(self.z_dims)})."
+                )
         return self
 
     def set_3D(self, is_3D: bool) -> None:

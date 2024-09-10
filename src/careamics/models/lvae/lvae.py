@@ -138,9 +138,7 @@ class LadderVAE(nn.Module):
         self.noise_model_learnable = False
 
         # Attributes that handle LC -> Hardcoded
-        self.enable_multiscale = (
-            self._multiscale_count is not None and self._multiscale_count > 1
-        )
+        self.enable_multiscale = self._multiscale_count > 1
         self.multiscale_retain_spatial_dims = True
         self.multiscale_lowres_separate_branch = False
         self.multiscale_decoder_retain_spatial_dims = (

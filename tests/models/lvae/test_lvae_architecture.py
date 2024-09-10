@@ -493,22 +493,20 @@ def test_output_layer(
 @pytest.mark.parametrize(
     "img_size, z_dims, multiscale_count, encoder_conv_stride, decoder_conv_stride",
     [
-        (
-            [64, 64],
-            [128, 128, 128],
-            1,
-            (2, 2),
-            (2, 2),
-        ),  # TODO 1 means LC off, 0 not allowed
+        ([64, 64], [128, 128, 128], 1, (2, 2), (2, 2)),
         ([64, 64], [128, 128, 128], 2, (2, 2), (2, 2)),
+        ([64, 64], [128, 128, 128], 3, (2, 2), (2, 2)),
         ([128, 128], [128, 128, 128], 1, (2, 2), (2, 2)),
         ([128, 128], [128, 128, 128], 2, (2, 2), (2, 2)),
+        ([128, 128], [128, 128, 128], 3, (2, 2), (2, 2)),
         ([64, 64], [128, 128, 128, 128], 1, (2, 2), (2, 2)),
         ([64, 64], [128, 128, 128, 128], 3, (2, 2), (2, 2)),
+        ([64, 64], [128, 128, 128, 128], 4, (2, 2), (2, 2)),
         ([128, 128], [128, 128, 128, 128], 1, (2, 2), (2, 2)),
         ([128, 128], [128, 128, 128, 128], 3, (2, 2), (2, 2)),
         ([16, 64, 64], [128, 128, 128], 1, (1, 2, 2), (1, 2, 2)),
         ([16, 64, 64], [128, 128, 128], 2, (1, 2, 2), (1, 2, 2)),
+        ([16, 64, 64], [128, 128, 128], 3, (1, 2, 2), (1, 2, 2)),
         ([16, 128, 128], [128, 128, 128], 1, (1, 2, 2), (1, 2, 2)),
         ([16, 128, 128], [128, 128, 128], 2, (1, 2, 2), (1, 2, 2)),
         ([16, 64, 64], [128, 128, 128, 128], 1, (1, 2, 2), (1, 2, 2)),
@@ -517,6 +515,7 @@ def test_output_layer(
         ([16, 128, 128], [128, 128, 128, 128], 3, (1, 2, 2), (1, 2, 2)),
         ((15, 64, 64), [128, 128, 128], 1, (1, 2, 2), (2, 2)),
         ((15, 64, 64), [128, 128, 128], 2, (1, 2, 2), (2, 2)),
+        ((15, 64, 64), [128, 128, 128], 3, (1, 2, 2), (2, 2)),
     ],
 )  # TODO LC input in channels
 def test_lvae(
@@ -538,10 +537,13 @@ def test_lvae(
         decoder_conv_strides=decoder_conv_stride,
     )
     inputs = torch.ones((1, multiscale_count, *img_size))
-    output = model(inputs)
+    output, td_data = model(inputs)
     assert (
-        output[0].shape == (1, 1, *img_size)
+        output.shape == (1, 1, *img_size)
         if len(encoder_conv_stride) == len(decoder_conv_stride)
         else (1, 1, *img_size[1:])
     )
-    # TODO add tests for td_data
+    assert td_data is not None
+    assert len(td_data["z"]) == len(z_dims)
+    assert len(td_data["kl"]) == len(z_dims)
+    assert all(kl is not None for kl in td_data["kl"])
