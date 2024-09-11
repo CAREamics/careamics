@@ -12,8 +12,8 @@ from bioimageio.spec.generic.v0_3 import CiteEntry
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from typing_extensions import Self
 
-from .algorithm_model import AlgorithmConfig
 from .data_model import DataConfig
+from .fcn_algorithm_model import FCNAlgorithmConfig
 from .references import (
     CARE,
     CUSTOM,
@@ -39,6 +39,7 @@ from .training_model import TrainingConfig
 from .transformations.n2v_manipulate_model import (
     N2VManipulateModel,
 )
+from .vae_algorithm_model import VAEAlgorithmConfig
 
 
 class Configuration(BaseModel):
@@ -147,20 +148,27 @@ class Configuration(BaseModel):
     )
 
     # version
-    version: Literal["0.1.0"] = Field(
-        default="0.1.0", description="Version of the CAREamics configuration."
-    )
+    version: Literal["0.1.0"] = "0.1.0"
+    """CAREamics configuration version."""
 
     # required parameters
-    experiment_name: str = Field(
-        ..., description="Name of the experiment, used to name logs and checkpoints."
-    )
+    experiment_name: str
+    """Name of the experiment, used to name logs and checkpoints."""
 
     # Sub-configurations
-    algorithm_config: AlgorithmConfig
+    algorithm_config: Union[FCNAlgorithmConfig, VAEAlgorithmConfig] = Field(
+        discriminator="algorithm"
+    )
+    """Algorithm configuration, holding all parameters required to configure the
+    model."""
 
     data_config: DataConfig
+    """Data configuration, holding all parameters required to configure the training
+    data loader."""
+
     training_config: TrainingConfig
+    """Training configuration, holding all parameters required to configure the
+    training process."""
 
     @field_validator("experiment_name")
     @classmethod

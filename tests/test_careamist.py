@@ -8,8 +8,9 @@ from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import Callback, EarlyStopping, ModelCheckpoint
 
 from careamics import CAREamist, Configuration, save_configuration
-from careamics.callbacks import HyperParametersCallback, ProgressBarCallback
 from careamics.config.support import SupportedAlgorithm, SupportedData
+from careamics.dataset.dataset_utils import reshape_array
+from careamics.lightning.callbacks import HyperParametersCallback, ProgressBarCallback
 
 
 def random_array(shape: Tuple[int, ...], seed: int = 42):
@@ -103,8 +104,8 @@ def test_train_single_array_no_val(tmp_path: Path, minimum_configuration: dict):
 
     # export to BMZ
     careamist.export_to_bmz(
-        path=tmp_path / "model.zip",
-        name="TopModel",
+        path_to_archive=tmp_path / "model.zip",
+        friendly_model_name="TopModel",
         input_array=train_array,
         authors=[{"name": "Amod", "affiliation": "El"}],
         general_description="A model that just walked in.",
@@ -137,8 +138,8 @@ def test_train_array(tmp_path: Path, minimum_configuration: dict):
 
     # export to BMZ
     careamist.export_to_bmz(
-        path=tmp_path / "model.zip",
-        name="TopModel",
+        path_to_archive=tmp_path / "model.zip",
+        friendly_model_name="TopModel",
         input_array=train_array,
         authors=[{"name": "Amod", "affiliation": "El"}],
         general_description="A model that just walked in.",
@@ -177,8 +178,8 @@ def test_train_array_channel(
 
     # export to BMZ
     careamist.export_to_bmz(
-        path=tmp_path / "model.zip",
-        name="TopModel",
+        path_to_archive=tmp_path / "model.zip",
+        friendly_model_name="TopModel",
         input_array=train_array,
         authors=[{"name": "Amod", "affiliation": "El"}],
         general_description="A model that just walked in.",
@@ -212,8 +213,8 @@ def test_train_array_3d(tmp_path: Path, minimum_configuration: dict):
 
     # export to BMZ
     careamist.export_to_bmz(
-        path=tmp_path / "model.zip",
-        name="TopModel",
+        path_to_archive=tmp_path / "model.zip",
+        friendly_model_name="TopModel",
         input_array=train_array,
         authors=[{"name": "Amod", "affiliation": "El"}],
         general_description="A model that just walked in.",
@@ -249,8 +250,8 @@ def test_train_tiff_files_in_memory_no_val(tmp_path: Path, minimum_configuration
 
     # export to BMZ
     careamist.export_to_bmz(
-        path=tmp_path / "model.zip",
-        name="TopModel",
+        path_to_archive=tmp_path / "model.zip",
+        friendly_model_name="TopModel",
         input_array=train_array,
         authors=[{"name": "Amod", "affiliation": "El"}],
         general_description="A model that just walked in.",
@@ -290,8 +291,8 @@ def test_train_tiff_files_in_memory(tmp_path: Path, minimum_configuration: dict)
 
     # export to BMZ
     careamist.export_to_bmz(
-        path=tmp_path / "model.zip",
-        name="TopModel",
+        path_to_archive=tmp_path / "model.zip",
+        friendly_model_name="TopModel",
         input_array=train_array,
         authors=[{"name": "Amod", "affiliation": "El"}],
         general_description="A model that just walked in.",
@@ -333,8 +334,8 @@ def test_train_tiff_files(tmp_path: Path, minimum_configuration: dict):
 
     # export to BMZ
     careamist.export_to_bmz(
-        path=tmp_path / "model.zip",
-        name="TopModel",
+        path_to_archive=tmp_path / "model.zip",
+        friendly_model_name="TopModel",
         input_array=train_array,
         authors=[{"name": "Amod", "affiliation": "El"}],
         general_description="A model that just walked in.",
@@ -374,8 +375,8 @@ def test_train_array_supervised(tmp_path: Path, supervised_configuration: dict):
 
     # export to BMZ
     careamist.export_to_bmz(
-        path=tmp_path / "model.zip",
-        name="TopModel",
+        path_to_archive=tmp_path / "model.zip",
+        friendly_model_name="TopModel",
         input_array=train_array,
         authors=[{"name": "Amod", "affiliation": "El"}],
         general_description="A model that just walked in.",
@@ -434,8 +435,8 @@ def test_train_tiff_files_in_memory_supervised(
 
     # export to BMZ
     careamist.export_to_bmz(
-        path=tmp_path / "model.zip",
-        name="TopModel",
+        path_to_archive=tmp_path / "model.zip",
+        friendly_model_name="TopModel",
         input_array=train_array,
         authors=[{"name": "Amod", "affiliation": "El"}],
         general_description="A model that just walked in.",
@@ -495,8 +496,8 @@ def test_train_tiff_files_supervised(tmp_path: Path, supervised_configuration: d
 
     # export to BMZ
     careamist.export_to_bmz(
-        path=tmp_path / "model.zip",
-        name="TopModel",
+        path_to_archive=tmp_path / "model.zip",
+        friendly_model_name="TopModel",
         input_array=train_array,
         authors=[{"name": "Amod", "affiliation": "El"}],
         general_description="A model that just walked in.",
@@ -531,14 +532,16 @@ def test_predict_on_array_tiled(
     predicted = careamist.predict(
         train_array, batch_size=batch_size, tile_size=(16, 16), tile_overlap=(4, 4)
     )
-    predicted_squeeze = [p.squeeze() for p in predicted]
 
-    assert np.array(predicted_squeeze).shape == train_array.squeeze().shape
+    assert (
+        np.concatenate(predicted).shape
+        == reshape_array(train_array, config.data_config.axes).shape
+    )
 
     # export to BMZ
     careamist.export_to_bmz(
-        path=tmp_path / "model.zip",
-        name="TopModel",
+        path_to_archive=tmp_path / "model.zip",
+        friendly_model_name="TopModel",
         input_array=train_array,
         authors=[{"name": "Amod", "affiliation": "El"}],
         general_description="A model that just walked in.",
@@ -572,12 +575,15 @@ def test_predict_arrays_no_tiling(
     # predict CAREamist
     predicted = careamist.predict(train_array, batch_size=batch_size)
 
-    assert np.concatenate(predicted).squeeze().shape == train_array.squeeze().shape
+    assert (
+        np.concatenate(predicted).shape
+        == reshape_array(train_array, config.data_config.axes).shape
+    )
 
     # export to BMZ
     careamist.export_to_bmz(
-        path=tmp_path / "model.zip",
-        name="TopModel",
+        path_to_archive=tmp_path / "model.zip",
+        friendly_model_name="TopModel",
         input_array=train_array,
         authors=[{"name": "Amod", "affiliation": "El"}],
         general_description="A model that just walked in.",
@@ -658,18 +664,26 @@ def test_predict_tiled_channel(
         train_array, batch_size=batch_size, tile_size=(16, 16), tile_overlap=(4, 4)
     )
 
-    assert predicted.squeeze().shape == train_array.shape
+    assert (
+        np.concatenate(predicted).shape
+        == reshape_array(train_array, config.data_config.axes).shape
+    )
 
 
+@pytest.mark.parametrize("tiled", [True, False])
+@pytest.mark.parametrize("n_samples", [1, 2])
 @pytest.mark.parametrize("batch_size", [1, 2])
-def test_predict_path(tmp_path: Path, minimum_configuration: dict, batch_size):
+def test_predict_path(
+    tmp_path: Path, minimum_configuration: dict, batch_size, n_samples, tiled
+):
     """Test that CAREamics can predict with tiff files."""
     # training data
     train_array = random_array((32, 32))
 
     # save files
-    train_file = tmp_path / "train.tiff"
-    tifffile.imwrite(train_file, train_array)
+    for i in range(n_samples):
+        train_file = tmp_path / f"train_{i}.tiff"
+        tifffile.imwrite(train_file, train_array)
 
     # create configuration
     config = Configuration(**minimum_configuration)
@@ -685,16 +699,32 @@ def test_predict_path(tmp_path: Path, minimum_configuration: dict, batch_size):
     # train CAREamist
     careamist.train(train_source=train_file)
 
+    if tiled:
+        tile_size = (16, 16)
+        tile_overlap = (4, 4)
+    else:
+        tile_size = None
+        tile_overlap = None
+
     # predict CAREamist
-    predicted = careamist.predict(train_file, batch_size=batch_size)
+    predicted = careamist.predict(
+        train_file,
+        batch_size=batch_size,
+        tile_size=tile_size,
+        tile_overlap=tile_overlap,
+    )
 
     # check that it predicted
-    assert predicted.squeeze().shape == train_array.shape
+    if isinstance(predicted, list):
+        for p in predicted:
+            assert p.squeeze().shape == train_array.shape
+    else:
+        assert predicted.squeeze().shape == train_array.shape
 
     # export to BMZ
     careamist.export_to_bmz(
-        path=tmp_path / "model.zip",
-        name="TopModel",
+        path_to_archive=tmp_path / "model.zip",
+        friendly_model_name="TopModel",
         input_array=train_array,
         authors=[{"name": "Amod", "affiliation": "El"}],
         general_description="A model that just walked in.",
@@ -717,7 +747,10 @@ def test_predict_pretrained_checkpoint(tmp_path: Path, pre_trained: Path):
     predicted = careamist.predict(source_array)
 
     # check that it predicted
-    assert predicted.squeeze().shape == source_array.shape
+    assert (
+        np.concatenate(predicted).shape
+        == reshape_array(source_array, careamist.cfg.data_config.axes).shape
+    )
 
 
 def test_predict_pretrained_bmz(tmp_path: Path, pre_trained_bmz: Path):
@@ -732,7 +765,10 @@ def test_predict_pretrained_bmz(tmp_path: Path, pre_trained_bmz: Path):
     predicted = careamist.predict(source_array)
 
     # check that it predicted
-    assert predicted.squeeze().shape == source_array.shape
+    assert (
+        np.concatenate(predicted).shape
+        == reshape_array(source_array, careamist.cfg.data_config.axes).shape
+    )
 
 
 def test_export_bmz_pretrained_prediction(tmp_path: Path, pre_trained: Path):
@@ -752,8 +788,8 @@ def test_export_bmz_pretrained_prediction(tmp_path: Path, pre_trained: Path):
 
     # export to BMZ (random array created)
     careamist.export_to_bmz(
-        path=tmp_path / "model.zip",
-        name="TopModel",
+        path_to_archive=tmp_path / "model.zip",
+        friendly_model_name="TopModel",
         input_array=source_array,
         authors=[{"name": "Amod", "affiliation": "El"}],
         general_description="A model that just walked in.",
@@ -773,8 +809,8 @@ def test_export_bmz_pretrained_with_array(tmp_path: Path, pre_trained: Path):
     # alternatively we can pass an array
     array = random_array((32, 32))
     careamist.export_to_bmz(
-        path=tmp_path / "model2.zip",
-        name="TopModel",
+        path_to_archive=tmp_path / "model2.zip",
+        friendly_model_name="TopModel",
         input_array=array,
         authors=[{"name": "Amod", "affiliation": "El"}],
         general_description="A model that just walked in.",

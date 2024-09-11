@@ -13,6 +13,7 @@ class ArchitectureModel(BaseModel):
     """
 
     architecture: str
+    """Name of the architecture."""
 
     def model_dump(self, **kwargs: Any) -> Dict[str, Any]:
         """
@@ -26,7 +27,7 @@ class ArchitectureModel(BaseModel):
         Returns
         -------
         dict[str, Any]
-            Model as a dictionnary.
+            Model as a dictionary.
         """
         model_dict = super().model_dump(**kwargs)
 

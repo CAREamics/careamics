@@ -5,12 +5,14 @@ from __future__ import annotations
 from pprint import pformat
 from typing import Any, Literal, Optional, Union
 
+import numpy as np
 from numpy.typing import NDArray
 from pydantic import (
     BaseModel,
     ConfigDict,
     Discriminator,
     Field,
+    PlainSerializer,
     field_validator,
     model_validator,
 )
@@ -22,6 +24,30 @@ from .transformations.xy_flip_model import XYFlipModel
 from .transformations.xy_random_rotate90_model import XYRandomRotate90Model
 from .validators import check_axes_validity, patch_size_ge_than_8_power_of_2
 
+
+def np_float_to_scientific_str(x: float) -> str:
+    """Return a string scientific representation of a float.
+
+    In particular, this method is used to serialize floats to strings, allowing
+    numpy.float32 to be passed in the Pydantic model and written to a yaml file as str.
+
+    Parameters
+    ----------
+    x : float
+        Input value.
+
+    Returns
+    -------
+    str
+        Scientific string representation of the input value.
+    """
+    return np.format_float_scientific(x, precision=7)
+
+
+Float = Annotated[float, PlainSerializer(np_float_to_scientific_str, return_type=str)]
+"""Annotated float type, used to serialize floats to strings."""
+
+
 TRANSFORMS_UNION = Annotated[
     Union[
         XYFlipModel,
@@ -30,6 +56,7 @@ TRANSFORMS_UNION = Annotated[
     ],
     Discriminator("name"),  # used to tell the different transform models apart
 ]
+"""Available transforms in CAREamics."""
 
 
 class DataConfig(BaseModel):
@@ -55,8 +82,8 @@ class DataConfig(BaseModel):
     ...     axes="YX"
     ... )
 
-    To change the mean and std of the data:
-    >>> data.set_mean_and_std(image_means=[214.3], image_stds=[84.5])
+    To change the image_means and image_stds of the data:
+    >>> data.set_means_and_stds(image_means=[214.3], image_stds=[84.5])
 
     One can pass also a list of transformations, by keyword, using the
     SupportedTransform value:
@@ -80,22 +107,38 @@ class DataConfig(BaseModel):
     )
 
     # Dataset configuration
-    data_type: Literal["array", "tiff", "custom"]  # As defined in SupportedData
-    patch_size: Union[list[int]] = Field(..., min_length=2, max_length=3)
-    batch_size: int = Field(default=1, ge=1, validate_default=True)
+    data_type: Literal["array", "tiff", "custom"]
+    """Type of input data, numpy.ndarray (array) or paths (tiff and custom), as defined
+    in SupportedData."""
+
     axes: str
+    """Axes of the data, as defined in SupportedAxes."""
+
+    patch_size: Union[list[int]] = Field(..., min_length=2, max_length=3)
+    """Patch size, as used during training."""
+
+    batch_size: int = Field(default=1, ge=1, validate_default=True)
+    """Batch size for training."""
 
     # Optional fields
-    image_means: Optional[list[float]] = Field(
+    image_means: Optional[list[Float]] = Field(
         default=None, min_length=0, max_length=32
     )
-    image_stds: Optional[list[float]] = Field(default=None, min_length=0, max_length=32)
-    target_means: Optional[list[float]] = Field(
+    """Means of the data across channels, used for normalization."""
+
+    image_stds: Optional[list[Float]] = Field(default=None, min_length=0, max_length=32)
+    """Standard deviations of the data across channels, used for normalization."""
+
+    target_means: Optional[list[Float]] = Field(
         default=None, min_length=0, max_length=32
     )
-    target_stds: Optional[list[float]] = Field(
+    """Means of the target data across channels, used for normalization."""
+
+    target_stds: Optional[list[Float]] = Field(
         default=None, min_length=0, max_length=32
     )
+    """Standard deviations of the target data across channels, used for
+    normalization."""
 
     transforms: list[TRANSFORMS_UNION] = Field(
         default=[
@@ -111,8 +154,11 @@ class DataConfig(BaseModel):
         ],
         validate_default=True,
     )
+    """List of transformations to apply to the data, available transforms are defined
+    in SupportedTransform. The default values are set for Noise2Void."""
 
     dataloader_params: Optional[dict] = None
+    """Dictionary of PyTorch dataloader parameters."""
 
     @field_validator("patch_size")
     @classmethod
@@ -246,9 +292,7 @@ class DataConfig(BaseModel):
         elif (self.image_means is not None and self.image_stds is not None) and (
             len(self.image_means) != len(self.image_stds)
         ):
-            raise ValueError(
-                "Mean and std must be specified for each " "input channel."
-            )
+            raise ValueError("Mean and std must be specified for each input channel.")
 
         if (self.target_means and not self.target_stds) or (
             self.target_stds and not self.target_means
@@ -346,7 +390,7 @@ class DataConfig(BaseModel):
         if self.has_n2v_manipulate():
             self.transforms.pop(-1)
 
-    def set_mean_and_std(
+    def set_means_and_stds(
         self,
         image_means: Union[NDArray, tuple, list, None],
         image_stds: Union[NDArray, tuple, list, None],
@@ -354,20 +398,20 @@ class DataConfig(BaseModel):
         target_stds: Optional[Union[NDArray, tuple, list, None]] = None,
     ) -> None:
         """
-        Set mean and standard deviation of the data.
+        Set mean and standard deviation of the data across channels.
 
         This method should be used instead setting the fields directly, as it would
         otherwise trigger a validation error.
 
         Parameters
         ----------
-        image_means : NDArray or tuple or list
+        image_means : numpy.ndarray, tuple or list
             Mean values for normalization.
-        image_stds : NDArray or tuple or list
+        image_stds : numpy.ndarray, tuple or list
             Standard deviation values for normalization.
-        target_means : NDArray or tuple or list, optional
+        target_means : numpy.ndarray, tuple or list, optional
             Target mean values for normalization, by default ().
-        target_stds : NDArray or tuple or list, optional
+        target_stds : numpy.ndarray, tuple or list, optional
             Target standard deviation values for normalization, by default ().
         """
         # make sure we pass a list

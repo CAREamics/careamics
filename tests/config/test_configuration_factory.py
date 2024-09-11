@@ -2,7 +2,6 @@ import pytest
 
 from careamics.config import (
     create_care_configuration,
-    create_inference_configuration,
     create_n2n_configuration,
     create_n2v_configuration,
 )
@@ -94,7 +93,7 @@ def test_n2n_channels_errors():
             patch_size=[64, 64],
             batch_size=8,
             num_epochs=100,
-            n_channels=5,
+            n_channels_in=5,
         )
 
 
@@ -122,14 +121,14 @@ def test_n2n_independent_channels(ind_channels):
         patch_size=[64, 64],
         batch_size=8,
         num_epochs=100,
-        n_channels=4,
+        n_channels_in=4,
         independent_channels=ind_channels,
     )
     assert config.algorithm_config.model.independent_channels == ind_channels
 
 
-def test_n2n_chanels_equal():
-    """Test that channels in and out are equal."""
+def test_n2n_channels_equal():
+    """Test that channels in and out are equal if only channels_in is set."""
     config = create_n2n_configuration(
         experiment_name="test",
         data_type="tiff",
@@ -137,10 +136,26 @@ def test_n2n_chanels_equal():
         patch_size=[64, 64],
         batch_size=8,
         num_epochs=100,
-        n_channels=4,
+        n_channels_in=4,
     )
     assert config.algorithm_config.model.in_channels == 4
     assert config.algorithm_config.model.num_classes == 4
+
+
+def test_n2n_channels_different():
+    """Test that channels in and out can be different."""
+    config = create_n2n_configuration(
+        experiment_name="test",
+        data_type="tiff",
+        axes="YXC",
+        patch_size=[64, 64],
+        batch_size=8,
+        num_epochs=100,
+        n_channels_in=4,
+        n_channels_out=5,
+    )
+    assert config.algorithm_config.model.in_channels == 4
+    assert config.algorithm_config.model.num_classes == 5
 
 
 def test_care_configuration():
@@ -506,88 +521,3 @@ def test_structn2v():
         == SupportedStructAxis.HORIZONTAL.value
     )
     assert config.data_config.transforms[-1].struct_mask_span == 7
-
-
-def test_inference_config_no_stats():
-    """Test that an inference configuration fails if no statistics are present."""
-    config = create_n2v_configuration(
-        experiment_name="test",
-        data_type="tiff",
-        axes="YX",
-        patch_size=[64, 64],
-        batch_size=8,
-        num_epochs=100,
-    )
-
-    with pytest.raises(ValueError):
-        create_inference_configuration(
-            configuration=config,
-        )
-
-
-def test_inference_config():
-    """Test that an inference configuration can be created."""
-    config = create_n2v_configuration(
-        experiment_name="test",
-        data_type="tiff",
-        axes="YX",
-        patch_size=[64, 64],
-        batch_size=8,
-        num_epochs=100,
-    )
-    config.data_config.set_mean_and_std([0.5], [0.2])
-
-    create_inference_configuration(
-        configuration=config,
-    )
-
-
-def test_inference_tile_size():
-    """Test that an inference configuration can be created for a UNet model."""
-    config = create_care_configuration(
-        experiment_name="test",
-        data_type="tiff",
-        axes="YX",
-        patch_size=[64, 64],
-        batch_size=8,
-        num_epochs=100,
-    )
-    config.data_config.set_mean_and_std([0.5], [0.2])
-
-    # check UNet depth, tile increment must then be a factor of 4
-    assert config.algorithm_config.model.depth == 2
-
-    # error if not a factor of 4
-    with pytest.raises(ValueError):
-        create_inference_configuration(
-            configuration=config,
-            tile_size=[6, 6],
-            tile_overlap=[2, 2],
-        )
-
-    # no error if a factor of 4
-    create_inference_configuration(
-        configuration=config,
-        tile_size=[8, 8],
-        tile_overlap=[2, 2],
-    )
-
-
-def test_inference_tile_no_overlap():
-    """Test that an error is raised if the tile overlap is not specified, but the tile
-    size is."""
-    config = create_care_configuration(
-        experiment_name="test",
-        data_type="tiff",
-        axes="YX",
-        patch_size=[64, 64],
-        batch_size=8,
-        num_epochs=100,
-    )
-    config.data_config.set_mean_and_std([0.5], [0.2])
-
-    with pytest.raises(ValueError):
-        create_inference_configuration(
-            configuration=config,
-            tile_size=[8, 8],
-        )

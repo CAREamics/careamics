@@ -1,12 +1,11 @@
 """Convenience functions to create configurations for training and inference."""
 
-from typing import Any, Dict, List, Literal, Optional, Tuple
+from typing import Any, Dict, List, Literal, Optional
 
-from .algorithm_model import AlgorithmConfig
 from .architectures import UNetModel
 from .configuration_model import Configuration
 from .data_model import DataConfig
-from .inference_model import InferenceConfig
+from .fcn_algorithm_model import FCNAlgorithmConfig
 from .support import (
     SupportedAlgorithm,
     SupportedArchitecture,
@@ -17,6 +16,7 @@ from .support import (
 from .training_model import TrainingConfig
 
 
+# TODO rename ?
 def _create_supervised_configuration(
     algorithm: Literal["care", "n2n"],
     experiment_name: str,
@@ -98,7 +98,7 @@ def _create_supervised_configuration(
     )
 
     # algorithm model
-    algorithm = AlgorithmConfig(
+    algorithm = FCNAlgorithmConfig(
         algorithm=algorithm,
         loss=loss,
         model=unet_model,
@@ -243,7 +243,8 @@ def create_n2n_configuration(
     use_augmentations: bool = True,
     independent_channels: bool = False,
     loss: Literal["mae", "mse"] = "mae",
-    n_channels: int = 1,
+    n_channels_in: int = 1,
+    n_channels_out: int = -1,
     logger: Literal["wandb", "tensorboard", "none"] = "none",
     model_kwargs: Optional[dict] = None,
 ) -> Configuration:
@@ -253,9 +254,12 @@ def create_n2n_configuration(
     If "Z" is present in `axes`, then `path_size` must be a list of length 3, otherwise
     2.
 
-    If "C" is present in `axes`, then you need to set `n_channels` to the number of
+    If "C" is present in `axes`, then you need to set `n_channels_in` to the number of
     channels. Likewise, if you set the number of channels, then "C" must be present in
     `axes`.
+
+    To set the number of output channels, use the `n_channels_out` parameter. If it is
+    not specified, it will be assumed to be equal to `n_channels_in`.
 
     By default, all channels are trained together. To train all channels independently,
     set `independent_channels` to True.
@@ -283,8 +287,10 @@ def create_n2n_configuration(
         Whether to train all channels independently, by default False.
     loss : Literal["mae", "mse"], optional
         Loss function to use, by default "mae".
-    n_channels : int, optional
-        Number of channels (in and out), by default 1.
+    n_channels_in : int, optional
+        Number of channels in, by default 1.
+    n_channels_out : int, optional
+        Number of channels out, by default -1.
     logger : Literal["wandb", "tensorboard", "none"], optional
         Logger to use, by default "none".
     model_kwargs : dict, optional
@@ -295,6 +301,9 @@ def create_n2n_configuration(
     Configuration
         Configuration for training Noise2Noise.
     """
+    if n_channels_out == -1:
+        n_channels_out = n_channels_in
+
     return _create_supervised_configuration(
         algorithm="n2n",
         experiment_name=experiment_name,
@@ -306,8 +315,8 @@ def create_n2n_configuration(
         use_augmentations=use_augmentations,
         independent_channels=independent_channels,
         loss=loss,
-        n_channels_in=n_channels,
-        n_channels_out=n_channels,
+        n_channels_in=n_channels_in,
+        n_channels_out=n_channels_out,
         logger=logger,
         model_kwargs=model_kwargs,
     )
@@ -506,7 +515,7 @@ def create_n2v_configuration(
     )
 
     # algorithm model
-    algorithm = AlgorithmConfig(
+    algorithm = FCNAlgorithmConfig(
         algorithm=SupportedAlgorithm.N2V.value,
         loss=SupportedLoss.N2V.value,
         model=unet_model,
@@ -565,80 +574,3 @@ def create_n2v_configuration(
     )
 
     return configuration
-
-
-def create_inference_configuration(
-    configuration: Configuration,
-    tile_size: Optional[Tuple[int, ...]] = None,
-    tile_overlap: Optional[Tuple[int, ...]] = None,
-    data_type: Optional[Literal["array", "tiff", "custom"]] = None,
-    axes: Optional[str] = None,
-    tta_transforms: bool = True,
-    batch_size: Optional[int] = 1,
-) -> InferenceConfig:
-    """
-    Create a configuration for inference with N2V.
-
-    If not provided, `data_type` and `axes` are taken from the training
-    configuration.
-
-    Parameters
-    ----------
-    configuration : Configuration
-        Global configuration.
-    tile_size : Tuple[int, ...], optional
-        Size of the tiles.
-    tile_overlap : Tuple[int, ...], optional
-        Overlap of the tiles.
-    data_type : str, optional
-        Type of the data, by default "tiff".
-    axes : str, optional
-        Axes of the data, by default "YX".
-    tta_transforms : bool, optional
-        Whether to apply test-time augmentations, by default True.
-    batch_size : int, optional
-        Batch size, by default 1.
-
-    Returns
-    -------
-    InferenceConfiguration
-        Configuration used to configure CAREamicsPredictData.
-    """
-    if (
-        configuration.data_config.image_means is None
-        or configuration.data_config.image_stds is None
-    ):
-        raise ValueError("Mean and std must be provided in the configuration.")
-
-    # tile size for UNets
-    if tile_size is not None:
-        model = configuration.algorithm_config.model
-
-        if model.architecture == SupportedArchitecture.UNET.value:
-            # tile size must be equal to k*2^n, where n is the number of pooling layers
-            # (equal to the depth) and k is an integer
-            depth = model.depth
-            tile_increment = 2**depth
-
-            for i, t in enumerate(tile_size):
-                if t % tile_increment != 0:
-                    raise ValueError(
-                        f"Tile size must be divisible by {tile_increment} along all "
-                        f"axes (got {t} for axis {i}). If your image size is smaller "
-                        f"along one axis (e.g. Z), consider padding the image."
-                    )
-
-        # tile overlaps must be specified
-        if tile_overlap is None:
-            raise ValueError("Tile overlap must be specified.")
-
-    return InferenceConfig(
-        data_type=data_type or configuration.data_config.data_type,
-        tile_size=tile_size,
-        tile_overlap=tile_overlap,
-        axes=axes or configuration.data_config.axes,
-        image_means=configuration.data_config.image_means,
-        image_stds=configuration.data_config.image_stds,
-        tta_transforms=tta_transforms,
-        batch_size=batch_size,
-    )

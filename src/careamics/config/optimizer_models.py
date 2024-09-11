@@ -44,7 +44,10 @@ class OptimizerModel(BaseModel):
     )
 
     # Mandatory field
-    name: Literal["Adam", "SGD"] = Field(default="Adam", validate_default=True)
+    name: Literal["Adam", "SGD", "Adamax"] = Field(
+        default="Adam", validate_default=True
+    )
+    """Name of the optimizer, supported optimizers are defined in SupportedOptimizer."""
 
     # Optional parameters, empty dict default value to allow filtering dictionary
     parameters: dict = Field(
@@ -53,6 +56,7 @@ class OptimizerModel(BaseModel):
         },
         validate_default=True,
     )
+    """Parameters of the optimizer, see PyTorch documentation for more details."""
 
     @field_validator("parameters")
     @classmethod
@@ -140,9 +144,13 @@ class LrSchedulerModel(BaseModel):
 
     # Mandatory field
     name: Literal["ReduceLROnPlateau", "StepLR"] = Field(default="ReduceLROnPlateau")
+    """Name of the learning rate scheduler, supported schedulers are defined in
+    SupportedScheduler."""
 
     # Optional parameters
     parameters: dict = Field(default={}, validate_default=True)
+    """Parameters of the learning rate scheduler, see PyTorch documentation for more
+    details."""
 
     @field_validator("parameters")
     @classmethod

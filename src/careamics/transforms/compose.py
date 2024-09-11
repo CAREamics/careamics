@@ -1,8 +1,8 @@
 """A class chaining transforms together."""
 
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Union, cast
 
-import numpy as np
+from numpy.typing import NDArray
 
 from careamics.config.data_model import TRANSFORMS_UNION
 
@@ -57,56 +57,81 @@ class Compose:
             transform and its parameters.
         """
         # retrieve all available transforms
-        all_transforms = get_all_transforms()
+        # TODO: correctly type hint get_all_transforms function output
+        all_transforms: dict[str, type[Transform]] = get_all_transforms()
 
         # instantiate all transforms
-        transforms = [all_transforms[t.name](**t.model_dump()) for t in transform_list]
+        self.transforms: list[Transform] = [
+            all_transforms[t.name](**t.model_dump()) for t in transform_list
+        ]
 
-        self._callable_transforms = self._chain_transforms(transforms)
-
-    def _chain_transforms(self, transforms: List[Transform]) -> Callable:
-        """Chain the transforms together.
+    def _chain_transforms(
+        self, patch: NDArray, target: Optional[NDArray]
+    ) -> Tuple[Optional[NDArray], ...]:
+        """Chain transforms on the input data.
 
         Parameters
         ----------
-        transforms : List[Transform]
-            A list of transforms to chain together.
+        patch : np.ndarray
+            Input data.
+        target : Optional[np.ndarray]
+            Target data, by default None.
 
         Returns
         -------
-        Callable
-            A callable that applies the transforms in order to the input data.
+        Tuple[np.ndarray, Optional[np.ndarray]]
+            The output of the transformations.
         """
+        params: Union[
+            tuple[NDArray, Optional[NDArray]],
+            tuple[NDArray, NDArray, NDArray],  # N2VManiupulate output
+        ] = (patch, target)
 
-        def _chain(
-            patch: np.ndarray, target: Optional[np.ndarray]
-        ) -> Tuple[np.ndarray, Optional[np.ndarray]]:
-            """Chain transforms on the input data.
+        for t in self.transforms:
+            # N2VManipulate returns tuple of 3 arrays
+            #   - Other transoforms return tuple of (patch, target, additional_arrays)
+            if isinstance(t, N2VManipulate):
+                patch, *_ = params
+                params = t(patch=patch)
+            else:
+                *params, _ = t(*params)  # ignore additional_arrays dict
 
-            Parameters
-            ----------
-            patch : np.ndarray
-                Input data.
-            target : Optional[np.ndarray]
-                Target data, by default None.
+        return params
 
-            Returns
-            -------
-            Tuple[np.ndarray, Optional[np.ndarray]]
-                The output of the transformations.
-            """
-            params = (patch, target)
+    def _chain_transforms_additional_arrays(
+        self,
+        patch: NDArray,
+        target: Optional[NDArray],
+        **additional_arrays: NDArray,
+    ) -> Tuple[NDArray, Optional[NDArray], dict[str, NDArray]]:
+        """Chain transforms on the input data, with additional arrays.
 
-            for t in transforms:
-                params = t(*params)
+        Parameters
+        ----------
+        patch : np.ndarray
+            Input data.
+        target : Optional[np.ndarray]
+            Target data, by default None.
+        **additional_arrays : NDArray
+            Additional arrays that will be transformed identically to `patch` and
+            `target`.
 
-            return params
+        Returns
+        -------
+        Tuple[np.ndarray, Optional[np.ndarray]]
+            The output of the transformations.
+        """
+        params = {"patch": patch, "target": target, **additional_arrays}
 
-        return _chain
+        for t in self.transforms:
+            patch, target, additional_arrays = t(**params)
+            params = {"patch": patch, "target": target, **additional_arrays}
+
+        return patch, target, additional_arrays
 
     def __call__(
-        self, patch: np.ndarray, target: Optional[np.ndarray] = None
-    ) -> Tuple[np.ndarray, ...]:
+        self, patch: NDArray, target: Optional[NDArray] = None
+    ) -> Tuple[NDArray, ...]:
         """Apply the transforms to the input data.
 
         Parameters
@@ -121,4 +146,37 @@ class Compose:
         Tuple[np.ndarray, ...]
             The output of the transformations.
         """
-        return self._callable_transforms(patch, target)
+        # TODO: solve casting Compose.__call__ ouput
+        return cast(Tuple[NDArray, ...], self._chain_transforms(patch, target))
+
+    def transform_with_additional_arrays(
+        self,
+        patch: NDArray,
+        target: Optional[NDArray] = None,
+        **additional_arrays: NDArray,
+    ) -> tuple[NDArray, Optional[NDArray], dict[str, NDArray]]:
+        """Apply the transforms to the input data, including additional arrays.
+
+        Parameters
+        ----------
+        patch : np.ndarray
+            The input data.
+        target : Optional[np.ndarray], optional
+            Target data, by default None.
+        **additional_arrays : NDArray
+            Additional arrays that will be transformed identically to `patch` and
+            `target`.
+
+        Returns
+        -------
+        NDArray
+            The transformed patch.
+        NDArray | None
+            The transformed target.
+        dict of {str, NDArray}
+            Transformed additional arrays. Keys correspond to the keyword argument
+            names.
+        """
+        return self._chain_transforms_additional_arrays(
+            patch, target, **additional_arrays
+        )

@@ -1,8 +1,10 @@
 """Prediction utility functions."""
 
-from typing import List
+import builtins
+from typing import List, Union
 
 import numpy as np
+from numpy.typing import NDArray
 
 from careamics.config.tile_information import TileInformation
 
@@ -37,7 +39,9 @@ def stitch_prediction(
     last_tiles = [tile_info.last_tile for tile_info in tile_infos]
     last_tile_position = np.where(last_tiles)[0]
     image_slices = [
-        slice(None if i == 0 else last_tile_position[i - 1], last_tile_position[i] + 1)
+        slice(
+            None if i == 0 else last_tile_position[i - 1] + 1, last_tile_position[i] + 1
+        )
         for i in range(len(last_tile_position))
     ]
     image_predictions = []
@@ -50,9 +54,9 @@ def stitch_prediction(
 
 
 def stitch_prediction_single(
-    tiles: List[np.ndarray],
+    tiles: List[NDArray],
     tile_infos: List[TileInformation],
-) -> np.ndarray:
+) -> NDArray:
     """
     Stitch tiles back together to form a full image.
 
@@ -70,29 +74,39 @@ def stitch_prediction_single(
     Returns
     -------
     numpy.ndarray
-        Full image.
+        Full image, with dimensions SC(Z)YX.
     """
-    # retrieve whole array size
-    input_shape = tile_infos[0].array_shape
+    # TODO: this is hacky... need a better way to deal with when input channels and
+    #   target channels do not match
+    if len(tile_infos[0].array_shape) == 4:
+        # 4 dimensions => 3 spatial dimensions so -4 is channel dimension
+        tile_channels = tiles[0].shape[-4]
+    elif len(tile_infos[0].array_shape) == 3:
+        # 3 dimensions => 2 spatial dimensions so -3 is channel dimension
+        tile_channels = tiles[0].shape[-3]
+    else:
+        # Note pretty sure this is unreachable because array shape is already
+        #   validated by TileInformation
+        raise ValueError(
+            f"Unsupported number of output dimension {len(tile_infos[0].array_shape)}"
+        )
+    # retrieve whole array size, add S dim and use number of channels in tile
+    input_shape = (1, tile_channels, *tile_infos[0].array_shape[1:])
     predicted_image = np.zeros(input_shape, dtype=np.float32)
 
     for tile, tile_info in zip(tiles, tile_infos):
-        n_channels = tile.shape[0]
 
         # Compute coordinates for cropping predicted tile
-        slices = (slice(0, n_channels),) + tuple(
-            [slice(c[0], c[1]) for c in tile_info.overlap_crop_coords]
+        crop_slices: tuple[Union[builtins.ellipsis, slice], ...] = (
+            ...,
+            *[slice(c[0], c[1]) for c in tile_info.overlap_crop_coords],
         )
 
         # Crop predited tile according to overlap coordinates
-        cropped_tile = tile[slices]
+        cropped_tile = tile[crop_slices]
 
         # Insert cropped tile into predicted image using stitch coordinates
-        predicted_image[
-            (
-                ...,
-                *[slice(c[0], c[1]) for c in tile_info.stitch_coords],
-            )
-        ] = cropped_tile.astype(np.float32)
+        image_slices = (..., *[slice(c[0], c[1]) for c in tile_info.stitch_coords])
+        predicted_image[image_slices] = cropped_tile.astype(np.float32)
 
     return predicted_image

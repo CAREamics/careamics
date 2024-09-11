@@ -154,7 +154,7 @@ def extract_tiles(
 
             # create tile information
             tile_info = TileInformation(
-                array_shape=sample.squeeze().shape,
+                array_shape=sample.shape,
                 last_tile=last_tile,
                 overlap_crop_coords=overlap_crop_coords,
                 stitch_coords=stitch_coords,

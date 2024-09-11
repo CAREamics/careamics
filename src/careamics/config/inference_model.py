@@ -15,25 +15,35 @@ class InferenceConfig(BaseModel):
 
     model_config = ConfigDict(validate_assignment=True, arbitrary_types_allowed=True)
 
-    # Mandatory fields
     data_type: Literal["array", "tiff", "custom"]  # As defined in SupportedData
+    """Type of input data: numpy.ndarray (array) or path (tiff or custom)."""
+
     tile_size: Optional[Union[list[int]]] = Field(
         default=None, min_length=2, max_length=3
     )
+    """Tile size of prediction, only effective if `tile_overlap` is specified."""
+
     tile_overlap: Optional[Union[list[int]]] = Field(
         default=None, min_length=2, max_length=3
     )
+    """Overlap between tiles, only effective if `tile_size` is specified."""
 
     axes: str
+    """Data axes (TSCZYX) in the order of the input data."""
 
     image_means: list = Field(..., min_length=0, max_length=32)
-    image_stds: list = Field(..., min_length=0, max_length=32)
+    """Mean values for each input channel."""
 
-    # only default TTAs are supported for now
+    image_stds: list = Field(..., min_length=0, max_length=32)
+    """Standard deviation values for each input channel."""
+
+    # TODO only default TTAs are supported for now
     tta_transforms: bool = Field(default=True)
+    """Whether to apply test-time augmentation (all 90 degrees rotations and flips)."""
 
     # Dataloader parameters
     batch_size: int = Field(default=1, ge=1)
+    """Batch size for prediction."""
 
     @field_validator("tile_overlap")
     @classmethod
