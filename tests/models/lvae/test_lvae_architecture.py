@@ -33,7 +33,6 @@ def create_LVAE_model(
         multiscale_count=multiscale_count,
         output_channels=output_channels,
         predict_logvar=predict_logvar,
-        enable_noise_model=False,
         analytical_kl=analytical_kl,
     )
 

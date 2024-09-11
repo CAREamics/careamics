@@ -223,8 +223,8 @@ class LVAEModel(ArchitectureModel):
         """
         if self.multiscale_count < 1 or self.multiscale_count > len(self.z_dims) + 1:
             raise ValueError(
-                f"Multiscale count must be 1 for LC off or equal to the number of Z"
-                f"dims + 1 (got {self.multiscale_count} and {len(self.z_dims)})."
+                f"Multiscale count must be 1 for LC off or less or equal to the number"
+                f" of Z dims + 1 (got {self.multiscale_count} and {len(self.z_dims)})."
             )
         return self
 
