@@ -183,7 +183,7 @@ def export_to_bmz(
         )
 
         # test model description
-        summary: ValidationSummary = test_model(model_description, decimal=1)
+        summary: ValidationSummary = test_model(model_description)
         if summary.status == "failed":
             raise ValueError(f"Model description test failed: {summary}")
 

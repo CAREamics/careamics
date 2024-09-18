@@ -4,7 +4,7 @@ from typing import Dict, List, Optional, Tuple, Union, cast
 
 from numpy.typing import NDArray
 
-from careamics.config.data_model import TRANSFORMS_UNION
+from careamics.config.transformations import TransformModel
 
 from .n2v_manipulate import N2VManipulate
 from .normalize import Normalize
@@ -37,7 +37,7 @@ class Compose:
 
     Parameters
     ----------
-    transform_list : List[TRANSFORMS_UNION]
+    transform_list : List[TransformModel]
         A list of dictionaries where each dictionary contains the name of a
         transform and its parameters.
 
@@ -47,12 +47,12 @@ class Compose:
         A callable that applies the transforms to the input data.
     """
 
-    def __init__(self, transform_list: List[TRANSFORMS_UNION]) -> None:
+    def __init__(self, transform_list: List[TransformModel]) -> None:
         """Instantiate a Compose object.
 
         Parameters
         ----------
-        transform_list : List[TRANSFORMS_UNION]
+        transform_list : List[TransformModel]
             A list of dictionaries where each dictionary contains the name of a
             transform and its parameters.
         """
