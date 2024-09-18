@@ -1,60 +1,13 @@
 from typing import Any, Optional
-from enum import Enum
 
-from pydantic import BaseModel, ConfigDict, computed_field
+from pydantic import BaseModel, ConfigDict
 
-
-# TODO: get rid of unnecessary enums
-class DataType(Enum):
-    MNIST = 0
-    Places365 = 1
-    NotMNIST = 2
-    OptiMEM100_014 = 3
-    CustomSinosoid = 4
-    Prevedel_EMBL = 5
-    AllenCellMito = 6
-    SeparateTiffData = 7
-    CustomSinosoidThreeCurve = 8
-    SemiSupBloodVesselsEMBL = 9
-    Pavia2 = 10
-    Pavia2VanillaSplitting = 11
-    ExpansionMicroscopyMitoTub = 12
-    ShroffMitoEr = 13
-    HTIba1Ki67 = 14
-    BSD68 = 15
-    BioSR_MRC = 16
-    TavernaSox2Golgi = 17
-    Dao3Channel = 18
-    ExpMicroscopyV2 = 19
-    Dao3ChannelWithInput = 20
-    TavernaSox2GolgiV2 = 21
-    TwoDset = 22
-    PredictedTiffData = 23
-    Pavia3SeqData = 24
-    # Here, we have 16 splitting tasks.
-    NicolaData = 25
-
-
-class DataSplitType(Enum):
-    All = 0
-    Train = 1
-    Val = 2
-    Test = 3
-
-
-class TilingMode(Enum):
-    """
-    Enum for the tiling mode.
-    """
-
-    TrimBoundary = 0
-    PadBoundary = 1
-    ShiftBoundary = 2
+from .types import DataType, DataSplitType, TilingMode
 
 
 # TODO: check if any bool logic can be removed
-class MultiChDatasetConfig(BaseModel):
-    model_config = ConfigDict(validate_assignment=True)
+class DatasetConfig(BaseModel):
+    model_config = ConfigDict(validate_assignment=True, extra="forbid")
 
     data_type: Optional[DataType]
     """Type of the dataset, should be one of DataType"""
@@ -149,8 +102,8 @@ class MultiChDatasetConfig(BaseModel):
     train_aug_rotate: Optional[bool] = False
     enable_random_cropping: Optional[bool] = True
 
-    # TODO: not used?
     multiscale_lowres_count: Optional[int] = None
+    """Number of LC scales"""
 
     tiling_mode: Optional[TilingMode] = TilingMode.ShiftBoundary
 
@@ -167,20 +120,4 @@ class MultiChDatasetConfig(BaseModel):
 
     random_flip_z_3D: Optional[bool] = False
 
-    @computed_field
-    @property
-    def padding_kwargs(self) -> dict:
-        kwargs_dict = {}
-        padding_kwargs = {}
-        if (
-            self.multiscale_lowres_count is not None
-            and self.multiscale_lowres_count is not None
-        ):
-            # Get padding attributes
-            if "padding_kwargs" not in kwargs_dict:
-                padding_kwargs = {}
-                padding_kwargs["mode"] = "constant"
-                padding_kwargs["constant_values"] = 0
-            else:
-                padding_kwargs = kwargs_dict.pop("padding_kwargs")
-        return padding_kwargs
+    padding_kwargs: Optional[dict] = None

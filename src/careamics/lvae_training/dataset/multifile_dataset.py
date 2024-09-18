@@ -3,13 +3,10 @@ from typing import Union, Callable, Sequence
 import numpy as np
 from numpy.typing import NDArray
 
-from careamics.lvae_training.dataset.configs.lc_dataset_config import LCDatasetConfig
-from careamics.lvae_training.dataset.lc_dataset import LCMultiChDloader
-from careamics.lvae_training.dataset.configs.multich_data_config import (
-    DataSplitType,
-    MultiChDatasetConfig,
-)
-from careamics.lvae_training.dataset.multich_dataset import MultiChDloader
+from .config import DatasetConfig
+from .multich_dataset import MultiChDloader
+from .types import DataSplitType
+from .lc_dataset import LCMultiChDloader
 
 
 class TwoChannelData(Sequence):
@@ -84,7 +81,7 @@ class SingleFileLCDset(LCMultiChDloader):
     def __init__(
         self,
         preloaded_data: NDArray,
-        data_config: Union[MultiChDatasetConfig, LCDatasetConfig],
+        data_config: DatasetConfig,
         fpath: str,
         load_data_fn: Callable,
         val_fraction=None,
@@ -108,7 +105,7 @@ class SingleFileLCDset(LCMultiChDloader):
 
     def load_data(
         self,
-        data_config: Union[MultiChDatasetConfig, LCDatasetConfig],
+        data_config: DatasetConfig,
         datasplit_type: DataSplitType,
         load_data_fn: Callable,
         val_fraction=None,
@@ -126,7 +123,7 @@ class SingleFileDset(MultiChDloader):
     def __init__(
         self,
         preloaded_data: NDArray,
-        data_config: Union[MultiChDatasetConfig, LCDatasetConfig],
+        data_config: DatasetConfig,
         fpath: str,
         load_data_fn: Callable,
         val_fraction=None,
@@ -150,7 +147,7 @@ class SingleFileDset(MultiChDloader):
 
     def load_data(
         self,
-        data_config: Union[MultiChDatasetConfig, LCDatasetConfig],
+        data_config: DatasetConfig,
         datasplit_type: DataSplitType,
         load_data_fn: Callable[..., NDArray],
         val_fraction=None,
@@ -177,7 +174,7 @@ class MultiFileDset:
 
     def __init__(
         self,
-        data_config: Union[MultiChDatasetConfig, LCDatasetConfig],
+        data_config: DatasetConfig,
         fpath: str,
         load_data_fn: Callable[..., Union[TwoChannelData, MultiChannelData]],
         val_fraction=None,

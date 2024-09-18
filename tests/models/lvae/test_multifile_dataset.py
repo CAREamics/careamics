@@ -5,12 +5,7 @@ import numpy as np
 import pytest
 import tifffile
 
-from careamics.lvae_training.dataset.configs.lc_dataset_config import LCDatasetConfig
-from careamics.lvae_training.dataset.configs.multich_data_config import (
-    DataSplitType,
-    DataType,
-    MultiChDatasetConfig,
-)
+from careamics.lvae_training.dataset import DatasetConfig, DataSplitType, DataType
 from careamics.lvae_training.dataset.multifile_dataset import (
     MultiChannelData,
     MultiFileDset,
@@ -29,7 +24,7 @@ def random_uint16_data(shape, max_value):
 
 
 def load_data_fn_example(
-    data_config: Union[MultiChDatasetConfig, LCDatasetConfig],
+    data_config: DatasetConfig,
     fpath: str,
     datasplit_type: DataSplitType,
     val_fraction=None,
@@ -46,7 +41,7 @@ def test_create_vae_dataset(tmp_path: Path, num_files=3):
         example_data = random_uint16_data((25, 512, 512, 3), max_value=65535)
         tifffile.imwrite(tmp_path / f"{i}.tif", example_data)
 
-    config = MultiChDatasetConfig(
+    config = DatasetConfig(
         image_size=64,
         num_channels=3,
         input_idx=2,
@@ -84,10 +79,8 @@ def test_create_vae_dataset(tmp_path: Path, num_files=3):
     for channel in targets:
         assert channel.shape == (64, 64)
 
-    # input is normalized
+    # input and target are normalized
     assert inputs.mean() < 1
     assert inputs.std() < 1.1
-
-    # output is not normalized
-    assert targets[0].mean() > 1
-    assert targets[0].std() > 1
+    assert targets[0].mean() < 1
+    assert targets[0].std() < 1.1

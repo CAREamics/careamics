@@ -11,7 +11,7 @@ from careamics.dataset.tiling.lvae_tiled_patching import (
     n_tiles_1d,
     total_n_tiles,
 )
-from careamics.lvae_training.dataset.configs.multich_data_config import TilingMode
+from careamics.lvae_training.dataset import TilingMode
 from careamics.lvae_training.dataset.utils.index_manager import GridIndexManager
 from careamics.prediction_utils.stitch_prediction import stitch_prediction
 

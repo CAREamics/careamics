@@ -5,22 +5,18 @@ A place for Datasets and Dataloaders.
 from typing import Tuple, Union, Callable
 
 import numpy as np
-from numpy.typing import NDArray
 
-from careamics.lvae_training.dataset.utils.empty_patch_fetcher import EmptyPatchFetcher
-from careamics.lvae_training.dataset.utils.index_manager import GridIndexManager
-from careamics.lvae_training.dataset.utils.index_switcher import IndexSwitcher
-from careamics.lvae_training.dataset.configs.multich_data_config import (
-    MultiChDatasetConfig,
-    DataSplitType,
-    TilingMode,
-)
+from .utils.empty_patch_fetcher import EmptyPatchFetcher
+from .utils.index_manager import GridIndexManager
+from .utils.index_switcher import IndexSwitcher
+from .config import DatasetConfig
+from .types import DataSplitType, TilingMode
 
 
 class MultiChDloader:
     def __init__(
         self,
-        data_config: MultiChDatasetConfig,
+        data_config: DatasetConfig,
         fpath: str,
         load_data_fn: Callable,
         val_fraction: float = None,
@@ -642,6 +638,18 @@ class MultiChDloader:
             normalized_imgs.append(img)
         return tuple(normalized_imgs)
 
+    def normalize_input(self, x):
+        mean_dict, std_dict = self.get_mean_std()
+        mean_ = mean_dict["input"].mean()
+        std_ = std_dict["input"].mean()
+        return (x - mean_) / std_
+
+    def normalize_target(self, target):
+        mean_dict, std_dict = self.get_mean_std()
+        mean_ = mean_dict["target"].squeeze(0)
+        std_ = std_dict["target"].squeeze(0)
+        return (target - mean_) / std_
+
     def get_grid_size(self):
         return self._grid_sz
 
@@ -1073,8 +1081,9 @@ class MultiChDloader:
             img_tuples = [x + noise for x, noise in zip(img_tuples, noise_tuples[1:])]
 
         target = self._compute_target(img_tuples, alpha)
+        norm_target = self.normalize_target(target)
 
-        output = [inp, target]
+        output = [inp, norm_target]
 
         if self._return_alpha:
             output.append(alpha)

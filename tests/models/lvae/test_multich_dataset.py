@@ -1,19 +1,17 @@
 import os
 from pathlib import Path
-from typing import Union
 
 import numpy as np
 import pytest
 import tifffile
 
-from careamics.lvae_training.dataset.configs.lc_dataset_config import LCDatasetConfig
-from careamics.lvae_training.dataset.configs.multich_data_config import (
+from careamics.lvae_training.dataset import (
+    DatasetConfig,
     DataSplitType,
     DataType,
-    MultiChDatasetConfig,
+    LCMultiChDloader,
+    MultiChDloader,
 )
-from careamics.lvae_training.dataset.lc_dataset import LCMultiChDloader
-from careamics.lvae_training.dataset.multich_dataset import MultiChDloader
 from careamics.lvae_training.dataset.utils.data_utils import (
     get_datasplit_tuples,
     load_tiff,
@@ -23,7 +21,7 @@ pytestmark = pytest.mark.lvae
 
 
 def load_data_fn_example(
-    data_config: Union[MultiChDatasetConfig, LCDatasetConfig],
+    data_config: DatasetConfig,
     fpath: str,
     datasplit_type: DataSplitType,
     val_fraction=None,
@@ -76,8 +74,8 @@ def dummy_data_path(tmp_path: Path) -> str:
 
 
 @pytest.fixture
-def default_config() -> MultiChDatasetConfig:
-    return MultiChDatasetConfig(
+def default_config() -> DatasetConfig:
+    return DatasetConfig(
         ch1_fname="ch1.tiff",
         ch2_fname="ch2.tiff",
         # TODO: something breaks when set to ALL
@@ -118,22 +116,21 @@ def test_create_vae_dataset(default_config, dummy_data_path):
     for channel in targets:
         assert channel.shape == (128, 128)
 
-    # input is normalized
+    # input and target are normalized
     assert inputs.mean() < 1
     assert inputs.std() < 1.1
-
-    # TODO: check the outputs sum
-    # output is not normalized
-    assert targets[0].mean() > 1
-    assert targets[0].std() > 1
+    assert targets[0].mean() < 1
+    assert targets[0].std() < 1.1
 
 
 @pytest.mark.parametrize("num_scales", [1, 2, 3])
 def test_create_lc_dataset(default_config, dummy_data_path, num_scales: int):
-    lc_config = LCDatasetConfig(**default_config.model_dump(exclude_none=True))
-    lc_config.num_scales = num_scales
+    lc_config = DatasetConfig(**default_config.model_dump(exclude_none=True))
     lc_config.multiscale_lowres_count = num_scales
-    lc_config.overlapping_padding_kwargs = lc_config.padding_kwargs
+
+    padding_kwargs = {"mode": "reflect"}
+    lc_config.padding_kwargs = padding_kwargs
+    lc_config.overlapping_padding_kwargs = padding_kwargs
 
     dataset = LCMultiChDloader(
         lc_config,
@@ -160,10 +157,8 @@ def test_create_lc_dataset(default_config, dummy_data_path, num_scales: int):
     for channel in targets:
         assert channel.shape == (128, 128)
 
-    # input is normalized
+    # input and target are normalized
     assert inputs.mean() < 1
     assert inputs.std() < 1.1
-
-    # output is not normalized
-    assert targets[0].mean() > 1
-    assert targets[0].std() > 1
+    assert targets[0].mean() < 1
+    assert targets[0].std() < 1.1

@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from careamics.lvae_training.dataset.configs.multich_data_config import TilingMode
+from careamics.lvae_training.dataset.types import TilingMode
 
 
 @dataclass
