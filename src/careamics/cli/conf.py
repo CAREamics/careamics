@@ -236,9 +236,8 @@ def n2n(  # numpydoc ignore=PR01
             help="Loss function to use.",
         ),
     ] = "mae",
-    n_channels: Annotated[
-        int, typer.Option(help="Number of channels (in and out)")
-    ] = 1,
+    n_channels_in: Annotated[int, typer.Option(help="Number of channels in")] = 1,
+    n_channels_out: Annotated[int, typer.Option(help="Number of channels out")] = -1,
     logger: Annotated[
         click.Choice,
         typer.Option(
@@ -274,7 +273,8 @@ def n2n(  # numpydoc ignore=PR01
         use_augmentations=use_augmentations,
         independent_channels=independent_channels,
         loss=loss,
-        n_channels=n_channels,
+        n_channels_in=n_channels_in,
+        n_channels_out=n_channels_out,
         logger=logger,
     )
     _config_builder_exit(ctx, config)
