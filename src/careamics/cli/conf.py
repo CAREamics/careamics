@@ -191,7 +191,8 @@ def care(  # numpydoc ignore=PR01
         patch_size=patch_size,
         batch_size=batch_size,
         num_epochs=num_epochs,
-        use_augmentations=use_augmentations,
+        # TODO: fix choosing augmentations
+        augmentations=None if use_augmentations else [],
         independent_channels=independent_channels,
         loss=loss,
         n_channels_in=n_channels_in,
@@ -270,7 +271,8 @@ def n2n(  # numpydoc ignore=PR01
         patch_size=patch_size,
         batch_size=batch_size,
         num_epochs=num_epochs,
-        use_augmentations=use_augmentations,
+        # TODO: fix choosing augmentations
+        augmentations=None if use_augmentations else [],
         independent_channels=independent_channels,
         loss=loss,
         n_channels_in=n_channels_in,
@@ -374,7 +376,8 @@ def n2v(  # numpydoc ignore=PR01
         patch_size=patch_size,
         batch_size=batch_size,
         num_epochs=num_epochs,
-        use_augmentations=use_augmentations,
+        # TODO: fix choosing augmentations
+        augmentations=None if use_augmentations else [],
         independent_channels=independent_channels,
         use_n2v2=use_n2v2,
         n_channels=n_channels,
