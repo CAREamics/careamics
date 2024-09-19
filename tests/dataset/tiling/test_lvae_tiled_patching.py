@@ -11,7 +11,8 @@ from careamics.dataset.tiling.lvae_tiled_patching import (
     n_tiles_1d,
     total_n_tiles,
 )
-from careamics.lvae_training.dataset.data_utils import GridIndexManager
+from careamics.lvae_training.dataset import TilingMode
+from careamics.lvae_training.dataset.utils.index_manager import GridIndexManager
 from careamics.prediction_utils.stitch_prediction import stitch_prediction
 
 
@@ -69,7 +70,7 @@ def test_compute_tile_info_legacy():
         data_shape=data_shape,
         grid_shape=stitch_shape,
         patch_shape=tile_size,
-        trim_boundary=False,
+        tiling_mode=TilingMode.PadBoundary,
     )
 
     # first example
@@ -95,7 +96,7 @@ def test_compute_tile_info_legacy():
     )
 
     # third example
-    tile_info = tile_info = compute_tile_info_legacy(
+    tile_info = compute_tile_info_legacy(
         grid_index_manager=grid_index_manager, index=14
     )
     assert tile_info == TileInformation(
@@ -107,7 +108,7 @@ def test_compute_tile_info_legacy():
     )
 
     # fourth example
-    tile_info = tile_info = compute_tile_info_legacy(
+    tile_info = compute_tile_info_legacy(
         grid_index_manager=grid_index_manager, index=24
     )
     assert tile_info == TileInformation(

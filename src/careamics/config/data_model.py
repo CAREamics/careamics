@@ -10,7 +10,6 @@ from numpy.typing import NDArray
 from pydantic import (
     BaseModel,
     ConfigDict,
-    Discriminator,
     Field,
     PlainSerializer,
     field_validator,
@@ -19,9 +18,7 @@ from pydantic import (
 from typing_extensions import Annotated, Self
 
 from .support import SupportedTransform
-from .transformations.n2v_manipulate_model import N2VManipulateModel
-from .transformations.xy_flip_model import XYFlipModel
-from .transformations.xy_random_rotate90_model import XYRandomRotate90Model
+from .transformations import TRANSFORMS_UNION, N2VManipulateModel
 from .validators import check_axes_validity, patch_size_ge_than_8_power_of_2
 
 
@@ -46,17 +43,6 @@ def np_float_to_scientific_str(x: float) -> str:
 
 Float = Annotated[float, PlainSerializer(np_float_to_scientific_str, return_type=str)]
 """Annotated float type, used to serialize floats to strings."""
-
-
-TRANSFORMS_UNION = Annotated[
-    Union[
-        XYFlipModel,
-        XYRandomRotate90Model,
-        N2VManipulateModel,
-    ],
-    Discriminator("name"),  # used to tell the different transform models apart
-]
-"""Available transforms in CAREamics."""
 
 
 class DataConfig(BaseModel):
