@@ -190,7 +190,7 @@ class CAREamist:
                     save_dir=self.work_dir / Path("logs"),
                 )
         else:
-            self.experiment_logger = None
+            self.experiment_logger = False
 
         # instantiate trainer
         self.trainer = Trainer(
