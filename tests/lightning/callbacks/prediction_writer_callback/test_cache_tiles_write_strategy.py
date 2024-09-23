@@ -313,3 +313,19 @@ def test_get_image_tiles(cache_tiles_strategy):
     assert len(image_tiles) == 9
     assert all(np.array_equal(image_tiles[i], tiles[i]) for i in range(9))
     assert image_tile_infos == tile_infos[:9]
+
+
+def test_reset(cache_tiles_strategy: CacheTiles):
+    """Test CacheTiles.reset works as expected"""
+    # all tiles of 1 samples with 9 tiles
+    tiles, tile_infos = create_tiles(n_samples=1)
+    # don't include last tile
+    patch_tile_cache(cache_tiles_strategy, tiles[:-1], tile_infos[:-1])
+
+    cache_tiles_strategy.write_filenames = ["file"]
+    cache_tiles_strategy.current_file_index = 1
+    cache_tiles_strategy.reset()
+    assert cache_tiles_strategy.write_filenames is None
+    assert cache_tiles_strategy.current_file_index == 0
+    assert len(cache_tiles_strategy.tile_cache) == 0
+    assert len(cache_tiles_strategy.tile_info_cache) == 0

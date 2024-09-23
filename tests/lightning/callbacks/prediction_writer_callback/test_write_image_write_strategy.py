@@ -100,3 +100,12 @@ def test_write_batch(write_image_strategy, ordered_array):
     np.testing.assert_array_equal(
         write_image_strategy.write_func.call_args.kwargs["img"], prediction
     )
+
+
+def test_reset(write_image_strategy: WriteImage):
+    """Test WriteImage.reset works as expected"""
+    write_image_strategy.write_filenames = ["file"]
+    write_image_strategy.current_file_index = 1
+    write_image_strategy.reset()
+    assert write_image_strategy.write_filenames is None
+    assert write_image_strategy.current_file_index == 0
