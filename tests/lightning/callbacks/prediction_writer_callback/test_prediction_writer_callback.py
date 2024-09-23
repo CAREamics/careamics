@@ -3,7 +3,7 @@
 import os
 from pathlib import Path
 from typing import Union
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 import numpy as np
 import pytest
@@ -88,6 +88,7 @@ def test_smoke_n2v_tiled_tiff(tmp_path, minimum_configuration):
     write_strategy = create_write_strategy(
         write_type="tiff", tiled=True, write_filenames=[file_name]
     )
+    write_strategy.reset = MagicMock(side_effect=write_strategy.reset)
     dirpath = tmp_path / "predictions"
 
     # create trainer
@@ -122,7 +123,9 @@ def test_smoke_n2v_tiled_tiff(tmp_path, minimum_configuration):
     predicted = trainer.predict(model, datamodule=predict_data)
     predicted_images = convert_outputs(predicted, tiled=True)
 
-    # TODO: assert filenames reset after trainer.predict is called
+    # filenames reset after predictions called
+    write_strategy.reset.assert_called_once()
+    assert write_strategy.write_filenames is None
 
     # assert predicted file exists
     assert (dirpath / file_name).is_file()
@@ -170,6 +173,7 @@ def test_smoke_n2v_untiled_tiff(tmp_path, minimum_configuration):
     write_strategy = create_write_strategy(
         write_type="tiff", tiled=False, write_filenames=[file_name]
     )
+    write_strategy.reset = MagicMock(side_effect=write_strategy.reset)
     dirpath = tmp_path / "predictions"
 
     # create trainer
@@ -201,6 +205,10 @@ def test_smoke_n2v_untiled_tiff(tmp_path, minimum_configuration):
     # predict
     predicted = trainer.predict(model, datamodule=predict_data)
     predicted_images = convert_outputs(predicted, tiled=False)
+
+    # filenames reset after predictions called
+    write_strategy.reset.assert_called_once()
+    assert write_strategy.write_filenames is None
 
     # assert predicted file exists
     assert (dirpath / file_name).is_file()
