@@ -1,7 +1,7 @@
 """Test `WriteImage` class."""
 
 from pathlib import Path
-from unittest.mock import DEFAULT, Mock, patch
+from unittest.mock import Mock
 
 import numpy as np
 import pytest
@@ -40,6 +40,7 @@ def write_image_strategy(write_func) -> WriteImage:
     write_func_kwargs = {}
     return WriteImage(
         write_func=write_func,
+        write_filenames=None,
         write_extension=write_extension,
         write_func_kwargs=write_func_kwargs,
     )
@@ -76,51 +77,26 @@ def test_write_batch(write_image_strategy, ordered_array):
     trainer.predict_dataloaders = [mock_dl]
     trainer.predict_dataloaders[dataloader_idx].dataset = mock_dataset
 
-    # These functions have their own unit tests,
-    #   so they do not need to be tested again here.
-    # This is a unit test to isolate functionality of `write_batch.`
-    with patch.multiple(
-        "careamics.lightning.callbacks.prediction_writer_callback.write_strategy",
-        get_sample_file_path=DEFAULT,
-        create_write_file_path=DEFAULT,
-    ) as values:
+    # call write batch
+    dirpath = Path("predictions")
+    write_image_strategy.write_filenames = ["file"]
+    write_image_strategy.write_batch(
+        trainer=trainer,
+        pl_module=Mock(spec=LightningModule),
+        prediction=prediction,
+        batch_indices=batch_indices,
+        batch=batch,  # contains the last tile
+        batch_idx=batch_idx,
+        dataloader_idx=dataloader_idx,
+        dirpath=dirpath,
+    )
 
-        # mocked functions
-        mock_get_sample_file_path = values["get_sample_file_path"]
-        mock_create_write_file_path = values["create_write_file_path"]
-
-        # assign mock functions return value
-        in_file_path = Path("in_dir/file_path.ext")
-        out_file_path = Path("out_dir/file_path.out_ext")
-        mock_get_sample_file_path.return_value = in_file_path
-        mock_create_write_file_path.return_value = out_file_path
-
-        # call write batch
-        dirpath = "predictions"
-        write_image_strategy.write_batch(
-            trainer=trainer,
-            pl_module=Mock(spec=LightningModule),
-            prediction=prediction,
-            batch_indices=batch_indices,
-            batch=batch,  # contains the last tile
-            batch_idx=batch_idx,
-            dataloader_idx=dataloader_idx,
-            dirpath=dirpath,
-        )
-
-        # assert create_write_file_path is called as expected (TODO: necessary ?)
-        mock_create_write_file_path.assert_called_with(
-            dirpath=dirpath,
-            file_path=in_file_path,
-            write_extension=write_image_strategy.write_extension,
-        )
-        # assert write_func is called as expectedÏ
-        # cannot use `assert_called_once_with` because of numpy array
-        write_image_strategy.write_func.assert_called_once()
-        assert (
-            write_image_strategy.write_func.call_args.kwargs["file_path"]
-            == out_file_path
-        )
-        assert np.array_equal(
-            write_image_strategy.write_func.call_args.kwargs["img"], prediction[0]
-        )
+    # assert write_func is called as expected
+    # cannot use `assert_called_once_with` because of numpy array
+    write_image_strategy.write_func.assert_called_once()
+    assert write_image_strategy.write_func.call_args.kwargs["file_path"] == Path(
+        "predictions/file.ext"
+    )
+    np.testing.assert_array_equal(
+        write_image_strategy.write_func.call_args.kwargs["img"], prediction
+    )
