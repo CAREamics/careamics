@@ -95,6 +95,7 @@ def cache_tiles_strategy(write_func) -> CacheTiles:
     write_func_kwargs = {}
     return CacheTiles(
         write_func=write_func,
+        write_filenames=None,
         write_extension=write_extension,
         write_func_kwargs=write_func_kwargs,
     )
@@ -109,6 +110,8 @@ def test_cache_tiles_init(write_func, cache_tiles_strategy):
     assert cache_tiles_strategy.write_func_kwargs == {}
     assert cache_tiles_strategy.tile_cache == []
     assert cache_tiles_strategy.tile_info_cache == []
+    assert cache_tiles_strategy.write_filenames is None
+    assert cache_tiles_strategy.current_file_index == 0
 
 
 def test_last_tiles(cache_tiles_strategy):
