@@ -85,7 +85,9 @@ def test_smoke_n2v_tiled_tiff(tmp_path, minimum_configuration):
     )
 
     # create prediction writer callback params
-    write_strategy = create_write_strategy(write_type="tiff", tiled=True)
+    write_strategy = create_write_strategy(
+        write_type="tiff", tiled=True, write_filenames=[file_name]
+    )
     dirpath = tmp_path / "predictions"
 
     # create trainer
@@ -119,6 +121,8 @@ def test_smoke_n2v_tiled_tiff(tmp_path, minimum_configuration):
     # predict
     predicted = trainer.predict(model, datamodule=predict_data)
     predicted_images = convert_outputs(predicted, tiled=True)
+
+    # TODO: assert filenames reset after trainer.predict is called
 
     # assert predicted file exists
     assert (dirpath / file_name).is_file()
@@ -163,7 +167,9 @@ def test_smoke_n2v_untiled_tiff(tmp_path, minimum_configuration):
     )
 
     # create prediction writer callback params
-    write_strategy = create_write_strategy(write_type="tiff", tiled=False)
+    write_strategy = create_write_strategy(
+        write_type="tiff", tiled=False, write_filenames=[file_name]
+    )
     dirpath = tmp_path / "predictions"
 
     # create trainer
@@ -202,7 +208,7 @@ def test_smoke_n2v_untiled_tiff(tmp_path, minimum_configuration):
     # open file
     save_data = tifffile.imread(dirpath / file_name)
     # save data has singleton channel axis
-    np.testing.assert_array_equal(save_data, predicted_images[0][0], verbose=True)
+    np.testing.assert_array_equal(save_data, predicted_images[0], verbose=True)
 
 
 def test_initialization(prediction_writer_callback, write_strategy, dirpath):
