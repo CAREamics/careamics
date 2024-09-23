@@ -127,7 +127,7 @@ class PredictionWriterCallback(BasePredictionWriter):
         )
         return cls(write_strategy=write_strategy, dirpath=dirpath)
 
-    def _init_dirpath(self, dirpath):
+    def _init_dirpath(self, dirpath: Union[Path, str]):
         """
         Initialize directory path. Should only be called from `__init__`.
 
@@ -161,6 +161,7 @@ class PredictionWriterCallback(BasePredictionWriter):
             Stage of training e.g. 'predict', 'fit', 'validate'.
         """
         super().setup(trainer, pl_module, stage)
+        # TODO: move directory creation to hook on_predict_epoch_start
         if stage == "predict":
             # make prediction output directory
             logger.info("Making prediction output directory.")
@@ -231,3 +232,21 @@ class PredictionWriterCallback(BasePredictionWriter):
             dataloader_idx=dataloader_idx,
             dirpath=self.dirpath,
         )
+
+    def on_predict_epoch_end(
+        self, trainer: Trainer, pl_module: LightningModule
+    ) -> None:
+        """
+        Lightning hook called at the end of prediction.
+
+        Resets write_strategy.
+
+        Parameters
+        ----------
+        trainer : Trainer
+            PyTorch Lightning trainer.
+        pl_module : LightningModule
+            PyTorch Lightning module.
+        """
+        # reset write_strategy to prevent bugs if trainer.predict is called twice.
+        self.write_strategy.reset()

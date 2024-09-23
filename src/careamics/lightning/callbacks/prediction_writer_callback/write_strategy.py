@@ -53,6 +53,13 @@ class WriteStrategy(Protocol):
             Path to directory to save predictions to.
         """
 
+    def reset(self) -> None:
+        """
+        Reset internal attributes of a `WriteStrategy` instance.
+
+        This is to prevent bugs if a `WriteStrategy` instance is used twice.
+        """
+
 
 class CacheTiles(WriteStrategy):
     """
@@ -206,6 +213,16 @@ class CacheTiles(WriteStrategy):
                 file_path=file_path, img=prediction_image[0], **self.write_func_kwargs
             )
 
+    def reset(self) -> None:
+        """
+        Reset the internal attributes.
+
+        Attributes reset are: `write_filenames`, `tile_cache` and `tile_info_cache`.
+        """
+        self.write_filenames = None
+        self.tile_cache = []
+        self.tile_info_cache = []
+
     def _has_last_tile(self) -> bool:
         """
         Whether a last tile is contained in the cached tiles.
@@ -298,6 +315,10 @@ class WriteTilesZarr(WriteStrategy):
         ------
         NotImplementedError
         """
+        raise NotImplementedError
+
+    def reset(self) -> None:
+        """Reset internal attributes."""
         raise NotImplementedError
 
 
@@ -412,3 +433,7 @@ class WriteImage(WriteStrategy):
             self.write_func(
                 file_path=file_path, img=prediction_image, **self.write_func_kwargs
             )
+
+    def reset(self) -> None:
+        """Reset internal attributes. Resets the `write_filename`."""
+        self.write_filenames = None
