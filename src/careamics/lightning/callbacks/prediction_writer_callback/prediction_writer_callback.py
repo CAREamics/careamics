@@ -7,7 +7,6 @@ from typing import Any, Optional, Sequence, Union
 
 from pytorch_lightning import LightningModule, Trainer
 from pytorch_lightning.callbacks import BasePredictionWriter
-from torch.utils.data import DataLoader
 
 from careamics.dataset import (
     IterablePredDataset,
@@ -202,25 +201,6 @@ class PredictionWriterCallback(BasePredictionWriter):
         # if writing prediction is turned off
         if not self.writing_predictions:
             return
-
-        dataloaders: Union[DataLoader, list[DataLoader]] = trainer.predict_dataloaders
-        dataloader: DataLoader = (
-            dataloaders[dataloader_idx]
-            if isinstance(dataloaders, list)
-            else dataloaders
-        )
-        dataset: ValidPredDatasets = dataloader.dataset
-        if not (
-            isinstance(dataset, IterablePredDataset)
-            or isinstance(dataset, IterableTiledPredDataset)
-        ):
-            # Note: Error will be raised before here from the source type
-            # This is for extra redundancy of errors.
-            raise TypeError(
-                "Prediction dataset has to be `IterableTiledPredDataset` or "
-                "`IterablePredDataset`. Cannot be `InMemoryPredDataset` because "
-                "filenames are taken from the original file."
-            )
 
         self.write_strategy.write_batch(
             trainer=trainer,
