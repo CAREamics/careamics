@@ -17,6 +17,8 @@ from careamics.prediction_utils import stitch_prediction_single
 class WriteStrategy(Protocol):
     """Protocol for write strategy classes."""
 
+    write_filenames: Optional[list[str]]
+
     def write_batch(
         self,
         trainer: Trainer,
@@ -439,8 +441,8 @@ class WriteImage(WriteStrategy):
             raise TypeError("Prediction dataset is not `IterablePredDataset`.")
 
         # for i in range(prediction.shape[0]):
-        # prediction_image = prediction[0]
-        # sample_id = batch_idx * dl.batch_size + i
+        #   prediction_image = prediction[0]
+        #   sample_id = batch_idx * dl.batch_size + i
 
         file_name = self.write_filenames[self.current_file_index]
         file_path = (dirpath / file_name).with_suffix(self.write_extension)
