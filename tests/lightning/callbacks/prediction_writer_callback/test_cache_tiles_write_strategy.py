@@ -243,6 +243,47 @@ def test_write_batch_last_tile(cache_tiles_strategy):
     assert remaining_tile_info == cache_tiles_strategy.tile_info_cache[0]
 
 
+def test_write_batch_raises(cache_tiles_strategy: CacheTiles):
+    """Test write batch raises a ValueError if the filenames have not been set."""
+    # all tiles of 2 samples with 9 tiles
+    tiles, tile_infos = create_tiles(n_samples=2)
+
+    # simulate adding a batch that will contain the last tile
+    n_tiles = 8
+    batch_size = 2
+    patch_tile_cache(cache_tiles_strategy, tiles[:n_tiles], tile_infos[:n_tiles])
+    next_batch = (
+        np.concatenate(tiles[n_tiles : n_tiles + batch_size]),
+        tile_infos[n_tiles : n_tiles + batch_size],
+    )
+
+    # mock trainer and datasets
+    trainer = Mock(spec=Trainer)
+
+    # mock trainer and datasets
+    trainer = Mock(spec=Trainer)
+    mock_dataset = Mock(spec=IterableTiledPredDataset)
+    dataloader_idx = 0
+    trainer.predict_dataloaders = [Mock(spec=DataLoader)]
+    trainer.predict_dataloaders[dataloader_idx].dataset = mock_dataset
+
+    with pytest.raises(ValueError):
+        assert cache_tiles_strategy.write_filenames is None
+
+        # call write batch
+        dirpath = Path("predictions")
+        cache_tiles_strategy.write_batch(
+            trainer=trainer,
+            pl_module=Mock(spec=LightningModule),
+            prediction=next_batch,
+            batch_indices=Mock(),
+            batch=next_batch,  # contains the last tile
+            batch_idx=3,
+            dataloader_idx=dataloader_idx,
+            dirpath=dirpath,
+        )
+
+
 def test_have_last_tile_true(cache_tiles_strategy):
     """Test `CacheTiles._have_last_tile` returns true when there is a last tile."""
 

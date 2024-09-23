@@ -102,6 +102,46 @@ def test_write_batch(write_image_strategy, ordered_array):
     )
 
 
+def test_write_batch_raises(write_image_strategy, ordered_array):
+    """Test write batch raises a ValueError if the filenames have not been set."""
+    n_batches = 1
+
+    prediction = ordered_array((n_batches, 1, 8, 8))
+
+    batch = prediction
+    batch_indices = np.arange(n_batches)
+    batch_idx = 0
+
+    # mock trainer and datasets
+    trainer = Mock(spec=Trainer)
+
+    # mock trainer and datasets
+    trainer = Mock(spec=Trainer)
+    mock_dataset = Mock(spec=IterablePredDataset)
+    dataloader_idx = 0
+    mock_dl = Mock(spec=DataLoader)
+    mock_dl.batch_size = 1
+    trainer.predict_dataloaders = [mock_dl]
+    trainer.predict_dataloaders[dataloader_idx].dataset = mock_dataset
+
+    # call write batch
+    dirpath = Path("predictions")
+
+    with pytest.raises(ValueError):
+        # Make sure write_filenames is None
+        assert write_image_strategy.write_filenames is None
+        write_image_strategy.write_batch(
+            trainer=trainer,
+            pl_module=Mock(spec=LightningModule),
+            prediction=prediction,
+            batch_indices=batch_indices,
+            batch=batch,  # contains the last tile
+            batch_idx=batch_idx,
+            dataloader_idx=dataloader_idx,
+            dirpath=dirpath,
+        )
+
+
 def test_reset(write_image_strategy: WriteImage):
     """Test WriteImage.reset works as expected"""
     write_image_strategy.write_filenames = ["file"]
