@@ -93,6 +93,8 @@ class CacheTiles(WriteStrategy):
         Tiles cached for stitching prediction.
     tile_info_cache : list of TileInformation
         Cached tile information for stitching prediction.
+    current_file_index : int
+        Index of current file, increments every time a file is written.
     """
 
     def __init__(
@@ -129,6 +131,8 @@ class CacheTiles(WriteStrategy):
         # where tiles will be cached until a whole image has been predicted
         self.tile_cache: list[NDArray] = []
         self.tile_info_cache: list[TileInformation] = []
+
+        self.current_file_index = 0
 
     @property
     def last_tiles(self) -> list[bool]:
@@ -212,16 +216,19 @@ class CacheTiles(WriteStrategy):
             self.write_func(
                 file_path=file_path, img=prediction_image[0], **self.write_func_kwargs
             )
+            self.current_file_index += 1
 
     def reset(self) -> None:
         """
         Reset the internal attributes.
 
-        Attributes reset are: `write_filenames`, `tile_cache` and `tile_info_cache`.
+        Attributes reset are: `write_filenames`, `tile_cache`, `tile_info_cache` and
+        `current_file_index`.
         """
         self.write_filenames = None
         self.tile_cache = []
         self.tile_info_cache = []
+        self.current_file_index = 0
 
     def _has_last_tile(self) -> bool:
         """
@@ -347,6 +354,8 @@ class WriteImage(WriteStrategy):
         Extension added to prediction file paths.
     write_func_kwargs : dict of {str: Any}
         Extra kwargs to pass to `write_func`.
+    current_file_index : int
+        Index of current file, increments every time a file is written.
     """
 
     def __init__(
@@ -376,6 +385,8 @@ class WriteImage(WriteStrategy):
         self.write_filenames: Optional[list[str]] = write_filenames
         self.write_extension: str = write_extension
         self.write_func_kwargs: dict[str, Any] = write_func_kwargs
+
+        self.current_file_index: int = 0
 
     def write_batch(
         self,
@@ -433,7 +444,13 @@ class WriteImage(WriteStrategy):
             self.write_func(
                 file_path=file_path, img=prediction_image, **self.write_func_kwargs
             )
+            self.current_file_index += 1
 
     def reset(self) -> None:
-        """Reset internal attributes. Resets the `write_filename`."""
+        """
+        Reset internal attributes.
+
+        Resets the `write_filename` and `current_file_index`.
+        """
         self.write_filenames = None
+        self.current_file_index = 0
