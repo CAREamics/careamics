@@ -65,6 +65,8 @@ class CacheTiles(WriteStrategy):
     ----------
     write_func : WriteFunc
         Function used to save predictions.
+    write_filenames : list of str, optional
+        A list of filenames in the order that predictions will be written in.
     write_extension : str
         Extension added to prediction file paths.
     write_func_kwargs : dict of {str: Any}
@@ -74,6 +76,8 @@ class CacheTiles(WriteStrategy):
     ----------
     write_func : WriteFunc
         Function used to save predictions.
+    write_filenames : list of str, optional
+        A list of filenames in the order that predictions will be written in.
     write_extension : str
         Extension added to prediction file paths.
     write_func_kwargs : dict of {str: Any}
@@ -87,6 +91,7 @@ class CacheTiles(WriteStrategy):
     def __init__(
         self,
         write_func: WriteFunc,
+        write_filenames: Optional[list[str]],
         write_extension: str,
         write_func_kwargs: dict[str, Any],
     ) -> None:
@@ -100,6 +105,8 @@ class CacheTiles(WriteStrategy):
         ----------
         write_func : WriteFunc
             Function used to save predictions.
+        write_filenames : list of str, optional
+            A list of filenames in the order that predictions will be written in.
         write_extension : str
             Extension added to prediction file paths.
         write_func_kwargs : dict of {str: Any}
@@ -108,6 +115,7 @@ class CacheTiles(WriteStrategy):
         super().__init__()
 
         self.write_func: WriteFunc = write_func
+        self.write_filenames: Optional[list[str]] = write_filenames
         self.write_extension: str = write_extension
         self.write_func_kwargs: dict[str, Any] = write_func_kwargs
 
@@ -301,6 +309,8 @@ class WriteImage(WriteStrategy):
     ----------
     write_func : WriteFunc
         Function used to save predictions.
+    write_filenames : list of str, optional
+        A list of filenames in the order that predictions will be written in.
     write_extension : str
         Extension added to prediction file paths.
     write_func_kwargs : dict of {str: Any}
@@ -310,6 +320,8 @@ class WriteImage(WriteStrategy):
     ----------
     write_func : WriteFunc
         Function used to save predictions.
+    write_filenames : list of str, optional
+        A list of filenames in the order that predictions will be written in.
     write_extension : str
         Extension added to prediction file paths.
     write_func_kwargs : dict of {str: Any}
@@ -319,6 +331,7 @@ class WriteImage(WriteStrategy):
     def __init__(
         self,
         write_func: WriteFunc,
+        write_filenames: Optional[list[str]],
         write_extension: str,
         write_func_kwargs: dict[str, Any],
     ) -> None:
@@ -329,6 +342,8 @@ class WriteImage(WriteStrategy):
         ----------
         write_func : WriteFunc
             Function used to save predictions.
+        write_filenames : list of str, optional
+            A list of filenames in the order that predictions will be written in.
         write_extension : str
             Extension added to prediction file paths.
         write_func_kwargs : dict of {str: Any}
@@ -337,6 +352,7 @@ class WriteImage(WriteStrategy):
         super().__init__()
 
         self.write_func: WriteFunc = write_func
+        self.write_filenames: Optional[list[str]] = write_filenames
         self.write_extension: str = write_extension
         self.write_func_kwargs: dict[str, Any] = write_func_kwargs
 

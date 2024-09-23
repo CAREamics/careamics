@@ -12,6 +12,7 @@ def create_write_strategy(
     write_type: SupportedWriteType,
     tiled: bool,
     write_func: Optional[WriteFunc] = None,
+    write_filenames: Optional[list[str]] = None,
     write_extension: Optional[str] = None,
     write_func_kwargs: Optional[dict[str, Any]] = None,
 ) -> WriteStrategy:
@@ -27,6 +28,8 @@ def create_write_strategy(
     write_func : WriteFunc, optional
         If a known `write_type` is selected this argument is ignored. For a custom
         `write_type` a function to save the data must be passed. See notes below.
+    write_filenames : list of str, optional
+        A list of filenames in the order that predictions will be written in.
     write_extension : str, optional
         If a known `write_type` is selected this argument is ignored. For a custom
         `write_type` an extension to save the data with must be passed.
@@ -61,6 +64,7 @@ def create_write_strategy(
         )
         write_strategy = WriteImage(
             write_func=write_func,
+            write_filenames=write_filenames,
             write_extension=write_extension,
             write_func_kwargs=write_func_kwargs,
         )
@@ -69,6 +73,7 @@ def create_write_strategy(
         write_strategy = _create_tiled_write_strategy(
             write_type=write_type,
             write_func=write_func,
+            write_filenames=write_filenames,
             write_extension=write_extension,
             write_func_kwargs=write_func_kwargs,
         )
@@ -79,6 +84,7 @@ def create_write_strategy(
 def _create_tiled_write_strategy(
     write_type: SupportedWriteType,
     write_func: Optional[WriteFunc],
+    write_filenames: Optional[list[str]],
     write_extension: Optional[str],
     write_func_kwargs: dict[str, Any],
 ) -> WriteStrategy:
@@ -95,6 +101,8 @@ def _create_tiled_write_strategy(
     write_func : WriteFunc, optional
         If a known `write_type` is selected this argument is ignored. For a custom
         `write_type` a function to save the data must be passed. See notes below.
+    write_filenames : list of str, optional
+        A list of filenames in the order that predictions will be written in.
     write_extension : str, optional
         If a known `write_type` is selected this argument is ignored. For a custom
         `write_type` an extension to save the data with must be passed.
@@ -124,6 +132,7 @@ def _create_tiled_write_strategy(
         )
         return CacheTiles(
             write_func=write_func,
+            write_filenames=write_filenames,
             write_extension=write_extension,
             write_func_kwargs=write_func_kwargs,
         )
