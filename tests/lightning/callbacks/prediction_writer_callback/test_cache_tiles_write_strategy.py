@@ -1,7 +1,7 @@
 """Test `CacheTiles` class."""
 
 from pathlib import Path
-from unittest.mock import DEFAULT, Mock, patch
+from unittest.mock import Mock, patch
 
 import numpy as np
 import pytest
@@ -151,6 +151,7 @@ def test_write_batch_no_last_tile(cache_tiles_strategy):
     trainer.predict_dataloaders = [Mock(spec=DataLoader)]
     trainer.predict_dataloaders[dataloader_idx].dataset = mock_dataset
 
+    cache_tiles_strategy.write_filenames = ["file_1"]
     cache_tiles_strategy.write_batch(
         trainer=trainer,
         pl_module=Mock(spec=LightningModule),
@@ -204,27 +205,18 @@ def test_write_batch_last_tile(cache_tiles_strategy):
     # These functions have their own unit tests,
     #   so they do not need to be tested again here.
     # This is a unit test to isolate functionality of `write_batch.`
-    with patch.multiple(
-        "careamics.lightning.callbacks.prediction_writer_callback.write_strategy",
-        stitch_prediction_single=DEFAULT,
-        get_sample_file_path=DEFAULT,
-        create_write_file_path=DEFAULT,
-    ) as values:
-
-        # mocked functions
-        mock_stitch_prediction_single = values["stitch_prediction_single"]
-        mock_get_sample_file_path = values["get_sample_file_path"]
-        mock_create_write_file_path = values["create_write_file_path"]
+    with patch(
+        "careamics.lightning.callbacks.prediction_writer_callback.write_strategy"
+        + ".stitch_prediction_single",
+    ) as mock_stitch_prediction_single:
 
         prediction_image = [Mock()]
-        in_file_path = Path("in_dir/file_path.ext")
-        out_file_path = Path("out_dir/file_path.in_ext")
+        file_name = "file"
         mock_stitch_prediction_single.return_value = prediction_image
-        mock_get_sample_file_path.return_value = in_file_path
-        mock_create_write_file_path.return_value = out_file_path
 
         # call write batch
-        dirpath = "predictions"
+        dirpath = Path("predictions")
+        cache_tiles_strategy.write_filenames = [file_name]
         cache_tiles_strategy.write_batch(
             trainer=trainer,
             pl_module=Mock(spec=LightningModule),
@@ -236,15 +228,9 @@ def test_write_batch_last_tile(cache_tiles_strategy):
             dirpath=dirpath,
         )
 
-        # assert create_write_file_path is called as expected (TODO: necessary ?)
-        mock_create_write_file_path.assert_called_once_with(
-            dirpath=dirpath,
-            file_path=in_file_path,
-            write_extension=cache_tiles_strategy.write_extension,
-        )
         # assert write_func is called as expected
         cache_tiles_strategy.write_func.assert_called_once_with(
-            file_path=out_file_path, img=prediction_image[0], **{}
+            file_path=Path("predictions/file.ext"), img=prediction_image[0], **{}
         )
 
     # Tile of the next image (should remain in the cache)
