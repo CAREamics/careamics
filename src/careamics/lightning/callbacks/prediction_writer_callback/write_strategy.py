@@ -18,6 +18,7 @@ class WriteStrategy(Protocol):
     """Protocol for write strategy classes."""
 
     write_filenames: Optional[list[str]]
+    """Filenames to write to."""
 
     def write_batch(
         self,
