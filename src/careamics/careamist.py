@@ -525,7 +525,7 @@ class CAREamist:
         tile_overlap: tuple[int, ...] = (48, 48),
         axes: Optional[str] = None,
         data_type: Optional[Literal["tiff", "custom"]] = None,
-        tta_transforms: bool = True,
+        tta_transforms: bool = False,
         dataloader_params: Optional[dict] = None,
         read_source_func: Optional[Callable] = None,
         extension_filter: str = "",
@@ -541,7 +541,7 @@ class CAREamist:
         tile_overlap: tuple[int, ...] = (48, 48),
         axes: Optional[str] = None,
         data_type: Optional[Literal["array"]] = None,
-        tta_transforms: bool = True,
+        tta_transforms: bool = False,
         dataloader_params: Optional[dict] = None,
     ) -> Union[list[NDArray], NDArray]: ...
 
@@ -554,7 +554,7 @@ class CAREamist:
         tile_overlap: Optional[tuple[int, ...]] = (48, 48),
         axes: Optional[str] = None,
         data_type: Optional[Literal["array", "tiff", "custom"]] = None,
-        tta_transforms: bool = True,
+        tta_transforms: bool = False,
         dataloader_params: Optional[dict] = None,
         read_source_func: Optional[Callable] = None,
         extension_filter: str = "",
