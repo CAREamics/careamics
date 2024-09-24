@@ -207,7 +207,7 @@ def test_write_batch_last_tile(cache_tiles_strategy):
     # This is a unit test to isolate functionality of `write_batch.`
     with patch(
         "careamics.lightning.callbacks.prediction_writer_callback.write_strategy"
-        + ".stitch_prediction_single",
+        + ".cache_tiles.stitch_prediction_single",
     ) as mock_stitch_prediction_single:
 
         prediction_image = [Mock()]
