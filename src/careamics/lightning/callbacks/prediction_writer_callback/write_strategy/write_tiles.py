@@ -13,6 +13,7 @@ from careamics.dataset import IterableTiledPredDataset
 from careamics.file_io import WriteFunc
 from careamics.prediction_utils import stitch_prediction_single
 
+from .utils import TileCache
 
 class WriteTiles:
     """
@@ -82,8 +83,7 @@ class WriteTiles:
         self.write_func_kwargs: dict[str, Any] = write_func_kwargs
 
         # where tiles will be cached until a whole image has been predicted
-        self.tile_cache: list[NDArray] = []
-        self.tile_info_cache: list[TileInformation] = []
+        self.tile_cache = TileCache()
 
         self.current_file_index = 0
 
@@ -139,6 +139,8 @@ class WriteTiles:
         """
         if self.write_filenames is None:
             raise ValueError("`write_filenames` attribute has not been set.")
+        
+        # TODO: move dataset type check somewhere else
         dataloaders: Union[DataLoader, list[DataLoader]] = trainer.predict_dataloaders
         dataloader: DataLoader = (
             dataloaders[dataloader_idx]
@@ -149,16 +151,13 @@ class WriteTiles:
         if not isinstance(dataset, IterableTiledPredDataset):
             raise TypeError("Prediction dataset is not `IterableTiledPredDataset`.")
 
-        # cache tiles (batches are split into single samples)
-        self.tile_cache.extend(np.split(prediction[0], prediction[0].shape[0]))
-        self.tile_info_cache.extend(prediction[1])
+        self.tile_cache.add(prediction)
 
         # save stitched prediction
-        if self._has_last_tile():
+        if self.tile_cache.has_last_tile():
 
             # get image tiles and remove them from the cache
-            tiles, tile_infos = self._get_image_tiles()
-            self._clear_cache()
+            tiles, tile_infos = self.tile_cache.pop_image_tiles()
 
             # stitch prediction
             prediction_image = stitch_prediction_single(
@@ -177,61 +176,9 @@ class WriteTiles:
         """
         Reset the internal attributes.
 
-        Attributes reset are: `write_filenames`, `tile_cache`, `tile_info_cache` and
-        `current_file_index`.
+        Attributes reset are: `write_filenames`, `tile_cache`, and `current_file_index`.
         """
         self.write_filenames = None
-        self.tile_cache = []
-        self.tile_info_cache = []
         self.current_file_index = 0
+        self.tile_cache.reset()
 
-    def _has_last_tile(self) -> bool:
-        """
-        Whether a last tile is contained in the cached tiles.
-
-        Returns
-        -------
-        bool
-            Whether a last tile is contained in the cached tiles.
-        """
-        return any(self.last_tiles)
-
-    def _clear_cache(self) -> None:
-        """Remove the tiles in the cache up to the first last tile."""
-        index = self._last_tile_index()
-        self.tile_cache = self.tile_cache[index + 1 :]
-        self.tile_info_cache = self.tile_info_cache[index + 1 :]
-
-    def _last_tile_index(self) -> int:
-        """
-        Find the index of the last tile in the tile cache.
-
-        Returns
-        -------
-        int
-            Index of last tile.
-
-        Raises
-        ------
-        ValueError
-            If there is no last tile in the tile cache.
-        """
-        last_tiles = self.last_tiles
-        if not any(last_tiles):
-            raise ValueError("No last tile in the tile cache.")
-        index = np.where(last_tiles)[0][0]
-        return index
-
-    def _get_image_tiles(self) -> tuple[list[NDArray], list[TileInformation]]:
-        """
-        Get the tiles corresponding to a single image.
-
-        Returns
-        -------
-        tuple of (list of numpy.ndarray, list of TileInformation)
-            Tiles and tile information to stitch together a full image.
-        """
-        index = self._last_tile_index()
-        tiles = self.tile_cache[: index + 1]
-        tile_infos = self.tile_info_cache[: index + 1]
-        return tiles, tile_infos
