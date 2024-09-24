@@ -5,10 +5,8 @@ from typing import Any, Optional, Sequence
 
 from pytorch_lightning import LightningModule, Trainer
 
-from .protocol import WriteStrategy
 
-
-class WriteTilesZarr(WriteStrategy):
+class WriteTilesZarr:
     """Strategy to write tiles to Zarr file."""
 
     def write_batch(

@@ -10,10 +10,8 @@ from torch.utils.data import DataLoader
 from careamics.dataset import IterablePredDataset
 from careamics.file_io import WriteFunc
 
-from .protocol import WriteStrategy
 
-
-class WriteImage(WriteStrategy):
+class WriteImage:
     """
     A strategy for writing image predictions (i.e. un-tiled predictions).
 

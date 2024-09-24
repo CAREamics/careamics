@@ -13,10 +13,8 @@ from careamics.dataset import IterableTiledPredDataset
 from careamics.file_io import WriteFunc
 from careamics.prediction_utils import stitch_prediction_single
 
-from .protocol import WriteStrategy
 
-
-class CacheTiles(WriteStrategy):
+class CacheTiles:
     """
     A write strategy that will cache tiles.
 
