@@ -14,7 +14,7 @@ from careamics.dataset import IterableTiledPredDataset
 from careamics.dataset.tiling import extract_tiles
 from careamics.file_io import WriteFunc
 from careamics.lightning.callbacks.prediction_writer_callback.write_strategy import (
-    CacheTiles,
+    WriteTiles,
 )
 
 
@@ -52,7 +52,7 @@ def create_tiles(n_samples: int) -> tuple[list[NDArray], list[TileInformation]]:
 
 
 def patch_tile_cache(
-    strategy: CacheTiles, tiles: list[NDArray], tile_infos: list[TileInformation]
+    strategy: WriteTiles, tiles: list[NDArray], tile_infos: list[TileInformation]
 ) -> None:
     """
     Patch simulated tile cache into `strategy`.
@@ -77,7 +77,7 @@ def write_func():
 
 
 @pytest.fixture
-def cache_tiles_strategy(write_func) -> CacheTiles:
+def cache_tiles_strategy(write_func) -> WriteTiles:
     """
     Initialized `CacheTiles` class.
 
@@ -93,7 +93,7 @@ def cache_tiles_strategy(write_func) -> CacheTiles:
     """
     write_extension = ".ext"
     write_func_kwargs = {}
-    return CacheTiles(
+    return WriteTiles(
         write_func=write_func,
         write_filenames=None,
         write_extension=write_extension,
@@ -243,7 +243,7 @@ def test_write_batch_last_tile(cache_tiles_strategy):
     assert remaining_tile_info == cache_tiles_strategy.tile_info_cache[0]
 
 
-def test_write_batch_raises(cache_tiles_strategy: CacheTiles):
+def test_write_batch_raises(cache_tiles_strategy: WriteTiles):
     """Test write batch raises a ValueError if the filenames have not been set."""
     # all tiles of 2 samples with 9 tiles
     tiles, tile_infos = create_tiles(n_samples=2)
@@ -356,7 +356,7 @@ def test_get_image_tiles(cache_tiles_strategy):
     assert image_tile_infos == tile_infos[:9]
 
 
-def test_reset(cache_tiles_strategy: CacheTiles):
+def test_reset(cache_tiles_strategy: WriteTiles):
     """Test CacheTiles.reset works as expected"""
     # all tiles of 1 samples with 9 tiles
     tiles, tile_infos = create_tiles(n_samples=1)

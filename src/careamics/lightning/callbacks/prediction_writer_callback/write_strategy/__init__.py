@@ -2,12 +2,12 @@
 
 __all__ = [
     "WriteStrategy",
-    "CacheTiles",
+    "WriteTiles",
     "WriteImage",
     "WriteTilesZarr",
 ]
 
-from .cache_tiles import CacheTiles
 from .protocol import WriteStrategy
 from .write_image import WriteImage
+from .write_tiles import WriteTiles
 from .write_tiles_zarr import WriteTilesZarr

@@ -5,7 +5,7 @@ from typing import Any, Optional
 from careamics.config.support import SupportedData
 from careamics.file_io import SupportedWriteType, WriteFunc, get_write_func
 
-from .write_strategy import CacheTiles, WriteImage, WriteStrategy
+from .write_strategy import WriteImage, WriteStrategy, WriteTiles
 
 
 def create_write_strategy(
@@ -130,7 +130,7 @@ def _create_tiled_write_strategy(
         write_extension = select_write_extension(
             write_type=write_type, write_extension=write_extension
         )
-        return CacheTiles(
+        return WriteTiles(
             write_func=write_func,
             write_filenames=write_filenames,
             write_extension=write_extension,

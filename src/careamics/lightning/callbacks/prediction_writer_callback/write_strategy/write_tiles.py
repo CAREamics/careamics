@@ -14,7 +14,7 @@ from careamics.file_io import WriteFunc
 from careamics.prediction_utils import stitch_prediction_single
 
 
-class CacheTiles:
+class WriteTiles:
     """
     A write strategy that will cache tiles.
 
