@@ -3,12 +3,15 @@
 from pathlib import Path
 from typing import Any, Optional, Sequence, Union
 
+import numpy as np
 from numpy.typing import NDArray
 from pytorch_lightning import LightningModule, Trainer
 from torch.utils.data import DataLoader
 
 from careamics.dataset import IterablePredDataset
 from careamics.file_io import WriteFunc
+
+from .utils import SampleCache
 
 
 class WriteImage:
@@ -46,6 +49,7 @@ class WriteImage:
         write_filenames: Optional[list[str]],
         write_extension: str,
         write_func_kwargs: dict[str, Any],
+        n_samples_per_file: Optional[list[int]],
     ) -> None:
         """
         A strategy for writing image predictions (i.e. un-tiled predictions).
@@ -67,6 +71,9 @@ class WriteImage:
         self.write_filenames: Optional[list[str]] = write_filenames
         self.write_extension: str = write_extension
         self.write_func_kwargs: dict[str, Any] = write_func_kwargs
+
+        # where samples are stored until a whole file has been predicted
+        self.sample_cache = SampleCache(n_samples_per_file)
 
         self.current_file_index: int = 0
 
@@ -124,9 +131,20 @@ class WriteImage:
         #   prediction_image = prediction[0]
         #   sample_id = batch_idx * dl.batch_size + i
 
+        self.sample_cache.add(prediction)
+        # early return
+        if not self.sample_cache.has_all_file_samples():
+            return
+
+        # if has all samples in file
+        samples = self.sample_cache.pop_file_samples()
+
+        # combine
+        data = np.concatenate(samples)
+
         file_name = self.write_filenames[self.current_file_index]
         file_path = (dirpath / file_name).with_suffix(self.write_extension)
-        self.write_func(file_path=file_path, img=prediction, **self.write_func_kwargs)
+        self.write_func(file_path=file_path, img=data, **self.write_func_kwargs)
         self.current_file_index += 1
 
     def reset(self) -> None:

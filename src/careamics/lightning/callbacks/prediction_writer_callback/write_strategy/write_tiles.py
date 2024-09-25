@@ -13,7 +13,8 @@ from careamics.dataset import IterableTiledPredDataset
 from careamics.file_io import WriteFunc
 from careamics.prediction_utils import stitch_prediction_single
 
-from .utils import TileCache
+from .utils import SampleCache, TileCache
+
 
 class WriteTiles:
     """
@@ -57,6 +58,7 @@ class WriteTiles:
         write_filenames: Optional[list[str]],
         write_extension: str,
         write_func_kwargs: dict[str, Any],
+        n_samples_per_file: Optional[list[int]],
     ) -> None:
         """
         A write strategy that will cache tiles.
@@ -84,20 +86,10 @@ class WriteTiles:
 
         # where tiles will be cached until a whole image has been predicted
         self.tile_cache = TileCache()
+        # where samples are stored until a whole file has been predicted
+        self.sample_cache = SampleCache(n_samples_per_file)
 
         self.current_file_index = 0
-
-    @property
-    def last_tiles(self) -> list[bool]:
-        """
-        List of bool to determine whether each tile in the cache is the last tile.
-
-        Returns
-        -------
-        list of bool
-            Whether each tile in the tile cache is the last tile.
-        """
-        return [tile_info.last_tile for tile_info in self.tile_info_cache]
 
     def write_batch(
         self,
@@ -139,7 +131,7 @@ class WriteTiles:
         """
         if self.write_filenames is None:
             raise ValueError("`write_filenames` attribute has not been set.")
-        
+
         # TODO: move dataset type check somewhere else
         dataloaders: Union[DataLoader, list[DataLoader]] = trainer.predict_dataloaders
         dataloader: DataLoader = (
@@ -153,24 +145,33 @@ class WriteTiles:
 
         self.tile_cache.add(prediction)
 
-        # save stitched prediction
-        if self.tile_cache.has_last_tile():
+        # early return
+        if not self.tile_cache.has_last_tile():
+            return
 
-            # get image tiles and remove them from the cache
-            tiles, tile_infos = self.tile_cache.pop_image_tiles()
+        # if has last tile
+        tiles, tile_infos = self.tile_cache.pop_image_tiles()
 
-            # stitch prediction
-            prediction_image = stitch_prediction_single(
-                tiles=tiles, tile_infos=tile_infos
-            )
+        # stitch prediction
+        prediction_image = stitch_prediction_single(tiles=tiles, tile_infos=tile_infos)
 
-            # write prediction
-            file_name = self.write_filenames[self.current_file_index]
-            file_path = (dirpath / file_name).with_suffix(self.write_extension)
-            self.write_func(
-                file_path=file_path, img=prediction_image[0], **self.write_func_kwargs
-            )
-            self.current_file_index += 1
+        self.sample_cache.add(prediction_image)
+
+        # early return
+        if not self.sample_cache.has_all_file_samples():
+            return
+
+        # if has all samples in file
+        samples = self.sample_cache.pop_file_samples()
+
+        # combine
+        data = np.concatenate(samples)
+
+        # write prediction
+        file_name = self.write_filenames[self.current_file_index]
+        file_path = (dirpath / file_name).with_suffix(self.write_extension)
+        self.write_func(file_path=file_path, img=data, **self.write_func_kwargs)
+        self.current_file_index += 1
 
     def reset(self) -> None:
         """
@@ -181,4 +182,4 @@ class WriteTiles:
         self.write_filenames = None
         self.current_file_index = 0
         self.tile_cache.reset()
-
+        self.sample_cache.reset()

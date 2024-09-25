@@ -44,7 +44,7 @@ class TileCache:
 
 class SampleCache:
 
-    def __init__(self, n_samples_per_file: list[int]):
+    def __init__(self, n_samples_per_file: Optional[list[int]]):
 
         self.n_samples_per_file: list[int] = n_samples_per_file
         self.n_samples_iter = iter(self.n_samples_per_file)
@@ -58,7 +58,7 @@ class SampleCache:
         if self.n_samples is None:
             raise ValueError(
                 "Number of samples for current file is unknown. Reached the end of the "
-                "given list of samples per file."
+                "given list of samples per file, or a list has not been given."
             )
         return len(self.sample_cache) >= self.n_samples
 
@@ -77,7 +77,7 @@ class SampleCache:
             self.n_samples = None
 
         return samples
-    
+
     def reset(self):
         self.n_samples_iter = iter(self.n_samples_per_file)
         self.sample_cache: list[NDArray] = []
