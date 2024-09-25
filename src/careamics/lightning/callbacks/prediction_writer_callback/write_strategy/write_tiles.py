@@ -55,9 +55,9 @@ class WriteTiles:
     def __init__(
         self,
         write_func: WriteFunc,
-        write_filenames: Optional[list[str]],
         write_extension: str,
         write_func_kwargs: dict[str, Any],
+        write_filenames: Optional[list[str]],
         n_samples_per_file: Optional[list[int]],
     ) -> None:
         """
@@ -90,6 +90,18 @@ class WriteTiles:
         self.sample_cache = SampleCache(n_samples_per_file)
 
         self.current_file_index = 0
+
+        if write_filenames is not None and n_samples_per_file is not None:
+            self.set_file_data(write_filenames, n_samples_per_file)
+
+    def set_file_data(self, write_filenames: list[str], n_samples_per_file: list[int]):
+        if len(write_filenames) != len(n_samples_per_file):
+            raise ValueError(
+                "List of filename and list of number of samples per file are not of "
+                "equal length."
+            )
+        self.write_filenames = write_filenames
+        self.sample_cache.n_samples_per_file = n_samples_per_file
 
     def write_batch(
         self,
