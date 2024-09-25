@@ -9,9 +9,6 @@ from pytorch_lightning import LightningModule, Trainer
 class WriteStrategy(Protocol):
     """Protocol for write strategy classes."""
 
-    write_filenames: Optional[list[str]]
-    """Filenames to write to."""
-
     def write_batch(
         self,
         trainer: Trainer,
@@ -45,6 +42,9 @@ class WriteStrategy(Protocol):
         dirpath : Path
             Path to directory to save predictions to.
         """
+
+    def set_file_data(self, write_filenames: list[str], n_samples_per_file: list[int]) -> None:
+        ...
 
     def reset(self) -> None:
         """
