@@ -268,7 +268,7 @@ def test_write_batch_raises(cache_tiles_strategy: WriteTiles):
     trainer.predict_dataloaders[dataloader_idx].dataset = mock_dataset
 
     with pytest.raises(ValueError):
-        assert cache_tiles_strategy.write_filenames is None
+        assert cache_tiles_strategy._write_filenames is None
 
         # call write batch
         dirpath = Path("predictions")
@@ -363,10 +363,10 @@ def test_reset(cache_tiles_strategy: WriteTiles):
     # don't include last tile
     patch_tile_cache(cache_tiles_strategy, tiles[:-1], tile_infos[:-1])
 
-    cache_tiles_strategy.write_filenames = ["file"]
+    cache_tiles_strategy._write_filenames = ["file"]
     cache_tiles_strategy.current_file_index = 1
     cache_tiles_strategy.reset()
-    assert cache_tiles_strategy.write_filenames is None
+    assert cache_tiles_strategy._write_filenames is None
     assert cache_tiles_strategy.current_file_index == 0
     assert len(cache_tiles_strategy.tile_cache) == 0
     assert len(cache_tiles_strategy.tile_info_cache) == 0

@@ -1,7 +1,7 @@
 """Module containing the "cache tiles" write strategy."""
 
 from pathlib import Path
-from typing import Any, Optional, Sequence, Union
+from typing import Any, Iterator, Optional, Sequence, Union
 
 import numpy as np
 from numpy.typing import NDArray
@@ -80,7 +80,6 @@ class WriteTiles:
         super().__init__()
 
         self.write_func: WriteFunc = write_func
-        self.write_filenames: Optional[list[str]] = write_filenames
         self.write_extension: str = write_extension
         self.write_func_kwargs: dict[str, Any] = write_func_kwargs
 
@@ -89,8 +88,10 @@ class WriteTiles:
         # where samples are stored until a whole file has been predicted
         self.sample_cache = SampleCache(n_samples_per_file)
 
-        self.current_file_index = 0
-
+        self._write_filenames: Optional[list[str]] = write_filenames
+        self.filename_iter: Optional[Iterator[str]] = (
+            iter(write_filenames) if write_filenames is not None else None
+        )
         if write_filenames is not None and n_samples_per_file is not None:
             self.set_file_data(write_filenames, n_samples_per_file)
 
@@ -100,7 +101,8 @@ class WriteTiles:
                 "List of filename and list of number of samples per file are not of "
                 "equal length."
             )
-        self.write_filenames = write_filenames
+        self._write_filenames = write_filenames
+        self.filename_iter = iter(write_filenames)
         self.sample_cache.n_samples_per_file = n_samples_per_file
 
     def write_batch(
@@ -141,7 +143,7 @@ class WriteTiles:
         ValueError
             If `write_filenames` attribute is `None`.
         """
-        if self.write_filenames is None:
+        if self._write_filenames is None:
             raise ValueError("`write_filenames` attribute has not been set.")
 
         # TODO: move dataset type check somewhere else
@@ -180,10 +182,9 @@ class WriteTiles:
         data = np.concatenate(samples)
 
         # write prediction
-        file_name = self.write_filenames[self.current_file_index]
+        file_name = next(self.filename_iter)
         file_path = (dirpath / file_name).with_suffix(self.write_extension)
         self.write_func(file_path=file_path, img=data, **self.write_func_kwargs)
-        self.current_file_index += 1
 
     def reset(self) -> None:
         """
@@ -191,7 +192,7 @@ class WriteTiles:
 
         Attributes reset are: `write_filenames`, `tile_cache`, and `current_file_index`.
         """
-        self.write_filenames = None
-        self.current_file_index = 0
+        self._write_filenames = None
+        self.filename_iter = None
         self.tile_cache.reset()
         self.sample_cache.reset()

@@ -144,8 +144,8 @@ def test_write_batch_raises(write_image_strategy, ordered_array):
 
 def test_reset(write_image_strategy: WriteImage):
     """Test WriteImage.reset works as expected"""
-    write_image_strategy.write_filenames = ["file"]
+    write_image_strategy._write_filenames = ["file"]
     write_image_strategy.current_file_index = 1
     write_image_strategy.reset()
-    assert write_image_strategy.write_filenames is None
+    assert write_image_strategy._write_filenames is None
     assert write_image_strategy.current_file_index == 0
