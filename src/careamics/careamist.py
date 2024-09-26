@@ -73,7 +73,7 @@ class CAREamist:
     def __init__(  # numpydoc ignore=GL08
         self,
         source: Union[Path, str],
-        work_dir: Optional[str] = None,
+        work_dir: Optional[Union[Path, str]] = None,
         callbacks: Optional[list[Callback]] = None,
     ) -> None: ...
 
@@ -81,7 +81,7 @@ class CAREamist:
     def __init__(  # numpydoc ignore=GL08
         self,
         source: Configuration,
-        work_dir: Optional[str] = None,
+        work_dir: Optional[Union[Path, str]] = None,
         callbacks: Optional[list[Callback]] = None,
     ) -> None: ...
 
@@ -108,7 +108,7 @@ class CAREamist:
         ----------
         source : pathlib.Path or str or CAREamics Configuration
             Path to a configuration file or a trained model.
-        work_dir : str, optional
+        work_dir : str or pathlib.Path, optional
             Path to working directory in which to save checkpoints and logs,
             by default None.
         callbacks : list of Callback, optional
