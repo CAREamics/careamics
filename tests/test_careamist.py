@@ -1,4 +1,5 @@
 from pathlib import Path
+from threading import Thread
 from typing import Tuple
 
 import numpy as np
@@ -899,3 +900,33 @@ def test_error_passing_careamics_callback(tmp_path, minimum_configuration):
 
     with pytest.raises(ValueError):
         CAREamist(source=config, work_dir=tmp_path, callbacks=[hyper_params])
+
+
+def test_stop_training(tmp_path: Path, minimum_configuration: dict):
+    """Test that CAREamics can stop the training"""
+    # training data
+    train_array = random_array((32, 32))
+
+    # create configuration
+    config = Configuration(**minimum_configuration)
+    config.training_config.num_epochs = 1_000
+    config.data_config.axes = "YX"
+    config.data_config.batch_size = 2
+    config.data_config.data_type = SupportedData.ARRAY.value
+    config.data_config.patch_size = (8, 8)
+
+    # instantiate CAREamist
+    careamist = CAREamist(source=config, work_dir=tmp_path)
+
+    def _train():
+        careamist.train(train_source=train_array)
+
+    # create thread
+    thread = Thread(target=_train)
+    thread.start()
+
+    # stop training
+    careamist.stop_training()
+    thread.join()
+
+    assert careamist.trainer.should_stop
