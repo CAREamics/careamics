@@ -101,9 +101,6 @@ class CAREamist:
 
         If no working directory is provided, the current working directory is used.
 
-        If `source` is a checkpoint, then `experiment_name` is used to name the
-        checkpoint, and is recorded in the configuration.
-
         Parameters
         ----------
         source : pathlib.Path or str or CAREamics Configuration
