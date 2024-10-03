@@ -48,8 +48,6 @@ class CAREamist:
     work_dir : str, optional
         Path to working directory in which to save checkpoints and logs,
         by default None.
-    experiment_name : str, by default "CAREamics"
-        Experiment name used for checkpoints.
     callbacks : list of Callback, optional
         List of callbacks to use during training and prediction, by default None.
 
@@ -76,7 +74,6 @@ class CAREamist:
         self,
         source: Union[Path, str],
         work_dir: Optional[Union[Path, str]] = None,
-        experiment_name: str = "CAREamics",
         callbacks: Optional[list[Callback]] = None,
     ) -> None: ...
 
@@ -85,7 +82,6 @@ class CAREamist:
         self,
         source: Configuration,
         work_dir: Optional[Union[Path, str]] = None,
-        experiment_name: str = "CAREamics",
         callbacks: Optional[list[Callback]] = None,
     ) -> None: ...
 
@@ -93,7 +89,6 @@ class CAREamist:
         self,
         source: Union[Path, str, Configuration],
         work_dir: Optional[Union[Path, str]] = None,
-        experiment_name: str = "CAREamics",
         callbacks: Optional[list[Callback]] = None,
     ) -> None:
         """
@@ -106,18 +101,13 @@ class CAREamist:
 
         If no working directory is provided, the current working directory is used.
 
-        If `source` is a checkpoint, then `experiment_name` is used to name the
-        checkpoint, and is recorded in the configuration.
-
         Parameters
         ----------
         source : pathlib.Path or str or CAREamics Configuration
             Path to a configuration file or a trained model.
-        work_dir : str, optional
+        work_dir : str or pathlib.Path, optional
             Path to working directory in which to save checkpoints and logs,
             by default None.
-        experiment_name : str, optional
-            Experiment name used for checkpoints, by default "CAREamics".
         callbacks : list of Callback, optional
             List of callbacks to use during training and prediction, by default None.
 
@@ -256,6 +246,12 @@ class CAREamist:
             self.callbacks.append(
                 EarlyStopping(self.cfg.training_config.early_stopping_callback)
             )
+
+    def stop_training(self) -> None:
+        """Stop the training loop."""
+        # raise stop training flag
+        self.trainer.should_stop = True
+        self.trainer.limit_val_batches = 0  # skip  validation
 
     # TODO: is there are more elegant way than calling train again after _train_on_paths
     def train(
@@ -403,9 +399,14 @@ class CAREamist:
         datamodule : TrainDataModule
             Datamodule to train on.
         """
-        # record datamodule
+        # register datamodule
         self.train_datamodule = datamodule
 
+        # set defaults (in case `stop_training` was called before)
+        self.trainer.should_stop = False
+        self.trainer.limit_val_batches = 1.0  # 100%
+
+        # train
         self.trainer.fit(self.model, datamodule=datamodule)
 
     def _train_on_array(
@@ -521,7 +522,7 @@ class CAREamist:
         tile_overlap: tuple[int, ...] = (48, 48),
         axes: Optional[str] = None,
         data_type: Optional[Literal["tiff", "custom"]] = None,
-        tta_transforms: bool = True,
+        tta_transforms: bool = False,
         dataloader_params: Optional[dict] = None,
         read_source_func: Optional[Callable] = None,
         extension_filter: str = "",
@@ -537,7 +538,7 @@ class CAREamist:
         tile_overlap: tuple[int, ...] = (48, 48),
         axes: Optional[str] = None,
         data_type: Optional[Literal["array"]] = None,
-        tta_transforms: bool = True,
+        tta_transforms: bool = False,
         dataloader_params: Optional[dict] = None,
     ) -> Union[list[NDArray], NDArray]: ...
 
@@ -550,7 +551,7 @@ class CAREamist:
         tile_overlap: Optional[tuple[int, ...]] = (48, 48),
         axes: Optional[str] = None,
         data_type: Optional[Literal["array", "tiff", "custom"]] = None,
-        tta_transforms: bool = True,
+        tta_transforms: bool = False,
         dataloader_params: Optional[dict] = None,
         read_source_func: Optional[Callable] = None,
         extension_filter: str = "",
