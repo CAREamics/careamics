@@ -29,6 +29,16 @@ from careamics.models.lvae.utils import ModelType
 from careamics.utils.metrics import scale_invariant_psnr, RunningPSNR
 
 
+class TilingMode:
+    """
+    Enum for the tiling mode.
+    """
+
+    TrimBoundary = 0
+    PadBoundary = 1
+    ShiftBoundary = 2
+
+
 # ------------------------------------------------------------------------------------------------
 # Function of plotting: TODO -> moved them to another file, plot_utils.py
 def clean_ax(ax):
@@ -596,51 +606,49 @@ def get_dset_predictions(
                 logvar_arr.append(logvar.cpu().numpy())
 
                 # compute reconstruction loss
-                if loss_type == "musplit":
-                    rec_loss = get_reconstruction_loss(
-                        reconstruction=rec, target=tar, likelihood_obj=gauss_likelihood
-                    )
-                elif loss_type == "denoisplit":
-                    rec_loss = get_reconstruction_loss(
-                        reconstruction=rec, target=tar, likelihood_obj=nm_likelihood
-                    )
-                elif loss_type == "denoisplit_musplit":
-                    rec_loss = reconstruction_loss_musplit_denoisplit(
-                        predictions=rec,
-                        targets=tar,
-                        gaussian_likelihood=gauss_likelihood,
-                        nm_likelihood=nm_likelihood,
-                        nm_weight=model.loss_parameters.denoisplit_weight,
-                        gaussian_weight=model.loss_parameters.musplit_weight,
-                    )
-                    rec_loss = {"loss": rec_loss}  # hacky, but ok for now
+                # if loss_type == "musplit":
+                #     rec_loss = get_reconstruction_loss(
+                #         reconstruction=rec, target=tar, likelihood_obj=gauss_likelihood
+                #     )
+                # elif loss_type == "denoisplit":
+                #     rec_loss = get_reconstruction_loss(
+                #         reconstruction=rec, target=tar, likelihood_obj=nm_likelihood
+                #     )
+                # elif loss_type == "denoisplit_musplit":
+                #     rec_loss = reconstruction_loss_musplit_denoisplit(
+                #         predictions=rec,
+                #         targets=tar,
+                #         gaussian_likelihood=gauss_likelihood,
+                #         nm_likelihood=nm_likelihood,
+                #         nm_weight=model.loss_parameters.denoisplit_weight,
+                #         gaussian_weight=model.loss_parameters.musplit_weight,
+                #     )
+                #     rec_loss = {"loss": rec_loss}  # hacky, but ok for now
 
-                # store rec loss values for first pred
-                if mmse_idx == 0:
-                    try:
-                        losses.append(rec_loss["loss"].cpu().numpy())
-                    except:
-                        losses.append(rec_loss["loss"])
+                # # store rec loss values for first pred
+                # if mmse_idx == 0:
+                #     try:
+                #         losses.append(rec_loss["loss"].cpu().numpy())
+                #     except:
+                #         losses.append(rec_loss["loss"])
 
                 # update running PSNR
-                for i in range(num_channels):
-                    patch_psnr_channels[i].update(rec_img[:, i], tar[:, i])
+                # for i in range(num_channels):
+                #     patch_psnr_channels[i].update(rec_img[:, i], tar[:, i])
 
             # aggregate results
             samples = torch.cat(rec_img_list, dim=0)
             mmse_imgs = torch.mean(samples, dim=0)  # avg over MMSE dim
-            mmse_std = torch.std(samples, dim=0)
+            # mmse_std = torch.std(samples, dim=0)
             predictions.append(mmse_imgs.cpu().numpy())
-            predictions_std.append(mmse_std.cpu().numpy())
+            # predictions_std.append(mmse_std.cpu().numpy())
 
-    psnr = [x.get() for x in patch_psnr_channels]
-    return (
-        np.concatenate(predictions, axis=0),
-        np.concatenate(predictions_std, axis=0),
-        np.concatenate(logvar_arr),
-        np.array(losses),
-        psnr,
-    )
+    # psnr = [x.get() for x in patch_psnr_channels]
+    return np.concatenate(predictions, axis=0)
+    # np.concatenate(predictions_std, axis=0),
+    # np.concatenate(logvar_arr),
+    # np.array(losses),
+    # psnr,
 
 
 # ------------------------------------------------------------------------------------------
@@ -769,6 +777,90 @@ def stitch_predictions(predictions, dset, smoothening_pixelcount=0):
             output[loc.t, loc.h_start : loc.h_end, loc.w_start : loc.w_end, ch_idx] += (
                 cropped_pred_list[ch_idx] * mask
             )
+
+    return output
+
+
+# from disentangle.analysis.stitch_prediction import *
+def stitch_predictions_new(predictions, dset):
+    """
+    Args:
+        smoothening_pixelcount: number of pixels which can be interpolated
+    """
+    # Commented out since it is not used as of now
+    # if isinstance(dset, MultiFileDset):
+    #     cum_count = 0
+    #     output = []
+    #     for dset in dset.dsets:
+    #         cnt = dset.idx_manager.total_grid_count()
+    #         output.append(
+    #             stitch_predictions(predictions[cum_count:cum_count + cnt], dset))
+    #         cum_count += cnt
+    #     return output
+
+    # else:
+    mng = dset.idx_manager
+
+    # if there are more channels, use all of them.
+    shape = list(dset.get_data_shape())
+    shape[-1] = max(shape[-1], predictions.shape[1])
+
+    output = np.zeros(shape, dtype=predictions.dtype)
+    # frame_shape = dset.get_data_shape()[:-1]
+    for dset_idx in range(predictions.shape[0]):
+        # loc = get_location_from_idx(dset, dset_idx, predictions.shape[-2], predictions.shape[-1])
+        # grid start, grid end
+        gs = np.array(mng.get_location_from_dataset_idx(dset_idx), dtype=int)
+        ge = gs + mng.grid_shape
+
+        # patch start, patch end
+        ps = gs - mng.patch_offset()
+        pe = ps + mng.patch_shape
+        # print('PS')
+        # print(ps)
+        # print(pe)
+
+        # valid grid start, valid grid end
+        vgs = np.array([max(0, x) for x in gs], dtype=int)
+        vge = np.array([min(x, y) for x, y in zip(ge, mng.data_shape)], dtype=int)
+        assert np.all(vgs == gs)
+        assert np.all(vge == ge)
+        # print('VGS')
+        # print(gs)
+        # print(ge)
+
+        if mng.tiling_mode == TilingMode.ShiftBoundary:
+            for dim in range(len(vgs)):
+                if ps[dim] == 0:
+                    vgs[dim] = 0
+                if pe[dim] == mng.data_shape[dim]:
+                    vge[dim] = mng.data_shape[dim]
+
+        # relative start, relative end. This will be used on pred_tiled
+        rs = vgs - ps
+        re = rs + (vge - vgs)
+        # print('RS')
+        # print(rs)
+        # print(re)
+
+        # print(output.shape)
+        # print(predictions.shape)
+        for ch_idx in range(predictions.shape[1]):
+            if len(output.shape) == 4:
+                # channel dimension is the last one.
+                output[vgs[0] : vge[0], vgs[1] : vge[1], vgs[2] : vge[2], ch_idx] = (
+                    predictions[dset_idx][ch_idx, rs[1] : re[1], rs[2] : re[2]]
+                )
+            elif len(output.shape) == 5:
+                # channel dimension is the last one.
+                assert vge[0] - vgs[0] == 1, "Only one frame is supported"
+                output[
+                    vgs[0], vgs[1] : vge[1], vgs[2] : vge[2], vgs[3] : vge[3], ch_idx
+                ] = predictions[dset_idx][
+                    ch_idx, rs[1] : re[1], rs[2] : re[2], rs[3] : re[3]
+                ]
+            else:
+                raise ValueError(f"Unsupported shape {output.shape}")
 
     return output
 

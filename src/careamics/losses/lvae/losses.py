@@ -152,7 +152,9 @@ def reconstruction_loss_musplit_denoisplit(
 
 
 def get_kl_divergence_loss_usplit(
-    topdown_data: dict[str, list[torch.Tensor]], kl_key: str = "kl"
+    topdown_data: dict[str, list[torch.Tensor]],
+    img_shape: tuple[int] = (64, 64),
+    kl_key: str = "kl",
 ) -> torch.Tensor:
     """Compute the KL divergence loss for muSplit.
 
@@ -168,18 +170,27 @@ def get_kl_divergence_loss_usplit(
         The key for the KL-loss values in the top-down layer data dictionary.
         To choose among ["kl", "kl_restricted", "kl_spatial", "kl_channelwise"]
         Default is "kl".
+
+    z_size: int
+        The size of the Z dimension in the 3D model. 0 if 2D model.
     """
     kl = torch.cat(
         [kl_layer.unsqueeze(1) for kl_layer in topdown_data[kl_key]], dim=1
     )  # shape: (B, n_layers)
     # NOTE: Values are sum() and so are of the order 30000
 
+    if len(img_shape) == 3:  # 3D model
+        # In stochastic.py, we sum over all dimensions, including the Z dimension.
+        # To not penalize the KL loss too much, we divide by the depth of the 3D model.
+        # NOTE: If we have downsampling in Z dimension, then this needs to change.
+        kl = kl / img_shape[0]
+
     nlayers = kl.shape[1]
     for i in range(nlayers):
         # NOTE: we want to normalize the KL-loss w.r.t. the latent space dimensions,
         # i.e., the number of entries in the latent space tensors (C, [Z], Y, X).
         # We assume z has shape (B, C, [Z], Y, X), where `C = z_dims[i]`.
-        norm_factor = np.prod(topdown_data["z"][i].shape[1:])
+        norm_factor = np.prod(topdown_data["z"][i].shape[-3:])
         kl[:, i] = kl[:, i] / norm_factor
 
     kl_loss = free_bits_kl(kl, 0.0).mean()  # shape: (1, )
@@ -210,11 +221,20 @@ def get_kl_divergence_loss_denoisplit(
         Default is "kl"
 
     kl[i] for each i has length batch_size resulting kl shape: (bs, layers).
+
+    z_size: int
+        The size of the Z dimension in the 3D model. 0 if 2D model.
     """
     kl = torch.cat(
         [kl_layer.unsqueeze(1) for kl_layer in topdown_data[kl_key]],
         dim=1,
     )
+
+    if len(img_shape) == 3:  # 3D model
+        # In stochastic.py, we sum over all dimensions, including the Z dimension.
+        # To not penalize the KL loss too much, we divide by the depth of the 3D model.
+        # NOTE: If we have downsampling in Z dimension, then this needs to change.
+        kl = kl / img_shape[0]
 
     kl_loss = free_bits_kl(kl, 1.0).sum()
     # NOTE: as compared to uSplit kl divergence, this KL loss is larger by a factor of
@@ -228,7 +248,8 @@ def get_kl_divergence_loss_denoisplit(
     # 128/(16*16) = 0.5 (topmost layer)
 
     # Normalize the KL-loss w.r.t. the input image spatial dimensions (e.g., 64x64)
-    kl_loss = kl_loss / np.prod(img_shape)
+    kl_loss = kl_loss / np.prod((img_shape[-2], img_shape[-1]))
+    # TODO this is ugly and should be joined wth above normalization
     return kl_loss
 
 

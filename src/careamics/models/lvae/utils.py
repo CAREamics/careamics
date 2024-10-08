@@ -190,29 +190,12 @@ def crop_img_tensor(x, size) -> torch.Tensor:
 
 class StableExponential:
     """
-    Class that redefines the definition of exp() to increase numerical stability.
-    Naturally, also the definition of log() must change accordingly.
-    However, it is worth noting that the two operations remain one the inverse of the other,
-    meaning that x = log(exp(x)) and x = exp(log(x)) are always true.
+    Here, the idea is that everything is done on the tensor which you've given in the constructor.
+    when exp() is called, what that means is that we want to compute self._tensor.exp()
+    when log() is called, we want to compute torch.log(self._tensor.exp())
 
-    Definition:
-        exp(x) = {
-            exp(x) if x<=0
-            x+1    if x>0
-        }
-
-        log(x) = {
-            x        if x<=0
-            log(1+x) if x>0
-        }
-
-    NOTE 1:
-        Within the class everything is done on the tensor given as input to the constructor.
-        Therefore, when exp() is called, self._tensor.exp() is computed.
-        When log() is called, torch.log(self._tensor.exp()) is computed instead.
-
-    NOTE 2:
-        Given the output from exp(), torch.log() or the log() method of the class give identical results.
+    What is done here is that definition of exp() has been changed. This, naturally, has changed the result of log.
+    but the log is still the mathematical log, that is, it takes the math.log() on whatever comes out of exp().
     """
 
     def __init__(self, tensor):
@@ -234,70 +217,39 @@ class StableExponential:
         return torch.exp(self.neg_data) * self.neg_f + (1 + self.pos_data) * self.pos_f
 
     def log(self):
+        """
+        Note that if you have the output from exp(). You could simply apply torch.log() on it and that should give
+        identical numbers.
+        """
         return self.neg_data * self.neg_f + torch.log(1 + self.pos_data) * self.pos_f
 
 
 class StableLogVar:
-    """
-    Class that provides a numerically stable implementation of Log-Variance.
-    Specifically, it uses the exp() and log() formulas defined in `StableExponential` class.
-    """
 
-    def __init__(
-        self, logvar: torch.Tensor, enable_stable: bool = True, var_eps: float = 1e-6
-    ):
+    def __init__(self, logvar, enable_stable=True, var_eps=1e-6):
         """
-        Constructor.
-
-        Parameters
-        ----------
-        logvar: torch.Tensor
-            The input (true) logvar vector, to be converted in the Stable version.
-        enable_stable: bool, optional
-            Whether to compute the stable version of log-variance. Default is `True`.
-        var_eps: float, optional
-            The minimum value attainable by the variance. Default is `1e-6`.
+        Args:
+            var_eps: var() has this minimum value.
         """
         self._lv = logvar
         self._enable_stable = enable_stable
         self._eps = var_eps
 
-    def get(self) -> torch.Tensor:
+    def get(self):
         if self._enable_stable is False:
             return self._lv
 
         return torch.log(self.get_var())
 
-    def get_var(self) -> torch.Tensor:
-        """
-        Get Variance from Log-Variance.
-        """
+    def get_var(self):
         if self._enable_stable is False:
             return torch.exp(self._lv)
         return StableExponential(self._lv).exp() + self._eps
 
-    def get_std(self) -> torch.Tensor:
+    def get_std(self):
         return torch.sqrt(self.get_var())
 
-    @property
-    def is_3D(self) -> bool:
-        """Check if the _lv tensor is 3D.
-
-        Recall that, in this framework, tensors have shape (B, C, [Z], Y, X).
-        """
-        return self._lv.dim() == 5
-
-    def centercrop_to_size(self, size: Iterable[int]) -> None:
-        """
-        Centercrop the log-variance tensor to the desired size.
-
-        Parameters
-        ----------
-        size: torch.Tensor
-            The desired size of the log-variance tensor.
-        """
-        assert not self.is_3D, "Centercrop is implemented only for 2D tensors."
-
+    def centercrop_to_size(self, size):
         if self._lv.shape[-1] == size:
             return
 
@@ -311,29 +263,10 @@ class StableMean:
     def __init__(self, mean):
         self._mean = mean
 
-    def get(self) -> torch.Tensor:
+    def get(self):
         return self._mean
 
-    @property
-    def is_3D(self) -> bool:
-        """Check if the _mean tensor is 3D.
-
-        Recall that, in this framework, tensors have shape (B, C, [Z], Y, X).
-        """
-        return self._mean.dim() == 5
-
-    def centercrop_to_size(self, size: Iterable[int]) -> None:
-        """Centercrop the mean tensor to the desired size.
-
-        Implemented only in the case of 2D tensors.
-
-        Parameters
-        ----------
-        size: torch.Tensor
-            The desired size of the log-variance tensor.
-        """
-        assert not self.is_3D, "Centercrop is implemented only for 2D tensors."
-
+    def centercrop_to_size(self, size):
         if self._mean.shape[-1] == size:
             return
 

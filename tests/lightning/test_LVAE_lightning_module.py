@@ -178,7 +178,7 @@ def test_musplit_lightining_init(
         assert lightning_model is not None
         assert isinstance(lightning_model.model, torch.nn.Module)
         assert lightning_model.noise_model is None
-        assert lightning_model.noise_model_likelihood is None
+        assert isinstance(lightning_model.noise_model_likelihood, NoiseModelLikelihood)
         assert isinstance(lightning_model.gaussian_likelihood, GaussianLikelihood)
         assert lightning_model.loss_func == musplit_loss
 

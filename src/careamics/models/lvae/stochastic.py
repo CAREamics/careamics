@@ -6,6 +6,7 @@ from typing import Dict, Tuple, Union
 
 import torch
 import torch.nn as nn
+import torchvision.transforms.functional as F
 from torch.distributions import kl_divergence
 from torch.distributions.normal import Normal
 
@@ -198,44 +199,35 @@ class NormalStochasticBlock(nn.Module):
         z: torch.Tensor
             The sampled latent tensor.
         """
-        if mode_pred is False:  # if not in prediction mode
-            # KL term for each entry of the latent tensor [Shape: (B, C, [Z], Y, X)]
+        kl_samplewise_restricted = None
+        if mode_pred is False:  # if not predicting
             if analytical_kl:
                 kl_elementwise = kl_divergence(q, p)
             else:
                 kl_elementwise = kl_normal_mc(z, p_params, q_params)
 
-            # KL term only associated to the portion of the latent tensor that is used for prediction and
-            # summed over channel and spatial dimensions. [Shape: (B, )]
-            # NOTE: vanilla_latent_hw is the shape of the latent tensor used for prediction, hence
-            # the restriction has shape [Shape: (B, C, vanilla_latent_hw[0], vanilla_latent_hw[1])]
-            kl_samplewise_restricted = None
+            all_dims = tuple(range(len(kl_elementwise.shape)))
+            # compute KL only on the portion of the latent space that is used for prediction.
             if self._restricted_kl:
-                assert (
-                    self.conv_dims == 2
-                ), "Restricted KL is only implemented for 2D tensors."
                 pad = (kl_elementwise.shape[-1] - self._vanilla_latent_hw) // 2
                 assert pad > 0, "Disable restricted kl since there is no restriction."
                 tmp = kl_elementwise[..., pad:-pad, pad:-pad]
-                kl_samplewise_restricted = tmp.sum((1, 2, 3))
+                kl_samplewise_restricted = tmp.sum(all_dims[1:])
 
-            # KL term associated to each sample in the batch [Shape: (B, )]
-            kl_samplewise = kl_elementwise.sum(tuple(range(1, kl_elementwise.dim())))
-
-            # KL term associated to each sample and each channel [Shape: (B, C, )]
-            kl_channelwise = kl_elementwise.sum(tuple(range(2, kl_elementwise.dim())))
-
-            # KL term summed over the channels [Shape: (B, [Z], Y, X)]
+            kl_samplewise = kl_elementwise.sum(all_dims[1:])
+            kl_channelwise = kl_elementwise.sum(all_dims[2:])
+            # Compute spatial KL analytically (but conditioned on samples from
+            # previous layers)
             kl_spatial = kl_elementwise.sum(1)
         else:  # if predicting, no need to compute KL
             kl_elementwise = kl_samplewise = kl_spatial = kl_channelwise = None
 
         kl_dict = {
-            "kl_elementwise": kl_elementwise,  #  (B, C, [Z], Y, X)
-            "kl_samplewise": kl_samplewise,  # (B, )
-            "kl_samplewise_restricted": kl_samplewise_restricted,  # (B, )
-            "kl_channelwise": kl_channelwise,  # (B, C, )
-            "kl_spatial": kl_spatial,  # (B, [Z], Y, X))
+            "kl_elementwise": kl_elementwise,  # (batch, ch, h, w)
+            "kl_samplewise": kl_samplewise,  # (batch, )
+            "kl_samplewise_restricted": kl_samplewise_restricted,  # (batch, )
+            "kl_spatial": kl_spatial,  # (batch, h, w)
+            "kl_channelwise": kl_channelwise,  # (batch, ch)
         }
         return kl_dict
 
@@ -274,7 +266,7 @@ class NormalStochasticBlock(nn.Module):
         return p_mu, p_lv, p
 
     def process_q_params(
-        self, q_params: torch.Tensor, var_clip_max: float
+        self, q_params: torch.Tensor, var_clip_max: float, allow_oddsizes: bool = False
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.distributions.normal.Normal]:
         """
         Process the input parameters to get the inference distribution q(z_i|z_{i+1}) (or q(z|x)).
@@ -299,6 +291,10 @@ class NormalStochasticBlock(nn.Module):
         q_mu, q_lv = q_params.chunk(2, dim=1)
         if var_clip_max is not None:
             q_lv = torch.clip(q_lv, max=var_clip_max)
+
+        if q_mu.shape[-1] % 2 == 1 and allow_oddsizes is False:
+            q_mu = F.center_crop(q_mu, q_mu.shape[-1] - 1)
+            q_lv = F.center_crop(q_lv, q_lv.shape[-1] - 1)
 
         q_mu = StableMean(q_mu)
         q_lv = StableLogVar(q_lv, enable_stable=not self._use_naive_exponential)
@@ -356,8 +352,12 @@ class NormalStochasticBlock(nn.Module):
             # Get inference distribution q(z_i|z_{i+1})
             q_mu, q_lv, q = self.process_q_params(q_params, var_clip_max)
             q_params = (q_mu, q_lv)
-            sampling_distrib = q
             debug_qvar_max = torch.max(q_lv.get())
+            sampling_distrib = q
+            q_size = q_mu.get().shape[-1]
+            if p_mu.get().shape[-1] != q_size and mode_pred is False:
+                p_mu.centercrop_to_size(q_size)
+                p_lv.centercrop_to_size(q_size)
         else:
             sampling_distrib = p
 
