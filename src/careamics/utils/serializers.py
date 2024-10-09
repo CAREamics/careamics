@@ -21,6 +21,8 @@ def _array_to_json(arr: Union[np.ndarray, torch.Tensor]) -> str:
     str
         JSON string representing the array.
     """
+    if isinstance(arr, str):
+        return arr
     return json.dumps(arr.tolist())
 
 

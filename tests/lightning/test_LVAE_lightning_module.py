@@ -57,7 +57,7 @@ def create_split_lightning_model(
     """Instantiate the muSplit lightining model."""
     lvae_config = LVAEModel(
         architecture="LVAE",
-        input_shape=64,
+        input_shape=(64, 64),
         multiscale_count=multiscale_count,
         z_dims=[128, 128, 128, 128],
         output_channels=target_ch,
@@ -153,7 +153,7 @@ def test_musplit_lightining_init(
 ):
     lvae_config = LVAEModel(
         architecture="LVAE",
-        input_shape=64,
+        input_shape=(64, 64),
         multiscale_count=multiscale_count,
         z_dims=[128, 128, 128, 128],
         output_channels=3,
@@ -178,7 +178,7 @@ def test_musplit_lightining_init(
         assert lightning_model is not None
         assert isinstance(lightning_model.model, torch.nn.Module)
         assert lightning_model.noise_model is None
-        assert lightning_model.noise_model_likelihood is None
+        assert isinstance(lightning_model.noise_model_likelihood, NoiseModelLikelihood)
         assert isinstance(lightning_model.gaussian_likelihood, GaussianLikelihood)
         assert lightning_model.loss_func == musplit_loss
 
@@ -216,7 +216,7 @@ def test_denoisplit_lightining_init(
     # Create the model config
     lvae_config = LVAEModel(
         architecture="LVAE",
-        input_shape=64,
+        input_shape=(64, 64),
         multiscale_count=multiscale_count,
         z_dims=[128, 128, 128, 128],
         output_channels=target_ch,

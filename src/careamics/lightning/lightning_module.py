@@ -7,6 +7,7 @@ import pytorch_lightning as L
 from torch import Tensor, nn
 
 from careamics.config import FCNAlgorithmConfig, VAEAlgorithmConfig
+from careamics.config.likelihood_model import NMLikelihoodConfig
 from careamics.config.support import (
     SupportedAlgorithm,
     SupportedArchitecture,
@@ -265,12 +266,17 @@ class VAEModule(L.LightningModule):
 
         # TODO: log algorithm config
         # self.save_hyperparameters(self.algorithm_config.model_dump())
-
+        # define likelihood configurations
+        self.algorithm_config.noise_model_likelihood_model = NMLikelihoodConfig()
         # create model and loss function
         self.model: nn.Module = model_factory(self.algorithm_config.model)
         self.noise_model: NoiseModel = noise_model_factory(
             self.algorithm_config.noise_model
         )
+        self.algorithm_config.noise_model_likelihood_model.noise_model = (
+            self.noise_model
+        )  # TODO why is this necessary? refactor
+
         # TODO: here we can add some code to check whether the noise model is not None
         # and `self.algorithm_config.noise_model_likelihood_model.noise_model` is,
         # instead, None. In that case we could assign the noise model to the latter.
