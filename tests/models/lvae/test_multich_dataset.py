@@ -37,9 +37,6 @@ def load_data_fn_example(
         fpaths = [fpath0] + fpaths
 
     data = np.concatenate([load_tiff(fpath)[..., None] for fpath in fpaths], axis=3)
-    if data_config.data_type == DataType.PredictedTiffData:
-        assert len(data.shape) == 5 and data.shape[-1] == 1
-        data = data[..., 0].copy()
 
     if datasplit_type == DataSplitType.All:
         return data.astype(np.float32)
