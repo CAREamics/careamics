@@ -86,7 +86,7 @@ class LadderVAE(nn.Module):
         # -------------------------------------------------------
         # Customizable attributes
         self.image_size = input_shape
-        """Input image size. (C, Z, Y, X) or (C, Y, X) if the data is 2D."""
+        """Input image size. (Z, Y, X) or (Y, X) if the data is 2D."""
         # TODO: we need to be careful with this since used to be an int.
         # the tuple of shapes used to be `self.input_shape`.
         self.target_ch = output_channels

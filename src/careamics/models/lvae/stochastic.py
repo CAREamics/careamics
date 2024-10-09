@@ -228,7 +228,7 @@ class NormalStochasticBlock(nn.Module):
             "kl_samplewise_restricted": kl_samplewise_restricted,  # (batch, )
             "kl_spatial": kl_spatial,  # (batch, h, w)
             "kl_channelwise": kl_channelwise,  # (batch, ch)
-        }
+        }  # TODO revisit, check dims
         return kl_dict
 
     def process_p_params(
@@ -295,7 +295,7 @@ class NormalStochasticBlock(nn.Module):
         if q_mu.shape[-1] % 2 == 1 and allow_oddsizes is False:
             q_mu = F.center_crop(q_mu, q_mu.shape[-1] - 1)
             q_lv = F.center_crop(q_lv, q_lv.shape[-1] - 1)
-
+            # TODO revisit ?!
         q_mu = StableMean(q_mu)
         q_lv = StableLogVar(q_lv, enable_stable=not self._use_naive_exponential)
         q = Normal(q_mu.get(), q_lv.get_std())

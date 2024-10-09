@@ -275,7 +275,8 @@ class VAEModule(L.LightningModule):
         )
         self.algorithm_config.noise_model_likelihood_model.noise_model = (
             self.noise_model
-        )
+        )  # TODO why is this necessary? refactor
+
         # TODO: here we can add some code to check whether the noise model is not None
         # and `self.algorithm_config.noise_model_likelihood_model.noise_model` is,
         # instead, None. In that case we could assign the noise model to the latter.

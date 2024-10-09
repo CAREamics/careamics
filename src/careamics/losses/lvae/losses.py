@@ -173,7 +173,7 @@ def get_kl_divergence_loss_usplit(
 
     z_size: int
         The size of the Z dimension in the 3D model. 0 if 2D model.
-    """
+    """  # TODO document !
     kl = torch.cat(
         [kl_layer.unsqueeze(1) for kl_layer in topdown_data[kl_key]], dim=1
     )  # shape: (B, n_layers)

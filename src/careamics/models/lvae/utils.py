@@ -196,7 +196,7 @@ class StableExponential:
 
     What is done here is that definition of exp() has been changed. This, naturally, has changed the result of log.
     but the log is still the mathematical log, that is, it takes the math.log() on whatever comes out of exp().
-    """
+    """  # TODO document
 
     def __init__(self, tensor):
         self._raw_tensor = tensor
@@ -229,7 +229,7 @@ class StableLogVar:
     def __init__(self, logvar, enable_stable=True, var_eps=1e-6):
         """
         Args:
-            var_eps: var() has this minimum value.
+            var_eps: var() has this minimum value. # TODO document !
         """
         self._lv = logvar
         self._enable_stable = enable_stable

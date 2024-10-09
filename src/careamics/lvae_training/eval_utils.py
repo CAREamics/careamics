@@ -648,7 +648,7 @@ def get_dset_predictions(
     # np.concatenate(predictions_std, axis=0),
     # np.concatenate(logvar_arr),
     # np.array(losses),
-    # psnr,
+    # psnr, # TODO revisit !
 
 
 # ------------------------------------------------------------------------------------------
