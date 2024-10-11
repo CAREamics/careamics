@@ -54,6 +54,7 @@ dependencies = [
     'typer>=0.12.3,<=0.15.1',
     'scikit-image<=0.25.0',
     'zarr<3.0.0',
+    'pylibczirw==4.1.0',
     'pillow<=11.1.0',
 ]
 

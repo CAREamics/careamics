@@ -7,6 +7,7 @@ from numpy.typing import NDArray
 
 from careamics.config.support import SupportedData
 
+from .czi_read import read_czi_roi
 from .tiff import read_tiff
 
 
@@ -32,6 +33,7 @@ class ReadFunc(Protocol):
 
 READ_FUNCS: dict[SupportedData, ReadFunc] = {
     SupportedData.TIFF: read_tiff,
+    SupportedData.CZI: read_czi_roi,
 }
 
 

@@ -564,7 +564,7 @@ class CAREamist:
         tile_size: Optional[tuple[int, ...]] = None,
         tile_overlap: Optional[tuple[int, ...]] = (48, 48),
         axes: Optional[str] = None,
-        data_type: Optional[Literal["array", "tiff", "custom"]] = None,
+        data_type: Optional[Literal["array", "tiff", "czi", "custom"]] = None,
         tta_transforms: bool = False,
         dataloader_params: Optional[dict] = None,
         read_source_func: Optional[Callable] = None,
@@ -806,7 +806,7 @@ class CAREamist:
 
         # extract file names
         source_path: Union[Path, str, NDArray]
-        source_data_type: Literal["array", "tiff", "custom"]
+        source_data_type: Literal["array", "tiff", "czi", "custom"]
         if isinstance(source, PredictDataModule):
             source_path = source.pred_data
             source_data_type = source.data_type

@@ -226,7 +226,7 @@ class PredictDataModule(L.LightningDataModule):
 
 def create_predict_datamodule(
     pred_data: Union[str, Path, NDArray],
-    data_type: Union[Literal["array", "tiff", "custom"], SupportedData],
+    data_type: Union[Literal["array", "tiff", "czi", "custom"], SupportedData],
     axes: str,
     image_means: list[float],
     image_stds: list[float],
@@ -265,7 +265,7 @@ def create_predict_datamodule(
     ----------
     pred_data : str or pathlib.Path or numpy.ndarray
         Prediction data.
-    data_type : {"array", "tiff", "custom"}
+    data_type : {"array", "tiff", "czi", "custom"}
         Data type, see `SupportedData` for available options.
     axes : str
         Axes of the data, chosen among SCZYX.

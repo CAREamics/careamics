@@ -2,11 +2,15 @@ import pytest
 
 from careamics.config.support import SupportedData
 from careamics.file_io import get_read_func
-from careamics.file_io.read import read_tiff
+from careamics.file_io.read import read_czi_roi, read_tiff
 
 
 def test_get_read_tiff():
     assert get_read_func(SupportedData.TIFF) is read_tiff
+
+
+def test_get_read_czi():
+    assert get_read_func(SupportedData.CZI) is read_czi_roi
 
 
 def test_get_read_any_error():

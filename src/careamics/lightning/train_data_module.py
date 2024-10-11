@@ -12,6 +12,7 @@ from torch.utils.data import DataLoader, IterableDataset
 from careamics.config import DataConfig
 from careamics.config.support import SupportedData
 from careamics.config.transformations import TransformModel
+from careamics.dataset.czi_dataset import CZIDataset
 from careamics.dataset.dataset_utils import (
     get_files_size,
     list_files,
@@ -209,6 +210,7 @@ class TrainDataModule(L.LightningDataModule):
         # and that Path or str are passed, if tiff file type specified
         elif (isinstance(train_data, Path) or isinstance(train_data, str)) and (
             data_config.data_type != SupportedData.TIFF
+            and data_config.data_type != SupportedData.CZI
             and data_config.data_type != SupportedData.CUSTOM
         ):
             raise ValueError(
@@ -358,6 +360,36 @@ class TrainDataModule(L.LightningDataModule):
                     percentage=self.val_percentage,
                     minimum_patches=self.val_minimum_split,
                 )
+        # if czi
+        elif self.data_type == SupportedData.CZI:
+
+            # train dataset
+            self.train_dataset = CZIDataset(
+                data_config=self.data_config,
+                src_files=self.train_files,
+                target_files=(
+                    self.train_target_files if self.train_data_target else None
+                ),
+                read_source_func=self.read_source_func,
+            )
+
+            # validation dataset
+            if self.val_data is not None:
+                # create its own dataset
+                self.val_dataset = CZIDataset(
+                    data_config=self.data_config,
+                    src_files=self.val_files,
+                    target_files=(
+                        self.val_target_files if self.val_data_target else None
+                    ),
+                    read_source_func=self.read_source_func,
+                )
+            else:
+                # extract validation from the training files
+                self.val_dataset = self.train_dataset.split_dataset(
+                    percentage=self.val_percentage,
+                    minimum_number=self.val_minimum_split,
+                )
 
         # else we read files
         else:
@@ -481,7 +513,7 @@ class TrainDataModule(L.LightningDataModule):
 
 def create_train_datamodule(
     train_data: Union[str, Path, NDArray],
-    data_type: Union[Literal["array", "tiff", "custom"], SupportedData],
+    data_type: Union[Literal["array", "tiff", "czi", "custom"], SupportedData],
     patch_size: list[int],
     axes: str,
     batch_size: int,

@@ -1,5 +1,6 @@
 import numpy as np
 import pytest
+from pylibCZIrw import czi as pyczi
 from tifffile import imwrite
 
 from careamics.config import DataConfig
@@ -8,7 +9,7 @@ from careamics.config.support import (
     SupportedPixelManipulation,
     SupportedStructAxis,
 )
-from careamics.dataset import InMemoryDataset, PathIterableDataset
+from careamics.dataset import CZIDataset, InMemoryDataset, PathIterableDataset
 from careamics.lightning import TrainDataModule, create_train_datamodule
 
 
@@ -24,6 +25,10 @@ def test_mismatching_types_array(simple_array, minimum_data):
         TrainDataModule(data_config=DataConfig(**minimum_data), train_data=simple_array)
 
     minimum_data["data_type"] = SupportedData.CUSTOM.value
+    with pytest.raises(ValueError):
+        TrainDataModule(data_config=DataConfig(**minimum_data), train_data=simple_array)
+
+    minimum_data["data_type"] = SupportedData.CZI.value
     with pytest.raises(ValueError):
         TrainDataModule(data_config=DataConfig(**minimum_data), train_data=simple_array)
 
@@ -173,6 +178,54 @@ def test_get_data_statistics(tmp_path):
     data_module.prepare_data()
     data_module.setup()
     assert isinstance(data_module.train_dataset, PathIterableDataset)
+
+    means, stds = data_module.get_data_statistics()
+    assert np.allclose(means, data_mean)
+    assert np.allclose(stds, data_std)
+
+    # same for czi iterable dataset
+    train_path_czi = tmp_path / "train_czi"
+    train_path_czi.mkdir()
+    val_path_czi = tmp_path / "val_czi"
+    val_path_czi.mkdir()
+    # create a sample czi file
+    file = train_path_czi / "sample.czi"
+    with pyczi.create_czi(
+        file, exist_ok=True, compression_options="uncompressed:"
+    ) as czidoc_w:
+        for c in range(data.shape[1]):
+            for z in range(data.shape[0]):
+                czidoc_w.write(
+                    data=data[z, c].astype(np.uint8),
+                    plane={"C": c, "Z": z},
+                )
+    # create a sample czi file
+    file = val_path_czi / "sample.czi"
+    with pyczi.create_czi(
+        file, exist_ok=True, compression_options="uncompressed:"
+    ) as czidoc_w:
+        for c in range(data_val.shape[1]):
+            for z in range(data_val.shape[0]):
+                czidoc_w.write(
+                    data=data_val[z, c].astype(np.uint8),
+                    plane={"C": c, "Z": z},
+                )
+
+    data_config = DataConfig(
+        data_type=SupportedData.CZI.value,
+        patch_size=(16, 16),
+        axes="SCYX",
+        batch_size=1,
+    )
+    data_module = TrainDataModule(
+        data_config=data_config,
+        train_data=train_path_czi,
+        val_data=val_path_czi,
+        use_in_memory=False,
+    )
+    data_module.prepare_data()
+    data_module.setup()
+    assert isinstance(data_module.train_dataset, CZIDataset)
 
     means, stds = data_module.get_data_statistics()
     assert np.allclose(means, data_mean)

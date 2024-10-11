@@ -40,13 +40,24 @@ def test_extension_pattern_tiff_rglob(tmp_path: Path):
 
 def test_extension_pattern_custom_fnmatch(tmp_path: Path):
     """Test that the custom extension is compatible with fnmatch."""
-    path = tmp_path / "test.czi"
+    path = tmp_path / "test.txt"
 
     # test as str
     assert fnmatch(str(path), SupportedData.get_extension_pattern(SupportedData.CUSTOM))
 
     # test as Path
     assert fnmatch(path, SupportedData.get_extension_pattern(SupportedData.CUSTOM))
+
+
+def test_extension_pattern_czi_fnmatch(tmp_path: Path):
+    """Test that the CZI extension is compatible with fnmatch."""
+    path = tmp_path / "test.czi"
+
+    # test as str
+    assert fnmatch(str(path), SupportedData.get_extension_pattern(SupportedData.CZI))
+
+    # test as Path
+    assert fnmatch(path, SupportedData.get_extension_pattern(SupportedData.CZI))
 
 
 def test_extension_pattern_custom_rglob(tmp_path: Path):
@@ -89,6 +100,11 @@ def test_extension_array_error():
 def test_extension_tiff():
     """Test that the tiff extension is .tiff."""
     assert SupportedData.get_extension(SupportedData.TIFF) == ".tiff"
+
+
+def test_extension_czi():
+    """Test that the CZI extension is .czi."""
+    assert SupportedData.get_extension(SupportedData.CZI) == ".czi"
 
 
 def test_extension_custom_error():

@@ -1,6 +1,7 @@
 """Dataset module."""
 
 __all__ = [
+    "CZIDataset",
     "InMemoryDataset",
     "InMemoryPredDataset",
     "InMemoryTiledPredDataset",
@@ -9,6 +10,7 @@ __all__ = [
     "PathIterableDataset",
 ]
 
+from .czi_dataset import CZIDataset
 from .in_memory_dataset import InMemoryDataset
 from .in_memory_pred_dataset import InMemoryPredDataset
 from .in_memory_tiled_pred_dataset import InMemoryTiledPredDataset
