@@ -682,9 +682,7 @@ class CAREamist:
         tile_size: Optional[tuple[int, ...]] = None,
         tile_overlap: Optional[tuple[int, ...]] = (48, 48),
         axes: Optional[str] = None,
-        data_type: Optional[
-            Union[Literal["array", "tiff", "custom"], SupportedData]
-        ] = None,
+        data_type: Optional[Literal["array", "tiff", "custom"]] = None,
         tta_transforms: bool = True,
         dataloader_params: Optional[dict] = None,
         read_source_func: Optional[Callable] = None,
@@ -772,9 +770,9 @@ class CAREamist:
         if write_func_kwargs is None:
             write_func_kwargs = {}
 
-        data_type = SupportedData(data_type)
-        # TODO: make configurable?
+        # write_type = SupportedData(write_type)
 
+        # TODO: make configurable?
         write_dir = self.work_dir / "predictions"
 
         # guards for custom types
@@ -794,12 +792,14 @@ class CAREamist:
         # extract file names
         if isinstance(source, PredictDataModule):
             # assert not isinstance(source.pred_data, )
-            data_type = SupportedData(source.data_type)
+            data_type = source.data_type
             extension_filter = source.extension_filter
             source_file_paths = list_files(
                 source.pred_data, data_type, extension_filter
             )
         elif isinstance(source, (str, Path)):
+            data_type = data_type or self.cfg.data_config.data_type
+            extension_filter = SupportedData.get_extension_pattern(data_type)
             source_file_paths = list_files(source, data_type, extension_filter)
         else:
             raise ValueError(f"Unsupported source type: '{type(source)}'.")
@@ -825,7 +825,7 @@ class CAREamist:
             write_data = np.concatenate(prediction)
 
             # create directory structure and write path
-            file_write_dir = write_dir / source_path.parent
+            file_write_dir = write_dir / source_path.parent.name
             file_write_dir.mkdir(parents=True, exist_ok=True)
             write_path = (file_write_dir / source_path.name).with_suffix(
                 write_extension

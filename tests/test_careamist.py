@@ -4,6 +4,7 @@ from typing import Tuple
 import numpy as np
 import pytest
 import tifffile
+from numpy.typing import NDArray
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import Callback, EarlyStopping, ModelCheckpoint
 
@@ -11,6 +12,7 @@ from careamics import CAREamist, Configuration, save_configuration
 from careamics.config.support import SupportedAlgorithm, SupportedData
 from careamics.dataset.dataset_utils import reshape_array
 from careamics.lightning.callbacks import HyperParametersCallback, ProgressBarCallback
+from careamics.lightning.predict_data_module import create_predict_datamodule
 
 
 def random_array(shape: Tuple[int, ...], seed: int = 42):
@@ -816,6 +818,172 @@ def test_export_bmz_pretrained_with_array(tmp_path: Path, pre_trained: Path):
         general_description="A model that just walked in.",
     )
     assert (tmp_path / "model2.zip").exists()
+
+
+def test_predict_to_disk_path_tiff(tmp_path, minimum_configuration):
+    """Test predict_to_disk function with path source and tiff write type."""
+
+    # prepare dummy data
+    train_array = random_array((32, 32))
+
+    image_dir = tmp_path / "images"
+    image_dir.mkdir()
+    n_samples = 2
+    # save files
+    for i in range(n_samples):
+        train_file = image_dir / f"image_{i}.tiff"
+        tifffile.imwrite(train_file, train_array)
+
+    # create configuration
+    config = Configuration(**minimum_configuration)
+    config.training_config.num_epochs = 1
+    config.data_config.axes = "YX"
+    config.data_config.batch_size = 2
+    config.data_config.data_type = SupportedData.TIFF.value
+    config.data_config.patch_size = (8, 8)
+
+    # train
+    careamist = CAREamist(source=config, work_dir=tmp_path)
+    careamist.train(train_source=image_dir)
+
+    # predict to disk
+    careamist.predict_to_disk(source=image_dir)
+
+    for i in range(n_samples):
+        assert (tmp_path / "predictions" / "images" / f"image_{i}.tiff").is_file()
+
+
+def test_predict_to_disk_datamodule_tiff(tmp_path, minimum_configuration):
+    """Test predict_to_disk function with datamodule source and tiff write type."""
+
+    # prepare dummy data
+    train_array = random_array((32, 32))
+
+    image_dir = tmp_path / "images"
+    image_dir.mkdir()
+    n_samples = 2
+    # save files
+    for i in range(n_samples):
+        train_file = image_dir / f"image_{i}.tiff"
+        tifffile.imwrite(train_file, train_array)
+
+    # create configuration
+    config = Configuration(**minimum_configuration)
+    config.training_config.num_epochs = 1
+    config.data_config.axes = "YX"
+    config.data_config.batch_size = 2
+    config.data_config.data_type = SupportedData.TIFF.value
+    config.data_config.patch_size = (8, 8)
+
+    # train
+    careamist = CAREamist(source=config, work_dir=tmp_path)
+    careamist.train(train_source=image_dir)
+
+    datamodule = create_predict_datamodule(
+        pred_data=image_dir,
+        data_type=config.data_config.data_type,
+        axes=config.data_config.axes,
+        image_means=careamist.cfg.data_config.image_means,
+        image_stds=careamist.cfg.data_config.image_stds,
+    )
+
+    # predict to disk
+    careamist.predict_to_disk(source=datamodule)
+
+    for i in range(n_samples):
+        assert (tmp_path / "predictions" / "images" / f"image_{i}.tiff").is_file()
+
+
+def test_predict_to_disk_custom(tmp_path, minimum_configuration):
+    """Test predict_to_disk function with custom write type."""
+
+    def write_numpy(file_path: Path, img: NDArray, *args, **kwargs) -> None:
+        np.save(file=file_path, arr=img)
+
+    # prepare dummy data
+    train_array = random_array((32, 32))
+
+    image_dir = tmp_path / "images"
+    image_dir.mkdir()
+    n_samples = 2
+    # save files
+    for i in range(n_samples):
+        train_file = image_dir / f"image_{i}.tiff"
+        tifffile.imwrite(train_file, train_array)
+
+    # create configuration
+    config = Configuration(**minimum_configuration)
+    config.training_config.num_epochs = 1
+    config.data_config.axes = "YX"
+    config.data_config.batch_size = 2
+    config.data_config.data_type = SupportedData.TIFF.value
+    config.data_config.patch_size = (8, 8)
+
+    # train
+    careamist = CAREamist(source=config, work_dir=tmp_path)
+    careamist.train(train_source=image_dir)
+
+    # predict to disk
+    careamist.predict_to_disk(
+        source=image_dir,
+        write_type=SupportedData.CUSTOM,
+        write_extension=".npy",
+        write_func=write_numpy,
+    )
+
+    for i in range(n_samples):
+        assert (tmp_path / "predictions" / "images" / f"image_{i}.npy").is_file()
+
+
+def test_predict_to_disk_custom_raises(tmp_path, minimum_configuration):
+    """
+    Test predict_to_disk custom write type raises ValueError.
+
+    ValueError should be raised if no write_extension or no write_func is provided.
+    """
+
+    def write_numpy(file_path: Path, img: NDArray, *args, **kwargs) -> None:
+        np.save(file=file_path, arr=img)
+
+    # prepare dummy data
+    train_array = random_array((32, 32))
+
+    image_dir = tmp_path / "images"
+    image_dir.mkdir()
+    n_samples = 2
+    # save files
+    for i in range(n_samples):
+        train_file = image_dir / f"image_{i}.tiff"
+        tifffile.imwrite(train_file, train_array)
+
+    # create configuration
+    config = Configuration(**minimum_configuration)
+    config.training_config.num_epochs = 1
+    config.data_config.axes = "YX"
+    config.data_config.batch_size = 2
+    config.data_config.data_type = SupportedData.TIFF.value
+    config.data_config.patch_size = (8, 8)
+
+    # train
+    careamist = CAREamist(source=config, work_dir=tmp_path)
+    careamist.train(train_source=image_dir)
+
+    with pytest.raises(ValueError):
+        # no write extension provided
+        careamist.predict_to_disk(
+            source=image_dir,
+            write_type=SupportedData.CUSTOM,
+            write_extension=None,
+            write_func=write_numpy,
+        )
+    with pytest.raises(ValueError):
+        # no write func provided.
+        careamist.predict_to_disk(
+            source=image_dir,
+            write_type=SupportedData.CUSTOM,
+            write_extension=".npy",
+            write_func=None,
+        )
 
 
 def test_add_custom_callback(tmp_path, minimum_configuration):
