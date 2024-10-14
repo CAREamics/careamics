@@ -84,7 +84,7 @@ def get_optimizers() -> Dict[str, str]:
 def get_scheduler(
     name: str,
 ) -> Union[
-    torch.optim.lr_scheduler.LRScheduler,
+    # torch.optim.lr_scheduler.LRScheduler,
     torch.optim.lr_scheduler.ReduceLROnPlateau,
 ]:
     """

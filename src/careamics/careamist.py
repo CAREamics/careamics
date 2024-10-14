@@ -49,8 +49,6 @@ class CAREamist:
     work_dir : str, optional
         Path to working directory in which to save checkpoints and logs,
         by default None.
-    experiment_name : str, by default "CAREamics"
-        Experiment name used for checkpoints.
     callbacks : list of Callback, optional
         List of callbacks to use during training and prediction, by default None.
 
@@ -77,7 +75,6 @@ class CAREamist:
         self,
         source: Union[Path, str],
         work_dir: Optional[Union[Path, str]] = None,
-        experiment_name: str = "CAREamics",
         callbacks: Optional[list[Callback]] = None,
     ) -> None: ...
 
@@ -86,7 +83,6 @@ class CAREamist:
         self,
         source: Configuration,
         work_dir: Optional[Union[Path, str]] = None,
-        experiment_name: str = "CAREamics",
         callbacks: Optional[list[Callback]] = None,
     ) -> None: ...
 
@@ -94,7 +90,6 @@ class CAREamist:
         self,
         source: Union[Path, str, Configuration],
         work_dir: Optional[Union[Path, str]] = None,
-        experiment_name: str = "CAREamics",
         callbacks: Optional[list[Callback]] = None,
     ) -> None:
         """
@@ -107,18 +102,13 @@ class CAREamist:
 
         If no working directory is provided, the current working directory is used.
 
-        If `source` is a checkpoint, then `experiment_name` is used to name the
-        checkpoint, and is recorded in the configuration.
-
         Parameters
         ----------
         source : pathlib.Path or str or CAREamics Configuration
             Path to a configuration file or a trained model.
-        work_dir : str, optional
+        work_dir : str or pathlib.Path, optional
             Path to working directory in which to save checkpoints and logs,
             by default None.
-        experiment_name : str, optional
-            Experiment name used for checkpoints, by default "CAREamics".
         callbacks : list of Callback, optional
             List of callbacks to use during training and prediction, by default None.
 
@@ -257,6 +247,12 @@ class CAREamist:
             self.callbacks.append(
                 EarlyStopping(self.cfg.training_config.early_stopping_callback)
             )
+
+    def stop_training(self) -> None:
+        """Stop the training loop."""
+        # raise stop training flag
+        self.trainer.should_stop = True
+        self.trainer.limit_val_batches = 0  # skip  validation
 
     # TODO: is there are more elegant way than calling train again after _train_on_paths
     def train(
@@ -404,9 +400,14 @@ class CAREamist:
         datamodule : TrainDataModule
             Datamodule to train on.
         """
-        # record datamodule
+        # register datamodule
         self.train_datamodule = datamodule
 
+        # set defaults (in case `stop_training` was called before)
+        self.trainer.should_stop = False
+        self.trainer.limit_val_batches = 1.0  # 100%
+
+        # train
         self.trainer.fit(self.model, datamodule=datamodule)
 
     def _train_on_array(
@@ -521,10 +522,8 @@ class CAREamist:
         tile_size: Optional[tuple[int, ...]] = None,
         tile_overlap: Optional[tuple[int, ...]] = (48, 48),
         axes: Optional[str] = None,
-        data_type: Optional[
-            Union[Literal["array", "tiff", "custom"], SupportedData]
-        ] = None,
-        tta_transforms: bool = True,
+        data_type: Optional[Literal["tiff", "custom"]] = None,
+        tta_transforms: bool = False,
         dataloader_params: Optional[dict] = None,
         read_source_func: Optional[Callable] = None,
         extension_filter: str = "",
@@ -539,10 +538,8 @@ class CAREamist:
         tile_size: Optional[tuple[int, ...]] = None,
         tile_overlap: Optional[tuple[int, ...]] = (48, 48),
         axes: Optional[str] = None,
-        data_type: Optional[
-            Union[Literal["array", "tiff", "custom"], SupportedData]
-        ] = None,
-        tta_transforms: bool = True,
+        data_type: Optional[Literal["array"]] = None,
+        tta_transforms: bool = False,
         dataloader_params: Optional[dict] = None,
     ) -> Union[list[NDArray], NDArray]: ...
 
@@ -554,10 +551,8 @@ class CAREamist:
         tile_size: Optional[tuple[int, ...]] = None,
         tile_overlap: Optional[tuple[int, ...]] = (48, 48),
         axes: Optional[str] = None,
-        data_type: Optional[
-            Union[Literal["array", "tiff", "custom"], SupportedData]
-        ] = None,
-        tta_transforms: bool = True,
+        data_type: Optional[Literal["array", "tiff", "custom"]] = None,
+        tta_transforms: bool = False,
         dataloader_params: Optional[dict] = None,
         read_source_func: Optional[Callable] = None,
         extension_filter: str = "",
@@ -682,8 +677,8 @@ class CAREamist:
         tile_size: Optional[tuple[int, ...]] = None,
         tile_overlap: Optional[tuple[int, ...]] = (48, 48),
         axes: Optional[str] = None,
-        data_type: Optional[Literal["array", "tiff", "custom"]] = None,
-        tta_transforms: bool = True,
+        data_type: Optional[Literal["tiff", "custom"]] = None,
+        tta_transforms: bool = False,
         dataloader_params: Optional[dict] = None,
         read_source_func: Optional[Callable] = None,
         extension_filter: str = "",
@@ -697,7 +692,8 @@ class CAREamist:
         Make predictions on the provided data and save outputs to files.
 
         The predictions will be saved in a new directory 'predictions' within the set
-        working directory.
+        working directory. The directory stucture within the 'predictions' directory
+        will match that of the source directory.
 
         The `source` must be from files and not arrays. The file names of the
         predictions will match those of the source. If there is more than one sample
@@ -792,14 +788,15 @@ class CAREamist:
         # extract file names
         if isinstance(source, PredictDataModule):
             # assert not isinstance(source.pred_data, )
-            data_type = source.data_type
-            extension_filter = source.extension_filter
             source_file_paths = list_files(
-                source.pred_data, data_type, extension_filter
+                source.pred_data, source.data_type, source.extension_filter
             )
         elif isinstance(source, (str, Path)):
+            assert self.cfg.data_config.data_type != "array"
             data_type = data_type or self.cfg.data_config.data_type
-            extension_filter = SupportedData.get_extension_pattern(data_type)
+            extension_filter = SupportedData.get_extension_pattern(
+                SupportedData(data_type)
+            )
             source_file_paths = list_files(source, data_type, extension_filter)
         else:
             raise ValueError(f"Unsupported source type: '{type(source)}'.")

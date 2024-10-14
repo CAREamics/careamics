@@ -2,7 +2,8 @@
 Script for utility functions needed by the LVAE model.
 """
 
-from typing import Iterable
+from collections.abc import Iterable
+from typing import Literal
 
 import numpy as np
 import torch
@@ -100,43 +101,70 @@ class ModelType(Enum):
     LadderVAETwoDataSetFinetuning = 28
 
 
-def _pad_crop_img(x, size, mode) -> torch.Tensor:
+def _pad_crop_img(
+    x: torch.Tensor, size: Iterable[int], mode: Literal["crop", "pad"]
+) -> torch.Tensor:
     """Pads or crops a tensor.
-    Pads or crops a tensor of shape (batch, channels, h, w) to new height
-    and width given by a tuple.
-    Args:
-        x (torch.Tensor): Input image
-        size (list or tuple): Desired size (height, width)
+
+    Pads or crops a tensor of shape (B, C, [Z], Y, X) to new shape.
+
+    Parameters
+    ----------
+        x (torch.Tensor): Input image of shape (B, C, [Z], Y, X)
+        size (list or tuple): Desired size ([Z*], Y*, X*)
         mode (str): Mode, either 'pad' or 'crop'
-    Returns:
+
+    Returns
+    -------
         The padded or cropped tensor
     """
-    assert x.dim() == 4 and len(size) == 2
+    # TODO: Support cropping/padding on selected dimensions
+    assert (x.dim() == 4 and len(size) == 2) or (x.dim() == 5 and len(size) == 3)
+    # assert x.dim() in [4,5] and len(size) == 2
+
     size = tuple(size)
-    x_size = x.size()[2:4]
+    x_size = x.size()[2:]
+
     if mode == "pad":
-        cond = x_size[0] > size[0] or x_size[1] > size[1]
+        cond = any(x_size[i] > size[i] for i in range(len(size)))
     elif mode == "crop":
-        cond = x_size[0] < size[0] or x_size[1] < size[1]
-    else:
-        raise ValueError(f"invalid mode '{mode}'")
+        cond = any(x_size[i] < size[i] for i in range(len(size)))
+
     if cond:
-        raise ValueError(f"trying to {mode} from size {x_size} to size {size}")
-    dr, dc = (abs(x_size[0] - size[0]), abs(x_size[1] - size[1]))
-    dr1, dr2 = dr // 2, dr - (dr // 2)
-    dc1, dc2 = dc // 2, dc - (dc // 2)
+        raise ValueError(f"Trying to {mode} from size {x_size} to size {size}")
+
+    diffs = [abs(x - s) for x, s in zip(x_size, size)]
+    d1 = [d // 2 for d in diffs]
+    d2 = [d - (d // 2) for d in diffs]
+
     if mode == "pad":
-        return nn.functional.pad(x, [dc1, dc2, dr1, dr2, 0, 0, 0, 0])
+        if x.dim() == 4:
+            padding = [d1[1], d2[1], d1[0], d2[0], 0, 0, 0, 0]
+        elif x.dim() == 5:
+            padding = [d1[2], d2[2], d1[1], d2[1], d1[0], d2[0], 0, 0, 0, 0]
+        return nn.functional.pad(x, padding)
     elif mode == "crop":
-        return x[:, :, dr1 : x_size[0] - dr2, dc1 : x_size[1] - dc2]
+        if x.dim() == 4:
+            return x[:, :, d1[0] : (x_size[0] - d2[0]), d1[1] : (x_size[1] - d2[1])]
+        elif x.dim() == 5:
+            return x[
+                :,
+                :,
+                d1[0] : (x_size[0] - d2[0]),
+                d1[1] : (x_size[1] - d2[1]),
+                d1[2] : (x_size[2] - d2[2]),
+            ]
 
 
-def pad_img_tensor(x, size) -> torch.Tensor:
-    """Pads a tensor.
-    Pads a tensor of shape (batch, channels, h, w) to a desired height and width.
-    Args:
-        x (torch.Tensor): Input image
-        size (list or tuple): Desired size (height, width)
+def pad_img_tensor(x: torch.Tensor, size: Iterable[int]) -> torch.Tensor:
+    """Pads a tensor
+
+    Pads a tensor of shape (B, C, [Z], Y, X) to desired spatial dimensions.
+
+    Parameters
+    ----------
+        x (torch.Tensor): Input image of shape (B, C, [Z], Y, X)
+        size (list or tuple): Desired size  ([Z*], Y*, X*)
 
     Returns
     -------
@@ -162,30 +190,13 @@ def crop_img_tensor(x, size) -> torch.Tensor:
 
 class StableExponential:
     """
-    Class that redefines the definition of exp() to increase numerical stability.
-    Naturally, also the definition of log() must change accordingly.
-    However, it is worth noting that the two operations remain one the inverse of the other,
-    meaning that x = log(exp(x)) and x = exp(log(x)) are always true.
+    Here, the idea is that everything is done on the tensor which you've given in the constructor.
+    when exp() is called, what that means is that we want to compute self._tensor.exp()
+    when log() is called, we want to compute torch.log(self._tensor.exp())
 
-    Definition:
-        exp(x) = {
-            exp(x) if x<=0
-            x+1    if x>0
-        }
-
-        log(x) = {
-            x        if x<=0
-            log(1+x) if x>0
-        }
-
-    NOTE 1:
-        Within the class everything is done on the tensor given as input to the constructor.
-        Therefore, when exp() is called, self._tensor.exp() is computed.
-        When log() is called, torch.log(self._tensor.exp()) is computed instead.
-
-    NOTE 2:
-        Given the output from exp(), torch.log() or the log() method of the class give identical results.
-    """
+    What is done here is that definition of exp() has been changed. This, naturally, has changed the result of log.
+    but the log is still the mathematical log, that is, it takes the math.log() on whatever comes out of exp().
+    """  # TODO document
 
     def __init__(self, tensor):
         self._raw_tensor = tensor
@@ -206,60 +217,39 @@ class StableExponential:
         return torch.exp(self.neg_data) * self.neg_f + (1 + self.pos_data) * self.pos_f
 
     def log(self):
+        """
+        Note that if you have the output from exp(). You could simply apply torch.log() on it and that should give
+        identical numbers.
+        """
         return self.neg_data * self.neg_f + torch.log(1 + self.pos_data) * self.pos_f
 
 
 class StableLogVar:
-    """
-    Class that provides a numerically stable implementation of Log-Variance.
-    Specifically, it uses the exp() and log() formulas defined in `StableExponential` class.
-    """
 
-    def __init__(
-        self, logvar: torch.Tensor, enable_stable: bool = True, var_eps: float = 1e-6
-    ):
+    def __init__(self, logvar, enable_stable=True, var_eps=1e-6):
         """
-        Constructor.
-
-        Parameters
-        ----------
-        logvar: torch.Tensor
-            The input (true) logvar vector, to be converted in the Stable version.
-        enable_stable: bool, optional
-            Whether to compute the stable version of log-variance. Default is `True`.
-        var_eps: float, optional
-            The minimum value attainable by the variance. Default is `1e-6`.
+        Args:
+            var_eps: var() has this minimum value. # TODO document !
         """
         self._lv = logvar
         self._enable_stable = enable_stable
         self._eps = var_eps
 
-    def get(self) -> torch.Tensor:
+    def get(self):
         if self._enable_stable is False:
             return self._lv
 
         return torch.log(self.get_var())
 
-    def get_var(self) -> torch.Tensor:
-        """
-        Get Variance from Log-Variance.
-        """
+    def get_var(self):
         if self._enable_stable is False:
             return torch.exp(self._lv)
         return StableExponential(self._lv).exp() + self._eps
 
-    def get_std(self) -> torch.Tensor:
+    def get_std(self):
         return torch.sqrt(self.get_var())
 
-    def centercrop_to_size(self, size: Iterable[int]) -> None:
-        """
-        Centercrop the log-variance tensor to the desired size.
-
-        Parameters
-        ----------
-        size: torch.Tensor
-            The desired size of the log-variance tensor.
-        """
+    def centercrop_to_size(self, size):
         if self._lv.shape[-1] == size:
             return
 
@@ -273,18 +263,10 @@ class StableMean:
     def __init__(self, mean):
         self._mean = mean
 
-    def get(self) -> torch.Tensor:
+    def get(self):
         return self._mean
 
-    def centercrop_to_size(self, size: Iterable[int]) -> None:
-        """
-        Centercrop the mean tensor to the desired size.
-
-        Parameters
-        ----------
-        size: torch.Tensor
-            The desired size of the log-variance tensor.
-        """
+    def centercrop_to_size(self, size):
         if self._mean.shape[-1] == size:
             return
 
