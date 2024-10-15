@@ -568,7 +568,7 @@ class CAREamist:
         configuration parameters will be used, with the `patch_size` instead of
         `tile_size`.
 
-        Test-time augmentation (TTA) can be switched off using the `tta_transforms`
+        Test-time augmentation (TTA) can be switched on using the `tta_transforms`
         parameter. The TTA augmentation applies all possible flip and 90 degrees
         rotations to the prediction input and averages the predictions. TTA augmentation
         should not be used if you did not train with these augmentations.
@@ -686,6 +686,7 @@ class CAREamist:
         write_extension: Optional[str] = None,
         write_func: Optional[WriteFunc] = None,
         write_func_kwargs: Optional[dict[str, Any]] = None,
+        prediction_dir: Union[Path, str] = "predictions",
         **kwargs,
     ) -> None:
         """
@@ -708,7 +709,7 @@ class CAREamist:
         configuration parameters will be used, with the `patch_size` instead of
         `tile_size`.
 
-        Test-time augmentation (TTA) can be switched off using the `tta_transforms`
+        Test-time augmentation (TTA) can be switched on using the `tta_transforms`
         parameter. The TTA augmentation applies all possible flip and 90 degrees
         rotations to the prediction input and averages the predictions. TTA augmentation
         should not be used if you did not train with these augmentations.
@@ -751,6 +752,10 @@ class CAREamist:
             `write_type` a function to save the data must be passed. See notes below.
         write_func_kwargs : dict of {str: any}, optional
             Additional keyword arguments to be passed to the save function.
+        prediction_dir : Path | str, default="predictions"
+            The path to save the prediction results to. If `prediction_dir` is not
+            absolute, the directory will be assumed to be relative to the pre-set
+            `work_dir`. If the directory does not exist it will be created.
         **kwargs : Any
             Unused.
 
@@ -766,10 +771,11 @@ class CAREamist:
         if write_func_kwargs is None:
             write_func_kwargs = {}
 
-        # write_type = SupportedData(write_type)
-
-        # TODO: make configurable?
-        write_dir = self.work_dir / "predictions"
+        if Path(prediction_dir).is_absolute():
+            write_dir = Path(prediction_dir)
+        else:
+            write_dir = self.work_dir / prediction_dir
+        write_dir.mkdir(exist_ok=True, parents=True)
 
         # guards for custom types
         if write_type == SupportedData.CUSTOM:
