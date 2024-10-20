@@ -410,21 +410,18 @@ def denoisplit_musplit_loss(
         recons_loss = 0.0
 
     # KL loss computation
-    if loss_parameters.non_stochastic:  # TODO always false ?
-        kl_loss = torch.Tensor([0.0]).cuda()
-    else:
-        # NOTE: 'kl' key stands for the 'kl_samplewise' key in the TopDownLayer class.
-        # The different naming comes from `top_down_pass()` method in the LadderVAE.
-        denoisplit_kl = _get_kl_divergence_loss_denoisplit(
-            topdown_data=td_data, img_shape=targets.shape[2:],
-        )
-        musplit_kl = _get_kl_divergence_loss_musplit(td_data)
-        kl_loss = (
-            loss_parameters.denoisplit_weight * denoisplit_kl
-            + loss_parameters.musplit_weight * musplit_kl
-        )
-        # TODO `kl_weight` is hardcoded (???)
-        kl_loss = loss_parameters.kl_weight * kl_loss
+    # NOTE: 'kl' key stands for the 'kl_samplewise' key in the TopDownLayer class.
+    # The different naming comes from `top_down_pass()` method in the LadderVAE.
+    denoisplit_kl = _get_kl_divergence_loss_denoisplit(
+        topdown_data=td_data, img_shape=targets.shape[2:],
+    )
+    musplit_kl = _get_kl_divergence_loss_musplit(td_data)
+    kl_loss = (
+        loss_parameters.denoisplit_weight * denoisplit_kl
+        + loss_parameters.musplit_weight * musplit_kl
+    )
+    # TODO `kl_weight` is hardcoded (???)
+    kl_loss = loss_parameters.kl_weight * kl_loss
 
     net_loss = recons_loss + kl_loss
     output = {
