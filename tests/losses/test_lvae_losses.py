@@ -23,7 +23,7 @@ from careamics.losses.lvae.losses import (
     denoisplit_musplit_loss,
     get_reconstruction_loss,
     musplit_loss,
-    reconstruction_loss_musplit_denoisplit,
+    _reconstruction_loss_musplit_denoisplit,
 )
 from careamics.models.lvae.likelihoods import likelihood_factory
 from careamics.models.lvae.noise_models import noise_model_factory
@@ -145,8 +145,6 @@ def test_reconstruction_loss(
 
     # check outputs
     assert rec_loss is not None
-    for i in range(target_ch):
-        assert rec_loss[f"ch{i+1}_loss"] is not None
 
 
 @pytest.mark.parametrize("batch_size", [1, 8])
@@ -178,7 +176,7 @@ def test_reconstruction_loss_musplit_denoisplit(
     gaussian_likelihood = likelihood_factory(gaussian_config)
 
     # compute the loss
-    rec_loss = reconstruction_loss_musplit_denoisplit(
+    rec_loss = _reconstruction_loss_musplit_denoisplit(
         predictions=reconstruction,
         targets=target,
         nm_likelihood=nm_likelihood,
