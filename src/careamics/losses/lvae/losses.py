@@ -166,7 +166,7 @@ def get_kl_divergence_loss(
         kl = kl / np.prod(img_shape)
     
     # Apply free bits
-    kl_loss = free_bits_kl(kl, free_bits_coeff)
+    kl_loss = free_bits_kl(kl, free_bits_coeff) # shape: (n_layers,)
     
     # Aggregation
     if aggregation == "mean":

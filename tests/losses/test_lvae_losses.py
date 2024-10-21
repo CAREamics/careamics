@@ -30,12 +30,6 @@ from careamics.models.lvae.noise_models import noise_model_factory
 
 if TYPE_CHECKING:
     from careamics.models.lvae.noise_models import MultiChannelNoiseModel
-#     from careamics.models.lvae.likelihoods import (
-#         LikelihoodModule,
-#         GaussianLikelihood,
-#         NoiseModelLikelihood
-#     )
-#     Likelihood = Union[LikelihoodModule, GaussianLikelihood, NoiseModelLikelihood]
 
 pytestmark = pytest.mark.lvae
 
