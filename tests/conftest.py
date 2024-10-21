@@ -111,7 +111,7 @@ def minimum_algorithm_supervised() -> dict:
     return algorithm
 
 
-# TODO: need to update/remove this fixture
+# TODO: wrong! need to update/remove this fixture
 @pytest.fixture
 def minimum_algorithm_musplit() -> dict:
     """Create a minimum algorithm dictionary.
@@ -139,7 +139,7 @@ def minimum_algorithm_musplit() -> dict:
     return algorithm
 
 
-# TODO: Need to update/remove this fixture
+# TODO: wrong! need to update/remove this fixture
 @pytest.fixture
 def minimum_algorithm_denoisplit() -> dict:
     """Create a minimum algorithm dictionary.
