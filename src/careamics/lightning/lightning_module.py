@@ -274,11 +274,11 @@ class VAEModule(L.LightningModule):
         self.noise_model: NoiseModel = noise_model_factory(
             self.algorithm_config.noise_model
         )
-        self.noise_model_likelihood: NoiseModelLikelihood = likelihood_factory(
+        self.noise_model_likelihood: Optional[NoiseModelLikelihood] = likelihood_factory(
             self.algorithm_config.noise_model_likelihood,
             noise_model=self.noise_model,
         )
-        self.gaussian_likelihood: GaussianLikelihood = likelihood_factory(
+        self.gaussian_likelihood: Optional[GaussianLikelihood] = likelihood_factory(
             self.algorithm_config.gaussian_likelihood
         )
         self.loss_parameters = self.algorithm_config.loss
