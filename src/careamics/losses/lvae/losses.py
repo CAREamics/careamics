@@ -131,6 +131,11 @@ def get_kl_divergence_loss(
     NOTE: the type of `aggregation` determines the magnitude of the KL-loss. Clearly,
     "sum" aggregation results in a larger KL-loss value compared to "mean" by a factor
     of `n_layers`.
+    
+    NOTE: recall that sample-wise KL is obtained by summing over all dimensions,
+    including Z. Also recall that in current 3D implementation of LVAE, no downsampling
+    is done on Z. Therefore, to avoid emphasizing KL loss too much, we divide it 
+    by the Z dimension of input image in every case.
 
     Parameters
     ----------
@@ -163,6 +168,11 @@ def get_kl_divergence_loss(
         [kl_layer.unsqueeze(1) for kl_layer in topdown_data["kl"]],
         dim=1,
     )  # shape: (B, n_layers)
+    
+    # In 3D case, rescale by Z dim
+    # TODO If we have downsampling in Z dimension, then this needs to change.
+    if len(img_shape) == 3:
+        kl = kl / img_shape[0]
 
     # Rescaling
     if rescaling == "latent_dim":
@@ -171,7 +181,7 @@ def get_kl_divergence_loss(
             norm_factor = np.prod(latent_dim)
             kl[:, i] = kl[:, i] / norm_factor
     elif rescaling == "image_dim":
-        kl = kl / np.prod(img_shape)
+        kl = kl / np.prod(img_shape[-2:])
 
     # Apply free bits
     kl_loss = free_bits_kl(kl, free_bits_coeff)  # shape: (n_layers,)
