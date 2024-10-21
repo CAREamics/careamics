@@ -1,12 +1,11 @@
 from typing import Literal, Optional, TYPE_CHECKING
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict
 
-if TYPE_CHECKING:
-    from careamics.models.lvae.likelihoods import (
-        GaussianLikelihood,
-        NoiseModelLikelihood,
-    )
+from careamics.models.lvae.likelihoods import (
+    GaussianLikelihood,
+    NoiseModelLikelihood,
+)
 
 
 class KLLossConfig(BaseModel):
@@ -33,15 +32,14 @@ class KLLossConfig(BaseModel):
 
 class LVAELossConfig(BaseModel):
     
-    model_config = ConfigDict(validate_assignment=True, validate_default=True)
+    model_config = ConfigDict(
+        validate_assignment=True, 
+        validate_default=True,
+        arbitrary_types_allowed=True
+    )
     
     loss_type: Literal["musplit", "denoisplit", "denoisplit_musplit"]
     """Type of loss to use for LVAE."""
-    
-    noise_model_likelihood: Optional[NoiseModelLikelihood] = None
-    """Noise model likelihood instance."""
-    gaussian_likelihood: Optional[GaussianLikelihood] = None
-    """Gaussian likelihood instance."""
     
     reconstruction_weight: float = 1.0
     """Weight for the reconstruction loss in the total net loss
