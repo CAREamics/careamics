@@ -276,12 +276,11 @@ def musplit_loss(
     predictions, td_data = model_outputs
 
     # Reconstruction loss computation
-    recons_loss_dict = get_reconstruction_loss(
+    recons_loss = get_reconstruction_loss(
         reconstruction=predictions,
         target=targets,
         likelihood_obj=loss_parameters.gaussian_likelihood,
-    )
-    recons_loss = recons_loss_dict["loss"] * loss_parameters.reconstruction_weight
+    ) * loss_parameters.reconstruction_weight
     if torch.isnan(recons_loss).any():
         recons_loss = 0.0
 
@@ -340,12 +339,11 @@ def denoisplit_loss(
     predictions, td_data = model_outputs
 
     # Reconstruction loss computation
-    recons_loss_dict = get_reconstruction_loss(
+    recons_loss = get_reconstruction_loss(
         reconstruction=predictions,
         target=targets,
         likelihood_obj=loss_parameters.noise_model_likelihood,
-    )
-    recons_loss = recons_loss_dict["loss"] * loss_parameters.reconstruction_weight
+    ) * loss_parameters.reconstruction_weight
     if torch.isnan(recons_loss).any():
         recons_loss = 0.0
 
