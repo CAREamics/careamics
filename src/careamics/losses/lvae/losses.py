@@ -309,9 +309,12 @@ def musplit_loss(
         loss_parameters.kl_weight,
         loss_parameters.current_epoch,
     )
-    kl_loss = _get_kl_divergence_loss_musplit(
-        topdown_data=td_data, img_shape=targets.shape[2:]
-    ) * kl_weight
+    kl_loss = (
+        _get_kl_divergence_loss_musplit(
+            topdown_data=td_data, img_shape=targets.shape[2:]
+        )
+        * kl_weight
+    )
 
     net_loss = recons_loss + kl_loss
     output = {
