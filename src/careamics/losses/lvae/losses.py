@@ -266,8 +266,8 @@ def musplit_loss(
     model_outputs: tuple[torch.Tensor, dict[str, Any]],
     targets: torch.Tensor,
     config: LVAELossConfig,
-    gaussian_likelihood: GaussianLikelihood,
-    noise_model_likelihood: Optional[NoiseModelLikelihood], # TODO: ugly
+    gaussian_likelihood: Optional[GaussianLikelihood],
+    noise_model_likelihood: Optional[NoiseModelLikelihood] = None, # TODO: ugly
 ) -> Optional[dict[str, torch.Tensor]]:
     """Loss function for muSplit.
 
@@ -293,6 +293,8 @@ def musplit_loss(
         A dictionary containing the overall loss `["loss"]`, the reconstruction loss
         `["reconstruction_loss"]`, and the KL divergence loss `["kl_loss"]`.
     """
+    assert gaussian_likelihood is not None
+    
     predictions, td_data = model_outputs
 
     # Reconstruction loss computation
@@ -337,8 +339,8 @@ def denoisplit_loss(
     model_outputs: tuple[torch.Tensor, dict[str, Any]],
     targets: torch.Tensor,
     config: LVAELossConfig,
-    gaussian_likelihood: Optional[GaussianLikelihood], # TODO: ugly
-    noise_model_likelihood: NoiseModelLikelihood,
+    gaussian_likelihood: Optional[GaussianLikelihood] = None,
+    noise_model_likelihood: Optional[NoiseModelLikelihood] = None,
 ) -> Optional[dict[str, torch.Tensor]]:
     """Loss function for DenoiSplit.
 
@@ -363,6 +365,8 @@ def denoisplit_loss(
         A dictionary containing the overall loss `["loss"]`, the reconstruction loss
         `["reconstruction_loss"]`, and the KL divergence loss `["kl_loss"]`.
     """
+    assert noise_model_likelihood is not None
+    
     predictions, td_data = model_outputs
 
     # Reconstruction loss computation
