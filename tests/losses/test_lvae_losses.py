@@ -12,9 +12,12 @@ from careamics.config.likelihood_model import (
     GaussianLikelihoodConfig,
     NMLikelihoodConfig,
 )
-from careamics.config.nm_model import GaussianMixtureNMConfig, MultiChannelNMConfig
+from careamics.config import (
+    GaussianMixtureNMConfig, 
+    MultiChannelNMConfig,
+    LVAELossConfig
+)
 from careamics.losses.loss_factory import (
-    LVAELossParameters,
     SupportedLoss,
     loss_factory,
 )
@@ -126,12 +129,11 @@ def test_reconstruction_loss(
         nm = init_noise_model(tmp_path, target_ch)
         data_mean = target.mean(dim=(0, 2, 3), keepdim=True)
         data_std = target.std(dim=(0, 2, 3), keepdim=True)
-        config = NMLikelihoodConfig(
-            data_mean=data_mean, data_std=data_std, noise_model=nm
-        )
+        config = NMLikelihoodConfig(data_mean=data_mean, data_std=data_std)
     else:
+        nm = None
         config = GaussianLikelihoodConfig(predict_logvar=predict_logvar)
-    likelihood = likelihood_factory(config)
+    likelihood = likelihood_factory(config, noise_model=nm)
 
     # compute the loss
     rec_loss = get_reconstruction_loss(
@@ -163,10 +165,8 @@ def test_reconstruction_loss_musplit_denoisplit(
     nm = init_noise_model(tmp_path, target_ch)
     data_mean = target.mean(dim=(0, 2, 3), keepdim=True)
     data_std = target.std(dim=(0, 2, 3), keepdim=True)
-    nm_config = NMLikelihoodConfig(
-        data_mean=data_mean, data_std=data_std, noise_model=nm
-    )
-    nm_likelihood = likelihood_factory(nm_config)
+    nm_config = NMLikelihoodConfig(data_mean=data_mean, data_std=data_std)
+    nm_likelihood = likelihood_factory(nm_config, noise_model=nm)
     gaussian_config = GaussianLikelihoodConfig(predict_logvar=predict_logvar)
     gaussian_likelihood = likelihood_factory(gaussian_config)
 
@@ -254,10 +254,13 @@ def test_musplit_loss(
     likelihood = likelihood_factory(config)
 
     # compute the loss
-    loss_parameters = LVAELossParameters(
+    loss_parameters = LVAELossConfig(loss_type="musplit")
+    output = musplit_loss(
+        model_outputs=(reconstruction, td_data), 
+        targets=target, 
+        config=loss_parameters,
         gaussian_likelihood=likelihood,
     )
-    output = musplit_loss((reconstruction, td_data), target, loss_parameters)
 
     # check outputs
     # NOTE: output should not be None in these test cases
@@ -291,15 +294,18 @@ def test_denoisplit_loss(
     data_mean = target.mean(dim=(0, 2, 3), keepdim=True)
     data_std = target.std(dim=(0, 2, 3), keepdim=True)
     nm_config = NMLikelihoodConfig(
-        data_mean=data_mean, data_std=data_std, noise_model=nm
+        data_mean=data_mean, data_std=data_std
     )
-    likelihood = likelihood_factory(nm_config)
+    likelihood = likelihood_factory(nm_config, noise_model=nm)
 
     # compute the loss
-    loss_parameters = LVAELossParameters(
+    loss_parameters = LVAELossConfig(loss_type="denoisplit")
+    output = denoisplit_loss(
+        model_outputs=(reconstruction, td_data), 
+        targets=target, 
+        config=loss_parameters,
         noise_model_likelihood=likelihood,
     )
-    output = denoisplit_loss((reconstruction, td_data), target, loss_parameters)
 
     # check outputs
     # NOTE: output should not be None in these test cases
@@ -344,18 +350,21 @@ def test_denoisplit_musplit_loss(
     data_mean = target.mean(dim=(0, 2, 3), keepdim=True)
     data_std = target.std(dim=(0, 2, 3), keepdim=True)
     nm_config = NMLikelihoodConfig(
-        data_mean=data_mean, data_std=data_std, noise_model=nm
+        data_mean=data_mean, data_std=data_std
     )
-    nm_likelihood = likelihood_factory(nm_config)
+    nm_likelihood = likelihood_factory(nm_config, noise_model=nm)
     gaussian_config = GaussianLikelihoodConfig(predict_logvar=predict_logvar)
     gaussian_likelihood = likelihood_factory(gaussian_config)
 
     # compute the loss
-    loss_parameters = LVAELossParameters(
+    loss_parameters = LVAELossConfig(loss_type="denoisplit_musplit")
+    output = denoisplit_musplit_loss(
+        model_outputs=(reconstruction, td_data), 
+        targets=target, 
+        config=loss_parameters,
         gaussian_likelihood=gaussian_likelihood,
         noise_model_likelihood=nm_likelihood,
     )
-    output = denoisplit_musplit_loss((reconstruction, td_data), target, loss_parameters)
 
     # check outputs
     # NOTE: output should not be None in these test cases
