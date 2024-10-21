@@ -12,6 +12,7 @@ from careamics.config.support import SupportedAlgorithm, SupportedLoss
 
 from .architectures import CustomModel, LVAEModel
 from .likelihood_model import GaussianLikelihoodConfig, NMLikelihoodConfig
+from .loss_model import LVAELossConfig
 from .nm_model import MultiChannelNMConfig
 from .optimizer_models import LrSchedulerModel, OptimizerModel
 
@@ -38,13 +39,12 @@ class VAEAlgorithmConfig(BaseModel):
     # TODO: Use supported Enum classes for typing?
     #   - values can still be passed as strings and they will be cast to Enum
     algorithm: Literal["musplit", "denoisplit"]
-    loss: Literal["musplit", "denoisplit", "denoisplit_musplit"]
+    # NOTE: these are all configs (pydantic models)
+    loss: LVAELossConfig
     model: Union[LVAEModel, CustomModel] = Field(discriminator="architecture")
-
-    # TODO: these are configs, change naming of attrs
     noise_model: Optional[MultiChannelNMConfig] = None
-    noise_model_likelihood_model: Optional[NMLikelihoodConfig] = None
-    gaussian_likelihood_model: Optional[GaussianLikelihoodConfig] = None
+    noise_model_likelihood: Optional[NMLikelihoodConfig] = None
+    gaussian_likelihood: Optional[GaussianLikelihoodConfig] = None
 
     # Optional fields
     optimizer: OptimizerModel = OptimizerModel()

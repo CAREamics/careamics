@@ -266,36 +266,24 @@ class VAEModule(L.LightningModule):
 
         # TODO: log algorithm config
         # self.save_hyperparameters(self.algorithm_config.model_dump())
-        # define likelihood configurations
-        self.algorithm_config.noise_model_likelihood_model = NMLikelihoodConfig()
-        # create model and loss function
+
+        # create model
         self.model: nn.Module = model_factory(self.algorithm_config.model)
+        
+        # create loss function
         self.noise_model: NoiseModel = noise_model_factory(
             self.algorithm_config.noise_model
         )
-        self.algorithm_config.noise_model_likelihood_model.noise_model = (
-            self.noise_model
-        )  # TODO why is this necessary? refactor
-
-        # TODO: here we can add some code to check whether the noise model is not None
-        # and `self.algorithm_config.noise_model_likelihood_model.noise_model` is,
-        # instead, None. In that case we could assign the noise model to the latter.
-        # This is particular useful when loading an algorithm config from file.
-        # Indeed, in that case the noise model in the nm likelihood is likely
-        # not available since excluded from serializaion.
         self.noise_model_likelihood: NoiseModelLikelihood = likelihood_factory(
-            self.algorithm_config.noise_model_likelihood_model
+            self.algorithm_config.noise_model_likelihood,
+            noise_model=self.noise_model,
         )
         self.gaussian_likelihood: GaussianLikelihood = likelihood_factory(
-            self.algorithm_config.gaussian_likelihood_model
+            self.algorithm_config.gaussian_likelihood
         )
-        self.loss_parameters = LVAELossParameters(
-            noise_model_likelihood=self.noise_model_likelihood,
-            gaussian_likelihood=self.gaussian_likelihood,
-            # TODO: musplit/denoisplit weights ?
-        )  # type: ignore
-        self.loss_func = loss_factory(self.algorithm_config.loss)
-
+        self.loss_parameters = self.algorithm_config.loss
+        self.loss_func = loss_factory(self.algorithm_config.loss.loss_type)
+        
         # save optimizer and lr_scheduler names and parameters
         self.optimizer_name = self.algorithm_config.optimizer.name
         self.optimizer_params = self.algorithm_config.optimizer.parameters
@@ -350,11 +338,16 @@ class VAEModule(L.LightningModule):
         out = self.model(x)
 
         # Update loss parameters
-        # TODO rethink loss parameters
-        self.loss_parameters.current_epoch = self.current_epoch
+        self.loss_parameters.kl_params.current_epoch = self.current_epoch
 
         # Compute loss
-        loss = self.loss_func(out, target, self.loss_parameters)  # TODO ugly ?
+        loss = self.loss_func(
+            model_outputs=out, 
+            targets=target, 
+            config=self.loss_parameters,
+            gaussian_likelihood=self.gaussian_likelihood,
+            noise_model_likelihood=self.noise_model_likelihood,
+        )
 
         # Logging
         # TODO: implement a separate logging method?
@@ -382,7 +375,13 @@ class VAEModule(L.LightningModule):
         out = self.model(x)
 
         # Compute loss
-        loss = self.loss_func(out, target, self.loss_parameters)
+        loss = self.loss_func(
+            model_outputs=out, 
+            targets=target, 
+            config=self.loss_parameters,
+            gaussian_likelihood=self.gaussian_likelihood,
+            noise_model_likelihood=self.noise_model_likelihood,
+        )
 
         # Logging
         # Rename val_loss dict
