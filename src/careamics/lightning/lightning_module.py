@@ -7,7 +7,6 @@ import pytorch_lightning as L
 from torch import Tensor, nn
 
 from careamics.config import FCNAlgorithmConfig, VAEAlgorithmConfig
-from careamics.config.likelihood_model import NMLikelihoodConfig
 from careamics.config.support import (
     SupportedAlgorithm,
     SupportedArchitecture,
@@ -16,7 +15,6 @@ from careamics.config.support import (
     SupportedScheduler,
 )
 from careamics.losses import loss_factory
-from careamics.losses.loss_factory import LVAELossParameters
 from careamics.models.lvae.likelihoods import (
     GaussianLikelihood,
     NoiseModelLikelihood,
@@ -269,21 +267,23 @@ class VAEModule(L.LightningModule):
 
         # create model
         self.model: nn.Module = model_factory(self.algorithm_config.model)
-        
+
         # create loss function
         self.noise_model: NoiseModel = noise_model_factory(
             self.algorithm_config.noise_model
         )
-        self.noise_model_likelihood: Optional[NoiseModelLikelihood] = likelihood_factory(
-            self.algorithm_config.noise_model_likelihood,
-            noise_model=self.noise_model,
+        self.noise_model_likelihood: Optional[NoiseModelLikelihood] = (
+            likelihood_factory(
+                self.algorithm_config.noise_model_likelihood,
+                noise_model=self.noise_model,
+            )
         )
         self.gaussian_likelihood: Optional[GaussianLikelihood] = likelihood_factory(
             self.algorithm_config.gaussian_likelihood
         )
         self.loss_parameters = self.algorithm_config.loss
         self.loss_func = loss_factory(self.algorithm_config.loss.loss_type)
-        
+
         # save optimizer and lr_scheduler names and parameters
         self.optimizer_name = self.algorithm_config.optimizer.name
         self.optimizer_params = self.algorithm_config.optimizer.parameters
@@ -342,8 +342,8 @@ class VAEModule(L.LightningModule):
 
         # Compute loss
         loss = self.loss_func(
-            model_outputs=out, 
-            targets=target, 
+            model_outputs=out,
+            targets=target,
             config=self.loss_parameters,
             gaussian_likelihood=self.gaussian_likelihood,
             noise_model_likelihood=self.noise_model_likelihood,
@@ -376,8 +376,8 @@ class VAEModule(L.LightningModule):
 
         # Compute loss
         loss = self.loss_func(
-            model_outputs=out, 
-            targets=target, 
+            model_outputs=out,
+            targets=target,
             config=self.loss_parameters,
             gaussian_likelihood=self.gaussian_likelihood,
             noise_model_likelihood=self.noise_model_likelihood,

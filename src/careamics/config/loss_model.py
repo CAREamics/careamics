@@ -1,17 +1,15 @@
-from typing import Literal, Optional, TYPE_CHECKING
+"""Configuration classes for LVAE losses."""
+
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict
 
-from careamics.models.lvae.likelihoods import (
-    GaussianLikelihood,
-    NoiseModelLikelihood,
-)
-
 
 class KLLossConfig(BaseModel):
-        
+    """KL loss configuration."""
+
     model_config = ConfigDict(validate_assignment=True, validate_default=True)
-    
+
     type: Literal["kl", "kl_restricted", "kl_spatial", "kl_channelwise"] = "kl"
     """Type of KL divergence used as KL loss."""
     rescaling: Literal["latent_dim", "image_dim"] = "latent_dim"
@@ -31,16 +29,15 @@ class KLLossConfig(BaseModel):
 
 
 class LVAELossConfig(BaseModel):
-    
+    """LVAE loss configuration."""
+
     model_config = ConfigDict(
-        validate_assignment=True, 
-        validate_default=True,
-        arbitrary_types_allowed=True
+        validate_assignment=True, validate_default=True, arbitrary_types_allowed=True
     )
-    
+
     loss_type: Literal["musplit", "denoisplit", "denoisplit_musplit"]
     """Type of loss to use for LVAE."""
-    
+
     reconstruction_weight: float = 1.0
     """Weight for the reconstruction loss in the total net loss
     (i.e., `net_loss = reconstruction_weight * rec_loss + kl_weight * kl_loss`)."""
@@ -51,10 +48,10 @@ class LVAELossConfig(BaseModel):
     """Weight for the muSplit loss (used in the muSplit-denoiSplit loss)."""
     denoisplit_weight: float = 0.9
     """Weight for the denoiSplit loss (used in the muSplit-deonoiSplit loss)."""
-    
+
     kl_params: KLLossConfig = KLLossConfig()
     """KL loss configuration."""
-    
+
     # TODO: remove?
     non_stochastic: bool = False
     """Whether to sample latents and compute KL."""

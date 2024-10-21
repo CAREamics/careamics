@@ -39,7 +39,7 @@ class VAEAlgorithmConfig(BaseModel):
     # TODO: Use supported Enum classes for typing?
     #   - values can still be passed as strings and they will be cast to Enum
     algorithm: Literal["musplit", "denoisplit"]
-    
+
     # NOTE: these are all configs (pydantic models)
     loss: LVAELossConfig
     model: Union[LVAEModel, CustomModel] = Field(discriminator="architecture")
@@ -118,8 +118,7 @@ class VAEAlgorithmConfig(BaseModel):
         """
         if self.gaussian_likelihood is not None:
             assert (
-                self.model.predict_logvar
-                == self.gaussian_likelihood.predict_logvar
+                self.model.predict_logvar == self.gaussian_likelihood.predict_logvar
             ), (
                 f"Model `predict_logvar` ({self.model.predict_logvar}) must match "
                 "Gaussian likelihood model `predict_logvar` "

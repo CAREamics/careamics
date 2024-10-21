@@ -22,7 +22,6 @@ from careamics.losses import denoisplit_loss, denoisplit_musplit_loss, musplit_l
 from careamics.models.lvae.likelihoods import GaussianLikelihood, NoiseModelLikelihood
 from careamics.models.lvae.noise_models import (
     MultiChannelNoiseModel,
-    noise_model_factory,
 )
 from careamics.utils.metrics import RunningPSNR
 
@@ -64,7 +63,7 @@ def create_split_lightning_model(
         output_channels=target_ch,
         predict_logvar=predict_logvar,
     )
-    
+
     loss_config = LVAELossConfig(loss_type=loss_type)
 
     # gaussian likelihood
