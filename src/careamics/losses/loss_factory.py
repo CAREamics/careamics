@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Callable, Literal, Optional, Union
+import warnings
 
 from torch import Tensor as tensor
 
@@ -78,6 +79,13 @@ class LVAELossParameters:
     """Number of epochs for which KL loss annealing is applied."""
     non_stochastic: bool = False
     """Whether to sample latents and compute KL."""
+    
+    def __post_init__(self):
+        warnings.warn(
+            f"{self.__class__.__name__} is deprecated and will be replaced by `LVAELossConfig.",
+            DeprecationWarning,
+            stacklevel=2
+        )
 
 
 def loss_parameters_factory(
