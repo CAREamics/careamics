@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from contextlib import nullcontext as does_not_raise
 from pathlib import Path
-from typing import TYPE_CHECKING, Callable, Union
+from typing import TYPE_CHECKING, Callable, Literal, Union
 
 import numpy as np
 import pytest
@@ -20,9 +20,9 @@ from careamics.losses.loss_factory import (
 )
 from careamics.losses.lvae.losses import (
     _reconstruction_loss_musplit_denoisplit,
-    get_kl_divergence_loss,
     denoisplit_loss,
     denoisplit_musplit_loss,
+    get_kl_divergence_loss,
     get_reconstruction_loss,
     musplit_loss,
 )
@@ -188,10 +188,16 @@ def test_reconstruction_loss_musplit_denoisplit(
 @pytest.mark.parametrize("batch_size", [1, 8])
 @pytest.mark.parametrize("n_layers", [1, 4])
 @pytest.mark.parametrize("enable_LC", [False, True])
+@pytest.mark.parametrize("rescaling", ["latent_dim", "image_dim"])
+@pytest.mark.parametrize("aggregation", ["mean", "sum"])
+@pytest.mark.parametrize("free_bits_coeff", [0.0, 1.0])
 def test_KL_divergence_loss(
     batch_size: int,
     n_layers: int,
     enable_LC: bool,
+    rescaling: Literal["latent_dim", "image_dim"],
+    aggregation: Literal["mean", "sum"],
+    free_bits_coeff: float,
 ):
     # create test data
     img_size = 64
@@ -205,31 +211,12 @@ def test_KL_divergence_loss(
         "z": z,
         "kl": [torch.ones(batch_size) for _ in range(n_layers)],
     }
-    
+
     # compute the loss for different settings
     img_shape = (img_size, img_size)
-    kl_loss = get_kl_divergence_loss(td_data, "latent_dim", "mean", 0.0)
-    assert isinstance(kl_loss, torch.Tensor)
-    assert isinstance(kl_loss.item(), float)
-    kl_loss = get_kl_divergence_loss(td_data, "latent_dim", "sum", 0.0)
-    assert isinstance(kl_loss, torch.Tensor)
-    assert isinstance(kl_loss.item(), float)
-    kl_loss = get_kl_divergence_loss(td_data, "image_dim", "mean", 0.0, img_shape)
-    assert isinstance(kl_loss, torch.Tensor)
-    assert isinstance(kl_loss.item(), float)
-    kl_loss = get_kl_divergence_loss(td_data, "image_dim", "sum", 0.0, img_shape)
-    assert isinstance(kl_loss, torch.Tensor)
-    assert isinstance(kl_loss.item(), float)
-    kl_loss = get_kl_divergence_loss(td_data, "latent_dim", "mean", 1.0)
-    assert isinstance(kl_loss, torch.Tensor)
-    assert isinstance(kl_loss.item(), float)
-    kl_loss = get_kl_divergence_loss(td_data, "latent_dim", "sum", 1.0)
-    assert isinstance(kl_loss, torch.Tensor)
-    assert isinstance(kl_loss.item(), float)
-    kl_loss = get_kl_divergence_loss(td_data, "image_dim", "mean", 1.0, img_shape)
-    assert isinstance(kl_loss, torch.Tensor)
-    assert isinstance(kl_loss.item(), float)
-    kl_loss = get_kl_divergence_loss(td_data, "image_dim", "sum", 1.0, img_shape)
+    kl_loss = get_kl_divergence_loss(
+        td_data, rescaling, aggregation, free_bits_coeff, img_shape
+    )
     assert isinstance(kl_loss, torch.Tensor)
     assert isinstance(kl_loss.item(), float)
 
