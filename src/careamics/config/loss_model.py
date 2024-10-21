@@ -27,6 +27,8 @@ class KLLossConfig(BaseModel):
     """Epoch at which KL loss annealing starts."""
     annealtime: int = 10
     """Number of epochs for which KL loss annealing is applied."""
+    current_epoch: int = 0
+    """Current epoch in the training loop."""
 
 
 class LVAELossConfig(BaseModel):
@@ -56,7 +58,5 @@ class LVAELossConfig(BaseModel):
     """KL loss configuration."""
     
     # TODO: remove?
-    current_epoch: int = 0
-    """Current epoch in the training loop."""
     non_stochastic: bool = False
     """Whether to sample latents and compute KL."""
