@@ -197,6 +197,7 @@ def get_kl_divergence_loss(
 
 def _get_kl_divergence_loss_musplit(
     topdown_data: dict[str, torch.Tensor],
+    img_shape: tuple[int],
 ) -> torch.Tensor:
     """Compute the KL divergence loss for muSplit.
 
@@ -208,6 +209,8 @@ def _get_kl_divergence_loss_musplit(
         - "kl": The KL-loss values for each layer. Shape of each tensor is (B,).
         - "z": The sampled latents for each layer. Shape of each tensor is
         (B, layers, `z_dims[i]`, H, W).
+    img_shape : tuple[int]
+        The shape of the input image to the LVAE model. Shape is ([Z], Y, X).
 
     Returns
     -------
@@ -219,6 +222,7 @@ def _get_kl_divergence_loss_musplit(
         rescaling="latent_dim",
         aggregation="mean",
         free_bits_coeff=0.0,
+        img_shape=img_shape,
     )
 
 
@@ -305,7 +309,9 @@ def musplit_loss(
         loss_parameters.kl_weight,
         loss_parameters.current_epoch,
     )
-    kl_loss = _get_kl_divergence_loss_musplit(td_data) * kl_weight
+    kl_loss = _get_kl_divergence_loss_musplit(
+        topdown_data=td_data, img_shape=targets.shape[2:]
+    ) * kl_weight
 
     net_loss = recons_loss + kl_loss
     output = {
@@ -441,7 +447,10 @@ def denoisplit_musplit_loss(
         topdown_data=td_data,
         img_shape=targets.shape[2:],
     )
-    musplit_kl = _get_kl_divergence_loss_musplit(td_data)
+    musplit_kl = _get_kl_divergence_loss_musplit(
+        topdown_data=td_data,
+        img_shape=targets.shape[2:],
+    )
     kl_loss = (
         loss_parameters.denoisplit_weight * denoisplit_kl
         + loss_parameters.musplit_weight * musplit_kl
