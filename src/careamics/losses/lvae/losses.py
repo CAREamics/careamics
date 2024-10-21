@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Optional, Union, Literal
+from typing import TYPE_CHECKING, Any, Literal, Optional, Union
 
 import numpy as np
 import torch
@@ -92,12 +92,20 @@ def _reconstruction_loss_musplit_denoisplit(
     else:
         pred_mean = predictions
 
-    recons_loss_nm = -1 * get_reconstruction_loss(
-        reconstruction=pred_mean, target=targets, likelihood_obj=nm_likelihood    
-    ).mean()
-    recons_loss_gm = -1 * get_reconstruction_loss(
-        reconstruction=predictions, target=targets, likelihood_obj=gaussian_likelihood
-    ).mean()
+    recons_loss_nm = (
+        -1
+        * get_reconstruction_loss(
+            reconstruction=pred_mean, target=targets, likelihood_obj=nm_likelihood
+        ).mean()
+    )
+    recons_loss_gm = (
+        -1
+        * get_reconstruction_loss(
+            reconstruction=predictions,
+            target=targets,
+            likelihood_obj=gaussian_likelihood,
+        ).mean()
+    )
     recons_loss = nm_weight * recons_loss_nm + gaussian_weight * recons_loss_gm
     return recons_loss
 
@@ -110,20 +118,20 @@ def get_kl_divergence_loss(
     img_shape: Optional[tuple[int]] = None,
 ) -> torch.Tensor:
     """Compute the KL divergence loss.
-    
+
     NOTE: Description of `rescaling` methods:
-    - If "latent_dim", the KL-loss values are rescaled w.r.t. the latent space 
+    - If "latent_dim", the KL-loss values are rescaled w.r.t. the latent space
     dimensions (spatial + number of channels, i.e., (C, [Z], Y, X)). In this way they
     have the same magnitude across layers.
     - If "image_dim", the KL-loss values are rescaled w.r.t. the input image spatial
     dimensions. In this way, the lower layers have a larger KL-loss value compared to
     the higher layers, since the latent space and hence the KL tensor has more entries.
-    Specifically, at hierarchy `i`, the total KL loss is larger by a factor (128/i**2). 
-    
+    Specifically, at hierarchy `i`, the total KL loss is larger by a factor (128/i**2).
+
     NOTE: the type of `aggregation` determines the magnitude of the KL-loss. Clearly,
     "sum" aggregation results in a larger KL-loss value compared to "mean" by a factor
     of `n_layers`.
-    
+
     Parameters
     ----------
     topdown_data : dict[str, torch.Tensor]
@@ -145,7 +153,7 @@ def get_kl_divergence_loss(
         The free bits coefficient used for the KL-loss computation.
     img_shape : Optional[tuple[int]]
         The shape of the input image to the LVAE model. Shape is ([Z], Y, X).
-        
+
     Returns
     -------
     kl_loss : torch.Tensor
@@ -154,8 +162,8 @@ def get_kl_divergence_loss(
     kl = torch.cat(
         [kl_layer.unsqueeze(1) for kl_layer in topdown_data["kl"]],
         dim=1,
-    ) # shape: (B, n_layers)
-    
+    )  # shape: (B, n_layers)
+
     # Rescaling
     if rescaling == "latent_dim":
         for i in range(kl.shape[1]):
@@ -164,16 +172,16 @@ def get_kl_divergence_loss(
             kl[:, i] = kl[:, i] / norm_factor
     elif rescaling == "image_dim":
         kl = kl / np.prod(img_shape)
-    
+
     # Apply free bits
-    kl_loss = free_bits_kl(kl, free_bits_coeff) # shape: (n_layers,)
-    
+    kl_loss = free_bits_kl(kl, free_bits_coeff)  # shape: (n_layers,)
+
     # Aggregation
     if aggregation == "mean":
-        kl_loss = kl_loss.mean() # shape: (1,)
+        kl_loss = kl_loss.mean()  # shape: (1,)
     elif aggregation == "sum":
-        kl_loss = kl_loss.sum() # shape: (1,)
-        
+        kl_loss = kl_loss.sum()  # shape: (1,)
+
     return kl_loss
 
 
@@ -181,7 +189,7 @@ def _get_kl_divergence_loss_musplit(
     topdown_data: dict[str, torch.Tensor],
 ) -> torch.Tensor:
     """Compute the KL divergence loss for muSplit.
-    
+
     Parameters
     ----------
     topdown_data : dict[str, torch.Tensor]
@@ -190,7 +198,7 @@ def _get_kl_divergence_loss_musplit(
         - "kl": The KL-loss values for each layer. Shape of each tensor is (B,).
         - "z": The sampled latents for each layer. Shape of each tensor is
         (B, layers, `z_dims[i]`, H, W).
-        
+
     Returns
     -------
     kl_loss : torch.Tensor
@@ -209,7 +217,7 @@ def _get_kl_divergence_loss_denoisplit(
     img_shape: tuple[int],
 ) -> torch.Tensor:
     """Compute the KL divergence loss for denoiSplit.
-    
+
     Parameters
     ----------
     topdown_data : dict[str, torch.Tensor]
@@ -220,7 +228,7 @@ def _get_kl_divergence_loss_denoisplit(
         (B, layers, `z_dims[i]`, H, W).
     img_shape : tuple[int]
         The shape of the input image to the LVAE model. Shape is ([Z], Y, X).
-        
+
     Returns
     -------
     kl_loss : torch.Tensor
@@ -233,7 +241,7 @@ def _get_kl_divergence_loss_denoisplit(
         free_bits_coeff=1.0,
         img_shape=img_shape,
     )
-    
+
 
 # TODO: @melisande-c suggested to refactor this as a class (see PR #208)
 # - loss computation happens by calling the `__call__` method
@@ -349,9 +357,12 @@ def denoisplit_loss(
         loss_parameters.kl_weight,
         loss_parameters.current_epoch,
     )
-    kl_loss = _get_kl_divergence_loss_denoisplit(
-        topdown_data=td_data, img_shape=targets.shape[2:]
-    ) * kl_weight 
+    kl_loss = (
+        _get_kl_divergence_loss_denoisplit(
+            topdown_data=td_data, img_shape=targets.shape[2:]
+        )
+        * kl_weight
+    )
 
     net_loss = recons_loss + kl_loss
     output = {
@@ -413,7 +424,8 @@ def denoisplit_musplit_loss(
     # NOTE: 'kl' key stands for the 'kl_samplewise' key in the TopDownLayer class.
     # The different naming comes from `top_down_pass()` method in the LadderVAE.
     denoisplit_kl = _get_kl_divergence_loss_denoisplit(
-        topdown_data=td_data, img_shape=targets.shape[2:],
+        topdown_data=td_data,
+        img_shape=targets.shape[2:],
     )
     musplit_kl = _get_kl_divergence_loss_musplit(td_data)
     kl_loss = (

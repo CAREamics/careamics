@@ -19,11 +19,11 @@ from careamics.losses.loss_factory import (
     loss_factory,
 )
 from careamics.losses.lvae.losses import (
+    _reconstruction_loss_musplit_denoisplit,
     denoisplit_loss,
     denoisplit_musplit_loss,
     get_reconstruction_loss,
     musplit_loss,
-    _reconstruction_loss_musplit_denoisplit,
 )
 from careamics.models.lvae.likelihoods import likelihood_factory
 from careamics.models.lvae.noise_models import noise_model_factory
