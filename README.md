@@ -11,6 +11,7 @@
 [![Python Version](https://img.shields.io/pypi/pyversions/careamics.svg?color=green)](https://python.org)
 [![CI](https://github.com/CAREamics/careamics/actions/workflows/ci.yml/badge.svg)](https://github.com/CAREamics/careamics/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/CAREamics/careamics/branch/main/graph/badge.svg)](https://codecov.io/gh/CAREamics/careamics)
+[![Image.sc](https://img.shields.io/badge/Got%20a%20question%3F-Image.sc-blue)](https://forum.image.sc/)
 
 
 CAREamics is a PyTorch library aimed at simplifying the use of Noise2Void and its many
