@@ -7,14 +7,13 @@ from torch import nn
 
 from careamics.config import VAEAlgorithmConfig
 from careamics.config.architectures import LVAEModel
-from careamics.config.nm_model import GaussianMixtureNMConfig, MultiChannelNMConfig
+from careamics.config.likelihood_model import GaussianLikelihoodConfig
+from careamics.config.loss_model import LVAELossConfig
 from careamics.models.model_factory import model_factory
 
 
 # TODO move to conftest as a fixture
 def create_LVAE_model(
-    tmp_path,
-    create_dummy_noise_model,
     input_shape: tuple = (1, 64, 64),
     z_dims: list[int] = (128, 128, 128, 128),
     encoder_conv_strides=(2, 2),
@@ -36,23 +35,14 @@ def create_LVAE_model(
         analytical_kl=analytical_kl,
     )
 
-    # Instantiate the noise model
-    np.savez(tmp_path / "dummy_noise_model.npz", **create_dummy_noise_model)
-    gmm = GaussianMixtureNMConfig(
-        model_type="GaussianMixtureNoiseModel",
-        path=tmp_path / "dummy_noise_model.npz",
-        # all other params are default
-    )
-    # TODO is this correct?
-    multi_channel_nm = MultiChannelNMConfig(noise_models=[gmm] * output_channels)
-    # algorithm, loss and noise_model are not important here since
-    # we are only interested in testing the model architecture
     config = VAEAlgorithmConfig(
         algorithm_type="vae",
         algorithm="musplit",
-        loss="musplit",
+        loss=LVAELossConfig(loss_type="musplit"),
         model=lvae_model_config,
-        noise_model=multi_channel_nm,
+        gaussian_likelihood=GaussianLikelihoodConfig(
+            predict_logvar=predict_logvar, logvar_lowerbound=0.0
+        ),
     )
     return model_factory(config.model)
 
@@ -525,8 +515,6 @@ def test_lvae(
     create_dummy_noise_model,
 ) -> None:
     model = create_LVAE_model(
-        tmp_path=tmp_path,
-        create_dummy_noise_model=create_dummy_noise_model,
         input_shape=img_size,
         z_dims=z_dims,
         multiscale_count=multiscale_count,

@@ -26,7 +26,8 @@ if TYPE_CHECKING:
 
 
 def likelihood_factory(
-    config: Union[GaussianLikelihoodConfig, NMLikelihoodConfig, None]
+    config: Optional[Union[GaussianLikelihoodConfig, NMLikelihoodConfig]],
+    noise_model: Optional[NoiseModel] = None,
 ):
     """
     Factory function for creating likelihood modules.
@@ -35,6 +36,8 @@ def likelihood_factory(
     ----------
     config: Union[GaussianLikelihoodConfig, NMLikelihoodConfig]
         The configuration object for the likelihood module.
+    noise_model: Optional[NoiseModel]
+        The noise model instance used to define the `NoiseModelLikelihood`.
 
     Returns
     -------
@@ -53,7 +56,7 @@ def likelihood_factory(
         return NoiseModelLikelihood(
             data_mean=config.data_mean,
             data_std=config.data_std,
-            noiseModel=config.noise_model,
+            noise_model=noise_model,
         )
     else:
         raise ValueError(f"Invalid likelihood model type: {config.model_type}")
@@ -290,7 +293,7 @@ class NoiseModelLikelihood(LikelihoodModule):
         self,
         data_mean: Union[np.ndarray, torch.Tensor],
         data_std: Union[np.ndarray, torch.Tensor],
-        noiseModel: NoiseModel,
+        noise_model: NoiseModel,
     ):
         """Constructor.
 
@@ -307,7 +310,7 @@ class NoiseModelLikelihood(LikelihoodModule):
         super().__init__()
         self.data_mean = torch.Tensor(data_mean)
         self.data_std = torch.Tensor(data_std)
-        self.noiseModel = noiseModel
+        self.noiseModel = noise_model
 
     def _set_params_to_same_device_as(
         self, correct_device_tensor: torch.Tensor

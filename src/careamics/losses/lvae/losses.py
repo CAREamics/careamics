@@ -15,7 +15,7 @@ from careamics.models.lvae.likelihoods import (
 )
 
 if TYPE_CHECKING:
-    from careamics.losses.loss_factory import LVAELossParameters
+    from careamics.config import LVAELossConfig
 
 Likelihood = Union[LikelihoodModule, GaussianLikelihood, NoiseModelLikelihood]
 
@@ -265,7 +265,9 @@ def _get_kl_divergence_loss_denoisplit(
 def musplit_loss(
     model_outputs: tuple[torch.Tensor, dict[str, Any]],
     targets: torch.Tensor,
-    loss_parameters: LVAELossParameters,
+    config: LVAELossConfig,
+    gaussian_likelihood: Optional[GaussianLikelihood],
+    noise_model_likelihood: Optional[NoiseModelLikelihood] = None,  # TODO: ugly
 ) -> Optional[dict[str, torch.Tensor]]:
     """Loss function for muSplit.
 
@@ -277,9 +279,13 @@ def musplit_loss(
     targets : torch.Tensor
         The target image used to compute the reconstruction loss. Shape is
         (B, `target_ch`, [Z], Y, X).
-    loss_parameters : LVAELossParameters
-        The loss parameters for muSplit (e.g., KL hyperparameters, likelihood module,
+    config : LVAELossConfig
+        The config for loss function (e.g., KL hyperparameters, likelihood module,
         noise model, etc.).
+    gaussian_likelihood : GaussianLikelihood
+        The Gaussian likelihood object.
+    noise_model_likelihood : Optional[NoiseModelLikelihood]
+        The noise model likelihood object. Not used here.
 
     Returns
     -------
@@ -287,27 +293,26 @@ def musplit_loss(
         A dictionary containing the overall loss `["loss"]`, the reconstruction loss
         `["reconstruction_loss"]`, and the KL divergence loss `["kl_loss"]`.
     """
+    assert gaussian_likelihood is not None
+
     predictions, td_data = model_outputs
 
     # Reconstruction loss computation
-    recons_loss = (
-        get_reconstruction_loss(
-            reconstruction=predictions,
-            target=targets,
-            likelihood_obj=loss_parameters.gaussian_likelihood,
-        )
-        * loss_parameters.reconstruction_weight
+    recons_loss = config.reconstruction_weight * get_reconstruction_loss(
+        reconstruction=predictions,
+        target=targets,
+        likelihood_obj=gaussian_likelihood,
     )
     if torch.isnan(recons_loss).any():
         recons_loss = 0.0
 
     # KL loss computation
     kl_weight = get_kl_weight(
-        loss_parameters.kl_annealing,
-        loss_parameters.kl_start,
-        loss_parameters.kl_annealtime,
-        loss_parameters.kl_weight,
-        loss_parameters.current_epoch,
+        config.kl_params.annealing,
+        config.kl_params.start,
+        config.kl_params.annealtime,
+        config.kl_weight,
+        config.kl_params.current_epoch,
     )
     kl_loss = (
         _get_kl_divergence_loss_musplit(
@@ -336,7 +341,9 @@ def musplit_loss(
 def denoisplit_loss(
     model_outputs: tuple[torch.Tensor, dict[str, Any]],
     targets: torch.Tensor,
-    loss_parameters: LVAELossParameters,
+    config: LVAELossConfig,
+    gaussian_likelihood: Optional[GaussianLikelihood] = None,
+    noise_model_likelihood: Optional[NoiseModelLikelihood] = None,
 ) -> Optional[dict[str, torch.Tensor]]:
     """Loss function for DenoiSplit.
 
@@ -348,9 +355,12 @@ def denoisplit_loss(
     targets : torch.Tensor
         The target image used to compute the reconstruction loss. Shape is
         (B, `target_ch`, [Z], Y, X).
-    loss_parameters : LVAELossParameters
-        The loss parameters for muSplit (e.g., KL hyperparameters, likelihood module,
-        noise model, etc.).
+    config : LVAELossConfig
+        The config for loss function containing all loss hyperparameters.
+    gaussian_likelihood : GaussianLikelihood
+        The Gaussian likelihood object.
+    noise_model_likelihood : NoiseModelLikelihood
+        The noise model likelihood object.
 
     Returns
     -------
@@ -358,27 +368,26 @@ def denoisplit_loss(
         A dictionary containing the overall loss `["loss"]`, the reconstruction loss
         `["reconstruction_loss"]`, and the KL divergence loss `["kl_loss"]`.
     """
+    assert noise_model_likelihood is not None
+
     predictions, td_data = model_outputs
 
     # Reconstruction loss computation
-    recons_loss = (
-        get_reconstruction_loss(
-            reconstruction=predictions,
-            target=targets,
-            likelihood_obj=loss_parameters.noise_model_likelihood,
-        )
-        * loss_parameters.reconstruction_weight
+    recons_loss = config.reconstruction_weight * get_reconstruction_loss(
+        reconstruction=predictions,
+        target=targets,
+        likelihood_obj=noise_model_likelihood,
     )
     if torch.isnan(recons_loss).any():
         recons_loss = 0.0
 
     # KL loss computation
     kl_weight = get_kl_weight(
-        loss_parameters.kl_annealing,
-        loss_parameters.kl_start,
-        loss_parameters.kl_annealtime,
-        loss_parameters.kl_weight,
-        loss_parameters.current_epoch,
+        config.kl_params.annealing,
+        config.kl_params.start,
+        config.kl_params.annealtime,
+        config.kl_weight,
+        config.kl_params.current_epoch,
     )
     kl_loss = (
         _get_kl_divergence_loss_denoisplit(
@@ -407,7 +416,9 @@ def denoisplit_loss(
 def denoisplit_musplit_loss(
     model_outputs: tuple[torch.Tensor, dict[str, Any]],
     targets: torch.Tensor,
-    loss_parameters: LVAELossParameters,
+    config: LVAELossConfig,
+    gaussian_likelihood: GaussianLikelihood,
+    noise_model_likelihood: NoiseModelLikelihood,
 ) -> Optional[dict[str, torch.Tensor]]:
     """Loss function for DenoiSplit.
 
@@ -419,9 +430,12 @@ def denoisplit_musplit_loss(
     targets : torch.Tensor
         The target image used to compute the reconstruction loss. Shape is
         (B, `target_ch`, [Z], Y, X).
-    loss_parameters : LVAELossParameters
-        The loss parameters for muSplit (e.g., KL hyperparameters, likelihood module,
-        noise model, etc.).
+    config : LVAELossConfig
+        The config for loss function containing all loss hyperparameters.
+    gaussian_likelihood : GaussianLikelihood
+        The Gaussian likelihood object.
+    noise_model_likelihood : NoiseModelLikelihood
+        The noise model likelihood object.
 
     Returns
     -------
@@ -435,10 +449,10 @@ def denoisplit_musplit_loss(
     recons_loss = _reconstruction_loss_musplit_denoisplit(
         predictions=predictions,
         targets=targets,
-        nm_likelihood=loss_parameters.noise_model_likelihood,
-        gaussian_likelihood=loss_parameters.gaussian_likelihood,
-        nm_weight=loss_parameters.denoisplit_weight,
-        gaussian_weight=loss_parameters.musplit_weight,
+        nm_likelihood=noise_model_likelihood,
+        gaussian_likelihood=gaussian_likelihood,
+        nm_weight=config.denoisplit_weight,
+        gaussian_weight=config.musplit_weight,
     )
     if torch.isnan(recons_loss).any():
         recons_loss = 0.0
@@ -455,11 +469,10 @@ def denoisplit_musplit_loss(
         img_shape=targets.shape[2:],
     )
     kl_loss = (
-        loss_parameters.denoisplit_weight * denoisplit_kl
-        + loss_parameters.musplit_weight * musplit_kl
+        config.denoisplit_weight * denoisplit_kl + config.musplit_weight * musplit_kl
     )
     # TODO `kl_weight` is hardcoded (???)
-    kl_loss = loss_parameters.kl_weight * kl_loss
+    kl_loss = config.kl_weight * kl_loss
 
     net_loss = recons_loss + kl_loss
     output = {
