@@ -40,7 +40,7 @@ class DatasetConfig(BaseModel):
     start_alpha: Optional[Any] = None
     end_alpha: Optional[Any] = None
 
-    image_size: int
+    image_size: tuple # TODO: revisit, new model_config uses tuple
     """Size of one patch of data"""
 
     grid_size: Optional[int] = None

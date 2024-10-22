@@ -91,18 +91,18 @@ class MultiChDloader:
         self._start_alpha_arr = self._end_alpha_arr = self._return_alpha = None
 
         self._img_sz = self._grid_sz = self._repeat_factor = self.idx_manager = None
+
+        # changed set_img_sz because "grid_size" in data_config returns false
+        try:
+            grid_size = data_config.grid_size
+        except AttributeError:
+            grid_size = data_config.image_size
+
         if self._is_train:
             self._start_alpha_arr = data_config.start_alpha
             self._end_alpha_arr = data_config.end_alpha
 
-            self.set_img_sz(
-                data_config.image_size,
-                (
-                    data_config.grid_size
-                    if "grid_size" in data_config
-                    else data_config.image_size
-                ),
-            )
+            self.set_img_sz(data_config.image_size, grid_size)
 
             if self._validtarget_rand_fract is not None:
                 self._train_index_switcher = IndexSwitcher(
@@ -110,15 +110,7 @@ class MultiChDloader:
                 )
 
         else:
-
-            self.set_img_sz(
-                data_config.image_size,
-                (
-                    data_config.grid_size
-                    if "grid_size" in data_config
-                    else data_config.image_size
-                ),
-            )
+            self.set_img_sz(data_config.image_size, grid_size)
 
         self._return_alpha = False
         self._return_index = False
@@ -401,8 +393,8 @@ class MultiChDloader:
             image_size: size of one patch
             grid_size: frame is divided into square grids of this size. A patch centered on a grid having size `image_size` is returned.
         """
-
-        self._img_sz = image_size
+        # hacky way to deal with image shape from new conf
+        self._img_sz = image_size[-1] # TODO revisit!
         self._grid_sz = grid_size
         shape = self._data.shape
 
