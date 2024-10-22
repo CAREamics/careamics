@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from contextlib import nullcontext as does_not_raise
 from pathlib import Path
-from typing import TYPE_CHECKING, Callable, Union
+from typing import TYPE_CHECKING, Callable, Literal, Union
 
 import numpy as np
 import pytest
@@ -19,23 +19,18 @@ from careamics.losses.loss_factory import (
     loss_factory,
 )
 from careamics.losses.lvae.losses import (
+    _reconstruction_loss_musplit_denoisplit,
     denoisplit_loss,
     denoisplit_musplit_loss,
+    get_kl_divergence_loss,
     get_reconstruction_loss,
     musplit_loss,
-    reconstruction_loss_musplit_denoisplit,
 )
 from careamics.models.lvae.likelihoods import likelihood_factory
 from careamics.models.lvae.noise_models import noise_model_factory
 
 if TYPE_CHECKING:
     from careamics.models.lvae.noise_models import MultiChannelNoiseModel
-#     from careamics.models.lvae.likelihoods import (
-#         LikelihoodModule,
-#         GaussianLikelihood,
-#         NoiseModelLikelihood
-#     )
-#     Likelihood = Union[LikelihoodModule, GaussianLikelihood, NoiseModelLikelihood]
 
 pytestmark = pytest.mark.lvae
 
@@ -145,8 +140,6 @@ def test_reconstruction_loss(
 
     # check outputs
     assert rec_loss is not None
-    for i in range(target_ch):
-        assert rec_loss[f"ch{i+1}_loss"] is not None
 
 
 @pytest.mark.parametrize("batch_size", [1, 8])
@@ -178,7 +171,7 @@ def test_reconstruction_loss_musplit_denoisplit(
     gaussian_likelihood = likelihood_factory(gaussian_config)
 
     # compute the loss
-    rec_loss = reconstruction_loss_musplit_denoisplit(
+    rec_loss = _reconstruction_loss_musplit_denoisplit(
         predictions=reconstruction,
         targets=target,
         nm_likelihood=nm_likelihood,
@@ -190,6 +183,42 @@ def test_reconstruction_loss_musplit_denoisplit(
     # check outputs
     assert rec_loss is not None
     assert isinstance(rec_loss, torch.Tensor)
+
+
+@pytest.mark.parametrize("batch_size", [1, 8])
+@pytest.mark.parametrize("n_layers", [1, 4])
+@pytest.mark.parametrize("enable_LC", [False, True])
+@pytest.mark.parametrize("rescaling", ["latent_dim", "image_dim"])
+@pytest.mark.parametrize("aggregation", ["mean", "sum"])
+@pytest.mark.parametrize("free_bits_coeff", [0.0, 1.0])
+def test_KL_divergence_loss(
+    batch_size: int,
+    n_layers: int,
+    enable_LC: bool,
+    rescaling: Literal["latent_dim", "image_dim"],
+    aggregation: Literal["mean", "sum"],
+    free_bits_coeff: float,
+):
+    # create test data
+    img_size = 64
+    if enable_LC:
+        z = [torch.ones(batch_size, 128, img_size, img_size) for _ in range(n_layers)]
+    else:
+        sizes = [img_size // 2 ** (i + 1) for i in range(n_layers)]
+        sizes = sizes[::-1]
+        z = [torch.ones(batch_size, 128, sz, sz) for sz in sizes]
+    td_data = {
+        "z": z,
+        "kl": [torch.ones(batch_size) for _ in range(n_layers)],
+    }
+
+    # compute the loss for different settings
+    img_shape = (img_size, img_size)
+    kl_loss = get_kl_divergence_loss(
+        td_data, rescaling, aggregation, free_bits_coeff, img_shape
+    )
+    assert isinstance(kl_loss, torch.Tensor)
+    assert isinstance(kl_loss.item(), float)
 
 
 @pytest.mark.parametrize("batch_size", [1, 8])
