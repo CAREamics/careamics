@@ -394,7 +394,7 @@ class MultiChDloader:
             grid_size: frame is divided into square grids of this size. A patch centered on a grid having size `image_size` is returned.
         """
         # hacky way to deal with image shape from new conf
-        self._img_sz = image_size[-1] # TODO revisit!
+        self._img_sz = image_size[-1]  # TODO revisit!
         self._grid_sz = grid_size
         shape = self._data.shape
 

@@ -98,7 +98,7 @@ class MultiChannelNoiseModel(nn.Module):
             List of noise models, one for each output channel.
         """
         super().__init__()
-        for i, nmodel in enumerate(nmodels): # TODO refactor this !!!
+        for i, nmodel in enumerate(nmodels):  # TODO refactor this !!!
             if nmodel is not None:
                 self.add_module(
                     f"nmodel_{i}", nmodel
@@ -248,7 +248,7 @@ class GaussianMixtureNoiseModel(nn.Module):
                 torch.Tensor(params["trained_weight"]), requires_grad=False
             )
             self.min_sigma = params["min_sigma"].item()
-            self.n_gaussian = self.weight.shape[0] // 3 # TODO why // 3 ?
+            self.n_gaussian = self.weight.shape[0] // 3  # TODO why // 3 ?
             self.n_coeff = self.weight.shape[1]
             self.tol = torch.Tensor([1e-10])  # .to(self.device)
             self.min_signal = torch.Tensor([self.min_signal])  # .to(self.device)
