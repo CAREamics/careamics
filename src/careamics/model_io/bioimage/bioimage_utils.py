@@ -22,7 +22,7 @@ def get_unzip_path(zip_path: Union[Path, str]) -> Path:
     return zip_path.parent / (str(zip_path.name) + ".unzip")
 
 
-def create_env_text(pytorch_version: str) -> str:
+def create_env_text(pytorch_version: str, torchvision_version: str) -> str:
     """Create environment yaml content for the bioimage model.
 
     This installs an environment with the specified pytorch version and the latest
@@ -32,6 +32,8 @@ def create_env_text(pytorch_version: str) -> str:
     ----------
     pytorch_version : str
         Pytorch version.
+    torchvision_version : str
+        Torchvision version.
 
     Returns
     -------
@@ -43,7 +45,7 @@ def create_env_text(pytorch_version: str) -> str:
         f"dependencies:\n"
         f"  - python=3.10\n"
         f"  - pytorch={pytorch_version}\n"
-        f"  - torchvision={pytorch_version}\n"
+        f"  - torchvision={torchvision_version}\n"
         f"  - pip\n"
         f"  - pip:\n"
         f"    - git+https://github.com/CAREamics/careamics.git\n"
