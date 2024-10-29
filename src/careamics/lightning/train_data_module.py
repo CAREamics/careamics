@@ -2,6 +2,7 @@
 
 from pathlib import Path
 from typing import Any, Callable, Literal, Optional, Union
+from warnings import warn
 
 import numpy as np
 import pytorch_lightning as L
@@ -264,6 +265,16 @@ class TrainDataModule(L.LightningDataModule):
         self.dataloader_params: dict[str, Any] = (
             data_config.dataloader_params if data_config.dataloader_params else {}
         )
+        if ("shuffle" in self.dataloader_params) and (
+            not self.dataloader_params["shuffle"]
+        ):
+            warn(
+                "Dataloader parameters include `shuffle=False`, this will be passed to "
+                "the training dataloader and may result in bad results.",
+                stacklevel=1,
+            )
+        else:
+            self.dataloader_params["shuffle"] = True
 
     def prepare_data(self) -> None:
         """
