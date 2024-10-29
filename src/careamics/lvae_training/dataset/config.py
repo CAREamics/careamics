@@ -2,7 +2,7 @@ from typing import Any, Optional
 
 from pydantic import BaseModel, ConfigDict
 
-from .types import DataType, DataSplitType, TilingMode
+from .types import DataSplitType, DataType, TilingMode
 
 
 # TODO: check if any bool logic can be removed
@@ -40,7 +40,7 @@ class DatasetConfig(BaseModel):
     start_alpha: Optional[Any] = None
     end_alpha: Optional[Any] = None
 
-    image_size: tuple # TODO: revisit, new model_config uses tuple
+    image_size: tuple  # TODO: revisit, new model_config uses tuple
     """Size of one patch of data"""
 
     grid_size: Optional[int] = None

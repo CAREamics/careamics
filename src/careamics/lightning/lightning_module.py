@@ -269,18 +269,21 @@ class VAEModule(L.LightningModule):
         self.model: nn.Module = model_factory(self.algorithm_config.model)
 
         # create loss function
-        self.noise_model: NoiseModel = noise_model_factory(
+        self.noise_model: Optional[NoiseModel] = noise_model_factory(
             self.algorithm_config.noise_model
         )
+
         self.noise_model_likelihood: Optional[NoiseModelLikelihood] = (
             likelihood_factory(
-                self.algorithm_config.noise_model_likelihood,
+                config=self.algorithm_config.noise_model_likelihood,
                 noise_model=self.noise_model,
             )
         )
+
         self.gaussian_likelihood: Optional[GaussianLikelihood] = likelihood_factory(
             self.algorithm_config.gaussian_likelihood
         )
+
         self.loss_parameters = self.algorithm_config.loss
         self.loss_func = loss_factory(self.algorithm_config.loss.loss_type)
 
