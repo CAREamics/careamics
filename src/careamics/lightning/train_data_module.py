@@ -447,6 +447,7 @@ class TrainDataModule(L.LightningDataModule):
         Any
             Training dataloader.
         """
+        # check because iterable dataset cannot be shuffled
         if not isinstance(self.train_dataset, IterableDataset):
             if ("shuffle" in self.dataloader_params) and (
                 not self.dataloader_params["shuffle"]
