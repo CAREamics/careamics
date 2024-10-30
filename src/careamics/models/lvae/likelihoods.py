@@ -5,7 +5,7 @@ Script containing modules for defining different likelihood functions (as nn.Mod
 from __future__ import annotations
 
 import math
-from typing import Literal, Union, TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any, Literal, Optional, Union
 
 import numpy as np
 import torch
@@ -102,8 +102,8 @@ class LikelihoodModule(nn.Module):
         self, input_: torch.Tensor, x: Union[torch.Tensor, None]
     ) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
         """
-        Parameters:
-        -----------
+        Parameters
+        ----------
         input_: torch.Tensor
             The output of the top-down pass (e.g., reconstructed image in HDN,
             or the unmixed images in 'Split' models).
@@ -184,7 +184,6 @@ class GaussianLikelihood(LikelihoodModule):
             log-variance. If the attribute `predict_logvar` is `None` then the second
             element will be `None`.
         """
-
         # if LadderVAE.predict_logvar is None, dim 1 of `x`` has no. of target channels
         if self.predict_logvar is None:
             return x, None

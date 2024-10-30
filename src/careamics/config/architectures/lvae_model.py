@@ -21,7 +21,9 @@ class LVAEModel(ArchitectureModel):
     # TODO make this per hierarchy step ?
     decoder_conv_strides: list = Field(default=[2, 2], validate_default=True)
     """Dimensions (2D or 3D) of the convolutional layers."""
-    multiscale_count: int = Field(default=1)  # TODO clarify
+    multiscale_count: int = Field(default=1)
+    # TODO there should be a check for multiscale_count in dataset !!
+
     # 1 - off, len(z_dims) + 1 # TODO Consider starting from 0
     z_dims: list = Field(default=[128, 128, 128, 128])
     output_channels: int = Field(default=1, ge=1)

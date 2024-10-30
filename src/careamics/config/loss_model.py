@@ -10,7 +10,7 @@ class KLLossConfig(BaseModel):
 
     model_config = ConfigDict(validate_assignment=True, validate_default=True)
 
-    type: Literal["kl", "kl_restricted", "kl_spatial", "kl_channelwise"] = "kl"
+    loss_type: Literal["kl", "kl_restricted", "kl_spatial", "kl_channelwise"] = "kl"
     """Type of KL divergence used as KL loss."""
     rescaling: Literal["latent_dim", "image_dim"] = "latent_dim"
     """Rescaling of the KL loss."""

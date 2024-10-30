@@ -92,20 +92,16 @@ def _reconstruction_loss_musplit_denoisplit(
     else:
         pred_mean = predictions
 
-    recons_loss_nm = (
-        -1
-        * get_reconstruction_loss(
-            reconstruction=pred_mean, target=targets, likelihood_obj=nm_likelihood
-        ).mean()
+    recons_loss_nm = get_reconstruction_loss(
+        reconstruction=pred_mean, target=targets, likelihood_obj=nm_likelihood
     )
-    recons_loss_gm = (
-        -1
-        * get_reconstruction_loss(
-            reconstruction=predictions,
-            target=targets,
-            likelihood_obj=gaussian_likelihood,
-        ).mean()
+
+    recons_loss_gm = get_reconstruction_loss(
+        reconstruction=predictions,
+        target=targets,
+        likelihood_obj=gaussian_likelihood,
     )
+
     recons_loss = nm_weight * recons_loss_nm + gaussian_weight * recons_loss_gm
     return recons_loss
 
