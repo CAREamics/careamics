@@ -40,18 +40,18 @@ class VAEAlgorithmConfig(BaseModel):
     #   - values can still be passed as strings and they will be cast to Enum
     algorithm: Literal["musplit", "denoisplit"]
 
-    # NOTE: these are all configs (pydantic models)
-    loss: LVAELossConfig
+    # NOTE: these are all configs (pydantic models)s
     model: Union[LVAEModel, CustomModel] = Field(discriminator="architecture")
+    loss: Optional[LVAELossConfig]
     noise_model: Optional[MultiChannelNMConfig] = None
     noise_model_likelihood: Optional[NMLikelihoodConfig] = None
     gaussian_likelihood: Optional[GaussianLikelihoodConfig] = None
 
     # Optional fields
-    optimizer: OptimizerModel = OptimizerModel()
+    optimizer: Optional[OptimizerModel] = OptimizerModel()
     """Optimizer to use, defined in SupportedOptimizer."""
 
-    lr_scheduler: LrSchedulerModel = LrSchedulerModel()
+    lr_scheduler: Optional[LrSchedulerModel] = LrSchedulerModel()
 
     @model_validator(mode="after")
     def algorithm_cross_validation(self: Self) -> Self:
