@@ -40,9 +40,9 @@ class VAEAlgorithmConfig(BaseModel):
     #   - values can still be passed as strings and they will be cast to Enum
     algorithm: Literal["musplit", "denoisplit"]
 
-    # NOTE: these are all configs (pydantic models)s
+    # NOTE: these are all configs (pydantic models)
     model: Union[LVAEModel, CustomModel] = Field(discriminator="architecture")
-    loss: Optional[LVAELossConfig]
+    loss: Optional[LVAELossConfig] = None
     noise_model: Optional[MultiChannelNMConfig] = None
     noise_model_likelihood: Optional[NMLikelihoodConfig] = None
     gaussian_likelihood: Optional[GaussianLikelihoodConfig] = None
