@@ -52,6 +52,11 @@ def custom_model_parameters(custom_model_name) -> dict:
 ######################################
 
 
+@pytest.fixture
+def gaussian_likelihood_params():
+    return {"predict_logvar": "pixelwise", "logvar_lowerbound": -5}
+
+
 # TODO add details about where each of these fixture is used (e.g. smoke test)
 @pytest.fixture
 def create_tiff(path: Path, n_files: int):
@@ -106,7 +111,7 @@ def minimum_algorithm_supervised() -> dict:
     return algorithm
 
 
-# TODO: need to update/remove this fixture
+# TODO: wrong! need to update/remove this fixture
 @pytest.fixture
 def minimum_algorithm_musplit() -> dict:
     """Create a minimum algorithm dictionary.
@@ -123,7 +128,7 @@ def minimum_algorithm_musplit() -> dict:
         "model": {
             "architecture": "LVAE",
             "z_dims": (128, 128, 128),
-            "multiscale_count": 4,
+            "multiscale_count": 2,
             "predict_logvar": "pixelwise",
         },
         "likelihood": {
@@ -134,7 +139,7 @@ def minimum_algorithm_musplit() -> dict:
     return algorithm
 
 
-# TODO: Need to update/remove this fixture
+# TODO: wrong! need to update/remove this fixture
 @pytest.fixture
 def minimum_algorithm_denoisplit() -> dict:
     """Create a minimum algorithm dictionary.
@@ -151,7 +156,7 @@ def minimum_algorithm_denoisplit() -> dict:
         "model": {
             "architecture": "LVAE",
             "z_dims": (128, 128, 128),
-            "multiscale_count": 4,
+            "multiscale_count": 2,
         },
         "likelihood": {"type": "GaussianLikelihoodConfig", "color_channels": 2},
         "noise_model": "MultiChannelNMConfig",
@@ -389,3 +394,22 @@ def create_dummy_noise_model(
         "min_sigma": 0.125,
     }
     return nm_dict
+
+
+@pytest.fixture
+def minimum_lvae_params():
+    return {
+        "input_shape": (64, 64),
+        "output_channels": 2,
+        "multiscale_count": 1,
+        "encoder_conv_strides": [2, 2],
+        "decoder_conv_strides": [2, 2],
+        "z_dims": [128, 128, 128, 128],
+        "encoder_n_filters": 64,
+        "decoder_n_filters": 64,
+        "encoder_dropout": 0.1,
+        "decoder_dropout": 0.1,
+        "nonlinearity": "ELU",
+        "predict_logvar": "pixelwise",
+        "analytical_kl": False,
+    }

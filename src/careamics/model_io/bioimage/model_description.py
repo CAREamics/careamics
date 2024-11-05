@@ -284,15 +284,6 @@ def create_model_description(
         weights=weights_descr,
         attachments=[FileDescr(source=config_path)],
         cite=config.get_algorithm_citations(),
-        config={  # conversion from float32 to float64 creates small differences...
-            "bioimageio": {
-                "test_kwargs": {
-                    "pytorch_state_dict": {
-                        "decimals": 0,  # ...so we relax the constraints on the decimals
-                    }
-                }
-            }
-        },
     )
 
     return model

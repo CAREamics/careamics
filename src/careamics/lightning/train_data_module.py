@@ -2,11 +2,12 @@
 
 from pathlib import Path
 from typing import Any, Callable, Literal, Optional, Union
+from warnings import warn
 
 import numpy as np
 import pytorch_lightning as L
 from numpy.typing import NDArray
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, IterableDataset
 
 from careamics.config import DataConfig
 from careamics.config.support import SupportedData
@@ -446,6 +447,19 @@ class TrainDataModule(L.LightningDataModule):
         Any
             Training dataloader.
         """
+        # check because iterable dataset cannot be shuffled
+        if not isinstance(self.train_dataset, IterableDataset):
+            if ("shuffle" in self.dataloader_params) and (
+                not self.dataloader_params["shuffle"]
+            ):
+                warn(
+                    "Dataloader parameters include `shuffle=False`, this will be "
+                    "passed to the training dataloader and may result in bad results.",
+                    stacklevel=1,
+                )
+            else:
+                self.dataloader_params["shuffle"] = True
+
         return DataLoader(
             self.train_dataset, batch_size=self.batch_size, **self.dataloader_params
         )

@@ -4,7 +4,7 @@ from typing import Literal, Optional, Union
 
 import numpy as np
 import torch
-from pydantic import BaseModel, ConfigDict, Field, PlainSerializer, PlainValidator
+from pydantic import BaseModel, ConfigDict, PlainSerializer, PlainValidator
 from typing_extensions import Annotated
 
 from careamics.models.lvae.noise_models import (
@@ -41,7 +41,12 @@ class GaussianLikelihoodConfig(BaseModel):
 
 
 class NMLikelihoodConfig(BaseModel):
-    """Noise model likelihood configuration."""
+    """Noise model likelihood configuration.
+
+    NOTE: we need to define the data mean and std here because the noise model
+    is trained on not-normalized data. Hence, we need to unnormalize the model
+    output to compute the noise model likelihood.
+    """
 
     model_config = ConfigDict(validate_assignment=True, arbitrary_types_allowed=True)
 
@@ -54,7 +59,3 @@ class NMLikelihoodConfig(BaseModel):
     data_std: Tensor = torch.ones(1)
     """The standard deviation of the data, used to unnormalize data for noise
     model evaluation. Shape is (target_ch,) (or (1, target_ch, [1], 1, 1))."""
-
-    # TODO: serialization/deserialization for this
-    noise_model: Optional[NoiseModel] = Field(default=None, exclude=True)
-    """The noise model instance used to compute the likelihood."""
