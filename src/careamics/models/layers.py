@@ -459,7 +459,8 @@ class MaxBlurPool(nn.Module):
         self.stride = stride
         self.max_pool_size = max_pool_size
         self.ceil_mode = ceil_mode
-        self.kernel = _get_pascal_kernel_nd(kernel_size, norm=True, dim=self.dim)
+        kernel = _get_pascal_kernel_nd(kernel_size, norm=True, dim=self.dim)
+        self.register_buffer("kernel", kernel, persistent=False)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Forward pass of the function.
@@ -474,11 +475,12 @@ class MaxBlurPool(nn.Module):
         torch.Tensor
             Output tensor.
         """
-        self.kernel = torch.as_tensor(self.kernel, device=x.device, dtype=x.dtype)
+        kernel = self.kernel.to(dtype=x.dtype)
+        num_channels = int(x.size(1))
         if self.dim == 2:
             return _max_blur_pool_by_kernel2d(
                 x,
-                self.kernel.repeat((x.size(1), 1, 1, 1)),
+                kernel.repeat((num_channels, 1, 1, 1)),
                 self.stride,
                 self.max_pool_size,
                 self.ceil_mode,
@@ -486,7 +488,7 @@ class MaxBlurPool(nn.Module):
         else:
             return _max_blur_pool_by_kernel3d(
                 x,
-                self.kernel.repeat((x.size(1), 1, 1, 1, 1)),
+                kernel.repeat((num_channels, 1, 1, 1, 1)),
                 self.stride,
                 self.max_pool_size,
                 self.ceil_mode,

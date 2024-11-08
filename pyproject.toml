@@ -62,6 +62,7 @@ dev = [
     "pre-commit",
     "pytest",
     "pytest-cov",
+    "onnx",
     "sybil",      # doctesting
 ]
 
