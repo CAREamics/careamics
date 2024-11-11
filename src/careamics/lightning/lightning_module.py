@@ -163,7 +163,11 @@ class FCNModule(L.LightningModule):
         Any
             Model output.
         """
-        if self._trainer.datamodule.tiled:
+        # hacky way to determine if it is PredictDataModule, otherwise there is a
+        # circular import to solve (isinstance)
+        is_prediction = hasattr(self._trainer.datamodule, "tiled")
+
+        if is_prediction and self._trainer.datamodule.tiled:
             x, *aux = batch
         else:
             x = batch
@@ -171,7 +175,7 @@ class FCNModule(L.LightningModule):
 
         # apply test-time augmentation if available
         # TODO: probably wont work with batch size > 1
-        if self._trainer.datamodule.prediction_config.tta_transforms:
+        if is_prediction and self._trainer.datamodule.prediction_config.tta_transforms:
             tta = ImageRestorationTTA()
             augmented_batch = tta.forward(x)  # list of augmented tensors
             augmented_output = []
@@ -183,9 +187,18 @@ class FCNModule(L.LightningModule):
             output = self.model(x)
 
         # Denormalize the output
+        # TODO incompatible API between predict and train datasets
         denorm = Denormalize(
-            image_means=self._trainer.datamodule.predict_dataset.image_means,
-            image_stds=self._trainer.datamodule.predict_dataset.image_stds,
+            image_means=(
+                self._trainer.datamodule.predict_dataset.image_means
+                if is_prediction
+                else self._trainer.datamodule.train_dataset.image_stats.means
+            ),
+            image_stds=(
+                self._trainer.datamodule.predict_dataset.image_stds
+                if is_prediction
+                else self._trainer.datamodule.train_dataset.image_stats.stds
+            ),
         )
         denormalized_output = denorm(patch=output.cpu().numpy())
 
