@@ -312,7 +312,7 @@ def test_fcn_module_unet_depth_3_channels_3D(n_channels):
 
 def test_prediction_callback_during_training(minimum_configuration):
     import numpy as np
-    from pytorch_lightning import Callback
+    from pytorch_lightning import Callback, Trainer
 
     from careamics import CAREamist, Configuration
     from careamics.lightning import PredictDataModule, create_predict_datamodule
@@ -329,28 +329,35 @@ def test_prediction_callback_during_training(minimum_configuration):
             self.pred_datamodule.setup()
             self.pred_dataloader = pred_datamodule.predict_dataloader()
 
-        def setup(self, trainer, pl_module, stage):
-            if stage in ("fit", "validate"):
-                self.pred_datamodule.prepare_data()
-                self.pred_datamodule.setup("predict")
+            self.data = None
 
-        def on_validation_epoch_end(self, trainer, pl_module):
+        def on_validation_epoch_end(self, trainer: Trainer, pl_module):
             if trainer.sanity_checking:  # optional skip
                 return
 
+            # update statistics in the prediction dataset for coherence
+            # (they can computed on-line by the training dataset)
+            self.pred_datamodule.predict_dataset.image_means = (
+                trainer.datamodule.train_dataset.image_stats.means
+            )
+            self.pred_datamodule.predict_dataset.image_stds = (
+                trainer.datamodule.train_dataset.image_stats.stds
+            )
+
+            # predict on the dataset
             outputs = []
             for idx, batch in enumerate(self.pred_dataloader):
                 batch = pl_module.transfer_batch_to_device(batch, pl_module.device, 0)
                 outputs.append(pl_module.predict_step(batch, batch_idx=idx))
 
-            return convert_outputs(outputs, self.pred_datamodule.tiled)
+            self.data = convert_outputs(outputs, self.pred_datamodule.tiled)
 
     array = np.arange(32 * 32).reshape((32, 32))
     pred_datamodule = create_predict_datamodule(
         pred_data=array,
         data_type=config.data_config.data_type,
         axes=config.data_config.axes,
-        image_means=[11.8],
+        image_means=[11.8],  # random placeholder
         image_stds=[3.14],
     )
 
@@ -359,3 +366,5 @@ def test_prediction_callback_during_training(minimum_configuration):
     )
     engine = CAREamist(config, callbacks=[predict_after_val_callback])
     engine.train(train_source=array)
+
+    assert not np.allclose(array, predict_after_val_callback.data)
