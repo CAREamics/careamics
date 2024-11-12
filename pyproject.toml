@@ -193,4 +193,3 @@ exclude = [ # don't report on objects that match any of these regex
     "test_*",
     "src/careamics/lvae_training/*",
 ]
-

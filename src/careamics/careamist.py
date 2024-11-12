@@ -11,7 +11,7 @@ from pytorch_lightning.callbacks import (
     EarlyStopping,
     ModelCheckpoint,
 )
-from pytorch_lightning.loggers import TensorBoardLogger, WandbLogger
+from pytorch_lightning.loggers import CSVLogger, TensorBoardLogger, WandbLogger
 
 from careamics.config import Configuration, FCNAlgorithmConfig, load_configuration
 from careamics.config.support import (
@@ -33,10 +33,11 @@ from careamics.lightning import (
 from careamics.model_io import export_to_bmz, load_pretrained
 from careamics.prediction_utils import convert_outputs
 from careamics.utils import check_path_exists, get_logger
+from careamics.utils.lightning_utils import read_csv_logger
 
 logger = get_logger(__name__)
 
-LOGGER_TYPES = Optional[Union[TensorBoardLogger, WandbLogger]]
+LOGGER_TYPES = list[Union[TensorBoardLogger, WandbLogger, CSVLogger]]
 
 
 class CAREamist:
@@ -170,18 +171,29 @@ class CAREamist:
         self._define_callbacks(callbacks)
 
         # instantiate logger
+        csv_logger = CSVLogger(
+            name=self.cfg.experiment_name,
+            save_dir=self.work_dir / "csv_logs",
+        )
+
         if self.cfg.training_config.has_logger():
             if self.cfg.training_config.logger == SupportedLogger.WANDB:
-                self.experiment_logger: LOGGER_TYPES = WandbLogger(
-                    name=self.cfg.experiment_name,
-                    save_dir=self.work_dir / Path("logs"),
-                )
+                experiment_logger: LOGGER_TYPES = [
+                    WandbLogger(
+                        name=self.cfg.experiment_name,
+                        save_dir=self.work_dir / Path("wandb_logs"),
+                    ),
+                    csv_logger,
+                ]
             elif self.cfg.training_config.logger == SupportedLogger.TENSORBOARD:
-                self.experiment_logger = TensorBoardLogger(
-                    save_dir=self.work_dir / Path("logs"),
-                )
+                experiment_logger = [
+                    TensorBoardLogger(
+                        save_dir=self.work_dir / Path("tb_logs"),
+                    ),
+                    csv_logger,
+                ]
         else:
-            self.experiment_logger = None
+            experiment_logger = [csv_logger]
 
         # instantiate trainer
         self.trainer = Trainer(
@@ -195,7 +207,7 @@ class CAREamist:
             gradient_clip_algorithm=self.cfg.training_config.gradient_clip_algorithm,
             callbacks=self.callbacks,
             default_root_dir=self.work_dir,
-            logger=self.experiment_logger,
+            logger=experiment_logger,
         )
 
         # place holder for the datamodules
@@ -904,3 +916,13 @@ class CAREamist:
             channel_names=channel_names,
             data_description=data_description,
         )
+
+    def get_losses(self) -> dict[str, list]:
+        """Return data that can be used to plot train and validation loss curves.
+
+        Returns
+        -------
+        dict of str: list
+            Dictionary containing the losses for each epoch.
+        """
+        return read_csv_logger(self.cfg.experiment_name, self.work_dir / "csv_logs")
