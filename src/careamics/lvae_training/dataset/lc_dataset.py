@@ -2,33 +2,36 @@
 A place for Datasets and Dataloaders.
 """
 
-from typing import Tuple, Union
+from typing import Tuple, Union, Callable
 
 import numpy as np
 from skimage.transform import resize
 
-from .lc_dataset_config import LCVaeDatasetConfig
-from .vae_dataset import MultiChDloader
+from .config import DatasetConfig
+from .multich_dataset import MultiChDloader
 
 
 class LCMultiChDloader(MultiChDloader):
-
     def __init__(
         self,
-        data_config: LCVaeDatasetConfig,
+        data_config: DatasetConfig,
         fpath: str,
+        load_data_fn: Callable,
         val_fraction=None,
         test_fraction=None,
     ):
-        """
-        Args:
-            num_scales: The number of resolutions at which we want the input. Note that the target is formed at the
-                        highest resolution.
-        """
         self._padding_kwargs = (
             data_config.padding_kwargs  # mode=padding_mode, constant_values=constant_value
         )
         self._uncorrelated_channel_probab = data_config.uncorrelated_channel_probab
+
+        super().__init__(
+            data_config,
+            fpath,
+            load_data_fn=load_data_fn,
+            val_fraction=val_fraction,
+            test_fraction=test_fraction,
+        )
 
         if data_config.overlapping_padding_kwargs is not None:
             assert (
@@ -37,21 +40,21 @@ class LCMultiChDloader(MultiChDloader):
                 It should be so since we just use overlapping_padding_kwargs when it is not None"
 
         else:
-            overlapping_padding_kwargs = data_config.padding_kwargs
+            self._overlapping_padding_kwargs = data_config.padding_kwargs
 
-        super().__init__(
-            data_config, fpath, val_fraction=val_fraction, test_fraction=test_fraction
-        )
-        self.num_scales = data_config.num_scales
-        assert self.num_scales is not None
+        self.multiscale_lowres_count = data_config.multiscale_lowres_count
+        assert self.multiscale_lowres_count is not None
         self._scaled_data = [self._data]
         self._scaled_noise_data = [self._noise_data]
 
-        assert isinstance(self.num_scales, int) and self.num_scales >= 1
+        assert (
+            isinstance(self.multiscale_lowres_count, int)
+            and self.multiscale_lowres_count >= 1
+        )
         assert isinstance(self._padding_kwargs, dict)
         assert "mode" in self._padding_kwargs
 
-        for _ in range(1, self.num_scales):
+        for _ in range(1, self.multiscale_lowres_count):
             shape = self._scaled_data[-1].shape
             assert len(shape) == 4
             new_shape = (shape[0], shape[1] // 2, shape[2] // 2, shape[3])
@@ -173,7 +176,7 @@ class LCMultiChDloader(MultiChDloader):
         allres_versions = {
             i: [cropped_img_tuples[i]] for i in range(len(cropped_img_tuples))
         }
-        for scale_idx in range(1, self.num_scales):
+        for scale_idx in range(1, self.multiscale_lowres_count):
             # Returning the image of the lower resolution
             scaled_img_tuples = self._load_scaled_img(scale_idx, index)
 
@@ -249,7 +252,9 @@ class LCMultiChDloader(MultiChDloader):
 
         target = self._compute_target(target_tuples, alpha)
 
-        output = [inp, target]
+        norm_target = self.normalize_target(target)
+
+        output = [inp, norm_target]
 
         if self._return_alpha:
             output.append(alpha)

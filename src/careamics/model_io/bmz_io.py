@@ -8,7 +8,9 @@ import numpy as np
 import pkg_resources
 from bioimageio.core import load_description, test_model
 from bioimageio.spec import ValidationSummary, save_bioimageio_package
-from torch import __version__, load, save
+from torch import __version__ as PYTORCH_VERSION
+from torch import load, save
+from torchvision import __version__ as TORCHVISION_VERSION
 
 from careamics.config import Configuration, load_configuration, save_configuration
 from careamics.config.support import SupportedArchitecture
@@ -141,7 +143,6 @@ def export_to_bmz(
         path_to_archive.parent.mkdir(parents=True, exist_ok=True)
 
     # versions
-    pytorch_version = __version__
     careamics_version = pkg_resources.get_distribution("careamics").version
 
     # save files in temporary folder
@@ -151,7 +152,7 @@ def export_to_bmz(
         # create environment file
         # TODO move in bioimage module
         env_path = temp_path / "environment.yml"
-        env_path.write_text(create_env_text(pytorch_version))
+        env_path.write_text(create_env_text(PYTORCH_VERSION, TORCHVISION_VERSION))
 
         # export input and ouputs
         inputs = temp_path / "inputs.npy"
@@ -174,7 +175,7 @@ def export_to_bmz(
             inputs=inputs,
             outputs=outputs,
             weights_path=weight_path,
-            torch_version=pytorch_version,
+            torch_version=PYTORCH_VERSION,
             careamics_version=careamics_version,
             config_path=config_path,
             env_path=env_path,
@@ -183,7 +184,7 @@ def export_to_bmz(
         )
 
         # test model description
-        summary: ValidationSummary = test_model(model_description, decimal=1)
+        summary: ValidationSummary = test_model(model_description)
         if summary.status == "failed":
             raise ValueError(f"Model description test failed: {summary}")
 

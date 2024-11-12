@@ -45,12 +45,13 @@ dependencies = [
     'numpy<2.0.0',
     'torch>=2.0.0',
     'torchvision',
-    'bioimageio.core>=0.6.0',
+    'bioimageio.core>=0.6.9',
     'tifffile',
     'psutil',
     'pydantic>=2.5,<2.9',
     'pytorch_lightning>=2.2.0',
     'pyyaml',
+    'typer==0.12.3',
     'scikit-image<=0.23.2',
     'zarr<3.0.0',
 ]
@@ -74,6 +75,10 @@ tensorboard = ["tensorboard", "protobuf==3.20.3"]
 [project.urls]
 homepage = "https://careamics.github.io/"
 repository = "https://github.com/CAREamics/careamics"
+
+# cli
+[project.scripts]
+careamics = "careamics.cli.main:run"
 
 # https://beta.ruff.rs/docs
 [tool.ruff]

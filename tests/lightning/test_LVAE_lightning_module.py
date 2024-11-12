@@ -15,13 +15,13 @@ from careamics.config.likelihood_model import (
     GaussianLikelihoodConfig,
     NMLikelihoodConfig,
 )
+from careamics.config.loss_model import LVAELossConfig
 from careamics.config.nm_model import GaussianMixtureNMConfig, MultiChannelNMConfig
 from careamics.lightning import VAEModule
 from careamics.losses import denoisplit_loss, denoisplit_musplit_loss, musplit_loss
 from careamics.models.lvae.likelihoods import GaussianLikelihood, NoiseModelLikelihood
 from careamics.models.lvae.noise_models import (
     MultiChannelNoiseModel,
-    noise_model_factory,
 )
 from careamics.utils.metrics import RunningPSNR
 
@@ -57,12 +57,14 @@ def create_split_lightning_model(
     """Instantiate the muSplit lightining model."""
     lvae_config = LVAEModel(
         architecture="LVAE",
-        input_shape=64,
+        input_shape=(64, 64),
         multiscale_count=multiscale_count,
         z_dims=[128, 128, 128, 128],
         output_channels=target_ch,
         predict_logvar=predict_logvar,
     )
+
+    loss_config = LVAELossConfig(loss_type=loss_type)
 
     # gaussian likelihood
     if loss_type in ["musplit", "denoisplit_musplit"]:
@@ -80,19 +82,18 @@ def create_split_lightning_model(
             path=tmp_path / "dummy_noise_model.npz",
         )
         noise_model_config = MultiChannelNMConfig(noise_models=[gmm] * target_ch)
-        nm = noise_model_factory(noise_model_config)
-        nm_lik_config = NMLikelihoodConfig(noise_model=nm)
+        nm_lik_config = NMLikelihoodConfig()
     else:
         noise_model_config = None
         nm_lik_config = None
 
     vae_config = VAEAlgorithmConfig(
         algorithm=algorithm,
-        loss=loss_type,
+        loss=loss_config,
         model=lvae_config,
-        gaussian_likelihood_model=gaussian_lik_config,
+        gaussian_likelihood=gaussian_lik_config,
         noise_model=noise_model_config,
-        noise_model_likelihood_model=nm_lik_config,
+        noise_model_likelihood=nm_lik_config,
     )
 
     return VAEModule(
@@ -153,7 +154,7 @@ def test_musplit_lightining_init(
 ):
     lvae_config = LVAEModel(
         architecture="LVAE",
-        input_shape=64,
+        input_shape=(64, 64),
         multiscale_count=multiscale_count,
         z_dims=[128, 128, 128, 128],
         output_channels=3,
@@ -168,9 +169,9 @@ def test_musplit_lightining_init(
     with exp_error:
         vae_config = VAEAlgorithmConfig(
             algorithm="musplit",
-            loss=loss_type,
+            loss=LVAELossConfig(loss_type=loss_type),
             model=lvae_config,
-            gaussian_likelihood_model=likelihood_config,
+            gaussian_likelihood=likelihood_config,
         )
         lightning_model = VAEModule(
             algorithm_config=vae_config,
@@ -216,7 +217,7 @@ def test_denoisplit_lightining_init(
     # Create the model config
     lvae_config = LVAEModel(
         architecture="LVAE",
-        input_shape=64,
+        input_shape=(64, 64),
         multiscale_count=multiscale_count,
         z_dims=[128, 128, 128, 128],
         output_channels=target_ch,
@@ -239,17 +240,16 @@ def test_denoisplit_lightining_init(
         path=tmp_path / "dummy_noise_model.npz",
     )
     noise_model_config = MultiChannelNMConfig(noise_models=[gmm] * nm_cnt)
-    nm = noise_model_factory(noise_model_config)
-    nm_lik_config = NMLikelihoodConfig(noise_model=nm)
+    nm_lik_config = NMLikelihoodConfig()
 
     with exp_error:
         vae_config = VAEAlgorithmConfig(
             algorithm="denoisplit",
-            loss=loss_type,
+            loss=LVAELossConfig(loss_type=loss_type),
             model=lvae_config,
-            gaussian_likelihood_model=gaussian_lik_config,
+            gaussian_likelihood=gaussian_lik_config,
             noise_model=noise_model_config,
-            noise_model_likelihood_model=nm_lik_config,
+            noise_model_likelihood=nm_lik_config,
         )
         lightning_model = VAEModule(
             algorithm_config=vae_config,

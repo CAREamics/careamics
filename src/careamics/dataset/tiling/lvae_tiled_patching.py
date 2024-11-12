@@ -8,7 +8,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from careamics.config.tile_information import TileInformation
-from careamics.lvae_training.dataset.data_utils import GridIndexManager
+from careamics.lvae_training.dataset.utils.index_manager import GridIndexManager
 
 
 def extract_tiles(

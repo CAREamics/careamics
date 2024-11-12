@@ -12,6 +12,7 @@ from careamics.config.support import SupportedAlgorithm, SupportedLoss
 
 from .architectures import CustomModel, LVAEModel
 from .likelihood_model import GaussianLikelihoodConfig, NMLikelihoodConfig
+from .loss_model import LVAELossConfig
 from .nm_model import MultiChannelNMConfig
 from .optimizer_models import LrSchedulerModel, OptimizerModel
 
@@ -38,13 +39,13 @@ class VAEAlgorithmConfig(BaseModel):
     # TODO: Use supported Enum classes for typing?
     #   - values can still be passed as strings and they will be cast to Enum
     algorithm: Literal["musplit", "denoisplit"]
-    loss: Literal["musplit", "denoisplit", "denoisplit_musplit"]
-    model: Union[LVAEModel, CustomModel] = Field(discriminator="architecture")
 
-    # TODO: these are configs, change naming of attrs
+    # NOTE: these are all configs (pydantic models)
+    loss: LVAELossConfig
+    model: Union[LVAEModel, CustomModel] = Field(discriminator="architecture")
     noise_model: Optional[MultiChannelNMConfig] = None
-    noise_model_likelihood_model: Optional[NMLikelihoodConfig] = None
-    gaussian_likelihood_model: Optional[GaussianLikelihoodConfig] = None
+    noise_model_likelihood: Optional[NMLikelihoodConfig] = None
+    gaussian_likelihood: Optional[GaussianLikelihoodConfig] = None
 
     # Optional fields
     optimizer: OptimizerModel = OptimizerModel()
@@ -63,13 +64,13 @@ class VAEAlgorithmConfig(BaseModel):
         """
         # musplit
         if self.algorithm == SupportedAlgorithm.MUSPLIT:
-            if self.loss != SupportedLoss.MUSPLIT:
+            if self.loss.loss_type != SupportedLoss.MUSPLIT:
                 raise ValueError(
                     f"Algorithm {self.algorithm} only supports loss `musplit`."
                 )
 
         if self.algorithm == SupportedAlgorithm.DENOISPLIT:
-            if self.loss not in [
+            if self.loss.loss_type not in [
                 SupportedLoss.DENOISPLIT,
                 SupportedLoss.DENOISPLIT_MUSPLIT,
             ]:
@@ -78,7 +79,7 @@ class VAEAlgorithmConfig(BaseModel):
                     "or `denoisplit_musplit."
                 )
             if (
-                self.loss == SupportedLoss.DENOISPLIT
+                self.loss.loss_type == SupportedLoss.DENOISPLIT
                 and self.model.predict_logvar is not None
             ):
                 raise ValueError(
@@ -115,14 +116,13 @@ class VAEAlgorithmConfig(BaseModel):
         Self
             The validated model.
         """
-        if self.gaussian_likelihood_model is not None:
+        if self.gaussian_likelihood is not None:
             assert (
-                self.model.predict_logvar
-                == self.gaussian_likelihood_model.predict_logvar
+                self.model.predict_logvar == self.gaussian_likelihood.predict_logvar
             ), (
                 f"Model `predict_logvar` ({self.model.predict_logvar}) must match "
                 "Gaussian likelihood model `predict_logvar` "
-                f"({self.gaussian_likelihood_model.predict_logvar}).",
+                f"({self.gaussian_likelihood.predict_logvar}).",
             )
         return self
 

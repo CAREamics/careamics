@@ -1,63 +1,13 @@
 from typing import Any, Optional
-from enum import Enum
 
-from pydantic import BaseModel, ConfigDict, computed_field
+from pydantic import BaseModel, ConfigDict
 
-
-# TODO: get rid of unnecessary enums
-class DataType(Enum):
-    MNIST = 0
-    Places365 = 1
-    NotMNIST = 2
-    OptiMEM100_014 = 3
-    CustomSinosoid = 4
-    Prevedel_EMBL = 5
-    AllenCellMito = 6
-    SeparateTiffData = 7
-    CustomSinosoidThreeCurve = 8
-    SemiSupBloodVesselsEMBL = 9
-    Pavia2 = 10
-    Pavia2VanillaSplitting = 11
-    ExpansionMicroscopyMitoTub = 12
-    ShroffMitoEr = 13
-    HTIba1Ki67 = 14
-    BSD68 = 15
-    BioSR_MRC = 16
-    TavernaSox2Golgi = 17
-    Dao3Channel = 18
-    ExpMicroscopyV2 = 19
-    Dao3ChannelWithInput = 20
-    TavernaSox2GolgiV2 = 21
-    TwoDset = 22
-    PredictedTiffData = 23
-    Pavia3SeqData = 24
-    # Here, we have 16 splitting tasks.
-    NicolaData = 25
+from .types import DataSplitType, DataType, TilingMode
 
 
-class DataSplitType(Enum):
-    All = 0
-    Train = 1
-    Val = 2
-    Test = 3
-
-
-class GridAlignement(Enum):
-    """
-    A patch is formed by padding the grid with content. If the grids are 'Center' aligned, then padding is to done equally on all 4 sides.
-    On the other hand, if grids are 'LeftTop' aligned, padding is to be done on the right and bottom end of the grid.
-    In the former case, one needs (patch_size - grid_size)//2 amount of content on the right end of the frame.
-    In the latter case, one needs patch_size - grid_size amount of content on the right end of the frame.
-    """
-
-    LeftTop = 0
-    Center = 1
-
-
-# TODO: for all bool params check if they are taking different values in Disentangle repo
 # TODO: check if any bool logic can be removed
-class VaeDatasetConfig(BaseModel):
-    model_config = ConfigDict(validate_assignment=True)
+class DatasetConfig(BaseModel):
+    model_config = ConfigDict(validate_assignment=True, extra="forbid")
 
     data_type: Optional[DataType]
     """Type of the dataset, should be one of DataType"""
@@ -90,7 +40,7 @@ class VaeDatasetConfig(BaseModel):
     start_alpha: Optional[Any] = None
     end_alpha: Optional[Any] = None
 
-    image_size: int
+    image_size: tuple  # TODO: revisit, new model_config uses tuple
     """Size of one patch of data"""
 
     grid_size: Optional[int] = None
@@ -132,14 +82,9 @@ class VaeDatasetConfig(BaseModel):
     # TODO: why is this not used?
     enable_rotation_aug: Optional[bool] = False
 
-    grid_alignment: GridAlignement = GridAlignement.LeftTop
-
     max_val: Optional[float] = None
     """Maximum data in the dataset. Is calculated for train split, and should be 
     externally set for val and test splits."""
-
-    trim_boundary: Optional[bool] = True
-    """Whether to trim boundary of the image"""
 
     overlapping_padding_kwargs: Any = None
     """Parameters for np.pad method"""
@@ -157,23 +102,22 @@ class VaeDatasetConfig(BaseModel):
     train_aug_rotate: Optional[bool] = False
     enable_random_cropping: Optional[bool] = True
 
-    # TODO: not used?
     multiscale_lowres_count: Optional[int] = None
+    """Number of LC scales"""
 
-    @computed_field
-    @property
-    def padding_kwargs(self) -> dict:
-        kwargs_dict = {}
-        padding_kwargs = {}
-        if (
-            self.multiscale_lowres_count is not None
-            and self.multiscale_lowres_count is not None
-        ):
-            # Get padding attributes
-            if "padding_kwargs" not in kwargs_dict:
-                padding_kwargs = {}
-                padding_kwargs["mode"] = "constant"
-                padding_kwargs["constant_values"] = 0
-            else:
-                padding_kwargs = kwargs_dict.pop("padding_kwargs")
-        return padding_kwargs
+    tiling_mode: Optional[TilingMode] = TilingMode.ShiftBoundary
+
+    target_separate_normalization: Optional[bool] = True
+
+    mode_3D: Optional[bool] = False
+    """If training in 3D mode or not"""
+
+    trainig_datausage_fraction: Optional[float] = 1.0
+
+    validtarget_random_fraction: Optional[float] = None
+
+    validation_datausage_fraction: Optional[float] = 1.0
+
+    random_flip_z_3D: Optional[bool] = False
+
+    padding_kwargs: Optional[dict] = None
