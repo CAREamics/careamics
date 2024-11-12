@@ -9,7 +9,6 @@ from pytorch_lightning import LightningModule, Trainer
 from torch.utils.data import DataLoader
 
 from careamics.dataset import IterablePredDataset
-
 from careamics.lightning.callbacks.prediction_writer_callback.write_strategy import (
     WriteImage,
 )
@@ -74,7 +73,9 @@ def test_write_batch(write_image_strategy: WriteImage, ordered_array):
 
     # call write batch
     dirpath = Path("predictions")
-    write_image_strategy.set_file_data(write_filenames=["file"], n_samples_per_file=[n_batches])
+    write_image_strategy.set_file_data(
+        write_filenames=["file"], n_samples_per_file=[n_batches]
+    )
     write_image_strategy.write_batch(
         trainer=trainer,
         pl_module=Mock(spec=LightningModule),

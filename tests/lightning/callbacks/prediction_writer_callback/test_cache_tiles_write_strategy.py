@@ -12,7 +12,6 @@ from torch.utils.data import DataLoader
 from careamics.config.tile_information import TileInformation
 from careamics.dataset import IterableTiledPredDataset
 from careamics.dataset.tiling import extract_tiles
-from careamics.file_io import WriteFunc
 from careamics.lightning.callbacks.prediction_writer_callback.write_strategy import (
     WriteTiles,
 )
@@ -68,12 +67,6 @@ def patch_tile_cache(
     """
     strategy.tile_cache = tiles
     strategy.tile_info_cache = tile_infos
-
-
-@pytest.fixture
-def write_func():
-    """Mock `WriteFunc`."""
-    return Mock(spec=WriteFunc)
 
 
 @pytest.fixture
