@@ -234,8 +234,8 @@ def _create_supervised_configuration(
     augmentations: Optional[list[Union[XYFlipModel, XYRandomRotate90Model]]] = None,
     independent_channels: bool = True,
     loss: Literal["mae", "mse"] = "mae",
-    n_channels_in: int = 1,
-    n_channels_out: int = 1,
+    n_channels_in: Optional[int] = None,
+    n_channels_out: Optional[int] = None,
     logger: Literal["wandb", "tensorboard", "none"] = "none",
     model_params: Optional[dict] = None,
     dataloader_params: Optional[dict] = None,
@@ -267,10 +267,10 @@ def _create_supervised_configuration(
         Whether to train all channels independently, by default False.
     loss : Literal["mae", "mse"], optional
         Loss function to use, by default "mae".
-    n_channels_in : int, optional
-        Number of channels in, by default 1.
-    n_channels_out : int, optional
-        Number of channels out, by default 1.
+    n_channels_in : int or None, default=None
+        Number of channels in.
+    n_channels_out : int or None, default=None
+        Number of channels out.
     logger : Literal["wandb", "tensorboard", "none"], optional
         Logger to use, by default "none".
     model_params : dict, optional
@@ -282,18 +282,28 @@ def _create_supervised_configuration(
     -------
     Configuration
         Configuration for training CARE or Noise2Noise.
+
+    Raises
+    ------
+    ValueError
+        If the number of channels is not specified when using channels.
+    ValueError
+        If the number of channels is specified but "C" is not in the axes.
     """
     # if there are channels, we need to specify their number
-    if "C" in axes and n_channels_in == 1:
-        raise ValueError(
-            f"Number of channels in must be specified when using channels "
-            f"(got {n_channels_in} channel)."
-        )
-    elif "C" not in axes and n_channels_in > 1:
+    if "C" in axes and n_channels_in is None:
+        raise ValueError("Number of channels in must be specified when using channels ")
+    elif "C" not in axes and (n_channels_in is not None and n_channels_in > 1):
         raise ValueError(
             f"C is not present in the axes, but number of channels is specified "
             f"(got {n_channels_in} channels)."
         )
+
+    if n_channels_in is None:
+        n_channels_in = 1
+
+    if n_channels_out is None:
+        n_channels_out = n_channels_in
 
     # augmentations
     transform_list = _list_augmentations(augmentations)
@@ -327,8 +337,8 @@ def create_care_configuration(
     augmentations: Optional[list[Union[XYFlipModel, XYRandomRotate90Model]]] = None,
     independent_channels: bool = True,
     loss: Literal["mae", "mse"] = "mae",
-    n_channels_in: int = 1,
-    n_channels_out: int = -1,
+    n_channels_in: Optional[int] = None,
+    n_channels_out: Optional[int] = None,
     logger: Literal["wandb", "tensorboard", "none"] = "none",
     model_params: Optional[dict] = None,
     dataloader_params: Optional[dict] = None,
@@ -374,16 +384,16 @@ def create_care_configuration(
         and XYRandomRotate90 (in XY) to the images.
     independent_channels : bool, optional
         Whether to train all channels independently, by default False.
-    loss : Literal["mae", "mse"], optional
-        Loss function to use, by default "mae".
-    n_channels_in : int, optional
-        Number of channels in, by default 1.
-    n_channels_out : int, optional
-        Number of channels out, by default -1.
-    logger : Literal["wandb", "tensorboard", "none"], optional
-        Logger to use, by default "none".
-    model_params : dict, optional
-        UNetModel parameters, by default None.
+    loss : Literal["mae", "mse"], default="mae"
+        Loss function to use.
+    n_channels_in : int or None, default=None
+        Number of channels in.
+    n_channels_out : int or None, default=None
+        Number of channels out.
+    logger : Literal["wandb", "tensorboard", "none"], default="none"
+        Logger to use.
+    model_params : dict, default=None
+        UNetModel parameters.
     dataloader_params : dict, optional
         Parameters for the dataloader, see PyTorch notes, by default None.
 
@@ -459,9 +469,6 @@ def create_care_configuration(
     ...     n_channels_out=1 # if applicable
     ... )
     """
-    if n_channels_out == -1:
-        n_channels_out = n_channels_in
-
     return _create_supervised_configuration(
         algorithm="care",
         experiment_name=experiment_name,
@@ -491,8 +498,8 @@ def create_n2n_configuration(
     augmentations: Optional[list[Union[XYFlipModel, XYRandomRotate90Model]]] = None,
     independent_channels: bool = True,
     loss: Literal["mae", "mse"] = "mae",
-    n_channels_in: int = 1,
-    n_channels_out: int = -1,
+    n_channels_in: Optional[int] = None,
+    n_channels_out: Optional[int] = None,
     logger: Literal["wandb", "tensorboard", "none"] = "none",
     model_params: Optional[dict] = None,
     dataloader_params: Optional[dict] = None,
@@ -540,10 +547,10 @@ def create_n2n_configuration(
         Whether to train all channels independently, by default False.
     loss : Literal["mae", "mse"], optional
         Loss function to use, by default "mae".
-    n_channels_in : int, optional
-        Number of channels in, by default 1.
-    n_channels_out : int, optional
-        Number of channels out, by default -1.
+    n_channels_in : int or None, default=None
+        Number of channels in.
+    n_channels_out : int or None, default=None
+        Number of channels out.
     logger : Literal["wandb", "tensorboard", "none"], optional
         Logger to use, by default "none".
     model_params : dict, optional
@@ -623,9 +630,6 @@ def create_n2n_configuration(
     ...     n_channels_out=1 # if applicable
     ... )
     """
-    if n_channels_out == -1:
-        n_channels_out = n_channels_in
-
     return _create_supervised_configuration(
         algorithm="n2n",
         experiment_name=experiment_name,
@@ -655,7 +659,7 @@ def create_n2v_configuration(
     augmentations: Optional[list[Union[XYFlipModel, XYRandomRotate90Model]]] = None,
     independent_channels: bool = True,
     use_n2v2: bool = False,
-    n_channels: int = 1,
+    n_channels: Optional[int] = None,
     roi_size: int = 11,
     masked_pixel_percentage: float = 0.2,
     struct_n2v_axis: Literal["horizontal", "vertical", "none"] = "none",
@@ -727,8 +731,8 @@ def create_n2v_configuration(
         Whether to train all channels together, by default True.
     use_n2v2 : bool, optional
         Whether to use N2V2, by default False.
-    n_channels : int, optional
-        Number of channels (in and out), by default 1.
+    n_channels : int or None, default=None
+        Number of channels (in and out).
     roi_size : int, optional
         N2V pixel manipulation area, by default 11.
     masked_pixel_percentage : float, optional
@@ -837,16 +841,16 @@ def create_n2v_configuration(
     ... )
     """
     # if there are channels, we need to specify their number
-    if "C" in axes and n_channels == 1:
-        raise ValueError(
-            f"Number of channels must be specified when using channels "
-            f"(got {n_channels} channel)."
-        )
-    elif "C" not in axes and n_channels > 1:
+    if "C" in axes and n_channels is None:
+        raise ValueError("Number of channels must be specified when using channels.")
+    elif "C" not in axes and (n_channels is not None and n_channels > 1):
         raise ValueError(
             f"C is not present in the axes, but number of channels is specified "
             f"(got {n_channels} channel)."
         )
+
+    if n_channels is None:
+        n_channels = 1
 
     # augmentations
     transform_list = _list_augmentations(augmentations)
