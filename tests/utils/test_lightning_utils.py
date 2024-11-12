@@ -18,6 +18,6 @@ def test_read_logger(tmp_path, minimum_configuration):
 
         losses = read_csv_logger(config.experiment_name, tmp_path / "csv_logs")
 
-    assert len(losses["epoch"]) == config.training_config.num_epochs
-    assert len(losses["train"]) == config.training_config.num_epochs
-    assert len(losses["val"]) == config.training_config.num_epochs
+    assert len(losses) == 4
+    for key in losses:
+        assert len(losses[key]) == config.training_config.num_epochs

@@ -33,6 +33,7 @@ from careamics.lightning import (
 from careamics.model_io import export_to_bmz, load_pretrained
 from careamics.prediction_utils import convert_outputs
 from careamics.utils import check_path_exists, get_logger
+from careamics.utils.lightning_utils import read_csv_logger
 
 logger = get_logger(__name__)
 
@@ -915,3 +916,13 @@ class CAREamist:
             channel_names=channel_names,
             data_description=data_description,
         )
+
+    def get_losses(self) -> dict[str, list]:
+        """Return data that can be used to plot train and validation loss curves.
+
+        Returns
+        -------
+        dict of str: list
+            Dictionary containing the losses for each epoch.
+        """
+        return read_csv_logger(self.cfg.experiment_name, self.work_dir / "csv_logs")
