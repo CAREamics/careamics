@@ -1,4 +1,3 @@
-import os
 from pathlib import Path
 
 import pytest
@@ -33,5 +32,5 @@ def test_conf(tmp_path: Path, algorithm: str):
             "1",
         ],
     )
-    assert os.path.isfile(config_path)
+    assert config_path.is_file()
     assert result.exit_code == 0

@@ -179,6 +179,34 @@ def test_supervised_configuration_error_with_channel_axes():
         )
 
 
+def test_supervised_configuration_singleton_channel():
+    """Test that no error is raised if channels are in axes, and the input channel is
+    1."""
+    _create_supervised_configuration(
+        algorithm="n2n",
+        experiment_name="test",
+        data_type="tiff",
+        axes="CYX",
+        patch_size=[64, 64],
+        batch_size=8,
+        num_epochs=100,
+        n_channels_in=1,
+    )
+
+
+def test_supervised_configuration_no_channel():
+    """Test that no error is raised without channel and number of inputs."""
+    _create_supervised_configuration(
+        algorithm="n2n",
+        experiment_name="test",
+        data_type="tiff",
+        axes="YX",
+        patch_size=[64, 64],
+        batch_size=8,
+        num_epochs=100,
+    )
+
+
 def test_supervised_configuration_error_without_channel_axes():
     """Test that an error is raised if channels are not in axes, but the input channel
     number is specified and greater than 1."""
