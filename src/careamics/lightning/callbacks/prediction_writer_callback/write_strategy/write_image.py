@@ -64,6 +64,9 @@ class WriteImage:
             Extension added to prediction file paths.
         write_func_kwargs : dict of {str: Any}
             Extra kwargs to pass to `write_func`.
+        n_samples_per_file : list of int
+            The number of samples in each file, (controls which samples will be
+            grouped together in each file).
         """
         super().__init__()
 
@@ -71,15 +74,19 @@ class WriteImage:
         self.write_extension: str = write_extension
         self.write_func_kwargs: dict[str, Any] = write_func_kwargs
 
-        # where samples are stored until a whole file has been predicted
-        self.sample_cache = SampleCache(n_samples_per_file)
-
         self._write_filenames: Optional[list[str]] = write_filenames
         self.filename_iter: Optional[Iterator[str]] = (
             iter(write_filenames) if write_filenames is not None else None
         )
-        if write_filenames is not None and n_samples_per_file is not None:
+
+        # where samples are stored until a whole file has been predicted
+        self.sample_cache: Optional[SampleCache]
+
+        if not ((write_filenames is None) or (n_samples_per_file is None)):
+            # also creates sample cache
             self.set_file_data(write_filenames, n_samples_per_file)
+        else:
+            self.sample_cache = None
 
     def set_file_data(self, write_filenames: list[str], n_samples_per_file: list[int]):
         if len(write_filenames) != len(n_samples_per_file):
@@ -89,7 +96,7 @@ class WriteImage:
             )
         self._write_filenames = write_filenames
         self.filename_iter = iter(write_filenames)
-        self.sample_cache.n_samples_per_file = n_samples_per_file
+        self.sample_cache = SampleCache(n_samples_per_file=n_samples_per_file)
 
     def write_batch(
         self,

@@ -9,22 +9,16 @@ from pytorch_lightning import LightningModule, Trainer
 from torch.utils.data import DataLoader
 
 from careamics.dataset import IterablePredDataset
-from careamics.file_io import WriteFunc
+
 from careamics.lightning.callbacks.prediction_writer_callback.write_strategy import (
     WriteImage,
 )
 
 
 @pytest.fixture
-def write_func():
-    """Mock `WriteFunc`."""
-    return Mock(spec=WriteFunc)
-
-
-@pytest.fixture
 def write_image_strategy(write_func) -> WriteImage:
     """
-    Initialized `CacheTiles` class.
+    Initialized `WriteImage` class.
 
     Parameters
     ----------
@@ -33,20 +27,21 @@ def write_image_strategy(write_func) -> WriteImage:
 
     Returns
     -------
-    CacheTiles
-        Initialized `CacheTiles` class.
+    WriteImage
+        Initialized `WriteImage` class.
     """
     write_extension = ".ext"
     write_func_kwargs = {}
     return WriteImage(
         write_func=write_func,
-        write_filenames=None,
         write_extension=write_extension,
         write_func_kwargs=write_func_kwargs,
+        write_filenames=None,
+        n_samples_per_file=None,
     )
 
 
-def test_cache_tiles_init(write_func, write_image_strategy):
+def test_write_image_init(write_func, write_image_strategy):
     """
     Test `WriteImage` initializes as expected.
     """
@@ -55,7 +50,7 @@ def test_cache_tiles_init(write_func, write_image_strategy):
     assert write_image_strategy.write_func_kwargs == {}
 
 
-def test_write_batch(write_image_strategy, ordered_array):
+def test_write_batch(write_image_strategy: WriteImage, ordered_array):
 
     n_batches = 1
 
@@ -79,7 +74,7 @@ def test_write_batch(write_image_strategy, ordered_array):
 
     # call write batch
     dirpath = Path("predictions")
-    write_image_strategy.write_filenames = ["file"]
+    write_image_strategy.set_file_data(write_filenames=["file"], n_samples_per_file=[n_batches])
     write_image_strategy.write_batch(
         trainer=trainer,
         pl_module=Mock(spec=LightningModule),
@@ -102,7 +97,7 @@ def test_write_batch(write_image_strategy, ordered_array):
     )
 
 
-def test_write_batch_raises(write_image_strategy, ordered_array):
+def test_write_batch_raises(write_image_strategy: WriteImage, ordered_array):
     """Test write batch raises a ValueError if the filenames have not been set."""
     n_batches = 1
 
@@ -129,7 +124,7 @@ def test_write_batch_raises(write_image_strategy, ordered_array):
 
     with pytest.raises(ValueError):
         # Make sure write_filenames is None
-        assert write_image_strategy.write_filenames is None
+        assert write_image_strategy._write_filenames is None
         write_image_strategy.write_batch(
             trainer=trainer,
             pl_module=Mock(spec=LightningModule),
