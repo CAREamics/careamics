@@ -310,7 +310,8 @@ def test_fcn_module_unet_depth_3_channels_3D(n_channels):
     assert y.shape == x.shape
 
 
-def test_prediction_callback_during_training(minimum_configuration):
+@pytest.mark.parametrize("tiled", [False, True])
+def test_prediction_callback_during_training(minimum_configuration, tiled):
     import numpy as np
     from pytorch_lightning import Callback, Trainer
 
@@ -352,13 +353,16 @@ def test_prediction_callback_during_training(minimum_configuration):
 
             self.data = convert_outputs(outputs, self.pred_datamodule.tiled)
 
-    array = np.arange(32 * 32).reshape((32, 32))
+    array = np.arange(64 * 64).reshape((64, 64))
     pred_datamodule = create_predict_datamodule(
         pred_data=array,
         data_type=config.data_config.data_type,
         axes=config.data_config.axes,
         image_means=[11.8],  # random placeholder
         image_stds=[3.14],
+        tile_size=(16, 16) if tiled else None,
+        tile_overlap=(8, 8) if tiled else None,
+        batch_size=2,
     )
 
     predict_after_val_callback = CustomPredictAfterValidationCallback(

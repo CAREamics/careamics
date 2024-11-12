@@ -14,6 +14,7 @@ from careamics.config.support import (
     SupportedOptimizer,
     SupportedScheduler,
 )
+from careamics.config.tile_information import TileInformation
 from careamics.losses import loss_factory
 from careamics.models.lvae.likelihoods import (
     GaussianLikelihood,
@@ -163,11 +164,17 @@ class FCNModule(L.LightningModule):
         Any
             Model output.
         """
+        # TODO refactor when redoing datasets
         # hacky way to determine if it is PredictDataModule, otherwise there is a
-        # circular import to solve (isinstance)
-        is_prediction = hasattr(self._trainer.datamodule, "tiled")
+        # circular import to solve with isinstance
+        from_prediction = hasattr(self._trainer.datamodule, "tiled")
+        is_tiled = (
+            len(batch) > 1
+            and isinstance(batch[1], list)
+            and isinstance(batch[1][0], TileInformation)
+        )
 
-        if is_prediction and self._trainer.datamodule.tiled:
+        if is_tiled:
             x, *aux = batch
         else:
             x = batch
@@ -175,7 +182,10 @@ class FCNModule(L.LightningModule):
 
         # apply test-time augmentation if available
         # TODO: probably wont work with batch size > 1
-        if is_prediction and self._trainer.datamodule.prediction_config.tta_transforms:
+        if (
+            from_prediction
+            and self._trainer.datamodule.prediction_config.tta_transforms
+        ):
             tta = ImageRestorationTTA()
             augmented_batch = tta.forward(x)  # list of augmented tensors
             augmented_output = []
@@ -191,12 +201,12 @@ class FCNModule(L.LightningModule):
         denorm = Denormalize(
             image_means=(
                 self._trainer.datamodule.predict_dataset.image_means
-                if is_prediction
+                if from_prediction
                 else self._trainer.datamodule.train_dataset.image_stats.means
             ),
             image_stds=(
                 self._trainer.datamodule.predict_dataset.image_stds
-                if is_prediction
+                if from_prediction
                 else self._trainer.datamodule.train_dataset.image_stats.stds
             ),
         )
