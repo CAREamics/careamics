@@ -400,7 +400,7 @@ def denoisplit_loss(
     )
     kl_loss = (
         _get_kl_divergence_loss_denoisplit(
-            topdown_data=td_data, 
+            topdown_data=td_data,
             img_shape=targets.shape[2:],
             kl_restricted=config.kl_params.loss_type == "kl_restricted",
         )

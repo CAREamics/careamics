@@ -13,11 +13,11 @@ from careamics.config import (
     LVAELossConfig,
     MultiChannelNMConfig,
 )
-from careamics.config.loss_model import KLLossConfig
 from careamics.config.likelihood_model import (
     GaussianLikelihoodConfig,
     NMLikelihoodConfig,
 )
+from careamics.config.loss_model import KLLossConfig
 from careamics.losses.loss_factory import (
     SupportedLoss,
     loss_factory,
@@ -220,11 +220,11 @@ def test_KL_divergence_loss(
     img_shape = (img_size, img_size)
     kl_loss = get_kl_divergence_loss(
         kl_type=kl_type,
-        topdown_data=td_data, 
-        rescaling=rescaling, 
-        aggregation=aggregation, 
-        free_bits_coeff=free_bits_coeff, 
-        img_shape=img_shape
+        topdown_data=td_data,
+        rescaling=rescaling,
+        aggregation=aggregation,
+        free_bits_coeff=free_bits_coeff,
+        img_shape=img_shape,
     )
     assert isinstance(kl_loss, torch.Tensor)
     assert isinstance(kl_loss.item(), float)

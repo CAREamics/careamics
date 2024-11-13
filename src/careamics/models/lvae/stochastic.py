@@ -202,7 +202,7 @@ class NormalStochasticBlock(nn.Module):
             all_dims = tuple(range(len(kl_elementwise.shape)))
             kl_samplewise = kl_elementwise.sum(all_dims[1:])
             kl_channelwise = kl_elementwise.sum(all_dims[2:])
-            
+
             # compute KL only on the portion of the latent space that is used for prediction.
             pad = (kl_elementwise.shape[-1] - self._vanilla_latent_hw) // 2
             if pad > 0:

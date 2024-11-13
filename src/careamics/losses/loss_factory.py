@@ -6,9 +6,8 @@ This module contains a factory function for creating loss functions.
 
 from __future__ import annotations
 
-import warnings
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Callable, Literal, Optional, Union
+from typing import TYPE_CHECKING, Callable, Union
 
 from torch import Tensor as tensor
 
@@ -17,10 +16,7 @@ from .fcn.losses import mae_loss, mse_loss, n2v_loss
 from .lvae.losses import denoisplit_loss, denoisplit_musplit_loss, musplit_loss
 
 if TYPE_CHECKING:
-    from careamics.models.lvae.likelihoods import (
-        GaussianLikelihood,
-        NoiseModelLikelihood,
-    )
+    pass
 
 
 @dataclass
