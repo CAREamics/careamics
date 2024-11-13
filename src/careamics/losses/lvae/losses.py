@@ -197,7 +197,7 @@ def get_kl_divergence_loss(
 def _get_kl_divergence_loss_musplit(
     topdown_data: dict[str, torch.Tensor],
     img_shape: tuple[int],
-    kl_restricted: bool,
+    kl_type: Literal["kl", "kl_restricted"],
 ) -> torch.Tensor:
     """Compute the KL divergence loss for muSplit.
 
@@ -211,8 +211,8 @@ def _get_kl_divergence_loss_musplit(
         (B, layers, `z_dims[i]`, H, W).
     img_shape : tuple[int]
         The shape of the input image to the LVAE model. Shape is ([Z], Y, X).
-    kl_restricted : bool
-        Whether to use the restricted KL divergence loss.
+    kl_type : Literal["kl", "kl_restricted"]
+        The type of KL divergence loss to compute.
 
     Returns
     -------
@@ -220,7 +220,7 @@ def _get_kl_divergence_loss_musplit(
         The KL divergence loss for the muSplit case. Shape is (1, ).
     """
     return get_kl_divergence_loss(
-        kl_type="kl_restricted" if kl_restricted else "kl",
+        kl_type=kl_type,
         topdown_data=topdown_data,
         rescaling="latent_dim",
         aggregation="mean",
@@ -232,7 +232,7 @@ def _get_kl_divergence_loss_musplit(
 def _get_kl_divergence_loss_denoisplit(
     topdown_data: dict[str, torch.Tensor],
     img_shape: tuple[int],
-    kl_restricted: bool,
+    kl_type: Literal["kl", "kl_restricted"],
 ) -> torch.Tensor:
     """Compute the KL divergence loss for denoiSplit.
 
@@ -246,8 +246,8 @@ def _get_kl_divergence_loss_denoisplit(
         (B, layers, `z_dims[i]`, H, W).
     img_shape : tuple[int]
         The shape of the input image to the LVAE model. Shape is ([Z], Y, X).
-    kl_restricted : bool
-        Whether to use the restricted KL divergence loss.
+    kl_type : Literal["kl", "kl_restricted"]
+        The type of KL divergence loss to compute.
 
     Returns
     -------
@@ -255,7 +255,7 @@ def _get_kl_divergence_loss_denoisplit(
         The KL divergence loss for the denoiSplit case. Shape is (1, ).
     """
     return get_kl_divergence_loss(
-        kl_type="kl_restricted" if kl_restricted else "kl",
+        kl_type=kl_type,
         topdown_data=topdown_data,
         rescaling="image_dim",
         aggregation="sum",
@@ -325,7 +325,7 @@ def musplit_loss(
         _get_kl_divergence_loss_musplit(
             topdown_data=td_data,
             img_shape=targets.shape[2:],
-            kl_restricted=config.kl_params.loss_type == "kl_restricted",
+            kl_type=config.kl_params.loss_type,
         )
         * kl_weight
     )
@@ -402,7 +402,7 @@ def denoisplit_loss(
         _get_kl_divergence_loss_denoisplit(
             topdown_data=td_data,
             img_shape=targets.shape[2:],
-            kl_restricted=config.kl_params.loss_type == "kl_restricted",
+            kl_type=config.kl_params.loss_type,
         )
         * kl_weight
     )
@@ -474,12 +474,12 @@ def denoisplit_musplit_loss(
     denoisplit_kl = _get_kl_divergence_loss_denoisplit(
         topdown_data=td_data,
         img_shape=targets.shape[2:],
-        kl_restricted=config.kl_params.loss_type == "kl_restricted",
+        kl_type=config.kl_params.loss_type,
     )
     musplit_kl = _get_kl_divergence_loss_musplit(
         topdown_data=td_data,
         img_shape=targets.shape[2:],
-        kl_restricted=config.kl_params.loss_type == "kl_restricted",
+        kl_type=config.kl_params.loss_type,
     )
     kl_loss = (
         config.denoisplit_weight * denoisplit_kl + config.musplit_weight * musplit_kl
