@@ -305,7 +305,7 @@ def extract_model_path(model_desc: ModelDescr) -> tuple[Path, Path]:
     weights_path = model_desc.weights.pytorch_state_dict.source.path
 
     for file in model_desc.attachments:
-        if file.source.path.name == "careamics.yml":
+        if file.source.path.name == "careamics.yaml":
             config_path = file.source.path
             break
     else:
