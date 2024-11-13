@@ -7,16 +7,13 @@ This module contains a factory function for creating loss functions.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Callable, Union
+from typing import Callable, Union
 
 from torch import Tensor as tensor
 
 from ..config.support import SupportedLoss
 from .fcn.losses import mae_loss, mse_loss, n2v_loss
 from .lvae.losses import denoisplit_loss, denoisplit_musplit_loss, musplit_loss
-
-if TYPE_CHECKING:
-    pass
 
 
 @dataclass
