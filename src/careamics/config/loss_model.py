@@ -1,6 +1,6 @@
 """Configuration classes for LVAE losses."""
 
-from typing import Literal
+from typing import Literal, Optional
 
 from pydantic import BaseModel, ConfigDict
 
@@ -48,7 +48,6 @@ class LVAELossConfig(BaseModel):
     """Weight for the muSplit loss (used in the muSplit-denoiSplit loss)."""
     denoisplit_weight: float = 0.9
     """Weight for the denoiSplit loss (used in the muSplit-deonoiSplit loss)."""
-
     kl_params: KLLossConfig = KLLossConfig()
     """KL loss configuration."""
 
