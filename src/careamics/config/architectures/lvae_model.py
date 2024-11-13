@@ -38,10 +38,7 @@ class LVAEModel(ArchitectureModel):
     )
 
     predict_logvar: Literal[None, "pixelwise"] = None
-
-    analytical_kl: bool = Field(
-        default=False,
-    )
+    analytical_kl: bool = Field(default=False)
 
     @model_validator(mode="after")
     def validate_conv_strides(self: Self) -> Self:

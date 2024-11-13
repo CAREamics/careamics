@@ -100,7 +100,6 @@ class LadderVAE(nn.Module):
         self.decoder_dropout = decoder_dropout
         self.nonlin = nonlinearity
         self.predict_logvar = predict_logvar
-
         self.analytical_kl = analytical_kl
         # -------------------------------------------------------
 
@@ -162,7 +161,7 @@ class LadderVAE(nn.Module):
 
         # -------------------------------------------------------
         # Loss attributes
-        self._restricted_kl = False  # HC
+        self._kl_restricted = True
         # enabling reconstruction loss on mixed input
         self.mixed_rec_w = 0
         self.nbr_consistency_w = 0
