@@ -289,7 +289,7 @@ def create_model_description(
     return model
 
 
-def extract_model_path(model_desc: ModelDescr) -> tuple[Path, Path]:
+def extract_model_path(model_desc: ModelDescr) -> Tuple[Path, Path]:
     """Return the relative path to the weights and configuration files.
 
     Parameters
@@ -299,16 +299,20 @@ def extract_model_path(model_desc: ModelDescr) -> tuple[Path, Path]:
 
     Returns
     -------
-    tuple of (path, path)
+    Tuple[Path, Path]
         Weights and configuration paths.
     """
     weights_path = model_desc.weights.pytorch_state_dict.source.path
 
-    for file in model_desc.attachments:
-        if file.source.path.name == "careamics.yaml":
-            config_path = file.source.path
-            break
+    if len(model_desc.attachments) == 1:
+        config_path = model_desc.attachments[0].source.path
     else:
-        raise ValueError("Configuration file not found.")
+        for file in model_desc.attachments:
+            if file.source.path.suffix == ".yml":
+                config_path = file.source.path
+                break
+
+        if config_path is None:
+            raise ValueError("Configuration file not found.")
 
     return weights_path, config_path
