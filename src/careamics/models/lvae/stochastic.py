@@ -49,7 +49,6 @@ class NormalStochasticBlock(nn.Module):
         kernel: int = 3,
         transform_p_params: bool = True,
         vanilla_latent_hw: int = None,
-        restricted_kl: bool = False,
         use_naive_exponential: bool = False,
     ):
         """
@@ -76,10 +75,6 @@ class NormalStochasticBlock(nn.Module):
         vanilla_latent_hw: int, optional
             The shape of the latent tensor used for prediction (i.e., it influences the computation of restricted KL).
             Default is `None`.
-        restricted_kl: bool, optional
-            Whether to compute the restricted version of KL Divergence.
-            See NOTE 2 for more information about its computation.
-            Default is `False`.
         use_naive_exponential: bool, optional
             If `False`, exponentials are computed according to the alternative definition
             provided by `StableExponential` class. This should improve numerical stability
@@ -95,7 +90,6 @@ class NormalStochasticBlock(nn.Module):
         self.conv_dims = conv_dims
         self._use_naive_exponential = use_naive_exponential
         self._vanilla_latent_hw = vanilla_latent_hw
-        self._restricted_kl = restricted_kl
 
         conv_layer: ConvType = getattr(nn, f"Conv{conv_dims}d")
 
@@ -199,7 +193,6 @@ class NormalStochasticBlock(nn.Module):
         z: torch.Tensor
             The sampled latent tensor.
         """
-        kl_samplewise_restricted = None
         if mode_pred is False:  # if not predicting
             if analytical_kl:
                 kl_elementwise = kl_divergence(q, p)
@@ -207,12 +200,11 @@ class NormalStochasticBlock(nn.Module):
                 kl_elementwise = kl_normal_mc(z, p_params, q_params)
 
             all_dims = tuple(range(len(kl_elementwise.shape)))
+
             # compute KL only on the portion of the latent space that is used for prediction.
-            if self._restricted_kl:
-                pad = (kl_elementwise.shape[-1] - self._vanilla_latent_hw) // 2
-                assert pad > 0, "Disable restricted kl since there is no restriction."
-                tmp = kl_elementwise[..., pad:-pad, pad:-pad]
-                kl_samplewise_restricted = tmp.sum(all_dims[1:])
+            pad = (kl_elementwise.shape[-1] - self._vanilla_latent_hw) // 2
+            tmp = kl_elementwise[..., pad:-pad, pad:-pad]
+            kl_samplewise_restricted = tmp.sum(all_dims[1:])
 
             kl_samplewise = kl_elementwise.sum(all_dims[1:])
             kl_channelwise = kl_elementwise.sum(all_dims[2:])

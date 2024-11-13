@@ -963,7 +963,6 @@ class TopDownLayer(nn.Module):
         top_prior_param_shape: Union[Iterable[int], None] = None,
         analytical_kl: bool = False,
         retain_spatial_dims: bool = False,
-        restricted_kl: bool = False,
         vanilla_latent_hw: Union[Iterable[int], None] = None,
         input_image_shape: Union[tuple[int, int], None] = None,
         normalize_latent_factor: float = 1.0,
@@ -1031,10 +1030,6 @@ class TopDownLayer(nn.Module):
             If `True`, the size of Encoder's latent space is kept to `input_image_shape` within the topdown layer.
             This implies that the oput spatial size equals the input spatial size.
             To achieve this, we centercrop the intermediate representation.
-            Default is `False`.
-        restricted_kl: bool, optional
-            Whether to compute the restricted version of KL Divergence.
-            See `NormalStochasticBlock2d` module for more information about its computation.
             Default is `False`.
         vanilla_latent_hw: Iterable[int], optional
             The shape of the latent tensor used for prediction (i.e., it influences the computation of restricted KL).
@@ -1115,7 +1110,6 @@ class TopDownLayer(nn.Module):
             conv_dims=len(conv_strides),
             transform_p_params=(not is_top_layer),
             vanilla_latent_hw=vanilla_latent_hw,
-            restricted_kl=restricted_kl,
             use_naive_exponential=stochastic_use_naive_exponential,
         )
 
