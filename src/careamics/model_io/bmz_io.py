@@ -161,7 +161,7 @@ def export_to_bmz(
         np.save(outputs, output_array)
 
         # export configuration
-        config_path = save_configuration(config, temp_path)
+        config_path = save_configuration(config, temp_path / "careamics.yml")
 
         # export model state dictionary
         weight_path = _export_state_dict(model, temp_path / "weights.pth")
