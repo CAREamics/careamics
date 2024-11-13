@@ -200,14 +200,17 @@ class NormalStochasticBlock(nn.Module):
                 kl_elementwise = kl_normal_mc(z, p_params, q_params)
 
             all_dims = tuple(range(len(kl_elementwise.shape)))
-
-            # compute KL only on the portion of the latent space that is used for prediction.
-            pad = (kl_elementwise.shape[-1] - self._vanilla_latent_hw) // 2
-            tmp = kl_elementwise[..., pad:-pad, pad:-pad]
-            kl_samplewise_restricted = tmp.sum(all_dims[1:])
-
             kl_samplewise = kl_elementwise.sum(all_dims[1:])
             kl_channelwise = kl_elementwise.sum(all_dims[2:])
+            
+            # compute KL only on the portion of the latent space that is used for prediction.
+            pad = (kl_elementwise.shape[-1] - self._vanilla_latent_hw) // 2
+            if pad > 0:
+                tmp = kl_elementwise[..., pad:-pad, pad:-pad]
+                kl_samplewise_restricted = tmp.sum(all_dims[1:])
+            else:
+                kl_samplewise_restricted = kl_samplewise
+
             # Compute spatial KL analytically (but conditioned on samples from
             # previous layers)
             kl_spatial = kl_elementwise.sum(1)
