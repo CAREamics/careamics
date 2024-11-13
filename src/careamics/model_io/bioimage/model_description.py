@@ -302,14 +302,14 @@ def extract_model_path(model_desc: ModelDescr) -> Tuple[Path, Path]:
     Tuple[Path, Path]
         Weights and configuration paths.
     """
-    weights_path = model_desc.weights.pytorch_state_dict.source.path
+    weights_path = model_desc.weights.pytorch_state_dict.download().path
 
     if len(model_desc.attachments) == 1:
-        config_path = model_desc.attachments[0].source.path
+        config_path = model_desc.attachments[0].download().path
     else:
         for file in model_desc.attachments:
             if file.source.path.suffix == ".yml":
-                config_path = file.source.path
+                config_path = file.download().path
                 break
 
         if config_path is None:
