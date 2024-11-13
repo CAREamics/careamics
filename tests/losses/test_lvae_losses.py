@@ -13,6 +13,7 @@ from careamics.config import (
     LVAELossConfig,
     MultiChannelNMConfig,
 )
+from careamics.config.loss_model import KLLossConfig
 from careamics.config.likelihood_model import (
     GaussianLikelihoodConfig,
     NMLikelihoodConfig,
@@ -188,6 +189,7 @@ def test_reconstruction_loss_musplit_denoisplit(
 @pytest.mark.parametrize("batch_size", [1, 8])
 @pytest.mark.parametrize("n_layers", [1, 4])
 @pytest.mark.parametrize("enable_LC", [False, True])
+@pytest.mark.parametrize("kl_type", ["kl", "kl_restricted"])
 @pytest.mark.parametrize("rescaling", ["latent_dim", "image_dim"])
 @pytest.mark.parametrize("aggregation", ["mean", "sum"])
 @pytest.mark.parametrize("free_bits_coeff", [0.0, 1.0])
@@ -195,6 +197,7 @@ def test_KL_divergence_loss(
     batch_size: int,
     n_layers: int,
     enable_LC: bool,
+    kl_type: Literal["kl", "kl_restricted"],
     rescaling: Literal["latent_dim", "image_dim"],
     aggregation: Literal["mean", "sum"],
     free_bits_coeff: float,
@@ -210,12 +213,18 @@ def test_KL_divergence_loss(
     td_data = {
         "z": z,
         "kl": [torch.ones(batch_size) for _ in range(n_layers)],
+        "kl_restricted": [torch.ones(batch_size) for _ in range(n_layers)],
     }
 
     # compute the loss for different settings
     img_shape = (img_size, img_size)
     kl_loss = get_kl_divergence_loss(
-        td_data, rescaling, aggregation, free_bits_coeff, img_shape
+        kl_type=kl_type,
+        topdown_data=td_data, 
+        rescaling=rescaling, 
+        aggregation=aggregation, 
+        free_bits_coeff=free_bits_coeff, 
+        img_shape=img_shape
     )
     assert isinstance(kl_loss, torch.Tensor)
     assert isinstance(kl_loss.item(), float)
@@ -226,12 +235,14 @@ def test_KL_divergence_loss(
 @pytest.mark.parametrize("predict_logvar", [None, "pixelwise"])
 @pytest.mark.parametrize("n_layers", [1, 4])
 @pytest.mark.parametrize("enable_LC", [False, True])
+@pytest.mark.parametrize("kl_type", ["kl", "kl_restricted"])
 def test_musplit_loss(
     batch_size: int,
     target_ch: int,
     predict_logvar: str,
     n_layers: int,
     enable_LC: bool,
+    kl_type: Literal["kl", "kl_restricted"],
 ):
     # create test data
     img_size = 64
@@ -247,6 +258,7 @@ def test_musplit_loss(
     td_data = {
         "z": z,
         "kl": [torch.rand(batch_size) for _ in range(n_layers)],
+        "kl_restricted": [torch.rand(batch_size) for _ in range(n_layers)],
     }
 
     # create likelihood
@@ -254,7 +266,8 @@ def test_musplit_loss(
     likelihood = likelihood_factory(config)
 
     # compute the loss
-    loss_parameters = LVAELossConfig(loss_type="musplit")
+    kl_params = KLLossConfig(loss_type=kl_type)
+    loss_parameters = LVAELossConfig(loss_type="musplit", kl_params=kl_params)
     output = musplit_loss(
         model_outputs=(reconstruction, td_data),
         targets=target,
@@ -274,11 +287,13 @@ def test_musplit_loss(
 @pytest.mark.parametrize("batch_size", [1, 8])
 @pytest.mark.parametrize("target_ch", [1, 3])
 @pytest.mark.parametrize("n_layers", [1, 4])
+@pytest.mark.parametrize("kl_type", ["kl", "kl_restricted"])
 def test_denoisplit_loss(
     tmp_path: Path,
     batch_size: int,
     target_ch: int,
     n_layers: int,
+    kl_type: Literal["kl", "kl_restricted"],
 ):
     # create test data
     img_size = 64
@@ -287,6 +302,7 @@ def test_denoisplit_loss(
     td_data = {
         "z": [torch.rand(batch_size, 128, img_size, img_size) for _ in range(n_layers)],
         "kl": [torch.rand(batch_size) for _ in range(n_layers)],
+        "kl_restricted": [torch.rand(batch_size) for _ in range(n_layers)],
     }
 
     # create likelihood
@@ -297,7 +313,8 @@ def test_denoisplit_loss(
     likelihood = likelihood_factory(nm_config, noise_model=nm)
 
     # compute the loss
-    loss_parameters = LVAELossConfig(loss_type="denoisplit")
+    kl_params = KLLossConfig(loss_type=kl_type)
+    loss_parameters = LVAELossConfig(loss_type="denoisplit", kl_params=kl_params)
     output = denoisplit_loss(
         model_outputs=(reconstruction, td_data),
         targets=target,
@@ -319,6 +336,7 @@ def test_denoisplit_loss(
 @pytest.mark.parametrize("predict_logvar", [None, "pixelwise"])
 @pytest.mark.parametrize("n_layers", [1, 4])
 @pytest.mark.parametrize("enable_LC", [False, True])
+@pytest.mark.parametrize("kl_type", ["kl", "kl_restricted"])
 def test_denoisplit_musplit_loss(
     tmp_path: Path,
     batch_size: int,
@@ -326,6 +344,7 @@ def test_denoisplit_musplit_loss(
     predict_logvar: str,
     n_layers: int,
     enable_LC: bool,
+    kl_type: Literal["kl", "kl_restricted"],
 ):
     # create test data
     img_size = 64
@@ -341,6 +360,7 @@ def test_denoisplit_musplit_loss(
     td_data = {
         "z": z,
         "kl": [torch.rand(batch_size) for _ in range(n_layers)],
+        "kl_restricted": [torch.rand(batch_size) for _ in range(n_layers)],
     }
 
     # create likelihood objects
@@ -353,7 +373,10 @@ def test_denoisplit_musplit_loss(
     gaussian_likelihood = likelihood_factory(gaussian_config)
 
     # compute the loss
-    loss_parameters = LVAELossConfig(loss_type="denoisplit_musplit")
+    kl_params = KLLossConfig(loss_type=kl_type)
+    loss_parameters = LVAELossConfig(
+        loss_type="denoisplit_musplit", kl_params=kl_params
+    )
     output = denoisplit_musplit_loss(
         model_outputs=(reconstruction, td_data),
         targets=target,
