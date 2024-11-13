@@ -565,8 +565,8 @@ def save_configuration(config: Configuration, path: Union[str, Path]) -> Path:
     config : Configuration
         Configuration to save.
     path : str or Path
-        Path to a existing folder in which to save the configuration or to an existing
-        configuration file.
+        Path to a existing folder in which to save the configuration, or to a valid
+        configuration file path (uses a .yml or .yaml extension).
 
     Returns
     -------
