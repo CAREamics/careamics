@@ -305,8 +305,8 @@ def extract_model_path(model_desc: ModelDescr) -> tuple[Path, Path]:
     weights_path = model_desc.weights.pytorch_state_dict.download().path
 
     for file in model_desc.attachments:
-        if file.download().path.name == "careamics.yaml":
-            config_path = file.source.path
+        if file.source.path.name == "careamics.yaml":
+            config_path = file.download().path
             break
     else:
         raise ValueError("Configuration file not found.")
