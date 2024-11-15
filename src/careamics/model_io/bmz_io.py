@@ -6,8 +6,9 @@ from typing import List, Optional, Tuple, Union
 
 import numpy as np
 import pkg_resources
-from bioimageio.core import load_description, test_model
+from bioimageio.core import load_model_description, test_model
 from bioimageio.spec import ValidationSummary, save_bioimageio_package
+from pydantic import HttpUrl
 from torch import __version__ as PYTORCH_VERSION
 from torch import load, save
 from torchvision import __version__ as TORCHVISION_VERSION
@@ -161,7 +162,7 @@ def export_to_bmz(
         np.save(outputs, output_array)
 
         # export configuration
-        config_path = save_configuration(config, temp_path)
+        config_path = save_configuration(config, temp_path / "careamics.yaml")
 
         # export model state dictionary
         weight_path = _export_state_dict(model, temp_path / "weights.pth")
@@ -193,32 +194,30 @@ def export_to_bmz(
 
 
 def load_from_bmz(
-    path: Union[Path, str]
+    path: Union[Path, str, HttpUrl]
 ) -> Tuple[Union[FCNModule, VAEModule], Configuration]:
     """Load a model from a BioImage Model Zoo archive.
 
     Parameters
     ----------
-    path : Union[Path, str]
-        Path to the BioImage Model Zoo archive.
+    path : Path, str or HttpUrl
+        Path to the BioImage Model Zoo archive. A Http URL must point to a downloadable
+        location.
 
     Returns
     -------
-    Tuple[CAREamicsKiln, Configuration]
-        CAREamics model and configuration.
+    FCNModel or VAEModel
+        The loaded CAREamics model.
+    Configuration
+        The loaded CAREamics configuration.
 
     Raises
     ------
     ValueError
         If the path is not a zip file.
     """
-    path = Path(path)
-
-    if path.suffix != ".zip":
-        raise ValueError(f"Path must be a bioimage.io zip file, got {path}.")
-
     # load description, this creates an unzipped folder next to the archive
-    model_desc = load_description(path)
+    model_desc = load_model_description(path)
 
     # extract relative paths
     weights_path, config_path = extract_model_path(model_desc)
