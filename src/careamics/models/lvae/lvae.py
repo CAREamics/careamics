@@ -100,7 +100,6 @@ class LadderVAE(nn.Module):
         self.decoder_dropout = decoder_dropout
         self.nonlin = nonlinearity
         self.predict_logvar = predict_logvar
-
         self.analytical_kl = analytical_kl
         # -------------------------------------------------------
 
@@ -162,7 +161,6 @@ class LadderVAE(nn.Module):
 
         # -------------------------------------------------------
         # Loss attributes
-        self._restricted_kl = False  # HC
         # enabling reconstruction loss on mixed input
         self.mixed_rec_w = 0
         self.nbr_consistency_w = 0
@@ -442,7 +440,6 @@ class LadderVAE(nn.Module):
                     res_block_kernel=self.decoder_res_block_kernel,
                     gated=self.gated,
                     analytical_kl=self.analytical_kl,
-                    restricted_kl=self._restricted_kl,
                     vanilla_latent_hw=self.get_latent_spatial_size(i),
                     retain_spatial_dims=self.multiscale_decoder_retain_spatial_dims,
                     input_image_shape=self.image_size,

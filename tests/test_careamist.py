@@ -1109,3 +1109,19 @@ def test_stop_training(tmp_path: Path, minimum_configuration: dict):
     thread.join()
 
     assert careamist.trainer.should_stop
+
+
+def test_read_logger(tmp_path, minimum_configuration):
+
+    config = Configuration(**minimum_configuration)
+    config.training_config.num_epochs = 10
+
+    array = np.arange(32 * 32).reshape((32, 32))
+
+    careamist = CAREamist(config, work_dir=tmp_path)
+    careamist.train(train_source=array)
+    losses = careamist.get_losses()
+
+    assert len(losses) == 4
+    for key in losses:
+        assert len(losses[key]) == config.training_config.num_epochs

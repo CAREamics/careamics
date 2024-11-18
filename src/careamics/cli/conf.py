@@ -3,7 +3,7 @@
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Tuple
+from typing import Optional, Tuple
 
 import click
 import typer
@@ -154,8 +154,12 @@ def care(  # numpydoc ignore=PR01
             help="Loss function to use.",
         ),
     ] = "mae",
-    n_channels_in: Annotated[int, typer.Option(help="Number of channels in")] = 1,
-    n_channels_out: Annotated[int, typer.Option(help="Number of channels out")] = -1,
+    n_channels_in: Annotated[
+        Optional[int], typer.Option(help="Number of channels in")
+    ] = None,
+    n_channels_out: Annotated[
+        Optional[int], typer.Option(help="Number of channels out")
+    ] = None,
     logger: Annotated[
         click.Choice,
         typer.Option(
@@ -237,8 +241,12 @@ def n2n(  # numpydoc ignore=PR01
             help="Loss function to use.",
         ),
     ] = "mae",
-    n_channels_in: Annotated[int, typer.Option(help="Number of channels in")] = 1,
-    n_channels_out: Annotated[int, typer.Option(help="Number of channels out")] = -1,
+    n_channels_in: Annotated[
+        Optional[int], typer.Option(help="Number of channels in")
+    ] = None,
+    n_channels_out: Annotated[
+        Optional[int], typer.Option(help="Number of channels out")
+    ] = None,
     logger: Annotated[
         click.Choice,
         typer.Option(
@@ -312,8 +320,8 @@ def n2v(  # numpydoc ignore=PR01
     ] = True,
     use_n2v2: Annotated[bool, typer.Option(help="Whether to use N2V2")] = False,
     n_channels: Annotated[
-        int, typer.Option(help="Number of channels (in and out)")
-    ] = 1,
+        Optional[int], typer.Option(help="Number of channels (in and out)")
+    ] = None,
     roi_size: Annotated[int, typer.Option(help="N2V pixel manipulation area.")] = 11,
     masked_pixel_percentage: Annotated[
         float, typer.Option(help="Percentage of pixels masked in each patch.")
