@@ -10,7 +10,7 @@ class KLLossConfig(BaseModel):
 
     model_config = ConfigDict(validate_assignment=True, validate_default=True)
 
-    loss_type: Literal["kl", "kl_restricted", "kl_spatial", "kl_channelwise"] = "kl"
+    loss_type: Literal["kl", "kl_restricted"] = "kl"
     """Type of KL divergence used as KL loss."""
     rescaling: Literal["latent_dim", "image_dim"] = "latent_dim"
     """Rescaling of the KL loss."""
@@ -48,7 +48,6 @@ class LVAELossConfig(BaseModel):
     """Weight for the muSplit loss (used in the muSplit-denoiSplit loss)."""
     denoisplit_weight: float = 0.9
     """Weight for the denoiSplit loss (used in the muSplit-deonoiSplit loss)."""
-
     kl_params: KLLossConfig = KLLossConfig()
     """KL loss configuration."""
 
