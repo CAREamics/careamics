@@ -220,7 +220,7 @@ def _get_kl_divergence_loss_musplit(
         The KL divergence loss for the muSplit case. Shape is (1, ).
     """
     return get_kl_divergence_loss(
-        kl_type=kl_type,
+        kl_type="kl", # TODO: hardcoded, deal in future PR
         topdown_data=topdown_data,
         rescaling="latent_dim",
         aggregation="mean",
