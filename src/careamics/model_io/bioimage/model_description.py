@@ -284,8 +284,8 @@ def create_model_description(
             "bioimageio": {
                 "test_kwargs": {
                     "pytorch_state_dict": {
-                        "absolute_tolerance": 10e-2,
-                        "relative_tolerance": 10e-2,
+                        "absolute_tolerance": 1e-2,
+                        "relative_tolerance": 1e-2,
                     }
                 }
             }
