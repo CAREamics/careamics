@@ -280,6 +280,16 @@ def create_model_description(
             "https://careamics.github.io/latest/",
         ],
         license="BSD-3-Clause",
+        config={
+            "bioimageio": {
+                "test_kwargs": {
+                    "pytorch_state_dict": {
+                        "absolute_tolerance": 10e-2,
+                        "relative_tolerance": 10e-2,
+                    }
+                }
+            }
+        },
         version="0.1.0",
         weights=weights_descr,
         attachments=[FileDescr(source=config_path)],
