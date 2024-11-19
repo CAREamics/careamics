@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import List, Optional, Tuple, Union
 
 import numpy as np
+from bioimageio.spec._internal.io import resolve_and_extract
 from bioimageio.spec.model.v0_5 import (
     ArchitectureFromLibraryDescr,
     Author,
@@ -314,7 +315,9 @@ def extract_model_path(model_desc: ModelDescr) -> tuple[Path, Path]:
     """
     if model_desc.weights.pytorch_state_dict is None:
         raise ValueError("No model weights found in model description.")
-    weights_path = model_desc.weights.pytorch_state_dict.download().path
+    weights_path = resolve_and_extract(
+        model_desc.weights.pytorch_state_dict.source
+    ).path
 
     for file in model_desc.attachments:
         file_path = file.source if isinstance(file.source, Path) else file.source.path
@@ -322,7 +325,7 @@ def extract_model_path(model_desc: ModelDescr) -> tuple[Path, Path]:
             continue
         file_path = Path(file_path)
         if file_path.name == "careamics.yaml":
-            config_path = file.download().path
+            config_path = resolve_and_extract(file.source).path
             break
     else:
         raise ValueError("Configuration file not found.")
