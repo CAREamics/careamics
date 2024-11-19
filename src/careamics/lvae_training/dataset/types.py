@@ -15,6 +15,7 @@ class DataType(Enum):
     OptiMEM100_014 = 10
     SeparateTiffData = 11
     BioSR_MRC = 12
+    PunctaRemoval = 13  # for the case when we have a set of differently sized crops for each channel.
 
 
 class DataSplitType(Enum):
