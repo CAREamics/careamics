@@ -7,7 +7,14 @@ from pytorch_lightning import LightningModule, Trainer
 
 
 class WriteStrategy(Protocol):
-    """Protocol for write strategy classes."""
+    """
+    Protocol for write strategy classes.
+
+    A `WriteStrategy` is an object that will be an attribute in the
+    `PredictionWriterCallback`; it will determine how predictions will be saved.
+    `WriteStrategy`s must be interchangeable so they must follow the interface set out
+    in this `Protocol` class.
+    """
 
     def write_batch(
         self,
@@ -45,11 +52,23 @@ class WriteStrategy(Protocol):
 
     def set_file_data(
         self, write_filenames: list[str], n_samples_per_file: list[int]
-    ) -> None: ...
+    ) -> None:
+        """
+        Set file information after the `WriteStrategy` has been initialized.
+
+        Parameters
+        ----------
+        write_filenames : list[str]
+            A list of filenames to save to.
+        n_samples_per_file : list[int]
+            The number of samples that will be saved within each file. Each element in
+            the list will correspond to the equivelant file in `write_filenames`.
+            (Should most likely mirror the input file structure).
+        """
 
     def reset(self) -> None:
         """
-        Reset internal attributes of a `WriteStrategy` instance.
+        Reset internal state (attributes) of a `WriteStrategy` instance.
 
         This is to unexpected behaviour if a `WriteStrategy` instance is used twice.
         """

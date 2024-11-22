@@ -16,18 +16,21 @@ from .utils import SampleCache
 
 class WriteImage:
     """
-    A strategy for writing image predictions (i.e. un-tiled predictions).
+    A strategy for writing image predictions (i.e. not tiled predictions).
 
     Parameters
     ----------
     write_func : WriteFunc
         Function used to save predictions.
-    write_filenames : list of str, optional
-        A list of filenames in the order that predictions will be written in.
     write_extension : str
         Extension added to prediction file paths.
     write_func_kwargs : dict of {str: Any}
         Extra kwargs to pass to `write_func`.
+    write_filenames : list of str, optional
+        A list of filenames in the order that predictions will be written in.
+    n_samples_per_file : list of int
+        The number of samples in each file, (controls which samples will be
+        grouped together in each file).
 
     Attributes
     ----------
@@ -39,8 +42,7 @@ class WriteImage:
         Extension added to prediction file paths.
     write_func_kwargs : dict of {str: Any}
         Extra kwargs to pass to `write_func`.
-    current_file_index : int
-        Index of current file, increments every time a file is written.
+
     """
 
     def __init__(
@@ -58,12 +60,12 @@ class WriteImage:
         ----------
         write_func : WriteFunc
             Function used to save predictions.
-        write_filenames : list of str, optional
-            A list of filenames in the order that predictions will be written in.
         write_extension : str
             Extension added to prediction file paths.
         write_func_kwargs : dict of {str: Any}
             Extra kwargs to pass to `write_func`.
+        write_filenames : list of str, optional
+            A list of filenames in the order that predictions will be written in.
         n_samples_per_file : list of int
             The number of samples in each file, (controls which samples will be
             grouped together in each file).
@@ -89,6 +91,18 @@ class WriteImage:
             self.sample_cache = None
 
     def set_file_data(self, write_filenames: list[str], n_samples_per_file: list[int]):
+        """
+        Set file information after the `WriteImage` strategy has been initialized.
+
+        Parameters
+        ----------
+        write_filenames : list[str]
+            A list of filenames to save to.
+        n_samples_per_file : list[int]
+            The number of samples that will be saved within each file. Each element in
+            the list will correspond to the equivelant file in `write_filenames`.
+            (Should most likely mirror the input file structure).
+        """
         if len(write_filenames) != len(n_samples_per_file):
             raise ValueError(
                 "List of filename and list of number of samples per file are not of "
@@ -141,12 +155,12 @@ class WriteImage:
         if self.sample_cache is None:
             raise ValueError(
                 "`SampleCache` has not been created. Call `set_file_data` before "
-                "calling `write_batch`." 
+                "calling `write_batch`."
             )
         # assert for mypy
-        assert self.filename_iter is not None, (
-            "`filename_iter` is `None` should be set by `set_file_data`."
-        )
+        assert (
+            self.filename_iter is not None
+        ), "`filename_iter` is `None` should be set by `set_file_data`."
 
         dls: Union[DataLoader, list[DataLoader]] = trainer.predict_dataloaders
         dl: DataLoader = dls[dataloader_idx] if isinstance(dls, list) else dls
@@ -172,11 +186,7 @@ class WriteImage:
         self.write_func(file_path=file_path, img=data, **self.write_func_kwargs)
 
     def reset(self) -> None:
-        """
-        Reset internal attributes.
-
-        Resets the `write_filenames` and `current_file_index` attributes.
-        """
+        """Reset internal attributes."""
         self._write_filenames = None
         self.filename_iter = None
         self.current_file_index = 0

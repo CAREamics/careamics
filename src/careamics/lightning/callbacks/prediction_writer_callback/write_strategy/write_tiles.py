@@ -27,12 +27,16 @@ class WriteTiles:
     ----------
     write_func : WriteFunc
         Function used to save predictions.
-    write_filenames : list of str, optional
-        A list of filenames in the order that predictions will be written in.
     write_extension : str
         Extension added to prediction file paths.
     write_func_kwargs : dict of {str: Any}
         Extra kwargs to pass to `write_func`.
+    write_filenames : list of str, optional
+        A list of filenames in the order that predictions will be written in.
+    n_samples_per_file : list[int]
+        The number of samples that will be saved within each file. Each element in
+        the list will correspond to the equivelant file in `write_filenames`.
+        (Should most likely mirror the input file structure).
 
     Attributes
     ----------
@@ -48,8 +52,6 @@ class WriteTiles:
         Tiles cached for stitching prediction.
     tile_info_cache : list of TileInformation
         Cached tile information for stitching prediction.
-    current_file_index : int
-        Index of current file, increments every time a file is written.
     """
 
     def __init__(
@@ -70,12 +72,16 @@ class WriteTiles:
         ----------
         write_func : WriteFunc
             Function used to save predictions.
-        write_filenames : list of str, optional
-            A list of filenames in the order that predictions will be written in.
         write_extension : str
             Extension added to prediction file paths.
         write_func_kwargs : dict of {str: Any}
             Extra kwargs to pass to `write_func`.
+        write_filenames : list of str, optional
+            A list of filenames in the order that predictions will be written in.
+        n_samples_per_file : list[int]
+            The number of samples that will be saved within each file. Each element in
+            the list will correspond to the equivelant file in `write_filenames`.
+            (Should most likely mirror the input file structure).
         """
         super().__init__()
 
@@ -98,6 +104,18 @@ class WriteTiles:
             self.sample_cache = None
 
     def set_file_data(self, write_filenames: list[str], n_samples_per_file: list[int]):
+        """
+        Set file information after the `WriteTiles` has been initialized.
+
+        Parameters
+        ----------
+        write_filenames : list[str]
+            A list of filenames to save to.
+        n_samples_per_file : list[int]
+            The number of samples that will be saved within each file. Each element in
+            the list will correspond to the equivelant file in `write_filenames`.
+            (Should most likely mirror the input file structure).
+        """
         if len(write_filenames) != len(n_samples_per_file):
             raise ValueError(
                 "List of filename and list of number of samples per file are not of "
@@ -148,12 +166,12 @@ class WriteTiles:
         if self.sample_cache is None:
             raise ValueError(
                 "`SampleCache` has not been created. Call `set_file_data` before "
-                "calling `write_batch`." 
+                "calling `write_batch`."
             )
         # assert for mypy
-        assert self.filename_iter is not None, (
-            "`filename_iter` is `None` should be set by `set_file_data`."
-        )
+        assert (
+            self.filename_iter is not None
+        ), "`filename_iter` is `None` should be set by `set_file_data`."
 
         # TODO: move dataset type check somewhere else
         dataloaders: Union[DataLoader, list[DataLoader]] = trainer.predict_dataloaders
@@ -196,11 +214,7 @@ class WriteTiles:
         self.write_func(file_path=file_path, img=data, **self.write_func_kwargs)
 
     def reset(self) -> None:
-        """
-        Reset the internal attributes.
-
-        Attributes reset are: `write_filenames`, `tile_cache`, and `current_file_index`.
-        """
+        """Reset the internal attributes."""
         self._write_filenames = None
         self.filename_iter = None
         if self.tile_cache is not None:

@@ -36,9 +36,10 @@ def create_write_strategy(
         Additional keyword arguments to be passed to the save function.
     write_filenames : list of str, optional
         A list of filenames in the order that predictions will be written in.
-    n_samples_per_file : list of int
-        The number of samples in each file, (controls which samples will be grouped
-        together in each file).
+    n_samples_per_file : list[int]
+        The number of samples that will be saved within each file. Each element in
+        the list will correspond to the equivelant file in `write_filenames`.
+        (Should most likely mirror the input file structure).
 
     Returns
     -------
@@ -74,7 +75,7 @@ def create_write_strategy(
             n_samples_per_file=n_samples_per_file,
         )
     else:
-        # select CacheTiles or WriteTilesZarr (when implemented)
+        # select WriteTiles or WriteTilesZarr (when implemented)
         write_strategy = _create_tiled_write_strategy(
             write_type=write_type,
             write_func=write_func,
@@ -90,15 +91,15 @@ def create_write_strategy(
 def _create_tiled_write_strategy(
     write_type: SupportedWriteType,
     write_func: Optional[WriteFunc],
-    write_filenames: Optional[list[str]],
     write_extension: Optional[str],
     write_func_kwargs: dict[str, Any],
+    write_filenames: Optional[list[str]],
     n_samples_per_file: Optional[list[int]],
 ) -> WriteStrategy:
     """
     Create a tiled write strategy.
 
-    Either `CacheTiles` for caching tiles until a whole image is predicted or
+    Either `WriteTiles` for caching tiles until a whole image is predicted or
     `WriteTilesZarr` for writing tiles directly to disk.
 
     Parameters
@@ -108,13 +109,17 @@ def _create_tiled_write_strategy(
     write_func : WriteFunc, optional
         If a known `write_type` is selected this argument is ignored. For a custom
         `write_type` a function to save the data must be passed. See notes below.
-    write_filenames : list of str, optional
-        A list of filenames in the order that predictions will be written in.
     write_extension : str, optional
         If a known `write_type` is selected this argument is ignored. For a custom
         `write_type` an extension to save the data with must be passed.
     write_func_kwargs : dict of {str: any}
         Additional keyword arguments to be passed to the save function.
+    write_filenames : list of str, optional
+        A list of filenames in the order that predictions will be written in.
+    n_samples_per_file : list[int]
+        The number of samples that will be saved within each file. Each element in
+        the list will correspond to the equivelant file in `write_filenames`.
+        (Should most likely mirror the input file structure).
 
     Returns
     -------
