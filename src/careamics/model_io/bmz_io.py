@@ -21,7 +21,6 @@ from .bioimage import (
     create_env_text,
     create_model_description,
     extract_model_path,
-    get_unzip_path,
 )
 
 
@@ -185,7 +184,12 @@ def export_to_bmz(
         )
 
         # test model description
-        summary: ValidationSummary = test_model(model_description)
+        test_kwargs = (
+            model_description.config.get("bioimageio", {})
+            .get("test_kwargs", {})
+            .get("pytorch_state_dict", {})
+        )
+        summary: ValidationSummary = test_model(model_description, **test_kwargs)
         if summary.status == "failed":
             raise ValueError(f"Model description test failed: {summary}")
 
@@ -219,13 +223,8 @@ def load_from_bmz(
     # load description, this creates an unzipped folder next to the archive
     model_desc = load_model_description(path)
 
-    # extract relative paths
+    # extract paths
     weights_path, config_path = extract_model_path(model_desc)
-
-    # create folder path and absolute paths
-    unzip_path = get_unzip_path(path)
-    weights_path = unzip_path / weights_path
-    config_path = unzip_path / config_path
 
     # load configuration
     config = load_configuration(config_path)
