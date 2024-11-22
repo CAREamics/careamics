@@ -43,12 +43,13 @@ class WriteStrategy(Protocol):
             Path to directory to save predictions to.
         """
 
-    def set_file_data(self, write_filenames: list[str], n_samples_per_file: list[int]) -> None:
-        ...
+    def set_file_data(
+        self, write_filenames: list[str], n_samples_per_file: list[int]
+    ) -> None: ...
 
     def reset(self) -> None:
         """
         Reset internal attributes of a `WriteStrategy` instance.
 
-        This is to prevent bugs if a `WriteStrategy` instance is used twice.
+        This is to unexpected behaviour if a `WriteStrategy` instance is used twice.
         """

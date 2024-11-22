@@ -15,6 +15,9 @@ from careamics.dataset.tiling import extract_tiles
 from careamics.lightning.callbacks.prediction_writer_callback.write_strategy import (
     WriteTiles,
 )
+from careamics.lightning.callbacks.prediction_writer_callback.write_strategy.utils import (
+    TileCache,
+)
 
 
 def create_tiles(n_samples: int) -> tuple[list[NDArray], list[TileInformation]]:
@@ -65,8 +68,8 @@ def patch_tile_cache(
     tile_infos : list of TileInformation
         Corresponding tile information to patch into `strategy.tile_info_cache`.
     """
-    strategy.tile_cache = tiles
-    strategy.tile_info_cache = tile_infos
+    strategy.tile_cache = TileCache()
+    strategy.tile_cache.add((np.concatenate(tiles), tile_infos))
 
 
 @pytest.fixture
@@ -88,25 +91,14 @@ def cache_tiles_strategy(write_func) -> WriteTiles:
     write_func_kwargs = {}
     return WriteTiles(
         write_func=write_func,
-        write_filenames=None,
         write_extension=write_extension,
         write_func_kwargs=write_func_kwargs,
+        write_filenames=None,
+        n_samples_per_file=None,
     )
 
 
-def test_cache_tiles_init(write_func, cache_tiles_strategy):
-    """
-    Test `CacheTiles` initializes as expected.
-    """
-    assert cache_tiles_strategy.write_func is write_func
-    assert cache_tiles_strategy.write_extension == ".ext"
-    assert cache_tiles_strategy.write_func_kwargs == {}
-    assert cache_tiles_strategy.tile_cache == []
-    assert cache_tiles_strategy.tile_info_cache == []
-    assert cache_tiles_strategy.write_filenames is None
-    assert cache_tiles_strategy.current_file_index == 0
-
-
+# TODO: Move to test tile cache
 def test_last_tiles(cache_tiles_strategy):
     """Test `CacheTiles.last_tile` property."""
 
@@ -114,8 +106,12 @@ def test_last_tiles(cache_tiles_strategy):
     tiles, tile_infos = create_tiles(n_samples=1)
     patch_tile_cache(cache_tiles_strategy, tiles, tile_infos)
 
-    last_tile = [False, False, False, False, False, False, False, False, True]
-    assert cache_tiles_strategy.last_tiles == last_tile
+    last_tiles = [False, False, False, False, False, False, False, False, True]
+    cached_last_tiles = [
+        tile_info.last_tile
+        for tile_info in cache_tiles_strategy.tile_cache.tile_info_cache
+    ]
+    assert cached_last_tiles == last_tiles
 
 
 def test_write_batch_no_last_tile(cache_tiles_strategy):
@@ -126,7 +122,8 @@ def test_write_batch_no_last_tile(cache_tiles_strategy):
     """
 
     # all tiles of 1 samples with 9 tiles
-    tiles, tile_infos = create_tiles(n_samples=1)
+    n_samples = 1
+    tiles, tile_infos = create_tiles(n_samples=n_samples)
 
     # simulate adding a batch that will not contain the last tile
     n_tiles = 4
@@ -144,7 +141,9 @@ def test_write_batch_no_last_tile(cache_tiles_strategy):
     trainer.predict_dataloaders = [Mock(spec=DataLoader)]
     trainer.predict_dataloaders[dataloader_idx].dataset = mock_dataset
 
-    cache_tiles_strategy.write_filenames = ["file_1"]
+    cache_tiles_strategy.set_file_data(
+        write_filenames=["file_1.tiff"], n_samples_per_file=[n_samples]
+    )
     cache_tiles_strategy.write_batch(
         trainer=trainer,
         pl_module=Mock(spec=LightningModule),
@@ -160,10 +159,12 @@ def test_write_batch_no_last_tile(cache_tiles_strategy):
     extended_tile_infos = tile_infos[: n_tiles + batch_size]
 
     assert all(
-        np.array_equal(extended_tiles[i], cache_tiles_strategy.tile_cache[i])
+        np.array_equal(
+            extended_tiles[i], cache_tiles_strategy.tile_cache.array_cache[i]
+        )
         for i in range(n_tiles + batch_size)
     )
-    assert extended_tile_infos == cache_tiles_strategy.tile_info_cache
+    assert extended_tile_infos == cache_tiles_strategy.tile_cache.tile_info_cache
 
 
 def test_write_batch_last_tile(cache_tiles_strategy):
@@ -174,7 +175,8 @@ def test_write_batch_last_tile(cache_tiles_strategy):
     """
 
     # all tiles of 2 samples with 9 tiles
-    tiles, tile_infos = create_tiles(n_samples=2)
+    n_samples = 2
+    tiles, tile_infos = create_tiles(n_samples=n_samples)
 
     # simulate adding a batch that will contain the last tile
     n_tiles = 8
@@ -195,21 +197,22 @@ def test_write_batch_last_tile(cache_tiles_strategy):
     trainer.predict_dataloaders = [Mock(spec=DataLoader)]
     trainer.predict_dataloaders[dataloader_idx].dataset = mock_dataset
 
-    # These functions have their own unit tests,
-    #   so they do not need to be tested again here.
-    # This is a unit test to isolate functionality of `write_batch.`
+    file_names = [f"file_{i}" for i in range(n_samples)]
+    n_samples_per_file = [1 for _ in range(n_samples)]
+
+    # call write batch
+    dirpath = Path("predictions")
+    cache_tiles_strategy.set_file_data(
+        write_filenames=file_names, n_samples_per_file=n_samples_per_file
+    )
+
+    # mocking stitch_prediction_single because to assert if WriteFunc was called
     with patch(
         "careamics.lightning.callbacks.prediction_writer_callback.write_strategy"
-        + ".cache_tiles.stitch_prediction_single",
+        + ".write_tiles.stitch_prediction_single",
     ) as mock_stitch_prediction_single:
-
-        prediction_image = [Mock()]
-        file_name = "file"
-        mock_stitch_prediction_single.return_value = prediction_image
-
-        # call write batch
-        dirpath = Path("predictions")
-        cache_tiles_strategy.write_filenames = [file_name]
+        mock_prediction = np.arange(64).reshape(1, 1, 8, 8)
+        mock_stitch_prediction_single.return_value = mock_prediction
         cache_tiles_strategy.write_batch(
             trainer=trainer,
             pl_module=Mock(spec=LightningModule),
@@ -221,19 +224,21 @@ def test_write_batch_last_tile(cache_tiles_strategy):
             dirpath=dirpath,
         )
 
-        # assert write_func is called as expected
-        cache_tiles_strategy.write_func.assert_called_once_with(
-            file_path=Path("predictions/file.ext"), img=prediction_image[0], **{}
-        )
+    # assert write_func is called as expected
+    write_func_call_args = cache_tiles_strategy.write_func.call_args.kwargs
+    assert write_func_call_args["file_path"] == Path("predictions/file_0.ext")
+    np.testing.assert_array_equal(write_func_call_args["img"], mock_prediction)
 
     # Tile of the next image (should remain in the cache)
     remaining_tile = tiles[9]
     remaining_tile_info = tile_infos[9]
 
     # assert cache cleared as expected
-    assert len(cache_tiles_strategy.tile_cache) == 1
-    assert np.array_equal(remaining_tile, cache_tiles_strategy.tile_cache[0])
-    assert remaining_tile_info == cache_tiles_strategy.tile_info_cache[0]
+    assert len(cache_tiles_strategy.tile_cache.array_cache) == 1
+    assert np.array_equal(
+        remaining_tile, cache_tiles_strategy.tile_cache.array_cache[0]
+    )
+    assert remaining_tile_info == cache_tiles_strategy.tile_cache.tile_info_cache[0]
 
 
 def test_write_batch_raises(cache_tiles_strategy: WriteTiles):
@@ -277,6 +282,7 @@ def test_write_batch_raises(cache_tiles_strategy: WriteTiles):
         )
 
 
+# TODO: move to tile cache tests
 def test_have_last_tile_true(cache_tiles_strategy):
     """Test `CacheTiles._have_last_tile` returns true when there is a last tile."""
 
@@ -284,7 +290,7 @@ def test_have_last_tile_true(cache_tiles_strategy):
     tiles, tile_infos = create_tiles(n_samples=1)
     patch_tile_cache(cache_tiles_strategy, tiles, tile_infos)
 
-    assert cache_tiles_strategy._has_last_tile()
+    assert cache_tiles_strategy.tile_cache.has_last_tile()
 
 
 def test_have_last_tile_false(cache_tiles_strategy):
@@ -295,10 +301,11 @@ def test_have_last_tile_false(cache_tiles_strategy):
     # don't include last tile
     patch_tile_cache(cache_tiles_strategy, tiles[:-1], tile_infos[:-1])
 
-    assert not cache_tiles_strategy._has_last_tile()
+    assert not cache_tiles_strategy.tile_cache.has_last_tile()
 
 
-def test_clear_cache(cache_tiles_strategy):
+# TODO: move to test tile cache
+def test_pop_image_tiles(cache_tiles_strategy):
     """
     Test `CacheTiles._clear_cache` removes the tiles up until the first "last tile".
     """
@@ -308,23 +315,19 @@ def test_clear_cache(cache_tiles_strategy):
     # include first tile from next sample
     patch_tile_cache(cache_tiles_strategy, tiles[:10], tile_infos[:10])
 
-    cache_tiles_strategy._clear_cache()
+    image_tiles, image_tile_infos = cache_tiles_strategy.tile_cache.pop_image_tiles()
 
-    assert len(cache_tiles_strategy.tile_cache) == 1
-    assert np.array_equal(cache_tiles_strategy.tile_cache[0], tiles[9])
-    assert cache_tiles_strategy.tile_info_cache[0] == tile_infos[9]
+    assert len(cache_tiles_strategy.tile_cache.array_cache) == 1
+    assert np.array_equal(cache_tiles_strategy.tile_cache.array_cache[0], tiles[9])
+    assert cache_tiles_strategy.tile_cache.tile_info_cache[0] == tile_infos[9]
 
-
-def test_last_tile_index(cache_tiles_strategy):
-    """Test `CacheTiles._last_tile_index` returns the index of the last tile."""
-    # all tiles of 1 samples with 9 tiles
-    tiles, tile_infos = create_tiles(n_samples=1)
-    patch_tile_cache(cache_tiles_strategy, tiles, tile_infos)
-
-    assert cache_tiles_strategy._last_tile_index() == 8
+    assert len(image_tiles) == 9
+    assert all(np.array_equal(image_tiles[i], tiles[i]) for i in range(9))
+    assert image_tile_infos == tile_infos[:9]
 
 
-def test_last_tile_index_error(cache_tiles_strategy):
+# TODO: move to test tile cache
+def test_pop_image_tiles_error(cache_tiles_strategy: WriteTiles):
     """Test `CacheTiles._last_tile_index` raises an error when there is no last tile."""
     # all tiles of 1 samples with 9 tiles
     tiles, tile_infos = create_tiles(n_samples=1)
@@ -332,21 +335,7 @@ def test_last_tile_index_error(cache_tiles_strategy):
     patch_tile_cache(cache_tiles_strategy, tiles[:-1], tile_infos[:-1])
 
     with pytest.raises(ValueError):
-        cache_tiles_strategy._last_tile_index()
-
-
-def test_get_image_tiles(cache_tiles_strategy):
-    """Test `CacheTiles._get_image_tiles` returns the tiles of a single image."""
-    # all tiles of 2 samples with 9 tiles
-    tiles, tile_infos = create_tiles(n_samples=2)
-    # include first tile from next sample
-    patch_tile_cache(cache_tiles_strategy, tiles[:10], tile_infos[:10])
-
-    image_tiles, image_tile_infos = cache_tiles_strategy._get_image_tiles()
-
-    assert len(image_tiles) == 9
-    assert all(np.array_equal(image_tiles[i], tiles[i]) for i in range(9))
-    assert image_tile_infos == tile_infos[:9]
+        cache_tiles_strategy.tile_cache.pop_image_tiles()
 
 
 def test_reset(cache_tiles_strategy: WriteTiles):
@@ -356,10 +345,8 @@ def test_reset(cache_tiles_strategy: WriteTiles):
     # don't include last tile
     patch_tile_cache(cache_tiles_strategy, tiles[:-1], tile_infos[:-1])
 
-    cache_tiles_strategy._write_filenames = ["file"]
-    cache_tiles_strategy.current_file_index = 1
+    cache_tiles_strategy.set_file_data(write_filenames=["file"], n_samples_per_file=[1])
     cache_tiles_strategy.reset()
+
     assert cache_tiles_strategy._write_filenames is None
-    assert cache_tiles_strategy.current_file_index == 0
-    assert len(cache_tiles_strategy.tile_cache) == 0
-    assert len(cache_tiles_strategy.tile_info_cache) == 0
+    assert cache_tiles_strategy.filename_iter is None

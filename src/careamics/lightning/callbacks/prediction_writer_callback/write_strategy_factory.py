@@ -12,9 +12,10 @@ def create_write_strategy(
     write_type: SupportedWriteType,
     tiled: bool,
     write_func: Optional[WriteFunc] = None,
-    write_filenames: Optional[list[str]] = None,
     write_extension: Optional[str] = None,
     write_func_kwargs: Optional[dict[str, Any]] = None,
+    write_filenames: Optional[list[str]] = None,
+    n_samples_per_file: Optional[list[int]] = None,
 ) -> WriteStrategy:
     """
     Create a write strategy from convenient parameters.
@@ -28,13 +29,16 @@ def create_write_strategy(
     write_func : WriteFunc, optional
         If a known `write_type` is selected this argument is ignored. For a custom
         `write_type` a function to save the data must be passed. See notes below.
-    write_filenames : list of str, optional
-        A list of filenames in the order that predictions will be written in.
     write_extension : str, optional
         If a known `write_type` is selected this argument is ignored. For a custom
         `write_type` an extension to save the data with must be passed.
     write_func_kwargs : dict of {str: any}, optional
         Additional keyword arguments to be passed to the save function.
+    write_filenames : list of str, optional
+        A list of filenames in the order that predictions will be written in.
+    n_samples_per_file : list of int
+        The number of samples in each file, (controls which samples will be grouped
+        together in each file).
 
     Returns
     -------
@@ -67,6 +71,7 @@ def create_write_strategy(
             write_filenames=write_filenames,
             write_extension=write_extension,
             write_func_kwargs=write_func_kwargs,
+            n_samples_per_file=n_samples_per_file,
         )
     else:
         # select CacheTiles or WriteTilesZarr (when implemented)
@@ -76,6 +81,7 @@ def create_write_strategy(
             write_filenames=write_filenames,
             write_extension=write_extension,
             write_func_kwargs=write_func_kwargs,
+            n_samples_per_file=n_samples_per_file,
         )
 
     return write_strategy
@@ -87,6 +93,7 @@ def _create_tiled_write_strategy(
     write_filenames: Optional[list[str]],
     write_extension: Optional[str],
     write_func_kwargs: dict[str, Any],
+    n_samples_per_file: Optional[list[int]],
 ) -> WriteStrategy:
     """
     Create a tiled write strategy.
@@ -135,6 +142,7 @@ def _create_tiled_write_strategy(
             write_filenames=write_filenames,
             write_extension=write_extension,
             write_func_kwargs=write_func_kwargs,
+            n_samples_per_file=n_samples_per_file,
         )
 
 

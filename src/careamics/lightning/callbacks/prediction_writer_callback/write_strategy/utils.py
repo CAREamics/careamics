@@ -44,10 +44,11 @@ class TileCache:
 
 class SampleCache:
 
-    def __init__(self, n_samples_per_file: Optional[list[int]]):
+    def __init__(self, n_samples_per_file: list[int]):
 
         self.n_samples_per_file: list[int] = n_samples_per_file
         self.n_samples_iter = iter(self.n_samples_per_file)
+        # n_samples will be set to None once iterated through each element
         self.n_samples: Optional[int] = next(self.n_samples_iter)
         self.sample_cache: list[NDArray] = []
 

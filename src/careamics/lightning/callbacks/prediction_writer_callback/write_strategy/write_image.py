@@ -138,8 +138,15 @@ class WriteImage:
         ValueError
             If `write_filenames` attribute is `None`.
         """
-        if self._write_filenames is None:
-            raise ValueError("`write_filenames` attribute has not been set.")
+        if self.sample_cache is None:
+            raise ValueError(
+                "`SampleCache` has not been created. Call `set_file_data` before "
+                "calling `write_batch`." 
+            )
+        # assert for mypy
+        assert self.filename_iter is not None, (
+            "`filename_iter` is `None` should be set by `set_file_data`."
+        )
 
         dls: Union[DataLoader, list[DataLoader]] = trainer.predict_dataloaders
         dl: DataLoader = dls[dataloader_idx] if isinstance(dls, list) else dls

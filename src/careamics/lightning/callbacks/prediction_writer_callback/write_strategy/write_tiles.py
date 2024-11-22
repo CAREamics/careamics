@@ -86,7 +86,7 @@ class WriteTiles:
         # where tiles will be cached until a whole image has been predicted
         self.tile_cache = TileCache()
         # where samples are stored until a whole file has been predicted
-        self.sample_cache = SampleCache(n_samples_per_file)
+        self.sample_cache: Optional[SampleCache]
 
         self._write_filenames: Optional[list[str]] = write_filenames
         self.filename_iter: Optional[Iterator[str]] = (
@@ -94,6 +94,8 @@ class WriteTiles:
         )
         if write_filenames is not None and n_samples_per_file is not None:
             self.set_file_data(write_filenames, n_samples_per_file)
+        else:
+            self.sample_cache = None
 
     def set_file_data(self, write_filenames: list[str], n_samples_per_file: list[int]):
         if len(write_filenames) != len(n_samples_per_file):
@@ -103,7 +105,7 @@ class WriteTiles:
             )
         self._write_filenames = write_filenames
         self.filename_iter = iter(write_filenames)
-        self.sample_cache.n_samples_per_file = n_samples_per_file
+        self.sample_cache = SampleCache(n_samples_per_file)
 
     def write_batch(
         self,
@@ -143,8 +145,15 @@ class WriteTiles:
         ValueError
             If `write_filenames` attribute is `None`.
         """
-        if self._write_filenames is None:
-            raise ValueError("`write_filenames` attribute has not been set.")
+        if self.sample_cache is None:
+            raise ValueError(
+                "`SampleCache` has not been created. Call `set_file_data` before "
+                "calling `write_batch`." 
+            )
+        # assert for mypy
+        assert self.filename_iter is not None, (
+            "`filename_iter` is `None` should be set by `set_file_data`."
+        )
 
         # TODO: move dataset type check somewhere else
         dataloaders: Union[DataLoader, list[DataLoader]] = trainer.predict_dataloaders
@@ -194,5 +203,7 @@ class WriteTiles:
         """
         self._write_filenames = None
         self.filename_iter = None
-        self.tile_cache.reset()
-        self.sample_cache.reset()
+        if self.tile_cache is not None:
+            self.tile_cache.reset()
+        if self.sample_cache is not None:
+            self.sample_cache.reset()

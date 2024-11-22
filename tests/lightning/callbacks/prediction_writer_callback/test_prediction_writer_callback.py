@@ -86,7 +86,10 @@ def test_smoke_n2v_tiled_tiff(tmp_path, minimum_configuration):
 
     # create prediction writer callback params
     write_strategy = create_write_strategy(
-        write_type="tiff", tiled=True, write_filenames=[file_name]
+        write_type="tiff",
+        tiled=True,
+        write_filenames=[file_name],
+        n_samples_per_file=[1],
     )
     write_strategy.reset = MagicMock(side_effect=write_strategy.reset)
     dirpath = tmp_path / "predictions"
@@ -125,7 +128,6 @@ def test_smoke_n2v_tiled_tiff(tmp_path, minimum_configuration):
 
     # filenames reset after predictions called
     write_strategy.reset.assert_called_once()
-    assert write_strategy.write_filenames is None
 
     # assert predicted file exists
     assert (dirpath / file_name).is_file()
@@ -133,7 +135,7 @@ def test_smoke_n2v_tiled_tiff(tmp_path, minimum_configuration):
     # open file
     save_data = tifffile.imread(dirpath / file_name)
     # save data has singleton channel axis
-    np.testing.assert_array_equal(save_data, predicted_images[0][0], verbose=True)
+    np.testing.assert_array_equal(save_data, predicted_images[0], verbose=True)
 
 
 def test_smoke_n2v_untiled_tiff(tmp_path, minimum_configuration):
@@ -171,7 +173,10 @@ def test_smoke_n2v_untiled_tiff(tmp_path, minimum_configuration):
 
     # create prediction writer callback params
     write_strategy = create_write_strategy(
-        write_type="tiff", tiled=False, write_filenames=[file_name]
+        write_type="tiff",
+        tiled=False,
+        write_filenames=[file_name],
+        n_samples_per_file=[1],
     )
     write_strategy.reset = MagicMock(side_effect=write_strategy.reset)
     dirpath = tmp_path / "predictions"
@@ -208,7 +213,6 @@ def test_smoke_n2v_untiled_tiff(tmp_path, minimum_configuration):
 
     # filenames reset after predictions called
     write_strategy.reset.assert_called_once()
-    assert write_strategy.write_filenames is None
 
     # assert predicted file exists
     assert (dirpath / file_name).is_file()
