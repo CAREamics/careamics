@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Optional
 
+import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import torch.nn as nn
@@ -272,6 +273,68 @@ class GaussianMixtureNoiseModel(nn.Module):
             # self.weight = self.weight.cuda()
             if self._learnable:
                 self.weight.requires_grad = True
+
+    def plotProbabilityDistribution(self, signalBinIndex):
+        """Plots probability distribution P(x|s) for a certain ground truth signal.
+
+        Predictions from both Histogram and GMM-based Noise models are displayed for comparison.
+
+        Parameters
+        ----------
+        signalBinIndex: int
+            index of signal bin. Values go from 0 to number of bins (`n_bin`).
+        histogramNoiseModel: Histogram based noise model
+        gaussianMixtureNoiseModel: GaussianMixtureNoiseModel
+            Object containing trained parameters.
+        device: GPU device
+        """
+
+        n_bin = 100  # TODO clarify this and signalBinIndex
+        histBinSize = (self.max_signal - self.min_signal) / n_bin
+        querySignal_numpy = (
+            signalBinIndex / float(n_bin) * (self.max_signal - self.min_signal)
+            + self.min_signal
+        )
+        querySignal_numpy += histBinSize / 2
+        querySignal_torch = torch.from_numpy(np.array(querySignal_numpy)).float().cuda()
+
+        queryObservations_numpy = np.arange(
+            self.min_signal, self.max_signal, histBinSize
+        )
+        queryObservations_numpy += histBinSize / 2
+        queryObservations = torch.from_numpy(queryObservations_numpy).float().cuda()
+        pTorch = self.likelihood(queryObservations, querySignal_torch)
+        pNumpy = pTorch.cpu().detach().numpy()
+
+        plt.figure(figsize=(12, 5))
+
+        plt.subplot(1, 2, 1)
+        plt.xlabel("Observation Bin")
+        plt.ylabel("Signal Bin")
+        plt.axhline(y=signalBinIndex + 0.5, linewidth=5, color="blue", alpha=0.5)
+
+        plt.subplot(1, 2, 2)
+
+        # histobs_repeated = np.repeat(histobs, 2)
+        # queryObservations_repeated = np.repeat(queryObservations_numpy, 2)
+
+        plt.plot(
+            queryObservations_numpy,
+            pNumpy,
+            label="GMM : " + " signal = " + str(np.round(querySignal_numpy, 2)),
+            marker=".",
+            color="red",
+            linewidth=2,
+        )
+        plt.xlabel("Observations (x) for signal s = " + str(querySignal_numpy))
+        plt.ylabel("Probability Density")
+        plt.title(
+            "Probability Distribution P(x|s) at signal =" + str(querySignal_numpy)
+        )
+        plt.legend()
+        return {
+            "gmm": {"x": queryObservations_numpy, "p": pNumpy},
+        }
 
     def polynomialRegressor(self, weightParams, signals):
         """Combines `weightParams` and signal `signals` to regress for the gaussian parameter values.
