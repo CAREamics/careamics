@@ -146,6 +146,7 @@ class CAREamist:
 
         # path to configuration file or model
         else:
+            # TODO: update this check so models can be downloaded directly from BMZ
             source = check_path_exists(source)
 
             # configuration file
