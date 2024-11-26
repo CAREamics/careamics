@@ -195,15 +195,26 @@ def predict(  # numpydoc ignore=PR01
         typer.Option(
             "--work-dir",
             "-wd",
-            help=(
-                "Path to working directory. (Predictions will be save in a nested "
-                "directory named 'predictions'.)"
-            ),
+            help=("Path to working directory."),
             exists=True,
             file_okay=False,
             dir_okay=True,
         ),
     ] = None,
+    prediction_dir: Annotated[
+        Path,
+        typer.Option(
+            "--prediction-dir",
+            "-pd",
+            help=(
+                "Directory to save predictions to. If not an abosulte path it will be "
+                "relative to the set working directory."
+            ),
+            exists=True,
+            file_okay=False,
+            dir_okay=True,
+        ),
+    ] = Path("predictions"),
 ):
     """Create and save predictions from CAREamics models."""
     engine = CAREamist(source=model, work_dir=work_dir)
@@ -216,7 +227,7 @@ def predict(  # numpydoc ignore=PR01
         data_type=data_type,
         tta_transforms=tta_transforms,
         write_type=write_type,
-        prediction_dir="predictions",
+        prediction_dir=prediction_dir,
     )
 
 
