@@ -23,8 +23,12 @@ readme = "README.md"
 requires-python = ">=3.9"
 license = { text = "BSD-3-Clause" }
 authors = [
+    { name = 'CAREamics team', email = 'rse@fht.org' },
+    { name = 'Ashesh', email = 'ashesh.ashesh@fht.org' },
+    { name = 'Federico Carrara', email = 'federico.carrara@fht.org' },
     { name = 'Melisande Croft', email = 'melisande.croft@fht.org' },
     { name = 'Joran Deschamps', email = 'joran.deschamps@fht.org' },
+    { name = 'Vera Galinova', email = 'vera.galinova@fht.org' },
     { name = 'Igor Zubarev', email = 'igor.zubarev@fht.org' },
 ]
 classifiers = [
@@ -41,12 +45,13 @@ dependencies = [
     'numpy<2.0.0',
     'torch>=2.0.0',
     'torchvision',
-    'bioimageio.core>=0.6.0',
+    'bioimageio.core>=0.7.0',
     'tifffile',
     'psutil',
-    'pydantic>=2.5',
+    'pydantic>=2.5,<2.9',
     'pytorch_lightning>=2.2.0',
     'pyyaml',
+    'typer==0.12.3',
     'scikit-image<=0.23.2',
     'zarr<3.0.0',
 ]
@@ -70,6 +75,10 @@ tensorboard = ["tensorboard", "protobuf==3.20.3"]
 [project.urls]
 homepage = "https://careamics.github.io/"
 repository = "https://github.com/CAREamics/careamics"
+
+# cli
+[project.scripts]
+careamics = "careamics.cli.main:run"
 
 # https://beta.ruff.rs/docs
 [tool.ruff]
@@ -137,7 +146,10 @@ filterwarnings = [
 ]
 addopts = "-p no:doctest"
 
-#markers = ["gpu: marks tests as requiring gpu"]
+markers = [
+    # "gpu: marks tests as requiring gpu",
+    "lvae: marks tests as testing lvae",
+]
 
 # https://coverage.readthedocs.io/en/6.4/config.html
 [tool.coverage.report]

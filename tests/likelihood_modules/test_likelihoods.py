@@ -13,21 +13,7 @@ from careamics.config.nm_model import GaussianMixtureNMConfig, MultiChannelNMCon
 from careamics.models.lvae.likelihoods import likelihood_factory
 from careamics.models.lvae.noise_models import noise_model_factory
 
-
-# TODO: move to conftest.py as pytest.fixture
-def create_dummy_noise_model(
-    tmp_path: Path,
-    n_gaussians: int = 3,
-    n_coeffs: int = 3,
-) -> None:
-    weights = np.random.rand(3 * n_gaussians, n_coeffs)
-    nm_dict = {
-        "trained_weight": weights,
-        "min_signal": np.array([0]),
-        "max_signal": np.array([2**16 - 1]),
-        "min_sigma": 0.125,
-    }
-    np.savez(tmp_path / "dummy_noise_model.npz", **nm_dict)
+pytestmark = pytest.mark.lvae
 
 
 # TODO: move it under models/lvae/ ??
@@ -68,10 +54,14 @@ def test_gaussian_likelihood(
 @pytest.mark.parametrize("batch_size", [1, 8])
 @pytest.mark.parametrize("target_ch", [1, 3, 5])
 def test_noise_model_likelihood(
-    tmp_path: Path, batch_size: int, img_size: int, target_ch: int
+    tmp_path: Path,
+    batch_size: int,
+    img_size: int,
+    target_ch: int,
+    create_dummy_noise_model,
 ) -> None:
     # Instantiate the noise model
-    create_dummy_noise_model(tmp_path, n_gaussians=4, n_coeffs=3)
+    np.savez(tmp_path / "dummy_noise_model.npz", **create_dummy_noise_model)
     gmm = GaussianMixtureNMConfig(
         model_type="GaussianMixtureNoiseModel",
         path=tmp_path / "dummy_noise_model.npz",
@@ -86,8 +76,8 @@ def test_noise_model_likelihood(
     # NOTE: `input_` is actually the output of LVAE decoder
     data_mean = target.mean(dim=(0, 2, 3), keepdim=True)
     data_std = target.std(dim=(0, 2, 3), keepdim=True)
-    config = NMLikelihoodConfig(data_mean=data_mean, data_std=data_std, noise_model=nm)
-    likelihood = likelihood_factory(config)
+    config = NMLikelihoodConfig(data_mean=data_mean, data_std=data_std)
+    likelihood = likelihood_factory(config, noise_model=nm)
 
     out, data = likelihood(reconstruction, target)
     exp_out_shape = inp_shape

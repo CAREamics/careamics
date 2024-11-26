@@ -3,10 +3,58 @@ from typing import Callable, Tuple
 
 import numpy as np
 import pytest
+from torch import nn, ones
 
 from careamics import CAREamist, Configuration
-from careamics.config.support import SupportedData
+from careamics.config import register_model
+from careamics.config.support import SupportedArchitecture, SupportedData
 from careamics.model_io import export_to_bmz
+
+######################################
+## fixture for custom model testing ##
+##
+## - config/algorithm_model
+## - config/architectures/custom_model
+## - models/model_factory
+##
+######################################
+
+
+@register_model(name="linear")
+class LinearModel(nn.Module):
+    def __init__(self, in_features, out_features):
+        super().__init__()
+
+        self.in_features = in_features
+        self.out_features = out_features
+        self.weight = nn.Parameter(ones(in_features, out_features))
+        self.bias = nn.Parameter(ones(out_features))
+
+    def forward(self, input):
+        return (input @ self.weight) + self.bias
+
+
+@pytest.fixture
+def custom_model_name() -> str:
+    return "linear"
+
+
+@pytest.fixture
+def custom_model_parameters(custom_model_name) -> dict:
+    return {
+        "architecture": SupportedArchitecture.CUSTOM.value,
+        "name": custom_model_name,
+        "in_features": 10,
+        "out_features": 5,
+    }
+
+
+######################################
+
+
+@pytest.fixture
+def gaussian_likelihood_params():
+    return {"predict_logvar": "pixelwise", "logvar_lowerbound": -5}
 
 
 # TODO add details about where each of these fixture is used (e.g. smoke test)
@@ -32,7 +80,6 @@ def minimum_algorithm_n2v() -> dict:
     """
     # create dictionary
     algorithm = {
-        "algorithm_type": "fcn",
         "algorithm": "n2v",
         "loss": "n2v",
         "model": {
@@ -54,7 +101,6 @@ def minimum_algorithm_supervised() -> dict:
     """
     # create dictionary
     algorithm = {
-        "algorithm_type": "fcn",
         "algorithm": "n2n",
         "loss": "mae",
         "model": {
@@ -65,7 +111,7 @@ def minimum_algorithm_supervised() -> dict:
     return algorithm
 
 
-# TODO: need to update/remove this fixture
+# TODO: wrong! need to update/remove this fixture
 @pytest.fixture
 def minimum_algorithm_musplit() -> dict:
     """Create a minimum algorithm dictionary.
@@ -82,9 +128,8 @@ def minimum_algorithm_musplit() -> dict:
         "loss": "musplit",
         "model": {
             "architecture": "LVAE",
-            "enable_noise_model": False,
             "z_dims": (128, 128, 128),
-            "multiscale_count": 4,
+            "multiscale_count": 2,
             "predict_logvar": "pixelwise",
         },
         "likelihood": {
@@ -95,7 +140,7 @@ def minimum_algorithm_musplit() -> dict:
     return algorithm
 
 
-# TODO: Need to update/remove this fixture
+# TODO: wrong! need to update/remove this fixture
 @pytest.fixture
 def minimum_algorithm_denoisplit() -> dict:
     """Create a minimum algorithm dictionary.
@@ -112,9 +157,8 @@ def minimum_algorithm_denoisplit() -> dict:
         "loss": "denoisplit",
         "model": {
             "architecture": "LVAE",
-            "enable_noise_model": False,
             "z_dims": (128, 128, 128),
-            "multiscale_count": 4,
+            "multiscale_count": 2,
         },
         "likelihood": {"type": "GaussianLikelihoodConfig", "color_channels": 2},
         "noise_model": "MultiChannelNMConfig",
@@ -352,3 +396,22 @@ def create_dummy_noise_model(
         "min_sigma": 0.125,
     }
     return nm_dict
+
+
+@pytest.fixture
+def minimum_lvae_params():
+    return {
+        "input_shape": (64, 64),
+        "output_channels": 2,
+        "multiscale_count": 1,
+        "encoder_conv_strides": [2, 2],
+        "decoder_conv_strides": [2, 2],
+        "z_dims": [128, 128, 128, 128],
+        "encoder_n_filters": 64,
+        "decoder_n_filters": 64,
+        "encoder_dropout": 0.1,
+        "decoder_dropout": 0.1,
+        "nonlinearity": "ELU",
+        "predict_logvar": "pixelwise",
+        "analytical_kl": False,
+    }

@@ -1,9 +1,7 @@
-import pytest
 from torch import nn, ones
 
 from careamics.config.architectures import (
     CustomModel,
-    LVAEModel,
     UNetModel,
     register_model,
 )
@@ -52,13 +50,3 @@ def test_model_registry_custom():
     assert isinstance(model, LinearModel)
     assert model.in_features == 10
     assert model.out_features == 5
-
-
-def test_lvae():
-    """Test that VAE are currently not supported."""
-    model_config = {
-        "architecture": SupportedArchitecture.LVAE.value,
-    }
-
-    with pytest.raises(NotImplementedError):
-        model_factory(LVAEModel(**model_config))

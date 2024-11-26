@@ -124,7 +124,6 @@ class Configuration(BaseModel):
     >>> config_dict = {
     ...         "experiment_name": "N2V_experiment",
     ...         "algorithm_config": {
-    ...             "algorithm_type": "fcn",
     ...             "algorithm": "n2v",
     ...             "loss": "n2v",
     ...             "model": {
@@ -158,7 +157,7 @@ class Configuration(BaseModel):
 
     # Sub-configurations
     algorithm_config: Union[FCNAlgorithmConfig, VAEAlgorithmConfig] = Field(
-        discriminator="algorithm_type"
+        discriminator="algorithm"
     )
     """Algorithm configuration, holding all parameters required to configure the
     model."""
@@ -566,8 +565,8 @@ def save_configuration(config: Configuration, path: Union[str, Path]) -> Path:
     config : Configuration
         Configuration to save.
     path : str or Path
-        Path to a existing folder in which to save the configuration or to an existing
-        configuration file.
+        Path to a existing folder in which to save the configuration, or to a valid
+        configuration file path (uses a .yml or .yaml extension).
 
     Returns
     -------

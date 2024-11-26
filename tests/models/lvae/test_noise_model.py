@@ -11,6 +11,8 @@ from careamics.models.lvae.noise_models import (
     noise_model_factory,
 )
 
+pytestmark = pytest.mark.lvae
+
 
 def test_factory_no_noise_model():
     noise_model = noise_model_factory(None)
@@ -93,7 +95,7 @@ def test_noise_model_likelihood(
 
 
 @pytest.mark.parametrize("img_size", [64, 128])
-@pytest.mark.parametrize("target_ch", [1, 3, 5])
+@pytest.mark.parametrize("target_ch", [1, 2, 3])
 def test_multi_channel_noise_model_likelihood(
     tmp_path: Path,
     img_size: int,
@@ -102,12 +104,14 @@ def test_multi_channel_noise_model_likelihood(
 ) -> None:
     np.savez(tmp_path / "dummy_noise_model.npz", **create_dummy_noise_model)
 
-    gmm = GaussianMixtureNMConfig(
-        model_type="GaussianMixtureNoiseModel",
-        path=tmp_path / "dummy_noise_model.npz",
-        # all other params are default
-    )
-    noise_model_config = MultiChannelNMConfig(noise_models=[gmm] * target_ch)
+        gmm = GaussianMixtureNMConfig(
+            model_type="GaussianMixtureNoiseModel",
+            path=tmp_path / f"dummy_noise_model_{i}.npz",
+            # all other params are default
+        )
+        noise_models.append(gmm)
+
+    noise_model_config = MultiChannelNMConfig(noise_models=noise_models)
     nm = noise_model_factory(noise_model_config)
     assert nm is not None
     assert isinstance(nm, MultiChannelNoiseModel)
@@ -116,7 +120,13 @@ def test_multi_channel_noise_model_likelihood(
         isinstance(getattr(nm, f"nmodel_{i}"), GaussianMixtureNoiseModel)
         for i in range(nm._nm_cnt)
     )
-
+    assert all(
+        np.allclose(
+            getattr(nm, f"nmodel_{i}").weight,
+            create_dummy_noise_model["trained_weight"] + rand_epss[i],
+        )
+        for i in range(nm._nm_cnt)
+    )
     inp_shape = (1, target_ch, img_size, img_size)
     signal = torch.ones(inp_shape)
     obs = signal + torch.randn(inp_shape) * 0.1

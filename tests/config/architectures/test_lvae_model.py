@@ -3,6 +3,8 @@ import pytest
 from careamics.config.architectures import LVAEModel
 from careamics.config.support import SupportedActivation
 
+pytestmark = pytest.mark.lvae
+
 
 def test_instantiation():
     """Test that LVAEModel can be instantiated."""
@@ -97,6 +99,7 @@ def test_parameters_wrong_values_by_assigment():
     model_params = {
         "architecture": "LVAE",
         "z_dims": (128, 128, 128),
+        "multiscale_count": 2,
         "encoder_n_filters": 32,
     }
     model = LVAEModel(**model_params)
@@ -127,7 +130,7 @@ def test_model_dump():
 
     # check that default values are excluded except the architecture
     assert "architecture" not in model_dict
-    assert len(model_dict) == 2
+    assert len(model_dict) == 3  # TODO not sure it's hardcoded?
 
     # check that we get all the optional values with the exclude_defaults flag
     model_dict = model.model_dump(exclude_defaults=False)

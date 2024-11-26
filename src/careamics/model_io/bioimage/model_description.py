@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import List, Optional, Tuple, Union
 
 import numpy as np
+from bioimageio.spec._internal.io import resolve_and_extract
 from bioimageio.spec.model.v0_5 import (
     ArchitectureFromLibraryDescr,
     Author,
@@ -280,25 +281,26 @@ def create_model_description(
             "https://careamics.github.io/latest/",
         ],
         license="BSD-3-Clause",
-        version="0.1.0",
-        weights=weights_descr,
-        attachments=[FileDescr(source=config_path)],
-        cite=config.get_algorithm_citations(),
-        config={  # conversion from float32 to float64 creates small differences...
+        config={
             "bioimageio": {
                 "test_kwargs": {
                     "pytorch_state_dict": {
-                        "decimals": 0,  # ...so we relax the constraints on the decimals
+                        "absolute_tolerance": 1e-2,
+                        "relative_tolerance": 1e-2,
                     }
                 }
             }
         },
+        version="0.1.0",
+        weights=weights_descr,
+        attachments=[FileDescr(source=config_path)],
+        cite=config.get_algorithm_citations(),
     )
 
     return model
 
 
-def extract_model_path(model_desc: ModelDescr) -> Tuple[Path, Path]:
+def extract_model_path(model_desc: ModelDescr) -> tuple[Path, Path]:
     """Return the relative path to the weights and configuration files.
 
     Parameters
@@ -308,20 +310,24 @@ def extract_model_path(model_desc: ModelDescr) -> Tuple[Path, Path]:
 
     Returns
     -------
-    Tuple[Path, Path]
+    tuple of (path, path)
         Weights and configuration paths.
     """
-    weights_path = model_desc.weights.pytorch_state_dict.source.path
+    if model_desc.weights.pytorch_state_dict is None:
+        raise ValueError("No model weights found in model description.")
+    weights_path = resolve_and_extract(
+        model_desc.weights.pytorch_state_dict.source
+    ).path
 
-    if len(model_desc.attachments) == 1:
-        config_path = model_desc.attachments[0].source.path
+    for file in model_desc.attachments:
+        file_path = file.source if isinstance(file.source, Path) else file.source.path
+        if file_path is None:
+            continue
+        file_path = Path(file_path)
+        if file_path.name == "careamics.yaml":
+            config_path = resolve_and_extract(file.source).path
+            break
     else:
-        for file in model_desc.attachments:
-            if file.source.path.suffix == ".yml":
-                config_path = file.source.path
-                break
-
-        if config_path is None:
-            raise ValueError("Configuration file not found.")
+        raise ValueError("Configuration file not found.")
 
     return weights_path, config_path
