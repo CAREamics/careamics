@@ -735,7 +735,7 @@ class CAREamist:
 
         Parameters
         ----------
-        source : PredictDataModule, pathlib.Path or str
+        source : PredictDataModule or pathlib.Path, str
             Data to predict on.
         batch_size : int, default=1
             Batch size for prediction.
@@ -805,27 +805,36 @@ class CAREamist:
             write_extension = SupportedData.get_extension(write_type)
 
         # extract file names
+        source_path: Union[Path, str, NDArray]
+        source_data_type: Literal["array", "tiff", "custom"]
         if isinstance(source, PredictDataModule):
-            # assert not isinstance(source.pred_data, )
-            source_file_paths = list_files(
-                source.pred_data, source.data_type, source.extension_filter
-            )
+            source_path = source.pred_data
+            source_data_type = source.data_type
+            extension_filter = source.extension_filter
         elif isinstance(source, (str, Path)):
-            assert self.cfg.data_config.data_type != "array"
-            data_type = data_type or self.cfg.data_config.data_type
+            source_path = source
+            source_data_type = data_type or self.cfg.data_config.data_type
             extension_filter = SupportedData.get_extension_pattern(
-                SupportedData(data_type)
+                SupportedData(source_data_type)
             )
-            source_file_paths = list_files(source, data_type, extension_filter)
         else:
             raise ValueError(f"Unsupported source type: '{type(source)}'.")
 
+        if source_data_type == "array":
+            raise ValueError(
+                "Predicting to disk is not supported for input type 'array'."
+            )
+        assert isinstance(source_path, (Path, str))  # because data_type != "array"
+        source_path = Path(source_path)
+
+        file_paths = list_files(source_path, source_data_type, extension_filter)
+
         # predict and write each file in turn
-        for source_path in source_file_paths:
+        for file_path in file_paths:
             # source_path is relative to original source path...
             # should mirror original directory structure
             prediction = self.predict(
-                source=source_path,
+                source=file_path,
                 batch_size=batch_size,
                 tile_size=tile_size,
                 tile_overlap=tile_overlap,
@@ -841,11 +850,9 @@ class CAREamist:
             write_data = np.concatenate(prediction)
 
             # create directory structure and write path
-            file_write_dir = write_dir / source_path.parent.name
+            file_write_dir = write_dir / file_path.relative_to(source_path)
             file_write_dir.mkdir(parents=True, exist_ok=True)
-            write_path = (file_write_dir / source_path.name).with_suffix(
-                write_extension
-            )
+            write_path = (file_write_dir / file_path.name).with_suffix(write_extension)
 
             # write data
             write_func(file_path=write_path, img=write_data)
