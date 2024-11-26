@@ -19,12 +19,10 @@ from .utils import handle_2D_3D_callback
 
 app = typer.Typer(
     help="Run CAREamics algorithms from the command line, including Noise2Void "
-    "and its many variants and cousins"
+    "and its many variants and cousins",
+    pretty_exceptions_show_locals=False,
 )
-app.add_typer(
-    conf.app,
-    name="conf",
-)
+app.add_typer(conf.app, name="conf")
 
 
 @app.command()
