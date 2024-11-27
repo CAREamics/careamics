@@ -210,7 +210,6 @@ def predict(  # numpydoc ignore=PR01
                 "Directory to save predictions to. If not an abosulte path it will be "
                 "relative to the set working directory."
             ),
-            exists=True,
             file_okay=False,
             dir_okay=True,
         ),
