@@ -862,7 +862,7 @@ def test_predict_to_disk_path_tiff(tmp_path, minimum_configuration):
     careamist.predict_to_disk(source=image_dir)
 
     for i in range(n_samples):
-        assert (tmp_path / "predictions" / "images" / f"image_{i}.tiff").is_file()
+        assert (tmp_path / "predictions" / f"image_{i}.tiff").is_file()
 
 
 def test_predict_to_disk_datamodule_tiff(tmp_path, minimum_configuration):
@@ -903,7 +903,7 @@ def test_predict_to_disk_datamodule_tiff(tmp_path, minimum_configuration):
     careamist.predict_to_disk(source=datamodule)
 
     for i in range(n_samples):
-        assert (tmp_path / "predictions" / "images" / f"image_{i}.tiff").is_file()
+        assert (tmp_path / "predictions" / f"image_{i}.tiff").is_file()
 
 
 def test_predict_to_disk_custom(tmp_path, minimum_configuration):
@@ -944,7 +944,7 @@ def test_predict_to_disk_custom(tmp_path, minimum_configuration):
     )
 
     for i in range(n_samples):
-        assert (tmp_path / "predictions" / "images" / f"image_{i}.npy").is_file()
+        assert (tmp_path / "predictions" / f"image_{i}.npy").is_file()
 
 
 def test_predict_to_disk_custom_raises(tmp_path, minimum_configuration):

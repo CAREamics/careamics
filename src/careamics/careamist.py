@@ -850,8 +850,11 @@ class CAREamist:
             write_data = np.concatenate(prediction)
 
             # create directory structure and write path
-            file_write_dir = write_dir / file_path.relative_to(source_path)
-            file_write_dir.mkdir(parents=True, exist_ok=True)
+            if not source_path.is_file():
+                file_write_dir = write_dir / file_path.parent.relative_to(source_path)
+                file_write_dir.mkdir(parents=True, exist_ok=True)
+            else:
+                file_write_dir = write_dir
             write_path = (file_write_dir / file_path.name).with_suffix(write_extension)
 
             # write data
