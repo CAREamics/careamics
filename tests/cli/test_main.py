@@ -66,7 +66,7 @@ def test_predict_single_file(tmp_path: Path, minimum_configuration: dict):
         app, ["predict", str(checkpoint_path), str(train_file), "-wd", str(tmp_path)]
     )
     assert (tmp_path / "predictions").is_dir()
-    assert len(list((tmp_path / "predictions").glob("*.tif*"))) > 0
+    assert (tmp_path / "predictions" / "train.tiff").is_file()
     assert result.exit_code == 0
 
 
@@ -98,29 +98,6 @@ def test_predict_directory(tmp_path: Path, minimum_configuration: dict):
         app, ["predict", str(checkpoint_path), str(data_dir), "-wd", str(tmp_path)]
     )
     assert (tmp_path / "predictions").is_dir()
-    assert len(list((tmp_path / "predictions").glob("*.tif*"))) > 0
-    assert result.exit_code == 0
-
-    # create & save config
-    config_path = tmp_path / "config.yaml"
-    config = Configuration(**minimum_configuration)
-    config.data_config.data_type = SupportedData.TIFF.value
-    save_configuration(config, config_path)
-
-    # dummy data
-    train_array = np.random.rand(32, 32)
-    # save files
-    train_file = tmp_path / "train.tiff"
-    tifffile.imwrite(train_file, train_array)
-
-    careamist = CAREamist(config, work_dir=tmp_path)
-    careamist.train(train_source=train_file)
-
-    checkpoint_path = next(iter((tmp_path / "checkpoints").glob("*.ckpt")))
-
-    result = runner.invoke(
-        app, ["predict", str(checkpoint_path), str(train_file), "-wd", str(tmp_path)]
-    )
-    assert (tmp_path / "predictions").is_dir()
-    assert len(list((tmp_path / "predictions").glob("*.tif*"))) > 0
+    for i in range(n_files):
+        assert (tmp_path / "predictions" / f"train_{i}.tiff").is_file()
     assert result.exit_code == 0
