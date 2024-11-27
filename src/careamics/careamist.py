@@ -852,9 +852,9 @@ class CAREamist:
             # create directory structure and write path
             if not source_path.is_file():
                 file_write_dir = write_dir / file_path.parent.relative_to(source_path)
-                file_write_dir.mkdir(parents=True, exist_ok=True)
             else:
                 file_write_dir = write_dir
+            file_write_dir.mkdir(parents=True, exist_ok=True)
             write_path = (file_write_dir / file_path.name).with_suffix(write_extension)
 
             # write data
