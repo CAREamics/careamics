@@ -24,6 +24,11 @@ def get_first_index(bin_count, quantile):
 
 
 class Calibration:
+    """Calibrate the uncertainty computed over samples from LVAE model.
+    
+    Calibration is done by learning a scalar that maps the pixel-wise standard
+    deviation of the the predicted samples into the actual prediction error.
+    """
     def __init__(self, num_bins: int = 15):
         self._bins = num_bins
         self._bin_boundaries = None
