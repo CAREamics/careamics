@@ -243,4 +243,4 @@ def test_reset(cache_tiles_strategy: WriteTiles):
     cache_tiles_strategy.reset()
 
     assert cache_tiles_strategy._write_filenames is None
-    assert cache_tiles_strategy.filename_iter is None
+    assert cache_tiles_strategy._filename_iter is None

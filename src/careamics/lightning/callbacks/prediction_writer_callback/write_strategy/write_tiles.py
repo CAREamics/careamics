@@ -95,7 +95,7 @@ class WriteTiles:
         self.sample_cache: Optional[SampleCache]
 
         self._write_filenames: Optional[list[str]] = write_filenames
-        self.filename_iter: Optional[Iterator[str]] = (
+        self._filename_iter: Optional[Iterator[str]] = (
             iter(write_filenames) if write_filenames is not None else None
         )
         if write_filenames is not None and n_samples_per_file is not None:
@@ -122,7 +122,7 @@ class WriteTiles:
                 "equal length."
             )
         self._write_filenames = write_filenames
-        self.filename_iter = iter(write_filenames)
+        self._filename_iter = iter(write_filenames)
         self.sample_cache = SampleCache(n_samples_per_file)
 
     def write_batch(
@@ -170,7 +170,7 @@ class WriteTiles:
             )
         # assert for mypy
         assert (
-            self.filename_iter is not None
+            self._filename_iter is not None
         ), "`filename_iter` is `None` should be set by `set_file_data`."
 
         # TODO: move dataset type check somewhere else
@@ -209,14 +209,14 @@ class WriteTiles:
         data = np.concatenate(samples)
 
         # write prediction
-        file_name = next(self.filename_iter)
+        file_name = next(self._filename_iter)
         file_path = (dirpath / file_name).with_suffix(self.write_extension)
         self.write_func(file_path=file_path, img=data, **self.write_func_kwargs)
 
     def reset(self) -> None:
         """Reset the internal attributes."""
         self._write_filenames = None
-        self.filename_iter = None
+        self._filename_iter = None
         if self.tile_cache is not None:
             self.tile_cache.reset()
         if self.sample_cache is not None:

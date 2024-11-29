@@ -76,13 +76,13 @@ class WriteImage:
         self.write_extension: str = write_extension
         self.write_func_kwargs: dict[str, Any] = write_func_kwargs
 
-        self._write_filenames: Optional[list[str]] = write_filenames
-        self.filename_iter: Optional[Iterator[str]] = (
-            iter(write_filenames) if write_filenames is not None else None
-        )
-
         # where samples are stored until a whole file has been predicted
         self.sample_cache: Optional[SampleCache]
+
+        self._write_filenames: Optional[list[str]] = write_filenames
+        self._filename_iter: Optional[Iterator[str]] = (
+            iter(write_filenames) if write_filenames is not None else None
+        )
 
         if not ((write_filenames is None) or (n_samples_per_file is None)):
             # also creates sample cache
@@ -109,7 +109,7 @@ class WriteImage:
                 "equal length."
             )
         self._write_filenames = write_filenames
-        self.filename_iter = iter(write_filenames)
+        self._filename_iter = iter(write_filenames)
         self.sample_cache = SampleCache(n_samples_per_file=n_samples_per_file)
 
     def write_batch(
@@ -159,7 +159,7 @@ class WriteImage:
             )
         # assert for mypy
         assert (
-            self.filename_iter is not None
+            self._filename_iter is not None
         ), "`filename_iter` is `None` should be set by `set_file_data`."
 
         dls: Union[DataLoader, list[DataLoader]] = trainer.predict_dataloaders
@@ -181,12 +181,12 @@ class WriteImage:
         data = np.concatenate(samples)
 
         # write prediction
-        file_name = next(self.filename_iter)
+        file_name = next(self._filename_iter)
         file_path = (dirpath / file_name).with_suffix(self.write_extension)
         self.write_func(file_path=file_path, img=data, **self.write_func_kwargs)
 
     def reset(self) -> None:
         """Reset internal attributes."""
         self._write_filenames = None
-        self.filename_iter = None
+        self._filename_iter = None
         self.current_file_index = 0
