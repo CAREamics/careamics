@@ -14,9 +14,7 @@ from careamics.dataset import IterableTiledPredDataset
 from careamics.dataset.tiling import extract_tiles
 from careamics.lightning.callbacks.prediction_writer_callback.write_strategy import (
     WriteTiles,
-)
-from careamics.lightning.callbacks.prediction_writer_callback.write_strategy.utils import (
-    TileCache,
+    caches,
 )
 
 
@@ -68,7 +66,7 @@ def patch_tile_cache(
     tile_infos : list of TileInformation
         Corresponding tile information to patch into `strategy.tile_info_cache`.
     """
-    strategy.tile_cache = TileCache()
+    strategy.tile_cache = caches.TileCache()
     strategy.tile_cache.add((np.concatenate(tiles), tile_infos))
 
 

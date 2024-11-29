@@ -13,7 +13,7 @@ from careamics.dataset import IterableTiledPredDataset
 from careamics.file_io import WriteFunc
 from careamics.prediction_utils import stitch_prediction_single
 
-from .utils import SampleCache, TileCache
+from .caches import SampleCache, TileCache
 
 
 class WriteTiles:

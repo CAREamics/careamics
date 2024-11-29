@@ -1,4 +1,4 @@
-"""Utility classes and funtions used in the write strategies."""
+"""Utility classes, for caching data, used in the write strategies."""
 
 from typing import Optional
 

@@ -11,7 +11,7 @@ from torch.utils.data import DataLoader
 from careamics.dataset import IterablePredDataset
 from careamics.file_io import WriteFunc
 
-from .utils import SampleCache
+from .caches import SampleCache
 
 
 class WriteImage:
