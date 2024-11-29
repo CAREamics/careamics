@@ -5,69 +5,15 @@ from unittest.mock import Mock, patch
 
 import numpy as np
 import pytest
-from numpy.typing import NDArray
 from pytorch_lightning import LightningModule, Trainer
 from torch.utils.data import DataLoader
 
-from careamics.config.tile_information import TileInformation
 from careamics.dataset import IterableTiledPredDataset
-from careamics.dataset.tiling import extract_tiles
 from careamics.lightning.callbacks.prediction_writer_callback.write_strategy import (
     WriteTiles,
-    caches,
 )
 
-
-def create_tiles(n_samples: int) -> tuple[list[NDArray], list[TileInformation]]:
-    """
-    Create a set of tiles from `n_samples`.
-
-    To create the tiles the following parameters, `tile_size=(4, 4)` and
-    `overlaps=(2, 2)`, on an input array with shape (`n_samples`, 1, 8, 8); this
-    results in 9 tiles per sample.
-
-    Parameters
-    ----------
-    n_samples : int
-        Number of samples to simulate the tiles from.
-
-    Returns
-    -------
-    tuple of (list of NDArray), list of TileInformation))
-        Tuple where first element is the list of tiles and second element is a list
-        of corresponding tile information.
-    """
-
-    input_shape = (n_samples, 1, 8, 8)
-    tile_size = (4, 4)
-    tile_overlap = (2, 2)
-
-    arr = np.arange(np.prod(input_shape)).reshape(input_shape)
-
-    all_tiles = list(extract_tiles(arr, tile_size, tile_overlap))
-    tiles = [output[0] for output in all_tiles]
-    tile_infos = [output[1] for output in all_tiles]
-
-    return tiles, tile_infos
-
-
-def patch_tile_cache(
-    strategy: WriteTiles, tiles: list[NDArray], tile_infos: list[TileInformation]
-) -> None:
-    """
-    Patch simulated tile cache into `strategy`.
-
-    Parameters
-    ----------
-    strategy : CacheTiles
-        Write strategy `CacheTiles`.
-    tiles : list of NDArray
-        Tiles to patch into `strategy.tile_cache`.
-    tile_infos : list of TileInformation
-        Corresponding tile information to patch into `strategy.tile_info_cache`.
-    """
-    strategy.tile_cache = caches.TileCache()
-    strategy.tile_cache.add((np.concatenate(tiles), tile_infos))
+from .utils import create_tiles, patch_tile_cache
 
 
 @pytest.fixture
@@ -102,7 +48,7 @@ def test_last_tiles(cache_tiles_strategy):
 
     # all tiles of 1 samples with 9 tiles
     tiles, tile_infos = create_tiles(n_samples=1)
-    patch_tile_cache(cache_tiles_strategy, tiles, tile_infos)
+    patch_tile_cache(cache_tiles_strategy.tile_cache, tiles, tile_infos)
 
     last_tiles = [False, False, False, False, False, False, False, False, True]
     cached_last_tiles = [
@@ -126,7 +72,9 @@ def test_write_batch_no_last_tile(cache_tiles_strategy):
     # simulate adding a batch that will not contain the last tile
     n_tiles = 4
     batch_size = 2
-    patch_tile_cache(cache_tiles_strategy, tiles[:n_tiles], tile_infos[:n_tiles])
+    patch_tile_cache(
+        cache_tiles_strategy.tile_cache, tiles[:n_tiles], tile_infos[:n_tiles]
+    )
     next_batch = (
         np.concatenate(tiles[n_tiles : n_tiles + batch_size]),
         tile_infos[n_tiles : n_tiles + batch_size],
@@ -179,7 +127,9 @@ def test_write_batch_last_tile(cache_tiles_strategy):
     # simulate adding a batch that will contain the last tile
     n_tiles = 8
     batch_size = 2
-    patch_tile_cache(cache_tiles_strategy, tiles[:n_tiles], tile_infos[:n_tiles])
+    patch_tile_cache(
+        cache_tiles_strategy.tile_cache, tiles[:n_tiles], tile_infos[:n_tiles]
+    )
     next_batch = (
         np.concatenate(tiles[n_tiles : n_tiles + batch_size]),
         tile_infos[n_tiles : n_tiles + batch_size],
@@ -247,7 +197,9 @@ def test_write_batch_raises(cache_tiles_strategy: WriteTiles):
     # simulate adding a batch that will contain the last tile
     n_tiles = 8
     batch_size = 2
-    patch_tile_cache(cache_tiles_strategy, tiles[:n_tiles], tile_infos[:n_tiles])
+    patch_tile_cache(
+        cache_tiles_strategy.tile_cache, tiles[:n_tiles], tile_infos[:n_tiles]
+    )
     next_batch = (
         np.concatenate(tiles[n_tiles : n_tiles + batch_size]),
         tile_infos[n_tiles : n_tiles + batch_size],
@@ -280,68 +232,12 @@ def test_write_batch_raises(cache_tiles_strategy: WriteTiles):
         )
 
 
-# TODO: move to tile cache tests
-def test_have_last_tile_true(cache_tiles_strategy):
-    """Test `CacheTiles._have_last_tile` returns true when there is a last tile."""
-
-    # all tiles of 1 samples with 9 tiles
-    tiles, tile_infos = create_tiles(n_samples=1)
-    patch_tile_cache(cache_tiles_strategy, tiles, tile_infos)
-
-    assert cache_tiles_strategy.tile_cache.has_last_tile()
-
-
-def test_have_last_tile_false(cache_tiles_strategy):
-    """Test `CacheTiles._have_last_tile` returns false when there is not a last tile."""
-
-    # all tiles of 1 samples with 9 tiles
-    tiles, tile_infos = create_tiles(n_samples=1)
-    # don't include last tile
-    patch_tile_cache(cache_tiles_strategy, tiles[:-1], tile_infos[:-1])
-
-    assert not cache_tiles_strategy.tile_cache.has_last_tile()
-
-
-# TODO: move to test tile cache
-def test_pop_image_tiles(cache_tiles_strategy):
-    """
-    Test `CacheTiles._clear_cache` removes the tiles up until the first "last tile".
-    """
-
-    # all tiles of 2 samples with 9 tiles
-    tiles, tile_infos = create_tiles(n_samples=2)
-    # include first tile from next sample
-    patch_tile_cache(cache_tiles_strategy, tiles[:10], tile_infos[:10])
-
-    image_tiles, image_tile_infos = cache_tiles_strategy.tile_cache.pop_image_tiles()
-
-    assert len(cache_tiles_strategy.tile_cache.array_cache) == 1
-    assert np.array_equal(cache_tiles_strategy.tile_cache.array_cache[0], tiles[9])
-    assert cache_tiles_strategy.tile_cache.tile_info_cache[0] == tile_infos[9]
-
-    assert len(image_tiles) == 9
-    assert all(np.array_equal(image_tiles[i], tiles[i]) for i in range(9))
-    assert image_tile_infos == tile_infos[:9]
-
-
-# TODO: move to test tile cache
-def test_pop_image_tiles_error(cache_tiles_strategy: WriteTiles):
-    """Test `CacheTiles._last_tile_index` raises an error when there is no last tile."""
-    # all tiles of 1 samples with 9 tiles
-    tiles, tile_infos = create_tiles(n_samples=1)
-    # don't include last tile
-    patch_tile_cache(cache_tiles_strategy, tiles[:-1], tile_infos[:-1])
-
-    with pytest.raises(ValueError):
-        cache_tiles_strategy.tile_cache.pop_image_tiles()
-
-
 def test_reset(cache_tiles_strategy: WriteTiles):
     """Test CacheTiles.reset works as expected"""
     # all tiles of 1 samples with 9 tiles
     tiles, tile_infos = create_tiles(n_samples=1)
     # don't include last tile
-    patch_tile_cache(cache_tiles_strategy, tiles[:-1], tile_infos[:-1])
+    patch_tile_cache(cache_tiles_strategy.tile_cache, tiles[:-1], tile_infos[:-1])
 
     cache_tiles_strategy.set_file_data(write_filenames=["file"], n_samples_per_file=[1])
     cache_tiles_strategy.reset()
