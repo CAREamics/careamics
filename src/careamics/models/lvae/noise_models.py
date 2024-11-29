@@ -13,6 +13,67 @@ if TYPE_CHECKING:
 # TODO this module shouldn't be in lvae folder
 
 
+def create_histogram(bins, min_val, max_val, observation, signal):
+    """
+    Creates a 2D histogram from 'observation' and 'signal'.
+
+    Parameters
+    ----------
+    bins: int
+        The number of bins in x and y. The total number of 2D bins is 'bins'**2.
+    min_val: float
+        the lower bound of the lowest bin in x and y.
+    max_val: float
+        the highest bound of the highest bin in x and y.
+    observation: numpy array
+        A 3D numpy array that is interpretted as a stack of 2D images.
+        The number of images has to be divisible by the number of images in 'signal'.
+        It is assumed that n subsequent images in observation belong to one image image in 'signal'.
+    signal: numpy array
+        A 3D numpy array that is interpretted as a stack of 2D images.
+
+    Returns
+    -------
+    histogram: numpy array
+        A 3D array:
+        'histogram[0,...]' holds the normalized 2D counts.
+        Each row sums to 1, describing p(x_i|s_i).
+        'histogram[1,...]' holds the lower boundaries of each bin in y.
+        'histogram[2,...]' holds the upper boundaries of each bin in y.
+        The values for x can be obtained by transposing 'histogram[1,...]' and 'histogram[2,...]'.
+    """
+    # TODO refactor this function
+    img_factor = int(observation.shape[0] / signal.shape[0])
+    histogram = np.zeros((3, bins, bins))
+    ra = [min_val, max_val]
+
+    for i in range(observation.shape[0]):
+        observation_ = observation[i].copy().ravel()
+
+        signal_ = (signal[i // img_factor].copy()).ravel()
+        a = np.histogram2d(signal_, observation_, bins=bins, range=[ra, ra])
+        histogram[0] = histogram[0] + a[0] + 1e-30  # This is for numerical stability
+
+    for i in range(bins):
+        if (
+            np.sum(histogram[0, i, :]) > 1e-20
+        ):  # We exclude empty rows from normalization
+            histogram[0, i, :] /= np.sum(
+                histogram[0, i, :]
+            )  # we normalize each non-empty row
+
+    for i in range(bins):
+        histogram[1, :, i] = a[1][
+            :-1
+        ]  # The lower boundaries of each bin in y are stored in dimension 1
+        histogram[2, :, i] = a[1][
+            1:
+        ]  # The upper boundaries of each bin in y are stored in dimension 2
+        # The accordent numbers for x are just transopsed.
+
+    return histogram
+
+
 def noise_model_factory(
     model_config: Optional[MultiChannelNMConfig],
 ) -> Optional[MultiChannelNoiseModel]:
@@ -62,6 +123,8 @@ def noise_model_factory(
 
 def train_gm_noise_model(
     model_config: GaussianMixtureNMConfig,
+    signal: np.ndarray,
+    observation: np.ndarray,
 ) -> GaussianMixtureNoiseModel:
     """Train a Gaussian mixture noise model.
 
@@ -78,7 +141,7 @@ def train_gm_noise_model(
     # TODO any training params ? Different channels ?
     noise_model = GaussianMixtureNoiseModel(model_config)
     # TODO revisit config unpacking
-    noise_model.train(noise_model.signal, noise_model.observation)
+    noise_model.train_nm(signal, observation)
     return noise_model
 
 
@@ -215,30 +278,31 @@ class GaussianMixtureNoiseModel(nn.Module):
     # TODO training a NM relies on getting a clean data(N2V e.g,)
     def __init__(self, config: GaussianMixtureNMConfig):
         super().__init__()
-        self._learnable = False
 
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         if config.path is None:
             # TODO this is (probably) to train a nm. We leave it for later refactoring
             weight = config.weight
             n_gaussian = config.n_gaussian
             n_coeff = config.n_coeff
-            min_signal = config.min_signal
-            max_signal = config.max_signal
-            # self.device = kwargs.get('device')
+            min_signal = torch.Tensor([config.min_signal])
+            max_signal = torch.Tensor([config.max_signal])
             # TODO min_sigma cant be None ?
             self.min_sigma = config.min_sigma
             if weight is None:
-                weight = np.random.randn(n_gaussian * 3, n_coeff)
-                weight[n_gaussian : 2 * n_gaussian, 1] = np.log(max_signal - min_signal)
-                weight = torch.from_numpy(weight.astype(np.float32)).float().cuda()
+                weight = torch.randn(n_gaussian * 3, n_coeff)
+                weight[n_gaussian : 2 * n_gaussian, 1] = (
+                    torch.log(max_signal - min_signal).float().to(self.device)
+                )
                 weight.requires_grad = True
 
             self.n_gaussian = weight.shape[0] // 3
             self.n_coeff = weight.shape[1]
             self.weight = weight
-            self.min_signal = torch.Tensor([min_signal])
-            self.max_signal = torch.Tensor([max_signal])
-            self.tol = torch.Tensor([1e-10])
+            self.min_signal = torch.Tensor([min_signal]).to(self.device)
+            self.max_signal = torch.Tensor([max_signal]).to(self.device)
+            self.tol = torch.tensor([1e-10]).to(self.device)
+            # TODO refactor to train on CPU!
         else:
             params = np.load(config.path)
             # self.device = kwargs.get('device')
@@ -252,29 +316,14 @@ class GaussianMixtureNoiseModel(nn.Module):
             self.min_sigma = params["min_sigma"].item()
             self.n_gaussian = self.weight.shape[0] // 3  # TODO why // 3 ?
             self.n_coeff = self.weight.shape[1]
-            self.tol = torch.Tensor([1e-10])  # .to(self.device)
-            self.min_signal = torch.Tensor([self.min_signal])  # .to(self.device)
-            self.max_signal = torch.Tensor([self.max_signal])  # .to(self.device)
+            self.tol = torch.Tensor([1e-10])
+            self.min_signal = torch.Tensor([self.min_signal])
+            self.max_signal = torch.Tensor([self.max_signal])
 
         print(f"[{self.__class__.__name__}] min_sigma: {self.min_sigma}")
 
-    def make_learnable(self):
-        print(f"[{self.__class__.__name__}] Making noise model learnable")
-        self._learnable = True
-        self.weight.requires_grad = True
-
-    def to_device(self, cuda_tensor):
-        # TODO wtf is this ?
-        # move everything to GPU
-        if self.min_signal.device != cuda_tensor.device:
-            self.max_signal = self.max_signal.cuda()
-            self.min_signal = self.min_signal.cuda()
-            self.tol = self.tol.cuda()
-            # self.weight = self.weight.cuda()
-            if self._learnable:
-                self.weight.requires_grad = True
-
-    def plotProbabilityDistribution(self, signalBinIndex):
+    def plot_probability_distribution(self, signalBinIndex, histogram):
+        # TODO add typing
         """Plots probability distribution P(x|s) for a certain ground truth signal.
 
         Predictions from both Histogram and GMM-based Noise models are displayed for comparison.
@@ -290,20 +339,23 @@ class GaussianMixtureNoiseModel(nn.Module):
         """
 
         n_bin = 100  # TODO clarify this and signalBinIndex
-        histBinSize = (self.max_signal - self.min_signal) / n_bin
-        querySignal_numpy = (
+        histBinSize = (self.max_signal.item() - self.min_signal.item()) / n_bin
+        querySignal = (
             signalBinIndex / float(n_bin) * (self.max_signal - self.min_signal)
             + self.min_signal
         )
-        querySignal_numpy += histBinSize / 2
-        querySignal_torch = torch.from_numpy(np.array(querySignal_numpy)).float().cuda()
+        querySignal += histBinSize / 2
 
-        queryObservations_numpy = np.arange(
-            self.min_signal, self.max_signal, histBinSize
+        queryObservations = torch.arange(
+            self.min_signal.item(), self.max_signal.item(), histBinSize
         )
-        queryObservations_numpy += histBinSize / 2
-        queryObservations = torch.from_numpy(queryObservations_numpy).float().cuda()
-        pTorch = self.likelihood(queryObservations, querySignal_torch)
+        queryObservations += histBinSize / 2
+        self.weight.requires_grad = False
+        self.min_signal = self.min_signal.cpu()
+        self.max_signal = self.max_signal.cpu()
+        self.tol = self.tol.cpu()
+        querySignal = querySignal.cpu()
+        pTorch = self.likelihood(queryObservations, querySignal)
         pNumpy = pTorch.cpu().detach().numpy()
 
         plt.figure(figsize=(12, 5))
@@ -311,6 +363,7 @@ class GaussianMixtureNoiseModel(nn.Module):
         plt.subplot(1, 2, 1)
         plt.xlabel("Observation Bin")
         plt.ylabel("Signal Bin")
+        plt.imshow(histogram**0.25, cmap="gray")
         plt.axhline(y=signalBinIndex + 0.5, linewidth=5, color="blue", alpha=0.5)
 
         plt.subplot(1, 2, 2)
@@ -319,22 +372,27 @@ class GaussianMixtureNoiseModel(nn.Module):
         # queryObservations_repeated = np.repeat(queryObservations_numpy, 2)
 
         plt.plot(
-            queryObservations_numpy,
+            queryObservations,
             pNumpy,
-            label="GMM : " + " signal = " + str(np.round(querySignal_numpy, 2)),
+            label="GMM : " + " signal = " + str(np.round(querySignal, 2)),
             marker=".",
             color="red",
             linewidth=2,
         )
-        plt.xlabel("Observations (x) for signal s = " + str(querySignal_numpy))
+        plt.xlabel("Observations (x) for signal s = " + str(querySignal))
         plt.ylabel("Probability Density")
-        plt.title(
-            "Probability Distribution P(x|s) at signal =" + str(querySignal_numpy)
-        )
+        plt.title("Probability Distribution P(x|s) at signal =" + str(querySignal))
+
         plt.legend()
         return {
-            "gmm": {"x": queryObservations_numpy, "p": pNumpy},
+            "gmm": {"x": queryObservations, "p": pNumpy},
         }
+
+    def set_tolerance(self, tol):
+        """Sets the tolerance for the likelihood evaluation."""
+        print("Setting tolerance to: ", tol)
+        self.tol = torch.Tensor([tol]).to(self.device)
+        # self.maxval = 0
 
     def polynomialRegressor(self, weightParams, signals):
         """Combines `weightParams` and signal `signals` to regress for the gaussian parameter values.
@@ -343,9 +401,9 @@ class GaussianMixtureNoiseModel(nn.Module):
         ----------
         weightParams : torch.cuda.FloatTensor
             Corresponds to specific rows of the `self.weight`
+
         signals : torch.cuda.FloatTensor
             Signals
-
         Returns
         -------
         value : torch.cuda.FloatTensor
@@ -358,99 +416,95 @@ class GaussianMixtureNoiseModel(nn.Module):
             )
         return value
 
-    def normalDens(
-        self, x: torch.Tensor, m_: torch.Tensor = 0.0, std_: torch.Tensor = None
-    ) -> torch.Tensor:
-        """Evaluates the normal probability density at `x` given the mean `m` and
-        standard deviation `std`.
+    def normalDens(self, x, m_=0.0, std_=None):
+        """Evaluates the normal probability density at `x` given the mean `m` and standard deviation `std`.
 
         Parameters
         ----------
-        x: torch.Tensor
-            Observations (i.e., noisy image).
-        m_: torch.Tensor
-            Pixel-wise mean.
-        std_: torch.Tensor
-            Pixel-wise standard deviation.
-
+        x: torch.cuda.FloatTensor
+            Observations
+        m_: torch.cuda.FloatTensor
+            Mean
+        std_: torch.cuda.FloatTensor
+            Standard-deviation
         Returns
         -------
-        tmp: torch.Tensor
+        tmp: torch.cuda.FloatTensor
             Normal probability density of `x` given `m_` and `std_`
+
         """
+
         tmp = -((x - m_) ** 2)
         tmp = tmp / (2.0 * std_ * std_)
         tmp = torch.exp(tmp)
         tmp = tmp / torch.sqrt((2.0 * np.pi) * std_ * std_)
+        # print(tmp.min().item(), tmp.mean().item(), tmp.max().item(), tmp.shape)
         return tmp
 
-    def likelihood(
-        self, observations: torch.Tensor, signals: torch.Tensor
-    ) -> torch.Tensor:
-        """Evaluate the likelihood of observations given the signals and the
-        corresponding gaussian parameters.
+    def likelihood(self, observations, signals):
+        """Evaluates the likelihood of observations given the signals and the corresponding gaussian parameters.
 
         Parameters
         ----------
         observations : torch.cuda.FloatTensor
-            Noisy observations.
+            Noisy observations
         signals : torch.cuda.FloatTensor
-            Underlying signals.
-
+            Underlying signals
         Returns
         -------
         value :p + self.tol
             Likelihood of observations given the signals and the GMM noise model
+
         """
-        self.to_device(signals)  # move al needed stuff to the same device as `signals``
         gaussianParameters = self.getGaussianParameters(signals)
         p = 0
         for gaussian in range(self.n_gaussian):
             p += (
                 self.normalDens(
-                    x=observations,
-                    m_=gaussianParameters[gaussian],
-                    std_=gaussianParameters[self.n_gaussian + gaussian],
+                    observations,
+                    gaussianParameters[gaussian],
+                    gaussianParameters[self.n_gaussian + gaussian],
                 )
                 * gaussianParameters[2 * self.n_gaussian + gaussian]
             )
         return p + self.tol
 
-    def getGaussianParameters(self, signals: torch.Tensor) -> list[torch.Tensor]:
-        """Returns the noise model for given signals.
+    def getGaussianParameters(self, signals):
+        """Returns the noise model for given signals
 
         Parameters
         ----------
-        signals : torch.Tensor
+        signals : torch.cuda.FloatTensor
             Underlying signals
-
         Returns
         -------
-        gmmParams: list[torch.Tensor]
-            A list containing tensors representing `mu`, `sigma` and `alpha`
-            parameters for the `n_gaussian` gaussians in the mixture.
+        noiseModel: list of torch.cuda.FloatTensor
+            Contains a list of `mu`, `sigma` and `alpha` for the `signals`
 
         """
-        gmmParams = []
+        noiseModel = []
         mu = []
         sigma = []
         alpha = []
         kernels = self.weight.shape[0] // 3
         for num in range(kernels):
-            # For each Gaussian in the mixture, evaluate mean, std and weight
             mu.append(self.polynomialRegressor(self.weight[num, :], signals))
-
+            # expval = torch.exp(torch.clamp(self.weight[kernels + num, :], max=MAX_VAR_W))
             expval = torch.exp(self.weight[kernels + num, :])
-            # TODO: why taking the exp? it is not in PPN2V paper...
+            # self.maxval = max(self.maxval, expval.max().item())
             sigmaTemp = self.polynomialRegressor(expval, signals)
             sigmaTemp = torch.clamp(sigmaTemp, min=self.min_sigma)
             sigma.append(torch.sqrt(sigmaTemp))
 
+            # expval = torch.exp(
+            #     torch.clamp(
+            #         self.polynomialRegressor(self.weight[2 * kernels + num, :], signals) + self.tol, MAX_ALPHA_W))
             expval = torch.exp(
                 self.polynomialRegressor(self.weight[2 * kernels + num, :], signals)
                 + self.tol
             )
-            alpha.append(expval)  # NOTE: these are the numerators of weights
+            # self.maxval = max(self.maxval, expval.max().item())
+            alpha.append(expval)
 
         sum_alpha = 0
         for al in range(kernels):
@@ -465,24 +519,24 @@ class GaussianMixtureNoiseModel(nn.Module):
         for ker in range(kernels):
             sum_means = alpha[ker] * mu[ker] + sum_means
 
+        mu_shifted = []
         # subtracting the alpha weighted average of the means from the means
         # ensures that the GMM has the inclination to have the mean=signals.
-        # TODO: I don't understand why we need to learn the mean?
+        # its like a residual conection. I don't understand why we need to learn the mean?
         for ker in range(kernels):
             mu[ker] = mu[ker] - sum_means + signals
 
         for i in range(kernels):
-            gmmParams.append(mu[i])
+            noiseModel.append(mu[i])
         for j in range(kernels):
-            gmmParams.append(sigma[j])
+            noiseModel.append(sigma[j])
         for k in range(kernels):
-            gmmParams.append(alpha[k])
+            noiseModel.append(alpha[k])
 
-        return gmmParams
+        return noiseModel
 
-    # TODO: this is to train the noise model
     def getSignalObservationPairs(self, signal, observation, lowerClip, upperClip):
-        """Returns the Signal-Observation pixel intensities as a two-column array.
+        """Returns the Signal-Observation pixel intensities as a two-column array
 
         Parameters
         ----------
@@ -497,8 +551,9 @@ class GaussianMixtureNoiseModel(nn.Module):
 
         Returns
         -------
-        gmmParams: list of torch floats
+        noiseModel: list of torch floats
             Contains a list of `mu`, `sigma` and `alpha` for the `signals`
+
         """
         lb = np.percentile(signal, lowerClip)
         ub = np.percentile(signal, upperClip)
@@ -516,13 +571,7 @@ class GaussianMixtureNoiseModel(nn.Module):
         ]
         return fastShuffle(sig_obs_pairs, 2)
 
-    # TODO: what's the use of this method?
-    def forward(self, x, y):
-        """Temporary dummy forward method."""
-        return x, y
-
-    # TODO taken from pn2v. Ashesh needs to clarify this
-    def train(
+    def train_nm(
         self,
         signal,
         observation,
@@ -563,9 +612,9 @@ class GaussianMixtureNoiseModel(nn.Module):
         )
         counter = 0
         optimizer = torch.optim.Adam([self.weight], lr=learning_rate)
-        for t in range(n_epochs):
+        loss_arr = []
 
-            jointLoss = 0
+        for t in range(n_epochs):
             if (counter + 1) * batchSize >= sig_obs_pairs.shape[0]:
                 counter = 0
                 sig_obs_pairs = fastShuffle(sig_obs_pairs, 1)
@@ -575,31 +624,43 @@ class GaussianMixtureNoiseModel(nn.Module):
             ]
             observations = batch_vectors[:, 1].astype(np.float32)
             signals = batch_vectors[:, 0].astype(np.float32)
-            # TODO do we absolutely need to move to GPU?
             observations = (
-                torch.from_numpy(observations.astype(np.float32)).float().cuda()
+                torch.from_numpy(observations.astype(np.float32))
+                .float()
+                .to(self.device)
             )
-            signals = torch.from_numpy(signals).float().cuda()
+            signals = torch.from_numpy(signals).float().to(self.device)
+
             p = self.likelihood(observations, signals)
-            loss = torch.mean(-torch.log(p))
-            jointLoss = jointLoss + loss
+
+            jointLoss = torch.mean(-torch.log(p))
+            loss_arr.append(jointLoss.item())
+            if self.weight.isnan().any() or self.weight.isinf().any():
+                print(
+                    "NaN or Inf detected in the weights. Aborting training at epoch: ",
+                    t,
+                )
+                break
 
             if t % 100 == 0:
-                print(t, jointLoss.item())
-
-            if t % (int(n_epochs * 0.5)) == 0:
-                trained_weight = self.weight.cpu().detach().numpy()
-                min_signal = self.min_signal.cpu().detach().numpy()
-                max_signal = self.max_signal.cpu().detach().numpy()
-                # TODO do we need to save?
-                # np.savez(self.path+name, trained_weight=trained_weight, min_signal = min_signal, max_signal = max_signal, min_sigma = self.min_sigma)
+                print(t, np.mean(loss_arr))
 
             optimizer.zero_grad()
             jointLoss.backward()
             optimizer.step()
             counter += 1
 
+        self.trained_weight = self.weight.cpu().detach().numpy()
+        self.min_signal = self.min_signal.cpu().detach().numpy()
+        self.max_signal = self.max_signal.cpu().detach().numpy()
         print("===================\n")
-        # print("The trained parameters (" + name + ") is saved at location: "+ self.path)
-        # TODO return istead of save ?
-        return trained_weight, min_signal, max_signal, self.min_sigma
+
+    def save(self, path: str, name: str):
+        np.savez(
+            path + name,
+            trained_weight=self.trained_weight,
+            min_signal=self.min_signal,
+            max_signal=self.max_signal,
+            min_sigma=self.min_sigma,
+        )
+        print("The trained parameters (" + name + ") is saved at location: " + path)

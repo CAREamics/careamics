@@ -2,12 +2,6 @@
 
 from pathlib import Path
 from typing import Literal, Optional, Union
-<<<<<<< HEAD
-
-import numpy as np
-from pydantic import BaseModel, ConfigDict, Field, model_validator
-from typing_extensions import Self
-=======
 
 import numpy as np
 import torch
@@ -17,9 +11,8 @@ from pydantic import (
     Field,
     PlainSerializer,
     PlainValidator,
-    model_validator,
 )
-from typing_extensions import Annotated, Self
+from typing_extensions import Annotated
 
 from careamics.utils.serializers import _array_to_json, _to_numpy
 
@@ -34,7 +27,6 @@ Array = Annotated[
 """Annotated array type, used to serialize arrays or tensors to JSON strings
 and deserialize them back to arrays."""
 
->>>>>>> origin/main
 
 # TODO: add histogram-based noise model
 
@@ -55,15 +47,6 @@ class GaussianMixtureNMConfig(BaseModel):
     """Path to the directory where the trained noise model (*.npz) is saved in the
     `train` method."""
 
-<<<<<<< HEAD
-    signal: Optional[Union[str, Path, np.ndarray]] = None
-    """Path to the file containing signal or respective numpy array."""
-
-    observation: Optional[Union[str, Path, np.ndarray]] = None
-    """Path to the file containing observation or respective numpy array."""
-
-    weight: Optional[np.ndarray] = None
-=======
     # TODO remove and use as parameters to the NM functions?
     signal: Optional[Union[str, Path, np.ndarray]] = Field(default=None, exclude=True)
     """Path to the file containing signal or respective numpy array."""
@@ -75,7 +58,6 @@ class GaussianMixtureNMConfig(BaseModel):
     """Path to the file containing observation or respective numpy array."""
 
     weight: Optional[Array] = None
->>>>>>> origin/main
     """A [3*n_gaussian, n_coeff] sized array containing the values of the weights
     describing the GMM noise model, with each row corresponding to one
     parameter of each gaussian, namely [mean, standard deviation and weight].
@@ -107,28 +89,29 @@ class GaussianMixtureNMConfig(BaseModel):
     tol: float = Field(default=1e-10)
     """Tolerance used in the computation of the noise model likelihood."""
 
-    @model_validator(mode="after")
-    def validate_path_to_pretrained_vs_training_data(self: Self) -> Self:
-        """Validate paths provided in the config.
+    # @model_validator(mode="after")
+    # def validate_path_to_pretrained_vs_training_data(self: Self) -> Self:
+    #     """Validate paths provided in the config.
 
-        Returns
-        -------
-        Self
-            Returns itself.
-        """
-        if self.path and (self.signal is not None or self.observation is not None):
-            raise ValueError(
-                "Either only 'path' to pre-trained noise model should be"
-                "provided or only signal and observation in form of paths"
-                "or numpy arrays."
-            )
-        if not self.path and (self.signal is None or self.observation is None):
-            raise ValueError(
-                "Either only 'path' to pre-trained noise model should be"
-                "provided or only signal and observation in form of paths"
-                "or numpy arrays."
-            )
-        return self
+    #     Returns
+    #     -------
+    #     Self
+    #         Returns itself.
+    #     """
+    #     if self.path and (self.signal is not None or self.observation is not None):
+    #         raise ValueError(
+    #             "Either only 'path' to pre-trained noise model should be"
+    #             "provided or only signal and observation in form of paths"
+    #             "or numpy arrays."
+    #         )
+    #     if not self.path and (self.signal is None or self.observation is None):
+    #         raise ValueError(
+    #             "Either only 'path' to pre-trained noise model should be"
+    #             "provided or only signal and observation in form of paths"
+    #             "or numpy arrays."
+    #         )
+    #     return self
+    # TODO revisit validation
 
 
 # The noise model is given by a set of GMMs, one for each target

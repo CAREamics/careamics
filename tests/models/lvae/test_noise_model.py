@@ -102,7 +102,14 @@ def test_multi_channel_noise_model_likelihood(
     target_ch: int,
     create_dummy_noise_model,
 ) -> None:
-    np.savez(tmp_path / "dummy_noise_model.npz", **create_dummy_noise_model)
+    noise_models = []
+    rand_epss = []
+    for i in range(target_ch):
+        eps = np.random.rand()
+        nm_dict = create_dummy_noise_model.copy()
+        nm_dict["trained_weight"] = nm_dict["trained_weight"] + eps
+        rand_epss.append(eps)
+        np.savez(tmp_path / f"dummy_noise_model_{i}.npz", **nm_dict)
 
         gmm = GaussianMixtureNMConfig(
             model_type="GaussianMixtureNoiseModel",

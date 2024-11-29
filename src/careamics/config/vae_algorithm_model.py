@@ -70,7 +70,10 @@ class VAEAlgorithmConfig(BaseModel):
                 )
 
         if self.algorithm == SupportedAlgorithm.DENOISPLIT:
-            if self.loss != SupportedLoss.DENOISPLIT:
+            if self.loss.loss_type not in [
+                SupportedLoss.DENOISPLIT,
+                SupportedLoss.DENOISPLIT_MUSPLIT,
+            ]:
                 raise ValueError(
                     f"Algorithm {self.algorithm} only supports loss `denoisplit` "
                     "or `denoisplit_musplit."
@@ -87,6 +90,41 @@ class VAEAlgorithmConfig(BaseModel):
             if self.noise_model is None:
                 raise ValueError("Algorithm `denoisplit` requires a noise model.")
         # TODO: what if algorithm is not musplit or denoisplit
+        return self
+
+    @model_validator(mode="after")
+    def output_channels_validation(self: Self) -> Self:
+        """Validate the consistency between number of out channels and noise models.
+
+        Returns
+        -------
+        Self
+            The validated model.
+        """
+        if self.noise_model is not None:
+            assert self.model.output_channels == len(self.noise_model.noise_models), (
+                f"Number of output channels ({self.model.output_channels}) must match "
+                f"the number of noise models ({len(self.noise_model.noise_models)})."
+            )
+        return self
+
+    @model_validator(mode="after")
+    def predict_logvar_validation(self: Self) -> Self:
+        """Validate the consistency of `predict_logvar` throughout the model.
+
+        Returns
+        -------
+        Self
+            The validated model.
+        """
+        if self.gaussian_likelihood is not None:
+            assert (
+                self.model.predict_logvar == self.gaussian_likelihood.predict_logvar
+            ), (
+                f"Model `predict_logvar` ({self.model.predict_logvar}) must match "
+                "Gaussian likelihood model `predict_logvar` "
+                f"({self.gaussian_likelihood.predict_logvar}).",
+            )
         return self
 
     def __str__(self) -> str:
