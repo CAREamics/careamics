@@ -16,6 +16,7 @@ class DataType(Enum):
     SeparateTiffData = 11
     BioSR_MRC = 12
     PunctaRemoval = 13  # for the case when we have a set of differently sized crops for each channel.
+    Care3D = 14
 
 
 class DataSplitType(Enum):
