@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Optional
 
-import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import torch.nn as nn
@@ -321,72 +320,6 @@ class GaussianMixtureNoiseModel(nn.Module):
             self.max_signal = torch.Tensor([self.max_signal])
 
         print(f"[{self.__class__.__name__}] min_sigma: {self.min_sigma}")
-
-    def plot_probability_distribution(self, signalBinIndex, histogram):
-        # TODO add typing
-        """Plots probability distribution P(x|s) for a certain ground truth signal.
-
-        Predictions from both Histogram and GMM-based Noise models are displayed for comparison.
-
-        Parameters
-        ----------
-        signalBinIndex: int
-            index of signal bin. Values go from 0 to number of bins (`n_bin`).
-        histogramNoiseModel: Histogram based noise model
-        gaussianMixtureNoiseModel: GaussianMixtureNoiseModel
-            Object containing trained parameters.
-        device: GPU device
-        """
-
-        n_bin = 100  # TODO clarify this and signalBinIndex
-        histBinSize = (self.max_signal.item() - self.min_signal.item()) / n_bin
-        querySignal = (
-            signalBinIndex / float(n_bin) * (self.max_signal - self.min_signal)
-            + self.min_signal
-        )
-        querySignal += histBinSize / 2
-
-        queryObservations = torch.arange(
-            self.min_signal.item(), self.max_signal.item(), histBinSize
-        )
-        queryObservations += histBinSize / 2
-        self.weight.requires_grad = False
-        self.min_signal = self.min_signal.cpu()
-        self.max_signal = self.max_signal.cpu()
-        self.tol = self.tol.cpu()
-        querySignal = querySignal.cpu()
-        pTorch = self.likelihood(queryObservations, querySignal)
-        pNumpy = pTorch.cpu().detach().numpy()
-
-        plt.figure(figsize=(12, 5))
-
-        plt.subplot(1, 2, 1)
-        plt.xlabel("Observation Bin")
-        plt.ylabel("Signal Bin")
-        plt.imshow(histogram**0.25, cmap="gray")
-        plt.axhline(y=signalBinIndex + 0.5, linewidth=5, color="blue", alpha=0.5)
-
-        plt.subplot(1, 2, 2)
-
-        # histobs_repeated = np.repeat(histobs, 2)
-        # queryObservations_repeated = np.repeat(queryObservations_numpy, 2)
-
-        plt.plot(
-            queryObservations,
-            pNumpy,
-            label="GMM : " + " signal = " + str(np.round(querySignal, 2)),
-            marker=".",
-            color="red",
-            linewidth=2,
-        )
-        plt.xlabel("Observations (x) for signal s = " + str(querySignal))
-        plt.ylabel("Probability Density")
-        plt.title("Probability Distribution P(x|s) at signal =" + str(querySignal))
-
-        plt.legend()
-        return {
-            "gmm": {"x": queryObservations, "p": pNumpy},
-        }
 
     def set_tolerance(self, tol):
         """Sets the tolerance for the likelihood evaluation."""
