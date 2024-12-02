@@ -2,8 +2,8 @@
 
 __all__ = [
     "HyperParametersCallback",
-    "ProgressBarCallback",
     "PredictionWriterCallback",
+    "ProgressBarCallback",
 ]
 
 from .hyperparameters_callback import HyperParametersCallback
