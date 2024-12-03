@@ -11,9 +11,8 @@ from pydantic import (
     Field,
     PlainSerializer,
     PlainValidator,
-    model_validator,
 )
-from typing_extensions import Annotated, Self
+from typing_extensions import Annotated
 
 from careamics.utils.serializers import _array_to_json, _to_numpy
 
@@ -90,28 +89,29 @@ class GaussianMixtureNMConfig(BaseModel):
     tol: float = Field(default=1e-10)
     """Tolerance used in the computation of the noise model likelihood."""
 
-    @model_validator(mode="after")
-    def validate_path_to_pretrained_vs_training_data(self: Self) -> Self:
-        """Validate paths provided in the config.
+    # @model_validator(mode="after")
+    # def validate_path_to_pretrained_vs_training_data(self: Self) -> Self:
+    #     """Validate paths provided in the config.
 
-        Returns
-        -------
-        Self
-            Returns itself.
-        """
-        if self.path and (self.signal is not None or self.observation is not None):
-            raise ValueError(
-                "Either only 'path' to pre-trained noise model should be"
-                "provided or only signal and observation in form of paths"
-                "or numpy arrays."
-            )
-        if not self.path and (self.signal is None or self.observation is None):
-            raise ValueError(
-                "Either only 'path' to pre-trained noise model should be"
-                "provided or only signal and observation in form of paths"
-                "or numpy arrays."
-            )
-        return self
+    #     Returns
+    #     -------
+    #     Self
+    #         Returns itself.
+    #     """
+    #     if self.path and (self.signal is not None or self.observation is not None):
+    #         raise ValueError(
+    #             "Either only 'path' to pre-trained noise model should be"
+    #             "provided or only signal and observation in form of paths"
+    #             "or numpy arrays."
+    #         )
+    #     if not self.path and (self.signal is None or self.observation is None):
+    #         raise ValueError(
+    #             "Either only 'path' to pre-trained noise model should be"
+    #             "provided or only signal and observation in form of paths"
+    #             "or numpy arrays."
+    #         )
+    #     return self
+    # TODO revisit validation
 
 
 # The noise model is given by a set of GMMs, one for each target

@@ -1,12 +1,13 @@
-from typing import Union, Callable, Sequence
+from collections.abc import Sequence
+from typing import Callable, Union
 
 import numpy as np
 from numpy.typing import NDArray
 
 from .config import DatasetConfig
+from .lc_dataset import LCMultiChDloader
 from .multich_dataset import MultiChDloader
 from .types import DataSplitType
-from .lc_dataset import LCMultiChDloader
 
 
 class TwoChannelData(Sequence):

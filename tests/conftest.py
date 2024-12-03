@@ -123,6 +123,7 @@ def minimum_algorithm_musplit() -> dict:
     """
     # create dictionary
     algorithm = {
+        "algorithm_type": "vae",
         "algorithm": "musplit",  # TODO temporary
         "loss": "musplit",
         "model": {
@@ -151,6 +152,7 @@ def minimum_algorithm_denoisplit() -> dict:
     """
     # create dictionary
     algorithm = {
+        "algorithm_type": "vae",
         "algorithm": "denoisplit",
         "loss": "denoisplit",
         "model": {
