@@ -280,6 +280,7 @@ class GaussianMixtureNoiseModel(nn.Module):
 
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         if config.path is None:
+            self.mode = "train"
             # TODO this is (probably) to train a nm. We leave it for later refactoring
             weight = config.weight
             n_gaussian = config.n_gaussian
@@ -304,14 +305,12 @@ class GaussianMixtureNoiseModel(nn.Module):
             # TODO refactor to train on CPU!
         else:
             params = np.load(config.path)
-            # self.device = kwargs.get('device')
+            self.mode = "inference"  # TODO better name?
 
             self.min_signal = torch.Tensor(params["min_signal"])
             self.max_signal = torch.Tensor(params["max_signal"])
 
-            self.weight = torch.nn.Parameter(
-                torch.Tensor(params["trained_weight"]), requires_grad=False
-            )
+            self.weight = torch.Tensor(params["trained_weight"])
             self.min_sigma = params["min_sigma"].item()
             self.n_gaussian = self.weight.shape[0] // 3  # TODO why // 3 ?
             self.n_coeff = self.weight.shape[1]
@@ -320,12 +319,6 @@ class GaussianMixtureNoiseModel(nn.Module):
             self.max_signal = torch.Tensor([self.max_signal])
 
         print(f"[{self.__class__.__name__}] min_sigma: {self.min_sigma}")
-
-    def set_tolerance(self, tol):
-        """Sets the tolerance for the likelihood evaluation."""
-        print("Setting tolerance to: ", tol)
-        self.tol = torch.Tensor([tol]).to(self.device)
-        # self.maxval = 0
 
     def polynomialRegressor(self, weightParams, signals):
         """Combines `weightParams` and signal `signals` to regress for the gaussian parameter values.
@@ -389,6 +382,17 @@ class GaussianMixtureNoiseModel(nn.Module):
             Likelihood of observations given the signals and the GMM noise model
 
         """
+        # TODO this is all ugly af! Should be set in one place or fuckin trained on CPU !!!!
+
+        # TODO if called outside training, should be on cpu !!!!
+        if self.mode != "train":
+            signals = signals.cpu()
+            observations = observations.cpu()
+        self.weight = self.weight.to(signals.device)
+        self.min_signal = self.min_signal.to(signals.device)
+        self.max_signal = self.max_signal.to(signals.device)
+        self.tol = self.tol.to(signals.device)
+
         gaussianParameters = self.getGaussianParameters(signals)
         p = 0
         for gaussian in range(self.n_gaussian):
@@ -413,7 +417,6 @@ class GaussianMixtureNoiseModel(nn.Module):
         -------
         noiseModel: list of torch.cuda.FloatTensor
             Contains a list of `mu`, `sigma` and `alpha` for the `signals`
-
         """
         noiseModel = []
         mu = []
@@ -564,6 +567,7 @@ class GaussianMixtureNoiseModel(nn.Module):
             )
             signals = torch.from_numpy(signals).float().to(self.device)
 
+            # TODO put all fucking tensors on gpu !!!
             p = self.likelihood(observations, signals)
 
             jointLoss = torch.mean(-torch.log(p))
