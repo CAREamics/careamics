@@ -3,7 +3,7 @@
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Optional
 
 import click
 import typer
@@ -17,6 +17,7 @@ from ..config import (
     create_n2v_configuration,
     save_configuration,
 )
+from .utils import handle_2D_3D_callback
 
 WORK_DIR = Path.cwd()
 
@@ -92,26 +93,6 @@ def conf_options(  # numpydoc ignore=PR01
     ctx.obj = ConfOptions(dir, name, force, print)
 
 
-def patch_size_callback(value: Tuple[int, int, int]) -> Tuple[int, ...]:
-    """
-    Callback for --patch-size option.
-
-    Parameters
-    ----------
-    value : (int, int, int)
-        Patch size value.
-
-    Returns
-    -------
-    (int, int, int) | (int, int)
-        If the last element in `value` is -1 the tuple is reduced to the first two
-        values.
-    """
-    if value[2] == -1:
-        return value[:2]
-    return value
-
-
 # TODO: Need to decide how to parse model kwargs
 #   - Could be json style string to be loaded as dict e.g. {"depth": 3}
 #        - Cons: Annoying to type, easily have syntax errors
@@ -132,7 +113,7 @@ def care(  # numpydoc ignore=PR01
                 "is not 3D pass the last value as -1 e.g. --patch-size 64 64 -1)."
             ),
             click_type=click.Tuple([int, int, int]),
-            callback=patch_size_callback,
+            callback=handle_2D_3D_callback,
         ),
     ],
     batch_size: Annotated[int, typer.Option(help="Batch size.")],
@@ -219,7 +200,7 @@ def n2n(  # numpydoc ignore=PR01
                 "is not 3D pass the last value as -1 e.g. --patch-size 64 64 -1)."
             ),
             click_type=click.Tuple([int, int, int]),
-            callback=patch_size_callback,
+            callback=handle_2D_3D_callback,
         ),
     ],
     batch_size: Annotated[int, typer.Option(help="Batch size.")],
@@ -303,7 +284,7 @@ def n2v(  # numpydoc ignore=PR01
                 "is not 3D pass the last value as -1 e.g. --patch-size 64 64 -1)."
             ),
             click_type=click.Tuple([int, int, int]),
-            callback=patch_size_callback,
+            callback=handle_2D_3D_callback,
         ),
     ],
     batch_size: Annotated[int, typer.Option(help="Batch size.")],

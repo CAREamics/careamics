@@ -382,9 +382,6 @@ class GaussianMixtureNoiseModel(nn.Module):
             Likelihood of observations given the signals and the GMM noise model
 
         """
-        # TODO this is all ugly af! Should be set in one place or fuckin trained on CPU !!!!
-
-        # TODO if called outside training, should be on cpu !!!!
         if self.mode != "train":
             signals = signals.cpu()
             observations = observations.cpu()
@@ -432,14 +429,10 @@ class GaussianMixtureNoiseModel(nn.Module):
             sigmaTemp = torch.clamp(sigmaTemp, min=self.min_sigma)
             sigma.append(torch.sqrt(sigmaTemp))
 
-            # expval = torch.exp(
-            #     torch.clamp(
-            #         self.polynomialRegressor(self.weight[2 * kernels + num, :], signals) + self.tol, MAX_ALPHA_W))
             expval = torch.exp(
                 self.polynomialRegressor(self.weight[2 * kernels + num, :], signals)
                 + self.tol
             )
-            # self.maxval = max(self.maxval, expval.max().item())
             alpha.append(expval)
 
         sum_alpha = 0
@@ -455,7 +448,6 @@ class GaussianMixtureNoiseModel(nn.Module):
         for ker in range(kernels):
             sum_means = alpha[ker] * mu[ker] + sum_means
 
-        mu_shifted = []
         # subtracting the alpha weighted average of the means from the means
         # ensures that the GMM has the inclination to have the mean=signals.
         # its like a residual conection. I don't understand why we need to learn the mean?
