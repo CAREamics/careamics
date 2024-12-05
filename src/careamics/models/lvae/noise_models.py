@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from typing import TYPE_CHECKING, Optional
 
 import numpy as np
@@ -330,6 +331,7 @@ class GaussianMixtureNoiseModel(nn.Module):
 
         signals : torch.cuda.FloatTensor
             Signals
+
         Returns
         -------
         value : torch.cuda.FloatTensor
@@ -353,13 +355,13 @@ class GaussianMixtureNoiseModel(nn.Module):
             Mean
         std_: torch.cuda.FloatTensor
             Standard-deviation
+
         Returns
         -------
         tmp: torch.cuda.FloatTensor
             Normal probability density of `x` given `m_` and `std_`
 
         """
-
         tmp = -((x - m_) ** 2)
         tmp = tmp / (2.0 * std_ * std_)
         tmp = torch.exp(tmp)
@@ -376,6 +378,7 @@ class GaussianMixtureNoiseModel(nn.Module):
             Noisy observations
         signals : torch.cuda.FloatTensor
             Underlying signals
+
         Returns
         -------
         value :p + self.tol
@@ -410,6 +413,7 @@ class GaussianMixtureNoiseModel(nn.Module):
         ----------
         signals : torch.cuda.FloatTensor
             Underlying signals
+
         Returns
         -------
         noiseModel: list of torch.cuda.FloatTensor
@@ -499,7 +503,7 @@ class GaussianMixtureNoiseModel(nn.Module):
         ]
         return fastShuffle(sig_obs_pairs, 2)
 
-    def train_nm(
+    def fit(
         self,
         signal,
         observation,
@@ -559,7 +563,6 @@ class GaussianMixtureNoiseModel(nn.Module):
             )
             signals = torch.from_numpy(signals).float().to(self.device)
 
-            # TODO put all fucking tensors on gpu !!!
             p = self.likelihood(observations, signals)
 
             jointLoss = torch.mean(-torch.log(p))
@@ -585,8 +588,9 @@ class GaussianMixtureNoiseModel(nn.Module):
         print("===================\n")
 
     def save(self, path: str, name: str):
+        os.makedirs(path, exist_ok=True)
         np.savez(
-            path + name,
+            os.path.join(path, name),
             trained_weight=self.trained_weight,
             min_signal=self.min_signal,
             max_signal=self.max_signal,
