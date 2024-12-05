@@ -141,7 +141,7 @@ def train_gm_noise_model(
     # TODO any training params ? Different channels ?
     noise_model = GaussianMixtureNoiseModel(model_config)
     # TODO revisit config unpacking
-    noise_model.train_nm(signal, observation)
+    noise_model.fit(signal, observation)
     return noise_model
 
 
@@ -588,6 +588,15 @@ class GaussianMixtureNoiseModel(nn.Module):
         print("===================\n")
 
     def save(self, path: str, name: str):
+        """Save the trained parameters on the noise model.
+
+        Parameters
+        ----------
+        path : str
+            Path to save the trained parameters.
+        name : str
+            File name to save the trained parameters.
+        """
         os.makedirs(path, exist_ok=True)
         np.savez(
             os.path.join(path, name),
