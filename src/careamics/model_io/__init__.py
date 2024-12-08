@@ -1,6 +1,6 @@
 """Model I/O utilities."""
 
-__all__ = ["load_pretrained", "export_to_bmz"]
+__all__ = ["export_to_bmz", "load_pretrained"]
 
 
 from .bmz_io import export_to_bmz

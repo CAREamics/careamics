@@ -1,24 +1,24 @@
 """Configuration module."""
 
 __all__ = [
-    "FCNAlgorithmConfig",
-    "VAEAlgorithmConfig",
-    "DataConfig",
-    "Configuration",
     "CheckpointModel",
-    "InferenceConfig",
-    "load_configuration",
-    "save_configuration",
-    "TrainingConfig",
-    "create_n2v_configuration",
-    "create_n2n_configuration",
-    "create_care_configuration",
-    "register_model",
+    "Configuration",
     "CustomModel",
-    "clear_custom_models",
+    "DataConfig",
+    "FCNAlgorithmConfig",
     "GaussianMixtureNMConfig",
-    "MultiChannelNMConfig",
+    "InferenceConfig",
     "LVAELossConfig",
+    "MultiChannelNMConfig",
+    "TrainingConfig",
+    "VAEAlgorithmConfig",
+    "clear_custom_models",
+    "create_care_configuration",
+    "create_n2n_configuration",
+    "create_n2v_configuration",
+    "load_configuration",
+    "register_model",
+    "save_configuration",
 ]
 from .architectures import CustomModel, clear_custom_models, register_model
 from .callback_model import CheckpointModel

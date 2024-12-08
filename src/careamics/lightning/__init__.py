@@ -2,14 +2,14 @@
 
 __all__ = [
     "FCNModule",
+    "HyperParametersCallback",
+    "PredictDataModule",
+    "ProgressBarCallback",
+    "TrainDataModule",
     "VAEModule",
     "create_careamics_module",
-    "TrainDataModule",
-    "create_train_datamodule",
-    "PredictDataModule",
     "create_predict_datamodule",
-    "HyperParametersCallback",
-    "ProgressBarCallback",
+    "create_train_datamodule",
 ]
 
 from .callbacks import HyperParametersCallback, ProgressBarCallback

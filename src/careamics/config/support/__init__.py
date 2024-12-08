@@ -5,17 +5,17 @@ corresponding configuration options in the Pydantic models.
 """
 
 __all__ = [
-    "SupportedArchitecture",
     "SupportedActivation",
-    "SupportedOptimizer",
-    "SupportedScheduler",
-    "SupportedLoss",
     "SupportedAlgorithm",
-    "SupportedPixelManipulation",
-    "SupportedTransform",
+    "SupportedArchitecture",
     "SupportedData",
-    "SupportedStructAxis",
     "SupportedLogger",
+    "SupportedLoss",
+    "SupportedOptimizer",
+    "SupportedPixelManipulation",
+    "SupportedScheduler",
+    "SupportedStructAxis",
+    "SupportedTransform",
 ]
 
 

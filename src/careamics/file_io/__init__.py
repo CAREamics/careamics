@@ -1,13 +1,13 @@
 """Functions relating reading and writing image files."""
 
 __all__ = [
-    "read",
-    "write",
+    "ReadFunc",
+    "SupportedWriteType",
+    "WriteFunc",
     "get_read_func",
     "get_write_func",
-    "ReadFunc",
-    "WriteFunc",
-    "SupportedWriteType",
+    "read",
+    "write",
 ]
 
 from . import read, write

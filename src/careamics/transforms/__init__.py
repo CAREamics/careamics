@@ -1,14 +1,14 @@
 """Transforms that are used to augment the data."""
 
 __all__ = [
-    "get_all_transforms",
+    "Compose",
+    "Denormalize",
+    "ImageRestorationTTA",
     "N2VManipulate",
+    "Normalize",
     "XYFlip",
     "XYRandomRotate90",
-    "ImageRestorationTTA",
-    "Denormalize",
-    "Normalize",
-    "Compose",
+    "get_all_transforms",
 ]
 
 

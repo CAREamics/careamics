@@ -1,9 +1,9 @@
 """Tiling functions."""
 
 __all__ = [
-    "stitch_prediction",
-    "extract_tiles",
     "collate_tiles",
+    "extract_tiles",
+    "stitch_prediction",
 ]
 
 from .collate_tiles import collate_tiles

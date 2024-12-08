@@ -1,12 +1,12 @@
 """A package for the `PredictionWriterCallback` class and utilities."""
 
 __all__ = [
-    "PredictionWriterCallback",
-    "create_write_strategy",
-    "WriteStrategy",
-    "WriteImage",
     "CacheTiles",
+    "PredictionWriterCallback",
+    "WriteImage",
+    "WriteStrategy",
     "WriteTilesZarr",
+    "create_write_strategy",
     "select_write_extension",
     "select_write_func",
 ]
