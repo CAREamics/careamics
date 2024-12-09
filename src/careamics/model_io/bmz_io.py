@@ -85,11 +85,11 @@ def export_to_bmz(
     path_to_archive: Union[Path, str],
     model_name: str,
     general_description: str,
+    data_description: str,
     authors: List[dict],
     input_array: np.ndarray,
     output_array: np.ndarray,
     channel_names: Optional[List[str]] = None,
-    data_description: Optional[str] = None,
 ) -> None:
     """Export the model to BioImage Model Zoo format.
 
@@ -110,6 +110,8 @@ def export_to_bmz(
         Model name.
     general_description : str
         General description of the model.
+    data_description : str
+        Description of the data the model was trained on.
     authors : List[dict]
         Authors of the model.
     input_array : np.ndarray
@@ -118,8 +120,6 @@ def export_to_bmz(
         Output array, should have been denormalized.
     channel_names : Optional[List[str]], optional
         Channel names, by default None.
-    data_description : Optional[str], optional
-        Description of the data, by default None.
 
     Raises
     ------
@@ -171,6 +171,7 @@ def export_to_bmz(
             config=config,
             name=model_name,
             general_description=general_description,
+            data_description=data_description,
             authors=authors,
             inputs=inputs,
             outputs=outputs,
@@ -180,7 +181,6 @@ def export_to_bmz(
             config_path=config_path,
             env_path=env_path,
             channel_names=channel_names,
-            data_description=data_description,
         )
 
         # test model description

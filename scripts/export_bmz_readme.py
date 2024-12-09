@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+"""Export a README file for the bioimage model zoo."""
 from pathlib import Path
 
 from careamics.config import create_n2v_configuration
@@ -17,8 +18,7 @@ def main():
     )
     # export README
     readme_path = readme_factory(
-        config=config,
-        careamics_version="0.1.0",
+        config=config, careamics_version="0.1.0", data_description="Mydata"
     )
 
     # copy file to __file__

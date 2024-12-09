@@ -866,9 +866,9 @@ class CAREamist:
         friendly_model_name: str,
         input_array: NDArray,
         authors: list[dict],
-        general_description: str = "",
+        general_description: str,
+        data_description: str,
         channel_names: Optional[list[str]] = None,
-        data_description: Optional[str] = None,
     ) -> None:
         """Export the model to the BioImage Model Zoo format.
 
@@ -898,11 +898,11 @@ class CAREamist:
         authors : list of dict
             List of authors of the model.
         general_description : str
-            General description of the model, used in the metadata of the BMZ archive.
+            General description of the model used in the BMZ metadata.
+        data_description : str
+            Description of the data the model was trained on.
         channel_names : list of str, optional
             Channel names, by default None.
-        data_description : str, optional
-            Description of the data, by default None.
         """
         # TODO: add in docs that it is expected that input_array dimensions match
         # those in data_config
@@ -921,11 +921,11 @@ class CAREamist:
             path_to_archive=path_to_archive,
             model_name=friendly_model_name,
             general_description=general_description,
+            data_description=data_description,
             authors=authors,
             input_array=input_array,
             output_array=output,
             channel_names=channel_names,
-            data_description=data_description,
         )
 
     def get_losses(self) -> dict[str, list]:

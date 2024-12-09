@@ -187,6 +187,7 @@ def create_model_description(
     config: Configuration,
     name: str,
     general_description: str,
+    data_description: str,
     authors: List[Author],
     inputs: Union[Path, str],
     outputs: Union[Path, str],
@@ -196,7 +197,6 @@ def create_model_description(
     config_path: Union[Path, str],
     env_path: Union[Path, str],
     channel_names: Optional[List[str]] = None,
-    data_description: Optional[str] = None,
 ) -> ModelDescr:
     """Create model description.
 
@@ -208,6 +208,8 @@ def create_model_description(
         Name of the model.
     general_description : str
         General description of the model.
+    data_description : str
+        Description of the data the model was trained on.
     authors : List[Author]
         Authors of the model.
     inputs : Union[Path, str]
@@ -226,8 +228,6 @@ def create_model_description(
         Path to environment file.
     channel_names : Optional[List[str]], optional
         Channel names, by default None.
-    data_description : Optional[str], optional
-        Description of the data, by default None.
 
     Returns
     -------

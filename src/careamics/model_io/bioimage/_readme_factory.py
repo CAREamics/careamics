@@ -1,7 +1,6 @@
 """Functions used to create a README.md file for BMZ export."""
 
 from pathlib import Path
-from typing import Optional
 
 import yaml
 
@@ -28,7 +27,7 @@ def _yaml_block(yaml_str: str) -> str:
 def readme_factory(
     config: Configuration,
     careamics_version: str,
-    data_description: Optional[str] = None,
+    data_description: str,
 ) -> Path:
     """Create a README file for the model.
 
@@ -41,18 +40,14 @@ def readme_factory(
         CAREamics configuration.
     careamics_version : str
         CAREamics version.
-    data_description : Optional[str], optional
-        Description of the data, by default None.
+    data_description : str
+        Description of the data.
 
     Returns
     -------
     Path
         Path to the README file.
     """
-    algorithm = config.algorithm_config
-    training = config.training_config
-    data = config.data_config
-
     # create file
     # TODO use tempfile as in the bmz_io module
     with cwd(get_careamics_home()):
@@ -65,41 +60,25 @@ def readme_factory(
 
         description = [f"# {algorithm_pretty_name}\n\n"]
 
+        # data description
+        description.append("## Data description\n\n")
+        description.append(data_description)
+        description.append("\n\n")
+
         # algorithm description
-        description.append("Algorithm description:\n\n")
+        description.append("## Algorithm description:\n\n")
         description.append(config.get_algorithm_description())
         description.append("\n\n")
 
-        # algorithm details
+        # training description
+        description.append("## Configuration\n\n")
+
         description.append(
             f"{algorithm_flavour} was trained using CAREamics (version "
-            f"{careamics_version}) with the following algorithm "
-            f"parameters:\n\n"
+            f"{careamics_version}) using the following configuration:\n\n"
         )
-        description.append(
-            _yaml_block(yaml.dump(algorithm.model_dump(exclude_none=True)))
-        )
-        description.append("\n\n")
 
-        # data description
-        description.append("## Data description\n\n")
-        if data_description is not None:
-            description.append(data_description)
-            description.append("\n\n")
-
-        description.append("The data was processed using the following parameters:\n\n")
-
-        description.append(_yaml_block(yaml.dump(data.model_dump(exclude_none=True))))
-        description.append("\n\n")
-
-        # training description
-        description.append("## Training description\n\n")
-
-        description.append("The model was trained using the following parameters:\n\n")
-
-        description.append(
-            _yaml_block(yaml.dump(training.model_dump(exclude_none=True)))
-        )
+        description.append(_yaml_block(yaml.dump(config.model_dump(exclude_none=True))))
         description.append("\n\n")
 
         # references
@@ -113,7 +92,7 @@ def readme_factory(
         description.append(
             "## Links\n\n"
             "- [CAREamics repository](https://github.com/CAREamics/careamics)\n"
-            "- [CAREamics documentation](https://careamics.github.io/latest/)\n"
+            "- [CAREamics documentation](https://careamics.github.io/)\n"
         )
 
         readme.write_text("".join(description))
