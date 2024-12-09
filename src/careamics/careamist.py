@@ -869,6 +869,7 @@ class CAREamist:
         general_description: str,
         data_description: str,
         channel_names: Optional[list[str]] = None,
+        model_version: str = "0.1.0",
     ) -> None:
         """Export the model to the BioImage Model Zoo format.
 
@@ -903,6 +904,8 @@ class CAREamist:
             Description of the data the model was trained on.
         channel_names : list of str, optional
             Channel names, by default None.
+        model_version : str, default="0.1.0"
+            Version of the model.
         """
         # TODO: add in docs that it is expected that input_array dimensions match
         # those in data_config
@@ -926,6 +929,7 @@ class CAREamist:
             input_array=input_array,
             output_array=output,
             channel_names=channel_names,
+            model_version=model_version,
         )
 
     def get_losses(self) -> dict[str, list]:

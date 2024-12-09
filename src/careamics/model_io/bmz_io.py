@@ -90,6 +90,7 @@ def export_to_bmz(
     input_array: np.ndarray,
     output_array: np.ndarray,
     channel_names: Optional[List[str]] = None,
+    model_version: str = "0.1.0",
 ) -> None:
     """Export the model to BioImage Model Zoo format.
 
@@ -120,6 +121,8 @@ def export_to_bmz(
         Output array, should have been denormalized.
     channel_names : Optional[List[str]], optional
         Channel names, by default None.
+    model_version : str, default="0.1.0"
+        Model version.
 
     Raises
     ------
@@ -181,6 +184,7 @@ def export_to_bmz(
             config_path=config_path,
             env_path=env_path,
             channel_names=channel_names,
+            model_version=model_version,
         )
 
         # test model description

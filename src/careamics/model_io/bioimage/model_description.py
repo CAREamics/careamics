@@ -197,6 +197,7 @@ def create_model_description(
     config_path: Union[Path, str],
     env_path: Union[Path, str],
     channel_names: Optional[List[str]] = None,
+    model_version: str = "0.1.0",
 ) -> ModelDescr:
     """Create model description.
 
@@ -228,6 +229,8 @@ def create_model_description(
         Path to environment file.
     channel_names : Optional[List[str]], optional
         Channel names, by default None.
+    model_version : str, default "0.1.0"
+        Model version.
 
     Returns
     -------
