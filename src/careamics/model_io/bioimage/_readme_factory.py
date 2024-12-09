@@ -70,7 +70,7 @@ def readme_factory(
         description.append(config.get_algorithm_description())
         description.append("\n\n")
 
-        # training description
+        # configuration description
         description.append("## Configuration\n\n")
 
         description.append(
@@ -80,6 +80,18 @@ def readme_factory(
 
         description.append(_yaml_block(yaml.dump(config.model_dump(exclude_none=True))))
         description.append("\n\n")
+
+        # validation
+        description.append("## Validation\n\n")
+
+        description.append(
+            "In order to validate the model, we encourage users to acquire a "
+            "test dataset with ground-truth data. Comparing the ground-truth data "
+            "with the prediction allows unbiased evaluation of the model performances. "
+            "In the absence of ground-truth, inspecting the residual image (difference "
+            "between input and predicted image) can be helpful to identify "
+            "whether real signal is removed from the input image.\n\n"
+        )
 
         # references
         reference = config.get_algorithm_references()
