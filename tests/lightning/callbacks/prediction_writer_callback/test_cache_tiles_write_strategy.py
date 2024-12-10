@@ -13,8 +13,6 @@ from careamics.lightning.callbacks.prediction_writer_callback.write_strategy imp
     WriteTiles,
 )
 
-from .utils import create_tiles, patch_tile_cache
-
 
 @pytest.fixture
 def cache_tiles_strategy(write_func) -> WriteTiles:
@@ -43,7 +41,7 @@ def cache_tiles_strategy(write_func) -> WriteTiles:
 
 
 # TODO: Move to test tile cache
-def test_last_tiles(cache_tiles_strategy):
+def test_last_tiles(cache_tiles_strategy, create_tiles, patch_tile_cache):
     """Test `CacheTiles.last_tile` property."""
 
     # all tiles of 1 samples with 9 tiles
@@ -58,7 +56,7 @@ def test_last_tiles(cache_tiles_strategy):
     assert cached_last_tiles == last_tiles
 
 
-def test_write_batch_no_last_tile(cache_tiles_strategy):
+def test_write_batch_no_last_tile(cache_tiles_strategy, create_tiles, patch_tile_cache):
     """
     Test `CacheTiles.write_batch` when there is no last tile added to the cache.
 
@@ -113,7 +111,7 @@ def test_write_batch_no_last_tile(cache_tiles_strategy):
     assert extended_tile_infos == cache_tiles_strategy.tile_cache.tile_info_cache
 
 
-def test_write_batch_last_tile(cache_tiles_strategy):
+def test_write_batch_last_tile(cache_tiles_strategy, create_tiles, patch_tile_cache):
     """
     Test `CacheTiles.write_batch` when there is a last tile added to the cache.
 
@@ -189,7 +187,9 @@ def test_write_batch_last_tile(cache_tiles_strategy):
     assert remaining_tile_info == cache_tiles_strategy.tile_cache.tile_info_cache[0]
 
 
-def test_write_batch_raises(cache_tiles_strategy: WriteTiles):
+def test_write_batch_raises(
+    cache_tiles_strategy: WriteTiles, create_tiles, patch_tile_cache
+):
     """Test write batch raises a ValueError if the filenames have not been set."""
     # all tiles of 2 samples with 9 tiles
     tiles, tile_infos = create_tiles(n_samples=2)
@@ -232,7 +232,7 @@ def test_write_batch_raises(cache_tiles_strategy: WriteTiles):
         )
 
 
-def test_reset(cache_tiles_strategy: WriteTiles):
+def test_reset(cache_tiles_strategy: WriteTiles, create_tiles, patch_tile_cache):
     """Test CacheTiles.reset works as expected"""
     # all tiles of 1 samples with 9 tiles
     tiles, tile_infos = create_tiles(n_samples=1)

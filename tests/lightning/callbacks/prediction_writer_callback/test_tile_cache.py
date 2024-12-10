@@ -7,13 +7,11 @@ from careamics.lightning.callbacks.prediction_writer_callback.write_strategy imp
     caches,
 )
 
-from .utils import create_tiles, patch_tile_cache
-
 
 def test_add(): ...
 
 
-def test_has_last_tile_true():
+def test_has_last_tile_true(create_tiles, patch_tile_cache):
     """
     Test `TileCache.has_last_tile` returns true when there is a last tile.
     """
@@ -26,7 +24,7 @@ def test_has_last_tile_true():
     assert tile_cache.has_last_tile()
 
 
-def test_has_last_tile_false():
+def test_has_last_tile_false(create_tiles, patch_tile_cache):
     """Test `TileCache.has_last_tile` returns false when there is not a last tile."""
 
     tile_cache = caches.TileCache()
@@ -38,7 +36,7 @@ def test_has_last_tile_false():
     assert not tile_cache.has_last_tile()
 
 
-def test_pop_image_tiles():
+def test_pop_image_tiles(create_tiles, patch_tile_cache):
     """
     Test `TileCache.has_last_tile` removes the tiles up until the first "last tile".
     """
@@ -62,7 +60,7 @@ def test_pop_image_tiles():
     assert tile_cache.tile_info_cache[0] == tile_infos[9]
 
 
-def test_pop_image_tiles_error():
+def test_pop_image_tiles_error(create_tiles, patch_tile_cache):
     """Test `CacheTiles._last_tile_index` raises an error when there is no last tile."""
 
     tile_cache = caches.TileCache()
