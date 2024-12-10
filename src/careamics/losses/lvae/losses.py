@@ -168,6 +168,9 @@ def get_kl_divergence_loss(
         dim=1,
     )  # shape: (B, n_layers)
 
+    # Apply free bits (& batch average)
+    kl = free_bits_kl(kl, free_bits_coeff)  # shape: (n_layers,)
+
     # In 3D case, rescale by Z dim
     # TODO If we have downsampling in Z dimension, then this needs to change.
     if len(img_shape) == 3:
@@ -175,23 +178,20 @@ def get_kl_divergence_loss(
 
     # Rescaling
     if rescaling == "latent_dim":
-        for i in range(kl.shape[1]):
+        for i in range(len(kl)):
             latent_dim = topdown_data["z"][i].shape[1:]
             norm_factor = np.prod(latent_dim)
-            kl[:, i] = kl[:, i] / norm_factor
+            kl[i] = kl[i] / norm_factor
     elif rescaling == "image_dim":
         kl = kl / np.prod(img_shape[-2:])
 
-    # Apply free bits
-    kl_loss = free_bits_kl(kl, free_bits_coeff)  # shape: (n_layers,)
-
     # Aggregation
     if aggregation == "mean":
-        kl_loss = kl_loss.mean()  # shape: (1,)
+        kl = kl.mean()  # shape: (1,)
     elif aggregation == "sum":
-        kl_loss = kl_loss.sum()  # shape: (1,)
+        kl = kl.sum()  # shape: (1,)
 
-    return kl_loss
+    return kl
 
 
 def _get_kl_divergence_loss_musplit(
@@ -220,7 +220,7 @@ def _get_kl_divergence_loss_musplit(
         The KL divergence loss for the muSplit case. Shape is (1, ).
     """
     return get_kl_divergence_loss(
-        kl_type=kl_type,
+        kl_type="kl",  # TODO: hardcoded, deal in future PR
         topdown_data=topdown_data,
         rescaling="latent_dim",
         aggregation="mean",
