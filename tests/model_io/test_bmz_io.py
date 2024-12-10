@@ -1,4 +1,5 @@
 import numpy as np
+from bioimageio.spec import load_description
 from torch import Tensor
 
 from careamics import CAREamist
@@ -55,8 +56,13 @@ def test_bmz_io(tmp_path, ordered_array, pre_trained):
         authors=[{"name": "Amod", "affiliation": "El"}],
         input_array=train_array[np.newaxis, np.newaxis, ...],
         output_array=predicted,
+        model_version="0.0.15",
     )
     assert path.exists()
+
+    # load description
+    description = load_description(path)
+    assert str(description.version) == "0.0.15"
 
     # load model
     model, config = load_pretrained(path)

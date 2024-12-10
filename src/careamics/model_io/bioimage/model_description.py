@@ -294,7 +294,7 @@ def create_model_description(
                 }
             }
         },
-        version="0.1.0",
+        version=model_version,
         weights=weights_descr,
         attachments=[FileDescr(source=config_path)],
         cite=config.get_algorithm_citations(),
