@@ -125,7 +125,7 @@ class SampleCache:
         Parameters
         ----------
         item : numpy.ndarray
-            A single predicted sample.
+            A set of predicted samples.
         """
         self.sample_cache.extend(np.split(item, item.shape[0]))
 

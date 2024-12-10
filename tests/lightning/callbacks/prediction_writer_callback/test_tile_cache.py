@@ -8,7 +8,22 @@ from careamics.lightning.callbacks.prediction_writer_callback.write_strategy imp
 )
 
 
-def test_add(): ...
+def test_add(create_tiles, patch_tile_cache):
+    """Test `TileCache.add` extends the internal caches as expected."""
+    tile_cache = caches.TileCache()
+    # all tiles of 1 samples with 9 tiles
+    tile_list, tile_infos = create_tiles(n_samples=1)
+
+    n = 4
+    # patch in tiles up to n into tile_cache
+    patch_tile_cache(tile_cache, tile_list[:n], tile_infos[:n])
+    # add remaining tiles to tile_cache
+    tile_cache.add((np.concatenate(tile_list[n:]), tile_infos[n:]))
+
+    np.testing.assert_array_equal(
+        np.concatenate(tile_cache.array_cache), np.concatenate(tile_list)
+    )
+    assert tile_cache.tile_info_cache == tile_infos
 
 
 def test_has_last_tile_true(create_tiles, patch_tile_cache):
@@ -61,7 +76,7 @@ def test_pop_image_tiles(create_tiles, patch_tile_cache):
 
 
 def test_pop_image_tiles_error(create_tiles, patch_tile_cache):
-    """Test `CacheTiles._last_tile_index` raises an error when there is no last tile."""
+    """Test `TileCache.pop_image_tiles` raises an error when there is no last tile."""
 
     tile_cache = caches.TileCache()
     # all tiles of 1 samples with 9 tiles
@@ -73,4 +88,13 @@ def test_pop_image_tiles_error(create_tiles, patch_tile_cache):
         tile_cache.pop_image_tiles()
 
 
-def test_reset(): ...
+def test_reset(create_tiles, patch_tile_cache):
+    """Test `TileCache.reset resets the cached tiles as expected."""
+    tile_cache = caches.TileCache()
+    # all tiles of 1 samples with 9 tiles
+    tiles, tile_infos = create_tiles(n_samples=1)
+    patch_tile_cache(tile_cache, tiles, tile_infos)
+
+    tile_cache.reset()
+    assert len(tile_cache.array_cache) == 0
+    assert len(tile_cache.tile_info_cache) == 0

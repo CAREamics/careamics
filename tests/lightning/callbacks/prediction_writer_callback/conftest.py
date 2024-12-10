@@ -21,7 +21,7 @@ def write_func():
 
 @pytest.fixture
 def patch_tile_cache() -> (
-    Callable[[caches.TileCache, NDArray, list[TileInformation]], None]
+    Callable[[caches.TileCache, list[NDArray], list[TileInformation]], None]
 ):
     def inner(
         tile_cache: caches.TileCache,
@@ -80,3 +80,16 @@ def create_tiles() -> Callable[[int], tuple[list[NDArray], list[TileInformation]
         return tiles, tile_infos
 
     return inner
+
+
+@pytest.fixture
+def samples() -> tuple[NDArray, list[int]]:
+    n_samples_per_file = [3, 1, 2]
+    shapes = [(16, 16), (8, 8), (12, 12)]
+    sample_set = []
+    for n_samples, spatial_shape in zip(n_samples_per_file, shapes):
+        shape = (n_samples, 1, *spatial_shape)
+        sample = np.arange(np.prod(shape)).reshape(shape)
+        sample_set.extend(np.split(sample, n_samples))
+
+    return sample_set, n_samples_per_file
