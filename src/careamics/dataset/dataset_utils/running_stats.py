@@ -84,7 +84,7 @@ def finalize_iterative_stats(
     tuple[NDArray, NDArray]
         Final channel-wise mean and standard deviation.
     """
-    std = np.sqrt(mean / count)
+    std = np.sqrt(m2 / count)
     if any(c < 2 for c in count):
         return np.full(mean.shape, np.nan), np.full(std.shape, np.nan)
     else:
