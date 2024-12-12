@@ -22,6 +22,7 @@ from .bioimage import (
     create_model_description,
     extract_model_path,
 )
+from .bioimage.cover_factory import create_cover
 
 
 def _export_state_dict(
@@ -89,6 +90,7 @@ def export_to_bmz(
     authors: List[dict],
     input_array: np.ndarray,
     output_array: np.ndarray,
+    covers: Optional[list[Union[Path, str]]] = None,
     channel_names: Optional[List[str]] = None,
     model_version: str = "0.1.0",
 ) -> None:
@@ -119,6 +121,8 @@ def export_to_bmz(
         Input array, should not have been normalized.
     output_array : np.ndarray
         Output array, should have been denormalized.
+    covers : list of pathlib.Path or str, default=None
+        Paths to the cover images.
     channel_names : Optional[List[str]], optional
         Channel names, by default None.
     model_version : str, default="0.1.0"
@@ -169,6 +173,10 @@ def export_to_bmz(
         # export model state dictionary
         weight_path = _export_state_dict(model, temp_path / "weights.pth")
 
+        # export cover if necesary
+        if covers is None:
+            covers = [create_cover(temp_path, input_array, output_array)]
+
         # create model description
         model_description = create_model_description(
             config=config,
@@ -183,6 +191,7 @@ def export_to_bmz(
             careamics_version=careamics_version,
             config_path=config_path,
             env_path=env_path,
+            covers=covers,
             channel_names=channel_names,
             model_version=model_version,
         )

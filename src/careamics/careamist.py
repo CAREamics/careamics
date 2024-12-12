@@ -868,6 +868,7 @@ class CAREamist:
         authors: list[dict],
         general_description: str,
         data_description: str,
+        covers: Optional[list[Union[Path, str]]] = None,
         channel_names: Optional[list[str]] = None,
         model_version: str = "0.1.0",
     ) -> None:
@@ -902,8 +903,10 @@ class CAREamist:
             General description of the model used in the BMZ metadata.
         data_description : str
             Description of the data the model was trained on.
-        channel_names : list of str, optional
-            Channel names, by default None.
+        covers : list of pathlib.Path or str, default=None
+            Paths to the cover images.
+        channel_names : list of str, default=None
+            Channel names.
         model_version : str, default="0.1.0"
             Version of the model.
         """
@@ -928,6 +931,7 @@ class CAREamist:
             authors=authors,
             input_array=input_array,
             output_array=output,
+            covers=covers,
             channel_names=channel_names,
             model_version=model_version,
         )

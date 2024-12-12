@@ -196,6 +196,7 @@ def create_model_description(
     careamics_version: str,
     config_path: Union[Path, str],
     env_path: Union[Path, str],
+    covers: list[Union[Path, str]],
     channel_names: Optional[List[str]] = None,
     model_version: str = "0.1.0",
 ) -> ModelDescr:
@@ -227,6 +228,8 @@ def create_model_description(
         Path to model configuration.
     env_path : Union[Path, str]
         Path to environment file.
+    covers : list of pathlib.Path or str
+        Paths to cover images.
     channel_names : Optional[List[str]], optional
         Channel names, by default None.
     model_version : str, default "0.1.0"
@@ -298,6 +301,7 @@ def create_model_description(
         weights=weights_descr,
         attachments=[FileDescr(source=config_path)],
         cite=config.get_algorithm_citations(),
+        covers=covers,
     )
 
     return model
