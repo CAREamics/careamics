@@ -98,7 +98,7 @@ def _convert_to_image(original_shape: tuple[int, ...], array: NDArray) -> Image:
             return Image.fromarray(array).convert("RGB")
         elif n_channels == 2:
             # add an empty channel to the numpy array
-            array = np.concatenate([array, np.zeros_like(array[..., 0:1])], axis=-1)
+            array = np.concatenate([np.zeros_like(array[..., 0:1]), array], axis=-1)
 
             return Image.fromarray(array).convert("RGB")
         else:  # more than 4
