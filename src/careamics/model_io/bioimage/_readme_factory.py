@@ -82,14 +82,15 @@ def readme_factory(
         description.append("\n\n")
 
         # validation
-        description.append("## Validation\n\n")
+        description.append("# Validation\n\n")
 
         description.append(
             "In order to validate the model, we encourage users to acquire a "
             "test dataset with ground-truth data. Comparing the ground-truth data "
             "with the prediction allows unbiased evaluation of the model performances. "
-            "In the absence of ground-truth, inspecting the residual image (difference "
-            "between input and predicted image) can be helpful to identify "
+            "This can be done for instance by using metrics such as PSNR, SSIM, or"
+            "MicroSSIM. In the absence of ground-truth, inspecting the residual image "
+            "(difference between input and predicted image) can be helpful to identify "
             "whether real signal is removed from the input image.\n\n"
         )
 
@@ -102,7 +103,7 @@ def readme_factory(
 
         # links
         description.append(
-            "## Links\n\n"
+            "# Links\n\n"
             "- [CAREamics repository](https://github.com/CAREamics/careamics)\n"
             "- [CAREamics documentation](https://careamics.github.io/)\n"
         )
