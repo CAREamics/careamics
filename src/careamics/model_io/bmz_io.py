@@ -22,6 +22,7 @@ from .bioimage import (
     create_model_description,
     extract_model_path,
 )
+from .bioimage.cover_factory import create_cover
 
 
 def _export_state_dict(
@@ -85,11 +86,13 @@ def export_to_bmz(
     path_to_archive: Union[Path, str],
     model_name: str,
     general_description: str,
+    data_description: str,
     authors: List[dict],
     input_array: np.ndarray,
     output_array: np.ndarray,
+    covers: Optional[list[Union[Path, str]]] = None,
     channel_names: Optional[List[str]] = None,
-    data_description: Optional[str] = None,
+    model_version: str = "0.1.0",
 ) -> None:
     """Export the model to BioImage Model Zoo format.
 
@@ -110,16 +113,20 @@ def export_to_bmz(
         Model name.
     general_description : str
         General description of the model.
+    data_description : str
+        Description of the data the model was trained on.
     authors : List[dict]
         Authors of the model.
     input_array : np.ndarray
         Input array, should not have been normalized.
     output_array : np.ndarray
         Output array, should have been denormalized.
+    covers : list of pathlib.Path or str, default=None
+        Paths to the cover images.
     channel_names : Optional[List[str]], optional
         Channel names, by default None.
-    data_description : Optional[str], optional
-        Description of the data, by default None.
+    model_version : str, default="0.1.0"
+        Model version.
 
     Raises
     ------
@@ -166,11 +173,16 @@ def export_to_bmz(
         # export model state dictionary
         weight_path = _export_state_dict(model, temp_path / "weights.pth")
 
+        # export cover if necesary
+        if covers is None:
+            covers = [create_cover(temp_path, input_array, output_array)]
+
         # create model description
         model_description = create_model_description(
             config=config,
             name=model_name,
             general_description=general_description,
+            data_description=data_description,
             authors=authors,
             inputs=inputs,
             outputs=outputs,
@@ -179,8 +191,9 @@ def export_to_bmz(
             careamics_version=careamics_version,
             config_path=config_path,
             env_path=env_path,
+            covers=covers,
             channel_names=channel_names,
-            data_description=data_description,
+            model_version=model_version,
         )
 
         # test model description
