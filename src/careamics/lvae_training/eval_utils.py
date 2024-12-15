@@ -7,7 +7,7 @@ It includes functions to:
 """
 
 import os
-from typing import List, Literal
+from typing import Optional
 
 import matplotlib
 import matplotlib.pyplot as plt
@@ -18,7 +18,7 @@ from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
 
 from careamics.lightning import VAEModule
-from careamics.utils.metrics import RunningPSNR, scale_invariant_psnr
+from careamics.utils.metrics import scale_invariant_psnr
 
 
 class TilingMode:
@@ -144,11 +144,10 @@ def plot_crops(
     tar,
     tar_hsnr,
     recon_img_list,
-    calibration_stats,
+    calibration_stats=None,
     num_samples=2,
     baseline_preds=None,
 ):
-    """ """
     if baseline_preds is None:
         baseline_preds = []
     if len(baseline_preds) > 0:
@@ -159,15 +158,13 @@ def plot_crops(
                 )
                 print("This happens when we want to predict the edges of the image.")
                 return
+    color_ch_list = ["goldenrod", "cyan"]
+    color_pred = "red"
+    insetplot_xmax_value = 10000
+    insetplot_xmin_value = -1000
+    inset_min_labelsize = 10
+    inset_rect = [0.05, 0.05, 0.4, 0.2]
 
-    # color_ch_list = ['goldenrod', 'cyan']
-    # color_pred = 'red'
-    # insetplot_xmax_value = 10000
-    # insetplot_xmin_value = -1000
-    # inset_min_labelsize = 10
-    # inset_rect = [0.05, 0.05, 0.4, 0.2]
-
-    # Set plot attributes
     img_sz = 3
     ncols = num_samples + len(baseline_preds) + 1 + 1 + 1 + 1 + 1 * (num_samples > 1)
     grid_factor = 5
@@ -186,7 +183,6 @@ def plot_crops(
     )
     params = {"mathtext.default": "regular"}
     plt.rcParams.update(params)
-
     # plot baselines
     for i in range(2, 2 + len(baseline_preds)):
         for col_idx in range(baseline_preds[0].shape[0]):
@@ -466,38 +462,17 @@ def plot_error(target, prediction, cmap=matplotlib.cm.coolwarm, ax=None, max_val
     plt.colorbar(img_err, ax=ax)
 
 
-# ------------------------------------------------------------------------------------------------
-
-
-def get_samples(
-    model: VAEModule,
-    dset: Dataset,
-    sample_idx: int = 0,
-):
-    """Get samples from the model."""
-    dataset_sample_image, _ = dset[sample_idx]
-    dataset_sample_image = torch.from_numpy(dataset_sample_image[None, ...]).cuda()
-    sample, _ = model(dataset_sample_image)
-
-    # get reconstructed img
-    if model.model.predict_logvar is None:
-        rec_sample = sample
-    else:
-        rec_sample, _ = torch.chunk(sample, chunks=2, dim=1)
-
-    return (
-        dataset_sample_image.squeeze().cpu().numpy(),
-        rec_sample.squeeze().detach().cpu().numpy(),
-    )
+# -------------------------------------------------------------------------------------
 
 
 def get_predictions(
     model: VAEModule,
     dset: Dataset,
     batch_size: int,
+    tile_size: Optional[tuple[int, int]] = None,
     mmse_count: int = 1,
     num_workers: int = 4,
-) -> tuple[list, list]:
+) -> tuple[dict, dict, dict]:
     """Get patch-wise predictions from a model for the entire dataset.
 
     Parameters
@@ -527,22 +502,92 @@ def get_predictions(
             - psnr: PSNR values for the predictions.
     """
     if hasattr(dset, "dsets"):
-        multifile_predictions = []
-        multifile_stitched_predictions = []
+        multifile_stitched_predictions = {}
+        multifile_stitched_stds = {}
         for d in dset.dsets:
-            predictions, stitched_predictions = get_single_file_predictions(
-                model, d, batch_size, mmse_count, num_workers
+            stitched_predictions, stitched_stds = get_single_file_mmse(
+                model=model,
+                dset=d,
+                batch_size=batch_size,
+                tile_size=tile_size,
+                mmse_count=mmse_count,
+                num_workers=num_workers,
             )
-            multifile_predictions.append(predictions)
-            multifile_stitched_predictions.append(stitched_predictions)
-        return multifile_predictions, multifile_stitched_predictions
-        # psnr, # TODO revisit !
+            # get filename without extension and path
+            filename = d._fpath.split("/")[-1].split(".")[0]
+            multifile_stitched_predictions[filename] = stitched_predictions
+            multifile_stitched_stds[filename] = stitched_stds
+        return (
+            multifile_stitched_predictions,
+            multifile_stitched_stds,
+        )
+    else:
+        stitched_predictions, stitched_stds = get_single_file_mmse(
+            model=model,
+            dset=d,
+            batch_size=batch_size,
+            tile_size=tile_size,
+            mmse_count=mmse_count,
+            num_workers=num_workers,
+        )
+        # get filename without extension and path
+        filename = dset.fpath.split("/")[-1].split(".")[0]
+        return (
+            {filename: stitched_predictions},
+            {filename: stitched_stds},
+        )
 
 
 def get_single_file_predictions(
     model: VAEModule,
     dset: Dataset,
     batch_size: int,
+    tile_size: Optional[tuple[int, int]] = None,
+    num_workers: int = 4,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Get patch-wise predictions from a model for a single file dataset."""
+    if tile_size:
+        dset.set_img_sz(tile_size, tile_size[-1] // 4)
+
+    dloader = DataLoader(
+        dset,
+        pin_memory=False,
+        num_workers=num_workers,
+        shuffle=False,
+        batch_size=batch_size,
+    )
+    model.eval()
+    model.cuda()
+    tiles = []
+    logvar_arr = []
+    with torch.no_grad():
+        for batch in tqdm(dloader, desc="Predicting patches"):
+            inp, tar = batch
+            inp = inp.cuda()
+            tar = tar.cuda()
+
+            # get model output
+            rec, _ = model(inp)
+
+            # get reconstructed img
+            if model.model.predict_logvar is None:
+                rec_img = rec
+                logvar = torch.tensor([-1])
+            else:
+                rec_img, logvar = torch.chunk(rec, chunks=2, dim=1)
+            logvar_arr.append(logvar.cpu().numpy())  # Why do we need this ?
+
+            tiles.append(rec_img.cpu().numpy())
+
+    tile_samples = np.concatenate(tiles, axis=0)
+    return stitch_predictions_new(tile_samples, dset)
+
+
+def get_single_file_mmse(
+    model: VAEModule,
+    dset: Dataset,
+    batch_size: int,
+    tile_size: Optional[tuple[int, int]] = None,
     mmse_count: int = 1,
     num_workers: int = 4,
 ) -> tuple[np.ndarray, np.ndarray]:
@@ -554,8 +599,12 @@ def get_single_file_predictions(
         shuffle=False,
         batch_size=batch_size,
     )
-
-    predictions = []
+    if tile_size:
+        dset.set_img_sz(tile_size, tile_size[-1] // 2)
+    model.eval()
+    model.cuda()
+    tile_mmse = []
+    tile_stds = []
     logvar_arr = []
     with torch.no_grad():
         for batch in tqdm(dloader, desc="Predicting patches"):
@@ -576,16 +625,21 @@ def get_single_file_predictions(
                 else:
                     rec_img, logvar = torch.chunk(rec, chunks=2, dim=1)
                 rec_img_list.append(rec_img.cpu().unsqueeze(0))  # add MMSE dim
-                logvar_arr.append(logvar.cpu().numpy())
+                logvar_arr.append(logvar.cpu().numpy())  # Why do we need this ?
 
             # aggregate results
             samples = torch.cat(rec_img_list, dim=0)
             mmse_imgs = torch.mean(samples, dim=0)  # avg over MMSE dim
-            predictions.append(mmse_imgs.cpu().numpy())
+            std_imgs = torch.std(samples, dim=0)  # std over MMSE dim
 
-    predictions = np.concatenate(predictions, axis=0)
-    stitched_predictions = stitch_predictions_new(predictions, dset)
-    return predictions, stitched_predictions
+            tile_mmse.append(mmse_imgs.cpu().numpy())
+            tile_stds.append(std_imgs.cpu().numpy())
+
+    tiles_arr = np.concatenate(tile_mmse, axis=0)
+    tile_stds = np.concatenate(tile_stds, axis=0)
+    stitched_predictions = stitch_predictions_new(tiles_arr, dset)
+    stitched_stds = stitch_predictions_new(tile_stds, dset)
+    return stitched_predictions, stitched_stds
 
 
 # ------------------------------------------------------------------------------------------

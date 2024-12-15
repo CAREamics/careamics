@@ -6,7 +6,7 @@ and Artefact Removal, Prakash et al."
 """
 
 from collections.abc import Iterable
-from typing import Union
+from typing import Optional, Union
 
 import numpy as np
 import torch
@@ -837,3 +837,14 @@ class LadderVAE(nn.Module):
             # TODO check if model_3D_depth is needed ?
             top_layer_shape = (n_imgs, mu_logvar, self._model_3D_depth, h, w)
         return top_layer_shape
+
+    def reset_for_inference(self, tile_size: Optional[int] = None):
+        """Should be called if we want to predict for a different input/output size."""
+        self.mode_pred = True
+        if tile_size is None:
+            tile_size = self.image_size[-1]
+        self.image_size = (tile_size, tile_size)
+        for i in range(self.n_layers):
+            sz = tile_size // 2 ** (1 + i)
+            self.bottom_up_layers[i].output_expected_shape = (sz, sz)
+            self.top_down_layers[i].latent_shape = (tile_size, tile_size)
