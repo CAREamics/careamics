@@ -42,19 +42,19 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
-    'numpy<2.0.0',
-    'torch>=2.0,<=2.5',
-    'torchvision<=0.20',
+    'numpy<3.0.0',
+    'torch>=2.0,<=2.5.1',
+    'torchvision<=0.20.1',
     'bioimageio.core==0.7',
-    'tifffile<=2024.8.30',
+    'tifffile<=2024.12.12',
     'psutil<=6.1',
-    'pydantic>=2.5,<2.9',
+    'pydantic>=2.5,<2.11',
     'pytorch_lightning>=2.2,<=2.4',
     'pyyaml<=6.0.2,!=6.0.0',
-    'typer==0.12.3',
-    'scikit-image<=0.23.2',
+    'typer==0.15.1',
+    'scikit-image<=0.25.0',
     'zarr<3.0.0',
-    'pillow<=10.3.0',
+    'pillow<=11.0.0',
 ]
 
 [project.optional-dependencies]
@@ -72,7 +72,7 @@ examples = ["jupyter", "careamics-portfolio", "matplotlib"]
 
 # loggers
 wandb = ["wandb"]
-tensorboard = ["tensorboard", "protobuf==3.20.3"]
+tensorboard = ["tensorboard", "protobuf==5.29.1"]
 
 [project.urls]
 homepage = "https://careamics.github.io/"
