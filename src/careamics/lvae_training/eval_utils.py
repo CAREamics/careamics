@@ -547,7 +547,7 @@ def get_single_file_predictions(
 ) -> tuple[np.ndarray, np.ndarray]:
     """Get patch-wise predictions from a model for a single file dataset."""
     if tile_size:
-        dset.set_img_sz(tile_size, tile_size[-1] // 4)
+        dset.set_img_sz(tile_size, tile_size[-1] // 8)
 
     dloader = DataLoader(
         dset,
