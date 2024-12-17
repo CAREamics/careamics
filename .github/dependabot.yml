@@ -6,7 +6,5 @@ updates:
     schedule:
       interval: "daily"
       time: "08:00"
-    groups:
-      python-packages:
-        patterns:
-          - "*"
+    ignore:
+      - dependency-name: "numpy"
