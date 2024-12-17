@@ -2,7 +2,7 @@
 
 import tempfile
 from pathlib import Path
-from typing import List, Optional, Tuple, Union
+from typing import Optional, Union
 
 import numpy as np
 import pkg_resources
@@ -87,11 +87,11 @@ def export_to_bmz(
     model_name: str,
     general_description: str,
     data_description: str,
-    authors: List[dict],
+    authors: list[dict],
     input_array: np.ndarray,
     output_array: np.ndarray,
     covers: Optional[list[Union[Path, str]]] = None,
-    channel_names: Optional[List[str]] = None,
+    channel_names: Optional[list[str]] = None,
     model_version: str = "0.1.0",
 ) -> None:
     """Export the model to BioImage Model Zoo format.
@@ -115,7 +115,7 @@ def export_to_bmz(
         General description of the model.
     data_description : str
         Description of the data the model was trained on.
-    authors : List[dict]
+    authors : list[dict]
         Authors of the model.
     input_array : np.ndarray
         Input array, should not have been normalized.
@@ -123,7 +123,7 @@ def export_to_bmz(
         Output array, should have been denormalized.
     covers : list of pathlib.Path or str, default=None
         Paths to the cover images.
-    channel_names : Optional[List[str]], optional
+    channel_names : Optional[list[str]], optional
         Channel names, by default None.
     model_version : str, default="0.1.0"
         Model version.
@@ -212,7 +212,7 @@ def export_to_bmz(
 
 def load_from_bmz(
     path: Union[Path, str, HttpUrl]
-) -> Tuple[Union[FCNModule, VAEModule], Configuration]:
+) -> tuple[Union[FCNModule, VAEModule], Configuration]:
     """Load a model from a BioImage Model Zoo archive.
 
     Parameters

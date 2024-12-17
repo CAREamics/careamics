@@ -7,11 +7,10 @@ its implementation is contained in the conf.py file.
 """
 
 from pathlib import Path
-from typing import Optional
+from typing import Annotated, Optional
 
 import click
 import typer
-from typing_extensions import Annotated
 
 from ..careamist import CAREamist
 from . import conf

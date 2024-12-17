@@ -1,11 +1,11 @@
 """Utility functions for the CAREamics CLI."""
 
-from typing import Optional, Tuple
+from typing import Optional
 
 
 def handle_2D_3D_callback(
-    value: Optional[Tuple[int, int, int]]
-) -> Optional[Tuple[int, ...]]:
+    value: Optional[tuple[int, int, int]]
+) -> Optional[tuple[int, ...]]:
     """
     Callback for options that require 2D or 3D inputs.
 

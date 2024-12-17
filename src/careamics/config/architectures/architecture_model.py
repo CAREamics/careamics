@@ -1,6 +1,6 @@
 """Base model for the various CAREamics architectures."""
 
-from typing import Any, Dict
+from typing import Any
 
 from pydantic import BaseModel
 
@@ -15,7 +15,7 @@ class ArchitectureModel(BaseModel):
     architecture: str
     """Name of the architecture."""
 
-    def model_dump(self, **kwargs: Any) -> Dict[str, Any]:
+    def model_dump(self, **kwargs: Any) -> dict[str, Any]:
         """
         Dump the model as a dictionary, ignoring the architecture keyword.
 
@@ -26,7 +26,7 @@ class ArchitectureModel(BaseModel):
 
         Returns
         -------
-        dict[str, Any]
+        {str: Any}
             Model as a dictionary.
         """
         model_dict = super().model_dump(**kwargs)

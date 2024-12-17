@@ -190,6 +190,7 @@ checks = [
     "GL02", # Closing quotes should be placed in the line after the last text 
     # in the docstring
     "GL03", # Double line break found
+    "RT04", # Return value description should start with a capital letter
 ]
 exclude = [ # don't report on objects that match any of these regex
     "test_*",

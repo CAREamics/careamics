@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Callable, Tuple
+from typing import Callable
 
 import numpy as np
 import pytest
@@ -317,12 +317,12 @@ def array_3D() -> np.ndarray:
 
 
 @pytest.fixture
-def patch_size() -> Tuple[int, int]:
+def patch_size() -> tuple[int, int]:
     return (64, 64)
 
 
 @pytest.fixture
-def overlaps() -> Tuple[int, int]:
+def overlaps() -> tuple[int, int]:
     return (32, 32)
 
 
