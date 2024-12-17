@@ -109,10 +109,7 @@ def test_multi_channel_noise_model_likelihood(
         nm_dict = create_dummy_noise_model.copy()
         nm_dict["trained_weight"] = nm_dict["trained_weight"] + eps
         rand_epss.append(eps)
-        np.savez(
-            tmp_path / f"dummy_noise_model_{i}.npz",
-            **nm_dict,
-        )
+        np.savez(tmp_path / f"dummy_noise_model_{i}.npz", **nm_dict)
 
         gmm = GaussianMixtureNMConfig(
             model_type="GaussianMixtureNoiseModel",
@@ -156,6 +153,6 @@ def test_gm_noise_model_training(tmp_path):
     noise_model = GaussianMixtureNoiseModel(nm_config)
 
     # Test training
-    output = noise_model.train_noise_model(x, y, n_epochs=2)
+    output = noise_model.train(x, y, n_epochs=2)
     assert output is not None
     # TODO do something with output ?

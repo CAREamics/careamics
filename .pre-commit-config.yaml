@@ -17,7 +17,7 @@ repos:
     rev: v0.8.1
     hooks:
       - id: ruff
-        exclude: "^src/careamics/lvae_training/.*|^src/careamics/models/lvae/.*"
+        exclude: "^src/careamics/lvae_training/.*|^src/careamics/models/lvae/.*|^scripts/.*"
         args: [--fix, --target-version, py38]
 
   - repo: https://github.com/psf/black
@@ -31,7 +31,7 @@ repos:
       - id: mypy
         files: "^src/"
         exclude: "^src/careamics/lvae_training/.*|^src/careamics/models/lvae/.*|^src/careamics/config/likelihood_model.py|^src/careamics/losses/loss_factory.py|^src/careamics/losses/lvae/losses.py"
-        args: ['--config-file', 'mypy.ini']
+        args: ["--config-file", "mypy.ini"]
         additional_dependencies:
           - numpy
           - types-PyYAML
@@ -42,7 +42,7 @@ repos:
     rev: v1.8.0
     hooks:
       - id: numpydoc-validation
-        exclude: "^src/careamics/lvae_training/.*|^src/careamics/models/lvae/.*|^src/careamics/losses/lvae/.*"      
+        exclude: "^src/careamics/lvae_training/.*|^src/careamics/models/lvae/.*|^src/careamics/losses/lvae/.*|^scripts/.*"
 
   # # jupyter linting and formatting
   # - repo: https://github.com/nbQA-dev/nbQA

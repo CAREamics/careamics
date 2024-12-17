@@ -123,6 +123,7 @@ def minimum_algorithm_musplit() -> dict:
     """
     # create dictionary
     algorithm = {
+        "algorithm_type": "vae",
         "algorithm": "musplit",  # TODO temporary
         "loss": "musplit",
         "model": {
@@ -151,6 +152,7 @@ def minimum_algorithm_denoisplit() -> dict:
     """
     # create dictionary
     algorithm = {
+        "algorithm_type": "vae",
         "algorithm": "denoisplit",
         "loss": "denoisplit",
         "model": {
@@ -372,6 +374,7 @@ def pre_trained_bmz(tmp_path, pre_trained) -> Path:
         path_to_archive=path,
         model_name="TopModel",
         general_description="A model that just walked in.",
+        data_description="My data.",
         authors=[{"name": "Amod", "affiliation": "El"}],
         input_array=train_array[np.newaxis, np.newaxis, ...],
         output_array=predicted,
