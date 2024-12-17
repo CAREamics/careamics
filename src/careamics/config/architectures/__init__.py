@@ -3,8 +3,8 @@
 __all__ = [
     "ArchitectureModel",
     "CustomModel",
-    "UNetModel",
     "LVAEModel",
+    "UNetModel",
     "clear_custom_models",
     "get_custom_model",
     "register_model",
