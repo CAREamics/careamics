@@ -4,9 +4,9 @@ __all__ = [
     "InMemoryDataset",
     "InMemoryPredDataset",
     "InMemoryTiledPredDataset",
-    "PathIterableDataset",
-    "IterableTiledPredDataset",
     "IterablePredDataset",
+    "IterableTiledPredDataset",
+    "PathIterableDataset",
 ]
 
 from .in_memory_dataset import InMemoryDataset
