@@ -102,7 +102,7 @@ class UnetEncoder(nn.Module):
                 )
             )
             encoder_blocks.append(self.pooling)
-        self.encoder_blocks = nn.Modulelist(encoder_blocks)
+        self.encoder_blocks = nn.ModuleList(encoder_blocks)
 
     def forward(self, x: torch.Tensor) -> list[torch.Tensor]:
         """
@@ -222,7 +222,7 @@ class UnetDecoder(nn.Module):
                 )
             )
 
-        self.decoder_blocks = nn.Modulelist(decoder_blocks)
+        self.decoder_blocks = nn.ModuleList(decoder_blocks)
 
     def forward(self, *features: torch.Tensor) -> torch.Tensor:
         """
