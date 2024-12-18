@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Generator
 from pathlib import Path
-from typing import Any, Callable, Generator
+from typing import Any, Callable
 
 from numpy.typing import NDArray
 from torch.utils.data import IterableDataset
