@@ -1,7 +1,7 @@
 """Module use to build BMZ model description."""
 
 from pathlib import Path
-from typing import List, Optional, Tuple, Union
+from typing import Optional, Union
 
 import numpy as np
 from bioimageio.spec._internal.io import resolve_and_extract
@@ -36,9 +36,9 @@ from ._readme_factory import readme_factory
 def _create_axes(
     array: np.ndarray,
     data_config: DataConfig,
-    channel_names: Optional[List[str]] = None,
+    channel_names: Optional[list[str]] = None,
     is_input: bool = True,
-) -> List[AxisBase]:
+) -> list[AxisBase]:
     """Create axes description.
 
     Array shape is expected to be SC(Z)YX.
@@ -49,15 +49,15 @@ def _create_axes(
         Array.
     data_config : DataModel
         CAREamics data configuration.
-    channel_names : Optional[List[str]], optional
+    channel_names : Optional[list[str]], optional
         Channel names, by default None.
     is_input : bool, optional
         Whether the axes are input axes, by default True.
 
     Returns
     -------
-    List[AxisBase]
-        List of axes description.
+    list[AxisBase]
+        list of axes description.
 
     Raises
     ------
@@ -105,8 +105,8 @@ def _create_inputs_ouputs(
     data_config: DataConfig,
     input_path: Union[Path, str],
     output_path: Union[Path, str],
-    channel_names: Optional[List[str]] = None,
-) -> Tuple[InputTensorDescr, OutputTensorDescr]:
+    channel_names: Optional[list[str]] = None,
+) -> tuple[InputTensorDescr, OutputTensorDescr]:
     """Create input and output tensor description.
 
     Input and output paths must point to a `.npy` file.
@@ -123,12 +123,12 @@ def _create_inputs_ouputs(
         Path to input .npy file.
     output_path : Union[Path, str]
         Path to output .npy file.
-    channel_names : Optional[List[str]], optional
+    channel_names : Optional[list[str]], optional
         Channel names, by default None.
 
     Returns
     -------
-    Tuple[InputTensorDescr, OutputTensorDescr]
+    tuple[InputTensorDescr, OutputTensorDescr]
         Input and output tensor descriptions.
     """
     input_axes = _create_axes(input_array, data_config, channel_names)
@@ -187,7 +187,8 @@ def create_model_description(
     config: Configuration,
     name: str,
     general_description: str,
-    authors: List[Author],
+    data_description: str,
+    authors: list[Author],
     inputs: Union[Path, str],
     outputs: Union[Path, str],
     weights_path: Union[Path, str],
@@ -195,8 +196,9 @@ def create_model_description(
     careamics_version: str,
     config_path: Union[Path, str],
     env_path: Union[Path, str],
-    channel_names: Optional[List[str]] = None,
-    data_description: Optional[str] = None,
+    covers: list[Union[Path, str]],
+    channel_names: Optional[list[str]] = None,
+    model_version: str = "0.1.0",
 ) -> ModelDescr:
     """Create model description.
 
@@ -208,7 +210,9 @@ def create_model_description(
         Name of the model.
     general_description : str
         General description of the model.
-    authors : List[Author]
+    data_description : str
+        Description of the data the model was trained on.
+    authors : list[Author]
         Authors of the model.
     inputs : Union[Path, str]
         Path to input .npy file.
@@ -224,10 +228,12 @@ def create_model_description(
         Path to model configuration.
     env_path : Union[Path, str]
         Path to environment file.
-    channel_names : Optional[List[str]], optional
+    covers : list of pathlib.Path or str
+        Paths to cover images.
+    channel_names : Optional[list[str]], optional
         Channel names, by default None.
-    data_description : Optional[str], optional
-        Description of the data, by default None.
+    model_version : str, default "0.1.0"
+        Model version.
 
     Returns
     -------
@@ -291,10 +297,11 @@ def create_model_description(
                 }
             }
         },
-        version="0.1.0",
+        version=model_version,
         weights=weights_descr,
         attachments=[FileDescr(source=config_path)],
         cite=config.get_algorithm_citations(),
+        covers=covers,
     )
 
     return model

@@ -1,6 +1,6 @@
 """A class chaining transforms together."""
 
-from typing import Dict, List, Optional, Tuple, Union, cast
+from typing import Optional, Union, cast
 
 from numpy.typing import NDArray
 
@@ -20,7 +20,7 @@ ALL_TRANSFORMS = {
 }
 
 
-def get_all_transforms() -> Dict[str, type]:
+def get_all_transforms() -> dict[str, type]:
     """Return all the transforms accepted by CAREamics.
 
     Returns
@@ -37,7 +37,7 @@ class Compose:
 
     Parameters
     ----------
-    transform_list : List[TransformModel]
+    transform_list : list[TransformModel]
         A list of dictionaries where each dictionary contains the name of a
         transform and its parameters.
 
@@ -47,12 +47,12 @@ class Compose:
         A callable that applies the transforms to the input data.
     """
 
-    def __init__(self, transform_list: List[TransformModel]) -> None:
+    def __init__(self, transform_list: list[TransformModel]) -> None:
         """Instantiate a Compose object.
 
         Parameters
         ----------
-        transform_list : List[TransformModel]
+        transform_list : list[TransformModel]
             A list of dictionaries where each dictionary contains the name of a
             transform and its parameters.
         """
@@ -67,7 +67,7 @@ class Compose:
 
     def _chain_transforms(
         self, patch: NDArray, target: Optional[NDArray]
-    ) -> Tuple[Optional[NDArray], ...]:
+    ) -> tuple[Optional[NDArray], ...]:
         """Chain transforms on the input data.
 
         Parameters
@@ -79,7 +79,7 @@ class Compose:
 
         Returns
         -------
-        Tuple[np.ndarray, Optional[np.ndarray]]
+        tuple[np.ndarray, Optional[np.ndarray]]
             The output of the transformations.
         """
         params: Union[
@@ -103,7 +103,7 @@ class Compose:
         patch: NDArray,
         target: Optional[NDArray],
         **additional_arrays: NDArray,
-    ) -> Tuple[NDArray, Optional[NDArray], dict[str, NDArray]]:
+    ) -> tuple[NDArray, Optional[NDArray], dict[str, NDArray]]:
         """Chain transforms on the input data, with additional arrays.
 
         Parameters
@@ -118,7 +118,7 @@ class Compose:
 
         Returns
         -------
-        Tuple[np.ndarray, Optional[np.ndarray]]
+        tuple[np.ndarray, Optional[np.ndarray]]
             The output of the transformations.
         """
         params = {"patch": patch, "target": target, **additional_arrays}
@@ -131,7 +131,7 @@ class Compose:
 
     def __call__(
         self, patch: NDArray, target: Optional[NDArray] = None
-    ) -> Tuple[NDArray, ...]:
+    ) -> tuple[NDArray, ...]:
         """Apply the transforms to the input data.
 
         Parameters
@@ -143,11 +143,11 @@ class Compose:
 
         Returns
         -------
-        Tuple[np.ndarray, ...]
+        tuple[np.ndarray, ...]
             The output of the transformations.
         """
         # TODO: solve casting Compose.__call__ ouput
-        return cast(Tuple[NDArray, ...], self._chain_transforms(patch, target))
+        return cast(tuple[NDArray, ...], self._chain_transforms(patch, target))
 
     def transform_with_additional_arrays(
         self,

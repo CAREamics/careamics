@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Callable, Tuple
+from typing import Callable
 
 import numpy as np
 import pytest
@@ -317,12 +317,12 @@ def array_3D() -> np.ndarray:
 
 
 @pytest.fixture
-def patch_size() -> Tuple[int, int]:
+def patch_size() -> tuple[int, int]:
     return (64, 64)
 
 
 @pytest.fixture
-def overlaps() -> Tuple[int, int]:
+def overlaps() -> tuple[int, int]:
     return (32, 32)
 
 
@@ -374,6 +374,7 @@ def pre_trained_bmz(tmp_path, pre_trained) -> Path:
         path_to_archive=path,
         model_name="TopModel",
         general_description="A model that just walked in.",
+        data_description="My data.",
         authors=[{"name": "Amod", "affiliation": "El"}],
         input_array=train_array[np.newaxis, np.newaxis, ...],
         output_array=predicted,

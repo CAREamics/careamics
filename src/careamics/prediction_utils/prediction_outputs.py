@@ -1,6 +1,6 @@
 """Module containing functions to convert prediction outputs to desired form."""
 
-from typing import Any, List, Literal, Tuple, Union, overload
+from typing import Any, Literal, Union, overload
 
 import numpy as np
 from numpy.typing import NDArray
@@ -9,7 +9,7 @@ from ..config.tile_information import TileInformation
 from .stitch_prediction import stitch_prediction
 
 
-def convert_outputs(predictions: List[Any], tiled: bool) -> list[NDArray]:
+def convert_outputs(predictions: list[Any], tiled: bool) -> list[NDArray]:
     """
     Convert the Lightning trainer outputs to the desired form.
 
@@ -25,7 +25,7 @@ def convert_outputs(predictions: List[Any], tiled: bool) -> list[NDArray]:
     Returns
     -------
     list of numpy.ndarray or numpy.ndarray
-        List of arrays with the axes SC(Z)YX. If there is only 1 output it will not
+        list of arrays with the axes SC(Z)YX. If there is only 1 output it will not
         be in a list.
     """
     if len(predictions) == 0:
@@ -44,27 +44,27 @@ def convert_outputs(predictions: List[Any], tiled: bool) -> list[NDArray]:
 # for mypy
 @overload
 def combine_batches(  # numpydoc ignore=GL08
-    predictions: List[Any], tiled: Literal[True]
-) -> Tuple[List[NDArray], List[TileInformation]]: ...
+    predictions: list[Any], tiled: Literal[True]
+) -> tuple[list[NDArray], list[TileInformation]]: ...
 
 
 # for mypy
 @overload
 def combine_batches(  # numpydoc ignore=GL08
-    predictions: List[Any], tiled: Literal[False]
-) -> List[NDArray]: ...
+    predictions: list[Any], tiled: Literal[False]
+) -> list[NDArray]: ...
 
 
 # for mypy
 @overload
 def combine_batches(  # numpydoc ignore=GL08
-    predictions: List[Any], tiled: Union[bool, Literal[True], Literal[False]]
-) -> Union[List[NDArray], Tuple[List[NDArray], List[TileInformation]]]: ...
+    predictions: list[Any], tiled: Union[bool, Literal[True], Literal[False]]
+) -> Union[list[NDArray], tuple[list[NDArray], list[TileInformation]]]: ...
 
 
 def combine_batches(
-    predictions: List[Any], tiled: bool
-) -> Union[List[NDArray], Tuple[List[NDArray], List[TileInformation]]]:
+    predictions: list[Any], tiled: bool
+) -> Union[list[NDArray], tuple[list[NDArray], list[TileInformation]]]:
     """
     If predictions are in batches, they will be combined.
 
@@ -87,8 +87,8 @@ def combine_batches(
 
 
 def _combine_tiled_batches(
-    predictions: List[Tuple[NDArray, List[TileInformation]]]
-) -> Tuple[List[NDArray], List[TileInformation]]:
+    predictions: list[tuple[NDArray, list[TileInformation]]]
+) -> tuple[list[NDArray], list[TileInformation]]:
     """
     Combine batches from tiled output.
 
@@ -109,13 +109,13 @@ def _combine_tiled_batches(
     tile_infos = [
         tile_info for _, tile_info_list in predictions for tile_info in tile_info_list
     ]
-    prediction_tiles: List[NDArray] = _combine_array_batches(
+    prediction_tiles: list[NDArray] = _combine_array_batches(
         [preds for preds, _ in predictions]
     )
     return prediction_tiles, tile_infos
 
 
-def _combine_array_batches(predictions: List[NDArray]) -> List[NDArray]:
+def _combine_array_batches(predictions: list[NDArray]) -> list[NDArray]:
     """
     Combine batches of arrays.
 

@@ -1,13 +1,13 @@
 """Utils module."""
 
 __all__ = [
-    "cwd",
-    "get_ram_size",
-    "check_path_exists",
     "BaseEnum",
-    "get_logger",
-    "get_careamics_home",
     "autocorrelation",
+    "check_path_exists",
+    "cwd",
+    "get_careamics_home",
+    "get_logger",
+    "get_ram_size",
 ]
 
 

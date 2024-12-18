@@ -2,7 +2,7 @@
 
 from fnmatch import fnmatch
 from pathlib import Path
-from typing import List, Union
+from typing import Union
 
 import numpy as np
 
@@ -12,12 +12,12 @@ from careamics.utils.logging import get_logger
 logger = get_logger(__name__)
 
 
-def get_files_size(files: List[Path]) -> float:
+def get_files_size(files: list[Path]) -> float:
     """Get files size in MB.
 
     Parameters
     ----------
-    files : List[Path]
+    files : list of pathlib.Path
         List of files.
 
     Returns
@@ -32,7 +32,7 @@ def list_files(
     data_path: Union[str, Path],
     data_type: Union[str, SupportedData],
     extension_filter: str = "",
-) -> List[Path]:
+) -> list[Path]:
     """List recursively files in `data_path` and return a sorted list.
 
     If `data_path` is a file, its name is validated against the `data_type` using
@@ -55,8 +55,8 @@ def list_files(
 
     Returns
     -------
-    List[Path]
-        List of pathlib.Path objects.
+    list[Path]
+        list of pathlib.Path objects.
 
     Raises
     ------
@@ -105,7 +105,7 @@ def list_files(
     return files
 
 
-def validate_source_target_files(src_files: List[Path], tar_files: List[Path]) -> None:
+def validate_source_target_files(src_files: list[Path], tar_files: list[Path]) -> None:
     """
     Validate source and target path lists.
 
@@ -113,9 +113,9 @@ def validate_source_target_files(src_files: List[Path], tar_files: List[Path]) -
 
     Parameters
     ----------
-    src_files : List[Path]
+    src_files : list of pathlib.Path
         List of source files.
-    tar_files : List[Path]
+    tar_files : list of pathlib.Path
         List of target files.
 
     Raises

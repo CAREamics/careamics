@@ -1,10 +1,10 @@
 """Functions relating to reading image files of different formats."""
 
 __all__ = [
+    "ReadFunc",
     "get_read_func",
     "read_tiff",
     "read_zarr",
-    "ReadFunc",
 ]
 
 from .get_func import ReadFunc, get_read_func
