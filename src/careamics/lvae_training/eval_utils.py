@@ -514,7 +514,7 @@ def get_predictions(
                 num_workers=num_workers,
             )
             # get filename without extension and path
-            filename = d._fpath.split("/")[-1].split(".")[0]
+            filename = str(d._fpath).split("/")[-1].split(".")[0]
             multifile_stitched_predictions[filename] = stitched_predictions
             multifile_stitched_stds[filename] = stitched_stds
         return (
@@ -524,14 +524,14 @@ def get_predictions(
     else:
         stitched_predictions, stitched_stds = get_single_file_mmse(
             model=model,
-            dset=d,
+            dset=dset,
             batch_size=batch_size,
             tile_size=tile_size,
             mmse_count=mmse_count,
             num_workers=num_workers,
         )
         # get filename without extension and path
-        filename = dset.fpath.split("/")[-1].split(".")[0]
+        filename = str(dset._fpath).split("/")[-1].split(".")[0]
         return (
             {filename: stitched_predictions},
             {filename: stitched_stds},
@@ -542,6 +542,7 @@ def get_single_file_predictions(
     model: VAEModule,
     dset: Dataset,
     batch_size: int,
+    subset_size: int = 1,
     tile_size: Optional[tuple[int, int]] = None,
     num_workers: int = 4,
 ) -> tuple[np.ndarray, np.ndarray]:
@@ -549,6 +550,9 @@ def get_single_file_predictions(
     if tile_size:
         dset.set_img_sz(tile_size, tile_size[-1] // 8)
 
+    dset._data = dset._data[
+        :subset_size
+    ]  # TODO: This is a hack to speed up the process. Check
     dloader = DataLoader(
         dset,
         pin_memory=False,
@@ -561,7 +565,7 @@ def get_single_file_predictions(
     tiles = []
     logvar_arr = []
     with torch.no_grad():
-        for batch in tqdm(dloader, desc="Predicting patches"):
+        for batch in tqdm(dloader, desc="Predicting tiles"):
             inp, tar = batch
             inp = inp.cuda()
             tar = tar.cuda()
@@ -607,7 +611,7 @@ def get_single_file_mmse(
     tile_stds = []
     logvar_arr = []
     with torch.no_grad():
-        for batch in tqdm(dloader, desc="Predicting patches"):
+        for batch in tqdm(dloader, desc="Predicting tiles"):
             inp, tar = batch
             inp = inp.cuda()
             tar = tar.cuda()
