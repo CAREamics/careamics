@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from matplotlib.gridspec import GridSpec
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader, Dataset, Subset
 from tqdm import tqdm
 
 from careamics.lightning import VAEModule
@@ -542,7 +542,6 @@ def get_single_file_predictions(
     model: VAEModule,
     dset: Dataset,
     batch_size: int,
-    subset_size: int = 1,
     tile_size: Optional[tuple[int, int]] = None,
     num_workers: int = 4,
 ) -> tuple[np.ndarray, np.ndarray]:
@@ -550,9 +549,6 @@ def get_single_file_predictions(
     if tile_size:
         dset.set_img_sz(tile_size, tile_size[-1] // 8)
 
-    dset._data = dset._data[
-        :subset_size
-    ]  # TODO: This is a hack to speed up the process. Check
     dloader = DataLoader(
         dset,
         pin_memory=False,
