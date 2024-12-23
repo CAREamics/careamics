@@ -130,3 +130,15 @@ class CAREDescription(AlgorithmDescription):
     """
 
     description: str = "CARE"  # TODO
+
+
+class HDNDescription(AlgorithmDescription):
+    """Description of HDN.
+
+    Attributes
+    ----------
+    description : str
+        Description of HDN.
+    """
+
+    description: str = "HDN"  # TODO

@@ -29,5 +29,5 @@ class SupportedAlgorithm(str, BaseEnum):
     """Custom algorithm, used for cases where a custom architecture is provided."""
 
     # PN2V = "pn2v"
-    # HDN = "hdn"
+    HDN = "hdn"
     # SEG = "segmentation"

@@ -37,3 +37,10 @@ CARERef = CiteEntry(
     'limits of fluorescence microscopy." Nature methods 15.12 (2018): 1090-1097.',
     doi="10.1038/s41592-018-0216-7",
 )
+
+HDNRef = CiteEntry(
+    text='Prakash, M., Delbracio, M., Milanfar, P., Jug, F. 2022. "Interpretable '
+    'Unsupervised Diversity Denoising and Artefact Removal." The International '
+    "Conference on Learning Representations (ICLR).",
+    doi="10.1561/2200000056",
+)

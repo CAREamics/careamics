@@ -38,7 +38,7 @@ class VAEAlgorithmConfig(BaseModel):
     # defined in SupportedAlgorithm
     # TODO: Use supported Enum classes for typing?
     #   - values can still be passed as strings and they will be cast to Enum
-    algorithm: Literal["musplit", "denoisplit"]
+    algorithm: Literal["hdn", "musplit", "denoisplit"]
 
     # NOTE: these are all configs (pydantic models)
     loss: LVAELossConfig
@@ -62,6 +62,13 @@ class VAEAlgorithmConfig(BaseModel):
         Self
             The validated model.
         """
+        # hdn
+        if self.algorithm == SupportedAlgorithm.HDN:
+            if self.loss.loss_type != SupportedLoss.HDN:
+                raise ValueError(
+                    f"Algorithm {self.algorithm} only supports loss `hdn`."
+                )
+
         # musplit
         if self.algorithm == SupportedAlgorithm.MUSPLIT:
             if self.loss.loss_type != SupportedLoss.MUSPLIT:
@@ -105,6 +112,12 @@ class VAEAlgorithmConfig(BaseModel):
             assert self.model.output_channels == len(self.noise_model.noise_models), (
                 f"Number of output channels ({self.model.output_channels}) must match "
                 f"the number of noise models ({len(self.noise_model.noise_models)})."
+            )
+
+        if self.algorithm == SupportedAlgorithm.HDN:
+            assert self.model.output_channels == 1, (
+                f"Number of output channels ({self.model.output_channels}) must be 1 "
+                "for algorithm `hdn`."
             )
         return self
 

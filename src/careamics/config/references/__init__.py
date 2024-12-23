@@ -10,6 +10,8 @@ __all__ = [
     "STRUCT_N2V2",
     "CAREDescription",
     "CARERef",
+    "HDNDescription",
+    "HDNRef",
     "N2NDescription",
     "N2NRef",
     "N2V2Description",
@@ -30,6 +32,7 @@ from .algorithm_descriptions import (
     STRUCT_N2V,
     STRUCT_N2V2,
     CAREDescription,
+    HDNDescription,
     N2NDescription,
     N2V2Description,
     N2VDescription,
@@ -38,6 +41,7 @@ from .algorithm_descriptions import (
 )
 from .references import (
     CARERef,
+    HDNRef,
     N2NRef,
     N2V2Ref,
     N2VRef,
