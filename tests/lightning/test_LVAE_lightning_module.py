@@ -18,7 +18,12 @@ from careamics.config.likelihood_model import (
 from careamics.config.loss_model import LVAELossConfig
 from careamics.config.nm_model import GaussianMixtureNMConfig, MultiChannelNMConfig
 from careamics.lightning import VAEModule
-from careamics.losses import denoisplit_loss, denoisplit_musplit_loss, musplit_loss
+from careamics.losses import (
+    denoisplit_loss,
+    denoisplit_musplit_loss,
+    hdn_loss,
+    musplit_loss,
+)
 from careamics.models.lvae.likelihoods import GaussianLikelihood, NoiseModelLikelihood
 from careamics.models.lvae.noise_models import (
     MultiChannelNoiseModel,
@@ -101,6 +106,7 @@ def create_split_lightning_model(
     )
 
 
+# TODO move to conftest.py as a fixture?
 class DummyDataset(Dataset):
     def __init__(
         self,
@@ -134,6 +140,66 @@ def create_dummy_dloader(
         multiscale_count=multiscale_count,
     )
     return DataLoader(dataset, batch_size=batch_size, shuffle=False)
+
+
+# TODO predict logvarr type ?
+@pytest.mark.parametrize(
+    "multiscale_count, predict_logvar, ll_type, loss_type, output_channels, exp_error",
+    [
+        (1, None, "gaussian", "hdn", 1, does_not_raise()),
+        (1, None, "nm", "hdn", 1, does_not_raise()),
+        (1, None, "gaussian", "hdn", 3, pytest.raises(ValueError)),
+        (1, "pixelwise", "nm", "hdn", 1, does_not_raise()),
+        (5, None, "nm", "hdn", 1, pytest.raises(ValueError)),
+        (1, None, "nm", "denoisplit", 1, pytest.raises(ValueError)),
+    ],
+)
+def test_hdn_lightining_init(
+    multiscale_count: int,
+    predict_logvar: str,
+    ll_type: str,
+    loss_type: str,
+    output_channels: int,
+    exp_error: Callable,
+):
+    lvae_config = LVAEModel(
+        architecture="LVAE",
+        input_shape=(64, 64),
+        multiscale_count=multiscale_count,
+        z_dims=[128, 128, 128, 128],
+        output_channels=output_channels,
+        predict_logvar=predict_logvar,
+    )
+
+    if ll_type == "gaussian":
+        gm_likelihood_config = GaussianLikelihoodConfig(
+            predict_logvar=predict_logvar,
+            logvar_lowerbound=0.0,
+        )
+        nm_likelihood_config = None
+    else:
+        nm_likelihood_config = NMLikelihoodConfig(predict_logvar=predict_logvar)
+        gm_likelihood_config = None
+
+    with exp_error:
+        vae_config = VAEAlgorithmConfig(
+            algorithm="hdn",
+            loss=LVAELossConfig(loss_type=loss_type),
+            model=lvae_config,
+            gaussian_likelihood=gm_likelihood_config,
+            noise_model_likelihood=nm_likelihood_config,
+        )
+        lightning_model = VAEModule(
+            algorithm_config=vae_config,
+        )
+        assert lightning_model is not None
+        assert isinstance(lightning_model.model, torch.nn.Module)
+        if ll_type == "gaussian":
+            assert lightning_model.noise_model is None
+            assert isinstance(lightning_model.gaussian_likelihood, GaussianLikelihood)
+        else:
+            assert lightning_model.gaussian_likelihood is None
+        assert lightning_model.loss_func == hdn_loss
 
 
 @pytest.mark.parametrize(

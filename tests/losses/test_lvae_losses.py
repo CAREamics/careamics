@@ -28,6 +28,7 @@ from careamics.losses.lvae.losses import (
     denoisplit_musplit_loss,
     get_kl_divergence_loss,
     get_reconstruction_loss,
+    hdn_loss,
     musplit_loss,
 )
 from careamics.models.lvae.likelihoods import likelihood_factory
@@ -76,9 +77,11 @@ def init_noise_model(
 @pytest.mark.parametrize(
     "loss_type, exp_loss_func, exp_error",
     [
+        (SupportedLoss.HDN, hdn_loss, does_not_raise()),
         (SupportedLoss.MUSPLIT, musplit_loss, does_not_raise()),
         (SupportedLoss.DENOISPLIT, denoisplit_loss, does_not_raise()),
         (SupportedLoss.DENOISPLIT_MUSPLIT, denoisplit_musplit_loss, does_not_raise()),
+        ("hdn", hdn_loss, does_not_raise()),
         ("musplit", musplit_loss, does_not_raise()),
         ("denoisplit", denoisplit_loss, does_not_raise()),
         ("denoisplit_musplit", denoisplit_musplit_loss, does_not_raise()),
@@ -228,6 +231,58 @@ def test_KL_divergence_loss(
     )
     assert isinstance(kl_loss, torch.Tensor)
     assert isinstance(kl_loss.item(), float)
+
+
+@pytest.mark.parametrize("batch_size", [1, 8])
+@pytest.mark.parametrize("target_ch", [1, 3])
+@pytest.mark.parametrize("n_layers", [1, 4])
+@pytest.mark.parametrize("kl_type", ["kl", "kl_restricted"])
+@pytest.mark.parametrize("likelihood_type", ["noise_model", "gaussian"])
+def test_hdn_loss(
+    tmp_path: Path,
+    batch_size: int,
+    target_ch: int,
+    n_layers: int,
+    kl_type: Literal["kl", "kl_restricted"],
+    likelihood_type: str,
+):
+    # create test data
+    img_size = 64
+    reconstruction = torch.rand((batch_size, target_ch, img_size, img_size))
+    target = torch.rand((batch_size, target_ch, img_size, img_size))
+    td_data = {
+        "z": [torch.rand(batch_size, 128, img_size, img_size) for _ in range(n_layers)],
+        "kl": [torch.rand(batch_size) for _ in range(n_layers)],
+        "kl_restricted": [torch.rand(batch_size) for _ in range(n_layers)],
+    }
+
+    # create likelihood
+    if likelihood_type == "noise_model":
+        nm = init_noise_model(tmp_path, target_ch)
+        data_mean = target.mean(dim=(0, 2, 3), keepdim=True)
+        data_std = target.std(dim=(0, 2, 3), keepdim=True)
+        nm_config = NMLikelihoodConfig(data_mean=data_mean, data_std=data_std)
+        likelihood = likelihood_factory(nm_config, noise_model=nm)
+    else:
+        ll_config = GaussianLikelihoodConfig(predict_logvar=None)
+        likelihood = likelihood_factory(ll_config)
+    # compute the loss
+    kl_params = KLLossConfig(loss_type=kl_type)
+    loss_parameters = LVAELossConfig(loss_type="hdn", kl_params=kl_params)
+    output = hdn_loss(
+        model_outputs=(reconstruction, td_data),
+        targets=target,
+        config=loss_parameters,
+        likelihood=likelihood,
+    )
+
+    # check outputs
+    # NOTE: output should not be None in these test cases
+    assert output is not None
+    assert isinstance(output, dict)
+    assert "loss" in output
+    assert "reconstruction_loss" in output
+    assert "kl_loss" in output
 
 
 @pytest.mark.parametrize("batch_size", [1, 8])

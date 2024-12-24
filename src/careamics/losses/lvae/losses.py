@@ -269,6 +269,82 @@ def _get_kl_divergence_loss_denoisplit(
 # - `__init__` method initializes the loss parameters now contained in
 # the `LVAELossParameters` class
 # NOTE: same for the other loss functions
+
+
+def hdn_loss(
+    model_outputs: tuple[torch.Tensor, dict[str, Any]],
+    targets: torch.Tensor,
+    config: LVAELossConfig,
+    likelihood: Union[GaussianLikelihood, NoiseModelLikelihood],
+) -> Optional[dict[str, torch.Tensor]]:
+    """Loss function for DenoiSplit.
+
+    Parameters
+    ----------
+    model_outputs : tuple[torch.Tensor, dict[str, Any]]
+        Tuple containing the model predictions (shape is (B, `target_ch`, [Z], Y, X))
+        and the top-down layer data (e.g., sampled latents, KL-loss values, etc.).
+    targets : torch.Tensor
+        The target image used to compute the reconstruction loss. Shape is
+        (B, `target_ch`, [Z], Y, X).
+    config : LVAELossConfig
+        The config for loss function containing all loss hyperparameters.
+    gaussian_likelihood : GaussianLikelihood
+        The Gaussian likelihood object.
+    noise_model_likelihood : NoiseModelLikelihood
+        The noise model likelihood object.
+
+    Returns
+    -------
+    output : Optional[dict[str, torch.Tensor]]
+        A dictionary containing the overall loss `["loss"]`, the reconstruction loss
+        `["reconstruction_loss"]`, and the KL divergence loss `["kl_loss"]`.
+    """
+    predictions, td_data = model_outputs
+
+    # Reconstruction loss computation
+    recons_loss = config.reconstruction_weight * get_reconstruction_loss(
+        reconstruction=predictions,
+        target=targets,
+        likelihood_obj=likelihood,
+    )
+    if torch.isnan(recons_loss).any():
+        recons_loss = 0.0
+
+    # KL loss computation
+    kl_weight = get_kl_weight(
+        config.kl_params.annealing,
+        config.kl_params.start,
+        config.kl_params.annealtime,
+        config.kl_weight,
+        config.kl_params.current_epoch,
+    )
+    kl_loss = (
+        _get_kl_divergence_loss_denoisplit(
+            topdown_data=td_data,
+            img_shape=targets.shape[2:],
+            kl_type=config.kl_params.loss_type,
+        )
+        * kl_weight
+    )
+
+    net_loss = recons_loss + kl_loss
+    output = {
+        "loss": net_loss,
+        "reconstruction_loss": (
+            recons_loss.detach()
+            if isinstance(recons_loss, torch.Tensor)
+            else recons_loss
+        ),
+        "kl_loss": kl_loss.detach(),
+    }
+    # https://github.com/openai/vdvae/blob/main/train.py#L26
+    if torch.isnan(net_loss).any():
+        return None
+
+    return output
+
+
 def musplit_loss(
     model_outputs: tuple[torch.Tensor, dict[str, Any]],
     targets: torch.Tensor,
