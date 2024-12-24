@@ -68,3 +68,11 @@ def test_no_noise_model_error_denoisplit(minimum_algorithm_denoisplit):
     minimum_algorithm_denoisplit["noise_model"] = None
     with pytest.raises(ValueError):
         VAEAlgorithmConfig(**minimum_algorithm_denoisplit)
+
+
+def test_no_multiscale_hdn(minimum_algorithm_hdn):
+    """Test that the multiscale model is not provided for HDN."""
+    _ = VAEAlgorithmConfig(**minimum_algorithm_hdn)
+    minimum_algorithm_hdn["model"]["multiscale_count"] = 2
+    with pytest.raises(ValueError):
+        VAEAlgorithmConfig(**minimum_algorithm_hdn)

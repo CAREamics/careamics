@@ -68,7 +68,8 @@ class VAEAlgorithmConfig(BaseModel):
                 raise ValueError(
                     f"Algorithm {self.algorithm} only supports loss `hdn`."
                 )
-
+            if self.model.multiscale_count > 1:
+                raise ValueError("Algorithm `hdn` does not support multiscale models.")
         # musplit
         if self.algorithm == SupportedAlgorithm.MUSPLIT:
             if self.loss.loss_type != SupportedLoss.MUSPLIT:

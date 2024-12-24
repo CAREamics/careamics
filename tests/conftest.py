@@ -7,6 +7,7 @@ from torch import nn, ones
 
 from careamics import CAREamist, Configuration
 from careamics.config import register_model
+from careamics.config.loss_model import LVAELossConfig
 from careamics.config.support import SupportedArchitecture, SupportedData
 from careamics.model_io import export_to_bmz
 
@@ -105,6 +106,34 @@ def minimum_algorithm_supervised() -> dict:
         "loss": "mae",
         "model": {
             "architecture": "UNet",
+        },
+    }
+
+    return algorithm
+
+
+@pytest.fixture
+def minimum_algorithm_hdn() -> dict:
+    """Create a minimum algorithm dictionary.
+
+    Returns
+    -------
+    dict
+        A minimum algorithm example.
+    """
+    # create dictionary
+    algorithm = {
+        "algorithm_type": "vae",
+        "algorithm": "hdn",
+        "loss": LVAELossConfig(loss_type="hdn"),
+        "model": {
+            "architecture": "LVAE",
+            "z_dims": (128, 128, 128),
+            "multiscale_count": 1,
+            "predict_logvar": "pixelwise",
+        },
+        "likelihood": {
+            "type": "GaussianLikelihoodConfig",
         },
     }
 
