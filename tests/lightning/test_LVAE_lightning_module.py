@@ -545,6 +545,39 @@ def test_denoisplit_validation_step(
 
 
 @pytest.mark.parametrize("batch_size", [1, 8])
+@pytest.mark.parametrize("predict_logvar", [None, "pixelwise"])
+def test_training_loop_hdn(
+    tmp_path: Path,
+    batch_size: int,
+    predict_logvar: str,
+):
+    lightning_model = create_vae_lightning_model(
+        tmp_path=tmp_path,
+        algorithm="hdn",
+        loss_type="hdn",
+        multiscale_count=1,
+        predict_logvar=predict_logvar,
+        target_ch=1,
+    )
+    dloader = create_dummy_dloader(
+        batch_size=batch_size,
+        img_size=64,
+        multiscale_count=1,
+        target_ch=1,
+    )
+    trainer = Trainer(accelerator="cpu", max_epochs=2, logger=False, callbacks=[])
+
+    try:
+        trainer.fit(
+            model=lightning_model,
+            train_dataloaders=dloader,
+            val_dataloaders=dloader,
+        )
+    except Exception as e:
+        pytest.fail(f"Training routine failed with exception: {e}")
+
+
+@pytest.mark.parametrize("batch_size", [1, 8])
 @pytest.mark.parametrize("multiscale_count", [1, 5])
 @pytest.mark.parametrize("predict_logvar", [None, "pixelwise"])
 @pytest.mark.parametrize("target_ch", [1, 3])
