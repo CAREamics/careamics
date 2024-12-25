@@ -275,7 +275,8 @@ def hdn_loss(
     model_outputs: tuple[torch.Tensor, dict[str, Any]],
     targets: torch.Tensor,
     config: LVAELossConfig,
-    likelihood: Union[GaussianLikelihood, NoiseModelLikelihood],
+    gaussian_likelihood: Optional[GaussianLikelihood],
+    noise_model_likelihood: Optional[NoiseModelLikelihood],
 ) -> Optional[dict[str, torch.Tensor]]:
     """Loss function for DenoiSplit.
 
@@ -300,6 +301,13 @@ def hdn_loss(
         A dictionary containing the overall loss `["loss"]`, the reconstruction loss
         `["reconstruction_loss"]`, and the KL divergence loss `["kl_loss"]`.
     """
+    if gaussian_likelihood is not None:
+        likelihood = gaussian_likelihood
+    elif noise_model_likelihood is not None:
+        likelihood = noise_model_likelihood
+    else:
+        raise ValueError("Invalid likelihood object.")
+    # TODO refactor loss signature
     predictions, td_data = model_outputs
 
     # Reconstruction loss computation

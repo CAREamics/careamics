@@ -51,10 +51,11 @@ def create_dummy_noise_model(
 
 # TODO: move to conftest.py as pytest.fixture
 # it can be split into modules for more clarity (?)
-def create_split_lightning_model(
+def create_vae_lightning_model(
     tmp_path: Path,
     algorithm: str,
     loss_type: str,
+    ll_type: str = "gaussian",  # TODO revisit
     multiscale_count: int = 1,
     predict_logvar: Optional[Literal["pixelwise"]] = None,
     target_ch: int = 1,
@@ -77,8 +78,17 @@ def create_split_lightning_model(
             predict_logvar=predict_logvar,
             logvar_lowerbound=0.0,
         )
+    elif loss_type == "hdn":
+        if ll_type == "gaussian":
+            gaussian_lik_config = GaussianLikelihoodConfig(
+                predict_logvar=predict_logvar,
+                logvar_lowerbound=0.0,
+            )
+        elif ll_type == "nm":
+            gaussian_lik_config = None
     else:
         gaussian_lik_config = None
+
     # noise model likelihood
     if loss_type in ["denoisplit", "denoisplit_musplit"]:
         create_dummy_noise_model(tmp_path, 3, 3)
@@ -88,6 +98,18 @@ def create_split_lightning_model(
         )
         noise_model_config = MultiChannelNMConfig(noise_models=[gmm] * target_ch)
         nm_lik_config = NMLikelihoodConfig()
+    elif loss_type == "hdn":
+        if ll_type == "gaussian":
+            noise_model_config = None
+            nm_lik_config = None
+        elif ll_type == "nm":
+            create_dummy_noise_model(tmp_path, 3, 3)
+            gmm = GaussianMixtureNMConfig(
+                model_type="GaussianMixtureNoiseModel",
+                path=tmp_path / "dummy_noise_model.npz",
+            )
+            noise_model_config = MultiChannelNMConfig(noise_models=[gmm] * target_ch)
+            nm_lik_config = NMLikelihoodConfig()
     else:
         noise_model_config = None
         nm_lik_config = None
@@ -333,6 +355,41 @@ def test_denoisplit_lightining_init(
 
 
 @pytest.mark.parametrize("batch_size", [1, 8])
+@pytest.mark.parametrize("ll_type", ["gaussian", "nm"])
+@pytest.mark.parametrize("predict_logvar", [None, "pixelwise"])
+def test_hdn_training_step(
+    tmp_path: Path,
+    batch_size: int,
+    ll_type: str,
+    predict_logvar: str,
+):
+    lightning_model = create_vae_lightning_model(
+        tmp_path=tmp_path,
+        algorithm="hdn",
+        loss_type="hdn",
+        ll_type=ll_type,
+        multiscale_count=1,
+        predict_logvar=predict_logvar,
+        target_ch=1,
+    )
+    dloader = create_dummy_dloader(
+        batch_size=batch_size,
+        img_size=64,
+        multiscale_count=1,
+        target_ch=1,
+    )
+    batch = next(iter(dloader))
+    train_loss = lightning_model.training_step(batch=batch, batch_idx=0)
+
+    # check outputs
+    assert train_loss is not None
+    assert isinstance(train_loss, dict)
+    assert "loss" in train_loss
+    assert "reconstruction_loss" in train_loss
+    assert "kl_loss" in train_loss
+
+
+@pytest.mark.parametrize("batch_size", [1, 8])
 @pytest.mark.parametrize("multiscale_count", [1, 5])
 @pytest.mark.parametrize("predict_logvar", [None, "pixelwise"])
 @pytest.mark.parametrize("target_ch", [1, 3])
@@ -342,7 +399,7 @@ def test_musplit_training_step(
     predict_logvar: str,
     target_ch: int,
 ):
-    lightning_model = create_split_lightning_model(
+    lightning_model = create_vae_lightning_model(
         tmp_path=None,
         algorithm="musplit",
         loss_type="musplit",
@@ -377,7 +434,7 @@ def test_musplit_validation_step(
     predict_logvar: str,
     target_ch: int,
 ):
-    lightning_model = create_split_lightning_model(
+    lightning_model = create_vae_lightning_model(
         tmp_path=None,
         algorithm="musplit",
         loss_type="musplit",
@@ -420,7 +477,7 @@ def test_denoisplit_training_step(
     target_ch: int,
     loss_type: str,
 ):
-    lightning_model = create_split_lightning_model(
+    lightning_model = create_vae_lightning_model(
         tmp_path=tmp_path,
         algorithm="denoisplit",
         loss_type=loss_type,
@@ -469,7 +526,7 @@ def test_denoisplit_validation_step(
     target_ch: int,
     loss_type: str,
 ):
-    lightning_model = create_split_lightning_model(
+    lightning_model = create_vae_lightning_model(
         tmp_path=tmp_path,
         algorithm="denoisplit",
         loss_type=loss_type,
@@ -497,7 +554,7 @@ def test_training_loop_musplit(
     predict_logvar: str,
     target_ch: int,
 ):
-    lightning_model = create_split_lightning_model(
+    lightning_model = create_vae_lightning_model(
         tmp_path=None,
         algorithm="musplit",
         loss_type="musplit",
@@ -547,7 +604,7 @@ def test_training_loop_denoisplit(
     target_ch: int,
     loss_type: str,
 ):
-    lightning_model = create_split_lightning_model(
+    lightning_model = create_vae_lightning_model(
         tmp_path=tmp_path,
         algorithm="denoisplit",
         loss_type=loss_type,
@@ -579,7 +636,7 @@ def test_get_reconstructed_tensor(
     predict_logvar: str,
     target_ch: int,
 ):
-    lightning_model = create_split_lightning_model(
+    lightning_model = create_vae_lightning_model(
         tmp_path=None,
         algorithm="musplit",
         loss_type="musplit",
@@ -605,7 +662,7 @@ def test_val_PSNR_computation(
     predict_logvar: str,
     target_ch: int,
 ):
-    lightning_model = create_split_lightning_model(
+    lightning_model = create_vae_lightning_model(
         tmp_path=None,
         algorithm="musplit",
         loss_type="musplit",
