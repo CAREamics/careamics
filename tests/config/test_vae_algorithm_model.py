@@ -84,3 +84,15 @@ def test_target_channel_hdn(minimum_algorithm_hdn):
     minimum_algorithm_hdn["model"]["output_channels"] = 2
     with pytest.raises(ValueError):
         VAEAlgorithmConfig(**minimum_algorithm_hdn)
+
+
+def test_logvar_hdn(minimum_algorithm_hdn):
+    """Test that the logvar is not provided for HDN."""
+    _ = VAEAlgorithmConfig(**minimum_algorithm_hdn)
+    minimum_algorithm_hdn["model"]["predict_logvar"] = "pixelwise"
+    with pytest.raises(ValueError):
+        VAEAlgorithmConfig(**minimum_algorithm_hdn)
+    minimum_algorithm_hdn["model"]["predict_logvar"] = None
+    minimum_algorithm_hdn["gaussian_likelihood"].predict_logvar = "pixelwise"
+    with pytest.raises(ValueError):
+        VAEAlgorithmConfig(**minimum_algorithm_hdn)

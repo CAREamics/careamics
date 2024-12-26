@@ -238,7 +238,7 @@ class GaussianLikelihood(LikelihoodModule):
     def log_likelihood(
         self, x: torch.Tensor, params: dict[str, Union[torch.Tensor, None]]
     ):
-        """Compute Gaussian log-likelihood
+        """Compute Gaussian log-likelihood.
 
         Parameters
         ----------
@@ -263,8 +263,9 @@ class GaussianLikelihood(LikelihoodModule):
 def log_normal(
     x: torch.Tensor, mean: torch.Tensor, logvar: torch.Tensor
 ) -> torch.Tensor:
-    """
-    Compute the log-probability at `x` of a Gaussian distribution
+    r"""Compute the log-probability.
+
+    at `x` of a Gaussian distribution
     with parameters `(mean, exp(logvar))`.
 
     NOTE: In the case of LVAE, the log-likeihood formula becomes:
@@ -349,7 +350,8 @@ class NoiseModelLikelihood(LikelihoodModule):
         return params["mean"]
 
     def log_likelihood(self, x: torch.Tensor, params: dict[str, torch.Tensor]):
-        """Compute the log-likelihood given the parameters `params` obtained
+        """Compute the log-likelihood given the parameters `params` obtained.
+
         from the reconstruction tensor and the target tensor `x`.
 
         Parameters

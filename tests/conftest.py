@@ -7,6 +7,7 @@ from torch import nn, ones
 
 from careamics import CAREamist, Configuration
 from careamics.config import register_model
+from careamics.config.likelihood_model import GaussianLikelihoodConfig
 from careamics.config.loss_model import LVAELossConfig
 from careamics.config.support import SupportedArchitecture, SupportedData
 from careamics.model_io import export_to_bmz
@@ -130,11 +131,9 @@ def minimum_algorithm_hdn() -> dict:
             "architecture": "LVAE",
             "z_dims": (128, 128, 128),
             "multiscale_count": 1,
-            "predict_logvar": "pixelwise",
+            "predict_logvar": None,
         },
-        "likelihood": {
-            "type": "GaussianLikelihoodConfig",
-        },
+        "gaussian_likelihood": GaussianLikelihoodConfig(predict_logvar=None),
     }
 
     return algorithm
@@ -161,7 +160,7 @@ def minimum_algorithm_musplit() -> dict:
             "multiscale_count": 2,
             "predict_logvar": "pixelwise",
         },
-        "likelihood": {
+        "gaussian_likelihood": {
             "type": "GaussianLikelihoodConfig",
         },
     }

@@ -139,6 +139,15 @@ class VAEAlgorithmConfig(BaseModel):
                 "Gaussian likelihood model `predict_logvar` "
                 f"({self.gaussian_likelihood.predict_logvar}).",
             )
+        if self.algorithm == SupportedAlgorithm.HDN:
+            assert (
+                self.model.predict_logvar is None
+            ), "Model `predict_logvar` must be `None` for algorithm `hdn`."
+            if self.gaussian_likelihood is not None:
+                assert self.gaussian_likelihood.predict_logvar is None, (
+                    "Gaussian likelihood model `predict_logvar` must be `None` "
+                    "for algorithm `hdn`."
+                )
         return self
 
     def __str__(self) -> str:
