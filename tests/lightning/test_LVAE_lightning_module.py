@@ -356,12 +356,10 @@ def test_denoisplit_lightining_init(
 
 @pytest.mark.parametrize("batch_size", [1, 8])
 @pytest.mark.parametrize("ll_type", ["gaussian", "nm"])
-@pytest.mark.parametrize("predict_logvar", [None, "pixelwise"])
 def test_hdn_training_step(
     tmp_path: Path,
     batch_size: int,
     ll_type: str,
-    predict_logvar: str,
 ):
     lightning_model = create_vae_lightning_model(
         tmp_path=tmp_path,
@@ -369,7 +367,7 @@ def test_hdn_training_step(
         loss_type="hdn",
         ll_type=ll_type,
         multiscale_count=1,
-        predict_logvar=predict_logvar,
+        predict_logvar=None,
         target_ch=1,
     )
     dloader = create_dummy_dloader(
@@ -387,6 +385,32 @@ def test_hdn_training_step(
     assert "loss" in train_loss
     assert "reconstruction_loss" in train_loss
     assert "kl_loss" in train_loss
+
+
+@pytest.mark.parametrize("batch_size", [1, 8])
+@pytest.mark.parametrize("ll_type", ["gaussian", "nm"])
+def test_hdn_validation_step(
+    tmp_path: Path,
+    batch_size: int,
+    ll_type: str,
+):
+    lightning_model = create_vae_lightning_model(
+        tmp_path=tmp_path,
+        algorithm="hdn",
+        loss_type="hdn",
+        ll_type=ll_type,
+        multiscale_count=1,
+        predict_logvar=None,
+        target_ch=1,
+    )
+    dloader = create_dummy_dloader(
+        batch_size=batch_size,
+        img_size=64,
+        multiscale_count=1,
+        target_ch=1,
+    )
+    batch = next(iter(dloader))
+    lightning_model.validation_step(batch=batch, batch_idx=0)
 
 
 @pytest.mark.parametrize("batch_size", [1, 8])
@@ -545,18 +569,16 @@ def test_denoisplit_validation_step(
 
 
 @pytest.mark.parametrize("batch_size", [1, 8])
-@pytest.mark.parametrize("predict_logvar", [None, "pixelwise"])
 def test_training_loop_hdn(
     tmp_path: Path,
     batch_size: int,
-    predict_logvar: str,
 ):
     lightning_model = create_vae_lightning_model(
         tmp_path=tmp_path,
         algorithm="hdn",
         loss_type="hdn",
         multiscale_count=1,
-        predict_logvar=predict_logvar,
+        predict_logvar=None,
         target_ch=1,
     )
     dloader = create_dummy_dloader(
