@@ -262,10 +262,13 @@ def test_hdn_loss(
         data_mean = target.mean(dim=(0, 2, 3), keepdim=True)
         data_std = target.std(dim=(0, 2, 3), keepdim=True)
         nm_config = NMLikelihoodConfig(data_mean=data_mean, data_std=data_std)
-        likelihood = likelihood_factory(nm_config, noise_model=nm)
+        nm_likelihood = likelihood_factory(nm_config, noise_model=nm)
+        gaussian_likelihood = None
     else:
         ll_config = GaussianLikelihoodConfig(predict_logvar=None)
-        likelihood = likelihood_factory(ll_config)
+        gaussian_likelihood = likelihood_factory(ll_config)
+        nm_likelihood = None
+
     # compute the loss
     kl_params = KLLossConfig(loss_type=kl_type)
     loss_parameters = LVAELossConfig(loss_type="hdn", kl_params=kl_params)
@@ -273,7 +276,8 @@ def test_hdn_loss(
         model_outputs=(reconstruction, td_data),
         targets=target,
         config=loss_parameters,
-        likelihood=likelihood,
+        gaussian_likelihood=gaussian_likelihood,
+        noise_model_likelihood=nm_likelihood,
     )
 
     # check outputs
