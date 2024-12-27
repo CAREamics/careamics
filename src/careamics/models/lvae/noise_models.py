@@ -385,14 +385,6 @@ class GaussianMixtureNoiseModel(nn.Module):
             Likelihood of observations given the signals and the GMM noise model
 
         """
-        if self.mode != "train":
-            signals = signals.cpu()
-            observations = observations.cpu()
-        self.weight = self.weight.to(signals.device)
-        self.min_signal = self.min_signal.to(signals.device)
-        self.max_signal = self.max_signal.to(signals.device)
-        self.tol = self.tol.to(signals.device)
-
         gaussianParameters = self.getGaussianParameters(signals)
         p = 0
         for gaussian in range(self.n_gaussian):
