@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 from typing import TYPE_CHECKING, Optional
 
+from numpy.typing import NDArray
 import numpy as np
 import torch
 import torch.nn as nn
@@ -13,63 +14,62 @@ if TYPE_CHECKING:
 # TODO this module shouldn't be in lvae folder
 
 
-def create_histogram(bins, min_val, max_val, observation, signal):
+def create_histogram(
+    bins: int, min_val: float, max_val: float, observation: NDArray, signal: NDArray
+) -> NDArray:
     """
     Creates a 2D histogram from 'observation' and 'signal'.
 
     Parameters
     ----------
-    bins: int
-        The number of bins in x and y. The total number of 2D bins is 'bins'**2.
-    min_val: float
-        the lower bound of the lowest bin in x and y.
-    max_val: float
-        the highest bound of the highest bin in x and y.
-    observation: numpy array
-        A 3D numpy array that is interpretted as a stack of 2D images.
-        The number of images has to be divisible by the number of images in 'signal'.
-        It is assumed that n subsequent images in observation belong to one image image in 'signal'.
-    signal: numpy array
-        A 3D numpy array that is interpretted as a stack of 2D images.
+    bins : int
+        Number of bins in x and y.
+    min_val : float
+        Lower bound of the lowest bin in x and y.
+    max_val : float
+        Upper bound of the highest bin in x and y.
+    observation : np.ndarray
+        3D numpy array (stack of 2D images).
+        Observation.shape[0] must be divisible by signal.shape[0].
+        Assumes that n subsequent images in observation belong to one image in 'signal'.
+    signal : np.ndarray
+        3D numpy array (stack of 2D images).
 
     Returns
     -------
-    histogram: numpy array
+    histogram : np.ndarray
         A 3D array:
-        'histogram[0,...]' holds the normalized 2D counts.
-        Each row sums to 1, describing p(x_i|s_i).
-        'histogram[1,...]' holds the lower boundaries of each bin in y.
-        'histogram[2,...]' holds the upper boundaries of each bin in y.
-        The values for x can be obtained by transposing 'histogram[1,...]' and 'histogram[2,...]'.
+        - histogram[0]: Normalized 2D counts.
+        - histogram[1]: Lower boundaries of bins along y.
+        - histogram[2]: Upper boundaries of bins along y.
+    The values for x can be obtained by transposing 'histogram[1]' and 'histogram[2]'.
     """
-    # TODO refactor this function
-    img_factor = int(observation.shape[0] / signal.shape[0])
+    assert len(signal.shape) == 3, "Signal array must have shape (S, Y, X)"
+    assert len(observation.shape) == 3, "Observation array must have shape (S, Y, X)"
+
     histogram = np.zeros((3, bins, bins))
-    ra = [min_val, max_val]
 
-    for i in range(observation.shape[0]):
-        observation_ = observation[i].copy().ravel()
+    value_range = [min_val, max_val]
 
-        signal_ = (signal[i // img_factor].copy()).ravel()
-        a = np.histogram2d(signal_, observation_, bins=bins, range=[ra, ra])
-        histogram[0] = histogram[0] + a[0] + 1e-30  # This is for numerical stability
+    # Compute mapping factor between observation and signal samples
+    obs_to_signal_shape_factor = int(observation.shape[0] / signal.shape[0])
 
-    for i in range(bins):
-        if (
-            np.sum(histogram[0, i, :]) > 1e-20
-        ):  # We exclude empty rows from normalization
-            histogram[0, i, :] /= np.sum(
-                histogram[0, i, :]
-            )  # we normalize each non-empty row
+    # Flatten arrays and align signal values
+    signal_indices = np.arange(observation.shape[0]) // obs_to_signal_shape_factor
+    signal_values = signal[signal_indices].ravel()
+    observation_values = observation.ravel()
 
-    for i in range(bins):
-        histogram[1, :, i] = a[1][
-            :-1
-        ]  # The lower boundaries of each bin in y are stored in dimension 1
-        histogram[2, :, i] = a[1][
-            1:
-        ]  # The upper boundaries of each bin in y are stored in dimension 2
-        # The accordent numbers for x are just transopsed.
+    count_histogram, signal_edges, _ = np.histogram2d(
+        signal_values, observation_values, bins=bins, range=[value_range, value_range]
+    )
+
+    # Normalize rows to obtain probabilities
+    row_sums = count_histogram.sum(axis=1, keepdims=True)
+    count_histogram /= np.clip(row_sums, a_min=1e-20, a_max=None)
+
+    histogram[0] = count_histogram
+    histogram[1] = signal_edges[:-1][..., np.newaxis]
+    histogram[2] = signal_edges[1:][..., np.newaxis]
 
     return histogram
 
