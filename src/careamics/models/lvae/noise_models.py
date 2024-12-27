@@ -579,6 +579,42 @@ class GaussianMixtureNoiseModel(nn.Module):
         self.max_signal = self.max_signal.cpu().detach().numpy()
         print("===================\n")
 
+    def sample_noise(self, signal_image):
+        assert len(signal_image.shape) == 2, "Only supports 2D input"
+
+        signal_tensor = torch.from_numpy(signal_image)
+        height, width = signal_tensor.shape
+
+        with torch.no_grad():
+            params = self.getGaussianParameters(signal_tensor)
+
+            mus = np.array(params[: self.n_gaussian])
+            stds = np.array(params[self.n_gaussian : self.n_gaussian * 2])
+            alphas = np.array(params[self.n_gaussian * 2 :])
+
+            if self.n_gaussian == 1:
+                noise_image = np.random.normal(
+                    loc=mus[0], scale=stds[0], size=(height, width)
+                )
+            else:
+                uniform = np.random.rand(height, width)
+                cumulative_alphas = np.cumsum(alphas, axis=0)
+                cumulative_alphas = np.moveaxis(cumulative_alphas, 0, -1)
+
+                selected_component = np.argmax(
+                    uniform[..., None] < cumulative_alphas, axis=-1
+                )
+
+                rows, cols = np.ogrid[:height, :width]
+                selected_mus = mus[selected_component, rows, cols]
+                selected_stds = stds[selected_component, rows, cols]
+
+                noise_image = np.random.normal(
+                    selected_mus, selected_stds, size=(height, width)
+                )
+
+        return noise_image
+
     def save(self, path: str, name: str):
         """Save the trained parameters on the noise model.
 
