@@ -13,7 +13,12 @@ from pytorch_lightning.callbacks import (
 )
 from pytorch_lightning.loggers import CSVLogger, TensorBoardLogger, WandbLogger
 
-from careamics.config import Configuration, FCNAlgorithmConfig, load_configuration
+from careamics.config import (
+    Configuration,
+    FCNAlgorithmConfig,
+    VAEAlgorithmConfig,
+    load_configuration,
+)
 from careamics.config.support import (
     SupportedAlgorithm,
     SupportedArchitecture,
@@ -28,6 +33,7 @@ from careamics.lightning import (
     PredictDataModule,
     ProgressBarCallback,
     TrainDataModule,
+    VAEModule,
     create_predict_datamodule,
 )
 from careamics.model_io import export_to_bmz, load_pretrained
@@ -139,6 +145,10 @@ class CAREamist:
             # instantiate model
             if isinstance(self.cfg.algorithm_config, FCNAlgorithmConfig):
                 self.model = FCNModule(
+                    algorithm_config=self.cfg.algorithm_config,
+                )
+            elif isinstance(self.cfg.algorithm_config, VAEAlgorithmConfig):
+                self.model = VAEModule(
                     algorithm_config=self.cfg.algorithm_config,
                 )
             else:

@@ -126,14 +126,16 @@ def minimum_algorithm_hdn() -> dict:
     algorithm = {
         "algorithm_type": "vae",
         "algorithm": "hdn",
-        "loss": LVAELossConfig(loss_type="hdn"),
+        "loss": LVAELossConfig(loss_type="hdn").model_dump(),
         "model": {
             "architecture": "LVAE",
             "z_dims": (128, 128, 128),
             "multiscale_count": 1,
             "predict_logvar": None,
         },
-        "gaussian_likelihood": GaussianLikelihoodConfig(predict_logvar=None),
+        "gaussian_likelihood": GaussianLikelihoodConfig(
+            predict_logvar=None
+        ).model_dump(),
     }
 
     return algorithm
@@ -277,6 +279,39 @@ def minimum_configuration(
     configuration = {
         "experiment_name": "LevitatingFrog",
         "algorithm_config": minimum_algorithm_n2v,
+        "training_config": minimum_training,
+        "data_config": minimum_data,
+    }
+
+    return configuration
+
+
+@pytest.fixture
+def minimum_configuration_hdn(
+    minimum_algorithm_hdn: dict, minimum_data: dict, minimum_training: dict
+) -> dict:
+    """Create a minimum configuration dictionary.
+
+    Parameters
+    ----------
+    tmp_path : Path
+        Temporary path for testing.
+    minimum_algorithm : dict
+        Minimum algorithm configuration.
+    minimum_data : dict
+        Minimum data configuration.
+    minimum_training : dict
+        Minimum training configuration.
+
+    Returns
+    -------
+    dict
+        A minumum configuration example.
+    """
+    # create dictionary
+    configuration = {
+        "experiment_name": "LevitatingFrog",
+        "algorithm_config": minimum_algorithm_hdn,
         "training_config": minimum_training,
         "data_config": minimum_data,
     }
