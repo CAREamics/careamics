@@ -16,7 +16,7 @@ class LVAEModel(ArchitectureModel):
 
     architecture: Literal["LVAE"]
     input_shape: list[int] = Field(default=(64, 64), validate_default=True)
-    """Shape of the input patch (C, Z, Y, X) or (C, Y, X) if the data is 2D."""
+    """Shape of the input patch (Z, Y, X) or (Y, X) if the data is 2D."""
     encoder_conv_strides: list = Field(default=[2, 2], validate_default=True)
     # TODO make this per hierarchy step ?
     decoder_conv_strides: list = Field(default=[2, 2], validate_default=True)
@@ -250,4 +250,4 @@ class LVAEModel(ArchitectureModel):
         bool
             Whether the model is 3D or not.
         """
-        return self.conv_dims == 3
+        return len(self.input_shape) == 3

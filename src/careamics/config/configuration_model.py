@@ -219,7 +219,11 @@ class Configuration(BaseModel):
         Self
             Validated configuration.
         """
-        if self.algorithm_config.algorithm != SupportedAlgorithm.CUSTOM:
+        if (
+            self.algorithm_config.algorithm != SupportedAlgorithm.CUSTOM
+            and self.algorithm_config.model.architecture != "LVAE"
+        ):
+            # TODO for LVAE we need to check this differently
             if "Z" in self.data_config.axes and not self.algorithm_config.model.is_3D():
                 # change algorithm to 3D
                 self.algorithm_config.model.set_3D(True)
@@ -311,6 +315,7 @@ class Configuration(BaseModel):
         ValueError
             If the algorithm is not N2V.
         """
+        # TODO refac to remove algorithm specific parameters
         if self.algorithm_config.algorithm == SupportedAlgorithm.N2V:
             self.algorithm_config.model.n2v2 = use_n2v2
             strategy = (
@@ -335,6 +340,7 @@ class Configuration(BaseModel):
         mask_span : int
             Span of the structural mask.
         """
+        # TODO refac to remove algorithm specific parameters
         self.data_config.set_structN2V_mask(mask_axis, mask_span)
 
     def get_algorithm_flavour(self) -> str:
