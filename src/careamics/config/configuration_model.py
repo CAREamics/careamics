@@ -34,11 +34,8 @@ from .references import (
     StructN2VDescription,
     StructN2VRef,
 )
-from .support import SupportedAlgorithm, SupportedPixelManipulation, SupportedTransform
+from .support import SupportedAlgorithm, SupportedPixelManipulation
 from .training_model import TrainingConfig
-from .transformations.n2v_manipulate_model import (
-    N2VManipulateModel,
-)
 from .vae_algorithm_model import VAEAlgorithmConfig
 
 
@@ -231,41 +228,6 @@ class Configuration(BaseModel):
 
         return self
 
-    @model_validator(mode="after")
-    def validate_algorithm_and_data(self: Self) -> Self:
-        """
-        Validate algorithm and data compatibility.
-
-        In particular, the validation does the following:
-
-        - If N2V is used, it enforces the presence of N2V_Maniuplate in the transforms
-        - If N2V2 is used, it enforces the correct manipulation strategy
-
-        Returns
-        -------
-        Self
-            Validated configuration.
-        """
-        if self.algorithm_config.algorithm == SupportedAlgorithm.N2V:
-            # missing N2V_MANIPULATE
-            if not self.data_config.has_n2v_manipulate():
-                self.data_config.transforms.append(
-                    N2VManipulateModel(
-                        name=SupportedTransform.N2V_MANIPULATE.value,
-                    )
-                )
-
-            median = SupportedPixelManipulation.MEDIAN.value
-            uniform = SupportedPixelManipulation.UNIFORM.value
-            strategy = median if self.algorithm_config.model.n2v2 else uniform
-            self.data_config.set_N2V2_strategy(strategy)
-        else:
-            # remove N2V manipulate if present
-            if self.data_config.has_n2v_manipulate():
-                self.data_config.remove_n2v_manipulate()
-
-        return self
-
     def __str__(self) -> str:
         """
         Pretty string reprensenting the configuration.
@@ -321,21 +283,6 @@ class Configuration(BaseModel):
             self.data_config.set_N2V2_strategy(strategy)
         else:
             raise ValueError("N2V2 can only be set for N2V algorithm.")
-
-    def set_structN2V(
-        self, mask_axis: Literal["horizontal", "vertical", "none"], mask_span: int
-    ) -> None:
-        """
-        Set StructN2V parameters.
-
-        Parameters
-        ----------
-        mask_axis : Literal["horizontal", "vertical", "none"]
-            Axis of the structural mask.
-        mask_span : int
-            Span of the structural mask.
-        """
-        self.data_config.set_structN2V_mask(mask_axis, mask_span)
 
     def get_algorithm_flavour(self) -> str:
         """
