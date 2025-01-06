@@ -18,7 +18,7 @@ from pydantic import (
 from typing_extensions import Self
 
 from .support import SupportedTransform
-from .transformations import TRANSFORMS_UNION, N2VManipulateModel
+from .transformations import TRANSFORMS_UNION
 from .validators import check_axes_validity, patch_size_ge_than_8_power_of_2
 
 
@@ -134,9 +134,6 @@ class DataConfig(BaseModel):
             {
                 "name": SupportedTransform.XY_RANDOM_ROTATE90.value,
             },
-            {
-                "name": SupportedTransform.N2V_MANIPULATE.value,
-            },
         ],
         validate_default=True,
     )
@@ -209,48 +206,6 @@ class DataConfig(BaseModel):
         check_axes_validity(axes)
 
         return axes
-
-    @field_validator("transforms")
-    @classmethod
-    def validate_prediction_transforms(
-        cls, transforms: list[TRANSFORMS_UNION]
-    ) -> list[TRANSFORMS_UNION]:
-        """
-        Validate N2VManipulate transform position in the transform list.
-
-        Parameters
-        ----------
-        transforms : list[Transformations_Union]
-            Transforms.
-
-        Returns
-        -------
-        list of transforms
-            Validated transforms.
-
-        Raises
-        ------
-        ValueError
-            If multiple instances of N2VManipulate are found.
-        """
-        transform_list = [t.name for t in transforms]
-
-        if SupportedTransform.N2V_MANIPULATE in transform_list:
-            # multiple N2V_MANIPULATE
-            if transform_list.count(SupportedTransform.N2V_MANIPULATE.value) > 1:
-                raise ValueError(
-                    f"Multiple instances of "
-                    f"{SupportedTransform.N2V_MANIPULATE} transforms "
-                    f"are not allowed."
-                )
-
-            # N2V_MANIPULATE not the last transform
-            elif transform_list[-1] != SupportedTransform.N2V_MANIPULATE:
-                index = transform_list.index(SupportedTransform.N2V_MANIPULATE.value)
-                transform = transforms.pop(index)
-                transforms.append(transform)
-
-        return transforms
 
     @model_validator(mode="after")
     def std_only_with_mean(self: Self) -> Self:
@@ -350,32 +305,6 @@ class DataConfig(BaseModel):
         self.__dict__.update(kwargs)
         self.__class__.model_validate(self.__dict__)
 
-    def has_n2v_manipulate(self) -> bool:
-        """
-        Check if the transforms contain N2VManipulate.
-
-        Returns
-        -------
-        bool
-            True if the transforms contain N2VManipulate, False otherwise.
-        """
-        return any(
-            transform.name == SupportedTransform.N2V_MANIPULATE.value
-            for transform in self.transforms
-        )
-
-    def add_n2v_manipulate(self) -> None:
-        """Add N2VManipulate to the transforms."""
-        if not self.has_n2v_manipulate():
-            self.transforms.append(
-                N2VManipulateModel(name=SupportedTransform.N2V_MANIPULATE.value)
-            )
-
-    def remove_n2v_manipulate(self) -> None:
-        """Remove N2VManipulate from the transforms."""
-        if self.has_n2v_manipulate():
-            self.transforms.pop(-1)
-
     def set_means_and_stds(
         self,
         image_means: Union[NDArray, tuple, list, None],
@@ -429,85 +358,3 @@ class DataConfig(BaseModel):
             Patch size.
         """
         self._update(axes=axes, patch_size=patch_size)
-
-    def set_N2V2(self, use_n2v2: bool) -> None:
-        """
-        Set N2V2.
-
-        Parameters
-        ----------
-        use_n2v2 : bool
-            Whether to use N2V2.
-
-        Raises
-        ------
-        ValueError
-            If the N2V pixel manipulate transform is not found in the transforms.
-        """
-        if use_n2v2:
-            self.set_N2V2_strategy("median")
-        else:
-            self.set_N2V2_strategy("uniform")
-
-    def set_N2V2_strategy(self, strategy: Literal["uniform", "median"]) -> None:
-        """
-        Set N2V2 strategy.
-
-        Parameters
-        ----------
-        strategy : Literal["uniform", "median"]
-            Strategy to use for N2V2.
-
-        Raises
-        ------
-        ValueError
-            If the N2V pixel manipulate transform is not found in the transforms.
-        """
-        found_n2v = False
-
-        for transform in self.transforms:
-            if transform.name == SupportedTransform.N2V_MANIPULATE.value:
-                transform.strategy = strategy
-                found_n2v = True
-
-        if not found_n2v:
-            transforms = [t.name for t in self.transforms]
-            raise ValueError(
-                f"N2V_Manipulate transform not found in the transforms list "
-                f"({transforms})."
-            )
-
-    def set_structN2V_mask(
-        self, mask_axis: Literal["horizontal", "vertical", "none"], mask_span: int
-    ) -> None:
-        """
-        Set structN2V mask parameters.
-
-        Setting `mask_axis` to `none` will disable structN2V.
-
-        Parameters
-        ----------
-        mask_axis : Literal["horizontal", "vertical", "none"]
-            Axis along which to apply the mask. `none` will disable structN2V.
-        mask_span : int
-            Total span of the mask in pixels.
-
-        Raises
-        ------
-        ValueError
-            If the N2V pixel manipulate transform is not found in the transforms.
-        """
-        found_n2v = False
-
-        for transform in self.transforms:
-            if transform.name == SupportedTransform.N2V_MANIPULATE.value:
-                transform.struct_mask_axis = mask_axis
-                transform.struct_mask_span = mask_span
-                found_n2v = True
-
-        if not found_n2v:
-            transforms = [t.name for t in self.transforms]
-            raise ValueError(
-                f"N2V pixel manipulate transform not found in the transforms "
-                f"({transforms})."
-            )
