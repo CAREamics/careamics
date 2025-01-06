@@ -219,13 +219,15 @@ class InMemoryDataset(Dataset):
 
             return self.patch_transform(patch=patch, target=target)
 
-        elif self.data_config.has_n2v_manipulate():  # TODO not compatible with HDN
+        elif self.data_config.has_n2v_manipulate():
+            # TODO should be enough because there's a relevant check in configuration
             return self.patch_transform(patch=patch)
         else:
-            raise ValueError(
-                "Something went wrong! No target provided (not supervised training) "
-                "and no N2V manipulation (no N2V training)."
-            )
+            # TODO None in the target, collate error
+            # consider this case to be hdn
+            # TODO : check if this is the right way to handle this
+            # TODO for splits we'd need something different
+            return self.patch_transform(patch=patch)
 
     def get_data_statistics(self) -> tuple[list[float], list[float]]:
         """Return training data statistics.
