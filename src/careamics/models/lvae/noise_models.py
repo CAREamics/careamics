@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 from typing import TYPE_CHECKING, Optional
 
 from numpy.typing import NDArray
@@ -212,28 +213,6 @@ class MultiChannelNoiseModel(nn.Module):
         return torch.cat(ll_list, dim=1)
 
 
-# TODO: is this needed?
-def fastShuffle(series, num):
-    """_summary_.
-
-    Parameters
-    ----------
-    series : _type_
-        _description_
-    num : _type_
-        _description_
-
-    Returns
-    -------
-    _type_
-        _description_
-    """
-    length = series.shape[0]
-    for _ in range(num):
-        series = series[np.random.permutation(length), :]
-    return series
-
-
 class GaussianMixtureNoiseModel(nn.Module):
     """Define a noise model parameterized as a mixture of gaussians.
 
@@ -321,7 +300,9 @@ class GaussianMixtureNoiseModel(nn.Module):
 
         print(f"[{self.__class__.__name__}] min_sigma: {self.min_sigma}")
 
-    def polynomialRegressor(self, weightParams, signals):
+    def polynomialRegressor(
+        self, weightParams: torch.Tensor, signals: torch.Tensor
+    ) -> torch.Tensor:
         """Combines `weightParams` and signal `signals` to regress for the gaussian parameter values.
 
         Parameters
@@ -344,8 +325,11 @@ class GaussianMixtureNoiseModel(nn.Module):
             )
         return value
 
-    def normalDens(self, x, m_=0.0, std_=None):
-        """Evaluates the normal probability density at `x` given the mean `m` and standard deviation `std`.
+    def normalDens(
+        self, x: torch.Tensor, m_: torch.Tensor, std_: torch.Tensor
+    ) -> torch.Tensor:
+        """
+        Evaluates the normal probability density at `x` given the mean `m` and standard deviation `std`.
 
         Parameters
         ----------
@@ -360,17 +344,18 @@ class GaussianMixtureNoiseModel(nn.Module):
         -------
         tmp: torch.cuda.FloatTensor
             Normal probability density of `x` given `m_` and `std_`
-
         """
         tmp = -((x - m_) ** 2)
         tmp = tmp / (2.0 * std_ * std_)
         tmp = torch.exp(tmp)
         tmp = tmp / torch.sqrt((2.0 * np.pi) * std_ * std_)
-        # print(tmp.min().item(), tmp.mean().item(), tmp.max().item(), tmp.shape)
         return tmp
 
-    def likelihood(self, observations, signals):
-        """Evaluates the likelihood of observations given the signals and the corresponding gaussian parameters.
+    def likelihood(
+        self, observations: torch.Tensor, signals: torch.Tensor
+    ) -> torch.Tensor:
+        """
+        Evaluates the likelihood of observations given the signals and the corresponding gaussian parameters.
 
         Parameters
         ----------
@@ -383,7 +368,6 @@ class GaussianMixtureNoiseModel(nn.Module):
         -------
         value :p + self.tol
             Likelihood of observations given the signals and the GMM noise model
-
         """
         gaussianParameters = self.getGaussianParameters(signals)
         p = 0
@@ -398,8 +382,9 @@ class GaussianMixtureNoiseModel(nn.Module):
             )
         return p + self.tol
 
-    def getGaussianParameters(self, signals):
-        """Returns the noise model for given signals
+    def getGaussianParameters(self, signals: torch.Tensor) -> list[torch.Tensor]:
+        """
+        Returns the noise model for given signals
 
         Parameters
         ----------
@@ -418,9 +403,7 @@ class GaussianMixtureNoiseModel(nn.Module):
         kernels = self.weight.shape[0] // 3
         for num in range(kernels):
             mu.append(self.polynomialRegressor(self.weight[num, :], signals))
-            # expval = torch.exp(torch.clamp(self.weight[kernels + num, :], max=MAX_VAR_W))
             expval = torch.exp(self.weight[kernels + num, :])
-            # self.maxval = max(self.maxval, expval.max().item())
             sigmaTemp = self.polynomialRegressor(expval, signals)
             sigmaTemp = torch.clamp(sigmaTemp, min=self.min_sigma)
             sigma.append(torch.sqrt(sigmaTemp))
@@ -459,7 +442,30 @@ class GaussianMixtureNoiseModel(nn.Module):
 
         return noiseModel
 
-    def getSignalObservationPairs(self, signal, observation, lowerClip, upperClip):
+    @staticmethod
+    def _fast_shuffle(series: NDArray, num: int) -> NDArray:
+        """_summary_.
+
+        Parameters
+        ----------
+        series : _type_
+            _description_
+        num : _type_
+            _description_
+
+        Returns
+        -------
+        _type_
+            _description_
+        """
+        length = series.shape[0]
+        for _ in range(num):
+            series = series[np.random.permutation(length), :]
+        return series
+
+    def getSignalObservationPairs(
+        self, signal: NDArray, observation: NDArray, lowerClip: float, upperClip: float
+    ) -> NDArray:
         """Returns the Signal-Observation pixel intensities as a two-column array
 
         Parameters
@@ -477,7 +483,6 @@ class GaussianMixtureNoiseModel(nn.Module):
         -------
         noiseModel: list of torch floats
             Contains a list of `mu`, `sigma` and `alpha` for the `signals`
-
         """
         lb = np.percentile(signal, lowerClip)
         ub = np.percentile(signal, upperClip)
@@ -493,19 +498,18 @@ class GaussianMixtureNoiseModel(nn.Module):
         sig_obs_pairs = sig_obs_pairs[
             (sig_obs_pairs[:, 0] > lb) & (sig_obs_pairs[:, 0] < ub)
         ]
-        return fastShuffle(sig_obs_pairs, 2)
+        return self._fast_shuffle(sig_obs_pairs, 2)
 
     def fit(
         self,
-        signal,
-        observation,
-        learning_rate=1e-1,
-        batchSize=250000,
-        n_epochs=2000,
-        name="GMMNoiseModel.npz",
-        lowerClip=0,
-        upperClip=100,
-    ):
+        signal: NDArray,
+        observation: NDArray,
+        learning_rate: float = 1e-1,
+        batch_size: int = 250000,
+        n_epochs: int = 2000,
+        lower_clip: float = 0.0,
+        upper_clip: float = 100.0,
+    ) -> None:
         """Training to learn the noise model from signal - observation pairs.
 
         Parameters
@@ -516,35 +520,29 @@ class GaussianMixtureNoiseModel(nn.Module):
             Noisy Observation Data
         learning_rate: float
             Learning rate. Default = 1e-1.
-        batchSize: int
+        batch_size: int
             Nini-batch size. Default = 250000.
         n_epochs: int
             Number of epochs. Default = 2000.
-        name: string
-
-            Model name. Default is `GMMNoiseModel`. This model after being trained is saved at the location `path`.
-
-        lowerClip : int
+        lower_clip : int
             Lower percentile for clipping. Default is 0.
-        upperClip : int
+        upper_clip : int
             Upper percentile for clipping. Default is 100.
-
-
         """
         sig_obs_pairs = self.getSignalObservationPairs(
-            signal, observation, lowerClip, upperClip
+            signal, observation, lower_clip, upper_clip
         )
         counter = 0
         optimizer = torch.optim.Adam([self.weight], lr=learning_rate)
         loss_arr = []
 
         for t in range(n_epochs):
-            if (counter + 1) * batchSize >= sig_obs_pairs.shape[0]:
+            if (counter + 1) * batch_size >= sig_obs_pairs.shape[0]:
                 counter = 0
-                sig_obs_pairs = fastShuffle(sig_obs_pairs, 1)
+                sig_obs_pairs = self.fastShuffle(sig_obs_pairs, 1)
 
             batch_vectors = sig_obs_pairs[
-                counter * batchSize : (counter + 1) * batchSize, :
+                counter * batch_size : (counter + 1) * batch_size, :
             ]
             observations = batch_vectors[:, 1].astype(np.float32)
             signals = batch_vectors[:, 0].astype(np.float32)
@@ -579,41 +577,62 @@ class GaussianMixtureNoiseModel(nn.Module):
         self.max_signal = self.max_signal.cpu().detach().numpy()
         print("===================\n")
 
-    def sample_noise(self, signal_image):
-        assert len(signal_image.shape) == 2, "Only supports 2D input"
+    def sample_observation_from_signal(self, signal: NDArray) -> NDArray:
+        """
+        Sample an instance of observation based on an input signal using a
+        learned Gaussian Mixture Model. For each pixel in the input signal,
+        samples a corresponding noisy pixel.
 
-        signal_tensor = torch.from_numpy(signal_image)
+        Parameters
+        ----------
+        signal: numpy array
+            Clean 2D signal data.
+
+        Returns
+        -------
+        observation: numpy array
+            An instance of noisy observation data based on the input signal.
+        """
+        assert len(signal.shape) == 2, "Only 2D inputs are supported."
+
+        signal_tensor = torch.from_numpy(signal).to(torch.float32)
         height, width = signal_tensor.shape
 
         with torch.no_grad():
-            params = self.getGaussianParameters(signal_tensor)
-
-            mus = np.array(params[: self.n_gaussian])
-            stds = np.array(params[self.n_gaussian : self.n_gaussian * 2])
-            alphas = np.array(params[self.n_gaussian * 2 :])
+            # Get gaussian parameters for each pixel
+            gaussian_params = self.getGaussianParameters(signal_tensor)
+            means = np.array(gaussian_params[: self.n_gaussian])
+            stds = np.array(gaussian_params[self.n_gaussian : self.n_gaussian * 2])
+            alphas = np.array(gaussian_params[self.n_gaussian * 2 :])
 
             if self.n_gaussian == 1:
-                noise_image = np.random.normal(
-                    loc=mus[0], scale=stds[0], size=(height, width)
+                # Single gaussian case
+                observation = np.random.normal(
+                    loc=means[0], scale=stds[0], size=(height, width)
                 )
             else:
-                uniform = np.random.rand(height, width)
-                cumulative_alphas = np.cumsum(alphas, axis=0)
-                cumulative_alphas = np.moveaxis(cumulative_alphas, 0, -1)
-
+                # Multiple gaussians: sample component for each pixel
+                uniform = np.random.rand(1, height, width)
+                # Compute cumulative probabilities for component selection
+                cumulative_alphas = np.cumsum(
+                    alphas, axis=0
+                )  # Shape: (n_gaussian, height, width)
                 selected_component = np.argmax(
-                    uniform[..., None] < cumulative_alphas, axis=-1
+                    uniform < cumulative_alphas, axis=0, keepdims=True
                 )
 
-                rows, cols = np.ogrid[:height, :width]
-                selected_mus = mus[selected_component, rows, cols]
-                selected_stds = stds[selected_component, rows, cols]
+                # For every pixel, choose the corresponding gaussian
+                # and get the learned mu and sigma
+                selected_mus = np.take_along_axis(means, selected_component, axis=0)
+                selected_stds = np.take_along_axis(stds, selected_component, axis=0)
+                selected_mus = selected_mus.squeeze(0)
+                selected_stds = selected_stds.squeeze(0)
 
-                noise_image = np.random.normal(
+                # Sample from the normal distribution with learned mu and sigma
+                observation = np.random.normal(
                     selected_mus, selected_stds, size=(height, width)
                 )
-
-        return noise_image
+        return observation
 
     def save(self, path: str, name: str):
         """Save the trained parameters on the noise model.
