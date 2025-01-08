@@ -258,47 +258,57 @@ class GaussianMixtureNoiseModel(nn.Module):
     def __init__(self, config: GaussianMixtureNMConfig):
         super().__init__()
 
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         if config.path is None:
-            self.mode = "train"
-            # TODO this is (probably) to train a nm. We leave it for later refactoring
-            weight = config.weight
-            n_gaussian = config.n_gaussian
-            n_coeff = config.n_coeff
-            min_signal = torch.Tensor([config.min_signal])
-            max_signal = torch.Tensor([config.max_signal])
-            # TODO min_sigma cant be None ?
-            self.min_sigma = config.min_sigma
-            if weight is None:
-                weight = torch.randn(n_gaussian * 3, n_coeff)
-                weight[n_gaussian : 2 * n_gaussian, 1] = (
-                    torch.log(max_signal - min_signal).float().to(self.device)
-                )
-                weight.requires_grad = True
-
-            self.n_gaussian = weight.shape[0] // 3
-            self.n_coeff = weight.shape[1]
-            self.weight = weight
-            self.min_signal = torch.Tensor([min_signal]).to(self.device)
-            self.max_signal = torch.Tensor([max_signal]).to(self.device)
-            self.tol = torch.tensor([1e-10]).to(self.device)
-            # TODO refactor to train on CPU!
+            self._initialize_model(config)
         else:
-            params = np.load(config.path)
-            self.mode = "inference"  # TODO better name?
-
-            self.min_signal = torch.Tensor(params["min_signal"])
-            self.max_signal = torch.Tensor(params["max_signal"])
-
-            self.weight = torch.Tensor(params["trained_weight"])
-            self.min_sigma = params["min_sigma"].item()
-            self.n_gaussian = self.weight.shape[0] // 3  # TODO why // 3 ?
-            self.n_coeff = self.weight.shape[1]
-            self.tol = torch.Tensor([1e-10])
-            self.min_signal = torch.Tensor([self.min_signal])
-            self.max_signal = torch.Tensor([self.max_signal])
+            self._load_model_from_file(config)
 
         print(f"[{self.__class__.__name__}] min_sigma: {self.min_sigma}")
+
+    def _initialize_weights(
+        self,
+        n_gaussian: int,
+        n_coeff: int,
+        max_signal: torch.Tensor,
+        min_signal: torch.Tensor,
+    ) -> torch.Tensor:
+        """Create random weight initialization."""
+        weight = torch.randn(n_gaussian * 3, n_coeff)
+        weight[n_gaussian : 2 * n_gaussian, 1] = torch.log(
+            max_signal - min_signal
+        ).float()
+        weight.requires_grad = True
+        return weight
+
+    def _initialize_model(self, config) -> None:
+        """Initialize a new noise model from config parameters."""
+        self.mode = "train"
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.n_gaussian = config.n_gaussian
+        self.n_coeff = config.n_coeff
+        self.min_sigma = config.min_sigma
+        self.min_signal = torch.tensor(config.min_signal).to(self.device)
+        self.max_signal = torch.tensor(config.max_signal).to(self.device)
+        self.tol = torch.tensor([1e-10]).to(self.device)
+        if config.weight is None:
+            self.weight = self._initialize_weights(
+                self.n_gaussian, self.n_coeff, self.max_signal, self.min_signal
+            ).to(self.device)
+        else:
+            self.weight = torch.tensor(config.weight).to(self.device)
+
+    def _load_model_from_file(self, config) -> None:
+        """Load trained noise model from a file."""
+        params = np.load(config.path)
+        self.device = torch.device("cpu")
+        self.mode = "inference"
+        self.min_signal = params["min_signal"]
+        self.max_signal = params["max_signal"]
+        self.weight = torch.tensor(params["trained_weight"])
+        self.min_sigma = params["min_sigma"].item()
+        self.n_gaussian = self.weight.shape[0] // 3
+        self.n_coeff = self.weight.shape[1]
+        self.tol = torch.tensor([1e-10])
 
     def polynomialRegressor(
         self, weightParams: torch.Tensor, signals: torch.Tensor
@@ -539,7 +549,7 @@ class GaussianMixtureNoiseModel(nn.Module):
         for t in range(n_epochs):
             if (counter + 1) * batch_size >= sig_obs_pairs.shape[0]:
                 counter = 0
-                sig_obs_pairs = self.fastShuffle(sig_obs_pairs, 1)
+                sig_obs_pairs = self._fast_shuffle(sig_obs_pairs, 1)
 
             batch_vectors = sig_obs_pairs[
                 counter * batch_size : (counter + 1) * batch_size, :
