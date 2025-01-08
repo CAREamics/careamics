@@ -112,8 +112,11 @@ def noise_model_factory(
                 # TODO train a new model. Config should always be provided?
                 if nm.model_type == "GaussianMixtureNoiseModel":
                     # TODO one model for each channel all make this choise inside the model?
-                    trained_nm = train_gm_noise_model(nm)
-                    noise_models.append(trained_nm)
+                    # trained_nm = train_gm_noise_model(nm)
+                    # noise_models.append(trained_nm)
+                    raise NotImplementedError(
+                        "GaussianMixtureNoiseModel model training is not implemented."
+                    )
                 else:
                     raise NotImplementedError(
                         f"Model {nm.model_type} is not implemented"
@@ -255,8 +258,11 @@ class GaussianMixtureNoiseModel(nn.Module):
     """
 
     # TODO training a NM relies on getting a clean data(N2V e.g,)
-    def __init__(self, config: GaussianMixtureNMConfig):
+    def __init__(self, config: GaussianMixtureNMConfig) -> None:
         super().__init__()
+
+        self.tolerance = torch.tensor([1e-10])
+        self.device = torch.device("cpu")
 
         if config.path is None:
             self._initialize_model(config)
@@ -277,38 +283,48 @@ class GaussianMixtureNoiseModel(nn.Module):
         weight[n_gaussian : 2 * n_gaussian, 1] = torch.log(
             max_signal - min_signal
         ).float()
-        weight.requires_grad = True
         return weight
 
     def _initialize_model(self, config) -> None:
         """Initialize a new noise model from config parameters."""
-        self.mode = "train"
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.n_gaussian = config.n_gaussian
         self.n_coeff = config.n_coeff
         self.min_sigma = config.min_sigma
-        self.min_signal = torch.tensor(config.min_signal).to(self.device)
-        self.max_signal = torch.tensor(config.max_signal).to(self.device)
-        self.tol = torch.tensor([1e-10]).to(self.device)
+        self.min_signal = torch.tensor(config.min_signal)
+        self.max_signal = torch.tensor(config.max_signal)
         if config.weight is None:
             self.weight = self._initialize_weights(
                 self.n_gaussian, self.n_coeff, self.max_signal, self.min_signal
-            ).to(self.device)
+            )
         else:
-            self.weight = torch.tensor(config.weight).to(self.device)
+            self.weight = torch.tensor(config.weight)
 
     def _load_model_from_file(self, config) -> None:
         """Load trained noise model from a file."""
         params = np.load(config.path)
         self.device = torch.device("cpu")
-        self.mode = "inference"
         self.min_signal = params["min_signal"]
         self.max_signal = params["max_signal"]
         self.weight = torch.tensor(params["trained_weight"])
         self.min_sigma = params["min_sigma"].item()
         self.n_gaussian = self.weight.shape[0] // 3
         self.n_coeff = self.weight.shape[1]
-        self.tol = torch.tensor([1e-10])
+
+    def _set_model_mode(self, mode: str) -> None:
+        """Move parameters to the device and set weights' requires_grad depending on the mode"""
+        if mode == "train":
+            self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+            self.min_signal = self.min_signal.to(self.device)
+            self.max_signal = self.max_signal.to(self.device)
+            self.tolerance = self.tolerance.to(self.device)
+            self.weight = self.weight.to(self.device)
+            self.weight.requires_grad = True
+        else:
+            self.device = torch.device("cpu")
+            self.min_signal = self.min_signal.cpu().numpy()
+            self.max_signal = self.max_signal.cpu().numpy()
+            self.tolerance = self.tolerance.cpu().numpy()
+            self.weight = self.weight.detach().cpu().numpy()
 
     def polynomialRegressor(
         self, weightParams: torch.Tensor, signals: torch.Tensor
@@ -376,7 +392,7 @@ class GaussianMixtureNoiseModel(nn.Module):
 
         Returns
         -------
-        value :p + self.tol
+        value: torch.Tensor:
             Likelihood of observations given the signals and the GMM noise model
         """
         gaussianParameters = self.getGaussianParameters(signals)
@@ -390,7 +406,7 @@ class GaussianMixtureNoiseModel(nn.Module):
                 )
                 * gaussianParameters[2 * self.n_gaussian + gaussian]
             )
-        return p + self.tol
+        return p + self.tolerance
 
     def getGaussianParameters(self, signals: torch.Tensor) -> list[torch.Tensor]:
         """
@@ -420,7 +436,7 @@ class GaussianMixtureNoiseModel(nn.Module):
 
             expval = torch.exp(
                 self.polynomialRegressor(self.weight[2 * kernels + num, :], signals)
-                + self.tol
+                + self.tolerance
             )
             alpha.append(expval)
 
@@ -453,29 +469,21 @@ class GaussianMixtureNoiseModel(nn.Module):
         return noiseModel
 
     @staticmethod
-    def _fast_shuffle(series: NDArray, num: int) -> NDArray:
-        """_summary_.
-
-        Parameters
-        ----------
-        series : _type_
-            _description_
-        num : _type_
-            _description_
-
-        Returns
-        -------
-        _type_
-            _description_
-        """
+    def _fast_shuffle(series: torch.Tensor, num: int) -> torch.Tensor:
+        """Shuffle the inputs randomly num times"""
         length = series.shape[0]
         for _ in range(num):
-            series = series[np.random.permutation(length), :]
+            idx = torch.randperm(length)
+            series = series[idx, :]
         return series
 
     def getSignalObservationPairs(
-        self, signal: NDArray, observation: NDArray, lowerClip: float, upperClip: float
-    ) -> NDArray:
+        self,
+        signal: NDArray,
+        observation: NDArray,
+        lower_clip: float,
+        upper_clip: float,
+    ) -> torch.Tensor:
         """Returns the Signal-Observation pixel intensities as a two-column array
 
         Parameters
@@ -484,9 +492,9 @@ class GaussianMixtureNoiseModel(nn.Module):
             Clean Signal Data
         observation: numpy array
             Noisy observation Data
-        lowerClip: float
+        lower_clip: float
             Lower percentile bound for clipping.
-        upperClip: float
+        upper_clip: float
             Upper percentile bound for clipping.
 
         Returns
@@ -494,8 +502,8 @@ class GaussianMixtureNoiseModel(nn.Module):
         noiseModel: list of torch floats
             Contains a list of `mu`, `sigma` and `alpha` for the `signals`
         """
-        lb = np.percentile(signal, lowerClip)
-        ub = np.percentile(signal, upperClip)
+        lb = np.percentile(signal, lower_clip)
+        ub = np.percentile(signal, upper_clip)
         stepsize = observation[0].size
         n_observations = observation.shape[0]
         n_signals = signal.shape[0]
@@ -508,6 +516,8 @@ class GaussianMixtureNoiseModel(nn.Module):
         sig_obs_pairs = sig_obs_pairs[
             (sig_obs_pairs[:, 0] > lb) & (sig_obs_pairs[:, 0] < ub)
         ]
+        sig_obs_pairs = sig_obs_pairs.astype(np.float32)
+        sig_obs_pairs = torch.from_numpy(sig_obs_pairs)
         return self._fast_shuffle(sig_obs_pairs, 2)
 
     def fit(
@@ -539,13 +549,15 @@ class GaussianMixtureNoiseModel(nn.Module):
         upper_clip : int
             Upper percentile for clipping. Default is 100.
         """
+        self._set_model_mode(mode="train")
+        optimizer = torch.optim.Adam([self.weight], lr=learning_rate)
+
         sig_obs_pairs = self.getSignalObservationPairs(
             signal, observation, lower_clip, upper_clip
         )
-        counter = 0
-        optimizer = torch.optim.Adam([self.weight], lr=learning_rate)
-        loss_arr = []
 
+        loss_arr = []
+        counter = 0
         for t in range(n_epochs):
             if (counter + 1) * batch_size >= sig_obs_pairs.shape[0]:
                 counter = 0
@@ -554,14 +566,8 @@ class GaussianMixtureNoiseModel(nn.Module):
             batch_vectors = sig_obs_pairs[
                 counter * batch_size : (counter + 1) * batch_size, :
             ]
-            observations = batch_vectors[:, 1].astype(np.float32)
-            signals = batch_vectors[:, 0].astype(np.float32)
-            observations = (
-                torch.from_numpy(observations.astype(np.float32))
-                .float()
-                .to(self.device)
-            )
-            signals = torch.from_numpy(signals).float().to(self.device)
+            observations = batch_vectors[:, 1].to(self.device)
+            signals = batch_vectors[:, 0].to(self.device)
 
             p = self.likelihood(observations, signals)
 
@@ -582,9 +588,7 @@ class GaussianMixtureNoiseModel(nn.Module):
             optimizer.step()
             counter += 1
 
-        self.trained_weight = self.weight.cpu().detach().numpy()
-        self.min_signal = self.min_signal.cpu().detach().numpy()
-        self.max_signal = self.max_signal.cpu().detach().numpy()
+        self._set_model_mode(mode="prediction")
         print("===================\n")
 
     def sample_observation_from_signal(self, signal: NDArray) -> NDArray:
@@ -644,7 +648,7 @@ class GaussianMixtureNoiseModel(nn.Module):
                 )
         return observation
 
-    def save(self, path: str, name: str):
+    def save(self, path: str, name: str) -> None:
         """Save the trained parameters on the noise model.
 
         Parameters
@@ -657,7 +661,7 @@ class GaussianMixtureNoiseModel(nn.Module):
         os.makedirs(path, exist_ok=True)
         np.savez(
             os.path.join(path, name),
-            trained_weight=self.trained_weight,
+            trained_weight=self.weight,
             min_signal=self.min_signal,
             max_signal=self.max_signal,
             min_sigma=self.min_sigma,
