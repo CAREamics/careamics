@@ -663,6 +663,6 @@ class GaussianMixtureNoiseModel(nn.Module):
             trained_weight=self.weight.numpy(),
             min_signal=self.min_signal.numpy(),
             max_signal=self.max_signal.numpy(),
-            min_sigma=self.min_sigma.numpy(),
+            min_sigma=self.min_sigma,
         )
         print("The trained parameters (" + name + ") is saved at location: " + path)
