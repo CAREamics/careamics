@@ -44,9 +44,6 @@ def create_histogram(
         - histogram[2]: Upper boundaries of bins along y.
     The values for x can be obtained by transposing 'histogram[1]' and 'histogram[2]'.
     """
-    assert len(signal.shape) == 3, "Signal array must have shape (S, Y, X)"
-    assert len(observation.shape) == 3, "Observation array must have shape (S, Y, X)"
-
     histogram = np.zeros((3, bins, bins))
 
     value_range = [min_val, max_val]
