@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import os
-from pathlib import Path
 from typing import TYPE_CHECKING, Optional
 
 from numpy.typing import NDArray
@@ -303,8 +302,8 @@ class GaussianMixtureNoiseModel(nn.Module):
         """Load trained noise model from a file."""
         params = np.load(config.path)
         self.device = torch.device("cpu")
-        self.min_signal = params["min_signal"]
-        self.max_signal = params["max_signal"]
+        self.min_signal = torch.tensor(params["min_signal"])
+        self.max_signal = torch.tensor(params["max_signal"])
         self.weight = torch.tensor(params["trained_weight"])
         self.min_sigma = params["min_sigma"].item()
         self.n_gaussian = self.weight.shape[0] // 3
@@ -321,60 +320,60 @@ class GaussianMixtureNoiseModel(nn.Module):
             self.weight.requires_grad = True
         else:
             self.device = torch.device("cpu")
-            self.min_signal = self.min_signal.cpu().numpy()
-            self.max_signal = self.max_signal.cpu().numpy()
-            self.tolerance = self.tolerance.cpu().numpy()
-            self.weight = self.weight.detach().cpu().numpy()
+            self.min_signal = self.min_signal.cpu()
+            self.max_signal = self.max_signal.cpu()
+            self.tolerance = self.tolerance.cpu()
+            self.weight = self.weight.detach().cpu()
 
-    def polynomialRegressor(
-        self, weightParams: torch.Tensor, signals: torch.Tensor
+    def polynomial_regressor(
+        self, weight_params: torch.Tensor, signals: torch.Tensor
     ) -> torch.Tensor:
-        """Combines `weightParams` and signal `signals` to regress for the gaussian parameter values.
+        """Combines `weight_params` and signal `signals` to regress for the gaussian parameter values.
 
         Parameters
         ----------
-        weightParams : torch.cuda.FloatTensor
+        weight_params : Tensor
             Corresponds to specific rows of the `self.weight`
 
-        signals : torch.cuda.FloatTensor
+        signals : Tensor
             Signals
 
         Returns
         -------
-        value : torch.cuda.FloatTensor
+        value : Tensor
             Corresponds to either of mean, standard deviation or weight, evaluated at `signals`
         """
-        value = 0
-        for i in range(weightParams.shape[0]):
-            value += weightParams[i] * (
+        value = torch.zeros_like(signals)
+        for i in range(weight_params.shape[0]):
+            value += weight_params[i] * (
                 ((signals - self.min_signal) / (self.max_signal - self.min_signal)) ** i
             )
         return value
 
-    def normalDens(
-        self, x: torch.Tensor, m_: torch.Tensor, std_: torch.Tensor
+    def normal_density(
+        self, x: torch.Tensor, mean: torch.Tensor, std: torch.Tensor
     ) -> torch.Tensor:
         """
-        Evaluates the normal probability density at `x` given the mean `m` and standard deviation `std`.
+        Evaluates the normal probability density at `x` given the mean `mean` and standard deviation `std`.
 
         Parameters
         ----------
-        x: torch.cuda.FloatTensor
+        x: Tensor
             Observations
-        m_: torch.cuda.FloatTensor
+        mean: Tensor
             Mean
-        std_: torch.cuda.FloatTensor
+        std: Tensor
             Standard-deviation
 
         Returns
         -------
-        tmp: torch.cuda.FloatTensor
-            Normal probability density of `x` given `m_` and `std_`
+        tmp: Tensor
+            Normal probability density of `x` given `mean` and `std`
         """
-        tmp = -((x - m_) ** 2)
-        tmp = tmp / (2.0 * std_ * std_)
+        tmp = -((x - mean) ** 2)
+        tmp = tmp / (2.0 * std * std)
         tmp = torch.exp(tmp)
-        tmp = tmp / torch.sqrt((2.0 * np.pi) * std_ * std_)
+        tmp = tmp / torch.sqrt((2.0 * np.pi) * std * std)
         return tmp
 
     def likelihood(
@@ -385,9 +384,9 @@ class GaussianMixtureNoiseModel(nn.Module):
 
         Parameters
         ----------
-        observations : torch.cuda.FloatTensor
+        observations : Tensor
             Noisy observations
-        signals : torch.cuda.FloatTensor
+        signals : Tensor
             Underlying signals
 
         Returns
@@ -395,47 +394,47 @@ class GaussianMixtureNoiseModel(nn.Module):
         value: torch.Tensor:
             Likelihood of observations given the signals and the GMM noise model
         """
-        gaussianParameters = self.getGaussianParameters(signals)
+        gaussian_parameters: list[torch.Tensor] = self.get_gaussian_parameters(signals)
         p = 0
         for gaussian in range(self.n_gaussian):
             p += (
-                self.normalDens(
+                self.normal_density(
                     observations,
-                    gaussianParameters[gaussian],
-                    gaussianParameters[self.n_gaussian + gaussian],
+                    gaussian_parameters[gaussian],
+                    gaussian_parameters[self.n_gaussian + gaussian],
                 )
-                * gaussianParameters[2 * self.n_gaussian + gaussian]
+                * gaussian_parameters[2 * self.n_gaussian + gaussian]
             )
         return p + self.tolerance
 
-    def getGaussianParameters(self, signals: torch.Tensor) -> list[torch.Tensor]:
+    def get_gaussian_parameters(self, signals: torch.Tensor) -> list[torch.Tensor]:
         """
         Returns the noise model for given signals
 
         Parameters
         ----------
-        signals : torch.cuda.FloatTensor
+        signals : Tensor
             Underlying signals
 
         Returns
         -------
-        noiseModel: list of torch.cuda.FloatTensor
+        noise_model: list of Tensor
             Contains a list of `mu`, `sigma` and `alpha` for the `signals`
         """
-        noiseModel = []
+        noise_model = []
         mu = []
         sigma = []
         alpha = []
         kernels = self.weight.shape[0] // 3
         for num in range(kernels):
-            mu.append(self.polynomialRegressor(self.weight[num, :], signals))
+            mu.append(self.polynomial_regressor(self.weight[num, :], signals))
             expval = torch.exp(self.weight[kernels + num, :])
-            sigmaTemp = self.polynomialRegressor(expval, signals)
-            sigmaTemp = torch.clamp(sigmaTemp, min=self.min_sigma)
-            sigma.append(torch.sqrt(sigmaTemp))
+            sigma_temp = self.polynomial_regressor(expval, signals)
+            sigma_temp = torch.clamp(sigma_temp, min=self.min_sigma)
+            sigma.append(torch.sqrt(sigma_temp))
 
             expval = torch.exp(
-                self.polynomialRegressor(self.weight[2 * kernels + num, :], signals)
+                self.polynomial_regressor(self.weight[2 * kernels + num, :], signals)
                 + self.tolerance
             )
             alpha.append(expval)
@@ -460,13 +459,13 @@ class GaussianMixtureNoiseModel(nn.Module):
             mu[ker] = mu[ker] - sum_means + signals
 
         for i in range(kernels):
-            noiseModel.append(mu[i])
+            noise_model.append(mu[i])
         for j in range(kernels):
-            noiseModel.append(sigma[j])
+            noise_model.append(sigma[j])
         for k in range(kernels):
-            noiseModel.append(alpha[k])
+            noise_model.append(alpha[k])
 
-        return noiseModel
+        return noise_model
 
     @staticmethod
     def _fast_shuffle(series: torch.Tensor, num: int) -> torch.Tensor:
@@ -477,7 +476,7 @@ class GaussianMixtureNoiseModel(nn.Module):
             series = series[idx, :]
         return series
 
-    def getSignalObservationPairs(
+    def get_signal_observation_pairs(
         self,
         signal: NDArray,
         observation: NDArray,
@@ -499,7 +498,7 @@ class GaussianMixtureNoiseModel(nn.Module):
 
         Returns
         -------
-        noiseModel: list of torch floats
+        noise_model: list of torch floats
             Contains a list of `mu`, `sigma` and `alpha` for the `signals`
         """
         lb = np.percentile(signal, lower_clip)
@@ -552,7 +551,7 @@ class GaussianMixtureNoiseModel(nn.Module):
         self._set_model_mode(mode="train")
         optimizer = torch.optim.Adam([self.weight], lr=learning_rate)
 
-        sig_obs_pairs = self.getSignalObservationPairs(
+        sig_obs_pairs = self.get_signal_observation_pairs(
             signal, observation, lower_clip, upper_clip
         )
 
@@ -571,8 +570,8 @@ class GaussianMixtureNoiseModel(nn.Module):
 
             p = self.likelihood(observations, signals)
 
-            jointLoss = torch.mean(-torch.log(p))
-            loss_arr.append(jointLoss.item())
+            joint_loss = torch.mean(-torch.log(p))
+            loss_arr.append(joint_loss.item())
             if self.weight.isnan().any() or self.weight.isinf().any():
                 print(
                     "NaN or Inf detected in the weights. Aborting training at epoch: ",
@@ -584,7 +583,7 @@ class GaussianMixtureNoiseModel(nn.Module):
                 print(t, np.mean(loss_arr))
 
             optimizer.zero_grad()
-            jointLoss.backward()
+            joint_loss.backward()
             optimizer.step()
             counter += 1
 
@@ -614,7 +613,7 @@ class GaussianMixtureNoiseModel(nn.Module):
 
         with torch.no_grad():
             # Get gaussian parameters for each pixel
-            gaussian_params = self.getGaussianParameters(signal_tensor)
+            gaussian_params = self.get_gaussian_parameters(signal_tensor)
             means = np.array(gaussian_params[: self.n_gaussian])
             stds = np.array(gaussian_params[self.n_gaussian : self.n_gaussian * 2])
             alphas = np.array(gaussian_params[self.n_gaussian * 2 :])
@@ -661,9 +660,9 @@ class GaussianMixtureNoiseModel(nn.Module):
         os.makedirs(path, exist_ok=True)
         np.savez(
             os.path.join(path, name),
-            trained_weight=self.weight,
-            min_signal=self.min_signal,
-            max_signal=self.max_signal,
-            min_sigma=self.min_sigma,
+            trained_weight=self.weight.numpy(),
+            min_signal=self.min_signal.numpy(),
+            max_signal=self.max_signal.numpy(),
+            min_sigma=self.min_sigma.numpy(),
         )
         print("The trained parameters (" + name + ") is saved at location: " + path)
