@@ -62,7 +62,6 @@ def test_noise_model_denoisplit(tmp_path: Path, create_dummy_noise_model):
     assert config.noise_model is not None
 
 
-@pytest.mark.skip("Needs to be updated!")
 def test_no_noise_model_error_denoisplit(minimum_algorithm_denoisplit):
     """Test that the noise model is correctly provided."""
     minimum_algorithm_denoisplit["noise_model"] = None

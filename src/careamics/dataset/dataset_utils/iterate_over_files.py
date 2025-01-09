@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Generator
 from pathlib import Path
-from typing import Callable, Generator, Optional, Union
+from typing import Callable, Optional, Union
 
 from numpy.typing import NDArray
 from torch.utils.data import get_worker_info

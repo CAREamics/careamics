@@ -146,6 +146,7 @@ class CAREamist:
 
         # path to configuration file or model
         else:
+            # TODO: update this check so models can be downloaded directly from BMZ
             source = check_path_exists(source)
 
             # configuration file
@@ -735,7 +736,7 @@ class CAREamist:
 
         Parameters
         ----------
-        source : PredictDataModule, pathlib.Path or str
+        source : PredictDataModule or pathlib.Path, str
             Data to predict on.
         batch_size : int, default=1
             Batch size for prediction.
@@ -805,27 +806,36 @@ class CAREamist:
             write_extension = SupportedData.get_extension(write_type)
 
         # extract file names
+        source_path: Union[Path, str, NDArray]
+        source_data_type: Literal["array", "tiff", "custom"]
         if isinstance(source, PredictDataModule):
-            # assert not isinstance(source.pred_data, )
-            source_file_paths = list_files(
-                source.pred_data, source.data_type, source.extension_filter
-            )
+            source_path = source.pred_data
+            source_data_type = source.data_type
+            extension_filter = source.extension_filter
         elif isinstance(source, (str, Path)):
-            assert self.cfg.data_config.data_type != "array"
-            data_type = data_type or self.cfg.data_config.data_type
+            source_path = source
+            source_data_type = data_type or self.cfg.data_config.data_type
             extension_filter = SupportedData.get_extension_pattern(
-                SupportedData(data_type)
+                SupportedData(source_data_type)
             )
-            source_file_paths = list_files(source, data_type, extension_filter)
         else:
             raise ValueError(f"Unsupported source type: '{type(source)}'.")
 
+        if source_data_type == "array":
+            raise ValueError(
+                "Predicting to disk is not supported for input type 'array'."
+            )
+        assert isinstance(source_path, (Path, str))  # because data_type != "array"
+        source_path = Path(source_path)
+
+        file_paths = list_files(source_path, source_data_type, extension_filter)
+
         # predict and write each file in turn
-        for source_path in source_file_paths:
+        for file_path in file_paths:
             # source_path is relative to original source path...
             # should mirror original directory structure
             prediction = self.predict(
-                source=source_path,
+                source=file_path,
                 batch_size=batch_size,
                 tile_size=tile_size,
                 tile_overlap=tile_overlap,
@@ -841,11 +851,12 @@ class CAREamist:
             write_data = np.concatenate(prediction)
 
             # create directory structure and write path
-            file_write_dir = write_dir / source_path.parent.name
+            if not source_path.is_file():
+                file_write_dir = write_dir / file_path.parent.relative_to(source_path)
+            else:
+                file_write_dir = write_dir
             file_write_dir.mkdir(parents=True, exist_ok=True)
-            write_path = (file_write_dir / source_path.name).with_suffix(
-                write_extension
-            )
+            write_path = (file_write_dir / file_path.name).with_suffix(write_extension)
 
             # write data
             write_func(file_path=write_path, img=write_data)
@@ -856,9 +867,11 @@ class CAREamist:
         friendly_model_name: str,
         input_array: NDArray,
         authors: list[dict],
-        general_description: str = "",
+        general_description: str,
+        data_description: str,
+        covers: Optional[list[Union[Path, str]]] = None,
         channel_names: Optional[list[str]] = None,
-        data_description: Optional[str] = None,
+        model_version: str = "0.1.0",
     ) -> None:
         """Export the model to the BioImage Model Zoo format.
 
@@ -888,11 +901,15 @@ class CAREamist:
         authors : list of dict
             List of authors of the model.
         general_description : str
-            General description of the model, used in the metadata of the BMZ archive.
-        channel_names : list of str, optional
-            Channel names, by default None.
-        data_description : str, optional
-            Description of the data, by default None.
+            General description of the model used in the BMZ metadata.
+        data_description : str
+            Description of the data the model was trained on.
+        covers : list of pathlib.Path or str, default=None
+            Paths to the cover images.
+        channel_names : list of str, default=None
+            Channel names.
+        model_version : str, default="0.1.0"
+            Version of the model.
         """
         # TODO: add in docs that it is expected that input_array dimensions match
         # those in data_config
@@ -911,11 +928,13 @@ class CAREamist:
             path_to_archive=path_to_archive,
             model_name=friendly_model_name,
             general_description=general_description,
+            data_description=data_description,
             authors=authors,
             input_array=input_array,
             output_array=output,
+            covers=covers,
             channel_names=channel_names,
-            data_description=data_description,
+            model_version=model_version,
         )
 
     def get_losses(self) -> dict[str, list]:

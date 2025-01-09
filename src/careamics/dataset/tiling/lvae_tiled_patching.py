@@ -2,7 +2,8 @@
 
 import builtins
 import itertools
-from typing import Any, Generator, Optional, Union
+from collections.abc import Generator
+from typing import Any, Optional, Union
 
 import numpy as np
 from numpy.typing import NDArray

@@ -1,11 +1,10 @@
 """Likelihood model."""
 
-from typing import Literal, Optional, Union
+from typing import Annotated, Literal, Optional, Union
 
 import numpy as np
 import torch
 from pydantic import BaseModel, ConfigDict, PlainSerializer, PlainValidator
-from typing_extensions import Annotated
 
 from careamics.models.lvae.noise_models import (
     GaussianMixtureNoiseModel,

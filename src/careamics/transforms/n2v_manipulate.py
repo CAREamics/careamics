@@ -1,6 +1,6 @@
 """N2V manipulation transform."""
 
-from typing import Any, Literal, Optional, Tuple
+from typing import Any, Literal, Optional
 
 import numpy as np
 from numpy.typing import NDArray
@@ -100,7 +100,7 @@ class N2VManipulate(Transform):
 
     def __call__(
         self, patch: NDArray, *args: Any, **kwargs: Any
-    ) -> Tuple[NDArray, NDArray, NDArray]:
+    ) -> tuple[NDArray, NDArray, NDArray]:
         """Apply the transform to the image.
 
         Parameters
@@ -114,7 +114,7 @@ class N2VManipulate(Transform):
 
         Returns
         -------
-        Tuple[np.ndarray, np.ndarray, np.ndarray]
+        tuple[np.ndarray, np.ndarray, np.ndarray]
             Masked patch, original patch, and mask.
         """
         masked = np.zeros_like(patch)

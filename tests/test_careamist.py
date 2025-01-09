@@ -1,6 +1,5 @@
 from pathlib import Path
 from threading import Thread
-from typing import Tuple
 
 import numpy as np
 import pytest
@@ -17,7 +16,7 @@ from careamics.lightning.callbacks import HyperParametersCallback, ProgressBarCa
 from careamics.lightning.predict_data_module import create_predict_datamodule
 
 
-def random_array(shape: Tuple[int, ...], seed: int = 42):
+def random_array(shape: tuple[int, ...], seed: int = 42):
     """Return a random array with values between 0 and 255."""
     rng = np.random.default_rng(seed)
     return (rng.integers(0, 255, shape)).astype(np.float32)
@@ -118,6 +117,7 @@ def test_train_single_array_no_val(tmp_path: Path, minimum_n2v_configuration: di
         input_array=train_array,
         authors=[{"name": "Amod", "affiliation": "El"}],
         general_description="A model that just walked in.",
+        data_description="A random array.",
     )
     assert (tmp_path / "model.zip").exists()
 
@@ -153,6 +153,7 @@ def test_train_array(tmp_path: Path, minimum_n2v_configuration: dict):
         input_array=train_array,
         authors=[{"name": "Amod", "affiliation": "El"}],
         general_description="A model that just walked in.",
+        data_description="A random array.",
     )
     assert (tmp_path / "model.zip").exists()
 
@@ -194,6 +195,7 @@ def test_train_array_channel(
         input_array=train_array,
         authors=[{"name": "Amod", "affiliation": "El"}],
         general_description="A model that just walked in.",
+        data_description="A random array.",
         channel_names=["red", "green", "blue"],
     )
     assert (tmp_path / "model.zip").exists()
@@ -230,6 +232,7 @@ def test_train_array_3d(tmp_path: Path, minimum_n2v_configuration: dict):
         input_array=train_array,
         authors=[{"name": "Amod", "affiliation": "El"}],
         general_description="A model that just walked in.",
+        data_description="A random array.",
     )
     assert (tmp_path / "model.zip").exists()
 
@@ -270,6 +273,7 @@ def test_train_tiff_files_in_memory_no_val(
         input_array=train_array,
         authors=[{"name": "Amod", "affiliation": "El"}],
         general_description="A model that just walked in.",
+        data_description="A random array.",
     )
     assert (tmp_path / "model.zip").exists()
 
@@ -312,6 +316,7 @@ def test_train_tiff_files_in_memory(tmp_path: Path, minimum_n2v_configuration: d
         input_array=train_array,
         authors=[{"name": "Amod", "affiliation": "El"}],
         general_description="A model that just walked in.",
+        data_description="A random array.",
     )
     assert (tmp_path / "model.zip").exists()
 
@@ -355,6 +360,7 @@ def test_train_tiff_files(tmp_path: Path, minimum_n2v_configuration: dict):
         input_array=train_array,
         authors=[{"name": "Amod", "affiliation": "El"}],
         general_description="A model that just walked in.",
+        data_description="A random array.",
     )
     assert (tmp_path / "model.zip").exists()
 
@@ -399,6 +405,7 @@ def test_train_array_supervised(tmp_path: Path, minimum_supervised_configuration
         input_array=train_array,
         authors=[{"name": "Amod", "affiliation": "El"}],
         general_description="A model that just walked in.",
+        data_description="A random array.",
     )
     assert (tmp_path / "model.zip").exists()
 
@@ -462,6 +469,7 @@ def test_train_tiff_files_in_memory_supervised(
         input_array=train_array,
         authors=[{"name": "Amod", "affiliation": "El"}],
         general_description="A model that just walked in.",
+        data_description="A random array.",
     )
     assert (tmp_path / "model.zip").exists()
 
@@ -527,6 +535,7 @@ def test_train_tiff_files_supervised(
         input_array=train_array,
         authors=[{"name": "Amod", "affiliation": "El"}],
         general_description="A model that just walked in.",
+        data_description="A random array.",
     )
     assert (tmp_path / "model.zip").exists()
 
@@ -572,6 +581,7 @@ def test_predict_on_array_tiled(
         input_array=train_array,
         authors=[{"name": "Amod", "affiliation": "El"}],
         general_description="A model that just walked in.",
+        data_description="A random array.",
     )
     assert (tmp_path / "model.zip").exists()
 
@@ -615,6 +625,7 @@ def test_predict_arrays_no_tiling(
         input_array=train_array,
         authors=[{"name": "Amod", "affiliation": "El"}],
         general_description="A model that just walked in.",
+        data_description="A random array.",
     )
     assert (tmp_path / "model.zip").exists()
 
@@ -757,6 +768,7 @@ def test_predict_path(
         input_array=train_array,
         authors=[{"name": "Amod", "affiliation": "El"}],
         general_description="A model that just walked in.",
+        data_description="A random array.",
     )
     assert (tmp_path / "model.zip").exists()
 
@@ -822,6 +834,7 @@ def test_export_bmz_pretrained_prediction(tmp_path: Path, pre_trained: Path):
         input_array=source_array,
         authors=[{"name": "Amod", "affiliation": "El"}],
         general_description="A model that just walked in.",
+        data_description="A random array.",
     )
     assert (tmp_path / "model.zip").exists()
 
@@ -843,6 +856,7 @@ def test_export_bmz_pretrained_with_array(tmp_path: Path, pre_trained: Path):
         input_array=array,
         authors=[{"name": "Amod", "affiliation": "El"}],
         general_description="A model that just walked in.",
+        data_description="A random array.",
     )
     assert (tmp_path / "model2.zip").exists()
 
@@ -877,7 +891,7 @@ def test_predict_to_disk_path_tiff(tmp_path, minimum_n2v_configuration):
     careamist.predict_to_disk(source=image_dir)
 
     for i in range(n_samples):
-        assert (tmp_path / "predictions" / "images" / f"image_{i}.tiff").is_file()
+        assert (tmp_path / "predictions" / f"image_{i}.tiff").is_file()
 
 
 def test_predict_to_disk_datamodule_tiff(tmp_path, minimum_n2v_configuration):
@@ -918,7 +932,7 @@ def test_predict_to_disk_datamodule_tiff(tmp_path, minimum_n2v_configuration):
     careamist.predict_to_disk(source=datamodule)
 
     for i in range(n_samples):
-        assert (tmp_path / "predictions" / "images" / f"image_{i}.tiff").is_file()
+        assert (tmp_path / "predictions" / f"image_{i}.tiff").is_file()
 
 
 def test_predict_to_disk_custom(tmp_path, minimum_n2v_configuration):
@@ -959,7 +973,7 @@ def test_predict_to_disk_custom(tmp_path, minimum_n2v_configuration):
     )
 
     for i in range(n_samples):
-        assert (tmp_path / "predictions" / "images" / f"image_{i}.npy").is_file()
+        assert (tmp_path / "predictions" / f"image_{i}.npy").is_file()
 
 
 def test_predict_to_disk_custom_raises(tmp_path, minimum_n2v_configuration):

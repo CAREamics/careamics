@@ -4,7 +4,7 @@ UNet model.
 A UNet encoder, decoder and complete model.
 """
 
-from typing import Any, List, Tuple, Union
+from typing import Any, Union
 
 import torch
 import torch.nn as nn
@@ -104,7 +104,7 @@ class UnetEncoder(nn.Module):
             encoder_blocks.append(self.pooling)
         self.encoder_blocks = nn.ModuleList(encoder_blocks)
 
-    def forward(self, x: torch.Tensor) -> List[torch.Tensor]:
+    def forward(self, x: torch.Tensor) -> list[torch.Tensor]:
         """
         Forward pass.
 
@@ -115,7 +115,7 @@ class UnetEncoder(nn.Module):
 
         Returns
         -------
-        List[torch.Tensor]
+        list[torch.Tensor]
             Output of each encoder block (skip connections) and final output of the
             encoder.
         """
@@ -202,7 +202,7 @@ class UnetDecoder(nn.Module):
             groups=self.groups,
         )
 
-        decoder_blocks: List[nn.Module] = []
+        decoder_blocks: list[nn.Module] = []
         for n in range(depth):
             decoder_blocks.append(upsampling)
             in_channels = (num_channels_init * 2 ** (depth - n)) * groups
@@ -230,7 +230,7 @@ class UnetDecoder(nn.Module):
 
         Parameters
         ----------
-        *features :  List[torch.Tensor]
+        *features :  list[torch.Tensor]
             List containing the output of each encoder block(skip connections) and final
             output of the encoder.
 
@@ -240,7 +240,7 @@ class UnetDecoder(nn.Module):
             Output of the decoder.
         """
         x: torch.Tensor = features[0]
-        skip_connections: Tuple[torch.Tensor, ...] = features[-1:0:-1]
+        skip_connections: tuple[torch.Tensor, ...] = features[-1:0:-1]
 
         x = self.bottleneck(x)
 
@@ -289,10 +289,10 @@ class UnetDecoder(nn.Module):
         m = A.shape[1] // groups
         n = B.shape[1] // groups
 
-        A_groups: List[torch.Tensor] = [
+        A_groups: list[torch.Tensor] = [
             A[:, i * m : (i + 1) * m] for i in range(groups)
         ]
-        B_groups: List[torch.Tensor] = [
+        B_groups: list[torch.Tensor] = [
             B[:, i * n : (i + 1) * n] for i in range(groups)
         ]
 

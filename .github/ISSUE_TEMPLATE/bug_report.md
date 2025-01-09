@@ -1,34 +1,50 @@
 ---
 name: Bug report
-about: Create a report to help us improve
+about: Create a report to help us improve CAREamics
 title: "[BUG]"
 labels: bug
 assignees: ''
-
 ---
 
-**Describe the bug**
-A clear and concise description of what the bug is.
+## Describe the bug
+<!-- A clear and concise description of what the bug is. -->
 
-**To Reproduce**
+[description here]
+
+## To Reproduce
+
 Code snippet allowing reproducing the behaviour:
 ```python
-# code here
+# [code here]
+
 ```
 
-**Expected behavior**
-A clear and concise description of what you expected to happen.
+Error message:
+``` python
+# [copy your error message here]
+```
 
-**Screenshots**
-If applicable, add screenshots to help explain your problem.
+<!-- If applicable, add screenshots to help explain your problem. -->
 
-**Desktop (please complete the following information):**
- - OS: [e.g. iOS]
- - Version [e.g. 22]
-- microscopy-portfolio version [e.g. 0.0.5]
+## System
+<!-- Please fill in the following information, you can check the package versions using `conda list` -->
+> [!IMPORTANT]
+> - OS: [e.g. iOS]
+> - Python version [e.g. 3.9]
+> - PyTorch version [e.g. 2.3]
+> - PyTorch lightning version [e.g. 2.4]
+> - CAREamics version [e.g. 0.0.4]
 
-**Environment:**
-Please add here the content of your conda environment with versions.
+### Environment
+<!-- Please copy here the content of your environment, you can use `conda env export > environment.yml` in unix-style command. -->
 
-**Additional context**
-Add any other context about the problem here.
+```yaml
+# [your environment here]
+```
+
+
+## Additional context
+
+<!-- Add any other context about the problem here. -->
+
+[additional context here (if applicable)]

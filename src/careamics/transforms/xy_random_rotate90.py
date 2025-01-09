@@ -1,6 +1,6 @@
 """Patch transform applying XY random 90 degrees rotations."""
 
-from typing import Optional, Tuple
+from typing import Optional
 
 import numpy as np
 from numpy.typing import NDArray
@@ -69,7 +69,7 @@ class XYRandomRotate90(Transform):
 
         Returns
         -------
-        Tuple[np.ndarray, Optional[np.ndarray]]
+        tuple[np.ndarray, Optional[np.ndarray]]
             Transformed patch and target.
         """
         if self.rng.random() > self.p:
@@ -90,7 +90,7 @@ class XYRandomRotate90(Transform):
 
         return patch_transformed, target_transformed, additional_transformed
 
-    def _apply(self, patch: NDArray, n_rot: int, axes: Tuple[int, int]) -> NDArray:
+    def _apply(self, patch: NDArray, n_rot: int, axes: tuple[int, int]) -> NDArray:
         """Apply the transform to the image.
 
         Parameters
@@ -99,7 +99,7 @@ class XYRandomRotate90(Transform):
             Image or image patch, 2D or 3D, shape C(Z)YX.
         n_rot : int
             Number of 90 degree rotations.
-        axes : Tuple[int, int]
+        axes : tuple[int, int]
             Axes along which to rotate the patch.
 
         Returns
