@@ -120,19 +120,8 @@ def export_to_bmz(
         Channel names, by default None.
     data_description : Optional[str], optional
         Description of the data, by default None.
-
-    Raises
-    ------
-    ValueError
-        If the model is a Custom model.
     """
     path_to_archive = Path(path_to_archive)
-
-    # method is not compatible with Custom models
-    if config.algorithm_config.model.architecture == SupportedArchitecture.CUSTOM:
-        raise ValueError(
-            "Exporting Custom models to BioImage Model Zoo format is not supported."
-        )
 
     if path_to_archive.suffix != ".zip":
         raise ValueError(

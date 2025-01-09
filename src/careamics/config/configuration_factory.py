@@ -2,21 +2,61 @@
 
 from typing import Any, Literal, Optional, Union
 
-from .architectures import UNetModel
-from .configuration_model import Configuration
-from .data_model import DataConfig
-from .fcn_algorithm_model import FCNAlgorithmConfig
-from .support import (
+from pydantic import BaseModel
+
+from careamics.config.algorithms import (
+    CAREAlgorithm,
+    N2NAlgorithm,
+    N2VAlgorithm,
+    UNetBasedAlgorithm,
+    VAEBasedAlgorithm,
+)
+from careamics.config.architectures import UNetModel
+from careamics.config.care_configuration import CAREConfiguration
+from careamics.config.configuration import Configuration
+from careamics.config.data import DataConfig, N2VDataConfig
+from careamics.config.n2n_configuration import N2NConfiguration
+from careamics.config.n2v_configuration import N2VConfiguration
+from careamics.config.support import (
     SupportedArchitecture,
     SupportedPixelManipulation,
     SupportedTransform,
 )
-from .training_model import TrainingConfig
-from .transformations import (
+from careamics.config.training_model import TrainingConfig
+from careamics.config.transformations import (
     N2VManipulateModel,
     XYFlipModel,
     XYRandomRotate90Model,
 )
+
+# TODO
+# - test if that simplifies mypy?
+# - remove custom
+# - can we organize submodules better?
+# - add tests for the various pydantic models
+# - need same for Algorithms, for the Lightning API
+
+
+class ConfigurationFactory(BaseModel):
+    """A factory to instantiate a CAREamics configuration."""
+
+    configuration: Union[
+        CAREConfiguration, N2NConfiguration, N2VConfiguration, Configuration
+    ]
+
+
+class AlgorithmFactory(BaseModel):
+    """A factory to instantiate an algorithm model."""
+
+    algorithm: Union[
+        N2VAlgorithm, N2NAlgorithm, CAREAlgorithm, UNetBasedAlgorithm, VAEBasedAlgorithm
+    ]
+
+
+class DataFactory(BaseModel):
+    """A factory to instantiate a data model."""
+
+    data: Union[DataConfig, N2VDataConfig]
 
 
 def _list_augmentations(
@@ -188,21 +228,21 @@ def _create_configuration(
     )
 
     # algorithm model
-    algorithm_config = FCNAlgorithmConfig(
-        algorithm=algorithm,
-        loss=loss,
-        model=unet_model,
-    )
+    algorithm_config = {
+        "algorithm": algorithm,
+        "loss": loss,
+        "model": unet_model,
+    }
 
     # data model
-    data = DataConfig(
-        data_type=data_type,
-        axes=axes,
-        patch_size=patch_size,
-        batch_size=batch_size,
-        transforms=augmentations,
-        dataloader_params=dataloader_params,
-    )
+    data = {
+        "data_type": data_type,
+        "axes": axes,
+        "patch_size": patch_size,
+        "batch_size": batch_size,
+        "transforms": augmentations,
+        "dataloader_params": dataloader_params,
+    }
 
     # training model
     training = TrainingConfig(
@@ -212,14 +252,17 @@ def _create_configuration(
     )
 
     # create configuration
-    configuration = Configuration(
-        experiment_name=experiment_name,
-        algorithm_config=algorithm_config,
-        data_config=data,
-        training_config=training,
+    configuration = {
+        "experiment_name": experiment_name,
+        "algorithm_config": algorithm_config,
+        "data_config": data,
+        "training_config": training,
+    }
+    master_config = ConfigurationFactory(
+        configuration=configuration,
     )
 
-    return configuration
+    return master_config.configuration
 
 
 # TODO reconsider naming once we officially support LVAE approaches

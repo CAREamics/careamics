@@ -13,8 +13,17 @@ TRANSFORMS_UNION = Annotated[
     Union[
         XYFlipModel,
         XYRandomRotate90Model,
-        N2VManipulateModel,
     ],
     Discriminator("name"),  # used to tell the different transform models apart
 ]
 """Available transforms in CAREamics."""
+
+N2V_TRANSFORMS_UNION = Annotated[
+    Union[
+        XYFlipModel,
+        XYRandomRotate90Model,
+        N2VManipulateModel,
+    ],
+    Discriminator("name"),  # used to tell the different transform models apart
+]
+"""Available N2V-compatible transforms in CAREamics."""

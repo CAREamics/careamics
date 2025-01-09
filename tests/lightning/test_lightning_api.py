@@ -6,7 +6,7 @@ from pytorch_lightning.callbacks import (
     ModelCheckpoint,
 )
 
-from careamics import Configuration
+from careamics.config import ConfigurationFactory
 from careamics.lightning import (
     create_careamics_module,
     create_predict_datamodule,
@@ -15,7 +15,7 @@ from careamics.lightning import (
 from careamics.prediction_utils import convert_outputs
 
 
-def test_smoke_n2v_2d_array(tmp_path, minimum_configuration):
+def test_smoke_n2v_2d_array(tmp_path, minimum_n2v_configuration):
     """Test a full run of N2V training with the lightning API."""
     rng = np.random.default_rng(42)
 
@@ -23,7 +23,7 @@ def test_smoke_n2v_2d_array(tmp_path, minimum_configuration):
     train_array = rng.integers(0, 255, (32, 32)).astype(np.float32)
     val_array = rng.integers(0, 255, (32, 32)).astype(np.float32)
 
-    cfg = Configuration(**minimum_configuration)
+    cfg = ConfigurationFactory(configuration=minimum_n2v_configuration).configuration
 
     # create lightning module
     model = create_careamics_module(
@@ -73,14 +73,14 @@ def test_smoke_n2v_2d_array(tmp_path, minimum_configuration):
     assert predicted[0].squeeze().shape == val_array.shape
 
 
-def test_smoke_n2v_2d_tiling(tmp_path, minimum_configuration):
+def test_smoke_n2v_2d_tiling(tmp_path, minimum_n2v_configuration):
     """Test a full run of N2V training with the lightning API and tiled prediction."""
     # training data
     rng = np.random.default_rng(42)
     train_array = rng.integers(0, 255, (32, 32)).astype(np.float32)
     val_array = rng.integers(0, 255, (32, 32)).astype(np.float32)
 
-    cfg = Configuration(**minimum_configuration)
+    cfg = ConfigurationFactory(configuration=minimum_n2v_configuration).configuration
 
     # create lightning module
     model = create_careamics_module(

@@ -1,24 +1,26 @@
-"""Algorithm configuration."""
+"""VAE-based algorithm Pydantic model."""
 
 from __future__ import annotations
 
 from pprint import pformat
-from typing import Literal, Optional, Union
+from typing import Literal, Optional
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, model_validator
 from typing_extensions import Self
 
+from careamics.config.architectures import LVAEModel
+from careamics.config.likelihood_model import (
+    GaussianLikelihoodConfig,
+    NMLikelihoodConfig,
+)
+from careamics.config.loss_model import LVAELossConfig
+from careamics.config.nm_model import MultiChannelNMConfig
+from careamics.config.optimizer_models import LrSchedulerModel, OptimizerModel
 from careamics.config.support import SupportedAlgorithm, SupportedLoss
 
-from .architectures import CustomModel, LVAEModel
-from .likelihood_model import GaussianLikelihoodConfig, NMLikelihoodConfig
-from .loss_model import LVAELossConfig
-from .nm_model import MultiChannelNMConfig
-from .optimizer_models import LrSchedulerModel, OptimizerModel
 
-
-class VAEAlgorithmConfig(BaseModel):
-    """Algorithm configuration.
+class VAEBasedAlgorithm(BaseModel):
+    """VAE-based algorithm configuration.
 
     # TODO
 
@@ -42,7 +44,7 @@ class VAEAlgorithmConfig(BaseModel):
 
     # NOTE: these are all configs (pydantic models)
     loss: LVAELossConfig
-    model: Union[LVAEModel, CustomModel] = Field(discriminator="architecture")
+    model: LVAEModel
     noise_model: Optional[MultiChannelNMConfig] = None
     noise_model_likelihood: Optional[NMLikelihoodConfig] = None
     gaussian_likelihood: Optional[GaussianLikelihoodConfig] = None

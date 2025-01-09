@@ -12,7 +12,7 @@ from pytorch_lightning import LightningModule, Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint
 from torch.utils.data import DataLoader
 
-from careamics.config import Configuration
+from careamics.config import ConfigurationFactory
 from careamics.config.support import SupportedData
 from careamics.dataset import IterablePredDataset
 from careamics.lightning import (
@@ -51,7 +51,7 @@ def prediction_writer_callback(
 # TODO: smoke test with tiff (& example custom save func?)
 
 
-def test_smoke_n2v_tiled_tiff(tmp_path, minimum_configuration):
+def test_smoke_n2v_tiled_tiff(tmp_path, minimum_n2v_configuration):
     rng = np.random.default_rng(42)
 
     # training data
@@ -65,7 +65,7 @@ def test_smoke_n2v_tiled_tiff(tmp_path, minimum_configuration):
     train_file = train_dir / file_name
     tifffile.imwrite(train_file, train_array)
 
-    cfg = Configuration(**minimum_configuration)
+    cfg = ConfigurationFactory(configuration=minimum_n2v_configuration).configuration
 
     # create lightning module
     model = create_careamics_module(
@@ -129,7 +129,7 @@ def test_smoke_n2v_tiled_tiff(tmp_path, minimum_configuration):
     np.testing.assert_array_equal(save_data, predicted_images[0][0], verbose=True)
 
 
-def test_smoke_n2v_untiled_tiff(tmp_path, minimum_configuration):
+def test_smoke_n2v_untiled_tiff(tmp_path, minimum_n2v_configuration):
     rng = np.random.default_rng(42)
 
     # training data
@@ -143,7 +143,7 @@ def test_smoke_n2v_untiled_tiff(tmp_path, minimum_configuration):
     train_file = train_dir / file_name
     tifffile.imwrite(train_file, train_array)
 
-    cfg = Configuration(**minimum_configuration)
+    cfg = ConfigurationFactory(configuration=minimum_n2v_configuration).configuration
 
     # create lightning module
     model = create_careamics_module(

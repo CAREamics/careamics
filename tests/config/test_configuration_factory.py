@@ -1,16 +1,22 @@
 import pytest
 
 from careamics.config import (
+    CAREConfiguration,
+    N2NConfiguration,
+    N2VConfiguration,
     create_care_configuration,
     create_n2n_configuration,
     create_n2v_configuration,
 )
 from careamics.config.configuration_factory import (
+    ConfigurationFactory,
+    DataFactory,
     _create_configuration,
     _create_supervised_configuration,
     _create_unet_configuration,
     _list_augmentations,
 )
+from careamics.config.data import N2VDataConfig
 from careamics.config.support import (
     SupportedPixelManipulation,
     SupportedStructAxis,
@@ -21,6 +27,37 @@ from careamics.config.transformations import (
     XYFlipModel,
     XYRandomRotate90Model,
 )
+
+# TODO algorithm factory tests
+
+
+def test_careamics_config_n2v(minimum_n2v_configuration):
+    """Test that the N2V configuration is created correctly."""
+    factory = ConfigurationFactory(configuration=minimum_n2v_configuration)
+    assert isinstance(factory.configuration, N2VConfiguration)
+
+
+@pytest.mark.parametrize("algorithm", ["n2n", "care"])
+def test_careamics_config_supervised(minimum_supervised_configuration, algorithm):
+    """Test that the supervised configuration is created correctly."""
+    min_config = minimum_supervised_configuration
+    min_config["algorithm_config"]["algorithm"] = algorithm
+
+    config = ConfigurationFactory(configuration=min_config)
+
+    exp_class = N2NConfiguration if algorithm == "n2n" else CAREConfiguration
+    assert isinstance(config.configuration, exp_class)
+
+
+def test_data_factory_n2v(minimum_data):
+    """Test that having N2VManipule creates a N2VDataConfig."""
+    minimum_data["transforms"] = [
+        {
+            "name": SupportedTransform.N2V_MANIPULATE.value,
+        }
+    ]
+    data = DataFactory(data=minimum_data)
+    assert isinstance(data.data, N2VDataConfig)
 
 
 def test_list_aug_default():

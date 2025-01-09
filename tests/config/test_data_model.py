@@ -2,18 +2,11 @@ import numpy as np
 import pytest
 import yaml
 
-from careamics.config.data_model import DataConfig
+from careamics.config.data.data_model import DataConfig
 from careamics.config.support import (
-    SupportedPixelManipulation,
-    SupportedStructAxis,
     SupportedTransform,
 )
-from careamics.config.transformations import (
-    N2VManipulateModel,
-    NormalizeModel,
-    XYFlipModel,
-    XYRandomRotate90Model,
-)
+from careamics.config.transformations import NormalizeModel
 from careamics.transforms import get_all_transforms
 
 
@@ -145,123 +138,6 @@ def test_set_3d(minimum_data: dict):
     assert len(data.patch_size) == 3
 
 
-@pytest.mark.parametrize(
-    "transforms",
-    [
-        [
-            {"name": SupportedTransform.XY_FLIP.value},
-            {"name": SupportedTransform.N2V_MANIPULATE.value},
-        ],
-        [
-            {"name": SupportedTransform.XY_FLIP.value},
-        ],
-        [
-            {"name": SupportedTransform.XY_FLIP.value},
-            {"name": SupportedTransform.XY_RANDOM_ROTATE90.value},
-            {"name": SupportedTransform.N2V_MANIPULATE.value},
-        ],
-    ],
-)
-def test_passing_supported_transforms(minimum_data: dict, transforms):
-    """Test that list of supported transforms can be passed."""
-    minimum_data["transforms"] = transforms
-    model = DataConfig(**minimum_data)
-
-    supported = {
-        "XYFlip": XYFlipModel,
-        "XYRandomRotate90": XYRandomRotate90Model,
-        "N2VManipulate": N2VManipulateModel,
-    }
-
-    for ind, t in enumerate(transforms):
-        assert t["name"] == model.transforms[ind].name
-        assert isinstance(model.transforms[ind], supported[t["name"]])
-
-
-@pytest.mark.parametrize(
-    "transforms",
-    [
-        [
-            {"name": SupportedTransform.N2V_MANIPULATE.value},
-            {"name": SupportedTransform.XY_FLIP.value},
-        ],
-        [
-            {"name": SupportedTransform.N2V_MANIPULATE.value},
-        ],
-        [
-            {"name": SupportedTransform.XY_FLIP.value},
-            {"name": SupportedTransform.N2V_MANIPULATE.value},
-            {"name": SupportedTransform.XY_RANDOM_ROTATE90.value},
-        ],
-    ],
-)
-def test_n2vmanipulate_last_transform(minimum_data: dict, transforms):
-    """Test that N2V Manipulate is moved to the last position if it is not."""
-    minimum_data["transforms"] = transforms
-    model = DataConfig(**minimum_data)
-    assert model.transforms[-1].name == SupportedTransform.N2V_MANIPULATE.value
-
-
-def test_multiple_n2v_manipulate(minimum_data: dict):
-    """Test that passing multiple n2v manipulate raises an error."""
-    minimum_data["transforms"] = [
-        {"name": SupportedTransform.N2V_MANIPULATE.value},
-        {"name": SupportedTransform.N2V_MANIPULATE.value},
-    ]
-    with pytest.raises(ValueError):
-        DataConfig(**minimum_data)
-
-
-def test_remove_n2v_manipulate(minimum_data: dict):
-    """Test that N2V Manipulate can be removed."""
-    minimum_data["transforms"] = [
-        {"name": SupportedTransform.XY_FLIP.value},
-        {"name": SupportedTransform.N2V_MANIPULATE.value},
-    ]
-    model = DataConfig(**minimum_data)
-    model.remove_n2v_manipulate()
-    assert len(model.transforms) == 1
-    assert model.transforms[-1].name == SupportedTransform.XY_FLIP.value
-
-
-def test_add_n2v_manipulate(minimum_data: dict):
-    """Test that N2V Manipulate can be added."""
-    minimum_data["transforms"] = [
-        {"name": SupportedTransform.XY_FLIP.value},
-    ]
-    model = DataConfig(**minimum_data)
-    model.add_n2v_manipulate()
-    assert len(model.transforms) == 2
-    assert model.transforms[-1].name == SupportedTransform.N2V_MANIPULATE.value
-
-    # test that adding twice doesn't change anything
-    model.add_n2v_manipulate()
-    assert len(model.transforms) == 2
-    assert model.transforms[-1].name == SupportedTransform.N2V_MANIPULATE.value
-
-
-def test_correct_transform_parameters(minimum_data: dict):
-    """Test that the transforms have the correct parameters.
-
-    This is important to know that the transforms are not all instantiated as
-    a generic transform.
-    """
-    minimum_data["transforms"] = [
-        {"name": SupportedTransform.XY_FLIP.value},
-        {"name": SupportedTransform.XY_RANDOM_ROTATE90.value},
-        {"name": SupportedTransform.N2V_MANIPULATE.value},
-    ]
-    model = DataConfig(**minimum_data)
-
-    # N2VManipulate
-    params = model.transforms[-1].model_dump()
-    assert "roi_size" in params
-    assert "masked_pixel_percentage" in params
-    assert "strategy" in params
-    assert "struct_mask_axis" in params
-    assert "struct_mask_span" in params
-
-
 def test_passing_empty_transforms(minimum_data: dict):
     """Test that empty list of transforms can be passed."""
     minimum_data["transforms"] = []
@@ -276,63 +152,6 @@ def test_passing_incorrect_element(minimum_data: dict):
     ]
     with pytest.raises(ValueError):
         DataConfig(**minimum_data)
-
-
-def test_set_n2v_strategy(minimum_data: dict):
-    """Test that the N2V strategy can be set."""
-    uniform = SupportedPixelManipulation.UNIFORM.value
-    median = SupportedPixelManipulation.MEDIAN.value
-
-    data = DataConfig(**minimum_data)
-    assert data.transforms[-1].name == SupportedTransform.N2V_MANIPULATE.value
-    assert data.transforms[-1].strategy == uniform
-
-    data.set_N2V2_strategy(median)
-    assert data.transforms[-1].strategy == median
-
-    data.set_N2V2_strategy(uniform)
-    assert data.transforms[-1].strategy == uniform
-
-
-def test_set_n2v_strategy_wrong_value(minimum_data: dict):
-    """Test that passing a wrong strategy raises an error."""
-    data = DataConfig(**minimum_data)
-    with pytest.raises(ValueError):
-        data.set_N2V2_strategy("wrong_value")
-
-
-def test_set_struct_mask(minimum_data: dict):
-    """Test that the struct mask can be set."""
-    none = SupportedStructAxis.NONE.value
-    vertical = SupportedStructAxis.VERTICAL.value
-    horizontal = SupportedStructAxis.HORIZONTAL.value
-
-    data = DataConfig(**minimum_data)
-    assert data.transforms[-1].name == SupportedTransform.N2V_MANIPULATE.value
-    assert data.transforms[-1].struct_mask_axis == none
-    assert data.transforms[-1].struct_mask_span == 5
-
-    data.set_structN2V_mask(vertical, 3)
-    assert data.transforms[-1].struct_mask_axis == vertical
-    assert data.transforms[-1].struct_mask_span == 3
-
-    data.set_structN2V_mask(horizontal, 7)
-    assert data.transforms[-1].struct_mask_axis == horizontal
-    assert data.transforms[-1].struct_mask_span == 7
-
-    data.set_structN2V_mask(none, 11)
-    assert data.transforms[-1].struct_mask_axis == none
-    assert data.transforms[-1].struct_mask_span == 11
-
-
-def test_set_struct_mask_wrong_value(minimum_data: dict):
-    """Test that passing a wrong struct mask axis raises an error."""
-    data = DataConfig(**minimum_data)
-    with pytest.raises(ValueError):
-        data.set_structN2V_mask("wrong_value", 3)
-
-    with pytest.raises(ValueError):
-        data.set_structN2V_mask(SupportedStructAxis.VERTICAL.value, 1)
 
 
 def test_export_to_yaml_float32_stats(tmp_path, minimum_data: dict):

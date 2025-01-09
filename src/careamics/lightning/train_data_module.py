@@ -9,7 +9,7 @@ import pytorch_lightning as L
 from numpy.typing import NDArray
 from torch.utils.data import DataLoader, IterableDataset
 
-from careamics.config import DataConfig
+from careamics.config import DataConfig, DataFactory, N2VDataConfig
 from careamics.config.support import SupportedData
 from careamics.config.transformations import TransformModel
 from careamics.dataset.dataset_utils import (
@@ -660,13 +660,13 @@ def create_train_datamodule(
         data_dict["transforms"] = transforms
 
     # validate configuration
-    data_config = DataConfig(**data_dict)
+    data_config = DataFactory(data=data_dict).data
 
     # N2V specific checks, N2V, structN2V, and transforms
-    if data_config.has_n2v_manipulate():
-        # there is not target, n2v2 and structN2V can be changed
+    if isinstance(data_config, N2VDataConfig):
+        # there is no target, n2v2 and structN2V can be changed
         if train_target_data is None:
-            data_config.set_N2V2(use_n2v2)
+            data_config.set_n2v2(use_n2v2)
             data_config.set_structN2V_mask(struct_n2v_axis, struct_n2v_span)
         else:
             raise ValueError(
