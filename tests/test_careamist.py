@@ -117,7 +117,6 @@ def test_train_single_array_no_val(tmp_path: Path, minimum_configuration: dict):
     assert (tmp_path / "model.zip").exists()
 
 
-@pytest.mark.skip(reason="bmz")
 def test_train_array(tmp_path: Path, minimum_configuration: dict):
     """Test that CAREamics can be trained on arrays."""
     # training data
@@ -358,7 +357,6 @@ def test_train_tiff_files(tmp_path: Path, minimum_configuration: dict):
     assert (tmp_path / "model.zip").exists()
 
 
-@pytest.mark.skip(reason="bmz")
 def test_train_array_supervised(tmp_path: Path, supervised_configuration: dict):
     """Test that CAREamics can be trained with arrays."""
     # training data

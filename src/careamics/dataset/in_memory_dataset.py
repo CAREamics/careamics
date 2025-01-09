@@ -216,16 +216,10 @@ class InMemoryDataset(Dataset):
         if self.data_targets is not None:
             # get target
             target = self.data_targets[index]
-
             return self.patch_transform(patch=patch, target=target)
-
-        elif self.data_config.has_n2v_manipulate():  # TODO not compatible with HDN
-            return self.patch_transform(patch=patch)
         else:
-            raise ValueError(
-                "Something went wrong! No target provided (not supervised training) "
-                "and no N2V manipulation (no N2V training)."
-            )
+            # TODO return additional None. Cant collate
+            return self.patch_transform(patch=patch)
 
     def get_data_statistics(self) -> tuple[list[float], list[float]]:
         """Return training data statistics.

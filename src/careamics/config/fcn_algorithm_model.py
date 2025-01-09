@@ -1,13 +1,15 @@
 """Module containing `FCNAlgorithmConfig` class."""
 
 from pprint import pformat
-from typing import Literal, Union
+from typing import Literal, Optional, Union
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from typing_extensions import Self
 
 from careamics.config.architectures import CustomModel, UNetModel
 from careamics.config.optimizer_models import LrSchedulerModel, OptimizerModel
+from careamics.config.support import SupportedTransform
+from careamics.config.transformations import TRANSFORMS_UNION, N2VManipulateModel
 
 
 class FCNAlgorithmConfig(BaseModel):
@@ -79,6 +81,9 @@ class FCNAlgorithmConfig(BaseModel):
     # of the compatibility with the algorithm
 
     # Optional fields
+    preprocessing: Optional[list[TRANSFORMS_UNION]] = Field(
+        default=[], validate_default=True
+    )
     optimizer: OptimizerModel = OptimizerModel()
     """Optimizer to use, defined in SupportedOptimizer."""
 
@@ -117,6 +122,10 @@ class FCNAlgorithmConfig(BaseModel):
                 raise ValueError(
                     "N2V requires the same number of input and output channels. Make "
                     "sure that `in_channels` and `num_classes` are the same."
+                )
+            if SupportedTransform.N2V_MANIPULATE not in self.preprocessing:
+                self.preprocessing.append(
+                    N2VManipulateModel(name=SupportedTransform.N2V_MANIPULATE.value)
                 )
 
         if self.algorithm == "care" or self.algorithm == "n2n":

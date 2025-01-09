@@ -27,7 +27,7 @@ from careamics.models.lvae.noise_models import (
     noise_model_factory,
 )
 from careamics.models.model_factory import model_factory
-from careamics.transforms import Denormalize, ImageRestorationTTA
+from careamics.transforms import Compose, Denormalize, ImageRestorationTTA
 from careamics.utils.metrics import RunningPSNR, scale_invariant_psnr
 from careamics.utils.torch_utils import get_optimizer, get_scheduler
 
@@ -76,7 +76,8 @@ class FCNModule(L.LightningModule):
         if isinstance(algorithm_config, dict):
             algorithm_config = FCNAlgorithmConfig(**algorithm_config)
 
-        # create model and loss function
+        # create preprocessing, model and loss function
+        self.preprocess = Compose(transform_list=algorithm_config.preprocessing)
         self.model: nn.Module = model_factory(algorithm_config.model)
         self.loss_func = loss_factory(algorithm_config.loss)
 
@@ -116,7 +117,6 @@ class FCNModule(L.LightningModule):
         Any
             Loss value.
         """
-        # TODO can N2V be simplified by returning mask*original_patch
         x, *aux = batch
         out = self.model(x)
         loss = self.loss_func(out, *aux)
@@ -136,7 +136,8 @@ class FCNModule(L.LightningModule):
             Batch index.
         """
         x, *aux = batch
-        out = self.model(x)
+        x_preprocessed = self.preprocess(x)
+        out = self.model(x_preprocessed)
         val_loss = self.loss_func(out, *aux)
 
         # log validation loss

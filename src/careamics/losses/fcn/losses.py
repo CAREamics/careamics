@@ -7,6 +7,8 @@ This submodule contains the various losses used in CAREamics.
 import torch
 from torch.nn import L1Loss, MSELoss
 
+from careamics.transforms.n2v_manipulate import N2VManipulate
+
 
 def mse_loss(source: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
     """
@@ -29,27 +31,24 @@ def mse_loss(source: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
 
 
 def n2v_loss(
-    manipulated_patches: torch.Tensor,
-    original_patches: torch.Tensor,
-    masks: torch.Tensor,
+    patches: torch.Tensor,
+    *args,
 ) -> torch.Tensor:
     """
     N2V Loss function described in A Krull et al 2018.
 
     Parameters
     ----------
-    manipulated_patches : torch.Tensor
-        Patches with manipulated pixels.
-    original_patches : torch.Tensor
+    patches : torch.Tensor
         Noisy patches.
-    masks : torch.Tensor
-        Array containing masked pixel locations.
 
     Returns
     -------
     torch.Tensor
         Loss value.
     """
+    n2v_manipulate = N2VManipulate()
+    manipulated_patches, original_patches, masks = N2VManipulate(patches)
     errors = (original_patches - manipulated_patches) ** 2
     # Average over pixels and batch
     loss = torch.sum(errors * masks) / torch.sum(masks)

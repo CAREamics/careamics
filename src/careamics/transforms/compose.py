@@ -14,9 +14,9 @@ from .xy_random_rotate90 import XYRandomRotate90
 
 ALL_TRANSFORMS = {
     "Normalize": Normalize,
-    "N2VManipulate": N2VManipulate,
     "XYFlip": XYFlip,
     "XYRandomRotate90": XYRandomRotate90,
+    "N2VManipulate": N2VManipulate,
 }
 
 
@@ -82,21 +82,13 @@ class Compose:
         tuple[np.ndarray, Optional[np.ndarray]]
             The output of the transformations.
         """
-        params: Union[
-            tuple[NDArray, Optional[NDArray]],
-            tuple[NDArray, NDArray, NDArray],  # N2VManiupulate output
-        ] = (patch, target)
+        params: Union[tuple[NDArray, Optional[NDArray]],] = (patch, target)
 
         for t in self.transforms:
-            # N2VManipulate returns tuple of 3 arrays
-            #   - Other transoforms return tuple of (patch, target, additional_arrays)
-            if isinstance(t, N2VManipulate):
-                patch, *_ = params
-                params = t(patch=patch)
-            else:
-                *params, _ = t(*params)  # ignore additional_arrays dict
+            *params, _ = t(*params)  # ignore additional_arrays dict
 
-        return params
+        # needed to avoid None values which create problems for collate
+        return [p for p in params if p is not None]
 
     def _chain_transforms_additional_arrays(
         self,
