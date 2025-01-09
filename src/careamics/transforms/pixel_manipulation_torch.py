@@ -98,9 +98,14 @@ def _get_stratified_coords_torch(
     steps = []
     for axis_size in shape:
         num_pixels = int(torch.ceil(torch.tensor(axis_size / mask_pixel_distance)))
-        axis_pixel_coords, step = torch.linspace(
-            0, axis_size, num_pixels, dtype=torch.int32, device="cpu", retstep=True
+        axis_pixel_coords = torch.linspace(
+            0,
+            axis_size - (axis_size // num_pixels),
+            num_pixels,
+            dtype=torch.int32,
+            device="cpu",
         )
+        step = axis_pixel_coords[1] - axis_pixel_coords[0]
         pixel_coords.append(axis_pixel_coords)
         steps.append(step)
 
@@ -108,10 +113,12 @@ def _get_stratified_coords_torch(
     coordinate_grid = torch.stack([g.flatten() for g in coordinate_grid_list], dim=-1)
 
     max_step = float(max(steps))
-    random_increment = rng.randint(0, max_step, size=coordinate_grid.shape)
+    random_increment = torch.randint(
+        0, int(max_step), size=coordinate_grid.shape, generator=rng
+    )
     coordinate_grid += random_increment
 
-    return torch.clip(coordinate_grid, 0, torch.tensor(shape, device="cpu") - 1)
+    return torch.clamp(coordinate_grid, 0, shape[0] - 1)
 
 
 def uniform_manipulate_torch(
