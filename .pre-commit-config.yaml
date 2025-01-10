@@ -14,7 +14,7 @@ repos:
       - id: validate-pyproject
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.8.1
+    rev: v0.8.6
     hooks:
       - id: ruff
         exclude: "^src/careamics/lvae_training/.*|^src/careamics/models/lvae/.*|^scripts/.*"
@@ -26,14 +26,14 @@ repos:
       - id: black
 
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.13.0
+    rev: v1.14.1
     hooks:
       - id: mypy
         files: "^src/"
         exclude: "^src/careamics/lvae_training/.*|^src/careamics/models/lvae/.*|^src/careamics/config/likelihood_model.py|^src/careamics/losses/loss_factory.py|^src/careamics/losses/lvae/losses.py"
         args: ["--config-file", "mypy.ini"]
         additional_dependencies:
-          - numpy
+          - numpy<2.0.0
           - types-PyYAML
           - types-setuptools
 
