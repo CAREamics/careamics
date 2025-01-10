@@ -40,6 +40,7 @@ class ConfigurationFactory(BaseModel):
     ]
 
 
+# TODO: should UNetBased and VAEBased be instantiated? Currently not tested
 class AlgorithmFactory(BaseModel):
     """A factory to instantiate an algorithm model."""
 

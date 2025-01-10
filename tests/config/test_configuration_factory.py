@@ -1,8 +1,13 @@
 import pytest
 
 from careamics.config import (
+    AlgorithmFactory,
+    CAREAlgorithm,
     CAREConfiguration,
+    DataConfig,
+    N2NAlgorithm,
     N2NConfiguration,
+    N2VAlgorithm,
     N2VConfiguration,
     create_care_configuration,
     create_n2n_configuration,
@@ -28,8 +33,6 @@ from careamics.config.transformations import (
     XYRandomRotate90Model,
 )
 
-# TODO algorithm factory tests
-
 
 def test_careamics_config_n2v(minimum_n2v_configuration):
     """Test that the N2V configuration is created correctly."""
@@ -50,7 +53,7 @@ def test_careamics_config_supervised(minimum_supervised_configuration, algorithm
 
 
 def test_data_factory_n2v(minimum_data):
-    """Test that having N2VManipule creates a N2VDataConfig."""
+    """Test that having N2VManipule yields a N2VDataConfig."""
     minimum_data["transforms"] = [
         {
             "name": SupportedTransform.N2V_MANIPULATE.value,
@@ -58,6 +61,30 @@ def test_data_factory_n2v(minimum_data):
     ]
     data = DataFactory(data=minimum_data)
     assert isinstance(data.data, N2VDataConfig)
+
+
+def test_data_factory_supervised(minimum_data):
+    """Test that the normal configuration yields a DataConfig."""
+    data = DataFactory(data=minimum_data)
+    assert isinstance(data.data, DataConfig)
+
+
+def test_algorithm_factory_n2v(minimum_algorithm_n2v):
+    """Test that the N2V configuration is created correctly."""
+    factory = AlgorithmFactory(algorithm=minimum_algorithm_n2v)
+    assert isinstance(factory.algorithm, N2VAlgorithm)
+
+
+@pytest.mark.parametrize("algorithm", ["n2n", "care"])
+def test_algorithm_factory_supervised(minimum_algorithm_supervised, algorithm):
+    """Test that the supervised configuration is created correctly."""
+    min_config = minimum_algorithm_supervised
+    min_config["algorithm"] = algorithm
+
+    factory = AlgorithmFactory(algorithm=min_config)
+
+    exp_class = N2NAlgorithm if algorithm == "n2n" else CAREAlgorithm
+    assert isinstance(factory.algorithm, exp_class)
 
 
 def test_list_aug_default():

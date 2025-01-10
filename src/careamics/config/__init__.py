@@ -8,6 +8,7 @@ while `*_configuration` is reserved for the main configuration models, including
 
 __all__ = [
     "AlgorithmFactory",
+    "CAREAlgorithm",
     "CAREConfiguration",
     "CheckpointModel",
     "Configuration",
@@ -19,7 +20,9 @@ __all__ = [
     "InferenceConfig",
     "LVAELossConfig",
     "MultiChannelNMConfig",
+    "N2NAlgorithm",
     "N2NConfiguration",
+    "N2VAlgorithm",
     "N2VConfiguration",
     "N2VDataConfig",
     "TrainingConfig",
@@ -32,7 +35,13 @@ __all__ = [
     "save_configuration",
 ]
 
-from .algorithms import UNetBasedAlgorithm, VAEBasedAlgorithm
+from .algorithms import (
+    CAREAlgorithm,
+    N2NAlgorithm,
+    N2VAlgorithm,
+    UNetBasedAlgorithm,
+    VAEBasedAlgorithm,
+)
 from .callback_model import CheckpointModel
 from .care_configuration import CAREConfiguration
 from .configuration import Configuration
