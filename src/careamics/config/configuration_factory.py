@@ -31,13 +31,6 @@ from careamics.config.transformations import (
     XYRandomRotate90Model,
 )
 
-# TODO
-# - test if that simplifies mypy?
-# - remove custom
-# - can we organize submodules better?
-# - add tests for the various pydantic models
-# - need same for Algorithms, for the Lightning API
-
 
 class ConfigurationFactory(BaseModel):
     """A factory to instantiate a CAREamics configuration."""
