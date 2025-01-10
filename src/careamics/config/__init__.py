@@ -7,14 +7,11 @@ while `*_configuration` is reserved for the main configuration models, including
 """
 
 __all__ = [
-    "AlgorithmFactory",
     "CAREAlgorithm",
     "CAREConfiguration",
     "CheckpointModel",
     "Configuration",
-    "ConfigurationFactory",
     "DataConfig",
-    "DataFactory",
     "GaussianMixtureNMConfig",
     "GeneralDataConfig",
     "InferenceConfig",
@@ -28,9 +25,12 @@ __all__ = [
     "TrainingConfig",
     "UNetBasedAlgorithm",
     "VAEBasedAlgorithm",
+    "algorithm_factory",
+    "configuration_factory",
     "create_care_configuration",
     "create_n2n_configuration",
     "create_n2v_configuration",
+    "data_factory",
     "load_configuration",
     "save_configuration",
 ]
@@ -45,13 +45,13 @@ from .algorithms import (
 from .callback_model import CheckpointModel
 from .care_configuration import CAREConfiguration
 from .configuration import Configuration
-from .configuration_factory import (
-    AlgorithmFactory,
-    ConfigurationFactory,
-    DataFactory,
+from .configuration_factories import (
+    algorithm_factory,
+    configuration_factory,
     create_care_configuration,
     create_n2n_configuration,
     create_n2v_configuration,
+    data_factory,
 )
 from .configuration_io import load_configuration, save_configuration
 from .data import DataConfig, GeneralDataConfig, N2VDataConfig

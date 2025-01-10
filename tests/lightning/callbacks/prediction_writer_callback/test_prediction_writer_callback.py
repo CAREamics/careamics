@@ -12,7 +12,7 @@ from pytorch_lightning import LightningModule, Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint
 from torch.utils.data import DataLoader
 
-from careamics.config import ConfigurationFactory
+from careamics.config import configuration_factory
 from careamics.config.support import SupportedData
 from careamics.dataset import IterablePredDataset
 from careamics.lightning import (
@@ -65,7 +65,7 @@ def test_smoke_n2v_tiled_tiff(tmp_path, minimum_n2v_configuration):
     train_file = train_dir / file_name
     tifffile.imwrite(train_file, train_array)
 
-    cfg = ConfigurationFactory(configuration=minimum_n2v_configuration).configuration
+    cfg = configuration_factory(minimum_n2v_configuration)
 
     # create lightning module
     model = create_careamics_module(
@@ -143,7 +143,7 @@ def test_smoke_n2v_untiled_tiff(tmp_path, minimum_n2v_configuration):
     train_file = train_dir / file_name
     tifffile.imwrite(train_file, train_array)
 
-    cfg = ConfigurationFactory(configuration=minimum_n2v_configuration).configuration
+    cfg = configuration_factory(minimum_n2v_configuration)
 
     # create lightning module
     model = create_careamics_module(

@@ -316,11 +316,11 @@ def test_prediction_callback_during_training(minimum_n2v_configuration, tiled):
     from pytorch_lightning import Callback, Trainer
 
     from careamics import CAREamist
-    from careamics.config import ConfigurationFactory
+    from careamics.config import configuration_factory
     from careamics.lightning import PredictDataModule, create_predict_datamodule
     from careamics.prediction_utils import convert_outputs
 
-    config = ConfigurationFactory(configuration=minimum_n2v_configuration).configuration
+    config = configuration_factory(minimum_n2v_configuration)
 
     class CustomPredictAfterValidationCallback(Callback):
         def __init__(self, pred_datamodule: PredictDataModule):

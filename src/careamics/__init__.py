@@ -10,7 +10,9 @@ except PackageNotFoundError:
 __all__ = [
     "CAREamist",
     "Configuration",
-    "ConfigurationFactory",
+    "algorithm_factory",
+    "configuration_factory",
+    "data_factory",
     "load_configuration",
     "save_configuration",
 ]
@@ -18,7 +20,9 @@ __all__ = [
 from .careamist import CAREamist
 from .config import (
     Configuration,
-    ConfigurationFactory,
+    algorithm_factory,
+    configuration_factory,
+    data_factory,
     load_configuration,
     save_configuration,
 )

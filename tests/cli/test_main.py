@@ -6,7 +6,7 @@ from typer.testing import CliRunner
 
 from careamics import CAREamist
 from careamics.cli.main import app
-from careamics.config import ConfigurationFactory, save_configuration
+from careamics.config import configuration_factory, save_configuration
 from careamics.config.support import SupportedData
 
 runner = CliRunner()
@@ -16,7 +16,7 @@ def test_train(tmp_path: Path, minimum_n2v_configuration: dict):
 
     # create & save config
     config_path = tmp_path / "config.yaml"
-    config = ConfigurationFactory(configuration=minimum_n2v_configuration).configuration
+    config = configuration_factory(minimum_n2v_configuration)
     config.data_config.data_type = SupportedData.TIFF.value
     save_configuration(config, config_path)
 
@@ -47,7 +47,7 @@ def test_predict_single_file(tmp_path: Path, minimum_n2v_configuration: dict):
 
     # create & save config
     config_path = tmp_path / "config.yaml"
-    config = ConfigurationFactory(configuration=minimum_n2v_configuration).configuration
+    config = configuration_factory(minimum_n2v_configuration)
     config.data_config.data_type = SupportedData.TIFF.value
     save_configuration(config, config_path)
 
@@ -74,7 +74,7 @@ def test_predict_directory(tmp_path: Path, minimum_n2v_configuration: dict):
 
     # create & save config
     config_path = tmp_path / "config.yaml"
-    config = ConfigurationFactory(configuration=minimum_n2v_configuration).configuration
+    config = configuration_factory(minimum_n2v_configuration)
     config.data_config.data_type = SupportedData.TIFF.value
     save_configuration(config, config_path)
 

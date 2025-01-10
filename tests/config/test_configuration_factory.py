@@ -1,7 +1,6 @@
 import pytest
 
 from careamics.config import (
-    AlgorithmFactory,
     CAREAlgorithm,
     CAREConfiguration,
     DataConfig,
@@ -9,17 +8,18 @@ from careamics.config import (
     N2NConfiguration,
     N2VAlgorithm,
     N2VConfiguration,
+    algorithm_factory,
     create_care_configuration,
     create_n2n_configuration,
     create_n2v_configuration,
 )
 from careamics.config.configuration_factory import (
-    ConfigurationFactory,
-    DataFactory,
     _create_configuration,
     _create_supervised_configuration,
     _create_unet_configuration,
     _list_spatial_augmentations,
+    configuration_factory,
+    data_factory,
 )
 from careamics.config.data import N2VDataConfig
 from careamics.config.support import (
@@ -36,8 +36,8 @@ from careamics.config.transformations import (
 
 def test_careamics_config_n2v(minimum_n2v_configuration):
     """Test that the N2V configuration is created correctly."""
-    factory = ConfigurationFactory(configuration=minimum_n2v_configuration)
-    assert isinstance(factory.configuration, N2VConfiguration)
+    configuration = configuration_factory(minimum_n2v_configuration)
+    assert isinstance(configuration, N2VConfiguration)
 
 
 @pytest.mark.parametrize("algorithm", ["n2n", "care"])
@@ -46,10 +46,10 @@ def test_careamics_config_supervised(minimum_supervised_configuration, algorithm
     min_config = minimum_supervised_configuration
     min_config["algorithm_config"]["algorithm"] = algorithm
 
-    config = ConfigurationFactory(configuration=min_config)
+    config = configuration_factory(min_config)
 
     exp_class = N2NConfiguration if algorithm == "n2n" else CAREConfiguration
-    assert isinstance(config.configuration, exp_class)
+    assert isinstance(config, exp_class)
 
 
 def test_data_factory_n2v(minimum_data):
@@ -59,20 +59,20 @@ def test_data_factory_n2v(minimum_data):
             "name": SupportedTransform.N2V_MANIPULATE.value,
         }
     ]
-    data = DataFactory(data=minimum_data)
-    assert isinstance(data.data, N2VDataConfig)
+    data = data_factory(minimum_data)
+    assert isinstance(data, N2VDataConfig)
 
 
 def test_data_factory_supervised(minimum_data):
     """Test that the normal configuration yields a DataConfig."""
-    data = DataFactory(data=minimum_data)
-    assert isinstance(data.data, DataConfig)
+    data = data_factory(minimum_data)
+    assert isinstance(data, DataConfig)
 
 
 def test_algorithm_factory_n2v(minimum_algorithm_n2v):
     """Test that the N2V configuration is created correctly."""
-    factory = AlgorithmFactory(algorithm=minimum_algorithm_n2v)
-    assert isinstance(factory.algorithm, N2VAlgorithm)
+    algorithm = algorithm_factory(minimum_algorithm_n2v)
+    assert isinstance(algorithm, N2VAlgorithm)
 
 
 @pytest.mark.parametrize("algorithm", ["n2n", "care"])
@@ -81,10 +81,10 @@ def test_algorithm_factory_supervised(minimum_algorithm_supervised, algorithm):
     min_config = minimum_algorithm_supervised
     min_config["algorithm"] = algorithm
 
-    factory = AlgorithmFactory(algorithm=min_config)
+    algorithm_config = algorithm_factory(min_config)
 
     exp_class = N2NAlgorithm if algorithm == "n2n" else CAREAlgorithm
-    assert isinstance(factory.algorithm, exp_class)
+    assert isinstance(algorithm_config, exp_class)
 
 
 def test_list_aug_default():

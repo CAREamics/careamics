@@ -40,19 +40,6 @@ class UNetBasedAlgorithm(BaseModel):
         Algorithm parameter type validation errors.
     ValueError
         If the algorithm, loss and model are not compatible.
-
-    Examples
-    --------
-    Minimum example:
-    >>> from careamics.config import AlgorithmFactory
-    >>> config_dict = {
-    ...     "algorithm": "n2v",
-    ...     "loss": "n2v",
-    ...     "model": {
-    ...         "architecture": "UNet",
-    ...     }
-    ... }
-    >>> config = AlgorithmFactory(algorithm=config_dict).algorithm
     """
 
     # Pydantic class configuration
