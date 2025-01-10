@@ -180,8 +180,6 @@ class Configuration(BaseModel):
         """
         Change algorithm dimensions to match data.axes.
 
-        Only for non-custom algorithms.
-
         Returns
         -------
         Self

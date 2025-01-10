@@ -10,24 +10,24 @@ from careamics.config.optimizer_models import LrSchedulerModel, OptimizerModel
 
 
 class UNetBasedAlgorithm(BaseModel):
-    """UNet-based algorithm configuration.
+    """General UNet-based algorithm configuration.
 
     This Pydantic model validates the parameters governing the components of the
     training algorithm: which algorithm, loss function, model architecture, optimizer,
     and learning rate scheduler to use.
 
-    Currently, we only support N2V, CARE, N2N and custom models. The `n2v` algorithm is
-    only compatible with `n2v` loss and `UNet` architecture. The `custom` algorithm
-    allows you to register your own architecture and select it using its name as
-    `name` in the custom pydantic model.
+    Currently, we only support N2V, CARE, and N2N algorithms. In order to train these
+    algorithms, use the corresponding configuration child classes (e.g.
+    `N2VAlgorithm`) to ensure coherent parameters (e.g. specific losses).
+
 
     Attributes
     ----------
-    algorithm : {"n2v", "care", "n2n", "custom"}
+    algorithm : {"n2v", "care", "n2n"}
         Algorithm to use.
     loss : {"n2v", "mae", "mse"}
         Loss function to use.
-    model : UNetModel or CustomModel
+    model : UNetModel
         Model architecture to use.
     optimizer : OptimizerModel, optional
         Optimizer to use.
