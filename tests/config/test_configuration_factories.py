@@ -13,7 +13,7 @@ from careamics.config import (
     create_n2n_configuration,
     create_n2v_configuration,
 )
-from careamics.config.configuration_factory import (
+from careamics.config.configuration_factories import (
     _create_configuration,
     _create_supervised_configuration,
     _create_unet_configuration,

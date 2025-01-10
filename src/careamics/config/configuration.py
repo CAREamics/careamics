@@ -65,9 +65,8 @@ class Configuration(BaseModel):
 
     Notes
     -----
-    We provide convenience methods to create standards configurations, for instance
-    for N2V, in the `careamics.config.configuration_factory` module.
-    >>> from careamics.config.configuration_factory import create_n2v_configuration
+    We provide convenience methods to create standards configurations, for instance:
+    >>> from careamics.config import create_n2v_configuration
     >>> config = create_n2v_configuration(
     ...     experiment_name="n2v_experiment",
     ...     data_type="array",
