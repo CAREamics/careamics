@@ -26,20 +26,17 @@ def test_error_no_manipulate(minimum_data: dict):
             {"name": SupportedTransform.XY_FLIP.value},
         ],
         [
-            {"name": SupportedTransform.N2V_MANIPULATE.value},
-        ],
-        [
             {"name": SupportedTransform.XY_FLIP.value},
             {"name": SupportedTransform.N2V_MANIPULATE.value},
             {"name": SupportedTransform.XY_RANDOM_ROTATE90.value},
         ],
     ],
 )
-def test_n2vmanipulate_last_transform(minimum_data: dict, transforms):
-    """Test that N2V Manipulate is moved to the last position if it is not."""
+def test_n2vmanipulate_not_last_transform(minimum_data: dict, transforms):
+    """Test that N2V Manipulate not in the last position raises an error."""
     minimum_data["transforms"] = transforms
-    model = N2VDataConfig(**minimum_data)
-    assert model.transforms[-1].name == SupportedTransform.N2V_MANIPULATE.value
+    with pytest.raises(ValueError):
+        N2VDataConfig(**minimum_data)
 
 
 def test_multiple_n2v_manipulate(minimum_data: dict):

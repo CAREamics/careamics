@@ -22,6 +22,7 @@ class N2VDataConfig(GeneralDataConfig):
         default=[XYFlipModel(), XYRandomRotate90Model(), N2VManipulateModel()],
         validate_default=True,
     )
+    """N2V compatible transforms. N2VManpulate should be the last transform."""
 
     @field_validator("transforms")
     @classmethod
@@ -44,7 +45,8 @@ class N2VDataConfig(GeneralDataConfig):
         Raises
         ------
         ValueError
-            If multiple instances of N2VManipulate are found.
+            If multiple instances of N2VManipulate are found or if it is not the last
+            transform.
         """
         transform_list = [t.name for t in transforms]
 
@@ -59,9 +61,10 @@ class N2VDataConfig(GeneralDataConfig):
 
             # N2V_MANIPULATE not the last transform
             elif transform_list[-1] != SupportedTransform.N2V_MANIPULATE:
-                index = transform_list.index(SupportedTransform.N2V_MANIPULATE.value)
-                transform = transforms.pop(index)
-                transforms.append(transform)
+                raise ValueError(
+                    f"{SupportedTransform.N2V_MANIPULATE} transform "
+                    f"should be the last transform."
+                )
 
         else:
             raise ValueError(
