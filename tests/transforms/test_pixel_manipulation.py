@@ -342,7 +342,7 @@ def test_uniform_manipulate_torch(ordered_array, shape):
     rng = torch.Generator().manual_seed(42)
 
     # Create the tensor
-    patch = ordered_array(shape)
+    patch = torch.tensor(ordered_array(shape))
 
     # Manipulate the tensor
     transform_patch, mask = uniform_manipulate_torch(
