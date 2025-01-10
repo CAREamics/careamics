@@ -15,6 +15,7 @@ __all__ = [
     "DataConfig",
     "DataFactory",
     "GaussianMixtureNMConfig",
+    "GeneralDataConfig",
     "InferenceConfig",
     "LVAELossConfig",
     "MultiChannelNMConfig",
@@ -44,7 +45,7 @@ from .configuration_factory import (
     create_n2v_configuration,
 )
 from .configuration_io import load_configuration, save_configuration
-from .data import DataConfig, N2VDataConfig
+from .data import DataConfig, GeneralDataConfig, N2VDataConfig
 from .inference_model import InferenceConfig
 from .loss_model import LVAELossConfig
 from .n2n_configuration import N2NConfiguration

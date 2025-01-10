@@ -4,7 +4,7 @@ from typing import Optional, Union, cast
 
 from numpy.typing import NDArray
 
-from careamics.config.transformations import TransformModel
+from careamics.config.transformations import NORM_AND_SPATIAL_UNION
 
 from .n2v_manipulate import N2VManipulate
 from .normalize import Normalize
@@ -47,12 +47,12 @@ class Compose:
         A callable that applies the transforms to the input data.
     """
 
-    def __init__(self, transform_list: list[TransformModel]) -> None:
+    def __init__(self, transform_list: list[NORM_AND_SPATIAL_UNION]) -> None:
         """Instantiate a Compose object.
 
         Parameters
         ----------
-        transform_list : list[TransformModel]
+        transform_list : list[NORM_AND_SPATIAL_UNION]
             A list of dictionaries where each dictionary contains the name of a
             transform and its parameters.
         """

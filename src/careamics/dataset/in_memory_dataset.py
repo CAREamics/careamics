@@ -9,7 +9,7 @@ from typing import Any, Callable, Optional, Union
 import numpy as np
 from torch.utils.data import Dataset
 
-from careamics.config import DataConfig, N2VDataConfig
+from careamics.config import GeneralDataConfig, N2VDataConfig
 from careamics.config.transformations import NormalizeModel
 from careamics.dataset.patching.patching import (
     PatchedOutput,
@@ -46,7 +46,7 @@ class InMemoryDataset(Dataset):
 
     def __init__(
         self,
-        data_config: DataConfig,
+        data_config: GeneralDataConfig,
         inputs: Union[np.ndarray, list[Path]],
         input_target: Optional[Union[np.ndarray, list[Path]]] = None,
         read_source_func: Callable = read_tiff,
@@ -57,7 +57,7 @@ class InMemoryDataset(Dataset):
 
         Parameters
         ----------
-        data_config : DataConfig
+        data_config : GeneralDataConfig
             Data configuration.
         inputs : numpy.ndarray or list[pathlib.Path]
             Input data.
@@ -123,7 +123,7 @@ class InMemoryDataset(Dataset):
                     target_stds=self.target_stats.stds,
                 )
             ]
-            + self.data_config.transforms,
+            + list(self.data_config.transforms),
         )
 
     def _prepare_patches(self, supervised: bool) -> PatchedOutput:

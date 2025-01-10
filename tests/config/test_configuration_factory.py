@@ -14,7 +14,7 @@ from careamics.config.configuration_factory import (
     _create_configuration,
     _create_supervised_configuration,
     _create_unet_configuration,
-    _list_augmentations,
+    _list_spatial_augmentations,
 )
 from careamics.config.data import N2VDataConfig
 from careamics.config.support import (
@@ -62,7 +62,7 @@ def test_data_factory_n2v(minimum_data):
 
 def test_list_aug_default():
     """Test that the default augmentations are present."""
-    list_aug = _list_augmentations(augmentations=None)
+    list_aug = _list_spatial_augmentations(augmentations=None)
 
     assert len(list_aug) == 2
     assert list_aug[0].name == SupportedTransform.XY_FLIP.value
@@ -71,14 +71,14 @@ def test_list_aug_default():
 
 def test_list_aug_no_aug():
     """Test that disabling augmentation results in empty transform list."""
-    list_aug = _list_augmentations(augmentations=[])
+    list_aug = _list_spatial_augmentations(augmentations=[])
     assert len(list_aug) == 0
 
 
 def test_list_aug_error_duplicate_transforms():
     """Test that an error is raised when there are duplicate transforms."""
     with pytest.raises(ValueError):
-        _list_augmentations(
+        _list_spatial_augmentations(
             augmentations=[XYFlipModel(), XYRandomRotate90Model(), XYFlipModel()],
         )
 
@@ -86,7 +86,7 @@ def test_list_aug_error_duplicate_transforms():
 def test_list_aug_error_wrong_transform():
     """Test that an error is raised when the wrong transform is passed."""
     with pytest.raises(ValueError):
-        _list_augmentations(
+        _list_spatial_augmentations(
             augmentations=[XYFlipModel(), N2VManipulateModel()],
         )
 

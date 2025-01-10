@@ -4,14 +4,14 @@ from __future__ import annotations
 
 import re
 from pprint import pformat
-from typing import Literal, Union
+from typing import Any, Literal, Union
 
 from bioimageio.spec.generic.v0_3 import CiteEntry
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from typing_extensions import Self
 
 from careamics.config.algorithms import UNetBasedAlgorithm, VAEBasedAlgorithm
-from careamics.config.data import DataConfig
+from careamics.config.data import GeneralDataConfig
 from careamics.config.training_model import TrainingConfig
 
 
@@ -112,7 +112,7 @@ class Configuration(BaseModel):
 
     model_config = ConfigDict(
         validate_assignment=True,
-        set_arbitrary_types_allowed=True,
+        arbitrary_types_allowed=True,
     )
 
     # version
@@ -130,7 +130,7 @@ class Configuration(BaseModel):
     """Algorithm configuration, holding all parameters required to configure the
     model."""
 
-    data_config: DataConfig
+    data_config: GeneralDataConfig
     """Data configuration, holding all parameters required to configure the training
     data loader."""
 
@@ -290,22 +290,50 @@ class Configuration(BaseModel):
 
     def model_dump(
         self,
+        *,
+        mode: Literal["json", "python"] | str = "python",
+        include: Any | None = None,
+        exclude: Any | None = None,
+        context: Any | None = None,
+        by_alias: bool = False,
+        exclude_unset: bool = False,
         exclude_defaults: bool = False,
         exclude_none: bool = True,
-        **kwargs: dict,
+        round_trip: bool = False,
+        warnings: bool | Literal["none", "warn", "error"] = True,
+        serialize_as_any: bool = False,
     ) -> dict:
         """
         Override model_dump method in order to set default values.
 
+        As opposed to the parent model_dump method, this method sets exclude none by
+        default.
+
         Parameters
         ----------
-        exclude_defaults : bool, optional
-            Whether to exclude fields with default values or not, by default
-            True.
-        exclude_none : bool, optional
-            Whether to exclude fields with None values or not, by default True.
-        **kwargs : dict
-            Keyword arguments.
+        mode : Literal['json', 'python'] | str, default='python'
+            The serialization format.
+        include : Any | None, default=None
+            Attributes to include.
+        exclude : Any | None, default=None
+            Attributes to exclude.
+        context : Any | None, default=None
+            Additional context to pass to the serialization functions.
+        by_alias : bool, default=False
+            Whether to use attribute aliases.
+        exclude_unset : bool, default=False
+            Whether to exclude fields that are not set.
+        exclude_defaults : bool, default=False
+            Whether to exclude fields that have default values.
+        exclude_none : bool, default=true
+            Whether to exclude fields that have None values.
+        round_trip : bool, default=False
+            Whether to dump and load the data to ensure that the output is a valid
+            representation.
+        warnings : bool | Literal['none', 'warn', 'error'], default=True
+            Whether to emit warnings.
+        serialize_as_any : bool, default=False
+            Whether to serialize all types as Any.
 
         Returns
         -------
@@ -313,7 +341,17 @@ class Configuration(BaseModel):
             Dictionary containing the model parameters.
         """
         dictionary = super().model_dump(
-            exclude_none=exclude_none, exclude_defaults=exclude_defaults, **kwargs
+            mode=mode,
+            include=include,
+            exclude=exclude,
+            context=context,
+            by_alias=by_alias,
+            exclude_unset=exclude_unset,
+            exclude_defaults=exclude_defaults,
+            exclude_none=exclude_none,
+            round_trip=round_trip,
+            warnings=warnings,
+            serialize_as_any=serialize_as_any,
         )
 
         return dictionary

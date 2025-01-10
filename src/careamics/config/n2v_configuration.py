@@ -145,7 +145,17 @@ class N2VConfiguration(Configuration):
         str
             Friendly name.
         """
-        return N2V
+        use_n2v2 = self.algorithm_config.model.n2v2
+        use_structN2V = self.data_config.is_using_struct_n2v()
+
+        if use_n2v2 and use_structN2V:
+            return STRUCT_N2V2
+        elif use_n2v2:
+            return N2V2
+        elif use_structN2V:
+            return STRUCT_N2V
+        else:
+            return N2V
 
     def get_algorithm_keywords(self) -> list[str]:
         """
@@ -157,7 +167,7 @@ class N2VConfiguration(Configuration):
             List of keywords.
         """
         use_n2v2 = self.algorithm_config.model.n2v2
-        use_structN2V = self.data_config.transforms[-1].struct_mask_axis != "none"
+        use_structN2V = self.data_config.is_using_struct_n2v()
 
         keywords = [
             "denoising",
@@ -188,7 +198,7 @@ class N2VConfiguration(Configuration):
             Algorithm references.
         """
         use_n2v2 = self.algorithm_config.model.n2v2
-        use_structN2V = self.data_config.transforms[-1].struct_mask_axis != "none"
+        use_structN2V = self.data_config.is_using_struct_n2v()
 
         references = [
             N2V_REF.text + " doi: " + N2V_REF.doi,
@@ -220,7 +230,7 @@ class N2VConfiguration(Configuration):
             List of citation entries.
         """
         use_n2v2 = self.algorithm_config.model.n2v2
-        use_structN2V = self.data_config.transforms[-1].struct_mask_axis != "none"
+        use_structN2V = self.data_config.is_using_struct_n2v()
 
         references = [N2V_REF]
 
@@ -244,7 +254,7 @@ class N2VConfiguration(Configuration):
             Description of the algorithm.
         """
         use_n2v2 = self.algorithm_config.model.n2v2
-        use_structN2V = self.data_config.transforms[-1].struct_mask_axis != "none"
+        use_structN2V = self.data_config.is_using_struct_n2v()
 
         if use_n2v2 and use_structN2V:
             return STR_N2V2_DESCRIPTION

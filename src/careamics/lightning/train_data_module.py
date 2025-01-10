@@ -9,7 +9,8 @@ import pytorch_lightning as L
 from numpy.typing import NDArray
 from torch.utils.data import DataLoader, IterableDataset
 
-from careamics.config import DataConfig, DataFactory, N2VDataConfig
+from careamics.config import DataFactory, N2VDataConfig
+from careamics.config.data import GeneralDataConfig
 from careamics.config.support import SupportedData
 from careamics.config.transformations import TransformModel
 from careamics.dataset.dataset_utils import (
@@ -119,7 +120,7 @@ class TrainDataModule(L.LightningDataModule):
 
     def __init__(
         self,
-        data_config: DataConfig,
+        data_config: GeneralDataConfig,
         train_data: Union[Path, str, NDArray],
         val_data: Optional[Union[Path, str, NDArray]] = None,
         train_data_target: Optional[Union[Path, str, NDArray]] = None,
@@ -219,7 +220,7 @@ class TrainDataModule(L.LightningDataModule):
             )
 
         # configuration
-        self.data_config: DataConfig = data_config
+        self.data_config: GeneralDataConfig = data_config
         self.data_type: str = data_config.data_type
         self.batch_size: int = data_config.batch_size
         self.use_in_memory: bool = use_in_memory

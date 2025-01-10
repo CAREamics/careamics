@@ -1,29 +1,25 @@
 """Noise2Void specific data configuration model."""
 
+from collections.abc import Sequence
 from typing import Literal
 
 from pydantic import Field, field_validator
 
-from careamics.config.data.data_model import DataConfig
+from careamics.config.data.data_model import GeneralDataConfig
 from careamics.config.support import SupportedTransform
-from careamics.config.transformations import N2V_TRANSFORMS_UNION
+from careamics.config.transformations import (
+    N2V_TRANSFORMS_UNION,
+    N2VManipulateModel,
+    XYFlipModel,
+    XYRandomRotate90Model,
+)
 
 
-class N2VDataConfig(DataConfig):
+class N2VDataConfig(GeneralDataConfig):
     """N2V specific data configuration model."""
 
-    transforms: list[N2V_TRANSFORMS_UNION] = Field(
-        default=[
-            {
-                "name": SupportedTransform.XY_FLIP.value,
-            },
-            {
-                "name": SupportedTransform.XY_RANDOM_ROTATE90.value,
-            },
-            {
-                "name": SupportedTransform.N2V_MANIPULATE.value,
-            },
-        ],
+    transforms: Sequence[N2V_TRANSFORMS_UNION] = Field(
+        default=[XYFlipModel(), XYRandomRotate90Model(), N2VManipulateModel()],
         validate_default=True,
     )
 
@@ -174,3 +170,21 @@ class N2VDataConfig(DataConfig):
                 f"N2V pixel manipulate transform not found in the transforms "
                 f"({transforms})."
             )
+
+    def is_using_struct_n2v(self) -> bool:
+        """
+        Check if structN2V is enabled.
+
+        Returns
+        -------
+        bool
+            Whether structN2V is enabled or not.
+        """
+        for transform in self.transforms:
+            if transform.name == SupportedTransform.N2V_MANIPULATE.value:
+                return transform.struct_mask_axis != "none"
+
+        raise ValueError(
+            f"N2V pixel manipulate transform not found in the transforms "
+            f"({self.transforms})."
+        )
