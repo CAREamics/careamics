@@ -9,10 +9,14 @@ import pytorch_lightning as L
 from numpy.typing import NDArray
 from torch.utils.data import DataLoader, IterableDataset
 
-from careamics.config import DataFactory, N2VDataConfig
+from careamics.config import DataFactory
 from careamics.config.data import GeneralDataConfig
-from careamics.config.support import SupportedData
-from careamics.config.transformations import TransformModel
+from careamics.config.support import (
+    SupportedData,
+    SupportedPixelManipulation,
+    SupportedTransform,
+)
+from careamics.config.transformations import N2VManipulateModel, TransformModel
 from careamics.dataset.dataset_utils import (
     get_files_size,
     list_files,
@@ -509,6 +513,9 @@ def create_train_datamodule(
     parameters passed to the datamodule are consistent with the model's requirements and
     are coherent.
 
+    By default, the train DataModule will be set for Noise2Void if no target data is
+    provided.
+
     The data module can be used with Path, str or numpy arrays. In the case of
     numpy arrays, it loads and computes all the patches in memory. For Path and str
     inputs, it calculates the total file size and estimate whether it can fit in
@@ -628,12 +635,11 @@ def create_train_datamodule(
     transforms:
     >>> import numpy as np
     >>> from careamics.lightning import create_train_datamodule
+    >>> from careamics.config.transformations import XYFlipModel
     >>> from careamics.config.support import SupportedTransform
     >>> my_array = np.arange(256).reshape(16, 16)
     >>> my_transforms = [
-    ...     {
-    ...         "name": SupportedTransform.XY_FLIP.value,
-    ...     }
+    ...     XYFlipModel(flip_y=False)
     ... ]
     >>> data_module = create_train_datamodule(
     ...     train_data=my_array,
@@ -660,21 +666,35 @@ def create_train_datamodule(
     if transforms is not None:
         data_dict["transforms"] = transforms
 
+    # TODO not compatible with HDN, consider adding an argument for n2v/hdn
+    # if there are no target, then we enforce n2v via the transforms
+    if train_target_data is None:
+        n2v_manipulate = N2VManipulateModel(
+            strategy=(
+                SupportedPixelManipulation.MEDIAN
+                if use_n2v2
+                else SupportedPixelManipulation.UNIFORM
+            ),
+            struct_mask_axis=struct_n2v_axis,
+            struct_mask_span=struct_n2v_span,
+        )
+
+        if "transforms" in data_dict.keys():
+            # check if there is a N2V transformation
+            found_n2v = False
+            for t in data_dict["transforms"]:
+                if t.name == SupportedTransform.N2V_MANIPULATE.value:
+                    found_n2v = True
+
+            if not found_n2v:
+                # add it
+                data_dict["transforms"].append(n2v_manipulate)
+        else:
+            # create the transforms
+            data_dict["transforms"] = [n2v_manipulate]
+
     # validate configuration
     data_config = DataFactory(data=data_dict).data
-
-    # N2V specific checks, N2V, structN2V, and transforms
-    if isinstance(data_config, N2VDataConfig):
-        # there is no target, n2v2 and structN2V can be changed
-        if train_target_data is None:
-            data_config.set_n2v2(use_n2v2)
-            data_config.set_structN2V_mask(struct_n2v_axis, struct_n2v_span)
-        else:
-            raise ValueError(
-                "Cannot have both supervised training (target data) and "
-                "N2V manipulation in the transforms. Pass a list of transforms "
-                "that is compatible with your supervised training."
-            )
 
     # sanity check on the dataloader parameters
     if "batch_size" in dataloader_params:

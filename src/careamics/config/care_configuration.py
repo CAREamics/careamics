@@ -4,6 +4,7 @@ from bioimageio.spec.generic.v0_3 import CiteEntry
 
 from careamics.config.algorithms.care_algorithm_model import CAREAlgorithm
 from careamics.config.configuration import Configuration
+from careamics.config.data import DataConfig
 
 CARE = "CARE"
 
@@ -27,6 +28,10 @@ class CAREConfiguration(Configuration):
     """CARE configuration."""
 
     algorithm_config: CAREAlgorithm
+    """Algorithm configuration."""
+
+    data_config: DataConfig
+    """Data configuration."""
 
     def get_algorithm_friendly_name(self) -> str:
         """

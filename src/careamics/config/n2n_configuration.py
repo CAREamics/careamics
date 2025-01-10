@@ -4,6 +4,7 @@ from bioimageio.spec.generic.v0_3 import CiteEntry
 
 from careamics.config.algorithms import N2NAlgorithm
 from careamics.config.configuration import Configuration
+from careamics.config.data import DataConfig
 
 N2N = "Noise2Noise"
 
@@ -28,6 +29,10 @@ class N2NConfiguration(Configuration):
     """Noise2Noise configuration."""
 
     algorithm_config: N2NAlgorithm
+    """Algorithm configuration."""
+
+    data_config: DataConfig
+    """Data configuration."""
 
     def get_algorithm_friendly_name(self) -> str:
         """
