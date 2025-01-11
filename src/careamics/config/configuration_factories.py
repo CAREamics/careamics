@@ -2,7 +2,7 @@
 
 from typing import Any, Literal, Optional, Union
 
-from pydantic import BaseModel
+from pydantic import BaseModel, TypeAdapter
 
 from careamics.config.algorithms import CAREAlgorithm, N2NAlgorithm, N2VAlgorithm
 from careamics.config.architectures import UNetModel
@@ -47,7 +47,7 @@ class DataFactory(BaseModel):
 
 def configuration_factory(
     configuration: dict[str, Any]
-) -> Union[CAREConfiguration, N2NConfiguration, N2VConfiguration]:
+) -> Union[N2VConfiguration, N2NConfiguration, CAREConfiguration]:
     """
     Create a configuration for training CAREamics.
 
@@ -58,10 +58,13 @@ def configuration_factory(
 
     Returns
     -------
-    CAREConfiguration or N2NConfiguration or N2VConfiguration
+    N2VConfiguration or N2NConfiguration or CAREConfiguration
         Configuration for training CAREamics.
     """
-    return ConfigurationFactory(configuration=configuration).configuration
+    adapter: TypeAdapter = TypeAdapter(
+        Union[N2VConfiguration, N2NConfiguration, CAREConfiguration]
+    )
+    return adapter.validate_python(configuration)
 
 
 def algorithm_factory(
@@ -80,7 +83,8 @@ def algorithm_factory(
     N2VAlgorithm or N2NAlgorithm or CAREAlgorithm
         Algorithm model for training CAREamics.
     """
-    return AlgorithmFactory(algorithm=algorithm).algorithm
+    adapter: TypeAdapter = TypeAdapter(Union[N2VAlgorithm, N2NAlgorithm, CAREAlgorithm])
+    return adapter.validate_python(algorithm)
 
 
 def data_factory(data: dict[str, Any]) -> Union[DataConfig, N2VDataConfig]:
@@ -97,7 +101,8 @@ def data_factory(data: dict[str, Any]) -> Union[DataConfig, N2VDataConfig]:
     DataConfig or N2VDataConfig
         Data model for training CAREamics.
     """
-    return DataFactory(data=data).data
+    adapter: TypeAdapter = TypeAdapter(Union[DataConfig, N2VDataConfig])
+    return adapter.validate_python(data)
 
 
 def _list_spatial_augmentations(
