@@ -125,6 +125,72 @@ def _get_stratified_coords_torch(
     )
 
 
+def _create_subpatch_center_mask(
+    subpatch: torch.Tensor, center_coords: torch.Tensor
+) -> torch.Tensor:
+    """Create a mask with the center of the subpatch masked.
+
+    Parameters
+    ----------
+    subpatch : np.ndarray
+        Subpatch to be manipulated.
+    center_coords : np.ndarray
+        Coordinates of the original center before possible crop.
+
+    Returns
+    -------
+    np.ndarray
+        Mask with the center of the subpatch masked.
+    """
+    mask = torch.ones(torch.tensor(subpatch.shape).tolist())
+    mask[tuple(center_coords)] = 0
+    return (mask != 0).to(torch.bool)
+
+
+def _create_subpatch_struct_mask(
+    subpatch: torch.Tensor,
+    center_coords: torch.Tensor,
+    struct_params: StructMaskParameters,
+) -> torch.Tensor:
+    """Create a structN2V mask for the subpatch.
+
+    Parameters
+    ----------
+    subpatch : np.ndarray
+        Subpatch to be manipulated.
+    center_coords : np.ndarray
+        Coordinates of the original center before possible crop.
+    struct_params : StructMaskParameters
+        Parameters for the structN2V mask (axis and span).
+
+    Returns
+    -------
+    np.ndarray
+        StructN2V mask for the subpatch.
+    """
+    # TODO no test for this function!
+    # Create a mask with the center of the subpatch masked
+    mask_placeholder = torch.ones(subpatch.shape)
+
+    # reshape to move the struct axis to the first position
+    mask_reshaped = torch.permute(mask_placeholder, struct_params.axis, 0)
+
+    # create the mask index for the struct axis
+    mask_index = slice(
+        max(0, center_coords.take(struct_params.axis) - (struct_params.span - 1) // 2),
+        min(
+            1 + center_coords.take(struct_params.axis) + (struct_params.span - 1) // 2,
+            subpatch.shape[struct_params.axis],
+        ),
+    )
+    mask_reshaped[struct_params.axis][mask_index] = 0
+
+    # reshape back to the original shape
+    mask = torch.permute(mask_reshaped, 0, struct_params.axis)
+
+    return (mask != 0).to(torch.bool)  # type: ignore
+
+
 def uniform_manipulate_torch(
     patch: torch.Tensor,
     mask_pixel_percentage: float,
@@ -250,27 +316,49 @@ def median_manipulate_torch(
     )
 
     roi_span = torch.tensor(
-        [-subpatch_size // 2, subpatch_size // 2], device=patch.device
+        [-(subpatch_size // 2), (subpatch_size // 2) + 1], device=patch.device
     )
 
-    for center in subpatch_centers:
-        slices = [
-            slice(
-                max(0, center[dim] + roi_span[0]),
-                min(patch.shape[dim], center[dim] + roi_span[1]),
-            )
-            for dim in range(patch.ndim)
+    subpatch_crops_span_full = subpatch_centers[None, ...].T + roi_span
+
+    subpatch_crops_span_clipped = torch.clamp(
+        subpatch_crops_span_full,
+        torch.zeros_like(torch.tensor(patch.shape))[:, None, None],
+        torch.tensor(patch.shape)[:, None, None],
+    )
+
+    for idx in range(subpatch_crops_span_clipped.shape[1]):
+        subpatch_coords = subpatch_crops_span_clipped[:, idx, ...]
+        idxs = [
+            slice(x[0], x[1]) if x[1] - x[0] > 0 else slice(0, 1)
+            for x in subpatch_coords
         ]
-        subpatch = patch[tuple(slices)]
+        subpatch = patch[tuple(idxs)]
+        subpatch_center_adjusted = subpatch_centers[idx] - subpatch_coords[:, 0]
 
         if struct_params is None:
-            masked_subpatch = subpatch[subpatch != 0]
-        else:
-            masked_subpatch = _apply_struct_mask_torch(
-                subpatch, center, struct_params, rng
+            subpatch_mask = _create_subpatch_center_mask(
+                subpatch, subpatch_center_adjusted
             )
+        else:
+            subpatch_mask = _create_subpatch_struct_mask(
+                subpatch, subpatch_center_adjusted, struct_params
+            )
+        transformed_patch[tuple(subpatch_centers[idx])] = torch.median(
+            subpatch[subpatch_mask]
+        )
 
-        transformed_patch[tuple(center)] = torch.median(masked_subpatch).item()
+    mask = torch.where(transformed_patch != patch, 1, 0).to(torch.uint8)
+
+    if struct_params is not None:
+        transformed_patch = _apply_struct_mask_torch(
+            transformed_patch, subpatch_centers, struct_params
+        )
+
+    return (
+        transformed_patch,
+        mask,
+    )
 
     mask = (transformed_patch != patch).to(dtype=torch.uint8)
 
