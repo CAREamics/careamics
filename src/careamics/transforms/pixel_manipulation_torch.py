@@ -180,7 +180,12 @@ def uniform_manipulate_torch(
     roi_span = roi_span_full[roi_span_full != 0] if remove_center else roi_span_full
 
     random_increment = roi_span[
-        torch.randint(low=min(roi_span), high=max(roi_span), size=subpatch_centers.shape, generator=rng)
+        torch.randint(
+            low=min(roi_span),
+            high=max(roi_span),
+            size=subpatch_centers.shape,
+            generator=rng,
+        )
     ]
     replacement_coords = torch.clamp(
         subpatch_centers + random_increment,

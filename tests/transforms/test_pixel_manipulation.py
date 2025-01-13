@@ -376,9 +376,7 @@ def test_uniform_manipulate_torch(ordered_array, shape):
 
         # TODO needs to be revisited !
         # check that the pixel value comes from the actual roi
-        # print(i, tuple(coords), transform_patch[tuple(coords)], transform_patch[tuple(coords)] in roi)
         assert transform_patch[tuple(coords.tolist())] in roi
-    # assert False
 
 
 @pytest.mark.parametrize("shape", [(8, 8), (3, 8, 8), (8, 8, 8)])
