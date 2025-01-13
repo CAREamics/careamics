@@ -360,18 +360,25 @@ def test_uniform_manipulate_torch(ordered_array, shape):
 
     # For each pixel masked, check that the manipulated pixel value is within the ROI
     for i in range(mask_coords.shape[-1]):
-        # Get coordinates
-        coords = mask_coords[:, i]
+        # get coordinates
+        coords = mask_coords[..., i]
 
-        # Get ROI using slice in each dimension
-        slices = [
-            slice(max(0, coords[j] - 2), min(shape[j], coords[j] + 3))
-            for j in range(len(coords))
-        ]
-        roi = patch[slices]
+        # get roi using slice in each dimension
+        slices = tuple(
+            [
+                slice(max(0, coords[i] - 2), min(shape[i], coords[i] + 3))
+                for i in range(-coords.shape[0] + 1, 0)  # range -4, -3, -2, -1
+            ]
+        )
+        roi = patch[
+            (...,) + slices
+        ]  # TODO ellipsis needed bc singleton dim, might need to go away
 
-        # Check that the pixel value comes from the actual ROI
-        assert transform_patch[tuple(coords)] in roi
+        # TODO needs to be revisited !
+        # check that the pixel value comes from the actual roi
+        # print(i, tuple(coords), transform_patch[tuple(coords)], transform_patch[tuple(coords)] in roi)
+        assert transform_patch[tuple(coords.tolist())] in roi
+    # assert False
 
 
 @pytest.mark.parametrize("shape", [(8, 8), (3, 8, 8), (8, 8, 8)])

@@ -118,7 +118,11 @@ def _get_stratified_coords_torch(
     )
     coordinate_grid += random_increment
 
-    return torch.clamp(coordinate_grid, 0, shape[0] - 1)
+    return torch.clamp(
+        coordinate_grid,
+        torch.zeros_like(torch.tensor(shape)),
+        torch.tensor([v - 1 for v in shape]),
+    )
 
 
 def uniform_manipulate_torch(
@@ -160,6 +164,7 @@ def uniform_manipulate_torch(
     """
     if rng is None:
         rng = torch.default_generator
+        # TODO do we need seed ?
 
     transformed_patch = patch.clone()
     subpatch_centers = _get_stratified_coords_torch(
@@ -167,18 +172,20 @@ def uniform_manipulate_torch(
     )
 
     roi_span_full = torch.arange(
-        -subpatch_size // 2,
+        -(subpatch_size // 2),
         subpatch_size // 2 + 1,
         dtype=torch.int32,
         device=patch.device,
     )
     roi_span = roi_span_full[roi_span_full != 0] if remove_center else roi_span_full
 
-    random_increment = rng.choice(roi_span, size=subpatch_centers.shape)
-    replacement_coords = torch.clip(
+    random_increment = roi_span[
+        torch.randint(low=min(roi_span), high=max(roi_span), size=subpatch_centers.shape, generator=rng)
+    ]
+    replacement_coords = torch.clamp(
         subpatch_centers + random_increment,
-        0,
-        torch.tensor(patch.shape, device=patch.device) - 1,
+        torch.zeros_like(torch.tensor(patch.shape)),
+        torch.tensor([v - 1 for v in patch.shape]),
     )
 
     replacement_pixels = patch[tuple(replacement_coords.T)]
