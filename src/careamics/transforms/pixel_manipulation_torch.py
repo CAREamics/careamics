@@ -75,7 +75,11 @@ def _apply_struct_mask_torch(
 
 def _odd_jitter_func_torch(step: float, rng: torch.Generator) -> torch.Tensor:
     step_floor = torch.floor(torch.tensor(step))
-    odd_jitter = step_floor if step_floor == step else rng.randint(0, 2)
+    odd_jitter = (
+        step_floor
+        if step_floor == step
+        else torch.randint(high=2, size=(1,), generator=rng)
+    )
     return step_floor if odd_jitter == 0 else step_floor + 1
 
 
@@ -112,9 +116,10 @@ def _get_stratified_coords_torch(
     coordinate_grid_list = torch.meshgrid(*pixel_coords, indexing="ij")
     coordinate_grid = torch.stack([g.flatten() for g in coordinate_grid_list], dim=-1)
 
-    max_step = float(max(steps))
     random_increment = torch.randint(
-        0, int(max_step), size=coordinate_grid.shape, generator=rng
+        high=int(_odd_jitter_func_torch(float(max(steps)), rng)),
+        size=torch.tensor(coordinate_grid.shape).tolist(),
+        generator=rng,
     )
     coordinate_grid += random_increment
 
