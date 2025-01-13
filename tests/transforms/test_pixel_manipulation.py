@@ -531,19 +531,20 @@ def test_apply_struct_mask_3D_torch(coords, struct_axis, struct_span):
             c
             for c in range(
                 max(0, coords[i, axis] - struct_span // 2),
-                min(transform_patch.shape[1], coords[i, axis] + struct_span // 2) + 1,
+                min(transform_patch.shape[1] - 1, coords[i, axis] + struct_span // 2)
+                + 1,
             )
             if c != coords[i, axis]
         ]
 
-        # Add to transform
+        # add to transform
         if struct_axis == 0:
             transformed.append(
-                transform_patch[coords[i, 0], coords[i, 1], indices_to_mask]
+                transform_patch[coords[i, 0], coords[i, 1]][indices_to_mask]
             )
         else:
             transformed.append(
-                transform_patch[coords[i, 0], indices_to_mask, coords[i, 2]]
+                transform_patch[coords[i, 0], :, coords[i, 2]][indices_to_mask]
             )
 
     assert torch.equal(
