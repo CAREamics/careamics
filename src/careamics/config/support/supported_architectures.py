@@ -11,7 +11,3 @@ class SupportedArchitecture(str, BaseEnum):
 
     LVAE = "LVAE"
     """Ladder Variational Autoencoder used for muSplit and denoiSplit."""
-
-    CUSTOM = "custom"
-    """Keyword used for custom architectures provided by users and only compatible
-    with `FCNAlgorithmConfig` configuration."""

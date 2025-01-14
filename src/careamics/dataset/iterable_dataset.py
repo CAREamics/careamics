@@ -10,7 +10,7 @@ from typing import Callable, Optional
 import numpy as np
 from torch.utils.data import IterableDataset
 
-from careamics.config import DataConfig
+from careamics.config import GeneralDataConfig
 from careamics.config.transformations import NormalizeModel
 from careamics.file_io.read import read_tiff
 from careamics.transforms import Compose
@@ -49,7 +49,7 @@ class PathIterableDataset(IterableDataset):
 
     def __init__(
         self,
-        data_config: DataConfig,
+        data_config: GeneralDataConfig,
         src_files: list[Path],
         target_files: Optional[list[Path]] = None,
         read_source_func: Callable = read_tiff,
@@ -58,7 +58,7 @@ class PathIterableDataset(IterableDataset):
 
         Parameters
         ----------
-        data_config : DataConfig
+        data_config : GeneralDataConfig
             Data configuration.
         src_files : list[Path]
             List of data files.
@@ -115,7 +115,7 @@ class PathIterableDataset(IterableDataset):
                     target_stds=self.target_stats.stds,
                 )
             ]
-            + data_config.transforms
+            + list(data_config.transforms)
         )
 
     def _calculate_mean_and_std(self) -> tuple[Stats, Stats]:
