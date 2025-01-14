@@ -256,14 +256,35 @@ class GaussianMixtureNoiseModel(nn.Module):
     # TODO training a NM relies on getting a clean data(N2V e.g,)
     def __init__(self, config: GaussianMixtureNMConfig) -> None:
         super().__init__()
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-        self.tolerance = torch.tensor([1e-10])
-        self.device = torch.device("cpu")
-
-        if config.path is None:
-            self._initialize_model(config)
+        if config.path is not None:
+            params = np.load(config.path)
         else:
-            self._load_model_from_file(config)
+            params = config.model_dump(exclude_none=True)
+
+        min_sigma = torch.tensor(params["min_sigma"])
+        min_signal = torch.tensor(params["min_signal"])
+        max_signal = torch.tensor(params["max_signal"])
+        self.register_buffer("min_signal", min_signal)
+        self.register_buffer("max_signal", max_signal)
+        self.register_buffer("min_sigma", min_sigma)
+        self.register_buffer("tolerance", torch.tensor([1e-10]))
+
+        if "trained_weight" in params:
+            weight = torch.tensor(params["trained_weight"])
+        elif "weight" in params and params["weight"] is not None:
+            weight = torch.tensor(params["weight"])
+        else:
+            weight = self._initialize_weights(
+                params["n_gaussian"], params["n_coeff"], max_signal, min_signal
+            )
+
+        self.n_gaussian = weight.shape[0] // 3
+        self.n_coeff = weight.shape[1]
+
+        self.register_parameter("weight", nn.Parameter(weight))
+        self._set_model_mode(mode="prediction")
 
         print(f"[{self.__class__.__name__}] min_sigma: {self.min_sigma}")
 
@@ -281,46 +302,18 @@ class GaussianMixtureNoiseModel(nn.Module):
         ).float()
         return weight
 
-    def _initialize_model(self, config) -> None:
-        """Initialize a new noise model from config parameters."""
-        self.n_gaussian = config.n_gaussian
-        self.n_coeff = config.n_coeff
-        self.min_sigma = config.min_sigma
-        self.min_signal = torch.tensor(config.min_signal)
-        self.max_signal = torch.tensor(config.max_signal)
-        if config.weight is None:
-            self.weight = self._initialize_weights(
-                self.n_gaussian, self.n_coeff, self.max_signal, self.min_signal
-            )
-        else:
-            self.weight = torch.tensor(config.weight)
-
-    def _load_model_from_file(self, config) -> None:
-        """Load trained noise model from a file."""
-        params = np.load(config.path)
-        self.device = torch.device("cpu")
-        self.min_signal = torch.tensor(params["min_signal"])
-        self.max_signal = torch.tensor(params["max_signal"])
-        self.weight = torch.tensor(params["trained_weight"])
-        self.min_sigma = params["min_sigma"].item()
-        self.n_gaussian = self.weight.shape[0] // 3
-        self.n_coeff = self.weight.shape[1]
+    def to_device(self, device: torch.device):
+        self.device = device
+        self.to(device)
 
     def _set_model_mode(self, mode: str) -> None:
         """Move parameters to the device and set weights' requires_grad depending on the mode"""
         if mode == "train":
-            self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-            self.min_signal = self.min_signal.to(self.device)
-            self.max_signal = self.max_signal.to(self.device)
-            self.tolerance = self.tolerance.to(self.device)
-            self.weight = self.weight.to(self.device)
             self.weight.requires_grad = True
+            self.to_device(self.device)
         else:
-            self.device = torch.device("cpu")
-            self.min_signal = self.min_signal.cpu()
-            self.max_signal = self.max_signal.cpu()
-            self.tolerance = self.tolerance.cpu()
-            self.weight = self.weight.detach().cpu()
+            self.weight.requires_grad = False
+            self.to_device(torch.device("cpu"))
 
     def polynomial_regressor(
         self, weight_params: torch.Tensor, signals: torch.Tensor
@@ -525,7 +518,7 @@ class GaussianMixtureNoiseModel(nn.Module):
         n_epochs: int = 2000,
         lower_clip: float = 0.0,
         upper_clip: float = 100.0,
-    ) -> None:
+    ) -> list[float]:
         """Training to learn the noise model from signal - observation pairs.
 
         Parameters
@@ -552,7 +545,7 @@ class GaussianMixtureNoiseModel(nn.Module):
             signal, observation, lower_clip, upper_clip
         )
 
-        loss_arr = []
+        train_losses = []
         counter = 0
         for t in range(n_epochs):
             if (counter + 1) * batch_size >= sig_obs_pairs.shape[0]:
@@ -568,7 +561,8 @@ class GaussianMixtureNoiseModel(nn.Module):
             p = self.likelihood(observations, signals)
 
             joint_loss = torch.mean(-torch.log(p))
-            loss_arr.append(joint_loss.item())
+            train_losses.append(joint_loss.item())
+
             if self.weight.isnan().any() or self.weight.isinf().any():
                 print(
                     "NaN or Inf detected in the weights. Aborting training at epoch: ",
@@ -577,7 +571,8 @@ class GaussianMixtureNoiseModel(nn.Module):
                 break
 
             if t % 100 == 0:
-                print(t, np.mean(loss_arr))
+                last_losses = train_losses[-100:]
+                print(t, np.mean(last_losses))
 
             optimizer.zero_grad()
             joint_loss.backward()
@@ -586,6 +581,7 @@ class GaussianMixtureNoiseModel(nn.Module):
 
         self._set_model_mode(mode="prediction")
         print("===================\n")
+        return train_losses
 
     def sample_observation_from_signal(self, signal: NDArray) -> NDArray:
         """
