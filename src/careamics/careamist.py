@@ -13,7 +13,7 @@ from pytorch_lightning.callbacks import (
 )
 from pytorch_lightning.loggers import CSVLogger, TensorBoardLogger, WandbLogger
 
-from careamics.config import Configuration, FCNAlgorithmConfig, load_configuration
+from careamics.config import Configuration, UNetBasedAlgorithm, load_configuration
 from careamics.config.support import (
     SupportedAlgorithm,
     SupportedArchitecture,
@@ -137,7 +137,7 @@ class CAREamist:
             self.cfg = source
 
             # instantiate model
-            if isinstance(self.cfg.algorithm_config, FCNAlgorithmConfig):
+            if isinstance(self.cfg.algorithm_config, UNetBasedAlgorithm):
                 self.model = FCNModule(
                     algorithm_config=self.cfg.algorithm_config,
                 )
@@ -157,7 +157,8 @@ class CAREamist:
                 self.cfg = load_configuration(source)
 
                 # instantiate model
-                if isinstance(self.cfg.algorithm_config, FCNAlgorithmConfig):
+                # TODO call model factory here
+                if isinstance(self.cfg.algorithm_config, UNetBasedAlgorithm):
                     self.model = FCNModule(
                         algorithm_config=self.cfg.algorithm_config,
                     )  # type: ignore

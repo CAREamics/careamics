@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from pprint import pformat
 from typing import Annotated, Any, Literal, Optional, Union
 
@@ -17,9 +18,8 @@ from pydantic import (
 )
 from typing_extensions import Self
 
-from .support import SupportedTransform
-from .transformations import TRANSFORMS_UNION
-from .validators import check_axes_validity, patch_size_ge_than_8_power_of_2
+from ..transformations import N2V_TRANSFORMS_UNION, XYFlipModel, XYRandomRotate90Model
+from ..validators import check_axes_validity, patch_size_ge_than_8_power_of_2
 
 
 def np_float_to_scientific_str(x: float) -> str:
@@ -45,47 +45,8 @@ Float = Annotated[float, PlainSerializer(np_float_to_scientific_str, return_type
 """Annotated float type, used to serialize floats to strings."""
 
 
-class DataConfig(BaseModel):
-    """
-    Data configuration.
-
-    If std is specified, mean must be specified as well. Note that setting the std first
-    and then the mean (if they were both `None` before) will raise a validation error.
-    Prefer instead `set_mean_and_std` to set both at once. Means and stds are expected
-    to be lists of floats, one for each channel. For supervised tasks, the mean and std
-    of the target could be different from the input data.
-
-    All supported transforms are defined in the SupportedTransform enum.
-
-    Examples
-    --------
-    Minimum example:
-
-    >>> data = DataConfig(
-    ...     data_type="array", # defined in SupportedData
-    ...     patch_size=[128, 128],
-    ...     batch_size=4,
-    ...     axes="YX"
-    ... )
-
-    To change the image_means and image_stds of the data:
-    >>> data.set_means_and_stds(image_means=[214.3], image_stds=[84.5])
-
-    One can pass also a list of transformations, by keyword, using the
-    SupportedTransform value:
-    >>> from careamics.config.support import SupportedTransform
-    >>> data = DataConfig(
-    ...     data_type="tiff",
-    ...     patch_size=[128, 128],
-    ...     batch_size=4,
-    ...     axes="YX",
-    ...     transforms=[
-    ...         {
-    ...             "name": "XYFlip",
-    ...         }
-    ...     ]
-    ... )
-    """
+class GeneralDataConfig(BaseModel):
+    """General data configuration."""
 
     # Pydantic class configuration
     model_config = ConfigDict(
@@ -126,19 +87,18 @@ class DataConfig(BaseModel):
     """Standard deviations of the target data across channels, used for
     normalization."""
 
-    transforms: list[TRANSFORMS_UNION] = Field(
+    # defining as Sequence allows assigning subclasses of TransformModel without mypy
+    # complaining, this is important for instance to differentiate N2VDataConfig and
+    # DataConfig
+    transforms: Sequence[N2V_TRANSFORMS_UNION] = Field(
         default=[
-            {
-                "name": SupportedTransform.XY_FLIP.value,
-            },
-            {
-                "name": SupportedTransform.XY_RANDOM_ROTATE90.value,
-            },
+            XYFlipModel(),
+            XYRandomRotate90Model(),
         ],
         validate_default=True,
     )
     """List of transformations to apply to the data, available transforms are defined
-    in SupportedTransform. The default values are set for Noise2Void."""
+    in SupportedTransform."""
 
     dataloader_params: Optional[dict] = None
     """Dictionary of PyTorch dataloader parameters."""
@@ -358,3 +318,56 @@ class DataConfig(BaseModel):
             Patch size.
         """
         self._update(axes=axes, patch_size=patch_size)
+
+
+class DataConfig(GeneralDataConfig):
+    """
+    Data configuration.
+
+    If std is specified, mean must be specified as well. Note that setting the std first
+    and then the mean (if they were both `None` before) will raise a validation error.
+    Prefer instead `set_mean_and_std` to set both at once. Means and stds are expected
+    to be lists of floats, one for each channel. For supervised tasks, the mean and std
+    of the target could be different from the input data.
+
+    All supported transforms are defined in the SupportedTransform enum.
+
+    Examples
+    --------
+    Minimum example:
+
+    >>> data = DataConfig(
+    ...     data_type="array", # defined in SupportedData
+    ...     patch_size=[128, 128],
+    ...     batch_size=4,
+    ...     axes="YX"
+    ... )
+
+    To change the image_means and image_stds of the data:
+    >>> data.set_means_and_stds(image_means=[214.3], image_stds=[84.5])
+
+    One can pass also a list of transformations, by keyword, using the
+    SupportedTransform value:
+    >>> from careamics.config.support import SupportedTransform
+    >>> data = DataConfig(
+    ...     data_type="tiff",
+    ...     patch_size=[128, 128],
+    ...     batch_size=4,
+    ...     axes="YX",
+    ...     transforms=[
+    ...         {
+    ...             "name": "XYFlip",
+    ...         }
+    ...     ]
+    ... )
+    """
+
+    transforms: Sequence[Union[XYFlipModel, XYRandomRotate90Model]] = Field(
+        default=[
+            XYFlipModel(),
+            XYRandomRotate90Model(),
+        ],
+        validate_default=True,
+    )
+    """List of transformations to apply to the data, available transforms are defined
+    in SupportedTransform. This excludes N2V specific transformations."""

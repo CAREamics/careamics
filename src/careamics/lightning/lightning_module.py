@@ -6,7 +6,7 @@ import numpy as np
 import pytorch_lightning as L
 from torch import Tensor, nn
 
-from careamics.config import FCNAlgorithmConfig, VAEAlgorithmConfig
+from careamics.config import UNetBasedAlgorithm, VAEBasedAlgorithm
 from careamics.config.support import (
     SupportedAlgorithm,
     SupportedArchitecture,
@@ -34,6 +34,7 @@ from careamics.utils.torch_utils import get_optimizer, get_scheduler
 NoiseModel = Union[GaussianMixtureNoiseModel, MultiChannelNoiseModel]
 
 
+# TODO rename to UNetModule
 class FCNModule(L.LightningModule):
     """
     CAREamics Lightning module.
@@ -60,7 +61,7 @@ class FCNModule(L.LightningModule):
         Learning rate scheduler name.
     """
 
-    def __init__(self, algorithm_config: Union[FCNAlgorithmConfig, dict]) -> None:
+    def __init__(self, algorithm_config: Union[UNetBasedAlgorithm, dict]) -> None:
         """Lightning module for CAREamics.
 
         This class encapsulates the a PyTorch model along with the training, validation,
@@ -74,7 +75,9 @@ class FCNModule(L.LightningModule):
         super().__init__()
         # if loading from a checkpoint, AlgorithmModel needs to be instantiated
         if isinstance(algorithm_config, dict):
-            algorithm_config = FCNAlgorithmConfig(**algorithm_config)
+            algorithm_config = UNetBasedAlgorithm(
+                **algorithm_config
+            )  # TODO this needs to be updated using the algorithm-specific class
 
         # create preprocessing, model and loss function
         self.preprocess = Compose(transform_list=algorithm_config.preprocessing)
@@ -267,7 +270,7 @@ class VAEModule(L.LightningModule):
         Learning rate scheduler name.
     """
 
-    def __init__(self, algorithm_config: Union[VAEAlgorithmConfig, dict]) -> None:
+    def __init__(self, algorithm_config: Union[VAEBasedAlgorithm, dict]) -> None:
         """Lightning module for CAREamics.
 
         This class encapsulates the a PyTorch model along with the training, validation,
@@ -281,7 +284,7 @@ class VAEModule(L.LightningModule):
         super().__init__()
         # if loading from a checkpoint, AlgorithmModel needs to be instantiated
         self.algorithm_config = (
-            VAEAlgorithmConfig(**algorithm_config)
+            VAEBasedAlgorithm(**algorithm_config)
             if isinstance(algorithm_config, dict)
             else algorithm_config
         )
@@ -657,9 +660,10 @@ def create_careamics_module(
     algorithm_configuration["model"] = model_configuration
 
     # call the parent init using an AlgorithmModel instance
+    # TODO broken by new configutations!
     algorithm_str = algorithm_configuration["algorithm"]
-    if algorithm_str in FCNAlgorithmConfig.get_compatible_algorithms():
-        return FCNModule(FCNAlgorithmConfig(**algorithm_configuration))
+    if algorithm_str in UNetBasedAlgorithm.get_compatible_algorithms():
+        return FCNModule(UNetBasedAlgorithm(**algorithm_configuration))
     else:
         raise NotImplementedError(
             f"Model {algorithm_str} is not implemented or unknown."

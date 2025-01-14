@@ -8,7 +8,8 @@ from numpy.typing import NDArray
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import Callback, EarlyStopping, ModelCheckpoint
 
-from careamics import CAREamist, Configuration, save_configuration
+from careamics import CAREamist
+from careamics.config import configuration_factory, save_configuration
 from careamics.config.support import SupportedAlgorithm, SupportedData
 from careamics.dataset.dataset_utils import reshape_array
 from careamics.lightning.callbacks import HyperParametersCallback, ProgressBarCallback
@@ -27,21 +28,25 @@ def test_no_parameters():
         CAREamist()
 
 
-def test_minimum_configuration_via_object(tmp_path: Path, minimum_configuration: dict):
+def test_minimum_configuration_via_object(
+    tmp_path: Path, minimum_n2v_configuration: dict
+):
     """Test that CAREamics can be instantiated with a minimum configuration object."""
     # create configuration
-    config = Configuration(**minimum_configuration)
+    config = configuration_factory(minimum_n2v_configuration)
 
     # instantiate CAREamist
     CAREamist(source=config, work_dir=tmp_path)
 
 
-def test_minimum_configuration_via_path(tmp_path: Path, minimum_configuration: dict):
+def test_minimum_configuration_via_path(
+    tmp_path: Path, minimum_n2v_configuration: dict
+):
     """Test that CAREamics can be instantiated with a path to a minimum
     configuration.
     """
     # create configuration
-    config = Configuration(**minimum_configuration)
+    config = configuration_factory(minimum_n2v_configuration)
     path_to_config = save_configuration(config, tmp_path)
 
     # instantiate CAREamist
@@ -49,11 +54,11 @@ def test_minimum_configuration_via_path(tmp_path: Path, minimum_configuration: d
 
 
 def test_train_error_target_unsupervised_algorithm(
-    tmp_path: Path, minimum_configuration: dict
+    tmp_path: Path, minimum_n2v_configuration: dict
 ):
     """Test that an error is raised when a target is provided for N2V."""
     # create configuration
-    config = Configuration(**minimum_configuration)
+    config = configuration_factory(minimum_n2v_configuration)
     config.algorithm_config.algorithm = SupportedAlgorithm.N2V.value
 
     # train error with Paths
@@ -83,13 +88,13 @@ def test_train_error_target_unsupervised_algorithm(
 
 
 @pytest.mark.skip(reason="bmz")
-def test_train_single_array_no_val(tmp_path: Path, minimum_configuration: dict):
+def test_train_single_array_no_val(tmp_path: Path, minimum_n2v_configuration: dict):
     """Test that CAREamics can be trained with arrays."""
     # training data
     train_array = random_array((32, 32))
 
     # create configuration
-    config = Configuration(**minimum_configuration)
+    config = configuration_factory(minimum_n2v_configuration)
     config.training_config.num_epochs = 1
     config.data_config.axes = "YX"
     config.data_config.batch_size = 2
@@ -124,7 +129,7 @@ def test_train_array(tmp_path: Path, minimum_configuration: dict):
     val_array = random_array((32, 32))
 
     # create configuration
-    config = Configuration(**minimum_configuration)
+    config = configuration_factory(minimum_n2v_configuration)
     config.training_config.num_epochs = 1
     config.data_config.axes = "YX"
     config.data_config.batch_size = 2
@@ -155,7 +160,7 @@ def test_train_array(tmp_path: Path, minimum_configuration: dict):
 @pytest.mark.skip(reason="bmz")
 @pytest.mark.parametrize("independent_channels", [False, True])
 def test_train_array_channel(
-    tmp_path: Path, minimum_configuration: dict, independent_channels: bool
+    tmp_path: Path, minimum_n2v_configuration: dict, independent_channels: bool
 ):
     """Test that CAREamics can be trained on arrays with channels."""
     # training data
@@ -163,7 +168,7 @@ def test_train_array_channel(
     val_array = random_array((32, 32, 3))
 
     # create configuration
-    config = Configuration(**minimum_configuration)
+    config = configuration_factory(minimum_n2v_configuration)
     config.training_config.num_epochs = 1
     config.data_config.axes = "YXC"
     config.algorithm_config.model.in_channels = 3
@@ -196,16 +201,16 @@ def test_train_array_channel(
 
 
 @pytest.mark.skip(reason="bmz")
-def test_train_array_3d(tmp_path: Path, minimum_configuration: dict):
+def test_train_array_3d(tmp_path: Path, minimum_n2v_configuration: dict):
     """Test that CAREamics can be trained on 3D arrays."""
     # training data
     train_array = random_array((8, 32, 32))
     val_array = random_array((8, 32, 32))
 
     # create configuration
-    minimum_configuration["data_config"]["axes"] = "ZYX"
-    minimum_configuration["data_config"]["patch_size"] = (8, 16, 16)
-    config = Configuration(**minimum_configuration)
+    minimum_n2v_configuration["data_config"]["axes"] = "ZYX"
+    minimum_n2v_configuration["data_config"]["patch_size"] = (8, 16, 16)
+    config = configuration_factory(minimum_n2v_configuration)
     config.training_config.num_epochs = 1
     config.data_config.batch_size = 2
     config.data_config.data_type = SupportedData.ARRAY.value
@@ -232,7 +237,9 @@ def test_train_array_3d(tmp_path: Path, minimum_configuration: dict):
 
 
 @pytest.mark.skip(reason="bmz")
-def test_train_tiff_files_in_memory_no_val(tmp_path: Path, minimum_configuration: dict):
+def test_train_tiff_files_in_memory_no_val(
+    tmp_path: Path, minimum_n2v_configuration: dict
+):
     """Test that CAREamics can be trained with tiff files in memory."""
     # training data
     train_array = random_array((32, 32))
@@ -242,7 +249,7 @@ def test_train_tiff_files_in_memory_no_val(tmp_path: Path, minimum_configuration
     tifffile.imwrite(train_file, train_array)
 
     # create configuration
-    config = Configuration(**minimum_configuration)
+    config = configuration_factory(minimum_n2v_configuration)
     config.training_config.num_epochs = 1
     config.data_config.axes = "YX"
     config.data_config.batch_size = 2
@@ -271,7 +278,7 @@ def test_train_tiff_files_in_memory_no_val(tmp_path: Path, minimum_configuration
 
 
 @pytest.mark.skip(reason="bmz")
-def test_train_tiff_files_in_memory(tmp_path: Path, minimum_configuration: dict):
+def test_train_tiff_files_in_memory(tmp_path: Path, minimum_n2v_configuration: dict):
     """Test that CAREamics can be trained with tiff files in memory."""
     # training data
     train_array = random_array((32, 32))
@@ -285,7 +292,7 @@ def test_train_tiff_files_in_memory(tmp_path: Path, minimum_configuration: dict)
     tifffile.imwrite(val_file, val_array)
 
     # create configuration
-    config = Configuration(**minimum_configuration)
+    config = configuration_factory(minimum_n2v_configuration)
     config.training_config.num_epochs = 1
     config.data_config.axes = "YX"
     config.data_config.batch_size = 2
@@ -313,7 +320,7 @@ def test_train_tiff_files_in_memory(tmp_path: Path, minimum_configuration: dict)
     assert (tmp_path / "model.zip").exists()
 
 
-def test_train_tiff_files(tmp_path: Path, minimum_configuration: dict):
+def test_train_tiff_files(tmp_path: Path, minimum_n2v_configuration: dict):
     """Test that CAREamics can be trained with tiff files by deactivating
     the in memory dataset.
     """
@@ -329,7 +336,7 @@ def test_train_tiff_files(tmp_path: Path, minimum_configuration: dict):
     tifffile.imwrite(val_file, val_array)
 
     # create configuration
-    config = Configuration(**minimum_configuration)
+    config = configuration_factory(minimum_n2v_configuration)
     config.training_config.num_epochs = 1
     config.data_config.axes = "YX"
     config.data_config.batch_size = 2
@@ -366,7 +373,7 @@ def test_train_array_supervised(tmp_path: Path, supervised_configuration: dict):
     val_target = random_array((32, 32))
 
     # create configuration
-    config = Configuration(**supervised_configuration)
+    config = configuration_factory(minimum_supervised_configuration)
     config.training_config.num_epochs = 1
     config.data_config.axes = "YX"
     config.data_config.batch_size = 2
@@ -401,7 +408,7 @@ def test_train_array_supervised(tmp_path: Path, supervised_configuration: dict):
 
 @pytest.mark.skip(reason="bmz")
 def test_train_tiff_files_in_memory_supervised(
-    tmp_path: Path, supervised_configuration: dict
+    tmp_path: Path, minimum_supervised_configuration: dict
 ):
     """Test that CAREamics can be trained with tiff files in memory."""
     # training data
@@ -428,7 +435,7 @@ def test_train_tiff_files_in_memory_supervised(
     tifffile.imwrite(val_target_file, val_target)
 
     # create configuration
-    config = Configuration(**supervised_configuration)
+    config = configuration_factory(minimum_supervised_configuration)
     config.training_config.num_epochs = 1
     config.data_config.axes = "YX"
     config.data_config.batch_size = 2
@@ -461,7 +468,9 @@ def test_train_tiff_files_in_memory_supervised(
     assert (tmp_path / "model.zip").exists()
 
 
-def test_train_tiff_files_supervised(tmp_path: Path, supervised_configuration: dict):
+def test_train_tiff_files_supervised(
+    tmp_path: Path, minimum_supervised_configuration: dict
+):
     """Test that CAREamics can be trained with tiff files by deactivating
     the in memory dataset.
     """
@@ -489,7 +498,7 @@ def test_train_tiff_files_supervised(tmp_path: Path, supervised_configuration: d
     tifffile.imwrite(val_target_file, val_target)
 
     # create configuration
-    config = Configuration(**supervised_configuration)
+    config = configuration_factory(minimum_supervised_configuration)
     config.training_config.num_epochs = 1
     config.data_config.axes = "YX"
     config.data_config.batch_size = 2
@@ -527,14 +536,14 @@ def test_train_tiff_files_supervised(tmp_path: Path, supervised_configuration: d
 @pytest.mark.parametrize("samples", [1, 2, 4])
 @pytest.mark.parametrize("batch_size", [1, 2])
 def test_predict_on_array_tiled(
-    tmp_path: Path, minimum_configuration: dict, batch_size, samples
+    tmp_path: Path, minimum_n2v_configuration: dict, batch_size, samples
 ):
     """Test that CAREamics can predict on arrays."""
     # training data
     train_array = random_array((samples, 32, 32))
 
     # create configuration
-    config = Configuration(**minimum_configuration)
+    config = configuration_factory(minimum_n2v_configuration)
     config.training_config.num_epochs = 1
     config.data_config.axes = "SYX"
     config.data_config.batch_size = 2
@@ -573,14 +582,14 @@ def test_predict_on_array_tiled(
 @pytest.mark.parametrize("samples", [1, 2, 4])
 @pytest.mark.parametrize("batch_size", [1, 2])
 def test_predict_arrays_no_tiling(
-    tmp_path: Path, minimum_configuration: dict, batch_size, samples
+    tmp_path: Path, minimum_n2v_configuration: dict, batch_size, samples
 ):
     """Test that CAREamics can predict on arrays without tiling."""
     # training data
     train_array = random_array((samples, 32, 32))
 
     # create configuration
-    config = Configuration(**minimum_configuration)
+    config = configuration_factory(minimum_n2v_configuration)
     config.training_config.num_epochs = 1
     config.data_config.axes = "SYX"
     config.data_config.batch_size = 2
@@ -619,7 +628,7 @@ def test_predict_arrays_no_tiling(
         "0.001 different."
     )
 )
-def test_batched_prediction(tmp_path: Path, minimum_configuration: dict):
+def test_batched_prediction(tmp_path: Path, minimum_n2v_configuration: dict):
     "Compare outputs when a batch size of 1 or 2 is used"
 
     tile_size = (16, 16)
@@ -628,7 +637,7 @@ def test_batched_prediction(tmp_path: Path, minimum_configuration: dict):
 
     train_array = random_array(shape)
     # create configuration
-    config = Configuration(**minimum_configuration)
+    config = configuration_factory(minimum_n2v_configuration)
     config.training_config.num_epochs = 1
     config.data_config.axes = "YX"
     config.data_config.batch_size = 2
@@ -655,7 +664,7 @@ def test_batched_prediction(tmp_path: Path, minimum_configuration: dict):
 @pytest.mark.parametrize("batch_size", [1, 2])
 def test_predict_tiled_channel(
     tmp_path: Path,
-    minimum_configuration: dict,
+    minimum_n2v_configuration: dict,
     independent_channels: bool,
     batch_size: int,
 ):
@@ -665,7 +674,7 @@ def test_predict_tiled_channel(
     val_array = random_array((3, 32, 32))
 
     # create configuration
-    config = Configuration(**minimum_configuration)
+    config = configuration_factory(minimum_n2v_configuration)
     config.training_config.num_epochs = 1
     config.data_config.axes = "CYX"
     config.algorithm_config.model.in_channels = 3
@@ -697,7 +706,7 @@ def test_predict_tiled_channel(
 @pytest.mark.parametrize("n_samples", [1, 2])
 @pytest.mark.parametrize("batch_size", [1, 2])
 def test_predict_path(
-    tmp_path: Path, minimum_configuration: dict, batch_size, n_samples, tiled
+    tmp_path: Path, minimum_n2v_configuration: dict, batch_size, n_samples, tiled
 ):
     """Test that CAREamics can predict with tiff files."""
     # training data
@@ -709,7 +718,7 @@ def test_predict_path(
         tifffile.imwrite(train_file, train_array)
 
     # create configuration
-    config = Configuration(**minimum_configuration)
+    config = configuration_factory(minimum_n2v_configuration)
     config.training_config.num_epochs = 1
     config.data_config.axes = "YX"
     config.data_config.batch_size = 2
@@ -844,7 +853,7 @@ def test_export_bmz_pretrained_with_array(tmp_path: Path, pre_trained: Path):
     assert (tmp_path / "model2.zip").exists()
 
 
-def test_predict_to_disk_path_tiff(tmp_path, minimum_configuration):
+def test_predict_to_disk_path_tiff(tmp_path, minimum_n2v_configuration):
     """Test predict_to_disk function with path source and tiff write type."""
 
     # prepare dummy data
@@ -859,7 +868,7 @@ def test_predict_to_disk_path_tiff(tmp_path, minimum_configuration):
         tifffile.imwrite(train_file, train_array)
 
     # create configuration
-    config = Configuration(**minimum_configuration)
+    config = configuration_factory(minimum_n2v_configuration)
     config.training_config.num_epochs = 1
     config.data_config.axes = "YX"
     config.data_config.batch_size = 2
@@ -877,7 +886,7 @@ def test_predict_to_disk_path_tiff(tmp_path, minimum_configuration):
         assert (tmp_path / "predictions" / f"image_{i}.tiff").is_file()
 
 
-def test_predict_to_disk_datamodule_tiff(tmp_path, minimum_configuration):
+def test_predict_to_disk_datamodule_tiff(tmp_path, minimum_n2v_configuration):
     """Test predict_to_disk function with datamodule source and tiff write type."""
 
     # prepare dummy data
@@ -892,7 +901,7 @@ def test_predict_to_disk_datamodule_tiff(tmp_path, minimum_configuration):
         tifffile.imwrite(train_file, train_array)
 
     # create configuration
-    config = Configuration(**minimum_configuration)
+    config = configuration_factory(minimum_n2v_configuration)
     config.training_config.num_epochs = 1
     config.data_config.axes = "YX"
     config.data_config.batch_size = 2
@@ -918,7 +927,7 @@ def test_predict_to_disk_datamodule_tiff(tmp_path, minimum_configuration):
         assert (tmp_path / "predictions" / f"image_{i}.tiff").is_file()
 
 
-def test_predict_to_disk_custom(tmp_path, minimum_configuration):
+def test_predict_to_disk_custom(tmp_path, minimum_n2v_configuration):
     """Test predict_to_disk function with custom write type."""
 
     def write_numpy(file_path: Path, img: NDArray, *args, **kwargs) -> None:
@@ -936,7 +945,7 @@ def test_predict_to_disk_custom(tmp_path, minimum_configuration):
         tifffile.imwrite(train_file, train_array)
 
     # create configuration
-    config = Configuration(**minimum_configuration)
+    config = configuration_factory(minimum_n2v_configuration)
     config.training_config.num_epochs = 1
     config.data_config.axes = "YX"
     config.data_config.batch_size = 2
@@ -959,7 +968,7 @@ def test_predict_to_disk_custom(tmp_path, minimum_configuration):
         assert (tmp_path / "predictions" / f"image_{i}.npy").is_file()
 
 
-def test_predict_to_disk_custom_raises(tmp_path, minimum_configuration):
+def test_predict_to_disk_custom_raises(tmp_path, minimum_n2v_configuration):
     """
     Test predict_to_disk custom write type raises ValueError.
 
@@ -981,7 +990,7 @@ def test_predict_to_disk_custom_raises(tmp_path, minimum_configuration):
         tifffile.imwrite(train_file, train_array)
 
     # create configuration
-    config = Configuration(**minimum_configuration)
+    config = configuration_factory(minimum_n2v_configuration)
     config.training_config.num_epochs = 1
     config.data_config.axes = "YX"
     config.data_config.batch_size = 2
@@ -1010,7 +1019,7 @@ def test_predict_to_disk_custom_raises(tmp_path, minimum_configuration):
         )
 
 
-def test_add_custom_callback(tmp_path, minimum_configuration):
+def test_add_custom_callback(tmp_path, minimum_n2v_configuration):
     """Test that custom callback can be added to the CAREamist."""
 
     # define a custom callback
@@ -1035,7 +1044,7 @@ def test_add_custom_callback(tmp_path, minimum_configuration):
     train_array = random_array((32, 32))
 
     # create configuration
-    config = Configuration(**minimum_configuration)
+    config = configuration_factory(minimum_n2v_configuration)
     config.training_config.num_epochs = 1
     config.data_config.axes = "YX"
     config.data_config.batch_size = 2
@@ -1055,10 +1064,10 @@ def test_add_custom_callback(tmp_path, minimum_configuration):
     assert my_callback.has_ended
 
 
-def test_error_passing_careamics_callback(tmp_path, minimum_configuration):
+def test_error_passing_careamics_callback(tmp_path, minimum_n2v_configuration):
     """Test that an error is thrown if we pass known callbacks to CAREamist."""
     # create configuration
-    config = Configuration(**minimum_configuration)
+    config = configuration_factory(minimum_n2v_configuration)
     config.training_config.num_epochs = 1
     config.data_config.axes = "YX"
     config.data_config.batch_size = 2
@@ -1093,13 +1102,13 @@ def test_error_passing_careamics_callback(tmp_path, minimum_configuration):
         CAREamist(source=config, work_dir=tmp_path, callbacks=[hyper_params])
 
 
-def test_stop_training(tmp_path: Path, minimum_configuration: dict):
+def test_stop_training(tmp_path: Path, minimum_n2v_configuration: dict):
     """Test that CAREamics can stop the training"""
     # training data
     train_array = random_array((32, 32))
 
     # create configuration
-    config = Configuration(**minimum_configuration)
+    config = configuration_factory(minimum_n2v_configuration)
     config.training_config.num_epochs = 1_000
     config.data_config.axes = "YX"
     config.data_config.batch_size = 2
@@ -1123,9 +1132,9 @@ def test_stop_training(tmp_path: Path, minimum_configuration: dict):
     assert careamist.trainer.should_stop
 
 
-def test_read_logger(tmp_path, minimum_configuration):
+def test_read_logger(tmp_path, minimum_n2v_configuration):
 
-    config = Configuration(**minimum_configuration)
+    config = configuration_factory(minimum_n2v_configuration)
     config.training_config.num_epochs = 10
 
     array = np.arange(32 * 32).reshape((32, 32))
