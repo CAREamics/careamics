@@ -2,26 +2,93 @@
 
 from typing import Any, Literal, Optional, Union
 
-from .architectures import UNetModel
-from .configuration_model import Configuration
-from .data_model import DataConfig
-from .fcn_algorithm_model import FCNAlgorithmConfig
-from .support import (
+from pydantic import TypeAdapter
+
+from careamics.config.algorithms import CAREAlgorithm, N2NAlgorithm, N2VAlgorithm
+from careamics.config.architectures import UNetModel
+from careamics.config.care_configuration import CAREConfiguration
+from careamics.config.configuration import Configuration
+from careamics.config.data import DataConfig, N2VDataConfig
+from careamics.config.n2n_configuration import N2NConfiguration
+from careamics.config.n2v_configuration import N2VConfiguration
+from careamics.config.support import (
     SupportedArchitecture,
     SupportedPixelManipulation,
     SupportedTransform,
 )
-from .training_model import TrainingConfig
-from .transformations import (
+from careamics.config.training_model import TrainingConfig
+from careamics.config.transformations import (
+    N2V_TRANSFORMS_UNION,
+    SPATIAL_TRANSFORMS_UNION,
     N2VManipulateModel,
     XYFlipModel,
     XYRandomRotate90Model,
 )
 
 
-def _list_augmentations(
-    augmentations: Optional[list[Union[XYFlipModel, XYRandomRotate90Model]]],
-) -> list[Union[XYFlipModel, XYRandomRotate90Model]]:
+def configuration_factory(
+    configuration: dict[str, Any]
+) -> Union[N2VConfiguration, N2NConfiguration, CAREConfiguration]:
+    """
+    Create a configuration for training CAREamics.
+
+    Parameters
+    ----------
+    configuration : dict
+        Configuration dictionary.
+
+    Returns
+    -------
+    N2VConfiguration or N2NConfiguration or CAREConfiguration
+        Configuration for training CAREamics.
+    """
+    adapter: TypeAdapter = TypeAdapter(
+        Union[N2VConfiguration, N2NConfiguration, CAREConfiguration]
+    )
+    return adapter.validate_python(configuration)
+
+
+def algorithm_factory(
+    algorithm: dict[str, Any]
+) -> Union[N2VAlgorithm, N2NAlgorithm, CAREAlgorithm]:
+    """
+    Create an algorithm model for training CAREamics.
+
+    Parameters
+    ----------
+    algorithm : dict
+        Algorithm dictionary.
+
+    Returns
+    -------
+    N2VAlgorithm or N2NAlgorithm or CAREAlgorithm
+        Algorithm model for training CAREamics.
+    """
+    adapter: TypeAdapter = TypeAdapter(Union[N2VAlgorithm, N2NAlgorithm, CAREAlgorithm])
+    return adapter.validate_python(algorithm)
+
+
+def data_factory(data: dict[str, Any]) -> Union[DataConfig, N2VDataConfig]:
+    """
+    Create a data model for training CAREamics.
+
+    Parameters
+    ----------
+    data : dict
+        Data dictionary.
+
+    Returns
+    -------
+    DataConfig or N2VDataConfig
+        Data model for training CAREamics.
+    """
+    adapter: TypeAdapter = TypeAdapter(Union[DataConfig, N2VDataConfig])
+    return adapter.validate_python(data)
+
+
+def _list_spatial_augmentations(
+    augmentations: Optional[list[SPATIAL_TRANSFORMS_UNION]],
+) -> list[SPATIAL_TRANSFORMS_UNION]:
     """
     List the augmentations to apply.
 
@@ -44,7 +111,7 @@ def _list_augmentations(
         If there are duplicate transforms.
     """
     if augmentations is None:
-        transform_list: list[Union[XYFlipModel, XYRandomRotate90Model]] = [
+        transform_list: list[SPATIAL_TRANSFORMS_UNION] = [
             XYFlipModel(),
             XYRandomRotate90Model(),
         ]
@@ -123,7 +190,7 @@ def _create_configuration(
     patch_size: list[int],
     batch_size: int,
     num_epochs: int,
-    augmentations: list[Union[XYFlipModel, XYRandomRotate90Model]],
+    augmentations: Union[list[N2V_TRANSFORMS_UNION], list[SPATIAL_TRANSFORMS_UNION]],
     independent_channels: bool,
     loss: Literal["n2v", "mae", "mse"],
     n_channels_in: int,
@@ -188,21 +255,21 @@ def _create_configuration(
     )
 
     # algorithm model
-    algorithm_config = FCNAlgorithmConfig(
-        algorithm=algorithm,
-        loss=loss,
-        model=unet_model,
-    )
+    algorithm_config = {
+        "algorithm": algorithm,
+        "loss": loss,
+        "model": unet_model,
+    }
 
     # data model
-    data = DataConfig(
-        data_type=data_type,
-        axes=axes,
-        patch_size=patch_size,
-        batch_size=batch_size,
-        transforms=augmentations,
-        dataloader_params=dataloader_params,
-    )
+    data = {
+        "data_type": data_type,
+        "axes": axes,
+        "patch_size": patch_size,
+        "batch_size": batch_size,
+        "transforms": augmentations,
+        "dataloader_params": dataloader_params,
+    }
 
     # training model
     training = TrainingConfig(
@@ -212,14 +279,14 @@ def _create_configuration(
     )
 
     # create configuration
-    configuration = Configuration(
-        experiment_name=experiment_name,
-        algorithm_config=algorithm_config,
-        data_config=data,
-        training_config=training,
-    )
+    configuration = {
+        "experiment_name": experiment_name,
+        "algorithm_config": algorithm_config,
+        "data_config": data,
+        "training_config": training,
+    }
 
-    return configuration
+    return configuration_factory(configuration)
 
 
 # TODO reconsider naming once we officially support LVAE approaches
@@ -306,7 +373,7 @@ def _create_supervised_configuration(
         n_channels_out = n_channels_in
 
     # augmentations
-    transform_list = _list_augmentations(augmentations)
+    spatial_transform_list = _list_spatial_augmentations(augmentations)
 
     return _create_configuration(
         algorithm=algorithm,
@@ -316,7 +383,7 @@ def _create_supervised_configuration(
         patch_size=patch_size,
         batch_size=batch_size,
         num_epochs=num_epochs,
-        augmentations=transform_list,
+        augmentations=spatial_transform_list,
         independent_channels=independent_channels,
         loss=loss,
         n_channels_in=n_channels_in,
@@ -853,7 +920,7 @@ def create_n2v_configuration(
         n_channels = 1
 
     # augmentations
-    transform_list = _list_augmentations(augmentations)
+    spatial_transforms = _list_spatial_augmentations(augmentations)
 
     # create the N2VManipulate transform using the supplied parameters
     n2v_transform = N2VManipulateModel(
@@ -868,7 +935,7 @@ def create_n2v_configuration(
         struct_mask_axis=struct_n2v_axis,
         struct_mask_span=struct_n2v_span,
     )
-    transform_list.append(n2v_transform)
+    transform_list: list[N2V_TRANSFORMS_UNION] = spatial_transforms + [n2v_transform]
 
     return _create_configuration(
         algorithm="n2v",

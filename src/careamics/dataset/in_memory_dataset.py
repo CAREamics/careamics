@@ -9,13 +9,9 @@ from typing import Any, Callable, Optional, Union
 import numpy as np
 from torch.utils.data import Dataset
 
-from careamics.file_io.read import read_tiff
-from careamics.transforms import Compose
-
-from ..config import DataConfig
-from ..config.transformations import NormalizeModel
-from ..utils.logging import get_logger
-from .patching.patching import (
+from careamics.config import GeneralDataConfig, N2VDataConfig
+from careamics.config.transformations import NormalizeModel
+from careamics.dataset.patching.patching import (
     PatchedOutput,
     Stats,
     prepare_patches_supervised,
@@ -23,6 +19,9 @@ from .patching.patching import (
     prepare_patches_unsupervised,
     prepare_patches_unsupervised_array,
 )
+from careamics.file_io.read import read_tiff
+from careamics.transforms import Compose
+from careamics.utils.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -47,7 +46,7 @@ class InMemoryDataset(Dataset):
 
     def __init__(
         self,
-        data_config: DataConfig,
+        data_config: GeneralDataConfig,
         inputs: Union[np.ndarray, list[Path]],
         input_target: Optional[Union[np.ndarray, list[Path]]] = None,
         read_source_func: Callable = read_tiff,
@@ -58,7 +57,7 @@ class InMemoryDataset(Dataset):
 
         Parameters
         ----------
-        data_config : DataConfig
+        data_config : GeneralDataConfig
             Data configuration.
         inputs : numpy.ndarray or list[pathlib.Path]
             Input data.
@@ -124,7 +123,7 @@ class InMemoryDataset(Dataset):
                     target_stds=self.target_stats.stds,
                 )
             ]
-            + self.data_config.transforms,
+            + list(self.data_config.transforms),
         )
 
     def _prepare_patches(self, supervised: bool) -> PatchedOutput:
@@ -219,12 +218,12 @@ class InMemoryDataset(Dataset):
 
             return self.patch_transform(patch=patch, target=target)
 
-        elif self.data_config.has_n2v_manipulate():  # TODO not compatible with HDN
+        elif isinstance(self.data_config, N2VDataConfig):
             return self.patch_transform(patch=patch)
         else:
             raise ValueError(
                 "Something went wrong! No target provided (not supervised training) "
-                "and no N2V manipulation (no N2V training)."
+                "while the algorithm is not Noise2Void."
             )
 
     def get_data_statistics(self) -> tuple[list[float], list[float]]:

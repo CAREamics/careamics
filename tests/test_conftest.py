@@ -1,13 +1,15 @@
-from careamics import Configuration
-from careamics.config.data_model import DataConfig
-from careamics.config.fcn_algorithm_model import FCNAlgorithmConfig
+"""Tests for the pytest fixtures."""
+
+from careamics.config import Configuration, N2VConfiguration
+from careamics.config.algorithms import UNetBasedAlgorithm
+from careamics.config.data import DataConfig, N2VDataConfig
 from careamics.config.inference_model import InferenceConfig
 from careamics.config.training_model import TrainingConfig
 
 
 def test_minimum_algorithm(minimum_algorithm_n2v):
     # create algorithm configuration
-    FCNAlgorithmConfig(**minimum_algorithm_n2v)
+    UNetBasedAlgorithm(**minimum_algorithm_n2v)
 
 
 def test_minimum_data(minimum_data):
@@ -25,6 +27,16 @@ def test_minimum_training(minimum_training):
     TrainingConfig(**minimum_training)
 
 
-def test_minimum_configuration(minimum_configuration):
+def test_minimum_data_n2v(minimum_data_n2v):
+    # create data configuration
+    N2VDataConfig(**minimum_data_n2v)
+
+
+def test_minimum_n2v_configuration(minimum_n2v_configuration):
     # create configuration
-    Configuration(**minimum_configuration)
+    N2VConfiguration(**minimum_n2v_configuration)
+
+
+def test_minimum_configuration(minimum_supervised_configuration):
+    # create configuration
+    Configuration(**minimum_supervised_configuration)

@@ -3,53 +3,11 @@ from typing import Callable
 
 import numpy as np
 import pytest
-from torch import nn, ones
 
-from careamics import CAREamist, Configuration
-from careamics.config import register_model
-from careamics.config.support import SupportedArchitecture, SupportedData
+from careamics import CAREamist
+from careamics.config import configuration_factory
+from careamics.config.support import SupportedData
 from careamics.model_io import export_to_bmz
-
-######################################
-## fixture for custom model testing ##
-##
-## - config/algorithm_model
-## - config/architectures/custom_model
-## - models/model_factory
-##
-######################################
-
-
-@register_model(name="linear")
-class LinearModel(nn.Module):
-    def __init__(self, in_features, out_features):
-        super().__init__()
-
-        self.in_features = in_features
-        self.out_features = out_features
-        self.weight = nn.Parameter(ones(in_features, out_features))
-        self.bias = nn.Parameter(ones(out_features))
-
-    def forward(self, input):
-        return (input @ self.weight) + self.bias
-
-
-@pytest.fixture
-def custom_model_name() -> str:
-    return "linear"
-
-
-@pytest.fixture
-def custom_model_parameters(custom_model_name) -> dict:
-    return {
-        "architecture": SupportedArchitecture.CUSTOM.value,
-        "name": custom_model_name,
-        "in_features": 10,
-        "out_features": 5,
-    }
-
-
-######################################
 
 
 @pytest.fixture
@@ -187,6 +145,26 @@ def minimum_data() -> dict:
 
 
 @pytest.fixture
+def minimum_data_n2v() -> dict:
+    """Create a minimum N2V data dictionary.
+
+    Returns
+    -------
+    dict
+        A minimum data example.
+    """
+    # create dictionary
+    data = {
+        "data_type": SupportedData.ARRAY.value,
+        "patch_size": [8, 8],
+        "axes": "YX",
+        "transforms": [{"name": "N2VManipulate"}],
+    }
+
+    return data
+
+
+@pytest.fixture
 def minimum_inference() -> dict:
     """Create a minimum inference dictionary.
 
@@ -224,8 +202,8 @@ def minimum_training() -> dict:
 
 
 @pytest.fixture
-def minimum_configuration(
-    minimum_algorithm_n2v: dict, minimum_data: dict, minimum_training: dict
+def minimum_n2v_configuration(
+    minimum_algorithm_n2v: dict, minimum_data_n2v: dict, minimum_training: dict
 ) -> dict:
     """Create a minimum configuration dictionary.
 
@@ -235,8 +213,8 @@ def minimum_configuration(
         Temporary path for testing.
     minimum_algorithm : dict
         Minimum algorithm configuration.
-    minimum_data : dict
-        Minimum data configuration.
+    minimum_data_n2v : dict
+        Minimum N2V data configuration.
     minimum_training : dict
         Minimum training configuration.
 
@@ -250,14 +228,14 @@ def minimum_configuration(
         "experiment_name": "LevitatingFrog",
         "algorithm_config": minimum_algorithm_n2v,
         "training_config": minimum_training,
-        "data_config": minimum_data,
+        "data_config": minimum_data_n2v,
     }
 
     return configuration
 
 
 @pytest.fixture
-def supervised_configuration(
+def minimum_supervised_configuration(
     minimum_algorithm_supervised: dict, minimum_data: dict, minimum_training: dict
 ) -> dict:
     configuration = {
@@ -327,13 +305,13 @@ def overlaps() -> tuple[int, int]:
 
 
 @pytest.fixture
-def pre_trained(tmp_path, minimum_configuration):
+def pre_trained(tmp_path, minimum_n2v_configuration):
     """Fixture to create a pre-trained CAREamics model."""
     # training data
     train_array = np.arange(32 * 32).reshape((32, 32)).astype(np.float32)
 
     # create configuration
-    config = Configuration(**minimum_configuration)
+    config = configuration_factory(minimum_n2v_configuration)
     config.training_config.num_epochs = 1
     config.data_config.axes = "YX"
     config.data_config.batch_size = 2
