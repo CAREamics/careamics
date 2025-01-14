@@ -10,9 +10,9 @@ def test_minimum_algorithm(minimum_algorithm_n2v):
     FCNAlgorithmConfig(**minimum_algorithm_n2v)
 
 
-def test_minimum_data(minimum_data):
+def test_minimum_data(minimum_algorithm_n2v):
     # create data configuration
-    DataConfig(**minimum_data)
+    DataConfig(**minimum_algorithm_n2v)
 
 
 def test_minimum_prediction(minimum_inference):

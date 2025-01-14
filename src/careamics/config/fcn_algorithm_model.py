@@ -127,6 +127,8 @@ class FCNAlgorithmConfig(BaseModel):
                 self.preprocessing.append(
                     N2VManipulateModel(name=SupportedTransform.N2V_MANIPULATE.value)
                 )
+            if self.model.n2v2:
+                self.preprocessing[-1].strategy = "median"
 
         if self.algorithm == "care" or self.algorithm == "n2n":
             if self.loss == "n2v":
