@@ -2,7 +2,7 @@
 
 from typing import Any, Literal, Optional, Union
 
-from pydantic import BaseModel, TypeAdapter
+from pydantic import TypeAdapter
 
 from careamics.config.algorithms import CAREAlgorithm, N2NAlgorithm, N2VAlgorithm
 from careamics.config.architectures import UNetModel
@@ -24,25 +24,6 @@ from careamics.config.transformations import (
     XYFlipModel,
     XYRandomRotate90Model,
 )
-
-
-class ConfigurationFactory(BaseModel):
-    """A factory to instantiate a CAREamics configuration."""
-
-    configuration: Union[CAREConfiguration, N2NConfiguration, N2VConfiguration]
-
-
-# TODO: should UNetBased and VAEBased be instantiable?
-class AlgorithmFactory(BaseModel):
-    """A factory to instantiate an algorithm model."""
-
-    algorithm: Union[N2VAlgorithm, N2NAlgorithm, CAREAlgorithm]
-
-
-class DataFactory(BaseModel):
-    """A factory to instantiate a data model."""
-
-    data: Union[DataConfig, N2VDataConfig]
 
 
 def configuration_factory(
@@ -305,7 +286,7 @@ def _create_configuration(
         "training_config": training,
     }
 
-    return ConfigurationFactory(configuration=configuration).configuration
+    return configuration_factory(configuration)
 
 
 # TODO reconsider naming once we officially support LVAE approaches
