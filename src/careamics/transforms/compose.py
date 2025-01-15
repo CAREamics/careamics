@@ -88,7 +88,7 @@ class Compose:
             *params, _ = t(*params)  # ignore additional_arrays dict
 
         # needed to avoid None values which create problems for collate
-        return [p for p in params if p is not None]
+        return params
 
     def _chain_transforms_additional_arrays(
         self,
