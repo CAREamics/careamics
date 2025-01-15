@@ -75,7 +75,9 @@ class FCNModule(L.LightningModule):
         super().__init__()
 
         # create preprocessing, model and loss function
-        self.preprocess = Compose(transform_list=algorithm_config.preprocessing)
+        self.preprocess = Compose(
+            transform_list=[getattr(algorithm_config, "n2v_masking", None)]
+        )
         self.model: nn.Module = model_factory(algorithm_config.model)
         self.loss_func = loss_factory(algorithm_config.loss)
 
