@@ -163,6 +163,8 @@ class MultiChannelNoiseModel(nn.Module):
             List of noise models, one for each output channel.
         """
         super().__init__()
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
         for i, nmodel in enumerate(nmodels):  # TODO refactor this !!!
             if nmodel is not None:
                 self.add_module(
@@ -175,6 +177,13 @@ class MultiChannelNoiseModel(nn.Module):
                 self._nm_cnt += 1
 
         print(f"[{self.__class__.__name__}] Nmodels count:{self._nm_cnt}")
+
+    def to_device(self, device: torch.device):
+        self.device = device
+        self.to(device)
+        for ch_idx in range(self._nm_cnt):
+            nmodel = getattr(self, f"nmodel_{ch_idx}")
+            nmodel.to_device(device)
 
     def likelihood(self, obs: torch.Tensor, signal: torch.Tensor) -> torch.Tensor:
         """Compute the likelihood of observations given signals for each channel.
