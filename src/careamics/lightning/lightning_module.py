@@ -27,7 +27,7 @@ from careamics.models.lvae.noise_models import (
     noise_model_factory,
 )
 from careamics.models.model_factory import model_factory
-from careamics.transforms import Compose, Denormalize, ImageRestorationTTA
+from careamics.transforms import Denormalize, ImageRestorationTTA, N2VManipulateTorch
 from careamics.utils.metrics import RunningPSNR, scale_invariant_psnr
 from careamics.utils.torch_utils import get_optimizer, get_scheduler
 
@@ -75,8 +75,9 @@ class FCNModule(L.LightningModule):
         super().__init__()
 
         # create preprocessing, model and loss function
-        self.preprocess = Compose(
-            transform_list=[getattr(algorithm_config, "n2v_masking", None)]
+        # TODO should we use compose here ?
+        self.preprocess = N2VManipulateTorch(
+            getattr(algorithm_config, "n2v_masking", [])
         )
         self.model: nn.Module = model_factory(algorithm_config.model)
         self.loss_func = loss_factory(algorithm_config.loss)

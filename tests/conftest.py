@@ -158,7 +158,7 @@ def minimum_data_n2v() -> dict:
         "data_type": SupportedData.ARRAY.value,
         "patch_size": [8, 8],
         "axes": "YX",
-        "transforms": [{"name": "N2VManipulate"}],
+        "transforms": [],
     }
 
     return data

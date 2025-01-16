@@ -6,7 +6,6 @@ from numpy.typing import NDArray
 
 from careamics.config.transformations import NORM_AND_SPATIAL_UNION
 
-from .n2v_manipulate import N2VManipulate
 from .normalize import Normalize
 from .transform import Transform
 from .xy_flip import XYFlip
@@ -16,7 +15,6 @@ ALL_TRANSFORMS = {
     "Normalize": Normalize,
     "XYFlip": XYFlip,
     "XYRandomRotate90": XYRandomRotate90,
-    "N2VManipulate": N2VManipulate,
 }
 
 

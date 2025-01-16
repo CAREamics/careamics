@@ -104,7 +104,7 @@ class N2VConfiguration(Configuration):
         """
         if self.algorithm_config.model.n2v2:
             if (
-                self.data_config.get_masking_strategy()
+                self.algorithm_config.get_masking_strategy()
                 != SupportedPixelManipulation.MEDIAN.value
             ):
                 raise ValueError(
@@ -114,7 +114,7 @@ class N2VConfiguration(Configuration):
                 )
         else:
             if (
-                self.data_config.get_masking_strategy()
+                self.algorithm_config.get_masking_strategy()
                 != SupportedPixelManipulation.UNIFORM.value
             ):
                 raise ValueError(
@@ -133,7 +133,7 @@ class N2VConfiguration(Configuration):
         use_n2v2 : bool
             Whether to use N2V2.
         """
-        self.data_config.set_n2v2(use_n2v2)
+        self.algorithm_config.set_n2v2(use_n2v2)
         self.algorithm_config.model.n2v2 = use_n2v2
 
     def get_algorithm_friendly_name(self) -> str:
@@ -146,7 +146,7 @@ class N2VConfiguration(Configuration):
             Friendly name.
         """
         use_n2v2 = self.algorithm_config.model.n2v2
-        use_structN2V = self.data_config.is_using_struct_n2v()
+        use_structN2V = self.algorithm_config.is_using_struct_n2v()
 
         if use_n2v2 and use_structN2V:
             return STRUCT_N2V2
@@ -167,7 +167,7 @@ class N2VConfiguration(Configuration):
             List of keywords.
         """
         use_n2v2 = self.algorithm_config.model.n2v2
-        use_structN2V = self.data_config.is_using_struct_n2v()
+        use_structN2V = self.algorithm_config.is_using_struct_n2v()
 
         keywords = [
             "denoising",
@@ -198,7 +198,7 @@ class N2VConfiguration(Configuration):
             Algorithm references.
         """
         use_n2v2 = self.algorithm_config.model.n2v2
-        use_structN2V = self.data_config.is_using_struct_n2v()
+        use_structN2V = self.algorithm_config.is_using_struct_n2v()
 
         references = [
             N2V_REF.text + " doi: " + N2V_REF.doi,
@@ -230,7 +230,7 @@ class N2VConfiguration(Configuration):
             List of citation entries.
         """
         use_n2v2 = self.algorithm_config.model.n2v2
-        use_structN2V = self.data_config.is_using_struct_n2v()
+        use_structN2V = self.algorithm_config.is_using_struct_n2v()
 
         references = [N2V_REF]
 
@@ -254,7 +254,7 @@ class N2VConfiguration(Configuration):
             Description of the algorithm.
         """
         use_n2v2 = self.algorithm_config.model.n2v2
-        use_structN2V = self.data_config.is_using_struct_n2v()
+        use_structN2V = self.algorithm_config.is_using_struct_n2v()
 
         if use_n2v2 and use_structN2V:
             return STR_N2V2_DESCRIPTION

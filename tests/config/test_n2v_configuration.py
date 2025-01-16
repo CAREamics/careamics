@@ -58,7 +58,7 @@ def test_wrong_n2v2_and_transforms(
             "n2v2": algorithm == "n2v2",
         },
     }
-    minimum_n2v_configuration["data_config"]["transforms"] = [
+    minimum_n2v_configuration["algorithm_config"]["n2v_masking"] = [
         {
             "name": "N2VManipulate",
             "strategy": strategy,
@@ -80,7 +80,7 @@ def test_setting_n2v2(minimum_n2v_configuration: dict):
     assert config.algorithm_config.algorithm == SupportedAlgorithm.N2V.value
     assert not config.algorithm_config.model.n2v2
     assert (
-        config.data_config.transforms[-1].strategy
+        config.algorithm_config.n2v_masking.strategy
         == SupportedPixelManipulation.UNIFORM.value
     )
 
@@ -88,7 +88,7 @@ def test_setting_n2v2(minimum_n2v_configuration: dict):
     config.set_n2v2(True)
     assert config.algorithm_config.model.n2v2
     assert (
-        config.data_config.transforms[-1].strategy
+        config.algorithm_config.n2v_masking.strategy
         == SupportedPixelManipulation.MEDIAN.value
     )
 
@@ -96,6 +96,6 @@ def test_setting_n2v2(minimum_n2v_configuration: dict):
     config.set_n2v2(False)
     assert not config.algorithm_config.model.n2v2
     assert (
-        config.data_config.transforms[-1].strategy
+        config.algorithm_config.n2v_masking.strategy
         == SupportedPixelManipulation.UNIFORM.value
     )

@@ -14,7 +14,6 @@ NORM_AND_SPATIAL_UNION = Annotated[
         NormalizeModel,
         XYFlipModel,
         XYRandomRotate90Model,
-        N2VManipulateModel,
     ],
     Discriminator("name"),  # used to tell the different transform models apart
 ]
