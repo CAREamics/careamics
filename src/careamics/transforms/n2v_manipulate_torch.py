@@ -121,8 +121,8 @@ class N2VManipulateTorch:
         if self.strategy == SupportedPixelManipulation.UNIFORM:
             # Iterate over the channels to apply manipulation separately
             for c in range(batch.shape[1]):
-                masked[c, ...], mask[c, ...] = uniform_manipulate_torch(
-                    patch=batch[c, ...],
+                masked[:, c, ...], mask[:, c, ...] = uniform_manipulate_torch(
+                    patch=batch[:, c, ...],
                     mask_pixel_percentage=self.masked_pixel_percentage,
                     subpatch_size=self.roi_size,
                     remove_center=self.remove_center,
@@ -132,8 +132,8 @@ class N2VManipulateTorch:
         elif self.strategy == SupportedPixelManipulation.MEDIAN:
             # Iterate over the channels to apply manipulation separately
             for c in range(batch.shape[1]):
-                masked[c, ...], mask[c, ...] = median_manipulate_torch(
-                    patch=batch[c, ...],
+                masked[:, c, ...], mask[:, c, ...] = median_manipulate_torch(
+                    patch=batch[:, c, ...],
                     mask_pixel_percentage=self.masked_pixel_percentage,
                     subpatch_size=self.roi_size,
                     struct_params=self.struct_mask,
