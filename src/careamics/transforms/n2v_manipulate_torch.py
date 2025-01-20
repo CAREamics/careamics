@@ -97,14 +97,14 @@ class N2VManipulateTorch:
         )
 
     def __call__(
-        self, patch: torch.Tensor, *args: Any, **kwargs: Any
+        self, batch: torch.Tensor, *args: Any, **kwargs: Any
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """Apply the transform to the image.
 
         Parameters
         ----------
-        patch : torch.Tensor
-            Image patch, 2D or 3D, shape C(Z)YX.
+        batch : torch.Tensor
+            batch if image patches, 2D or 3D, shape BC(Z)YX.
         *args : Any
             Additional arguments, unused.
         **kwargs : Any
@@ -115,14 +115,14 @@ class N2VManipulateTorch:
         tuple[torch.Tensor, torch.Tensor, torch.Tensor]
             Masked patch, original patch, and mask.
         """
-        masked = torch.zeros_like(patch)
-        mask = torch.zeros_like(patch, dtype=torch.uint8)
+        masked = torch.zeros_like(batch)
+        mask = torch.zeros_like(batch, dtype=torch.uint8)
 
         if self.strategy == SupportedPixelManipulation.UNIFORM:
             # Iterate over the channels to apply manipulation separately
-            for c in range(patch.shape[0]):
+            for c in range(batch.shape[1]):
                 masked[c, ...], mask[c, ...] = uniform_manipulate_torch(
-                    patch=patch[c, ...],
+                    patch=batch[c, ...],
                     mask_pixel_percentage=self.masked_pixel_percentage,
                     subpatch_size=self.roi_size,
                     remove_center=self.remove_center,
@@ -131,9 +131,9 @@ class N2VManipulateTorch:
                 )
         elif self.strategy == SupportedPixelManipulation.MEDIAN:
             # Iterate over the channels to apply manipulation separately
-            for c in range(patch.shape[0]):
+            for c in range(batch.shape[1]):
                 masked[c, ...], mask[c, ...] = median_manipulate_torch(
-                    patch=patch[c, ...],
+                    patch=batch[c, ...],
                     mask_pixel_percentage=self.masked_pixel_percentage,
                     subpatch_size=self.roi_size,
                     struct_params=self.struct_mask,
@@ -142,4 +142,4 @@ class N2VManipulateTorch:
         else:
             raise ValueError(f"Unknown masking strategy ({self.strategy}).")
 
-        return masked, patch, mask
+        return masked, batch, mask

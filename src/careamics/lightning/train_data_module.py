@@ -669,9 +669,6 @@ def create_train_datamodule(
     if train_target_data is None:
         data_config: GeneralDataConfig = N2VDataConfig(**data_dict)
         assert isinstance(data_config, N2VDataConfig)
-
-        data_config.set_n2v2(use_n2v2)
-        data_config.set_structN2V_mask(struct_n2v_axis, struct_n2v_span)
     else:
         data_config = DataConfig(**data_dict)
 

@@ -289,7 +289,7 @@ def test_apply_struct_mask_3D(coords, struct_axis, struct_span):
 
 @pytest.mark.parametrize(
     "mask_pixel_perc, shape, num_iterations",
-    [(0.4, (32, 32), 1000), (0.4, (10, 10, 10), 1000)],
+    [(0.4, (4, 32, 32), 1000), (0.4, (4, 10, 10, 10), 1000)],
 )
 def test_get_stratified_coords_torch(mask_pixel_perc, shape, num_iterations):
     """Test the get_stratified_coords function.
@@ -332,7 +332,7 @@ def test_get_stratified_coords_torch(mask_pixel_perc, shape, num_iterations):
     assert torch.sum(tensor == 0) < torch.prod(torch.tensor(shape))
 
 
-@pytest.mark.parametrize("shape", [(8, 8), (3, 8, 8), (8, 8, 8)])
+@pytest.mark.parametrize("shape", [(4, 8, 8), (4, 3, 8, 8), (4, 8, 8, 8)])
 def test_uniform_manipulate_torch(ordered_array, shape):
     """Test the uniform_manipulate function.
 
@@ -379,7 +379,7 @@ def test_uniform_manipulate_torch(ordered_array, shape):
         assert transform_patch[tuple(coords.tolist())] in roi
 
 
-@pytest.mark.parametrize("shape", [(8, 8), (3, 8, 8), (8, 8, 8)])
+@pytest.mark.parametrize("shape", [(4, 8, 8), (4, 3, 8, 8), (4, 8, 8, 8)])
 def test_median_manipulate_torch(ordered_array, shape):
     """Test the median_manipulate function.
 
@@ -425,10 +425,15 @@ def test_median_manipulate_torch(ordered_array, shape):
 
 
 @pytest.mark.parametrize(
-    "coords, struct_axis, struct_span",
-    [((2, 2), 1, 5), ((3, 4), 0, 5), ((9, 0), 0, 5), (((1, 2), (3, 4)), 1, 5)],
+    "patch_shape, coords, struct_axis, struct_span",
+    [
+        ((4, 10, 10), (2, 2, 2), 1, 5),
+        ((4, 10, 10), (3, 3, 4), 0, 5),
+        ((4, 10, 10), (1, 9, 0), 0, 5),
+        ((4, 10, 10), ((1, 1, 2), (1, 3, 4)), 1, 5),
+    ],
 )
-def test_apply_struct_mask_torch(coords, struct_axis, struct_span):
+def test_apply_struct_mask_torch(patch_shape, coords, struct_axis, struct_span):
     """Test the _apply_struct_mask function.
 
     Ensures that the mask corresponds to the manipulated pixels, and that the
@@ -439,7 +444,11 @@ def test_apply_struct_mask_torch(coords, struct_axis, struct_span):
     struct_params = StructMaskParameters(axis=struct_axis, span=struct_span)
 
     # Create tensor
-    patch = torch.arange(100).reshape(10, 10).float()
+    patch = (
+        torch.arange(0, torch.prod(torch.tensor(patch_shape)))
+        .reshape(patch_shape)
+        .float()
+    )
 
     # Make a copy of the original patch for comparison
     original_patch = patch.clone()
@@ -460,23 +469,28 @@ def test_apply_struct_mask_torch(coords, struct_axis, struct_span):
 
     # Check that the transformed pixels correspond to the masked pixels
     transformed = []
-    axis = 1 - struct_axis
+    axis = -2 + 1 - struct_axis
+
     for i in range(coords.shape[0]):
         # get indices to mask
         indices_to_mask = [
             c
             for c in range(
                 max(0, coords[i, axis] - struct_span // 2),
-                min(transform_patch.shape[1], coords[i, axis] + struct_span // 2) + 1,
+                min(transform_patch.shape[2], coords[i, axis] + struct_span // 2) + 1,
             )
             if c != coords[i, axis]
         ]
 
         # add to transform
         if struct_axis == 0:
-            transformed.append(transform_patch[coords[i, 0]][indices_to_mask])
+            transformed.append(
+                transform_patch[coords[i, 0], coords[i, 1]][indices_to_mask]
+            )
         else:
-            transformed.append(transform_patch[:, coords[i, 1]][indices_to_mask])
+            transformed.append(
+                transform_patch[coords[i, 0], :, coords[i, 2]][indices_to_mask]
+            )
 
     assert torch.equal(
         torch.sort(changed_values).values, torch.sort(torch.cat(transformed)).values

@@ -22,7 +22,7 @@ def _apply_struct_mask_torch(
     Parameters
     ----------
     patch : torch.Tensor
-        Patch to be manipulated, 2D or 3D.
+        Patch to be manipulated, (batch, y, x) or (batch, z, y, x).
     coords : torch.Tensor
         Coordinates of the ROI (subpatch) centers.
     struct_params : StructMaskParameters
@@ -88,14 +88,15 @@ def _get_stratified_coords_torch(
     shape: tuple[int, ...],
     rng: Optional[torch.Generator] = None,
 ) -> torch.Tensor:
-    if len(shape) < 2 or len(shape) > 3:
-        raise ValueError(
-            "Calculating coordinates is only possible for 2D and 3D patches"
-        )
+    # if len(shape) < 2 or len(shape) > 3:
+    #     raise ValueError(
+    #         "Calculating coordinates is only possible for 2D and 3D patches"
+    #     )
 
     if rng is None:
         rng = torch.default_generator
 
+    # TODO explain this
     mask_pixel_distance = round((100 / mask_pixel_perc) ** (1 / len(shape)))
 
     pixel_coords = []
@@ -109,7 +110,11 @@ def _get_stratified_coords_torch(
             dtype=torch.int32,
             device="cpu",
         )
-        step = axis_pixel_coords[1] - axis_pixel_coords[0]
+        step = (
+            axis_pixel_coords[1] - axis_pixel_coords[0]
+            if len(axis_pixel_coords) > 1
+            else axis_size
+        )
         pixel_coords.append(axis_pixel_coords)
         steps.append(step)
 
