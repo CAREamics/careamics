@@ -457,23 +457,14 @@ def test_n2v_configuration_n2v2_structn2v():
         struct_n2v_axis=struct_mask_axis,
         struct_n2v_span=struct_n2v_span,
     )
-    assert len(config.data_config.transforms) == 3
     assert (
-        config.data_config.transforms[-1].name
-        == SupportedTransform.N2V_MANIPULATE.value
-    )
-    assert (
-        config.data_config.transforms[-1].name
-        == SupportedTransform.N2V_MANIPULATE.value
-    )
-    assert (
-        config.data_config.transforms[-1].strategy
+        config.algorithm_config.n2v_masking.strategy
         == SupportedPixelManipulation.MEDIAN.value
     )
-    assert config.data_config.transforms[-1].roi_size == roi_size
+    assert config.algorithm_config.n2v_masking.roi_size == roi_size
     assert (
-        config.data_config.transforms[-1].masked_pixel_percentage
+        config.algorithm_config.n2v_masking.masked_pixel_percentage
         == masked_pixel_percentage
     )
-    assert config.data_config.transforms[-1].struct_mask_axis == struct_mask_axis
-    assert config.data_config.transforms[-1].struct_mask_span == struct_n2v_span
+    assert config.algorithm_config.n2v_masking.struct_mask_axis == struct_mask_axis
+    assert config.algorithm_config.n2v_masking.struct_mask_span == struct_n2v_span

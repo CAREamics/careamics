@@ -4,6 +4,8 @@ import torch
 
 from careamics.config.support import SupportedPixelManipulation
 from careamics.transforms import N2VManipulate, N2VManipulateTorch
+from careamics.config.transformations import N2VManipulateModel
+
 
 
 @pytest.mark.parametrize(
@@ -39,8 +41,12 @@ def test_manipulate_n2v_torch(strategy):
     # Create tensor, adding a channel to simulate a 2D image with channel first
     array = torch.arange(16 * 16).reshape(1, 16, 16).float()
 
+    # create configuration
+    config = N2VManipulateModel(
+        roi_size=5, masked_pixel_percentage=5, strategy=strategy.value
+    )
     # Create augmentation
-    aug = N2VManipulateTorch(roi_size=5, masked_pixel_percentage=5, strategy=strategy)
+    aug = N2VManipulateTorch(config)
 
     # Apply augmentation
     augmented = aug(array)

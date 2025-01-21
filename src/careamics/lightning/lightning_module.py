@@ -65,7 +65,7 @@ class FCNModule(L.LightningModule):
         Learning rate scheduler name.
     """
 
-    def __init__(self, algorithm_config: UNetBasedAlgorithm) -> None:
+    def __init__(self, algorithm_config: Union[UNetBasedAlgorithm, dict]) -> None:
         """Lightning module for CAREamics.
 
         This class encapsulates the a PyTorch model along with the training, validation,
@@ -78,11 +78,15 @@ class FCNModule(L.LightningModule):
         """
         super().__init__()
 
+        if isinstance(algorithm_config, dict):
+            algorithm_config = algorithm_factory(algorithm_config)
+
         # create preprocessing, model and loss function
-        # TODO should we use compose here ?
+        # TODO should we use compose here ? should we even have this?
         self.preprocess = preprocess_factory(
             getattr(algorithm_config, "n2v_masking", [])
         )
+        self.algorithm = algorithm_config.algorithm
         self.model: nn.Module = model_factory(algorithm_config.model)
         self.loss_func = loss_factory(algorithm_config.loss)
 
@@ -123,7 +127,11 @@ class FCNModule(L.LightningModule):
             Loss value.
         """
         x, *targets = batch
-        x_preprocessed, *aux = self.preprocess(x)
+        if self.algorithm == "n2v":
+            x_preprocessed, *aux = self.preprocess(x)
+        else:
+            x_preprocessed = x
+            aux = []
         out = self.model(x_preprocessed)
         loss = self.loss_func(out, *aux, *targets)
         self.log(
@@ -142,7 +150,11 @@ class FCNModule(L.LightningModule):
             Batch index.
         """
         x, *targets = batch
-        x_preprocessed, *aux = self.preprocess(x)
+        if self.algorithm == "n2v":
+            x_preprocessed, *aux = self.preprocess(x)
+        else:
+            x_preprocessed = x
+            aux = []
         out = self.model(x_preprocessed)
         val_loss = self.loss_func(out, *aux, *targets)
 
