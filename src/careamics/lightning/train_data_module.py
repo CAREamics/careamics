@@ -9,7 +9,7 @@ import pytorch_lightning as L
 from numpy.typing import NDArray
 from torch.utils.data import DataLoader, IterableDataset
 
-from careamics.config.data import DataConfig, GeneralDataConfig, N2VDataConfig
+from careamics.config.data import DataConfig
 from careamics.config.support import SupportedData
 from careamics.config.transformations import TransformModel
 from careamics.dataset.dataset_utils import (
@@ -119,7 +119,7 @@ class TrainDataModule(L.LightningDataModule):
 
     def __init__(
         self,
-        data_config: GeneralDataConfig,
+        data_config: DataConfig,
         train_data: Union[Path, str, NDArray],
         val_data: Optional[Union[Path, str, NDArray]] = None,
         train_data_target: Optional[Union[Path, str, NDArray]] = None,
@@ -219,7 +219,7 @@ class TrainDataModule(L.LightningDataModule):
             )
 
         # configuration
-        self.data_config: GeneralDataConfig = data_config
+        self.data_config: DataConfig = data_config
         self.data_type: str = data_config.data_type
         self.batch_size: int = data_config.batch_size
         self.use_in_memory: bool = use_in_memory
@@ -495,9 +495,6 @@ def create_train_datamodule(
     val_minimum_patches: int = 5,
     dataloader_params: Optional[dict] = None,
     use_in_memory: bool = True,
-    use_n2v2: bool = False,
-    struct_n2v_axis: Literal["horizontal", "vertical", "none"] = "none",
-    struct_n2v_span: int = 5,
 ) -> TrainDataModule:
     """Create a TrainDataModule.
 
@@ -508,16 +505,8 @@ def create_train_datamodule(
     parameters passed to the datamodule are consistent with the model's requirements and
     are coherent.
 
-    By default, the train DataModule will be set for Noise2Void if no target data is
-    provided. That means that it will add a `N2VManipulateModel` transformation to the
-    list of augmentations. The default augmentations are XY flip, XY rotation, and N2V
-    pixel manipulation. If you pass a training target data, the default behaviour is to
-    train a supervised model. It will use the default XY flip and rotation
-    augmentations.
-
-    To use a different set of transformations, you can pass a list of transforms to
-    `transforms`. Note that if you intend to use Noise2Void, you should add
-    `N2VManipulateModel` as the last transform in the list of transformations.
+    The default augmentations are XY flip and XY rotation. To use a different set of
+    transformations, you can pass a list of transforms to `transforms`.
 
     The data module can be used with Path, str or numpy arrays. In the case of
     numpy arrays, it loads and computes all the patches in memory. For Path and str
@@ -542,11 +531,6 @@ def create_train_datamodule(
 
     In `dataloader_params`, you can pass any parameter accepted by PyTorch dataloaders,
     except for `batch_size`, which is set by the `batch_size` parameter.
-
-    Finally, if you intend to use N2V family of algorithms, you can set `use_n2v2` to
-    use N2V2, and set the `struct_n2v_axis` and `struct_n2v_span` parameters to define
-    the axis and span of the structN2V mask. These parameters are without effect if
-    a `train_target_data` or if `transforms` are provided.
 
     Parameters
     ----------
@@ -584,13 +568,6 @@ def create_train_datamodule(
         Pytorch dataloader parameters, by default {}.
     use_in_memory : bool, optional
         Use in memory dataset if possible, by default True.
-    use_n2v2 : bool, optional
-        Use N2V2 transformation during training, by default False.
-    struct_n2v_axis : {"horizontal", "vertical", "none"}, optional
-        Axis for the structN2V mask, only applied if `struct_n2v_axis` is `none`, by
-        default "none".
-    struct_n2v_span : int, optional
-        Span for the structN2V mask, by default 5.
 
     Returns
     -------
@@ -633,12 +610,11 @@ def create_train_datamodule(
     transforms:
     >>> import numpy as np
     >>> from careamics.lightning import create_train_datamodule
-    >>> from careamics.config.transformations import XYFlipModel, N2VManipulateModel
+    >>> from careamics.config.transformations import XYFlipModel
     >>> from careamics.config.support import SupportedTransform
     >>> my_array = np.arange(256).reshape(16, 16)
     >>> my_transforms = [
     ...     XYFlipModel(flip_y=False),
-    ...     N2VManipulateModel()
     ... ]
     >>> data_module = create_train_datamodule(
     ...     train_data=my_array,
@@ -665,12 +641,8 @@ def create_train_datamodule(
     if transforms is not None:
         data_dict["transforms"] = transforms
 
-    # TODO not compatible with HDN, consider adding an argument for n2v/hdn
-    if train_target_data is None:
-        data_config: GeneralDataConfig = N2VDataConfig(**data_dict)
-        assert isinstance(data_config, N2VDataConfig)
-    else:
-        data_config = DataConfig(**data_dict)
+    # instantiate data configuration
+    data_config = DataConfig(**data_dict)
 
     # sanity check on the dataloader parameters
     if "batch_size" in dataloader_params:

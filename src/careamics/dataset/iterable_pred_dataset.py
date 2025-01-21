@@ -97,13 +97,13 @@ class IterablePredDataset(IterableDataset):
 
     def __iter__(
         self,
-    ) -> Generator[NDArray, None, None]:
+    ) -> Generator[tuple[NDArray, ...], None, None]:
         """
         Iterate over data source and yield single patch.
 
         Yields
         ------
-        NDArray
+        (numpy.ndarray, numpy.ndarray or None)
             Single patch.
         """
         assert (

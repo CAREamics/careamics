@@ -12,7 +12,6 @@ __all__ = [
     "Configuration",
     "algorithm_factory",
     "configuration_factory",
-    "data_factory",
     "load_configuration",
     "save_configuration",
 ]
@@ -22,7 +21,6 @@ from .config import (
     Configuration,
     algorithm_factory,
     configuration_factory,
-    data_factory,
     load_configuration,
     save_configuration,
 )

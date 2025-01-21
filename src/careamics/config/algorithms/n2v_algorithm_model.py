@@ -2,9 +2,11 @@
 
 from typing import Annotated, Literal
 
-from pydantic import AfterValidator, ConfigDict
+from pydantic import AfterValidator, ConfigDict, model_validator
+from typing_extensions import Self
 
 from careamics.config.architectures import UNetModel
+from careamics.config.support import SupportedPixelManipulation, SupportedStructAxis
 from careamics.config.transformations import N2VManipulateModel
 from careamics.config.validators import (
     model_matching_in_out_channels,
@@ -33,29 +35,42 @@ class N2VAlgorithm(UNetBasedAlgorithm):
         AfterValidator(model_without_final_activation),
     ]
 
-    def get_masking_strategy(self) -> str:
-        """Get the masking strategy for N2V."""
-        return self.n2v_masking.strategy
+    @model_validator(mode="after")
+    def validate_n2v2(self) -> Self:
+        """Validate that the N2V2 strategy and models are set correctly.
 
-    def set_masking_strategy(self, strategy: Literal["uniform", "median"]) -> None:
-        """
-        Set masking strategy.
-
-        Parameters
-        ----------
-        strategy : "uniform" or "median"
-            Strategy to use for N2V2.
+        Returns
+        -------
+        Self
+            The validateed configuration.
 
         Raises
         ------
         ValueError
-            If the N2V pixel manipulate transform is not found in the transforms.
+            If N2V2 is used with the wrong pixel manipulation strategy.
         """
-        self.model.n2v_masking.strategy = strategy
+        if self.model.n2v2:
+            if self.n2v_masking.strategy != SupportedPixelManipulation.MEDIAN.value:
+                raise ValueError(
+                    f"N2V2 can only be used with the "
+                    f"{SupportedPixelManipulation.MEDIAN} pixel manipulation strategy"
+                    f". Change the N2VManipulate transform strategy."
+                )
+        else:
+            if self.n2v_masking.strategy != SupportedPixelManipulation.UNIFORM.value:
+                raise ValueError(
+                    f"N2V can only be used with the "
+                    f"{SupportedPixelManipulation.UNIFORM} pixel manipulation strategy"
+                    f". Change the N2VManipulate transform strategy."
+                )
+        return self
 
     def set_n2v2(self, use_n2v2: bool) -> None:
         """
         Set the configuration to use N2V2 or the vanilla Noise2Void.
+
+        This method ensures that N2V2 is set correctly and remain coherent, as opposed
+        to setting the different parameters individually.
 
         Parameters
         ----------
@@ -63,33 +78,18 @@ class N2VAlgorithm(UNetBasedAlgorithm):
             Whether to use N2V2.
         """
         if use_n2v2:
-            self.set_masking_strategy("median")
+            self.n2v_masking.strategy = SupportedPixelManipulation.MEDIAN.value
+            self.model.n2v2 = True
         else:
-            self.set_masking_strategy("uniform")
+            self.n2v_masking.strategy = SupportedPixelManipulation.UNIFORM.value
+            self.model.n2v2 = False
 
-    def is_using_struct_n2v(self) -> bool:
-        """Check if the configuration is using structN2V."""
-        return self.n2v_masking.struct_mask_axis != "none"  # TODO change!
+    def is_struct_n2v(self) -> bool:
+        """Check if the configuration is using structN2V.
 
-    def set_structN2V_mask(
-        self, mask_axis: Literal["horizontal", "vertical", "none"], mask_span: int
-    ) -> None:
+        Returns
+        -------
+        bool
+            Whether the configuration is using structN2V.
         """
-        Set structN2V mask parameters.
-
-        Setting `mask_axis` to `none` will disable structN2V.
-
-        Parameters
-        ----------
-        mask_axis : Literal["horizontal", "vertical", "none"]
-            Axis along which to apply the mask. `none` will disable structN2V.
-        mask_span : int
-            Total span of the mask in pixels.
-
-        Raises
-        ------
-        ValueError
-            If the N2V pixel manipulate transform is not found in the transforms.
-        """
-        self.n2v_masking.struct_mask_axis = mask_axis
-        self.n2v_masking.struct_mask_span = mask_span
+        return self.n2v_masking.struct_mask_axis != SupportedStructAxis.NONE.value

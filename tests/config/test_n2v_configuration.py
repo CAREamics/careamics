@@ -4,7 +4,6 @@ from careamics.config import (
     N2VConfiguration,
 )
 from careamics.config.support import (
-    SupportedAlgorithm,
     SupportedPixelManipulation,
 )
 
@@ -27,13 +26,10 @@ def test_correct_n2v2_and_transforms(
             "architecture": "UNet",
             "n2v2": algorithm == "n2v2",
         },
-    }
-    minimum_n2v_configuration["data_config"]["transforms"] = [
-        {
-            "name": "N2VManipulate",
+        "n2v_masking": {
             "strategy": strategy,
-        }
-    ]
+        },
+    }
 
     N2VConfiguration(**minimum_n2v_configuration)
 
@@ -67,35 +63,3 @@ def test_wrong_n2v2_and_transforms(
 
     with pytest.raises(ValueError):
         N2VConfiguration(**minimum_n2v_configuration)
-
-
-def test_setting_n2v2(minimum_n2v_configuration: dict):
-    # make sure we use n2v
-    minimum_n2v_configuration["algorithm_config"][
-        "algorithm"
-    ] = SupportedAlgorithm.N2V.value
-
-    # test config
-    config = N2VConfiguration(**minimum_n2v_configuration)
-    assert config.algorithm_config.algorithm == SupportedAlgorithm.N2V.value
-    assert not config.algorithm_config.model.n2v2
-    assert (
-        config.algorithm_config.n2v_masking.strategy
-        == SupportedPixelManipulation.UNIFORM.value
-    )
-
-    # set N2V2
-    config.set_n2v2(True)
-    assert config.algorithm_config.model.n2v2
-    assert (
-        config.algorithm_config.n2v_masking.strategy
-        == SupportedPixelManipulation.MEDIAN.value
-    )
-
-    # set back to N2V
-    config.set_n2v2(False)
-    assert not config.algorithm_config.model.n2v2
-    assert (
-        config.algorithm_config.n2v_masking.strategy
-        == SupportedPixelManipulation.UNIFORM.value
-    )

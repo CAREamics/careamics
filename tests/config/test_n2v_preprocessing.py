@@ -2,11 +2,13 @@ import pytest
 
 from careamics.config import N2VAlgorithm
 from careamics.config.support import (
-    SupportedPixelManipulation,
     SupportedStructAxis,
     SupportedTransform,
 )
 from careamics.transforms import get_all_transforms
+
+# TODO name is confusing, and the tests are probably not in the right place. They should
+# probably be in the N2VManipulate or N2VAlgorithm test file.
 
 
 def test_correct_transform_parameters(minimum_algorithm_n2v: dict):
@@ -34,31 +36,6 @@ def test_passing_incorrect_element(minimum_algorithm_n2v: dict):
     }
     with pytest.raises(ValueError):
         N2VAlgorithm(**minimum_algorithm_n2v)
-
-
-def test_set_n2v_strategy(minimum_algorithm_n2v: dict):
-    """Test that the N2V strategy can be set."""
-    uniform = SupportedPixelManipulation.UNIFORM.value
-    median = SupportedPixelManipulation.MEDIAN.value
-
-    model = N2VAlgorithm(**minimum_algorithm_n2v)
-    assert model.n2v_masking.name == SupportedTransform.N2V_MANIPULATE.value
-    assert model.n2v_masking.strategy == uniform
-
-    model.n2v_masking.strategy = median
-    assert model.n2v_masking.strategy == median
-
-    model.n2v_masking.strategy = uniform
-    assert model.n2v_masking.strategy == uniform
-
-    # Check that the strategy is set to median if n2v2 is True
-    minimum_algorithm_n2v["model"]["n2v2"] = True
-    minimum_algorithm_n2v["n2v_masking"] = {
-        "name": SupportedTransform.N2V_MANIPULATE.value,
-        "strategy": uniform,
-    }
-    model = N2VAlgorithm(**minimum_algorithm_n2v)
-    assert model.n2v_masking.strategy == median
 
 
 def test_set_struct_mask(minimum_algorithm_n2v: dict):

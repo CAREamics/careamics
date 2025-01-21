@@ -145,26 +145,6 @@ def minimum_data() -> dict:
 
 
 @pytest.fixture
-def minimum_data_n2v() -> dict:
-    """Create a minimum N2V data dictionary.
-
-    Returns
-    -------
-    dict
-        A minimum data example.
-    """
-    # create dictionary
-    data = {
-        "data_type": SupportedData.ARRAY.value,
-        "patch_size": [8, 8],
-        "axes": "YX",
-        "transforms": [],
-    }
-
-    return data
-
-
-@pytest.fixture
 def minimum_inference() -> dict:
     """Create a minimum inference dictionary.
 
@@ -203,7 +183,7 @@ def minimum_training() -> dict:
 
 @pytest.fixture
 def minimum_n2v_configuration(
-    minimum_algorithm_n2v: dict, minimum_data_n2v: dict, minimum_training: dict
+    minimum_algorithm_n2v: dict, minimum_data: dict, minimum_training: dict
 ) -> dict:
     """Create a minimum configuration dictionary.
 
@@ -228,7 +208,7 @@ def minimum_n2v_configuration(
         "experiment_name": "LevitatingFrog",
         "algorithm_config": minimum_algorithm_n2v,
         "training_config": minimum_training,
-        "data_config": minimum_data_n2v,
+        "data_config": minimum_data,
     }
 
     return configuration
