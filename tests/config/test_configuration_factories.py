@@ -21,7 +21,6 @@ from careamics.config.configuration_factories import (
     configuration_factory,
     data_factory,
 )
-from careamics.config.data import N2VDataConfig
 from careamics.config.support import (
     SupportedPixelManipulation,
     SupportedStructAxis,

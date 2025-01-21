@@ -12,9 +12,9 @@ def test_minimum_algorithm(minimum_algorithm_n2v):
     UNetBasedAlgorithm(**minimum_algorithm_n2v)
 
 
-def test_minimum_data(minimum_algorithm_n2v):
+def test_minimum_data(minimum_data):
     # create data configuration
-    DataConfig(**minimum_algorithm_n2v)
+    DataConfig(**minimum_data)
 
 
 def test_minimum_prediction(minimum_inference):
