@@ -136,6 +136,6 @@ class IterableTiledPredDataset(IterableDataset):
 
             # apply transform to patches
             for patch_array, tile_info in patch_gen:
-                transformed_patch, _ = self.patch_transform(patch=patch_array)
+                transformed_patch = self.patch_transform(patch=patch_array)
 
                 yield transformed_patch, tile_info

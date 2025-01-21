@@ -124,6 +124,6 @@ class InMemoryTiledPredDataset(Dataset):
         tile_array, tile_info = self.data[index]
 
         # Apply transforms
-        transformed_tile, _ = self.patch_transform(patch=tile_array)
+        transformed_tile = self.patch_transform(patch=tile_array)
 
         return transformed_tile, tile_info
