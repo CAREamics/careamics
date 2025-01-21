@@ -108,7 +108,6 @@ def _get_stratified_coords_torch(
             axis_size - (axis_size // num_pixels),
             num_pixels,
             dtype=torch.int32,
-            device="cpu",
         )
         step = (
             axis_pixel_coords[1] - axis_pixel_coords[0]
@@ -246,6 +245,7 @@ def uniform_manipulate_torch(
     subpatch_centers = _get_stratified_coords_torch(
         mask_pixel_percentage, patch.shape, rng
     )
+    subpatch_centers = subpatch_centers.to(device=patch.device)
 
     roi_span_full = torch.arange(
         -(subpatch_size // 2),
@@ -265,8 +265,8 @@ def uniform_manipulate_torch(
     ]
     replacement_coords = torch.clamp(
         subpatch_centers + random_increment,
-        torch.zeros_like(torch.tensor(patch.shape)),
-        torch.tensor([v - 1 for v in patch.shape]),
+        torch.zeros_like(torch.tensor(patch.shape)).to(device=patch.device),
+        torch.tensor([v - 1 for v in patch.shape]).to(device=patch.device),
     )
 
     replacement_pixels = patch[tuple(replacement_coords.T)]

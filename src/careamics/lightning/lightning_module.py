@@ -27,7 +27,11 @@ from careamics.models.lvae.noise_models import (
     noise_model_factory,
 )
 from careamics.models.model_factory import model_factory
-from careamics.transforms import Denormalize, ImageRestorationTTA, N2VManipulateTorch
+from careamics.transforms import (
+    Denormalize,
+    ImageRestorationTTA,
+    preprocess_factory,
+)
 from careamics.utils.metrics import RunningPSNR, scale_invariant_psnr
 from careamics.utils.torch_utils import get_optimizer, get_scheduler
 
@@ -76,7 +80,7 @@ class FCNModule(L.LightningModule):
 
         # create preprocessing, model and loss function
         # TODO should we use compose here ?
-        self.preprocess = N2VManipulateTorch(
+        self.preprocess = preprocess_factory(
             getattr(algorithm_config, "n2v_masking", [])
         )
         self.model: nn.Module = model_factory(algorithm_config.model)
@@ -118,9 +122,10 @@ class FCNModule(L.LightningModule):
         Any
             Loss value.
         """
-        x, *aux = batch
-        out = self.model(x)
-        loss = self.loss_func(out, *aux)
+        x, *targets = batch
+        x_preprocessed, *aux = self.preprocess(x)
+        out = self.model(x_preprocessed)
+        loss = self.loss_func(out, *aux, *targets)
         self.log(
             "train_loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True
         )
@@ -136,10 +141,10 @@ class FCNModule(L.LightningModule):
         batch_idx : Any
             Batch index.
         """
-        x, *aux = batch
-        x_preprocessed = self.preprocess(x)
+        x, *targets = batch
+        x_preprocessed, *aux = self.preprocess(x)
         out = self.model(x_preprocessed)
-        val_loss = self.loss_func(out, *aux)
+        val_loss = self.loss_func(out, *aux, *targets)
 
         # log validation loss
         self.log(
@@ -178,8 +183,13 @@ class FCNModule(L.LightningModule):
 
         if is_tiled:
             x, *aux = batch
+            if type(x) in [list, tuple]:
+                x = x[0]
         else:
-            x = batch
+            if type(batch) in [list, tuple]:
+                x = batch[0]  # TODO change, ugly way to deal with n2v refac
+            else:
+                x = batch
             aux = []
 
         # apply test-time augmentation if available

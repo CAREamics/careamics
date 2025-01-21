@@ -10,13 +10,14 @@ __all__ = [
     "XYFlip",
     "XYRandomRotate90",
     "get_all_transforms",
+    "preprocess_factory",
 ]
-
 
 from .compose import Compose, get_all_transforms
 from .n2v_manipulate import N2VManipulate
 from .n2v_manipulate_torch import N2VManipulateTorch
 from .normalize import Denormalize, Normalize
+from .preprocess_factory import preprocess_factory
 from .tta import ImageRestorationTTA
 from .xy_flip import XYFlip
 from .xy_random_rotate90 import XYRandomRotate90

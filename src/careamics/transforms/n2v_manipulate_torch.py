@@ -1,8 +1,9 @@
-from typing import Any, Literal, Optional
+from typing import Any, Optional
 
 import torch
 
 from careamics.config.support import SupportedPixelManipulation, SupportedStructAxis
+from careamics.config.transformations import N2VManipulateModel
 
 from .pixel_manipulation_torch import median_manipulate_torch, uniform_manipulate_torch
 from .struct_mask_parameters import StructMaskParameters
@@ -16,18 +17,7 @@ class N2VManipulateTorch:
 
     Parameters
     ----------
-    roi_size : int, optional
-        Size of the replacement area, by default 11.
-    masked_pixel_percentage : float, optional
-        Percentage of pixels to mask, by default 0.2.
-    strategy : Literal[ "uniform", "median" ], optional
-        Replacement strategy, uniform or median, by default uniform.
-    remove_center : bool, optional
-        Whether to remove central pixel from patch, by default True.
-    struct_mask_axis : Literal["horizontal", "vertical", "none"], optional
-        StructN2V mask axis, by default "none".
-    struct_mask_span : int, optional
-        StructN2V mask span, by default 5.
+    n2v_manipulate_config : N2VManipulateConfig
     seed : Optional[int], optional
         Random seed, by default None.
 
@@ -49,12 +39,7 @@ class N2VManipulateTorch:
 
     def __init__(
         self,
-        roi_size: int = 11,
-        masked_pixel_percentage: float = 0.2,
-        strategy: Literal["uniform", "median"] = SupportedPixelManipulation.UNIFORM,
-        remove_center: bool = True,
-        struct_mask_axis: Literal["horizontal", "vertical", "none"] = "none",
-        struct_mask_span: int = 5,
+        n2v_manipulate_config: N2VManipulateModel,
         seed: Optional[int] = None,
     ):
         """Constructor.
@@ -76,17 +61,22 @@ class N2VManipulateTorch:
         seed : Optional[int], optional
             Random seed, by default None.
         """
-        self.masked_pixel_percentage = masked_pixel_percentage
-        self.roi_size = roi_size
-        self.strategy = strategy
-        self.remove_center = remove_center
+        self.masked_pixel_percentage = n2v_manipulate_config.masked_pixel_percentage
+        self.roi_size = n2v_manipulate_config.roi_size
+        self.strategy = n2v_manipulate_config.strategy
+        self.remove_center = n2v_manipulate_config.remove_center
 
-        if struct_mask_axis == SupportedStructAxis.NONE:
+        if n2v_manipulate_config.struct_mask_axis == SupportedStructAxis.NONE:
             self.struct_mask: Optional[StructMaskParameters] = None
         else:
             self.struct_mask = StructMaskParameters(
-                axis=0 if struct_mask_axis == SupportedStructAxis.HORIZONTAL else 1,
-                span=struct_mask_span,
+                axis=(
+                    0
+                    if n2v_manipulate_config.struct_mask_axis
+                    == SupportedStructAxis.HORIZONTAL
+                    else 1
+                ),
+                span=n2v_manipulate_config.struct_mask_span,
             )
 
         # PyTorch random generator
