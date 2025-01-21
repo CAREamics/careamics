@@ -418,6 +418,7 @@ def test_n2v_configuration_default_transforms():
         == SupportedTransform.XY_RANDOM_ROTATE90.value
     )
 
+
 def test_n2v_configuration_no_aug():
     """Test the default n2v transforms."""
     config = create_n2v_configuration(

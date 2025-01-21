@@ -73,7 +73,7 @@ def test_set_struct_mask(minimum_algorithm_n2v: dict):
     assert model.n2v_masking.struct_mask_span == 5
 
     model.n2v_masking.struct_mask_axis = vertical
-    model.n2v_masking. struct_mask_span = 3
+    model.n2v_masking.struct_mask_span = 3
     assert model.n2v_masking.struct_mask_axis == vertical
     assert model.n2v_masking.struct_mask_span == 3
 

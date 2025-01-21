@@ -3,9 +3,8 @@ import pytest
 import torch
 
 from careamics.config.support import SupportedPixelManipulation
-from careamics.transforms import N2VManipulate, N2VManipulateTorch
 from careamics.config.transformations import N2VManipulateModel
-
+from careamics.transforms import N2VManipulate, N2VManipulateTorch
 
 
 @pytest.mark.parametrize(

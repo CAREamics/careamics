@@ -53,7 +53,6 @@ class N2VAlgorithm(UNetBasedAlgorithm):
         """
         self.model.n2v_masking.strategy = strategy
 
-
     def set_n2v2(self, use_n2v2: bool) -> None:
         """
         Set the configuration to use N2V2 or the vanilla Noise2Void.
@@ -70,7 +69,7 @@ class N2VAlgorithm(UNetBasedAlgorithm):
 
     def is_using_struct_n2v(self) -> bool:
         """Check if the configuration is using structN2V."""
-        return self.n2v_masking.struct_mask_axis != "none" # TODO change!
+        return self.n2v_masking.struct_mask_axis != "none"  # TODO change!
 
     def set_structN2V_mask(
         self, mask_axis: Literal["horizontal", "vertical", "none"], mask_span: int
