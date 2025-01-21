@@ -1,10 +1,14 @@
 """CARE algorithm configuration."""
 
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import field_validator
+from pydantic import AfterValidator
 
 from careamics.config.architectures import UNetModel
+from careamics.config.validators import (
+    model_without_final_activation,
+    model_without_n2v2,
+)
 
 from .unet_algorithm_model import UNetBasedAlgorithm
 
@@ -26,25 +30,9 @@ class CAREAlgorithm(UNetBasedAlgorithm):
     loss: Literal["mae", "mse"] = "mae"
     """CARE-compatible loss function."""
 
-    @classmethod
-    @field_validator("model")
-    def model_without_n2v2(cls, value: UNetModel) -> UNetModel:
-        """Validate that the model does not have the n2v2 attribute.
-
-        Parameters
-        ----------
-        value : UNetModel
-            Model to validate.
-
-        Returns
-        -------
-        UNetModel
-            The validated model.
-        """
-        if value.n2v2:
-            raise ValueError(
-                "The N2N algorithm does not support the `n2v2` attribute. "
-                "Set it to `False`."
-            )
-
-        return value
+    model: Annotated[
+        UNetModel,
+        AfterValidator(model_without_n2v2),
+        AfterValidator(model_without_final_activation),
+    ]
+    """UNet without a final activation function and without the `n2v2` modifications."""

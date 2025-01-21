@@ -87,7 +87,6 @@ def test_train_error_target_unsupervised_algorithm(
         )
 
 
-@pytest.mark.skip(reason="bmz")
 def test_train_single_array_no_val(tmp_path: Path, minimum_n2v_configuration: dict):
     """Test that CAREamics can be trained with arrays."""
     # training data
@@ -122,7 +121,7 @@ def test_train_single_array_no_val(tmp_path: Path, minimum_n2v_configuration: di
     assert (tmp_path / "model.zip").exists()
 
 
-def test_train_array(tmp_path: Path, minimum_configuration: dict):
+def test_train_array(tmp_path: Path, minimum_n2v_configuration: dict):
     """Test that CAREamics can be trained on arrays."""
     # training data
     train_array = random_array((32, 32))
@@ -157,7 +156,6 @@ def test_train_array(tmp_path: Path, minimum_configuration: dict):
     assert (tmp_path / "model.zip").exists()
 
 
-@pytest.mark.skip(reason="bmz")
 @pytest.mark.parametrize("independent_channels", [False, True])
 def test_train_array_channel(
     tmp_path: Path, minimum_n2v_configuration: dict, independent_channels: bool
@@ -200,7 +198,6 @@ def test_train_array_channel(
     assert (tmp_path / "model.zip").exists()
 
 
-@pytest.mark.skip(reason="bmz")
 def test_train_array_3d(tmp_path: Path, minimum_n2v_configuration: dict):
     """Test that CAREamics can be trained on 3D arrays."""
     # training data
@@ -236,7 +233,6 @@ def test_train_array_3d(tmp_path: Path, minimum_n2v_configuration: dict):
     assert (tmp_path / "model.zip").exists()
 
 
-@pytest.mark.skip(reason="bmz")
 def test_train_tiff_files_in_memory_no_val(
     tmp_path: Path, minimum_n2v_configuration: dict
 ):
@@ -277,7 +273,6 @@ def test_train_tiff_files_in_memory_no_val(
     assert (tmp_path / "model.zip").exists()
 
 
-@pytest.mark.skip(reason="bmz")
 def test_train_tiff_files_in_memory(tmp_path: Path, minimum_n2v_configuration: dict):
     """Test that CAREamics can be trained with tiff files in memory."""
     # training data
@@ -364,7 +359,7 @@ def test_train_tiff_files(tmp_path: Path, minimum_n2v_configuration: dict):
     assert (tmp_path / "model.zip").exists()
 
 
-def test_train_array_supervised(tmp_path: Path, supervised_configuration: dict):
+def test_train_array_supervised(tmp_path: Path, minimum_supervised_configuration: dict):
     """Test that CAREamics can be trained with arrays."""
     # training data
     train_array = random_array((32, 32))
@@ -406,7 +401,6 @@ def test_train_array_supervised(tmp_path: Path, supervised_configuration: dict):
     assert (tmp_path / "model.zip").exists()
 
 
-@pytest.mark.skip(reason="bmz")
 def test_train_tiff_files_in_memory_supervised(
     tmp_path: Path, minimum_supervised_configuration: dict
 ):
@@ -532,7 +526,6 @@ def test_train_tiff_files_supervised(
     assert (tmp_path / "model.zip").exists()
 
 
-@pytest.mark.skip(reason="bmz")
 @pytest.mark.parametrize("samples", [1, 2, 4])
 @pytest.mark.parametrize("batch_size", [1, 2])
 def test_predict_on_array_tiled(
@@ -578,7 +571,6 @@ def test_predict_on_array_tiled(
     assert (tmp_path / "model.zip").exists()
 
 
-@pytest.mark.skip(reason="bmz")
 @pytest.mark.parametrize("samples", [1, 2, 4])
 @pytest.mark.parametrize("batch_size", [1, 2])
 def test_predict_arrays_no_tiling(
@@ -701,7 +693,6 @@ def test_predict_tiled_channel(
     )
 
 
-@pytest.mark.skip(reason="bmz")
 @pytest.mark.parametrize("tiled", [True, False])
 @pytest.mark.parametrize("n_samples", [1, 2])
 @pytest.mark.parametrize("batch_size", [1, 2])
