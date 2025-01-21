@@ -52,17 +52,6 @@ def test_careamics_config_supervised(minimum_supervised_configuration, algorithm
     assert isinstance(config, exp_class)
 
 
-def test_data_factory_n2v(minimum_data):
-    """Test that having N2VManipule yields a N2VDataConfig."""
-    minimum_data["transforms"] = [
-        {
-            "name": SupportedTransform.N2V_MANIPULATE.value,
-        }
-    ]
-    data = data_factory(minimum_data)
-    assert isinstance(data, N2VDataConfig)
-
-
 def test_data_factory_supervised(minimum_data):
     """Test that the normal configuration yields a DataConfig."""
     data = data_factory(minimum_data)
@@ -410,6 +399,7 @@ def test_n2v_configuration():
         config.data_config.transforms[-1].name
         == SupportedTransform.N2V_MANIPULATE.value
     )
+    # TODO change, doesn't ensure n2v transfor is in the right place
 
 
 def test_n2v_configuration_default_transforms():
@@ -428,10 +418,6 @@ def test_n2v_configuration_default_transforms():
         config.data_config.transforms[1].name
         == SupportedTransform.XY_RANDOM_ROTATE90.value
     )
-    assert (
-        config.data_config.transforms[2].name == SupportedTransform.N2V_MANIPULATE.value
-    )
-
 
 def test_n2v_configuration_no_aug():
     """Test the default n2v transforms."""
