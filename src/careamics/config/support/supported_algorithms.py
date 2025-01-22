@@ -6,7 +6,11 @@ from careamics.utils import BaseEnum
 
 
 class SupportedAlgorithm(str, BaseEnum):
-    """Algorithms available in CAREamics."""
+    """Algorithms available in CAREamics.
+
+    These definitions are the same as the keyword `name` of the algorithm
+    configurations.
+    """
 
     N2V = "n2v"
     """Noise2Void algorithm, a self-supervised approach based on blind denoising."""

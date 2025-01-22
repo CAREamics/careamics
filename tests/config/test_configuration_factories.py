@@ -14,6 +14,7 @@ from careamics.config import (
     create_n2v_configuration,
 )
 from careamics.config.configuration_factories import (
+    _algorithm_config_discriminator,
     _create_configuration,
     _create_supervised_configuration,
     _create_unet_configuration,
@@ -23,6 +24,7 @@ from careamics.config.configuration_factories import (
 )
 from careamics.config.data import N2VDataConfig
 from careamics.config.support import (
+    SupportedAlgorithm,
     SupportedPixelManipulation,
     SupportedStructAxis,
     SupportedTransform,
@@ -34,13 +36,33 @@ from careamics.config.transformations import (
 )
 
 
+def test_algorithm_discriminator_n2v(minimum_n2v_configuration):
+    """Test that the N2V configuration is discriminated correctly."""
+    tag = _algorithm_config_discriminator(minimum_n2v_configuration)
+    assert tag == SupportedAlgorithm.N2V.value
+
+
+@pytest.mark.parametrize(
+    "algorithm", [SupportedAlgorithm.N2N.value, SupportedAlgorithm.CARE.value]
+)
+def test_algorithm_discriminator_supervised(
+    minimum_supervised_configuration, algorithm
+):
+    """Test that the supervised configuration is discriminated correctly."""
+    minimum_supervised_configuration["algorithm_config"]["algorithm"] = algorithm
+    tag = _algorithm_config_discriminator(minimum_supervised_configuration)
+    assert tag == algorithm
+
+
 def test_careamics_config_n2v(minimum_n2v_configuration):
     """Test that the N2V configuration is created correctly."""
     configuration = configuration_factory(minimum_n2v_configuration)
     assert isinstance(configuration, N2VConfiguration)
 
 
-@pytest.mark.parametrize("algorithm", ["n2n", "care"])
+@pytest.mark.parametrize(
+    "algorithm", [SupportedAlgorithm.N2N.value, SupportedAlgorithm.CARE.value]
+)
 def test_careamics_config_supervised(minimum_supervised_configuration, algorithm):
     """Test that the supervised configuration is created correctly."""
     min_config = minimum_supervised_configuration
