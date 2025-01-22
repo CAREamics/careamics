@@ -18,6 +18,8 @@ def mse_loss(source: torch.Tensor, target: torch.Tensor, *args) -> torch.Tensor:
         Source patches.
     target : torch.Tensor
         Target patches.
+    *args : Any
+        Additional arguments.
 
     Returns
     -------
@@ -39,8 +41,14 @@ def n2v_loss(
 
     Parameters
     ----------
-    patches : torch.Tensor
-        Noisy patches.
+    manipulated_batch : torch.Tensor
+        Batch after manipulation function applied.
+    original_batch : torch.Tensor
+        Original images.
+    masks : torch.Tensor
+        Coordinates of changed pixels.
+    *args : Any
+        Additional arguments.
 
     Returns
     -------
@@ -63,6 +71,8 @@ def mae_loss(samples: torch.Tensor, labels: torch.Tensor, *args) -> torch.Tensor
         Raw patches.
     labels : torch.Tensor
         Different subset of noisy patches.
+    *args : Any
+        Additional arguments.
 
     Returns
     -------

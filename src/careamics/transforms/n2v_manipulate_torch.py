@@ -1,3 +1,5 @@
+"""N2V manipulation transform for PyTorch."""
+
 from typing import Any, Optional
 
 import torch
@@ -18,6 +20,7 @@ class N2VManipulateTorch:
     Parameters
     ----------
     n2v_manipulate_config : N2VManipulateConfig
+        N2V manipulation configuration.
     seed : Optional[int], optional
         Random seed, by default None.
 
@@ -46,18 +49,8 @@ class N2VManipulateTorch:
 
         Parameters
         ----------
-        roi_size : int, optional
-            Size of the replacement area, by default 11.
-        masked_pixel_percentage : float, optional
-            Percentage of pixels to mask, by default 0.2.
-        strategy : Literal[ "uniform", "median" ], optional
-            Replacement strategy, uniform or median, by default uniform.
-        remove_center : bool, optional
-            Whether to remove central pixel from patch, by default True.
-        struct_mask_axis : Literal["horizontal", "vertical", "none"], optional
-            StructN2V mask axis, by default "none".
-        struct_mask_span : int, optional
-            StructN2V mask span, by default 5.
+        n2v_manipulate_config : N2VManipulateModel
+            N2V manipulation configuration.
         seed : Optional[int], optional
             Random seed, by default None.
         """
@@ -94,7 +87,7 @@ class N2VManipulateTorch:
         Parameters
         ----------
         batch : torch.Tensor
-            batch if image patches, 2D or 3D, shape BC(Z)YX.
+            Batch if image patches, 2D or 3D, shape BC(Z)YX.
         *args : Any
             Additional arguments, unused.
         **kwargs : Any

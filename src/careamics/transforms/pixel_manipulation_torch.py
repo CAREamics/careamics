@@ -1,3 +1,5 @@
+"""N2V manipulation functions for PyTorch."""
+
 from typing import Optional
 
 import torch
@@ -74,6 +76,23 @@ def _apply_struct_mask_torch(
 
 
 def _odd_jitter_func_torch(step: float, rng: torch.Generator) -> torch.Tensor:
+    """
+    Randomly sample a jitter to be applied to the masking grid.
+
+    This is done to account for cases where the step size is not an integer.
+
+    Parameters
+    ----------
+    step : float
+        Step size of the grid, output of np.linspace.
+    rng : torch.Generator
+        Random number generator.
+
+    Returns
+    -------
+    torch.Tensor
+        Array of random jitter to be added to the grid.
+    """
     step_floor = torch.floor(torch.tensor(step))
     odd_jitter = (
         step_floor
@@ -88,11 +107,27 @@ def _get_stratified_coords_torch(
     shape: tuple[int, ...],
     rng: Optional[torch.Generator] = None,
 ) -> torch.Tensor:
-    # if len(shape) < 2 or len(shape) > 3:
-    #     raise ValueError(
-    #         "Calculating coordinates is only possible for 2D and 3D patches"
-    #     )
+    """
+    Generate coordinates of the pixels to mask.
 
+    Randomly selects the coordinates of the pixels to mask in a stratified way, i.e.
+    the distance between masked pixels is approximately the same.
+
+    Parameters
+    ----------
+    mask_pixel_perc : float
+        Actual (quasi) percentage of masked pixels across the whole image. Used in
+        calculating the distance between masked pixels across each axis.
+    shape : tuple[int, ...]
+        Shape of the input patch.
+    rng : torch.Generator or None
+        Random number generator.
+
+    Returns
+    -------
+    np.ndarray
+        Array of coordinates of the masked pixels.
+    """
     if rng is None:
         rng = torch.default_generator
 
@@ -141,14 +176,14 @@ def _create_subpatch_center_mask(
 
     Parameters
     ----------
-    subpatch : np.ndarray
+    subpatch : torch.Tensor
         Subpatch to be manipulated.
-    center_coords : np.ndarray
+    center_coords : torch.Tensor
         Coordinates of the original center before possible crop.
 
     Returns
     -------
-    np.ndarray
+    torch.Tensor
         Mask with the center of the subpatch masked.
     """
     mask = torch.ones(torch.tensor(subpatch.shape).tolist())
@@ -165,16 +200,16 @@ def _create_subpatch_struct_mask(
 
     Parameters
     ----------
-    subpatch : np.ndarray
+    subpatch : torch.Tensor
         Subpatch to be manipulated.
-    center_coords : np.ndarray
+    center_coords : torch.Tensor
         Coordinates of the original center before possible crop.
     struct_params : StructMaskParameters
         Parameters for the structN2V mask (axis and span).
 
     Returns
     -------
-    np.ndarray
+    torch.Tensor
         StructN2V mask for the subpatch.
     """
     # TODO no test for this function!
@@ -369,7 +404,3 @@ def median_manipulate_torch(
         transformed_patch,
         mask,
     )
-
-    mask = (transformed_patch != patch).to(dtype=torch.uint8)
-
-    return transformed_patch, mask
