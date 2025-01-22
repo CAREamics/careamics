@@ -4,7 +4,6 @@ from typing import Annotated, Any, Literal, Optional, Union
 
 from pydantic import Discriminator, Field, Tag, TypeAdapter
 
-
 from careamics.config.algorithms import CAREAlgorithm, N2NAlgorithm, N2VAlgorithm
 from careamics.config.architectures import UNetModel
 from careamics.config.care_configuration import CAREConfiguration
