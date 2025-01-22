@@ -16,7 +16,7 @@ from pytorch_lightning.loggers import CSVLogger, TensorBoardLogger, WandbLogger
 from careamics.config import (
     Configuration,
     UNetBasedAlgorithm,
-    VAEAlgorithmConfig,
+    VAEBasedAlgorithm,
     load_configuration,
 )
 from careamics.config.support import (
@@ -147,7 +147,7 @@ class CAREamist:
                 self.model = FCNModule(
                     algorithm_config=self.cfg.algorithm_config,
                 )
-            elif isinstance(self.cfg.algorithm_config, VAEAlgorithmConfig):
+            elif isinstance(self.cfg.algorithm_config, VAEBasedAlgorithm):
                 self.model = VAEModule(
                     algorithm_config=self.cfg.algorithm_config,
                 )

@@ -66,32 +66,32 @@ def test_no_noise_model_error_denoisplit(minimum_algorithm_denoisplit):
     """Test that the noise model is correctly provided."""
     minimum_algorithm_denoisplit["noise_model"] = None
     with pytest.raises(ValueError):
-        VAEAlgorithmConfig(**minimum_algorithm_denoisplit)
+        VAEBasedAlgorithm(**minimum_algorithm_denoisplit)
 
 
 def test_no_multiscale_hdn(minimum_algorithm_hdn):
     """Test that the multiscale model is not provided for HDN."""
-    _ = VAEAlgorithmConfig(**minimum_algorithm_hdn)
+    _ = VAEBasedAlgorithm(**minimum_algorithm_hdn)
     minimum_algorithm_hdn["model"]["multiscale_count"] = 2
     with pytest.raises(ValueError):
-        VAEAlgorithmConfig(**minimum_algorithm_hdn)
+        VAEBasedAlgorithm(**minimum_algorithm_hdn)
 
 
 def test_target_channel_hdn(minimum_algorithm_hdn):
     """Test that the correct nymber of target channel is provided for HDN."""
-    _ = VAEAlgorithmConfig(**minimum_algorithm_hdn)
+    _ = VAEBasedAlgorithm(**minimum_algorithm_hdn)
     minimum_algorithm_hdn["model"]["output_channels"] = 2
     with pytest.raises(ValueError):
-        VAEAlgorithmConfig(**minimum_algorithm_hdn)
+        VAEBasedAlgorithm(**minimum_algorithm_hdn)
 
 
 def test_logvar_hdn(minimum_algorithm_hdn):
     """Test that the logvar is not provided for HDN."""
-    _ = VAEAlgorithmConfig(**minimum_algorithm_hdn)
+    _ = VAEBasedAlgorithm(**minimum_algorithm_hdn)
     minimum_algorithm_hdn["model"]["predict_logvar"] = "pixelwise"
     with pytest.raises(ValueError):
-        VAEAlgorithmConfig(**minimum_algorithm_hdn)
+        VAEBasedAlgorithm(**minimum_algorithm_hdn)
     minimum_algorithm_hdn["model"]["predict_logvar"] = None
-    minimum_algorithm_hdn["gaussian_likelihood"].predict_logvar = "pixelwise"
+    minimum_algorithm_hdn["gaussian_likelihood"]["predict_logvar"] = "pixelwise"
     with pytest.raises(ValueError):
-        VAEAlgorithmConfig(**minimum_algorithm_hdn)
+        VAEBasedAlgorithm(**minimum_algorithm_hdn)

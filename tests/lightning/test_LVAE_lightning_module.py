@@ -204,7 +204,7 @@ def test_hdn_lightining_init(
         gm_likelihood_config = None
 
     with exp_error:
-        vae_config = VAEAlgorithmConfig(
+        vae_config = VAEBasedAlgorithm(
             algorithm="hdn",
             loss=LVAELossConfig(loss_type=loss_type),
             model=lvae_config,

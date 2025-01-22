@@ -4,11 +4,16 @@ from typing import Annotated, Any, Literal, Optional, Union
 
 from pydantic import Discriminator, Tag, TypeAdapter
 
-from careamics.config.algorithms import CAREAlgorithm, N2NAlgorithm, N2VAlgorithm
+from careamics.config.algorithms import (
+    CAREAlgorithm,
+    N2NAlgorithm,
+    N2VAlgorithm,
+)
 from careamics.config.architectures import UNetModel
 from careamics.config.care_configuration import CAREConfiguration
 from careamics.config.configuration import Configuration
 from careamics.config.data import DataConfig, N2VDataConfig
+from careamics.config.hdn_configuration import HDNConfiguration
 from careamics.config.n2n_configuration import N2NConfiguration
 from careamics.config.n2v_configuration import N2VConfiguration
 from careamics.config.support import (
@@ -67,6 +72,7 @@ def configuration_factory(
                 Annotated[N2VConfiguration, Tag(SupportedAlgorithm.N2V.value)],
                 Annotated[N2NConfiguration, Tag(SupportedAlgorithm.N2N.value)],
                 Annotated[CAREConfiguration, Tag(SupportedAlgorithm.CARE.value)],
+                Annotated[HDNConfiguration, Tag(SupportedAlgorithm.HDN.value)],
             ],
             Discriminator(_algorithm_config_discriminator),
         ]

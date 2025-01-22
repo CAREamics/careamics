@@ -1,0 +1,2 @@
+class HDNAlgorithm:
+    pass
