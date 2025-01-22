@@ -3,7 +3,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from careamics.config import VAEAlgorithmConfig
+from careamics.config import VAEBasedAlgorithm
 from careamics.config.architectures import LVAEModel
 from careamics.config.nm_model import (
     GaussianMixtureNMConfig,
@@ -25,7 +25,7 @@ def test_all_losses_are_supported():
     losses = list(SupportedLoss)
 
     # Algorithm json schema
-    schema = VAEAlgorithmConfig.model_json_schema()
+    schema = VAEBasedAlgorithm.model_json_schema()
 
     # check that all losses are supported
     for loss in schema["properties"]["loss"]["enum"]:
@@ -35,7 +35,7 @@ def test_all_losses_are_supported():
 @pytest.mark.skip("Needs to be updated!")
 def test_noise_model_usplit(minimum_algorithm_musplit):
     """Test that the noise model is correctly provided."""
-    config = VAEAlgorithmConfig(**minimum_algorithm_musplit)
+    config = VAEBasedAlgorithm(**minimum_algorithm_musplit)
     assert config.noise_model is None
 
 
@@ -53,8 +53,7 @@ def test_noise_model_denoisplit(tmp_path: Path, create_dummy_noise_model):
         path=tmp_path / "dummy_noise_model.npz",
         # all other params are default
     )
-    config = VAEAlgorithmConfig(
-        algorithm_type="vae",
+    config = VAEBasedAlgorithm(
         algorithm="denoisplit",
         loss="denoisplit",
         model=LVAEModel(architecture="LVAE"),

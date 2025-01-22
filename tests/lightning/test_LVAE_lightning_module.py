@@ -9,7 +9,7 @@ from pydantic import ValidationError
 from pytorch_lightning import Trainer
 from torch.utils.data import DataLoader, Dataset
 
-from careamics.config import VAEAlgorithmConfig
+from careamics.config import VAEBasedAlgorithm
 from careamics.config.architectures import LVAEModel
 from careamics.config.likelihood_model import (
     GaussianLikelihoodConfig,
@@ -114,7 +114,7 @@ def create_vae_lightning_model(
         noise_model_config = None
         nm_lik_config = None
 
-    vae_config = VAEAlgorithmConfig(
+    vae_config = VAEBasedAlgorithm(
         algorithm=algorithm,
         loss=loss_config,
         model=lvae_config,
@@ -255,7 +255,7 @@ def test_musplit_lightining_init(
     )
 
     with exp_error:
-        vae_config = VAEAlgorithmConfig(
+        vae_config = VAEBasedAlgorithm(
             algorithm="musplit",
             loss=LVAELossConfig(loss_type=loss_type),
             model=lvae_config,
@@ -331,7 +331,7 @@ def test_denoisplit_lightining_init(
     nm_lik_config = NMLikelihoodConfig()
 
     with exp_error:
-        vae_config = VAEAlgorithmConfig(
+        vae_config = VAEBasedAlgorithm(
             algorithm="denoisplit",
             loss=LVAELossConfig(loss_type=loss_type),
             model=lvae_config,

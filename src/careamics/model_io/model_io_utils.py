@@ -5,7 +5,7 @@ from typing import Union
 
 import torch
 
-from careamics.config import Configuration
+from careamics.config import Configuration, configuration_factory
 from careamics.lightning.lightning_module import FCNModule, VAEModule
 from careamics.model_io.bmz_io import load_from_bmz
 from careamics.utils import check_path_exists
@@ -92,4 +92,4 @@ def _load_checkpoint(
             f"{cfg_dict['algorithm_config']['model']['architecture']}"
         )
 
-    return model, Configuration(**cfg_dict)
+    return model, configuration_factory(cfg_dict)

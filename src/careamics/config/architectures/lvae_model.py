@@ -18,9 +18,11 @@ class LVAEModel(ArchitectureModel):
     input_shape: list[int] = Field(default=(64, 64), validate_default=True)
     """Shape of the input patch (Z, Y, X) or (Y, X) if the data is 2D."""
     encoder_conv_strides: list = Field(default=[2, 2], validate_default=True)
+
     # TODO make this per hierarchy step ?
     decoder_conv_strides: list = Field(default=[2, 2], validate_default=True)
     """Dimensions (2D or 3D) of the convolutional layers."""
+
     multiscale_count: int = Field(default=1)
     # TODO there should be a check for multiscale_count in dataset !!
 

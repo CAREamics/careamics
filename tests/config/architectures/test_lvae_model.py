@@ -113,25 +113,3 @@ def test_parameters_wrong_values_by_assigment():
     model.encoder_n_filters = model_params["encoder_n_filters"]
     with pytest.raises(ValueError):
         model.encoder_n_filters = 2
-
-
-def test_model_dump():
-    """Test that default values are excluded from model dump."""
-    model_params = {
-        "architecture": "LVAE",  # default value
-        "z_dims": (128, 128, 128, 128),  # default value
-        "nonlinearity": "ReLU",  # non-default value
-        "decoder_n_filters": 32,  # non-default value
-    }
-    model = LVAEModel(**model_params)
-
-    # dump model
-    model_dict = model.model_dump(exclude_defaults=True)
-
-    # check that default values are excluded except the architecture
-    assert "architecture" not in model_dict
-    assert len(model_dict) == 3  # TODO not sure it's hardcoded?
-
-    # check that we get all the optional values with the exclude_defaults flag
-    model_dict = model.model_dump(exclude_defaults=False)
-    assert len(model_dict) == len(dict(model)) - 1

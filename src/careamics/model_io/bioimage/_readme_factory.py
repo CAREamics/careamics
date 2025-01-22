@@ -55,7 +55,7 @@ def readme_factory(
         readme.touch()
 
         # algorithm pretty name
-        algorithm_flavour = config.get_algorithm_flavour()
+        algorithm_flavour = config.get_algorithm_friendly_name()
         algorithm_pretty_name = algorithm_flavour + " - CAREamics"
 
         description = [f"# {algorithm_pretty_name}\n\n"]
