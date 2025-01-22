@@ -225,6 +225,7 @@ def _create_data_configuration(
     data_type: Literal["array", "tiff", "custom"],
     axes: str,
     patch_size: list[int],
+    batch_size: int,
     augmentations: Union[list[SPATIAL_TRANSFORMS_UNION]],
     dataloader_params: Optional[dict] = None,
 ) -> DataConfig:
@@ -239,6 +240,8 @@ def _create_data_configuration(
         Axes of the data.
     patch_size : list of int
         Size of the patches along the spatial dimensions.
+    batch_size : int
+        Batch size.
     augmentations : list of transforms
         List of transforms to apply.
     dataloader_params : dict
@@ -253,21 +256,20 @@ def _create_data_configuration(
         data_type=data_type,
         axes=axes,
         patch_size=patch_size,
+        batch_size=batch_size,
         transforms=augmentations,
         dataloader_params=dataloader_params,
     )
 
 
 def _create_training_configuration(
-    batch_size: int, num_epochs: int, logger: Literal["wandb", "tensorboard", "none"]
+    num_epochs: int, logger: Literal["wandb", "tensorboard", "none"]
 ) -> TrainingConfig:
     """
     Create a dictionary with the parameters of the training model.
 
     Parameters
     ----------
-    batch_size : int
-        Batch size.
     num_epochs : int
         Number of epochs.
     logger : {"wandb", "tensorboard", "none"}
@@ -279,7 +281,6 @@ def _create_training_configuration(
         Training model with the specified parameters.
     """
     return TrainingConfig(
-        batch_size=batch_size,
         num_epochs=num_epochs,
         logger=None if logger == "none" else logger,
     )
@@ -387,13 +388,13 @@ def _create_supervised_config_dict(
         data_type=data_type,
         axes=axes,
         patch_size=patch_size,
+        batch_size=batch_size,
         augmentations=spatial_transform_list,
         dataloader_params=dataloader_params,
     )
 
     # training
     training_params = _create_training_configuration(
-        batch_size=batch_size,
         num_epochs=num_epochs,
         logger=logger,
     )
@@ -970,13 +971,13 @@ def create_n2v_configuration(
         data_type=data_type,
         axes=axes,
         patch_size=patch_size,
+        batch_size=batch_size,
         augmentations=spatial_transforms,
         dataloader_params=dataloader_params,
     )
 
     # training
     training_params = _create_training_configuration(
-        batch_size=batch_size,
         num_epochs=num_epochs,
         logger=logger,
     )
