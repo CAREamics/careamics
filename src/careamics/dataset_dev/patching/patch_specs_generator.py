@@ -17,6 +17,8 @@ class PatchSpecsGenerator(Protocol):
         self, patch_size: Sequence[int], *args, **kwargs
     ) -> list[PatchSpecs]: ...
 
+    # Should return the number of patches that will be produced for a set of args
+    # Will be for mapped dataset length
     def n_patches(self, patch_size: Sequence[int], *args, **kwargs): ...
 
 
@@ -53,7 +55,7 @@ class RandomPatchSpecsGenerator:
             patch_specs.extend(data_patch_specs)
         return patch_specs
 
-    def n_patches(self, patch_size: Sequence[int]):
+    def n_patches(self, patch_size: Sequence[int], seed: int):
         n_sample_patches = np.array(
             [
                 self._n_patches_in_sample(patch_size, data_shape[-len(patch_size) :])
