@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Literal, Protocol, Union
 
@@ -9,8 +10,8 @@ class ArrayReaderProtocol(Protocol):
     # TODO: not sure how compatible using Path will be for a zarr array
     #   (for a zarr array need to specify file path and internal zarr path)
     source: Union[Path, Literal["array"]]
-    data_shape: tuple[int, ...]
+    data_shape: Sequence[int]
 
     def extract_patch(
-        self, sample_idx: int, coords: tuple[int, ...], extent: tuple[int, ...]
+        self, sample_idx: int, coords: Sequence[int], extent: Sequence[int]
     ) -> NDArray: ...

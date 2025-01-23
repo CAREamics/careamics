@@ -1,17 +1,10 @@
 from collections.abc import Sequence
 from pathlib import Path
-from typing import TypedDict
 
 from numpy.typing import NDArray
 
+from ..patching import PatchSpecs
 from .array_reader import ArrayReaderProtocol, InMemoryArrayReader
-
-
-class PatchSpecs(TypedDict):
-    data_idx: int
-    sample_idx: int
-    coords: tuple[int, ...]
-    extent: tuple[int, ...]
 
 
 class DataReader:
@@ -37,8 +30,8 @@ class DataReader:
         self,
         data_idx: int,
         sample_idx: int,
-        coords: tuple[int, ...],
-        extent: tuple[int, ...],
+        coords: Sequence[int],
+        extent: Sequence[int],
     ) -> NDArray:
         return self.data_readers[data_idx].extract_patch(
             sample_idx=sample_idx, coords=coords, extent=extent

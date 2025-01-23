@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Literal, Union
 
@@ -13,10 +14,10 @@ class InMemoryArrayReader:
     def __init__(self, source: Union[Path, Literal["array"]], data: NDArray):
         self.source: Union[Path, Literal["array"]] = source
         self._data = data
-        self.data_shape = self._data.shape
+        self.data_shape: Sequence[int] = self._data.shape
 
     def extract_patch(
-        self, sample_idx: int, coords: tuple[int, ...], extent: tuple[int, ...]
+        self, sample_idx: int, coords: Sequence[int], extent: Sequence[int]
     ) -> NDArray:
         if len(coords) != len(extent):
             raise ValueError("Length of coords and extent must match.")

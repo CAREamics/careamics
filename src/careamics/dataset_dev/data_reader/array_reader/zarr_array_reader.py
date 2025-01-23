@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from pathlib import Path
 
 from numpy.typing import NDArray
@@ -13,6 +14,6 @@ class ZarrArrayReader:
         raise NotImplementedError("Not implemented yet.")
 
     def extract_patch(
-        self, sample_idx: int, coords: tuple[int, ...], extent: tuple[int, ...]
+        self, sample_idx: int, coords: Sequence[int], extent: Sequence[int]
     ) -> NDArray:
         raise NotImplementedError("Not implemented yet.")
