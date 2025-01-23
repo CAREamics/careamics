@@ -10,7 +10,7 @@ from .array_reader import ArrayReaderProtocol, InMemoryArrayReader
 class DataReader:
 
     def __init__(self, data_readers: Sequence[ArrayReaderProtocol]):
-        self.data_readers: list[ArrayReaderProtocol] = list(data_readers)
+        self.array_readers: list[ArrayReaderProtocol] = list(data_readers)
 
     @classmethod
     def from_arrays(cls, arrays: Sequence[NDArray], axes: str):
@@ -33,7 +33,7 @@ class DataReader:
         coords: Sequence[int],
         extent: Sequence[int],
     ) -> NDArray:
-        return self.data_readers[data_idx].extract_patch(
+        return self.array_readers[data_idx].extract_patch(
             sample_idx=sample_idx, coords=coords, extent=extent
         )
 
