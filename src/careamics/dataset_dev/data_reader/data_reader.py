@@ -4,13 +4,13 @@ from pathlib import Path
 from numpy.typing import NDArray
 
 from ..patching import PatchSpecs
-from .array_reader import ArrayReaderProtocol, InMemoryArrayReader
+from .array_reader import ArrayReader, InMemoryArrayReader
 
 
 class DataReader:
 
-    def __init__(self, data_readers: Sequence[ArrayReaderProtocol]):
-        self.array_readers: list[ArrayReaderProtocol] = list(data_readers)
+    def __init__(self, data_readers: Sequence[ArrayReader]):
+        self.array_readers: list[ArrayReader] = list(data_readers)
 
     @classmethod
     def from_arrays(cls, arrays: Sequence[NDArray], axes: str):
