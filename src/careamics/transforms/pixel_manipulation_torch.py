@@ -131,7 +131,8 @@ def _get_stratified_coords_torch(
     if rng is None:
         rng = torch.default_generator
 
-    # TODO explain this
+    # Calculate the maximum distance between masked pixels. Inversely proportional to
+    # the percentage of masked pixels.
     mask_pixel_distance = round((100 / mask_pixel_perc) ** (1 / len(shape)))
 
     pixel_coords = []
@@ -276,20 +277,27 @@ def uniform_manipulate_torch(
         rng = torch.default_generator
         # TODO do we need seed ?
 
+    # create a copy of the patch to apply the manipulation to
     transformed_patch = patch.clone()
+
+    # get the coordinates of the future ROI centers
     subpatch_centers = _get_stratified_coords_torch(
         mask_pixel_percentage, patch.shape, rng
     )
     subpatch_centers = subpatch_centers.to(device=patch.device)
 
+    # arange the list of indices definign the side of ROI square
     roi_span_full = torch.arange(
         -(subpatch_size // 2),
         subpatch_size // 2 + 1,
         dtype=torch.int32,
         device=patch.device,
     )
+
+    # remove the center pixel from the ROI
     roi_span = roi_span_full[roi_span_full != 0] if remove_center else roi_span_full
 
+    # create a random increment to be added to the subpatch centers
     random_increment = roi_span[
         torch.randint(
             low=min(roi_span),
@@ -298,6 +306,8 @@ def uniform_manipulate_torch(
             generator=rng,
         )
     ]
+
+    # find the coordinates of the pixels to be replaced
     replacement_coords = torch.clamp(
         subpatch_centers + random_increment,
         torch.zeros_like(torch.tensor(patch.shape)).to(device=patch.device),
@@ -307,6 +317,7 @@ def uniform_manipulate_torch(
     replacement_pixels = patch[tuple(replacement_coords.T)]
     transformed_patch[tuple(subpatch_centers.T)] = replacement_pixels
 
+    # create a mask of the pixels that were replaced
     mask = (transformed_patch != patch).to(dtype=torch.uint8)
 
     if struct_params is not None:
@@ -355,23 +366,27 @@ def median_manipulate_torch(
     if rng is None:
         rng = torch.default_generator
 
+    # create a copy of the patch to apply the manipulation to
     transformed_patch = patch.clone()
+
+    # get the coordinates of the future ROI centers
     subpatch_centers = _get_stratified_coords_torch(
         mask_pixel_percentage, patch.shape, rng
     )
-
+    # arange the list of indices defining the side of ROI square
     roi_span = torch.tensor(
         [-(subpatch_size // 2), (subpatch_size // 2) + 1], device=patch.device
     )
-
+    # define a range of coordinates for the subpatch
     subpatch_crops_span_full = subpatch_centers[None, ...].T + roi_span
 
+    # clip the coordinates to the patch size
     subpatch_crops_span_clipped = torch.clamp(
         subpatch_crops_span_full,
         torch.zeros_like(torch.tensor(patch.shape))[:, None, None],
         torch.tensor(patch.shape)[:, None, None],
     )
-
+    # TODO test and write better comments
     for idx in range(subpatch_crops_span_clipped.shape[1]):
         subpatch_coords = subpatch_crops_span_clipped[:, idx, ...]
         idxs = [
