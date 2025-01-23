@@ -987,3 +987,76 @@ def create_n2v_configuration(
         model_params=model_params,
         dataloader_params=dataloader_params,
     )
+
+
+def create_hdn_configuration(
+    experiment_name: str,
+    data_type: Literal["array", "tiff", "custom"],
+    axes: str,
+    patch_size: list[int],
+    batch_size: int,
+    num_epochs: int,
+    augmentations: Optional[list[Union[XYFlipModel, XYRandomRotate90Model]]] = None,
+    independent_channels: bool = True,
+    loss: Literal["mae", "mse"] = "mae",
+    n_channels_in: Optional[int] = None,
+    n_channels_out: Optional[int] = None,
+    logger: Literal["wandb", "tensorboard", "none"] = "none",
+    model_params: Optional[dict] = None,
+    dataloader_params: Optional[dict] = None,
+) -> Configuration:
+    """
+    Create a configuration for training HDN.
+
+    If "Z" is present in `axes`, then `path_size` must be a list of length 3, otherwise
+    2.
+
+    If "C" is present in `axes`, then you need to set `n_channels_in` to the number of
+    channels. Likewise, if you set the number of channels, then "C" must be present in
+    `axes`.
+
+    To set the number of output channels, use the `n_channels_out` parameter. If it is
+    not specified, it will be assumed to be equal to `n_channels_in`.
+
+    By default, all channels are trained independently. To train all channels together,
+    set `independent_channels` to False.
+
+    By setting `augmentations` to `None`, the default transformations (flip in X and Y,
+    rotations by 90 degrees in the XY plane) are applied. Rather than the default
+    transforms, a list of transforms can be passed to the `augmentations` parameter. To
+    disable the transforms, simply pass an empty list.
+
+    The parameters of the UNet can be specified in the `model_params` (passed as a
+    parameter-value dictionary).
+
+    Parameters
+    ----------
+    experiment_name : str
+        Name of the experiment.
+    data_type : Literal["array", "tiff", "custom"]
+        Type of the data.
+    axes : str
+        Axes of the data (e.g. SYX).
+    patch_size : List[int]
+        Size of the patches along the spatial dimensions (e.g. [64, 64]).
+    batch_size : int
+        Batch size.
+    """
+    return _create_configuration(
+        algorithm="n2v",
+        experiment_name=experiment_name,
+        data_type=data_type,
+        axes=axes,
+        patch_size=patch_size,
+        batch_size=batch_size,
+        num_epochs=num_epochs,
+        augmentations=transform_list,
+        independent_channels=independent_channels,
+        loss="n2v",
+        use_n2v2=use_n2v2,
+        n_channels_in=n_channels,
+        n_channels_out=n_channels,
+        logger=logger,
+        model_params=model_params,
+        dataloader_params=dataloader_params,
+    )
