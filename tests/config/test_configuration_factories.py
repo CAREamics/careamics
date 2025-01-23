@@ -8,8 +8,10 @@ from careamics.config import (
     N2NConfiguration,
     N2VAlgorithm,
     N2VConfiguration,
+    HDNConfiguration,
     algorithm_factory,
     create_care_configuration,
+    create_hdn_configuration,
     create_n2n_configuration,
     create_n2v_configuration,
 )

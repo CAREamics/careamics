@@ -12,8 +12,10 @@ HDN_DESCRIPTION = (
     ""
 )
 HDN_REF = CiteEntry(
-    text='',
-    doi="",
+    text='Prakash, M., Delbracio, M., Milanfar, P., Jug, F. 2022. "Interpretable '
+    'Unsupervised Diversity Denoising and Artefact Removal." The International '
+    "Conference on Learning Representations (ICLR).",
+    doi="10.1561/2200000056",
 )
 
 
