@@ -4,7 +4,7 @@ from typing import Literal, Protocol, Union
 from numpy.typing import NDArray
 
 
-class ProtoArrayReader(Protocol):
+class ArrayReaderProtocol(Protocol):
 
     # TODO: not sure how compatible using Path will be for a zarr array
     #   (for a zarr array need to specify file path and internal zarr path)
