@@ -14,7 +14,7 @@ class InMemoryArrayReader:
     def __init__(self, source: Union[Path, Literal["array"]], data: NDArray):
         self.source: Union[Path, Literal["array"]] = source
         # data expected to be in SC(Z)YX shape, reason to use from_array constructor
-        self._data = data 
+        self._data = data
         self.data_shape: Sequence[int] = self._data.shape
 
     def extract_patch(
