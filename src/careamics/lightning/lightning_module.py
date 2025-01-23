@@ -89,7 +89,7 @@ class FCNModule(L.LightningModule):
         # create preprocessing, model and loss function
         # TODO should we use compose here ? should we even have this?
         self.preprocess = preprocess_factory(
-            algorithm_config.n2v_masking
+            algorithm_config.n2v_config
             if isinstance(algorithm_config, N2VAlgorithm)
             else None
         )
@@ -703,8 +703,8 @@ def create_careamics_module(
 
         # if use N2V
         if isinstance(algorithm_cfg, N2VAlgorithm):
-            algorithm_cfg.n2v_masking.struct_mask_axis = struct_n2v_axis
-            algorithm_cfg.n2v_masking.struct_mask_span = struct_n2v_span
+            algorithm_cfg.n2v_config.struct_mask_axis = struct_n2v_axis
+            algorithm_cfg.n2v_config.struct_mask_span = struct_n2v_span
             algorithm_cfg.set_n2v2(use_n2v2)
 
         return FCNModule(algorithm_cfg)

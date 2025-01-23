@@ -27,7 +27,7 @@ class N2VAlgorithm(UNetBasedAlgorithm):
     loss: Literal["n2v"] = "n2v"
     """N2V loss function."""
 
-    n2v_masking: N2VManipulateModel = N2VManipulateModel()
+    n2v_config: N2VManipulateModel = N2VManipulateModel()
 
     model: Annotated[
         UNetModel,
@@ -50,14 +50,14 @@ class N2VAlgorithm(UNetBasedAlgorithm):
             If N2V2 is used with the wrong pixel manipulation strategy.
         """
         if self.model.n2v2:
-            if self.n2v_masking.strategy != SupportedPixelManipulation.MEDIAN.value:
+            if self.n2v_config.strategy != SupportedPixelManipulation.MEDIAN.value:
                 raise ValueError(
                     f"N2V2 can only be used with the "
                     f"{SupportedPixelManipulation.MEDIAN} pixel manipulation strategy"
                     f". Change the N2VManipulate transform strategy."
                 )
         else:
-            if self.n2v_masking.strategy != SupportedPixelManipulation.UNIFORM.value:
+            if self.n2v_config.strategy != SupportedPixelManipulation.UNIFORM.value:
                 raise ValueError(
                     f"N2V can only be used with the "
                     f"{SupportedPixelManipulation.UNIFORM} pixel manipulation strategy"
@@ -78,10 +78,10 @@ class N2VAlgorithm(UNetBasedAlgorithm):
             Whether to use N2V2.
         """
         if use_n2v2:
-            self.n2v_masking.strategy = SupportedPixelManipulation.MEDIAN.value
+            self.n2v_config.strategy = SupportedPixelManipulation.MEDIAN.value
             self.model.n2v2 = True
         else:
-            self.n2v_masking.strategy = SupportedPixelManipulation.UNIFORM.value
+            self.n2v_config.strategy = SupportedPixelManipulation.UNIFORM.value
             self.model.n2v2 = False
 
     def is_struct_n2v(self) -> bool:
@@ -92,4 +92,4 @@ class N2VAlgorithm(UNetBasedAlgorithm):
         bool
             Whether the configuration is using structN2V.
         """
-        return self.n2v_masking.struct_mask_axis != SupportedStructAxis.NONE.value
+        return self.n2v_config.struct_mask_axis != SupportedStructAxis.NONE.value

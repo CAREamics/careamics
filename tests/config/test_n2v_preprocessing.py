@@ -20,7 +20,7 @@ def test_correct_transform_parameters(minimum_algorithm_n2v: dict):
     model = N2VAlgorithm(**minimum_algorithm_n2v)
 
     # N2VManipulate
-    params = model.n2v_masking.model_dump()
+    params = model.n2v_config.model_dump()
     assert "roi_size" in params
     assert "masked_pixel_percentage" in params
     assert "strategy" in params
@@ -31,7 +31,7 @@ def test_correct_transform_parameters(minimum_algorithm_n2v: dict):
 def test_passing_incorrect_element(minimum_algorithm_n2v: dict):
     """Test that incorrect element in the list of transforms raises an error (
     e.g. passing un object rather than a string)."""
-    minimum_algorithm_n2v["n2v_masking"] = {
+    minimum_algorithm_n2v["n2v_config"] = {
         "name": get_all_transforms()[SupportedTransform.XY_FLIP.value]()
     }
     with pytest.raises(ValueError):
@@ -45,31 +45,31 @@ def test_set_struct_mask(minimum_algorithm_n2v: dict):
     horizontal = SupportedStructAxis.HORIZONTAL.value
 
     model = N2VAlgorithm(**minimum_algorithm_n2v)
-    assert model.n2v_masking.name == SupportedTransform.N2V_MANIPULATE.value
-    assert model.n2v_masking.struct_mask_axis == none
-    assert model.n2v_masking.struct_mask_span == 5
+    assert model.n2v_config.name == SupportedTransform.N2V_MANIPULATE.value
+    assert model.n2v_config.struct_mask_axis == none
+    assert model.n2v_config.struct_mask_span == 5
 
-    model.n2v_masking.struct_mask_axis = vertical
-    model.n2v_masking.struct_mask_span = 3
-    assert model.n2v_masking.struct_mask_axis == vertical
-    assert model.n2v_masking.struct_mask_span == 3
+    model.n2v_config.struct_mask_axis = vertical
+    model.n2v_config.struct_mask_span = 3
+    assert model.n2v_config.struct_mask_axis == vertical
+    assert model.n2v_config.struct_mask_span == 3
 
-    model.n2v_masking.struct_mask_axis = horizontal
-    model.n2v_masking.struct_mask_span = 7
-    assert model.n2v_masking.struct_mask_axis == horizontal
-    assert model.n2v_masking.struct_mask_span == 7
+    model.n2v_config.struct_mask_axis = horizontal
+    model.n2v_config.struct_mask_span = 7
+    assert model.n2v_config.struct_mask_axis == horizontal
+    assert model.n2v_config.struct_mask_span == 7
 
-    model.n2v_masking.struct_mask_axis = none
-    model.n2v_masking.struct_mask_span = 11
-    assert model.n2v_masking.struct_mask_axis == none
-    assert model.n2v_masking.struct_mask_span == 11
+    model.n2v_config.struct_mask_axis = none
+    model.n2v_config.struct_mask_span = 11
+    assert model.n2v_config.struct_mask_axis == none
+    assert model.n2v_config.struct_mask_span == 11
 
 
 def test_set_struct_mask_wrong_value(minimum_algorithm_n2v: dict):
     """Test that passing a wrong struct mask axis raises an error."""
     model = N2VAlgorithm(**minimum_algorithm_n2v)
     with pytest.raises(ValueError):
-        model.n2v_masking.struct_mask_axis = "wrong_value"
+        model.n2v_config.struct_mask_axis = "wrong_value"
 
     with pytest.raises(ValueError):
-        model.n2v_masking.struct_mask_span = 1
+        model.n2v_config.struct_mask_span = 1

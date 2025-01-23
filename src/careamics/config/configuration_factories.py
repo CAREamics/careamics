@@ -991,7 +991,7 @@ def create_n2v_configuration(
         use_n2v2=use_n2v2,
         model_params=model_params,
     )
-    algorithm_params["n2v_masking"] = n2v_transform
+    algorithm_params["n2v_config"] = n2v_transform
 
     # data
     data_params = _create_data_configuration(

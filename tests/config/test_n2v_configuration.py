@@ -26,7 +26,7 @@ def test_correct_n2v2_and_transforms(
             "architecture": "UNet",
             "n2v2": algorithm == "n2v2",
         },
-        "n2v_masking": {
+        "n2v_config": {
             "strategy": strategy,
         },
     }
@@ -54,7 +54,7 @@ def test_wrong_n2v2_and_transforms(
             "n2v2": algorithm == "n2v2",
         },
     }
-    minimum_n2v_configuration["algorithm_config"]["n2v_masking"] = [
+    minimum_n2v_configuration["algorithm_config"]["n2v_config"] = [
         {
             "name": "N2VManipulate",
             "strategy": strategy,

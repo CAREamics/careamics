@@ -12,7 +12,6 @@ __all__ = [
     "CheckpointModel",
     "Configuration",
     "DataConfig",
-    "DataConfig",
     "GaussianMixtureNMConfig",
     "InferenceConfig",
     "LVAELossConfig",

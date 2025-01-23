@@ -51,14 +51,14 @@ def test_set_n2v_strategy(minimum_algorithm_n2v: dict):
 
     # Test default
     cfg = N2VAlgorithm(**minimum_algorithm_n2v)
-    assert cfg.n2v_masking.strategy == uniform
+    assert cfg.n2v_config.strategy == uniform
 
     # Test setting to n2v2
     cfg.set_n2v2(True)
-    assert cfg.n2v_masking.strategy == median
+    assert cfg.n2v_config.strategy == median
     assert cfg.model.n2v2 is True
 
     # Test setting back to n2v
     cfg.set_n2v2(False)
-    assert cfg.n2v_masking.strategy == uniform
+    assert cfg.n2v_config.strategy == uniform
     assert cfg.model.n2v2 is False
