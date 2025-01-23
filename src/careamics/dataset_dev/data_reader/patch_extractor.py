@@ -5,8 +5,8 @@ from typing import Optional, TypedDict
 import numpy as np
 from numpy.typing import NDArray
 
-from .in_memory_reader import InMemoryReader
-from .protocol import DataReader
+from .in_memory_array_reader import InMemoryArrayReader
+from .protocol import ProtoArrayReader
 
 
 class PatchSpecs(TypedDict):
@@ -19,20 +19,20 @@ class PatchSpecs(TypedDict):
 # TODO: bad name?
 class PatchExtractor:
 
-    def __init__(self, data_readers: Sequence[DataReader]):
-        self.data_readers: list[DataReader] = list(data_readers)
+    def __init__(self, data_readers: Sequence[ProtoArrayReader]):
+        self.data_readers: list[ProtoArrayReader] = list(data_readers)
 
     @classmethod
     def from_arrays(cls, arrays: Sequence[NDArray], axes: str):
         data_readers = [
-            InMemoryReader.from_array(data=array, axes=axes) for array in arrays
+            InMemoryArrayReader.from_array(data=array, axes=axes) for array in arrays
         ]
         return cls(data_readers=data_readers)
 
     @classmethod
     def from_tiff_files(cls, file_paths: Sequence[Path], axes: str):
         data_readers = [
-            InMemoryReader.from_tiff(path=path, axes=axes) for path in file_paths
+            InMemoryArrayReader.from_tiff(path=path, axes=axes) for path in file_paths
         ]
         return cls(data_readers=data_readers)
 

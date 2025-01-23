@@ -4,12 +4,11 @@ from typing import Literal, Union
 from numpy.typing import NDArray
 from typing_extensions import Self
 
+from careamics.dataset.dataset_utils import reshape_array
 from careamics.file_io.read import ReadFunc, read_tiff
 
-from ..dataset_utils import reshape_array
 
-
-class InMemoryReader:
+class InMemoryArrayReader:
 
     def __init__(self, source: Union[Path, Literal["array"]], data: NDArray):
         self.source: Union[Path, Literal["array"]] = source
