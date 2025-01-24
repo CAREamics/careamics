@@ -543,11 +543,12 @@ def get_single_file_predictions(
     dset: Dataset,
     batch_size: int,
     tile_size: Optional[tuple[int, int]] = None,
+    grid_size: Optional[int] = None,
     num_workers: int = 4,
 ) -> tuple[np.ndarray, np.ndarray]:
     """Get patch-wise predictions from a model for a single file dataset."""
-    if tile_size:
-        dset.set_img_sz(tile_size, tile_size[-1] // 8)
+    if tile_size and grid_size:
+        dset.set_img_sz(tile_size, grid_size)
 
     dloader = DataLoader(
         dset,
