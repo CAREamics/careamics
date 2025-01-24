@@ -1042,21 +1042,14 @@ def create_hdn_configuration(
     batch_size : int
         Batch size.
     """
-    return _create_configuration(
-        algorithm="n2v",
+    transform_list = _list_spatial_augmentations(augmentations)
+    algorithm_params = create_algorithm_configuration()
+    data_params = create_data_configuration()
+    training_params = create_training_configuration()
+
+    return HDNConfiguration(
         experiment_name=experiment_name,
-        data_type=data_type,
-        axes=axes,
-        patch_size=patch_size,
-        batch_size=batch_size,
-        num_epochs=num_epochs,
-        augmentations=transform_list,
-        independent_channels=independent_channels,
-        loss="n2v",
-        use_n2v2=use_n2v2,
-        n_channels_in=n_channels,
-        n_channels_out=n_channels,
-        logger=logger,
-        model_params=model_params,
-        dataloader_params=dataloader_params,
+        algorithm_config=algorithm_params,
+        data_config=data_params,
+        training_config=training_params,
     )
