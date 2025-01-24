@@ -18,16 +18,16 @@ class InMemoryArrayReader:
         self.data_shape: Sequence[int] = self._data.shape
 
     def extract_patch(
-        self, sample_idx: int, coords: Sequence[int], extent: Sequence[int]
+        self, sample_idx: int, coords: Sequence[int], patch_size: Sequence[int]
     ) -> NDArray:
-        if len(coords) != len(extent):
+        if len(coords) != len(patch_size):
             raise ValueError("Length of coords and extent must match.")
         # TODO: test for 2D or 3D?
         return self._data[
             (
                 sample_idx,  # type: ignore
                 ...,  # type: ignore
-                *[slice(c, c + e) for c, e in zip(coords, extent)],  # type: ignore
+                *[slice(c, c + e) for c, e in zip(coords, patch_size)],  # type: ignore
             )
         ]
 

@@ -13,5 +13,5 @@ class ArrayReader(Protocol):
     data_shape: Sequence[int]
 
     def extract_patch(
-        self, sample_idx: int, coords: Sequence[int], extent: Sequence[int]
+        self, sample_idx: int, coords: Sequence[int], patch_size: Sequence[int]
     ) -> NDArray: ...

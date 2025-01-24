@@ -14,6 +14,6 @@ class ZarrArrayReader:
         raise NotImplementedError("Not implemented yet.")
 
     def extract_patch(
-        self, sample_idx: int, coords: Sequence[int], extent: Sequence[int]
+        self, sample_idx: int, coords: Sequence[int], patch_size: Sequence[int]
     ) -> NDArray:
         raise NotImplementedError("Not implemented yet.")

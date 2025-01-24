@@ -8,7 +8,7 @@ class PatchSpecs(TypedDict):
     data_idx: int
     sample_idx: int
     coords: Sequence[int]
-    extent: Sequence[int]
+    patch_size: Sequence[int]
 
 
 class PatchSpecsGenerator(Protocol):
@@ -47,7 +47,7 @@ class RandomPatchSpecsGenerator:
                             endpoint=True,
                         )
                     ),
-                    extent=patch_size,
+                    patch_size=patch_size,
                 )
                 for sample_idx in range(data_shape[0])
                 for _ in range(n_patches)

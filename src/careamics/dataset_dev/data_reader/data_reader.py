@@ -31,10 +31,10 @@ class DataReader:
         data_idx: int,
         sample_idx: int,
         coords: Sequence[int],
-        extent: Sequence[int],
+        patch_size: Sequence[int],
     ) -> NDArray:
         return self.array_readers[data_idx].extract_patch(
-            sample_idx=sample_idx, coords=coords, extent=extent
+            sample_idx=sample_idx, coords=coords, patch_size=patch_size
         )
 
     def extract_patches(self, patch_specs: Sequence[PatchSpecs]) -> list[NDArray]:
