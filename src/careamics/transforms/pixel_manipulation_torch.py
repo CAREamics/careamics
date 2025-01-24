@@ -110,6 +110,7 @@ def _get_stratified_coords_torch(
     """
     Generate coordinates of the pixels to mask.
 
+    # TODO add more details
     Randomly selects the coordinates of the pixels to mask in a stratified way, i.e.
     the distance between masked pixels is approximately the same.
 
@@ -137,25 +138,35 @@ def _get_stratified_coords_torch(
 
     pixel_coords = []
     steps = []
+
+    # loop over dimensions
     for axis_size in shape:
+        # number of pixels to mask along the axis
         num_pixels = int(torch.ceil(torch.tensor(axis_size / mask_pixel_distance)))
+
+        # create 1D grid of coordinates for the axis
         axis_pixel_coords = torch.linspace(
             0,
             axis_size - (axis_size // num_pixels),
             num_pixels,
             dtype=torch.int32,
         )
+
+        # calculate the step size between coordinates
         step = (
             axis_pixel_coords[1] - axis_pixel_coords[0]
             if len(axis_pixel_coords) > 1
             else axis_size
         )
+
         pixel_coords.append(axis_pixel_coords)
         steps.append(step)
 
+    # create a 2D meshgrid of coordinates
     coordinate_grid_list = torch.meshgrid(*pixel_coords, indexing="ij")
     coordinate_grid = torch.stack([g.flatten() for g in coordinate_grid_list], dim=-1)
 
+    # add a random jitter increment so that the coordinates do not lie on the grid
     random_increment = torch.randint(
         high=int(_odd_jitter_func_torch(float(max(steps)), rng)),
         size=torch.tensor(coordinate_grid.shape).tolist(),
@@ -163,6 +174,7 @@ def _get_stratified_coords_torch(
     )
     coordinate_grid += random_increment
 
+    # make sure no coordinate lie outside the range
     return torch.clamp(
         coordinate_grid,
         torch.zeros_like(torch.tensor(shape)),
@@ -247,6 +259,8 @@ def uniform_manipulate_torch(
     """
     Manipulate pixels by replacing them with a neighbor values.
 
+    # TODO add more details, especially about batch
+
     Manipulated pixels are selected unformly selected in a subpatch, away from a grid
     with an approximate uniform probability to be selected across the whole patch.
     If `struct_params` is not None, an additional structN2V mask is applied to the
@@ -256,7 +270,7 @@ def uniform_manipulate_torch(
     Parameters
     ----------
     patch : torch.Tensor
-        Image patch, 2D or 3D, shape (y, x) or (z, y, x).
+        Image patch, 2D or 3D, shape (y, x) or (z, y, x). # TODO batch and channel.
     mask_pixel_percentage : float
         Approximate percentage of pixels to be masked.
     subpatch_size : int
@@ -277,16 +291,17 @@ def uniform_manipulate_torch(
         rng = torch.default_generator
         # TODO do we need seed ?
 
-    # create a copy of the patch to apply the manipulation to
+    # create a copy of the patch
     transformed_patch = patch.clone()
 
-    # get the coordinates of the future ROI centers
+    # get the coordinates of the pixels to be masked
     subpatch_centers = _get_stratified_coords_torch(
         mask_pixel_percentage, patch.shape, rng
     )
     subpatch_centers = subpatch_centers.to(device=patch.device)
 
-    # arange the list of indices definign the side of ROI square
+    # TODO refactor with non negative indices?
+    # arrange the list of indices to represent the ROI around the pixel to be masked
     roi_span_full = torch.arange(
         -(subpatch_size // 2),
         subpatch_size // 2 + 1,
@@ -297,29 +312,33 @@ def uniform_manipulate_torch(
     # remove the center pixel from the ROI
     roi_span = roi_span_full[roi_span_full != 0] if remove_center else roi_span_full
 
-    # create a random increment to be added to the subpatch centers
+    # create a random increment to select the replacement value
+    # this increment is added to the center coordinates
     random_increment = roi_span[
         torch.randint(
             low=min(roi_span),
-            high=max(roi_span),
+            high=max(roi_span),  # TODO check this, it may exclude one value
             size=subpatch_centers.shape,
             generator=rng,
         )
     ]
 
-    # find the coordinates of the pixels to be replaced
+    # compute the replacement pixel coordinates
     replacement_coords = torch.clamp(
         subpatch_centers + random_increment,
         torch.zeros_like(torch.tensor(patch.shape)).to(device=patch.device),
         torch.tensor([v - 1 for v in patch.shape]).to(device=patch.device),
     )
 
+    # replace the pixels in the patch
+    # tuples and transpose are needed for proper indexing
     replacement_pixels = patch[tuple(replacement_coords.T)]
     transformed_patch[tuple(subpatch_centers.T)] = replacement_pixels
 
-    # create a mask of the pixels that were replaced
+    # create a mask representing the masked pixels
     mask = (transformed_patch != patch).to(dtype=torch.uint8)
 
+    # apply structN2V mask if needed
     if struct_params is not None:
         transformed_patch = _apply_struct_mask_torch(
             transformed_patch, subpatch_centers, struct_params, rng
