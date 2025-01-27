@@ -26,7 +26,7 @@ you chose this approach. -->
 ## Changes Made
 
 <!-- This section highlights the important features and files that reviewers should
-pay attention to when reviewer. Only list the important files, this is useful for 
+pay attention to when reviewing. Only list important features or files, this is useful for 
 reviewers to correctly assess how deeply the modifications impact the code base. -->
 
 ### New features or files
