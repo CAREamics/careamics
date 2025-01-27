@@ -10,6 +10,9 @@ from careamics.file_io.read import ReadFunc, read_tiff
 
 
 class InMemoryImageStack:
+    """
+    A class for extracting patches from an image stack that has been loaded into memory.
+    """
 
     def __init__(self, source: Union[Path, Literal["array"]], data: NDArray):
         self.source: Union[Path, Literal["array"]] = source

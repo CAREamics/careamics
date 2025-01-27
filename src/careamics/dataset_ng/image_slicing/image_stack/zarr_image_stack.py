@@ -5,12 +5,17 @@ from numpy.typing import NDArray
 
 
 class ZarrImageStack:
+    """
+    A class for extracting patches from an image stack that is stored as a zarr array.
+    """
 
     def __init__(
         self,
         source: Path,
         # other args
     ):
+        # Note: will probably need to store axes from metadata
+        #   - transformation will have to happen in `extract_patch`
         raise NotImplementedError("Not implemented yet.")
 
     def extract_patch(

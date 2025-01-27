@@ -15,6 +15,9 @@ class PatchSpecs(TypedDict):
 
 
 class MultiImageStack:
+    """
+    A class for extracting patches from multiple image stacks.
+    """
 
     def __init__(self, data_readers: Sequence[ImageStack]):
         self.image_stacks: list[ImageStack] = list(data_readers)
