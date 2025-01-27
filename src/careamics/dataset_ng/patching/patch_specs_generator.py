@@ -3,7 +3,7 @@ from typing import Protocol
 
 import numpy as np
 
-from ..data_reader import PatchSpecs
+from ..multi_image_stack import PatchSpecs
 
 
 class PatchSpecsGenerator(Protocol):
