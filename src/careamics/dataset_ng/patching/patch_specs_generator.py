@@ -1,14 +1,9 @@
 from collections.abc import Sequence
-from typing import Protocol, TypedDict
+from typing import Protocol
 
 import numpy as np
 
-
-class PatchSpecs(TypedDict):
-    data_idx: int
-    sample_idx: int
-    coords: Sequence[int]
-    patch_size: Sequence[int]
+from ..data_reader import PatchSpecs
 
 
 class PatchSpecsGenerator(Protocol):

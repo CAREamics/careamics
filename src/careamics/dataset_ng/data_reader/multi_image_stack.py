@@ -1,10 +1,17 @@
 from collections.abc import Sequence
 from pathlib import Path
+from typing import TypedDict
 
 from numpy.typing import NDArray
 
-from ..patching import PatchSpecs
 from .image_stack import ImageStack, InMemoryImageStack
+
+
+class PatchSpecs(TypedDict):
+    data_idx: int
+    sample_idx: int
+    coords: Sequence[int]
+    patch_size: Sequence[int]
 
 
 class MultiImageStack:

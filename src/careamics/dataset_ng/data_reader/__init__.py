@@ -1,5 +1,6 @@
 __all__ = [
     "MultiImageStack",
+    "PatchSpecs",
 ]
 
-from .data_reader import MultiImageStack
+from .multi_image_stack import MultiImageStack, PatchSpecs

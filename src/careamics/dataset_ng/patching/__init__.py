@@ -1,7 +1,6 @@
-__all__ = ["PatchSpecs", "PatchSpecsGenerator", "RandomPatchSpecsGenerator"]
+__all__ = ["PatchSpecsGenerator", "RandomPatchSpecsGenerator"]
 
 from .patch_specs_generator import (
-    PatchSpecs,
     PatchSpecsGenerator,
     RandomPatchSpecsGenerator,
 )
