@@ -1,6 +1,6 @@
 from collections.abc import Sequence
 from pathlib import Path
-from typing import TypedDict
+from typing import Protocol, TypedDict, Union
 
 from numpy.typing import NDArray
 from typing_extensions import Self
@@ -17,6 +17,14 @@ class PatchSpecs(TypedDict):
     patch_size: Sequence[int]
 
 
+class MultiImageStackConstructor(Protocol):
+
+    # TODO: expand Union for new constructors, or just type hint as Any
+    def __call__(
+        self, source: Union[Sequence[NDArray], Sequence[Path]], *args, **kwargs
+    ) -> "MultiImageStack": ...
+
+
 class MultiImageStack:
     """
     A class for extracting patches from multiple image stacks.
@@ -26,18 +34,18 @@ class MultiImageStack:
         self.image_stacks: list[ImageStack] = list(data_readers)
 
     @classmethod
-    def from_arrays(cls, arrays: Sequence[NDArray], axes: str) -> Self:
+    def from_arrays(cls, source: Sequence[NDArray], axes: str) -> Self:
         data_readers = [
-            InMemoryImageStack.from_array(data=array, axes=axes) for array in arrays
+            InMemoryImageStack.from_array(data=array, axes=axes) for array in source
         ]
         return cls(data_readers=data_readers)
 
     # TODO: rename to load_from_tiff_files?
     #   - to distiguish from possible pointer to files
     @classmethod
-    def from_tiff_files(cls, file_paths: Sequence[Path], axes: str) -> Self:
+    def from_tiff_files(cls, source: Sequence[Path], axes: str) -> Self:
         data_readers = [
-            InMemoryImageStack.from_tiff(path=path, axes=axes) for path in file_paths
+            InMemoryImageStack.from_tiff(path=path, axes=axes) for path in source
         ]
         return cls(data_readers=data_readers)
 
@@ -45,7 +53,7 @@ class MultiImageStack:
     @classmethod
     def from_custom_file_type(
         cls,
-        file_paths: Sequence[Path],
+        source: Sequence[Path],
         axes: str,
         read_func: ReadFunc,
         *read_args,
@@ -59,12 +67,13 @@ class MultiImageStack:
                 read_args=read_args,
                 read_kwargs=read_kwargs,
             )
-            for path in file_paths
+            for path in source
         ]
         return cls(data_readers=data_readers)
 
     @classmethod
-    def from_zarr_files(cls, file_paths: Sequence[Path], *args, **kwargs) -> Self:
+    def from_zarr_files(cls, source, *args, **kwargs) -> Self:
+        # TODO: will this create a ZarrImageStack for each array in the zarr file?
         raise NotImplementedError("Reading from zarr has not been implemented.")
 
     def extract_patch(
