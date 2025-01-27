@@ -3,6 +3,9 @@ from pathlib import Path
 from typing import TypedDict
 
 from numpy.typing import NDArray
+from typing_extensions import Self
+
+from careamics.file_io.read import ReadFunc
 
 from .image_stack import ImageStack, InMemoryImageStack
 
@@ -23,18 +26,46 @@ class MultiImageStack:
         self.image_stacks: list[ImageStack] = list(data_readers)
 
     @classmethod
-    def from_arrays(cls, arrays: Sequence[NDArray], axes: str):
+    def from_arrays(cls, arrays: Sequence[NDArray], axes: str) -> Self:
         data_readers = [
             InMemoryImageStack.from_array(data=array, axes=axes) for array in arrays
         ]
         return cls(data_readers=data_readers)
 
+    # TODO: rename to load_from_tiff_files?
+    #   - to distiguish from possible pointer to files
     @classmethod
-    def from_tiff_files(cls, file_paths: Sequence[Path], axes: str):
+    def from_tiff_files(cls, file_paths: Sequence[Path], axes: str) -> Self:
         data_readers = [
             InMemoryImageStack.from_tiff(path=path, axes=axes) for path in file_paths
         ]
         return cls(data_readers=data_readers)
+
+    # TODO: similar to tiff - rename to load_from_custom_file_type?
+    @classmethod
+    def from_custom_file_type(
+        cls,
+        file_paths: Sequence[Path],
+        axes: str,
+        read_func: ReadFunc,
+        *read_args,
+        **read_kwargs,
+    ) -> Self:
+        data_readers = [
+            InMemoryImageStack.from_custom_file_type(
+                path=path,
+                axes=axes,
+                read_func=read_func,
+                read_args=read_args,
+                read_kwargs=read_kwargs,
+            )
+            for path in file_paths
+        ]
+        return cls(data_readers=data_readers)
+
+    @classmethod
+    def from_zarr_files(cls, file_paths: Sequence[Path], *args, **kwargs) -> Self:
+        raise NotImplementedError("Reading from zarr has not been implemented.")
 
     def extract_patch(
         self,
