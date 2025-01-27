@@ -4,7 +4,7 @@ from pathlib import Path
 from numpy.typing import NDArray
 
 
-class ZarrArrayReader:
+class ZarrImageStack:
 
     def __init__(
         self,

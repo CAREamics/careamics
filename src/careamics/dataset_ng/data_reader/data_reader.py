@@ -4,25 +4,25 @@ from pathlib import Path
 from numpy.typing import NDArray
 
 from ..patching import PatchSpecs
-from .array_reader import ArrayReader, InMemoryArrayReader
+from .image_stack import ImageStack, InMemoryImageStack
 
 
-class DataReader:
+class MultiImageStack:
 
-    def __init__(self, data_readers: Sequence[ArrayReader]):
-        self.array_readers: list[ArrayReader] = list(data_readers)
+    def __init__(self, data_readers: Sequence[ImageStack]):
+        self.image_stacks: list[ImageStack] = list(data_readers)
 
     @classmethod
     def from_arrays(cls, arrays: Sequence[NDArray], axes: str):
         data_readers = [
-            InMemoryArrayReader.from_array(data=array, axes=axes) for array in arrays
+            InMemoryImageStack.from_array(data=array, axes=axes) for array in arrays
         ]
         return cls(data_readers=data_readers)
 
     @classmethod
     def from_tiff_files(cls, file_paths: Sequence[Path], axes: str):
         data_readers = [
-            InMemoryArrayReader.from_tiff(path=path, axes=axes) for path in file_paths
+            InMemoryImageStack.from_tiff(path=path, axes=axes) for path in file_paths
         ]
         return cls(data_readers=data_readers)
 
@@ -33,7 +33,7 @@ class DataReader:
         coords: Sequence[int],
         patch_size: Sequence[int],
     ) -> NDArray:
-        return self.array_readers[data_idx].extract_patch(
+        return self.image_stacks[data_idx].extract_patch(
             sample_idx=sample_idx, coords=coords, patch_size=patch_size
         )
 
