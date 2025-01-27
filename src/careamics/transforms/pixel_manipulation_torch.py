@@ -392,6 +392,8 @@ def median_manipulate_torch(
     subpatch_centers = _get_stratified_coords_torch(
         mask_pixel_percentage, patch.shape, rng
     )
+    subpatch_centers = subpatch_centers.to(device=patch.device)
+
     # arange the list of indices defining the side of ROI square
     roi_span = torch.tensor(
         [-(subpatch_size // 2), (subpatch_size // 2) + 1], device=patch.device
@@ -402,8 +404,10 @@ def median_manipulate_torch(
     # clip the coordinates to the patch size
     subpatch_crops_span_clipped = torch.clamp(
         subpatch_crops_span_full,
-        torch.zeros_like(torch.tensor(patch.shape))[:, None, None],
-        torch.tensor(patch.shape)[:, None, None],
+        torch.zeros_like(torch.tensor(patch.shape))[:, None, None].to(
+            device=patch.device
+        ),
+        torch.tensor(patch.shape)[:, None, None].to(device=patch.device),
     )
     # TODO test and write better comments
     for idx in range(subpatch_crops_span_clipped.shape[1]):
