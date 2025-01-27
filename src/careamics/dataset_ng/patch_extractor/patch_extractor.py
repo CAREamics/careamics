@@ -17,15 +17,15 @@ class PatchSpecs(TypedDict):
     patch_size: Sequence[int]
 
 
-class MultiImageStackConstructor(Protocol):
+class PatchExtractorConstructor(Protocol):
 
     # TODO: expand Union for new constructors, or just type hint as Any
     def __call__(
         self, source: Union[Sequence[NDArray], Sequence[Path]], *args, **kwargs
-    ) -> "MultiImageStack": ...
+    ) -> "PatchExtractor": ...
 
 
-class MultiImageStack:
+class PatchExtractor:
     """
     A class for extracting patches from multiple image stacks.
     """
