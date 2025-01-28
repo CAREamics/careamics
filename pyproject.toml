@@ -125,6 +125,8 @@ convention = "numpy"
 [tool.ruff.lint.per-file-ignores]
 "tests/*.py" = ["D", "S"]
 "setup.py" = ["D"]
+# temporarily ignore docstrings in next generation dataset development
+"src/careamics/dataset_ng/*" = ["D"]
 
 [tool.black]
 line-length = 88
