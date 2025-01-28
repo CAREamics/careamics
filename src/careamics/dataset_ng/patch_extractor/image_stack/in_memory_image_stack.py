@@ -1,6 +1,6 @@
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Literal, Union
+from typing import Any, Literal, Union
 
 from numpy.typing import NDArray
 from typing_extensions import Self
@@ -47,8 +47,8 @@ class InMemoryImageStack:
 
     @classmethod
     def from_custom_file_type(
-        cls, path: Path, axes: str, read_func: ReadFunc, *read_args, **read_kwargs
+        cls, path: Path, axes: str, read_func: ReadFunc, **read_kwargs: Any
     ) -> Self:
-        data = read_func(path, *read_args, **read_kwargs)
+        data = read_func(path, **read_kwargs)
         data = reshape_array(data, axes)
         return cls(source=path, data=data)
