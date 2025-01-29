@@ -8,7 +8,7 @@ from typing import Literal, Optional, Union
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from .callback_model import CheckpointModel, EarlyStoppingModel
-
+from pytorch_lightning.callbacks import ModelCheckpoint
 
 class TrainingConfig(BaseModel):
     """
@@ -28,6 +28,7 @@ class TrainingConfig(BaseModel):
     # Pydantic class configuration
     model_config = ConfigDict(
         validate_assignment=True,
+        arbitrary_types_allowed=True, #test - Diya 27.1.25
     )
 
     num_epochs: int = Field(default=20, ge=1)
@@ -54,6 +55,9 @@ class TrainingConfig(BaseModel):
     checkpoint_callback: CheckpointModel = CheckpointModel()
     """Checkpoint callback configuration, following PyTorch Lightning Checkpoint
     callback."""
+
+    model_checkpoint: Optional[ModelCheckpoint] = None
+    """Optional override for the model checkpoint configuration."""
 
     early_stopping_callback: Optional[EarlyStoppingModel] = Field(
         default=None, validate_default=True

@@ -3,6 +3,7 @@
 from typing import Annotated, Any, Literal, Optional, Union
 
 from pydantic import Discriminator, Tag, TypeAdapter
+from pytorch_lightning.callbacks import ModelCheckpoint
 
 from careamics.config.algorithms import CAREAlgorithm, N2NAlgorithm, N2VAlgorithm
 from careamics.config.architectures import UNetModel
@@ -225,6 +226,7 @@ def _create_configuration(
     use_n2v2: bool = False,
     model_params: Optional[dict] = None,
     dataloader_params: Optional[dict] = None,
+    model_checkpoint: Optional[ModelCheckpoint] = None,
 ) -> Configuration:
     """
     Create a configuration for training N2V, CARE or Noise2Noise.
@@ -302,6 +304,7 @@ def _create_configuration(
         num_epochs=num_epochs,
         batch_size=batch_size,
         logger=None if logger == "none" else logger,
+        model_checkpoint=model_checkpoint, 
     )
 
     # create configuration
@@ -332,6 +335,7 @@ def _create_supervised_configuration(
     logger: Literal["wandb", "tensorboard", "none"] = "none",
     model_params: Optional[dict] = None,
     dataloader_params: Optional[dict] = None,
+    model_checkpoint: Optional[ModelCheckpoint] = None,
 ) -> Configuration:
     """
     Create a configuration for training CARE or Noise2Noise.
@@ -417,6 +421,7 @@ def _create_supervised_configuration(
         logger=logger,
         model_params=model_params,
         dataloader_params=dataloader_params,
+        model_checkpoint=model_checkpoint,
     )
 
 
@@ -435,6 +440,7 @@ def create_care_configuration(
     logger: Literal["wandb", "tensorboard", "none"] = "none",
     model_params: Optional[dict] = None,
     dataloader_params: Optional[dict] = None,
+    model_checkpoint: Optional[ModelCheckpoint] = None,
 ) -> Configuration:
     """
     Create a configuration for training CARE.
@@ -489,6 +495,9 @@ def create_care_configuration(
         UNetModel parameters.
     dataloader_params : dict, optional
         Parameters for the dataloader, see PyTorch notes, by default None.
+    modelcheckpoint : ModelCheckpoint, optional
+        PyTorch Lightning ModelCheckpoint configuration. If not provided, 
+        default checkpoint settings will be used.
 
     Returns
     -------
@@ -578,6 +587,7 @@ def create_care_configuration(
         logger=logger,
         model_params=model_params,
         dataloader_params=dataloader_params,
+        model_checkpoint=model_checkpoint,
     )
 
 
