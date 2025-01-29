@@ -52,7 +52,7 @@ class CAREamist:
         by default None.
     callbacks : list of Callback, optional
         List of callbacks to use during training and prediction, by default None.
-        Note: ModelCheckpoint configuration should be set through the Configuration 
+        Note: ModelCheckpoint configuration should be set through the Configuration
         object (config.training_config.model_checkpoint) rather than through callbacks.
 
     Attributes
@@ -221,9 +221,9 @@ class CAREamist:
     def _define_callbacks(self, callbacks: Optional[list[Callback]] = None) -> None:
         """Define the callbacks for the training loop.
 
-        ModelCheckpoint configuration should be provided through the Configuration 
+        ModelCheckpoint configuration should be provided through the Configuration
         object (config.training_config.model_checkpoint) rather than through callbacks.
-        If no ModelCheckpoint is specified in the configuration, default checkpoint 
+        If no ModelCheckpoint is specified in the configuration, default checkpoint
         settings will be used.
 
         Parameters
@@ -254,12 +254,14 @@ class CAREamist:
         self.callbacks.extend(
             [
                 HyperParametersCallback(self.cfg),
-                self.cfg.training_config.model_checkpoint
-                if self.cfg.training_config.model_checkpoint is not None
-                else ModelCheckpoint(
-                    dirpath=self.work_dir / Path("checkpoints"),
-                    filename=self.cfg.experiment_name,
-                    **self.cfg.training_config.checkpoint_callback.model_dump(),
+                (
+                    self.cfg.training_config.model_checkpoint
+                    if self.cfg.training_config.model_checkpoint is not None
+                    else ModelCheckpoint(
+                        dirpath=self.work_dir / Path("checkpoints"),
+                        filename=self.cfg.experiment_name,
+                        **self.cfg.training_config.checkpoint_callback.model_dump(),
+                    )
                 ),
                 ProgressBarCallback(),
             ]

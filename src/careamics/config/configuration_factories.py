@@ -304,7 +304,7 @@ def _create_configuration(
         num_epochs=num_epochs,
         batch_size=batch_size,
         logger=None if logger == "none" else logger,
-        model_checkpoint=model_checkpoint, 
+        model_checkpoint=model_checkpoint,
     )
 
     # create configuration
@@ -496,7 +496,7 @@ def create_care_configuration(
     dataloader_params : dict, optional
         Parameters for the dataloader, see PyTorch notes, by default None.
     modelcheckpoint : ModelCheckpoint, optional
-        PyTorch Lightning ModelCheckpoint configuration. If not provided, 
+        PyTorch Lightning ModelCheckpoint configuration. If not provided,
         default checkpoint settings will be used.
 
     Returns
