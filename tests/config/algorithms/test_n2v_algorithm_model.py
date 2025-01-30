@@ -1,6 +1,7 @@
 import pytest
 
 from careamics.config.algorithms import N2VAlgorithm
+from careamics.config.support import SupportedPixelManipulation
 
 
 def test_n_channels_n2v():
@@ -41,3 +42,23 @@ def test_no_final_activation(minimum_algorithm_n2v: dict):
     }
     with pytest.raises(ValueError):
         N2VAlgorithm(**minimum_algorithm_n2v)
+
+
+def test_set_n2v_strategy(minimum_algorithm_n2v: dict):
+    """Test that the N2V2 can be set."""
+    uniform = SupportedPixelManipulation.UNIFORM.value
+    median = SupportedPixelManipulation.MEDIAN.value
+
+    # Test default
+    cfg = N2VAlgorithm(**minimum_algorithm_n2v)
+    assert cfg.n2v_config.strategy == uniform
+
+    # Test setting to n2v2
+    cfg.set_n2v2(True)
+    assert cfg.n2v_config.strategy == median
+    assert cfg.model.n2v2 is True
+
+    # Test setting back to n2v
+    cfg.set_n2v2(False)
+    assert cfg.n2v_config.strategy == uniform
+    assert cfg.model.n2v2 is False

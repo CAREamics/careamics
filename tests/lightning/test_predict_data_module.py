@@ -10,24 +10,27 @@ def simple_array(ordered_array):
     return ordered_array((10, 10))
 
 
-def test_mismatching_types_array(simple_array, minimum_data):
+def test_mismatching_types_array(simple_array, minimum_algorithm_n2v):
     """Test that an error is raised if the data type does not match the passed data."""
-    minimum_data["data_type"] = SupportedData.TIFF.value
+    minimum_algorithm_n2v["data_type"] = SupportedData.TIFF.value
     with pytest.raises(ValueError):
         PredictDataModule(
-            data_config=InferenceConfig(**minimum_data), train_data=simple_array
+            data_config=InferenceConfig(**minimum_algorithm_n2v),
+            train_data=simple_array,
         )
 
-    minimum_data["data_type"] = SupportedData.CUSTOM.value
+    minimum_algorithm_n2v["data_type"] = SupportedData.CUSTOM.value
     with pytest.raises(ValueError):
         PredictDataModule(
-            data_config=InferenceConfig(**minimum_data), train_data=simple_array
+            data_config=InferenceConfig(**minimum_algorithm_n2v),
+            train_data=simple_array,
         )
 
-    minimum_data["data_type"] = SupportedData.ARRAY.value
+    minimum_algorithm_n2v["data_type"] = SupportedData.ARRAY.value
     with pytest.raises(ValueError):
         PredictDataModule(
-            data_config=InferenceConfig(**minimum_data), train_data="path/to/data"
+            data_config=InferenceConfig(**minimum_algorithm_n2v),
+            train_data="path/to/data",
         )
 
 

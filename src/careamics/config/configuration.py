@@ -11,7 +11,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 from typing_extensions import Self
 
 from careamics.config.algorithms import UNetBasedAlgorithm, VAEBasedAlgorithm
-from careamics.config.data import GeneralDataConfig
+from careamics.config.data import DataConfig
 from careamics.config.training_model import TrainingConfig
 
 
@@ -129,7 +129,7 @@ class Configuration(BaseModel):
     """Algorithm configuration, holding all parameters required to configure the
     model."""
 
-    data_config: GeneralDataConfig
+    data_config: DataConfig
     """Data configuration, holding all parameters required to configure the training
     data loader."""
 
