@@ -14,20 +14,29 @@ this PR. Use code examples if useful. -->
 
 ### Overview - what changed?
 
-<!-- What aspects and mechanisms of the code base changed? Describe only the over
-arching features. -->
+<!-- What aspects and mechanisms of the code base changed? Describe only the general 
+idea and overarching features. -->
 
 ### Implementation - how did you implement the changes?
 
-<!-- How did you solve the issue? Provide code examples if applicable and explain why
-you chose this approach. -->
+<!-- How did you solve the issue technically? Explain why you chose this approach and 
+provide code examples if applicable (e.g. change in the API for users). -->
 
 
 ## Changes Made
 
 <!-- This section highlights the important features and files that reviewers should
 pay attention to when reviewing. Only list important features or files, this is useful for 
-reviewers to correctly assess how deeply the modifications impact the code base. -->
+reviewers to correctly assess how deeply the modifications impact the code base.
+
+For instance:
+
+### New features or files
+- `NewClass` added to `new_file.py`
+- `new_function` added to `existing_file.py`
+
+...
+-->
 
 ### New features or files
 
@@ -43,6 +52,13 @@ reviewers to correctly assess how deeply the modifications impact the code base.
 
 <!-- List removed features or files. -->
 -
+
+## How has this been tested?
+
+<!-- Describe the tests that you ran to verify your changes. This can be a short 
+description of the tests added to the PR or code snippet to reproduce the change
+in behaviour. -->
+
 
 ## Related Issues
 
