@@ -44,7 +44,7 @@ classifiers = [
 dependencies = [
     'numpy<2.0.0',
     'torch>=2.0,<=2.5.1',
-    'torchvision<=0.20.1',
+    'torchvision<=0.21.0',
     'bioimageio.core==0.7',
     'tifffile<=2025.1.10',
     'psutil<=6.1.1',
