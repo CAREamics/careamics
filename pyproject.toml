@@ -43,7 +43,7 @@ classifiers = [
 ]
 dependencies = [
     'numpy<2.0.0',
-    'torch>=2.0,<=2.5.1',
+    'torch>=2.0,<=2.6.0',
     'torchvision<=0.20.1',
     'bioimageio.core==0.7',
     'tifffile<=2025.1.10',
