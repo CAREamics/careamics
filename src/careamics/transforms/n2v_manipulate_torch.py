@@ -7,7 +7,10 @@ import torch
 from careamics.config.support import SupportedPixelManipulation, SupportedStructAxis
 from careamics.config.transformations import N2VManipulateModel
 
-from .pixel_manipulation_torch import median_manipulate_torch, uniform_manipulate_torch
+from .pixel_manipulation_torch import (
+    median_manipulate_torch_vect,
+    uniform_manipulate_torch,
+)
 from .struct_mask_parameters import StructMaskParameters
 
 
@@ -115,8 +118,8 @@ class N2VManipulateTorch:
         elif self.strategy == SupportedPixelManipulation.MEDIAN:
             # Iterate over the channels to apply manipulation separately
             for c in range(batch.shape[1]):
-                masked[:, c, ...], mask[:, c, ...] = median_manipulate_torch(
-                    patch=batch[:, c, ...],
+                masked[:, c, ...], mask[:, c, ...] = median_manipulate_torch_vect(
+                    batch=batch[:, c, ...],
                     mask_pixel_percentage=self.masked_pixel_percentage,
                     subpatch_size=self.roi_size,
                     struct_params=self.struct_mask,

@@ -12,6 +12,7 @@ from careamics.transforms.pixel_manipulation_torch import (
     _apply_struct_mask_torch,
     _get_stratified_coords_torch,
     median_manipulate_torch,
+    median_manipulate_torch_vect,
     uniform_manipulate_torch,
 )
 from careamics.transforms.struct_mask_parameters import StructMaskParameters
@@ -424,6 +425,111 @@ def test_median_manipulate_torch(ordered_array, shape):
         assert transform_patch[tuple(coords)] == torch.median(roi)
 
 
+@pytest.mark.parametrize("shape", [(4, 8, 8), (4, 3, 8, 8), (4, 8, 8, 8)])
+def test_median_manipulate_torch_vect(ordered_array, shape):
+    """Test the median_manipulate function.
+
+    Ensures that the mask corresponds to the manipulated pixels, and that the
+    manipulated pixels have a value taken from a ROI surrounding them.
+    """
+    rng = torch.Generator().manual_seed(42)
+
+    # Create the tensor
+    patch = torch.from_numpy(ordered_array(shape)).float()
+    subpatch_size = 5
+    # Manipulate the tensor
+    transform_patch, mask = median_manipulate_torch_vect(
+        patch, subpatch_size=subpatch_size, mask_pixel_percentage=10, rng=rng
+    )
+
+    # Find pixels that have different values between patch and transformed patch
+    diff_coords = torch.nonzero(patch != transform_patch, as_tuple=False).T
+
+    # Find non-zero pixels in the mask
+    mask_coords = torch.nonzero(mask == 1, as_tuple=False).T
+
+    # Check that the transformed pixels correspond to the masked pixels
+    assert torch.equal(diff_coords, mask_coords)
+
+    # For each pixel masked, check that the manipulated pixel value is within the ROI
+    for i in range(mask_coords.shape[-1]):
+        # Get coordinates
+        coords = mask_coords[:, i]
+
+        # Get ROI using slice in each dimension
+        slices = [slice(coords[0], coords[0] + 1)] + [
+            slice(max(0, coords[j] - 2), min(shape[j], coords[j] + 3))
+            for j in range(1, len(coords))
+        ]
+        roi = patch[slices]
+
+        # Remove value of ROI center from ROI
+        roi = roi[roi != patch[tuple(coords)]]
+
+        # Check that the pixel value comes from the actual ROI
+        if roi.numel() == subpatch_size**2 - 1:
+            assert torch.equal(transform_patch[tuple(coords)], torch.median(roi))
+
+
+@pytest.mark.skip(reason="Not implemented yet")
+@pytest.mark.parametrize(
+    "shape, struct_axis, struct_span",
+    [((4, 8, 8), 0, 3), ((4, 3, 8, 8), 1, 3), ((4, 8, 8, 8), 0, 3)],
+)
+def test_median_manipulate_torch_vect_struct(
+    ordered_array, shape, struct_axis, struct_span
+):
+    """Test the median_manipulate function.
+
+    Ensures that the mask corresponds to the manipulated pixels, and that the
+    manipulated pixels have a value taken from a ROI surrounding them.
+    """
+    rng = torch.Generator().manual_seed(42)
+
+    struct_params = StructMaskParameters(axis=struct_axis, span=struct_span)
+
+    # Create the tensor
+    patch = torch.from_numpy(ordered_array(shape)).float()
+    subpatch_size = 5
+    # Manipulate the tensor
+    transform_patch, mask = median_manipulate_torch_vect(
+        patch,
+        subpatch_size=subpatch_size,
+        mask_pixel_percentage=10,
+        struct_params=struct_params,
+        rng=rng,
+    )
+
+    # Find pixels that have different values between patch and transformed patch
+    diff_coords = torch.nonzero(patch != transform_patch, as_tuple=False).T
+
+    # Find non-zero pixels in the mask
+    mask_coords = torch.nonzero(mask == 1, as_tuple=False).T
+
+    # Check that the transformed pixels correspond to the masked pixels
+    assert torch.equal(diff_coords, mask_coords)
+
+    # For each pixel masked, check that the manipulated pixel value is within the ROI
+    for i in range(mask_coords.shape[-1]):
+        # Get coordinates
+        coords = mask_coords[:, i]
+
+        # Get ROI using slice in each dimension
+        slices = [slice(coords[0], coords[0] + 1)] + [
+            slice(max(0, coords[j] - 2), min(shape[j], coords[j] + 3))
+            for j in range(1, len(coords))
+        ]
+        roi = patch[slices]
+
+        # Remove value of ROI center from ROI
+        roi = roi[roi != patch[tuple(coords)]]
+
+        # Check that the pixel value comes from the actual ROI
+        if roi.numel() == subpatch_size**2 - 1:
+            assert torch.equal(transform_patch[tuple(coords)], torch.median(roi))
+
+
+# TODO add tests for struct with uniform/meadian
 @pytest.mark.parametrize(
     "patch_shape, coords, struct_axis, struct_span",
     [

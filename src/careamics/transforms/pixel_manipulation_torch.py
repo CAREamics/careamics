@@ -367,7 +367,7 @@ def median_manipulate_torch(
     Parameters
     ----------
     patch : torch.Tensor
-        Image patch, 2D or 3D, shape (y, x) or (z, y, x).
+        Batch of input patches, 2D or 3D, shape (b, y, x) or (b, z, y, x).
     mask_pixel_percentage : float
         Approximate percentage of pixels to be masked.
     subpatch_size : int
@@ -379,8 +379,8 @@ def median_manipulate_torch(
 
     Returns
     -------
-    tuple[torch.Tensor, torch.Tensor, torch.Tensor]
-           tuple containing the manipulated patch, the original patch and the mask.
+    tuple[torch.Tensor, torch.Tensor]
+           tuple containing the manipulated batch and the mask.
     """
     if rng is None:
         rng = torch.default_generator
@@ -400,6 +400,8 @@ def median_manipulate_torch(
     )
     # define a range of coordinates for the subpatch
     subpatch_crops_span_full = subpatch_centers[None, ...].T + roi_span
+    # subpatch_centers[..., None] + roi_span[None, None, :]
+    # # TODO refactor, improve
 
     # clip the coordinates to the patch size
     subpatch_crops_span_clipped = torch.clamp(
@@ -427,6 +429,7 @@ def median_manipulate_torch(
             subpatch_mask = _create_subpatch_struct_mask(
                 subpatch, subpatch_center_adjusted, struct_params
             )
+        # TODO do median on the whole transformed_patch
         transformed_patch[tuple(subpatch_centers[idx])] = torch.median(
             subpatch[subpatch_mask]
         )
@@ -442,3 +445,120 @@ def median_manipulate_torch(
         transformed_patch,
         mask,
     )
+
+
+def median_manipulate_torch_vect(
+    batch: torch.Tensor,
+    mask_pixel_percentage: float,
+    subpatch_size: int = 11,
+    struct_params: Optional[StructMaskParameters] = None,
+    rng: Optional[torch.Generator] = None,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """
+    Manipulate pixels by replacing them with the median of their surrounding subpatch.
+
+    N2V2 version, manipulated pixels are selected randomly away from a grid with an
+    approximate uniform probability to be selected across the whole patch.
+
+    If `struct_params` is not None, an additional structN2V mask is applied to the data,
+    replacing the pixels in the mask with random values (excluding the pixel already
+    manipulated).
+
+    Parameters
+    ----------
+    batch : torch.Tensor
+        Image patch, 2D or 3D, shape (y, x) or (z, y, x).
+    mask_pixel_percentage : float
+        Approximate percentage of pixels to be masked.
+    subpatch_size : int
+        Size of the subpatch the new pixel value is sampled from, by default 11.
+    struct_params : StructMaskParameters or None, optional
+        Parameters for the structN2V mask (axis and span).
+    rng : torch.default_generator or None, optional
+        Random number generato, by default None.
+
+    Returns
+    -------
+    tuple[torch.Tensor, torch.Tensor, torch.Tensor]
+           tuple containing the manipulated patch, the original patch and the mask.
+    """
+    # get the coordinates of the future ROI centers
+    subpatch_center_coordinates = _get_stratified_coords_torch(
+        mask_pixel_percentage, batch.shape, rng
+    ).to(device=batch.device)
+
+    # Calculate the padding value for the input tensor
+    pad_value = subpatch_size // 2
+
+    # Generate all offsets for the ROIs
+    offsets = torch.meshgrid(
+        [
+            torch.arange(-pad_value, pad_value + 1, device=batch.device)
+            for i in range(1, subpatch_center_coordinates.shape[1])
+        ],
+        indexing="ij",
+    )
+    offsets = torch.stack(
+        [axis_offset.flatten() for axis_offset in offsets], dim=1
+    )  # (subpatch_size**2, num_spacial_dims)
+
+    # Create the list to assemble coordinates of the ROIs centers for each axis
+    coords_axes = []
+    # Create the list to assemble the span of coordinates defining the ROIs for each
+    # axis
+    coords_expands = []
+    for d in range(subpatch_center_coordinates.shape[1]):
+        coords_axes.append(subpatch_center_coordinates[:, d])
+        if d == 0:
+            # For batch dimension coordinates are not expanded (no offsets)
+            coords_expands.append(
+                subpatch_center_coordinates[:, d]
+                .unsqueeze(1)
+                .expand(-1, subpatch_size ** offsets.shape[1])
+            )  # (num_coordinates, subpatch_size**num_spacial_dims)
+        else:
+            # For spatial dimensions, coordinates are expanded with offsets, creating
+            # spans
+            coords_expands.append(
+                (
+                    subpatch_center_coordinates[:, d].unsqueeze(1) + offsets[:, d - 1]
+                ).clamp(0, batch.shape[d] - 1)
+            )  # (num_coordinates, subpatch_size**num_spacial_dims)
+
+    # create array of rois by indexing the batch with gathered coordinates
+    rois = batch[
+        tuple(coords_expands)
+    ]  # (num_coordinates, subpatch_size**num_spacial_dims)
+
+    if struct_params is not None:
+        # Create the structN2V mask
+        h, w = torch.meshgrid(
+            torch.arange(subpatch_size), torch.arange(subpatch_size), indexing="ij"
+        )
+        center_idx = subpatch_size // 2
+        span = (struct_params.span - 1) // 2
+        struct_mask = (
+            ~((w == center_idx) & (h >= center_idx - span) & (h <= center_idx + span))
+        ).flatten()
+        rois_filtered = rois[:, struct_mask]
+    else:
+        # Remove the center pixel value from the rois
+        center_idx = (subpatch_size ** offsets.shape[1]) // 2
+        rois_filtered = torch.cat(
+            [rois[:, :center_idx], rois[:, center_idx + 1 :]], dim=1
+        )
+
+    # compute the medians.
+    medians = rois_filtered.median(dim=1).values  # (num_coordinates,)
+
+    # Update the output tensor with medians
+    output_batch = batch.clone()
+    output_batch[tuple(coords_axes)] = medians
+    mask = torch.where(output_batch != batch, 1, 0).to(torch.uint8)
+
+    if struct_params is not None:
+        output_batch = _apply_struct_mask_torch(
+            output_batch, subpatch_center_coordinates, struct_params
+        )
+
+    return output_batch, mask
