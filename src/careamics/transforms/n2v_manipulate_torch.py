@@ -8,7 +8,7 @@ from careamics.config.support import SupportedPixelManipulation, SupportedStruct
 from careamics.config.transformations import N2VManipulateModel
 
 from .pixel_manipulation_torch import (
-    median_manipulate_torch_vect,
+    median_manipulate_torch,
     uniform_manipulate_torch,
 )
 from .struct_mask_parameters import StructMaskParameters
@@ -76,10 +76,16 @@ class N2VManipulateTorch:
             )
 
         # PyTorch random generator
+        # TODO check
+        device = (
+            "cuda"
+            if torch.cuda.is_available()
+            else "mps" if torch.backends.mps.is_available() else "cpu"
+        )
         self.rng = (
-            torch.Generator().manual_seed(seed)
+            torch.Generator(device=device).manual_seed(seed)
             if seed is not None
-            else torch.default_generator
+            else torch.Generator(device=device)
         )
 
     def __call__(
@@ -118,7 +124,7 @@ class N2VManipulateTorch:
         elif self.strategy == SupportedPixelManipulation.MEDIAN:
             # Iterate over the channels to apply manipulation separately
             for c in range(batch.shape[1]):
-                masked[:, c, ...], mask[:, c, ...] = median_manipulate_torch_vect(
+                masked[:, c, ...], mask[:, c, ...] = median_manipulate_torch(
                     batch=batch[:, c, ...],
                     mask_pixel_percentage=self.masked_pixel_percentage,
                     subpatch_size=self.roi_size,
