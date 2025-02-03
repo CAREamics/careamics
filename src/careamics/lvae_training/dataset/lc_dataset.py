@@ -97,7 +97,8 @@ class LCMultiChDloader(MultiChDloader):
             ]
 
         self.N = len(t_list)
-        self.set_img_sz(self._img_sz, self._grid_sz)
+        # TODO where tf is self._img_sz defined?
+        self.set_img_sz([self._img_sz, self._img_sz], self._grid_sz)
         print(
             f"[{self.__class__.__name__}] Data reduced. New data shape: {self._data.shape}"
         )
