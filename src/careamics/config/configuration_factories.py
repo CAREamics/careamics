@@ -46,7 +46,7 @@ def _algorithm_config_discriminator(value: Union[dict, Configuration]) -> str:
 
 
 def configuration_factory(
-    configuration: dict[str, Any]
+    configuration: dict[str, Any],
 ) -> Union[N2VConfiguration, N2NConfiguration, CAREConfiguration]:
     """
     Create a configuration for training CAREamics.
@@ -75,7 +75,7 @@ def configuration_factory(
 
 
 def algorithm_factory(
-    algorithm: dict[str, Any]
+    algorithm: dict[str, Any],
 ) -> Union[N2VAlgorithm, N2NAlgorithm, CAREAlgorithm]:
     """
     Create an algorithm model for training CAREamics.
