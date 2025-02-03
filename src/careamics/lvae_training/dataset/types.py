@@ -3,7 +3,7 @@ from enum import Enum
 
 class DataType(Enum):
     Elisa3DData = 0
-    NicolaData = 1
+    HTLIF24Data = 1
     Pavia3SeqData = 2
     TavernaSox2GolgiV2 = 3
     Dao3ChannelWithInput = 4

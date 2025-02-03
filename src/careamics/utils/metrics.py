@@ -14,6 +14,31 @@ from torchmetrics.image import MultiScaleStructuralSimilarityIndexMeasure
 # TODO: does this add additional dependency?
 
 
+# TODO revisit metric for notebook
+def avg_range_invariant_psnr(
+    pred: np.ndarray,
+    target: np.ndarray,
+) -> float:
+    """Compute the average range-invariant PSNR.
+
+    Parameters
+    ----------
+    pred : np.ndarray
+        Predicted images.
+    target : np.ndarray
+        Target images.
+
+    Returns
+    -------
+    float
+        Average range-invariant PSNR value.
+    """
+    psnr_arr = []
+    for i in range(pred.shape[0]):
+        psnr_arr.append(scale_invariant_psnr(pred[i], target[i]))
+    return np.mean(psnr_arr)
+
+
 def psnr(gt: np.ndarray, pred: np.ndarray, data_range: float) -> float:
     """
     Peak Signal to Noise Ratio.
