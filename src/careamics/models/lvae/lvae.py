@@ -12,8 +12,6 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from careamics.config.architectures import register_model
-
 from ..activation import get_activation
 from .layers import (
     BottomUpDeterministicResBlock,
@@ -25,7 +23,6 @@ from .layers import (
 from .utils import Interpolate, ModelType, crop_img_tensor
 
 
-@register_model("LVAE")
 class LadderVAE(nn.Module):
     """
     Constructor.

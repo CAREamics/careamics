@@ -324,6 +324,8 @@ class NoiseModelLikelihood(LikelihoodModule):
         if self.data_mean.device != correct_device_tensor.device:
             self.data_mean = self.data_mean.to(correct_device_tensor.device)
             self.data_std = self.data_std.to(correct_device_tensor.device)
+        if correct_device_tensor.device != self.noiseModel.device:
+            self.noiseModel.to_device(correct_device_tensor.device)
 
     def get_mean_lv(self, x: torch.Tensor) -> tuple[torch.Tensor, None]:
         return x, None

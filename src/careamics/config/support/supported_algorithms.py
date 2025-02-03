@@ -6,7 +6,11 @@ from careamics.utils import BaseEnum
 
 
 class SupportedAlgorithm(str, BaseEnum):
-    """Algorithms available in CAREamics."""
+    """Algorithms available in CAREamics.
+
+    These definitions are the same as the keyword `name` of the algorithm
+    configurations.
+    """
 
     N2V = "n2v"
     """Noise2Void algorithm, a self-supervised approach based on blind denoising."""
@@ -24,9 +28,6 @@ class SupportedAlgorithm(str, BaseEnum):
 
     DENOISPLIT = "denoisplit"
     """An image splitting and denoising approach based on ladder VAE architectures."""
-
-    CUSTOM = "custom"
-    """Custom algorithm, used for cases where a custom architecture is provided."""
 
     # PN2V = "pn2v"
     # HDN = "hdn"

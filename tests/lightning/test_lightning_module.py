@@ -1,7 +1,7 @@
 import pytest
 import torch
 
-from careamics.config import FCNAlgorithmConfig
+from careamics.config import UNetBasedAlgorithm
 from careamics.lightning.lightning_module import (
     FCNModule,
     create_careamics_module,
@@ -13,7 +13,7 @@ from careamics.lightning.lightning_module import (
 def test_careamics_module(minimum_algorithm_n2v):
     """Test that the minimum algorithm allows instantiating a the Lightning API
     intermediate layer."""
-    algo_config = FCNAlgorithmConfig(**minimum_algorithm_n2v)
+    algo_config = UNetBasedAlgorithm(**minimum_algorithm_n2v)
 
     # extract model parameters
     model_parameters = algo_config.model.model_dump(exclude_none=True)
@@ -33,7 +33,7 @@ def test_careamics_module(minimum_algorithm_n2v):
 
 def test_careamics_fcn(minimum_algorithm_n2v):
     """Test that the minimum algorithm allows instantiating a CAREamicsKiln."""
-    algo_config = FCNAlgorithmConfig(**minimum_algorithm_n2v)
+    algo_config = UNetBasedAlgorithm(**minimum_algorithm_n2v)
 
     # instantiate CAREamicsKiln
     FCNModule(algo_config)
@@ -59,7 +59,7 @@ def test_fcn_module_unet_2D_depth_2_shape(shape):
         },
         "loss": "mae",
     }
-    algo_config = FCNAlgorithmConfig(**algo_dict)
+    algo_config = UNetBasedAlgorithm(**algo_dict)
 
     # instantiate CAREamicsKiln
     model = FCNModule(algo_config)
@@ -94,7 +94,7 @@ def test_fcn_module_unet_2D_depth_3_shape(shape):
         },
         "loss": "mae",
     }
-    algo_config = FCNAlgorithmConfig(**algo_dict)
+    algo_config = UNetBasedAlgorithm(**algo_dict)
 
     # instantiate CAREamicsKiln
     model = FCNModule(algo_config)
@@ -127,7 +127,7 @@ def test_fcn_module_unet_depth_2_3D(shape):
         },
         "loss": "mae",
     }
-    algo_config = FCNAlgorithmConfig(**algo_dict)
+    algo_config = UNetBasedAlgorithm(**algo_dict)
 
     # instantiate CAREamicsKiln
     model = FCNModule(algo_config)
@@ -160,7 +160,7 @@ def test_fcn_module_unet_depth_3_3D(shape):
         },
         "loss": "mae",
     }
-    algo_config = FCNAlgorithmConfig(**algo_dict)
+    algo_config = UNetBasedAlgorithm(**algo_dict)
 
     # instantiate CAREamicsKiln
     model = FCNModule(algo_config)
@@ -194,7 +194,7 @@ def test_fcn_module_unet_depth_3_3D_n2v2(shape):
         },
         "loss": "n2v",
     }
-    algo_config = FCNAlgorithmConfig(**algo_dict)
+    algo_config = UNetBasedAlgorithm(**algo_dict)
 
     # instantiate CAREamicsKiln
     model = FCNModule(algo_config)
@@ -219,7 +219,7 @@ def test_fcn_module_unet_depth_2_channels_2D(n_channels):
         },
         "loss": "mae",
     }
-    algo_config = FCNAlgorithmConfig(**algo_dict)
+    algo_config = UNetBasedAlgorithm(**algo_dict)
 
     # instantiate CAREamicsKiln
     model = FCNModule(algo_config)
@@ -248,7 +248,7 @@ def test_fcn_module_unet_depth_3_channels_2D(n_channels, independent_channels):
         },
         "loss": "mae",
     }
-    algo_config = FCNAlgorithmConfig(**algo_dict)
+    algo_config = UNetBasedAlgorithm(**algo_dict)
 
     # instantiate CAREamicsKiln
     model = FCNModule(algo_config)
@@ -273,7 +273,7 @@ def test_fcn_module_unet_depth_2_channels_3D(n_channels):
         },
         "loss": "mae",
     }
-    algo_config = FCNAlgorithmConfig(**algo_dict)
+    algo_config = UNetBasedAlgorithm(**algo_dict)
 
     # instantiate CAREamicsKiln
     model = FCNModule(algo_config)
@@ -298,7 +298,7 @@ def test_fcn_module_unet_depth_3_channels_3D(n_channels):
         },
         "loss": "mae",
     }
-    algo_config = FCNAlgorithmConfig(**algo_dict)
+    algo_config = UNetBasedAlgorithm(**algo_dict)
 
     # instantiate CAREamicsKiln
     model = FCNModule(algo_config)
@@ -311,15 +311,16 @@ def test_fcn_module_unet_depth_3_channels_3D(n_channels):
 
 
 @pytest.mark.parametrize("tiled", [False, True])
-def test_prediction_callback_during_training(minimum_configuration, tiled):
+def test_prediction_callback_during_training(minimum_n2v_configuration, tiled):
     import numpy as np
     from pytorch_lightning import Callback, Trainer
 
-    from careamics import CAREamist, Configuration
+    from careamics import CAREamist
+    from careamics.config import configuration_factory
     from careamics.lightning import PredictDataModule, create_predict_datamodule
     from careamics.prediction_utils import convert_outputs
 
-    config = Configuration(**minimum_configuration)
+    config = configuration_factory(minimum_n2v_configuration)
 
     class CustomPredictAfterValidationCallback(Callback):
         def __init__(self, pred_datamodule: PredictDataModule):

@@ -48,6 +48,7 @@ class UNetModel(ArchitectureModel):
     num_channels_init: int = Field(default=32, ge=8, le=1024, validate_default=True)
     """Number of convolutional filters in the first layer of the UNet."""
 
+    # TODO we are not using this, so why make it a choice?
     final_activation: Literal[
         "None", "Sigmoid", "Softmax", "Tanh", "ReLU", "LeakyReLU"
     ] = Field(default="None", validate_default=True)

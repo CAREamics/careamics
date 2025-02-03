@@ -1,17 +1,30 @@
 import pytest
 
 from careamics.config import (
+    CAREAlgorithm,
+    CAREConfiguration,
+    DataConfig,
+    N2NAlgorithm,
+    N2NConfiguration,
+    N2VAlgorithm,
+    N2VConfiguration,
+    algorithm_factory,
     create_care_configuration,
     create_n2n_configuration,
     create_n2v_configuration,
 )
-from careamics.config.configuration_factory import (
+from careamics.config.configuration_factories import (
+    _algorithm_config_discriminator,
     _create_configuration,
     _create_supervised_configuration,
     _create_unet_configuration,
-    _list_augmentations,
+    _list_spatial_augmentations,
+    configuration_factory,
+    data_factory,
 )
+from careamics.config.data import N2VDataConfig
 from careamics.config.support import (
+    SupportedAlgorithm,
     SupportedPixelManipulation,
     SupportedStructAxis,
     SupportedTransform,
@@ -23,9 +36,82 @@ from careamics.config.transformations import (
 )
 
 
+def test_algorithm_discriminator_n2v(minimum_n2v_configuration):
+    """Test that the N2V configuration is discriminated correctly."""
+    tag = _algorithm_config_discriminator(minimum_n2v_configuration)
+    assert tag == SupportedAlgorithm.N2V.value
+
+
+@pytest.mark.parametrize(
+    "algorithm", [SupportedAlgorithm.N2N.value, SupportedAlgorithm.CARE.value]
+)
+def test_algorithm_discriminator_supervised(
+    minimum_supervised_configuration, algorithm
+):
+    """Test that the supervised configuration is discriminated correctly."""
+    minimum_supervised_configuration["algorithm_config"]["algorithm"] = algorithm
+    tag = _algorithm_config_discriminator(minimum_supervised_configuration)
+    assert tag == algorithm
+
+
+def test_careamics_config_n2v(minimum_n2v_configuration):
+    """Test that the N2V configuration is created correctly."""
+    configuration = configuration_factory(minimum_n2v_configuration)
+    assert isinstance(configuration, N2VConfiguration)
+
+
+@pytest.mark.parametrize(
+    "algorithm", [SupportedAlgorithm.N2N.value, SupportedAlgorithm.CARE.value]
+)
+def test_careamics_config_supervised(minimum_supervised_configuration, algorithm):
+    """Test that the supervised configuration is created correctly."""
+    min_config = minimum_supervised_configuration
+    min_config["algorithm_config"]["algorithm"] = algorithm
+
+    config = configuration_factory(min_config)
+
+    exp_class = N2NConfiguration if algorithm == "n2n" else CAREConfiguration
+    assert isinstance(config, exp_class)
+
+
+def test_data_factory_n2v(minimum_data):
+    """Test that having N2VManipule yields a N2VDataConfig."""
+    minimum_data["transforms"] = [
+        {
+            "name": SupportedTransform.N2V_MANIPULATE.value,
+        }
+    ]
+    data = data_factory(minimum_data)
+    assert isinstance(data, N2VDataConfig)
+
+
+def test_data_factory_supervised(minimum_data):
+    """Test that the normal configuration yields a DataConfig."""
+    data = data_factory(minimum_data)
+    assert isinstance(data, DataConfig)
+
+
+def test_algorithm_factory_n2v(minimum_algorithm_n2v):
+    """Test that the N2V configuration is created correctly."""
+    algorithm = algorithm_factory(minimum_algorithm_n2v)
+    assert isinstance(algorithm, N2VAlgorithm)
+
+
+@pytest.mark.parametrize("algorithm", ["n2n", "care"])
+def test_algorithm_factory_supervised(minimum_algorithm_supervised, algorithm):
+    """Test that the supervised configuration is created correctly."""
+    min_config = minimum_algorithm_supervised
+    min_config["algorithm"] = algorithm
+
+    algorithm_config = algorithm_factory(min_config)
+
+    exp_class = N2NAlgorithm if algorithm == "n2n" else CAREAlgorithm
+    assert isinstance(algorithm_config, exp_class)
+
+
 def test_list_aug_default():
     """Test that the default augmentations are present."""
-    list_aug = _list_augmentations(augmentations=None)
+    list_aug = _list_spatial_augmentations(augmentations=None)
 
     assert len(list_aug) == 2
     assert list_aug[0].name == SupportedTransform.XY_FLIP.value
@@ -34,14 +120,14 @@ def test_list_aug_default():
 
 def test_list_aug_no_aug():
     """Test that disabling augmentation results in empty transform list."""
-    list_aug = _list_augmentations(augmentations=[])
+    list_aug = _list_spatial_augmentations(augmentations=[])
     assert len(list_aug) == 0
 
 
 def test_list_aug_error_duplicate_transforms():
     """Test that an error is raised when there are duplicate transforms."""
     with pytest.raises(ValueError):
-        _list_augmentations(
+        _list_spatial_augmentations(
             augmentations=[XYFlipModel(), XYRandomRotate90Model(), XYFlipModel()],
         )
 
@@ -49,7 +135,7 @@ def test_list_aug_error_duplicate_transforms():
 def test_list_aug_error_wrong_transform():
     """Test that an error is raised when the wrong transform is passed."""
     with pytest.raises(ValueError):
-        _list_augmentations(
+        _list_spatial_augmentations(
             augmentations=[XYFlipModel(), N2VManipulateModel()],
         )
 

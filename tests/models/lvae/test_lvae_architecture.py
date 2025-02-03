@@ -5,7 +5,7 @@ import pytest
 import torch
 from torch import nn
 
-from careamics.config import VAEAlgorithmConfig
+from careamics.config import VAEBasedAlgorithm
 from careamics.config.architectures import LVAEModel
 from careamics.config.likelihood_model import GaussianLikelihoodConfig
 from careamics.config.loss_model import LVAELossConfig
@@ -35,7 +35,7 @@ def create_LVAE_model(
         analytical_kl=analytical_kl,
     )
 
-    config = VAEAlgorithmConfig(
+    config = VAEBasedAlgorithm(
         algorithm_type="vae",
         algorithm="musplit",
         loss=LVAELossConfig(loss_type="musplit"),

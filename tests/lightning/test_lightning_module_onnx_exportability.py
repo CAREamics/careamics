@@ -2,10 +2,12 @@ import pytest
 import torch
 from onnx import checker
 
-from careamics.config import FCNAlgorithmConfig
+from careamics.config import UNetBasedAlgorithm
 from careamics.lightning.lightning_module import FCNModule
 
 
+# TODO: move a module for special integration tests
+# TODO revisit for specific algorithm configuration
 @pytest.mark.parametrize(
     "algorithm, architecture, conv_dim, n2v2, loss, shape",
     [
@@ -32,7 +34,7 @@ def test_onnx_export(tmp_path, algorithm, architecture, conv_dim, n2v2, loss, sh
         },
         "loss": loss,
     }
-    algo_config = FCNAlgorithmConfig(**algo_config)
+    algo_config = UNetBasedAlgorithm(**algo_config)
 
     # instantiate CAREamicsKiln
     model = FCNModule(algo_config)

@@ -1,33 +1,80 @@
-### Description
+## Description
 
-Please provide a brief description of the changes in this PR. Include any relevant context or background information.
+<!-- This section provides the necessary background and information for reviewers to
+understand the code and have the correct mindset when examining changes. -->
 
-- **What**: Clearly and concisely describe what changes you have made.
-- **Why**: Explain the reasoning behind these changes. What problem are you solving? Why is this change necessary?
-- **How**: Describe how you implemented these changes. Provide an overview of the approach and any important implementation details.
+> [!NOTE]  
+> **tldr**: <!-- Write a one sentence summary. -->
 
-### Changes Made
 
-- **Added**: List new features or files added.
-- **Modified**: Describe existing features or files modified.
-- **Removed**: Detail features or files that were removed.
+### Background - why do we need this PR?
 
-### Related Issues
+<!-- What problem are you solving? Describe in a few sentences the state before
+this PR. Use code examples if useful. -->
 
-Link to any related issues or discussions. Use keywords like "Fixes", "Resolves", or "Closes" to link to issues automatically.
+### Overview - what changed?
 
-- Fixes #
+<!-- What aspects and mechanisms of the code base changed? Describe only the general 
+idea and overarching features. -->
+
+### Implementation - how did you implement the changes?
+
+<!-- How did you solve the issue technically? Explain why you chose this approach and 
+provide code examples if applicable (e.g. change in the API for users). -->
+
+
+## Changes Made
+
+<!-- This section highlights the important features and files that reviewers should
+pay attention to when reviewing. Only list important features or files, this is useful for 
+reviewers to correctly assess how deeply the modifications impact the code base.
+
+For instance:
+
+### New features or files
+- `NewClass` added to `new_file.py`
+- `new_function` added to `existing_file.py`
+
+...
+-->
+
+### New features or files
+
+<!-- List new features or files added. -->
+-
+
+### Modified features or files
+
+<!-- List important modified features or files. -->
+-
+
+### Removed features or files
+
+<!-- List removed features or files. -->
+-
+
+## How has this been tested?
+
+<!-- Describe the tests that you ran to verify your changes. This can be a short 
+description of the tests added to the PR or code snippet to reproduce the change
+in behaviour. -->
+
+
+## Related Issues
+
+<!-- Link to any related issues or discussions. Use keywords like "Fixes", "Resolves",
+or "Closes" to link to issues automatically. -->
+
 - Resolves #
-- Closes #
 
-### Breaking changes
+## Breaking changes
 
-Describe any breaking change.
+<!-- Describe any breaking changes introduced by this PR. -->
 
+## Additional Notes and Examples
 
-### Additional Notes and Examples
-
-Include any additional notes or context that reviewers should be aware of, including snippets of code illustrating your new feature.
+<!-- Provide any additional information that will help reviewers understand the
+changes. This can be links to documentations, forum posts, past discussions etc. -->
 
 ---
 
