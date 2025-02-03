@@ -247,7 +247,7 @@ def test_create_configuration():
     assert config.algorithm_config.model.num_classes == n_channels_out
     assert config.training_config.logger == logger
     assert config.algorithm_config.model.depth == model_params["depth"]
-    assert config.data_config.dataloader_params == dataloader_params
+    assert config.data_config.train_dataloader_params == dataloader_params
 
 
 def test_supervised_configuration_error_with_channel_axes():
