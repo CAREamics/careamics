@@ -6,6 +6,7 @@ from pprint import pformat
 from typing import Literal, Optional, Union
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pytorch_lightning.callbacks import ModelCheckpoint
 
 from .callback_model import CheckpointModel, EarlyStoppingModel
 
@@ -28,6 +29,10 @@ class TrainingConfig(BaseModel):
     # Pydantic class configuration
     model_config = ConfigDict(
         validate_assignment=True,
+<<<<<<< HEAD
+        arbitrary_types_allowed=True,  # test - Diya 27.1.25
+=======
+>>>>>>> 3802fcd (Fix careamist.py, configuration_factories.py, and training_model.py per review feedback (PR #381))
     )
 
     num_epochs: int = Field(default=20, ge=1)
@@ -50,11 +55,9 @@ class TrainingConfig(BaseModel):
     logger: Optional[Literal["wandb", "tensorboard"]] = None
     """Logger to use during training. If None, no logger will be used. Available
     loggers are defined in SupportedLogger."""
-
     checkpoint_callback: CheckpointModel = CheckpointModel()
     """Checkpoint callback configuration, following PyTorch Lightning Checkpoint
     callback."""
-
     early_stopping_callback: Optional[EarlyStoppingModel] = Field(
         default=None, validate_default=True
     )

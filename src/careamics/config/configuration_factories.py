@@ -1,11 +1,12 @@
 """Convenience functions to create configurations for training and inference."""
 
-from typing import Annotated, Any, Literal, Optional, Union
+from typing import Annotated, Any, Dict, Literal, Optional, Union
 
 from pydantic import Discriminator, Tag, TypeAdapter
 
 from careamics.config.algorithms import CAREAlgorithm, N2NAlgorithm, N2VAlgorithm
 from careamics.config.architectures import UNetModel
+from careamics.config.callback_model import CheckpointModel
 from careamics.config.care_configuration import CAREConfiguration
 from careamics.config.configuration import Configuration
 from careamics.config.data import DataConfig, N2VDataConfig
@@ -225,6 +226,7 @@ def _create_configuration(
     use_n2v2: bool = False,
     model_params: Optional[dict] = None,
     dataloader_params: Optional[dict] = None,
+    model_checkpoint: Optional[Union[Dict[str, Any], CheckpointModel]] = None,
 ) -> Configuration:
     """
     Create a configuration for training N2V, CARE or Noise2Noise.
@@ -264,6 +266,9 @@ def _create_configuration(
         UNetModel parameters.
     dataloader_params : dict
         Parameters for the dataloader, see PyTorch notes, by default None.
+    model_checkpoint : Union[dict[str, Any], CheckpointModel]
+        Parameters for checkpoints can be a dictionary of parameters or an initialized object,
+        by default None.
 
     Returns
     -------
@@ -302,6 +307,7 @@ def _create_configuration(
         num_epochs=num_epochs,
         batch_size=batch_size,
         logger=None if logger == "none" else logger,
+        checkpoint_callback=model_checkpoint,
     )
 
     # create configuration
@@ -332,6 +338,7 @@ def _create_supervised_configuration(
     logger: Literal["wandb", "tensorboard", "none"] = "none",
     model_params: Optional[dict] = None,
     dataloader_params: Optional[dict] = None,
+    model_checkpoint: Optional[Union[Dict[str, Any], CheckpointModel]] = None,
 ) -> Configuration:
     """
     Create a configuration for training CARE or Noise2Noise.
@@ -370,6 +377,9 @@ def _create_supervised_configuration(
         UNetModel parameters, by default {}.
     dataloader_params : dict, optional
         Parameters for the dataloader, see PyTorch notes, by default None.
+    model_checkpoint : Union[dict[str, Any], CheckpointModel]
+        Parameters for checkpoints can be a dictionary of parameters or an initialized object,
+        by default None.
 
     Returns
     -------
@@ -417,6 +427,7 @@ def _create_supervised_configuration(
         logger=logger,
         model_params=model_params,
         dataloader_params=dataloader_params,
+        model_checkpoint=model_checkpoint,
     )
 
 
@@ -435,6 +446,7 @@ def create_care_configuration(
     logger: Literal["wandb", "tensorboard", "none"] = "none",
     model_params: Optional[dict] = None,
     dataloader_params: Optional[dict] = None,
+    model_checkpoint: Optional[Union[Dict[str, Any], CheckpointModel]] = None,
 ) -> Configuration:
     """
     Create a configuration for training CARE.
@@ -489,6 +501,15 @@ def create_care_configuration(
         UNetModel parameters.
     dataloader_params : dict, optional
         Parameters for the dataloader, see PyTorch notes, by default None.
+    <<<<<<< HEAD
+    modelcheckpoint : ModelCheckpoint, optional
+        PyTorch Lightning ModelCheckpoint configuration. If not provided,
+        default checkpoint settings will be used.
+    =======
+    model_checkpoint : Union[dict[str, Any], CheckpointModel]
+        Parameters for checkpoints can be a dictionary of parameters or an initialized object,
+        by default None.
+    >>>>>>> 3802fcd (Fix careamist.py, configuration_factories.py, and training_model.py per review feedback (PR #381))
 
     Returns
     -------
@@ -578,6 +599,7 @@ def create_care_configuration(
         logger=logger,
         model_params=model_params,
         dataloader_params=dataloader_params,
+        model_checkpoint=model_checkpoint,
     )
 
 
