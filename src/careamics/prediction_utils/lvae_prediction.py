@@ -7,7 +7,7 @@ from numpy.typing import NDArray
 from torch.utils.data import DataLoader
 
 from careamics.dataset.tiling.lvae_tiled_patching import compute_tile_info_legacy
-from careamics.lvae_training.dataset.vae_dataset import MultiChDloader
+from careamics.lvae_training.dataset import MultiChDloader
 from careamics.models.lvae import LadderVAE as LVAE
 from careamics.models.lvae.likelihoods import LikelihoodModule
 from careamics.prediction_utils import convert_outputs
