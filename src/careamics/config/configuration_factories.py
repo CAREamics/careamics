@@ -469,11 +469,6 @@ def create_care_configuration(
     transforms, a list of transforms can be passed to the `augmentations` parameter. To
     disable the transforms, simply pass an empty list.
 
-    By setting `train_dataloader_params` and `val_dataloader_params` to `None` the
-    defaults set in the `DataConfig` will be used. This is the dictionary
-    {"shuffle": True} for the `train_dataloader_params` and the empty dict {} for
-    the `val_dataloader_params`.
-
     Parameters
     ----------
     experiment_name : str
@@ -504,10 +499,14 @@ def create_care_configuration(
         Logger to use.
     model_params : dict, default=None
         UNetModel parameters.
-    train_dataloader_params : dict
-        Parameters for the training dataloader, see PyTorch notes, by default None.
-    val_dataloader_params : dict
-        Parameters for the validation dataloader, see PyTorch notes, by default None.
+    train_dataloader_params : dict, optional
+        Parameters for the training dataloader, see the PyTorch docs for `DataLoader`.
+        If left as `None`, the dict `{"shuffle": True}` will be used, this is set in
+        the `GeneralDataConfig`.
+    val_dataloader_params : dict, optional
+        Parameters for the validation dataloader, see PyTorch the docs for `DataLoader`.
+        If left as `None`, the empty dict `{}` will be used, this is set in the
+        `GeneralDataConfig`.
 
     Returns
     -------
@@ -639,11 +638,6 @@ def create_n2n_configuration(
     transforms, a list of transforms can be passed to the `augmentations` parameter. To
     disable the transforms, simply pass an empty list.
 
-    By setting `train_dataloader_params` and `val_dataloader_params` to `None` the
-    defaults set in the `DataConfig` will be used. This is the dictionary
-    {"shuffle": True} for the `train_dataloader_params` and the empty dict {} for
-    the `val_dataloader_params`.
-
     Parameters
     ----------
     experiment_name : str
@@ -674,10 +668,14 @@ def create_n2n_configuration(
         Logger to use, by default "none".
     model_params : dict, optional
         UNetModel parameters, by default {}.
-    train_dataloader_params : dict
-        Parameters for the training dataloader, see PyTorch notes, by default None.
-    val_dataloader_params : dict
-        Parameters for the validation dataloader, see PyTorch notes, by default None.
+    train_dataloader_params : dict, optional
+        Parameters for the training dataloader, see the PyTorch docs for `DataLoader`.
+        If left as `None`, the dict `{"shuffle": True}` will be used, this is set in
+        the `GeneralDataConfig`.
+    val_dataloader_params : dict, optional
+        Parameters for the validation dataloader, see PyTorch the docs for `DataLoader`.
+        If left as `None`, the empty dict `{}` will be used, this is set in the
+        `GeneralDataConfig`.
 
     Returns
     -------
@@ -832,11 +830,6 @@ def create_n2v_configuration(
     If you pass "horizontal" or "vertical" to `struct_n2v_axis`, then structN2V mask
     will be applied to each manipulated pixel.
 
-    By setting `train_dataloader_params` and `val_dataloader_params` to `None` the
-    defaults set in the `DataConfig` will be used. This is the dictionary
-    {"shuffle": True} for the `train_dataloader_params` and the empty dict {} for
-    the `val_dataloader_params`.
-
     Parameters
     ----------
     experiment_name : str
@@ -873,10 +866,14 @@ def create_n2v_configuration(
         Logger to use, by default "none".
     model_params : dict, optional
         UNetModel parameters, by default None.
-    train_dataloader_params : dict
-        Parameters for the training dataloader, see PyTorch notes, by default None.
-    val_dataloader_params : dict
-        Parameters for the validation dataloader, see PyTorch notes, by default None.
+    train_dataloader_params : dict, optional
+        Parameters for the training dataloader, see the PyTorch docs for `DataLoader`.
+        If left as `None`, the dict `{"shuffle": True}` will be used, this is set in
+        the `GeneralDataConfig`.
+    val_dataloader_params : dict, optional
+        Parameters for the validation dataloader, see PyTorch the docs for `DataLoader`.
+        If left as `None`, the empty dict `{}` will be used, this is set in the
+        `GeneralDataConfig`.
 
     Returns
     -------
