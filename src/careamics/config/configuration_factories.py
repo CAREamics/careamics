@@ -1,12 +1,12 @@
 """Convenience functions to create configurations for training and inference."""
 
-from typing import Annotated, Any, Literal, Optional, Union
+from typing import Annotated, Any, Dict, Literal, Optional, Union
 
 from pydantic import Discriminator, Tag, TypeAdapter
-from pytorch_lightning.callbacks import ModelCheckpoint
 
 from careamics.config.algorithms import CAREAlgorithm, N2NAlgorithm, N2VAlgorithm
 from careamics.config.architectures import UNetModel
+from careamics.config.callback_model import CheckpointModel
 from careamics.config.care_configuration import CAREConfiguration
 from careamics.config.configuration import Configuration
 from careamics.config.data import DataConfig, N2VDataConfig
@@ -18,8 +18,6 @@ from careamics.config.support import (
     SupportedPixelManipulation,
     SupportedTransform,
 )
-from careamics.config.callback_model import CheckpointModel
-from typing import Annotated, Any, Literal, Optional, Union, Dict
 from careamics.config.training_model import TrainingConfig
 from careamics.config.transformations import (
     N2V_TRANSFORMS_UNION,
@@ -271,6 +269,7 @@ def _create_configuration(
     model_checkpoint : Union[dict[str, Any], CheckpointModel]
         Parameters for checkpoints can be a dictionary of parameters or an initialized object,
         by default None.
+
     Returns
     -------
     Configuration
@@ -381,6 +380,7 @@ def _create_supervised_configuration(
     model_checkpoint : Union[dict[str, Any], CheckpointModel]
         Parameters for checkpoints can be a dictionary of parameters or an initialized object,
         by default None.
+
     Returns
     -------
     Configuration
@@ -501,15 +501,15 @@ def create_care_configuration(
         UNetModel parameters.
     dataloader_params : dict, optional
         Parameters for the dataloader, see PyTorch notes, by default None.
-<<<<<<< HEAD
+    <<<<<<< HEAD
     modelcheckpoint : ModelCheckpoint, optional
         PyTorch Lightning ModelCheckpoint configuration. If not provided,
         default checkpoint settings will be used.
-=======
+    =======
     model_checkpoint : Union[dict[str, Any], CheckpointModel]
         Parameters for checkpoints can be a dictionary of parameters or an initialized object,
         by default None.
->>>>>>> 3802fcd (Fix careamist.py, configuration_factories.py, and training_model.py per review feedback (PR #381))
+    >>>>>>> 3802fcd (Fix careamist.py, configuration_factories.py, and training_model.py per review feedback (PR #381))
 
     Returns
     -------
