@@ -7,23 +7,18 @@ It includes functions to:
 """
 
 import os
-from typing import List, Literal, Union
+from typing import Optional
 
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy import stats
 import torch
-from torch import nn
-from torch.utils.data import Dataset
 from matplotlib.gridspec import GridSpec
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Dataset, Subset
 from tqdm import tqdm
 
 from careamics.lightning import VAEModule
-
-from careamics.models.lvae.utils import ModelType
-from careamics.utils.metrics import scale_invariant_psnr, RunningPSNR
+from careamics.utils.metrics import scale_invariant_psnr
 
 
 class TilingMode:
@@ -149,11 +144,10 @@ def plot_crops(
     tar,
     tar_hsnr,
     recon_img_list,
-    calibration_stats,
+    calibration_stats=None,
     num_samples=2,
     baseline_preds=None,
 ):
-    """ """
     if baseline_preds is None:
         baseline_preds = []
     if len(baseline_preds) > 0:
@@ -164,15 +158,13 @@ def plot_crops(
                 )
                 print("This happens when we want to predict the edges of the image.")
                 return
+    color_ch_list = ["goldenrod", "cyan"]
+    color_pred = "red"
+    insetplot_xmax_value = 10000
+    insetplot_xmin_value = -1000
+    inset_min_labelsize = 10
+    inset_rect = [0.05, 0.05, 0.4, 0.2]
 
-    # color_ch_list = ['goldenrod', 'cyan']
-    # color_pred = 'red'
-    # insetplot_xmax_value = 10000
-    # insetplot_xmin_value = -1000
-    # inset_min_labelsize = 10
-    # inset_rect = [0.05, 0.05, 0.4, 0.2]
-
-    # Set plot attributes
     img_sz = 3
     ncols = num_samples + len(baseline_preds) + 1 + 1 + 1 + 1 + 1 * (num_samples > 1)
     grid_factor = 5
@@ -191,7 +183,6 @@ def plot_crops(
     )
     params = {"mathtext.default": "regular"}
     plt.rcParams.update(params)
-
     # plot baselines
     for i in range(2, 2 + len(baseline_preds)):
         for col_idx in range(baseline_preds[0].shape[0]):
@@ -471,52 +462,17 @@ def plot_error(target, prediction, cmap=matplotlib.cm.coolwarm, ax=None, max_val
     plt.colorbar(img_err, ax=ax)
 
 
-# ------------------------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------------
 
 
-def get_predictions(idx, val_dset, model, mmse_count=50, patch_size=256):
-    """
-    Given an index and a validation/test set, it returns the input, target and the reconstructed images for that index.
-    """
-    print(f"Predicting for {idx}")
-    val_dset.set_img_sz(patch_size, 64)
-
-    with torch.no_grad():
-        # val_dset.enable_noise()
-        inp, tar = val_dset[idx]
-        # val_dset.disable_noise()
-
-        inp = torch.Tensor(inp[None])
-        tar = torch.Tensor(tar[None])
-        inp = inp.cuda()
-        x_normalized = model.normalize_input(inp)
-        tar = tar.cuda()
-        tar_normalized = model.normalize_target(tar)
-
-        recon_img_list = []
-        for _ in range(mmse_count):
-            recon_normalized, td_data = model(x_normalized)
-            rec_loss, imgs = model.get_reconstruction_loss(
-                recon_normalized,
-                x_normalized,
-                tar_normalized,
-                return_predicted_img=True,
-            )
-            imgs = model.unnormalize_target(imgs)
-            recon_img_list.append(imgs.cpu().numpy()[0])
-
-    recon_img_list = np.array(recon_img_list)
-    return inp, tar, recon_img_list
-
-
-def get_dset_predictions(
+def get_predictions(
     model: VAEModule,
     dset: Dataset,
     batch_size: int,
-    loss_type: Literal["musplit", "denoisplit", "denoisplit_musplit"],
+    tile_size: Optional[tuple[int, int]] = None,
     mmse_count: int = 1,
     num_workers: int = 4,
-) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, List[float]]:
+) -> tuple[dict, dict, dict]:
     """Get patch-wise predictions from a model for the entire dataset.
 
     Parameters
@@ -545,6 +501,55 @@ def get_dset_predictions(
             - losses: Reconstruction losses for the predictions.
             - psnr: PSNR values for the predictions.
     """
+    if hasattr(dset, "dsets"):
+        multifile_stitched_predictions = {}
+        multifile_stitched_stds = {}
+        for d in dset.dsets:
+            stitched_predictions, stitched_stds = get_single_file_mmse(
+                model=model,
+                dset=d,
+                batch_size=batch_size,
+                tile_size=tile_size,
+                mmse_count=mmse_count,
+                num_workers=num_workers,
+            )
+            # get filename without extension and path
+            filename = str(d._fpath).split("/")[-1].split(".")[0]
+            multifile_stitched_predictions[filename] = stitched_predictions
+            multifile_stitched_stds[filename] = stitched_stds
+        return (
+            multifile_stitched_predictions,
+            multifile_stitched_stds,
+        )
+    else:
+        stitched_predictions, stitched_stds = get_single_file_mmse(
+            model=model,
+            dset=dset,
+            batch_size=batch_size,
+            tile_size=tile_size,
+            mmse_count=mmse_count,
+            num_workers=num_workers,
+        )
+        # get filename without extension and path
+        filename = str(dset._fpath).split("/")[-1].split(".")[0]
+        return (
+            {filename: stitched_predictions},
+            {filename: stitched_stds},
+        )
+
+
+def get_single_file_predictions(
+    model: VAEModule,
+    dset: Dataset,
+    batch_size: int,
+    tile_size: Optional[tuple[int, int]] = None,
+    grid_size: Optional[int] = None,
+    num_workers: int = 4,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Get patch-wise predictions from a model for a single file dataset."""
+    if tile_size and grid_size:
+        dset.set_img_sz(tile_size, grid_size)
+
     dloader = DataLoader(
         dset,
         pin_memory=False,
@@ -552,43 +557,64 @@ def get_dset_predictions(
         shuffle=False,
         batch_size=batch_size,
     )
-
-    gauss_likelihood = model.gaussian_likelihood
-    nm_likelihood = model.noise_model_likelihood
-
-    predictions = []
-    predictions_std = []
-    losses = []
+    model.eval()
+    model.cuda()
+    tiles = []
     logvar_arr = []
-    num_channels = dset[0][1].shape[0]
-    patch_psnr_channels = [RunningPSNR() for _ in range(num_channels)]
     with torch.no_grad():
-        for batch in tqdm(dloader, desc="Predicting patches"):
+        for batch in tqdm(dloader, desc="Predicting tiles"):
+            inp, tar = batch
+            inp = inp.cuda()
+            tar = tar.cuda()
+
+            # get model output
+            rec, _ = model(inp)
+
+            # get reconstructed img
+            if model.model.predict_logvar is None:
+                rec_img = rec
+                logvar = torch.tensor([-1])
+            else:
+                rec_img, logvar = torch.chunk(rec, chunks=2, dim=1)
+            logvar_arr.append(logvar.cpu().numpy())  # Why do we need this ?
+
+            tiles.append(rec_img.cpu().numpy())
+
+    tile_samples = np.concatenate(tiles, axis=0)
+    return stitch_predictions_new(tile_samples, dset)
+
+
+def get_single_file_mmse(
+    model: VAEModule,
+    dset: Dataset,
+    batch_size: int,
+    tile_size: Optional[tuple[int, int]] = None,
+    mmse_count: int = 1,
+    num_workers: int = 4,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Get patch-wise predictions from a model for a single file dataset."""
+    dloader = DataLoader(
+        dset,
+        pin_memory=False,
+        num_workers=num_workers,
+        shuffle=False,
+        batch_size=batch_size,
+    )
+    if tile_size:
+        dset.set_img_sz(tile_size, tile_size[-1] // 2)
+    model.eval()
+    model.cuda()
+    tile_mmse = []
+    tile_stds = []
+    logvar_arr = []
+    with torch.no_grad():
+        for batch in tqdm(dloader, desc="Predicting tiles"):
             inp, tar = batch
             inp = inp.cuda()
             tar = tar.cuda()
 
             rec_img_list = []
-            for mmse_idx in range(mmse_count):
-
-                # TODO: case of HDN left for future refactoring
-                # if model_type == ModelType.Denoiser:
-                #     assert model.denoise_channel in [
-                #         "Ch1",
-                #         "Ch2",
-                #         "input",
-                #     ], '"all" denoise channel not supported for evaluation. Pick one of "Ch1", "Ch2", "input"'
-
-                #     x_normalized_new, tar_new = model.get_new_input_target(
-                #         (inp, tar, *batch[2:])
-                #     )
-                #     rec, _ = model(x_normalized_new)
-                #     rec_loss, imgs = model.get_reconstruction_loss(
-                #         rec,
-                #         tar,
-                #         x_normalized_new,
-                #         return_predicted_img=True,
-                #     )
+            for _ in range(mmse_count):
 
                 # get model output
                 rec, _ = model(inp)
@@ -600,52 +626,21 @@ def get_dset_predictions(
                 else:
                     rec_img, logvar = torch.chunk(rec, chunks=2, dim=1)
                 rec_img_list.append(rec_img.cpu().unsqueeze(0))  # add MMSE dim
-                logvar_arr.append(logvar.cpu().numpy())
-
-                # compute reconstruction loss
-                # if loss_type == "musplit":
-                #     rec_loss = get_reconstruction_loss(
-                #         reconstruction=rec, target=tar, likelihood_obj=gauss_likelihood
-                #     )
-                # elif loss_type == "denoisplit":
-                #     rec_loss = get_reconstruction_loss(
-                #         reconstruction=rec, target=tar, likelihood_obj=nm_likelihood
-                #     )
-                # elif loss_type == "denoisplit_musplit":
-                #     rec_loss = reconstruction_loss_musplit_denoisplit(
-                #         predictions=rec,
-                #         targets=tar,
-                #         gaussian_likelihood=gauss_likelihood,
-                #         nm_likelihood=nm_likelihood,
-                #         nm_weight=model.loss_parameters.denoisplit_weight,
-                #         gaussian_weight=model.loss_parameters.musplit_weight,
-                #     )
-                #     rec_loss = {"loss": rec_loss}  # hacky, but ok for now
-
-                # # store rec loss values for first pred
-                # if mmse_idx == 0:
-                #     try:
-                #         losses.append(rec_loss["loss"].cpu().numpy())
-                #     except:
-                #         losses.append(rec_loss["loss"])
-
-                # update running PSNR
-                # for i in range(num_channels):
-                #     patch_psnr_channels[i].update(rec_img[:, i], tar[:, i])
+                logvar_arr.append(logvar.cpu().numpy())  # Why do we need this ?
 
             # aggregate results
             samples = torch.cat(rec_img_list, dim=0)
             mmse_imgs = torch.mean(samples, dim=0)  # avg over MMSE dim
-            # mmse_std = torch.std(samples, dim=0)
-            predictions.append(mmse_imgs.cpu().numpy())
-            # predictions_std.append(mmse_std.cpu().numpy())
+            std_imgs = torch.std(samples, dim=0)  # std over MMSE dim
 
-    # psnr = [x.get() for x in patch_psnr_channels]
-    return np.concatenate(predictions, axis=0)
-    # np.concatenate(predictions_std, axis=0),
-    # np.concatenate(logvar_arr),
-    # np.array(losses),
-    # psnr, # TODO revisit !
+            tile_mmse.append(mmse_imgs.cpu().numpy())
+            tile_stds.append(std_imgs.cpu().numpy())
+
+    tiles_arr = np.concatenate(tile_mmse, axis=0)
+    tile_stds = np.concatenate(tile_stds, axis=0)
+    stitched_predictions = stitch_predictions_new(tiles_arr, dset)
+    stitched_stds = stitch_predictions_new(tile_stds, dset)
+    return stitched_predictions, stitched_stds
 
 
 # ------------------------------------------------------------------------------------------

@@ -193,6 +193,7 @@ class NormalStochasticBlock(nn.Module):
         z: torch.Tensor
             The sampled latent tensor.
         """
+        kl_samplewise_restricted = None
         if mode_pred is False:  # if not predicting
             if analytical_kl:
                 kl_elementwise = kl_divergence(q, p)
