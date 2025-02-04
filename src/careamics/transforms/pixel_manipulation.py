@@ -5,7 +5,7 @@ Pixel manipulation is used in N2V and similar algorithm to replace the value of
 masked pixels.
 """
 
-from typing import Optional, Tuple
+from typing import Optional
 
 import numpy as np
 
@@ -107,7 +107,7 @@ def _odd_jitter_func(step: float, rng: np.random.Generator) -> np.ndarray:
 
 def _get_stratified_coords(
     mask_pixel_perc: float,
-    shape: Tuple[int, ...],
+    shape: tuple[int, ...],
     rng: Optional[np.random.Generator] = None,
 ) -> np.ndarray:
     """
@@ -121,7 +121,7 @@ def _get_stratified_coords(
     mask_pixel_perc : float
         Actual (quasi) percentage of masked pixels across the whole image. Used in
         calculating the distance between masked pixels across each axis.
-    shape : Tuple[int, ...]
+    shape : tuple[int, ...]
         Shape of the input patch.
     rng : np.random.Generator or None
         Random number generator.
@@ -161,7 +161,7 @@ def _get_stratified_coords(
     coordinate_grid = np.array(coordinate_grid_list).reshape(len(shape), -1).T
 
     grid_random_increment = rng.integers(
-        _odd_jitter_func(float(max(steps)), rng)
+        _odd_jitter_func(float(max(steps)), rng)  # type: ignore
         * np.ones_like(coordinate_grid).astype(np.int32)
         - 1,
         size=coordinate_grid.shape,
@@ -242,7 +242,7 @@ def uniform_manipulate(
     remove_center: bool = True,
     struct_params: Optional[StructMaskParameters] = None,
     rng: Optional[np.random.Generator] = None,
-) -> Tuple[np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray]:
     """
     Manipulate pixels by replacing them with a neighbor values.
 
@@ -269,8 +269,8 @@ def uniform_manipulate(
 
     Returns
     -------
-    Tuple[np.ndarray]
-        Tuple containing the manipulated patch and the corresponding mask.
+    tuple[np.ndarray]
+        tuple containing the manipulated patch and the corresponding mask.
     """
     if rng is None:
         rng = np.random.default_rng()
@@ -322,7 +322,7 @@ def median_manipulate(
     subpatch_size: int = 11,
     struct_params: Optional[StructMaskParameters] = None,
     rng: Optional[np.random.Generator] = None,
-) -> Tuple[np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray]:
     """
     Manipulate pixels by replacing them with the median of their surrounding subpatch.
 
@@ -348,8 +348,8 @@ def median_manipulate(
 
     Returns
     -------
-    Tuple[np.ndarray]
-           Tuple containing the manipulated patch, the original patch and the mask.
+    tuple[np.ndarray]
+           tuple containing the manipulated patch, the original patch and the mask.
     """
     if rng is None:
         rng = np.random.default_rng()

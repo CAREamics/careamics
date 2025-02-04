@@ -11,16 +11,17 @@ from pytorch_lightning.callbacks import (
     EarlyStopping,
     ModelCheckpoint,
 )
-from pytorch_lightning.loggers import TensorBoardLogger, WandbLogger
+from pytorch_lightning.loggers import CSVLogger, TensorBoardLogger, WandbLogger
 
-from careamics.config import Configuration, FCNAlgorithmConfig, load_configuration
+from careamics.config import Configuration, UNetBasedAlgorithm, load_configuration
 from careamics.config.support import (
     SupportedAlgorithm,
     SupportedArchitecture,
     SupportedData,
     SupportedLogger,
 )
-from careamics.dataset.dataset_utils import reshape_array
+from careamics.dataset.dataset_utils import list_files, reshape_array
+from careamics.file_io import WriteFunc, get_write_func
 from careamics.lightning import (
     FCNModule,
     HyperParametersCallback,
@@ -32,10 +33,11 @@ from careamics.lightning import (
 from careamics.model_io import export_to_bmz, load_pretrained
 from careamics.prediction_utils import convert_outputs
 from careamics.utils import check_path_exists, get_logger
+from careamics.utils.lightning_utils import read_csv_logger
 
 logger = get_logger(__name__)
 
-LOGGER_TYPES = Optional[Union[TensorBoardLogger, WandbLogger]]
+LOGGER_TYPES = list[Union[TensorBoardLogger, WandbLogger, CSVLogger]]
 
 
 class CAREamist:
@@ -48,8 +50,6 @@ class CAREamist:
     work_dir : str, optional
         Path to working directory in which to save checkpoints and logs,
         by default None.
-    experiment_name : str, by default "CAREamics"
-        Experiment name used for checkpoints.
     callbacks : list of Callback, optional
         List of callbacks to use during training and prediction, by default None.
 
@@ -75,8 +75,7 @@ class CAREamist:
     def __init__(  # numpydoc ignore=GL08
         self,
         source: Union[Path, str],
-        work_dir: Optional[str] = None,
-        experiment_name: str = "CAREamics",
+        work_dir: Optional[Union[Path, str]] = None,
         callbacks: Optional[list[Callback]] = None,
     ) -> None: ...
 
@@ -84,8 +83,7 @@ class CAREamist:
     def __init__(  # numpydoc ignore=GL08
         self,
         source: Configuration,
-        work_dir: Optional[str] = None,
-        experiment_name: str = "CAREamics",
+        work_dir: Optional[Union[Path, str]] = None,
         callbacks: Optional[list[Callback]] = None,
     ) -> None: ...
 
@@ -93,7 +91,6 @@ class CAREamist:
         self,
         source: Union[Path, str, Configuration],
         work_dir: Optional[Union[Path, str]] = None,
-        experiment_name: str = "CAREamics",
         callbacks: Optional[list[Callback]] = None,
     ) -> None:
         """
@@ -106,18 +103,13 @@ class CAREamist:
 
         If no working directory is provided, the current working directory is used.
 
-        If `source` is a checkpoint, then `experiment_name` is used to name the
-        checkpoint, and is recorded in the configuration.
-
         Parameters
         ----------
         source : pathlib.Path or str or CAREamics Configuration
             Path to a configuration file or a trained model.
-        work_dir : str, optional
+        work_dir : str or pathlib.Path, optional
             Path to working directory in which to save checkpoints and logs,
             by default None.
-        experiment_name : str, optional
-            Experiment name used for checkpoints, by default "CAREamics".
         callbacks : list of Callback, optional
             List of callbacks to use during training and prediction, by default None.
 
@@ -145,7 +137,7 @@ class CAREamist:
             self.cfg = source
 
             # instantiate model
-            if isinstance(self.cfg.algorithm_config, FCNAlgorithmConfig):
+            if isinstance(self.cfg.algorithm_config, UNetBasedAlgorithm):
                 self.model = FCNModule(
                     algorithm_config=self.cfg.algorithm_config,
                 )
@@ -154,6 +146,7 @@ class CAREamist:
 
         # path to configuration file or model
         else:
+            # TODO: update this check so models can be downloaded directly from BMZ
             source = check_path_exists(source)
 
             # configuration file
@@ -164,7 +157,8 @@ class CAREamist:
                 self.cfg = load_configuration(source)
 
                 # instantiate model
-                if isinstance(self.cfg.algorithm_config, FCNAlgorithmConfig):
+                # TODO call model factory here
+                if isinstance(self.cfg.algorithm_config, UNetBasedAlgorithm):
                     self.model = FCNModule(
                         algorithm_config=self.cfg.algorithm_config,
                     )  # type: ignore
@@ -179,25 +173,43 @@ class CAREamist:
         self._define_callbacks(callbacks)
 
         # instantiate logger
+        csv_logger = CSVLogger(
+            name=self.cfg.experiment_name,
+            save_dir=self.work_dir / "csv_logs",
+        )
+
         if self.cfg.training_config.has_logger():
             if self.cfg.training_config.logger == SupportedLogger.WANDB:
-                self.experiment_logger: LOGGER_TYPES = WandbLogger(
-                    name=self.cfg.experiment_name,
-                    save_dir=self.work_dir / Path("logs"),
-                )
+                experiment_logger: LOGGER_TYPES = [
+                    WandbLogger(
+                        name=self.cfg.experiment_name,
+                        save_dir=self.work_dir / Path("wandb_logs"),
+                    ),
+                    csv_logger,
+                ]
             elif self.cfg.training_config.logger == SupportedLogger.TENSORBOARD:
-                self.experiment_logger = TensorBoardLogger(
-                    save_dir=self.work_dir / Path("logs"),
-                )
+                experiment_logger = [
+                    TensorBoardLogger(
+                        save_dir=self.work_dir / Path("tb_logs"),
+                    ),
+                    csv_logger,
+                ]
         else:
-            self.experiment_logger = None
+            experiment_logger = [csv_logger]
 
         # instantiate trainer
         self.trainer = Trainer(
             max_epochs=self.cfg.training_config.num_epochs,
+            precision=self.cfg.training_config.precision,
+            max_steps=self.cfg.training_config.max_steps,
+            check_val_every_n_epoch=self.cfg.training_config.check_val_every_n_epoch,
+            enable_progress_bar=self.cfg.training_config.enable_progress_bar,
+            accumulate_grad_batches=self.cfg.training_config.accumulate_grad_batches,
+            gradient_clip_val=self.cfg.training_config.gradient_clip_val,
+            gradient_clip_algorithm=self.cfg.training_config.gradient_clip_algorithm,
             callbacks=self.callbacks,
             default_root_dir=self.work_dir,
-            logger=self.experiment_logger,
+            logger=experiment_logger,
         )
 
         # place holder for the datamodules
@@ -249,6 +261,12 @@ class CAREamist:
             self.callbacks.append(
                 EarlyStopping(self.cfg.training_config.early_stopping_callback)
             )
+
+    def stop_training(self) -> None:
+        """Stop the training loop."""
+        # raise stop training flag
+        self.trainer.should_stop = True
+        self.trainer.limit_val_batches = 0  # skip  validation
 
     # TODO: is there are more elegant way than calling train again after _train_on_paths
     def train(
@@ -396,9 +414,14 @@ class CAREamist:
         datamodule : TrainDataModule
             Datamodule to train on.
         """
-        # record datamodule
+        # register datamodule
         self.train_datamodule = datamodule
 
+        # set defaults (in case `stop_training` was called before)
+        self.trainer.should_stop = False
+        self.trainer.limit_val_batches = 1.0  # 100%
+
+        # train
         self.trainer.fit(self.model, datamodule=datamodule)
 
     def _train_on_array(
@@ -511,10 +534,10 @@ class CAREamist:
         *,
         batch_size: int = 1,
         tile_size: Optional[tuple[int, ...]] = None,
-        tile_overlap: tuple[int, ...] = (48, 48),
+        tile_overlap: Optional[tuple[int, ...]] = (48, 48),
         axes: Optional[str] = None,
         data_type: Optional[Literal["tiff", "custom"]] = None,
-        tta_transforms: bool = True,
+        tta_transforms: bool = False,
         dataloader_params: Optional[dict] = None,
         read_source_func: Optional[Callable] = None,
         extension_filter: str = "",
@@ -527,10 +550,10 @@ class CAREamist:
         *,
         batch_size: int = 1,
         tile_size: Optional[tuple[int, ...]] = None,
-        tile_overlap: tuple[int, ...] = (48, 48),
+        tile_overlap: Optional[tuple[int, ...]] = (48, 48),
         axes: Optional[str] = None,
         data_type: Optional[Literal["array"]] = None,
-        tta_transforms: bool = True,
+        tta_transforms: bool = False,
         dataloader_params: Optional[dict] = None,
     ) -> Union[list[NDArray], NDArray]: ...
 
@@ -538,12 +561,12 @@ class CAREamist:
         self,
         source: Union[PredictDataModule, Path, str, NDArray],
         *,
-        batch_size: Optional[int] = None,
+        batch_size: int = 1,
         tile_size: Optional[tuple[int, ...]] = None,
         tile_overlap: Optional[tuple[int, ...]] = (48, 48),
         axes: Optional[str] = None,
         data_type: Optional[Literal["array", "tiff", "custom"]] = None,
-        tta_transforms: bool = True,
+        tta_transforms: bool = False,
         dataloader_params: Optional[dict] = None,
         read_source_func: Optional[Callable] = None,
         extension_filter: str = "",
@@ -559,7 +582,7 @@ class CAREamist:
         configuration parameters will be used, with the `patch_size` instead of
         `tile_size`.
 
-        Test-time augmentation (TTA) can be switched off using the `tta_transforms`
+        Test-time augmentation (TTA) can be switched on using the `tta_transforms`
         parameter. The TTA augmentation applies all possible flip and 90 degrees
         rotations to the prediction input and averages the predictions. TTA augmentation
         should not be used if you did not train with these augmentations.
@@ -572,7 +595,7 @@ class CAREamist:
 
         Parameters
         ----------
-        source : CAREamicsPredData, pathlib.Path, str or numpy.ndarray
+        source : PredictDataModule, pathlib.Path, str or numpy.ndarray
             Data to predict on.
         batch_size : int, default=1
             Batch size for prediction.
@@ -660,15 +683,195 @@ class CAREamist:
         )
         return convert_outputs(predictions, self.pred_datamodule.tiled)
 
+    def predict_to_disk(
+        self,
+        source: Union[PredictDataModule, Path, str],
+        *,
+        batch_size: int = 1,
+        tile_size: Optional[tuple[int, ...]] = None,
+        tile_overlap: Optional[tuple[int, ...]] = (48, 48),
+        axes: Optional[str] = None,
+        data_type: Optional[Literal["tiff", "custom"]] = None,
+        tta_transforms: bool = False,
+        dataloader_params: Optional[dict] = None,
+        read_source_func: Optional[Callable] = None,
+        extension_filter: str = "",
+        write_type: Literal["tiff", "custom"] = "tiff",
+        write_extension: Optional[str] = None,
+        write_func: Optional[WriteFunc] = None,
+        write_func_kwargs: Optional[dict[str, Any]] = None,
+        prediction_dir: Union[Path, str] = "predictions",
+        **kwargs,
+    ) -> None:
+        """
+        Make predictions on the provided data and save outputs to files.
+
+        The predictions will be saved in a new directory 'predictions' within the set
+        working directory. The directory stucture within the 'predictions' directory
+        will match that of the source directory.
+
+        The `source` must be from files and not arrays. The file names of the
+        predictions will match those of the source. If there is more than one sample
+        within a file, the samples will be saved to seperate files. The file names of
+        samples will have the name of the corresponding source file but with the sample
+        index appended. E.g. If the the source file name is 'images.tiff' then the first
+        sample's prediction will be saved with the file name "image_0.tiff".
+        Input can be a PredictDataModule instance, a path to a data file, or a numpy
+        array.
+
+        If `data_type`, `axes` and `tile_size` are not provided, the training
+        configuration parameters will be used, with the `patch_size` instead of
+        `tile_size`.
+
+        Test-time augmentation (TTA) can be switched on using the `tta_transforms`
+        parameter. The TTA augmentation applies all possible flip and 90 degrees
+        rotations to the prediction input and averages the predictions. TTA augmentation
+        should not be used if you did not train with these augmentations.
+
+        Note that if you are using a UNet model and tiling, the tile size must be
+        divisible in every dimension by 2**d, where d is the depth of the model. This
+        avoids artefacts arising from the broken shift invariance induced by the
+        pooling layers of the UNet. If your image has less dimensions, as it may
+        happen in the Z dimension, consider padding your image.
+
+        Parameters
+        ----------
+        source : PredictDataModule or pathlib.Path, str
+            Data to predict on.
+        batch_size : int, default=1
+            Batch size for prediction.
+        tile_size : tuple of int, optional
+            Size of the tiles to use for prediction.
+        tile_overlap : tuple of int, default=(48, 48)
+            Overlap between tiles.
+        axes : str, optional
+            Axes of the input data, by default None.
+        data_type : {"array", "tiff", "custom"}, optional
+            Type of the input data.
+        tta_transforms : bool, default=True
+            Whether to apply test-time augmentation.
+        dataloader_params : dict, optional
+            Parameters to pass to the dataloader.
+        read_source_func : Callable, optional
+            Function to read the source data.
+        extension_filter : str, default=""
+            Filter for the file extension.
+        write_type : {"tiff", "custom"}, default="tiff"
+            The data type to save as, includes custom.
+        write_extension : str, optional
+            If a known `write_type` is selected this argument is ignored. For a custom
+            `write_type` an extension to save the data with must be passed.
+        write_func : WriteFunc, optional
+            If a known `write_type` is selected this argument is ignored. For a custom
+            `write_type` a function to save the data must be passed. See notes below.
+        write_func_kwargs : dict of {str: any}, optional
+            Additional keyword arguments to be passed to the save function.
+        prediction_dir : Path | str, default="predictions"
+            The path to save the prediction results to. If `prediction_dir` is not
+            absolute, the directory will be assumed to be relative to the pre-set
+            `work_dir`. If the directory does not exist it will be created.
+        **kwargs : Any
+            Unused.
+
+        Raises
+        ------
+        ValueError
+            If `write_type` is custom and `write_extension` is None.
+        ValueError
+            If `write_type` is custom and `write_fun is None.
+        ValueError
+            If `source` is not `str`, `Path` or `PredictDataModule`
+        """
+        if write_func_kwargs is None:
+            write_func_kwargs = {}
+
+        if Path(prediction_dir).is_absolute():
+            write_dir = Path(prediction_dir)
+        else:
+            write_dir = self.work_dir / prediction_dir
+        write_dir.mkdir(exist_ok=True, parents=True)
+
+        # guards for custom types
+        if write_type == SupportedData.CUSTOM:
+            if write_extension is None:
+                raise ValueError(
+                    "A `write_extension` must be provided for custom write types."
+                )
+            if write_func is None:
+                raise ValueError(
+                    "A `write_func` must be provided for custom write types."
+                )
+        else:
+            write_func = get_write_func(write_type)
+            write_extension = SupportedData.get_extension(write_type)
+
+        # extract file names
+        source_path: Union[Path, str, NDArray]
+        source_data_type: Literal["array", "tiff", "custom"]
+        if isinstance(source, PredictDataModule):
+            source_path = source.pred_data
+            source_data_type = source.data_type
+            extension_filter = source.extension_filter
+        elif isinstance(source, (str, Path)):
+            source_path = source
+            source_data_type = data_type or self.cfg.data_config.data_type
+            extension_filter = SupportedData.get_extension_pattern(
+                SupportedData(source_data_type)
+            )
+        else:
+            raise ValueError(f"Unsupported source type: '{type(source)}'.")
+
+        if source_data_type == "array":
+            raise ValueError(
+                "Predicting to disk is not supported for input type 'array'."
+            )
+        assert isinstance(source_path, (Path, str))  # because data_type != "array"
+        source_path = Path(source_path)
+
+        file_paths = list_files(source_path, source_data_type, extension_filter)
+
+        # predict and write each file in turn
+        for file_path in file_paths:
+            # source_path is relative to original source path...
+            # should mirror original directory structure
+            prediction = self.predict(
+                source=file_path,
+                batch_size=batch_size,
+                tile_size=tile_size,
+                tile_overlap=tile_overlap,
+                axes=axes,
+                data_type=data_type,
+                tta_transforms=tta_transforms,
+                dataloader_params=dataloader_params,
+                read_source_func=read_source_func,
+                extension_filter=extension_filter,
+                **kwargs,
+            )
+            # TODO: cast to float16?
+            write_data = np.concatenate(prediction)
+
+            # create directory structure and write path
+            if not source_path.is_file():
+                file_write_dir = write_dir / file_path.parent.relative_to(source_path)
+            else:
+                file_write_dir = write_dir
+            file_write_dir.mkdir(parents=True, exist_ok=True)
+            write_path = (file_write_dir / file_path.name).with_suffix(write_extension)
+
+            # write data
+            write_func(file_path=write_path, img=write_data)
+
     def export_to_bmz(
         self,
         path_to_archive: Union[Path, str],
         friendly_model_name: str,
         input_array: NDArray,
         authors: list[dict],
-        general_description: str = "",
+        general_description: str,
+        data_description: str,
+        covers: Optional[list[Union[Path, str]]] = None,
         channel_names: Optional[list[str]] = None,
-        data_description: Optional[str] = None,
+        model_version: str = "0.1.0",
     ) -> None:
         """Export the model to the BioImage Model Zoo format.
 
@@ -698,11 +901,15 @@ class CAREamist:
         authors : list of dict
             List of authors of the model.
         general_description : str
-            General description of the model, used in the metadata of the BMZ archive.
-        channel_names : list of str, optional
-            Channel names, by default None.
-        data_description : str, optional
-            Description of the data, by default None.
+            General description of the model used in the BMZ metadata.
+        data_description : str
+            Description of the data the model was trained on.
+        covers : list of pathlib.Path or str, default=None
+            Paths to the cover images.
+        channel_names : list of str, default=None
+            Channel names.
+        model_version : str, default="0.1.0"
+            Version of the model.
         """
         # TODO: add in docs that it is expected that input_array dimensions match
         # those in data_config
@@ -721,9 +928,21 @@ class CAREamist:
             path_to_archive=path_to_archive,
             model_name=friendly_model_name,
             general_description=general_description,
+            data_description=data_description,
             authors=authors,
             input_array=input_array,
             output_array=output,
+            covers=covers,
             channel_names=channel_names,
-            data_description=data_description,
+            model_version=model_version,
         )
+
+    def get_losses(self) -> dict[str, list]:
+        """Return data that can be used to plot train and validation loss curves.
+
+        Returns
+        -------
+        dict of str: list
+            Dictionary containing the losses for each epoch.
+        """
+        return read_csv_logger(self.cfg.experiment_name, self.work_dir / "csv_logs")

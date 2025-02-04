@@ -5,8 +5,9 @@ Script containing modules for defining different likelihood functions (as nn.Mod
 from __future__ import annotations
 
 import math
-from typing import Literal, Union, TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any, Literal, Optional, Union
 
+import numpy as np
 import torch
 from torch import nn
 
@@ -25,7 +26,8 @@ if TYPE_CHECKING:
 
 
 def likelihood_factory(
-    config: Union[GaussianLikelihoodConfig, NMLikelihoodConfig, None]
+    config: Optional[Union[GaussianLikelihoodConfig, NMLikelihoodConfig]],
+    noise_model: Optional[NoiseModel] = None,
 ):
     """
     Factory function for creating likelihood modules.
@@ -34,12 +36,17 @@ def likelihood_factory(
     ----------
     config: Union[GaussianLikelihoodConfig, NMLikelihoodConfig]
         The configuration object for the likelihood module.
+    noise_model: Optional[NoiseModel]
+        The noise model instance used to define the `NoiseModelLikelihood`.
 
     Returns
     -------
     nn.Module
         The likelihood module.
     """
+    if config is None:
+        return None
+
     if isinstance(config, GaussianLikelihoodConfig):
         return GaussianLikelihood(
             predict_logvar=config.predict_logvar,
@@ -49,7 +56,7 @@ def likelihood_factory(
         return NoiseModelLikelihood(
             data_mean=config.data_mean,
             data_std=config.data_std,
-            noiseModel=config.noise_model,
+            noise_model=noise_model,
         )
     else:
         raise ValueError(f"Invalid likelihood model type: {config.model_type}")
@@ -95,8 +102,8 @@ class LikelihoodModule(nn.Module):
         self, input_: torch.Tensor, x: Union[torch.Tensor, None]
     ) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
         """
-        Parameters:
-        -----------
+        Parameters
+        ----------
         input_: torch.Tensor
             The output of the top-down pass (e.g., reconstructed image in HDN,
             or the unmixed images in 'Split' models).
@@ -177,7 +184,6 @@ class GaussianLikelihood(LikelihoodModule):
             log-variance. If the attribute `predict_logvar` is `None` then the second
             element will be `None`.
         """
-
         # if LadderVAE.predict_logvar is None, dim 1 of `x`` has no. of target channels
         if self.predict_logvar is None:
             return x, None
@@ -284,33 +290,42 @@ class NoiseModelLikelihood(LikelihoodModule):
 
     def __init__(
         self,
-        data_mean: torch.Tensor,
-        data_std: torch.Tensor,
-        noiseModel: NoiseModel,  # TODO: check the type -> couldn't manage due to circular imports...
+        data_mean: Union[np.ndarray, torch.Tensor],
+        data_std: Union[np.ndarray, torch.Tensor],
+        noise_model: NoiseModel,
     ):
         """Constructor.
 
         Parameters
         ----------
-        data_mean: torch.Tensor
+        data_mean: Union[np.ndarray, torch.Tensor]
             The mean of the data, used to unnormalize data for noise model evaluation.
-        data_std: torch.Tensor
+        data_std: Union[np.ndarray, torch.Tensor]
             The standard deviation of the data, used to unnormalize data for noise
             model evaluation.
         noiseModel: NoiseModel
             The noise model instance used to compute the likelihood.
         """
         super().__init__()
-        self.data_mean = data_mean
-        self.data_std = data_std
-        self.noiseModel = noiseModel
+        self.data_mean = torch.Tensor(data_mean)
+        self.data_std = torch.Tensor(data_std)
+        self.noiseModel = noise_model
 
-    def set_params_to_same_device_as(
+    def _set_params_to_same_device_as(
         self, correct_device_tensor: torch.Tensor
-    ) -> None:  # TODO: needed?
+    ) -> None:
+        """Set the parameters to the same device as the input tensor.
+
+        Parameters
+        ----------
+        correct_device_tensor: torch.Tensor
+            The tensor whose device is used to set the parameters.
+        """
         if self.data_mean.device != correct_device_tensor.device:
             self.data_mean = self.data_mean.to(correct_device_tensor.device)
             self.data_std = self.data_std.to(correct_device_tensor.device)
+        if correct_device_tensor.device != self.noiseModel.device:
+            self.noiseModel.to_device(correct_device_tensor.device)
 
     def get_mean_lv(self, x: torch.Tensor) -> tuple[torch.Tensor, None]:
         return x, None
@@ -352,6 +367,7 @@ class NoiseModelLikelihood(LikelihoodModule):
         torch.Tensor
             The log-likelihood tensor. Shape is (B, C, [Z], Y, X).
         """
+        self._set_params_to_same_device_as(x)
         predicted_s_denormalized = params["mean"] * self.data_std + self.data_mean
         x_denormalized = x * self.data_std + self.data_mean
         likelihoods = self.noiseModel.likelihood(

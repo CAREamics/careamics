@@ -1,8 +1,9 @@
 """N2V manipulation transform."""
 
-from typing import Any, Literal, Optional, Tuple
+from typing import Any, Literal, Optional
 
 import numpy as np
+from numpy.typing import NDArray
 
 from careamics.config.support import SupportedPixelManipulation, SupportedStructAxis
 from careamics.transforms.transform import Transform
@@ -98,8 +99,8 @@ class N2VManipulate(Transform):
         self.rng = np.random.default_rng(seed=seed)
 
     def __call__(
-        self, patch: np.ndarray, *args: Any, **kwargs: Any
-    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        self, patch: NDArray, *args: Any, **kwargs: Any
+    ) -> tuple[NDArray, NDArray, NDArray]:
         """Apply the transform to the image.
 
         Parameters
@@ -113,7 +114,7 @@ class N2VManipulate(Transform):
 
         Returns
         -------
-        Tuple[np.ndarray, np.ndarray, np.ndarray]
+        tuple[np.ndarray, np.ndarray, np.ndarray]
             Masked patch, original patch, and mask.
         """
         masked = np.zeros_like(patch)
@@ -142,5 +143,8 @@ class N2VManipulate(Transform):
         else:
             raise ValueError(f"Unknown masking strategy ({self.strategy}).")
 
+        # TODO: Output does not match other transforms, how to resolve?
+        #     - Don't include in Compose and apply after if algorithm is N2V?
+        #     - or just don't return patch? but then mask is in the target position
         # TODO why return patch?
         return masked, patch, mask

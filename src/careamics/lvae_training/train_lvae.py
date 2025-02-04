@@ -24,7 +24,7 @@ from careamics.lvae_training.dataset.data_modules import (
     LCMultiChDloader,
     MultiChDloader,
 )
-from careamics.lvae_training.dataset.data_utils import DataSplitType
+from careamics.lvae_training.dataset.utils.data_utils import DataSplitType
 from careamics.lvae_training.lightning_module import LadderVAELight
 from careamics.lvae_training.train_utils import *
 

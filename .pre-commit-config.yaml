@@ -9,40 +9,41 @@ ci:
 
 repos:
   - repo: https://github.com/abravalheri/validate-pyproject
-    rev: v0.18
+    rev: v0.23
     hooks:
       - id: validate-pyproject
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.5.6
+    rev: v0.8.6
     hooks:
       - id: ruff
-        exclude: "^src/careamics/lvae_training/.*|^src/careamics/models/lvae/.*"
-        args: [--fix, --target-version, py38]
+        exclude: "^src/careamics/lvae_training/.*|^src/careamics/models/lvae/.*|^scripts/.*"
+        args: [--fix, --target-version, py39]
 
   - repo: https://github.com/psf/black
-    rev: 24.8.0
+    rev: 24.10.0
     hooks:
       - id: black
 
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.11.1
+    rev: v1.14.1
     hooks:
       - id: mypy
         files: "^src/"
         exclude: "^src/careamics/lvae_training/.*|^src/careamics/models/lvae/.*|^src/careamics/config/likelihood_model.py|^src/careamics/losses/loss_factory.py|^src/careamics/losses/lvae/losses.py"
-        args: ['--config-file', 'mypy.ini']
+        args: ["--config-file", "mypy.ini"]
         additional_dependencies:
-          - numpy
+          - numpy<2.0.0
+          - pydantic
           - types-PyYAML
           - types-setuptools
 
   # check docstrings
   - repo: https://github.com/numpy/numpydoc
-    rev: v1.8.0rc2
+    rev: v1.8.0
     hooks:
       - id: numpydoc-validation
-        exclude: "^src/careamics/lvae_training/.*|^src/careamics/models/lvae/.*|^src/careamics/losses/lvae/.*"      
+        exclude: "^src/careamics/lvae_training/.*|^src/careamics/models/lvae/.*|^src/careamics/losses/lvae/.*|^scripts/.*"
 
   # # jupyter linting and formatting
   # - repo: https://github.com/nbQA-dev/nbQA
@@ -55,6 +56,6 @@ repos:
 
   # strip out jupyter notebooks
   - repo: https://github.com/kynan/nbstripout
-    rev: 0.7.1
+    rev: 0.8.1
     hooks:
       - id: nbstripout

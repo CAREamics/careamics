@@ -1,12 +1,18 @@
 from pathlib import Path
-from typing import Callable, Tuple
+from typing import Callable
 
 import numpy as np
 import pytest
 
-from careamics import CAREamist, Configuration
+from careamics import CAREamist
+from careamics.config import configuration_factory
 from careamics.config.support import SupportedData
 from careamics.model_io import export_to_bmz
+
+
+@pytest.fixture
+def gaussian_likelihood_params():
+    return {"predict_logvar": "pixelwise", "logvar_lowerbound": -5}
 
 
 # TODO add details about where each of these fixture is used (e.g. smoke test)
@@ -32,7 +38,6 @@ def minimum_algorithm_n2v() -> dict:
     """
     # create dictionary
     algorithm = {
-        "algorithm_type": "fcn",
         "algorithm": "n2v",
         "loss": "n2v",
         "model": {
@@ -54,7 +59,6 @@ def minimum_algorithm_supervised() -> dict:
     """
     # create dictionary
     algorithm = {
-        "algorithm_type": "fcn",
         "algorithm": "n2n",
         "loss": "mae",
         "model": {
@@ -65,7 +69,7 @@ def minimum_algorithm_supervised() -> dict:
     return algorithm
 
 
-# TODO: need to update/remove this fixture
+# TODO: wrong! need to update/remove this fixture
 @pytest.fixture
 def minimum_algorithm_musplit() -> dict:
     """Create a minimum algorithm dictionary.
@@ -77,21 +81,24 @@ def minimum_algorithm_musplit() -> dict:
     """
     # create dictionary
     algorithm = {
+        "algorithm_type": "vae",
         "algorithm": "musplit",  # TODO temporary
         "loss": "musplit",
         "model": {
-            "architecture": "musplit",
-            "enable_noise_model": False,
+            "architecture": "LVAE",
             "z_dims": (128, 128, 128),
-            "multiscale_count": 4,
+            "multiscale_count": 2,
+            "predict_logvar": "pixelwise",
         },
-        "likelihood": {"type": "GaussianLikelihoodConfig", "color_channels": 2},
+        "likelihood": {
+            "type": "GaussianLikelihoodConfig",
+        },
     }
 
     return algorithm
 
 
-# TODO: Need to update/remove this fixture
+# TODO: wrong! need to update/remove this fixture
 @pytest.fixture
 def minimum_algorithm_denoisplit() -> dict:
     """Create a minimum algorithm dictionary.
@@ -103,16 +110,16 @@ def minimum_algorithm_denoisplit() -> dict:
     """
     # create dictionary
     algorithm = {
+        "algorithm_type": "vae",
         "algorithm": "denoisplit",
         "loss": "denoisplit",
         "model": {
             "architecture": "LVAE",
-            "enable_noise_model": False,
             "z_dims": (128, 128, 128),
-            "multiscale_count": 4,
+            "multiscale_count": 2,
         },
         "likelihood": {"type": "GaussianLikelihoodConfig", "color_channels": 2},
-        "noise_model": {"type": "GaussianMixtureNoiseModel"},
+        "noise_model": "MultiChannelNMConfig",
     }
 
     return algorithm
@@ -132,6 +139,26 @@ def minimum_data() -> dict:
         "data_type": SupportedData.ARRAY.value,
         "patch_size": [8, 8],
         "axes": "YX",
+    }
+
+    return data
+
+
+@pytest.fixture
+def minimum_data_n2v() -> dict:
+    """Create a minimum N2V data dictionary.
+
+    Returns
+    -------
+    dict
+        A minimum data example.
+    """
+    # create dictionary
+    data = {
+        "data_type": SupportedData.ARRAY.value,
+        "patch_size": [8, 8],
+        "axes": "YX",
+        "transforms": [{"name": "N2VManipulate"}],
     }
 
     return data
@@ -175,8 +202,8 @@ def minimum_training() -> dict:
 
 
 @pytest.fixture
-def minimum_configuration(
-    minimum_algorithm_n2v: dict, minimum_data: dict, minimum_training: dict
+def minimum_n2v_configuration(
+    minimum_algorithm_n2v: dict, minimum_data_n2v: dict, minimum_training: dict
 ) -> dict:
     """Create a minimum configuration dictionary.
 
@@ -186,8 +213,8 @@ def minimum_configuration(
         Temporary path for testing.
     minimum_algorithm : dict
         Minimum algorithm configuration.
-    minimum_data : dict
-        Minimum data configuration.
+    minimum_data_n2v : dict
+        Minimum N2V data configuration.
     minimum_training : dict
         Minimum training configuration.
 
@@ -201,14 +228,14 @@ def minimum_configuration(
         "experiment_name": "LevitatingFrog",
         "algorithm_config": minimum_algorithm_n2v,
         "training_config": minimum_training,
-        "data_config": minimum_data,
+        "data_config": minimum_data_n2v,
     }
 
     return configuration
 
 
 @pytest.fixture
-def supervised_configuration(
+def minimum_supervised_configuration(
     minimum_algorithm_supervised: dict, minimum_data: dict, minimum_training: dict
 ) -> dict:
     configuration = {
@@ -268,23 +295,23 @@ def array_3D() -> np.ndarray:
 
 
 @pytest.fixture
-def patch_size() -> Tuple[int, int]:
+def patch_size() -> tuple[int, int]:
     return (64, 64)
 
 
 @pytest.fixture
-def overlaps() -> Tuple[int, int]:
+def overlaps() -> tuple[int, int]:
     return (32, 32)
 
 
 @pytest.fixture
-def pre_trained(tmp_path, minimum_configuration):
+def pre_trained(tmp_path, minimum_n2v_configuration):
     """Fixture to create a pre-trained CAREamics model."""
     # training data
     train_array = np.arange(32 * 32).reshape((32, 32)).astype(np.float32)
 
     # create configuration
-    config = Configuration(**minimum_configuration)
+    config = configuration_factory(minimum_n2v_configuration)
     config.training_config.num_epochs = 1
     config.data_config.axes = "YX"
     config.data_config.batch_size = 2
@@ -325,6 +352,7 @@ def pre_trained_bmz(tmp_path, pre_trained) -> Path:
         path_to_archive=path,
         model_name="TopModel",
         general_description="A model that just walked in.",
+        data_description="My data.",
         authors=[{"name": "Amod", "affiliation": "El"}],
         input_array=train_array[np.newaxis, np.newaxis, ...],
         output_array=predicted,
@@ -332,3 +360,37 @@ def pre_trained_bmz(tmp_path, pre_trained) -> Path:
     assert path.exists()
 
     return path
+
+
+@pytest.fixture
+def create_dummy_noise_model(
+    n_gaussians: int = 3,
+    n_coeffs: int = 3,
+) -> None:
+    weights = np.random.rand(3 * n_gaussians, n_coeffs)
+    nm_dict = {
+        "trained_weight": weights,
+        "min_signal": np.array([0]),
+        "max_signal": np.array([2**16 - 1]),
+        "min_sigma": 0.125,
+    }
+    return nm_dict
+
+
+@pytest.fixture
+def minimum_lvae_params():
+    return {
+        "input_shape": (64, 64),
+        "output_channels": 2,
+        "multiscale_count": 1,
+        "encoder_conv_strides": [2, 2],
+        "decoder_conv_strides": [2, 2],
+        "z_dims": [128, 128, 128, 128],
+        "encoder_n_filters": 64,
+        "decoder_n_filters": 64,
+        "encoder_dropout": 0.1,
+        "decoder_dropout": 0.1,
+        "nonlinearity": "ELU",
+        "predict_logvar": "pixelwise",
+        "analytical_kl": False,
+    }

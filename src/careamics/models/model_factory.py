@@ -1,23 +1,28 @@
-"""
-Model factory.
+"""Model creation factory functions."""
 
-Model creation factory functions.
-"""
+from __future__ import annotations
 
-from typing import Union
+from typing import TYPE_CHECKING, Union
 
 import torch
 
-from ..config.architectures import CustomModel, UNetModel, get_custom_model
-from ..config.support import SupportedArchitecture
-from ..utils import get_logger
-from .unet import UNet
+from careamics.config.support import SupportedArchitecture
+from careamics.models.lvae import LadderVAE as LVAE
+from careamics.models.unet import UNet
+from careamics.utils import get_logger
+
+if TYPE_CHECKING:
+    from careamics.config.architectures import (
+        LVAEModel,
+        UNetModel,
+    )
+
 
 logger = get_logger(__name__)
 
 
 def model_factory(
-    model_configuration: Union[UNetModel, CustomModel],
+    model_configuration: Union[UNetModel, LVAEModel],
 ) -> torch.nn.Module:
     """
     Deep learning model factory.
@@ -41,10 +46,8 @@ def model_factory(
     """
     if model_configuration.architecture == SupportedArchitecture.UNET:
         return UNet(**model_configuration.model_dump())
-    elif model_configuration.architecture == SupportedArchitecture.CUSTOM:
-        assert isinstance(model_configuration, CustomModel)
-        model = get_custom_model(model_configuration.name)
-        return model(**model_configuration.model_dump())
+    elif model_configuration.architecture == SupportedArchitecture.LVAE:
+        return LVAE(**model_configuration.model_dump())
     else:
         raise NotImplementedError(
             f"Model {model_configuration.architecture} is not implemented or unknown."

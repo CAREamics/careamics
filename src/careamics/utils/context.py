@@ -5,9 +5,10 @@ A convenience function to change the working directory in order to save data.
 """
 
 import os
+from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Iterator, Union
+from typing import Union
 
 
 def get_careamics_home() -> Path:

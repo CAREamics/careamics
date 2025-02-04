@@ -2,13 +2,16 @@
 
 import tempfile
 from pathlib import Path
-from typing import List, Optional, Tuple, Union
+from typing import Optional, Union
 
 import numpy as np
 import pkg_resources
-from bioimageio.core import load_description, test_model
+from bioimageio.core import load_model_description, test_model
 from bioimageio.spec import ValidationSummary, save_bioimageio_package
-from torch import __version__, load, save
+from pydantic import HttpUrl
+from torch import __version__ as PYTORCH_VERSION
+from torch import load, save
+from torchvision import __version__ as TORCHVISION_VERSION
 
 from careamics.config import Configuration, load_configuration, save_configuration
 from careamics.config.support import SupportedArchitecture
@@ -18,8 +21,8 @@ from .bioimage import (
     create_env_text,
     create_model_description,
     extract_model_path,
-    get_unzip_path,
 )
+from .bioimage.cover_factory import create_cover
 
 
 def _export_state_dict(
@@ -83,11 +86,13 @@ def export_to_bmz(
     path_to_archive: Union[Path, str],
     model_name: str,
     general_description: str,
-    authors: List[dict],
+    data_description: str,
+    authors: list[dict],
     input_array: np.ndarray,
     output_array: np.ndarray,
-    channel_names: Optional[List[str]] = None,
-    data_description: Optional[str] = None,
+    covers: Optional[list[Union[Path, str]]] = None,
+    channel_names: Optional[list[str]] = None,
+    model_version: str = "0.1.0",
 ) -> None:
     """Export the model to BioImage Model Zoo format.
 
@@ -108,29 +113,22 @@ def export_to_bmz(
         Model name.
     general_description : str
         General description of the model.
-    authors : List[dict]
+    data_description : str
+        Description of the data the model was trained on.
+    authors : list[dict]
         Authors of the model.
     input_array : np.ndarray
         Input array, should not have been normalized.
     output_array : np.ndarray
         Output array, should have been denormalized.
-    channel_names : Optional[List[str]], optional
+    covers : list of pathlib.Path or str, default=None
+        Paths to the cover images.
+    channel_names : Optional[list[str]], optional
         Channel names, by default None.
-    data_description : Optional[str], optional
-        Description of the data, by default None.
-
-    Raises
-    ------
-    ValueError
-        If the model is a Custom model.
+    model_version : str, default="0.1.0"
+        Model version.
     """
     path_to_archive = Path(path_to_archive)
-
-    # method is not compatible with Custom models
-    if config.algorithm_config.model.architecture == SupportedArchitecture.CUSTOM:
-        raise ValueError(
-            "Exporting Custom models to BioImage Model Zoo format is not supported."
-        )
 
     if path_to_archive.suffix != ".zip":
         raise ValueError(
@@ -141,7 +139,6 @@ def export_to_bmz(
         path_to_archive.parent.mkdir(parents=True, exist_ok=True)
 
     # versions
-    pytorch_version = __version__
     careamics_version = pkg_resources.get_distribution("careamics").version
 
     # save files in temporary folder
@@ -151,7 +148,7 @@ def export_to_bmz(
         # create environment file
         # TODO move in bioimage module
         env_path = temp_path / "environment.yml"
-        env_path.write_text(create_env_text(pytorch_version))
+        env_path.write_text(create_env_text(PYTORCH_VERSION, TORCHVISION_VERSION))
 
         # export input and ouputs
         inputs = temp_path / "inputs.npy"
@@ -160,30 +157,41 @@ def export_to_bmz(
         np.save(outputs, output_array)
 
         # export configuration
-        config_path = save_configuration(config, temp_path)
+        config_path = save_configuration(config, temp_path / "careamics.yaml")
 
         # export model state dictionary
         weight_path = _export_state_dict(model, temp_path / "weights.pth")
+
+        # export cover if necesary
+        if covers is None:
+            covers = [create_cover(temp_path, input_array, output_array)]
 
         # create model description
         model_description = create_model_description(
             config=config,
             name=model_name,
             general_description=general_description,
+            data_description=data_description,
             authors=authors,
             inputs=inputs,
             outputs=outputs,
             weights_path=weight_path,
-            torch_version=pytorch_version,
+            torch_version=PYTORCH_VERSION,
             careamics_version=careamics_version,
             config_path=config_path,
             env_path=env_path,
+            covers=covers,
             channel_names=channel_names,
-            data_description=data_description,
+            model_version=model_version,
         )
 
         # test model description
-        summary: ValidationSummary = test_model(model_description, decimal=1)
+        test_kwargs = (
+            model_description.config.get("bioimageio", {})
+            .get("test_kwargs", {})
+            .get("pytorch_state_dict", {})
+        )
+        summary: ValidationSummary = test_model(model_description, **test_kwargs)
         if summary.status == "failed":
             raise ValueError(f"Model description test failed: {summary}")
 
@@ -192,40 +200,33 @@ def export_to_bmz(
 
 
 def load_from_bmz(
-    path: Union[Path, str]
-) -> Tuple[Union[FCNModule, VAEModule], Configuration]:
+    path: Union[Path, str, HttpUrl]
+) -> tuple[Union[FCNModule, VAEModule], Configuration]:
     """Load a model from a BioImage Model Zoo archive.
 
     Parameters
     ----------
-    path : Union[Path, str]
-        Path to the BioImage Model Zoo archive.
+    path : Path, str or HttpUrl
+        Path to the BioImage Model Zoo archive. A Http URL must point to a downloadable
+        location.
 
     Returns
     -------
-    Tuple[CAREamicsKiln, Configuration]
-        CAREamics model and configuration.
+    FCNModel or VAEModel
+        The loaded CAREamics model.
+    Configuration
+        The loaded CAREamics configuration.
 
     Raises
     ------
     ValueError
         If the path is not a zip file.
     """
-    path = Path(path)
-
-    if path.suffix != ".zip":
-        raise ValueError(f"Path must be a bioimage.io zip file, got {path}.")
-
     # load description, this creates an unzipped folder next to the archive
-    model_desc = load_description(path)
+    model_desc = load_model_description(path)
 
-    # extract relative paths
+    # extract paths
     weights_path, config_path = extract_model_path(model_desc)
-
-    # create folder path and absolute paths
-    unzip_path = get_unzip_path(path)
-    weights_path = unzip_path / weights_path
-    config_path = unzip_path / config_path
 
     # load configuration
     config = load_configuration(config_path)

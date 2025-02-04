@@ -1,6 +1,6 @@
 """Sequential patching functions."""
 
-from typing import List, Optional, Tuple, Union
+from typing import Optional, Union
 
 import numpy as np
 from skimage.util import view_as_windows
@@ -9,21 +9,21 @@ from .validate_patch_dimension import validate_patch_dimensions
 
 
 def _compute_number_of_patches(
-    arr_shape: Tuple[int, ...], patch_sizes: Union[List[int], Tuple[int, ...]]
-) -> Tuple[int, ...]:
+    arr_shape: tuple[int, ...], patch_sizes: Union[list[int], tuple[int, ...]]
+) -> tuple[int, ...]:
     """
     Compute the number of patches that fit in each dimension.
 
     Parameters
     ----------
-    arr_shape : Tuple[int, ...]
+    arr_shape : tuple[int, ...]
         Shape of the input array.
-    patch_sizes : Union[List[int], Tuple[int, ...]
+    patch_sizes : Union[list[int], tuple[int, ...]
         Shape of the patches.
 
     Returns
     -------
-    Tuple[int, ...]
+    tuple[int, ...]
         Number of patches in each dimension.
     """
     if len(arr_shape) != len(patch_sizes):
@@ -47,8 +47,8 @@ def _compute_number_of_patches(
 
 
 def _compute_overlap(
-    arr_shape: Tuple[int, ...], patch_sizes: Union[List[int], Tuple[int, ...]]
-) -> Tuple[int, ...]:
+    arr_shape: tuple[int, ...], patch_sizes: Union[list[int], tuple[int, ...]]
+) -> tuple[int, ...]:
     """
     Compute the overlap between patches in each dimension.
 
@@ -57,14 +57,14 @@ def _compute_overlap(
 
     Parameters
     ----------
-    arr_shape : Tuple[int, ...]
+    arr_shape : tuple[int, ...]
         Input array shape.
-    patch_sizes : Union[List[int], Tuple[int, ...]]
+    patch_sizes : Union[list[int], tuple[int, ...]]
         Size of the patches.
 
     Returns
     -------
-    Tuple[int, ...]
+    tuple[int, ...]
         Overlap between patches in each dimension.
     """
     n_patches = _compute_number_of_patches(arr_shape, patch_sizes)
@@ -80,21 +80,21 @@ def _compute_overlap(
 
 
 def _compute_patch_steps(
-    patch_sizes: Union[List[int], Tuple[int, ...]], overlaps: Tuple[int, ...]
-) -> Tuple[int, ...]:
+    patch_sizes: Union[list[int], tuple[int, ...]], overlaps: tuple[int, ...]
+) -> tuple[int, ...]:
     """
     Compute steps between patches.
 
     Parameters
     ----------
-    patch_sizes : Tuple[int]
+    patch_sizes : tuple[int]
         Size of the patches.
-    overlaps : Tuple[int]
+    overlaps : tuple[int]
         Overlap between patches.
 
     Returns
     -------
-    Tuple[int]
+    tuple[int]
         Steps between patches.
     """
     steps = [
@@ -107,9 +107,9 @@ def _compute_patch_steps(
 # TODO why stack the target here and not on a different dimension before this function?
 def _compute_patch_views(
     arr: np.ndarray,
-    window_shape: List[int],
-    step: Tuple[int, ...],
-    output_shape: List[int],
+    window_shape: list[int],
+    step: tuple[int, ...],
+    output_shape: list[int],
     target: Optional[np.ndarray] = None,
 ) -> np.ndarray:
     """
@@ -119,11 +119,11 @@ def _compute_patch_views(
     ----------
     arr : np.ndarray
         Array from which the views are extracted.
-    window_shape : Tuple[int]
+    window_shape : tuple[int]
         Shape of the views.
-    step : Tuple[int]
+    step : tuple[int]
         Steps between views.
-    output_shape : Tuple[int]
+    output_shape : tuple[int]
         Shape of the output array.
     target : Optional[np.ndarray], optional
         Target array, by default None.
@@ -150,9 +150,9 @@ def _compute_patch_views(
 
 def extract_patches_sequential(
     arr: np.ndarray,
-    patch_size: Union[List[int], Tuple[int, ...]],
+    patch_size: Union[list[int], tuple[int, ...]],
     target: Optional[np.ndarray] = None,
-) -> Tuple[np.ndarray, Optional[np.ndarray]]:
+) -> tuple[np.ndarray, Optional[np.ndarray]]:
     """
     Generate patches from an array in a sequential manner.
 
@@ -163,14 +163,14 @@ def extract_patches_sequential(
     ----------
     arr : np.ndarray
         Input image array.
-    patch_size : Tuple[int]
+    patch_size : tuple[int]
         Patch sizes in each dimension.
     target : Optional[np.ndarray], optional
         Target array, by default None.
 
     Returns
     -------
-    Tuple[np.ndarray, Optional[np.ndarray]]
+    tuple[np.ndarray, Optional[np.ndarray]]
         Patches.
     """
     is_3d_patch = len(patch_size) == 3

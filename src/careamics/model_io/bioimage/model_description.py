@@ -1,9 +1,10 @@
 """Module use to build BMZ model description."""
 
 from pathlib import Path
-from typing import List, Optional, Tuple, Union
+from typing import Optional, Union
 
 import numpy as np
+from bioimageio.spec._internal.io import resolve_and_extract
 from bioimageio.spec.model.v0_5 import (
     ArchitectureFromLibraryDescr,
     Author,
@@ -27,17 +28,17 @@ from bioimageio.spec.model.v0_5 import (
     WeightsDescr,
 )
 
-from careamics.config import Configuration, DataConfig
+from careamics.config import Configuration, GeneralDataConfig
 
 from ._readme_factory import readme_factory
 
 
 def _create_axes(
     array: np.ndarray,
-    data_config: DataConfig,
-    channel_names: Optional[List[str]] = None,
+    data_config: GeneralDataConfig,
+    channel_names: Optional[list[str]] = None,
     is_input: bool = True,
-) -> List[AxisBase]:
+) -> list[AxisBase]:
     """Create axes description.
 
     Array shape is expected to be SC(Z)YX.
@@ -48,15 +49,15 @@ def _create_axes(
         Array.
     data_config : DataModel
         CAREamics data configuration.
-    channel_names : Optional[List[str]], optional
+    channel_names : Optional[list[str]], optional
         Channel names, by default None.
     is_input : bool, optional
         Whether the axes are input axes, by default True.
 
     Returns
     -------
-    List[AxisBase]
-        List of axes description.
+    list[AxisBase]
+        list of axes description.
 
     Raises
     ------
@@ -101,11 +102,11 @@ def _create_axes(
 def _create_inputs_ouputs(
     input_array: np.ndarray,
     output_array: np.ndarray,
-    data_config: DataConfig,
+    data_config: GeneralDataConfig,
     input_path: Union[Path, str],
     output_path: Union[Path, str],
-    channel_names: Optional[List[str]] = None,
-) -> Tuple[InputTensorDescr, OutputTensorDescr]:
+    channel_names: Optional[list[str]] = None,
+) -> tuple[InputTensorDescr, OutputTensorDescr]:
     """Create input and output tensor description.
 
     Input and output paths must point to a `.npy` file.
@@ -122,12 +123,12 @@ def _create_inputs_ouputs(
         Path to input .npy file.
     output_path : Union[Path, str]
         Path to output .npy file.
-    channel_names : Optional[List[str]], optional
+    channel_names : Optional[list[str]], optional
         Channel names, by default None.
 
     Returns
     -------
-    Tuple[InputTensorDescr, OutputTensorDescr]
+    tuple[InputTensorDescr, OutputTensorDescr]
         Input and output tensor descriptions.
     """
     input_axes = _create_axes(input_array, data_config, channel_names)
@@ -186,7 +187,8 @@ def create_model_description(
     config: Configuration,
     name: str,
     general_description: str,
-    authors: List[Author],
+    data_description: str,
+    authors: list[Author],
     inputs: Union[Path, str],
     outputs: Union[Path, str],
     weights_path: Union[Path, str],
@@ -194,8 +196,9 @@ def create_model_description(
     careamics_version: str,
     config_path: Union[Path, str],
     env_path: Union[Path, str],
-    channel_names: Optional[List[str]] = None,
-    data_description: Optional[str] = None,
+    covers: list[Union[Path, str]],
+    channel_names: Optional[list[str]] = None,
+    model_version: str = "0.1.0",
 ) -> ModelDescr:
     """Create model description.
 
@@ -207,7 +210,9 @@ def create_model_description(
         Name of the model.
     general_description : str
         General description of the model.
-    authors : List[Author]
+    data_description : str
+        Description of the data the model was trained on.
+    authors : list[Author]
         Authors of the model.
     inputs : Union[Path, str]
         Path to input .npy file.
@@ -223,10 +228,12 @@ def create_model_description(
         Path to model configuration.
     env_path : Union[Path, str]
         Path to environment file.
-    channel_names : Optional[List[str]], optional
+    covers : list of pathlib.Path or str
+        Paths to cover images.
+    channel_names : Optional[list[str]], optional
         Channel names, by default None.
-    data_description : Optional[str], optional
-        Description of the data, by default None.
+    model_version : str, default "0.1.0"
+        Model version.
 
     Returns
     -------
@@ -280,25 +287,27 @@ def create_model_description(
             "https://careamics.github.io/latest/",
         ],
         license="BSD-3-Clause",
-        version="0.1.0",
-        weights=weights_descr,
-        attachments=[FileDescr(source=config_path)],
-        cite=config.get_algorithm_citations(),
-        config={  # conversion from float32 to float64 creates small differences...
+        config={
             "bioimageio": {
                 "test_kwargs": {
                     "pytorch_state_dict": {
-                        "decimals": 0,  # ...so we relax the constraints on the decimals
+                        "absolute_tolerance": 1e-2,
+                        "relative_tolerance": 1e-2,
                     }
                 }
             }
         },
+        version=model_version,
+        weights=weights_descr,
+        attachments=[FileDescr(source=config_path)],
+        cite=config.get_algorithm_citations(),
+        covers=covers,
     )
 
     return model
 
 
-def extract_model_path(model_desc: ModelDescr) -> Tuple[Path, Path]:
+def extract_model_path(model_desc: ModelDescr) -> tuple[Path, Path]:
     """Return the relative path to the weights and configuration files.
 
     Parameters
@@ -308,20 +317,24 @@ def extract_model_path(model_desc: ModelDescr) -> Tuple[Path, Path]:
 
     Returns
     -------
-    Tuple[Path, Path]
+    tuple of (path, path)
         Weights and configuration paths.
     """
-    weights_path = model_desc.weights.pytorch_state_dict.source.path
+    if model_desc.weights.pytorch_state_dict is None:
+        raise ValueError("No model weights found in model description.")
+    weights_path = resolve_and_extract(
+        model_desc.weights.pytorch_state_dict.source
+    ).path
 
-    if len(model_desc.attachments) == 1:
-        config_path = model_desc.attachments[0].source.path
+    for file in model_desc.attachments:
+        file_path = file.source if isinstance(file.source, Path) else file.source.path
+        if file_path is None:
+            continue
+        file_path = Path(file_path)
+        if file_path.name == "careamics.yaml":
+            config_path = resolve_and_extract(file.source).path
+            break
     else:
-        for file in model_desc.attachments:
-            if file.source.path.suffix == ".yml":
-                config_path = file.source.path
-                break
-
-        if config_path is None:
-            raise ValueError("Configuration file not found.")
+        raise ValueError("Configuration file not found.")
 
     return weights_path, config_path

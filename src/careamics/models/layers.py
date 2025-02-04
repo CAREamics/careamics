@@ -4,7 +4,7 @@ Layer module.
 This submodule contains layers used in the CAREamics models.
 """
 
-from typing import List, Optional, Tuple, Union
+from typing import Optional, Union
 
 import torch
 import torch.nn as nn
@@ -157,22 +157,22 @@ class Conv_Block(nn.Module):
 
 
 def _unpack_kernel_size(
-    kernel_size: Union[Tuple[int, ...], int], dim: int
-) -> Tuple[int, ...]:
+    kernel_size: Union[tuple[int, ...], int], dim: int
+) -> tuple[int, ...]:
     """Unpack kernel_size to a tuple of ints.
 
     Inspired by Kornia implementation. TODO: link
 
     Parameters
     ----------
-    kernel_size : Union[Tuple[int, ...], int]
+    kernel_size : Union[tuple[int, ...], int]
         Kernel size.
     dim : int
         Number of dimensions.
 
     Returns
     -------
-    Tuple[int, ...]
+    tuple[int, ...]
         Kernel size tuple.
     """
     if isinstance(kernel_size, int):
@@ -183,20 +183,20 @@ def _unpack_kernel_size(
 
 
 def _compute_zero_padding(
-    kernel_size: Union[Tuple[int, ...], int], dim: int
-) -> Tuple[int, ...]:
+    kernel_size: Union[tuple[int, ...], int], dim: int
+) -> tuple[int, ...]:
     """Utility function that computes zero padding tuple.
 
     Parameters
     ----------
-    kernel_size : Union[Tuple[int, ...], int]
+    kernel_size : Union[tuple[int, ...], int]
         Kernel size.
     dim : int
         Number of dimensions.
 
     Returns
     -------
-    Tuple[int, ...]
+    tuple[int, ...]
         Zero padding tuple.
     """
     kernel_dims = _unpack_kernel_size(kernel_size, dim)
@@ -245,8 +245,8 @@ def get_pascal_kernel_1d(
     >>> get_pascal_kernel_1d(6)
     tensor([ 1.,  5., 10., 10.,  5.,  1.])
     """
-    pre: List[float] = []
-    cur: List[float] = []
+    pre: list[float] = []
+    cur: list[float] = []
     for i in range(kernel_size):
         cur = [1.0] * (i + 1)
 
@@ -266,7 +266,7 @@ def get_pascal_kernel_1d(
 
 
 def _get_pascal_kernel_nd(
-    kernel_size: Union[Tuple[int, int], int],
+    kernel_size: Union[tuple[int, int], int],
     norm: bool = True,
     dim: int = 2,
     *,
@@ -282,7 +282,7 @@ def _get_pascal_kernel_nd(
 
     Parameters
     ----------
-    kernel_size : Union[Tuple[int, int], int]
+    kernel_size : Union[tuple[int, int], int]
         Kernel size for the pascal kernel.
     norm : bool
         Normalize the kernel, by default True.
@@ -420,7 +420,7 @@ class MaxBlurPool(nn.Module):
     ----------
     dim : int
         Toggles between 2D and 3D.
-    kernel_size : Union[Tuple[int, int], int]
+    kernel_size : Union[tuple[int, int], int]
         Kernel size for max pooling.
     stride : int
         Stride for pooling.
@@ -433,7 +433,7 @@ class MaxBlurPool(nn.Module):
     def __init__(
         self,
         dim: int,
-        kernel_size: Union[Tuple[int, int], int],
+        kernel_size: Union[tuple[int, int], int],
         stride: int = 2,
         max_pool_size: int = 2,
         ceil_mode: bool = False,
@@ -444,7 +444,7 @@ class MaxBlurPool(nn.Module):
         ----------
         dim : int
             Dimension of the convolution.
-        kernel_size : Union[Tuple[int, int], int]
+        kernel_size : Union[tuple[int, int], int]
             Kernel size for max pooling.
         stride : int, optional
             Stride, by default 2.
@@ -459,7 +459,8 @@ class MaxBlurPool(nn.Module):
         self.stride = stride
         self.max_pool_size = max_pool_size
         self.ceil_mode = ceil_mode
-        self.kernel = _get_pascal_kernel_nd(kernel_size, norm=True, dim=self.dim)
+        kernel = _get_pascal_kernel_nd(kernel_size, norm=True, dim=self.dim)
+        self.register_buffer("kernel", kernel, persistent=False)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Forward pass of the function.
@@ -474,11 +475,12 @@ class MaxBlurPool(nn.Module):
         torch.Tensor
             Output tensor.
         """
-        self.kernel = torch.as_tensor(self.kernel, device=x.device, dtype=x.dtype)
+        kernel = self.kernel.to(dtype=x.dtype)
+        num_channels = int(x.size(1))
         if self.dim == 2:
             return _max_blur_pool_by_kernel2d(
                 x,
-                self.kernel.repeat((x.size(1), 1, 1, 1)),
+                kernel.repeat((num_channels, 1, 1, 1)),
                 self.stride,
                 self.max_pool_size,
                 self.ceil_mode,
@@ -486,7 +488,7 @@ class MaxBlurPool(nn.Module):
         else:
             return _max_blur_pool_by_kernel3d(
                 x,
-                self.kernel.repeat((x.size(1), 1, 1, 1, 1)),
+                kernel.repeat((num_channels, 1, 1, 1, 1)),
                 self.stride,
                 self.max_pool_size,
                 self.ceil_mode,

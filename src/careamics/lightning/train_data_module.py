@@ -2,15 +2,16 @@
 
 from pathlib import Path
 from typing import Any, Callable, Literal, Optional, Union
+from warnings import warn
 
 import numpy as np
 import pytorch_lightning as L
 from numpy.typing import NDArray
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, IterableDataset
 
-from careamics.config import DataConfig
-from careamics.config.data_model import TRANSFORMS_UNION
+from careamics.config.data import DataConfig, GeneralDataConfig, N2VDataConfig
 from careamics.config.support import SupportedData
+from careamics.config.transformations import TransformModel
 from careamics.dataset.dataset_utils import (
     get_files_size,
     list_files,
@@ -118,7 +119,7 @@ class TrainDataModule(L.LightningDataModule):
 
     def __init__(
         self,
-        data_config: DataConfig,
+        data_config: GeneralDataConfig,
         train_data: Union[Path, str, NDArray],
         val_data: Optional[Union[Path, str, NDArray]] = None,
         train_data_target: Optional[Union[Path, str, NDArray]] = None,
@@ -218,7 +219,7 @@ class TrainDataModule(L.LightningDataModule):
             )
 
         # configuration
-        self.data_config: DataConfig = data_config
+        self.data_config: GeneralDataConfig = data_config
         self.data_type: str = data_config.data_type
         self.batch_size: int = data_config.batch_size
         self.use_in_memory: bool = use_in_memory
@@ -446,6 +447,19 @@ class TrainDataModule(L.LightningDataModule):
         Any
             Training dataloader.
         """
+        # check because iterable dataset cannot be shuffled
+        if not isinstance(self.train_dataset, IterableDataset):
+            if ("shuffle" in self.dataloader_params) and (
+                not self.dataloader_params["shuffle"]
+            ):
+                warn(
+                    "Dataloader parameters include `shuffle=False`, this will be "
+                    "passed to the training dataloader and may result in bad results.",
+                    stacklevel=1,
+                )
+            else:
+                self.dataloader_params["shuffle"] = True
+
         return DataLoader(
             self.train_dataset, batch_size=self.batch_size, **self.dataloader_params
         )
@@ -472,7 +486,7 @@ def create_train_datamodule(
     axes: str,
     batch_size: int,
     val_data: Optional[Union[str, Path, NDArray]] = None,
-    transforms: Optional[list[TRANSFORMS_UNION]] = None,
+    transforms: Optional[list[TransformModel]] = None,
     train_target_data: Optional[Union[str, Path, NDArray]] = None,
     val_target_data: Optional[Union[str, Path, NDArray]] = None,
     read_source_func: Optional[Callable] = None,
@@ -488,11 +502,22 @@ def create_train_datamodule(
     """Create a TrainDataModule.
 
     This function is used to explicitly pass the parameters usually contained in a
-    `data_model` configuration to a TrainDataModule.
+    `GenericDataConfig` to a TrainDataModule.
 
     Since the lightning datamodule has no access to the model, make sure that the
     parameters passed to the datamodule are consistent with the model's requirements and
     are coherent.
+
+    By default, the train DataModule will be set for Noise2Void if no target data is
+    provided. That means that it will add a `N2VManipulateModel` transformation to the
+    list of augmentations. The default augmentations are XY flip, XY rotation, and N2V
+    pixel manipulation. If you pass a training target data, the default behaviour is to
+    train a supervised model. It will use the default XY flip and rotation
+    augmentations.
+
+    To use a different set of transformations, you can pass a list of transforms to
+    `transforms`. Note that if you intend to use Noise2Void, you should add
+    `N2VManipulateModel` as the last transform in the list of transformations.
 
     The data module can be used with Path, str or numpy arrays. In the case of
     numpy arrays, it loads and computes all the patches in memory. For Path and str
@@ -503,11 +528,6 @@ def create_train_datamodule(
 
     To use array data, set `data_type` to `array` and pass a numpy array to
     `train_data`.
-
-    In particular, N2V requires a specific transformation (N2V manipulates), which is
-    not compatible with supervised training. The default transformations applied to the
-    training patches are defined in `careamics.config.data_model`. To use different
-    transformations, pass a list of transforms. See examples for more details.
 
     By default, CAREamics only supports types defined in
     `careamics.config.support.SupportedData`. To read custom data types, you can set
@@ -613,12 +633,12 @@ def create_train_datamodule(
     transforms:
     >>> import numpy as np
     >>> from careamics.lightning import create_train_datamodule
+    >>> from careamics.config.transformations import XYFlipModel, N2VManipulateModel
     >>> from careamics.config.support import SupportedTransform
     >>> my_array = np.arange(256).reshape(16, 16)
     >>> my_transforms = [
-    ...     {
-    ...         "name": SupportedTransform.XY_FLIP.value,
-    ...     }
+    ...     XYFlipModel(flip_y=False),
+    ...     N2VManipulateModel()
     ... ]
     >>> data_module = create_train_datamodule(
     ...     train_data=my_array,
@@ -645,21 +665,15 @@ def create_train_datamodule(
     if transforms is not None:
         data_dict["transforms"] = transforms
 
-    # validate configuration
-    data_config = DataConfig(**data_dict)
+    # TODO not compatible with HDN, consider adding an argument for n2v/hdn
+    if train_target_data is None:
+        data_config: GeneralDataConfig = N2VDataConfig(**data_dict)
+        assert isinstance(data_config, N2VDataConfig)
 
-    # N2V specific checks, N2V, structN2V, and transforms
-    if data_config.has_n2v_manipulate():
-        # there is not target, n2v2 and structN2V can be changed
-        if train_target_data is None:
-            data_config.set_N2V2(use_n2v2)
-            data_config.set_structN2V_mask(struct_n2v_axis, struct_n2v_span)
-        else:
-            raise ValueError(
-                "Cannot have both supervised training (target data) and "
-                "N2V manipulation in the transforms. Pass a list of transforms "
-                "that is compatible with your supervised training."
-            )
+        data_config.set_n2v2(use_n2v2)
+        data_config.set_structN2V_mask(struct_n2v_axis, struct_n2v_span)
+    else:
+        data_config = DataConfig(**data_dict)
 
     # sanity check on the dataloader parameters
     if "batch_size" in dataloader_params:

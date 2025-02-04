@@ -7,8 +7,9 @@ The methods are responsible for the in-console logger.
 import logging
 import sys
 import time
+from collections.abc import Generator
 from pathlib import Path
-from typing import Any, Dict, Generator, List, Optional, Union
+from typing import Any, Optional, Union
 
 LOGGERS: dict = {}
 
@@ -84,7 +85,7 @@ class ProgressBar:
         Zero-indexed current epoch, by default None.
     num_epochs : Optional[int], optional
         Total number of epochs, by default None.
-    stateful_metrics : Optional[List], optional
+    stateful_metrics : Optional[list], optional
         Iterable of string names of metrics that should *not* be averaged over time.
         Metrics in this list will be displayed as-is. All others will be averaged by
         the progress bar before display, by default None.
@@ -99,7 +100,7 @@ class ProgressBar:
         max_value: Optional[int] = None,
         epoch: Optional[int] = None,
         num_epochs: Optional[int] = None,
-        stateful_metrics: Optional[List] = None,
+        stateful_metrics: Optional[list] = None,
         always_stateful: bool = False,
         mode: str = "train",
     ) -> None:
@@ -114,7 +115,7 @@ class ProgressBar:
             Zero-indexed current epoch, by default None.
         num_epochs : Optional[int], optional
             Total number of epochs, by default None.
-        stateful_metrics : Optional[List], optional
+        stateful_metrics : Optional[list], optional
             Iterable of string names of metrics that should *not* be averaged over time.
             Metrics in this list will be displayed as-is. All others will be averaged by
             the progress bar before display, by default None.
@@ -145,8 +146,8 @@ class ProgressBar:
         self._seen_so_far = 0
         # We use a dict + list to avoid garbage collection
         # issues found in OrderedDict
-        self._values: Dict[Any, Any] = {}
-        self._values_order: List[Any] = []
+        self._values: dict[Any, Any] = {}
+        self._values_order: list[Any] = []
         self._start = time.time()
         self._last_update = 0.0
         self.spin = self.spinning_cursor() if self.max_value is None else None
@@ -158,7 +159,7 @@ class ProgressBar:
             self.message = "Denoising"
 
     def update(
-        self, current_step: int, batch_size: int = 1, values: Optional[List] = None
+        self, current_step: int, batch_size: int = 1, values: Optional[list] = None
     ) -> None:
         """
         Update the progress bar.
@@ -169,7 +170,7 @@ class ProgressBar:
             Index of the current step.
         batch_size : int, optional
             Batch size, by default 1.
-        values : Optional[List], optional
+        values : Optional[list], optional
             Updated metrics values, by default None.
         """
         values = values or []
@@ -263,7 +264,7 @@ class ProgressBar:
 
         self._last_update = now
 
-    def add(self, n: int, values: Optional[List] = None) -> None:
+    def add(self, n: int, values: Optional[list] = None) -> None:
         """
         Update the progress bar by n steps.
 
@@ -271,7 +272,7 @@ class ProgressBar:
         ----------
         n : int
             Number of steps to increase the progress bar with.
-        values : Optional[List], optional
+        values : Optional[list], optional
             Updated metrics values, by default None.
         """
         self.update(self._seen_so_far + n, 1, values=values)

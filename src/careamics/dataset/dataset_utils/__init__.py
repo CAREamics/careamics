@@ -1,13 +1,13 @@
 """Files and arrays utils used in the datasets."""
 
 __all__ = [
-    "reshape_array",
+    "WelfordStatistics",
     "compute_normalization_stats",
     "get_files_size",
-    "list_files",
-    "validate_source_target_files",
     "iterate_over_files",
-    "WelfordStatistics",
+    "list_files",
+    "reshape_array",
+    "validate_source_target_files",
 ]
 
 

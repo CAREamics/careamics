@@ -2,7 +2,7 @@
 Script for utility functions needed by the LVAE model.
 """
 
-from typing import Iterable
+from typing import Literal, Sequence
 
 import numpy as np
 import torch
@@ -13,11 +13,6 @@ from torch.distributions.normal import Normal
 
 def torch_nanmean(inp):
     return torch.mean(inp[~inp.isnan()])
-
-
-def compute_batch_mean(x):
-    N = len(x)
-    return x.view(N, -1).mean(dim=1)
 
 
 def power_of_2(self, x):
@@ -100,46 +95,76 @@ class ModelType(Enum):
     LadderVAETwoDataSetFinetuning = 28
 
 
-def _pad_crop_img(x, size, mode) -> torch.Tensor:
+def _pad_crop_img(
+    x: torch.Tensor, size: Sequence[int], mode: Literal["crop", "pad"]
+) -> torch.Tensor:
     """Pads or crops a tensor.
-    Pads or crops a tensor of shape (batch, channels, h, w) to new height
-    and width given by a tuple.
-    Args:
-        x (torch.Tensor): Input image
-        size (list or tuple): Desired size (height, width)
-        mode (str): Mode, either 'pad' or 'crop'
+
+    Pads or crops a tensor of shape (B, C, [Z], Y, X) to new shape.
+
+    Parameters:
+    -----------
+    x: torch.Tensor
+        Input image of shape (B, C, [Z], Y, X)
+    size: Sequence[int]
+        Desired size ([Z*], Y*, X*)
+    mode: Literal["crop", "pad"]
+        Mode, either 'pad' or 'crop'
+
     Returns:
+    --------
+    torch.Tensor:
         The padded or cropped tensor
     """
-    assert x.dim() == 4 and len(size) == 2
+    # TODO: Support cropping/padding on selected dimensions
+    assert (x.dim() == 4 and len(size) == 2) or (x.dim() == 5 and len(size) == 3)
+
     size = tuple(size)
-    x_size = x.size()[2:4]
+    x_size = x.size()[2:]
+
     if mode == "pad":
-        cond = x_size[0] > size[0] or x_size[1] > size[1]
+        cond = any(x_size[i] > size[i] for i in range(len(size)))
     elif mode == "crop":
-        cond = x_size[0] < size[0] or x_size[1] < size[1]
-    else:
-        raise ValueError(f"invalid mode '{mode}'")
+        cond = any(x_size[i] < size[i] for i in range(len(size)))
+
     if cond:
-        raise ValueError(f"trying to {mode} from size {x_size} to size {size}")
-    dr, dc = (abs(x_size[0] - size[0]), abs(x_size[1] - size[1]))
-    dr1, dr2 = dr // 2, dr - (dr // 2)
-    dc1, dc2 = dc // 2, dc - (dc // 2)
+        raise ValueError(f"Trying to {mode} from size {x_size} to size {size}")
+
+    diffs = [abs(x - s) for x, s in zip(x_size, size)]
+    d1 = [d // 2 for d in diffs]
+    d2 = [d - (d // 2) for d in diffs]
+
     if mode == "pad":
-        return nn.functional.pad(x, [dc1, dc2, dr1, dr2, 0, 0, 0, 0])
+        if x.dim() == 4:
+            padding = [d1[1], d2[1], d1[0], d2[0], 0, 0, 0, 0]
+        elif x.dim() == 5:
+            padding = [d1[2], d2[2], d1[1], d2[1], d1[0], d2[0], 0, 0, 0, 0]
+        return nn.functional.pad(x, padding)
     elif mode == "crop":
-        return x[:, :, dr1 : x_size[0] - dr2, dc1 : x_size[1] - dc2]
+        if x.dim() == 4:
+            return x[:, :, d1[0] : (x_size[0] - d2[0]), d1[1] : (x_size[1] - d2[1])]
+        elif x.dim() == 5:
+            return x[
+                :,
+                :,
+                d1[0] : (x_size[0] - d2[0]),
+                d1[1] : (x_size[1] - d2[1]),
+                d1[2] : (x_size[2] - d2[2]),
+            ]
 
 
-def pad_img_tensor(x, size) -> torch.Tensor:
-    """Pads a tensor.
-    Pads a tensor of shape (batch, channels, h, w) to a desired height and width.
-    Args:
-        x (torch.Tensor): Input image
-        size (list or tuple): Desired size (height, width)
+def pad_img_tensor(x: torch.Tensor, size: Sequence[int]) -> torch.Tensor:
+    """Pads a tensor
 
-    Returns
-    -------
+    Pads a tensor of shape (B, C, [Z], Y, X) to desired spatial dimensions.
+
+    Parameters:
+    -----------
+        x (torch.Tensor): Input image of shape (B, C, [Z], Y, X)
+        size (list or tuple): Desired size  ([Z*], Y*, X*)
+
+    Returns:
+    --------
         The padded tensor
     """
     return _pad_crop_img(x, size, "pad")
@@ -251,7 +276,15 @@ class StableLogVar:
     def get_std(self) -> torch.Tensor:
         return torch.sqrt(self.get_var())
 
-    def centercrop_to_size(self, size: Iterable[int]) -> None:
+    @property
+    def is_3D(self) -> bool:
+        """Check if the _lv tensor is 3D.
+
+        Recall that, in this framework, tensors have shape (B, C, [Z], Y, X).
+        """
+        return self._lv.dim() == 5
+
+    def centercrop_to_size(self, size: Sequence[int]) -> None:
         """
         Centercrop the log-variance tensor to the desired size.
 
@@ -260,6 +293,8 @@ class StableLogVar:
         size: torch.Tensor
             The desired size of the log-variance tensor.
         """
+        assert not self.is_3D, "Centercrop is implemented only for 2D tensors."
+
         if self._lv.shape[-1] == size:
             return
 
@@ -276,15 +311,26 @@ class StableMean:
     def get(self) -> torch.Tensor:
         return self._mean
 
-    def centercrop_to_size(self, size: Iterable[int]) -> None:
+    @property
+    def is_3D(self) -> bool:
+        """Check if the _mean tensor is 3D.
+
+        Recall that, in this framework, tensors have shape (B, C, [Z], Y, X).
         """
-        Centercrop the mean tensor to the desired size.
+        return self._mean.dim() == 5
+
+    def centercrop_to_size(self, size: Sequence[int]) -> None:
+        """Centercrop the mean tensor to the desired size.
+
+        Implemented only in the case of 2D tensors.
 
         Parameters
         ----------
         size: torch.Tensor
             The desired size of the log-variance tensor.
         """
+        assert not self.is_3D, "Centercrop is implemented only for 2D tensors."
+
         if self._mean.shape[-1] == size:
             return
 
@@ -356,40 +402,3 @@ def kl_normal_mc(z, p_mulv, q_mulv):
     p_distrib = Normal(p_mu.get(), p_std)
     q_distrib = Normal(q_mu.get(), q_std)
     return q_distrib.log_prob(z) - p_distrib.log_prob(z)
-
-
-def free_bits_kl(
-    kl: torch.Tensor, free_bits: float, batch_average: bool = False, eps: float = 1e-6
-) -> torch.Tensor:
-    """
-    Computes free-bits version of KL divergence.
-    Ensures that the KL doesn't go to zero for any latent dimension.
-    Hence, it contributes to use latent variables more efficiently,
-    leading to better representation learning.
-
-    NOTE:
-    Takes in the KL with shape (batch size, layers), returns the KL with
-    free bits (for optimization) with shape (layers,), which is the average
-    free-bits KL per layer in the current batch.
-    If batch_average is False (default), the free bits are per layer and
-    per batch element. Otherwise, the free bits are still per layer, but
-    are assigned on average to the whole batch. In both cases, the batch
-    average is returned, so it's simply a matter of doing mean(clamp(KL))
-    or clamp(mean(KL)).
-
-    Args:
-        kl (torch.Tensor)
-        free_bits (float)
-        batch_average (bool, optional))
-        eps (float, optional)
-
-    Returns
-    -------
-        The KL with free bits
-    """
-    assert kl.dim() == 2
-    if free_bits < eps:
-        return kl.mean(0)
-    if batch_average:
-        return kl.mean(0).clamp(min=free_bits)
-    return kl.clamp(min=free_bits).mean(0)

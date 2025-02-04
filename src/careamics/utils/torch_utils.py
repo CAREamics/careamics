@@ -5,7 +5,7 @@ These functions are used to control certain aspects and behaviours of PyTorch.
 """
 
 import inspect
-from typing import Dict, Union
+from typing import Union
 
 import torch
 
@@ -27,12 +27,12 @@ def filter_parameters(
     ----------
     func : type
         Class object.
-    user_params : Dict
+    user_params : dict
         User provided parameters.
 
     Returns
     -------
-    Dict
+    dict
         Parameters matching `func`'s signature.
     """
     # Get the list of all default parameters
@@ -64,13 +64,13 @@ def get_optimizer(name: str) -> torch.optim.Optimizer:
     return getattr(torch.optim, name)
 
 
-def get_optimizers() -> Dict[str, str]:
+def get_optimizers() -> dict[str, str]:
     """
     Return the list of all optimizers available in torch.optim.
 
     Returns
     -------
-    Dict
+    dict
         Optimizers available in torch.optim.
     """
     optims = {}
@@ -84,7 +84,7 @@ def get_optimizers() -> Dict[str, str]:
 def get_scheduler(
     name: str,
 ) -> Union[
-    torch.optim.lr_scheduler.LRScheduler,
+    # torch.optim.lr_scheduler.LRScheduler,
     torch.optim.lr_scheduler.ReduceLROnPlateau,
 ]:
     """
@@ -106,13 +106,13 @@ def get_scheduler(
     return getattr(torch.optim.lr_scheduler, name)
 
 
-def get_schedulers() -> Dict[str, str]:
+def get_schedulers() -> dict[str, str]:
     """
     Return the list of all schedulers available in torch.optim.lr_scheduler.
 
     Returns
     -------
-    Dict
+    dict
         Schedulers available in torch.optim.lr_scheduler.
     """
     schedulers = {}

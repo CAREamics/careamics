@@ -6,21 +6,29 @@ It includes functions to:
     - create plots to visualize the results.
 """
 
-import math
 import os
-from typing import Dict, List, Literal, Union
+from typing import Optional
 
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from matplotlib.gridspec import GridSpec
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Dataset, Subset
 from tqdm import tqdm
 
-from careamics.models.lvae.utils import ModelType
+from careamics.lightning import VAEModule
+from careamics.utils.metrics import scale_invariant_psnr
 
-from .metrics import RangeInvariantPsnr, RunningPSNR
+
+class TilingMode:
+    """
+    Enum for the tiling mode.
+    """
+
+    TrimBoundary = 0
+    PadBoundary = 1
+    ShiftBoundary = 2
 
 
 # ------------------------------------------------------------------------------------------------
@@ -40,28 +48,26 @@ def clean_ax(ax):
     ax.tick_params(left=False, right=False, top=False, bottom=False)
 
 
-def get_plots_output_dir(
+def get_eval_output_dir(
     saveplotsdir: str, patch_size: int, mmse_count: int = 50
 ) -> str:
     """
     Given the path to a root directory to save plots, patch size, and mmse count,
     it returns the specific directory to save the plots.
     """
-    plotsrootdir = os.path.join(
-        saveplotsdir, f"plots/patch_{patch_size}_mmse_{mmse_count}"
+    eval_out_dir = os.path.join(
+        saveplotsdir, f"eval_outputs/patch_{patch_size}_mmse_{mmse_count}"
     )
-    os.makedirs(plotsrootdir, exist_ok=True)
-    print(plotsrootdir)
-    return plotsrootdir
+    os.makedirs(eval_out_dir, exist_ok=True)
+    print(eval_out_dir)
+    return eval_out_dir
 
 
 def get_psnr_str(tar_hsnr, pred, col_idx):
     """
     Compute PSNR between the ground truth (`tar_hsnr`) and the predicted image (`pred`).
     """
-    return (
-        f"{RangeInvariantPsnr(tar_hsnr[col_idx][None], pred[col_idx][None]).item():.1f}"
-    )
+    return f"{scale_invariant_psnr(tar_hsnr[col_idx][None], pred[col_idx][None]).item():.1f}"
 
 
 def add_psnr_str(ax_, psnr):
@@ -138,11 +144,10 @@ def plot_crops(
     tar,
     tar_hsnr,
     recon_img_list,
-    calibration_stats,
+    calibration_stats=None,
     num_samples=2,
     baseline_preds=None,
 ):
-    """ """
     if baseline_preds is None:
         baseline_preds = []
     if len(baseline_preds) > 0:
@@ -153,15 +158,13 @@ def plot_crops(
                 )
                 print("This happens when we want to predict the edges of the image.")
                 return
+    color_ch_list = ["goldenrod", "cyan"]
+    color_pred = "red"
+    insetplot_xmax_value = 10000
+    insetplot_xmin_value = -1000
+    inset_min_labelsize = 10
+    inset_rect = [0.05, 0.05, 0.4, 0.2]
 
-    # color_ch_list = ['goldenrod', 'cyan']
-    # color_pred = 'red'
-    # insetplot_xmax_value = 10000
-    # insetplot_xmin_value = -1000
-    # inset_min_labelsize = 10
-    # inset_rect = [0.05, 0.05, 0.4, 0.2]
-
-    # Set plot attributes
     img_sz = 3
     ncols = num_samples + len(baseline_preds) + 1 + 1 + 1 + 1 + 1 * (num_samples > 1)
     grid_factor = 5
@@ -180,7 +183,6 @@ def plot_crops(
     )
     params = {"mathtext.default": "regular"}
     plt.rcParams.update(params)
-
     # plot baselines
     for i in range(2, 2 + len(baseline_preds)):
         for col_idx in range(baseline_preds[0].shape[0]):
@@ -460,60 +462,94 @@ def plot_error(target, prediction, cmap=matplotlib.cm.coolwarm, ax=None, max_val
     plt.colorbar(img_err, ax=ax)
 
 
-# ------------------------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------------
 
 
-def get_predictions(idx, val_dset, model, mmse_count=50, patch_size=256):
-    """
-    Given an index and a validation/test set, it returns the input, target and the reconstructed images for that index.
-    """
-    print(f"Predicting for {idx}")
-    val_dset.set_img_sz(patch_size, 64)
-
-    with torch.no_grad():
-        # val_dset.enable_noise()
-        inp, tar = val_dset[idx]
-        # val_dset.disable_noise()
-
-        inp = torch.Tensor(inp[None])
-        tar = torch.Tensor(tar[None])
-        inp = inp.cuda()
-        x_normalized = model.normalize_input(inp)
-        tar = tar.cuda()
-        tar_normalized = model.normalize_target(tar)
-
-        recon_img_list = []
-        for _ in range(mmse_count):
-            recon_normalized, td_data = model(x_normalized)
-            rec_loss, imgs = model.get_reconstruction_loss(
-                recon_normalized,
-                x_normalized,
-                tar_normalized,
-                return_predicted_img=True,
-            )
-            imgs = model.unnormalize_target(imgs)
-            recon_img_list.append(imgs.cpu().numpy()[0])
-
-    recon_img_list = np.array(recon_img_list)
-    return inp, tar, recon_img_list
-
-
-def get_dset_predictions(
-    model,
-    dset,
+def get_predictions(
+    model: VAEModule,
+    dset: Dataset,
     batch_size: int,
-    model_type: ModelType = None,
+    tile_size: Optional[tuple[int, int]] = None,
     mmse_count: int = 1,
     num_workers: int = 4,
-):
-    """
-    Get predictions from a model for the entire dataset.
+) -> tuple[dict, dict, dict]:
+    """Get patch-wise predictions from a model for the entire dataset.
 
     Parameters
     ----------
-    mmse_count : int
-        Number of samples to generate for each input and then to average over for MMSE estimation.
+    model : VAEModule
+        Lightning model used for prediction.
+    dset : Dataset
+        Dataset to predict on.
+    batch_size : int
+        Batch size to use for prediction.
+    loss_type :
+        Type of reconstruction loss used by the model, by default `None`.
+    mmse_count : int, optional
+        Number of samples to generate for each input and then to average over for
+        MMSE estimation, by default 1.
+    num_workers : int, optional
+        Number of workers to use for DataLoader, by default 4.
+
+    Returns
+    -------
+    tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, List[float]]
+        Tuple containing:
+            - predictions: Predicted images for the dataset.
+            - predictions_std: Standard deviation of the predicted images.
+            - logvar_arr: Log variance of the predicted images.
+            - losses: Reconstruction losses for the predictions.
+            - psnr: PSNR values for the predictions.
     """
+    if hasattr(dset, "dsets"):
+        multifile_stitched_predictions = {}
+        multifile_stitched_stds = {}
+        for d in dset.dsets:
+            stitched_predictions, stitched_stds = get_single_file_mmse(
+                model=model,
+                dset=d,
+                batch_size=batch_size,
+                tile_size=tile_size,
+                mmse_count=mmse_count,
+                num_workers=num_workers,
+            )
+            # get filename without extension and path
+            filename = str(d._fpath).split("/")[-1].split(".")[0]
+            multifile_stitched_predictions[filename] = stitched_predictions
+            multifile_stitched_stds[filename] = stitched_stds
+        return (
+            multifile_stitched_predictions,
+            multifile_stitched_stds,
+        )
+    else:
+        stitched_predictions, stitched_stds = get_single_file_mmse(
+            model=model,
+            dset=dset,
+            batch_size=batch_size,
+            tile_size=tile_size,
+            mmse_count=mmse_count,
+            num_workers=num_workers,
+        )
+        # get filename without extension and path
+        filename = str(dset._fpath).split("/")[-1].split(".")[0]
+        return (
+            {filename: stitched_predictions},
+            {filename: stitched_stds},
+        )
+
+
+def get_single_file_predictions(
+    model: VAEModule,
+    dset: Dataset,
+    batch_size: int,
+    tile_size: Optional[tuple[int, int]] = None,
+    grid_size: Optional[int] = None,
+    num_workers: int = 4,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Get patch-wise predictions from a model for a single file dataset."""
+    if tile_size and grid_size:
+        dset.set_img_sz(tile_size, grid_size)
+
     dloader = DataLoader(
         dset,
         pin_memory=False,
@@ -521,81 +557,90 @@ def get_dset_predictions(
         shuffle=False,
         batch_size=batch_size,
     )
-    likelihood = model.model.likelihood
-    predictions = []
-    predictions_std = []
-    losses = []
+    model.eval()
+    model.cuda()
+    tiles = []
     logvar_arr = []
-    patch_psnr_channels = [RunningPSNR() for _ in range(dset[0][1].shape[0])]
     with torch.no_grad():
-        for batch in tqdm(dloader):
-            inp, tar = batch[:2]
+        for batch in tqdm(dloader, desc="Predicting tiles"):
+            inp, tar = batch
             inp = inp.cuda()
             tar = tar.cuda()
 
-            recon_img_list = []
-            for mmse_idx in range(mmse_count):
-                if model_type == ModelType.Denoiser:
-                    assert model.denoise_channel in [
-                        "Ch1",
-                        "Ch2",
-                        "input",
-                    ], '"all" denoise channel not supported for evaluation. Pick one of "Ch1", "Ch2", "input"'
+            # get model output
+            rec, _ = model(inp)
 
-                    x_normalized_new, tar_new = model.get_new_input_target(
-                        (inp, tar, *batch[2:])
-                    )
-                    tar_normalized = model.normalize_target(tar_new)
-                    recon_normalized, _ = model(x_normalized_new)
-                    rec_loss, imgs = model.get_reconstruction_loss(
-                        recon_normalized,
-                        tar_normalized,
-                        x_normalized_new,
-                        return_predicted_img=True,
-                    )
-                else:
-                    x_normalized = model.normalize_input(inp)
-                    tar_normalized = model.normalize_target(tar)
-                    recon_normalized, _ = model(x_normalized)
-                    rec_loss, imgs = model.get_reconstruction_loss(
-                        recon_normalized, tar_normalized, inp, return_predicted_img=True
-                    )
+            # get reconstructed img
+            if model.model.predict_logvar is None:
+                rec_img = rec
+                logvar = torch.tensor([-1])
+            else:
+                rec_img, logvar = torch.chunk(rec, chunks=2, dim=1)
+            logvar_arr.append(logvar.cpu().numpy())  # Why do we need this ?
 
-                if mmse_idx == 0:
-                    q_dic = (
-                        likelihood.distr_params(recon_normalized)
-                        if likelihood is not None
-                        else {"logvar": None}
-                    )
-                    if q_dic["logvar"] is not None:
-                        logvar_arr.append(q_dic["logvar"].cpu().numpy())
-                    else:
-                        logvar_arr.append(np.array([-1]))
+            tiles.append(rec_img.cpu().numpy())
 
-                    try:
-                        losses.append(rec_loss["loss"].cpu().numpy())
-                    except:
-                        losses.append(rec_loss["loss"])
+    tile_samples = np.concatenate(tiles, axis=0)
+    return stitch_predictions_new(tile_samples, dset)
 
-                for i in range(imgs.shape[1]):
-                    patch_psnr_channels[i].update(imgs[:, i], tar_normalized[:, i])
 
-                recon_img_list.append(imgs.cpu()[None])
-
-            samples = torch.cat(recon_img_list, dim=0)
-            mmse_imgs = torch.mean(samples, dim=0)
-            mmse_std = torch.std(samples, dim=0)
-            predictions.append(mmse_imgs.cpu().numpy())
-            predictions_std.append(mmse_std.cpu().numpy())
-
-    psnr = [x.get() for x in patch_psnr_channels]
-    return (
-        np.concatenate(predictions, axis=0),
-        np.array(losses),
-        np.concatenate(logvar_arr),
-        psnr,
-        np.concatenate(predictions_std, axis=0),
+def get_single_file_mmse(
+    model: VAEModule,
+    dset: Dataset,
+    batch_size: int,
+    tile_size: Optional[tuple[int, int]] = None,
+    mmse_count: int = 1,
+    num_workers: int = 4,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Get patch-wise predictions from a model for a single file dataset."""
+    dloader = DataLoader(
+        dset,
+        pin_memory=False,
+        num_workers=num_workers,
+        shuffle=False,
+        batch_size=batch_size,
     )
+    if tile_size:
+        dset.set_img_sz(tile_size, tile_size[-1] // 2)
+    model.eval()
+    model.cuda()
+    tile_mmse = []
+    tile_stds = []
+    logvar_arr = []
+    with torch.no_grad():
+        for batch in tqdm(dloader, desc="Predicting tiles"):
+            inp, tar = batch
+            inp = inp.cuda()
+            tar = tar.cuda()
+
+            rec_img_list = []
+            for _ in range(mmse_count):
+
+                # get model output
+                rec, _ = model(inp)
+
+                # get reconstructed img
+                if model.model.predict_logvar is None:
+                    rec_img = rec
+                    logvar = torch.tensor([-1])
+                else:
+                    rec_img, logvar = torch.chunk(rec, chunks=2, dim=1)
+                rec_img_list.append(rec_img.cpu().unsqueeze(0))  # add MMSE dim
+                logvar_arr.append(logvar.cpu().numpy())  # Why do we need this ?
+
+            # aggregate results
+            samples = torch.cat(rec_img_list, dim=0)
+            mmse_imgs = torch.mean(samples, dim=0)  # avg over MMSE dim
+            std_imgs = torch.std(samples, dim=0)  # std over MMSE dim
+
+            tile_mmse.append(mmse_imgs.cpu().numpy())
+            tile_stds.append(std_imgs.cpu().numpy())
+
+    tiles_arr = np.concatenate(tile_mmse, axis=0)
+    tile_stds = np.concatenate(tile_stds, axis=0)
+    stitched_predictions = stitch_predictions_new(tiles_arr, dset)
+    stitched_stds = stitch_predictions_new(tile_stds, dset)
+    return stitched_predictions, stitched_stds
 
 
 # ------------------------------------------------------------------------------------------
@@ -728,178 +773,85 @@ def stitch_predictions(predictions, dset, smoothening_pixelcount=0):
     return output
 
 
-# ------------------------------------------------------------------------------------------
+# from disentangle.analysis.stitch_prediction import *
+def stitch_predictions_new(predictions, dset):
+    """
+    Args:
+        smoothening_pixelcount: number of pixels which can be interpolated
+    """
+    # Commented out since it is not used as of now
+    # if isinstance(dset, MultiFileDset):
+    #     cum_count = 0
+    #     output = []
+    #     for dset in dset.dsets:
+    #         cnt = dset.idx_manager.total_grid_count()
+    #         output.append(
+    #             stitch_predictions(predictions[cum_count:cum_count + cnt], dset))
+    #         cum_count += cnt
+    #     return output
 
+    # else:
+    mng = dset.idx_manager
 
-# ------------------------------------------------------------------------------------------
-### Classes and Functions used for Calibration
-class Calibration:
+    # if there are more channels, use all of them.
+    shape = list(dset.get_data_shape())
+    shape[-1] = max(shape[-1], predictions.shape[1])
 
-    def __init__(
-        self, num_bins: int = 15, mode: Literal["pixelwise", "patchwise"] = "pixelwise"
-    ):
-        self._bins = num_bins
-        self._bin_boundaries = None
-        self._mode = mode
-        assert mode in ["pixelwise", "patchwise"]
-        self._boundary_mode = "uniform"
-        assert self._boundary_mode in ["quantile", "uniform"]
-        # self._bin_boundaries = {}
+    output = np.zeros(shape, dtype=predictions.dtype)
+    # frame_shape = dset.get_data_shape()[:-1]
+    for dset_idx in range(predictions.shape[0]):
+        # loc = get_location_from_idx(dset, dset_idx, predictions.shape[-2], predictions.shape[-1])
+        # grid start, grid end
+        gs = np.array(mng.get_location_from_dataset_idx(dset_idx), dtype=int)
+        ge = gs + mng.grid_shape
 
-    def logvar_to_std(self, logvar: np.ndarray) -> np.ndarray:
-        return np.exp(logvar / 2)
+        # patch start, patch end
+        ps = gs - mng.patch_offset()
+        pe = ps + mng.patch_shape
+        # print('PS')
+        # print(ps)
+        # print(pe)
 
-    def compute_bin_boundaries(self, predict_logvar: np.ndarray) -> np.ndarray:
-        """
-        Compute the bin boundaries for `num_bins` bins and the given logvar values.
-        """
-        if self._boundary_mode == "quantile":
-            boundaries = np.quantile(
-                self.logvar_to_std(predict_logvar), np.linspace(0, 1, self._bins + 1)
-            )
-            return boundaries
-        else:
-            min_logvar = np.min(predict_logvar)
-            max_logvar = np.max(predict_logvar)
-            min_std = self.logvar_to_std(min_logvar)
-            max_std = self.logvar_to_std(max_logvar)
-        return np.linspace(min_std, max_std, self._bins + 1)
+        # valid grid start, valid grid end
+        vgs = np.array([max(0, x) for x in gs], dtype=int)
+        vge = np.array([min(x, y) for x, y in zip(ge, mng.data_shape)], dtype=int)
+        # assert np.all(vgs == gs)
+        # assert np.all(vge == ge) # TODO comented out this shit cuz I have no interest to dig why it's failing at this point !
+        # print('VGS')
+        # print(gs)
+        # print(ge)
 
-    def compute_stats(
-        self, pred: np.ndarray, pred_logvar: np.ndarray, target: np.ndarray
-    ) -> Dict[int, Dict[str, Union[np.ndarray, List]]]:
-        """
-        It computes the bin-wise RMSE and RMV for each channel of the predicted image.
+        if mng.tiling_mode == TilingMode.ShiftBoundary:
+            for dim in range(len(vgs)):
+                if ps[dim] == 0:
+                    vgs[dim] = 0
+                if pe[dim] == mng.data_shape[dim]:
+                    vge[dim] = mng.data_shape[dim]
 
-        Recall that:
-            - RMSE = np.sqrt((pred - target)**2 / num_pixels)
-            - RMV = np.sqrt(np.mean(pred_std**2))
+        # relative start, relative end. This will be used on pred_tiled
+        rs = vgs - ps
+        re = rs + (vge - vgs)
+        # print('RS')
+        # print(rs)
+        # print(re)
 
-        ALGORITHM
-        - For each channel:
-            - Given the bin boundaries, assign pixels of `std_ch` array to a specific bin index.
-            - For each bin index:
-                - Compute the RMSE, RMV, and number of pixels for that bin.
-
-        NOTE: each channel of the predicted image/logvar has its own stats.
-
-        Args:
-            pred: np.ndarray, shape (n, h, w, c)
-            pred_logvar: np.ndarray, shape (n, h, w, c)
-            target: np.ndarray, shape (n, h, w, c)
-        """
-        self._bin_boundaries = {}
-        stats = {}
-        for ch_idx in range(pred.shape[-1]):
-            stats[ch_idx] = {
-                "bin_count": [],
-                "rmv": [],
-                "rmse": [],
-                "bin_boundaries": None,
-                "bin_matrix": [],
-            }
-            pred_ch = pred[..., ch_idx]
-            logvar_ch = pred_logvar[..., ch_idx]
-            std_ch = self.logvar_to_std(logvar_ch)
-            target_ch = target[..., ch_idx]
-            if self._mode == "pixelwise":
-                boundaries = self.compute_bin_boundaries(logvar_ch)
-                stats[ch_idx]["bin_boundaries"] = boundaries
-                bin_matrix = np.digitize(std_ch.reshape(-1), boundaries)
-                bin_matrix = bin_matrix.reshape(std_ch.shape)
-                stats[ch_idx]["bin_matrix"] = bin_matrix
-                error = (pred_ch - target_ch) ** 2
-                for bin_idx in range(self._bins):
-                    bin_mask = bin_matrix == bin_idx
-                    bin_error = error[bin_mask]
-                    bin_size = np.sum(bin_mask)
-                    bin_error = (
-                        np.sqrt(np.sum(bin_error) / bin_size) if bin_size > 0 else None
-                    )  # RMSE
-                    bin_var = np.sqrt(np.mean(std_ch[bin_mask] ** 2))  # RMV
-                    stats[ch_idx]["rmse"].append(bin_error)
-                    stats[ch_idx]["rmv"].append(bin_var)
-                    stats[ch_idx]["bin_count"].append(bin_size)
+        # print(output.shape)
+        # print(predictions.shape)
+        for ch_idx in range(predictions.shape[1]):
+            if len(output.shape) == 4:
+                # channel dimension is the last one.
+                output[vgs[0] : vge[0], vgs[1] : vge[1], vgs[2] : vge[2], ch_idx] = (
+                    predictions[dset_idx][ch_idx, rs[1] : re[1], rs[2] : re[2]]
+                )
+            elif len(output.shape) == 5:
+                # channel dimension is the last one.
+                assert vge[0] - vgs[0] == 1, "Only one frame is supported"
+                output[
+                    vgs[0], vgs[1] : vge[1], vgs[2] : vge[2], vgs[3] : vge[3], ch_idx
+                ] = predictions[dset_idx][
+                    ch_idx, rs[1] : re[1], rs[2] : re[2], rs[3] : re[3]
+                ]
             else:
-                raise NotImplementedError("Patchwise mode is not implemented yet.")
-        return stats
+                raise ValueError(f"Unsupported shape {output.shape}")
 
-
-def nll(x, mean, logvar):
-    """
-    Log of the probability density of the values x under the Normal
-    distribution with parameters mean and logvar.
-
-    :param x: tensor of points, with shape (batch, channels, dim1, dim2)
-    :param mean: tensor with mean of distribution, shape
-                 (batch, channels, dim1, dim2)
-    :param logvar: tensor with log-variance of distribution, shape has to be
-                   either scalar or broadcastable
-    """
-    var = torch.exp(logvar)
-    log_prob = -0.5 * (
-        ((x - mean) ** 2) / var + logvar + torch.tensor(2 * math.pi).log()
-    )
-    nll = -log_prob
-    return nll
-
-
-def get_calibrated_factor_for_stdev(
-    pred: Union[np.ndarray, torch.Tensor],
-    pred_logvar: Union[np.ndarray, torch.Tensor],
-    target: Union[np.ndarray, torch.Tensor],
-    batch_size: int = 32,
-    epochs: int = 500,
-    lr: float = 0.01,
-):
-    """
-    Here, we calibrate the uncertainty by multiplying the predicted std (mmse estimate or predicted logvar) with a scalar.
-    We return the calibrated scalar. This needs to be multiplied with the std.
-
-    NOTE: Why is the input logvar and not std? because the model typically predicts logvar and not std.
-    """
-    # create a learnable scalar
-    scalar = torch.nn.Parameter(torch.tensor(2.0))
-    optimizer = torch.optim.Adam([scalar], lr=lr)
-
-    bar = tqdm(range(epochs))
-    for _ in bar:
-        optimizer.zero_grad()
-        # Select a random batch of predictions
-        mask = np.random.randint(0, pred.shape[0], batch_size)
-        pred_batch = torch.Tensor(pred[mask]).cuda()
-        pred_logvar_batch = torch.Tensor(pred_logvar[mask]).cuda()
-        target_batch = torch.Tensor(target[mask]).cuda()
-
-        loss = torch.mean(
-            nll(target_batch, pred_batch, pred_logvar_batch + torch.log(scalar))
-        )
-        loss.backward()
-        optimizer.step()
-        bar.set_description(f"nll: {loss.item()} scalar: {scalar.item()}")
-
-    return np.sqrt(scalar.item())
-
-
-def plot_calibration(ax, calibration_stats):
-    first_idx = get_first_index(calibration_stats[0]["bin_count"], 0.001)
-    last_idx = get_last_index(calibration_stats[0]["bin_count"], 0.999)
-    ax.plot(
-        calibration_stats[0]["rmv"][first_idx:-last_idx],
-        calibration_stats[0]["rmse"][first_idx:-last_idx],
-        "o",
-        label=r"$\hat{C}_0$: Ch1",
-    )
-
-    first_idx = get_first_index(calibration_stats[1]["bin_count"], 0.001)
-    last_idx = get_last_index(calibration_stats[1]["bin_count"], 0.999)
-    ax.plot(
-        calibration_stats[1]["rmv"][first_idx:-last_idx],
-        calibration_stats[1]["rmse"][first_idx:-last_idx],
-        "o",
-        label=r"$\hat{C}_1: : Ch2$",
-    )
-
-    ax.set_xlabel("RMV")
-    ax.set_ylabel("RMSE")
-    ax.legend()
+    return output

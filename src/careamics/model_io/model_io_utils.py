@@ -1,11 +1,11 @@
 """Utility functions to load pretrained models."""
 
 from pathlib import Path
-from typing import Tuple, Union
+from typing import Union
 
 import torch
 
-from careamics.config import Configuration
+from careamics.config import Configuration, configuration_factory
 from careamics.lightning.lightning_module import FCNModule, VAEModule
 from careamics.model_io.bmz_io import load_from_bmz
 from careamics.utils import check_path_exists
@@ -13,7 +13,7 @@ from careamics.utils import check_path_exists
 
 def load_pretrained(
     path: Union[Path, str]
-) -> Tuple[Union[FCNModule, VAEModule], Configuration]:
+) -> tuple[Union[FCNModule, VAEModule], Configuration]:
     """
     Load a pretrained model from a checkpoint or a BioImage Model Zoo model.
 
@@ -26,8 +26,8 @@ def load_pretrained(
 
     Returns
     -------
-    Tuple[CAREamicsKiln, Configuration]
-        Tuple of CAREamics model and its configuration.
+    tuple[CAREamicsKiln, Configuration]
+        tuple of CAREamics model and its configuration.
 
     Raises
     ------
@@ -48,7 +48,7 @@ def load_pretrained(
 
 def _load_checkpoint(
     path: Union[Path, str]
-) -> Tuple[Union[FCNModule, VAEModule], Configuration]:
+) -> tuple[Union[FCNModule, VAEModule], Configuration]:
     """
     Load a model from a checkpoint and return both model and configuration.
 
@@ -59,8 +59,8 @@ def _load_checkpoint(
 
     Returns
     -------
-    Tuple[CAREamicsKiln, Configuration]
-        Tuple of CAREamics model and its configuration.
+    tuple[CAREamicsKiln, Configuration]
+        tuple of CAREamics model and its configuration.
 
     Raises
     ------
@@ -92,4 +92,4 @@ def _load_checkpoint(
             f"{cfg_dict['algorithm_config']['model']['architecture']}"
         )
 
-    return model, Configuration(**cfg_dict)
+    return model, configuration_factory(cfg_dict)

@@ -1,0 +1,11 @@
+version: 2
+updates:
+  - package-ecosystem: "pip"
+    # Files stored in repository root
+    directory: "/"
+    schedule:
+      interval: "daily"
+      time: "08:00"
+    ignore:
+      - dependency-name: "numpy"
+      - dependency-name: "zarr"

@@ -7,7 +7,9 @@ from careamics.config.support import (
     SupportedData,
     SupportedPixelManipulation,
     SupportedStructAxis,
+    SupportedTransform,
 )
+from careamics.config.transformations import N2VManipulateModel, XYFlipModel
 from careamics.dataset import InMemoryDataset, PathIterableDataset
 from careamics.lightning import TrainDataModule, create_train_datamodule
 
@@ -40,7 +42,7 @@ def test_wrapper_unknown_type(simple_array):
         create_train_datamodule(
             train_data=simple_array,
             data_type="wrong_type",
-            patch_size=(10, 10),
+            patch_size=(8, 8),
             axes="YX",
             batch_size=2,
         )
@@ -63,6 +65,21 @@ def test_wrapper_train_array(simple_array):
     assert len(list(data_module.train_dataloader())) > 0
 
 
+def test_wrapper_supervised(simple_array):
+    """Test that a supervised data config is created."""
+    data_module = create_train_datamodule(
+        train_data=simple_array,
+        data_type="array",
+        patch_size=(8, 8),
+        axes="YX",
+        batch_size=2,
+        train_target_data=simple_array,
+        val_minimum_patches=2,
+    )
+    for transform in data_module.data_config.transforms:
+        assert transform.name != SupportedTransform.N2V_MANIPULATE.value
+
+
 def test_wrapper_supervised_n2v_throws_error(simple_array):
     """Test that an error is raised if target data is passed but the transformations
     (default ones) contain N2V manipulate."""
@@ -70,12 +87,47 @@ def test_wrapper_supervised_n2v_throws_error(simple_array):
         create_train_datamodule(
             train_data=simple_array,
             data_type="array",
-            patch_size=(10, 10),
+            patch_size=(8, 8),
             axes="YX",
             batch_size=2,
             train_target_data=simple_array,
             val_minimum_patches=2,
+            transforms=[XYFlipModel(), N2VManipulateModel()],
         )
+
+
+def test_wrapper_n2v_wthout_pm_error(simple_array):
+    """Test that an error is raised if target data is passed but the transformations
+    (default ones) contain N2V manipulate."""
+    with pytest.raises(ValueError):
+        create_train_datamodule(
+            train_data=simple_array,
+            data_type="array",
+            patch_size=(8, 8),
+            axes="YX",
+            batch_size=2,
+            val_minimum_patches=2,
+            transforms=[
+                XYFlipModel(),
+            ],
+        )
+
+
+def test_wrapper_default_n2v():
+    """Test that instantiating a TrainDataModule with N2V works."""
+    data_module = create_train_datamodule(
+        train_data=np.zeros((10, 10)),
+        data_type="array",
+        patch_size=(8, 8),
+        axes="YX",
+        batch_size=2,
+    )
+
+    # N2VManipulate as last transform
+    assert (
+        data_module.data_config.transforms[-1].name
+        == SupportedTransform.N2V_MANIPULATE.value
+    )
 
 
 @pytest.mark.parametrize(
@@ -90,7 +142,7 @@ def test_wrapper_n2v2(simple_array, use_n2v2, strategy):
     data_module = create_train_datamodule(
         train_data=simple_array,
         data_type="array",
-        patch_size=(16, 16),
+        patch_size=(8, 8),
         axes="YX",
         batch_size=2,
         use_n2v2=use_n2v2,
@@ -106,7 +158,7 @@ def test_wrapper_structn2v(simple_array):
     data_module = create_train_datamodule(
         train_data=simple_array,
         data_type="array",
-        patch_size=(16, 16),
+        patch_size=(8, 8),
         axes="YX",
         batch_size=2,
         struct_n2v_axis=struct_axis,
