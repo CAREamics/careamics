@@ -19,6 +19,7 @@ __all__ = [
     "MultiChannelNMConfig",
     "N2NAlgorithm",
     "N2NConfiguration",
+    "HDNConfiguration",
     "N2VAlgorithm",
     "N2VConfiguration",
     "N2VDataConfig",
@@ -30,6 +31,7 @@ __all__ = [
     "create_care_configuration",
     "create_n2n_configuration",
     "create_n2v_configuration",
+    "create_hdn_configuration",
     "data_factory",
     "load_configuration",
     "save_configuration",
@@ -49,12 +51,14 @@ from .configuration_factories import (
     algorithm_factory,
     configuration_factory,
     create_care_configuration,
+    create_hdn_configuration,
     create_n2n_configuration,
     create_n2v_configuration,
     data_factory,
 )
 from .configuration_io import load_configuration, save_configuration
 from .data import DataConfig, GeneralDataConfig, N2VDataConfig
+from .hdn_configuration import HDNConfiguration
 from .inference_model import InferenceConfig
 from .loss_model import LVAELossConfig
 from .n2n_configuration import N2NConfiguration

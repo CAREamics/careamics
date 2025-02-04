@@ -6,6 +6,7 @@ from pydantic import Discriminator, Tag, TypeAdapter
 
 from careamics.config.algorithms import (
     CAREAlgorithm,
+    HDNAlgorithm,
     N2NAlgorithm,
     N2VAlgorithm,
 )
@@ -52,7 +53,7 @@ def _algorithm_config_discriminator(value: Union[dict, Configuration]) -> str:
 
 def configuration_factory(
     configuration: dict[str, Any]
-) -> Union[N2VConfiguration, N2NConfiguration, CAREConfiguration]:
+) -> Union[N2VConfiguration, N2NConfiguration, CAREConfiguration, HDNConfiguration]:
     """
     Create a configuration for training CAREamics.
 
@@ -82,7 +83,7 @@ def configuration_factory(
 
 def algorithm_factory(
     algorithm: dict[str, Any]
-) -> Union[N2VAlgorithm, N2NAlgorithm, CAREAlgorithm]:
+) -> Union[N2VAlgorithm, N2NAlgorithm, CAREAlgorithm, HDNAlgorithm]:
     """
     Create an algorithm model for training CAREamics.
 
@@ -96,7 +97,9 @@ def algorithm_factory(
     N2VAlgorithm or N2NAlgorithm or CAREAlgorithm
         Algorithm model for training CAREamics.
     """
-    adapter: TypeAdapter = TypeAdapter(Union[N2VAlgorithm, N2NAlgorithm, CAREAlgorithm])
+    adapter: TypeAdapter = TypeAdapter(
+        Union[N2VAlgorithm, N2NAlgorithm, CAREAlgorithm, HDNAlgorithm]
+    )
     return adapter.validate_python(algorithm)
 
 

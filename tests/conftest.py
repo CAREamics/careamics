@@ -82,7 +82,6 @@ def minimum_algorithm_hdn() -> dict:
     """
     # create dictionary
     algorithm = {
-        "algorithm_type": "vae",
         "algorithm": "hdn",
         "loss": LVAELossConfig(loss_type="hdn").model_dump(),
         "model": {
@@ -291,7 +290,7 @@ def minimum_configuration_hdn(
         "experiment_name": "LevitatingFrog",
         "algorithm_config": minimum_algorithm_hdn,
         "training_config": minimum_training,
-        "data_config": minimum_data_n2v,
+        "data_config": minimum_data,
     }
 
     return configuration
