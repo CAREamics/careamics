@@ -470,6 +470,7 @@ def get_predictions(
     dset: Dataset,
     batch_size: int,
     tile_size: Optional[tuple[int, int]] = None,
+    grid_size: Optional[int] = None,
     mmse_count: int = 1,
     num_workers: int = 4,
 ) -> tuple[dict, dict, dict]:
@@ -510,6 +511,7 @@ def get_predictions(
                 dset=d,
                 batch_size=batch_size,
                 tile_size=tile_size,
+                grid_size=grid_size,
                 mmse_count=mmse_count,
                 num_workers=num_workers,
             )
@@ -527,6 +529,7 @@ def get_predictions(
             dset=dset,
             batch_size=batch_size,
             tile_size=tile_size,
+            grid_size=grid_size,
             mmse_count=mmse_count,
             num_workers=num_workers,
         )
@@ -589,6 +592,7 @@ def get_single_file_mmse(
     dset: Dataset,
     batch_size: int,
     tile_size: Optional[tuple[int, int]] = None,
+    grid_size: Optional[int] = None,
     mmse_count: int = 1,
     num_workers: int = 4,
 ) -> tuple[np.ndarray, np.ndarray]:
@@ -600,8 +604,9 @@ def get_single_file_mmse(
         shuffle=False,
         batch_size=batch_size,
     )
-    if tile_size:
-        dset.set_img_sz(tile_size, tile_size[-1] // 2)
+    if tile_size and grid_size:
+        dset.set_img_sz(tile_size, grid_size)
+
     model.eval()
     model.cuda()
     tile_mmse = []
