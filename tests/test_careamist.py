@@ -175,9 +175,7 @@ def test_train_array_vae(tmp_path: Path, minimum_configuration_hdn: dict):
 
     # train CAREamist
     careamist.train(train_source=train_array, val_source=val_array)
-    # TODO File "/home/igor.zubarev/projects/careamics/src/careamics/dataset/in_memory_dataset.py", line 224, in __getitem__
-    # raise ValueError(
-    # ValueError: Something went wrong! No target provided (not supervised training)
+
     # check that it trained
     assert Path(tmp_path / "checkpoints" / "last.ckpt").exists()
 
