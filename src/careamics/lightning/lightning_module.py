@@ -361,7 +361,7 @@ class VAEModule(L.LightningModule):
         Any
             Loss value.
         """
-        x, target = batch
+        x, *target = batch
 
         # Forward pass
         out = self.model(x)
@@ -398,7 +398,7 @@ class VAEModule(L.LightningModule):
         batch_idx : Any
             Batch index.
         """
-        x, target = batch
+        x, *target = batch
 
         # Forward pass
         out = self.model(x)
