@@ -224,7 +224,8 @@ def _create_configuration(
     logger: Literal["wandb", "tensorboard", "none"],
     use_n2v2: bool = False,
     model_params: Optional[dict] = None,
-    dataloader_params: Optional[dict] = None,
+    train_dataloader_params: Optional[dict[str, Any]] = None,
+    val_dataloader_params: Optional[dict[str, Any]] = None,
 ) -> Configuration:
     """
     Create a configuration for training N2V, CARE or Noise2Noise.
@@ -262,8 +263,10 @@ def _create_configuration(
         Whether to use N2V2, by default False.
     model_params : dict
         UNetModel parameters.
-    dataloader_params : dict
-        Parameters for the dataloader, see PyTorch notes, by default None.
+    train_dataloader_params : dict
+        Parameters for the training dataloader, see PyTorch notes, by default None.
+    val_dataloader_params : dict
+        Parameters for the validation dataloader, see PyTorch notes, by default None.
 
     Returns
     -------
@@ -294,8 +297,12 @@ def _create_configuration(
         "patch_size": patch_size,
         "batch_size": batch_size,
         "transforms": augmentations,
-        "dataloader_params": dataloader_params,
     }
+    # Don't override defaults set in DataConfig class
+    if train_dataloader_params is not None:
+        data["train_dataloader_params"] = train_dataloader_params
+    if val_dataloader_params is not None:
+        data["val_dataloader_params"] = val_dataloader_params
 
     # training model
     training = TrainingConfig(
@@ -331,7 +338,8 @@ def _create_supervised_configuration(
     n_channels_out: Optional[int] = None,
     logger: Literal["wandb", "tensorboard", "none"] = "none",
     model_params: Optional[dict] = None,
-    dataloader_params: Optional[dict] = None,
+    train_dataloader_params: Optional[dict[str, Any]] = None,
+    val_dataloader_params: Optional[dict[str, Any]] = None,
 ) -> Configuration:
     """
     Create a configuration for training CARE or Noise2Noise.
@@ -368,8 +376,10 @@ def _create_supervised_configuration(
         Logger to use, by default "none".
     model_params : dict, optional
         UNetModel parameters, by default {}.
-    dataloader_params : dict, optional
-        Parameters for the dataloader, see PyTorch notes, by default None.
+    train_dataloader_params : dict
+        Parameters for the training dataloader, see PyTorch notes, by default None.
+    val_dataloader_params : dict
+        Parameters for the validation dataloader, see PyTorch notes, by default None.
 
     Returns
     -------
@@ -416,7 +426,8 @@ def _create_supervised_configuration(
         n_channels_out=n_channels_out,
         logger=logger,
         model_params=model_params,
-        dataloader_params=dataloader_params,
+        train_dataloader_params=train_dataloader_params,
+        val_dataloader_params=val_dataloader_params,
     )
 
 
@@ -434,7 +445,8 @@ def create_care_configuration(
     n_channels_out: Optional[int] = None,
     logger: Literal["wandb", "tensorboard", "none"] = "none",
     model_params: Optional[dict] = None,
-    dataloader_params: Optional[dict] = None,
+    train_dataloader_params: Optional[dict[str, Any]] = None,
+    val_dataloader_params: Optional[dict[str, Any]] = None,
 ) -> Configuration:
     """
     Create a configuration for training CARE.
@@ -487,8 +499,14 @@ def create_care_configuration(
         Logger to use.
     model_params : dict, default=None
         UNetModel parameters.
-    dataloader_params : dict, optional
-        Parameters for the dataloader, see PyTorch notes, by default None.
+    train_dataloader_params : dict, optional
+        Parameters for the training dataloader, see the PyTorch docs for `DataLoader`.
+        If left as `None`, the dict `{"shuffle": True}` will be used, this is set in
+        the `GeneralDataConfig`.
+    val_dataloader_params : dict, optional
+        Parameters for the validation dataloader, see PyTorch the docs for `DataLoader`.
+        If left as `None`, the empty dict `{}` will be used, this is set in the
+        `GeneralDataConfig`.
 
     Returns
     -------
@@ -577,7 +595,8 @@ def create_care_configuration(
         n_channels_out=n_channels_out,
         logger=logger,
         model_params=model_params,
-        dataloader_params=dataloader_params,
+        train_dataloader_params=train_dataloader_params,
+        val_dataloader_params=val_dataloader_params,
     )
 
 
@@ -595,7 +614,8 @@ def create_n2n_configuration(
     n_channels_out: Optional[int] = None,
     logger: Literal["wandb", "tensorboard", "none"] = "none",
     model_params: Optional[dict] = None,
-    dataloader_params: Optional[dict] = None,
+    train_dataloader_params: Optional[dict[str, Any]] = None,
+    val_dataloader_params: Optional[dict[str, Any]] = None,
 ) -> Configuration:
     """
     Create a configuration for training Noise2Noise.
@@ -648,8 +668,14 @@ def create_n2n_configuration(
         Logger to use, by default "none".
     model_params : dict, optional
         UNetModel parameters, by default {}.
-    dataloader_params : dict, optional
-        Parameters for the dataloader, see PyTorch notes, by default None.
+    train_dataloader_params : dict, optional
+        Parameters for the training dataloader, see the PyTorch docs for `DataLoader`.
+        If left as `None`, the dict `{"shuffle": True}` will be used, this is set in
+        the `GeneralDataConfig`.
+    val_dataloader_params : dict, optional
+        Parameters for the validation dataloader, see PyTorch the docs for `DataLoader`.
+        If left as `None`, the empty dict `{}` will be used, this is set in the
+        `GeneralDataConfig`.
 
     Returns
     -------
@@ -738,7 +764,8 @@ def create_n2n_configuration(
         n_channels_out=n_channels_out,
         logger=logger,
         model_params=model_params,
-        dataloader_params=dataloader_params,
+        train_dataloader_params=train_dataloader_params,
+        val_dataloader_params=val_dataloader_params,
     )
 
 
@@ -759,7 +786,8 @@ def create_n2v_configuration(
     struct_n2v_span: int = 5,
     logger: Literal["wandb", "tensorboard", "none"] = "none",
     model_params: Optional[dict] = None,
-    dataloader_params: Optional[dict] = None,
+    train_dataloader_params: Optional[dict[str, Any]] = None,
+    val_dataloader_params: Optional[dict[str, Any]] = None,
 ) -> Configuration:
     """
     Create a configuration for training Noise2Void.
@@ -838,8 +866,14 @@ def create_n2v_configuration(
         Logger to use, by default "none".
     model_params : dict, optional
         UNetModel parameters, by default None.
-    dataloader_params : dict, optional
-        Parameters for the dataloader, see PyTorch notes, by default None.
+    train_dataloader_params : dict, optional
+        Parameters for the training dataloader, see the PyTorch docs for `DataLoader`.
+        If left as `None`, the dict `{"shuffle": True}` will be used, this is set in
+        the `GeneralDataConfig`.
+    val_dataloader_params : dict, optional
+        Parameters for the validation dataloader, see PyTorch the docs for `DataLoader`.
+        If left as `None`, the empty dict `{}` will be used, this is set in the
+        `GeneralDataConfig`.
 
     Returns
     -------
@@ -979,5 +1013,6 @@ def create_n2v_configuration(
         n_channels_out=n_channels,
         logger=logger,
         model_params=model_params,
-        dataloader_params=dataloader_params,
+        train_dataloader_params=train_dataloader_params,
+        val_dataloader_params=val_dataloader_params,
     )
