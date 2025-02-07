@@ -516,7 +516,7 @@ def get_predictions(
                 num_workers=num_workers,
             )
             # get filename without extension and path
-            filename = str(d._fpath).split("/")[-1].split(".")[0]
+            filename = d._fpath.name
             multifile_stitched_predictions[filename] = stitched_predictions
             multifile_stitched_stds[filename] = stitched_stds
         return (
@@ -534,7 +534,7 @@ def get_predictions(
             num_workers=num_workers,
         )
         # get filename without extension and path
-        filename = str(dset._fpath).split("/")[-1].split(".")[0]
+        filename = dset._fpath.name
         return (
             {filename: stitched_predictions},
             {filename: stitched_stds},
