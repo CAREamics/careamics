@@ -114,7 +114,7 @@ def get_device():
         return "mps"
     else:
         return "cpu"
-    
+
 
 def show_for_one(
     idx,
@@ -563,7 +563,7 @@ def get_single_file_predictions(
         dset.set_img_sz(tile_size, grid_size)
 
     device = get_device()
-    
+
     dloader = DataLoader(
         dset,
         pin_memory=False,
