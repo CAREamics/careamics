@@ -107,6 +107,15 @@ def get_first_index(bin_count, quantile):
     return None
 
 
+def get_device():
+    if torch.cuda.is_available():
+        return "cuda"
+    elif torch.backends.mps.is_available():
+        return "mps"
+    else:
+        return "cpu"
+
+
 def show_for_one(
     idx,
     val_dset,
@@ -516,7 +525,7 @@ def get_predictions(
                 num_workers=num_workers,
             )
             # get filename without extension and path
-            filename = str(d._fpath).split("/")[-1].split(".")[0]
+            filename = d._fpath.name
             multifile_stitched_predictions[filename] = stitched_predictions
             multifile_stitched_stds[filename] = stitched_stds
         return (
@@ -534,7 +543,7 @@ def get_predictions(
             num_workers=num_workers,
         )
         # get filename without extension and path
-        filename = str(dset._fpath).split("/")[-1].split(".")[0]
+        filename = dset._fpath.name
         return (
             {filename: stitched_predictions},
             {filename: stitched_stds},
@@ -553,6 +562,8 @@ def get_single_file_predictions(
     if tile_size and grid_size:
         dset.set_img_sz(tile_size, grid_size)
 
+    device = get_device()
+
     dloader = DataLoader(
         dset,
         pin_memory=False,
@@ -561,14 +572,14 @@ def get_single_file_predictions(
         batch_size=batch_size,
     )
     model.eval()
-    model.cuda()
+    model.to(device)
     tiles = []
     logvar_arr = []
     with torch.no_grad():
         for batch in tqdm(dloader, desc="Predicting tiles"):
             inp, tar = batch
-            inp = inp.cuda()
-            tar = tar.cuda()
+            inp = inp.to(device)
+            tar = tar.to(device)
 
             # get model output
             rec, _ = model(inp)
@@ -597,6 +608,8 @@ def get_single_file_mmse(
     num_workers: int = 4,
 ) -> tuple[np.ndarray, np.ndarray]:
     """Get patch-wise predictions from a model for a single file dataset."""
+    device = get_device()
+
     dloader = DataLoader(
         dset,
         pin_memory=False,
@@ -608,15 +621,15 @@ def get_single_file_mmse(
         dset.set_img_sz(tile_size, grid_size)
 
     model.eval()
-    model.cuda()
+    model.to(device)
     tile_mmse = []
     tile_stds = []
     logvar_arr = []
     with torch.no_grad():
         for batch in tqdm(dloader, desc="Predicting tiles"):
             inp, tar = batch
-            inp = inp.cuda()
-            tar = tar.cuda()
+            inp = inp.to(device)
+            tar = tar.to(device)
 
             rec_img_list = []
             for _ in range(mmse_count):
