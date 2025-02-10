@@ -45,7 +45,6 @@ dependencies = [
     'numpy<2.0.0',
     'torch>=2.0,<=2.6.0',
     'torchvision<=0.21.0',
-    'torchvision<=0.20.1',
     'bioimageio.core==0.7',
     'tifffile<=2025.1.10',
     'psutil<=6.1.1',
@@ -56,7 +55,7 @@ dependencies = [
     'scikit-image<=0.25.1',
     'zarr<3.0.0',
     'pillow<=11.1.0',
-    'matplotlib<=3.10.0'
+    'matplotlib<=3.10.0',
 ]
 
 [project.optional-dependencies]
@@ -70,7 +69,7 @@ dev = [
 ]
 
 # notebooks
-examples = ["jupyter", "careamics-portfolio", "matplotlib"]
+examples = ["jupyter", "careamics-portfolio"]
 
 # loggers
 wandb = ["wandb"]
