@@ -159,8 +159,8 @@ def test_train_array(tmp_path: Path, minimum_n2v_configuration: dict):
 def test_train_array_vae(tmp_path: Path, minimum_configuration_hdn: dict):
     """Test that CAREamics can be trained on arrays."""
     # training data
-    train_array = random_array((32, 32))
-    val_array = random_array((32, 32))
+    train_array = random_array((128, 128))
+    val_array = random_array((128, 128))
 
     # create configuration
     config = configuration_factory(minimum_configuration_hdn)
@@ -168,7 +168,7 @@ def test_train_array_vae(tmp_path: Path, minimum_configuration_hdn: dict):
     config.data_config.axes = "YX"
     config.data_config.batch_size = 2
     config.data_config.data_type = SupportedData.ARRAY.value
-    config.data_config.patch_size = (8, 8)
+    config.data_config.patch_size = (64, 64)
 
     # instantiate CAREamist
     careamist = CAREamist(source=config, work_dir=tmp_path)
