@@ -118,6 +118,6 @@ class IterablePredDataset(IterableDataset):
             # sample has S dimension
             for i in range(sample.shape[0]):
 
-                transformed_sample, _ = self.patch_transform(patch=sample[i])
+                transformed_sample, *_ = self.patch_transform(patch=sample[i])
 
                 yield transformed_sample
