@@ -5,7 +5,6 @@ from pathlib import Path
 from typing import Optional, Union
 
 import numpy as np
-import pkg_resources
 from bioimageio.core import load_model_description, test_model
 from bioimageio.spec import ValidationSummary, save_bioimageio_package
 from pydantic import HttpUrl
@@ -16,6 +15,7 @@ from torchvision import __version__ as TORCHVISION_VERSION
 from careamics.config import Configuration, load_configuration, save_configuration
 from careamics.config.support import SupportedArchitecture
 from careamics.lightning.lightning_module import FCNModule, VAEModule
+from careamics.utils.version import get_careamics_version
 
 from .bioimage import (
     create_env_text,
@@ -139,7 +139,7 @@ def export_to_bmz(
         path_to_archive.parent.mkdir(parents=True, exist_ok=True)
 
     # versions
-    careamics_version = pkg_resources.get_distribution("careamics").version
+    careamics_version = get_careamics_version()
 
     # save files in temporary folder
     with tempfile.TemporaryDirectory() as tmpdirname:

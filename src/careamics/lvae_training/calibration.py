@@ -168,8 +168,8 @@ class Calibration:
 
 
 def plot_calibration(ax, calibration_stats):
-    first_idx = get_first_index(calibration_stats[0]["bin_count"], 0.001)
-    last_idx = get_last_index(calibration_stats[0]["bin_count"], 0.999)
+    first_idx = get_first_index(calibration_stats[0]["bin_count"], 0.0001)
+    last_idx = get_last_index(calibration_stats[0]["bin_count"], 0.9999)
     ax.plot(
         calibration_stats[0]["rmv"][first_idx:-last_idx],
         calibration_stats[0]["rmse"][first_idx:-last_idx],
@@ -177,8 +177,8 @@ def plot_calibration(ax, calibration_stats):
         label=r"$\hat{C}_0$: Ch1",
     )
 
-    first_idx = get_first_index(calibration_stats[1]["bin_count"], 0.001)
-    last_idx = get_last_index(calibration_stats[1]["bin_count"], 0.999)
+    first_idx = get_first_index(calibration_stats[1]["bin_count"], 0.0001)
+    last_idx = get_last_index(calibration_stats[1]["bin_count"], 0.9999)
     ax.plot(
         calibration_stats[1]["rmv"][first_idx:-last_idx],
         calibration_stats[1]["rmse"][first_idx:-last_idx],

@@ -8,3 +8,4 @@ updates:
       time: "08:00"
     ignore:
       - dependency-name: "numpy"
+      - dependency-name: "zarr"

@@ -154,6 +154,16 @@ def test_passing_incorrect_element(minimum_data: dict):
         DataConfig(**minimum_data)
 
 
+def test_no_shuffle_in_train_dataloader_params(minimum_data: dict):
+    """
+    Test that an error is raised if there is no "shuffle" value in
+    `train_dataloader_params`.
+    """
+    minimum_data["train_dataloader_params"] = {"num_workers": 4}
+    with pytest.raises(ValueError):
+        DataConfig(**minimum_data)
+
+
 def test_export_to_yaml_float32_stats(tmp_path, minimum_data: dict):
     """Test exporting and loading the pydantic model when the statistics are
     np.float32."""

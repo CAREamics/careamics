@@ -212,7 +212,11 @@ def test_create_configuration():
     model_params = {
         "depth": 5,
     }
-    dataloader_params = {
+    train_dataloader_params = {
+        "num_workers": 4,
+        "shuffle": True,
+    }
+    val_dataloader_params = {
         "num_workers": 4,
     }
 
@@ -232,7 +236,8 @@ def test_create_configuration():
         n_channels_out=n_channels_out,
         logger=logger,
         model_params=model_params,
-        dataloader_params=dataloader_params,
+        train_dataloader_params=train_dataloader_params,
+        val_dataloader_params=val_dataloader_params,
     )
 
     assert config.algorithm_config.algorithm == algorithm
@@ -249,7 +254,8 @@ def test_create_configuration():
     assert config.algorithm_config.model.num_classes == n_channels_out
     assert config.training_config.logger == logger
     assert config.algorithm_config.model.depth == model_params["depth"]
-    assert config.data_config.dataloader_params == dataloader_params
+    assert config.data_config.train_dataloader_params == train_dataloader_params
+    assert config.data_config.val_dataloader_params == val_dataloader_params
 
 
 def test_supervised_configuration_error_with_channel_axes():

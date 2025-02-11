@@ -5,7 +5,7 @@ from typing import Union
 
 from pytorch_lightning import LightningModule, Trainer
 from pytorch_lightning.callbacks import TQDMProgressBar
-from tqdm import tqdm
+from tqdm.auto import tqdm
 
 
 class ProgressBarCallback(TQDMProgressBar):

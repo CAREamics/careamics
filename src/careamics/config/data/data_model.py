@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from pprint import pformat
 from typing import Annotated, Any, Literal, Optional, Union
+from warnings import warn
 
 import numpy as np
 from numpy.typing import NDArray
@@ -100,8 +101,13 @@ class GeneralDataConfig(BaseModel):
     """List of transformations to apply to the data, available transforms are defined
     in SupportedTransform."""
 
-    dataloader_params: Optional[dict] = None
-    """Dictionary of PyTorch dataloader parameters."""
+    train_dataloader_params: dict[str, Any] = Field(
+        default={"shuffle": True}, validate_default=True
+    )
+    """Dictionary of PyTorch training dataloader parameters."""
+
+    val_dataloader_params: dict[str, Any] = Field(default={})
+    """Dictionary of PyTorch validation dataloader parameters."""
 
     @field_validator("patch_size")
     @classmethod
@@ -166,6 +172,45 @@ class GeneralDataConfig(BaseModel):
         check_axes_validity(axes)
 
         return axes
+
+    @field_validator("train_dataloader_params")
+    @classmethod
+    def shuffle_train_dataloader(
+        cls, train_dataloader_params: dict[str, Any]
+    ) -> dict[str, Any]:
+        """
+        Validate that "shuffle" is included in the training dataloader params.
+
+        A warning will be raised if `shuffle=False`.
+
+        Parameters
+        ----------
+        train_dataloader_params : dict of {str: Any}
+            The training dataloader parameters.
+
+        Returns
+        -------
+        dict of {str: Any}
+            The validated training dataloader parameters.
+
+        Raises
+        ------
+        ValueError
+            If "shuffle" is not included in the training dataloader params.
+        """
+        if "shuffle" not in train_dataloader_params:
+            raise ValueError(
+                "Value for 'shuffle' was not included in the `train_dataloader_params`."
+            )
+        elif ("shuffle" in train_dataloader_params) and (
+            not train_dataloader_params["shuffle"]
+        ):
+            warn(
+                "Dataloader parameters include `shuffle=False`, this will be passed to "
+                "the training dataloader and may result in bad results.",
+                stacklevel=1,
+            )
+        return train_dataloader_params
 
     @model_validator(mode="after")
     def std_only_with_mean(self: Self) -> Self:
