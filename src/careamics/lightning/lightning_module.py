@@ -371,6 +371,8 @@ class VAEModule(L.LightningModule):
         out = self.model(x)
         if not self.supervised_mode:
             target = x
+        else:
+            target = target[0] # TODO find a better way to do this
 
         # Update loss parameters
         self.loss_parameters.kl_params.current_epoch = self.current_epoch
@@ -410,6 +412,8 @@ class VAEModule(L.LightningModule):
         out = self.model(x)
         if not self.supervised_mode:
             target = x
+        else:
+            target = target[0]
         # Compute loss
         loss = self.loss_func(
             model_outputs=out,
