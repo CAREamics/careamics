@@ -1,16 +1,22 @@
 """Module containing pytorch implementations for obtaining predictions from an LVAE."""
 
-from typing import Any, Optional
+from typing import Any, Optional, Union
 
 import torch
 from numpy.typing import NDArray
 from torch.utils.data import DataLoader
 
 from careamics.dataset.tiling.lvae_tiled_patching import compute_tile_info_legacy
-from careamics.lvae_training.dataset import MultiChDloader
+from careamics.lvae_training.dataset import (
+    LCMultiChDloader,
+    MultiChDloader,
+    MultiFileDset,
+)
 from careamics.models.lvae import LadderVAE as LVAE
 from careamics.models.lvae.likelihoods import LikelihoodModule
 from careamics.prediction_utils import convert_outputs
+
+SplittingDataset = Union[LCMultiChDloader, MultiChDloader, MultiFileDset]
 
 # TODO: convert these functions to lightning module `predict_step`
 #   -> mmse_count will have to be an instance attribute?
@@ -166,7 +172,7 @@ def lvae_predict_mmse_tiled_batch(
 def lvae_predict_mmse_dataset(
     model: LVAE,
     likelihood_obj: LikelihoodModule,
-    dataset: MultiChDloader,
+    dataset: SplittingDataset,
     mmse_count: int,
     batch_size: int,
     num_workers: int,
