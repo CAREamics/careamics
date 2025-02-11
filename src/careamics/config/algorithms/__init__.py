@@ -2,11 +2,11 @@
 
 __all__ = [
     "CAREAlgorithm",
+    "HDNAlgorithm",
     "N2NAlgorithm",
     "N2VAlgorithm",
     "UNetBasedAlgorithm",
     "VAEBasedAlgorithm",
-    "HDNAlgorithm",
 ]
 
 from .care_algorithm_model import CAREAlgorithm

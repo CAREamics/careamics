@@ -8,9 +8,7 @@ from careamics.config.data import DataConfig
 
 HDN = "HDN"
 
-HDN_DESCRIPTION = (
-    ""
-)
+HDN_DESCRIPTION = ""
 HDN_REF = CiteEntry(
     text='Prakash, M., Delbracio, M., Milanfar, P., Jug, F. 2022. "Interpretable '
     'Unsupervised Diversity Denoising and Artefact Removal." The International '
