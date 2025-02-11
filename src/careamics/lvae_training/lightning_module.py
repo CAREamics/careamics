@@ -11,7 +11,7 @@ import torch
 import torchvision.transforms.functional as F
 
 from careamics.models.lvae.likelihoods import LikelihoodModule
-from careamics.models.lvae.lvae import LadderVAE
+from careamics.models.lvae.lvae import LVAE
 from careamics.models.lvae.utils import (
     LossType,
     compute_batch_mean,
@@ -52,7 +52,7 @@ class LadderVAELight(L.LightningModule):
         self.target_ch = target_ch
 
         # Initialize LVAE model
-        self.model = LadderVAE(
+        self.model = LVAE(
             data_mean=data_mean, data_std=data_std, config=config, target_ch=target_ch
         )
 

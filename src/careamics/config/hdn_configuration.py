@@ -51,10 +51,10 @@ class HDNConfiguration(Configuration):
         return [
             "restoration",
             "UNet",
+            "VAE",
             "3D" if "Z" in self.data_config.axes else "2D",
-            "HDNamics",
+            "CAREamics",
             "pytorch",
-            HDN,
         ]
 
     def get_algorithm_references(self) -> str:

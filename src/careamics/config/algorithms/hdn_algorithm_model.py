@@ -6,7 +6,7 @@ from careamics.config.loss_model import LVAELossConfig
 
 
 class HDNAlgorithm(VAEBasedAlgorithm):
-    algorith: Literal["hdn"] = "hdn"
+    algorithm: Literal["hdn"] = "hdn"
 
     loss: LVAELossConfig
 

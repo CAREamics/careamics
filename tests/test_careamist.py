@@ -179,11 +179,13 @@ def test_train_array_vae(tmp_path: Path, minimum_configuration_hdn: dict):
     # check that it trained
     assert Path(tmp_path / "checkpoints" / "last.ckpt").exists()
 
+    bmz_input = random_array((64, 64))
+
     # export to BMZ
     careamist.export_to_bmz(
         path_to_archive=tmp_path / "model.zip",
         friendly_model_name="TopModel",
-        input_array=train_array,
+        input_array=bmz_input,
         authors=[{"name": "Amod", "affiliation": "El"}],
         general_description="A model that just walked in.",
         data_description="A random array.",

@@ -294,6 +294,10 @@ class VAEModule(L.LightningModule):
         # create model
         self.model: nn.Module = model_factory(self.algorithm_config.model)
 
+        # supervised_mode
+        self.supervised_mode = (
+            False if self.algorithm_config.algorithm == "hdn" else True
+        ) # TODO find a better way to do this
         # create loss function
         self.noise_model: Optional[NoiseModel] = noise_model_factory(
             self.algorithm_config.noise_model
@@ -365,6 +369,8 @@ class VAEModule(L.LightningModule):
 
         # Forward pass
         out = self.model(x)
+        if not self.supervised_mode:
+            target = x
 
         # Update loss parameters
         self.loss_parameters.kl_params.current_epoch = self.current_epoch
@@ -402,7 +408,8 @@ class VAEModule(L.LightningModule):
 
         # Forward pass
         out = self.model(x)
-
+        if not self.supervised_mode:
+            target = x
         # Compute loss
         loss = self.loss_func(
             model_outputs=out,
@@ -444,10 +451,12 @@ class VAEModule(L.LightningModule):
             Model output.
         """
         if self._trainer.datamodule.tiled:
+            # TODO tile_size should match model input size
             x, *aux = batch
         else:
             x = batch
             aux = []
+            self.model.reset_for_inference(x.shape)
 
         # apply test-time augmentation if available
         # TODO: probably wont work with batch size > 1
@@ -467,7 +476,8 @@ class VAEModule(L.LightningModule):
             image_means=self._trainer.datamodule.predict_dataset.image_means,
             image_stds=self._trainer.datamodule.predict_dataset.image_stds,
         )
-        denormalized_output = denorm(patch=output.cpu().numpy())
+        # taking the first element of the output which is the actual prediction
+        denormalized_output = denorm(patch=output[0].cpu().numpy())
 
         if len(aux) > 0:  # aux can be tiling information
             return denormalized_output, *aux
