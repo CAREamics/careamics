@@ -3,7 +3,7 @@
 from pathlib import Path
 from typing import Union
 
-from careamics.utils.version import get_clean_version
+from careamics.utils.version import get_careamics_version
 
 
 def get_unzip_path(zip_path: Union[Path, str]) -> Path:
@@ -50,7 +50,7 @@ def create_env_text(pytorch_version: str, torchvision_version: str) -> str:
         f"  - pip:\n"
         f"    - torch=={pytorch_version}\n"
         f"    - torchvision=={torchvision_version}\n"
-        f"    - careamics=={get_clean_version()}"
+        f"    - careamics=={get_careamics_version()}"
     )
 
     return env
