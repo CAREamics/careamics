@@ -3,6 +3,8 @@
 from pathlib import Path
 from typing import Union
 
+from careamics.utils.version import get_careamics_version
+
 
 def get_unzip_path(zip_path: Union[Path, str]) -> Path:
     """Generate unzipped folder path from the bioimage.io model path.
@@ -44,11 +46,11 @@ def create_env_text(pytorch_version: str, torchvision_version: str) -> str:
         f"name: careamics\n"
         f"dependencies:\n"
         f"  - python=3.10\n"
-        f"  - pytorch={pytorch_version}\n"
-        f"  - torchvision={torchvision_version}\n"
         f"  - pip\n"
         f"  - pip:\n"
-        f"    - git+https://github.com/CAREamics/careamics.git\n"
+        f"    - torch=={pytorch_version}\n"
+        f"    - torchvision=={torchvision_version}\n"
+        f"    - careamics=={get_careamics_version()}"
     )
 
     return env
