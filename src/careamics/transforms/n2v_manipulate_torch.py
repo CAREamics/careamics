@@ -1,5 +1,6 @@
 """N2V manipulation transform for PyTorch."""
 
+import platform
 from typing import Any, Optional
 
 import torch
@@ -76,12 +77,17 @@ class N2VManipulateTorch:
             )
 
         # PyTorch random generator
-        # TODO check
-        device = (
-            "cuda"
-            if torch.cuda.is_available()
-            else "mps" if torch.backends.mps.is_available() else "cpu"
-        )
+        # TODO refactor into careamics.utils.torch_utils.get_device
+        if torch.cuda.is_available():
+            device = "cuda"
+        elif torch.backends.mps.is_available() and platform.processor() in (
+            "arm",
+            "arm64",
+        ):
+            device = "mps"
+        else:
+            device = "cpu"
+
         self.rng = (
             torch.Generator(device=device).manual_seed(seed)
             if seed is not None
