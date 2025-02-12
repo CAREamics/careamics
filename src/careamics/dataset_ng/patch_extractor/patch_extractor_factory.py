@@ -4,7 +4,7 @@ from typing import Optional, Union
 
 from numpy.typing import NDArray
 
-from careamics.config import GeneralDataConfig
+from careamics.config import DataConfig
 from careamics.config.support import SupportedData
 from careamics.dataset_ng.patch_extractor import (
     PatchExtractor,
@@ -13,7 +13,7 @@ from careamics.dataset_ng.patch_extractor import (
 
 
 def get_patch_extractor_constructor(
-    data_config: GeneralDataConfig,
+    data_config: DataConfig,
 ) -> PatchExtractorConstructor:
     if data_config.data_type == SupportedData.ARRAY:
         return PatchExtractor.from_arrays
@@ -26,7 +26,7 @@ def get_patch_extractor_constructor(
 
 
 def create_patch_extractors(
-    data_config: GeneralDataConfig,
+    data_config: DataConfig,
     train_data: Union[Sequence[NDArray], Sequence[Path]],
     val_data: Optional[Union[Sequence[NDArray], Sequence[Path]]] = None,
     train_data_target: Optional[Union[Sequence[NDArray], Sequence[Path]]] = None,
