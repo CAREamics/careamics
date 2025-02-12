@@ -2,7 +2,6 @@
 
 from pathlib import Path
 from typing import Any, Callable, Literal, Optional, Union
-from warnings import warn
 
 import numpy as np
 import pytorch_lightning as L
@@ -261,11 +260,6 @@ class TrainDataModule(L.LightningDataModule):
 
         self.extension_filter: str = extension_filter
 
-        # Pytorch dataloader parameters
-        self.dataloader_params: dict[str, Any] = (
-            data_config.dataloader_params if data_config.dataloader_params else {}
-        )
-
     def prepare_data(self) -> None:
         """
         Hook used to prepare the data before calling `setup`.
@@ -447,21 +441,17 @@ class TrainDataModule(L.LightningDataModule):
         Any
             Training dataloader.
         """
-        # check because iterable dataset cannot be shuffled
-        if not isinstance(self.train_dataset, IterableDataset):
-            if ("shuffle" in self.dataloader_params) and (
-                not self.dataloader_params["shuffle"]
-            ):
-                warn(
-                    "Dataloader parameters include `shuffle=False`, this will be "
-                    "passed to the training dataloader and may result in bad results.",
-                    stacklevel=1,
-                )
-            else:
-                self.dataloader_params["shuffle"] = True
+        train_dataloader_params = self.data_config.train_dataloader_params.copy()
+
+        # NOTE: When next-gen datasets are completed this can be removed
+        # iterable dataset cannot be shuffled
+        if isinstance(self.train_dataset, IterableDataset):
+            del train_dataloader_params["shuffle"]
 
         return DataLoader(
-            self.train_dataset, batch_size=self.batch_size, **self.dataloader_params
+            self.train_dataset,
+            batch_size=self.batch_size,
+            **train_dataloader_params,
         )
 
     def val_dataloader(self) -> Any:
@@ -476,6 +466,7 @@ class TrainDataModule(L.LightningDataModule):
         return DataLoader(
             self.val_dataset,
             batch_size=self.batch_size,
+            **self.data_config.val_dataloader_params,
         )
 
 
