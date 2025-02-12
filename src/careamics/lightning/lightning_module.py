@@ -35,7 +35,7 @@ from careamics.models.model_factory import model_factory
 from careamics.transforms import (
     Denormalize,
     ImageRestorationTTA,
-    preprocess_factory,
+    N2VManipulateTorch,
 )
 from careamics.utils.metrics import RunningPSNR, scale_invariant_psnr
 from careamics.utils.torch_utils import get_optimizer, get_scheduler
@@ -87,12 +87,15 @@ class FCNModule(L.LightningModule):
             algorithm_config = algorithm_factory(algorithm_config)
 
         # create preprocessing, model and loss function
-        # TODO should we use compose here ? should we even have this?
-        self.preprocess = preprocess_factory(
-            algorithm_config.n2v_config
-            if isinstance(algorithm_config, N2VAlgorithm)
-            else None
-        )
+        if isinstance(algorithm_config, N2VAlgorithm):
+            self.use_n2v = True
+            self.n2v_preprocess: Optional[N2VManipulateTorch] = N2VManipulateTorch(
+                n2v_manipulate_config=algorithm_config.n2v_config
+            )
+        else:
+            self.use_n2v = False
+            self.n2v_preprocess = None
+
         self.algorithm = algorithm_config.algorithm
         self.model: nn.Module = model_factory(algorithm_config.model)
         self.loss_func = loss_factory(algorithm_config.loss)
@@ -134,11 +137,12 @@ class FCNModule(L.LightningModule):
             Loss value.
         """
         x, *targets = batch
-        if self.algorithm == "n2v":
-            x_preprocessed, *aux = self.preprocess(x)
+        if self.use_n2v and self.n2v_preprocess is not None:
+            x_preprocessed, *aux = self.n2v_preprocess(x)
         else:
             x_preprocessed = x
             aux = []
+
         out = self.model(x_preprocessed)
         loss = self.loss_func(out, *aux, *targets)
         self.log(
@@ -157,11 +161,12 @@ class FCNModule(L.LightningModule):
             Batch index.
         """
         x, *targets = batch
-        if self.algorithm == "n2v":
-            x_preprocessed, *aux = self.preprocess(x)
+        if self.use_n2v and self.n2v_preprocess is not None:
+            x_preprocessed, *aux = self.n2v_preprocess(x)
         else:
             x_preprocessed = x
             aux = []
+
         out = self.model(x_preprocessed)
         val_loss = self.loss_func(out, *aux, *targets)
 
@@ -200,6 +205,7 @@ class FCNModule(L.LightningModule):
             and isinstance(batch[1][0], TileInformation)
         )
 
+        # TODO add explanations for what is happening here
         if is_tiled:
             x, *aux = batch
             if type(x) in [list, tuple]:
