@@ -173,6 +173,72 @@ def test_model_creation():
     assert model.independent_channels == independent_channels
 
 
+def test_create_configuration():
+    """Test that the methods correctly passes all parameters."""
+    algorithm = "care"
+    experiment_name = "test"
+    data_type = "tiff"
+    axes = "CYX"
+    patch_size = [128, 128]
+    batch_size = 8
+    num_epochs = 100
+    transform_list = [XYFlipModel(), XYRandomRotate90Model()]
+    independent_channels = False
+    loss = "mse"
+    n_channels_in = 2
+    n_channels_out = 3
+    logger = "tensorboard"
+    model_params = {
+        "depth": 5,
+    }
+    train_dataloader_params = {
+        "num_workers": 4,
+        "shuffle": True,
+    }
+    val_dataloader_params = {
+        "num_workers": 4,
+    }
+
+    # instantiate config
+    config = CAREConfiguration(
+        **_create_supervised_config_dict(
+            algorithm=algorithm,
+            experiment_name=experiment_name,
+            data_type=data_type,
+            axes=axes,
+            patch_size=patch_size,
+            batch_size=batch_size,
+            num_epochs=num_epochs,
+            augmentations=transform_list,
+            independent_channels=independent_channels,
+            loss=loss,
+            n_channels_in=n_channels_in,
+            n_channels_out=n_channels_out,
+            logger=logger,
+            model_params=model_params,
+            train_dataloader_params=train_dataloader_params,
+            val_dataloader_params=val_dataloader_params,
+        )
+    )
+
+    assert config.algorithm_config.algorithm == algorithm
+    assert config.experiment_name == experiment_name
+    assert config.data_config.data_type == data_type
+    assert config.data_config.axes == axes
+    assert config.data_config.patch_size == patch_size
+    assert config.data_config.batch_size == batch_size
+    assert config.training_config.num_epochs == num_epochs
+    assert config.data_config.transforms == transform_list
+    assert config.algorithm_config.model.independent_channels == independent_channels
+    assert config.algorithm_config.loss == loss
+    assert config.algorithm_config.model.in_channels == n_channels_in
+    assert config.algorithm_config.model.num_classes == n_channels_out
+    assert config.training_config.logger == logger
+    assert config.algorithm_config.model.depth == model_params["depth"]
+    assert config.data_config.train_dataloader_params == train_dataloader_params
+    assert config.data_config.val_dataloader_params == val_dataloader_params
+
+
 def test_supervised_configuration_error_with_channel_axes():
     """Test that an error is raised if channels are in axes, but the input channel
     number is not specified."""
