@@ -53,15 +53,17 @@ class N2VAlgorithm(UNetBasedAlgorithm):
             if self.n2v_config.strategy != SupportedPixelManipulation.MEDIAN.value:
                 raise ValueError(
                     f"N2V2 can only be used with the "
-                    f"{SupportedPixelManipulation.MEDIAN} pixel manipulation strategy"
-                    f". Change the N2VManipulate transform strategy."
+                    f"{SupportedPixelManipulation.MEDIAN} pixel manipulation strategy. "
+                    f"Change the `strategy` parameters in `n2v_config` to "
+                    f"{SupportedPixelManipulation.MEDIAN}."
                 )
         else:
             if self.n2v_config.strategy != SupportedPixelManipulation.UNIFORM.value:
                 raise ValueError(
                     f"N2V can only be used with the "
-                    f"{SupportedPixelManipulation.UNIFORM} pixel manipulation strategy"
-                    f". Change the N2VManipulate transform strategy."
+                    f"{SupportedPixelManipulation.UNIFORM} pixel manipulation strategy."
+                    f" Change the `strategy` parameters in `n2v_config` to "
+                    f"{SupportedPixelManipulation.UNIFORM}."
                 )
         return self
 
