@@ -97,7 +97,7 @@ class Configuration(BaseModel):
     Examples
     --------
     Minimum example:
-    >>> from careamics import configuration_factory
+    >>> from careamics import Configuration
     >>> config_dict = {
     ...         "experiment_name": "N2V_experiment",
     ...         "algorithm_config": {
@@ -116,7 +116,7 @@ class Configuration(BaseModel):
     ...             "axes": "SYX",
     ...         },
     ...     }
-    >>> config = configuration_factory(config_dict)
+    >>> config = Configuration(**config_dict)
     """
 
     model_config = ConfigDict(
