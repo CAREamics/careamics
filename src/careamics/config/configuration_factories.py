@@ -46,8 +46,8 @@ def algorithm_factory(
     """
     adapter: TypeAdapter = TypeAdapter(
         Annotated[
-        Union[N2VAlgorithm, N2NAlgorithm, CAREAlgorithm, HDNAlgorithm],
-        Field(discriminator="algorithm"),
+            Union[N2VAlgorithm, N2NAlgorithm, CAREAlgorithm, HDNAlgorithm],
+            Field(discriminator="algorithm"),
         ]
     )
     return adapter.validate_python(algorithm)
