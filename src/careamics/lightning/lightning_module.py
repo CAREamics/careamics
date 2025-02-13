@@ -297,7 +297,7 @@ class VAEModule(L.LightningModule):
         # supervised_mode
         self.supervised_mode = (
             False if self.algorithm_config.algorithm == "hdn" else True
-        ) # TODO find a better way to do this
+        )  # TODO find a better way to do this
         # create loss function
         self.noise_model: Optional[NoiseModel] = noise_model_factory(
             self.algorithm_config.noise_model
@@ -372,7 +372,7 @@ class VAEModule(L.LightningModule):
         if not self.supervised_mode:
             target = x
         else:
-            target = target[0] # TODO find a better way to do this
+            target = target[0]  # TODO find a better way to do this
 
         # Update loss parameters
         self.loss_parameters.kl_params.current_epoch = self.current_epoch

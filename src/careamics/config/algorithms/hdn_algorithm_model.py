@@ -10,4 +10,4 @@ class HDNAlgorithm(VAEBasedAlgorithm):
 
     loss: LVAELossConfig
 
-    model: LVAEModel # TODO add validators
+    model: LVAEModel  # TODO add validators
