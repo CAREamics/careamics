@@ -2,13 +2,11 @@ import numpy as np
 import pytest
 
 from careamics.config.transformations import (
-    N2VManipulateModel,
     NormalizeModel,
     XYFlipModel,
     XYRandomRotate90Model,
 )
-from careamics.dataset.dataset_utils.running_stats import compute_normalization_stats
-from careamics.transforms import Compose, Normalize, XYFlip, XYRandomRotate90
+from careamics.transforms import Compose, XYFlip, XYRandomRotate90
 
 
 def test_empty_compose(ordered_array):
@@ -53,45 +51,6 @@ def test_compose_with_target(ordered_array):
     # check the results
     assert (source_transformed == t2_source).all()
     assert (target_transformed == t2_target).all()
-
-
-def test_compose_n2v(ordered_array):
-    seed = 24
-    array = ordered_array((2, 2, 5, 5))
-
-    # transform lists
-    means, stds = compute_normalization_stats(image=array)
-
-    transform_list_pydantic = [
-        NormalizeModel(image_means=means, image_stds=stds),
-        XYFlipModel(seed=seed),
-        XYRandomRotate90Model(seed=seed),
-        N2VManipulateModel(),
-    ]
-
-    # apply the transforms
-    normalize = Normalize(image_means=means, image_stds=stds)
-    xyflip = XYFlip(seed=seed)
-    xyrotate = XYRandomRotate90(seed=seed)
-    array_aug, *_ = xyrotate(
-        *xyflip(*normalize(array[0])[:2])[  # ignore additional_arrays (element no. 3)
-            :2
-        ]  # ignore additional_arrays (element no. 3)
-    )
-
-    # instantiate Compose
-    compose = Compose(transform_list_pydantic)
-
-    # apply the composed transform
-    results = compose(array[0])
-    assert len(results) == 3  # output of n2v_manipulate
-    assert (results[1] == array_aug).all()
-    assert (
-        results[0][np.where(results[2] == 1)] != array_aug[np.where(results[2] == 1)]
-    ).all()
-    assert (
-        results[0][np.where(results[2] != 1)] == array_aug[np.where(results[2] != 1)]
-    ).all()
 
 
 @pytest.mark.parametrize(

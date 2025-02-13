@@ -174,26 +174,6 @@ def minimum_data() -> dict:
 
 
 @pytest.fixture
-def minimum_data_n2v() -> dict:
-    """Create a minimum N2V data dictionary.
-
-    Returns
-    -------
-    dict
-        A minimum data example.
-    """
-    # create dictionary
-    data = {
-        "data_type": SupportedData.ARRAY.value,
-        "patch_size": [8, 8],
-        "axes": "YX",
-        "transforms": [{"name": "N2VManipulate"}],
-    }
-
-    return data
-
-
-@pytest.fixture
 def minimum_inference() -> dict:
     """Create a minimum inference dictionary.
 
@@ -232,7 +212,7 @@ def minimum_training() -> dict:
 
 @pytest.fixture
 def minimum_n2v_configuration(
-    minimum_algorithm_n2v: dict, minimum_data_n2v: dict, minimum_training: dict
+    minimum_algorithm_n2v: dict, minimum_data: dict, minimum_training: dict
 ) -> dict:
     """Create a minimum configuration dictionary.
 
@@ -257,7 +237,40 @@ def minimum_n2v_configuration(
         "experiment_name": "LevitatingFrog",
         "algorithm_config": minimum_algorithm_n2v,
         "training_config": minimum_training,
-        "data_config": minimum_data_n2v,
+        "data_config": minimum_data,
+    }
+
+    return configuration
+
+
+@pytest.fixture
+def minimum_configuration_hdn(
+    minimum_algorithm_hdn: dict, minimum_data: dict, minimum_training: dict
+) -> dict:
+    """Create a minimum configuration dictionary.
+
+    Parameters
+    ----------
+    tmp_path : Path
+        Temporary path for testing.
+    minimum_algorithm : dict
+        Minimum algorithm configuration.
+    minimum_data_n2v : dict
+        Minimum N2V data configuration.
+    minimum_training : dict
+        Minimum training configuration.
+
+    Returns
+    -------
+    dict
+        A minumum configuration example.
+    """
+    # create dictionary
+    configuration = {
+        "experiment_name": "LevitatingFrog",
+        "algorithm_config": minimum_algorithm_hdn,
+        "training_config": minimum_training,
+        "data_config": minimum_data,
     }
 
     return configuration
@@ -373,7 +386,7 @@ def pre_trained(tmp_path, minimum_n2v_configuration):
     train_array = np.arange(32 * 32).reshape((32, 32)).astype(np.float32)
 
     # create configuration
-    config = configuration_factory(minimum_n2v_configuration)
+    config = Configuration(**minimum_n2v_configuration)
     config.training_config.num_epochs = 1
     config.data_config.axes = "YX"
     config.data_config.batch_size = 2

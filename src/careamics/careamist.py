@@ -167,7 +167,6 @@ class CAREamist:
                 self.cfg = load_configuration(source)
 
                 # instantiate model
-                # TODO call model factory here
                 if isinstance(self.cfg.algorithm_config, UNetBasedAlgorithm):
                     self.model = FCNModule(
                         algorithm_config=self.cfg.algorithm_config,

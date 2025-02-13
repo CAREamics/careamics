@@ -5,7 +5,7 @@ from typing import Union
 
 import yaml
 
-from careamics.config import Configuration, configuration_factory
+from careamics.config import Configuration
 
 
 def load_configuration(path: Union[str, Path]) -> Configuration:
@@ -35,7 +35,7 @@ def load_configuration(path: Union[str, Path]) -> Configuration:
 
     dictionary = yaml.load(Path(path).open("r"), Loader=yaml.SafeLoader)
 
-    return configuration_factory(dictionary)
+    return Configuration(**dictionary)
 
 
 def save_configuration(config: Configuration, path: Union[str, Path]) -> Path:

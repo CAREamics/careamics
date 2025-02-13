@@ -107,7 +107,7 @@ class InMemoryTiledPredDataset(Dataset):
         """
         return len(self.data)
 
-    def __getitem__(self, index: int) -> tuple[NDArray, TileInformation]:
+    def __getitem__(self, index: int) -> tuple[tuple[NDArray, ...], TileInformation]:
         """
         Return the patch corresponding to the provided index.
 

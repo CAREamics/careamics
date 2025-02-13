@@ -109,13 +109,13 @@ class IterableTiledPredDataset(IterableDataset):
 
     def __iter__(
         self,
-    ) -> Generator[tuple[NDArray, TileInformation], None, None]:
+    ) -> Generator[tuple[tuple[NDArray, ...], TileInformation], None, None]:
         """
         Iterate over data source and yield single patch.
 
         Yields
         ------
-        Generator of NDArray and TileInformation tuple
+        Generator of (np.ndarray, np.ndarray or None) and TileInformation tuple
             Generator of single tiles.
         """
         assert (
