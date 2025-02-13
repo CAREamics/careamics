@@ -2,11 +2,9 @@ import pytest
 
 from careamics.config import (
     CAREAlgorithm,
-    CAREConfiguration,
     Configuration,
     N2NAlgorithm,
     N2VAlgorithm,
-    N2VConfiguration,
     algorithm_factory,
     create_care_configuration,
     create_n2n_configuration,
@@ -179,7 +177,7 @@ def test_create_configuration():
     }
 
     # instantiate config
-    config = CAREConfiguration(
+    config = Configuration(
         **_create_supervised_config_dict(
             algorithm=algorithm,
             experiment_name=experiment_name,
@@ -394,7 +392,7 @@ def test_n2v_configuration():
         batch_size=8,
         num_epochs=100,
     )
-    assert isinstance(config, N2VConfiguration)
+    assert isinstance(config.algorithm_config, N2VAlgorithm)
 
 
 def test_n2v_configuration_no_aug():
