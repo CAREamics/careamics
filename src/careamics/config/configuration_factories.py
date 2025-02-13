@@ -2,17 +2,15 @@
 
 from typing import Annotated, Any, Literal, Optional, Union
 
-from pydantic import Discriminator, Field, Tag, TypeAdapter
+from pydantic import Field, TypeAdapter
 
 from careamics.config.algorithms import CAREAlgorithm, N2NAlgorithm, N2VAlgorithm
 from careamics.config.architectures import UNetModel
 from careamics.config.care_configuration import CAREConfiguration
-from careamics.config.configuration import Configuration
 from careamics.config.data import DataConfig
 from careamics.config.n2n_configuration import N2NConfiguration
 from careamics.config.n2v_configuration import N2VConfiguration
 from careamics.config.support import (
-    SupportedAlgorithm,
     SupportedArchitecture,
     SupportedPixelManipulation,
     SupportedTransform,
@@ -24,53 +22,6 @@ from careamics.config.transformations import (
     XYFlipModel,
     XYRandomRotate90Model,
 )
-
-
-def _algorithm_config_discriminator(value: Union[dict, Configuration]) -> str:
-    """Discriminate algorithm-specific configurations based on the algorithm.
-
-    Parameters
-    ----------
-    value : Any
-        Value to discriminate.
-
-    Returns
-    -------
-    str
-        Discriminator value.
-    """
-    if isinstance(value, dict):
-        return value["algorithm_config"]["algorithm"]
-    return value.algorithm_config.algorithm
-
-
-def configuration_factory(
-    configuration: dict[str, Any]
-) -> Union[N2VConfiguration, N2NConfiguration, CAREConfiguration]:
-    """
-    Create a configuration for training CAREamics.
-
-    Parameters
-    ----------
-    configuration : dict
-        Configuration dictionary.
-
-    Returns
-    -------
-    N2VConfiguration or N2NConfiguration or CAREConfiguration
-        Configuration for training CAREamics.
-    """
-    adapter: TypeAdapter = TypeAdapter(
-        Annotated[
-            Union[
-                Annotated[N2VConfiguration, Tag(SupportedAlgorithm.N2V.value)],
-                Annotated[N2NConfiguration, Tag(SupportedAlgorithm.N2N.value)],
-                Annotated[CAREConfiguration, Tag(SupportedAlgorithm.CARE.value)],
-            ],
-            Discriminator(_algorithm_config_discriminator),
-        ]
-    )
-    return adapter.validate_python(configuration)
 
 
 def algorithm_factory(

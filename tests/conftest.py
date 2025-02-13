@@ -4,8 +4,7 @@ from typing import Callable
 import numpy as np
 import pytest
 
-from careamics import CAREamist
-from careamics.config import configuration_factory
+from careamics import CAREamist, Configuration
 from careamics.config.support import SupportedData
 from careamics.model_io import export_to_bmz
 
@@ -291,7 +290,7 @@ def pre_trained(tmp_path, minimum_n2v_configuration):
     train_array = np.arange(32 * 32).reshape((32, 32)).astype(np.float32)
 
     # create configuration
-    config = configuration_factory(minimum_n2v_configuration)
+    config = Configuration(**minimum_n2v_configuration)
     config.training_config.num_epochs = 1
     config.data_config.axes = "YX"
     config.data_config.batch_size = 2

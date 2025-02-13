@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 
 from careamics.config import (
-    configuration_factory,
+    Configuration,
     load_configuration,
     save_configuration,
 )
@@ -13,7 +13,7 @@ def test_config_to_yaml(tmp_path: Path, minimum_supervised_configuration: dict):
     """Test that we can export a config to yaml and load it back"""
 
     # test that we can instantiate a config
-    myconf = configuration_factory(minimum_supervised_configuration)
+    myconf = Configuration(**minimum_supervised_configuration)
 
     # export to yaml
     yaml_path = save_configuration(myconf, tmp_path)
@@ -30,7 +30,7 @@ def test_config_to_yaml_wrong_path(
     """Test that an error is raised when the path is not a directory and not a .yml"""
 
     # test that we can instantiate a config
-    myconf = configuration_factory(minimum_supervised_configuration)
+    myconf = Configuration(**minimum_supervised_configuration)
 
     # export to yaml
     yaml_path = tmp_path / "tmp.txt"

@@ -24,7 +24,6 @@ __all__ = [
     "UNetBasedAlgorithm",
     "VAEBasedAlgorithm",
     "algorithm_factory",
-    "configuration_factory",
     "create_care_configuration",
     "create_n2n_configuration",
     "create_n2v_configuration",
@@ -44,7 +43,6 @@ from .care_configuration import CAREConfiguration
 from .configuration import Configuration
 from .configuration_factories import (
     algorithm_factory,
-    configuration_factory,
     create_care_configuration,
     create_n2n_configuration,
     create_n2v_configuration,

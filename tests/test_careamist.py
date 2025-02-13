@@ -9,7 +9,7 @@ from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import Callback, EarlyStopping, ModelCheckpoint
 
 from careamics import CAREamist
-from careamics.config import configuration_factory, save_configuration
+from careamics.config import Configuration, save_configuration
 from careamics.config.support import SupportedAlgorithm, SupportedData
 from careamics.dataset.dataset_utils import reshape_array
 from careamics.lightning.callbacks import HyperParametersCallback, ProgressBarCallback
@@ -33,7 +33,7 @@ def test_minimum_configuration_via_object(
 ):
     """Test that CAREamics can be instantiated with a minimum configuration object."""
     # create configuration
-    config = configuration_factory(minimum_n2v_configuration)
+    config = Configuration(**minimum_n2v_configuration)
 
     # instantiate CAREamist
     CAREamist(source=config, work_dir=tmp_path)
@@ -46,7 +46,7 @@ def test_minimum_configuration_via_path(
     configuration.
     """
     # create configuration
-    config = configuration_factory(minimum_n2v_configuration)
+    config = Configuration(**minimum_n2v_configuration)
     path_to_config = save_configuration(config, tmp_path)
 
     # instantiate CAREamist
@@ -58,7 +58,7 @@ def test_train_error_target_unsupervised_algorithm(
 ):
     """Test that an error is raised when a target is provided for N2V."""
     # create configuration
-    config = configuration_factory(minimum_n2v_configuration)
+    config = Configuration(**minimum_n2v_configuration)
     config.algorithm_config.algorithm = SupportedAlgorithm.N2V.value
 
     # train error with Paths
@@ -93,7 +93,7 @@ def test_train_single_array_no_val(tmp_path: Path, minimum_n2v_configuration: di
     train_array = random_array((32, 32))
 
     # create configuration
-    config = configuration_factory(minimum_n2v_configuration)
+    config = Configuration(**minimum_n2v_configuration)
     config.training_config.num_epochs = 1
     config.data_config.axes = "YX"
     config.data_config.batch_size = 2
@@ -128,7 +128,7 @@ def test_train_array(tmp_path: Path, minimum_n2v_configuration: dict):
     val_array = random_array((32, 32))
 
     # create configuration
-    config = configuration_factory(minimum_n2v_configuration)
+    config = Configuration(**minimum_n2v_configuration)
     config.training_config.num_epochs = 1
     config.data_config.axes = "YX"
     config.data_config.batch_size = 2
@@ -166,7 +166,7 @@ def test_train_array_channel(
     val_array = random_array((32, 32, 3))
 
     # create configuration
-    config = configuration_factory(minimum_n2v_configuration)
+    config = Configuration(**minimum_n2v_configuration)
     config.training_config.num_epochs = 1
     config.data_config.axes = "YXC"
     config.algorithm_config.model.in_channels = 3
@@ -207,7 +207,7 @@ def test_train_array_3d(tmp_path: Path, minimum_n2v_configuration: dict):
     # create configuration
     minimum_n2v_configuration["data_config"]["axes"] = "ZYX"
     minimum_n2v_configuration["data_config"]["patch_size"] = (8, 16, 16)
-    config = configuration_factory(minimum_n2v_configuration)
+    config = Configuration(**minimum_n2v_configuration)
     config.training_config.num_epochs = 1
     config.data_config.batch_size = 2
     config.data_config.data_type = SupportedData.ARRAY.value
@@ -245,7 +245,7 @@ def test_train_tiff_files_in_memory_no_val(
     tifffile.imwrite(train_file, train_array)
 
     # create configuration
-    config = configuration_factory(minimum_n2v_configuration)
+    config = Configuration(**minimum_n2v_configuration)
     config.training_config.num_epochs = 1
     config.data_config.axes = "YX"
     config.data_config.batch_size = 2
@@ -287,7 +287,7 @@ def test_train_tiff_files_in_memory(tmp_path: Path, minimum_n2v_configuration: d
     tifffile.imwrite(val_file, val_array)
 
     # create configuration
-    config = configuration_factory(minimum_n2v_configuration)
+    config = Configuration(**minimum_n2v_configuration)
     config.training_config.num_epochs = 1
     config.data_config.axes = "YX"
     config.data_config.batch_size = 2
@@ -331,7 +331,7 @@ def test_train_tiff_files(tmp_path: Path, minimum_n2v_configuration: dict):
     tifffile.imwrite(val_file, val_array)
 
     # create configuration
-    config = configuration_factory(minimum_n2v_configuration)
+    config = Configuration(**minimum_n2v_configuration)
     config.training_config.num_epochs = 1
     config.data_config.axes = "YX"
     config.data_config.batch_size = 2
@@ -368,7 +368,7 @@ def test_train_array_supervised(tmp_path: Path, minimum_supervised_configuration
     val_target = random_array((32, 32))
 
     # create configuration
-    config = configuration_factory(minimum_supervised_configuration)
+    config = Configuration(**minimum_supervised_configuration)
     config.training_config.num_epochs = 1
     config.data_config.axes = "YX"
     config.data_config.batch_size = 2
@@ -429,7 +429,7 @@ def test_train_tiff_files_in_memory_supervised(
     tifffile.imwrite(val_target_file, val_target)
 
     # create configuration
-    config = configuration_factory(minimum_supervised_configuration)
+    config = Configuration(**minimum_supervised_configuration)
     config.training_config.num_epochs = 1
     config.data_config.axes = "YX"
     config.data_config.batch_size = 2
@@ -492,7 +492,7 @@ def test_train_tiff_files_supervised(
     tifffile.imwrite(val_target_file, val_target)
 
     # create configuration
-    config = configuration_factory(minimum_supervised_configuration)
+    config = Configuration(**minimum_supervised_configuration)
     config.training_config.num_epochs = 1
     config.data_config.axes = "YX"
     config.data_config.batch_size = 2
@@ -536,7 +536,7 @@ def test_predict_on_array_tiled(
     train_array = random_array((samples, 32, 32))
 
     # create configuration
-    config = configuration_factory(minimum_n2v_configuration)
+    config = Configuration(**minimum_n2v_configuration)
     config.training_config.num_epochs = 1
     config.data_config.axes = "SYX"
     config.data_config.batch_size = 2
@@ -581,7 +581,7 @@ def test_predict_arrays_no_tiling(
     train_array = random_array((samples, 32, 32))
 
     # create configuration
-    config = configuration_factory(minimum_n2v_configuration)
+    config = Configuration(**minimum_n2v_configuration)
     config.training_config.num_epochs = 1
     config.data_config.axes = "SYX"
     config.data_config.batch_size = 2
@@ -629,7 +629,7 @@ def test_batched_prediction(tmp_path: Path, minimum_n2v_configuration: dict):
 
     train_array = random_array(shape)
     # create configuration
-    config = configuration_factory(minimum_n2v_configuration)
+    config = Configuration(**minimum_n2v_configuration)
     config.training_config.num_epochs = 1
     config.data_config.axes = "YX"
     config.data_config.batch_size = 2
@@ -666,7 +666,7 @@ def test_predict_tiled_channel(
     val_array = random_array((3, 32, 32))
 
     # create configuration
-    config = configuration_factory(minimum_n2v_configuration)
+    config = Configuration(**minimum_n2v_configuration)
     config.training_config.num_epochs = 1
     config.data_config.axes = "CYX"
     config.algorithm_config.model.in_channels = 3
@@ -709,7 +709,7 @@ def test_predict_path(
         tifffile.imwrite(train_file, train_array)
 
     # create configuration
-    config = configuration_factory(minimum_n2v_configuration)
+    config = Configuration(**minimum_n2v_configuration)
     config.training_config.num_epochs = 1
     config.data_config.axes = "YX"
     config.data_config.batch_size = 2
@@ -859,7 +859,7 @@ def test_predict_to_disk_path_tiff(tmp_path, minimum_n2v_configuration):
         tifffile.imwrite(train_file, train_array)
 
     # create configuration
-    config = configuration_factory(minimum_n2v_configuration)
+    config = Configuration(**minimum_n2v_configuration)
     config.training_config.num_epochs = 1
     config.data_config.axes = "YX"
     config.data_config.batch_size = 2
@@ -892,7 +892,7 @@ def test_predict_to_disk_datamodule_tiff(tmp_path, minimum_n2v_configuration):
         tifffile.imwrite(train_file, train_array)
 
     # create configuration
-    config = configuration_factory(minimum_n2v_configuration)
+    config = Configuration(**minimum_n2v_configuration)
     config.training_config.num_epochs = 1
     config.data_config.axes = "YX"
     config.data_config.batch_size = 2
@@ -936,7 +936,7 @@ def test_predict_to_disk_custom(tmp_path, minimum_n2v_configuration):
         tifffile.imwrite(train_file, train_array)
 
     # create configuration
-    config = configuration_factory(minimum_n2v_configuration)
+    config = Configuration(**minimum_n2v_configuration)
     config.training_config.num_epochs = 1
     config.data_config.axes = "YX"
     config.data_config.batch_size = 2
@@ -981,7 +981,7 @@ def test_predict_to_disk_custom_raises(tmp_path, minimum_n2v_configuration):
         tifffile.imwrite(train_file, train_array)
 
     # create configuration
-    config = configuration_factory(minimum_n2v_configuration)
+    config = Configuration(**minimum_n2v_configuration)
     config.training_config.num_epochs = 1
     config.data_config.axes = "YX"
     config.data_config.batch_size = 2
@@ -1035,7 +1035,7 @@ def test_add_custom_callback(tmp_path, minimum_n2v_configuration):
     train_array = random_array((32, 32))
 
     # create configuration
-    config = configuration_factory(minimum_n2v_configuration)
+    config = Configuration(**minimum_n2v_configuration)
     config.training_config.num_epochs = 1
     config.data_config.axes = "YX"
     config.data_config.batch_size = 2
@@ -1058,7 +1058,7 @@ def test_add_custom_callback(tmp_path, minimum_n2v_configuration):
 def test_error_passing_careamics_callback(tmp_path, minimum_n2v_configuration):
     """Test that an error is thrown if we pass known callbacks to CAREamist."""
     # create configuration
-    config = configuration_factory(minimum_n2v_configuration)
+    config = Configuration(**minimum_n2v_configuration)
     config.training_config.num_epochs = 1
     config.data_config.axes = "YX"
     config.data_config.batch_size = 2
@@ -1099,7 +1099,7 @@ def test_stop_training(tmp_path: Path, minimum_n2v_configuration: dict):
     train_array = random_array((32, 32))
 
     # create configuration
-    config = configuration_factory(minimum_n2v_configuration)
+    config = Configuration(**minimum_n2v_configuration)
     config.training_config.num_epochs = 1_000
     config.data_config.axes = "YX"
     config.data_config.batch_size = 2
@@ -1125,7 +1125,7 @@ def test_stop_training(tmp_path: Path, minimum_n2v_configuration: dict):
 
 def test_read_logger(tmp_path, minimum_n2v_configuration):
 
-    config = configuration_factory(minimum_n2v_configuration)
+    config = Configuration(**minimum_n2v_configuration)
     config.training_config.num_epochs = 10
 
     array = np.arange(32 * 32).reshape((32, 32))
@@ -1140,7 +1140,7 @@ def test_read_logger(tmp_path, minimum_n2v_configuration):
 
 
 def test_all_parameters_used(tmp_path, minimum_n2v_configuration):
-    config = configuration_factory(minimum_n2v_configuration)
+    config = Configuration(**minimum_n2v_configuration)
     config.training_config.num_epochs = 2
     config.data_config.batch_size = 2
     config.data_config.patch_size = (16, 16)

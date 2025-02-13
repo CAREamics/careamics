@@ -14,7 +14,6 @@ from careamics.config.algorithms import (
     CAREAlgorithm,
     N2NAlgorithm,
     N2VAlgorithm,
-    VAEBasedAlgorithm,
 )
 from careamics.config.data import DataConfig
 from careamics.config.training_model import TrainingConfig
@@ -23,7 +22,6 @@ ALGORITHMS = Union[
     CAREAlgorithm,
     N2NAlgorithm,
     N2VAlgorithm,
-    VAEBasedAlgorithm,
 ]
 
 
@@ -243,7 +241,7 @@ class Configuration(BaseModel):
         str
             Algorithm name.
         """
-        raise ValueError("Unknown algorithm.")
+        return self.algorithm_config.get_algorithm_friendly_name()
 
     def get_algorithm_description(self) -> str:
         """
@@ -256,7 +254,7 @@ class Configuration(BaseModel):
         str
             Description of the algorithm.
         """
-        raise ValueError("No algorithm description available.")
+        return self.algorithm_config.get_algorithm_description()
 
     def get_algorithm_citations(self) -> list[CiteEntry]:
         """
@@ -269,7 +267,7 @@ class Configuration(BaseModel):
         List[CiteEntry]
             List of citation entries.
         """
-        raise ValueError("No algorithm citations available.")
+        return self.algorithm_config.get_algorithm_citations()
 
     def get_algorithm_references(self) -> str:
         """
@@ -282,7 +280,7 @@ class Configuration(BaseModel):
         str
             Algorithm references.
         """
-        raise ValueError("No algorithm references available.")
+        return self.algorithm_config.get_algorithm_references()
 
     def get_algorithm_keywords(self) -> list[str]:
         """
@@ -293,7 +291,7 @@ class Configuration(BaseModel):
         list[str]
             List of keywords.
         """
-        return ["CAREamics"]
+        return self.algorithm_config.get_algorithm_keywords()
 
     def model_dump(
         self,
