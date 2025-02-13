@@ -1148,12 +1148,12 @@ def create_hdn_configuration(
     num_epochs: int,
     augmentations: Optional[list[Union[XYFlipModel, XYRandomRotate90Model]]] = None,
     independent_channels: bool = True,
-    loss: Literal["mae", "mse"] = "mae",
     n_channels_in: Optional[int] = None,
     n_channels_out: Optional[int] = None,
     logger: Literal["wandb", "tensorboard", "none"] = "none",
     model_params: Optional[dict] = None,
-    dataloader_params: Optional[dict] = None,
+    train_dataloader_params: Optional[dict[str, Any]] = None,
+    val_dataloader_params: Optional[dict[str, Any]] = None,
 ) -> Configuration:
     """
     Create a configuration for training HDN.
@@ -1193,15 +1193,15 @@ def create_hdn_configuration(
         Batch size.
     """
     transform_list = _list_spatial_augmentations(augmentations)
+
     # algorithm
     algorithm_params = _create_algorithm_configuration(
         axes=axes,
-        algorithm="n2v",
-        loss="n2v",
+        algorithm="hdn",
+        loss="hdn",
         independent_channels=independent_channels,
-        n_channels_in=n_channels,
-        n_channels_out=n_channels,
-        use_n2v2=use_n2v2,
+        n_channels_in=n_channels_in,
+        n_channels_out=n_channels_out,
         model_params=model_params,
     )
 
@@ -1211,7 +1211,7 @@ def create_hdn_configuration(
         axes=axes,
         patch_size=patch_size,
         batch_size=batch_size,
-        augmentations=spatial_transforms,
+        augmentations=transform_list,
         train_dataloader_params=train_dataloader_params,
         val_dataloader_params=val_dataloader_params,
     )
@@ -1222,7 +1222,7 @@ def create_hdn_configuration(
         logger=logger,
     )
 
-    return HDNConfiguration(
+    return Configuration(
         experiment_name=experiment_name,
         algorithm_config=algorithm_params,
         data_config=data_params,

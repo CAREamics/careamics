@@ -4,8 +4,7 @@ from typing import Callable
 import numpy as np
 import pytest
 
-from careamics import CAREamist
-from careamics.config import configuration_factory
+from careamics import CAREamist, Configuration
 from careamics.config.likelihood_model import GaussianLikelihoodConfig
 from careamics.config.loss_model import LVAELossConfig
 from careamics.config.support import SupportedData
@@ -236,39 +235,6 @@ def minimum_n2v_configuration(
     configuration = {
         "experiment_name": "LevitatingFrog",
         "algorithm_config": minimum_algorithm_n2v,
-        "training_config": minimum_training,
-        "data_config": minimum_data,
-    }
-
-    return configuration
-
-
-@pytest.fixture
-def minimum_configuration_hdn(
-    minimum_algorithm_hdn: dict, minimum_data: dict, minimum_training: dict
-) -> dict:
-    """Create a minimum configuration dictionary.
-
-    Parameters
-    ----------
-    tmp_path : Path
-        Temporary path for testing.
-    minimum_algorithm : dict
-        Minimum algorithm configuration.
-    minimum_data_n2v : dict
-        Minimum N2V data configuration.
-    minimum_training : dict
-        Minimum training configuration.
-
-    Returns
-    -------
-    dict
-        A minumum configuration example.
-    """
-    # create dictionary
-    configuration = {
-        "experiment_name": "LevitatingFrog",
-        "algorithm_config": minimum_algorithm_hdn,
         "training_config": minimum_training,
         "data_config": minimum_data,
     }
