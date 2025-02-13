@@ -75,7 +75,7 @@ def test_correct_normalized_outputs(tmp_path, n_files, shape, axes, expected_sha
 
     # check that the dataset returns normalized images
     for i in range(len(dataset)):
-        img = dataset[i][0]
+        img = dataset[i]
 
         # check that it has the correct shape
         assert img.shape == expected_shape
