@@ -6,7 +6,7 @@ from pytorch_lightning.callbacks import (
     ModelCheckpoint,
 )
 
-from careamics.config import configuration_factory
+from careamics.config import Configuration
 from careamics.lightning import (
     create_careamics_module,
     create_predict_datamodule,
@@ -23,7 +23,7 @@ def test_smoke_n2v_2d_array(tmp_path, minimum_n2v_configuration):
     train_array = rng.integers(0, 255, (32, 32)).astype(np.float32)
     val_array = rng.integers(0, 255, (32, 32)).astype(np.float32)
 
-    cfg = configuration_factory(minimum_n2v_configuration)
+    cfg = Configuration(**minimum_n2v_configuration)
 
     # create lightning module
     model = create_careamics_module(
@@ -80,7 +80,7 @@ def test_smoke_n2v_2d_tiling(tmp_path, minimum_n2v_configuration):
     train_array = rng.integers(0, 255, (32, 32)).astype(np.float32)
     val_array = rng.integers(0, 255, (32, 32)).astype(np.float32)
 
-    cfg = configuration_factory(minimum_n2v_configuration)
+    cfg = Configuration(**minimum_n2v_configuration)
 
     # create lightning module
     model = create_careamics_module(

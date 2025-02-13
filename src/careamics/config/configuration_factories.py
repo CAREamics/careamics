@@ -2,17 +2,12 @@
 
 from typing import Annotated, Any, Literal, Optional, Union
 
-from pydantic import Discriminator, Field, Tag, TypeAdapter
+from pydantic import Field, TypeAdapter
 
 from careamics.config.algorithms import CAREAlgorithm, N2NAlgorithm, N2VAlgorithm
 from careamics.config.architectures import UNetModel
-from careamics.config.care_configuration import CAREConfiguration
-from careamics.config.configuration import Configuration
 from careamics.config.data import DataConfig
-from careamics.config.n2n_configuration import N2NConfiguration
-from careamics.config.n2v_configuration import N2VConfiguration
 from careamics.config.support import (
-    SupportedAlgorithm,
     SupportedArchitecture,
     SupportedPixelManipulation,
     SupportedTransform,
@@ -25,52 +20,7 @@ from careamics.config.transformations import (
     XYRandomRotate90Model,
 )
 
-
-def _algorithm_config_discriminator(value: Union[dict, Configuration]) -> str:
-    """Discriminate algorithm-specific configurations based on the algorithm.
-
-    Parameters
-    ----------
-    value : Any
-        Value to discriminate.
-
-    Returns
-    -------
-    str
-        Discriminator value.
-    """
-    if isinstance(value, dict):
-        return value["algorithm_config"]["algorithm"]
-    return value.algorithm_config.algorithm
-
-
-def configuration_factory(
-    configuration: dict[str, Any]
-) -> Union[N2VConfiguration, N2NConfiguration, CAREConfiguration]:
-    """
-    Create a configuration for training CAREamics.
-
-    Parameters
-    ----------
-    configuration : dict
-        Configuration dictionary.
-
-    Returns
-    -------
-    N2VConfiguration or N2NConfiguration or CAREConfiguration
-        Configuration for training CAREamics.
-    """
-    adapter: TypeAdapter = TypeAdapter(
-        Annotated[
-            Union[
-                Annotated[N2VConfiguration, Tag(SupportedAlgorithm.N2V.value)],
-                Annotated[N2NConfiguration, Tag(SupportedAlgorithm.N2N.value)],
-                Annotated[CAREConfiguration, Tag(SupportedAlgorithm.CARE.value)],
-            ],
-            Discriminator(_algorithm_config_discriminator),
-        ]
-    )
-    return adapter.validate_python(configuration)
+from .configuration import Configuration
 
 
 def algorithm_factory(
@@ -464,7 +414,7 @@ def create_care_configuration(
     model_params: Optional[dict] = None,
     train_dataloader_params: Optional[dict[str, Any]] = None,
     val_dataloader_params: Optional[dict[str, Any]] = None,
-) -> CAREConfiguration:
+) -> Configuration:
     """
     Create a configuration for training CARE.
 
@@ -527,7 +477,7 @@ def create_care_configuration(
 
     Returns
     -------
-    CAREConfiguration
+    Configuration
         Configuration for training CARE.
 
     Examples
@@ -597,7 +547,7 @@ def create_care_configuration(
     ...     n_channels_out=1 # if applicable
     ... )
     """
-    return CAREConfiguration(
+    return Configuration(
         **_create_supervised_config_dict(
             algorithm="care",
             experiment_name=experiment_name,
@@ -635,7 +585,7 @@ def create_n2n_configuration(
     model_params: Optional[dict] = None,
     train_dataloader_params: Optional[dict[str, Any]] = None,
     val_dataloader_params: Optional[dict[str, Any]] = None,
-) -> N2NConfiguration:
+) -> Configuration:
     """
     Create a configuration for training Noise2Noise.
 
@@ -698,7 +648,7 @@ def create_n2n_configuration(
 
     Returns
     -------
-    N2NConfiguration
+    Configuration
         Configuration for training Noise2Noise.
 
     Examples
@@ -768,7 +718,7 @@ def create_n2n_configuration(
     ...     n_channels_out=1 # if applicable
     ... )
     """
-    return N2NConfiguration(
+    return Configuration(
         **_create_supervised_config_dict(
             algorithm="n2n",
             experiment_name=experiment_name,
@@ -809,7 +759,7 @@ def create_n2v_configuration(
     model_params: Optional[dict] = None,
     train_dataloader_params: Optional[dict[str, Any]] = None,
     val_dataloader_params: Optional[dict[str, Any]] = None,
-) -> N2VConfiguration:
+) -> Configuration:
     """
     Create a configuration for training Noise2Void.
 
@@ -898,7 +848,7 @@ def create_n2v_configuration(
 
     Returns
     -------
-    N2VConfiguration
+    Configuration
         Configuration for training N2V.
 
     Examples
@@ -1047,7 +997,7 @@ def create_n2v_configuration(
         logger=logger,
     )
 
-    return N2VConfiguration(
+    return Configuration(
         experiment_name=experiment_name,
         algorithm_config=algorithm_params,
         data_config=data_params,

@@ -11,7 +11,6 @@ __all__ = [
     "CAREamist",
     "Configuration",
     "algorithm_factory",
-    "configuration_factory",
     "load_configuration",
     "save_configuration",
 ]
@@ -20,7 +19,6 @@ from .careamist import CAREamist
 from .config import (
     Configuration,
     algorithm_factory,
-    configuration_factory,
     load_configuration,
     save_configuration,
 )

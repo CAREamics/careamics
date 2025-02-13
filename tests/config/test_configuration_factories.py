@@ -2,22 +2,18 @@ import pytest
 
 from careamics.config import (
     CAREAlgorithm,
-    CAREConfiguration,
+    Configuration,
     N2NAlgorithm,
-    N2NConfiguration,
     N2VAlgorithm,
-    N2VConfiguration,
     algorithm_factory,
     create_care_configuration,
     create_n2n_configuration,
     create_n2v_configuration,
 )
 from careamics.config.configuration_factories import (
-    _algorithm_config_discriminator,
     _create_supervised_config_dict,
     _create_unet_configuration,
     _list_spatial_augmentations,
-    configuration_factory,
 )
 from careamics.config.support import (
     SupportedAlgorithm,
@@ -32,28 +28,10 @@ from careamics.config.transformations import (
 )
 
 
-def test_algorithm_discriminator_n2v(minimum_n2v_configuration):
-    """Test that the N2V configuration is discriminated correctly."""
-    tag = _algorithm_config_discriminator(minimum_n2v_configuration)
-    assert tag == SupportedAlgorithm.N2V.value
-
-
-@pytest.mark.parametrize(
-    "algorithm", [SupportedAlgorithm.N2N.value, SupportedAlgorithm.CARE.value]
-)
-def test_algorithm_discriminator_supervised(
-    minimum_supervised_configuration, algorithm
-):
-    """Test that the supervised configuration is discriminated correctly."""
-    minimum_supervised_configuration["algorithm_config"]["algorithm"] = algorithm
-    tag = _algorithm_config_discriminator(minimum_supervised_configuration)
-    assert tag == algorithm
-
-
 def test_careamics_config_n2v(minimum_n2v_configuration):
     """Test that the N2V configuration is created correctly."""
-    configuration = configuration_factory(minimum_n2v_configuration)
-    assert isinstance(configuration, N2VConfiguration)
+    config = Configuration(**minimum_n2v_configuration)
+    assert config.algorithm_config.algorithm == SupportedAlgorithm.N2V.value
 
 
 @pytest.mark.parametrize(
@@ -64,10 +42,9 @@ def test_careamics_config_supervised(minimum_supervised_configuration, algorithm
     min_config = minimum_supervised_configuration
     min_config["algorithm_config"]["algorithm"] = algorithm
 
-    config = configuration_factory(min_config)
+    config = Configuration(**min_config)
 
-    exp_class = N2NConfiguration if algorithm == "n2n" else CAREConfiguration
-    assert isinstance(config, exp_class)
+    assert config.algorithm_config.algorithm == algorithm
 
 
 def test_algorithm_factory_n2v(minimum_algorithm_n2v):
@@ -131,7 +108,7 @@ def test_supervised_configuration_passing_transforms():
         num_epochs=100,
         augmentations=[XYFlipModel()],
     )
-    config = configuration_factory(config_dict)
+    config = Configuration(**config_dict)
 
     assert len(config.data_config.transforms) == 1
     assert config.data_config.transforms[0].name == SupportedTransform.XY_FLIP.value
@@ -200,7 +177,7 @@ def test_create_configuration():
     }
 
     # instantiate config
-    config = CAREConfiguration(
+    config = Configuration(
         **_create_supervised_config_dict(
             algorithm=algorithm,
             experiment_name=experiment_name,
@@ -415,7 +392,7 @@ def test_n2v_configuration():
         batch_size=8,
         num_epochs=100,
     )
-    assert isinstance(config, N2VConfiguration)
+    assert isinstance(config.algorithm_config, N2VAlgorithm)
 
 
 def test_n2v_configuration_no_aug():

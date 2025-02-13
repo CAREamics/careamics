@@ -1,14 +1,14 @@
 import numpy as np
 
 from careamics import CAREamist
-from careamics.config import configuration_factory
+from careamics.config import Configuration
 from careamics.utils import cwd
 from careamics.utils.lightning_utils import read_csv_logger
 
 
 def test_read_logger(tmp_path, minimum_n2v_configuration):
 
-    config = configuration_factory(minimum_n2v_configuration)
+    config = Configuration(**minimum_n2v_configuration)
     config.training_config.num_epochs = 10
 
     array = np.arange(32 * 32).reshape((32, 32))
