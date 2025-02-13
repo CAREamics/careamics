@@ -163,7 +163,7 @@ def test_train_array_vae(tmp_path: Path, minimum_configuration_hdn: dict):
     val_array = random_array((128, 128))
 
     # create configuration
-    config = configuration_factory(minimum_configuration_hdn)
+    config = Configuration(**minimum_configuration_hdn)
     config.training_config.num_epochs = 1
     config.data_config.axes = "YX"
     config.data_config.batch_size = 2

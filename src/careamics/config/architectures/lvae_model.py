@@ -119,9 +119,15 @@ class LVAEModel(ArchitectureModel):
                 f"(got {len(input_shape)})."
             )
 
-        if any(s < 64 for s in input_shape):
+        if any(s < 1 for s in input_shape):
             raise ValueError(
                 f"Input shape must be greater than 1 in all dimensions"
+                f"(got {input_shape})."
+            )
+
+        if any(s < 64 for s in input_shape[-2:]):
+            raise ValueError(
+                f"Input shape must be greater or equal to 64 in XY dimensions"
                 f"(got {input_shape})."
             )
 
