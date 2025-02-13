@@ -217,6 +217,135 @@ def _create_unet_configuration(
     )
 
 
+def _create_algorithm_configuration(
+    axes: str,
+    algorithm: Literal["n2v", "care", "n2n"],
+    loss: Literal["n2v", "mae", "mse"],
+    independent_channels: bool,
+    n_channels_in: int,
+    n_channels_out: int,
+    use_n2v2: bool = False,
+    model_params: Optional[dict] = None,
+) -> dict:
+    """
+    Create a dictionary with the parameters of the algorithm model.
+
+    Parameters
+    ----------
+    axes : str
+        Axes of the data.
+    algorithm : {"n2v", "care", "n2n"}
+        Algorithm to use.
+    loss : {"n2v", "mae", "mse"}
+        Loss function to use.
+    independent_channels : bool
+        Whether to train all channels independently.
+    n_channels_in : int
+        Number of input channels.
+    n_channels_out : int
+        Number of output channels.
+    use_n2v2 : bool, optional
+        Whether to use N2V2, by default False.
+    model_params : dict
+        UNetModel parameters.
+
+    Returns
+    -------
+    dict
+        Algorithm model as dictionnary with the specified parameters.
+    """
+    # model
+    unet_model = _create_unet_configuration(
+        axes=axes,
+        n_channels_in=n_channels_in,
+        n_channels_out=n_channels_out,
+        independent_channels=independent_channels,
+        use_n2v2=use_n2v2,
+        model_params=model_params,
+    )
+
+    return {
+        "algorithm": algorithm,
+        "loss": loss,
+        "model": unet_model,
+    }
+
+
+def _create_data_configuration(
+    data_type: Literal["array", "tiff", "custom"],
+    axes: str,
+    patch_size: list[int],
+    batch_size: int,
+    augmentations: Union[list[SPATIAL_TRANSFORMS_UNION]],
+    train_dataloader_params: Optional[dict[str, Any]] = None,
+    val_dataloader_params: Optional[dict[str, Any]] = None,
+) -> DataConfig:
+    """
+    Create a dictionary with the parameters of the data model.
+
+    Parameters
+    ----------
+    data_type : {"array", "tiff", "custom"}
+        Type of the data.
+    axes : str
+        Axes of the data.
+    patch_size : list of int
+        Size of the patches along the spatial dimensions.
+    batch_size : int
+        Batch size.
+    augmentations : list of transforms
+        List of transforms to apply.
+    train_dataloader_params : dict
+        Parameters for the training dataloader, see PyTorch notes, by default None.
+    val_dataloader_params : dict
+        Parameters for the validation dataloader, see PyTorch notes, by default None.
+
+    Returns
+    -------
+    DataConfig
+        Data model with the specified parameters.
+    """
+    # data model
+    data = {
+        "data_type": data_type,
+        "axes": axes,
+        "patch_size": patch_size,
+        "batch_size": batch_size,
+        "transforms": augmentations,
+    }
+    # Don't override defaults set in DataConfig class
+    if train_dataloader_params is not None:
+        data["train_dataloader_params"] = train_dataloader_params
+    if val_dataloader_params is not None:
+        data["val_dataloader_params"] = val_dataloader_params
+
+    return DataConfig(**data)
+
+
+def _create_training_configuration(
+    num_epochs: int, logger: Literal["wandb", "tensorboard", "none"]
+) -> TrainingConfig:
+    """
+    Create a dictionary with the parameters of the training model.
+
+    Parameters
+    ----------
+    num_epochs : int
+        Number of epochs.
+    logger : {"wandb", "tensorboard", "none"}
+        Logger to use.
+
+    Returns
+    -------
+    TrainingConfig
+        Training model with the specified parameters.
+    """
+    return TrainingConfig(
+        num_epochs=num_epochs,
+        logger=None if logger == "none" else logger,
+    )
+
+
 def _create_configuration(
     algorithm: Literal["n2v", "care", "n2n"],
     experiment_name: str,
@@ -1081,9 +1210,34 @@ def create_hdn_configuration(
         Batch size.
     """
     transform_list = _list_spatial_augmentations(augmentations)
-    algorithm_params = create_algorithm_configuration()
-    data_params = create_data_configuration()
-    training_params = create_training_configuration()
+    # algorithm
+    algorithm_params = _create_algorithm_configuration(
+        axes=axes,
+        algorithm="n2v",
+        loss="n2v",
+        independent_channels=independent_channels,
+        n_channels_in=n_channels,
+        n_channels_out=n_channels,
+        use_n2v2=use_n2v2,
+        model_params=model_params,
+    )
+
+    # data
+    data_params = _create_data_configuration(
+        data_type=data_type,
+        axes=axes,
+        patch_size=patch_size,
+        batch_size=batch_size,
+        augmentations=spatial_transforms,
+        train_dataloader_params=train_dataloader_params,
+        val_dataloader_params=val_dataloader_params,
+    )
+
+    # training
+    training_params = _create_training_configuration(
+        num_epochs=num_epochs,
+        logger=logger,
+    )
 
     return HDNConfiguration(
         experiment_name=experiment_name,
