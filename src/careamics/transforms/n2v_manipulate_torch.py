@@ -115,7 +115,7 @@ class N2VManipulateTorch:
         self.rng = (
             torch.Generator(device=self.device).manual_seed(self.seed)
             if self.seed
-            else torch.Generator(device=batch.device) # for test to run on cpu
+            else torch.Generator(device=batch.device)  # for test to run on cpu
         )
 
         if self.strategy == SupportedPixelManipulation.UNIFORM:

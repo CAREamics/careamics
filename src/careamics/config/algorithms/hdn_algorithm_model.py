@@ -31,7 +31,6 @@ class HDNAlgorithm(VAEBasedAlgorithm):
 
     model: LVAEModel  # TODO add validators
 
-
     def get_algorithm_friendly_name(self) -> str:
         """
         Get the algorithm friendly name.
