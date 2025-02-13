@@ -2,13 +2,13 @@
 
 from typing import Annotated, Any, Literal, Optional, Union
 
-from pydantic import Discriminator, Tag, TypeAdapter
+from pydantic import Discriminator, Field, Tag, TypeAdapter
 
 from careamics.config.algorithms import CAREAlgorithm, N2NAlgorithm, N2VAlgorithm
 from careamics.config.architectures import UNetModel
 from careamics.config.care_configuration import CAREConfiguration
 from careamics.config.configuration import Configuration
-from careamics.config.data import DataConfig, N2VDataConfig
+from careamics.config.data import DataConfig
 from careamics.config.n2n_configuration import N2NConfiguration
 from careamics.config.n2v_configuration import N2VConfiguration
 from careamics.config.support import (
@@ -19,7 +19,6 @@ from careamics.config.support import (
 )
 from careamics.config.training_model import TrainingConfig
 from careamics.config.transformations import (
-    N2V_TRANSFORMS_UNION,
     SPATIAL_TRANSFORMS_UNION,
     N2VManipulateModel,
     XYFlipModel,
@@ -90,26 +89,13 @@ def algorithm_factory(
     N2VAlgorithm or N2NAlgorithm or CAREAlgorithm
         Algorithm model for training CAREamics.
     """
-    adapter: TypeAdapter = TypeAdapter(Union[N2VAlgorithm, N2NAlgorithm, CAREAlgorithm])
+    adapter: TypeAdapter = TypeAdapter(
+        Annotated[
+            Union[N2VAlgorithm, N2NAlgorithm, CAREAlgorithm],
+            Field(discriminator="algorithm"),
+        ]
+    )
     return adapter.validate_python(algorithm)
-
-
-def data_factory(data: dict[str, Any]) -> Union[DataConfig, N2VDataConfig]:
-    """
-    Create a data model for training CAREamics.
-
-    Parameters
-    ----------
-    data : dict
-        Data dictionary.
-
-    Returns
-    -------
-    DataConfig or N2VDataConfig
-        Data model for training CAREamics.
-    """
-    adapter: TypeAdapter = TypeAdapter(Union[DataConfig, N2VDataConfig])
-    return adapter.validate_python(data)
 
 
 def _list_spatial_augmentations(
@@ -208,70 +194,42 @@ def _create_unet_configuration(
     )
 
 
-def _create_configuration(
-    algorithm: Literal["n2v", "care", "n2n"],
-    experiment_name: str,
-    data_type: Literal["array", "tiff", "custom"],
+def _create_algorithm_configuration(
     axes: str,
-    patch_size: list[int],
-    batch_size: int,
-    num_epochs: int,
-    augmentations: Union[list[N2V_TRANSFORMS_UNION], list[SPATIAL_TRANSFORMS_UNION]],
-    independent_channels: bool,
+    algorithm: Literal["n2v", "care", "n2n"],
     loss: Literal["n2v", "mae", "mse"],
+    independent_channels: bool,
     n_channels_in: int,
     n_channels_out: int,
-    logger: Literal["wandb", "tensorboard", "none"],
     use_n2v2: bool = False,
     model_params: Optional[dict] = None,
-    train_dataloader_params: Optional[dict[str, Any]] = None,
-    val_dataloader_params: Optional[dict[str, Any]] = None,
-) -> Configuration:
+) -> dict:
     """
-    Create a configuration for training N2V, CARE or Noise2Noise.
+    Create a dictionary with the parameters of the algorithm model.
 
     Parameters
     ----------
+    axes : str
+        Axes of the data.
     algorithm : {"n2v", "care", "n2n"}
         Algorithm to use.
-    experiment_name : str
-        Name of the experiment.
-    data_type : {"array", "tiff", "custom"}
-        Type of the data.
-    axes : str
-        Axes of the data (e.g. SYX).
-    patch_size : list of int
-        Size of the patches along the spatial dimensions (e.g. [64, 64]).
-    batch_size : int
-        Batch size.
-    num_epochs : int
-        Number of epochs.
-    augmentations : list of transforms
-        List of transforms to apply, either both or one of XYFlipModel and
-        XYRandomRotate90Model.
-    independent_channels : bool
-        Whether to train all channels independently.
     loss : {"n2v", "mae", "mse"}
         Loss function to use.
+    independent_channels : bool
+        Whether to train all channels independently.
     n_channels_in : int
-        Number of channels in.
+        Number of input channels.
     n_channels_out : int
-        Number of channels out.
-    logger : {"wandb", "tensorboard", "none"}
-        Logger to use.
+        Number of output channels.
     use_n2v2 : bool, optional
         Whether to use N2V2, by default False.
     model_params : dict
         UNetModel parameters.
-    train_dataloader_params : dict
-        Parameters for the training dataloader, see PyTorch notes, by default None.
-    val_dataloader_params : dict
-        Parameters for the validation dataloader, see PyTorch notes, by default None.
 
     Returns
     -------
-    Configuration
-        Configuration for training N2V, CARE or Noise2Noise.
+    dict
+        Algorithm model as dictionnary with the specified parameters.
     """
     # model
     unet_model = _create_unet_configuration(
@@ -283,13 +241,47 @@ def _create_configuration(
         model_params=model_params,
     )
 
-    # algorithm model
-    algorithm_config = {
+    return {
         "algorithm": algorithm,
         "loss": loss,
         "model": unet_model,
     }
 
+
+def _create_data_configuration(
+    data_type: Literal["array", "tiff", "custom"],
+    axes: str,
+    patch_size: list[int],
+    batch_size: int,
+    augmentations: Union[list[SPATIAL_TRANSFORMS_UNION]],
+    train_dataloader_params: Optional[dict[str, Any]] = None,
+    val_dataloader_params: Optional[dict[str, Any]] = None,
+) -> DataConfig:
+    """
+    Create a dictionary with the parameters of the data model.
+
+    Parameters
+    ----------
+    data_type : {"array", "tiff", "custom"}
+        Type of the data.
+    axes : str
+        Axes of the data.
+    patch_size : list of int
+        Size of the patches along the spatial dimensions.
+    batch_size : int
+        Batch size.
+    augmentations : list of transforms
+        List of transforms to apply.
+    train_dataloader_params : dict
+        Parameters for the training dataloader, see PyTorch notes, by default None.
+    val_dataloader_params : dict
+        Parameters for the validation dataloader, see PyTorch notes, by default None.
+
+    Returns
+    -------
+    DataConfig
+        Data model with the specified parameters.
+    """
     # data model
     data = {
         "data_type": data_type,
@@ -304,26 +296,35 @@ def _create_configuration(
     if val_dataloader_params is not None:
         data["val_dataloader_params"] = val_dataloader_params
 
-    # training model
-    training = TrainingConfig(
+    return DataConfig(**data)
+
+
+def _create_training_configuration(
+    num_epochs: int, logger: Literal["wandb", "tensorboard", "none"]
+) -> TrainingConfig:
+    """
+    Create a dictionary with the parameters of the training model.
+
+    Parameters
+    ----------
+    num_epochs : int
+        Number of epochs.
+    logger : {"wandb", "tensorboard", "none"}
+        Logger to use.
+
+    Returns
+    -------
+    TrainingConfig
+        Training model with the specified parameters.
+    """
+    return TrainingConfig(
         num_epochs=num_epochs,
-        batch_size=batch_size,
         logger=None if logger == "none" else logger,
     )
 
-    # create configuration
-    configuration = {
-        "experiment_name": experiment_name,
-        "algorithm_config": algorithm_config,
-        "data_config": data,
-        "training_config": training,
-    }
-
-    return configuration_factory(configuration)
-
 
 # TODO reconsider naming once we officially support LVAE approaches
-def _create_supervised_configuration(
+def _create_supervised_config_dict(
     algorithm: Literal["care", "n2n"],
     experiment_name: str,
     data_type: Literal["array", "tiff", "custom"],
@@ -331,7 +332,7 @@ def _create_supervised_configuration(
     patch_size: list[int],
     batch_size: int,
     num_epochs: int,
-    augmentations: Optional[list[Union[XYFlipModel, XYRandomRotate90Model]]] = None,
+    augmentations: Optional[list[SPATIAL_TRANSFORMS_UNION]] = None,
     independent_channels: bool = True,
     loss: Literal["mae", "mse"] = "mae",
     n_channels_in: Optional[int] = None,
@@ -340,7 +341,7 @@ def _create_supervised_configuration(
     model_params: Optional[dict] = None,
     train_dataloader_params: Optional[dict[str, Any]] = None,
     val_dataloader_params: Optional[dict[str, Any]] = None,
-) -> Configuration:
+) -> dict:
     """
     Create a configuration for training CARE or Noise2Noise.
 
@@ -411,24 +412,40 @@ def _create_supervised_configuration(
     # augmentations
     spatial_transform_list = _list_spatial_augmentations(augmentations)
 
-    return _create_configuration(
+    # algorithm
+    algorithm_params = _create_algorithm_configuration(
+        axes=axes,
         algorithm=algorithm,
-        experiment_name=experiment_name,
+        loss=loss,
+        independent_channels=independent_channels,
+        n_channels_in=n_channels_in,
+        n_channels_out=n_channels_out,
+        model_params=model_params,
+    )
+
+    # data
+    data_params = _create_data_configuration(
         data_type=data_type,
         axes=axes,
         patch_size=patch_size,
         batch_size=batch_size,
-        num_epochs=num_epochs,
         augmentations=spatial_transform_list,
-        independent_channels=independent_channels,
-        loss=loss,
-        n_channels_in=n_channels_in,
-        n_channels_out=n_channels_out,
-        logger=logger,
-        model_params=model_params,
         train_dataloader_params=train_dataloader_params,
         val_dataloader_params=val_dataloader_params,
     )
+
+    # training
+    training_params = _create_training_configuration(
+        num_epochs=num_epochs,
+        logger=logger,
+    )
+
+    return {
+        "experiment_name": experiment_name,
+        "algorithm_config": algorithm_params,
+        "data_config": data_params,
+        "training_config": training_params,
+    }
 
 
 def create_care_configuration(
@@ -447,7 +464,7 @@ def create_care_configuration(
     model_params: Optional[dict] = None,
     train_dataloader_params: Optional[dict[str, Any]] = None,
     val_dataloader_params: Optional[dict[str, Any]] = None,
-) -> Configuration:
+) -> CAREConfiguration:
     """
     Create a configuration for training CARE.
 
@@ -510,7 +527,7 @@ def create_care_configuration(
 
     Returns
     -------
-    Configuration
+    CAREConfiguration
         Configuration for training CARE.
 
     Examples
@@ -580,23 +597,25 @@ def create_care_configuration(
     ...     n_channels_out=1 # if applicable
     ... )
     """
-    return _create_supervised_configuration(
-        algorithm="care",
-        experiment_name=experiment_name,
-        data_type=data_type,
-        axes=axes,
-        patch_size=patch_size,
-        batch_size=batch_size,
-        num_epochs=num_epochs,
-        augmentations=augmentations,
-        independent_channels=independent_channels,
-        loss=loss,
-        n_channels_in=n_channels_in,
-        n_channels_out=n_channels_out,
-        logger=logger,
-        model_params=model_params,
-        train_dataloader_params=train_dataloader_params,
-        val_dataloader_params=val_dataloader_params,
+    return CAREConfiguration(
+        **_create_supervised_config_dict(
+            algorithm="care",
+            experiment_name=experiment_name,
+            data_type=data_type,
+            axes=axes,
+            patch_size=patch_size,
+            batch_size=batch_size,
+            num_epochs=num_epochs,
+            augmentations=augmentations,
+            independent_channels=independent_channels,
+            loss=loss,
+            n_channels_in=n_channels_in,
+            n_channels_out=n_channels_out,
+            logger=logger,
+            model_params=model_params,
+            train_dataloader_params=train_dataloader_params,
+            val_dataloader_params=val_dataloader_params,
+        )
     )
 
 
@@ -616,7 +635,7 @@ def create_n2n_configuration(
     model_params: Optional[dict] = None,
     train_dataloader_params: Optional[dict[str, Any]] = None,
     val_dataloader_params: Optional[dict[str, Any]] = None,
-) -> Configuration:
+) -> N2NConfiguration:
     """
     Create a configuration for training Noise2Noise.
 
@@ -679,7 +698,7 @@ def create_n2n_configuration(
 
     Returns
     -------
-    Configuration
+    N2NConfiguration
         Configuration for training Noise2Noise.
 
     Examples
@@ -749,23 +768,25 @@ def create_n2n_configuration(
     ...     n_channels_out=1 # if applicable
     ... )
     """
-    return _create_supervised_configuration(
-        algorithm="n2n",
-        experiment_name=experiment_name,
-        data_type=data_type,
-        axes=axes,
-        patch_size=patch_size,
-        batch_size=batch_size,
-        num_epochs=num_epochs,
-        augmentations=augmentations,
-        independent_channels=independent_channels,
-        loss=loss,
-        n_channels_in=n_channels_in,
-        n_channels_out=n_channels_out,
-        logger=logger,
-        model_params=model_params,
-        train_dataloader_params=train_dataloader_params,
-        val_dataloader_params=val_dataloader_params,
+    return N2NConfiguration(
+        **_create_supervised_config_dict(
+            algorithm="n2n",
+            experiment_name=experiment_name,
+            data_type=data_type,
+            axes=axes,
+            patch_size=patch_size,
+            batch_size=batch_size,
+            num_epochs=num_epochs,
+            augmentations=augmentations,
+            independent_channels=independent_channels,
+            loss=loss,
+            n_channels_in=n_channels_in,
+            n_channels_out=n_channels_out,
+            logger=logger,
+            model_params=model_params,
+            train_dataloader_params=train_dataloader_params,
+            val_dataloader_params=val_dataloader_params,
+        )
     )
 
 
@@ -788,7 +809,7 @@ def create_n2v_configuration(
     model_params: Optional[dict] = None,
     train_dataloader_params: Optional[dict[str, Any]] = None,
     val_dataloader_params: Optional[dict[str, Any]] = None,
-) -> Configuration:
+) -> N2VConfiguration:
     """
     Create a configuration for training Noise2Void.
 
@@ -877,7 +898,7 @@ def create_n2v_configuration(
 
     Returns
     -------
-    Configuration
+    N2VConfiguration
         Configuration for training N2V.
 
     Examples
@@ -995,24 +1016,40 @@ def create_n2v_configuration(
         struct_mask_axis=struct_n2v_axis,
         struct_mask_span=struct_n2v_span,
     )
-    transform_list: list[N2V_TRANSFORMS_UNION] = spatial_transforms + [n2v_transform]
 
-    return _create_configuration(
+    # algorithm
+    algorithm_params = _create_algorithm_configuration(
+        axes=axes,
         algorithm="n2v",
-        experiment_name=experiment_name,
+        loss="n2v",
+        independent_channels=independent_channels,
+        n_channels_in=n_channels,
+        n_channels_out=n_channels,
+        use_n2v2=use_n2v2,
+        model_params=model_params,
+    )
+    algorithm_params["n2v_config"] = n2v_transform
+
+    # data
+    data_params = _create_data_configuration(
         data_type=data_type,
         axes=axes,
         patch_size=patch_size,
         batch_size=batch_size,
-        num_epochs=num_epochs,
-        augmentations=transform_list,
-        independent_channels=independent_channels,
-        loss="n2v",
-        use_n2v2=use_n2v2,
-        n_channels_in=n_channels,
-        n_channels_out=n_channels,
-        logger=logger,
-        model_params=model_params,
+        augmentations=spatial_transforms,
         train_dataloader_params=train_dataloader_params,
         val_dataloader_params=val_dataloader_params,
+    )
+
+    # training
+    training_params = _create_training_configuration(
+        num_epochs=num_epochs,
+        logger=logger,
+    )
+
+    return N2VConfiguration(
+        experiment_name=experiment_name,
+        algorithm_config=algorithm_params,
+        data_config=data_params,
+        training_config=training_params,
     )

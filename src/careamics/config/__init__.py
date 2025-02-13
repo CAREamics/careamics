@@ -13,7 +13,6 @@ __all__ = [
     "Configuration",
     "DataConfig",
     "GaussianMixtureNMConfig",
-    "GeneralDataConfig",
     "InferenceConfig",
     "LVAELossConfig",
     "MultiChannelNMConfig",
@@ -21,7 +20,6 @@ __all__ = [
     "N2NConfiguration",
     "N2VAlgorithm",
     "N2VConfiguration",
-    "N2VDataConfig",
     "TrainingConfig",
     "UNetBasedAlgorithm",
     "VAEBasedAlgorithm",
@@ -30,7 +28,6 @@ __all__ = [
     "create_care_configuration",
     "create_n2n_configuration",
     "create_n2v_configuration",
-    "data_factory",
     "load_configuration",
     "save_configuration",
 ]
@@ -51,10 +48,9 @@ from .configuration_factories import (
     create_care_configuration,
     create_n2n_configuration,
     create_n2v_configuration,
-    data_factory,
 )
 from .configuration_io import load_configuration, save_configuration
-from .data import DataConfig, GeneralDataConfig, N2VDataConfig
+from .data import DataConfig
 from .inference_model import InferenceConfig
 from .loss_model import LVAELossConfig
 from .n2n_configuration import N2NConfiguration

@@ -1137,3 +1137,19 @@ def test_read_logger(tmp_path, minimum_n2v_configuration):
     assert len(losses) == 4
     for key in losses:
         assert len(losses[key]) == config.training_config.num_epochs
+
+
+def test_all_parameters_used(tmp_path, minimum_n2v_configuration):
+    config = configuration_factory(minimum_n2v_configuration)
+    config.training_config.num_epochs = 2
+    config.data_config.batch_size = 2
+    config.data_config.patch_size = (16, 16)
+    config.data_config.val_dataloader_params = {"num_workers": 2}
+
+    # TODO add other params ?
+    careamist = CAREamist(config, work_dir=tmp_path)
+
+    assert careamist.cfg.training_config.num_epochs == 2
+    assert careamist.cfg.data_config.batch_size == 2
+    assert all(i == 16 for i in careamist.cfg.data_config.patch_size)
+    assert careamist.cfg.data_config.val_dataloader_params["num_workers"] == 2

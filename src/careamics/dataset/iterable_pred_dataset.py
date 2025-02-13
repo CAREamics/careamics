@@ -97,13 +97,13 @@ class IterablePredDataset(IterableDataset):
 
     def __iter__(
         self,
-    ) -> Generator[NDArray, None, None]:
+    ) -> Generator[tuple[NDArray, ...], None, None]:
         """
         Iterate over data source and yield single patch.
 
         Yields
         ------
-        NDArray
+        (numpy.ndarray, numpy.ndarray or None)
             Single patch.
         """
         assert (
@@ -118,6 +118,4 @@ class IterablePredDataset(IterableDataset):
             # sample has S dimension
             for i in range(sample.shape[0]):
 
-                transformed_sample, _ = self.patch_transform(patch=sample[i])
-
-                yield transformed_sample
+                yield self.patch_transform(patch=sample[i])

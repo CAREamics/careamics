@@ -69,7 +69,7 @@ class InMemoryPredDataset(Dataset):
         """
         return len(self.data)
 
-    def __getitem__(self, index: int) -> NDArray:
+    def __getitem__(self, index: int) -> tuple[NDArray, ...]:
         """
         Return the patch corresponding to the provided index.
 
@@ -80,9 +80,7 @@ class InMemoryPredDataset(Dataset):
 
         Returns
         -------
-        NDArray
+        tuple(numpy.ndarray, ...)
             Transformed patch.
         """
-        transformed_patch, _ = self.patch_transform(patch=self.data[index])
-
-        return transformed_patch
+        return self.patch_transform(patch=self.data[index])

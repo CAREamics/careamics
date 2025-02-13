@@ -1,13 +1,9 @@
 """N2V configuration."""
 
 from bioimageio.spec.generic.v0_3 import CiteEntry
-from pydantic import model_validator
-from typing_extensions import Self
 
 from careamics.config.algorithms import N2VAlgorithm
 from careamics.config.configuration import Configuration
-from careamics.config.data.n2v_data_model import N2VDataConfig
-from careamics.config.support import SupportedPixelManipulation
 
 N2V = "Noise2Void"
 N2V2 = "N2V2"
@@ -85,45 +81,6 @@ class N2VConfiguration(Configuration):
 
     algorithm_config: N2VAlgorithm
 
-    data_config: N2VDataConfig
-
-    @model_validator(mode="after")
-    def validate_n2v2(self) -> Self:
-        """Validate that the N2V2 strategy and models are set correctly.
-
-        Returns
-        -------
-        Self
-            The validateed configuration.
-
-
-        Raises
-        ------
-        ValueError
-            If N2V2 is used with the wrong pixel manipulation strategy.
-        """
-        if self.algorithm_config.model.n2v2:
-            if (
-                self.data_config.get_masking_strategy()
-                != SupportedPixelManipulation.MEDIAN.value
-            ):
-                raise ValueError(
-                    f"N2V2 can only be used with the "
-                    f"{SupportedPixelManipulation.MEDIAN} pixel manipulation strategy"
-                    f". Change the N2VManipulate transform strategy."
-                )
-        else:
-            if (
-                self.data_config.get_masking_strategy()
-                != SupportedPixelManipulation.UNIFORM.value
-            ):
-                raise ValueError(
-                    f"N2V can only be used with the "
-                    f"{SupportedPixelManipulation.UNIFORM} pixel manipulation strategy"
-                    f". Change the N2VManipulate transform strategy."
-                )
-        return self
-
     def set_n2v2(self, use_n2v2: bool) -> None:
         """
         Set the configuration to use N2V2 or the vanilla Noise2Void.
@@ -133,8 +90,7 @@ class N2VConfiguration(Configuration):
         use_n2v2 : bool
             Whether to use N2V2.
         """
-        self.data_config.set_n2v2(use_n2v2)
-        self.algorithm_config.model.n2v2 = use_n2v2
+        self.algorithm_config.set_n2v2(use_n2v2)
 
     def get_algorithm_friendly_name(self) -> str:
         """
@@ -146,7 +102,7 @@ class N2VConfiguration(Configuration):
             Friendly name.
         """
         use_n2v2 = self.algorithm_config.model.n2v2
-        use_structN2V = self.data_config.is_using_struct_n2v()
+        use_structN2V = self.algorithm_config.is_struct_n2v()
 
         if use_n2v2 and use_structN2V:
             return STRUCT_N2V2
@@ -167,7 +123,7 @@ class N2VConfiguration(Configuration):
             List of keywords.
         """
         use_n2v2 = self.algorithm_config.model.n2v2
-        use_structN2V = self.data_config.is_using_struct_n2v()
+        use_structN2V = self.algorithm_config.is_struct_n2v()
 
         keywords = [
             "denoising",
@@ -198,7 +154,7 @@ class N2VConfiguration(Configuration):
             Algorithm references.
         """
         use_n2v2 = self.algorithm_config.model.n2v2
-        use_structN2V = self.data_config.is_using_struct_n2v()
+        use_structN2V = self.algorithm_config.is_struct_n2v()
 
         references = [
             N2V_REF.text + " doi: " + N2V_REF.doi,
@@ -230,7 +186,7 @@ class N2VConfiguration(Configuration):
             List of citation entries.
         """
         use_n2v2 = self.algorithm_config.model.n2v2
-        use_structN2V = self.data_config.is_using_struct_n2v()
+        use_structN2V = self.algorithm_config.is_struct_n2v()
 
         references = [N2V_REF]
 
@@ -254,7 +210,7 @@ class N2VConfiguration(Configuration):
             Description of the algorithm.
         """
         use_n2v2 = self.algorithm_config.model.n2v2
-        use_structN2V = self.data_config.is_using_struct_n2v()
+        use_structN2V = self.algorithm_config.is_struct_n2v()
 
         if use_n2v2 and use_structN2V:
             return STR_N2V2_DESCRIPTION

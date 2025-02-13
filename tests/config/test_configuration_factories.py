@@ -3,7 +3,6 @@ import pytest
 from careamics.config import (
     CAREAlgorithm,
     CAREConfiguration,
-    DataConfig,
     N2NAlgorithm,
     N2NConfiguration,
     N2VAlgorithm,
@@ -15,14 +14,11 @@ from careamics.config import (
 )
 from careamics.config.configuration_factories import (
     _algorithm_config_discriminator,
-    _create_configuration,
-    _create_supervised_configuration,
+    _create_supervised_config_dict,
     _create_unet_configuration,
     _list_spatial_augmentations,
     configuration_factory,
-    data_factory,
 )
-from careamics.config.data import N2VDataConfig
 from careamics.config.support import (
     SupportedAlgorithm,
     SupportedPixelManipulation,
@@ -72,23 +68,6 @@ def test_careamics_config_supervised(minimum_supervised_configuration, algorithm
 
     exp_class = N2NConfiguration if algorithm == "n2n" else CAREConfiguration
     assert isinstance(config, exp_class)
-
-
-def test_data_factory_n2v(minimum_data):
-    """Test that having N2VManipule yields a N2VDataConfig."""
-    minimum_data["transforms"] = [
-        {
-            "name": SupportedTransform.N2V_MANIPULATE.value,
-        }
-    ]
-    data = data_factory(minimum_data)
-    assert isinstance(data, N2VDataConfig)
-
-
-def test_data_factory_supervised(minimum_data):
-    """Test that the normal configuration yields a DataConfig."""
-    data = data_factory(minimum_data)
-    assert isinstance(data, DataConfig)
 
 
 def test_algorithm_factory_n2v(minimum_algorithm_n2v):
@@ -142,7 +121,7 @@ def test_list_aug_error_wrong_transform():
 
 def test_supervised_configuration_passing_transforms():
     """Test that transforms can be passed to the configuration."""
-    config = _create_supervised_configuration(
+    config_dict = _create_supervised_config_dict(
         algorithm="n2n",
         experiment_name="test",
         data_type="tiff",
@@ -152,6 +131,8 @@ def test_supervised_configuration_passing_transforms():
         num_epochs=100,
         augmentations=[XYFlipModel()],
     )
+    config = configuration_factory(config_dict)
+
     assert len(config.data_config.transforms) == 1
     assert config.data_config.transforms[0].name == SupportedTransform.XY_FLIP.value
 
@@ -219,23 +200,25 @@ def test_create_configuration():
     }
 
     # instantiate config
-    config = _create_configuration(
-        algorithm=algorithm,
-        experiment_name=experiment_name,
-        data_type=data_type,
-        axes=axes,
-        patch_size=patch_size,
-        batch_size=batch_size,
-        num_epochs=num_epochs,
-        augmentations=transform_list,
-        independent_channels=independent_channels,
-        loss=loss,
-        n_channels_in=n_channels_in,
-        n_channels_out=n_channels_out,
-        logger=logger,
-        model_params=model_params,
-        train_dataloader_params=train_dataloader_params,
-        val_dataloader_params=val_dataloader_params,
+    config = CAREConfiguration(
+        **_create_supervised_config_dict(
+            algorithm=algorithm,
+            experiment_name=experiment_name,
+            data_type=data_type,
+            axes=axes,
+            patch_size=patch_size,
+            batch_size=batch_size,
+            num_epochs=num_epochs,
+            augmentations=transform_list,
+            independent_channels=independent_channels,
+            loss=loss,
+            n_channels_in=n_channels_in,
+            n_channels_out=n_channels_out,
+            logger=logger,
+            model_params=model_params,
+            train_dataloader_params=train_dataloader_params,
+            val_dataloader_params=val_dataloader_params,
+        )
     )
 
     assert config.algorithm_config.algorithm == algorithm
@@ -260,7 +243,7 @@ def test_supervised_configuration_error_with_channel_axes():
     """Test that an error is raised if channels are in axes, but the input channel
     number is not specified."""
     with pytest.raises(ValueError):
-        _create_supervised_configuration(
+        _create_supervised_config_dict(
             algorithm="n2n",
             experiment_name="test",
             data_type="tiff",
@@ -274,7 +257,7 @@ def test_supervised_configuration_error_with_channel_axes():
 def test_supervised_configuration_singleton_channel():
     """Test that no error is raised if channels are in axes, and the input channel is
     1."""
-    _create_supervised_configuration(
+    _create_supervised_config_dict(
         algorithm="n2n",
         experiment_name="test",
         data_type="tiff",
@@ -288,7 +271,7 @@ def test_supervised_configuration_singleton_channel():
 
 def test_supervised_configuration_no_channel():
     """Test that no error is raised without channel and number of inputs."""
-    _create_supervised_configuration(
+    _create_supervised_config_dict(
         algorithm="n2n",
         experiment_name="test",
         data_type="tiff",
@@ -303,7 +286,7 @@ def test_supervised_configuration_error_without_channel_axes():
     """Test that an error is raised if channels are not in axes, but the input channel
     number is specified and greater than 1."""
     with pytest.raises(ValueError):
-        _create_supervised_configuration(
+        _create_supervised_config_dict(
             algorithm="n2n",
             experiment_name="test",
             data_type="tiff",
@@ -318,7 +301,7 @@ def test_supervised_configuration_error_without_channel_axes():
 def test_supervised_configuration_channels():
     """Test that no error is raised if channels are in axes and the input channel
     are specified."""
-    _create_supervised_configuration(
+    _create_supervised_config_dict(
         algorithm="n2n",
         experiment_name="test",
         data_type="tiff",
@@ -432,33 +415,7 @@ def test_n2v_configuration():
         batch_size=8,
         num_epochs=100,
     )
-    assert config.algorithm_config.algorithm == "n2v"
-    assert config.algorithm_config.loss == "n2v"
-    assert (
-        config.data_config.transforms[-1].name
-        == SupportedTransform.N2V_MANIPULATE.value
-    )
-
-
-def test_n2v_configuration_default_transforms():
-    """Test the default n2v transforms."""
-    config = create_n2v_configuration(
-        experiment_name="test",
-        data_type="tiff",
-        axes="YX",
-        patch_size=[64, 64],
-        batch_size=8,
-        num_epochs=100,
-    )
-    assert len(config.data_config.transforms) == 3
-    assert config.data_config.transforms[0].name == SupportedTransform.XY_FLIP.value
-    assert (
-        config.data_config.transforms[1].name
-        == SupportedTransform.XY_RANDOM_ROTATE90.value
-    )
-    assert (
-        config.data_config.transforms[2].name == SupportedTransform.N2V_MANIPULATE.value
-    )
+    assert isinstance(config, N2VConfiguration)
 
 
 def test_n2v_configuration_no_aug():
@@ -472,11 +429,7 @@ def test_n2v_configuration_no_aug():
         num_epochs=100,
         augmentations=[],
     )
-    assert len(config.data_config.transforms) == 1
-    assert (
-        config.data_config.transforms[-1].name
-        == SupportedTransform.N2V_MANIPULATE.value
-    )
+    assert config.data_config.transforms == []
 
 
 def test_n2v_configuration_n2v2_structn2v():
@@ -500,23 +453,14 @@ def test_n2v_configuration_n2v2_structn2v():
         struct_n2v_axis=struct_mask_axis,
         struct_n2v_span=struct_n2v_span,
     )
-    assert len(config.data_config.transforms) == 3
     assert (
-        config.data_config.transforms[-1].name
-        == SupportedTransform.N2V_MANIPULATE.value
-    )
-    assert (
-        config.data_config.transforms[-1].name
-        == SupportedTransform.N2V_MANIPULATE.value
-    )
-    assert (
-        config.data_config.transforms[-1].strategy
+        config.algorithm_config.n2v_config.strategy
         == SupportedPixelManipulation.MEDIAN.value
     )
-    assert config.data_config.transforms[-1].roi_size == roi_size
+    assert config.algorithm_config.n2v_config.roi_size == roi_size
     assert (
-        config.data_config.transforms[-1].masked_pixel_percentage
+        config.algorithm_config.n2v_config.masked_pixel_percentage
         == masked_pixel_percentage
     )
-    assert config.data_config.transforms[-1].struct_mask_axis == struct_mask_axis
-    assert config.data_config.transforms[-1].struct_mask_span == struct_n2v_span
+    assert config.algorithm_config.n2v_config.struct_mask_axis == struct_mask_axis
+    assert config.algorithm_config.n2v_config.struct_mask_span == struct_n2v_span
