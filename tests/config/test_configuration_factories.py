@@ -7,6 +7,7 @@ from careamics.config import (
     N2VAlgorithm,
     algorithm_factory,
     create_care_configuration,
+    create_hdn_configuration,
     create_n2n_configuration,
     create_n2v_configuration,
 )
@@ -441,3 +442,18 @@ def test_n2v_configuration_n2v2_structn2v():
     )
     assert config.algorithm_config.n2v_config.struct_mask_axis == struct_mask_axis
     assert config.algorithm_config.n2v_config.struct_mask_span == struct_n2v_span
+
+
+def test_hdn_configuration():
+    """Test that HDN configuration can be created."""
+    config = create_hdn_configuration(
+        experiment_name="test",
+        data_type="tiff",
+        axes="YX",
+        patch_size=[64, 64],
+        batch_size=8,
+        num_epochs=100,
+    )
+    assert config.algorithm_config.algorithm == "hdn"
+    assert config.algorithm_config.loss.loss_type == "hdn"
+    assert config.algorithm_config.model.multiscale_count == 1

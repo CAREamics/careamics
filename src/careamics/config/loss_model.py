@@ -54,3 +54,5 @@ class LVAELossConfig(BaseModel):
     # TODO: remove?
     non_stochastic: bool = False
     """Whether to sample latents and compute KL."""
+
+    # TODO what are the correct parameters for HDN ?

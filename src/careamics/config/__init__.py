@@ -17,6 +17,7 @@ __all__ = [
     "MultiChannelNMConfig",
     "N2NAlgorithm",
     "N2VAlgorithm",
+    "HDNAlgorithm",
     "TrainingConfig",
     "UNetBasedAlgorithm",
     "VAEBasedAlgorithm",
@@ -31,6 +32,7 @@ __all__ = [
 
 from .algorithms import (
     CAREAlgorithm,
+    HDNAlgorithm,
     N2NAlgorithm,
     N2VAlgorithm,
     UNetBasedAlgorithm,
