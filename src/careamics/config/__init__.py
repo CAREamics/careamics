@@ -22,6 +22,7 @@ __all__ = [
     "VAEBasedAlgorithm",
     "algorithm_factory",
     "create_care_configuration",
+    "create_hdn_configuration",
     "create_n2n_configuration",
     "create_n2v_configuration",
     "load_configuration",
@@ -40,6 +41,7 @@ from .configuration import Configuration
 from .configuration_factories import (
     algorithm_factory,
     create_care_configuration,
+    create_hdn_configuration,
     create_n2n_configuration,
     create_n2v_configuration,
 )
