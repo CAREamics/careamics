@@ -10,9 +10,21 @@ from bioimageio.spec.generic.v0_3 import CiteEntry
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from typing_extensions import Self
 
-from careamics.config.algorithms import UNetBasedAlgorithm, VAEBasedAlgorithm
+from careamics.config.algorithms import (
+    CAREAlgorithm,
+    N2NAlgorithm,
+    N2VAlgorithm,
+    VAEBasedAlgorithm,
+)
 from careamics.config.data import DataConfig
 from careamics.config.training_model import TrainingConfig
+
+ALGORITHMS = Union[
+    CAREAlgorithm,
+    N2NAlgorithm,
+    N2VAlgorithm,
+    VAEBasedAlgorithm,
+]
 
 
 class Configuration(BaseModel):
@@ -123,9 +135,7 @@ class Configuration(BaseModel):
     """Name of the experiment, used to name logs and checkpoints."""
 
     # Sub-configurations
-    algorithm_config: Union[UNetBasedAlgorithm, VAEBasedAlgorithm] = Field(
-        discriminator="algorithm"
-    )
+    algorithm_config: ALGORITHMS = Field(discriminator="algorithm")
     """Algorithm configuration, holding all parameters required to configure the
     model."""
 
