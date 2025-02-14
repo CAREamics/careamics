@@ -4,9 +4,15 @@ from typing import Annotated, Any, Literal, Optional, Union
 
 from pydantic import Field, TypeAdapter
 
-from careamics.config.algorithms import CAREAlgorithm, N2NAlgorithm, N2VAlgorithm
-from careamics.config.architectures import UNetModel
+from careamics.config.algorithms import (
+    CAREAlgorithm,
+    HDNAlgorithm,
+    N2NAlgorithm,
+    N2VAlgorithm,
+)
+from careamics.config.architectures import LVAEModel, UNetModel
 from careamics.config.data import DataConfig
+from careamics.config.loss_model import LVAELossConfig
 from careamics.config.support import (
     SupportedArchitecture,
     SupportedPixelManipulation,
@@ -25,7 +31,7 @@ from .configuration import Configuration
 
 def algorithm_factory(
     algorithm: dict[str, Any]
-) -> Union[N2VAlgorithm, N2NAlgorithm, CAREAlgorithm]:
+) -> Union[N2VAlgorithm, N2NAlgorithm, CAREAlgorithm, HDNAlgorithm]:
     """
     Create an algorithm model for training CAREamics.
 
@@ -41,7 +47,7 @@ def algorithm_factory(
     """
     adapter: TypeAdapter = TypeAdapter(
         Annotated[
-            Union[N2VAlgorithm, N2NAlgorithm, CAREAlgorithm],
+            Union[N2VAlgorithm, N2NAlgorithm, CAREAlgorithm, HDNAlgorithm],
             Field(discriminator="algorithm"),
         ]
     )
@@ -144,10 +150,52 @@ def _create_unet_configuration(
     )
 
 
-def _create_algorithm_configuration(
+def _create_vae_configuration(
+    input_shape: tuple[int, ...],
+    encoder_conv_strides: list[int],
+    decoder_conv_strides: list[int],
+    multiscale_count: int,
+    z_dims: list[int],
+    output_channels: int,
+    encoder_n_filters: int,
+    decoder_n_filters: int,
+    encoder_dropout: float,
+    decoder_dropout: float,
+    nonlinearity: Literal[
+        "None", "Sigmoid", "Softmax", "Tanh", "ReLU", "LeakyReLU", "ELU"
+    ],
+    predict_logvar: Literal[None, "pixelwise"],
+    analytical_kl: bool,
+    model_params: Optional[dict[str, Any]] = None,
+) -> LVAEModel:
+
+    if model_params is None:
+        model_params = {}
+
+    model_params["input_shape"] = input_shape
+    model_params["encoder_conv_strides"] = encoder_conv_strides
+    model_params["decoder_conv_strides"] = decoder_conv_strides
+    model_params["multiscale_count"] = multiscale_count
+    model_params["z_dims"] = z_dims
+    model_params["output_channels"] = output_channels
+    model_params["encoder_n_filters"] = encoder_n_filters
+    model_params["decoder_n_filters"] = decoder_n_filters
+    model_params["encoder_dropout"] = encoder_dropout
+    model_params["decoder_dropout"] = decoder_dropout
+    model_params["nonlinearity"] = nonlinearity
+    model_params["predict_logvar"] = predict_logvar
+    model_params["analytical_kl"] = analytical_kl
+
+    return LVAEModel(
+        architecture=SupportedArchitecture.LVAE.value,
+        **model_params,
+    )
+
+
+def _create_unet_based_algorithm(
     axes: str,
-    algorithm: Literal["n2v", "care", "n2n"],
-    loss: Literal["n2v", "mae", "mse"],
+    algorithm: Literal["n2v", "care", "n2n", "hdn"],
+    loss: Literal["n2v", "mae", "mse", "hdn"],
     independent_channels: bool,
     n_channels_in: int,
     n_channels_out: int,
@@ -155,15 +203,15 @@ def _create_algorithm_configuration(
     model_params: Optional[dict] = None,
 ) -> dict:
     """
-    Create a dictionary with the parameters of the algorithm model.
+    Create a dictionary with the parameters of the unet based algorithm model.
 
     Parameters
     ----------
     axes : str
         Axes of the data.
-    algorithm : {"n2v", "care", "n2n"}
+    algorithm : {"n2v", "care", "n2n", "hdn"}
         Algorithm to use.
-    loss : {"n2v", "mae", "mse"}
+    loss : {"n2v", "mae", "mse", "hdn"}
         Loss function to use.
     independent_channels : bool
         Whether to train all channels independently.
@@ -182,7 +230,7 @@ def _create_algorithm_configuration(
         Algorithm model as dictionnary with the specified parameters.
     """
     # model
-    unet_model = _create_unet_configuration(
+    network_model = _create_unet_configuration(
         axes=axes,
         n_channels_in=n_channels_in,
         n_channels_out=n_channels_out,
@@ -194,8 +242,173 @@ def _create_algorithm_configuration(
     return {
         "algorithm": algorithm,
         "loss": loss,
-        "model": unet_model,
+        "model": network_model,
     }
+
+
+def _create_vae_based_algorithm(
+    algorithm: Literal["hdn"],
+    loss: LVAELossConfig,
+    input_shape: tuple[int, ...],
+    encoder_conv_strides: list[int],
+    decoder_conv_strides: list[int],
+    multiscale_count: int,
+    z_dims: list[int],
+    output_channels: int,
+    encoder_n_filters: int,
+    decoder_n_filters: int,
+    encoder_dropout: float,
+    decoder_dropout: float,
+    nonlinearity: Literal[
+        "None", "Sigmoid", "Softmax", "Tanh", "ReLU", "LeakyReLU", "ELU"
+    ],
+    predict_logvar: Literal[None, "pixelwise"],
+    analytical_kl: bool,
+    model_params: Optional[dict[str, Any]] = None,
+) -> dict:
+    """
+    Create a dictionary with the parameters of the VAE-based algorithm model.
+
+    Parameters
+    ----------
+    axes : str
+        Axes of the data.
+    algorithm : Literal["hdn"]
+        The algorithm type.
+    loss : Literal["hdn"]
+        The loss function type.
+    input_shape : tuple[int, ...]
+        The shape of the input data.
+    encoder_conv_strides : list[int]
+        The strides of the encoder convolutional layers.
+    decoder_conv_strides : list[int]
+        The strides of the decoder convolutional layers.
+    multiscale_count : int
+        The number of multiscale layers.
+    z_dims : list[int]
+        The dimensions of the latent space.
+    output_channels : int
+        The number of output channels.
+    encoder_n_filters : int
+        The number of filters in the encoder.
+    decoder_n_filters : int
+        The number of filters in the decoder.
+    encoder_dropout : float
+        The dropout rate for the encoder.
+    decoder_dropout : float
+        The dropout rate for the decoder.
+    nonlinearity : Literal["None", "Sigmoid", "Softmax", "Tanh", "ReLU", "LeakyReLU",
+    "ELU"]
+        The nonlinearity function to use.
+    predict_logvar : Literal[None, "pixelwise"]
+        The type of log variance prediction.
+    analytical_kl : bool
+        Whether to use analytical KL divergence.
+    model_params : Optional[dict[str, Any]], optional
+        Additional model parameters, by default None.
+
+    Returns
+    -------
+    dict
+        A dictionary with the parameters of the VAE-based algorithm model.
+    """
+    network_model = _create_vae_configuration(
+        input_shape=input_shape,
+        encoder_conv_strides=encoder_conv_strides,
+        decoder_conv_strides=decoder_conv_strides,
+        multiscale_count=multiscale_count,
+        z_dims=z_dims,
+        output_channels=output_channels,
+        encoder_n_filters=encoder_n_filters,
+        decoder_n_filters=decoder_n_filters,
+        encoder_dropout=encoder_dropout,
+        decoder_dropout=decoder_dropout,
+        nonlinearity=nonlinearity,
+        predict_logvar=predict_logvar,
+        analytical_kl=analytical_kl,
+        model_params=model_params,
+    )
+
+    return {
+        "algorithm": algorithm,
+        "loss": loss,
+        "model": network_model,
+    }
+
+
+def _create_data_configuration(
+    data_type: Literal["array", "tiff", "custom"],
+    axes: str,
+    patch_size: list[int],
+    batch_size: int,
+    augmentations: Union[list[SPATIAL_TRANSFORMS_UNION]],
+    train_dataloader_params: Optional[dict[str, Any]] = None,
+    val_dataloader_params: Optional[dict[str, Any]] = None,
+) -> DataConfig:
+    """
+    Create a dictionary with the parameters of the data model.
+
+    Parameters
+    ----------
+    data_type : {"array", "tiff", "custom"}
+        Type of the data.
+    axes : str
+        Axes of the data.
+    patch_size : list of int
+        Size of the patches along the spatial dimensions.
+    batch_size : int
+        Batch size.
+    augmentations : list of transforms
+        List of transforms to apply.
+    train_dataloader_params : dict
+        Parameters for the training dataloader, see PyTorch notes, by default None.
+    val_dataloader_params : dict
+        Parameters for the validation dataloader, see PyTorch notes, by default None.
+
+    Returns
+    -------
+    DataConfig
+        Data model with the specified parameters.
+    """
+    # data model
+    data = {
+        "data_type": data_type,
+        "axes": axes,
+        "patch_size": patch_size,
+        "batch_size": batch_size,
+        "transforms": augmentations,
+    }
+    # Don't override defaults set in DataConfig class
+    if train_dataloader_params is not None:
+        data["train_dataloader_params"] = train_dataloader_params
+    if val_dataloader_params is not None:
+        data["val_dataloader_params"] = val_dataloader_params
+
+    return DataConfig(**data)
+
+
+def _create_training_configuration(
+    num_epochs: int, logger: Literal["wandb", "tensorboard", "none"]
+) -> TrainingConfig:
+    """
+    Create a dictionary with the parameters of the training model.
+
+    Parameters
+    ----------
+    num_epochs : int
+        Number of epochs.
+    logger : {"wandb", "tensorboard", "none"}
+        Logger to use.
+
+    Returns
+    -------
+    TrainingConfig
+        Training model with the specified parameters.
+    """
+    return TrainingConfig(
+        num_epochs=num_epochs,
+        logger=None if logger == "none" else logger,
+    )
 
 
 def _create_data_configuration(
@@ -363,7 +576,7 @@ def _create_supervised_config_dict(
     spatial_transform_list = _list_spatial_augmentations(augmentations)
 
     # algorithm
-    algorithm_params = _create_algorithm_configuration(
+    algorithm_params = _create_unet_configuration(
         axes=axes,
         algorithm=algorithm,
         loss=loss,
@@ -968,7 +1181,7 @@ def create_n2v_configuration(
     )
 
     # algorithm
-    algorithm_params = _create_algorithm_configuration(
+    algorithm_params = _create_unet_based_algorithm(
         axes=axes,
         algorithm="n2v",
         loss="n2v",
@@ -987,6 +1200,165 @@ def create_n2v_configuration(
         patch_size=patch_size,
         batch_size=batch_size,
         augmentations=spatial_transforms,
+        train_dataloader_params=train_dataloader_params,
+        val_dataloader_params=val_dataloader_params,
+    )
+
+    # training
+    training_params = _create_training_configuration(
+        num_epochs=num_epochs,
+        logger=logger,
+    )
+
+    return Configuration(
+        experiment_name=experiment_name,
+        algorithm_config=algorithm_params,
+        data_config=data_params,
+        training_config=training_params,
+    )
+
+
+def create_hdn_configuration(
+    experiment_name: str,
+    data_type: Literal["array", "tiff", "custom"],
+    axes: str,
+    patch_size: list[int],
+    batch_size: int,
+    num_epochs: int,
+    input_shape: tuple[int, ...] = (64, 64),
+    encoder_conv_strides: tuple[int, ...] = (2, 2),
+    decoder_conv_strides: tuple[int, ...] = (2, 2),
+    multiscale_count: int = 1,
+    z_dims: tuple[int, ...] = (128, 128),
+    output_channels: int = 1,
+    encoder_n_filters: int = 32,
+    decoder_n_filters: int = 32,
+    encoder_dropout: float = 0.0,
+    decoder_dropout: float = 0.0,
+    nonlinearity: Literal[
+        "None", "Sigmoid", "Softmax", "Tanh", "ReLU", "LeakyReLU", "ELU"
+    ] = "ReLU",
+    predict_logvar: Literal[None, "pixelwise"] = None,
+    analytical_kl: bool = False,
+    logger: Literal["wandb", "tensorboard", "none"] = "none",
+    model_params: Optional[dict] = None,
+    augmentations: Optional[list[Union[XYFlipModel, XYRandomRotate90Model]]] = None,
+    train_dataloader_params: Optional[dict[str, Any]] = None,
+    val_dataloader_params: Optional[dict[str, Any]] = None,
+) -> Configuration:
+    """
+    Create a configuration for training HDN.
+
+    If "Z" is present in `axes`, then `path_size` must be a list of length 3, otherwise
+    2.
+
+    If "C" is present in `axes`, then you need to set `n_channels_in` to the number of
+    channels. Likewise, if you set the number of channels, then "C" must be present in
+    `axes`.
+
+    To set the number of output channels, use the `n_channels_out` parameter. If it is
+    not specified, it will be assumed to be equal to `n_channels_in`.
+
+    By default, all channels are trained independently. To train all channels together,
+    set `independent_channels` to False.
+
+    By setting `augmentations` to `None`, the default transformations (flip in X and Y,
+    rotations by 90 degrees in the XY plane) are applied. Rather than the default
+    transforms, a list of transforms can be passed to the `augmentations` parameter. To
+    disable the transforms, simply pass an empty list.
+
+    The parameters of the UNet can be specified in the `model_params` (passed as a
+    parameter-value dictionary).
+
+    Parameters
+    ----------
+    experiment_name : str
+        Name of the experiment.
+    data_type : Literal["array", "tiff", "custom"]
+        Type of the data.
+    axes : str
+        Axes of the data (e.g. SYX).
+    patch_size : List[int]
+        Size of the patches along the spatial dimensions (e.g. [64, 64]).
+    batch_size : int
+        Batch size.
+    num_epochs : int
+        Number of training epochs.
+    input_shape : tuple[int, ...], optional
+        Shape of the input data, by default (64, 64).
+    encoder_conv_strides : tuple[int, ...], optional
+        Strides for the encoder convolutional layers, by default (2, 2).
+    decoder_conv_strides : tuple[int, ...], optional
+        Strides for the decoder convolutional layers, by default (2, 2).
+    multiscale_count : int, optional
+        Number of scales in the multiscale architecture, by default 1.
+    z_dims : tuple[int, ...], optional
+        Dimensions of the latent space, by default (128, 128).
+    output_channels : int, optional
+        Number of output channels, by default 1.
+    encoder_n_filters : int, optional
+        Number of filters in the encoder, by default 32.
+    decoder_n_filters : int, optional
+        Number of filters in the decoder, by default 32.
+    encoder_dropout : float, optional
+        Dropout rate for the encoder, by default 0.0.
+    decoder_dropout : float, optional
+        Dropout rate for the decoder, by default 0.0.
+    nonlinearity : Literal["None", "Sigmoid", "Softmax", "Tanh", "ReLU", "LeakyReLU", "ELU"], optional
+        Nonlinearity function to use, by default "ReLU".
+    predict_logvar : Literal[None, "pixelwise"], optional
+        Type of log variance prediction, by default None.
+    analytical_kl : bool, optional
+        Whether to use analytical KL divergence, by default False.
+    logger : Literal["wandb", "tensorboard", "none"], optional
+        Logger to use for training, by default "none".
+    model_params : Optional[dict], optional
+        Parameters for the UNet model, by default None.
+    augmentations : Optional[list[Union[XYFlipModel, XYRandomRotate90Model]]], optional
+        List of augmentations to apply, by default None.
+    train_dataloader_params : Optional[dict[str, Any]], optional
+        Parameters for the training dataloader, by default None.
+    val_dataloader_params : Optional[dict[str, Any]], optional
+        Parameters for the validation dataloader, by default None.
+
+    Returns
+    -------
+    Configuration
+        The configuration object for training HDN.
+    """
+    transform_list = _list_spatial_augmentations(augmentations)
+
+    loss_config = LVAELossConfig(
+        loss_type="hdn",
+    )  # TODO what are the correct defaults for HDN?
+
+    # algorithm
+    algorithm_params = _create_vae_based_algorithm(
+        algorithm="hdn",
+        loss=loss_config,
+        input_shape=input_shape,
+        encoder_conv_strides=encoder_conv_strides,
+        decoder_conv_strides=decoder_conv_strides,
+        multiscale_count=multiscale_count,
+        z_dims=z_dims,
+        output_channels=output_channels,
+        encoder_n_filters=encoder_n_filters,
+        decoder_n_filters=decoder_n_filters,
+        encoder_dropout=encoder_dropout,
+        decoder_dropout=decoder_dropout,
+        nonlinearity=nonlinearity,
+        predict_logvar=predict_logvar,
+        analytical_kl=analytical_kl,
+        model_params=model_params,
+    )
+
+    # data
+    data_params = _create_data_configuration(
+        data_type=data_type,
+        axes=axes,
+        patch_size=patch_size,
+        batch_size=batch_size,
+        augmentations=transform_list,
         train_dataloader_params=train_dataloader_params,
         val_dataloader_params=val_dataloader_params,
     )
