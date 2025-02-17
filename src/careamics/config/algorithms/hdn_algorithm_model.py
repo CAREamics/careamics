@@ -31,7 +31,6 @@ class HDNAlgorithm(VAEBasedAlgorithm):
 
     model: LVAEModel  # TODO add validators
 
-
     def get_algorithm_friendly_name(self) -> str:
         """
         Get the algorithm friendly name.
@@ -54,7 +53,6 @@ class HDNAlgorithm(VAEBasedAlgorithm):
         """
         return [
             "restoration",
-            "UNet",
             "VAE",
             "3D" if self.model.is_3D() else "2D",
             "CAREamics",

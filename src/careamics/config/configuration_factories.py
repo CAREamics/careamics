@@ -12,6 +12,10 @@ from careamics.config.algorithms import (
 )
 from careamics.config.architectures import LVAEModel, UNetModel
 from careamics.config.data import DataConfig
+from careamics.config.likelihood_model import (
+    GaussianLikelihoodConfig,
+    NMLikelihoodConfig,
+)
 from careamics.config.loss_model import LVAELossConfig
 from careamics.config.support import (
     SupportedArchitecture,
@@ -264,6 +268,8 @@ def _create_vae_based_algorithm(
     ],
     predict_logvar: Literal[None, "pixelwise"],
     analytical_kl: bool,
+    gaussian_likelihood: Optional[GaussianLikelihoodConfig] = None,
+    nm_likelihood: Optional[NMLikelihoodConfig] = None,
     model_params: Optional[dict[str, Any]] = None,
 ) -> dict:
     """
@@ -328,11 +334,13 @@ def _create_vae_based_algorithm(
         analytical_kl=analytical_kl,
         model_params=model_params,
     )
-
+    assert gaussian_likelihood or nm_likelihood, "Likelihood model must be specified"
     return {
         "algorithm": algorithm,
         "loss": loss,
         "model": network_model,
+        "gaussian_likelihood": gaussian_likelihood,
+        "noise_model_likelihood": nm_likelihood,
     }
 
 
@@ -1218,6 +1226,8 @@ def create_n2v_configuration(
     )
 
 
+# TODO wrap parameters into model, loss etc
+# TODO refac likelihood configs to make it 1. Can it be done ?
 def create_hdn_configuration(
     experiment_name: str,
     data_type: Literal["array", "tiff", "custom"],
@@ -1238,8 +1248,9 @@ def create_hdn_configuration(
     nonlinearity: Literal[
         "None", "Sigmoid", "Softmax", "Tanh", "ReLU", "LeakyReLU", "ELU"
     ] = "ReLU",
-    predict_logvar: Literal[None, "pixelwise"] = None,
     analytical_kl: bool = False,
+    predict_logvar: Optional[Literal["pixelwise"]] = None,
+    logvar_lowerbound: Union[float, None] = None,
     logger: Literal["wandb", "tensorboard", "none"] = "none",
     model_params: Optional[dict] = None,
     augmentations: Optional[list[Union[XYFlipModel, XYRandomRotate90Model]]] = None,
@@ -1306,10 +1317,12 @@ def create_hdn_configuration(
         Dropout rate for the decoder, by default 0.0.
     nonlinearity : Literal["None", "Sigmoid", "Softmax", "Tanh", "ReLU", "LeakyReLU", "ELU"], optional
         Nonlinearity function to use, by default "ReLU".
-    predict_logvar : Literal[None, "pixelwise"], optional
-        Type of log variance prediction, by default None.
     analytical_kl : bool, optional
         Whether to use analytical KL divergence, by default False.
+    predict_logvar : Literal[None, "pixelwise"], optional
+        Type of log variance prediction, by default None.
+    logvar_lowerbound : Union[float, None], optional
+        Lower bound for the log variance, by default None.
     logger : Literal["wandb", "tensorboard", "none"], optional
         Logger to use for training, by default "none".
     model_params : Optional[dict], optional
@@ -1332,6 +1345,10 @@ def create_hdn_configuration(
         loss_type="hdn",
     )  # TODO what are the correct defaults for HDN?
 
+    gaussian_likelihood = GaussianLikelihoodConfig(
+        predict_logvar=predict_logvar, logvar_lowerbound=logvar_lowerbound
+    )
+
     # algorithm
     algorithm_params = _create_vae_based_algorithm(
         algorithm="hdn",
@@ -1349,6 +1366,8 @@ def create_hdn_configuration(
         nonlinearity=nonlinearity,
         predict_logvar=predict_logvar,
         analytical_kl=analytical_kl,
+        gaussian_likelihood=gaussian_likelihood,
+        nm_likelihood=None,
         model_params=model_params,
     )
 

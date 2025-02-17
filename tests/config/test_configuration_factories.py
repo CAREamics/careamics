@@ -457,3 +457,4 @@ def test_hdn_configuration():
     assert config.algorithm_config.algorithm == "hdn"
     assert config.algorithm_config.loss.loss_type == "hdn"
     assert config.algorithm_config.model.multiscale_count == 1
+    assert config.algorithm_config.gaussian_likelihood is not None
