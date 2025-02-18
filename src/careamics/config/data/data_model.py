@@ -139,7 +139,9 @@ class DataConfig(BaseModel):
     train_dataloader_params: dict[str, Any] = Field(
         default={"shuffle": True}, validate_default=True
     )
-    """Dictionary of PyTorch training dataloader parameters."""
+    """Dictionary of PyTorch training dataloader parameters. The dataloader parameters,
+    should include the `shuffle` key, which is set to `True` by default. We strongly
+    recommend to keep it as `True` to ensure the best training results."""
 
     val_dataloader_params: dict[str, Any] = Field(default={})
     """Dictionary of PyTorch validation dataloader parameters."""
@@ -242,7 +244,7 @@ class DataConfig(BaseModel):
         ):
             warn(
                 "Dataloader parameters include `shuffle=False`, this will be passed to "
-                "the training dataloader and may result in bad results.",
+                "the training dataloader and may lead to lower quality results.",
                 stacklevel=1,
             )
         return train_dataloader_params
