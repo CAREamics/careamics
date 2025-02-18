@@ -584,7 +584,7 @@ def _create_supervised_config_dict(
     spatial_transform_list = _list_spatial_augmentations(augmentations)
 
     # algorithm
-    algorithm_params = _create_unet_configuration(
+    algorithm_params = _create_unet_based_algorithm(
         axes=axes,
         algorithm=algorithm,
         loss=loss,
@@ -1232,10 +1232,9 @@ def create_hdn_configuration(
     experiment_name: str,
     data_type: Literal["array", "tiff", "custom"],
     axes: str,
-    patch_size: list[int],
+    patch_size: tuple[int, ...],
     batch_size: int,
     num_epochs: int,
-    input_shape: tuple[int, ...] = (64, 64),
     encoder_conv_strides: tuple[int, ...] = (2, 2),
     decoder_conv_strides: tuple[int, ...] = (2, 2),
     multiscale_count: int = 1,
@@ -1295,8 +1294,6 @@ def create_hdn_configuration(
         Batch size.
     num_epochs : int
         Number of training epochs.
-    input_shape : tuple[int, ...], optional
-        Shape of the input data, by default (64, 64).
     encoder_conv_strides : tuple[int, ...], optional
         Strides for the encoder convolutional layers, by default (2, 2).
     decoder_conv_strides : tuple[int, ...], optional
@@ -1342,7 +1339,7 @@ def create_hdn_configuration(
     transform_list = _list_spatial_augmentations(augmentations)
 
     loss_config = LVAELossConfig(
-        loss_type="hdn",
+        loss_type="hdn", denoisplit_weight=1, musplit_weight=0
     )  # TODO what are the correct defaults for HDN?
 
     gaussian_likelihood = GaussianLikelihoodConfig(
@@ -1353,7 +1350,7 @@ def create_hdn_configuration(
     algorithm_params = _create_vae_based_algorithm(
         algorithm="hdn",
         loss=loss_config,
-        input_shape=input_shape,
+        input_shape=patch_size,
         encoder_conv_strides=encoder_conv_strides,
         decoder_conv_strides=decoder_conv_strides,
         multiscale_count=multiscale_count,
