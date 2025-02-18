@@ -11,6 +11,7 @@ from careamics.config import (
     create_n2v_configuration,
 )
 from careamics.config.configuration_factories import (
+    _create_data_configuration,
     _create_supervised_config_dict,
     _create_unet_configuration,
     _list_spatial_augmentations,
@@ -94,6 +95,16 @@ def test_list_aug_error_wrong_transform():
         _list_spatial_augmentations(
             augmentations=[XYFlipModel(), N2VManipulateModel()],
         )
+
+
+def test_create_data_configuration_train_dataloader_params(minimum_data):
+    """Test that shuffle is added silently to the train_dataloader_params."""
+    config_dict = minimum_data
+    config_dict["train_dataloader_params"] = {"num_workers": 4}
+
+    config = _create_data_configuration(batch_size=1, augmentations=[], **config_dict)
+    assert "shuffle" in config.train_dataloader_params
+    assert config.train_dataloader_params["shuffle"]
 
 
 def test_supervised_configuration_passing_transforms():
@@ -299,6 +310,7 @@ def test_n2n_configuration():
         patch_size=[64, 64],
         batch_size=8,
         num_epochs=100,
+        train_dataloader_params={"num_workers": 2},
     )
     assert config.algorithm_config.algorithm == "n2n"
 
@@ -345,6 +357,7 @@ def test_care_configuration():
         patch_size=[64, 64],
         batch_size=8,
         num_epochs=100,
+        train_dataloader_params={"num_workers": 2},
     )
     assert config.algorithm_config.algorithm == "care"
 
@@ -391,6 +404,7 @@ def test_n2v_configuration():
         patch_size=[64, 64],
         batch_size=8,
         num_epochs=100,
+        train_dataloader_params={"num_workers": 2},
     )
     assert isinstance(config.algorithm_config, N2VAlgorithm)
 
