@@ -171,7 +171,7 @@ def create_dummy_dloader(
         (1, None, "gaussian", "hdn", 1, does_not_raise()),
         (1, None, "nm", "hdn", 1, does_not_raise()),
         (1, None, "gaussian", "hdn", 3, pytest.raises(ValueError)),
-        (1, "pixelwise", "nm", "hdn", 1, pytest.raises(ValueError)),
+        (1, "pixelwise", "nm", "hdn", 1, does_not_raise()),
         (5, None, "nm", "hdn", 1, pytest.raises(ValueError)),
         (1, None, "nm", "denoisplit", 1, pytest.raises(ValueError)),
     ],
