@@ -336,7 +336,7 @@ def hdn_loss(
         * kl_weight
     )
 
-    net_loss = recons_loss + kl_loss # TODO add check that losses coefs sum to 1
+    net_loss = recons_loss + kl_loss  # TODO add check that losses coefs sum to 1
     output = {
         "loss": net_loss,
         "reconstruction_loss": (
