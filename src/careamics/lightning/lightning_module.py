@@ -4,7 +4,7 @@ from typing import Any, Callable, Literal, Optional, Union
 
 import numpy as np
 import pytorch_lightning as L
-from torch import Tensor, nn
+from torch import Tensor, nn, stack
 
 from careamics.config import (
     N2VAlgorithm,
@@ -491,31 +491,43 @@ class VAEModule(L.LightningModule):
         if self._trainer.datamodule.tiled:
             # TODO tile_size should match model input size
             x, *aux = batch
+            self.model.reset_for_inference(x.shape) # TODO should it be here ?
         else:
             x = batch
             aux = []
             self.model.reset_for_inference(x.shape)
 
-        # apply test-time augmentation if available
-        # TODO: probably wont work with batch size > 1
-        if self._trainer.datamodule.prediction_config.tta_transforms:
-            tta = ImageRestorationTTA()
-            augmented_batch = tta.forward(x)  # list of augmented tensors
-            augmented_output = []
-            for augmented in augmented_batch:
-                augmented_pred = self.model(augmented)
-                augmented_output.append(augmented_pred)
-            output = tta.backward(augmented_output)
-        else:
-            output = self.model(x)
+        mmse_list = []
+        for _ in range(self.mmse_count):
+            # apply test-time augmentation if available
+            if self._trainer.datamodule.prediction_config.tta_transforms:
+                tta = ImageRestorationTTA()
+                augmented_batch = tta.forward(x)  # list of augmented tensors
+                augmented_output = []
+                for augmented in augmented_batch:
+                    augmented_pred = self.model(augmented)
+                    augmented_output.append(augmented_pred)
+                output = tta.backward(augmented_output)
+            else:
+                output = self.model(x)
 
+            # taking the 1st element of the output, 2nd is std if predict_logvar=="pixelwise"
+            output = (
+                output[0]
+                if self.model.predict_logvar is None
+                else output[0][:, 0:1, ...]
+            )
+            mmse_list.append(output)
+
+        mmse = stack(mmse_list).mean(0)
+        # TODO better way to unpack if pred logvar
         # Denormalize the output
         denorm = Denormalize(
             image_means=self._trainer.datamodule.predict_dataset.image_means,
             image_stds=self._trainer.datamodule.predict_dataset.image_stds,
         )
-        # taking the first element of the output which is the actual prediction
-        denormalized_output = denorm(patch=output[0].cpu().numpy())
+
+        denormalized_output = denorm(patch=mmse.cpu().numpy())
 
         if len(aux) > 0:  # aux can be tiling information
             return denormalized_output, *aux

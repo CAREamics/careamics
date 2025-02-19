@@ -9,6 +9,7 @@ from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import (
     Callback,
     EarlyStopping,
+    LearningRateMonitor,
     ModelCheckpoint,
 )
 from pytorch_lightning.loggers import CSVLogger, TensorBoardLogger, WandbLogger
@@ -262,6 +263,7 @@ class CAREamist:
                     **self.cfg.training_config.checkpoint_callback.model_dump(),
                 ),
                 ProgressBarCallback(),
+                LearningRateMonitor()
             ]
         )
 
@@ -573,6 +575,7 @@ class CAREamist:
         batch_size: int = 1,
         tile_size: Optional[tuple[int, ...]] = None,
         tile_overlap: Optional[tuple[int, ...]] = (48, 48),
+        mmse_count: int = 1,
         axes: Optional[str] = None,
         data_type: Optional[Literal["array", "tiff", "custom"]] = None,
         tta_transforms: bool = False,
@@ -687,6 +690,7 @@ class CAREamist:
         )
 
         # predict
+        self.model.mmse_count = mmse_count # TODO better way ?
         predictions = self.trainer.predict(
             model=self.model, datamodule=self.pred_datamodule
         )
