@@ -263,10 +263,7 @@ class GaussianLikelihood(LikelihoodModule):
 def log_normal(
     x: torch.Tensor, mean: torch.Tensor, logvar: torch.Tensor
 ) -> torch.Tensor:
-    r"""Compute the log-probability.
-
-    at `x` of a Gaussian distribution
-    with parameters `(mean, exp(logvar))`.
+    r"""Compute the log-probability at `x` of a Gaussian distribution.
 
     NOTE: In the case of LVAE, the log-likeihood formula becomes:
         \\mathbb{E}_{z_1\\sim{q_\\phi}}[\\log{p_\theta(x|z_1)}]=-\frac{1}{2}(\\mathbb{E}_{z_1\\sim{q_\\phi}}[\\log{2\\pi\\sigma_{p,0}^2(z_1)}] +\\mathbb{E}_{z_1\\sim{q_\\phi}}[\frac{(x-\\mu_{p,0}(z_1))^2}{\\sigma_{p,0}^2(z_1)}])

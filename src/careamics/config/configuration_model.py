@@ -8,13 +8,14 @@ from pprint import pformat
 from typing import Literal, Union
 
 import yaml
-from algorithms.vae_algorithm_model import VAEAlgorithmConfig
 from bioimageio.spec.generic.v0_3 import CiteEntry
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from typing_extensions import Self
 
-from .data_model import DataConfig
-from .fcn_algorithm_model import FCNAlgorithmConfig
+from careamics.config.algorithms.unet_algorithm_model import UNetBasedAlgorithm
+from careamics.config.algorithms.vae_algorithm_model import VAEBasedAlgorithm
+from careamics.config.data.data_model import DataConfig
+
 from .references import (
     CARE,
     CUSTOM,
@@ -156,7 +157,7 @@ class Configuration(BaseModel):
     """Name of the experiment, used to name logs and checkpoints."""
 
     # Sub-configurations
-    algorithm_config: Union[FCNAlgorithmConfig, VAEAlgorithmConfig] = Field(
+    algorithm_config: Union[UNetBasedAlgorithm, VAEBasedAlgorithm] = Field(
         discriminator="algorithm"
     )
     """Algorithm configuration, holding all parameters required to configure the
