@@ -83,4 +83,3 @@ def test_target_channel_hdn(minimum_algorithm_hdn):
     minimum_algorithm_hdn["model"]["output_channels"] = 2
     with pytest.raises(ValueError):
         VAEBasedAlgorithm(**minimum_algorithm_hdn)
-

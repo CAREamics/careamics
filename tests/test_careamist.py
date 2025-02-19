@@ -1159,6 +1159,7 @@ def test_stop_training(tmp_path: Path, minimum_n2v_configuration: dict):
 
     assert careamist.trainer.should_stop
 
+
 @pytest.mark.skip(reason="I have no idea what this test is supposed to do.")
 def test_read_logger(tmp_path, minimum_n2v_configuration):
 

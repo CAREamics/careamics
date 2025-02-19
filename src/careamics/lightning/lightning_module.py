@@ -491,7 +491,7 @@ class VAEModule(L.LightningModule):
         if self._trainer.datamodule.tiled:
             # TODO tile_size should match model input size
             x, *aux = batch
-            self.model.reset_for_inference(x.shape) # TODO should it be here ?
+            self.model.reset_for_inference(x.shape)  # TODO should it be here ?
         else:
             x = batch
             aux = []

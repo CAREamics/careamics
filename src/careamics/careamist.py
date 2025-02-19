@@ -263,7 +263,7 @@ class CAREamist:
                     **self.cfg.training_config.checkpoint_callback.model_dump(),
                 ),
                 ProgressBarCallback(),
-                LearningRateMonitor()
+                LearningRateMonitor(),
             ]
         )
 
@@ -690,7 +690,7 @@ class CAREamist:
         )
 
         # predict
-        self.model.mmse_count = mmse_count # TODO better way ?
+        self.model.mmse_count = mmse_count  # TODO better way ?
         predictions = self.trainer.predict(
             model=self.model, datamodule=self.pred_datamodule
         )
