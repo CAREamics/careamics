@@ -5,6 +5,7 @@ from typing import Union
 import zarr
 import zarr.storage
 from numpy.typing import NDArray
+from typing_extensions import Self
 
 from careamics.dataset.dataset_utils import reshape_array
 
@@ -14,8 +15,10 @@ class ZarrImageStack:
     A class for extracting patches from an image stack that is stored as a zarr array.
     """
 
-    def __init__(self, path: Union[Path, str], data_path: str, axes: str):
-        self._store = zarr.storage.FSStore(url=path)
+    # TODO: keeping store type narrow so that it has the path attribute
+    #   base zarr store is zarr.storage.Store, includes MemoryStore
+    def __init__(self, store: zarr.storage.FSStore, data_path: str, axes: str):
+        self._store = store
         self._array = zarr.Array(store=self._store, path=data_path, read_only=True)
         self._original_axes = axes  # TODO: validate axes
         self._original_data_shape: tuple[int, ...] = self._array.shape
@@ -25,6 +28,31 @@ class ZarrImageStack:
     @property
     def source(self) -> Path:
         return Path(self._store.path) / self._array.path
+
+    @classmethod
+    def from_ome_zarr(cls, path: Union[Path, str]) -> Self:
+        """
+        Will only use the first resolution in the hierarchy.
+
+        Assumes the path only contains 1 image.
+        """
+        store = zarr.storage.FSStore(url=path)
+        group = zarr.Group(store)
+        if "multiscales" not in group.attrs:
+            raise ValueError(
+                f"Zarr at path '{path}' cannot be loaded as an OME-Zarr because it "
+                "does not contain the attribute 'multiscales'."
+            )
+        # TODO: why is this a list of length 1, 0 index also in ome-zarr-python
+        multiscales_metadata = group.attrs["multiscales"][0]
+
+        # get axes
+        axes_list = [axes_data["name"] for axes_data in multiscales_metadata["axes"]]
+        axes = "".join(axes_list).upper()
+
+        first_multiscale_path = multiscales_metadata["datasets"][0]["path"]
+
+        return cls(store=store, data_path=first_multiscale_path, axes=axes)
 
     def extract_patch(
         self, sample_idx: int, coords: Sequence[int], patch_size: Sequence[int]
