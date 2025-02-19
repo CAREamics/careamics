@@ -39,7 +39,7 @@ from .training_model import TrainingConfig
 from .transformations.n2v_manipulate_model import (
     N2VManipulateModel,
 )
-from .vae_algorithm_model import VAEAlgorithmConfig
+from algorithms.vae_algorithm_model import VAEAlgorithmConfig
 
 
 class Configuration(BaseModel):
