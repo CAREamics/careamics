@@ -35,6 +35,21 @@ class PatchExtractor:
     def __init__(self, image_stacks: Sequence[ImageStack]):
         self.image_stacks: list[ImageStack] = list(image_stacks)
 
+    # TODO: do away with all these constructors
+    #   create ImageStackConstructor protocol
+    #   just have:
+    # @classmethod
+    # def from_image_stack_constructor(
+    #     self,
+    #     constructor: ImageStackConstructor,
+    #     sources: Sequence[SourceTypes],
+    #     **constructor_kwargs,
+    # ) -> Self: ...
+    #
+    # Even though this is a bit abstract users don't interact with this
+    # It will be easier for people who want to write their own ImageStack
+    #   we can pass their ImageStackConstructor to the PatchExtractor
+
     @classmethod
     def from_arrays(cls, source: Sequence[NDArray], *, axes: str) -> Self:
         image_stacks = [

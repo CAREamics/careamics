@@ -29,6 +29,7 @@ class ZarrImageStack:
     def source(self) -> Path:
         return Path(self._store.path) / self._array.path
 
+    # automatically finds axes from metadata
     @classmethod
     def from_ome_zarr(cls, path: Union[Path, str]) -> Self:
         """
@@ -73,46 +74,60 @@ class ZarrImageStack:
             elif d == "X":
                 patch_slice.append(self._get_X_slice(coords, patch_size))
             else:
-                raise ValueError(f"Unrecognised axis '{d}'")
+                raise ValueError(f"Unrecognised axis '{d}', axes should be in STCZYX.")
 
         patch = self._array[tuple(patch_slice)]
         patch_axes = self._original_axes.replace("S", "").replace("T", "")
         return reshape_array(patch, patch_axes)[0]  # remove first sample dim
 
     def _get_T_index(self, sample_idx: int) -> int:
+        """Find T index given `sample_idx`."""
         if "T" not in self._original_axes:
             raise ValueError("No 'T' axis specified in original data axes.")
         axis_idx = self._original_axes.index("T")
         dim = self._original_data_shape[axis_idx]
+
+        # new S' = S*T
+        # T_idx = S_idx' // T_size
+        # S_idx = S_idx' % T_size
         return sample_idx // dim
 
     def _get_S_index(self, sample_idx: int) -> int:
+        """Find S index given `sample_idx`."""
         if "S" not in self._original_axes:
             raise ValueError("No 'S' axis specified in original data axes.")
         if "T" in self._original_axes:
             T_axis_idx = self._original_axes.index("T")
             T_dim = self._original_data_shape[T_axis_idx]
+
+            # new S' = S*T
+            # T_idx = S_idx' // T_size
+            # S_idx = S_idx' % T_size
             return sample_idx % T_dim
         else:
             return sample_idx
 
     def _get_Z_slice(self, coords: Sequence[int], patch_size: Sequence[int]) -> slice:
+        """Get z slice given `coords` and `patch_size`"""
         if "Z" not in self._original_axes:
             raise ValueError("No 'Z' axis specified in original data axes.")
         idx = 0
         return slice(coords[idx], coords[idx] + patch_size[idx])
 
     def _get_Y_slice(self, coords: Sequence[int], patch_size: Sequence[int]) -> slice:
+        """Get y slice given `coords` and `patch_size`"""
         idx = 0 if "Z" not in self._original_axes else 1
         return slice(coords[idx], coords[idx] + patch_size[idx])
 
     def _get_X_slice(self, coords: Sequence[int], patch_size: Sequence[int]) -> slice:
+        """Get x slice given `coords` and `patch_size`"""
         idx = 1 if "Z" not in self._original_axes else 2
         return slice(coords[idx], coords[idx] + patch_size[idx])
 
 
 # TODO: move to dataset_utils, better name?
 def _reshaped_array_shape(axes: str, shape: Sequence[int]) -> tuple[int, ...]:
+    """Find resulting shape if reshaping array with given `axes` and `shape`."""
     target_axes = "SCZYX"
     target_shape = []
     for d in target_axes:
