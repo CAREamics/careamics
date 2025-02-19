@@ -8,6 +8,7 @@ from pprint import pformat
 from typing import Literal, Union
 
 import yaml
+from algorithms.vae_algorithm_model import VAEAlgorithmConfig
 from bioimageio.spec.generic.v0_3 import CiteEntry
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from typing_extensions import Self
@@ -39,7 +40,6 @@ from .training_model import TrainingConfig
 from .transformations.n2v_manipulate_model import (
     N2VManipulateModel,
 )
-from algorithms.vae_algorithm_model import VAEAlgorithmConfig
 
 
 class Configuration(BaseModel):
