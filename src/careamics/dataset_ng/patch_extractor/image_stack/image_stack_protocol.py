@@ -20,9 +20,6 @@ class ImageStack(Protocol):
 
     # TODO: not sure how compatible using Path will be for a zarr array
     #   (for a zarr array need to specify file path and internal zarr path)
-    # source: Union[Path, Literal["array"]]
-    # data_shape: Sequence[int]
-
     @property
     def source(self) -> Union[Path, Literal["array"]]: ...
 
