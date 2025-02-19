@@ -388,7 +388,12 @@ def _create_data_configuration(
     }
     # Don't override defaults set in DataConfig class
     if train_dataloader_params is not None:
+        # DataConfig enforces the presence of `shuffle` key in the dataloader parameters
+        if "shuffle" not in train_dataloader_params:
+            train_dataloader_params["shuffle"] = True
+
         data["train_dataloader_params"] = train_dataloader_params
+
     if val_dataloader_params is not None:
         data["val_dataloader_params"] = val_dataloader_params
 
