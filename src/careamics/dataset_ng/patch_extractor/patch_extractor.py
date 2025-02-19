@@ -7,7 +7,7 @@ from typing_extensions import Self
 
 from careamics.file_io.read import ReadFunc
 
-from .image_stack import ImageStack, InMemoryImageStack
+from .image_stack import ImageStack, InMemoryImageStack, ZarrImageStack
 
 
 class PatchSpecs(TypedDict):
@@ -32,24 +32,24 @@ class PatchExtractor:
     A class for extracting patches from multiple image stacks.
     """
 
-    def __init__(self, data_readers: Sequence[ImageStack]):
-        self.image_stacks: list[ImageStack] = list(data_readers)
+    def __init__(self, image_stacks: Sequence[ImageStack]):
+        self.image_stacks: list[ImageStack] = list(image_stacks)
 
     @classmethod
     def from_arrays(cls, source: Sequence[NDArray], *, axes: str) -> Self:
-        data_readers = [
+        image_stacks = [
             InMemoryImageStack.from_array(data=array, axes=axes) for array in source
         ]
-        return cls(data_readers=data_readers)
+        return cls(image_stacks=image_stacks)
 
     # TODO: rename to load_from_tiff_files?
     #   - to distiguish from possible pointer to files
     @classmethod
     def from_tiff_files(cls, source: Sequence[Path], *, axes: str) -> Self:
-        data_readers = [
+        image_stacks = [
             InMemoryImageStack.from_tiff(path=path, axes=axes) for path in source
         ]
-        return cls(data_readers=data_readers)
+        return cls(image_stacks=image_stacks)
 
     # TODO: similar to tiff - rename to load_from_custom_file_type?
     @classmethod
@@ -60,7 +60,7 @@ class PatchExtractor:
         read_func: ReadFunc,
         **read_kwargs,
     ) -> Self:
-        data_readers = [
+        image_stacks = [
             InMemoryImageStack.from_custom_file_type(
                 path=path,
                 axes=axes,
@@ -69,12 +69,12 @@ class PatchExtractor:
             )
             for path in source
         ]
-        return cls(data_readers=data_readers)
+        return cls(image_stacks=image_stacks)
 
     @classmethod
-    def from_zarr_files(cls, source, **kwargs) -> Self:
-        # TODO: will this create a ZarrImageStack for each array in the zarr file?
-        raise NotImplementedError("Reading from zarr has not been implemented.")
+    def from_ome_zarr_files(cls, source: Sequence[Path]) -> Self:
+        image_stacks = [ZarrImageStack.from_ome_zarr(path) for path in source]
+        return cls(image_stacks=image_stacks)
 
     def extract_patch(
         self,
