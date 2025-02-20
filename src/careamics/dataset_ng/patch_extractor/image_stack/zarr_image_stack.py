@@ -19,7 +19,7 @@ class ZarrImageStack:
     #   base zarr store is zarr.storage.Store, includes MemoryStore
     def __init__(self, store: zarr.storage.FSStore, data_path: str, axes: str):
         self._store = store
-        self._array = zarr.Array(store=self._store, path=data_path, read_only=True)
+        self._array = zarr.open_array(store=self._store, path=data_path, mode="r")
         self._original_axes = axes  # TODO: validate axes
         self._original_data_shape: tuple[int, ...] = self._array.shape
         self.data_shape = _reshaped_array_shape(axes, self._original_data_shape)
@@ -36,9 +36,11 @@ class ZarrImageStack:
         Will only use the first resolution in the hierarchy.
 
         Assumes the path only contains 1 image.
+
+        Path can be to a local file, or it can be a URL to a zarr stored in the cloud.
         """
         store = zarr.storage.FSStore(url=path)
-        group = zarr.Group(store)
+        group = zarr.open_group(store=store, mode="r")
         if "multiscales" not in group.attrs:
             raise ValueError(
                 f"Zarr at path '{path}' cannot be loaded as an OME-Zarr because it "
@@ -81,7 +83,7 @@ class ZarrImageStack:
         return reshape_array(patch, patch_axes)[0]  # remove first sample dim
 
     def _get_T_index(self, sample_idx: int) -> int:
-        """Find T index given `sample_idx`."""
+        """Get T index given `sample_idx`."""
         if "T" not in self._original_axes:
             raise ValueError("No 'T' axis specified in original data axes.")
         axis_idx = self._original_axes.index("T")
@@ -90,10 +92,12 @@ class ZarrImageStack:
         # new S' = S*T
         # T_idx = S_idx' // T_size
         # S_idx = S_idx' % T_size
+        # - floor divide finds the row
+        # - modulus finds how far along the row i.e. the column
         return sample_idx // dim
 
     def _get_S_index(self, sample_idx: int) -> int:
-        """Find S index given `sample_idx`."""
+        """Get S index given `sample_idx`."""
         if "S" not in self._original_axes:
             raise ValueError("No 'S' axis specified in original data axes.")
         if "T" in self._original_axes:
@@ -103,6 +107,8 @@ class ZarrImageStack:
             # new S' = S*T
             # T_idx = S_idx' // T_size
             # S_idx = S_idx' % T_size
+            # - floor divide finds the row
+            # - modulus finds how far along the row i.e. the column
             return sample_idx % T_dim
         else:
             return sample_idx
