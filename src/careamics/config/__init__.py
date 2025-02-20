@@ -12,6 +12,7 @@ __all__ = [
     "Configuration",
     "DataConfig",
     "GaussianMixtureNMConfig",
+    "HDNAlgorithm",
     "InferenceConfig",
     "LVAELossConfig",
     "MultiChannelNMConfig",
@@ -22,6 +23,7 @@ __all__ = [
     "VAEBasedAlgorithm",
     "algorithm_factory",
     "create_care_configuration",
+    "create_hdn_configuration",
     "create_n2n_configuration",
     "create_n2v_configuration",
     "load_configuration",
@@ -30,6 +32,7 @@ __all__ = [
 
 from .algorithms import (
     CAREAlgorithm,
+    HDNAlgorithm,
     N2NAlgorithm,
     N2VAlgorithm,
     UNetBasedAlgorithm,
@@ -40,6 +43,7 @@ from .configuration import Configuration
 from .configuration_factories import (
     algorithm_factory,
     create_care_configuration,
+    create_hdn_configuration,
     create_n2n_configuration,
     create_n2v_configuration,
 )

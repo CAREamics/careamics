@@ -9,11 +9,17 @@ from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import (
     Callback,
     EarlyStopping,
+    LearningRateMonitor,
     ModelCheckpoint,
 )
 from pytorch_lightning.loggers import CSVLogger, TensorBoardLogger, WandbLogger
 
-from careamics.config import Configuration, UNetBasedAlgorithm, load_configuration
+from careamics.config import (
+    Configuration,
+    UNetBasedAlgorithm,
+    VAEBasedAlgorithm,
+    load_configuration,
+)
 from careamics.config.support import (
     SupportedAlgorithm,
     SupportedArchitecture,
@@ -28,6 +34,7 @@ from careamics.lightning import (
     PredictDataModule,
     ProgressBarCallback,
     TrainDataModule,
+    VAEModule,
     create_predict_datamodule,
 )
 from careamics.model_io import export_to_bmz, load_pretrained
@@ -141,6 +148,10 @@ class CAREamist:
                 self.model = FCNModule(
                     algorithm_config=self.cfg.algorithm_config,
                 )
+            elif isinstance(self.cfg.algorithm_config, VAEBasedAlgorithm):
+                self.model = VAEModule(
+                    algorithm_config=self.cfg.algorithm_config,
+                )
             else:
                 raise NotImplementedError("Architecture not supported.")
 
@@ -252,6 +263,7 @@ class CAREamist:
                     **self.cfg.training_config.checkpoint_callback.model_dump(),
                 ),
                 ProgressBarCallback(),
+                LearningRateMonitor(),
             ]
         )
 
@@ -563,6 +575,7 @@ class CAREamist:
         batch_size: int = 1,
         tile_size: Optional[tuple[int, ...]] = None,
         tile_overlap: Optional[tuple[int, ...]] = (48, 48),
+        mmse_count: int = 1,
         axes: Optional[str] = None,
         data_type: Optional[Literal["array", "tiff", "custom"]] = None,
         tta_transforms: bool = False,
@@ -677,6 +690,7 @@ class CAREamist:
         )
 
         # predict
+        self.model.mmse_count = mmse_count  # TODO better way ?
         predictions = self.trainer.predict(
             model=self.model, datamodule=self.pred_datamodule
         )
