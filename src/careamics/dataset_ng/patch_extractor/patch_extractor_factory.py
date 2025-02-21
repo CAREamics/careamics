@@ -27,43 +27,24 @@ def get_patch_extractor_constructor(
 
 def create_patch_extractors(
     data_config: DataConfig,
-    train_data: Union[Sequence[NDArray], Sequence[Path]],
-    val_data: Optional[Union[Sequence[NDArray], Sequence[Path]]] = None,
-    train_data_target: Optional[Union[Sequence[NDArray], Sequence[Path]]] = None,
-    val_data_target: Optional[Union[Sequence[NDArray], Sequence[Path]]] = None,
+    data: Union[Sequence[NDArray], Sequence[Path]],
+    target_data: Optional[Union[Sequence[NDArray], Sequence[Path]]] = None,
     **kwargs,
-) -> tuple[
-    PatchExtractor,
-    Optional[PatchExtractor],
-    Optional[PatchExtractor],
-    Optional[PatchExtractor],
-]:
-
+) -> tuple[PatchExtractor, Optional[PatchExtractor]]:
     # get correct constructor
     constructor = get_patch_extractor_constructor(data_config)
 
     # build key word args
     constructor_kwargs = {"axes": data_config.axes, **kwargs}
 
-    # --- train data extractor
-    train_patch_extractor: PatchExtractor = constructor(
-        source=train_data, **constructor_kwargs
-    )
-    # --- additional data extractors
-    additional_patch_extractors: list[Union[PatchExtractor, None]] = []
-    additional_data_sources = [val_data, train_data_target, val_data_target]
-    for data_source in additional_data_sources:
-        if data_source is not None:
-            additional_patch_extractor: Optional[PatchExtractor] = constructor(
-                source=data_source, **constructor_kwargs
-            )
-        else:
-            additional_patch_extractor = None
-        additional_patch_extractors.append(additional_patch_extractor)
+    # --- data extractor
+    patch_extractor: PatchExtractor = constructor(source=data, **constructor_kwargs)
+    # --- optional target extractor
+    if target_data is not None:
+        target_patch_extractor: PatchExtractor = constructor(
+            source=target_data, **constructor_kwargs
+        )
 
-    return (
-        train_patch_extractor,
-        additional_patch_extractors[0],
-        additional_patch_extractors[1],
-        additional_patch_extractors[2],
-    )
+        return patch_extractor, target_patch_extractor
+
+    return patch_extractor, None
