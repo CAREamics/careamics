@@ -1,6 +1,6 @@
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Literal, NamedTuple, Optional
+from typing import Callable, Literal, NamedTuple, Optional
 
 import numpy as np
 from numpy._typing import NDArray
@@ -46,13 +46,16 @@ class CareamicsDataset(Dataset):
         data_config: DataConfig | InferenceConfig,
         inputs: InputType,
         targets: Optional[InputType] = None,
+        read_func: Optional[Callable] = None,
     ):
         self.config = data_config
 
-        self.input_extractor = create_patch_extractor(self.config, data=inputs)
+        self.input_extractor = create_patch_extractor(
+            self.config, data=inputs, read_func=read_func
+        )
         if targets is not None:
             self.target_extractor: Optional[PatchExtractor] = create_patch_extractor(
-                self.config, data=targets
+                self.config, data=targets, read_func=read_func
             )
         else:
             self.target_extractor = None
