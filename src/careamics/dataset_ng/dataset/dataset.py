@@ -22,7 +22,7 @@ from careamics.dataset_ng.patching_strategies import (
 from careamics.transforms import Compose
 
 
-class ImageRegion(NamedTuple):
+class ImageRegionData(NamedTuple):
     data: NDArray
     filename: Path | Literal["array"]
     data_shape: Sequence[int]
@@ -111,9 +111,9 @@ class CareamicsDataset(Dataset):
 
     def _create_image_region(
         self, patch: np.ndarray, patch_spec: PatchSpecs, extractor: PatchExtractor
-    ) -> ImageRegion:
+    ) -> ImageRegionData:
         data_idx = patch_spec["data_idx"]
-        return ImageRegion(
+        return ImageRegionData(
             data=patch,
             filename=extractor.image_stacks[data_idx].source,
             dtype=extractor.image_stacks[data_idx].data_dtype,
@@ -123,7 +123,7 @@ class CareamicsDataset(Dataset):
             region_spec=patch_spec,
         )
 
-    def __getitem__(self, index: int) -> tuple[ImageRegion, ImageRegion | None]:
+    def __getitem__(self, index: int) -> tuple[ImageRegionData, ImageRegionData | None]:
         patch_spec = self.patch_specs[index]
         input_patch = self.input_extractor.extract_patch(**patch_spec)
 
