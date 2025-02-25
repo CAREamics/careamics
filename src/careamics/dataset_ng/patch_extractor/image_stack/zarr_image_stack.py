@@ -71,6 +71,7 @@ class ZarrImageStack:
         # to do this: loop through original axes and append correct index/slice
         #   for each case: STCZYX
         #   Note: if any axis is not present in original_axes it is skipped.
+
         patch_slice: list[Union[int, slice]] = []
         for d in self._original_axes:
             if d == "S":
@@ -110,7 +111,7 @@ class ZarrImageStack:
         # S_idx = S_idx' % T_size
         # - floor divide finds the row
         # - modulus finds how far along the row i.e. the column
-        return sample_idx // dim
+        return sample_idx % dim
 
     def _get_S_index(self, sample_idx: int) -> int:
         """Get S index given `sample_idx`."""
@@ -125,7 +126,7 @@ class ZarrImageStack:
             # S_idx = S_idx' % T_size
             # - floor divide finds the row
             # - modulus finds how far along the row i.e. the column
-            return sample_idx % T_dim
+            return sample_idx // T_dim
         else:
             return sample_idx
 
