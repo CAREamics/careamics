@@ -72,6 +72,14 @@ class ZarrImageStack:
         #   for each case: STCZYX
         #   Note: if any axis is not present in original_axes it is skipped.
 
+        # guard for no S and T in original axes
+        if ("S" not in self._original_axes) and ("T" not in self._original_axes):
+            if sample_idx not in [0, -1]:
+                raise IndexError(
+                    f"Sample index {sample_idx} out of bounds for S axes with size "
+                    f"{self.data_shape[0]}"
+                )
+
         patch_slice: list[Union[int, slice]] = []
         for d in self._original_axes:
             if d == "S":
