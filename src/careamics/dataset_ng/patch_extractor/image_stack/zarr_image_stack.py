@@ -20,7 +20,10 @@ class ZarrImageStack:
     def __init__(self, store: zarr.storage.FSStore, data_path: str, axes: str):
         self._store = store
         self._array = zarr.open_array(store=self._store, path=data_path, mode="r")
-        self._original_axes = axes  # TODO: validate axes
+        # TODO: validate axes
+        #   - must contain XY
+        #   - must be subset of STCZYX
+        self._original_axes = axes
         self._original_data_shape: tuple[int, ...] = self._array.shape
         self.data_shape = _reshaped_array_shape(axes, self._original_data_shape)
 
@@ -30,6 +33,8 @@ class ZarrImageStack:
         return Path(self._store.path) / self._array.path
 
     # automatically finds axes from metadata
+    # based on implementation in ome-zarr python package
+    # https://github.com/ome/ome-zarr-py/blob/f7096b0f2c1fc8edf4d7304e33caf8d279d99dbb/ome_zarr/reader.py#L294-L316
     @classmethod
     def from_ome_zarr(cls, path: Union[Path, str]) -> Self:
         """
@@ -46,7 +51,8 @@ class ZarrImageStack:
                 f"Zarr at path '{path}' cannot be loaded as an OME-Zarr because it "
                 "does not contain the attribute 'multiscales'."
             )
-        # TODO: why is this a list of length 1, 0 index also in ome-zarr-python
+        # TODO: why is this a list of length 1? 0 index also in ome-zarr-python
+        # https://github.com/ome/ome-zarr-py/blob/f7096b0f2c1fc8edf4d7304e33caf8d279d99dbb/ome_zarr/reader.py#L286
         multiscales_metadata = group.attrs["multiscales"][0]
 
         # get axes
@@ -60,7 +66,11 @@ class ZarrImageStack:
     def extract_patch(
         self, sample_idx: int, coords: Sequence[int], patch_size: Sequence[int]
     ) -> NDArray:
-        # reorder slice to index original data shape
+        # original axes assumed to be any subset of STCZYX (containing YX), in any order
+        # arguments must be transformed to index data in original axes order
+        # to do this: loop through original axes and append correct index/slice
+        #   for each case: STCZYX
+        #   Note: if any axis is not present in original_axes it is skipped.
         patch_slice: list[Union[int, slice]] = []
         for d in self._original_axes:
             if d == "S":
@@ -70,11 +80,17 @@ class ZarrImageStack:
             elif d == "C":
                 patch_slice.append(slice(None, None))
             elif d == "Z":
-                patch_slice.append(self._get_Z_slice(coords, patch_size))
+                patch_slice.append(slice(coords[0], coords[0] + patch_size[0]))
             elif d == "Y":
-                patch_slice.append(self._get_Y_slice(coords, patch_size))
+                y_idx = 0 if "Z" not in self._original_axes else 1
+                patch_slice.append(
+                    slice(coords[y_idx], coords[y_idx] + patch_size[y_idx])
+                )
             elif d == "X":
-                patch_slice.append(self._get_X_slice(coords, patch_size))
+                x_idx = 1 if "Z" not in self._original_axes else 2
+                patch_slice.append(
+                    slice(coords[x_idx], coords[x_idx] + patch_size[x_idx])
+                )
             else:
                 raise ValueError(f"Unrecognised axis '{d}', axes should be in STCZYX.")
 
@@ -112,23 +128,6 @@ class ZarrImageStack:
             return sample_idx % T_dim
         else:
             return sample_idx
-
-    def _get_Z_slice(self, coords: Sequence[int], patch_size: Sequence[int]) -> slice:
-        """Get z slice given `coords` and `patch_size`"""
-        if "Z" not in self._original_axes:
-            raise ValueError("No 'Z' axis specified in original data axes.")
-        idx = 0
-        return slice(coords[idx], coords[idx] + patch_size[idx])
-
-    def _get_Y_slice(self, coords: Sequence[int], patch_size: Sequence[int]) -> slice:
-        """Get y slice given `coords` and `patch_size`"""
-        idx = 0 if "Z" not in self._original_axes else 1
-        return slice(coords[idx], coords[idx] + patch_size[idx])
-
-    def _get_X_slice(self, coords: Sequence[int], patch_size: Sequence[int]) -> slice:
-        """Get x slice given `coords` and `patch_size`"""
-        idx = 1 if "Z" not in self._original_axes else 2
-        return slice(coords[idx], coords[idx] + patch_size[idx])
 
 
 # TODO: move to dataset_utils, better name?
