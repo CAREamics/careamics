@@ -36,7 +36,7 @@ class PatchExtractor:
         self.image_stacks: list[ImageStack] = list(data_readers)
 
     @classmethod
-    def from_arrays(cls, source: Sequence[NDArray], *, axes: str) -> Self:
+    def from_arrays(cls, source: Sequence[NDArray], *, axes: str, **kwargs) -> Self:
         data_readers = [
             InMemoryImageStack.from_array(data=array, axes=axes) for array in source
         ]
@@ -45,7 +45,7 @@ class PatchExtractor:
     # TODO: rename to load_from_tiff_files?
     #   - to distiguish from possible pointer to files
     @classmethod
-    def from_tiff_files(cls, source: Sequence[Path], *, axes: str) -> Self:
+    def from_tiff_files(cls, source: Sequence[Path], *, axes: str, **kwargs) -> Self:
         data_readers = [
             InMemoryImageStack.from_tiff(path=path, axes=axes) for path in source
         ]
@@ -89,3 +89,7 @@ class PatchExtractor:
 
     def extract_patches(self, patch_specs: Sequence[PatchSpecs]) -> list[NDArray]:
         return [self.extract_patch(**patch_spec) for patch_spec in patch_specs]
+
+    @property
+    def shape(self):
+        return [stack.data_shape for stack in self.image_stacks]
