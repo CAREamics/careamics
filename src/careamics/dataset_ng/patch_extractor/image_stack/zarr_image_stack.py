@@ -28,6 +28,8 @@ class ZarrImageStack:
         self.data_shape = _reshaped_array_shape(axes, self._original_data_shape)
 
     # TODO: not sure if this is useful
+    # TODO: potential solution using different metadata class for each ImageStack type
+    #   - see #399
     @property
     def source(self) -> Path:
         return Path(self._store.path) / self._array.path
