@@ -71,3 +71,16 @@ def test_extract_patch_2D(
         coords[1] : coords[1] + patch_size[1],
     ]
     np.testing.assert_array_equal(extracted_patch, patch_ref)
+
+
+def test_from_ome_zarr():
+    # kinda an integration test
+    path = "https://uk1s3.embassy.ebi.ac.uk/idr/zarr/v0.4/idr0062A/6001240.zarr"
+    image_stack = ZarrImageStack.from_ome_zarr(path=path)  # initialise image stack
+    n_channels = image_stack.data_shape[1]
+    patch_size = (100, 64, 25)
+    patch = image_stack.extract_patch(
+        sample_idx=0, coords=(112, 56, 15), patch_size=patch_size
+    )
+    assert isinstance(patch, np.ndarray)  # make sure patch is numpy
+    assert patch.shape == (n_channels, *patch_size)  # extracted patch has expected size
