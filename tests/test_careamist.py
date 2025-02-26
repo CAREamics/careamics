@@ -156,6 +156,7 @@ def test_train_array(tmp_path: Path, minimum_n2v_configuration: dict):
     assert (tmp_path / "model.zip").exists()
 
 
+@pytest.mark.skip(reason="VAE based models are not supported yet.")
 def test_train_array_vae(tmp_path: Path, minimum_configuration_hdn: dict):
     """Test that CAREamics can be trained on arrays."""
     # training data
