@@ -4,7 +4,6 @@ from typing import Callable, Literal, NamedTuple, Optional
 
 import numpy as np
 from numpy._typing import NDArray
-from numpy.typing import DTypeLike
 from torch.utils.data import Dataset
 
 from careamics.config import DataConfig, InferenceConfig
@@ -26,7 +25,7 @@ class ImageRegionData(NamedTuple):
     data: NDArray
     filename: Path | Literal["array"]
     data_shape: Sequence[int]
-    dtype: DTypeLike
+    dtype: str  # dtype should be str for collate
     axes: str
     # TODO: what to do in case of inference on the whole image?
     #  patch spec of whole image or none?
@@ -119,7 +118,7 @@ class CareamicsDataset(Dataset):
         return ImageRegionData(
             data=patch,
             filename=extractor.image_stacks[data_idx].source,
-            dtype=extractor.image_stacks[data_idx].data_dtype,
+            dtype=str(extractor.image_stacks[data_idx].data_dtype),
             data_shape=extractor.image_stacks[data_idx].data_shape,
             # TODO: should it be axes of the original image instead?
             axes=self.config.axes,
