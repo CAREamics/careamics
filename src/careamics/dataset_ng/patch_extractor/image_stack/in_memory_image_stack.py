@@ -2,7 +2,7 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Any, Literal, Union
 
-from numpy.typing import NDArray
+from numpy.typing import DTypeLike, NDArray
 from typing_extensions import Self
 
 from careamics.dataset.dataset_utils import reshape_array
@@ -17,8 +17,9 @@ class InMemoryImageStack:
     def __init__(self, source: Union[Path, Literal["array"]], data: NDArray):
         self.source: Union[Path, Literal["array"]] = source
         # data expected to be in SC(Z)YX shape, reason to use from_array constructor
-        self._data = data
+        self._data: NDArray = data
         self.data_shape: Sequence[int] = self._data.shape
+        self.data_dtype: DTypeLike = self._data.dtype
 
     def extract_patch(
         self, sample_idx: int, coords: Sequence[int], patch_size: Sequence[int]

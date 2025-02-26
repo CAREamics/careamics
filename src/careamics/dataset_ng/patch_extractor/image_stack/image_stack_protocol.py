@@ -2,7 +2,7 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Literal, Protocol, Union
 
-from numpy.typing import NDArray
+from numpy.typing import DTypeLike, NDArray
 
 
 class ImageStack(Protocol):
@@ -22,6 +22,7 @@ class ImageStack(Protocol):
     #   (for a zarr array need to specify file path and internal zarr path)
     source: Union[Path, Literal["array"]]
     data_shape: Sequence[int]
+    data_dtype: DTypeLike
 
     def extract_patch(
         self, sample_idx: int, coords: Sequence[int], patch_size: Sequence[int]
