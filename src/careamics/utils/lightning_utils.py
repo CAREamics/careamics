@@ -35,8 +35,7 @@ def read_csv_logger(experiment_name: str, log_folder: Union[str, Path]) -> dict:
         lines = f.readlines()
 
         for single_line in lines[1:]:
-            epoch, _, train_loss, _, val_loss = single_line.strip().split(",")
-
+            epoch, lr, _, train_loss, _, val_loss = single_line.strip().split(",")
             epochs.append(epoch)
             train_losses_tmp.append(train_loss)
             val_losses_tmp.append(val_loss)
