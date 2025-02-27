@@ -15,7 +15,7 @@ from careamics.models.model_factory import model_factory
 # TODO move to conftest as a fixture
 def create_LVAE_model(
     input_shape: tuple = (1, 64, 64),
-    z_dims: list[int] = (128, 128, 128, 128),
+    z_dims: tuple[int, ...] = (128, 128, 128, 128),
     encoder_conv_strides=(2, 2),
     decoder_conv_strides=(2, 2),
     multiscale_count: int = 0,
