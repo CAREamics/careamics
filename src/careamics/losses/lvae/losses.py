@@ -286,8 +286,8 @@ def hdn_loss(
         Tuple containing the model predictions (shape is (B, `target_ch`, [Z], Y, X))
         and the top-down layer data (e.g., sampled latents, KL-loss values, etc.).
     targets : torch.Tensor
-        The target image used to compute the reconstruction loss. Shape is
-        (B, `target_ch`, [Z], Y, X).
+        The target image used to compute the reconstruction loss. In this case we use
+        the input patch itself as target. Shape is (B, `target_ch`, [Z], Y, X).
     config : LVAELossConfig
         The config for loss function containing all loss hyperparameters.
     gaussian_likelihood : GaussianLikelihood
