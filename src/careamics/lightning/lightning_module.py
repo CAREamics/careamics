@@ -511,7 +511,8 @@ class VAEModule(L.LightningModule):
             else:
                 output = self.model(x)
 
-            # taking the 1st element of the output, 2nd is std if predict_logvar=="pixelwise"
+            # taking the 1st element of the output, 2nd is std if
+            # predict_logvar=="pixelwise"
             output = (
                 output[0]
                 if self.model.predict_logvar is None

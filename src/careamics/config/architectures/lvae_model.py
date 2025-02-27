@@ -16,7 +16,7 @@ class LVAEModel(ArchitectureModel):
 
     architecture: Literal["LVAE"]
 
-    input_shape: list[int] = Field(default=(64, 64), validate_default=True)
+    input_shape: tuple[int, int] = Field(default=(64, 64), validate_default=True)
     """Shape of the input patch (Z, Y, X) or (Y, X) if the data is 2D."""
     encoder_conv_strides: list = Field(default=[2, 2], validate_default=True)
 

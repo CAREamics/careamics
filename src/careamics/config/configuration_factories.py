@@ -156,10 +156,10 @@ def _create_unet_configuration(
 
 def _create_vae_configuration(
     input_shape: tuple[int, ...],
-    encoder_conv_strides: list[int],
-    decoder_conv_strides: list[int],
+    encoder_conv_strides: tuple[int, ...],
+    decoder_conv_strides: tuple[int, ...],
     multiscale_count: int,
-    z_dims: list[int],
+    z_dims: tuple[int, ...],
     output_channels: int,
     encoder_n_filters: int,
     decoder_n_filters: int,
@@ -172,7 +172,44 @@ def _create_vae_configuration(
     analytical_kl: bool,
     model_params: Optional[dict[str, Any]] = None,
 ) -> LVAEModel:
+    """Create a dictionary with the parameters of the vae based algorithm model.
 
+    Parameters
+    ----------
+    input_shape : tuple[int, ...]
+        Shape of the input patch (Z, Y, X) or (Y, X) if the data is 2D.
+    encoder_conv_strides : tuple[int, ...]
+        Strides of the encoder convolutional layers, length also defines 2D or 3D.
+    decoder_conv_strides : tuple[int, ...]
+        Strides of the decoder convolutional layers, length also defines 2D or 3D.
+    multiscale_count : int
+        Number of lateral context layers, specific to MicroSplit.
+    z_dims : tuple[int, ...]
+        Number of hierarchies in the LVAE model.
+    output_channels : int
+        Number of output channels.
+    encoder_n_filters : int
+        Number of filters in the convolutional layers of the encoder.
+    decoder_n_filters : int
+        Number of filters in the convolutional layers of the decoder.
+    encoder_dropout : float
+        Dropout rate for the encoder.
+    decoder_dropout : float
+        Dropout rate for the decoder.
+    nonlinearity : Literal
+        Type of nonlinearity function to use.
+    predict_logvar : Literal # TODO needs review
+        _description_.
+    analytical_kl : bool # TODO needs clarification
+        _description_.
+    model_params : Optional[dict[str, Any]], optional
+        Additional model parameters, by default None.
+
+    Returns
+    -------
+    LVAEModel
+        LVAE model with the specified parameters.
+    """
     if model_params is None:
         model_params = {}
 
@@ -254,10 +291,10 @@ def _create_vae_based_algorithm(
     algorithm: Literal["hdn"],
     loss: LVAELossConfig,
     input_shape: tuple[int, ...],
-    encoder_conv_strides: list[int],
-    decoder_conv_strides: list[int],
+    encoder_conv_strides: tuple[int, ...],
+    decoder_conv_strides: tuple[int, ...],
     multiscale_count: int,
-    z_dims: list[int],
+    z_dims: tuple[int, ...],
     output_channels: int,
     encoder_n_filters: int,
     decoder_n_filters: int,
@@ -277,8 +314,6 @@ def _create_vae_based_algorithm(
 
     Parameters
     ----------
-    axes : str
-        Axes of the data.
     algorithm : Literal["hdn"]
         The algorithm type.
     loss : Literal["hdn"]
@@ -303,13 +338,16 @@ def _create_vae_based_algorithm(
         The dropout rate for the encoder.
     decoder_dropout : float
         The dropout rate for the decoder.
-    nonlinearity : Literal["None", "Sigmoid", "Softmax", "Tanh", "ReLU", "LeakyReLU",
-    "ELU"]
+    nonlinearity : Literal
         The nonlinearity function to use.
     predict_logvar : Literal[None, "pixelwise"]
         The type of log variance prediction.
     analytical_kl : bool
         Whether to use analytical KL divergence.
+    gaussian_likelihood : Optional[GaussianLikelihoodConfig], optional
+        The Gaussian likelihood model, by default None.
+    nm_likelihood : Optional[NMLikelihoodConfig], optional
+        The noise model likelihood model, by default None.
     model_params : Optional[dict[str, Any]], optional
         Additional model parameters, by default None.
 
@@ -347,7 +385,7 @@ def _create_vae_based_algorithm(
 def _create_data_configuration(
     data_type: Literal["array", "tiff", "custom"],
     axes: str,
-    patch_size: list[int],
+    patch_size: tuple[int, ...],
     batch_size: int,
     augmentations: Union[list[SPATIAL_TRANSFORMS_UNION]],
     train_dataloader_params: Optional[dict[str, Any]] = None,
@@ -424,88 +462,13 @@ def _create_training_configuration(
     )
 
 
-def _create_data_configuration(
-    data_type: Literal["array", "tiff", "custom"],
-    axes: str,
-    patch_size: list[int],
-    batch_size: int,
-    augmentations: Union[list[SPATIAL_TRANSFORMS_UNION]],
-    train_dataloader_params: Optional[dict[str, Any]] = None,
-    val_dataloader_params: Optional[dict[str, Any]] = None,
-) -> DataConfig:
-    """
-    Create a dictionary with the parameters of the data model.
-
-    Parameters
-    ----------
-    data_type : {"array", "tiff", "custom"}
-        Type of the data.
-    axes : str
-        Axes of the data.
-    patch_size : list of int
-        Size of the patches along the spatial dimensions.
-    batch_size : int
-        Batch size.
-    augmentations : list of transforms
-        List of transforms to apply.
-    train_dataloader_params : dict
-        Parameters for the training dataloader, see PyTorch notes, by default None.
-    val_dataloader_params : dict
-        Parameters for the validation dataloader, see PyTorch notes, by default None.
-
-    Returns
-    -------
-    DataConfig
-        Data model with the specified parameters.
-    """
-    # data model
-    data = {
-        "data_type": data_type,
-        "axes": axes,
-        "patch_size": patch_size,
-        "batch_size": batch_size,
-        "transforms": augmentations,
-    }
-    # Don't override defaults set in DataConfig class
-    if train_dataloader_params is not None:
-        data["train_dataloader_params"] = train_dataloader_params
-    if val_dataloader_params is not None:
-        data["val_dataloader_params"] = val_dataloader_params
-
-    return DataConfig(**data)
-
-
-def _create_training_configuration(
-    num_epochs: int, logger: Literal["wandb", "tensorboard", "none"]
-) -> TrainingConfig:
-    """
-    Create a dictionary with the parameters of the training model.
-
-    Parameters
-    ----------
-    num_epochs : int
-        Number of epochs.
-    logger : {"wandb", "tensorboard", "none"}
-        Logger to use.
-
-    Returns
-    -------
-    TrainingConfig
-        Training model with the specified parameters.
-    """
-    return TrainingConfig(
-        num_epochs=num_epochs,
-        logger=None if logger == "none" else logger,
-    )
-
-
 # TODO reconsider naming once we officially support LVAE approaches
 def _create_supervised_config_dict(
     algorithm: Literal["care", "n2n"],
     experiment_name: str,
     data_type: Literal["array", "tiff", "custom"],
     axes: str,
-    patch_size: list[int],
+    patch_size: tuple[int, ...],
     batch_size: int,
     num_epochs: int,
     augmentations: Optional[list[SPATIAL_TRANSFORMS_UNION]] = None,
@@ -1317,7 +1280,7 @@ def create_hdn_configuration(
         Dropout rate for the encoder, by default 0.0.
     decoder_dropout : float, optional
         Dropout rate for the decoder, by default 0.0.
-    nonlinearity : Literal["None", "Sigmoid", "Softmax", "Tanh", "ReLU", "LeakyReLU", "ELU"], optional
+    nonlinearity : Literal, optional
         Nonlinearity function to use, by default "ReLU".
     analytical_kl : bool, optional
         Whether to use analytical KL divergence, by default False.
