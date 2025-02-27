@@ -5,6 +5,8 @@ import numpy as np
 import pytest
 
 from careamics import CAREamist, Configuration
+from careamics.config.likelihood_model import GaussianLikelihoodConfig
+from careamics.config.loss_model import LVAELossConfig
 from careamics.config.support import SupportedData
 from careamics.model_io import export_to_bmz
 
@@ -68,6 +70,33 @@ def minimum_algorithm_supervised() -> dict:
     return algorithm
 
 
+@pytest.fixture
+def minimum_algorithm_hdn() -> dict:
+    """Create a minimum algorithm dictionary.
+
+    Returns
+    -------
+    dict
+        A minimum algorithm example.
+    """
+    # create dictionary
+    algorithm = {
+        "algorithm": "hdn",
+        "loss": LVAELossConfig(loss_type="hdn").model_dump(),
+        "model": {
+            "architecture": "LVAE",
+            "z_dims": (128, 128, 128),
+            "multiscale_count": 1,
+            "predict_logvar": None,
+        },
+        "gaussian_likelihood": GaussianLikelihoodConfig(
+            predict_logvar=None
+        ).model_dump(),
+    }
+
+    return algorithm
+
+
 # TODO: wrong! need to update/remove this fixture
 @pytest.fixture
 def minimum_algorithm_musplit() -> dict:
@@ -89,7 +118,7 @@ def minimum_algorithm_musplit() -> dict:
             "multiscale_count": 2,
             "predict_logvar": "pixelwise",
         },
-        "likelihood": {
+        "gaussian_likelihood": {
             "type": "GaussianLikelihoodConfig",
         },
     }
@@ -206,6 +235,39 @@ def minimum_n2v_configuration(
     configuration = {
         "experiment_name": "LevitatingFrog",
         "algorithm_config": minimum_algorithm_n2v,
+        "training_config": minimum_training,
+        "data_config": minimum_data,
+    }
+
+    return configuration
+
+
+@pytest.fixture
+def minimum_configuration_hdn(
+    minimum_algorithm_hdn: dict, minimum_data: dict, minimum_training: dict
+) -> dict:
+    """Create a minimum configuration dictionary.
+
+    Parameters
+    ----------
+    tmp_path : Path
+        Temporary path for testing.
+    minimum_algorithm : dict
+        Minimum algorithm configuration.
+    minimum_data_n2v : dict
+        Minimum N2V data configuration.
+    minimum_training : dict
+        Minimum training configuration.
+
+    Returns
+    -------
+    dict
+        A minumum configuration example.
+    """
+    # create dictionary
+    configuration = {
+        "experiment_name": "LevitatingFrog",
+        "algorithm_config": minimum_algorithm_hdn,
         "training_config": minimum_training,
         "data_config": minimum_data,
     }
