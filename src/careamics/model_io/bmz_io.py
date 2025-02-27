@@ -128,6 +128,9 @@ def export_to_bmz(
     model_version : str, default="0.1.0"
         Model version.
     """
+    if isinstance(model, VAEModule):
+        raise ValueError("Export of VAE models is not supported.")
+
     path_to_archive = Path(path_to_archive)
 
     if path_to_archive.suffix != ".zip":
@@ -193,9 +196,7 @@ def export_to_bmz(
         )
         summary: ValidationSummary = test_model(model_description, **test_kwargs)
         if summary.status == "failed":
-            # raise ValueError(f"Model description test failed: {summary}")
-            print("I don't give a flying fuck!")
-            # TODO BMZ expect just one output but our VAE outputs a whole stack of things
+            raise ValueError(f"Model description test failed: {summary}")
 
         # save bmz model
         save_bioimageio_package(model_description, output_path=path_to_archive)
