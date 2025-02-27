@@ -591,7 +591,7 @@ def create_care_configuration(
     experiment_name: str,
     data_type: Literal["array", "tiff", "custom"],
     axes: str,
-    patch_size: list[int],
+    patch_size: tuple[int, ...],
     batch_size: int,
     num_epochs: int,
     augmentations: Optional[list[Union[XYFlipModel, XYRandomRotate90Model]]] = None,
@@ -633,7 +633,7 @@ def create_care_configuration(
         Type of the data.
     axes : str
         Axes of the data (e.g. SYX).
-    patch_size : List[int]
+    patch_size : tuple[int, ...]
         Size of the patches along the spatial dimensions (e.g. [64, 64]).
     batch_size : int
         Batch size.
@@ -762,7 +762,7 @@ def create_n2n_configuration(
     experiment_name: str,
     data_type: Literal["array", "tiff", "custom"],
     axes: str,
-    patch_size: list[int],
+    patch_size: tuple[int, ...],
     batch_size: int,
     num_epochs: int,
     augmentations: Optional[list[Union[XYFlipModel, XYRandomRotate90Model]]] = None,
@@ -804,7 +804,7 @@ def create_n2n_configuration(
         Type of the data.
     axes : str
         Axes of the data (e.g. SYX).
-    patch_size : List[int]
+    patch_size : tuple[int, ...]
         Size of the patches along the spatial dimensions (e.g. [64, 64]).
     batch_size : int
         Batch size.
@@ -933,7 +933,7 @@ def create_n2v_configuration(
     experiment_name: str,
     data_type: Literal["array", "tiff", "custom"],
     axes: str,
-    patch_size: list[int],
+    patch_size: tuple[int, ...],
     batch_size: int,
     num_epochs: int,
     augmentations: Optional[list[Union[XYFlipModel, XYRandomRotate90Model]]] = None,
