@@ -72,6 +72,7 @@ def test_correct_normalized_outputs(shape, axes, expected_shape):
     # check that the dataset returns normalized images
     for i in range(len(dataset)):
         img, _ = dataset[i]
+        img = img[0]
         # check that it has the correct shape
         assert img.shape == (n_channels,) + tile_size
 

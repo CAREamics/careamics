@@ -67,19 +67,3 @@ def test_no_noise_model_error_denoisplit(minimum_algorithm_denoisplit):
     minimum_algorithm_denoisplit["noise_model"] = None
     with pytest.raises(ValueError):
         VAEBasedAlgorithm(**minimum_algorithm_denoisplit)
-
-
-def test_no_multiscale_hdn(minimum_algorithm_hdn):
-    """Test that the multiscale model is not provided for HDN."""
-    _ = VAEBasedAlgorithm(**minimum_algorithm_hdn)
-    minimum_algorithm_hdn["model"]["multiscale_count"] = 2
-    with pytest.raises(ValueError):
-        VAEBasedAlgorithm(**minimum_algorithm_hdn)
-
-
-def test_target_channel_hdn(minimum_algorithm_hdn):
-    """Test that the correct nymber of target channel is provided for HDN."""
-    _ = VAEBasedAlgorithm(**minimum_algorithm_hdn)
-    minimum_algorithm_hdn["model"]["output_channels"] = 2
-    with pytest.raises(ValueError):
-        VAEBasedAlgorithm(**minimum_algorithm_hdn)

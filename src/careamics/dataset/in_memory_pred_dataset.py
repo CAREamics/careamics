@@ -83,6 +83,6 @@ class InMemoryPredDataset(Dataset):
         tuple(numpy.ndarray, ...)
             Transformed patch.
         """
-        transformed_patch, *_ = self.patch_transform(patch=self.data[index])
+        transformed_patch = self.patch_transform(patch=self.data[index])
 
         return transformed_patch
