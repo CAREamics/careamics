@@ -200,7 +200,7 @@ def export_to_bmz(
 
 
 def load_from_bmz(
-    path: Union[Path, str, HttpUrl]
+    path: Union[Path, str, HttpUrl],
 ) -> tuple[Union[FCNModule, VAEModule], Configuration]:
     """Load a model from a BioImage Model Zoo archive.
 
