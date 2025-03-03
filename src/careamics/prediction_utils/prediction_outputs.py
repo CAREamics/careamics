@@ -87,7 +87,7 @@ def combine_batches(
 
 
 def _combine_tiled_batches(
-    predictions: list[tuple[NDArray, list[TileInformation]]]
+    predictions: list[tuple[NDArray, list[TileInformation]]],
 ) -> tuple[list[NDArray], list[TileInformation]]:
     """
     Combine batches from tiled output.
