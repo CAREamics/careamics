@@ -22,27 +22,27 @@ P = ParamSpec("P")
 class ImageStackLoader(Protocol[P]):
 
     def __call__(
-        self, source: Any, data_config: DataConfig, *args: P.args, **kwargs: P.kwargs
+        self, data_config: DataConfig, source: Any, *args: P.args, **kwargs: P.kwargs
     ) -> Sequence[ImageStack]: ...
 
 
 def from_arrays(
-    source: Sequence[NDArray], data_config: DataConfig, *args, **kwargs
+    data_config: DataConfig, source: Sequence[NDArray], *args, **kwargs
 ) -> list[InMemoryImageStack]:
     axes = data_config.axes
     return [InMemoryImageStack.from_array(data=array, axes=axes) for array in source]
 
 
 def from_tiff_files(
-    source: Sequence[Path], data_config: DataConfig, *args, **kwargs
+    data_config: DataConfig, source: Sequence[Path], *args, **kwargs
 ) -> list[InMemoryImageStack]:
     axes = data_config.axes
     return [InMemoryImageStack.from_tiff(path=path, axes=axes) for path in source]
 
 
 def from_custom_file_type(
-    source: Sequence[Path],
     data_config: DataConfig,
+    source: Sequence[Path],
     read_func: ReadFunc,
     read_kwargs: dict[str, Any],
     *args,
@@ -61,7 +61,7 @@ def from_custom_file_type(
 
 
 def from_ome_zarr_files(
-    source: Sequence[Path], data_config: DataConfig, *args, **kwargs
+    data_config: DataConfig, source: Sequence[Path], *args, **kwargs
 ) -> list[ZarrImageStack]:
     return [ZarrImageStack.from_ome_zarr(path) for path in source]
 

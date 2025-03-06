@@ -148,7 +148,7 @@ def create_patch_extractor(
     **kwargs: P.kwargs,
 ) -> PatchExtractor:
     loader = get_image_stack_loader(data_config.data_type, image_stack_loader)
-    image_stacks = loader(source, data_config, *args, **kwargs)
+    image_stacks = loader(data_config, source, *args, **kwargs)
     return PatchExtractor(image_stacks)
 
 
