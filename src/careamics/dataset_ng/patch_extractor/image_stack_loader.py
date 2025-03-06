@@ -33,6 +33,7 @@ def from_arrays(
     return [InMemoryImageStack.from_array(data=array, axes=axes) for array in source]
 
 
+# TODO: change source to directory path? Like in current implementation
 def from_tiff_files(
     data_config: DataConfig, source: Sequence[Path], *args, **kwargs
 ) -> list[InMemoryImageStack]:
@@ -40,6 +41,7 @@ def from_tiff_files(
     return [InMemoryImageStack.from_tiff(path=path, axes=axes) for path in source]
 
 
+# TODO: change source to directory path? Like in current implementation
 def from_custom_file_type(
     data_config: DataConfig,
     source: Sequence[Path],
