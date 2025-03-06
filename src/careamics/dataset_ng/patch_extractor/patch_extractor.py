@@ -1,6 +1,6 @@
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, Protocol, TypedDict, Union
+from typing import TypedDict
 
 from numpy.typing import NDArray
 from typing_extensions import Self
@@ -15,16 +15,6 @@ class PatchSpecs(TypedDict):
     sample_idx: int
     coords: Sequence[int]
     patch_size: Sequence[int]
-
-
-class PatchExtractorConstructor(Protocol):
-
-    # TODO: expand Union for new constructors, or just type hint as Any
-    def __call__(
-        self,
-        source: Union[Sequence[NDArray], Sequence[Path]],
-        **kwargs: Any,
-    ) -> "PatchExtractor": ...
 
 
 class PatchExtractor:

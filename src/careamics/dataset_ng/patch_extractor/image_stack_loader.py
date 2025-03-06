@@ -6,7 +6,6 @@ from typing import (
     ParamSpec,
     Protocol,
     Union,
-    overload,
 )
 
 from numpy.typing import NDArray
@@ -16,7 +15,6 @@ from careamics.config.support import SupportedData
 from careamics.file_io.read import ReadFunc
 
 from .image_stack import ImageStack, InMemoryImageStack, ZarrImageStack
-from .patch_extractor import PatchExtractor
 
 P = ParamSpec("P")
 
@@ -85,132 +83,3 @@ def get_image_stack_loader(
             return image_stack_loader
     else:
         raise ValueError
-
-
-@overload
-def create_patch_extractor(
-    source: Sequence[NDArray],
-    data_config: DataConfig,
-) -> PatchExtractor:
-    """
-    Create a patch extractor from a sequence of numpy arrays.
-
-    Parameters
-    ----------
-    source: sequence of numpy.ndarray
-        The source arrays of the data.
-    data_config: DataConfig
-        The data configuration, `data_config.data_type` should have the value "array",
-        and `data_config.axes` should describe the axes of every array in the `source`.
-
-    Returns
-    -------
-    PatchExtractor
-    """
-
-
-@overload
-def create_patch_extractor(
-    source: Sequence[Path],
-    data_config: DataConfig,
-) -> PatchExtractor:
-    """
-    Create a patch extractor from a sequence of files that match our supported types.
-
-    Supported file types include TIFF and ZARR.
-
-    If the files are ZARR files they must follow the OME standard. If you have ZARR
-    files that do not follow the OME standard, see documentation on how to create
-    a custom `image_stack_loader`. (TODO: Add link).
-
-    Parameters
-    ----------
-    source: sequence of Path
-        The source files for the data.
-    data_config: DataConfig
-        The data configuration, `data_config.data_type` should have the value "tiff" or
-        "zarr", and `data_config.axes` should describe the axes of every image in the
-        `source`.
-
-    Returns
-    -------
-    PatchExtractor
-    """
-
-
-@overload
-def create_patch_extractor(
-    source: Any,
-    data_config: DataConfig,
-    *,
-    read_func: ReadFunc,
-    read_kwargs: dict[str, Any],
-) -> PatchExtractor:
-    """
-    Create a patch extractor from a sequence of files of a custom type.
-
-    Parameters
-    ----------
-    source: sequence of Path
-        The source files for the data.
-    data_config: DataConfig
-        The data configuration, `data_config.data_type` should have the value "custom".
-    read_func : ReadFunc
-        A function to read the custom file type, see the `ReadFunc` protocol.
-    read_kwargs : dict of {str: Any}
-        Kwargs that will be passed to the custom `read_func`.
-
-    Returns
-    -------
-    PatchExtractor
-    """
-
-
-@overload
-def create_patch_extractor(
-    source: Any,
-    data_config: DataConfig,
-    image_stack_loader: ImageStackLoader[P],
-    *args: P.args,
-    **kwargs: P.kwargs,
-) -> PatchExtractor:
-    """
-    Create a patch extractor using a custom `ImageStackLoader`.
-
-    The custom image stack loader must follow the `ImageStackLoader` protocol, i.e.
-    it must have the following function signature:
-    ```
-    def image_loader_example(
-        source: Any, data_config: DataConfig, *args, **kwargs
-    ) -> Sequence[ImageStack]:
-    ```
-
-    Parameters
-    ----------
-    source: sequence of Path
-        The source files for the data.
-    data_config: DataConfig
-        The data configuration, `data_config.data_type` should have the value "custom".
-    image_stack_loader: ImageStackLoader
-        A custom image stack loader callable.
-    *args: Any
-        Positional arguments that will be passed to the custom image stack loader.
-    **kwargs: Any
-        Keyword arguments that will be passed to the custom image stack loader.
-
-    Returns
-    -------
-    PatchExtractor
-    """
-
-
-def create_patch_extractor(
-    source: Any,
-    data_config: DataConfig,
-    image_stack_loader: Optional[ImageStackLoader[P]] = None,
-    *args: P.args,
-    **kwargs: P.kwargs,
-) -> PatchExtractor:
-    loader = get_image_stack_loader(data_config.data_type, image_stack_loader)
-    image_stacks = loader(source, data_config, *args, **kwargs)
-    return PatchExtractor(image_stacks)
