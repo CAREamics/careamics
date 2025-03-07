@@ -1,8 +1,9 @@
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, Optional, ParamSpec, overload
+from typing import Any, Optional, overload
 
 from numpy.typing import NDArray
+from typing_extensions import ParamSpec
 
 from careamics.config import DataConfig
 from careamics.dataset_ng.patch_extractor import PatchExtractor

@@ -3,12 +3,12 @@ from pathlib import Path
 from typing import (
     Any,
     Optional,
-    ParamSpec,
     Protocol,
     Union,
 )
 
 from numpy.typing import NDArray
+from typing_extensions import ParamSpec
 
 from careamics.config import DataConfig
 from careamics.config.support import SupportedData
