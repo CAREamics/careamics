@@ -62,6 +62,7 @@ class ImageStackLoader(Protocol[P]):
     ...         for data_path in source["data_paths"]
     ...     ]
     ...     return image_stacks
+
     TODO: show example use in the `CAREamicsDataset`
 
     The example above defines a `ZarrSource` dict because to determine _which_ ZARR
