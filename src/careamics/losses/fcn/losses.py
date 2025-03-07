@@ -8,7 +8,7 @@ import torch
 from torch.nn import L1Loss, MSELoss
 
 
-def mse_loss(source: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+def mse_loss(source: torch.Tensor, target: torch.Tensor, *args) -> torch.Tensor:
     """
     Mean squared error loss.
 
@@ -18,6 +18,8 @@ def mse_loss(source: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         Source patches.
     target : torch.Tensor
         Target patches.
+    *args : Any
+        Additional arguments.
 
     Returns
     -------
@@ -29,34 +31,37 @@ def mse_loss(source: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
 
 
 def n2v_loss(
-    manipulated_patches: torch.Tensor,
-    original_patches: torch.Tensor,
+    manipulated_batch: torch.Tensor,
+    original_batch: torch.Tensor,
     masks: torch.Tensor,
+    *args,
 ) -> torch.Tensor:
     """
     N2V Loss function described in A Krull et al 2018.
 
     Parameters
     ----------
-    manipulated_patches : torch.Tensor
-        Patches with manipulated pixels.
-    original_patches : torch.Tensor
-        Noisy patches.
+    manipulated_batch : torch.Tensor
+        Batch after manipulation function applied.
+    original_batch : torch.Tensor
+        Original images.
     masks : torch.Tensor
-        Array containing masked pixel locations.
+        Coordinates of changed pixels.
+    *args : Any
+        Additional arguments.
 
     Returns
     -------
     torch.Tensor
         Loss value.
     """
-    errors = (original_patches - manipulated_patches) ** 2
+    errors = (original_batch - manipulated_batch) ** 2
     # Average over pixels and batch
     loss = torch.sum(errors * masks) / torch.sum(masks)
     return loss  # TODO change output to dict ?
 
 
-def mae_loss(samples: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
+def mae_loss(samples: torch.Tensor, labels: torch.Tensor, *args) -> torch.Tensor:
     """
     N2N Loss function described in to J Lehtinen et al 2018.
 
@@ -66,6 +71,8 @@ def mae_loss(samples: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
         Raw patches.
     labels : torch.Tensor
         Different subset of noisy patches.
+    *args : Any
+        Additional arguments.
 
     Returns
     -------

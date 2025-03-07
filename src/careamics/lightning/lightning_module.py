@@ -1,12 +1,17 @@
 """CAREamics Lightning module."""
 
-from typing import Any, Callable, Optional, Union
+from typing import Any, Callable, Literal, Optional, Union
 
 import numpy as np
 import pytorch_lightning as L
 from torch import Tensor, nn
 
-from careamics.config import UNetBasedAlgorithm, VAEBasedAlgorithm
+from careamics.config import (
+    N2VAlgorithm,
+    UNetBasedAlgorithm,
+    VAEBasedAlgorithm,
+    algorithm_factory,
+)
 from careamics.config.support import (
     SupportedAlgorithm,
     SupportedArchitecture,
@@ -27,7 +32,11 @@ from careamics.models.lvae.noise_models import (
     noise_model_factory,
 )
 from careamics.models.model_factory import model_factory
-from careamics.transforms import Denormalize, ImageRestorationTTA
+from careamics.transforms import (
+    Denormalize,
+    ImageRestorationTTA,
+    N2VManipulateTorch,
+)
 from careamics.utils.metrics import RunningPSNR, scale_invariant_psnr
 from careamics.utils.torch_utils import get_optimizer, get_scheduler
 
@@ -73,13 +82,21 @@ class FCNModule(L.LightningModule):
             Algorithm configuration.
         """
         super().__init__()
-        # if loading from a checkpoint, AlgorithmModel needs to be instantiated
-        if isinstance(algorithm_config, dict):
-            algorithm_config = UNetBasedAlgorithm(
-                **algorithm_config
-            )  # TODO this needs to be updated using the algorithm-specific class
 
-        # create model and loss function
+        if isinstance(algorithm_config, dict):
+            algorithm_config = algorithm_factory(algorithm_config)
+
+        # create preprocessing, model and loss function
+        if isinstance(algorithm_config, N2VAlgorithm):
+            self.use_n2v = True
+            self.n2v_preprocess: Optional[N2VManipulateTorch] = N2VManipulateTorch(
+                n2v_manipulate_config=algorithm_config.n2v_config
+            )
+        else:
+            self.use_n2v = False
+            self.n2v_preprocess = None
+
+        self.algorithm = algorithm_config.algorithm
         self.model: nn.Module = model_factory(algorithm_config.model)
         self.loss_func = loss_factory(algorithm_config.loss)
 
@@ -119,10 +136,15 @@ class FCNModule(L.LightningModule):
         Any
             Loss value.
         """
-        # TODO can N2V be simplified by returning mask*original_patch
-        x, *aux = batch
-        out = self.model(x)
-        loss = self.loss_func(out, *aux)
+        x, *targets = batch
+        if self.use_n2v and self.n2v_preprocess is not None:
+            x_preprocessed, *aux = self.n2v_preprocess(x)
+        else:
+            x_preprocessed = x
+            aux = []
+
+        out = self.model(x_preprocessed)
+        loss = self.loss_func(out, *aux, *targets)
         self.log(
             "train_loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True
         )
@@ -138,9 +160,15 @@ class FCNModule(L.LightningModule):
         batch_idx : Any
             Batch index.
         """
-        x, *aux = batch
-        out = self.model(x)
-        val_loss = self.loss_func(out, *aux)
+        x, *targets = batch
+        if self.use_n2v and self.n2v_preprocess is not None:
+            x_preprocessed, *aux = self.n2v_preprocess(x)
+        else:
+            x_preprocessed = x
+            aux = []
+
+        out = self.model(x_preprocessed)
+        val_loss = self.loss_func(out, *aux, *targets)
 
         # log validation loss
         self.log(
@@ -177,10 +205,16 @@ class FCNModule(L.LightningModule):
             and isinstance(batch[1][0], TileInformation)
         )
 
+        # TODO add explanations for what is happening here
         if is_tiled:
             x, *aux = batch
+            if type(x) in [list, tuple]:
+                x = x[0]
         else:
-            x = batch
+            if type(batch) in [list, tuple]:
+                x = batch[0]  # TODO change, ugly way to deal with n2v refac
+            else:
+                x = batch
             aux = []
 
         # apply test-time augmentation if available
@@ -593,6 +627,9 @@ def create_careamics_module(
     algorithm: Union[SupportedAlgorithm, str],
     loss: Union[SupportedLoss, str],
     architecture: Union[SupportedArchitecture, str],
+    use_n2v2: bool = False,
+    struct_n2v_axis: Literal["horizontal", "vertical", "none"] = "none",
+    struct_n2v_span: int = 5,
     model_parameters: Optional[dict] = None,
     optimizer: Union[SupportedOptimizer, str] = "Adam",
     optimizer_parameters: Optional[dict] = None,
@@ -612,6 +649,12 @@ def create_careamics_module(
         Loss function to use for training (see SupportedLoss).
     architecture : SupportedArchitecture or str
         Model architecture to use for training (see SupportedArchitecture).
+    use_n2v2 : bool, default=False
+        Whether to use N2V2 or Noise2Void.
+    struct_n2v_axis : "horizontal", "vertical", or "none", default="none"
+        Axis of the StructN2V mask.
+    struct_n2v_span : int, default=5
+        Span of the StructN2V mask.
     model_parameters : dict, optional
         Model parameters to use for training, by default {}. Model parameters are
         defined in the relevant `torch.nn.Module` class, or Pyddantic model (see
@@ -633,14 +676,15 @@ def create_careamics_module(
     CAREamicsModule
         CAREamics Lightning module.
     """
-    # create a AlgorithmModel compatible dictionary
+    # TODO should use the same functions are in configuration_factory.py
+    # create an AlgorithmModel compatible dictionary
     if lr_scheduler_parameters is None:
         lr_scheduler_parameters = {}
     if optimizer_parameters is None:
         optimizer_parameters = {}
     if model_parameters is None:
         model_parameters = {}
-    algorithm_configuration: dict[str, Any] = {
+    algorithm_dict: dict[str, Any] = {
         "algorithm": algorithm,
         "loss": loss,
         "optimizer": {
@@ -652,18 +696,25 @@ def create_careamics_module(
             "parameters": lr_scheduler_parameters,
         },
     }
-    model_configuration = {"architecture": architecture}
-    model_configuration.update(model_parameters)
+
+    model_dict = {"architecture": architecture}
+    model_dict.update(model_parameters)
 
     # add model parameters to algorithm configuration
-    algorithm_configuration["model"] = model_configuration
+    algorithm_dict["model"] = model_dict
 
-    # call the parent init using an AlgorithmModel instance
-    # TODO broken by new configutations!
-    algorithm_str = algorithm_configuration["algorithm"]
-    if algorithm_str in UNetBasedAlgorithm.get_compatible_algorithms():
-        return FCNModule(UNetBasedAlgorithm(**algorithm_configuration))
+    which_algo = algorithm_dict["algorithm"]
+    if which_algo in UNetBasedAlgorithm.get_compatible_algorithms():
+        algorithm_cfg = algorithm_factory(algorithm_dict)
+
+        # if use N2V
+        if isinstance(algorithm_cfg, N2VAlgorithm):
+            algorithm_cfg.n2v_config.struct_mask_axis = struct_n2v_axis
+            algorithm_cfg.n2v_config.struct_mask_span = struct_n2v_span
+            algorithm_cfg.set_n2v2(use_n2v2)
+
+        return FCNModule(algorithm_cfg)
     else:
         raise NotImplementedError(
-            f"Model {algorithm_str} is not implemented or unknown."
+            f"Algorithm {which_algo} is not implemented or unknown."
         )

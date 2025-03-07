@@ -10,9 +10,19 @@ from bioimageio.spec.generic.v0_3 import CiteEntry
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from typing_extensions import Self
 
-from careamics.config.algorithms import UNetBasedAlgorithm, VAEBasedAlgorithm
-from careamics.config.data import GeneralDataConfig
+from careamics.config.algorithms import (
+    CAREAlgorithm,
+    N2NAlgorithm,
+    N2VAlgorithm,
+)
+from careamics.config.data import DataConfig
 from careamics.config.training_model import TrainingConfig
+
+ALGORITHMS = Union[
+    CAREAlgorithm,
+    N2NAlgorithm,
+    N2VAlgorithm,
+]
 
 
 class Configuration(BaseModel):
@@ -87,7 +97,7 @@ class Configuration(BaseModel):
     Examples
     --------
     Minimum example:
-    >>> from careamics import configuration_factory
+    >>> from careamics import Configuration
     >>> config_dict = {
     ...         "experiment_name": "N2V_experiment",
     ...         "algorithm_config": {
@@ -106,7 +116,7 @@ class Configuration(BaseModel):
     ...             "axes": "SYX",
     ...         },
     ...     }
-    >>> config = configuration_factory(config_dict)
+    >>> config = Configuration(**config_dict)
     """
 
     model_config = ConfigDict(
@@ -123,13 +133,11 @@ class Configuration(BaseModel):
     """Name of the experiment, used to name logs and checkpoints."""
 
     # Sub-configurations
-    algorithm_config: Union[UNetBasedAlgorithm, VAEBasedAlgorithm] = Field(
-        discriminator="algorithm"
-    )
+    algorithm_config: ALGORITHMS = Field(discriminator="algorithm")
     """Algorithm configuration, holding all parameters required to configure the
     model."""
 
-    data_config: GeneralDataConfig
+    data_config: DataConfig
     """Data configuration, holding all parameters required to configure the training
     data loader."""
 
@@ -233,7 +241,7 @@ class Configuration(BaseModel):
         str
             Algorithm name.
         """
-        raise ValueError("Unknown algorithm.")
+        return self.algorithm_config.get_algorithm_friendly_name()
 
     def get_algorithm_description(self) -> str:
         """
@@ -246,7 +254,7 @@ class Configuration(BaseModel):
         str
             Description of the algorithm.
         """
-        raise ValueError("No algorithm description available.")
+        return self.algorithm_config.get_algorithm_description()
 
     def get_algorithm_citations(self) -> list[CiteEntry]:
         """
@@ -259,7 +267,7 @@ class Configuration(BaseModel):
         List[CiteEntry]
             List of citation entries.
         """
-        raise ValueError("No algorithm citations available.")
+        return self.algorithm_config.get_algorithm_citations()
 
     def get_algorithm_references(self) -> str:
         """
@@ -272,7 +280,7 @@ class Configuration(BaseModel):
         str
             Algorithm references.
         """
-        raise ValueError("No algorithm references available.")
+        return self.algorithm_config.get_algorithm_references()
 
     def get_algorithm_keywords(self) -> list[str]:
         """
@@ -283,7 +291,7 @@ class Configuration(BaseModel):
         list[str]
             List of keywords.
         """
-        return ["CAREamics"]
+        return self.algorithm_config.get_algorithm_keywords()
 
     def model_dump(
         self,

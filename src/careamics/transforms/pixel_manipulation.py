@@ -213,6 +213,7 @@ def _create_subpatch_struct_mask(
     np.ndarray
         StructN2V mask for the subpatch.
     """
+    # TODO no test for this function!
     # Create a mask with the center of the subpatch masked
     mask_placeholder = np.ones(subpatch.shape)
 
