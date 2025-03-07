@@ -20,6 +20,54 @@ P = ParamSpec("P")
 
 
 class ImageStackLoader(Protocol[P]):
+    """
+    Protocol to define how `ImageStacks` should be loaded.
+
+    An `ImageStackLoader` is a callable that must take the CAREamics `DataConfig` as
+    the first argument and the `source` of the data as the second argument.
+    Additional `*args` and `**kwargs` are allowed, but they should only be used to
+    determine _how_ the data is loaded, not _what_ data is loaded. The `source`
+    argument has to wholly determine _what_ data is loaded, this is because,
+    downstream, both an input-source and a target-source have to be specified but they
+    will share `*args` and `**kwargs`.
+
+    An `ImageStackLoader` must return a sequence of the `ImageStack` class. This could
+    be a sequence of one of the existing concrete implementations, such as
+    `ZarrImageStack`, or a custom user defined `ImageStack`.
+
+    Example
+    -------
+    The following example demonstrates how an `ImageStackLoader` could be defined
+    for loading non-OME Zarr images. Returning a list of `ZarrImageStack` instances.
+
+    >>> from typing import TypedDict
+
+    >>> from zarr.storage import FSStore
+
+    >>> from careamics.config import DataConfig
+    >>> from careamics.dataset_ng.patch_extractor.image_stack import ZarrImageStack
+
+    >>> # Define a zarr source
+    >>> # It encompasses multiple arguments that determine what data will be loaded
+    >>> class ZarrSource(TypedDict):
+    ...     store: FSStore
+    ...     data_paths: Sequence[str]
+
+    >>> def custom_image_stack_loader(
+    ...     data_config: DataConfig, source: ZarrSource, *args, **kwargs
+    ... ) -> list[ZarrImageStack]:
+    ...     axes = data_config.axes
+    ...     image_stacks = [
+    ...         ZarrImageStack(store=source["store"], data_path=data_path, axes=axes)
+    ...         for data_path in source["data_paths"]
+    ...     ]
+    ...     return image_stacks
+    TODO: show example use in the `CAREamicsDataset`
+
+    The example above defines a `ZarrSource` dict because to determine _which_ ZARR
+    images will be loaded both a ZARR store and the internal data paths need to be
+    specified.
+    """
 
     def __call__(
         self, data_config: DataConfig, source: Any, *args: P.args, **kwargs: P.kwargs
@@ -34,6 +82,7 @@ def from_arrays(
 
 
 # TODO: change source to directory path? Like in current implementation
+#   Advantage of having a list is the user can match input and target order themselves
 def from_tiff_files(
     data_config: DataConfig, source: Sequence[Path], *args, **kwargs
 ) -> list[InMemoryImageStack]:
@@ -42,6 +91,7 @@ def from_tiff_files(
 
 
 # TODO: change source to directory path? Like in current implementation
+#   Advantage of having a list is the user can match input and target order themselves
 def from_custom_file_type(
     data_config: DataConfig,
     source: Sequence[Path],

@@ -13,6 +13,8 @@ from .image_stack_loader import ImageStackLoader, get_image_stack_loader
 P = ParamSpec("P")
 
 
+# Define overloads for each implemented ImageStackLoader case
+# Array case
 @overload
 def create_patch_extractor(
     data_config: DataConfig,
@@ -35,6 +37,7 @@ def create_patch_extractor(
     """
 
 
+# TIFF and ZARR case
 @overload
 def create_patch_extractor(
     data_config: DataConfig,
@@ -64,6 +67,7 @@ def create_patch_extractor(
     """
 
 
+# Custom file type case (loaded into memory)
 @overload
 def create_patch_extractor(
     data_config: DataConfig,
@@ -92,6 +96,7 @@ def create_patch_extractor(
     """
 
 
+# Custom ImageStackLoader case
 @overload
 def create_patch_extractor(
     data_config: DataConfig,
@@ -130,6 +135,8 @@ def create_patch_extractor(
     """
 
 
+# final overload to match the implentation function signature
+# Need this so it works later in the code
 @overload
 def create_patch_extractor(
     data_config: DataConfig,
@@ -147,7 +154,11 @@ def create_patch_extractor(
     *args: P.args,
     **kwargs: P.kwargs,
 ) -> PatchExtractor:
-    loader = get_image_stack_loader(data_config.data_type, image_stack_loader)
+    # TODO: Do we need to catch data_config.data_type and source mismatches?
+    #   e.g. data_config.data_type is "array" but source is not Sequence[NDArray]
+    loader: ImageStackLoader[P] = get_image_stack_loader(
+        data_config.data_type, image_stack_loader
+    )
     image_stacks = loader(data_config, source, *args, **kwargs)
     return PatchExtractor(image_stacks)
 
