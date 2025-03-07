@@ -77,6 +77,7 @@ class CAREamist:
         source: Union[Path, str],
         work_dir: Optional[Union[Path, str]] = None,
         callbacks: Optional[list[Callback]] = None,
+        enable_progress_bar: bool = True,
     ) -> None: ...
 
     @overload
@@ -85,6 +86,7 @@ class CAREamist:
         source: Configuration,
         work_dir: Optional[Union[Path, str]] = None,
         callbacks: Optional[list[Callback]] = None,
+        enable_progress_bar: bool = True,
     ) -> None: ...
 
     def __init__(
@@ -92,6 +94,7 @@ class CAREamist:
         source: Union[Path, str, Configuration],
         work_dir: Optional[Union[Path, str]] = None,
         callbacks: Optional[list[Callback]] = None,
+        enable_progress_bar: bool = True,
     ) -> None:
         """
         Initialize CAREamist with a configuration object or a path.
@@ -169,7 +172,7 @@ class CAREamist:
                 self.model, self.cfg = load_pretrained(source)
 
         # define the checkpoint saving callback
-        self._define_callbacks(callbacks)
+        self._define_callbacks(callbacks, enable_progress_bar)
 
         # instantiate logger
         csv_logger = CSVLogger(
@@ -202,7 +205,7 @@ class CAREamist:
             precision=self.cfg.training_config.precision,
             max_steps=self.cfg.training_config.max_steps,
             check_val_every_n_epoch=self.cfg.training_config.check_val_every_n_epoch,
-            enable_progress_bar=self.cfg.training_config.enable_progress_bar,
+            enable_progress_bar=enable_progress_bar,
             accumulate_grad_batches=self.cfg.training_config.accumulate_grad_batches,
             gradient_clip_val=self.cfg.training_config.gradient_clip_val,
             gradient_clip_algorithm=self.cfg.training_config.gradient_clip_algorithm,
@@ -215,7 +218,9 @@ class CAREamist:
         self.train_datamodule: Optional[TrainDataModule] = None
         self.pred_datamodule: Optional[PredictDataModule] = None
 
-    def _define_callbacks(self, callbacks: Optional[list[Callback]] = None) -> None:
+    def _define_callbacks(
+        self, callbacks: Optional[list[Callback]], enable_progress_bar: bool
+    ) -> None:
         """Define the callbacks for the training loop.
 
         Parameters
@@ -251,9 +256,10 @@ class CAREamist:
                     filename=self.cfg.experiment_name,
                     **self.cfg.training_config.checkpoint_callback.model_dump(),
                 ),
-                ProgressBarCallback(),
             ]
         )
+        if enable_progress_bar:
+            self.callbacks.append(ProgressBarCallback())
 
         # early stopping callback
         if self.cfg.training_config.early_stopping_callback is not None:
