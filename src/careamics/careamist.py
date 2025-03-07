@@ -52,6 +52,9 @@ class CAREamist:
         by default None.
     callbacks : list of Callback, optional
         List of callbacks to use during training and prediction, by default None.
+    enable_progress_bar: bool
+        Whether a progress bar will be displayed during training, validation and
+        prediction.
 
     Attributes
     ----------
@@ -115,6 +118,9 @@ class CAREamist:
             by default None.
         callbacks : list of Callback, optional
             List of callbacks to use during training and prediction, by default None.
+        enable_progress_bar: bool
+            Whether a progress bar will be displayed during training, validation and
+            prediction.
 
         Raises
         ------
@@ -227,6 +233,10 @@ class CAREamist:
         ----------
         callbacks : list of Callback, optional
             List of callbacks to use during training and prediction, by default None.
+        enable_progress_bar: bool
+            Whether a progress bar will be displayed during training, validation and
+            prediction. It controls whether a `ProgressBarCallback` is added to the
+            callback list.
         """
         self.callbacks = [] if callbacks is None else callbacks
 
