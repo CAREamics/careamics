@@ -1,11 +1,11 @@
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, Optional, overload
+from typing import Any, Literal, Optional, Union, overload
 
 from numpy.typing import NDArray
 from typing_extensions import ParamSpec
 
-from careamics.config import DataConfig
+from careamics.config.support import SupportedData
 from careamics.dataset_ng.patch_extractor import PatchExtractor
 from careamics.file_io.read import ReadFunc
 
@@ -18,8 +18,7 @@ P = ParamSpec("P")
 # Array case
 @overload
 def create_patch_extractor(
-    data_config: DataConfig,
-    source: Sequence[NDArray],
+    source: Sequence[NDArray], axes: str, data_type: Literal[SupportedData.ARRAY]
 ) -> PatchExtractor:
     """
     Create a patch extractor from a sequence of numpy arrays.
@@ -41,8 +40,7 @@ def create_patch_extractor(
 # TIFF and ZARR case
 @overload
 def create_patch_extractor(
-    data_config: DataConfig,
-    source: Sequence[Path],
+    source: Sequence[Path], axes: str, data_type: Literal[SupportedData.TIFF, "zarr"]
 ) -> PatchExtractor:
     """
     Create a patch extractor from a sequence of files that match our supported types.
@@ -71,8 +69,9 @@ def create_patch_extractor(
 # Custom file type case (loaded into memory)
 @overload
 def create_patch_extractor(
-    data_config: DataConfig,
     source: Any,
+    axes: str,
+    data_type: Literal[SupportedData.CUSTOM],
     *,
     read_func: ReadFunc,
     read_kwargs: dict[str, Any],
@@ -100,8 +99,9 @@ def create_patch_extractor(
 # Custom ImageStackLoader case
 @overload
 def create_patch_extractor(
-    data_config: DataConfig,
     source: Any,
+    axes: str,
+    data_type: Literal[SupportedData.CUSTOM],
     image_stack_loader: ImageStackLoader[P],
     *args: P.args,
     **kwargs: P.kwargs,
@@ -138,10 +138,12 @@ def create_patch_extractor(
 
 # final overload to match the implentation function signature
 # Need this so it works later in the code
+#   (bec there aren't created overloads for create_patch_extractors below)
 @overload
 def create_patch_extractor(
-    data_config: DataConfig,
     source: Any,
+    axes: str,
+    data_type: SupportedData | str,  # temp union with strin for "zarr"
     image_stack_loader: Optional[ImageStackLoader[P]] = None,
     *args: P.args,
     **kwargs: P.kwargs,
@@ -149,27 +151,27 @@ def create_patch_extractor(
 
 
 def create_patch_extractor(
-    data_config: DataConfig,
     source: Any,
+    axes: str,
+    data_type: Union[SupportedData, str],  # temp union with strin for "zarr"
     image_stack_loader: Optional[ImageStackLoader[P]] = None,
     *args: P.args,
     **kwargs: P.kwargs,
 ) -> PatchExtractor:
     # TODO: Do we need to catch data_config.data_type and source mismatches?
     #   e.g. data_config.data_type is "array" but source is not Sequence[NDArray]
-    loader: ImageStackLoader[P] = get_image_stack_loader(
-        data_config.data_type, image_stack_loader
-    )
-    image_stacks = loader(data_config, source, *args, **kwargs)
+    loader: ImageStackLoader[P] = get_image_stack_loader(data_type, image_stack_loader)
+    image_stacks = loader(source, axes, *args, **kwargs)
     return PatchExtractor(image_stacks)
 
 
 # TODO: Remove this and just call `create_patch_extractor` within the Dataset class
 # Keeping for consistency for now
 def create_patch_extractors(
-    data_config: DataConfig,
     source: Any,
-    target_source: Optional[Any] = None,
+    target_source: Optional[Any],
+    axes: str,
+    data_type: Union[SupportedData, str],
     image_stack_loader: Optional[ImageStackLoader] = None,
     *args,
     **kwargs,
@@ -177,8 +179,9 @@ def create_patch_extractors(
 
     # --- data extractor
     patch_extractor: PatchExtractor = create_patch_extractor(
-        data_config,
         source,
+        axes,
+        data_type,
         image_stack_loader,
         *args,
         **kwargs,
@@ -186,8 +189,9 @@ def create_patch_extractors(
     # --- optional target extractor
     if target_source is not None:
         target_patch_extractor = create_patch_extractor(
-            data_config,
             target_source,
+            axes,
+            data_type,
             image_stack_loader,
             *args,
             **kwargs,

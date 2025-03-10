@@ -10,7 +10,6 @@ from typing import (
 from numpy.typing import NDArray
 from typing_extensions import ParamSpec
 
-from careamics.config import DataConfig
 from careamics.config.support import SupportedData
 from careamics.file_io.read import ReadFunc
 
@@ -23,8 +22,9 @@ class ImageStackLoader(Protocol[P]):
     """
     Protocol to define how `ImageStacks` should be loaded.
 
-    An `ImageStackLoader` is a callable that must take the CAREamics `DataConfig` as
-    the first argument and the `source` of the data as the second argument.
+    An `ImageStackLoader` is a callable that must take the `source` of the data as the
+    first argument, and the data `axes` as the second argument.
+
     Additional `*args` and `**kwargs` are allowed, but they should only be used to
     determine _how_ the data is loaded, not _what_ data is loaded. The `source`
     argument has to wholly determine _what_ data is loaded, this is because,
@@ -54,9 +54,8 @@ class ImageStackLoader(Protocol[P]):
     ...     data_paths: Sequence[str]
 
     >>> def custom_image_stack_loader(
-    ...     data_config: DataConfig, source: ZarrSource, *args, **kwargs
+    ...     source: ZarrSource, axes: str, *args, **kwargs
     ... ) -> list[ZarrImageStack]:
-    ...     axes = data_config.axes
     ...     image_stacks = [
     ...         ZarrImageStack(store=source["store"], data_path=data_path, axes=axes)
     ...         for data_path in source["data_paths"]
@@ -71,37 +70,34 @@ class ImageStackLoader(Protocol[P]):
     """
 
     def __call__(
-        self, data_config: DataConfig, source: Any, *args: P.args, **kwargs: P.kwargs
+        self, source: Any, axes: str, *args: P.args, **kwargs: P.kwargs
     ) -> Sequence[ImageStack]: ...
 
 
 def from_arrays(
-    data_config: DataConfig, source: Sequence[NDArray], *args, **kwargs
+    source: Sequence[NDArray], axes: str, *args, **kwargs
 ) -> list[InMemoryImageStack]:
-    axes = data_config.axes
     return [InMemoryImageStack.from_array(data=array, axes=axes) for array in source]
 
 
 # TODO: change source to directory path? Like in current implementation
 #   Advantage of having a list is the user can match input and target order themselves
 def from_tiff_files(
-    data_config: DataConfig, source: Sequence[Path], *args, **kwargs
+    source: Sequence[Path], axes: str, *args, **kwargs
 ) -> list[InMemoryImageStack]:
-    axes = data_config.axes
     return [InMemoryImageStack.from_tiff(path=path, axes=axes) for path in source]
 
 
 # TODO: change source to directory path? Like in current implementation
 #   Advantage of having a list is the user can match input and target order themselves
 def from_custom_file_type(
-    data_config: DataConfig,
     source: Sequence[Path],
+    axes: str,
     read_func: ReadFunc,
     read_kwargs: dict[str, Any],
     *args,
     **kwargs,
 ) -> list[InMemoryImageStack]:
-    axes = data_config.axes
     return [
         InMemoryImageStack.from_custom_file_type(
             path=path,
@@ -114,8 +110,9 @@ def from_custom_file_type(
 
 
 def from_ome_zarr_files(
-    data_config: DataConfig, source: Sequence[Path], *args, **kwargs
+    source: Sequence[Path], axes: str, *args, **kwargs
 ) -> list[ZarrImageStack]:
+    # NOTE: axes is unused here, in from_ome_zarr the axes are automatically retrieved
     return [ZarrImageStack.from_ome_zarr(path) for path in source]
 
 
