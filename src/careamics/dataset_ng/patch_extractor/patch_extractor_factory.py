@@ -9,7 +9,11 @@ from careamics.config.support import SupportedData
 from careamics.dataset_ng.patch_extractor import PatchExtractor
 from careamics.file_io.read import ReadFunc
 
-from .image_stack_loader import ImageStackLoader, get_image_stack_loader
+from .image_stack_loader import (
+    ImageStackLoader,
+    SupportedDataDev,
+    get_image_stack_loader,
+)
 
 P = ParamSpec("P")
 
@@ -40,7 +44,9 @@ def create_patch_extractor(
 # TIFF and ZARR case
 @overload
 def create_patch_extractor(
-    source: Sequence[Path], axes: str, data_type: Literal[SupportedData.TIFF, "zarr"]
+    source: Sequence[Path],
+    axes: str,
+    data_type: Literal[SupportedData.TIFF, SupportedDataDev.ZARR],
 ) -> PatchExtractor:
     """
     Create a patch extractor from a sequence of files that match our supported types.
@@ -143,7 +149,9 @@ def create_patch_extractor(
 def create_patch_extractor(
     source: Any,
     axes: str,
-    data_type: Union[SupportedData, str],  # temp union with strin for "zarr"
+    data_type: Union[
+        SupportedData, SupportedDataDev
+    ],  # temp union with strin for "zarr"
     image_stack_loader: Optional[ImageStackLoader[P]] = None,
     *args: P.args,
     **kwargs: P.kwargs,
@@ -153,7 +161,7 @@ def create_patch_extractor(
 def create_patch_extractor(
     source: Any,
     axes: str,
-    data_type: Union[SupportedData, str],  # temp union with strin for "zarr"
+    data_type: Union[SupportedData, SupportedDataDev],
     image_stack_loader: Optional[ImageStackLoader[P]] = None,
     *args: P.args,
     **kwargs: P.kwargs,
@@ -171,7 +179,7 @@ def create_patch_extractors(
     source: Any,
     target_source: Optional[Any],
     axes: str,
-    data_type: Union[SupportedData, str],
+    data_type: Union[SupportedData, SupportedDataDev],
     image_stack_loader: Optional[ImageStackLoader] = None,
     *args,
     **kwargs,

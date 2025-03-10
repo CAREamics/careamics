@@ -12,10 +12,15 @@ from typing_extensions import ParamSpec
 
 from careamics.config.support import SupportedData
 from careamics.file_io.read import ReadFunc
+from careamics.utils import BaseEnum
 
 from .image_stack import ImageStack, InMemoryImageStack, ZarrImageStack
 
 P = ParamSpec("P")
+
+
+class SupportedDataDev(str, BaseEnum):
+    ZARR = "zarr"
 
 
 class ImageStackLoader(Protocol[P]):
@@ -117,7 +122,7 @@ def from_ome_zarr_files(
 
 
 def get_image_stack_loader(
-    data_type: Union[SupportedData, str],  # Union with string temp for zarr
+    data_type: Union[SupportedData, SupportedDataDev],
     image_stack_loader: Optional[ImageStackLoader] = None,
 ) -> ImageStackLoader:
     if data_type == SupportedData.ARRAY:
