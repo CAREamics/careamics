@@ -149,9 +149,7 @@ def create_patch_extractor(
 def create_patch_extractor(
     source: Any,
     axes: str,
-    data_type: Union[
-        SupportedData, SupportedDataDev
-    ],  # temp union with strin for "zarr"
+    data_type: Union[SupportedData, SupportedDataDev],
     image_stack_loader: Optional[ImageStackLoader[P]] = None,
     *args: P.args,
     **kwargs: P.kwargs,
