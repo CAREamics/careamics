@@ -95,9 +95,11 @@ class RandomPatchingStrategy:
         spatial_shape = data_shape[2:]
 
         # calculate sample index relative to image stack by subtracting bin boundary
-        sample_index = (
-            total_samples_index - self.sample_index_bins[total_samples_index - 1]
-        )
+        if total_samples_index == 0:
+            bin_boundary = 0
+        else:
+            bin_boundary = self.sample_index_bins[total_samples_index - 1]
+        sample_index = total_samples_index - bin_boundary
         coords = _random_coords(spatial_shape, self.patch_size, self.rng)
         return {
             "data_idx": data_index,
