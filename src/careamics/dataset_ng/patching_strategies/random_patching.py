@@ -22,7 +22,7 @@ class RandomPatchingStrategy:
             self.data_shapes, self.patch_size
         )
 
-    def get_patch_specs(self, index: int):
+    def get_patch_spec(self, index: int):
         """Return the patch specs at a given instance."""
         data_index = np.digitize(index, bins=self.image_stack_index_bins)
         sample_index = np.digitize(index, bins=self.sample_index_bins)
@@ -39,32 +39,13 @@ class RandomPatchingStrategy:
         """Generate a random patch for an image at `data_index`, `sample_index`"""
         data_shape = self.data_shapes[data_index]
         spatial_shape = data_shape[2:]
-        coords = tuple(
-            self.rng.integers(
-                np.zeros(len(self.patch_size), dtype=int),
-                np.array(spatial_shape) - np.array(self.patch_size),
-                endpoint=True,
-                dtype=int,
-            ).tolist()
-        )
+        coords = _random_coords(spatial_shape, self.patch_size, self.rng)
         return {
             "data_idx": data_index,
             "sample_idx": sample_index,
             "coords": coords,
             "patch_size": self.patch_size,
         }
-
-    @staticmethod
-    def _n_patches(spatial_shape: Sequence[int], patch_size: Sequence[int]) -> int:
-        """
-        Calculates the number of patches for a given `spatial_shape` and `patch_size`.
-        """
-        if len(patch_size) != len(spatial_shape):
-            raise ValueError(
-                "Number of patch dimension do not match the number of spatial "
-                "dimensions."
-            )
-        return int(np.ceil(np.prod(spatial_shape) / np.prod(patch_size)))
 
     @staticmethod
     def _calc_patch_bins(
@@ -74,9 +55,7 @@ class RandomPatchingStrategy:
         patches_per_sample: list[int] = []
         for data_shape in data_shapes:
             spatial_shape = data_shape[2:]
-            n_single_sample_patches = RandomPatchingStrategy._n_patches(
-                spatial_shape, patch_size
-            )
+            n_single_sample_patches = _n_patches(spatial_shape, patch_size)
             # multiply by number of samples in image_stack
             patches_per_image_stack.append(n_single_sample_patches * data_shape[0])
             # list of length sample filled with `n_single_sample_patches`
@@ -87,9 +66,61 @@ class RandomPatchingStrategy:
         return tuple(image_stack_index_bins), tuple(sample_index_bins)
 
 
-if __name__ == "__main__":
+class FixedRandomPatchingStrategy:
 
-    patching_strategy = RandomPatchingStrategy(
-        data_shapes=((1, 1, 8, 8),), patch_size=(2, 2)
+    def __init__(
+        self,
+        data_shapes: Sequence[Sequence[int]],
+        patch_size: Sequence[int],
+        seed: Optional[int] = None,
+    ):
+        self.rng = np.random.default_rng(seed=seed)
+        self.patch_size = patch_size
+        self.data_shapes = data_shapes
+
+        self.fixed_patch_specs: list[PatchSpecs] = []
+        for data_idx, data_shape in enumerate(self.data_shapes):
+            spatial_shape = data_shape[2:]
+            for sample_idx in range(data_shape[0]):
+
+                random_coords = _random_coords(spatial_shape, self.patch_size, self.rng)
+                patch_specs: PatchSpecs = {
+                    "data_idx": data_idx,
+                    "sample_idx": sample_idx,
+                    "coords": random_coords,
+                    "patch_size": self.patch_size,
+                }
+                self.fixed_patch_specs.append(patch_specs)
+
+    def get_patch_spec(self, index: int) -> PatchSpecs:
+        return self.fixed_patch_specs[index]
+
+
+def _random_coords(
+    spatial_shape: Sequence[int], patch_size: Sequence[int], rng: np.random.Generator
+) -> tuple[int, ...]:
+    if len(patch_size) != len(spatial_shape):
+        raise ValueError(
+            "Number of patch dimension do not match the number of spatial "
+            "dimensions."
+        )
+    return tuple(
+        rng.integers(
+            np.zeros(len(patch_size), dtype=int),
+            np.array(spatial_shape) - np.array(patch_size),
+            endpoint=True,
+            dtype=int,
+        ).tolist()
     )
-    patch_spec = patching_strategy.get_patch_specs(1)
+
+
+def _n_patches(spatial_shape: Sequence[int], patch_size: Sequence[int]) -> int:
+    """
+    Calculates the number of patches for a given `spatial_shape` and `patch_size`.
+    """
+    if len(patch_size) != len(spatial_shape):
+        raise ValueError(
+            "Number of patch dimension do not match the number of spatial "
+            "dimensions."
+        )
+    return int(np.ceil(np.prod(spatial_shape) / np.prod(patch_size)))
