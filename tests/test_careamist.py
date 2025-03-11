@@ -1055,6 +1055,42 @@ def test_add_custom_callback(tmp_path, minimum_n2v_configuration):
     assert my_callback.has_ended
 
 
+@pytest.mark.parametrize("enable_progress_bar", [True, False])
+def test_enable_progress_bar(
+    tmp_path: Path, minimum_n2v_configuration: dict, enable_progress_bar: bool
+):
+    """Test no error occurs when enable_progress_bar is set to True or False."""
+    # training data
+    train_array = random_array((32, 32))
+
+    # create configuration
+    config = Configuration(**minimum_n2v_configuration)
+    config.training_config.num_epochs = 1
+    config.data_config.axes = "YX"
+    config.data_config.batch_size = 2
+    config.data_config.data_type = SupportedData.ARRAY.value
+    config.data_config.patch_size = (8, 8)
+
+    # instantiate CAREamist
+    careamist = CAREamist(
+        source=config, work_dir=tmp_path, enable_progress_bar=enable_progress_bar
+    )
+    is_progress_bar_callback = [
+        isinstance(callback, ProgressBarCallback) for callback in careamist.callbacks
+    ]
+    # test progress bar has been created or not according to enable_progress_bar flag
+    if enable_progress_bar:
+        assert any(is_progress_bar_callback)
+    else:
+        assert not any(is_progress_bar_callback)
+
+    # make sure training happens without error
+    careamist.train(train_source=train_array)
+
+    # check that it trained
+    assert Path(tmp_path / "checkpoints" / "last.ckpt").exists()
+
+
 def test_error_passing_careamics_callback(tmp_path, minimum_n2v_configuration):
     """Test that an error is thrown if we pass known callbacks to CAREamist."""
     # create configuration

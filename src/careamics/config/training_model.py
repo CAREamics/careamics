@@ -39,8 +39,6 @@ class TrainingConfig(BaseModel):
     """Maximum number of steps to train for. -1 means no limit."""
     check_val_every_n_epoch: int = Field(default=1, ge=1)
     """Validation step frequency."""
-    enable_progress_bar: bool = Field(default=True)
-    """Whether to enable the progress bar."""
     accumulate_grad_batches: int = Field(default=1, ge=1)
     """Number of batches to accumulate gradients over before stepping the optimizer."""
     gradient_clip_val: Optional[Union[int, float]] = None
