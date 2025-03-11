@@ -1,3 +1,5 @@
+"""A module to contain type definitions relating to patching strategies."""
+
 from collections.abc import Sequence
 from typing import Protocol, TypedDict
 
@@ -9,14 +11,14 @@ class PatchSpecs(TypedDict):
     ----------
     data_idx: int
         Determines which `ImageStack` a patch belongs to, within a series of
-        `ImageStack`.
+        `ImageStack`s.
     sample_idx: int
-        Determines which sample a patch belongs to, within an `ImageStacks`.
+        Determines which sample a patch belongs to, within an `ImageStack`.
     coords: sequence of int
-        The top-left (and first z-slice for 3D) of a patch. The sequence will have
-        length 2 or 3 for 2D and 3D data respectively.
+        The top-left (and first z-slice for 3D data) of a patch. The sequence will have
+        length 2 or 3, for 2D and 3D data respectively.
     patch_size: sequence of int
-        The size of the patch. The sequence will have length 2 or 3 for 2D and 3D data
+        The size of the patch. The sequence will have length 2 or 3, for 2D and 3D data
         respectively.
     """
 
@@ -27,14 +29,29 @@ class PatchSpecs(TypedDict):
 
 
 class PatchingStrategy(Protocol):
-    """An interface for Patching Strategies."""
+    """
+    An interface for patching strategies.
+
+    Patching strategies are a component of the `CAREamicsDataset`; they determine
+    how patches are extracted from the underlying data.
+
+    Attributes
+    ----------
+    n_patches: int
+        The number of patches that the patching strategy will return.
+
+    Methods
+    -------
+    get_patch_spec(index: int) -> PatchSpecs
+        Get a patch specification for a given patch index.
+    """
 
     @property
     def n_patches(self) -> int:
         """
-        The number of patches that the patching strategy should return.
+        The number of patches that the patching strategy will return.
 
-        This also determines the maximum index that can be given to `get_patch_spec`,
+        It also determines the maximum index that can be given to `get_patch_spec`,
         and the length of the `CAREamicsDataset`.
 
         Returns
