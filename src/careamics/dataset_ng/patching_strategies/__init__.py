@@ -1,6 +1,11 @@
-__all__ = ["PatchSpecsGenerator", "RandomPatchSpecsGenerator"]
+__all__ = [
+    "FixedRandomPatchingStrategy",
+    "PatchSpecs",
+    "PatchingStrategy",
+    "RandomPatchingStrategy",
+    "SequentialPatchingStrategy",
+]
 
-from .patch_specs_generator import (
-    PatchSpecsGenerator,
-    RandomPatchSpecsGenerator,
-)
+from .patching_strategy_types import PatchingStrategy, PatchSpecs
+from .random_patching import FixedRandomPatchingStrategy, RandomPatchingStrategy
+from .sequential_patching import SequentialPatchingStrategy

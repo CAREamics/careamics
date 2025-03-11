@@ -1,6 +1,6 @@
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, Protocol, TypedDict, Union
+from typing import Any, Protocol, Union
 
 from numpy.typing import NDArray
 from typing_extensions import Self
@@ -8,13 +8,6 @@ from typing_extensions import Self
 from careamics.file_io.read import ReadFunc
 
 from .image_stack import ImageStack, InMemoryImageStack, ZarrImageStack
-
-
-class PatchSpecs(TypedDict):
-    data_idx: int
-    sample_idx: int
-    coords: Sequence[int]
-    patch_size: Sequence[int]
 
 
 class PatchExtractorConstructor(Protocol):
@@ -101,6 +94,3 @@ class PatchExtractor:
         return self.image_stacks[data_idx].extract_patch(
             sample_idx=sample_idx, coords=coords, patch_size=patch_size
         )
-
-    def extract_patches(self, patch_specs: Sequence[PatchSpecs]) -> list[NDArray]:
-        return [self.extract_patch(**patch_spec) for patch_spec in patch_specs]
