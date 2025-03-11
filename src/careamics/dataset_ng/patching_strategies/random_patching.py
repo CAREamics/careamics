@@ -22,6 +22,11 @@ class RandomPatchingStrategy:
             self.data_shapes, self.patch_size
         )
 
+    @property
+    def n_patches(self) -> int:
+        # last bin boundary will be total patches
+        return self.image_stack_index_bins[-1]
+
     def get_patch_spec(self, index: int):
         """Return the patch specs at a given instance."""
         data_index = np.digitize(index, bins=self.image_stack_index_bins)
@@ -91,6 +96,10 @@ class FixedRandomPatchingStrategy:
                     "patch_size": self.patch_size,
                 }
                 self.fixed_patch_specs.append(patch_specs)
+
+    @property
+    def n_patches(self):
+        return len(self.fixed_patch_specs)
 
     def get_patch_spec(self, index: int) -> PatchSpecs:
         return self.fixed_patch_specs[index]
