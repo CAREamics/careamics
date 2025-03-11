@@ -43,7 +43,7 @@ data_shapes = [
     image_stack.data_shape for image_stack in input_patch_extractor.image_stacks
 ]
 patch_specs_generator = RandomPatchingStrategy(data_shapes, patch_size=(2, 2))
-patch_specs = patch_specs_generator.get_patch_spec(7)
+patch_specs = patch_specs_generator.get_patch_spec(18)
 
 # %%
 # extract a subset of patches

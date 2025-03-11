@@ -56,6 +56,10 @@ class RandomPatchingStrategy:
             self.data_shapes, self.patch_size
         )
 
+        # this is needed to calculate the sample_idx relative to the image_stack
+        samples_per_image_stack = [data_shape[0] for data_shape in self.data_shapes]
+        self.sample_bins = np.cumsum(samples_per_image_stack)
+
     @property
     def n_patches(self) -> int:
         """
@@ -94,12 +98,13 @@ class RandomPatchingStrategy:
         data_shape = self.data_shapes[data_index.item()]
         spatial_shape = data_shape[2:]
 
-        # calculate sample index relative to image stack by subtracting bin boundary
-        if total_samples_index == 0:
-            bin_boundary = 0
+        # calculate sample index relative to image stack:
+        #   subtract the total number of samples in the previous image stacks
+        if data_index == 0:
+            n_previous_samples = 0
         else:
-            bin_boundary = self.sample_index_bins[total_samples_index - 1]
-        sample_index = total_samples_index - bin_boundary
+            n_previous_samples = self.sample_bins[data_index - 1]
+        sample_index = total_samples_index - n_previous_samples
         coords = _random_coords(spatial_shape, self.patch_size, self.rng)
         return {
             "data_idx": data_index,
