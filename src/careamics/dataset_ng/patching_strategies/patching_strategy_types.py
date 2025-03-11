@@ -9,4 +9,6 @@ class PatchSpecs(TypedDict):
     patch_size: Sequence[int]
 
 
-class PatchingStrategy(Protocol): ...
+class PatchingStrategy(Protocol):
+
+    def get_patch_spec(self, index: int) -> PatchSpecs: ...
