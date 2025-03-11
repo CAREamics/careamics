@@ -8,7 +8,7 @@ from careamics.config.tile_information import TileInformation
 from careamics.dataset import InMemoryTiledPredDataset
 from careamics.dataset.tiling.collate_tiles import collate_tiles
 from careamics.models.lvae.likelihoods import GaussianLikelihood
-from careamics.models.lvae.lvae import LadderVAE
+from careamics.models.lvae.lvae import LVAE
 from careamics.prediction_utils import convert_outputs
 from careamics.prediction_utils.lvae_prediction import (
     lvae_predict_mmse_tiled_batch,
@@ -35,7 +35,7 @@ def test_smoke_careamics_dset_lvae_prediction(
     input_shape = minimum_lvae_params["input_shape"]
 
     # initialize model
-    model = LadderVAE(**minimum_lvae_params)
+    model = LVAE(**minimum_lvae_params)
     # initialize likelihood
     likelihood_obj = GaussianLikelihood(**gaussian_likelihood_params)
 
@@ -89,7 +89,7 @@ def test_lvae_predict_single_sample(
     input_shape = minimum_lvae_params["input_shape"]
 
     # initialize model
-    model = LadderVAE(**minimum_lvae_params)
+    model = LVAE(**minimum_lvae_params)
     # initialize likelihood
     likelihood_obj = GaussianLikelihood(**gaussian_likelihood_params)
 
@@ -128,7 +128,7 @@ def test_lvae_predict_mmse_tiled_batch(
     input_shape = minimum_lvae_params["input_shape"]
 
     # initialize model
-    model = LadderVAE(**minimum_lvae_params)
+    model = LVAE(**minimum_lvae_params)
     # initialize likelihood
     likelihood_obj = GaussianLikelihood(**gaussian_likelihood_params)
 
