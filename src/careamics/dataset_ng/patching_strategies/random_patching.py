@@ -70,7 +70,7 @@ class RandomPatchingStrategy:
         # last bin boundary will be total patches
         return self.image_stack_index_bins[-1]
 
-    def get_patch_spec(self, index: int):
+    def get_patch_spec(self, index: int) -> PatchSpecs:
         """Return the patch specs for a given index.
 
         Parameters
@@ -107,8 +107,8 @@ class RandomPatchingStrategy:
         sample_index = total_samples_index - n_previous_samples
         coords = _random_coords(spatial_shape, self.patch_size, self.rng)
         return {
-            "data_idx": data_index,
-            "sample_idx": sample_index,
+            "data_idx": data_index.item(),
+            "sample_idx": sample_index.item(),
             "coords": coords,
             "patch_size": self.patch_size,
         }
@@ -273,7 +273,7 @@ def _random_coords(
         rng.integers(
             np.zeros(len(patch_size), dtype=int),
             np.array(spatial_shape) - np.array(patch_size),
-            endpoint=True,
+            endpoint=False,
             dtype=int,
         ).tolist()
     )
