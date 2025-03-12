@@ -142,7 +142,7 @@ class CareamicsDataset(Dataset):
 
     def __getitem__(self, index: int) -> tuple[ImageRegionData, ImageRegionData | None]:
         patch_spec = self.patch_specs[index]
-        # TODO add 'meta' patch spec to keep track of ps for all channels, or for loop in init
+
         input_patch = (
             self.input_extractor.extract_patch(**patch_spec)
             if hasattr(self, "input_extractor")
@@ -178,5 +178,5 @@ class CareamicsDataset(Dataset):
             else None
         )
         # TODO nones won't stack ?
-
+        # TODO add channels to the data ?
         return input_data, target_data

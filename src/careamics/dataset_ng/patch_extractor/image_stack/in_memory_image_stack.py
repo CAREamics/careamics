@@ -21,13 +21,30 @@ class InMemoryImageStack:
         self._data: NDArray = data
         self.data_shape: Sequence[int] = self._data.shape
         self.data_dtype: DTypeLike = self._data.dtype
+        self.collocate_patch_region: bool = False  # TODO subclass splits ?
+        self.uniform_mixing: bool = True
+        # self.lateral_context: int = 0
 
-    def _composite_patch(self, patches: list[NDArray]) -> NDArray:
-        patch = np.stack(patches, axis=0)
+    def _composite_patch(self, patches: Sequence[NDArray]) -> NDArray:
+        if self.uniform_mixing:
+            alphas = [1 / len(patches) for _ in range(len(patches))]
+        else:
+            alphas = []
+            for i in range(len(patches)):
+                alpha_pos = np.random.rand()
+                alpha = self._start_alpha_arr[i] + alpha_pos * (
+                    self._end_alpha_arr[i] - self._start_alpha_arr[i]
+                )
+                alphas.append(alpha)
+        patch = sum(img * alpha for img, alpha in zip(patches, alphas))
+
         return patch
 
     def extract_patch(
-        self, sample_idx: int, coords: Sequence[int], patch_size: Sequence[int]
+        self,
+        sample_idx: int,
+        coords: Sequence[int],
+        patch_size: Sequence[int],
     ) -> NDArray:
         # TODO change?
         if not isinstance(coords, list):
@@ -50,6 +67,7 @@ class InMemoryImageStack:
                     )
                 ]
             )
+
         return self._composite_patch(patches_per_channel)
 
     @classmethod

@@ -23,7 +23,7 @@ class PatchExtractorConfig(BaseModel):
     artificial_input: bool = Field(default=False)
     """Whether to create artificial input from target channels."""
 
-    mixing_alpha: tuple = Field(default=(0.5, 0.5))
-    """Coefficients for adjusting pixel intensities, per channel"""
+    uniform_mixing: bool = Field(default=True)
+    """Whether to apply different weights to different channels dynamically during training."""
 
     # TODO add validators, e.g. artificial_input must be true if no real input

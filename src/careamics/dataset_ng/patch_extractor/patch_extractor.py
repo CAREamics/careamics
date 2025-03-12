@@ -13,7 +13,7 @@ from .image_stack import ImageStack, InMemoryImageStack, ZarrImageStack
 class PatchSpecs(TypedDict):
     data_idx: int
     sample_idx: int
-    coords: Sequence[int] # TODO add nested type
+    coords: Sequence[int]  # TODO add nested type
     patch_size: Sequence[int]
 
 
