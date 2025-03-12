@@ -39,5 +39,5 @@ def create_patch_extractor(
 
     # --- data extractor
     patch_extractor: PatchExtractor = constructor(source=data, **constructor_kwargs)
-
+    # TODO add func to iterate over channels if
     return patch_extractor

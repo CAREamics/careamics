@@ -13,7 +13,7 @@ from .image_stack import ImageStack, InMemoryImageStack, ZarrImageStack
 class PatchSpecs(TypedDict):
     data_idx: int
     sample_idx: int
-    coords: Sequence[int]
+    coords: Sequence[int] # TODO add nested type
     patch_size: Sequence[int]
 
 
@@ -60,9 +60,11 @@ class PatchExtractor:
     # TODO: rename to load_from_tiff_files?
     #   - to distiguish from possible pointer to files
     @classmethod
-    def from_tiff_files(cls, source: Sequence[Path], *, axes: str, **kwargs) -> Self:
+    def from_tiff_files(cls, source: Path | str, *, axes: str, **kwargs) -> Self:
+        files = Path(source).rglob("*.tif*")
         image_stacks = [
-            InMemoryImageStack.from_tiff(path=path, axes=axes) for path in source
+            InMemoryImageStack.from_tiff(path=file_name, axes=axes)
+            for file_name in files
         ]
         return cls(image_stacks=image_stacks)
 
@@ -108,3 +110,15 @@ class PatchExtractor:
     @property
     def shape(self):
         return [stack.data_shape for stack in self.image_stacks]
+
+    # # TODO temporary
+    # patch_extractors = []
+    # if not data_config.patch_extractor_params.from_same_location:
+    #     patch_extractors = [
+    #         constructor(source=data, **constructor_kwargs)
+    #         for channel_idx in data[0].shape[0] # TODO better way to get channel ?
+    #     ]
+    # else:
+    #     patch_extractor: PatchExtractor = constructor(source=data, **constructor_kwargs)
+    #     patch_extractors = [patch_extractor]
+    # return patch_extractors

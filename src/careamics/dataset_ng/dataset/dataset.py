@@ -43,22 +43,34 @@ class CareamicsDataset(Dataset):
     def __init__(
         self,
         data_config: DataConfig | InferenceConfig,
-        inputs: InputType,
+        inputs: Optional[InputType] = None,
         targets: Optional[InputType] = None,
         read_func: Optional[Callable] = None,
     ):
         self.config = data_config
+        if inputs is None and targets is None:
+            raise ValueError(
+                "For splitting tasks either real input or target channels are required."
+                "For all other tasks input is required."
+            )
+        # TODO check if inputs and targets are path or sequence of arrays, not a single array
+        if inputs is not None:
+            self.input_extractor: Optional[PatchExtractor] = create_patch_extractor(
+                self.config, data=inputs, read_func=read_func
+            )
+            self.data_shapes = [ie.shape for ie in self.input_extractors]
 
-        self.input_extractor = create_patch_extractor(
-            self.config, data=inputs, read_func=read_func
-        )
         if targets is not None:
             self.target_extractor: Optional[PatchExtractor] = create_patch_extractor(
                 self.config, data=targets, read_func=read_func
             )
-        else:
-            self.target_extractor = None
+            self.data_shapes = (
+                self.target_extractor.shape
+                if not hasattr(self, "input_extractor")
+                else self.data_shapes
+            )
 
+        # TODO check that the list of coords is different for all epochs
         self.patch_specs = self._initialize_patch_specs()
 
         self.input_stats, self.target_stats = self._initialize_statistics()
@@ -85,11 +97,14 @@ class CareamicsDataset(Dataset):
         else:
             raise ValueError(f"Data config type {type(self.config)} is not supported.")
 
-        patch_specs = patch_generator.generate(data_shapes=self.input_extractor.shape)
+        patch_specs = patch_generator.generate(
+            data_shapes=self.data_shapes,
+            separate_channels=self.config.patch_extractor_params.from_same_location,
+        )
         return patch_specs
 
     def _initialize_transforms(self) -> Optional[Compose]:
-        if isinstance(self.config, DataConfig):
+        if self.config.transforms:
             return Compose(
                 transform_list=list(self.config.transforms),
             )
@@ -127,28 +142,41 @@ class CareamicsDataset(Dataset):
 
     def __getitem__(self, index: int) -> tuple[ImageRegionData, ImageRegionData | None]:
         patch_spec = self.patch_specs[index]
-        input_patch = self.input_extractor.extract_patch(**patch_spec)
+        # TODO add 'meta' patch spec to keep track of ps for all channels, or for loop in init
+        input_patch = (
+            self.input_extractor.extract_patch(**patch_spec)
+            if hasattr(self, "input_extractor")
+            else None
+        )
 
         target_patch = (
             self.target_extractor.extract_patch(**patch_spec)
-            if self.target_extractor is not None
+            if hasattr(self, "target_extractor")
             else None
         )
+
+        # TODO patch mixing, add mixer as a transform or just a mixer?
 
         if self.transforms is not None:
             input_patch, target_patch = self.transforms(input_patch, target_patch)
 
-        input_data = self._create_image_region(
-            patch=input_patch, patch_spec=patch_spec, extractor=self.input_extractor
+        input_data = (
+            self._create_image_region(
+                patch=input_patch, patch_spec=patch_spec, extractor=self.input_extractor
+            )
+            if input_patch is not None
+            else None
         )
 
-        if target_patch is not None and self.target_extractor is not None:
-            target_data = self._create_image_region(
+        target_data = (
+            self._create_image_region(
                 patch=target_patch,
                 patch_spec=patch_spec,
                 extractor=self.target_extractor,
             )
-        else:
-            target_data = None
+            if target_patch is not None
+            else None
+        )
+        # TODO nones won't stack ?
 
         return input_data, target_data

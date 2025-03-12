@@ -29,26 +29,38 @@ class RandomPatchSpecsGenerator:
         self.patch_size = patch_size
         self.random_seed = random_seed
 
-    def generate(self, data_shapes: Sequence[Sequence[int]]) -> list[PatchSpecs]:
-        rng = np.random.default_rng(seed=self.random_seed)
+    def generate(
+        self, data_shapes: Sequence[Sequence[int]], separate_channels: bool
+    ) -> list[PatchSpecs]:
+        """_summary_
+
+        Parameters
+        ----------
+        data_shapes : Sequence[Sequence[int]]
+            List of shapes of all data arrays.
+
+        Returns
+        -------
+        list[PatchSpecs]
+            _description_
+        """
         patch_specs: list[PatchSpecs] = []
+
         for data_idx, data_shape in enumerate(data_shapes):
 
             # shape on which data is patched
             data_spatial_shape = data_shape[-len(self.patch_size) :]
+            num_channel = data_shape[1]  # TODO unreliable ?
 
             n_patches = self._n_patches_in_sample(self.patch_size, data_spatial_shape)
+            coords = self._get_coords(
+                data_spatial_shape, num_channel, separate_channels
+            )
             data_patch_specs = [
                 PatchSpecs(
                     data_idx=data_idx,
                     sample_idx=sample_idx,
-                    coords=tuple(
-                        rng.integers(
-                            np.zeros(len(self.patch_size), dtype=int),
-                            np.array(data_spatial_shape) - np.array(self.patch_size),
-                            endpoint=True,
-                        )
-                    ),
+                    coords=coords,
                     patch_size=self.patch_size,
                 )
                 for sample_idx in range(data_shape[0])
@@ -56,6 +68,22 @@ class RandomPatchSpecsGenerator:
             ]
             patch_specs.extend(data_patch_specs)
         return patch_specs
+
+    def _get_coords(self, data_spatial_shape, num_channel, separate_channels=False):
+        rng = np.random.default_rng(seed=self.random_seed)
+        coords = []
+        num_coords = num_channel if separate_channels else 1
+        for _ in range(num_coords):
+            coords.append(
+                tuple(
+                    rng.integers(
+                        np.zeros(len(self.patch_size), dtype=int),
+                        np.array(data_spatial_shape) - np.array(self.patch_size),
+                        endpoint=True,
+                    )
+                )
+            )
+        return coords
 
     # NOTE: enerate and n_patches methods must have matching signatures
     #   as dictated by protocol
