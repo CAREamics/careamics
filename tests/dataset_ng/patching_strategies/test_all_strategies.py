@@ -33,6 +33,7 @@ PatchingStrategyConstr = Callable[
     [Sequence[Sequence[int]], Sequence[int]], PatchingStrategy
 ]
 
+# !!! if new strategies are added they should be tested here !!!
 PATCHING_STRATEGY_CONSTR: tuple[PatchingStrategyConstr, ...] = (
     _create_random_patching_strategy,
     _create_fixed_random_patching_strategy,
