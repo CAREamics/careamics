@@ -2,6 +2,7 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Any, Literal, Union
 
+import numpy as np
 from numpy.typing import DTypeLike, NDArray
 from typing_extensions import Self
 
@@ -21,19 +22,35 @@ class InMemoryImageStack:
         self.data_shape: Sequence[int] = self._data.shape
         self.data_dtype: DTypeLike = self._data.dtype
 
+    def _composite_patch(self, patches: list[NDArray]) -> NDArray:
+        patch = np.stack(patches, axis=0)
+        return patch
+
     def extract_patch(
         self, sample_idx: int, coords: Sequence[int], patch_size: Sequence[int]
     ) -> NDArray:
-        if len(coords) != len(patch_size):
+        # TODO change?
+        if not isinstance(coords, list):
+            coords = [coords]
+        # coords is a list of coordinates for each channel if we need to extract patches
+        # from different spatial locations for each channel
+        if any(len(c) != len(patch_size) for c in coords):
             raise ValueError("Length of coords and extent must match.")
+
         # TODO: test for 2D or 3D?
-        return self._data[
-            (
-                sample_idx,  # type: ignore
-                ...,  # type: ignore
-                *[slice(c, c + e) for c, e in zip(coords, patch_size)],  # type: ignore
+        patches_per_channel = []
+        for channel_idx, coord_pair in enumerate(coords):
+            patches_per_channel.append(
+                self._data[
+                    (
+                        sample_idx,  # type: ignore
+                        channel_idx,  # type: ignore
+                        ...,  # type: ignore
+                        *[slice(c, c + e) for c, e in zip(coord_pair, patch_size)],  # type: ignore
+                    )
+                ]
             )
-        ]
+        return self._composite_patch(patches_per_channel)
 
     @classmethod
     def from_array(cls, data: NDArray, axes: str) -> Self:
