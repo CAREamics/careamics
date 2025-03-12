@@ -99,7 +99,7 @@ class CareamicsDataset(Dataset):
 
         patch_specs = patch_generator.generate(
             data_shapes=self.data_shapes,
-            separate_channels=self.config.patch_extractor_params.from_same_location,
+            collocate_patch_region=self.config.patch_extractor_params.collocate_patch_region,
         )
         return patch_specs
 

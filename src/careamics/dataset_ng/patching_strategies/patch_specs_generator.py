@@ -30,7 +30,7 @@ class RandomPatchSpecsGenerator:
         self.random_seed = random_seed
 
     def generate(
-        self, data_shapes: Sequence[Sequence[int]], separate_channels: bool
+        self, data_shapes: Sequence[Sequence[int]], collocate_patch_region: bool
     ) -> list[PatchSpecs]:
         """_summary_
 
@@ -54,7 +54,7 @@ class RandomPatchSpecsGenerator:
 
             n_patches = self._n_patches_in_sample(self.patch_size, data_spatial_shape)
             coords = self._get_coords(
-                data_spatial_shape, num_channel, separate_channels
+                data_spatial_shape, num_channel, collocate_patch_region
             )
             data_patch_specs = [
                 PatchSpecs(
@@ -69,10 +69,10 @@ class RandomPatchSpecsGenerator:
             patch_specs.extend(data_patch_specs)
         return patch_specs
 
-    def _get_coords(self, data_spatial_shape, num_channel, separate_channels=False):
+    def _get_coords(self, data_spatial_shape, num_channel, collocate_patch_region=True):
         rng = np.random.default_rng(seed=self.random_seed)
         coords = []
-        num_coords = num_channel if separate_channels else 1
+        num_coords = num_channel if collocate_patch_region else 1
         for _ in range(num_coords):
             coords.append(
                 tuple(

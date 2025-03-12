@@ -17,7 +17,7 @@ class PatchExtractorConfig(BaseModel):
     multiscale_count: int = Field(default=1)
     """Number of lateral context levels."""
 
-    from_same_location: bool = Field(default=True)
+    collocate_patch_region: bool = Field(default=True)
     """Whether to extract patches from same spatial location for all channels."""
 
     artificial_input: bool = Field(default=False)
