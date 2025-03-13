@@ -23,7 +23,7 @@ class InMemoryImageStack:
         self.data_dtype: DTypeLike = self._data.dtype
         self.collocate_patch_region: bool = False  # TODO subclass splits ?
         self.uniform_mixing: bool = True
-        # self.lateral_context: int = 0
+        self.lateral_context: int = 2  # TODO check default
 
     def _composite_patch(self, patches: Sequence[NDArray]) -> NDArray:
         if self.uniform_mixing:
@@ -40,6 +40,42 @@ class InMemoryImageStack:
 
         return patch
 
+    def _get_patches(
+        self, sample_idx: int, coords: Sequence[int], patch_size: Sequence[int]
+    ) -> Sequence[NDArray]:
+        patches_per_channel = []
+        for channel_idx, coord_pair in enumerate(coords):
+            patch = self._data[
+                    (
+                        sample_idx,  # type: ignore
+                        channel_idx,  # type: ignore
+                        ...,  # type: ignore
+                        *[slice(c, c + e) for c, e in zip(coord_pair, patch_size)],  # type: ignore
+                    )
+                ]
+            if not all(p == r for p, r in zip(patch.shape, patch_size)):
+                continue # TODO add padding
+            patches_per_channel.append(patch)
+        return self._composite_patch(patches_per_channel)
+
+    def _get_lc_patches(
+        self, sample_idx: int, coords: Sequence[int], patch_size: Sequence[int]
+    ) -> Sequence[NDArray]:
+        patches_per_hierarchy_level = []
+        for context_level in range(1, self.lateral_context + 1):
+            lc_coords = [
+                (c - context_level * p // 2, e - context_level * p // 2)
+                for (c, e), p in zip(coords, patch_size)
+            ]
+            lc_patch_size = [dim * context_level for dim in patch_size]
+            patches_per_hierarchy_level.append(
+                self._get_patches(
+                    sample_idx=sample_idx, coords=lc_coords, patch_size=lc_patch_size
+                )
+            )
+            print([p.shape for p in patches_per_hierarchy_level])
+        return np.stack(patches_per_hierarchy_level)
+
     def extract_patch(
         self,
         sample_idx: int,
@@ -55,20 +91,16 @@ class InMemoryImageStack:
             raise ValueError("Length of coords and extent must match.")
 
         # TODO: test for 2D or 3D?
-        patches_per_channel = []
-        for channel_idx, coord_pair in enumerate(coords):
-            patches_per_channel.append(
-                self._data[
-                    (
-                        sample_idx,  # type: ignore
-                        channel_idx,  # type: ignore
-                        ...,  # type: ignore
-                        *[slice(c, c + e) for c, e in zip(coord_pair, patch_size)],  # type: ignore
-                    )
-                ]
-            )
+        if self.lateral_context > 1:
+            patches = self._get_lc_patches(
+                sample_idx=sample_idx, coords=coords, patch_size=patch_size
+            )  # (lc, h, w)
+        else:
+            patches = self._get_patches(
+                sample_idx=sample_idx, coords=coords, patch_size=patch_size
+            )  # (1, h, w)
 
-        return self._composite_patch(patches_per_channel)
+        return patches
 
     @classmethod
     def from_array(cls, data: NDArray, axes: str) -> Self:
