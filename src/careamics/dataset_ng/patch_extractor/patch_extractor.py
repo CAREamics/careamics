@@ -110,15 +110,3 @@ class PatchExtractor:
     @property
     def shape(self):
         return [stack.data_shape for stack in self.image_stacks]
-
-    # # TODO temporary
-    # patch_extractors = []
-    # if not data_config.patch_extractor_params.from_same_location:
-    #     patch_extractors = [
-    #         constructor(source=data, **constructor_kwargs)
-    #         for channel_idx in data[0].shape[0] # TODO better way to get channel ?
-    #     ]
-    # else:
-    #     patch_extractor: PatchExtractor = constructor(source=data, **constructor_kwargs)
-    #     patch_extractors = [patch_extractor]
-    # return patch_extractors
