@@ -87,7 +87,7 @@ class RandomPatchSpecsGenerator:
 
 # TODO: this is an unfinished prototype based on current tiling implementation
 #  not guaranteed to work!
-class SequentialPatchSpecsGenerator:
+class TiledPatchSpecsGenerator:
     def __init__(self, patch_size: Sequence[int], overlap: Optional[list[int]] = None):
         self.patch_size = patch_size
         if overlap is None:

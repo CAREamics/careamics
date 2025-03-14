@@ -19,7 +19,7 @@ from careamics.dataset_ng.patch_extractor import (
 from careamics.dataset_ng.patching_strategies import (
     PatchSpecsGenerator,
     RandomPatchSpecsGenerator,
-    SequentialPatchSpecsGenerator,
+    TiledPatchSpecsGenerator,
 )
 from careamics.transforms import Compose
 
@@ -28,7 +28,7 @@ P = ParamSpec("P")
 
 class ImageRegionData(NamedTuple):
     data: NDArray
-    filename: Path | Literal["array"]
+    source: Path | Literal["array"]
     data_shape: Sequence[int]
     dtype: str  # dtype should be str for collate
     axes: str
@@ -89,7 +89,7 @@ class CareamicsDataset(Dataset):
                 raise ValueError(
                     "InferenceConfig must specify tile_size and tile_overlap"
                 )
-            patch_generator = SequentialPatchSpecsGenerator(
+            patch_generator = TiledPatchSpecsGenerator(
                 patch_size=self.config.tile_size, overlap=self.config.tile_overlap
             )
         else:
@@ -110,12 +110,12 @@ class CareamicsDataset(Dataset):
         # TODO: add running stats
         # Currently assume that stats are provided in the configuration
         input_stats = Stats(self.config.image_means, self.config.image_stds)
-        target_means = getattr(self.config, "target_means", None)
-        target_stds = getattr(self.config, "target_stds", None)
-        if target_means is not None and target_stds is not None:
-            target_stats = Stats(target_means, target_stds)
-        else:
-            target_stats = None
+        target_stats = None
+        if isinstance(self.config, DataConfig):
+            target_means = self.config.target_means
+            target_stds = self.config.target_stds
+            if target_means is not None and target_stds is not None:
+                target_stats = Stats(target_means, target_stds)
         return input_stats, target_stats
 
     def __len__(self):
@@ -127,7 +127,7 @@ class CareamicsDataset(Dataset):
         data_idx = patch_spec["data_idx"]
         return ImageRegionData(
             data=patch,
-            filename=extractor.image_stacks[data_idx].source,
+            source=extractor.image_stacks[data_idx].source,
             dtype=str(extractor.image_stacks[data_idx].data_dtype),
             data_shape=extractor.image_stacks[data_idx].data_shape,
             # TODO: should it be axes of the original image instead?

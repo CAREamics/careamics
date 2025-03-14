@@ -1,11 +1,11 @@
 __all__ = [
     "PatchSpecsGenerator",
     "RandomPatchSpecsGenerator",
-    "SequentialPatchSpecsGenerator",
+    "TiledPatchSpecsGenerator",
 ]
 
 from .patch_specs_generator import (
     PatchSpecsGenerator,
     RandomPatchSpecsGenerator,
-    SequentialPatchSpecsGenerator,
+    TiledPatchSpecsGenerator,
 )
