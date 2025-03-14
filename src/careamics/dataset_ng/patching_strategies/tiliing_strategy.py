@@ -1,3 +1,4 @@
+import itertools
 from collections.abc import Sequence
 
 from .patching_strategy_types import TileSpecs
@@ -26,44 +27,39 @@ class TilingStrategy:
 
     def _generate_specs(self) -> list[TileSpecs]:
         tile_specs: list[TileSpecs] = []
-        for i, data_shape in enumerate(self.data_shapes):
+        for data_idx, data_shape in enumerate(self.data_shapes):
             spatial_shape = data_shape[2:]
-            axis_specs: list[dict[str, list[int]]] = []
+            axis_specs: list[tuple[list[int], list[int], list[int], list[int]]] = []
             for axis_idx, axis_size in enumerate(spatial_shape):
                 axis_specs.append(
                     self._compute_1d_coords(
                         axis_size, self.tile_size[axis_idx], self.overlaps[axis_idx]
                     )
                 )
-            n_specs = len(axis_specs[0]["coords"])
+            all_coords, all_stitch_coords, all_crop_coords, all_crop_size = zip(
+                *axis_specs
+            )
             for sample_idx in range(data_shape[0]):
-                collated: list[TileSpecs] = [
-                    {
-                        # PatchSpecs
-                        "data_idx": i,
-                        "sample_idx": sample_idx,
-                        "coords": tuple(
-                            axis_specs[k]["coords"][j] for k in range(len(axis_specs))
-                        ),
-                        "patch_size": self.tile_size,
-                        # TileSpecs additional fields
-                        "data_shape": data_shape,
-                        "crop_coords": tuple(
-                            axis_specs[k]["crop_coords"][j]
-                            for k in range(len(axis_specs))
-                        ),
-                        "crop_size": tuple(
-                            axis_specs[k]["crop_size"][j]
-                            for k in range(len(axis_specs))
-                        ),
-                        "stitch_coords": tuple(
-                            axis_specs[k]["stitch_coords"][j]
-                            for k in range(len(axis_specs))
-                        ),
-                    }
-                    for j in range(n_specs)
-                ]
-                tile_specs.extend(collated)
+                for coords, stitch_coords, crop_coords, crop_size in zip(
+                    itertools.product(*all_coords),
+                    itertools.product(*all_stitch_coords),
+                    itertools.product(*all_crop_coords),
+                    itertools.product(*all_crop_size),
+                ):
+                    tile_specs.append(
+                        {
+                            # PatchSpecs
+                            "data_idx": data_idx,
+                            "sample_idx": sample_idx,
+                            "coords": coords,
+                            "patch_size": self.tile_size,
+                            # TileSpecs additional fields
+                            "data_shape": data_shape,
+                            "crop_coords": crop_coords,
+                            "crop_size": crop_size,
+                            "stitch_coords": stitch_coords,
+                        }
+                    )
         return tile_specs
 
     @staticmethod
@@ -75,25 +71,29 @@ class TilingStrategy:
 
         step = tile_size - overlap
         for i in range(0, max(1, axis_size - overlap), step):
-            if i + tile_size < axis_size:
+            if i == 0:
                 coords.append(i)
-                crop_coords.append(overlap // 2 if i > 0 else 0)
+                crop_coords.append(0)
+                stitch_coords.append(0)
+                crop_size.append(tile_size - overlap // 2)
+            elif (i > 0) and (i + tile_size < axis_size):
+                coords.append(i)
+                crop_coords.append(overlap // 2)
                 stitch_coords.append(coords[-1] + crop_coords[-1])
-                crop_size.append(
-                    tile_size - overlap if i > 0 else tile_size - overlap // 2
-                )
+                crop_size.append(tile_size - overlap)
             else:
                 previous_crop_size = crop_size[-1] if crop_size else 1
                 previous_stitch_coord = stitch_coords[-1] if stitch_coords else 0
                 previous_tile_end = previous_stitch_coord + previous_crop_size
-                coords.append(max(0, axis_size - tile_size - 1))
+
+                coords.append(max(0, axis_size - tile_size))
                 stitch_coords.append(previous_tile_end)
                 crop_coords.append(stitch_coords[-1] - coords[-1])
                 crop_size.append(axis_size - stitch_coords[-1])
 
-        return {
-            "coords": coords,
-            "stitch_coords": stitch_coords,
-            "crop_coords": crop_coords,
-            "crop_size": crop_size,
-        }
+        return (
+            coords,
+            stitch_coords,
+            crop_coords,
+            crop_size,
+        )
