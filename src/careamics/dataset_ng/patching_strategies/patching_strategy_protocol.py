@@ -28,6 +28,13 @@ class PatchSpecs(TypedDict):
     patch_size: Sequence[int]
 
 
+class TileSpecs(PatchSpecs):
+
+    crop_coords: Sequence[int]
+    crop_size: Sequence[int]
+    stitch_coords: Sequence[int]
+
+
 class PatchingStrategy(Protocol):
     """
     An interface for patching strategies.
