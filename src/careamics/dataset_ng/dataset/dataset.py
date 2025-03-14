@@ -32,12 +32,9 @@ class ImageRegionData(NamedTuple):
     data_shape: Sequence[int]
     dtype: str  # dtype should be str for collate
     axes: str
-    # TODO: what to do in case of inference on the whole image?
-    #  patch spec of whole image or none?
     region_spec: PatchSpecs
 
 
-# TODO: how to handle custom data types?
 InputType = Sequence[np.ndarray] | Sequence[Path]
 
 
@@ -82,8 +79,6 @@ class CareamicsDataset(Dataset):
 
     def _initialize_patch_specs(self) -> list[PatchSpecs]:
         if isinstance(self.config, DataConfig):
-            # TODO: how to fix the random seed properly?
-            #  how to change it between epochs?
             patch_generator: PatchSpecsGenerator = RandomPatchSpecsGenerator(
                 patch_size=self.config.patch_size,
                 random_seed=getattr(self.config, "random_seed", 42),
