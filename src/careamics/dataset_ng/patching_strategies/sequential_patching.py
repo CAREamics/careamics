@@ -4,7 +4,7 @@ from .patching_strategy_types import PatchSpecs
 class SequentialPatchingStrategy:
 
     @property
-    def n_patches(self):
+    def n_patches(self) -> int:
         raise NotImplementedError("Sequential patching is not implemented yet")
 
     def get_patch_spec(self, index: int) -> PatchSpecs:

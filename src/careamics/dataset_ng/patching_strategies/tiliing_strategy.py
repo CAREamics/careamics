@@ -39,12 +39,15 @@ class TilingStrategy:
             for sample_idx in range(data_shape[0]):
                 collated: list[TileSpecs] = [
                     {
+                        # PatchSpecs
                         "data_idx": i,
                         "sample_idx": sample_idx,
                         "coords": tuple(
                             axis_specs[k]["coords"][j] for k in range(len(axis_specs))
                         ),
                         "patch_size": self.tile_size,
+                        # TileSpecs additional fields
+                        "data_shape": data_shape,
                         "crop_coords": tuple(
                             axis_specs[k]["crop_coords"][j]
                             for k in range(len(axis_specs))
