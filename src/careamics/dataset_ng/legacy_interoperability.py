@@ -1,3 +1,8 @@
+"""
+A module for utility functions that alloq the new dataset ouptuts to work with previous
+code until it is updated.
+"""
+
 import numpy as np
 from numpy.typing import NDArray
 
@@ -8,6 +13,19 @@ from .patching_strategies import TileSpecs
 
 # when #420 is merged this will actually take a list of ImageRegion
 def tilespecs_to_tileinfos(tile_specs: list[TileSpecs]) -> list[TileInformation]:
+    """
+    Converts a series of `TileSpecs` dictionaries to `TileInformation` pydantic class.
+
+    Parameters
+    ----------
+    tile_specs : list of TileSpecs
+        A list of `TileSpecs` to be converted to a list of `TileInformation`.
+
+    Returns
+    -------
+    list of TileInformation
+        The converted tile information.
+    """
 
     tile_infos: list[TileInformation] = []
 
@@ -15,7 +33,10 @@ def tilespecs_to_tileinfos(tile_specs: list[TileSpecs]) -> list[TileInformation]
         [tile_spec["data_idx"] for tile_spec in tile_specs], dtype=int
     )
     unique_data_indices = np.unique(data_indices)
+    # data_idx denotes which image stack a patch belongs to
+    # sepatate TileSpecs by image_stack
     for data_idx in unique_data_indices:
+        # collect all TileSpecs
         data_tile_specs: list[TileSpecs] = list(
             filter(lambda tile_spec: tile_spec["data_idx"] == data_idx, tile_specs)
         )
@@ -32,7 +53,6 @@ def tilespecs_to_tileinfos(tile_specs: list[TileSpecs]) -> list[TileInformation]
         last_indices = len(sample_indices) - 1 - unique_indices
 
         # convert each tilespec to tile_info
-
         for i, tile_spec in enumerate(data_tile_specs):
             last_tile = i in last_indices
             tile_info = _tilespec_to_tileinfo(tile_spec, last_tile)
@@ -42,6 +62,22 @@ def tilespecs_to_tileinfos(tile_specs: list[TileSpecs]) -> list[TileInformation]
 
 
 def _tilespec_to_tileinfo(tile_spec: TileSpecs, last_tile: bool) -> TileInformation:
+    """
+    Convert a single `TileSpec` to a `TileInfo`. Whether it is the last tile needs to
+    be supplied seperately.
+
+    Parameters
+    ----------
+    tile_spec : TileSpecs
+        A tile spec dictionary.
+    last_tile : bool
+        Whether a tile is the last tile in a sequence, for stitching.
+
+    Returns
+    -------
+    TileInformation
+        A tile information object.
+    """
     overlap_crop_coords = tuple(
         (
             tile_spec["crop_coords"][i],
