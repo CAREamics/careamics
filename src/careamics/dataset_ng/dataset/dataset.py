@@ -1,6 +1,6 @@
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Literal, NamedTuple, Optional
+from typing import Literal, NamedTuple, Optional, Union
 
 import numpy as np
 from numpy.typing import NDArray
@@ -28,7 +28,7 @@ P = ParamSpec("P")
 
 class ImageRegionData(NamedTuple):
     data: NDArray
-    source: Path | Literal["array"]
+    source: Union[Path, Literal["array"]]
     data_shape: Sequence[int]
     dtype: str  # dtype should be str for collate
     axes: str
