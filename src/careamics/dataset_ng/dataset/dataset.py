@@ -35,13 +35,13 @@ class ImageRegionData(NamedTuple):
     region_spec: PatchSpecs
 
 
-InputType = Sequence[np.ndarray] | Sequence[Path]
+InputType = Union[Sequence[np.ndarray], Sequence[Path]]
 
 
 class CareamicsDataset(Dataset):
     def __init__(
         self,
-        data_config: DataConfig | InferenceConfig,
+        data_config: Union[DataConfig, InferenceConfig],
         inputs: InputType,
         targets: Optional[InputType] = None,
         image_stack_loader: Optional[ImageStackLoader[P]] = None,
@@ -106,7 +106,7 @@ class CareamicsDataset(Dataset):
         # TODO: add TTA
         return None
 
-    def _initialize_statistics(self) -> tuple[Stats, Stats | None]:
+    def _initialize_statistics(self) -> tuple[Stats, Optional[Stats]]:
         # TODO: add running stats
         # Currently assume that stats are provided in the configuration
         input_stats = Stats(self.config.image_means, self.config.image_stds)
@@ -135,7 +135,9 @@ class CareamicsDataset(Dataset):
             region_spec=patch_spec,
         )
 
-    def __getitem__(self, index: int) -> tuple[ImageRegionData, ImageRegionData | None]:
+    def __getitem__(
+        self, index: int
+    ) -> tuple[ImageRegionData, Optional[ImageRegionData]]:
         patch_spec = self.patch_specs[index]
         input_patch = self.input_extractor.extract_patch(**patch_spec)
 
