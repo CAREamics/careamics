@@ -1,10 +1,13 @@
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Callable, Literal, NamedTuple, Optional
+from typing import Literal, NamedTuple, Optional
 
 import numpy as np
+from config.support import SupportedData
 from numpy._typing import NDArray
+from patch_extractor import ImageStackLoader
 from torch.utils.data import Dataset
+from typing_extensions import ParamSpec
 
 from careamics.config import DataConfig, InferenceConfig
 from careamics.dataset.patching.patching import Stats
@@ -19,6 +22,8 @@ from careamics.dataset_ng.patching_strategies import (
     SequentialPatchSpecsGenerator,
 )
 from careamics.transforms import Compose
+
+P = ParamSpec("P")
 
 
 class ImageRegionData(NamedTuple):
@@ -37,24 +42,34 @@ InputType = Sequence[np.ndarray] | Sequence[Path]
 
 
 class CareamicsDataset(Dataset):
-    # TODO: dataset train / val splitting, should it be in an upper layer?
-    # TODO: if validation is initialized separately, how to disable transforms?
-    # TODO: create file description
     def __init__(
         self,
         data_config: DataConfig | InferenceConfig,
         inputs: InputType,
         targets: Optional[InputType] = None,
-        read_func: Optional[Callable] = None,
+        image_stack_loader: Optional[ImageStackLoader[P]] = None,
+        *args: P.args,
+        **kwargs: P.kwargs,
     ):
         self.config = data_config
 
+        data_type_enum = SupportedData(self.config.data_type)
         self.input_extractor = create_patch_extractor(
-            self.config, data=inputs, read_func=read_func
+            inputs,
+            self.config.axes,
+            data_type_enum,
+            image_stack_loader,
+            *args,
+            **kwargs,
         )
         if targets is not None:
             self.target_extractor: Optional[PatchExtractor] = create_patch_extractor(
-                self.config, data=targets, read_func=read_func
+                targets,
+                self.config.axes,
+                data_type_enum,
+                image_stack_loader,
+                *args,
+                **kwargs,
             )
         else:
             self.target_extractor = None
