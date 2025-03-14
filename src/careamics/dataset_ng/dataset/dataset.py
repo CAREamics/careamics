@@ -3,15 +3,15 @@ from pathlib import Path
 from typing import Literal, NamedTuple, Optional
 
 import numpy as np
-from config.support import SupportedData
-from numpy._typing import NDArray
-from patch_extractor import ImageStackLoader
+from numpy.typing import NDArray
 from torch.utils.data import Dataset
 from typing_extensions import ParamSpec
 
 from careamics.config import DataConfig, InferenceConfig
+from careamics.config.support import SupportedData
 from careamics.dataset.patching.patching import Stats
 from careamics.dataset_ng.patch_extractor import (
+    ImageStackLoader,
     PatchExtractor,
     PatchSpecs,
     create_patch_extractor,
