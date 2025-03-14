@@ -1,9 +1,10 @@
 import itertools
 from collections.abc import Sequence
-from typing import Optional, ParamSpec, Protocol
+from typing import Optional, Protocol
 
 import numpy as np
 from numpy.typing import NDArray
+from typing_extensions import ParamSpec
 
 from ..patch_extractor import PatchSpecs
 
