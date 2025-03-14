@@ -57,8 +57,8 @@ def test_from_tiff(data_shape, patch_size, expected_dataset_len):
     example_target = rng.random(data_shape)
 
     with (
-        tempfile.NamedTemporaryFile(suffix=".tiff") as input_file,
-        tempfile.NamedTemporaryFile(suffix=".tiff") as target_file,
+        tempfile.NamedTemporaryFile(suffix=".tiff", delete=False) as input_file,
+        tempfile.NamedTemporaryFile(suffix=".tiff", delete=False) as target_file,
     ):
         tifffile.imwrite(input_file.name, example_input)
         tifffile.imwrite(target_file.name, example_target)
