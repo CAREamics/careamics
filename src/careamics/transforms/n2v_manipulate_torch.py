@@ -79,20 +79,16 @@ class N2VManipulateTorch:
         # PyTorch random generator
         # TODO refactor into careamics.utils.torch_utils.get_device
         if torch.cuda.is_available():
-            device = "cuda"
+            self.device = "cuda"
         elif torch.backends.mps.is_available() and platform.processor() in (
             "arm",
             "arm64",
         ):
-            device = "mps"
+            self.device = "mps"
         else:
-            device = "cpu"
+            self.device = "cpu"
 
-        self.rng = (
-            torch.Generator(device=device).manual_seed(seed)
-            if seed is not None
-            else torch.Generator(device=device)
-        )
+        self.seed = seed
 
     def __call__(
         self, batch: torch.Tensor, *args: Any, **kwargs: Any
@@ -115,6 +111,12 @@ class N2VManipulateTorch:
         """
         masked = torch.zeros_like(batch)
         mask = torch.zeros_like(batch, dtype=torch.uint8)
+
+        self.rng = (
+            torch.Generator(device=self.device).manual_seed(self.seed)
+            if self.seed
+            else torch.Generator(device=batch.device)  # for test to run on cpu
+        )
 
         if self.strategy == SupportedPixelManipulation.UNIFORM:
             # Iterate over the channels to apply manipulation separately
