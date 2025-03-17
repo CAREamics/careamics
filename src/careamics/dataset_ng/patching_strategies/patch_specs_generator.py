@@ -3,24 +3,36 @@ from collections.abc import Sequence
 from typing import Optional
 
 import numpy as np
-from numpy.typing import NDArray
 from typing_extensions import ParamSpec
 
 from .patching_strategy_types import PatchSpecs
 
 P = ParamSpec("P")
 
-# TODO: create as SequentialPatchSpecsGenerator
-
 
 # TODO: this is an unfinished prototype based on current tiling implementation
 #  not guaranteed to work!
-class TiledPatchSpecsGenerator:
-    def __init__(self, patch_size: Sequence[int], overlap: Optional[list[int]] = None):
+class SequentialPatchingStrategy:
+    def __init__(
+        self,
+        data_shapes: Sequence[Sequence[int]],
+        patch_size: Sequence[int],
+        overlap: Optional[list[int]] = None,
+    ):
+        self.data_shapes = data_shapes
         self.patch_size = patch_size
         if overlap is None:
             overlap = [0] * len(patch_size)
         self.overlap = np.asarray(overlap)
+
+        self.patch_specs: list[PatchSpecs] = self._initialize_patch_specs()
+
+    @property
+    def n_patches(self) -> int:
+        return len(self.patch_specs)
+
+    def get_patch_spec(self, index: int) -> PatchSpecs:
+        return self.patch_specs[index]
 
     def _compute_coords_1d(
         self, patch_size: int, spatial_shape: int, overlap: int
@@ -53,9 +65,9 @@ class TiledPatchSpecsGenerator:
         )
         return int(np.prod(steps))
 
-    def generate(self, data_shapes: Sequence[Sequence[int]]) -> list[PatchSpecs]:
+    def _initialize_patch_specs(self) -> list[PatchSpecs]:
         patch_specs: list[PatchSpecs] = []
-        for data_idx, data_shape in enumerate(data_shapes):
+        for data_idx, data_shape in enumerate(self.data_shapes):
 
             data_spatial_shape = data_shape[-len(self.patch_size) :]
             coords_list = [
@@ -75,17 +87,3 @@ class TiledPatchSpecsGenerator:
                         )
                     )
         return patch_specs
-
-    def n_patches(self, data_shapes: Sequence[Sequence[int]]) -> int:
-        n_sample_patches: NDArray[np.int_] = np.array(
-            [
-                self._n_patches_in_sample(
-                    self.patch_size, data_shape[-len(self.patch_size) :]
-                )
-                for data_shape in data_shapes
-            ],
-            dtype=int,
-        )
-        n_samples = np.array([data_shape[0] for data_shape in data_shapes], dtype=int)
-        n_data_patches = n_samples * n_sample_patches
-        return int(n_data_patches.sum())
