@@ -34,3 +34,7 @@ class PatchExtractor:
 
     def extract_patches(self, patch_specs: Sequence[PatchSpecs]) -> list[NDArray]:
         return [self.extract_patch(**patch_spec) for patch_spec in patch_specs]
+
+    @property
+    def shape(self):
+        return [stack.data_shape for stack in self.image_stacks]
