@@ -17,7 +17,7 @@ class SequentialPatchingStrategy:
         self,
         data_shapes: Sequence[Sequence[int]],
         patch_size: Sequence[int],
-        overlap: Optional[list[int]] = None,
+        overlap: Optional[Sequence[int]] = None,
     ):
         self.data_shapes = data_shapes
         self.patch_size = patch_size
@@ -50,21 +50,6 @@ class SequentialPatchingStrategy:
 
         return crop_coords
 
-    def _n_patches_in_sample(
-        self, patch_size: Sequence[int], spatial_shape: Sequence[int]
-    ) -> int:
-        """Calculate number of patches per sample."""
-        if len(patch_size) != len(spatial_shape):
-            raise ValueError(
-                "Number of patch dimensions do not match spatial dimensions."
-            )
-        steps = np.ceil(
-            (np.array(spatial_shape) - np.array(patch_size))
-            / (patch_size - self.overlap)
-            + 1
-        )
-        return int(np.prod(steps))
-
     def _initialize_patch_specs(self) -> list[PatchSpecs]:
         patch_specs: list[PatchSpecs] = []
         for data_idx, data_shape in enumerate(self.data_shapes):
@@ -82,7 +67,7 @@ class SequentialPatchingStrategy:
                         PatchSpecs(
                             data_idx=data_idx,
                             sample_idx=sample_idx,
-                            coords=tuple([coord[0] for coord in crop_coord]),
+                            coords=tuple(coord[0] for coord in crop_coord),
                             patch_size=self.patch_size,
                         )
                     )

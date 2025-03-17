@@ -8,6 +8,7 @@ from careamics.dataset_ng.patching_strategies import (
     FixedRandomPatchingStrategy,
     PatchingStrategy,
     RandomPatchingStrategy,
+    SequentialPatchingStrategy,
 )
 
 
@@ -29,6 +30,13 @@ def _create_fixed_random_patching_strategy(
     )
 
 
+def _create_sequential_patching_strategy(
+    data_shapes: Sequence[Sequence[int]], patch_size: Sequence[int]
+) -> SequentialPatchingStrategy:
+    overlap = tuple(2 for _ in patch_size)
+    return SequentialPatchingStrategy(data_shapes, patch_size, overlap)
+
+
 PatchingStrategyConstr = Callable[
     [Sequence[Sequence[int]], Sequence[int]], PatchingStrategy
 ]
@@ -37,6 +45,7 @@ PatchingStrategyConstr = Callable[
 PATCHING_STRATEGY_CONSTR: tuple[PatchingStrategyConstr, ...] = (
     _create_random_patching_strategy,
     _create_fixed_random_patching_strategy,
+    _create_sequential_patching_strategy,
 )
 
 
@@ -68,4 +77,4 @@ def test_get_all_patch_specs(
         spatial_shape = data_shape[2:]
 
         assert (0 <= coords).all()
-        assert (coords + patch_size_ < spatial_shape).all()
+        assert (coords + patch_size_ <= spatial_shape).all()
