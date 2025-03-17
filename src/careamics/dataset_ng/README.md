@@ -33,3 +33,67 @@ In other words high level modules that provide complex logic should be easily re
 
 ## Dataset Component overview
 
+```mermaid
+---
+title: CAREamicsDataset
+---
+classDiagram
+    class CAREamicsDataset{
+        + PatchExtractor patch_extractor
+        + \_\_getitem\_\_(int index) NDArray
+    }
+    class PatchExtractor{
+        + list~ImageStack~ image_stacks
+        + extract_patch(data_idx, sample_idx, coords, patch_size) NDArray
+    }
+
+    class PatchingStrategy{
+        <<interface>>
+    }
+    class RandomPatchingStrategy{
+
+    }
+    class FixedRandomPatchingStrategy{
+
+    }
+    class SequentialPatchingStrategy{
+
+    }
+    class TilingStrategy{
+
+    }
+
+    class ImageStack{
+        <<interface>>
+        + tuple~int~ data_shape
+        + extract_patch(sample_idx, coords, patch_size) NDArray
+    }
+    class InMemoryImageStack {
+        + data_shape
+        + extract_patch(...)
+    }
+    class ZarrImageStack {
+        + data_shape
+        + extract_patch(...)
+    }
+    
+    
+    CAREamicsDataset --* PatchExtractor: Is composed of
+    CAREamicsDataset --* PatchingStrategy: Is composed of
+    PatchExtractor --o ImageStack: Aggregates
+    ImageStack <|-- InMemoryImageStack: Implements
+    ImageStack <|-- ZarrImageStack: Implements
+    PatchingStrategy <|-- RandomPatchingStrategy: Implements
+    PatchingStrategy <|-- FixedRandomPatchingStrategy: Implements
+    PatchingStrategy <|-- SequentialPatchingStrategy: Implements
+    PatchingStrategy <|-- TilingStrategy: Implements
+
+```
+
+### `ImageStack`
+
+### `PatchExtractor`
+
+### `PatchingStrategy`
+
+### `Transforms`
