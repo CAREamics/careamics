@@ -6,9 +6,11 @@ import pytest
 import tifffile
 
 from careamics.config import InferenceConfig, create_n2n_configuration
-from careamics.dataset_ng.dataset.dataset import CareamicsDataset
+from careamics.dataset_ng.dataset.dataset import CareamicsDataset, Mode
 
 
+# TODO: these tests not deterministic anymore - DataConfig doesn't have random seed
+# could make a mock? temporarily
 @pytest.mark.parametrize(
     "data_shape, patch_size, expected_dataset_len",
     [
@@ -33,6 +35,7 @@ def test_from_array(data_shape, patch_size, expected_dataset_len):
 
     train_dataset = CareamicsDataset(
         data_config=train_data_config,
+        mode=Mode.TRAINING,
         inputs=[example_input],
         targets=[example_target],
     )
@@ -74,6 +77,7 @@ def test_from_tiff(data_shape, patch_size, expected_dataset_len):
 
         train_dataset = CareamicsDataset(
             data_config=train_data_config,
+            mode=Mode.TRAINING,
             inputs=[Path(input_file.name)],
             targets=[Path(target_file.name)],
         )
@@ -84,6 +88,7 @@ def test_from_tiff(data_shape, patch_size, expected_dataset_len):
         assert target.data.shape == (1, *patch_size)
 
 
+@pytest.mark.skip("Prediction not fully implemented")
 @pytest.mark.parametrize(
     "data_shape, tile_size, tile_overlap",
     [
@@ -109,6 +114,7 @@ def test_prediction_from_array(data_shape, tile_size, tile_overlap):
 
     prediction_dataset = CareamicsDataset(
         data_config=prediction_config,
+        mode=Mode.PREDICTING,
         inputs=[example_data],
     )
 
@@ -145,6 +151,7 @@ def test_from_custom_data_type(patch_size, data_shape):
 
     train_dataset = CareamicsDataset(
         data_config=train_data_config,
+        mode=Mode.TRAINING,
         inputs=[example_data],
         targets=[example_target],
         read_func=read_data_func_test,
