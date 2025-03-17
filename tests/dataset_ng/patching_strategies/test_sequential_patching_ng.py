@@ -48,7 +48,7 @@ def test_whole_image_covered(
             for c, ps in zip(patch_spec["coords"], patch_spec["patch_size"])
         )
         # set to true where the patches would be sampled from
-        tracking_array[patch_spec["sample_idx"], :, *spatial_slice] = True
+        tracking_array[(patch_spec["sample_idx"], slice(None), *spatial_slice)] = True
 
     for tracking_array in tracking_arrays:
         # if the patch specs covered all the image all the values should be true
