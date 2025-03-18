@@ -6,6 +6,6 @@ __all__ = [
     "SequentialPatchingStrategy",
 ]
 
-from .patching_strategy_types import PatchingStrategy, PatchSpecs
+from .patching_strategy_protocol import PatchingStrategy, PatchSpecs
 from .random_patching import FixedRandomPatchingStrategy, RandomPatchingStrategy
 from .sequential_patching import SequentialPatchingStrategy

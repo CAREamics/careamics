@@ -5,7 +5,7 @@ from typing import Optional
 
 import numpy as np
 
-from .patching_strategy_types import PatchSpecs
+from .patching_strategy_protocol import PatchSpecs
 
 
 class RandomPatchingStrategy:
