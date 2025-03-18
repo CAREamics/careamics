@@ -13,6 +13,7 @@ P = ParamSpec("P")
 # TODO: this is an unfinished prototype based on current tiling implementation
 #  not guaranteed to work!
 class SequentialPatchingStrategy:
+    # TODO: docs
     def __init__(
         self,
         data_shapes: Sequence[Sequence[int]],

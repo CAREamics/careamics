@@ -10,7 +10,8 @@ from .patching_strategy_types import PatchSpecs
 
 class RandomPatchingStrategy:
     """
-    A patching strategy for sampling random patches.
+    A patching strategy for sampling random patches, it implements the `PatchinStrategy`
+    `Protocol`.
 
     The output of `get_patch_spec` will be random, i.e. if the same index is given
     twice the two outputs can be different.
@@ -22,7 +23,8 @@ class RandomPatchingStrategy:
     the returned `PatchSpecs`, but the `"coords"` will be random.
 
     The number of patches in each sample is based on the number of patches that would
-    fit if they were sampled sequentially.
+    fit if they were sampled sequentially, non-overlapping, and covering the entire
+    array.
     """
 
     def __init__(
@@ -43,7 +45,7 @@ class RandomPatchingStrategy:
             The size of the patch. The sequence will have length 2 or 3, for 2D and 3D
             data respectively.
         seed : int, optional
-            An optional seed to ensure the reproducibility of the random pathces.
+            An optional seed to ensure the reproducibility of the random patches.
         """
         self.rng = np.random.default_rng(seed=seed)
         self.patch_size = patch_size
@@ -87,7 +89,7 @@ class RandomPatchingStrategy:
         if index >= self.n_patches:
             raise IndexError(
                 f"Index {index} out of bounds for RandomPatchingStrategy with number "
-                f"of patches, {self.n_patches}"
+                f"of patches {self.n_patches}"
             )
         # digitize returns the bin that `index` belongs to
         data_index = np.digitize(index, bins=self.image_stack_index_bins)
@@ -156,7 +158,8 @@ class RandomPatchingStrategy:
 
 class FixedRandomPatchingStrategy:
     """
-    A patching strategy for sampling random patches.
+    A patching strategy for sampling random patches it implements the `PatchinStrategy`
+    `Protocol`.
 
     The output of `get_patch_spec` will be deterministic, i.e. if the same index is
     given twice the two outputs will be the same.
@@ -182,7 +185,7 @@ class FixedRandomPatchingStrategy:
             The size of the patch. The sequence will have length 2 or 3, for 2D and 3D
             data respectively.
         seed : int, optional
-            An optional seed to ensure the reproducibility of the random pathces.
+            An optional seed to ensure the reproducibility of the random patches.
         """
         self.rng = np.random.default_rng(seed=seed)
         self.patch_size = patch_size
@@ -270,8 +273,9 @@ def _random_coords(
     """
     if len(patch_size) != len(spatial_shape):
         raise ValueError(
-            "Number of patch dimension do not match the number of spatial "
-            "dimensions."
+            f"Number of patch dimension {len(patch_size)}, do not match the number of "
+            f"spatial dimensions {len(spatial_shape)}, for `patch_size={patch_size}` "
+            f"and `spatial_shape={spatial_shape}`."
         )
     return tuple(
         rng.integers(
@@ -306,7 +310,8 @@ def _n_patches(spatial_shape: Sequence[int], patch_size: Sequence[int]) -> int:
     """
     if len(patch_size) != len(spatial_shape):
         raise ValueError(
-            "Number of patch dimension do not match the number of spatial "
-            "dimensions."
+            f"Number of patch dimension {len(patch_size)}, do not match the number of "
+            f"spatial dimensions {len(spatial_shape)}, for `patch_size={patch_size}` "
+            f"and `spatial_shape={spatial_shape}`."
         )
     return int(np.ceil(np.prod(spatial_shape) / np.prod(patch_size)))
