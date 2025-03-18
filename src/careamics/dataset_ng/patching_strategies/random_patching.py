@@ -54,13 +54,10 @@ class RandomPatchingStrategy:
         # these bins will determine which image stack and sample a patch comes from
         # the image_stack_index_bins map to each image stack
         # the sample_index_bins map to each sample within each image stack
-        self.image_stack_index_bins, self.sample_index_bins = self._calc_patch_bins(
-            self.data_shapes, self.patch_size
+        # sample_bins is needed to calculate the sample_idx relative to the image_stack
+        self.image_stack_index_bins, self.sample_index_bins, self.sample_bins = (
+            self._calc_patch_bins(self.data_shapes, self.patch_size)
         )
-
-        # this is needed to calculate the sample_idx relative to the image_stack
-        samples_per_image_stack = [data_shape[0] for data_shape in self.data_shapes]
-        self.sample_bins = np.cumsum(samples_per_image_stack)
 
     @property
     def n_patches(self) -> int:
@@ -92,12 +89,12 @@ class RandomPatchingStrategy:
                 f"of patches {self.n_patches}"
             )
         # digitize returns the bin that `index` belongs to
-        data_index = np.digitize(index, bins=self.image_stack_index_bins)
+        data_index = np.digitize(index, bins=self.image_stack_index_bins).item()
         # maps to a particular sample within the whole series of image stacks
         #   (not just a single image stack)
-        total_samples_index = np.digitize(index, bins=self.sample_index_bins)
+        total_samples_index = np.digitize(index, bins=self.sample_index_bins).item()
 
-        data_shape = self.data_shapes[data_index.item()]
+        data_shape = self.data_shapes[data_index]
         spatial_shape = data_shape[2:]
 
         # calculate sample index relative to image stack:
@@ -109,8 +106,8 @@ class RandomPatchingStrategy:
         sample_index = total_samples_index - n_previous_samples
         coords = _random_coords(spatial_shape, self.patch_size, self.rng)
         return {
-            "data_idx": data_index.item(),
-            "sample_idx": sample_index.item(),
+            "data_idx": data_index,
+            "sample_idx": sample_index,
             "coords": coords,
             "patch_size": self.patch_size,
         }
@@ -118,7 +115,7 @@ class RandomPatchingStrategy:
     @staticmethod
     def _calc_patch_bins(
         data_shapes: Sequence[Sequence[int]], patch_size: Sequence[int]
-    ) -> tuple[tuple[int, ...], tuple[int, ...]]:
+    ) -> tuple[tuple[int, ...], tuple[int, ...], tuple[int, ...]]:
         """Calculate bins used to map an index to an image_stack and a sample.
 
         The number of patches in each sample is based on the number of patches that
@@ -135,13 +132,16 @@ class RandomPatchingStrategy:
 
         Returns
         -------
-        image_stack_index_bins: tuple[int, ...]
-            The bins that map an index to an image stack.
-        sample_index_bins: tuple[int, ...]
-            The bins that map an index to a sample.
+        image_stack_index_bins: tuple of int
+            The bins that map a patch index to an image stack.
+        sample_index_bins: tuple of int
+            The bins that map a patch index to a sample.
+        sample_bins: tuple of int
+            The bins that map a sample index to an image stack.
         """
         patches_per_image_stack: list[int] = []
         patches_per_sample: list[int] = []
+        samples_per_image_stack: list[int] = []
         for data_shape in data_shapes:
             spatial_shape = data_shape[2:]
             n_single_sample_patches = _n_patches(spatial_shape, patch_size)
@@ -149,11 +149,18 @@ class RandomPatchingStrategy:
             patches_per_image_stack.append(n_single_sample_patches * data_shape[0])
             # list of length `sample` filled with `n_single_sample_patches`
             patches_per_sample.extend([n_single_sample_patches] * data_shape[0])
+            # number of samples in each image stack
+            samples_per_image_stack.append(data_shape[0])
 
         # cumulative sum creates the bins
         image_stack_index_bins = np.cumsum(patches_per_image_stack)
         sample_index_bins = np.cumsum(patches_per_sample)
-        return tuple(image_stack_index_bins), tuple(sample_index_bins)
+        sample_bins = np.cumsum(samples_per_image_stack)
+        return (
+            tuple(image_stack_index_bins),
+            tuple(sample_index_bins),
+            tuple(sample_bins),
+        )
 
 
 class FixedRandomPatchingStrategy:
