@@ -172,7 +172,8 @@ class FixedRandomPatchingStrategy:
     given twice the two outputs will be the same.
 
     The number of patches in each sample is based on the number of patches that would
-    fit if they were sampled sequentially.
+    fit if they were sampled sequentially, non-overlapping, and covering the entire
+    array.
     """
 
     def __init__(
