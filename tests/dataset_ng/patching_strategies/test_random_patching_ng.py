@@ -21,17 +21,14 @@ from careamics.dataset_ng.patching_strategies.random_patching import (
 )
 def test_calc_patch_bins(data_shapes, patch_size, expected_patches):
     """Test bins are created as expected"""
-    image_stack_index_bins, sample_index_bins = RandomPatchingStrategy._calc_patch_bins(
-        data_shapes, patch_size
+    image_stack_index_bins, sample_index_bins, sample_bins = (
+        RandomPatchingStrategy._calc_patch_bins(data_shapes, patch_size)
     )
     assert image_stack_index_bins[-1] == sample_index_bins[-1] == expected_patches
 
-    # create image_stack_bins from sample_index_bins
+    # create image_stack_bins from sample_index_bins and sample_bins
     # The idea to find the bin boundaries in sample_index_bins
     #   that are aligned to the image_stack_bins
-    n_samples = [data_shape[0] for data_shape in data_shapes]
-    sample_bins = np.cumsum(n_samples)  # bins for samples in the image stacks
-
     new_image_stack_bins = []
     for bin_boundary in sample_bins:
         idx = bin_boundary - 1
