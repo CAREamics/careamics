@@ -10,8 +10,8 @@ from .patching_strategy_protocol import PatchSpecs
 
 class RandomPatchingStrategy:
     """
-    A patching strategy for sampling random patches, it implements the `PatchinStrategy`
-    `Protocol`.
+    A patching strategy for sampling random patches, it implements the
+    `PatchingStrategy` `Protocol`.
 
     The output of `get_patch_spec` will be random, i.e. if the same index is given
     twice the two outputs can be different.
@@ -165,7 +165,7 @@ class RandomPatchingStrategy:
 
 class FixedRandomPatchingStrategy:
     """
-    A patching strategy for sampling random patches it implements the `PatchinStrategy`
+    A patching strategy for sampling random patches it implements the `PatchingStrategy`
     `Protocol`.
 
     The output of `get_patch_spec` will be deterministic, i.e. if the same index is
