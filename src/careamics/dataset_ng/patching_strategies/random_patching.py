@@ -192,15 +192,19 @@ class FixedRandomPatchingStrategy:
         self.fixed_patch_specs: list[PatchSpecs] = []
         for data_idx, data_shape in enumerate(self.data_shapes):
             spatial_shape = data_shape[2:]
+            n_patches = _n_patches(spatial_shape, self.patch_size)
             for sample_idx in range(data_shape[0]):
-                random_coords = _random_coords(spatial_shape, self.patch_size, self.rng)
-                patch_specs: PatchSpecs = {
-                    "data_idx": data_idx,
-                    "sample_idx": sample_idx,
-                    "coords": random_coords,
-                    "patch_size": self.patch_size,
-                }
-                self.fixed_patch_specs.append(patch_specs)
+                for _ in range(n_patches):
+                    random_coords = _random_coords(
+                        spatial_shape, self.patch_size, self.rng
+                    )
+                    patch_specs: PatchSpecs = {
+                        "data_idx": data_idx,
+                        "sample_idx": sample_idx,
+                        "coords": random_coords,
+                        "patch_size": self.patch_size,
+                    }
+                    self.fixed_patch_specs.append(patch_specs)
 
     @property
     def n_patches(self):
