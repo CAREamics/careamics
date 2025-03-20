@@ -3,8 +3,8 @@ import pytest
 
 from careamics.dataset_ng.patching_strategies.random_patching import (
     RandomPatchingStrategy,
-    _n_patches,
-    _random_coords,
+    __generate_random_coords,
+    _calc_n_patches,
 )
 
 
@@ -48,7 +48,7 @@ def test_calc_patch_bins(data_shapes, patch_size, expected_patches):
 )
 def test_n_patches(data_shape, patch_size, expected_patches):
     spatial_shape = data_shape[2:]
-    n_patches = _n_patches(spatial_shape, patch_size)
+    n_patches = _calc_n_patches(spatial_shape, patch_size)
 
     assert n_patches == expected_patches
 
@@ -57,7 +57,7 @@ def test_n_patches_raises():
     spatial_shape = (8, 8)
     patch_size = (2, 2, 2)
     with pytest.raises(ValueError):
-        _n_patches(spatial_shape, patch_size)
+        _calc_n_patches(spatial_shape, patch_size)
 
 
 @pytest.mark.parametrize(
@@ -73,7 +73,7 @@ def test_random_coords(data_shape, patch_size, iterations):
     spatial_shape = data_shape[2:]
     rng = np.random.default_rng(42)
     for _ in range(iterations):
-        coords = np.array(_random_coords(spatial_shape, patch_size, rng))
+        coords = np.array(__generate_random_coords(spatial_shape, patch_size, rng))
         # validate patch is within spatial bounds
         assert (0 <= coords).all()
         assert (coords + patch_size < np.array(spatial_shape)).all()
@@ -84,4 +84,4 @@ def test_random_coords_raises():
     patch_size = (2, 2, 2)
     rng = np.random.default_rng(42)
     with pytest.raises(ValueError):
-        _random_coords(spatial_shape, patch_size, rng)
+        __generate_random_coords(spatial_shape, patch_size, rng)

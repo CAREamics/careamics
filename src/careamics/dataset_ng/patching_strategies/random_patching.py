@@ -104,7 +104,7 @@ class RandomPatchingStrategy:
         else:
             n_previous_samples = self.sample_bins[data_index - 1]
         sample_index = total_samples_index - n_previous_samples
-        coords = _random_coords(spatial_shape, self.patch_size, self.rng)
+        coords = __generate_random_coords(spatial_shape, self.patch_size, self.rng)
         return {
             "data_idx": data_index,
             "sample_idx": sample_index,
@@ -144,7 +144,7 @@ class RandomPatchingStrategy:
         samples_per_image_stack: list[int] = []
         for data_shape in data_shapes:
             spatial_shape = data_shape[2:]
-            n_single_sample_patches = _n_patches(spatial_shape, patch_size)
+            n_single_sample_patches = _calc_n_patches(spatial_shape, patch_size)
             # multiply by number of samples in image_stack
             patches_per_image_stack.append(n_single_sample_patches * data_shape[0])
             # list of length `sample` filled with `n_single_sample_patches`
@@ -203,10 +203,10 @@ class FixedRandomPatchingStrategy:
         self.fixed_patch_specs: list[PatchSpecs] = []
         for data_idx, data_shape in enumerate(self.data_shapes):
             spatial_shape = data_shape[2:]
-            n_patches = _n_patches(spatial_shape, self.patch_size)
+            n_patches = _calc_n_patches(spatial_shape, self.patch_size)
             for sample_idx in range(data_shape[0]):
                 for _ in range(n_patches):
-                    random_coords = _random_coords(
+                    random_coords = __generate_random_coords(
                         spatial_shape, self.patch_size, self.rng
                     )
                     patch_specs: PatchSpecs = {
@@ -248,7 +248,7 @@ class FixedRandomPatchingStrategy:
         return self.fixed_patch_specs[index]
 
 
-def _random_coords(
+def __generate_random_coords(
     spatial_shape: Sequence[int], patch_size: Sequence[int], rng: np.random.Generator
 ) -> tuple[int, ...]:
     """Generate random patch coordinates for a given `spatial_shape` and `patch_size`.
@@ -295,7 +295,7 @@ def _random_coords(
     )
 
 
-def _n_patches(spatial_shape: Sequence[int], patch_size: Sequence[int]) -> int:
+def _calc_n_patches(spatial_shape: Sequence[int], patch_size: Sequence[int]) -> int:
     """
     Calculates the number of patches for a given `spatial_shape` and `patch_size`.
 
