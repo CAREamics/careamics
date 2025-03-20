@@ -104,7 +104,7 @@ class RandomPatchingStrategy:
         else:
             n_previous_samples = self.sample_bins[data_index - 1]
         sample_index = total_samples_index - n_previous_samples
-        coords = __generate_random_coords(spatial_shape, self.patch_size, self.rng)
+        coords = _generate_random_coords(spatial_shape, self.patch_size, self.rng)
         return {
             "data_idx": data_index,
             "sample_idx": sample_index,
@@ -206,7 +206,7 @@ class FixedRandomPatchingStrategy:
             n_patches = _calc_n_patches(spatial_shape, self.patch_size)
             for sample_idx in range(data_shape[0]):
                 for _ in range(n_patches):
-                    random_coords = __generate_random_coords(
+                    random_coords = _generate_random_coords(
                         spatial_shape, self.patch_size, self.rng
                     )
                     patch_specs: PatchSpecs = {
@@ -248,7 +248,7 @@ class FixedRandomPatchingStrategy:
         return self.fixed_patch_specs[index]
 
 
-def __generate_random_coords(
+def _generate_random_coords(
     spatial_shape: Sequence[int], patch_size: Sequence[int], rng: np.random.Generator
 ) -> tuple[int, ...]:
     """Generate random patch coordinates for a given `spatial_shape` and `patch_size`.

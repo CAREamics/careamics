@@ -3,8 +3,8 @@ import pytest
 
 from careamics.dataset_ng.patching_strategies.random_patching import (
     RandomPatchingStrategy,
-    __generate_random_coords,
     _calc_n_patches,
+    _generate_random_coords,
 )
 
 
@@ -73,7 +73,7 @@ def test_random_coords(data_shape, patch_size, iterations):
     spatial_shape = data_shape[2:]
     rng = np.random.default_rng(42)
     for _ in range(iterations):
-        coords = np.array(__generate_random_coords(spatial_shape, patch_size, rng))
+        coords = np.array(_generate_random_coords(spatial_shape, patch_size, rng))
         # validate patch is within spatial bounds
         assert (0 <= coords).all()
         assert (coords + patch_size < np.array(spatial_shape)).all()
@@ -84,4 +84,4 @@ def test_random_coords_raises():
     patch_size = (2, 2, 2)
     rng = np.random.default_rng(42)
     with pytest.raises(ValueError):
-        __generate_random_coords(spatial_shape, patch_size, rng)
+        _generate_random_coords(spatial_shape, patch_size, rng)
