@@ -22,7 +22,7 @@ from careamics.dataset_ng.patching_strategies.random_patching import (
 def test_calc_patch_bins(data_shapes, patch_size, expected_patches):
     """Test bins are created as expected"""
     image_stack_index_bins, sample_index_bins, sample_bins = (
-        RandomPatchingStrategy._calc_patch_bins(data_shapes, patch_size)
+        RandomPatchingStrategy._calc_bins(data_shapes, patch_size)
     )
     assert image_stack_index_bins[-1] == sample_index_bins[-1] == expected_patches
 

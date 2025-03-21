@@ -52,12 +52,14 @@ class RandomPatchingStrategy:
         self.data_shapes = data_shapes
 
         # these bins will determine which image stack and sample a patch comes from
-        # the image_stack_index_bins map to each image stack
-        # the sample_index_bins map to each sample within each image stack
-        # sample_bins is needed to calculate the sample_idx relative to the image_stack
-        self.image_stack_index_bins, self.sample_index_bins, self.sample_bins = (
-            self._calc_patch_bins(self.data_shapes, self.patch_size)
-        )
+        # the image_stack_cumulative_patches map a patch index to each image stack
+        # the sample_cumulative_patches map a patch index to each sample
+        # the image_stack_cumulative_samples map a sample index to each image stack
+        (
+            self.image_stack_cumulative_patches,
+            self.sample_cumulative_patches,
+            self.image_stack_cumulative_samples,
+        ) = self._calc_bins(self.data_shapes, self.patch_size)
 
     @property
     def n_patches(self) -> int:
@@ -67,7 +69,7 @@ class RandomPatchingStrategy:
         It also determines the maximum index that can be given to `get_patch_spec`.
         """
         # last bin boundary will be total patches
-        return self.image_stack_index_bins[-1]
+        return self.image_stack_cumulative_patches[-1]
 
     def get_patch_spec(self, index: int) -> PatchSpecs:
         """Return the patch specs for a given index.
@@ -89,10 +91,12 @@ class RandomPatchingStrategy:
                 f"of patches {self.n_patches}"
             )
         # digitize returns the bin that `index` belongs to
-        data_index = np.digitize(index, bins=self.image_stack_index_bins).item()
+        data_index = np.digitize(index, bins=self.image_stack_cumulative_patches).item()
         # maps to a particular sample within the whole series of image stacks
         #   (not just a single image stack)
-        total_samples_index = np.digitize(index, bins=self.sample_index_bins).item()
+        total_samples_index = np.digitize(
+            index, bins=self.sample_cumulative_patches
+        ).item()
 
         data_shape = self.data_shapes[data_index]
         spatial_shape = data_shape[2:]
@@ -102,7 +106,7 @@ class RandomPatchingStrategy:
         if data_index == 0:
             n_previous_samples = 0
         else:
-            n_previous_samples = self.sample_bins[data_index - 1]
+            n_previous_samples = self.image_stack_cumulative_samples[data_index - 1]
         sample_index = total_samples_index - n_previous_samples
         coords = _generate_random_coords(spatial_shape, self.patch_size, self.rng)
         return {
@@ -113,7 +117,7 @@ class RandomPatchingStrategy:
         }
 
     @staticmethod
-    def _calc_patch_bins(
+    def _calc_bins(
         data_shapes: Sequence[Sequence[int]], patch_size: Sequence[int]
     ) -> tuple[tuple[int, ...], tuple[int, ...], tuple[int, ...]]:
         """Calculate bins used to map an index to an image_stack and a sample.
@@ -132,12 +136,21 @@ class RandomPatchingStrategy:
 
         Returns
         -------
-        image_stack_index_bins: tuple of int
-            The bins that map a patch index to an image stack.
-        sample_index_bins: tuple of int
-            The bins that map a patch index to a sample.
-        sample_bins: tuple of int
-            The bins that map a sample index to an image stack.
+        image_stack_cumulative_patches: tuple of int
+            The bins that map a patch index to an image stack. E.g. if a patch index
+            falls below the first bin boundary it belongs to the first image stack, if
+            a patch index falls between the first bin boundary and the second bin
+            boundary it belongs to the second image stack, and so on.
+        sample_cumulative_patches: tuple of int
+            The bins that map a patch index to a sample. E.g. if a patch index
+            falls below the first bin boundary it belongs to the first sample, if
+            a patch index falls between the first bin boundary and the second bin
+            boundary it belongs to the second sample, and so on.
+        image_stack_cumulative_samples: tuple of int
+            The bins that map a sample index to an image stack. E.g. if a sample index
+            falls below the first bin boundary it belongs to the first image stack, if
+            a patch index falls between the first bin boundary and the second bin
+            boundary it belongs to the second image stack, and so on.
         """
         patches_per_image_stack: list[int] = []
         patches_per_sample: list[int] = []
@@ -153,13 +166,13 @@ class RandomPatchingStrategy:
             samples_per_image_stack.append(data_shape[0])
 
         # cumulative sum creates the bins
-        image_stack_index_bins = np.cumsum(patches_per_image_stack)
-        sample_index_bins = np.cumsum(patches_per_sample)
-        sample_bins = np.cumsum(samples_per_image_stack)
+        image_stack_cumulative_patches = np.cumsum(patches_per_image_stack)
+        sample_cumulative_patches = np.cumsum(patches_per_sample)
+        image_stack_cumulative_samples = np.cumsum(samples_per_image_stack)
         return (
-            tuple(image_stack_index_bins),
-            tuple(sample_index_bins),
-            tuple(sample_bins),
+            tuple(image_stack_cumulative_patches),
+            tuple(sample_cumulative_patches),
+            tuple(image_stack_cumulative_samples),
         )
 
 
