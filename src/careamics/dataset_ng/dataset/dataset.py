@@ -21,6 +21,8 @@ from careamics.dataset_ng.patching_strategies import (
     PatchingStrategy,
     PatchSpecs,
     RandomPatchingStrategy,
+    TilingStrategy,
+    WholeSamplePatchingStrategy,
 )
 from careamics.transforms import Compose
 
@@ -107,10 +109,20 @@ class CareamicsDataset(Dataset):
                 seed=getattr(self.config, "random_seed", None),
             )
         elif self.mode == Mode.PREDICTING:
-            # TODO: patching strategy will be tilingStrategy in upcoming PR
-            raise NotImplementedError(
-                "Prediction mode for the CAREamicsDataset has not been implemented yet."
-            )
+            if not isinstance(self.config, InferenceConfig):
+                raise ValueError("Inference config must be used for predicting.")
+            if (self.config.tile_size is not None) and (
+                self.config.tile_overlap is not None
+            ):
+                patching_strategy = TilingStrategy(
+                    data_shapes=self.input_extractor.shape,
+                    tile_size=self.config.tile_size,
+                    overlaps=self.config.tile_overlap,
+                )
+            else:
+                patching_strategy = WholeSamplePatchingStrategy(
+                    data_shapes=self.input_extractor.shape
+                )
         else:
             raise ValueError(f"Unrecognised dataset mode {self.mode}.")
 
