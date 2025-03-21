@@ -3,7 +3,7 @@
 import itertools
 from collections.abc import Sequence
 
-from .patching_strategy_types import TileSpecs
+from .patching_strategy_protocol import TileSpecs
 
 
 class TilingStrategy:
