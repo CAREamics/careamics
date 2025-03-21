@@ -10,6 +10,7 @@ from careamics.dataset_ng.patching_strategies import (
     RandomPatchingStrategy,
     SequentialPatchingStrategy,
     TilingStrategy,
+    WholeSamplePatchingStrategy,
 )
 
 
@@ -52,6 +53,13 @@ def _create_tiling_strategy(
     )
 
 
+def _create_whole_sample_patching_strategy(
+    data_shapes: Sequence[Sequence[int]], patch_size: Sequence[int]
+) -> WholeSamplePatchingStrategy:
+    # patch_size unused
+    return WholeSamplePatchingStrategy(data_shapes=data_shapes)
+
+
 PatchingStrategyConstr = Callable[
     [Sequence[Sequence[int]], Sequence[int]], PatchingStrategy
 ]
@@ -62,6 +70,7 @@ PATCHING_STRATEGY_CONSTR: tuple[PatchingStrategyConstr, ...] = (
     _create_fixed_random_patching_strategy,
     _create_sequential_patching_strategy,
     _create_tiling_strategy,
+    _create_whole_sample_patching_strategy,
 )
 
 
