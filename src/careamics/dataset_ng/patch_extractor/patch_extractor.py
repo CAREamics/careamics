@@ -23,3 +23,7 @@ class PatchExtractor:
         return self.image_stacks[data_idx].extract_patch(
             sample_idx=sample_idx, coords=coords, patch_size=patch_size
         )
+
+    @property
+    def shape(self):
+        return [stack.data_shape for stack in self.image_stacks]

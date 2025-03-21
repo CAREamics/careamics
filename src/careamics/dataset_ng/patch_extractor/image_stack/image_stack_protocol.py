@@ -2,7 +2,7 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Literal, Protocol, Union
 
-from numpy.typing import NDArray
+from numpy.typing import DTypeLike, NDArray
 
 
 class ImageStack(Protocol):
@@ -25,6 +25,9 @@ class ImageStack(Protocol):
 
     @property
     def data_shape(self) -> Sequence[int]: ...
+
+    @property
+    def data_dtype(self) -> DTypeLike: ...
 
     def extract_patch(
         self, sample_idx: int, coords: Sequence[int], patch_size: Sequence[int]

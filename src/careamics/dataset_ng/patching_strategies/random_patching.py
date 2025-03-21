@@ -5,12 +5,13 @@ from typing import Optional
 
 import numpy as np
 
-from .patching_strategy_types import PatchSpecs
+from .patching_strategy_protocol import PatchSpecs
 
 
 class RandomPatchingStrategy:
     """
-    A patching strategy for sampling random patches.
+    A patching strategy for sampling random patches, it implements the
+    `PatchingStrategy` `Protocol`.
 
     The output of `get_patch_spec` will be random, i.e. if the same index is given
     twice the two outputs can be different.
@@ -22,7 +23,8 @@ class RandomPatchingStrategy:
     the returned `PatchSpecs`, but the `"coords"` will be random.
 
     The number of patches in each sample is based on the number of patches that would
-    fit if they were sampled sequentially.
+    fit if they were sampled sequentially, non-overlapping, and covering the entire
+    array.
     """
 
     def __init__(
@@ -43,22 +45,21 @@ class RandomPatchingStrategy:
             The size of the patch. The sequence will have length 2 or 3, for 2D and 3D
             data respectively.
         seed : int, optional
-            An optional seed to ensure the reproducibility of the random pathces.
+            An optional seed to ensure the reproducibility of the random patches.
         """
         self.rng = np.random.default_rng(seed=seed)
         self.patch_size = patch_size
         self.data_shapes = data_shapes
 
         # these bins will determine which image stack and sample a patch comes from
-        # the image_stack_index_bins map to each image stack
-        # the sample_index_bins map to each sample within each image stack
-        self.image_stack_index_bins, self.sample_index_bins = self._calc_patch_bins(
-            self.data_shapes, self.patch_size
-        )
-
-        # this is needed to calculate the sample_idx relative to the image_stack
-        samples_per_image_stack = [data_shape[0] for data_shape in self.data_shapes]
-        self.sample_bins = np.cumsum(samples_per_image_stack)
+        # the image_stack_cumulative_patches map a patch index to each image stack
+        # the sample_cumulative_patches map a patch index to each sample
+        # the image_stack_cumulative_samples map a sample index to each image stack
+        (
+            self.image_stack_cumulative_patches,
+            self.sample_cumulative_patches,
+            self.image_stack_cumulative_samples,
+        ) = self._calc_bins(self.data_shapes, self.patch_size)
 
     @property
     def n_patches(self) -> int:
@@ -68,7 +69,7 @@ class RandomPatchingStrategy:
         It also determines the maximum index that can be given to `get_patch_spec`.
         """
         # last bin boundary will be total patches
-        return self.image_stack_index_bins[-1]
+        return self.image_stack_cumulative_patches[-1]
 
     def get_patch_spec(self, index: int) -> PatchSpecs:
         """Return the patch specs for a given index.
@@ -87,15 +88,17 @@ class RandomPatchingStrategy:
         if index >= self.n_patches:
             raise IndexError(
                 f"Index {index} out of bounds for RandomPatchingStrategy with number "
-                f"of patches, {self.n_patches}"
+                f"of patches {self.n_patches}"
             )
         # digitize returns the bin that `index` belongs to
-        data_index = np.digitize(index, bins=self.image_stack_index_bins)
+        data_index = np.digitize(index, bins=self.image_stack_cumulative_patches).item()
         # maps to a particular sample within the whole series of image stacks
         #   (not just a single image stack)
-        total_samples_index = np.digitize(index, bins=self.sample_index_bins)
+        total_samples_index = np.digitize(
+            index, bins=self.sample_cumulative_patches
+        ).item()
 
-        data_shape = self.data_shapes[data_index.item()]
+        data_shape = self.data_shapes[data_index]
         spatial_shape = data_shape[2:]
 
         # calculate sample index relative to image stack:
@@ -103,20 +106,20 @@ class RandomPatchingStrategy:
         if data_index == 0:
             n_previous_samples = 0
         else:
-            n_previous_samples = self.sample_bins[data_index - 1]
+            n_previous_samples = self.image_stack_cumulative_samples[data_index - 1]
         sample_index = total_samples_index - n_previous_samples
-        coords = _random_coords(spatial_shape, self.patch_size, self.rng)
+        coords = _generate_random_coords(spatial_shape, self.patch_size, self.rng)
         return {
-            "data_idx": data_index.item(),
-            "sample_idx": sample_index.item(),
+            "data_idx": data_index,
+            "sample_idx": sample_index,
             "coords": coords,
             "patch_size": self.patch_size,
         }
 
     @staticmethod
-    def _calc_patch_bins(
+    def _calc_bins(
         data_shapes: Sequence[Sequence[int]], patch_size: Sequence[int]
-    ) -> tuple[tuple[int, ...], tuple[int, ...]]:
+    ) -> tuple[tuple[int, ...], tuple[int, ...], tuple[int, ...]]:
         """Calculate bins used to map an index to an image_stack and a sample.
 
         The number of patches in each sample is based on the number of patches that
@@ -133,36 +136,57 @@ class RandomPatchingStrategy:
 
         Returns
         -------
-        image_stack_index_bins: tuple[int, ...]
-            The bins that map an index to an image stack.
-        sample_index_bins: tuple[int, ...]
-            The bins that map an index to a sample.
+        image_stack_cumulative_patches: tuple of int
+            The bins that map a patch index to an image stack. E.g. if a patch index
+            falls below the first bin boundary it belongs to the first image stack, if
+            a patch index falls between the first bin boundary and the second bin
+            boundary it belongs to the second image stack, and so on.
+        sample_cumulative_patches: tuple of int
+            The bins that map a patch index to a sample. E.g. if a patch index
+            falls below the first bin boundary it belongs to the first sample, if
+            a patch index falls between the first bin boundary and the second bin
+            boundary it belongs to the second sample, and so on.
+        image_stack_cumulative_samples: tuple of int
+            The bins that map a sample index to an image stack. E.g. if a sample index
+            falls below the first bin boundary it belongs to the first image stack, if
+            a patch index falls between the first bin boundary and the second bin
+            boundary it belongs to the second image stack, and so on.
         """
         patches_per_image_stack: list[int] = []
         patches_per_sample: list[int] = []
+        samples_per_image_stack: list[int] = []
         for data_shape in data_shapes:
             spatial_shape = data_shape[2:]
-            n_single_sample_patches = _n_patches(spatial_shape, patch_size)
+            n_single_sample_patches = _calc_n_patches(spatial_shape, patch_size)
             # multiply by number of samples in image_stack
             patches_per_image_stack.append(n_single_sample_patches * data_shape[0])
             # list of length `sample` filled with `n_single_sample_patches`
             patches_per_sample.extend([n_single_sample_patches] * data_shape[0])
+            # number of samples in each image stack
+            samples_per_image_stack.append(data_shape[0])
 
         # cumulative sum creates the bins
-        image_stack_index_bins = np.cumsum(patches_per_image_stack)
-        sample_index_bins = np.cumsum(patches_per_sample)
-        return tuple(image_stack_index_bins), tuple(sample_index_bins)
+        image_stack_cumulative_patches = np.cumsum(patches_per_image_stack)
+        sample_cumulative_patches = np.cumsum(patches_per_sample)
+        image_stack_cumulative_samples = np.cumsum(samples_per_image_stack)
+        return (
+            tuple(image_stack_cumulative_patches),
+            tuple(sample_cumulative_patches),
+            tuple(image_stack_cumulative_samples),
+        )
 
 
 class FixedRandomPatchingStrategy:
     """
-    A patching strategy for sampling random patches.
+    A patching strategy for sampling random patches it implements the `PatchingStrategy`
+    `Protocol`.
 
     The output of `get_patch_spec` will be deterministic, i.e. if the same index is
     given twice the two outputs will be the same.
 
     The number of patches in each sample is based on the number of patches that would
-    fit if they were sampled sequentially.
+    fit if they were sampled sequentially, non-overlapping, and covering the entire
+    array.
     """
 
     def __init__(
@@ -182,7 +206,7 @@ class FixedRandomPatchingStrategy:
             The size of the patch. The sequence will have length 2 or 3, for 2D and 3D
             data respectively.
         seed : int, optional
-            An optional seed to ensure the reproducibility of the random pathces.
+            An optional seed to ensure the reproducibility of the random patches.
         """
         self.rng = np.random.default_rng(seed=seed)
         self.patch_size = patch_size
@@ -192,15 +216,19 @@ class FixedRandomPatchingStrategy:
         self.fixed_patch_specs: list[PatchSpecs] = []
         for data_idx, data_shape in enumerate(self.data_shapes):
             spatial_shape = data_shape[2:]
+            n_patches = _calc_n_patches(spatial_shape, self.patch_size)
             for sample_idx in range(data_shape[0]):
-                random_coords = _random_coords(spatial_shape, self.patch_size, self.rng)
-                patch_specs: PatchSpecs = {
-                    "data_idx": data_idx,
-                    "sample_idx": sample_idx,
-                    "coords": random_coords,
-                    "patch_size": self.patch_size,
-                }
-                self.fixed_patch_specs.append(patch_specs)
+                for _ in range(n_patches):
+                    random_coords = _generate_random_coords(
+                        spatial_shape, self.patch_size, self.rng
+                    )
+                    patch_specs: PatchSpecs = {
+                        "data_idx": data_idx,
+                        "sample_idx": sample_idx,
+                        "coords": random_coords,
+                        "patch_size": self.patch_size,
+                    }
+                    self.fixed_patch_specs.append(patch_specs)
 
     @property
     def n_patches(self):
@@ -233,7 +261,7 @@ class FixedRandomPatchingStrategy:
         return self.fixed_patch_specs[index]
 
 
-def _random_coords(
+def _generate_random_coords(
     spatial_shape: Sequence[int], patch_size: Sequence[int], rng: np.random.Generator
 ) -> tuple[int, ...]:
     """Generate random patch coordinates for a given `spatial_shape` and `patch_size`.
@@ -266,8 +294,9 @@ def _random_coords(
     """
     if len(patch_size) != len(spatial_shape):
         raise ValueError(
-            "Number of patch dimension do not match the number of spatial "
-            "dimensions."
+            f"Number of patch dimension {len(patch_size)}, do not match the number of "
+            f"spatial dimensions {len(spatial_shape)}, for `patch_size={patch_size}` "
+            f"and `spatial_shape={spatial_shape}`."
         )
     return tuple(
         rng.integers(
@@ -279,7 +308,7 @@ def _random_coords(
     )
 
 
-def _n_patches(spatial_shape: Sequence[int], patch_size: Sequence[int]) -> int:
+def _calc_n_patches(spatial_shape: Sequence[int], patch_size: Sequence[int]) -> int:
     """
     Calculates the number of patches for a given `spatial_shape` and `patch_size`.
 
@@ -302,7 +331,8 @@ def _n_patches(spatial_shape: Sequence[int], patch_size: Sequence[int]) -> int:
     """
     if len(patch_size) != len(spatial_shape):
         raise ValueError(
-            "Number of patch dimension do not match the number of spatial "
-            "dimensions."
+            f"Number of patch dimension {len(patch_size)}, do not match the number of "
+            f"spatial dimensions {len(spatial_shape)}, for `patch_size={patch_size}` "
+            f"and `spatial_shape={spatial_shape}`."
         )
     return int(np.ceil(np.prod(spatial_shape) / np.prod(patch_size)))
