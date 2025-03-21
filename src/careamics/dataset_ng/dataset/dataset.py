@@ -1,4 +1,5 @@
 from collections.abc import Sequence
+from enum import Enum
 from pathlib import Path
 from typing import Literal, NamedTuple, Optional, Union
 
@@ -13,17 +14,23 @@ from careamics.dataset.patching.patching import Stats
 from careamics.dataset_ng.patch_extractor import (
     ImageStackLoader,
     PatchExtractor,
-    PatchSpecs,
     create_patch_extractor,
 )
 from careamics.dataset_ng.patching_strategies import (
-    PatchSpecsGenerator,
-    RandomPatchSpecsGenerator,
-    TiledPatchSpecsGenerator,
+    FixedRandomPatchingStrategy,
+    PatchingStrategy,
+    PatchSpecs,
+    RandomPatchingStrategy,
 )
 from careamics.transforms import Compose
 
 P = ParamSpec("P")
+
+
+class Mode(str, Enum):
+    TRAINING = "training"
+    VALIDATING = "validating"
+    PREDICTING = "predicting"
 
 
 class ImageRegionData(NamedTuple):
@@ -42,6 +49,7 @@ class CareamicsDataset(Dataset):
     def __init__(
         self,
         data_config: Union[DataConfig, InferenceConfig],
+        mode: Mode,
         inputs: InputType,
         targets: Optional[InputType] = None,
         image_stack_loader: Optional[ImageStackLoader[P]] = None,
@@ -49,6 +57,7 @@ class CareamicsDataset(Dataset):
         **kwargs: P.kwargs,
     ):
         self.config = data_config
+        self.mode = mode
 
         data_type_enum = SupportedData(self.config.data_type)
         self.input_extractor = create_patch_extractor(
@@ -71,32 +80,41 @@ class CareamicsDataset(Dataset):
         else:
             self.target_extractor = None
 
-        self.patch_specs = self._initialize_patch_specs()
+        self.patching_strategy = self._initialize_patching_strategy()
 
         self.input_stats, self.target_stats = self._initialize_statistics()
 
         self.transforms = self._initialize_transforms()
 
-    def _initialize_patch_specs(self) -> list[PatchSpecs]:
-        if isinstance(self.config, DataConfig):
-            patch_generator: PatchSpecsGenerator = RandomPatchSpecsGenerator(
+    def _initialize_patching_strategy(self) -> PatchingStrategy:
+        patching_strategy: PatchingStrategy
+        if self.mode == Mode.TRAINING:
+            if isinstance(self.config, InferenceConfig):
+                raise ValueError("Inference config cannot be used for training.")
+            patching_strategy = RandomPatchingStrategy(
+                data_shapes=self.input_extractor.shape,
                 patch_size=self.config.patch_size,
-                random_seed=getattr(self.config, "random_seed", 42),
+                # TODO: Add random seed to dataconfig
+                seed=getattr(self.config, "random_seed", None),
             )
-        elif isinstance(self.config, InferenceConfig):
-            # TODO: how to handle the whole images?
-            if self.config.tile_size is None or self.config.tile_overlap is None:
-                raise ValueError(
-                    "InferenceConfig must specify tile_size and tile_overlap"
-                )
-            patch_generator = TiledPatchSpecsGenerator(
-                patch_size=self.config.tile_size, overlap=self.config.tile_overlap
+        elif self.mode == Mode.VALIDATING:
+            if isinstance(self.config, InferenceConfig):
+                raise ValueError("Inference config cannot be used for validating.")
+            patching_strategy = FixedRandomPatchingStrategy(
+                data_shapes=self.input_extractor.shape,
+                patch_size=self.config.patch_size,
+                # TODO: Add random seed to dataconfig
+                seed=getattr(self.config, "random_seed", None),
+            )
+        elif self.mode == Mode.PREDICTING:
+            # TODO: patching strategy will be tilingStrategy in upcoming PR
+            raise NotImplementedError(
+                "Prediction mode for the CAREamicsDataset has not been implemented yet."
             )
         else:
-            raise ValueError(f"Data config type {type(self.config)} is not supported.")
+            raise ValueError(f"Unrecognised dataset mode {self.mode}.")
 
-        patch_specs = patch_generator.generate(data_shapes=self.input_extractor.shape)
-        return patch_specs
+        return patching_strategy
 
     def _initialize_transforms(self) -> Optional[Compose]:
         if isinstance(self.config, DataConfig):
@@ -119,7 +137,7 @@ class CareamicsDataset(Dataset):
         return input_stats, target_stats
 
     def __len__(self):
-        return len(self.patch_specs)
+        return self.patching_strategy.n_patches
 
     def _create_image_region(
         self, patch: np.ndarray, patch_spec: PatchSpecs, extractor: PatchExtractor
@@ -138,7 +156,7 @@ class CareamicsDataset(Dataset):
     def __getitem__(
         self, index: int
     ) -> tuple[ImageRegionData, Optional[ImageRegionData]]:
-        patch_spec = self.patch_specs[index]
+        patch_spec = self.patching_strategy.get_patch_spec(index)
         input_patch = self.input_extractor.extract_patch(**patch_spec)
 
         target_patch = (

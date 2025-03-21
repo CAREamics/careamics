@@ -1,4 +1,3 @@
-import tempfile
 from pathlib import Path
 
 import numpy as np
@@ -6,9 +5,11 @@ import pytest
 import tifffile
 
 from careamics.config import InferenceConfig, create_n2n_configuration
-from careamics.dataset_ng.dataset.dataset import CareamicsDataset
+from careamics.dataset_ng.dataset.dataset import CareamicsDataset, Mode
 
 
+# TODO: these tests not deterministic anymore - DataConfig doesn't have random seed
+# could make a mock? temporarily
 @pytest.mark.parametrize(
     "data_shape, patch_size, expected_dataset_len",
     [
@@ -33,6 +34,7 @@ def test_from_array(data_shape, patch_size, expected_dataset_len):
 
     train_dataset = CareamicsDataset(
         data_config=train_data_config,
+        mode=Mode.TRAINING,
         inputs=[example_input],
         targets=[example_target],
     )
@@ -51,39 +53,40 @@ def test_from_array(data_shape, patch_size, expected_dataset_len):
         ((128, 128), (32, 32), 16),
     ],
 )
-def test_from_tiff(data_shape, patch_size, expected_dataset_len):
+def test_from_tiff(tmp_path: Path, data_shape, patch_size, expected_dataset_len):
     rng = np.random.default_rng(42)
     example_input = rng.random(data_shape)
     example_target = rng.random(data_shape)
 
-    with (
-        tempfile.NamedTemporaryFile(suffix=".tiff", delete=False) as input_file,
-        tempfile.NamedTemporaryFile(suffix=".tiff", delete=False) as target_file,
-    ):
-        tifffile.imwrite(input_file.name, example_input)
-        tifffile.imwrite(target_file.name, example_target)
+    input_file_path = tmp_path / "input.tiff"
+    target_file_path = tmp_path / "target.tiff"
 
-        train_data_config = create_n2n_configuration(
-            "test_exp",
-            data_type="tiff",
-            axes="YX",
-            patch_size=patch_size,
-            batch_size=1,
-            num_epochs=1,
-        ).data_config
+    tifffile.imwrite(input_file_path, example_input)
+    tifffile.imwrite(target_file_path, example_target)
 
-        train_dataset = CareamicsDataset(
-            data_config=train_data_config,
-            inputs=[Path(input_file.name)],
-            targets=[Path(target_file.name)],
-        )
+    train_data_config = create_n2n_configuration(
+        "test_exp",
+        data_type="tiff",
+        axes="YX",
+        patch_size=patch_size,
+        batch_size=1,
+        num_epochs=1,
+    ).data_config
 
-        assert len(train_dataset) == expected_dataset_len
-        sample, target = train_dataset[0]
-        assert sample.data.shape == (1, *patch_size)
-        assert target.data.shape == (1, *patch_size)
+    train_dataset = CareamicsDataset(
+        data_config=train_data_config,
+        mode=Mode.TRAINING,
+        inputs=[input_file_path],
+        targets=[target_file_path],
+    )
+
+    assert len(train_dataset) == expected_dataset_len
+    sample, target = train_dataset[0]
+    assert sample.data.shape == (1, *patch_size)
+    assert target.data.shape == (1, *patch_size)
 
 
+@pytest.mark.skip("Prediction not fully implemented")
 @pytest.mark.parametrize(
     "data_shape, tile_size, tile_overlap",
     [
@@ -109,6 +112,7 @@ def test_prediction_from_array(data_shape, tile_size, tile_overlap):
 
     prediction_dataset = CareamicsDataset(
         data_config=prediction_config,
+        mode=Mode.PREDICTING,
         inputs=[example_data],
     )
 
@@ -145,6 +149,7 @@ def test_from_custom_data_type(patch_size, data_shape):
 
     train_dataset = CareamicsDataset(
         data_config=train_data_config,
+        mode=Mode.TRAINING,
         inputs=[example_data],
         targets=[example_target],
         read_func=read_data_func_test,
