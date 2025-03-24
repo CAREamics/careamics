@@ -100,7 +100,6 @@ class TilingStrategy:
                             "coords": coords,
                             "patch_size": self.tile_size,
                             # TileSpecs additional fields
-                            "data_shape": data_shape,
                             "crop_coords": crop_coords,
                             "crop_size": crop_size,
                             "stitch_coords": stitch_coords,

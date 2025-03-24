@@ -1,7 +1,7 @@
 from collections.abc import Sequence
 from enum import Enum
 from pathlib import Path
-from typing import Literal, NamedTuple, Optional, Union
+from typing import Generic, Literal, NamedTuple, Optional, TypeVar, Union
 
 import numpy as np
 from numpy.typing import NDArray
@@ -27,6 +27,7 @@ from careamics.dataset_ng.patching_strategies import (
 from careamics.transforms import Compose
 
 P = ParamSpec("P")
+GenericPatchSpecs = TypeVar("GenericPatchSpecs", bound=PatchSpecs, covariant=True)
 
 
 class Mode(str, Enum):
@@ -35,13 +36,13 @@ class Mode(str, Enum):
     PREDICTING = "predicting"
 
 
-class ImageRegionData(NamedTuple):
+class ImageRegionData(NamedTuple, Generic[GenericPatchSpecs]):
     data: NDArray
     source: Union[Path, Literal["array"]]
     data_shape: Sequence[int]
     dtype: str  # dtype should be str for collate
     axes: str
-    region_spec: PatchSpecs
+    region_spec: GenericPatchSpecs
 
 
 InputType = Union[Sequence[np.ndarray], Sequence[Path]]
@@ -169,10 +170,20 @@ class CareamicsDataset(Dataset):
         self, index: int
     ) -> tuple[ImageRegionData, Optional[ImageRegionData]]:
         patch_spec = self.patching_strategy.get_patch_spec(index)
-        input_patch = self.input_extractor.extract_patch(**patch_spec)
+        input_patch = self.input_extractor.extract_patch(
+            data_idx=patch_spec["data_idx"],
+            sample_idx=patch_spec["sample_idx"],
+            coords=patch_spec["coords"],
+            patch_size=patch_spec["patch_size"],
+        )
 
         target_patch = (
-            self.target_extractor.extract_patch(**patch_spec)
+            self.target_extractor.extract_patch(
+                data_idx=patch_spec["data_idx"],
+                sample_idx=patch_spec["sample_idx"],
+                coords=patch_spec["coords"],
+                patch_size=patch_spec["patch_size"],
+            )
             if self.target_extractor is not None
             else None
         )
