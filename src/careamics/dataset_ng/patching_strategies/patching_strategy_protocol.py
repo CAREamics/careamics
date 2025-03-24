@@ -54,9 +54,6 @@ class TileSpecs(PatchSpecs):
         that the tile will be cropped, in coords relative to the image.
     """
 
-    # temporarily adding data_shape, it will be included in the ImageRegion (PR #420)
-    #   so it can be recovered from there instead when #420 is merged
-    data_shape: Sequence[int]
     crop_coords: Sequence[int]
     crop_size: Sequence[int]
     stitch_coords: Sequence[int]
