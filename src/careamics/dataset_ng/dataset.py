@@ -17,6 +17,7 @@ from careamics.dataset_ng.patching_strategies import (
     PatchingStrategy,
     PatchSpecs,
     RandomPatchingStrategy,
+    TileSpecs,
     TilingStrategy,
     WholeSamplePatchingStrategy,
 )
