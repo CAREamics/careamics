@@ -4,6 +4,7 @@ code until it is updated.
 """
 
 from collections.abc import Sequence
+from typing import cast
 
 import numpy as np
 from numpy.typing import NDArray
@@ -15,7 +16,7 @@ from .patching_strategies import TileSpecs
 
 
 def imageregions_to_tileinfos(
-    image_regions: Sequence[ImageRegionData[TileSpecs]],
+    image_regions: Sequence[ImageRegionData],
 ) -> list[TileInformation]:
     """
     Converts a series of `TileSpecs` dictionaries to `TileInformation` pydantic class.
@@ -44,7 +45,7 @@ def imageregions_to_tileinfos(
     # separate TileSpecs by image_stack
     for data_idx in unique_data_indices:
         # collect all ImageRegions
-        data_image_regions: list[ImageRegionData[TileSpecs]] = [
+        data_image_regions: list[ImageRegionData] = [
             image_region
             for image_region in image_regions
             if image_region.region_spec["data_idx"] == data_idx
@@ -76,7 +77,7 @@ def imageregions_to_tileinfos(
 
 
 def _imageregion_to_tileinfo(
-    image_region: ImageRegionData[TileSpecs], last_tile: bool
+    image_region: ImageRegionData, last_tile: bool
 ) -> TileInformation:
     """
     Convert a single `ImageRegionData` instance to a `TileInformation` instance. Whether
@@ -94,9 +95,31 @@ def _imageregion_to_tileinfo(
     -------
     TileInformation
         A tile information object.
+
+    Raises
+    ------
+    KeyError
+        If `image_region.region_spec` does not contain the keys: {'crop_coords',
+        'crop_size', 'stitch_coords'}.
     """
-    tile_spec = image_region.region_spec
+    patch_spec = image_region.region_spec
     data_shape = image_region.data_shape
+
+    # In python 3.11 and greater, NamedTuples can inherit from Generic
+    #   so we could do image_region: ImageRegionData[TileSpecs]
+    #   and not have this work around
+    # make sure image_region.region_spec is TileSpec
+    if (
+        ("crop_coords" not in patch_spec)
+        or ("crop_size" not in patch_spec)
+        or ("stitch_coords" not in patch_spec)
+    ):
+        raise KeyError(
+            "Could not find all keys: {'crop_coords', 'crop_size', 'stitch_coords'} in "
+            "`image_region.region_spec`."
+        )
+
+    tile_spec = cast(TileSpecs, patch_spec)  # ugly cast for mypy
     return _tilespec_to_tileinfo(tile_spec, data_shape, last_tile)
 
 
