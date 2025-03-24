@@ -22,11 +22,9 @@ def imageregions_to_tileinfos(
 
     Parameters
     ----------
-    tile_specs : list of TileSpecs
-        A list of `TileSpecs` to be converted to a list of `TileInformation`.
-    data_shapes : sequence of (sequence of int)
-        The shapes of the data. They must be in the order that was originally given to
-        the `CAREamics` dataset.
+    image_regions : sequence of ImageRegionData
+        A list of ImageRegionData, it must have an instance of `TileSpecs` as it's
+        `region_data` field.
 
     Returns
     -------
@@ -80,6 +78,23 @@ def imageregions_to_tileinfos(
 def _imageregion_to_tileinfo(
     image_region: ImageRegionData[TileSpecs], last_tile: bool
 ) -> TileInformation:
+    """
+    Convert a single `ImageRegionData` instance to a `TileInformation` instance. Whether
+    it is the last tile in a sequence needs to be supplied.
+
+    Parameters
+    ----------
+    image_region : ImageRegionData
+        An instance of `ImageRegionData`, it must have an instance of `TileSpecs` as
+        it's `region_data` field.
+    last_tile : bool
+        Whether a tile is the last tile in a sequence, for stitching.
+
+    Returns
+    -------
+    TileInformation
+        A tile information object.
+    """
     tile_spec = image_region.region_spec
     data_shape = image_region.data_shape
     return _tilespec_to_tileinfo(tile_spec, data_shape, last_tile)
@@ -89,8 +104,8 @@ def _tilespec_to_tileinfo(
     tile_spec: TileSpecs, data_shape: Sequence[int], last_tile: bool
 ) -> TileInformation:
     """
-    Convert a single `TileSpec` to a `TileInfo`. Whether it is the last tile needs to
-    be supplied separately.
+    Convert a single `TileSpec` to a `TileInformation`. Whether it is the last tile
+    needs to be supplied.
 
     Parameters
     ----------

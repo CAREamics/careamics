@@ -44,8 +44,6 @@ class TileSpecs(PatchSpecs):
     patch_size: sequence of int
         The size of the patch. The sequence will have length 2 or 3, for 2D and 3D data
         respectively.
-    data_shape: sequence of int
-        The original shape of the data that the tile came from.
     crop_coords: sequence of int
         The top-left side of where the tile will be cropped, in coordinates relative
         to the tile.
