@@ -105,10 +105,10 @@ class DataConfig(BaseModel):
     patch_size: Optional[Union[list[int]]] = Field(
         default=None, min_length=2, max_length=3
     )
-    """Patch size, as used during training."""
+    """Patch size."""
 
     batch_size: int = Field(default=1, ge=1, validate_default=True)
-    """Batch size for training."""
+    """Batch size."""
 
     # Optional fields
     image_means: Optional[list[Float]] = Field(
@@ -122,13 +122,14 @@ class DataConfig(BaseModel):
     target_means: Optional[list[Float]] = Field(
         default=None, min_length=0, max_length=32
     )
-    """Means of the target data across channels, used for normalization."""
+    """Means of the target data across channels, used for normalization during
+    training."""
 
     target_stds: Optional[list[Float]] = Field(
         default=None, min_length=0, max_length=32
     )
     """Standard deviations of the target data across channels, used for
-    normalization."""
+    normalization during training."""
 
     transforms: Sequence[Union[XYFlipModel, XYRandomRotate90Model]] = Field(
         default=[],
@@ -147,7 +148,7 @@ class DataConfig(BaseModel):
     """Random seed for reproducibility."""
 
     patch_overlap: Optional[list[int]] = Field(default=None, min_length=2, max_length=3)
-    """Overlap between patches, only used at inference time."""
+    """Overlap between patches, only used during prediction."""
 
     @field_validator("axes")
     @classmethod

@@ -60,7 +60,7 @@ class TrainingDataConfig(DataConfig):
     """
 
     patch_size: Union[list[int]] = Field(..., min_length=2, max_length=3)
-    """Patch size, as used during training."""
+    """Patch size used during training."""
 
     transforms: Sequence[Union[XYFlipModel, XYRandomRotate90Model]] = Field(
         default=[

@@ -21,6 +21,8 @@ class PredictionDataConfig(DataConfig):
     Likewise, `patche_size` (`tile_size`) and `patch_overlap` (`tile_overlap`) can be
     `None` to predict on the entire image at once.
 
+    If `transforms` are provided, then they are used as test-time augmentations (TTA).
+
     Examples
     --------
     Minimum example:
