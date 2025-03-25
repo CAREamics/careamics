@@ -6,7 +6,7 @@ from pydantic import Field, TypeAdapter
 
 from careamics.config.algorithms import CAREAlgorithm, N2NAlgorithm, N2VAlgorithm
 from careamics.config.architectures import UNetModel
-from careamics.config.data import DataConfig
+from careamics.config.data import TrainingDataConfig
 from careamics.config.support import (
     SupportedArchitecture,
     SupportedPixelManipulation,
@@ -206,7 +206,7 @@ def _create_data_configuration(
     augmentations: Union[list[SPATIAL_TRANSFORMS_UNION]],
     train_dataloader_params: Optional[dict[str, Any]] = None,
     val_dataloader_params: Optional[dict[str, Any]] = None,
-) -> DataConfig:
+) -> TrainingDataConfig:
     """
     Create a dictionary with the parameters of the data model.
 
@@ -251,7 +251,7 @@ def _create_data_configuration(
     if val_dataloader_params is not None:
         data["val_dataloader_params"] = val_dataloader_params
 
-    return DataConfig(**data)
+    return TrainingDataConfig(**data)
 
 
 def _create_training_configuration(

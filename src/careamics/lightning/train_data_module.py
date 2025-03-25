@@ -8,7 +8,7 @@ import pytorch_lightning as L
 from numpy.typing import NDArray
 from torch.utils.data import DataLoader, IterableDataset
 
-from careamics.config.data import DataConfig
+from careamics.config.data import TrainingDataConfig
 from careamics.config.support import SupportedData
 from careamics.config.transformations import TransformModel
 from careamics.dataset.dataset_utils import (
@@ -118,7 +118,7 @@ class TrainDataModule(L.LightningDataModule):
 
     def __init__(
         self,
-        data_config: DataConfig,
+        data_config: TrainingDataConfig,
         train_data: Union[Path, str, NDArray],
         val_data: Optional[Union[Path, str, NDArray]] = None,
         train_data_target: Optional[Union[Path, str, NDArray]] = None,
@@ -218,7 +218,7 @@ class TrainDataModule(L.LightningDataModule):
             )
 
         # configuration
-        self.data_config: DataConfig = data_config
+        self.data_config: TrainingDataConfig = data_config
         self.data_type: str = data_config.data_type
         self.batch_size: int = data_config.batch_size
         self.use_in_memory: bool = use_in_memory
@@ -633,7 +633,7 @@ def create_train_datamodule(
         data_dict["transforms"] = transforms
 
     # instantiate data configuration
-    data_config = DataConfig(**data_dict)
+    data_config = TrainingDataConfig(**data_dict)
 
     # sanity check on the dataloader parameters
     if "batch_size" in dataloader_params:

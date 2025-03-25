@@ -9,7 +9,7 @@ from typing import Callable, Optional, Union
 from numpy.typing import NDArray
 from torch.utils.data import get_worker_info
 
-from careamics.config import DataConfig, InferenceConfig
+from careamics.config import InferenceConfig, TrainingDataConfig
 from careamics.file_io.read import read_tiff
 from careamics.utils.logging import get_logger
 
@@ -19,7 +19,7 @@ logger = get_logger(__name__)
 
 
 def iterate_over_files(
-    data_config: Union[DataConfig, InferenceConfig],
+    data_config: Union[TrainingDataConfig, InferenceConfig],
     data_files: list[Path],
     target_files: Optional[list[Path]] = None,
     read_source_func: Callable = read_tiff,

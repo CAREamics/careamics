@@ -5,7 +5,6 @@ from __future__ import annotations
 from collections.abc import Sequence
 from pprint import pformat
 from typing import Annotated, Any, Literal, Optional, Union
-from warnings import warn
 
 import numpy as np
 from numpy.typing import NDArray
@@ -15,12 +14,10 @@ from pydantic import (
     Field,
     PlainSerializer,
     field_validator,
-    model_validator,
 )
-from typing_extensions import Self
 
 from ..transformations import XYFlipModel, XYRandomRotate90Model
-from ..validators import check_axes_validity, patch_size_ge_than_8_power_of_2
+from ..validators import check_axes_validity
 
 
 def np_float_to_scientific_str(x: float) -> str:
@@ -47,13 +44,18 @@ Float = Annotated[float, PlainSerializer(np_float_to_scientific_str, return_type
 
 
 class DataConfig(BaseModel):
-    """Data configuration.
+    """General data configuration.
 
-    If std is specified, mean must be specified as well. Note that setting the std first
-    and then the mean (if they were both `None` before) will raise a validation error.
-    Prefer instead `set_mean_and_std` to set both at once. Means and stds are expected
-    to be lists of floats, one for each channel. For supervised tasks, the mean and std
-    of the target could be different from the input data.
+    This model is used to define the data configuration parameters but the actual
+    implementation used throughout CAREamics are the `TrainingDataConfig` and the
+    `PredictionDataConfig`.
+
+    To be valid, axes must abide the following constraints:
+    - be a combination of 'STCZYX'
+    - not contain duplicates
+    - contain at least 2 contiguous axes: X and Y
+    - contain at most 4 axes
+    - not contain both S and T axes
 
     All supported transforms are defined in the SupportedTransform enum.
 
@@ -100,7 +102,9 @@ class DataConfig(BaseModel):
     axes: str
     """Axes of the data, as defined in SupportedAxes."""
 
-    patch_size: Union[list[int]] = Field(..., min_length=2, max_length=3)
+    patch_size: Optional[Union[list[int]]] = Field(
+        default=None, min_length=2, max_length=3
+    )
     """Patch size, as used during training."""
 
     batch_size: int = Field(default=1, ge=1, validate_default=True)
@@ -127,55 +131,23 @@ class DataConfig(BaseModel):
     normalization."""
 
     transforms: Sequence[Union[XYFlipModel, XYRandomRotate90Model]] = Field(
-        default=[
-            XYFlipModel(),
-            XYRandomRotate90Model(),
-        ],
+        default=[],
         validate_default=True,
     )
     """List of transformations to apply to the data, available transforms are defined
     in SupportedTransform."""
 
-    train_dataloader_params: dict[str, Any] = Field(
-        default={"shuffle": True}, validate_default=True
-    )
-    """Dictionary of PyTorch training dataloader parameters. The dataloader parameters,
-    should include the `shuffle` key, which is set to `True` by default. We strongly
-    recommend to keep it as `True` to ensure the best training results."""
+    train_dataloader_params: dict[str, Any] = Field(default={}, validate_default=True)
+    """Dictionary of PyTorch training dataloader parameters."""
 
-    val_dataloader_params: dict[str, Any] = Field(default={})
+    val_dataloader_params: Optional[dict[str, Any]] = Field(default={})
     """Dictionary of PyTorch validation dataloader parameters."""
 
-    @field_validator("patch_size")
-    @classmethod
-    def all_elements_power_of_2_minimum_8(
-        cls, patch_list: Union[list[int]]
-    ) -> Union[list[int]]:
-        """
-        Validate patch size.
+    random_seed: Optional[int] = Field(default=None, ge=0)
+    """Random seed for reproducibility."""
 
-        Patch size must be powers of 2 and minimum 8.
-
-        Parameters
-        ----------
-        patch_list : list of int
-            Patch size.
-
-        Returns
-        -------
-        list of int
-            Validated patch size.
-
-        Raises
-        ------
-        ValueError
-            If the patch size is smaller than 8.
-        ValueError
-            If the patch size is not a power of 2.
-        """
-        patch_size_ge_than_8_power_of_2(patch_list)
-
-        return patch_list
+    patch_overlap: Optional[list[int]] = Field(default=None, min_length=2, max_length=3)
+    """Overlap between patches, only used at inference time."""
 
     @field_validator("axes")
     @classmethod
@@ -210,120 +182,6 @@ class DataConfig(BaseModel):
 
         return axes
 
-    @field_validator("train_dataloader_params")
-    @classmethod
-    def shuffle_train_dataloader(
-        cls, train_dataloader_params: dict[str, Any]
-    ) -> dict[str, Any]:
-        """
-        Validate that "shuffle" is included in the training dataloader params.
-
-        A warning will be raised if `shuffle=False`.
-
-        Parameters
-        ----------
-        train_dataloader_params : dict of {str: Any}
-            The training dataloader parameters.
-
-        Returns
-        -------
-        dict of {str: Any}
-            The validated training dataloader parameters.
-
-        Raises
-        ------
-        ValueError
-            If "shuffle" is not included in the training dataloader params.
-        """
-        if "shuffle" not in train_dataloader_params:
-            raise ValueError(
-                "Value for 'shuffle' was not included in the `train_dataloader_params`."
-            )
-        elif ("shuffle" in train_dataloader_params) and (
-            not train_dataloader_params["shuffle"]
-        ):
-            warn(
-                "Dataloader parameters include `shuffle=False`, this will be passed to "
-                "the training dataloader and may lead to lower quality results.",
-                stacklevel=1,
-            )
-        return train_dataloader_params
-
-    @model_validator(mode="after")
-    def std_only_with_mean(self: Self) -> Self:
-        """
-        Check that mean and std are either both None, or both specified.
-
-        Returns
-        -------
-        Self
-            Validated data model.
-
-        Raises
-        ------
-        ValueError
-            If std is not None and mean is None.
-        """
-        # check that mean and std are either both None, or both specified
-        if (self.image_means and not self.image_stds) or (
-            self.image_stds and not self.image_means
-        ):
-            raise ValueError(
-                "Mean and std must be either both None, or both specified."
-            )
-
-        elif (self.image_means is not None and self.image_stds is not None) and (
-            len(self.image_means) != len(self.image_stds)
-        ):
-            raise ValueError("Mean and std must be specified for each input channel.")
-
-        if (self.target_means and not self.target_stds) or (
-            self.target_stds and not self.target_means
-        ):
-            raise ValueError(
-                "Mean and std must be either both None, or both specified "
-            )
-
-        elif self.target_means is not None and self.target_stds is not None:
-            if len(self.target_means) != len(self.target_stds):
-                raise ValueError(
-                    "Mean and std must be either both None, or both specified for each "
-                    "target channel."
-                )
-
-        return self
-
-    @model_validator(mode="after")
-    def validate_dimensions(self: Self) -> Self:
-        """
-        Validate 2D/3D dimensions between axes, patch size and transforms.
-
-        Returns
-        -------
-        Self
-            Validated data model.
-
-        Raises
-        ------
-        ValueError
-            If the transforms are not valid.
-        """
-        if "Z" in self.axes:
-            if len(self.patch_size) != 3:
-                raise ValueError(
-                    f"Patch size must have 3 dimensions if the data is 3D "
-                    f"({self.axes})."
-                )
-
-        else:
-            if len(self.patch_size) != 2:
-                raise ValueError(
-                    f"Patch size must have 3 dimensions if the data is 3D "
-                    f"({self.axes})."
-                )
-
-        return self
-
     def __str__(self) -> str:
         """
         Pretty string reprensenting the configuration.
@@ -347,6 +205,7 @@ class DataConfig(BaseModel):
         self.__dict__.update(kwargs)
         self.__class__.model_validate(self.__dict__)
 
+    # TODO will this be used?
     def set_means_and_stds(
         self,
         image_means: Union[NDArray, tuple, list, None],
@@ -388,6 +247,7 @@ class DataConfig(BaseModel):
             target_stds=target_stds,
         )
 
+    # TODO usunused, remove?
     def set_3D(self, axes: str, patch_size: list[int]) -> None:
         """
         Set 3D parameters.

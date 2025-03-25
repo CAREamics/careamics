@@ -15,7 +15,7 @@ from careamics.config.algorithms import (
     N2NAlgorithm,
     N2VAlgorithm,
 )
-from careamics.config.data import DataConfig
+from careamics.config.data import TrainingDataConfig
 from careamics.config.training_model import TrainingConfig
 
 ALGORITHMS = Union[
@@ -137,7 +137,7 @@ class Configuration(BaseModel):
     """Algorithm configuration, holding all parameters required to configure the
     model."""
 
-    data_config: DataConfig
+    data_config: TrainingDataConfig
     """Data configuration, holding all parameters required to configure the training
     data loader."""
 
@@ -212,6 +212,7 @@ class Configuration(BaseModel):
         """
         return pformat(self.model_dump())
 
+    # TODO unused? remove?
     def set_3D(self, is_3D: bool, axes: str, patch_size: list[int]) -> None:
         """
         Set 3D flag and axes.

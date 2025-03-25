@@ -8,7 +8,8 @@ from numpy.typing import NDArray
 from torch.utils.data import Dataset
 from typing_extensions import ParamSpec
 
-from careamics.config import DataConfig, InferenceConfig
+from careamics.config.data.general_data_model import DataConfig
+from careamics.config.data.training_data_model import TrainingDataConfig
 from careamics.config.support import SupportedData
 from careamics.dataset.patching.patching import Stats
 from careamics.dataset_ng.patch_extractor import (
@@ -48,7 +49,7 @@ InputType = Union[Sequence[np.ndarray], Sequence[Path]]
 class CareamicsDataset(Dataset):
     def __init__(
         self,
-        data_config: Union[DataConfig, InferenceConfig],
+        data_config: DataConfig,
         mode: Mode,
         inputs: InputType,
         targets: Optional[InputType] = None,
@@ -89,22 +90,22 @@ class CareamicsDataset(Dataset):
     def _initialize_patching_strategy(self) -> PatchingStrategy:
         patching_strategy: PatchingStrategy
         if self.mode == Mode.TRAINING:
-            if isinstance(self.config, InferenceConfig):
+            if not isinstance(self.config, TrainingDataConfig):
                 raise ValueError("Inference config cannot be used for training.")
+
             patching_strategy = RandomPatchingStrategy(
                 data_shapes=self.input_extractor.shape,
                 patch_size=self.config.patch_size,
-                # TODO: Add random seed to dataconfig
-                seed=getattr(self.config, "random_seed", None),
+                seed=self.config.random_seed,
             )
         elif self.mode == Mode.VALIDATING:
-            if isinstance(self.config, InferenceConfig):
+            if not isinstance(self.config, TrainingDataConfig):
                 raise ValueError("Inference config cannot be used for validating.")
+
             patching_strategy = FixedRandomPatchingStrategy(
                 data_shapes=self.input_extractor.shape,
                 patch_size=self.config.patch_size,
-                # TODO: Add random seed to dataconfig
-                seed=getattr(self.config, "random_seed", None),
+                seed=self.config.random_seed,
             )
         elif self.mode == Mode.PREDICTING:
             # TODO: patching strategy will be tilingStrategy in upcoming PR
@@ -117,23 +118,23 @@ class CareamicsDataset(Dataset):
         return patching_strategy
 
     def _initialize_transforms(self) -> Optional[Compose]:
-        if isinstance(self.config, DataConfig):
-            return Compose(
-                transform_list=list(self.config.transforms),
-            )
-        # TODO: add TTA
-        return None
+        # TODO
+        return Compose(
+            transform_list=list(self.config.transforms),
+        )
 
     def _initialize_statistics(self) -> tuple[Stats, Optional[Stats]]:
         # TODO: add running stats
         # Currently assume that stats are provided in the configuration
         input_stats = Stats(self.config.image_means, self.config.image_stds)
         target_stats = None
-        if isinstance(self.config, DataConfig):
-            target_means = self.config.target_means
-            target_stds = self.config.target_stds
-            if target_means is not None and target_stds is not None:
-                target_stats = Stats(target_means, target_stds)
+
+        target_means = self.config.target_means
+        target_stds = self.config.target_stds
+
+        if target_means is not None and target_stds is not None:
+            target_stats = Stats(target_means, target_stds)
+
         return input_stats, target_stats
 
     def __len__(self):

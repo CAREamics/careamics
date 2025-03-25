@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 import tifffile
 
-from careamics.config import DataConfig
+from careamics.config import TrainingDataConfig
 from careamics.config.support import SupportedData
 from careamics.dataset import InMemoryDataset
 
@@ -18,7 +18,7 @@ def test_number_of_patches(ordered_array):
         "patch_size": [8, 8],
         "axes": "YX",
     }
-    config = DataConfig(**config_dict)
+    config = TrainingDataConfig(**config_dict)
 
     # create dataset
     dataset = InMemoryDataset(
@@ -42,7 +42,7 @@ def test_extracting_val_array(ordered_array, percentage):
         "patch_size": [8, 8],
         "axes": "YX",
     }
-    config = DataConfig(**config_dict)
+    config = TrainingDataConfig(**config_dict)
 
     # create dataset
     dataset = InMemoryDataset(
@@ -82,7 +82,7 @@ def test_extracting_val_files(tmp_path, ordered_array, percentage):
         "patch_size": [8, 8],
         "axes": "YX",
     }
-    config = DataConfig(**config_dict)
+    config = TrainingDataConfig(**config_dict)
 
     # create dataset
     dataset = InMemoryDataset(

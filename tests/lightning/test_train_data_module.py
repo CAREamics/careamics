@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 from tifffile import imwrite
 
-from careamics.config import DataConfig
+from careamics.config import TrainingDataConfig
 from careamics.config.support import (
     SupportedData,
     SupportedTransform,
@@ -22,19 +22,22 @@ def test_mismatching_types_array(simple_array, minimum_algorithm_n2v):
     minimum_algorithm_n2v["data_type"] = SupportedData.TIFF.value
     with pytest.raises(ValueError):
         TrainDataModule(
-            data_config=DataConfig(**minimum_algorithm_n2v), train_data=simple_array
+            data_config=TrainingDataConfig(**minimum_algorithm_n2v),
+            train_data=simple_array,
         )
 
     minimum_algorithm_n2v["data_type"] = SupportedData.CUSTOM.value
     with pytest.raises(ValueError):
         TrainDataModule(
-            data_config=DataConfig(**minimum_algorithm_n2v), train_data=simple_array
+            data_config=TrainingDataConfig(**minimum_algorithm_n2v),
+            train_data=simple_array,
         )
 
     minimum_algorithm_n2v["data_type"] = SupportedData.ARRAY.value
     with pytest.raises(ValueError):
         TrainDataModule(
-            data_config=DataConfig(**minimum_algorithm_n2v), train_data="path/to/data"
+            data_config=TrainingDataConfig(**minimum_algorithm_n2v),
+            train_data="path/to/data",
         )
 
 
@@ -108,7 +111,7 @@ def test_get_data_statistics(tmp_path):
     data_val = rng.integers(0, 10, (2, 3, 32, 32))
 
     # create data module with in memory
-    data_config = DataConfig(
+    data_config = TrainingDataConfig(
         data_type=SupportedData.ARRAY.value,
         patch_size=(16, 16),
         axes="SCYX",
@@ -140,7 +143,7 @@ def test_get_data_statistics(tmp_path):
         data_path = val_path / f"data_{i}.tif"
         imwrite(data_path, data_val[i])
 
-    data_config = DataConfig(
+    data_config = TrainingDataConfig(
         data_type=SupportedData.TIFF.value,
         patch_size=(16, 16),
         axes="CYX",
