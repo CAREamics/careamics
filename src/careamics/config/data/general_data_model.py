@@ -147,7 +147,9 @@ class DataConfig(BaseModel):
     random_seed: Optional[int] = Field(default=None, ge=0)
     """Random seed for reproducibility."""
 
-    patch_overlap: Optional[list[int]] = Field(default=None, min_length=2, max_length=3)
+    patch_overlaps: Optional[list[int]] = Field(
+        default=None, min_length=2, max_length=3
+    )
     """Overlap between patches, only used during prediction."""
 
     @field_validator("axes")
@@ -261,3 +263,16 @@ class DataConfig(BaseModel):
             Patch size.
         """
         self._update(axes=axes, patch_size=patch_size)
+
+    def is_tiled(self) -> bool:
+        """
+        Check if the data should be tiled.
+
+        Data should be tiled if both `patch_size` and `patch_overlaps` are not None.
+
+        Returns
+        -------
+        bool
+            True if the data should be tiled, False otherwise.
+        """
+        return self.patch_size is not None and self.patch_overlaps is not None

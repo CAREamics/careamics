@@ -41,8 +41,8 @@ class PredictionDataConfig(DataConfig):
     """Tile size used during prediction. If `None`, the entire image is predicted at
     once."""
 
-    patch_overlap: Optional[Union[list[int]]] = Field(
-        default=[48, 48], min_length=2, max_length=3, alias="tile_overlap"
+    patch_overlaps: Optional[Union[list[int]]] = Field(
+        default=[48, 48], min_length=2, max_length=3, alias="tile_overlaps"
     )
     """Overlap between tiles during prediction."""
 
