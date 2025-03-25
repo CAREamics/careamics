@@ -46,6 +46,7 @@ class PredictionDataConfig(DataConfig):
     )
     """Overlap between tiles during prediction."""
 
+    # TODO: should we enforce `suffle=False` for prediction? does it matter?
     train_dataloader_params: dict[str, Any] = Field(
         default={}, validate_default=True, alias="dataloader_params"
     )
