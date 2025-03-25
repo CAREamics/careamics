@@ -1,8 +1,11 @@
 """Prediction data configuration."""
 
+from __future__ import annotations
+
 from typing import Any, Optional, Union
 
-from pydantic import Field
+from pydantic import Field, model_validator
+from typing_extensions import Self
 
 from .general_data_model import DataConfig
 
@@ -55,4 +58,37 @@ class PredictionDataConfig(DataConfig):
     val_dataloader_params: Optional[dict[str, Any]] = Field(default=None)
     """This parameter is unused during prediction."""
 
-    # TODO: validate length patch size and patch overlap vs axes
+    @model_validator(mode="after")
+    def validate_dimensions(self: Self) -> Self:
+        """
+        Validate 2D/3D dimensions between axes, patch size and patch overlaps.
+
+        Returns
+        -------
+        Self
+            Validated data model.
+
+        Raises
+        ------
+        ValueError
+            If the patch size and overlaps do not match axes.
+        """
+        if self.is_tiled():
+            assert self.patch_size is not None
+            assert self.patch_overlaps is not None
+
+            if "Z" in self.axes:
+                if len(self.patch_size) != 3 or len(self.patch_overlaps) != 3:
+                    raise ValueError(
+                        f"Patch size and overlaps must have 3 dimensions if the data is"
+                        f" 3D (got axes {self.axes})."
+                    )
+
+            else:
+                if len(self.patch_size) != 2 or len(self.patch_overlaps) != 2:
+                    raise ValueError(
+                        f"Patch size and overlaps must have 2 dimensions if the data is"
+                        f" 2D (got axes {self.axes})."
+                    )
+
+        return self

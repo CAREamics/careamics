@@ -206,7 +206,7 @@ class TrainingDataConfig(DataConfig):
         Raises
         ------
         ValueError
-            If the transforms are not valid.
+            If the patch size does not match axes.
         """
         if "Z" in self.axes:
             if len(self.patch_size) != 3:
