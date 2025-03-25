@@ -91,7 +91,7 @@ class CareamicsDataset(Dataset):
         patching_strategy: PatchingStrategy
         if self.mode == Mode.TRAINING:
             if not isinstance(self.config, TrainingDataConfig):
-                raise ValueError("Inference config cannot be used for training.")
+                raise ValueError("Prediction config cannot be used for training.")
 
             patching_strategy = RandomPatchingStrategy(
                 data_shapes=self.input_extractor.shape,
@@ -100,7 +100,7 @@ class CareamicsDataset(Dataset):
             )
         elif self.mode == Mode.VALIDATING:
             if not isinstance(self.config, TrainingDataConfig):
-                raise ValueError("Inference config cannot be used for validating.")
+                raise ValueError("Prediction config cannot be used for validating.")
 
             patching_strategy = FixedRandomPatchingStrategy(
                 data_shapes=self.input_extractor.shape,
