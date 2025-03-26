@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -26,6 +27,14 @@ class FifoImageStackManager:
 
     def register_image_stack(self, image_stack: "ManagedLazyImageStack"):
         self.image_stacks[image_stack.path] = image_stack
+        image_stack.set_callbacks(
+            on_load=self.notify_load,
+            on_close=self.notify_close,
+        )
+
+    def register_image_stacks(self, image_stacks: Sequence["ManagedLazyImageStack"]):
+        for image_stack in image_stacks:
+            self.register_image_stack(image_stack)
 
     def free(self):
         if self.currently_loaded >= self.max_files_loaded:

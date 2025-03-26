@@ -13,7 +13,7 @@ from careamics.file_io.read import ReadFunc, read_tiff
 from ._utils import reshaped_array_shape
 
 if TYPE_CHECKING:
-    from ...batch_sampler import FifoImageStackManager
+    pass
 
 logger = getLogger(name=__name__)
 
@@ -71,11 +71,16 @@ class ManagedLazyImageStack:
             )
         ]
 
-    # loosely coupling with FifoImageStackManager
-    def register_manager(self, manager: "FifoImageStackManager"):
-        self._on_load = manager.notify_load
-        self._on_close = manager.notify_close
-        manager.register_image_stack(self)
+    # normally on_load and on_close will be
+    #   FifoImageStackManager.notify_load,
+    #   FifoImageStackManager.notify_close,
+    def set_callbacks(
+        self,
+        on_load: Callable[["ManagedLazyImageStack"], None],
+        on_close: Callable[["ManagedLazyImageStack"], None],
+    ):
+        self._on_load = on_load
+        self._on_close = on_close
 
     def load(self):
         if self._on_load is not None:

@@ -45,10 +45,10 @@ def test_fifo_image_stack_manager(tmp_path, max_files_loaded: int):
 
             return on_close
 
-        image_stack = ManagedLazyImageStack.from_tiff(
-            path, axes, on_load_closure(i), on_close_closure(i)
-        )
+        image_stack = ManagedLazyImageStack.from_tiff(path, axes)
         manager.register_image_stack(image_stack)
+        # have to do this to override callbacks set when calling register_image_stack
+        image_stack.set_callbacks(on_load_closure(i), on_close_closure(i))
 
         image_stacks.append(image_stack)
 
