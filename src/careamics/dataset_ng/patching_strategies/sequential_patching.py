@@ -55,8 +55,8 @@ class SequentialPatchingStrategy:
             given `data_idx`.
         """
         return [
-            patch_spec["data_idx"]
-            for patch_spec in self.patch_specs
+            i
+            for i, patch_spec in enumerate(self.patch_specs)
             if patch_spec["data_idx"] == data_idx
         ]
 

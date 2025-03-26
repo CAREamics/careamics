@@ -307,8 +307,8 @@ class FixedRandomPatchingStrategy:
             given `data_idx`.
         """
         return [
-            patch_spec["data_idx"]
-            for patch_spec in self.fixed_patch_specs
+            i
+            for i, patch_spec in enumerate(self.fixed_patch_specs)
             if patch_spec["data_idx"] == data_idx
         ]
 
