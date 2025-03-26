@@ -1,5 +1,6 @@
 from collections.abc import Sequence
 from pathlib import Path
+from typing import Any, Literal, TypeVar, Union, overload
 from typing import Any
 
 from numpy.typing import NDArray
@@ -11,6 +12,12 @@ from careamics.file_io.read import ReadFunc
 from .image_stack import (
     GenericImageStack,
     InMemoryImageStack,
+    ZarrImageStack,
+)
+from .image_stack import (
+    ImageStack,
+    InMemoryImageStack,
+    ManagedLazyImageStack,
     ZarrImageStack,
 )
 from .image_stack_loader import (
