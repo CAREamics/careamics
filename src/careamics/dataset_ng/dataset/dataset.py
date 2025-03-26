@@ -1,7 +1,7 @@
 from collections.abc import Sequence
 from enum import Enum
 from pathlib import Path
-from typing import Any, Generic, Literal, NamedTuple, Optional, TypeVar, Union
+from typing import Generic, Literal, NamedTuple, Optional, TypeVar, Union
 
 import numpy as np
 from numpy.typing import NDArray
@@ -9,13 +9,8 @@ from torch.utils.data import Dataset
 from typing_extensions import ParamSpec
 
 from careamics.config import DataConfig, InferenceConfig
-from careamics.config.support import SupportedData
 from careamics.dataset.patching.patching import Stats
-from careamics.dataset_ng.patch_extractor import (
-    ImageStackLoader,
-    PatchExtractor,
-    create_patch_extractor,
-)
+from careamics.dataset_ng.patch_extractor import PatchExtractor
 from careamics.dataset_ng.patch_extractor.image_stack import ImageStack
 from careamics.dataset_ng.patching_strategies import (
     FixedRandomPatchingStrategy,
@@ -52,39 +47,14 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
         self,
         data_config: Union[DataConfig, InferenceConfig],
         mode: Mode,
-        inputs: InputType,
-        targets: Optional[InputType] = None,
-        image_stack_loader: Optional[ImageStackLoader] = None,
-        *args: Any,
-        **kwargs: Any,
+        input_extractor: PatchExtractor[GenericImageStack],
+        target_extractor: Optional[PatchExtractor[GenericImageStack]] = None,
     ):
         self.config = data_config
         self.mode = mode
 
-        data_type_enum = SupportedData(self.config.data_type)
-        self.input_extractor: PatchExtractor[GenericImageStack] = (
-            create_patch_extractor(
-                inputs,
-                self.config.axes,
-                data_type_enum,
-                image_stack_loader,
-                *args,
-                **kwargs,
-            )
-        )
-        if targets is not None:
-            self.target_extractor: Optional[PatchExtractor[GenericImageStack]] = (
-                create_patch_extractor(
-                    targets,
-                    self.config.axes,
-                    data_type_enum,
-                    image_stack_loader,
-                    *args,
-                    **kwargs,
-                )
-            )
-        else:
-            self.target_extractor = None
+        self.input_extractor = input_extractor
+        self.target_extractor = target_extractor
 
         self.patching_strategy = self._initialize_patching_strategy()
 
