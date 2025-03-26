@@ -1,11 +1,6 @@
 from collections.abc import Sequence
 from pathlib import Path
-from typing import (
-    Any,
-    Optional,
-    Protocol,
-    Union,
-)
+from typing import Any, Optional, Protocol, TypeVar, Union
 
 from numpy.typing import NDArray
 from typing_extensions import ParamSpec
@@ -17,13 +12,14 @@ from careamics.utils import BaseEnum
 from .image_stack import ImageStack, InMemoryImageStack, ZarrImageStack
 
 P = ParamSpec("P")
+GenericImageStack = TypeVar("GenericImageStack", bound=ImageStack, covariant=True)
 
 
 class SupportedDataDev(str, BaseEnum):
     ZARR = "zarr"
 
 
-class ImageStackLoader(Protocol[P]):
+class ImageStackLoader(Protocol[P, GenericImageStack]):
     """
     Protocol to define how `ImageStacks` should be loaded.
 
@@ -76,7 +72,7 @@ class ImageStackLoader(Protocol[P]):
 
     def __call__(
         self, source: Any, axes: str, *args: P.args, **kwargs: P.kwargs
-    ) -> Sequence[ImageStack]: ...
+    ) -> Sequence[GenericImageStack]: ...
 
 
 def from_arrays(
