@@ -14,6 +14,12 @@ from careamics.config.transformations import NormalizeModel
 from careamics.dataset.patching.patching import Stats
 from careamics.dataset_ng.patch_extractor import PatchExtractor
 from careamics.dataset_ng.patch_extractor.image_stack import GenericImageStack
+from careamics.dataset_ng.patch_extractor import (
+    ImageStackLoader,
+    PatchExtractor,
+    create_patch_extractor,
+)
+from careamics.dataset_ng.patch_extractor.image_stack import ImageStack
 from careamics.dataset_ng.patching_strategies import (
     FixedRandomPatchingStrategy,
     PatchingStrategy,
