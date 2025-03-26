@@ -1,7 +1,6 @@
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Any, Literal, TypeVar, Union, overload
-from typing import Any
 
 from numpy.typing import NDArray
 from typing_extensions import ParamSpec
