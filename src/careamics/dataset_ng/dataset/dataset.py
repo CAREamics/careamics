@@ -37,7 +37,7 @@ class Mode(str, Enum):
 
 class ImageRegionData(NamedTuple):
     data: NDArray
-    source: Union[Path, Literal["array"]]
+    source: Union[str, Literal["array"]]  # path has to be string for collate
     data_shape: Sequence[int]
     dtype: str  # dtype should be str for collate
     axes: str
@@ -151,7 +151,7 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
         data_idx = patch_spec["data_idx"]
         return ImageRegionData(
             data=patch,
-            source=extractor.image_stacks[data_idx].source,
+            source=str(extractor.image_stacks[data_idx].source),
             dtype=str(extractor.image_stacks[data_idx].data_dtype),
             data_shape=extractor.image_stacks[data_idx].data_shape,
             # TODO: should it be axes of the original image instead?
@@ -161,7 +161,7 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
 
     def __getitem__(
         self, index: int
-    ) -> tuple[ImageRegionData, Optional[ImageRegionData]]:
+    ) -> Union[tuple[ImageRegionData], tuple[ImageRegionData, ImageRegionData]]:
         patch_spec = self.patching_strategy.get_patch_spec(index)
         input_patch = self.input_extractor.extract_patch(**patch_spec)
 
@@ -172,7 +172,13 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
         )
 
         if self.transforms is not None:
-            input_patch, target_patch = self.transforms(input_patch, target_patch)
+            if self.target_extractor is not None:
+                input_patch, target_patch = self.transforms(input_patch, target_patch)
+            else:
+                # TODO: compose doesn't return None for target patch anymore
+                #   so have to do this annoying if else
+                (input_patch,) = self.transforms(input_patch, target_patch)
+                target_patch = None
 
         input_data = self._create_image_region(
             patch=input_patch, patch_spec=patch_spec, extractor=self.input_extractor
@@ -187,4 +193,7 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
         else:
             target_data = None
 
-        return input_data, target_data
+        if target_data is not None:
+            return input_data, target_data
+        else:
+            return (input_data,)  # Default collate_fn doesn't work with None
