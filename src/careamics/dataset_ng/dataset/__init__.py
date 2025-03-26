@@ -1,3 +1,3 @@
-__all__ = ["CareamicsDataset"]
+__all__ = ["CareamicsDataset", "Mode"]
 
-from .dataset import CareamicsDataset
+from .dataset import CareamicsDataset, Mode

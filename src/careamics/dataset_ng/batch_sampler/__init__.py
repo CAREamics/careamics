@@ -1,3 +1,3 @@
-__all__ = ["FifoImageStackManager"]
+__all__ = ["FifoBatchSampler", "FifoImageStackManager"]
 
-from .fifo_batch_sampler import FifoImageStackManager
+from .fifo_batch_sampler import FifoBatchSampler, FifoImageStackManager

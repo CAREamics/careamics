@@ -24,7 +24,7 @@ GenericImageStack = TypeVar("GenericImageStack", bound=ImageStack, covariant=Tru
 
 # Array case
 def create_array_extractor(
-    source: Sequence[NDArray], axes: str
+    source: Sequence[NDArray[Any]], axes: str
 ) -> PatchExtractor[InMemoryImageStack]:
     """
     Create a patch extractor from a sequence of numpy arrays.
@@ -132,7 +132,7 @@ def create_ome_zarr_extractor(
 
 # Custom file type case (loaded into memory)
 def create_custom_file_extractor(
-    source: Any,
+    source: Sequence[Path],
     axes: str,
     *,
     read_func: ReadFunc,
