@@ -1,7 +1,7 @@
 from collections.abc import Sequence
 from enum import Enum
 from pathlib import Path
-from typing import Literal, NamedTuple, Optional, Union
+from typing import Any, Generic, Literal, NamedTuple, Optional, TypeVar, Union
 
 import numpy as np
 from numpy.typing import NDArray
@@ -16,6 +16,7 @@ from careamics.dataset_ng.patch_extractor import (
     PatchExtractor,
     create_patch_extractor,
 )
+from careamics.dataset_ng.patch_extractor.image_stack import ImageStack
 from careamics.dataset_ng.patching_strategies import (
     FixedRandomPatchingStrategy,
     PatchingStrategy,
@@ -25,6 +26,7 @@ from careamics.dataset_ng.patching_strategies import (
 from careamics.transforms import Compose
 
 P = ParamSpec("P")
+GenericImageStack = TypeVar("GenericImageStack", bound=ImageStack, covariant=True)
 
 
 class Mode(str, Enum):
@@ -45,37 +47,41 @@ class ImageRegionData(NamedTuple):
 InputType = Union[Sequence[np.ndarray], Sequence[Path]]
 
 
-class CareamicsDataset(Dataset):
+class CareamicsDataset(Dataset, Generic[GenericImageStack]):
     def __init__(
         self,
         data_config: Union[DataConfig, InferenceConfig],
         mode: Mode,
         inputs: InputType,
         targets: Optional[InputType] = None,
-        image_stack_loader: Optional[ImageStackLoader[P]] = None,
-        *args: P.args,
-        **kwargs: P.kwargs,
+        image_stack_loader: Optional[ImageStackLoader] = None,
+        *args: Any,
+        **kwargs: Any,
     ):
         self.config = data_config
         self.mode = mode
 
         data_type_enum = SupportedData(self.config.data_type)
-        self.input_extractor = create_patch_extractor(
-            inputs,
-            self.config.axes,
-            data_type_enum,
-            image_stack_loader,
-            *args,
-            **kwargs,
-        )
-        if targets is not None:
-            self.target_extractor: Optional[PatchExtractor] = create_patch_extractor(
-                targets,
+        self.input_extractor: PatchExtractor[GenericImageStack] = (
+            create_patch_extractor(
+                inputs,
                 self.config.axes,
                 data_type_enum,
                 image_stack_loader,
                 *args,
                 **kwargs,
+            )
+        )
+        if targets is not None:
+            self.target_extractor: Optional[PatchExtractor[GenericImageStack]] = (
+                create_patch_extractor(
+                    targets,
+                    self.config.axes,
+                    data_type_enum,
+                    image_stack_loader,
+                    *args,
+                    **kwargs,
+                )
             )
         else:
             self.target_extractor = None

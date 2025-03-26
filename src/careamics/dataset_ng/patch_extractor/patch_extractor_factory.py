@@ -1,6 +1,6 @@
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, Literal, Optional, Union, overload
+from typing import Any, Literal, Optional, TypeVar, Union, overload
 
 from numpy.typing import NDArray
 from typing_extensions import ParamSpec
@@ -9,6 +9,7 @@ from careamics.config.support import SupportedData
 from careamics.dataset_ng.patch_extractor import PatchExtractor
 from careamics.file_io.read import ReadFunc
 
+from .image_stack import ImageStack, InMemoryImageStack, ZarrImageStack
 from .image_stack_loader import (
     ImageStackLoader,
     SupportedDataDev,
@@ -16,6 +17,7 @@ from .image_stack_loader import (
 )
 
 P = ParamSpec("P")
+GenericImageStack = TypeVar("GenericImageStack", bound=ImageStack, covariant=True)
 
 
 # Define overloads for each implemented ImageStackLoader case
@@ -23,7 +25,7 @@ P = ParamSpec("P")
 @overload
 def create_patch_extractor(
     source: Sequence[NDArray], axes: str, data_type: Literal[SupportedData.ARRAY]
-) -> PatchExtractor:
+) -> PatchExtractor[InMemoryImageStack]:
     """
     Create a patch extractor from a sequence of numpy arrays.
 
@@ -41,13 +43,44 @@ def create_patch_extractor(
     """
 
 
-# TIFF and ZARR case
+# TIFF case
 @overload
 def create_patch_extractor(
     source: Sequence[Path],
     axes: str,
-    data_type: Literal[SupportedData.TIFF, SupportedDataDev.ZARR],
-) -> PatchExtractor:
+    data_type: Literal[SupportedData.TIFF],
+) -> PatchExtractor[InMemoryImageStack]:
+    """
+    Create a patch extractor from a sequence of files that match our supported types.
+
+    Supported file types include TIFF and ZARR.
+
+    If the files are ZARR files they must follow the OME standard. If you have ZARR
+    files that do not follow the OME standard, see documentation on how to create
+    a custom `image_stack_loader`. (TODO: Add link).
+
+    Parameters
+    ----------
+    source: sequence of Path
+        The source files for the data.
+    data_config: DataConfig
+        The data configuration, `data_config.data_type` should have the value "tiff" or
+        "zarr", and `data_config.axes` should describe the axes of every image in the
+        `source`.
+
+    Returns
+    -------
+    PatchExtractor
+    """
+
+
+# ZARR case
+@overload
+def create_patch_extractor(
+    source: Sequence[Path],
+    axes: str,
+    data_type: Literal[SupportedDataDev.ZARR],
+) -> PatchExtractor[ZarrImageStack]:
     """
     Create a patch extractor from a sequence of files that match our supported types.
 
@@ -81,7 +114,7 @@ def create_patch_extractor(
     *,
     read_func: ReadFunc,
     read_kwargs: dict[str, Any],
-) -> PatchExtractor:
+) -> PatchExtractor[InMemoryImageStack]:
     """
     Create a patch extractor from a sequence of files of a custom type.
 
@@ -108,10 +141,10 @@ def create_patch_extractor(
     source: Any,
     axes: str,
     data_type: Literal[SupportedData.CUSTOM],
-    image_stack_loader: ImageStackLoader[P],
+    image_stack_loader: ImageStackLoader[P, GenericImageStack],
     *args: P.args,
     **kwargs: P.kwargs,
-) -> PatchExtractor:
+) -> PatchExtractor[GenericImageStack]:
     """
     Create a patch extractor using a custom `ImageStackLoader`.
 
@@ -150,24 +183,24 @@ def create_patch_extractor(
     source: Any,
     axes: str,
     data_type: Union[SupportedData, SupportedDataDev],
-    image_stack_loader: Optional[ImageStackLoader[P]] = None,
-    *args: P.args,
-    **kwargs: P.kwargs,
-) -> PatchExtractor: ...
+    image_stack_loader: Optional[ImageStackLoader[P, GenericImageStack]] = None,
+    *args: Any,
+    **kwargs: Any,
+) -> PatchExtractor[GenericImageStack]: ...
 
 
 def create_patch_extractor(
     source: Any,
     axes: str,
     data_type: Union[SupportedData, SupportedDataDev],
-    image_stack_loader: Optional[ImageStackLoader[P]] = None,
-    *args: P.args,
-    **kwargs: P.kwargs,
-) -> PatchExtractor:
+    image_stack_loader: Optional[ImageStackLoader[P, GenericImageStack]] = None,
+    *args: Any,
+    **kwargs: Any,
+) -> PatchExtractor[GenericImageStack]:
     # TODO: Do we need to catch data_config.data_type and source mismatches?
     #   e.g. data_config.data_type is "array" but source is not Sequence[NDArray]
-    loader: ImageStackLoader[P] = get_image_stack_loader(data_type, image_stack_loader)
-    image_stacks = loader(source, axes, *args, **kwargs)
+    loader: ImageStackLoader = get_image_stack_loader(data_type, image_stack_loader)
+    image_stacks: Sequence[GenericImageStack] = loader(source, axes, *args, **kwargs)
     return PatchExtractor(image_stacks)
 
 
