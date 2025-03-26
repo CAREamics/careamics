@@ -1,30 +1,30 @@
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, Literal, Optional, TypeVar, Union, overload
+from typing import Any, Literal, TypeVar, Union, overload
 
 from numpy.typing import NDArray
 from typing_extensions import ParamSpec
 
-from careamics.config.support import SupportedData
 from careamics.dataset_ng.patch_extractor import PatchExtractor
 from careamics.file_io.read import ReadFunc
 
-from .image_stack import ImageStack, InMemoryImageStack, ZarrImageStack
+from .image_stack import (
+    ImageStack,
+    InMemoryImageStack,
+    ManagedLazyImageStack,
+    ZarrImageStack,
+)
 from .image_stack_loader import (
     ImageStackLoader,
-    SupportedDataDev,
-    get_image_stack_loader,
 )
 
 P = ParamSpec("P")
 GenericImageStack = TypeVar("GenericImageStack", bound=ImageStack, covariant=True)
 
 
-# Define overloads for each implemented ImageStackLoader case
 # Array case
-@overload
-def create_patch_extractor(
-    source: Sequence[NDArray], axes: str, data_type: Literal[SupportedData.ARRAY]
+def create_array_extractor(
+    source: Sequence[NDArray], axes: str
 ) -> PatchExtractor[InMemoryImageStack]:
     """
     Create a patch extractor from a sequence of numpy arrays.
@@ -41,19 +41,32 @@ def create_patch_extractor(
     -------
     PatchExtractor
     """
+    image_stacks = [
+        InMemoryImageStack.from_array(data=array, axes=axes) for array in source
+    ]
+    return PatchExtractor(image_stacks)
+
+
+@overload
+def create_tiff_extractor(
+    source: Sequence[Path], axes: str, in_mem: Literal[True]
+) -> PatchExtractor[InMemoryImageStack]: ...
+
+
+@overload
+def create_tiff_extractor(
+    source: Sequence[Path], axes: str, in_mem: Literal[False]
+) -> PatchExtractor[ManagedLazyImageStack]: ...
 
 
 # TIFF case
-@overload
-def create_patch_extractor(
-    source: Sequence[Path],
-    axes: str,
-    data_type: Literal[SupportedData.TIFF],
-) -> PatchExtractor[InMemoryImageStack]:
+def create_tiff_extractor(
+    source: Sequence[Path], axes: str, in_mem: bool
+) -> Union[PatchExtractor[InMemoryImageStack], PatchExtractor[ManagedLazyImageStack]]:
     """
     Create a patch extractor from a sequence of files that match our supported types.
 
-    Supported file types include TIFF and ZARR.
+    Supported file types include TIFF.
 
     If the files are ZARR files they must follow the OME standard. If you have ZARR
     files that do not follow the OME standard, see documentation on how to create
@@ -72,14 +85,23 @@ def create_patch_extractor(
     -------
     PatchExtractor
     """
+    image_stacks: Union[Sequence[InMemoryImageStack], Sequence[ManagedLazyImageStack]]
+    if in_mem:
+        image_stacks = [
+            InMemoryImageStack.from_tiff(path=path, axes=axes) for path in source
+        ]
+        return PatchExtractor(image_stacks)
+    else:
+        image_stacks = [
+            ManagedLazyImageStack.from_tiff(path=path, axes=axes) for path in source
+        ]
+        return PatchExtractor(image_stacks)
 
 
 # ZARR case
-@overload
-def create_patch_extractor(
+def create_ome_zarr_extractor(
     source: Sequence[Path],
     axes: str,
-    data_type: Literal[SupportedDataDev.ZARR],
 ) -> PatchExtractor[ZarrImageStack]:
     """
     Create a patch extractor from a sequence of files that match our supported types.
@@ -103,14 +125,15 @@ def create_patch_extractor(
     -------
     PatchExtractor
     """
+    # NOTE: axes is unused here, in from_ome_zarr the axes are automatically retrieved
+    image_stacks = [ZarrImageStack.from_ome_zarr(path) for path in source]
+    return PatchExtractor(image_stacks)
 
 
 # Custom file type case (loaded into memory)
-@overload
-def create_patch_extractor(
+def create_custom_file_extractor(
     source: Any,
     axes: str,
-    data_type: Literal[SupportedData.CUSTOM],
     *,
     read_func: ReadFunc,
     read_kwargs: dict[str, Any],
@@ -133,14 +156,24 @@ def create_patch_extractor(
     -------
     PatchExtractor
     """
+    # TODO: lazy loading custom files
+    image_stacks = [
+        InMemoryImageStack.from_custom_file_type(
+            path=path,
+            axes=axes,
+            read_func=read_func,
+            **read_kwargs,
+        )
+        for path in source
+    ]
+
+    return PatchExtractor(image_stacks)
 
 
 # Custom ImageStackLoader case
-@overload
-def create_patch_extractor(
+def create_custom_image_stack_extractor(
     source: Any,
     axes: str,
-    data_type: Literal[SupportedData.CUSTOM],
     image_stack_loader: ImageStackLoader[P, GenericImageStack],
     *args: P.args,
     **kwargs: P.kwargs,
@@ -173,69 +206,5 @@ def create_patch_extractor(
     -------
     PatchExtractor
     """
-
-
-# final overload to match the implentation function signature
-# Need this so it works later in the code
-#   (bec there aren't created overloads for create_patch_extractors below)
-@overload
-def create_patch_extractor(
-    source: Any,
-    axes: str,
-    data_type: Union[SupportedData, SupportedDataDev],
-    image_stack_loader: Optional[ImageStackLoader[P, GenericImageStack]] = None,
-    *args: Any,
-    **kwargs: Any,
-) -> PatchExtractor[GenericImageStack]: ...
-
-
-def create_patch_extractor(
-    source: Any,
-    axes: str,
-    data_type: Union[SupportedData, SupportedDataDev],
-    image_stack_loader: Optional[ImageStackLoader[P, GenericImageStack]] = None,
-    *args: Any,
-    **kwargs: Any,
-) -> PatchExtractor[GenericImageStack]:
-    # TODO: Do we need to catch data_config.data_type and source mismatches?
-    #   e.g. data_config.data_type is "array" but source is not Sequence[NDArray]
-    loader: ImageStackLoader = get_image_stack_loader(data_type, image_stack_loader)
-    image_stacks: Sequence[GenericImageStack] = loader(source, axes, *args, **kwargs)
+    image_stacks = image_stack_loader(source, axes, *args, **kwargs)
     return PatchExtractor(image_stacks)
-
-
-# TODO: Remove this and just call `create_patch_extractor` within the Dataset class
-# Keeping for consistency for now
-def create_patch_extractors(
-    source: Any,
-    target_source: Optional[Any],
-    axes: str,
-    data_type: Union[SupportedData, SupportedDataDev],
-    image_stack_loader: Optional[ImageStackLoader] = None,
-    *args,
-    **kwargs,
-) -> tuple[PatchExtractor, Optional[PatchExtractor]]:
-
-    # --- data extractor
-    patch_extractor: PatchExtractor = create_patch_extractor(
-        source,
-        axes,
-        data_type,
-        image_stack_loader,
-        *args,
-        **kwargs,
-    )
-    # --- optional target extractor
-    if target_source is not None:
-        target_patch_extractor = create_patch_extractor(
-            target_source,
-            axes,
-            data_type,
-            image_stack_loader,
-            *args,
-            **kwargs,
-        )
-
-        return patch_extractor, target_patch_extractor
-
-    return patch_extractor, None
