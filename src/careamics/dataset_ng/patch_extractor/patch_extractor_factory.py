@@ -1,6 +1,6 @@
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, Literal, TypeVar, Union, overload
+from typing import Any, TypeVar
 
 from numpy.typing import NDArray
 from typing_extensions import ParamSpec
@@ -11,7 +11,6 @@ from careamics.file_io.read import ReadFunc
 from .image_stack import (
     ImageStack,
     InMemoryImageStack,
-    ManagedLazyImageStack,
     ZarrImageStack,
 )
 from .image_stack_loader import (
@@ -24,7 +23,7 @@ GenericImageStack = TypeVar("GenericImageStack", bound=ImageStack, covariant=Tru
 
 # Array case
 def create_array_extractor(
-    source: Sequence[NDArray], axes: str
+    source: Sequence[NDArray[Any]], axes: str
 ) -> PatchExtractor[InMemoryImageStack]:
     """
     Create a patch extractor from a sequence of numpy arrays.
@@ -47,22 +46,10 @@ def create_array_extractor(
     return PatchExtractor(image_stacks)
 
 
-@overload
-def create_tiff_extractor(
-    source: Sequence[Path], axes: str, in_mem: Literal[True]
-) -> PatchExtractor[InMemoryImageStack]: ...
-
-
-@overload
-def create_tiff_extractor(
-    source: Sequence[Path], axes: str, in_mem: Literal[False]
-) -> PatchExtractor[ManagedLazyImageStack]: ...
-
-
 # TIFF case
 def create_tiff_extractor(
-    source: Sequence[Path], axes: str, in_mem: bool
-) -> Union[PatchExtractor[InMemoryImageStack], PatchExtractor[ManagedLazyImageStack]]:
+    source: Sequence[Path], axes: str
+) -> PatchExtractor[InMemoryImageStack]:
     """
     Create a patch extractor from a sequence of files that match our supported types.
 
@@ -85,17 +72,10 @@ def create_tiff_extractor(
     -------
     PatchExtractor
     """
-    image_stacks: Union[Sequence[InMemoryImageStack], Sequence[ManagedLazyImageStack]]
-    if in_mem:
-        image_stacks = [
-            InMemoryImageStack.from_tiff(path=path, axes=axes) for path in source
-        ]
-        return PatchExtractor(image_stacks)
-    else:
-        image_stacks = [
-            ManagedLazyImageStack.from_tiff(path=path, axes=axes) for path in source
-        ]
-        return PatchExtractor(image_stacks)
+    image_stacks = [
+        InMemoryImageStack.from_tiff(path=path, axes=axes) for path in source
+    ]
+    return PatchExtractor(image_stacks)
 
 
 # ZARR case
@@ -132,7 +112,7 @@ def create_ome_zarr_extractor(
 
 # Custom file type case (loaded into memory)
 def create_custom_file_extractor(
-    source: Any,
+    source: Sequence[Path],
     axes: str,
     *,
     read_func: ReadFunc,
