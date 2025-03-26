@@ -35,6 +35,31 @@ class SequentialPatchingStrategy:
     def get_patch_spec(self, index: int) -> PatchSpecs:
         return self.patch_specs[index]
 
+    # Note: this is used by the FifoBatchSampler
+    def get_patch_indices(self, data_idx: int) -> Sequence[int]:
+        """
+        Get the patch indices will return patches for a specific `image_stack`.
+
+        The `image_stack` corresponds to the given `data_idx`.
+
+        Parameters
+        ----------
+        data_idx : int
+            An index that corresponds to a given `image_stack`.
+
+        Returns
+        -------
+        sequence of int
+            A sequence of patch indices, that when used to index the `CAREamicsDataset
+            will return a patch that comes from the `image_stack` corresponding to the
+            given `data_idx`.
+        """
+        return [
+            patch_spec["data_idx"]
+            for patch_spec in self.patch_specs
+            if patch_spec["data_idx"] == data_idx
+        ]
+
     def _compute_coords_1d(
         self, patch_size: int, spatial_shape: int, overlap: int
     ) -> list[tuple[int, int]]:
