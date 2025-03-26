@@ -7,6 +7,7 @@ from careamics.config import (
     N2VAlgorithm,
     algorithm_factory,
     create_care_configuration,
+    create_hdn_configuration,
     create_n2n_configuration,
     create_n2v_configuration,
 )
@@ -100,7 +101,7 @@ def test_list_aug_error_wrong_transform():
 def test_create_data_configuration_train_dataloader_params(minimum_data):
     """Test that shuffle is added silently to the train_dataloader_params."""
     config_dict = minimum_data
-    config_dict["train_dataloader_params"] = {"num_workers": 4}
+    config_dict["train_dataloader_params"] = {"num_workers": 4, "shuffle": True}
 
     config = _create_data_configuration(batch_size=1, augmentations=[], **config_dict)
     assert "shuffle" in config.train_dataloader_params
@@ -310,7 +311,7 @@ def test_n2n_configuration():
         patch_size=[64, 64],
         batch_size=8,
         num_epochs=100,
-        train_dataloader_params={"num_workers": 2},
+        train_dataloader_params={"num_workers": 2, "shuffle": True},
     )
     assert config.algorithm_config.algorithm == "n2n"
 
@@ -357,7 +358,7 @@ def test_care_configuration():
         patch_size=[64, 64],
         batch_size=8,
         num_epochs=100,
-        train_dataloader_params={"num_workers": 2},
+        train_dataloader_params={"num_workers": 2, "shuffle": True},
     )
     assert config.algorithm_config.algorithm == "care"
 
@@ -404,7 +405,7 @@ def test_n2v_configuration():
         patch_size=[64, 64],
         batch_size=8,
         num_epochs=100,
-        train_dataloader_params={"num_workers": 2},
+        train_dataloader_params={"num_workers": 2, "shuffle": True},
     )
     assert isinstance(config.algorithm_config, N2VAlgorithm)
 
@@ -455,3 +456,19 @@ def test_n2v_configuration_n2v2_structn2v():
     )
     assert config.algorithm_config.n2v_config.struct_mask_axis == struct_mask_axis
     assert config.algorithm_config.n2v_config.struct_mask_span == struct_n2v_span
+
+
+def test_hdn_configuration():
+    """Test that HDN configuration can be created."""
+    config = create_hdn_configuration(
+        experiment_name="test",
+        data_type="tiff",
+        axes="YX",
+        patch_size=[64, 64],
+        batch_size=8,
+        num_epochs=100,
+    )
+    assert config.algorithm_config.algorithm == "hdn"
+    assert config.algorithm_config.loss.loss_type == "hdn"
+    assert config.algorithm_config.model.multiscale_count == 1
+    assert config.algorithm_config.gaussian_likelihood is not None
