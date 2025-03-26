@@ -53,8 +53,9 @@ def test_fifo_image_stack_manager(tmp_path, max_files_loaded: int):
         image_stacks.append(image_stack)
 
     # test never more than specified n files open
-    for image_stack in image_stacks:
+    for i, image_stack in enumerate(image_stacks):
         image_stack.load()
+        assert min(i, max_files_loaded) <= manager.currently_loaded
         assert manager.currently_loaded <= max_files_loaded
     manager.close_all()  # close remaining open files
 
