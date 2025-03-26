@@ -1,7 +1,7 @@
 from collections.abc import Sequence
 from enum import Enum
 from pathlib import Path
-from typing import Literal, NamedTuple, Optional, Union
+from typing import Any, Literal, NamedTuple, Optional, Union
 
 import numpy as np
 from numpy.typing import NDArray
@@ -21,7 +21,6 @@ from careamics.dataset_ng.patching_strategies import (
     PatchingStrategy,
     PatchSpecs,
     RandomPatchingStrategy,
-    TileSpecs,
     TilingStrategy,
     WholeSamplePatchingStrategy,
 )
@@ -42,12 +41,10 @@ class ImageRegionData(NamedTuple):
     data_shape: Sequence[int]
     dtype: str  # dtype should be str for collate
     axes: str
-    # Union is kinda ugly, could be solved with generics but generic NamedTuples are not
-    #   supported in python 3.9
-    region_spec: Union[PatchSpecs, TileSpecs]
+    region_spec: PatchSpecs
 
 
-InputType = Union[Sequence[np.ndarray], Sequence[Path]]
+InputType = Union[Sequence[NDArray[Any]], Sequence[Path]]
 
 
 class CareamicsDataset(Dataset):

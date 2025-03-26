@@ -105,9 +105,9 @@ def _imageregion_to_tileinfo(
     patch_spec = image_region.region_spec
     data_shape = image_region.data_shape
 
-    # In python 3.11 and greater, NamedTuples can inherit from Generic
+    # TODO: In python 3.11 and greater, NamedTuples can inherit from Generic
     #   so we could do image_region: ImageRegionData[TileSpecs]
-    #   and not have this work around
+    #   and not have to do this check here + cast
     # make sure image_region.region_spec is TileSpec
     if (
         ("crop_coords" not in patch_spec)
@@ -118,7 +118,6 @@ def _imageregion_to_tileinfo(
             "Could not find all keys: {'crop_coords', 'crop_size', 'stitch_coords'} in "
             "`image_region.region_spec`."
         )
-
     tile_spec = cast(TileSpecs, patch_spec)  # ugly cast for mypy
     return _tilespec_to_tileinfo(tile_spec, data_shape, last_tile)
 

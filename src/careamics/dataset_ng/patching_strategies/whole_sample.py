@@ -4,7 +4,8 @@ from .patching_strategy_protocol import PatchSpecs
 
 
 class WholeSamplePatchingStrategy:
-    # Warning: can only be used with batch size = 1
+    # Warning: should only be used with batch size = 1
+    #   for the case of multiple image stacks with different dimensions
 
     # TODO: docs
     def __init__(self, data_shapes: Sequence[Sequence[int]]):
