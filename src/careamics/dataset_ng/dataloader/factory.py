@@ -12,7 +12,7 @@ from careamics.dataset.dataset_utils import get_files_size
 from careamics.file_io.read import ReadFunc
 from careamics.utils import get_ram_size
 
-from ..batch_sampler import FifoImageStackManager, GroupedBatchSampler
+from ..batch_sampler import FifoBatchSampler
 from ..dataset import Mode
 from ..dataset.factory import (
     create_array_dataset,
@@ -96,7 +96,7 @@ def create_dataloader(
             )
     # TODO: Zarr
     else:
-        raise ValueError(f"Unrecognized `data_type`, '{config.data_type}'.")
+        raise ValueError(f"Unrecognised `data_type`, '{config.data_type}'.")
 
 
 def create_tiff_dataloader(
@@ -137,7 +137,7 @@ def create_tiff_dataloader(
                 stacklevel=1,
             )
         dataset = create_lazy_tiff_dataset(config, mode, inputs, targets)
-        batch_sampler_kwargs: dict[str, Any] = {}
+        batch_sampler_kwargs = {}
         if "shuffle" in dataloader_kwargs:
             batch_sampler_kwargs["shuffle"] = dataloader_kwargs["shuffle"]
             del dataloader_kwargs["shuffle"]
@@ -145,21 +145,9 @@ def create_tiff_dataloader(
             batch_sampler_kwargs["drop_last"] = dataloader_kwargs["drop_last"]
             del dataloader_kwargs["drop_last"]
 
-        max_files = calc_max_files_loadable(all_files, max_mem_use)
-        # make max files even because fifo_manager is shared between input and target
-        if (max_files % 2 != 0) and (max_files != 1):
-            max_files = max_files - 1
-        batch_sampler = GroupedBatchSampler(
+        batch_sampler = FifoBatchSampler(
             dataset=dataset, batch_size=batch_size, **batch_sampler_kwargs
         )
-
-        # TODO: put this somewhere it is accessible, maybe in the dataset
-        # make fifo manager and register file
-        fifo_manager = FifoImageStackManager(max_files_loaded=max_files)
-        fifo_manager.register_image_stacks(dataset.input_extractor.image_stacks)
-        if dataset.target_extractor is not None:
-            fifo_manager.register_image_stacks(dataset.target_extractor.image_stacks)
-
         data_loader = DataLoader(
             dataset=dataset, batch_sampler=batch_sampler, **dataloader_kwargs
         )
