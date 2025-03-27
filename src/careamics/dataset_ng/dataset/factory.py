@@ -174,7 +174,7 @@ def create_dataset(
         return create_custom_file_dataset(
             config, mode, inputs, targets, read_func=read_func, read_kwargs=read_kwargs
         )
-    elif data_type == DatasetType.CUSTOM_IMAGE_STACK:
+    elif dataset_type == DatasetType.CUSTOM_IMAGE_STACK:
         if image_stack_loader_kwargs is None:
             image_stack_loader_kwargs = {}
         assert image_stack_loader is not None  # should be true
