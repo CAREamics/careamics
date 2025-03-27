@@ -90,6 +90,33 @@ def test_get_all_patch_specs(
         [[(2, 1, 32, 32, 32), (1, 1, 19, 37, 23), (3, 1, 14, 9, 12)], (8, 5, 7)],
     ],
 )
+def test_get_patch_indices(
+    strategy_constr: PatchingStrategyConstr,
+    data_shapes: Sequence[Sequence[int]],
+    patch_size: Sequence[int],
+):
+    """
+    Test that `get_patch_indices` only returns patch indices for the specified image
+    stack.
+    """
+    strategy = strategy_constr(data_shapes, patch_size)
+    for i, _ in enumerate(data_shapes):
+        patch_indices = strategy.get_patch_indices(i)
+        for patch_idx in patch_indices:
+            patch_spec = strategy.get_patch_spec(patch_idx)
+            assert patch_spec["data_idx"] == i
+
+
+@pytest.mark.parametrize("strategy_constr", PATCHING_STRATEGY_CONSTR)
+@pytest.mark.parametrize(
+    "data_shapes,patch_size",
+    [
+        [[(2, 1, 32, 32), (1, 1, 19, 37), (3, 1, 14, 9)], (8, 8)],
+        [[(2, 1, 32, 32), (1, 1, 19, 37), (3, 1, 14, 9)], (8, 5)],
+        [[(2, 1, 32, 32, 32), (1, 1, 19, 37, 23), (3, 1, 14, 9, 12)], (8, 8, 8)],
+        [[(2, 1, 32, 32, 32), (1, 1, 19, 37, 23), (3, 1, 14, 9, 12)], (8, 5, 7)],
+    ],
+)
 def test_patches_cover_50percent(
     strategy_constr: PatchingStrategyConstr,
     data_shapes: Sequence[Sequence[int]],
