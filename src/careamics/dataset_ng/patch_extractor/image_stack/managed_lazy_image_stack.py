@@ -15,6 +15,9 @@ from ._utils import reshaped_array_shape
 if TYPE_CHECKING:
     pass
 
+# TODO: better name
+LazyCallback = Callable[["ManagedLazyImageStack"], None]
+
 logger = getLogger(name=__name__)
 
 
@@ -28,8 +31,8 @@ class ManagedLazyImageStack:
         data_dtype: DTypeLike,
         read_func: ReadFunc,
         read_kwargs: Optional[dict[str, Any]] = None,
-        on_load: Optional[Callable[["ManagedLazyImageStack"], None]] = None,
-        on_close: Optional[Callable[["ManagedLazyImageStack"], None]] = None,
+        on_load: Optional[LazyCallback] = None,
+        on_close: Optional[LazyCallback] = None,
     ):
         self.path = path
         self.read_func = read_func
@@ -74,11 +77,7 @@ class ManagedLazyImageStack:
     # normally on_load and on_close will be
     #   FifoImageStackManager.notify_load,
     #   FifoImageStackManager.notify_close,
-    def set_callbacks(
-        self,
-        on_load: Callable[["ManagedLazyImageStack"], None],
-        on_close: Callable[["ManagedLazyImageStack"], None],
-    ):
+    def set_callbacks(self, on_load: LazyCallback, on_close: LazyCallback):
         self._on_load = on_load
         self._on_close = on_close
 
