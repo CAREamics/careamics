@@ -23,14 +23,28 @@ from ..dataset.factory import (
     determine_dataset_type,
 )
 from ..patch_extractor import ImageStackLoader
-from ..patch_extractor.image_stack import (
-    ImageStack,
-)
+from ..patch_extractor.image_stack import ImageStack, ManagedLazyImageStack
 
 GenericImageStack = TypeVar("GenericImageStack", bound=ImageStack, covariant=True)
 
 
 def calc_max_files_loadable(files: list[Path], max_mem_usage: float = 0.8) -> int:
+    """
+    Calculate the maximum number of files that will fit into memory.
+
+    Parameters
+    ----------
+    files : list of Path
+        Paths to the files wished to be loaded.
+    max_mem_usage : float, default=0.8
+        The maximum percentage of available memory that can be used to load the files.
+
+    Returns
+    -------
+    int
+        The maximum number of files that could fit into the specified percentage of
+        available memory.
+    """
     available = get_ram_size()
     file_sizes = [f.stat().st_size / 1024**2 for f in files]
     file_sizes = sorted(file_sizes)[::-1]  # largest to smallest
@@ -53,6 +67,44 @@ def create_dataloader(
     image_stack_loader_kwargs: Optional[dict[str, Any]] = None,
     **dataloader_kwargs: Any,
 ) -> DataLoader[CareamicsDataset[ImageStack]]:
+    """
+    Create a dataloader for the CAREamics dataset.
+
+    Parameters
+    ----------
+    config : DataConfig or InferenceConfig
+        The data configuration.
+    mode : Mode
+        Whether to create the dataset in "training", "validation" or "predicting" mode.
+    inputs : Any
+        The input sources to the dataset.
+    batch_size : int, default=1
+        The batch size.
+    max_mem_usage : float, default=0.8
+        The maximum percentage of available memory that can be used to load the files.
+    read_func : ReadFunc, optional
+        A function that can that can be used to load custom data. This argument is
+        ignored unless the `data_type` in the `config` is "custom".
+    read_kwargs : dict of {str, Any}, optional
+        Additional key-word arguments to pass to the `read_func`.
+    image_stack_loader : ImageStackLoader, optional
+        A function for custom image stack loading. This argument is ignored unless the
+        `data_type` in the `config` is "custom".
+    image_stack_loader_kwargs : {str, Any}, optional
+        Additional key-word arguments to pass to the `image_stack_loader`.
+    **dataloader_kwargs : Any
+        Additional key-word arguments to pass to the dataloader. See the PyTorch docs.
+
+    Returns
+    -------
+    DataLoader[CareamicsDataset[ImageStack]]
+        A dataloader for the CAREamicsDataset.
+
+    Raises
+    ------
+    ValueError
+        For an unrecognized `data_type` in the `config`.
+    """
     # calculate total size
     all_files = list(inputs)
     if targets is not None:
@@ -118,7 +170,36 @@ def create_lazy_tiff_dataloader(
     batch_size: int = 1,
     max_files_loaded: int = 2,
     **dataloader_kwargs: Any,
-) -> DataLoader:
+) -> DataLoader[CareamicsDataset[ManagedLazyImageStack]]:
+    """
+    Create a dataloader for lazily loading TIFF files.
+
+    Sets the batch sampler to be the `FifoBatchSampler`.
+
+    Parameters
+    ----------
+    config : DataConfig or InferenceConfig
+        The data configuration.
+    mode : Mode
+        Whether to create the dataset in "training", "validation" or "predicting" mode.
+    inputs : Any
+        The input sources to the dataset.
+    batch_size : int, default=1
+        The batch size.
+    max_files_loaded : int, default=2
+        The maximum number of files that should have their data loaded at one time.
+
+    Returns
+    -------
+    DataLoader[CareamicsDataset[ManagedLazyImageStack]]
+        A dataloader for lazily loading TIFF files, using the CAREamicsDataset and
+        FifoBatchSampler.
+
+    Raises
+    ------
+    ValueError
+        If the `data_type` in the `config` is not "tiff".
+    """
     data_type = SupportedData(config.data_type)
     if data_type != SupportedData.TIFF:
         raise ValueError(

@@ -22,6 +22,18 @@ logger = getLogger(name=__name__)
 
 
 class ManagedLazyImageStack:
+    """
+    Implements the `ImageStack` Protocol. The data for this `ImageStack` is stored in
+    a file. The data is not loaded until the first time `extract_patch` is called, at
+    which point the data is stored as an attribute within the class. If `deallocate` is
+    called the reference to the data is dropped so python's garbage collector can clean
+    it up.
+
+    This `ImageStack` also has a callback system so that it can be managed by an
+    external class. It can take two optional callback functions, `on_load` and
+    `on_close`, these can be used to perform additional logic when the ImageStack loads
+    its data and when the memory of the data has been deallocated.
+    """
 
     def __init__(
         self,
@@ -34,6 +46,29 @@ class ManagedLazyImageStack:
         on_load: Optional[LazyCallback] = None,
         on_close: Optional[LazyCallback] = None,
     ):
+        """
+        An `ImageStack` for the lazy loading of data. It can also be managed through
+        the callbacks `on_load` and `on_close`.
+
+        Parameters
+        ----------
+        path : Path
+            Path to the file that contains the image data.
+        axes : str
+            The original axes of the data, must be a subset of STCZYX.
+        data_shape : tuple[int, ...]
+            The original shape of the data.
+        data_dtype : DTypeLike
+            The datatype of the data.
+        read_func : ReadFunc
+            A function to read the data.
+        read_kwargs : dict of {str, Any}, optional
+            Additional key-word arguments to be passed to the `read_func`.
+        on_load : Optional[LazyCallback], optional
+            A callback function that will be called when the data is loaded.
+        on_close : Optional[LazyCallback], optional
+            A callback function that will be called when the data is deallocated.
+        """
         self.path = path
         self.read_func = read_func
         self.read_kwargs = read_kwargs if read_kwargs else {}
@@ -50,18 +85,21 @@ class ManagedLazyImageStack:
 
     @property
     def source(self) -> Path:
+        """The data source."""
         return self.path
 
     # helps with readability in the FifoImageStackManager
     @property
     def is_loaded(self):
+        """If the data is currently loaded."""
         return self._data is not None
 
     def extract_patch(
         self, sample_idx: int, coords: Sequence[int], patch_size: Sequence[int]
     ) -> NDArray:
+        """Extract a patch from the image."""
         if self._data is None:
-            self.load()
+            self.load()  # load only when extract patch is called for the first time
             assert self._data is not None
         if len(coords) != len(patch_size):
             raise ValueError("Length of coords and extent must match.")
@@ -78,10 +116,21 @@ class ManagedLazyImageStack:
     #   FifoImageStackManager.notify_load,
     #   FifoImageStackManager.notify_close,
     def set_callbacks(self, on_load: LazyCallback, on_close: LazyCallback):
+        """
+        Set the callbacks.
+
+        Parameters
+        ----------
+        on_load : LazyCallback
+            A callback function that will be called when the data is loaded.
+        on_close : LazyCallback
+            A callback function that will be called when the data is deallocated.
+        """
         self._on_load = on_load
         self._on_close = on_close
 
     def load(self):
+        """Load the data."""
         if self._on_load is not None:
             self._on_load(self)
         data = self.read_func(self.path, **self.read_kwargs)
@@ -90,6 +139,7 @@ class ManagedLazyImageStack:
         logger.info(f"Loaded file '{self.path}'.")
 
     def deallocate(self):
+        """Remove reference to the data so the memory can be deallocated."""
         # TODO: raise error if not loaded?
         if self._on_close is not None:
             self._on_close(self)
@@ -104,6 +154,25 @@ class ManagedLazyImageStack:
         on_load: Optional[Callable[["ManagedLazyImageStack"], None]] = None,
         on_close: Optional[Callable[["ManagedLazyImageStack"], None]] = None,
     ) -> Self:
+        """
+        Construct the `ImageStack` from a TIFF file.
+
+        Parameters
+        ----------
+        path : Path
+            Path to the TIFF file.
+        axes : str
+            The original axes of the data, must be a subset of STCZYX.
+        on_load : Optional[LazyCallback], optional
+            A callback function that will be called when the data is loaded.
+        on_close : Optional[LazyCallback], optional
+            A callback function that will be called when the data is deallocated.
+
+        Returns
+        -------
+        Self
+            The `ImageStack` with the underlying data being from a TIFF file.
+        """
         # TODO: think this is correct but need more examples to test
         file = tifffile.TiffFile(path)
         data_shape = file.series[0].shape

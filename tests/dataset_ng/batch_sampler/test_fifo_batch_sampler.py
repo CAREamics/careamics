@@ -16,6 +16,7 @@ LazyCallback = Callable[["ManagedLazyImageStack"], None]
 
 
 def _create_test_data(save_path: Path) -> tuple[list[Path], str]:
+    """Create tiff files"""
     axes = "SCYX"
     data_shapes = [
         (2, 1, 32, 32),
@@ -39,19 +40,24 @@ def _wrap_callbacks(
     on_load_mock: Mock,
     on_close_mock: Mock,
 ):
+    """
+    Wrap the ManagedLazyImageStack callbacks so we can know if they have been called.
+    """
     original_on_load = image_stack._on_load
     original_on_close = image_stack._on_close
 
+    # wrap the original callbacks so that mocks are called first and then the callback
     def wrapped_on_load(img_s: ManagedLazyImageStack):
-        on_load_mock()
+        on_load_mock()  # later we can test on_load_mock.assert_called_once
         if original_on_load is not None:
             original_on_load(img_s)
 
     def wrapped_on_close(img_s: ManagedLazyImageStack):
-        on_close_mock()
+        on_close_mock()  # later we can test on_close_mock.assert_called_once
         if original_on_close is not None:
             original_on_close(img_s)
 
+    # set the callbacks
     image_stack.set_callbacks(wrapped_on_load, wrapped_on_close)
 
 
@@ -68,6 +74,7 @@ def test_fifo_batch_sampler(
     shuffle: bool,
     batch_size: int,
 ):
+    """"""
     paths, axes = _create_test_data(tmp_path)
 
     if mode != Mode.PREDICTING:
@@ -95,7 +102,7 @@ def test_fifo_batch_sampler(
         random_seed=42,
     )
 
-    # wrap the callbacks so we can know if they have been called
+    # wrap the callbacks so we can test if they have been called
     on_load_mocks = [Mock() for _ in paths]
     on_close_mocks = [Mock() for _ in paths]
     for i, image_stack in enumerate(dataset.input_extractor.image_stacks):
@@ -103,16 +110,25 @@ def test_fifo_batch_sampler(
 
     expected_n_batches = len(dataset) // batch_size  # drop last is True so floor divide
     batch_count = 0
+    all_indices = np.array([])
     for batch_indices in batch_sampler:
+        all_indices = np.concatenate([all_indices, batch_indices])
         for index in batch_indices:
             _ = dataset[index]  # so that images will be loaded
+
         # because drop last is True, should always be batch size
         assert len(batch_indices) == batch_size
+
+        # test never more than specified n files open
         assert batch_sampler.fifo_manager.n_currently_loaded <= max_files_loaded
+
         batch_count += 1
     assert batch_count == expected_n_batches
+    # make sure there are no repeated indices
+    assert len(np.unique(all_indices)) == len(all_indices)
 
     # make sure load and closed was called only once for each image
+    # we can do this because of the _wrap_callbacks function
     for i in range(len(paths)):
         on_load_mocks[i].assert_called_once()
         on_close_mocks[i].assert_called_once()

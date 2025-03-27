@@ -33,9 +33,8 @@ def create_array_extractor(
     ----------
     source: sequence of numpy.ndarray
         The source arrays of the data.
-    data_config: DataConfig
-        The data configuration, `data_config.data_type` should have the value "array",
-        and `data_config.axes` should describe the axes of every array in the `source`.
+    axes: str
+        The original axes of the data, must be a subset of "STCZYX".
 
     Returns
     -------
@@ -64,22 +63,14 @@ def create_tiff_extractor(
     source: Sequence[Path], axes: str, in_mem: bool
 ) -> Union[PatchExtractor[InMemoryImageStack], PatchExtractor[ManagedLazyImageStack]]:
     """
-    Create a patch extractor from a sequence of files that match our supported types.
-
-    Supported file types include TIFF.
-
-    If the files are ZARR files they must follow the OME standard. If you have ZARR
-    files that do not follow the OME standard, see documentation on how to create
-    a custom `image_stack_loader`. (TODO: Add link).
+    Create a patch extractor from a sequence of TIFF files.
 
     Parameters
     ----------
     source: sequence of Path
         The source files for the data.
-    data_config: DataConfig
-        The data configuration, `data_config.data_type` should have the value "tiff" or
-        "zarr", and `data_config.axes` should describe the axes of every image in the
-        `source`.
+    axes: str
+        The original axes of the data, must be a subset of "STCZYX".
 
     Returns
     -------
@@ -104,22 +95,17 @@ def create_ome_zarr_extractor(
     axes: str,
 ) -> PatchExtractor[ZarrImageStack]:
     """
-    Create a patch extractor from a sequence of files that match our supported types.
+    Create a patch extractor from a sequence of OME ZARR files.
 
-    Supported file types include TIFF and ZARR.
-
-    If the files are ZARR files they must follow the OME standard. If you have ZARR
-    files that do not follow the OME standard, see documentation on how to create
-    a custom `image_stack_loader`. (TODO: Add link).
+    If you have ZARR files that do not follow the OME standard, see documentation on
+    how to create a custom `image_stack_loader`. (TODO: Add link).
 
     Parameters
     ----------
     source: sequence of Path
         The source files for the data.
-    data_config: DataConfig
-        The data configuration, `data_config.data_type` should have the value "tiff" or
-        "zarr", and `data_config.axes` should describe the axes of every image in the
-        `source`.
+    axes: str
+        The original axes of the data, must be a subset of "STCZYX".
 
     Returns
     -------
@@ -145,8 +131,8 @@ def create_custom_file_extractor(
     ----------
     source: sequence of Path
         The source files for the data.
-    data_config: DataConfig
-        The data configuration, `data_config.data_type` should have the value "custom".
+    axes: str
+        The original axes of the data, must be a subset of "STCZYX".
     read_func : ReadFunc
         A function to read the custom file type, see the `ReadFunc` protocol.
     read_kwargs : dict of {str: Any}
@@ -193,8 +179,8 @@ def create_custom_image_stack_extractor(
     ----------
     source: sequence of Path
         The source files for the data.
-    data_config: DataConfig
-        The data configuration, `data_config.data_type` should have the value "custom".
+    axes: str
+        The original axes of the data, must be a subset of "STCZYX".
     image_stack_loader: ImageStackLoader
         A custom image stack loader callable.
     *args: Any
