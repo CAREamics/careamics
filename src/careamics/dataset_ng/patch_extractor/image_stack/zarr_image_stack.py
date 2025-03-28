@@ -26,6 +26,7 @@ class ZarrImageStack:
         self._original_axes = axes
         self._original_data_shape: tuple[int, ...] = self._array.shape
         self.data_shape = _reshaped_array_shape(axes, self._original_data_shape)
+        self.data_dtype = self._array.dtype
 
     # TODO: not sure if this is useful
     # TODO: potential solution using different metadata class for each ImageStack type
