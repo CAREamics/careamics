@@ -9,7 +9,7 @@ from careamics.dataset_ng.dataset.dataset import Mode
 from careamics.dataset_ng.dataset.factory import (
     create_array_dataset,
     create_custom_file_dataset,
-    create_loaded_tiff_dataset,
+    create_tiff_dataset,
 )
 
 
@@ -80,7 +80,7 @@ def test_from_tiff(tmp_path: Path, data_shape, patch_size, expected_dataset_len)
         num_epochs=1,
     ).data_config
 
-    train_dataset = create_loaded_tiff_dataset(
+    train_dataset = create_tiff_dataset(
         config=train_data_config,
         mode=Mode.TRAINING,
         inputs=[input_file_path],
