@@ -24,7 +24,7 @@ classDiagram
     class PatchingStrategy{
         <<interface>>
         +n_patches int
-        +get_patch_spec(self, index: int) PatchSpecs
+        +get_patch_spec(index: int) PatchSpecs
     }
     class RandomPatchingStrategy{
     }
@@ -33,7 +33,7 @@ classDiagram
     class SequentialPatchingStrategy{
     }
     class TilingStrategy{
-        +get_patch_spec(self, index: int) TileSpecs
+        +get_patch_spec(index: int) TileSpecs
     }
 
     class PatchExtractor{
@@ -85,13 +85,13 @@ This interface represents a set of image data, which can be saved with any subse
 axes STCZYX, in any order, see below for a description of the dimensions. 
 
 The interface provides an `extract_patch`
-method which will produce a patch from the image, as a numpy array, with the dimensions C(Z)YX. 
+method which will produce a patch from the image, as a NumPy array, with the dimensions C(Z)YX. 
 This allows for higher level classes to read patches from the image data without having 
 to know how the underlying data is saved, or loaded.
 
 #### Concrete implementations
 
-- `InMemoryImageStack`: The underlying data is stored as a numpy array in memory. It has some
+- `InMemoryImageStack`: The underlying data is stored as a NumPy array in memory. It has some
 additional constructor methods to load the data from known file formats such as TIFF files.
 - `ZarrImageStack`: The underlying data is stored as a ZARR file on disk.
 
@@ -189,6 +189,6 @@ code that have to change when introducing a new feature.
 - `ImageStack` responsibility: to act as an adapter for reading image data from different underlying storage.
 - `PatchExtractor` responsibility: to extract patches from a set of image stacks.
 - `PatchingStrategy` responsibility: to produce patch specifications given an index through 
-an interface that allows for different strategies to be swapped between.
+an interface that hides the underlying implementation.
 - `CAREamicsDataset` responsibility: to orchestrate the interactions of it's underlying components to produce
 an input patch (and target patch when required) given an index.
