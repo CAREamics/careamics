@@ -24,6 +24,9 @@ class ImageStack(Protocol):
     data_shape: Sequence[int]
     data_dtype: DTypeLike
 
+    @property
+    def data_dtype(self) -> DTypeLike: ...
+
     def extract_patch(
         self, sample_idx: int, coords: Sequence[int], patch_size: Sequence[int]
     ) -> NDArray:
