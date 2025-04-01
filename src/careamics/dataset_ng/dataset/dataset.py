@@ -127,7 +127,7 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
 
     def __getitem__(
         self, index: int
-    ) -> Union[tuple[ImageRegionData], tuple[ImageRegionData, ImageRegionData]]:
+    ) -> tuple[ImageRegionData, Optional[ImageRegionData]]:
         patch_spec = self.patching_strategy.get_patch_spec(index)
         input_patch = self.input_extractor.extract_patch(**patch_spec)
 
@@ -159,7 +159,5 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
         else:
             target_data = None
 
-        if target_data is not None:
-            return input_data, target_data
-        else:
-            return (input_data,)  # Default collate_fn doesn't work with None
+        # TODO: custom collate_fn to deal with none values
+        return input_data, target_data
