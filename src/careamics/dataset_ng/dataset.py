@@ -88,7 +88,7 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
                 data_shapes=self.input_extractor.shape,
                 patch_size=self.config.patch_size,
                 # TODO: Add random seed to dataconfig
-                seed=getattr(self.config, "random_seed", None),
+                seed=getattr(self.config, "random_seed", 42),
             )
         elif self.mode == Mode.PREDICTING:
             if not isinstance(self.config, InferenceConfig):
@@ -126,17 +126,17 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
                     + list(self.config.transforms)
                 )
 
-            else:
-                return Compose(
-                    transform_list=[
-                        NormalizeModel(
-                            image_means=self.input_stats.means,
-                            image_stds=self.input_stats.stds,
-                            target_means=self.target_stats.means,
-                            target_stds=self.target_stats.stds,
-                        )
-                    ]
-                )
+        else:
+            return Compose(
+                transform_list=[
+                    NormalizeModel(
+                        image_means=self.input_stats.means,
+                        image_stds=self.input_stats.stds,
+                        target_means=self.target_stats.means,
+                        target_stds=self.target_stats.stds,
+                    )
+                ]
+            )
 
         # TODO: add TTA
         return None
