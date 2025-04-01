@@ -82,12 +82,17 @@ classDiagram
 ### `ImageStack` and implementations
 
 This interface represents a set of image data, which can be saved with any subset of the
-axes STCZYX, in any order, see below for a description of the dimensions. 
+axes STCZYX, in any order, see below for a description of the dimensions. The `ImageStack` 
+interface's job is to act as an adapter for different data storage types, so that higher 
+level classes can access the image data without having to know the implementation details of 
+how to load or read data from each storage type. This means we can decide to support new storage 
+types by implementing a new concrete `ImageStack` class without having to change anything 
+in the `CAREamistDataset` class. Advanced users can also choose to create their own 
+`ImageStack` class if they want to work with their own data storage type.
 
-The interface provides an `extract_patch`
-method which will produce a patch from the image, as a NumPy array, with the dimensions C(Z)YX. 
-This allows for higher level classes to read patches from the image data without having 
-to know how the underlying data is saved, or loaded.
+The interface provides an `extract_patch` method which will produce a patch from the image, 
+as a NumPy array, with the dimensions C(Z)YX. This method should be thought of as simply
+a wrapper for the equivalent to NumPy slicing for each of the storage types.
 
 #### Concrete implementations
 
@@ -97,42 +102,43 @@ additional constructor methods to load the data from known file formats such as 
 
 #### Axes description
 
-- S being a generic sample dimension,
-- T being a time dimension,
-- C being a channel dimension,
-- Z being a spatial dimension,
-- Y being a spatial dimension,
-- X being a spatial dimension.
+- S is a generic sample dimension,
+- T is a time dimension,
+- C is a channel dimension,
+- Z is a spatial dimension,
+- Y is a spatial dimension,
+- X is a spatial dimension.
 
 ### `PatchExtractor`
 
-The `PatchExtractor` class aggregates many `ImageStack` instances, it has an
-`extract_patch` method to conveniently extract a patch from any one of its `ImageStack` 
-objects. This class provides an extra layer of abstraction between the `CAREamicsDataset`
-high-level functionality and the `ImageStack` low-level functionality. It can also possibly
-be extended when extra logic to extra patches is needed, for example when constructing 
-lateral-context inputs for the MicroSplit LVAE models.
+The `PatchExtractor` class aggregates many `ImageStack` instances, this allows for multiple 
+images with different dimensions, and possibly different storage types to be treated as a single entity. 
+The class has an `extract_patch` method to extract a patch from any one of its `ImageStack` 
+objects. It can also possibly be extended when extra logic to extract patches is needed, 
+for example when constructing lateral-context inputs for the MicroSplit LVAE models.
 
 ### `PatchingStrategy`
 
-The `PatchingStrategy` class is an interface to generate patch specifications, where the
-concrete implementations produces a set of patch specifications using a different strategy.
+The `PatchingStrategy` class is an interface to generate patch specifications, where each of the
+concrete implementations produce a set of patch specifications using a different strategy.
 
 It has a `n_patches` attribute that can be accessed to find out how many patches the 
-strategy will produce, given the shapes of the image stacks it is produces patches for. 
+strategy will produce, given the shapes of the image stacks it has been initialized with. 
 This is needed by the `CAREamicsDataset` to return its length.
 
 Most importantly it has a `get_patch_spec` method, that takes an index and returns a 
 patch specification. For deterministic patching strategies, this method will always 
-return the same patch specification given the same index, but for random strategies it
-will not. The given index can never be greater than `n_patches`.
+return the same patch specification given the same index, but there are also random strategies
+where the returned patch specification will change every time. The given index can never 
+be greater than `n_patches`.
 
 #### Concrete implementations
 
 - `RandomPatchingStrategy`: this strategy will produce random patches that will change 
 even if the `extract_patch` method is called with the same index.
-- `FixedRandomPatchingStrategy`: this strategy will produce random patches, but it is deterministic
-and the patch will be the same if the `extract_patch` method is called with the same index.
+- `FixedRandomPatchingStrategy`: this strategy will produce random patches, but the patch 
+will be the same if the `extract_patch` method is called with the same index. This is 
+useful for making sure validation is comparable epoch to epoch.
 - `SequentialPatchingStrategy`: this strategy is deterministic and the patches will be
 sequential with some specified overlap.
 - `TilingStrategy`: this strategy is deterministic and the patches will be
@@ -151,30 +157,41 @@ For type hinting, `PatchSpecs` is defined as a `TypedDict`.
 ## Key Principles
 
 The aim of all these principles is to create a system of interacting classes that have
-low coupling. This allows for one section to be changed without breaking functionality
+low coupling. This allows for one section to be changed or extended without breaking functionality
 elsewhere in the codebase.
 
 ### Composition over inheritance
 
-The principle of composition over inheritance is: rather than using inheritance to extend or change the behavior of a class, instead, a class can be composed of modules that can be swapped to extend or change behavior.
+The principle of composition over inheritance is: rather than using inheritance to
+extend or change the behavior of a class, instead, a class can be composed of modules 
+that can be swapped to extend or change behavior.
 
-The reason to use composition is that it promotes the easy reuse of the underlying components, it can prevent a subclass explosion, and it leads to a maintainable and easily extendable design. A software architecture based on composition is normally maintainable and extendable because if a component needs to change then the whole class shouldn't have to be refactored and if a new feature needs to be added, normally an additional component can be added to the class.
+The reason to use composition is that it promotes the easy reuse of the underlying 
+components, it can prevent a subclass explosion, and it leads to a maintainable and 
+easily extendable design. A software architecture based on composition is normally 
+maintainable and extendable because if a component needs to change then the whole class 
+shouldn't have to be refactored and if a new feature needs to be added, usually an additional 
+component can be added to the class.
 
-The `CAREamicsDataset` is composed of `PatchExtractor` and `PatchingStrategy` components that
-are easy to switch between. The `PatchExtractor` is composed of many `ImageStack` instances,
-new image stacks can be easily added to extend the type of data that the dataset can 
-read from.
+The `CAREamicsDataset` is composed of `PatchExtractor` and `PatchingStrategy` and `Transfrom` components. 
+The `PatchingStrategy` classes implement an interface so the dataset can switch between 
+different strategies. The `PatchExtractor` is composed of many `ImageStack` instances, 
+new image stacks can be added to extend the type of data that the dataset can read from.
 
 ### Dependency Inversion
 
 The dependency inversion principle states:
 
-1. High-level modules should not depend on low-level modules. Both high-level and low-level modules should depend on abstractions (e.g. interfaces).
-2. Abstractions should not depend on details (concrete implementations). Details should depend on abstractions.
+1. High-level modules should not depend on low-level modules. Both high-level and 
+low-level modules should depend on abstractions (e.g. interfaces).
+2. Abstractions should not depend on details (concrete implementations). Details should 
+depend on abstractions.
 
-In other words high level modules that provide complex logic should be easily reusable and not depend on implementation details of low-level modules that provide utility functionality. This can be achieved by introducing abstractions that decouple high and low level modules.
+In other words high level modules that provide complex logic should be easily reusable 
+and not depend on implementation details of low-level modules that provide utility functionality. 
+This can be achieved by introducing abstractions that decouple high and low level modules.
 
-An example of the dependency inversion principle in use, is how the `PatchExtractor` only
+An example of the dependency inversion principle in use is how the `PatchExtractor` only
 depends on the `ImageStack` interface, and does not have to have any knowledge of the 
 concrete implementations. The concrete `ImageStack` implementations also do not have 
 any knowledge of the `PatchExtractor` or any other higher-level functionality that the
@@ -186,9 +203,10 @@ Each component should have a small scope of responsibility that is easily define
 should make the code easier to maintain and hopefully reduce the number of places in the
 code that have to change when introducing a new feature.
 
-- `ImageStack` responsibility: to act as an adapter for reading image data from different underlying storage.
+- `ImageStack` responsibility: to act as an adapter for loading and reading image data 
+from different underlying storage.
 - `PatchExtractor` responsibility: to extract patches from a set of image stacks.
-- `PatchingStrategy` responsibility: to produce patch specifications given an index through 
+- `PatchingStrategy` responsibility: to produce patch specifications given an index, through 
 an interface that hides the underlying implementation.
-- `CAREamicsDataset` responsibility: to orchestrate the interactions of it's underlying components to produce
-an input patch (and target patch when required) given an index.
+- `CAREamicsDataset` responsibility: to orchestrate the interactions of its underlying 
+components to produce an input patch (and target patch when required) given an index.
