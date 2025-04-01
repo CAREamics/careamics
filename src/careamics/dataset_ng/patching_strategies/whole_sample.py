@@ -4,7 +4,7 @@ from .patching_strategy_protocol import PatchSpecs
 
 
 class WholeSamplePatchingStrategy:
-    # Warning: should only be used with batch size = 1
+    # TODO: warn this strategy should only be used with batch size = 1
     #   for the case of multiple image stacks with different dimensions
 
     # TODO: docs
