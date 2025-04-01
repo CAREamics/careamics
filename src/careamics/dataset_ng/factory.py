@@ -10,13 +10,13 @@ from careamics.config import DataConfig, InferenceConfig
 from careamics.config.support import SupportedData
 from careamics.file_io.read import ReadFunc
 
-from ..patch_extractor import ImageStackLoader, PatchExtractor
-from ..patch_extractor.image_stack import (
+from .patch_extractor import ImageStackLoader, PatchExtractor
+from .patch_extractor.image_stack import (
     ImageStack,
     InMemoryImageStack,
     ZarrImageStack,
 )
-from ..patch_extractor.patch_extractor_factory import (
+from .patch_extractor.patch_extractor_factory import (
     create_array_extractor,
     create_custom_file_extractor,
     create_custom_image_stack_extractor,
