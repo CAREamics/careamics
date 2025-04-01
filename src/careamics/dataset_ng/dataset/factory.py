@@ -167,7 +167,7 @@ def create_dataset(
     elif dataset_type == DatasetType.IN_MEM_TIFF:
         return create_tiff_dataset(config, mode, inputs, targets)
     # TODO: Lazy tiff
-    elif data_type == DatasetType.IN_MEM_CUSTOM_FILE:
+    elif dataset_type == DatasetType.IN_MEM_CUSTOM_FILE:
         if read_kwargs is None:
             read_kwargs = {}
         assert read_func is not None  # should be true from `determine_dataset_type`
