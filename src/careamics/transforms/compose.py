@@ -86,6 +86,7 @@ class Compose:
             *params, _ = t(*params)  # ignore additional_arrays dict
 
         # avoid None values that create problems for collating
+        # TODO: removing None should be handled in dataset, not here
         return tuple(p for p in params if p is not None)
 
     def _chain_transforms_additional_arrays(

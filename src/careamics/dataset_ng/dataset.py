@@ -1,7 +1,7 @@
 from collections.abc import Sequence
 from enum import Enum
 from pathlib import Path
-from typing import Any, Literal, NamedTuple, Optional, Union
+from typing import Generic, Literal, NamedTuple, Optional, TypeVar, Union
 
 import numpy as np
 from numpy.typing import NDArray
@@ -12,11 +12,8 @@ from careamics.config import DataConfig, InferenceConfig
 from careamics.config.support import SupportedData
 from careamics.config.transformations import NormalizeModel
 from careamics.dataset.patching.patching import Stats
-from careamics.dataset_ng.patch_extractor import (
-    ImageStackLoader,
-    PatchExtractor,
-    create_patch_extractor,
-)
+from careamics.dataset_ng.patch_extractor import PatchExtractor
+from careamics.dataset_ng.patch_extractor.image_stack import ImageStack
 from careamics.dataset_ng.patching_strategies import (
     FixedRandomPatchingStrategy,
     PatchingStrategy,
@@ -28,6 +25,7 @@ from careamics.dataset_ng.patching_strategies import (
 from careamics.transforms import Compose
 
 P = ParamSpec("P")
+GenericImageStack = TypeVar("GenericImageStack", bound=ImageStack, covariant=True)
 
 
 class Mode(str, Enum):
@@ -38,7 +36,7 @@ class Mode(str, Enum):
 
 class ImageRegionData(NamedTuple):
     data: NDArray
-    source: Union[str, Literal["array"]]
+    source: Union[str, Literal["array"]]  # path has to be string for collate
     data_shape: Sequence[int]
     dtype: str  # dtype should be str for collate
     axes: str
@@ -48,40 +46,19 @@ class ImageRegionData(NamedTuple):
 InputType = Union[Sequence[NDArray[Any]], Sequence[Path]]
 
 
-class CareamicsDataset(Dataset):
+class CareamicsDataset(Dataset, Generic[GenericImageStack]):
     def __init__(
         self,
         data_config: Union[DataConfig, InferenceConfig],
         mode: Mode,
-        inputs: InputType,
-        targets: Optional[InputType] = None,
-        image_stack_loader: Optional[ImageStackLoader[P]] = None,
-        *args: P.args,
-        **kwargs: P.kwargs,
+        input_extractor: PatchExtractor[GenericImageStack],
+        target_extractor: Optional[PatchExtractor[GenericImageStack]] = None,
     ):
         self.config = data_config
         self.mode = mode
 
-        data_type_enum = SupportedData(self.config.data_type)
-        self.input_extractor = create_patch_extractor(
-            inputs,
-            self.config.axes,
-            data_type_enum,
-            image_stack_loader,
-            *args,
-            **kwargs,
-        )
-        if targets is not None:
-            self.target_extractor: Optional[PatchExtractor] = create_patch_extractor(
-                targets,
-                self.config.axes,
-                data_type_enum,
-                image_stack_loader,
-                *args,
-                **kwargs,
-            )
-        else:
-            self.target_extractor = None
+        self.input_extractor = input_extractor
+        self.target_extractor = target_extractor
 
         self.patching_strategy = self._initialize_patching_strategy()
 
@@ -185,10 +162,9 @@ class CareamicsDataset(Dataset):
         self, patch: np.ndarray, patch_spec: PatchSpecs, extractor: PatchExtractor
     ) -> ImageRegionData:
         data_idx = patch_spec["data_idx"]
-        source = extractor.image_stacks[data_idx].source
         return ImageRegionData(
             data=patch,
-            source=str(source),
+            source=str(extractor.image_stacks[data_idx].source),
             dtype=str(extractor.image_stacks[data_idx].data_dtype),
             data_shape=extractor.image_stacks[data_idx].data_shape,
             # TODO: should it be axes of the original image instead?
@@ -198,7 +174,7 @@ class CareamicsDataset(Dataset):
 
     def __getitem__(
         self, index: int
-    ) -> tuple[ImageRegionData, Optional[ImageRegionData]]:
+    ) -> Union[tuple[ImageRegionData], tuple[ImageRegionData, ImageRegionData]]:
         patch_spec = self.patching_strategy.get_patch_spec(index)
         input_patch = self.input_extractor.extract_patch(
             data_idx=patch_spec["data_idx"],
@@ -219,10 +195,13 @@ class CareamicsDataset(Dataset):
         )
 
         if self.transforms is not None:
-            if target_patch is not None:
+            if self.target_extractor is not None:
                 input_patch, target_patch = self.transforms(input_patch, target_patch)
             else:
-                input_patch = self.transforms(input_patch)
+                # TODO: compose doesn't return None for target patch anymore
+                #   so have to do this annoying if else
+                (input_patch,) = self.transforms(input_patch, target_patch)
+                target_patch = None
 
         input_data = self._create_image_region(
             patch=input_patch, patch_spec=patch_spec, extractor=self.input_extractor
@@ -234,6 +213,10 @@ class CareamicsDataset(Dataset):
                 patch_spec=patch_spec,
                 extractor=self.target_extractor,
             )
-            return input_data, target_data
+        else:
+            target_data = None
 
-        return input_data
+        if target_data is not None:
+            return input_data, target_data
+        else:
+            return (input_data,)  # Default collate_fn doesn't work with None

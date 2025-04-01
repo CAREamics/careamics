@@ -1,10 +1,12 @@
 # %%
 import numpy as np
 
-# %%
-from careamics.config.support import SupportedData
-from careamics.dataset_ng.patch_extractor import create_patch_extractor
 from careamics.dataset_ng.patch_extractor.image_stack import InMemoryImageStack
+
+# %%
+from careamics.dataset_ng.patch_extractor.patch_extractor_factory import (
+    create_array_extractor,
+)
 from careamics.dataset_ng.patching_strategies import RandomPatchingStrategy
 
 # %%
@@ -30,12 +32,8 @@ print(target2)
 
 # %%
 # define example readers
-input_patch_extractor = create_patch_extractor(
-    [array1, array2], axes="SYX", data_type=SupportedData.ARRAY
-)
-target_patch_extractor = create_patch_extractor(
-    [target1, target2], axes="SYX", data_type=SupportedData.ARRAY
-)
+input_patch_extractor = create_array_extractor([array1, array2], axes="SYX")
+target_patch_extractor = create_array_extractor([target1, target2], axes="SYX")
 
 # %%
 # generate random patch specification
