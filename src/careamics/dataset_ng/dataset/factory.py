@@ -216,8 +216,7 @@ def create_array_dataset(
         target_extractor = create_array_extractor(source=targets, axes=config.axes)
     else:
         target_extractor = None
-    dataset = CareamicsDataset(config, mode, input_extractor, target_extractor)
-    return dataset
+    return CareamicsDataset(config, mode, input_extractor, target_extractor)
 
 
 def create_tiff_dataset(
