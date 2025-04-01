@@ -9,6 +9,8 @@ from numpy.typing import NDArray
 from torch.utils.data import Dataset
 
 from careamics.config import DataConfig, InferenceConfig
+from careamics.config.support import SupportedData
+from careamics.config.transformations import NormalizeModel
 from careamics.dataset.patching.patching import Stats
 from careamics.dataset_ng.patch_extractor import PatchExtractor
 from careamics.dataset_ng.patch_extractor.image_stack import GenericImageStack
@@ -32,7 +34,7 @@ class Mode(str, Enum):
 
 class ImageRegionData(NamedTuple):
     data: NDArray
-    source: Union[str, Literal["array"]]  # path has to be string for collate
+    source: Union[str, Literal["array"]]
     data_shape: Sequence[int]
     dtype: str  # dtype should be str for collate
     axes: str
@@ -104,9 +106,32 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
 
     def _initialize_transforms(self) -> Optional[Compose]:
         if isinstance(self.config, DataConfig):
-            return Compose(
-                transform_list=list(self.config.transforms),
-            )
+            if self.mode == Mode.TRAINING:
+                # TODO: initialize normalization separately depending on configuration
+                return Compose(
+                    transform_list=[
+                        NormalizeModel(
+                            image_means=self.input_stats.means,
+                            image_stds=self.input_stats.stds,
+                            target_means=self.target_stats.means,
+                            target_stds=self.target_stats.stds,
+                        )
+                    ]
+                    + list(self.config.transforms)
+                )
+
+            else:
+                return Compose(
+                    transform_list=[
+                        NormalizeModel(
+                            image_means=self.input_stats.means,
+                            image_stds=self.input_stats.stds,
+                            target_means=self.target_stats.means,
+                            target_stds=self.target_stats.stds,
+                        )
+                    ]
+                )
+
         # TODO: add TTA
         return None
 
@@ -114,12 +139,18 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
         # TODO: add running stats
         # Currently assume that stats are provided in the configuration
         input_stats = Stats(self.config.image_means, self.config.image_stds)
-        target_stats = None
-        if isinstance(self.config, DataConfig):
+
+        if type(self.config) == DataConfig:
             target_means = self.config.target_means
             target_stds = self.config.target_stds
-            if target_means is not None and target_stds is not None:
-                target_stats = Stats(target_means, target_stds)
+        else:
+            target_means = None
+            target_stds = None
+        if target_means is not None and target_stds is not None:
+            target_stats = Stats(target_means, target_stds)
+        else:
+            target_stats = Stats((), ())
+
         return input_stats, target_stats
 
     def __len__(self):
@@ -129,9 +160,10 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
         self, patch: np.ndarray, patch_spec: PatchSpecs, extractor: PatchExtractor
     ) -> ImageRegionData:
         data_idx = patch_spec["data_idx"]
+        source = extractor.image_stacks[data_idx].source
         return ImageRegionData(
             data=patch,
-            source=str(extractor.image_stacks[data_idx].source),
+            source=str(source),
             dtype=str(extractor.image_stacks[data_idx].data_dtype),
             data_shape=extractor.image_stacks[data_idx].data_shape,
             # TODO: should it be axes of the original image instead?
@@ -180,8 +212,6 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
                 patch_spec=patch_spec,
                 extractor=self.target_extractor,
             )
-        else:
-            target_data = None
+            return input_data, target_data
 
-        # TODO: custom collate_fn to deal with none values
-        return input_data, target_data
+        return input_data
