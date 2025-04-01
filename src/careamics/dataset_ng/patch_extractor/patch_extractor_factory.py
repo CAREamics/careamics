@@ -1,6 +1,6 @@
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, TypeVar
+from typing import Any
 
 from numpy.typing import NDArray
 from typing_extensions import ParamSpec
@@ -9,7 +9,7 @@ from careamics.dataset_ng.patch_extractor import PatchExtractor
 from careamics.file_io.read import ReadFunc
 
 from .image_stack import (
-    ImageStack,
+    GenericImageStack,
     InMemoryImageStack,
     ZarrImageStack,
 )
@@ -18,7 +18,6 @@ from .image_stack_loader import (
 )
 
 P = ParamSpec("P")
-GenericImageStack = TypeVar("GenericImageStack", bound=ImageStack, covariant=True)
 
 
 # Array case

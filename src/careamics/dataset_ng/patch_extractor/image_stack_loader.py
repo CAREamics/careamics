@@ -1,14 +1,13 @@
 from collections.abc import Sequence
-from typing import Any, Protocol, TypeVar
+from typing import Any, Protocol
 
 from typing_extensions import ParamSpec
 
 from careamics.utils import BaseEnum
 
-from .image_stack import ImageStack
+from .image_stack import GenericImageStack
 
 P = ParamSpec("P")
-GenericImageStack = TypeVar("GenericImageStack", bound=ImageStack, covariant=True)
 
 
 class SupportedDataDev(str, BaseEnum):

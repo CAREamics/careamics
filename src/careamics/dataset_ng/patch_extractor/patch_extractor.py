@@ -1,11 +1,9 @@
 from collections.abc import Sequence
-from typing import Generic, TypeVar
+from typing import Generic
 
 from numpy.typing import NDArray
 
-from .image_stack import ImageStack
-
-GenericImageStack = TypeVar("GenericImageStack", bound=ImageStack, covariant=True)
+from .image_stack import GenericImageStack
 
 
 class PatchExtractor(Generic[GenericImageStack]):

@@ -1,7 +1,7 @@
 from collections.abc import Sequence
 from enum import Enum
 from pathlib import Path
-from typing import Any, Optional, TypeVar, Union
+from typing import Any, Optional, Union
 
 from numpy.typing import NDArray
 from typing_extensions import ParamSpec
@@ -12,6 +12,7 @@ from careamics.file_io.read import ReadFunc
 
 from ..patch_extractor import ImageStackLoader, PatchExtractor
 from ..patch_extractor.image_stack import (
+    GenericImageStack,
     ImageStack,
     InMemoryImageStack,
     ZarrImageStack,
@@ -26,7 +27,6 @@ from ..patch_extractor.patch_extractor_factory import (
 from .dataset import CareamicsDataset, Mode
 
 P = ParamSpec("P")
-GenericImageStack = TypeVar("GenericImageStack", bound=ImageStack, covariant=True)
 
 
 # Enum class used to determine which loading functions should be used

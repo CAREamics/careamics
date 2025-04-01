@@ -1,17 +1,16 @@
 from collections.abc import Sequence
 from enum import Enum
 from pathlib import Path
-from typing import Generic, Literal, NamedTuple, Optional, TypeVar, Union
+from typing import Generic, Literal, NamedTuple, Optional, Union
 
 import numpy as np
 from numpy.typing import NDArray
 from torch.utils.data import Dataset
-from typing_extensions import ParamSpec
 
 from careamics.config import DataConfig, InferenceConfig
 from careamics.dataset.patching.patching import Stats
 from careamics.dataset_ng.patch_extractor import PatchExtractor
-from careamics.dataset_ng.patch_extractor.image_stack import ImageStack
+from careamics.dataset_ng.patch_extractor.image_stack import GenericImageStack
 from careamics.dataset_ng.patching_strategies import (
     FixedRandomPatchingStrategy,
     PatchingStrategy,
@@ -19,9 +18,6 @@ from careamics.dataset_ng.patching_strategies import (
     RandomPatchingStrategy,
 )
 from careamics.transforms import Compose
-
-P = ParamSpec("P")
-GenericImageStack = TypeVar("GenericImageStack", bound=ImageStack, covariant=True)
 
 
 class Mode(str, Enum):
