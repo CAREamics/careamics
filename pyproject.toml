@@ -45,7 +45,7 @@ dependencies = [
     'numpy<2.0.0',
     'torch>=2.0,<=2.6.0',
     'torchvision<=0.21.0',
-    'bioimageio.core==0.7',
+    'bioimageio.core==0.8.0',
     'tifffile<=2025.3.13',
     'psutil<=7.0.0',
     'pydantic>=2.5,<2.11',
