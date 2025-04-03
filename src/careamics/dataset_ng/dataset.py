@@ -9,7 +9,6 @@ from torch.utils.data import Dataset
 from typing_extensions import ParamSpec
 
 from careamics.config import DataConfig, InferenceConfig
-from careamics.config.support import SupportedData
 from careamics.config.transformations import NormalizeModel
 from careamics.dataset.patching.patching import Stats
 from careamics.dataset_ng.patch_extractor import PatchExtractor
@@ -142,7 +141,7 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
         # Currently assume that stats are provided in the configuration
         input_stats = Stats(self.config.image_means, self.config.image_stds)
 
-        if type(self.config) == DataConfig:
+        if isinstance(self.config, DataConfig):
             target_means = self.config.target_means
             target_stds = self.config.target_stds
         else:
@@ -219,4 +218,4 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
         if target_data is not None:
             return input_data, target_data
         else:
-            return (input_data,)  # Default collate_fn doesn't work with None
+            return input_data, 
