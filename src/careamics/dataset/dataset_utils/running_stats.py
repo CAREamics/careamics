@@ -21,9 +21,13 @@ def compute_normalization_stats(image: NDArray) -> tuple[NDArray, NDArray]:
     tuple of (list of floats, list of floats)
         Lists of mean and standard deviation values per channel.
     """
-    # Define the list of axes excluding the channel axis
-    axes = tuple(np.delete(np.arange(image.ndim), 1))
-    return np.mean(image, axis=axes), np.std(image, axis=axes)
+    # Define the lists for storing mean and std values
+    means, stds = [], []
+    # Iterate over the channels dimension and compute mean and std
+    for ax in range(image.shape[1]):
+        means.append(image[:, ax, ...].mean())
+        stds.append(image[:, ax, ...].std())
+    return np.stack(means), np.stack(stds)
 
 
 def update_iterative_stats(
