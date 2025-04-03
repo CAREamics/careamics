@@ -9,7 +9,6 @@ from numpy.typing import NDArray
 from torch.utils.data import Dataset
 
 from careamics.config import DataConfig, InferenceConfig
-from careamics.config.support import SupportedData
 from careamics.config.transformations import NormalizeModel
 from careamics.dataset.patching.patching import Stats
 from careamics.dataset_ng.patch_extractor import PatchExtractor

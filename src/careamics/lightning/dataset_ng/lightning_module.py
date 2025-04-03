@@ -1,5 +1,3 @@
-"""CAREamics Lightning module."""
-
 from typing import Any, Optional, Union
 
 import pytorch_lightning as L
@@ -13,129 +11,62 @@ from careamics.config import (
 from careamics.dataset_ng.dataset import ImageRegionData
 from careamics.losses import loss_factory
 from careamics.models.model_factory import model_factory
-from careamics.transforms import (
-    Denormalize,
-    N2VManipulateTorch,
-)
+from careamics.transforms import N2VManipulateTorch
+from careamics.transforms.normalize import Denormalize
 from careamics.utils.torch_utils import get_optimizer, get_scheduler
 
 
+# TODO: go over logging and hyper parameter saving
+# TODO: add support for VAE
+# TODO: test prediction with tiling
+# TODO: move stitching to prediction ??
+# TODO: how to pass metrics ??
+
+
 class N2VModule(L.LightningModule):
-
     def __init__(self, algorithm_config: Union[UNetBasedAlgorithm, dict]) -> None:
-        """Lightning module for CAREamics.
-
-        This class encapsulates the a PyTorch model along with the training, validation,
-        and testing logic. It is configured using an `AlgorithmModel` Pydantic class.
-
-        Parameters
-        ----------
-        algorithm_config : AlgorithmModel or dict
-            Algorithm configuration.
-        """
         super().__init__()
 
         if isinstance(algorithm_config, dict):
             algorithm_config = algorithm_factory(algorithm_config)
 
-        # create preprocessing, model and loss function
-        if isinstance(algorithm_config, N2VAlgorithm):
-            self.use_n2v = True
-            self.n2v_preprocess: Optional[N2VManipulateTorch] = N2VManipulateTorch(
-                n2v_manipulate_config=algorithm_config.n2v_config
-            )
-        else:
-            self.use_n2v = False
-            self.n2v_preprocess = None
+        assert isinstance(
+            algorithm_config, N2VAlgorithm
+        ), "Algorithm config must be a N2VAlgorithm"
 
-        self.algorithm = algorithm_config.algorithm
+        self.config = algorithm_config
+
         self.model: nn.Module = model_factory(algorithm_config.model)
         self.loss_func = loss_factory(algorithm_config.loss)
-
-        # save optimizer and lr_scheduler names and parameters
-        self.optimizer_name = algorithm_config.optimizer.name
-        self.optimizer_params = algorithm_config.optimizer.parameters
-        self.lr_scheduler_name = algorithm_config.lr_scheduler.name
-        self.lr_scheduler_params = algorithm_config.lr_scheduler.parameters
+        self.preprocessing: N2VManipulateTorch = N2VManipulateTorch(
+            n2v_manipulate_config=algorithm_config.n2v_config
+        )
 
     def forward(self, x: Any) -> Any:
-        """Forward pass.
-
-        Parameters
-        ----------
-        x : Any
-            Input tensor.
-
-        Returns
-        -------
-        Any
-            Output tensor.
-        """
         return self.model(x)
 
-    def training_step(self, batch: Tensor, batch_idx: Any) -> Any:
-        """Training step.
+    def training_step(self, batch: ImageRegionData, batch_idx: Any) -> Any:
+        x, *targets = batch
 
-        Parameters
-        ----------
-        batch : torch.Tensor
-            Input batch.
-        batch_idx : Any
-            Batch index.
+        x_masked, x_original, mask = self.preprocessing(x.data)
+        prediction = self.model(x_masked)
 
-        Returns
-        -------
-        Any
-            Loss value.
-        """
-        if len(batch.data) > 1:
-            input_tensor, target = batch.data
-        else:
-            input_tensor = batch.data[0]
-            target = None
-
-        if self.use_n2v and self.n2v_preprocess is not None:
-            masked_input, original_input, mask = self.n2v_preprocess(input_tensor)
-            model_input = masked_input
-            loss_args = (original_input, mask)
-        else:
-            model_input = input_tensor
-            loss_args = (target.data,)
-
-        prediction = self.model(model_input)
-        loss = self.loss_func(prediction, *loss_args)
+        loss_args = (x_original, mask)
+        loss = self.loss_func(prediction, *loss_args, *targets)
 
         self.log(
             "train_loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True
         )
         return loss
 
-    def validation_step(self, batch: Tensor, batch_idx: Any) -> None:
-        """Validation step.
+    def validation_step(self, batch: ImageRegionData, batch_idx: Any) -> None:
+        x, *targets = batch
 
-        Parameters
-        ----------
-        batch : torch.Tensor
-            Input batch.
-        batch_idx : Any
-            Batch index.
-        """
-        if len(batch.data) > 1:
-            input_tensor, target = batch.data
-        else:
-            input_tensor = batch.data[0]
-            target = None
+        x_masked, x_original, mask = self.preprocessing(x.data)
+        prediction = self.model(x_masked)
 
-        if self.use_n2v and self.n2v_preprocess is not None:
-            masked_input, original_input, mask = self.n2v_preprocess(input_tensor)
-            model_input = masked_input
-            loss_args = (original_input, mask)
-        else:
-            model_input = input_tensor
-            loss_args = (target.data,)
-
-        prediction = self.model(model_input)
-        val_loss = self.loss_func(prediction, *loss_args)
+        loss_args = (x_original, mask)
+        val_loss = self.loss_func(prediction, *loss_args, *targets)
 
         # log validation loss
         self.log(
@@ -147,51 +78,37 @@ class N2VModule(L.LightningModule):
             logger=True,
         )
 
-    def predict_step(self, batch: Tensor, batch_idx: Any) -> Any:
-        if len(batch.data) > 1:
-            input_tensor, target = batch.data
-        else:
-            input_tensor = batch.data[0]
-            target = None
+    def predict_step(self, batch: ImageRegionData, batch_idx: Any) -> Any:
+        # TODO: add TTA
+        x: ImageRegionData = batch[0]
+        prediction = self.model(x.data).cpu().numpy()
 
-        output = self.model(input_tensor)
-
-        denorm = Denormalize(
-            image_means=self._trainer.datamodule.predict_dataset.input_stats.means,
-            image_stds=self._trainer.datamodule.predict_dataset.input_stats.stds,
+        means = self._trainer.datamodule.stats.means
+        stds = self._trainer.datamodule.stats.stds
+        denormalize = Denormalize(
+            image_means=means,
+            image_stds=stds,
         )
-        denormalized_output = denorm(patch=output.cpu().numpy())
-
-        # if len(aux) > 0:  # aux can be tiling information
-        #     return denormalized_output, *aux
-        # else:
-        #     return denormalized_output
+        denormalized_output = denormalize(prediction)
 
         output_batch = ImageRegionData(
             data=denormalized_output,
-            source=batch.source,
-            data_shape=batch.data_shape,
-            dtype=batch.dtype,
-            axes=batch.axes,
-            region_spec=batch.region_spec,
+            source=x.source,
+            data_shape=x.data_shape,
+            dtype=x.dtype,
+            axes=x.axes,
+            region_spec=x.region_spec
         )
         return output_batch
 
     def configure_optimizers(self) -> Any:
-        """Configure optimizers and learning rate schedulers.
+        optimizer_func = get_optimizer(self.config.optimizer.name)
+        optimizer = optimizer_func(
+            self.model.parameters(), **self.config.optimizer.parameters
+        )
 
-        Returns
-        -------
-        Any
-            Optimizer and learning rate scheduler.
-        """
-        # instantiate optimizer
-        optimizer_func = get_optimizer(self.optimizer_name)
-        optimizer = optimizer_func(self.model.parameters(), **self.optimizer_params)
-
-        # and scheduler
-        scheduler_func = get_scheduler(self.lr_scheduler_name)
-        scheduler = scheduler_func(optimizer, **self.lr_scheduler_params)
+        scheduler_func = get_scheduler(self.config.lr_scheduler.name)
+        scheduler = scheduler_func(optimizer, **self.config.lr_scheduler.parameters)
 
         return {
             "optimizer": optimizer,

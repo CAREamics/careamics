@@ -48,9 +48,9 @@ class CareamicsDataModule(L.LightningDataModule):
         Validation data, can be a path to a folder, a file or a numpy array.
     val_data_target : Path or str or numpy.ndarray, optional
         Validation target data, can be a path to a folder, a file or a numpy array.
-    predict_data : Path or str or numpy.ndarray, optional
+    pred_data : Path or str or numpy.ndarray, optional
         Prediction data, can be a path to a folder, a file or a numpy array.
-    predict_data_target : Path or str or numpy.ndarray, optional
+    pred_data_target : Path or str or numpy.ndarray, optional
         Prediction target data, can be a path to a folder, a file or a numpy array.
     read_source_func : Callable, optional
         Function to read the source data, by default None. Only used for `custom`
@@ -84,8 +84,8 @@ class CareamicsDataModule(L.LightningDataModule):
         train_data_target: Optional[Union[Path, str, NDArray]] = None,
         val_data: Optional[Union[Path, str, NDArray]] = None,
         val_data_target: Optional[Union[Path, str, NDArray]] = None,
-        predict_data: Optional[Union[Path, str, NDArray]] = None,
-        predict_data_target: Optional[Union[Path, str, NDArray]] = None,
+        pred_data: Optional[Union[Path, str, NDArray]] = None,
+        pred_data_target: Optional[Union[Path, str, NDArray]] = None,
         read_source_func: Optional[Callable] = None,
         read_kwargs: Optional[dict[str, Any]] = None,
         image_stack_loader: Optional[ImageStackLoader] = None,
@@ -110,9 +110,9 @@ class CareamicsDataModule(L.LightningDataModule):
             Validation input data
         val_data_target : Path or str or numpy.ndarray, optional
             Validation target data
-        predict_data : Path or str or numpy.ndarray, optional
+        pred_data : Path or str or numpy.ndarray, optional
             Prediction input data
-        predict_data_target : Path or str or numpy.ndarray, optional
+        pred_data_target : Path or str or numpy.ndarray, optional
             Prediction target data
         read_source_func : Callable, optional
             Custom function for reading data files. Required if data_type is 'custom'
@@ -142,9 +142,9 @@ class CareamicsDataModule(L.LightningDataModule):
 
         super().__init__()
 
-        if train_data is None and val_data is None and predict_data is None:
+        if train_data is None and val_data is None and pred_data is None:
             raise ValueError(
-                "At least one of train_data, val_data or predict_data must be provided."
+                "At least one of train_data, val_data or pred_data must be provided."
             )
 
         self.config: DataConfig = data_config
@@ -157,7 +157,7 @@ class CareamicsDataModule(L.LightningDataModule):
         self.image_stack_loader = image_stack_loader
         self.image_stack_loader_kwargs = image_stack_loader_kwargs
 
-        # TODO: validation split logic
+        # TODO: implement the validation split logic
         self.val_percentage = val_percentage
         self.val_minimum_split = val_minimum_split
         if self.val_percentage is not None:
@@ -169,8 +169,8 @@ class CareamicsDataModule(L.LightningDataModule):
         self.val_data, self.val_data_target = self._initialize_data_pair(
             val_data, val_data_target
         )
-        self.predict_data, self.predict_data_target = self._initialize_data_pair(
-            predict_data, predict_data_target
+        self.pred_data, self.pred_data_target = self._initialize_data_pair(
+            pred_data, pred_data_target
         )
 
     def _validate_input_target_type_consistency(
@@ -286,6 +286,7 @@ class CareamicsDataModule(L.LightningDataModule):
                 targets=self.train_data_target,
                 **dataset_kwargs,
             )
+            self.stats = self.train_dataset.input_stats
         elif stage == "validate":
             self.val_dataset = create_dataset(
                 mode=Mode.VALIDATING,
@@ -293,13 +294,15 @@ class CareamicsDataModule(L.LightningDataModule):
                 targets=self.val_data_target,
                 **dataset_kwargs,
             )
+            self.stats = self.val_dataset.input_stats
         elif stage == "predict":
             self.predict_dataset = create_dataset(
                 mode=Mode.PREDICTING,
-                inputs=self.predict_data,
-                targets=self.predict_data_target,
+                inputs=self.pred_data,
+                targets=self.pred_data_target,
                 **dataset_kwargs,
             )
+            self.stats = self.predict_dataset.input_stats
         else:
             raise NotImplementedError(f"Stage {stage} not implemented")
 
