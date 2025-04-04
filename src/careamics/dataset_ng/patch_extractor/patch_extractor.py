@@ -1,17 +1,18 @@
 from collections.abc import Sequence
+from typing import Generic
 
 from numpy.typing import NDArray
 
-from .image_stack import ImageStack
+from .image_stack import GenericImageStack
 
 
-class PatchExtractor:
+class PatchExtractor(Generic[GenericImageStack]):
     """
     A class for extracting patches from multiple image stacks.
     """
 
-    def __init__(self, image_stacks: Sequence[ImageStack]):
-        self.image_stacks: list[ImageStack] = list(image_stacks)
+    def __init__(self, image_stacks: Sequence[GenericImageStack]):
+        self.image_stacks: list[GenericImageStack] = list(image_stacks)
 
     def extract_patch(
         self,
