@@ -9,7 +9,7 @@ import zarr
 from numpy.typing import NDArray
 from zarr.storage import FSStore
 
-from careamics.config import DataConfig
+from careamics.config import TrainingDataConfig
 from careamics.config.support import SupportedData
 from careamics.dataset_ng.patch_extractor import create_patch_extractor
 from careamics.dataset_ng.patch_extractor.image_stack import ZarrImageStack
@@ -87,7 +87,7 @@ def custom_image_stack_loader(source: ZarrSource, axes: str, *args, **kwargs):
 
 # %%
 # dummy data config
-data_config = DataConfig(data_type="custom", patch_size=[64, 64], axes="SCYX")
+data_config = TrainingDataConfig(data_type="custom", patch_size=[64, 64], axes="SCYX")
 
 # %%
 image_stack_loader: ImageStackLoader = custom_image_stack_loader

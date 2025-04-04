@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 import tifffile
 
-from careamics.config import DataConfig
+from careamics.config import TrainingDataConfig
 from careamics.config.support import SupportedData
 from careamics.dataset import PathIterableDataset
 from careamics.file_io.read import read_tiff
@@ -39,7 +39,7 @@ def test_number_of_files(tmp_path, ordered_array, shape, axes, patch_size):
         "patch_size": patch_size,
         "axes": axes,
     }
-    config = DataConfig(**config_dict)
+    config = TrainingDataConfig(**config_dict)
 
     # create dataset
     dataset = PathIterableDataset(
@@ -82,7 +82,7 @@ def test_read_function(tmp_path, ordered_array):
         "patch_size": patch_sizes,
         "axes": "YX",
     }
-    config = DataConfig(**config_dict)
+    config = TrainingDataConfig(**config_dict)
 
     # create dataset
     dataset = PathIterableDataset(
@@ -116,7 +116,7 @@ def test_extracting_val_files(tmp_path, ordered_array, percentage):
         "patch_size": [8, 8],
         "axes": "YX",
     }
-    config = DataConfig(**config_dict)
+    config = TrainingDataConfig(**config_dict)
 
     # create dataset
     dataset = PathIterableDataset(
@@ -167,7 +167,7 @@ def test_compute_mean_std_transform_welford(tmp_path, shape, axes, patch_size):
         "patch_size": patch_size,
         "axes": axes,
     }
-    config = DataConfig(**config_dict)
+    config = TrainingDataConfig(**config_dict)
 
     # create dataset
     dataset = PathIterableDataset(
@@ -219,7 +219,7 @@ def test_compute_mean_std_transform_welford_with_targets(
         "patch_size": patch_size,
         "axes": axes,
     }
-    config = DataConfig(**config_dict)
+    config = TrainingDataConfig(**config_dict)
 
     # create dataset
     dataset = PathIterableDataset(

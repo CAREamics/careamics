@@ -2,7 +2,7 @@
 
 from careamics.config import Configuration
 from careamics.config.algorithms import UNetBasedAlgorithm
-from careamics.config.data import DataConfig
+from careamics.config.data import TrainingDataConfig
 from careamics.config.inference_model import InferenceConfig
 from careamics.config.training_model import TrainingConfig
 
@@ -14,7 +14,7 @@ def test_minimum_algorithm(minimum_algorithm_n2v):
 
 def test_minimum_data(minimum_data):
     # create data configuration
-    DataConfig(**minimum_data)
+    TrainingDataConfig(**minimum_data)
 
 
 def test_minimum_prediction(minimum_inference):

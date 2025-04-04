@@ -10,7 +10,6 @@ __all__ = [
     "CAREAlgorithm",
     "CheckpointModel",
     "Configuration",
-    "DataConfig",
     "GaussianMixtureNMConfig",
     "InferenceConfig",
     "LVAELossConfig",
@@ -18,6 +17,7 @@ __all__ = [
     "N2NAlgorithm",
     "N2VAlgorithm",
     "TrainingConfig",
+    "TrainingDataConfig",
     "UNetBasedAlgorithm",
     "VAEBasedAlgorithm",
     "algorithm_factory",
@@ -44,7 +44,7 @@ from .configuration_factories import (
     create_n2v_configuration,
 )
 from .configuration_io import load_configuration, save_configuration
-from .data import DataConfig
+from .data import TrainingDataConfig
 from .inference_model import InferenceConfig
 from .loss_model import LVAELossConfig
 from .nm_model import GaussianMixtureNMConfig, MultiChannelNMConfig

@@ -49,7 +49,7 @@ class ImageStackLoader(Protocol[P]):
 
     >>> from zarr.storage import FSStore
 
-    >>> from careamics.config import DataConfig
+    >>> from careamics.config import TrainingDataConfig
     >>> from careamics.dataset_ng.patch_extractor.image_stack import ZarrImageStack
 
     >>> # Define a zarr source
