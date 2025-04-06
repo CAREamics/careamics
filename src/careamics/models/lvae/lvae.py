@@ -23,7 +23,7 @@ from .layers import (
 from .utils import Interpolate, ModelType, crop_img_tensor
 
 
-class LadderVAE(nn.Module):
+class LVAE(nn.Module):
     """
     Constructor.
 
