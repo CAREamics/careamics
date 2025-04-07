@@ -76,7 +76,7 @@ classDiagram
     PatchingStrategy <|-- FixedRandomPatchingStrategy: Implements
     PatchingStrategy <|-- SequentialPatchingStrategy: Implements
     PatchingStrategy <|-- TilingStrategy: Implements
-    PatchSpecs --|> TileSpecs: Inherits from
+    PatchSpecs <|-- TileSpecs: Inherits from
 ```
 
 ### `ImageStack` and implementations
