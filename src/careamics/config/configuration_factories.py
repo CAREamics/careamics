@@ -24,7 +24,7 @@ from .configuration import Configuration
 
 
 def algorithm_factory(
-    algorithm: dict[str, Any]
+    algorithm: dict[str, Any],
 ) -> Union[N2VAlgorithm, N2NAlgorithm, CAREAlgorithm]:
     """
     Create an algorithm model for training CAREamics.
