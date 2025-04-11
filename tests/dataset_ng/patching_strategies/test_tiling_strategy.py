@@ -1,11 +1,10 @@
 import numpy as np
 import pytest
 
-from careamics.config.support import SupportedData
 from careamics.dataset_ng.dataset import ImageRegionData
 from careamics.dataset_ng.legacy_interoperability import imageregions_to_tileinfos
 from careamics.dataset_ng.patch_extractor.patch_extractor_factory import (
-    create_patch_extractor,
+    create_array_extractor,
 )
 from careamics.dataset_ng.patching_strategies import TilingStrategy
 from careamics.prediction_utils.stitch_prediction import stitch_prediction
@@ -25,9 +24,7 @@ def _test_tiling_output(
     data = [
         np.arange(np.prod(data_shape)).reshape(data_shape) for data_shape in data_shapes
     ]
-    patch_extractor = create_patch_extractor(
-        source=data, axes=axes, data_type=SupportedData.ARRAY
-    )
+    patch_extractor = create_array_extractor(source=data, axes=axes)
     tiling_strategy = TilingStrategy(
         data_shapes=data_shapes, tile_size=patch_size, overlaps=overlaps
     )
