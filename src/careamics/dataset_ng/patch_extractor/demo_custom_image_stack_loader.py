@@ -11,9 +11,11 @@ from zarr.storage import FSStore
 
 from careamics.config import DataConfig
 from careamics.config.support import SupportedData
-from careamics.dataset_ng.patch_extractor import create_patch_extractor
 from careamics.dataset_ng.patch_extractor.image_stack import ZarrImageStack
 from careamics.dataset_ng.patch_extractor.image_stack_loader import ImageStackLoader
+from careamics.dataset_ng.patch_extractor.patch_extractor_factory import (
+    create_custom_image_stack_extractor,
+)
 
 
 # %%
@@ -94,12 +96,12 @@ image_stack_loader: ImageStackLoader = custom_image_stack_loader
 
 # %%
 # So pylance knows that datatype is custom to match function overloads
-assert data_config.data_type is SupportedData.CUSTOM
+assert SupportedData(data_config.data_type) is SupportedData.CUSTOM
 
-patch_extractor = create_patch_extractor(
+patch_extractor = create_custom_image_stack_extractor(
     source={"store": store, "data_paths": data_paths},
     axes=data_config.axes,
-    data_type=data_config.data_type,
+    data_type=SupportedData(data_config.data_type),
     image_stack_loader=custom_image_stack_loader,
 )
 

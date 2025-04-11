@@ -1,6 +1,6 @@
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Literal, Protocol, Union
+from typing import Literal, Protocol, TypeVar, Union
 
 from numpy.typing import DTypeLike, NDArray
 
@@ -49,3 +49,7 @@ class ImageStack(Protocol):
             A patch of the image data from a particlular sample. It will have the
             dimensions C(Z)YX.
         """
+        ...
+
+
+GenericImageStack = TypeVar("GenericImageStack", bound=ImageStack, covariant=True)

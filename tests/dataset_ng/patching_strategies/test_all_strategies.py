@@ -9,6 +9,8 @@ from careamics.dataset_ng.patching_strategies import (
     PatchingStrategy,
     RandomPatchingStrategy,
     SequentialPatchingStrategy,
+    TilingStrategy,
+    WholeSamplePatchingStrategy,
 )
 
 
@@ -37,6 +39,27 @@ def _create_sequential_patching_strategy(
     return SequentialPatchingStrategy(data_shapes, patch_size, overlap)
 
 
+def _create_tiling_strategy(
+    data_shapes: Sequence[Sequence[int]], patch_size: Sequence[int]
+) -> TilingStrategy:
+    if len(patch_size) == 2:
+        overlaps = (2, 2)
+    elif len(patch_size) == 3:
+        overlaps = (2, 2, 2)
+    else:
+        raise ValueError
+    return TilingStrategy(
+        data_shapes=data_shapes, tile_size=patch_size, overlaps=overlaps
+    )
+
+
+def _create_whole_sample_patching_strategy(
+    data_shapes: Sequence[Sequence[int]], patch_size: Sequence[int]
+) -> WholeSamplePatchingStrategy:
+    # patch_size unused
+    return WholeSamplePatchingStrategy(data_shapes=data_shapes)
+
+
 PatchingStrategyConstr = Callable[
     [Sequence[Sequence[int]], Sequence[int]], PatchingStrategy
 ]
@@ -46,6 +69,8 @@ PATCHING_STRATEGY_CONSTR: tuple[PatchingStrategyConstr, ...] = (
     _create_random_patching_strategy,
     _create_fixed_random_patching_strategy,
     _create_sequential_patching_strategy,
+    _create_tiling_strategy,
+    _create_whole_sample_patching_strategy,
 )
 
 
@@ -59,7 +84,7 @@ PATCHING_STRATEGY_CONSTR: tuple[PatchingStrategyConstr, ...] = (
         [[(2, 1, 32, 32, 32), (1, 1, 19, 37, 23), (3, 1, 14, 9, 12)], (8, 5, 7)],
     ],
 )
-def test_get_all_patch_specs(
+def test_all_get_patch_spec(
     strategy_constr: PatchingStrategyConstr,
     data_shapes: Sequence[Sequence[int]],
     patch_size: Sequence[int],
