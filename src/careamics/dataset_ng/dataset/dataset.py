@@ -1,7 +1,8 @@
 from collections.abc import Sequence
 from enum import Enum
 from pathlib import Path
-from typing import Generic, Literal, NamedTuple, Optional, Union
+from typing import Any, Literal, NamedTuple, Optional, Union
+
 
 import numpy as np
 from numpy.typing import NDArray
@@ -16,6 +17,8 @@ from careamics.dataset_ng.patching_strategies import (
     PatchingStrategy,
     PatchSpecs,
     RandomPatchingStrategy,
+    TilingStrategy,
+    WholeSamplePatchingStrategy,
 )
 from careamics.transforms import Compose
 
@@ -35,7 +38,7 @@ class ImageRegionData(NamedTuple):
     region_spec: PatchSpecs
 
 
-InputType = Union[Sequence[np.ndarray], Sequence[Path]]
+InputType = Union[Sequence[NDArray[Any]], Sequence[Path]]
 
 
 class CareamicsDataset(Dataset, Generic[GenericImageStack]):
@@ -79,10 +82,20 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
                 seed=getattr(self.config, "random_seed", None),
             )
         elif self.mode == Mode.PREDICTING:
-            # TODO: patching strategy will be tilingStrategy in upcoming PR
-            raise NotImplementedError(
-                "Prediction mode for the CAREamicsDataset has not been implemented yet."
-            )
+            if not isinstance(self.config, InferenceConfig):
+                raise ValueError("Inference config must be used for predicting.")
+            if (self.config.tile_size is not None) and (
+                self.config.tile_overlap is not None
+            ):
+                patching_strategy = TilingStrategy(
+                    data_shapes=self.input_extractor.shape,
+                    tile_size=self.config.tile_size,
+                    overlaps=self.config.tile_overlap,
+                )
+            else:
+                patching_strategy = WholeSamplePatchingStrategy(
+                    data_shapes=self.input_extractor.shape
+                )
         else:
             raise ValueError(f"Unrecognised dataset mode {self.mode}.")
 
@@ -129,10 +142,20 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
         self, index: int
     ) -> tuple[ImageRegionData, Optional[ImageRegionData]]:
         patch_spec = self.patching_strategy.get_patch_spec(index)
-        input_patch = self.input_extractor.extract_patch(**patch_spec)
+        input_patch = self.input_extractor.extract_patch(
+            data_idx=patch_spec["data_idx"],
+            sample_idx=patch_spec["sample_idx"],
+            coords=patch_spec["coords"],
+            patch_size=patch_spec["patch_size"],
+        )
 
         target_patch = (
-            self.target_extractor.extract_patch(**patch_spec)
+            self.target_extractor.extract_patch(
+                data_idx=patch_spec["data_idx"],
+                sample_idx=patch_spec["sample_idx"],
+                coords=patch_spec["coords"],
+                patch_size=patch_spec["patch_size"],
+            )
             if self.target_extractor is not None
             else None
         )
