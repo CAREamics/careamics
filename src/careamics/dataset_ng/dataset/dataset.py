@@ -1,8 +1,7 @@
 from collections.abc import Sequence
 from enum import Enum
 from pathlib import Path
-from typing import Any, Literal, NamedTuple, Optional, Union
-
+from typing import Any, Generic, Literal, NamedTuple, Optional, Union
 
 import numpy as np
 from numpy.typing import NDArray
