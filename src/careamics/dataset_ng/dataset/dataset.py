@@ -3,19 +3,15 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Literal, NamedTuple, Optional, Union
 
+
 import numpy as np
 from numpy.typing import NDArray
 from torch.utils.data import Dataset
-from typing_extensions import ParamSpec
 
 from careamics.config import DataConfig, InferenceConfig
-from careamics.config.support import SupportedData
 from careamics.dataset.patching.patching import Stats
-from careamics.dataset_ng.patch_extractor import (
-    ImageStackLoader,
-    PatchExtractor,
-    create_patch_extractor,
-)
+from careamics.dataset_ng.patch_extractor import PatchExtractor
+from careamics.dataset_ng.patch_extractor.image_stack import GenericImageStack
 from careamics.dataset_ng.patching_strategies import (
     FixedRandomPatchingStrategy,
     PatchingStrategy,
@@ -26,8 +22,6 @@ from careamics.dataset_ng.patching_strategies import (
 )
 from careamics.transforms import Compose
 
-P = ParamSpec("P")
-
 
 class Mode(str, Enum):
     TRAINING = "training"
@@ -37,7 +31,7 @@ class Mode(str, Enum):
 
 class ImageRegionData(NamedTuple):
     data: NDArray
-    source: Union[Path, Literal["array"]]
+    source: Union[str, Literal["array"]]  # path has to be string for collate
     data_shape: Sequence[int]
     dtype: str  # dtype should be str for collate
     axes: str
@@ -47,40 +41,19 @@ class ImageRegionData(NamedTuple):
 InputType = Union[Sequence[NDArray[Any]], Sequence[Path]]
 
 
-class CareamicsDataset(Dataset):
+class CareamicsDataset(Dataset, Generic[GenericImageStack]):
     def __init__(
         self,
         data_config: Union[DataConfig, InferenceConfig],
         mode: Mode,
-        inputs: InputType,
-        targets: Optional[InputType] = None,
-        image_stack_loader: Optional[ImageStackLoader[P]] = None,
-        *args: P.args,
-        **kwargs: P.kwargs,
+        input_extractor: PatchExtractor[GenericImageStack],
+        target_extractor: Optional[PatchExtractor[GenericImageStack]] = None,
     ):
         self.config = data_config
         self.mode = mode
 
-        data_type_enum = SupportedData(self.config.data_type)
-        self.input_extractor = create_patch_extractor(
-            inputs,
-            self.config.axes,
-            data_type_enum,
-            image_stack_loader,
-            *args,
-            **kwargs,
-        )
-        if targets is not None:
-            self.target_extractor: Optional[PatchExtractor] = create_patch_extractor(
-                targets,
-                self.config.axes,
-                data_type_enum,
-                image_stack_loader,
-                *args,
-                **kwargs,
-            )
-        else:
-            self.target_extractor = None
+        self.input_extractor = input_extractor
+        self.target_extractor = target_extractor
 
         self.patching_strategy = self._initialize_patching_strategy()
 
@@ -157,7 +130,7 @@ class CareamicsDataset(Dataset):
         data_idx = patch_spec["data_idx"]
         return ImageRegionData(
             data=patch,
-            source=extractor.image_stacks[data_idx].source,
+            source=str(extractor.image_stacks[data_idx].source),
             dtype=str(extractor.image_stacks[data_idx].data_dtype),
             data_shape=extractor.image_stacks[data_idx].data_shape,
             # TODO: should it be axes of the original image instead?
@@ -188,7 +161,13 @@ class CareamicsDataset(Dataset):
         )
 
         if self.transforms is not None:
-            input_patch, target_patch = self.transforms(input_patch, target_patch)
+            if self.target_extractor is not None:
+                input_patch, target_patch = self.transforms(input_patch, target_patch)
+            else:
+                # TODO: compose doesn't return None for target patch anymore
+                #   so have to do this annoying if else
+                (input_patch,) = self.transforms(input_patch, target_patch)
+                target_patch = None
 
         input_data = self._create_image_region(
             patch=input_patch, patch_spec=patch_spec, extractor=self.input_extractor
@@ -203,4 +182,5 @@ class CareamicsDataset(Dataset):
         else:
             target_data = None
 
+        # TODO: custom collate_fn to deal with none values
         return input_data, target_data
