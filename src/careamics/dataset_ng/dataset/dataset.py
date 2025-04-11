@@ -3,7 +3,6 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Literal, NamedTuple, Optional, Union
 
-
 import numpy as np
 from numpy.typing import NDArray
 from torch.utils.data import Dataset
