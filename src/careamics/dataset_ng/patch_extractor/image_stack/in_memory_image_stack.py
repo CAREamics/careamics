@@ -46,15 +46,15 @@ class InMemoryImageStack:
         patches_per_channel = []
         for channel_idx, coord_pair in enumerate(coords):
             patch = self._data[
-                    (
-                        sample_idx,  # type: ignore
-                        channel_idx,  # type: ignore
-                        ...,  # type: ignore
-                        *[slice(c, c + e) for c, e in zip(coord_pair, patch_size)],  # type: ignore
-                    )
-                ]
+                (
+                    sample_idx,  # type: ignore
+                    channel_idx,  # type: ignore
+                    ...,  # type: ignore
+                    *[slice(c, c + e) for c, e in zip(coord_pair, patch_size)],  # type: ignore
+                )
+            ]
             if not all(p == r for p, r in zip(patch.shape, patch_size)):
-                continue # TODO add padding
+                continue  # TODO add padding
             patches_per_channel.append(patch)
         return self._composite_patch(patches_per_channel)
 
