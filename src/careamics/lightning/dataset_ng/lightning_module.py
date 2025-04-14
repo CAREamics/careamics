@@ -1,7 +1,9 @@
-from typing import Any, Optional, Union
+from typing import Any, Union
 
 import pytorch_lightning as L
-from torch import Tensor, nn
+from torchmetrics import MetricCollection
+from torchmetrics.image import PeakSignalNoiseRatio
+from torch import nn
 
 from careamics.config import (
     N2VAlgorithm,
@@ -26,6 +28,7 @@ from careamics.utils.torch_utils import get_optimizer, get_scheduler
 class N2VModule(L.LightningModule):
     def __init__(self, algorithm_config: Union[UNetBasedAlgorithm, dict]) -> None:
         super().__init__()
+        self.save_hyperparameters()
 
         if isinstance(algorithm_config, dict):
             algorithm_config = algorithm_factory(algorithm_config)
@@ -41,6 +44,7 @@ class N2VModule(L.LightningModule):
         self.preprocessing: N2VManipulateTorch = N2VManipulateTorch(
             n2v_manipulate_config=algorithm_config.n2v_config
         )
+        self.metrics = MetricCollection(PeakSignalNoiseRatio())
 
     def forward(self, x: Any) -> Any:
         return self.model(x)
@@ -54,9 +58,21 @@ class N2VModule(L.LightningModule):
         loss_args = (x_original, mask)
         loss = self.loss_func(prediction, *loss_args, *targets)
 
+        batch_size = self._trainer.datamodule.config.batch_size
         self.log(
-            "train_loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True
+            "train_loss",
+            loss,
+            on_step=True,
+            on_epoch=True,
+            prog_bar=True,
+            logger=True,
+            batch_size=batch_size,
         )
+
+        optimizer = self.optimizers()
+        current_lr = optimizer.param_groups[0]["lr"]
+        self.log("learning_rate", current_lr, on_step=False, on_epoch=True, logger=True)
+
         return loss
 
     def validation_step(self, batch: ImageRegionData, batch_idx: Any) -> None:
@@ -68,7 +84,10 @@ class N2VModule(L.LightningModule):
         loss_args = (x_original, mask)
         val_loss = self.loss_func(prediction, *loss_args, *targets)
 
+        self.metrics(prediction, x_original)
+
         # log validation loss
+        batch_size = self._trainer.datamodule.config.batch_size
         self.log(
             "val_loss",
             val_loss,
@@ -76,7 +95,9 @@ class N2VModule(L.LightningModule):
             on_epoch=True,
             prog_bar=True,
             logger=True,
+            batch_size=batch_size,
         )
+        self.log_dict(self.metrics, on_step=False, on_epoch=True)
 
     def predict_step(self, batch: ImageRegionData, batch_idx: Any) -> Any:
         # TODO: add TTA

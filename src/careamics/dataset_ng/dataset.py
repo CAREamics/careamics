@@ -125,20 +125,17 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
                     + list(self.config.transforms)
                 )
 
-        else:
-            return Compose(
-                transform_list=[
-                    NormalizeModel(
-                        image_means=self.input_stats.means,
-                        image_stds=self.input_stats.stds,
-                        target_means=self.target_stats.means,
-                        target_stds=self.target_stats.stds,
-                    )
-                ]
-            )
-
         # TODO: add TTA
-        return None
+        return Compose(
+            transform_list=[
+                NormalizeModel(
+                    image_means=self.input_stats.means,
+                    image_stds=self.input_stats.stds,
+                    target_means=self.target_stats.means,
+                    target_stds=self.target_stats.stds,
+                )
+            ]
+        )
 
     def _initialize_statistics(self) -> tuple[Stats, Optional[Stats]]:
         # TODO: add running stats
