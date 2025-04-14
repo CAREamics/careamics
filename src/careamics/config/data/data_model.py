@@ -21,6 +21,7 @@ from typing_extensions import Self
 
 from ..transformations import XYFlipModel, XYRandomRotate90Model
 from ..validators import check_axes_validity, patch_size_ge_than_8_power_of_2
+from .patch_extractor import PatchExtractorConfig
 
 
 def np_float_to_scientific_str(x: float) -> str:
@@ -135,6 +136,8 @@ class DataConfig(BaseModel):
     )
     """List of transformations to apply to the data, available transforms are defined
     in SupportedTransform."""
+
+    patch_extractor_params: PatchExtractorConfig
 
     train_dataloader_params: dict[str, Any] = Field(
         default={"shuffle": True}, validate_default=True
