@@ -2,7 +2,6 @@ from collections.abc import Sequence
 from enum import Enum
 from pathlib import Path
 from typing import Any, Generic, Literal, NamedTuple, Optional, Union
-from typing import Generic, Literal, NamedTuple, Optional, TypeVar, Union
 
 import numpy as np
 from numpy.typing import NDArray
@@ -216,11 +215,4 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
             )
             return input_data, target_data
         else:
-            target_data = None
-
-        if target_data is not None:
-            return input_data, target_data
-        else:
-            return (input_data,)  # Default collate_fn doesn't work with None
-
-        return input_data
+            return (input_data,)

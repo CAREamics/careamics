@@ -1,7 +1,7 @@
 from collections.abc import Sequence
 from enum import Enum
 from pathlib import Path
-from typing import Any, Optional, Union
+from typing import Any, Optional, TypeVar, Union
 
 from numpy.typing import NDArray
 from typing_extensions import ParamSpec
@@ -10,14 +10,13 @@ from careamics.config import DataConfig, InferenceConfig
 from careamics.config.support import SupportedData
 from careamics.file_io.read import ReadFunc
 
-from ..patch_extractor import ImageStackLoader, PatchExtractor
-from ..patch_extractor.image_stack import (
-    GenericImageStack,
+from patch_extractor import ImageStackLoader, PatchExtractor
+from patch_extractor.image_stack import (
     ImageStack,
     InMemoryImageStack,
     ZarrImageStack,
 )
-from ..patch_extractor.patch_extractor_factory import (
+from patch_extractor.patch_extractor_factory import (
     create_array_extractor,
     create_custom_file_extractor,
     create_custom_image_stack_extractor,
@@ -27,6 +26,7 @@ from ..patch_extractor.patch_extractor_factory import (
 from .dataset import CareamicsDataset, Mode
 
 P = ParamSpec("P")
+GenericImageStack = TypeVar("GenericImageStack", bound=ImageStack, covariant=True)
 
 
 # Enum class used to determine which loading functions should be used
@@ -167,7 +167,7 @@ def create_dataset(
     elif dataset_type == DatasetType.IN_MEM_TIFF:
         return create_tiff_dataset(config, mode, inputs, targets)
     # TODO: Lazy tiff
-    elif dataset_type == DatasetType.IN_MEM_CUSTOM_FILE:
+    elif data_type == DatasetType.IN_MEM_CUSTOM_FILE:
         if read_kwargs is None:
             read_kwargs = {}
         assert read_func is not None  # should be true from `determine_dataset_type`
@@ -216,7 +216,8 @@ def create_array_dataset(
         target_extractor = create_array_extractor(source=targets, axes=config.axes)
     else:
         target_extractor = None
-    return CareamicsDataset(config, mode, input_extractor, target_extractor)
+    dataset = CareamicsDataset(config, mode, input_extractor, target_extractor)
+    return dataset
 
 
 def create_tiff_dataset(
