@@ -12,6 +12,7 @@ from careamics.file_io.read import ReadFunc
 
 from patch_extractor import ImageStackLoader, PatchExtractor
 from patch_extractor.image_stack import (
+    GenericImageStack,
     ImageStack,
     InMemoryImageStack,
     ZarrImageStack,
@@ -26,7 +27,6 @@ from patch_extractor.patch_extractor_factory import (
 from .dataset import CareamicsDataset, Mode
 
 P = ParamSpec("P")
-GenericImageStack = TypeVar("GenericImageStack", bound=ImageStack, covariant=True)
 
 
 # Enum class used to determine which loading functions should be used
@@ -167,7 +167,7 @@ def create_dataset(
     elif dataset_type == DatasetType.IN_MEM_TIFF:
         return create_tiff_dataset(config, mode, inputs, targets)
     # TODO: Lazy tiff
-    elif data_type == DatasetType.IN_MEM_CUSTOM_FILE:
+    elif dataset_type == DatasetType.IN_MEM_CUSTOM_FILE:
         if read_kwargs is None:
             read_kwargs = {}
         assert read_func is not None  # should be true from `determine_dataset_type`
@@ -216,8 +216,7 @@ def create_array_dataset(
         target_extractor = create_array_extractor(source=targets, axes=config.axes)
     else:
         target_extractor = None
-    dataset = CareamicsDataset(config, mode, input_extractor, target_extractor)
-    return dataset
+    return CareamicsDataset(config, mode, input_extractor, target_extractor)
 
 
 def create_tiff_dataset(
