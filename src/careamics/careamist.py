@@ -9,11 +9,17 @@ from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import (
     Callback,
     EarlyStopping,
+    LearningRateMonitor,
     ModelCheckpoint,
 )
 from pytorch_lightning.loggers import CSVLogger, TensorBoardLogger, WandbLogger
 
-from careamics.config import Configuration, UNetBasedAlgorithm, load_configuration
+from careamics.config import (
+    Configuration,
+    UNetBasedAlgorithm,
+    VAEBasedAlgorithm,
+    load_configuration,
+)
 from careamics.config.support import (
     SupportedAlgorithm,
     SupportedArchitecture,
@@ -28,6 +34,7 @@ from careamics.lightning import (
     PredictDataModule,
     ProgressBarCallback,
     TrainDataModule,
+    VAEModule,
     create_predict_datamodule,
 )
 from careamics.model_io import export_to_bmz, load_pretrained
@@ -141,6 +148,11 @@ class CAREamist:
                 self.model = FCNModule(
                     algorithm_config=self.cfg.algorithm_config,
                 )
+            elif isinstance(self.cfg.algorithm_config, VAEBasedAlgorithm):
+                self.model = VAEModule(
+                    algorithm_config=self.cfg.algorithm_config,
+                )
+                raise NotImplementedError("VAE based algorithms are not implemented.")
             else:
                 raise NotImplementedError("Architecture not supported.")
 
@@ -252,6 +264,7 @@ class CAREamist:
                     **self.cfg.training_config.checkpoint_callback.model_dump(),
                 ),
                 ProgressBarCallback(),
+                LearningRateMonitor(),
             ]
         )
 
