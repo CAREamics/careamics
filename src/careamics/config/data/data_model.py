@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
+import os
 from collections.abc import Sequence
 from pprint import pformat
 from typing import Annotated, Any, Literal, Optional, Union
 from warnings import warn
-import os
 
 import numpy as np
 from numpy.typing import NDArray
@@ -211,16 +211,14 @@ class DataConfig(BaseModel):
 
         return axes
 
-    @field_validator(
-        "train_dataloader_params",
-        "val_dataloader_params",
-        mode="before"
-    )
+    @field_validator("train_dataloader_params", "val_dataloader_params", mode="before")
     @classmethod
-    def set_default_dataloader_params(cls, dataloader_params: dict[str, Any]) -> dict[str, Any]:
+    def set_default_dataloader_params(
+        cls, dataloader_params: dict[str, Any]
+    ) -> dict[str, Any]:
         """
         Set default dataloader parameters if not provided.
-        
+
         - If 'num_workers' is not set, it defaults to the number of available CPU cores.
         - If 'pin_memory' is not set, it defaults to True if CUDA is available.
 
@@ -236,11 +234,11 @@ class DataConfig(BaseModel):
         """
         if "num_workers" not in dataloader_params:
             dataloader_params["num_workers"] = os.cpu_count()
-        
+
         if "pin_memory" not in dataloader_params:
             import torch
             dataloader_params["pin_memory"] = torch.cuda.is_available()
-        
+
         return dataloader_params
 
     @field_validator("train_dataloader_params")

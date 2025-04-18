@@ -10,9 +10,7 @@ from torch.utils.data import Dataset
 from careamics.config import DataConfig, InferenceConfig
 from careamics.config.transformations import NormalizeModel
 from careamics.dataset.patching.patching import Stats
-from careamics.dataset_ng.patch_extractor import (
-    PatchExtractor, GenericImageStack
-)
+from careamics.dataset_ng.patch_extractor import GenericImageStack, PatchExtractor
 from careamics.dataset_ng.patching_strategies import (
     FixedRandomPatchingStrategy,
     PatchingStrategy,
@@ -71,7 +69,7 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
                 data_shapes=self.input_extractor.shape,
                 patch_size=self.config.patch_size,
                 # TODO: Add random seed to dataconfig
-                seed=getattr(self.config, "random_seed", None),
+                seed=getattr(self.config, "random_seed", 42),
             )
         elif self.mode == Mode.VALIDATING:
             if isinstance(self.config, InferenceConfig):
@@ -130,21 +128,18 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
             ]
         )
 
-    def _initialize_statistics(self) -> tuple[Stats, Optional[Stats]]:
+    def _initialize_statistics(self) -> tuple[Stats, Stats]:
         # TODO: add running stats
         # Currently assume that stats are provided in the configuration
         input_stats = Stats(self.config.image_means, self.config.image_stds)
 
+        # TODO: if stats are not set then target is present
+        #  the transforms break silently
         if isinstance(self.config, DataConfig):
             target_means = self.config.target_means
             target_stds = self.config.target_stds
-        else:
-            target_means = None
-            target_stds = None
-        if target_means is not None and target_stds is not None:
             target_stats = Stats(target_means, target_stds)
         else:
-            # TODO: if stats are not set then target is present the transforms break silently
             target_stats = Stats((), ())
 
         return input_stats, target_stats

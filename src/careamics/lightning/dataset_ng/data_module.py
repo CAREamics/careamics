@@ -1,19 +1,19 @@
 from pathlib import Path
 from typing import Any, Callable, Optional, Union
 
+import numpy as np
 import pytorch_lightning as L
 from numpy.typing import NDArray
-import numpy as np
 from torch.utils.data import DataLoader
 from torch.utils.data._utils.collate import default_collate
 
 from careamics.config.data import DataConfig
 from careamics.config.support import SupportedData
+from careamics.dataset.dataset_utils import list_files, validate_source_target_files
 from careamics.dataset_ng.dataset import Mode
 from careamics.dataset_ng.factory import create_dataset
-from careamics.utils import get_logger
 from careamics.dataset_ng.patch_extractor import ImageStackLoader
-from careamics.dataset.dataset_utils import list_files, validate_source_target_files
+from careamics.utils import get_logger
 
 logger = get_logger(__name__)
 
@@ -65,7 +65,8 @@ class CareamicsDataModule(L.LightningDataModule):
         Filter for file extensions, by default "". Only used for `custom` data types
         (see DataModel).
     val_percentage : float, optional
-        Percentage of training data to use for validation if no validation data provided.
+        Percentage of training data to use for validation if
+        no validation data provided.
     val_minimum_split : int, optional
         Minimum number of samples to use for validation split.
     use_in_memory : bool, optional
@@ -125,7 +126,8 @@ class CareamicsDataModule(L.LightningDataModule):
         extension_filter : str, optional
             File extension filter pattern (e.g. "*.tif")
         val_percentage : float, optional
-            Percentage of training data to use for validation if no validation data provided
+            Percentage of training data to use for validation if
+            no validation data provided
         val_minimum_split : int, optional
             Minimum number of samples to use for validation split
         use_in_memory : bool, optional
@@ -139,7 +141,6 @@ class CareamicsDataModule(L.LightningDataModule):
             If data type doesn't match configuration
             If using custom data type without read_source_func
         """
-
         super().__init__()
 
         if train_data is None and val_data is None and pred_data is None:
@@ -176,23 +177,20 @@ class CareamicsDataModule(L.LightningDataModule):
     def _validate_input_target_type_consistency(
         self,
         input_data: Union[Path, str, NDArray, None],
-        target_data: Union[Path, str, NDArray],
+        target_data: Optional[Union[Path, str, NDArray]],
     ) -> None:
-        """
-        Validate if the input and target data types are consistent.
-        """
+        """Validate if the input and target data types are consistent."""
         if input_data is not None and target_data is not None:
             if type(input_data) != type(target_data):
                 raise ValueError(
-                    f"Inputs for input and target must be of the same type or None. Got {type(input_data)} and {type(target_data)}."
+                    f"Inputs for input and target must be of the same type or None. "
+                    f"Got {type(input_data)} and {type(target_data)}."
                 )
 
     def _validate_input_type_matches_config(
         self, input_data: Union[Path, str, NDArray, None]
     ) -> None:
-        """
-        Validate if the input data type matches the configuration.
-        """
+        """Validate if the input data type matches the configuration."""
         if isinstance(input_data, np.ndarray):
             if self.data_type != SupportedData.ARRAY:
                 raise ValueError(
@@ -208,20 +206,20 @@ class CareamicsDataModule(L.LightningDataModule):
             ):
                 raise ValueError(
                     f"Received a path as input, but the data type was neither set to "
-                    f"{SupportedData.TIFF} nor {SupportedData.CUSTOM}. Set the data type "
-                    f"in the configuration to {SupportedData.TIFF} or "
-                    f"{SupportedData.CUSTOM} to train on files."
+                    f"{SupportedData.TIFF} nor {SupportedData.CUSTOM}. "
+                    f"Set the data type in the configuration to {SupportedData.TIFF} or"
+                    f" {SupportedData.CUSTOM} to train on files"
                 )
 
     def _list_files(
         self, input_data: Path, target_data: Optional[Path] = None
     ) -> tuple[list[Path], Optional[list[Path]]]:
-        """
-        List files from input and target directories.
-        """
+        """List files from input and target directories."""
         input_files = list_files(input_data, self.data_type, self.extension_filter)
         if target_data is not None:
-            target_files = list_files(target_data, self.data_type, self.extension_filter)
+            target_files = list_files(
+                target_data, self.data_type, self.extension_filter
+            )
             validate_source_target_files(input_files, target_files)
             return input_files, target_files
         return input_files, None
@@ -229,8 +227,8 @@ class CareamicsDataModule(L.LightningDataModule):
     def _initialize_data_pair(
         self,
         input_data: Union[Path, str, NDArray, None],
-        target_data: Union[Path, str, NDArray],
-    ) -> tuple[Union[Path, NDArray, None], Union[Path, str, NDArray]]:
+        target_data: Optional[Union[Path, str, NDArray]],
+    ) -> tuple[Union[Path, NDArray, str, None], Union[Path, str, NDArray, None]]:
         """
         Initialize a pair of input and target data.
 
@@ -248,6 +246,7 @@ class CareamicsDataModule(L.LightningDataModule):
             input_path = Path(input_data)
             target_path = Path(target_data) if target_data is not None else None
             input_data, target_data = self._list_files(input_path, target_path)
+
         if isinstance(input_data, np.ndarray):
             input_data = [input_data]
             if target_data is not None:
@@ -257,13 +256,14 @@ class CareamicsDataModule(L.LightningDataModule):
 
     def setup(self, stage: str) -> None:
         """
-        Lightning hook that is called at the beginning of fit (train + validate), validate, test, or predict.
-        Creates the datasets for a given stage.
+        Lightning hook that is called at the beginning of fit (train + validate),
+        validate, test, or predict. Creates the datasets for a given stage.
 
         Parameters
         ----------
         stage : str
-            The stage to set up datasets for. Is either 'fit', 'validate', 'test', or 'predict'.
+            The stage to set up datasets for.
+            Is either 'fit', 'validate', 'test', or 'predict'.
 
         Raises
         ------
@@ -284,7 +284,12 @@ class CareamicsDataModule(L.LightningDataModule):
                 mode=Mode.TRAINING,
                 inputs=self.train_data,
                 targets=self.train_data_target,
-                **dataset_kwargs,
+                config=self.config,
+                in_memory=self.use_in_memory,
+                read_func=self.read_source_func,
+                read_kwargs=self.read_kwargs,
+                image_stack_loader=self.image_stack_loader,
+                image_stack_loader_kwargs=self.image_stack_loader_kwargs,
             )
             self.stats = self.train_dataset.input_stats
         elif stage == "validate":
@@ -292,7 +297,12 @@ class CareamicsDataModule(L.LightningDataModule):
                 mode=Mode.VALIDATING,
                 inputs=self.val_data,
                 targets=self.val_data_target,
-                **dataset_kwargs,
+                config=self.config,
+                in_memory=self.use_in_memory,
+                read_func=self.read_source_func,
+                read_kwargs=self.read_kwargs,
+                image_stack_loader=self.image_stack_loader,
+                image_stack_loader_kwargs=self.image_stack_loader_kwargs,
             )
             self.stats = self.val_dataset.input_stats
         elif stage == "predict":
@@ -300,7 +310,12 @@ class CareamicsDataModule(L.LightningDataModule):
                 mode=Mode.PREDICTING,
                 inputs=self.pred_data,
                 targets=self.pred_data_target,
-                **dataset_kwargs,
+                config=self.config,
+                in_memory=self.use_in_memory,
+                read_func=self.read_source_func,
+                read_kwargs=self.read_kwargs,
+                image_stack_loader=self.image_stack_loader,
+                image_stack_loader_kwargs=self.image_stack_loader_kwargs,
             )
             self.stats = self.predict_dataset.input_stats
         else:

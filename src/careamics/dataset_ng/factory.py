@@ -8,8 +8,6 @@ from typing_extensions import ParamSpec
 
 from careamics.config import DataConfig, InferenceConfig
 from careamics.config.support import SupportedData
-from careamics.file_io.read import ReadFunc
-
 from careamics.dataset_ng.patch_extractor import ImageStackLoader, PatchExtractor
 from careamics.dataset_ng.patch_extractor.image_stack import (
     GenericImageStack,
@@ -24,6 +22,8 @@ from careamics.dataset_ng.patch_extractor.patch_extractor_factory import (
     create_ome_zarr_extractor,
     create_tiff_extractor,
 )
+from careamics.file_io.read import ReadFunc
+
 from .dataset import CareamicsDataset, Mode
 
 P = ParamSpec("P")
