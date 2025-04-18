@@ -51,9 +51,7 @@ class OptimizerModel(BaseModel):
 
     # Optional parameters, empty dict default value to allow filtering dictionary
     parameters: dict = Field(
-        default={
-            "lr": 1e-4,
-        },
+        default={},
         validate_default=True,
     )
     """Parameters of the optimizer, see PyTorch documentation for more details."""

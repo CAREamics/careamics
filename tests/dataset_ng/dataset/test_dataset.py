@@ -6,7 +6,7 @@ import tifffile
 
 from careamics.config import InferenceConfig, create_n2n_configuration
 from careamics.dataset_ng.dataset.dataset import Mode
-from careamics.dataset_ng.dataset.factory import (
+from careamics.dataset_ng.factory import (
     create_array_dataset,
     create_custom_file_dataset,
     create_tiff_dataset,
