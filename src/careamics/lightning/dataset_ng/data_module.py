@@ -270,7 +270,7 @@ class CareamicsDataModule(L.LightningDataModule):
         NotImplementedError
             If stage is not one of "fit", "validate" or "predict".
         """
-        if stage == "fit" or stage == "validate":
+        if stage == "fit":
             self.train_dataset = create_dataset(
                 mode=Mode.TRAINING,
                 inputs=self.train_data,
@@ -282,8 +282,18 @@ class CareamicsDataModule(L.LightningDataModule):
                 image_stack_loader=self.image_stack_loader,
                 image_stack_loader_kwargs=self.image_stack_loader_kwargs,
             )
-            self.stats = self.train_dataset.input_stats
-
+            self.val_dataset = create_dataset(
+                mode=Mode.VALIDATING,
+                inputs=self.val_data,
+                targets=self.val_data_target,
+                config=self.config,
+                in_memory=self.use_in_memory,
+                read_func=self.read_source_func,
+                read_kwargs=self.read_kwargs,
+                image_stack_loader=self.image_stack_loader,
+                image_stack_loader_kwargs=self.image_stack_loader_kwargs,
+            )
+        elif stage == "validate":
             self.val_dataset = create_dataset(
                 mode=Mode.VALIDATING,
                 inputs=self.val_data,
@@ -307,7 +317,6 @@ class CareamicsDataModule(L.LightningDataModule):
                 image_stack_loader=self.image_stack_loader,
                 image_stack_loader_kwargs=self.image_stack_loader_kwargs,
             )
-            self.stats = self.predict_dataset.input_stats
         else:
             raise NotImplementedError(f"Stage {stage} not implemented")
 
