@@ -146,12 +146,7 @@ class FCNModule(L.LightningModule):
         out = self.model(x_preprocessed)
         loss = self.loss_func(out, *aux, *targets)
         self.log(
-            "train_loss",
-            loss,
-            on_step=True,
-            on_epoch=True,
-            prog_bar=True,
-            logger=True
+            "train_loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True
         )
         optimizer = self.optimizers()
         current_lr = optimizer.param_groups[0]["lr"]

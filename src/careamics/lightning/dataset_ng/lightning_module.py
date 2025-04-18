@@ -1,4 +1,4 @@
-from typing import Any, Union, Optional
+from typing import Any, Optional, Union
 
 import pytorch_lightning as L
 import torch

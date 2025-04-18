@@ -237,6 +237,7 @@ class DataConfig(BaseModel):
 
         if "pin_memory" not in dataloader_params:
             import torch
+
             dataloader_params["pin_memory"] = torch.cuda.is_available()
 
         return dataloader_params
