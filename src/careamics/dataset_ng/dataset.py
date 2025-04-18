@@ -10,20 +10,14 @@ from torch.utils.data import Dataset
 from careamics.config import DataConfig, InferenceConfig
 from careamics.config.transformations import NormalizeModel
 from careamics.dataset.patching.patching import Stats
-from careamics.dataset_ng.patch_extractor import PatchExtractor
-from careamics.dataset_ng.patch_extractor.image_stack import GenericImageStack
 from careamics.dataset_ng.patch_extractor import (
-    ImageStackLoader,
-    PatchExtractor,
-    create_patch_extractor,
+    PatchExtractor, GenericImageStack
 )
-from careamics.dataset_ng.patch_extractor.image_stack import ImageStack
 from careamics.dataset_ng.patching_strategies import (
     FixedRandomPatchingStrategy,
     PatchingStrategy,
     PatchSpecs,
     RandomPatchingStrategy,
-    TileSpecs,
     TilingStrategy,
     WholeSamplePatchingStrategy,
 )
@@ -150,6 +144,7 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
         if target_means is not None and target_stds is not None:
             target_stats = Stats(target_means, target_stds)
         else:
+            # TODO: if stats are not set then target is present the transforms break silently
             target_stats = Stats((), ())
 
         return input_stats, target_stats
