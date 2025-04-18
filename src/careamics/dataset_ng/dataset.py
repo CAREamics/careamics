@@ -135,7 +135,7 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
         # Currently assume that stats are provided in the configuration
         input_stats = Stats(self.config.image_means, self.config.image_stds)
 
-        if type(self.config) == DataConfig:
+        if isinstance(self.config, DataConfig):
             target_means = self.config.target_means
             target_stds = self.config.target_stds
         else:
