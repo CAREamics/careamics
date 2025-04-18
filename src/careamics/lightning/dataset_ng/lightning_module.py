@@ -143,14 +143,6 @@ class UNetModule(L.LightningModule):
 
         self.log_dict(self.metrics, on_step=False, on_epoch=True, batch_size=batch_size)
 
-        if batch_idx == 0:
-            self.logger.log_image(images=[x.data], key="input_images")
-            self.logger.log_image(images=[prediction], key="predicted_images")
-
-            # TODO: check if it works with other loggers
-            if target is not None:
-                self.logger.log_image(images=[target.data], key="target_images")
-
     def _load_best_checkpoint(self) -> None:
         if (
             not hasattr(self.trainer, "checkpoint_callback")
