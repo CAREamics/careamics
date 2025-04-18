@@ -293,6 +293,8 @@ class CareamicsDataModule(L.LightningDataModule):
                 image_stack_loader=self.image_stack_loader,
                 image_stack_loader_kwargs=self.image_stack_loader_kwargs,
             )
+            # TODO: ugly, need to find a better solution
+            self.stats = self.train_dataset.input_stats
         elif stage == "validate":
             self.val_dataset = create_dataset(
                 mode=Mode.VALIDATING,
@@ -305,6 +307,7 @@ class CareamicsDataModule(L.LightningDataModule):
                 image_stack_loader=self.image_stack_loader,
                 image_stack_loader_kwargs=self.image_stack_loader_kwargs,
             )
+            self.stats = self.val_dataset.input_stats
         elif stage == "predict":
             self.predict_dataset = create_dataset(
                 mode=Mode.PREDICTING,
@@ -317,6 +320,7 @@ class CareamicsDataModule(L.LightningDataModule):
                 image_stack_loader=self.image_stack_loader,
                 image_stack_loader_kwargs=self.image_stack_loader_kwargs,
             )
+            self.stats = self.predict_dataset.input_stats
         else:
             raise NotImplementedError(f"Stage {stage} not implemented")
 
