@@ -1,0 +1,52 @@
+from typing import Any, Union
+
+from careamics.config import (
+    N2VAlgorithm,
+)
+from careamics.dataset_ng.dataset import ImageRegionData
+from careamics.lightning.dataset_ng.lightning_modules.base_module import BaseModule
+from careamics.transforms import N2VManipulateTorch
+from careamics.utils.logging import get_logger
+
+logger = get_logger(__name__)
+
+
+class N2VModule(BaseModule):
+    def __init__(self, algorithm_config: Union[N2VAlgorithm, dict]) -> None:
+        super().__init__(algorithm_config)
+
+        assert isinstance(
+            algorithm_config, N2VAlgorithm
+        ), "algorithm_config must be a N2VAlgorithm"
+
+        self.n2v_manipulate = N2VManipulateTorch(
+            n2v_manipulate_config=algorithm_config.n2v_config
+        )
+
+    def training_step(
+        self,
+        batch: Union[tuple[ImageRegionData], tuple[ImageRegionData, ImageRegionData]],
+        batch_idx: Any,
+    ) -> Any:
+        x = batch[0]
+        x_masked, x_original, mask = self.n2v_manipulate(x.data)
+        prediction = self.model(x_masked)
+        loss = self.loss_func(prediction, x_original, mask)
+
+        self._log_training_stats(loss)
+
+        return loss
+
+    def validation_step(
+        self,
+        batch: Union[tuple[ImageRegionData], tuple[ImageRegionData, ImageRegionData]],
+        batch_idx: Any,
+    ) -> None:
+        x = batch[0]
+
+        x_masked, x_original, mask = self.n2v_manipulate(x.data)
+        prediction = self.model(x_masked)
+
+        val_loss = self.loss_func(prediction, x_original, mask)
+        self.metrics(prediction, x_original)
+        self._log_validation_stats(val_loss)
