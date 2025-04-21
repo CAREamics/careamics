@@ -1,19 +1,19 @@
 from typing import Any, Union
 
-import torch
 import pytorch_lightning as L
+import torch
 from torch import nn
 from torchmetrics import MetricCollection
 from torchmetrics.image import PeakSignalNoiseRatio
 
-from careamics.config.algorithms import CAREAlgorithm, N2VAlgorithm, N2NAlgorithm
 from careamics.config import algorithm_factory
+from careamics.config.algorithms import CAREAlgorithm, N2NAlgorithm, N2VAlgorithm
+from careamics.dataset_ng.dataset import ImageRegionData
 from careamics.losses import loss_factory
 from careamics.models.model_factory import model_factory
-from careamics.dataset_ng.dataset import ImageRegionData
 from careamics.transforms import Denormalize
-from careamics.utils.torch_utils import get_optimizer, get_scheduler
 from careamics.utils.logging import get_logger
+from careamics.utils.torch_utils import get_optimizer, get_scheduler
 
 logger = get_logger(__name__)
 

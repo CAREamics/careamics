@@ -179,8 +179,8 @@ class CareamicsDataModule(L.LightningDataModule):
         input_data: SupportedDataType,
         target_data: Optional[SupportedDataType],
     ) -> tuple[
-         Optional[Union[list[NDArray], list[Path]]],
-         Optional[Union[list[NDArray], list[Path]]]
+        Optional[Union[list[NDArray], list[Path]]],
+        Optional[Union[list[NDArray], list[Path]]],
     ]:
         """
         Initialize a pair of input and target data.
@@ -207,7 +207,9 @@ class CareamicsDataModule(L.LightningDataModule):
             elif isinstance(input_data, list):
                 return input_data, target_data
             else:
-                raise ValueError(f"Unsupported input type for {self.data_type}: {type(input_data)}")
+                raise ValueError(
+                    f"Unsupported input type for {self.data_type}: {type(input_data)}"
+                )
         elif (
             self.data_type == SupportedData.TIFF
             or self.data_type == SupportedData.CUSTOM
@@ -221,11 +223,12 @@ class CareamicsDataModule(L.LightningDataModule):
                     input_data, target_data
                 )
             else:
-                raise ValueError(f"Unsupported input type for {self.data_type}: {type(input_data)}")
+                raise ValueError(
+                    f"Unsupported input type for {self.data_type}: {type(input_data)}"
+                )
             return input_list, target_list
         else:
             raise NotImplementedError(f"Unsupported data type: {self.data_type}")
-
 
     def setup(self, stage: str) -> None:
         """

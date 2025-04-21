@@ -3,6 +3,7 @@ from typing import Any, Union
 from careamics.config.algorithms.care_algorithm_model import CAREAlgorithm
 from careamics.dataset_ng.dataset import ImageRegionData
 from careamics.utils.logging import get_logger
+
 from .base_module import BaseModule
 
 logger = get_logger(__name__)
