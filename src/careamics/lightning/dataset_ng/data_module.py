@@ -18,75 +18,20 @@ from careamics.utils import get_logger
 logger = get_logger(__name__)
 
 
+InputDataType = Union[Path, str, NDArray]
+SupportedDataType = Union[InputDataType, list[InputDataType]]
+
+
 class CareamicsDataModule(L.LightningDataModule):
-    """
-    CAREamics Lightning data module for training, validation and prediction.
-
-    The data module can be used with Path, str or numpy arrays. In the case of
-    numpy arrays, it loads and computes all the patches in memory.
-
-    The data can be either a path to a folder containing images or a single file.
-
-    Validation can be omitted, in which case the validation data is extracted from
-    the training data. The percentage of the training data to use for validation,
-    as well as the minimum number of patches or files to split from the training
-    data can be set using `val_percentage` and `val_minimum_split`, respectively.
-
-    You can provide a `fnmatch` and `Path.rglob` compatible expression (e.g.
-    "*.czi") to filter the files extension using `extension_filter`.
-
-
-    Parameters
-    ----------
-    data_config : DataConfig
-        Pydantic model for CAREamics data configuration.
-    train_data : Path or str or numpy.ndarray, optional
-        Training data, can be a path to a folder, a file or a numpy array.
-    train_data_target : Path or str or numpy.ndarray, optional
-        Training target data, can be a path to a folder, a file or a numpy array.
-    val_data : Path or str or numpy.ndarray, optional
-        Validation data, can be a path to a folder, a file or a numpy array.
-    val_data_target : Path or str or numpy.ndarray, optional
-        Validation target data, can be a path to a folder, a file or a numpy array.
-    pred_data : Path or str or numpy.ndarray, optional
-        Prediction data, can be a path to a folder, a file or a numpy array.
-    pred_data_target : Path or str or numpy.ndarray, optional
-        Prediction target data, can be a path to a folder, a file or a numpy array.
-    read_source_func : Callable, optional
-        Function to read the source data, by default None. Only used for `custom`
-        data type (see DataModel).
-    read_kwargs : dict, optional
-        Additional keyword arguments passed to the read function.
-    image_stack_loader : ImageStackLoader, optional
-        Custom loader for handling image stacks.
-    image_stack_loader_kwargs : dict, optional
-        Additional keyword arguments passed to the image stack loader.
-    extension_filter : str, optional
-        Filter for file extensions, by default "". Only used for `custom` data types
-        (see DataModel).
-    val_percentage : float, optional
-        Percentage of training data to use for validation if
-        no validation data provided.
-    val_minimum_split : int, optional
-        Minimum number of samples to use for validation split.
-    use_in_memory : bool, optional
-        Whether to load all data into memory. Default is True.
-
-    Raises
-    ------
-    ValueError
-        If no data is provided for training, validation or prediction.
-    """
-
     def __init__(
         self,
         data_config: DataConfig,
-        train_data: Optional[Union[Path, str, NDArray]] = None,
-        train_data_target: Optional[Union[Path, str, NDArray]] = None,
-        val_data: Optional[Union[Path, str, NDArray]] = None,
-        val_data_target: Optional[Union[Path, str, NDArray]] = None,
-        pred_data: Optional[Union[Path, str, NDArray]] = None,
-        pred_data_target: Optional[Union[Path, str, NDArray]] = None,
+        train_data: Optional[SupportedDataType] = None,
+        train_data_target: Optional[SupportedDataType] = None,
+        val_data: Optional[SupportedDataType] = None,
+        val_data_target: Optional[SupportedDataType] = None,
+        pred_data: Optional[SupportedDataType] = None,
+        pred_data_target: Optional[SupportedDataType] = None,
         read_source_func: Optional[Callable] = None,
         read_kwargs: Optional[dict[str, Any]] = None,
         image_stack_loader: Optional[ImageStackLoader] = None,
@@ -96,51 +41,6 @@ class CareamicsDataModule(L.LightningDataModule):
         val_minimum_split: int = 5,
         use_in_memory: bool = True,
     ) -> None:
-        """
-        Initialize a CAREamics Lightning data module.
-
-        Parameters
-        ----------
-        data_config : DataConfig
-            Configuration for the data module including batch size, data type, etc.
-        train_data : Path or str or numpy.ndarray, optional
-            Training input data
-        train_data_target : Path or str or numpy.ndarray, optional
-            Training target data
-        val_data : Path or str or numpy.ndarray, optional
-            Validation input data
-        val_data_target : Path or str or numpy.ndarray, optional
-            Validation target data
-        pred_data : Path or str or numpy.ndarray, optional
-            Prediction input data
-        pred_data_target : Path or str or numpy.ndarray, optional
-            Prediction target data
-        read_source_func : Callable, optional
-            Custom function for reading data files. Required if data_type is 'custom'
-        read_kwargs : dict, optional
-            Additional keyword arguments passed to read functions
-        image_stack_loader : ImageStackLoader, optional
-            Custom loader for handling image stacks
-        image_stack_loader_kwargs : dict, optional
-            Additional keyword arguments passed to image stack loader
-        extension_filter : str, optional
-            File extension filter pattern (e.g. "*.tif")
-        val_percentage : float, optional
-            Percentage of training data to use for validation if
-            no validation data provided
-        val_minimum_split : int, optional
-            Minimum number of samples to use for validation split
-        use_in_memory : bool, optional
-            Whether to load all data into memory. Default is True
-
-        Raises
-        ------
-        ValueError
-            If no data is provided for training, validation or prediction
-            If input and target data types don't match
-            If data type doesn't match configuration
-            If using custom data type without read_source_func
-        """
         super().__init__()
 
         if train_data is None and val_data is None and pred_data is None:
@@ -176,8 +76,8 @@ class CareamicsDataModule(L.LightningDataModule):
 
     def _validate_input_target_type_consistency(
         self,
-        input_data: Union[Path, str, NDArray, None],
-        target_data: Optional[Union[Path, str, NDArray]],
+        input_data: SupportedDataType,
+        target_data: Optional[SupportedDataType],
     ) -> None:
         """Validate if the input and target data types are consistent."""
         if input_data is not None and target_data is not None:
@@ -186,15 +86,33 @@ class CareamicsDataModule(L.LightningDataModule):
                     f"Inputs for input and target must be of the same type or None. "
                     f"Got {type(input_data)} and {type(target_data)}."
                 )
+        if isinstance(input_data, list) and isinstance(target_data, list):
+            if len(input_data) != len(target_data):
+                raise ValueError(
+                    f"Inputs and targets must have the same length. "
+                    f"Got {len(input_data)} and {len(target_data)}."
+                )
+            if not isinstance(input_data[0], type(target_data[0])):
+                raise ValueError(
+                    f"Inputs and targets must have the same type. "
+                    f"Got {type(input_data[0])} and {type(target_data[0])}."
+                )
 
     def _validate_input_type_matches_config(
-        self, input_data: Union[Path, str, NDArray, None]
+        self, input_data: SupportedDataType
     ) -> None:
         """Validate if the input data type matches the configuration."""
         if isinstance(input_data, np.ndarray):
             if self.data_type != SupportedData.ARRAY:
                 raise ValueError(
                     f"Received a numpy array as input, but the data type was set to "
+                    f"{self.data_type}. Set the data type in the configuration "
+                    f"to {SupportedData.ARRAY} to train on numpy arrays."
+                )
+        if isinstance(input_data, list) and self.data_type == SupportedData.ARRAY:
+            if not isinstance(input_data[0], np.ndarray):
+                raise ValueError(
+                    f"Received a list of {type(input_data[0])} as input, but the data type was set to "
                     f"{self.data_type}. Set the data type in the configuration "
                     f"to {SupportedData.ARRAY} to train on numpy arrays."
                 )
@@ -211,48 +129,103 @@ class CareamicsDataModule(L.LightningDataModule):
                     f" {SupportedData.CUSTOM} to train on files"
                 )
 
-    def _list_files(
-        self, input_data: Path, target_data: Optional[Path] = None
+        if isinstance(input_data, list) and self.data_type == SupportedData.TIFF:
+            if not isinstance(input_data[0], Path) and not isinstance(
+                input_data[0], str
+            ):
+                raise ValueError(
+                    f"Received a list of {type(input_data[0])} as input, but the data type was set to "
+                    f"{self.data_type}. Set the data type in the configuration to {SupportedData.TIFF} to train on files"
+                )
+
+    def _list_files_in_directory(
+        self,
+        input_data: Union[Path, str],
+        target_data: Optional[Union[Path, str]] = None,
     ) -> tuple[list[Path], Optional[list[Path]]]:
         """List files from input and target directories."""
+        input_data = Path(input_data)
         input_files = list_files(input_data, self.data_type, self.extension_filter)
-        if target_data is not None:
+        if target_data is None:
+            return input_files, None
+        else:
+            target_data = Path(target_data)
             target_files = list_files(
                 target_data, self.data_type, self.extension_filter
             )
             validate_source_target_files(input_files, target_files)
             return input_files, target_files
-        return input_files, None
+
+    def _convert_paths_to_pathlib(
+        self,
+        input_data: list[Union[Path, str]],
+        target_data: Optional[list[Union[Path, str]]] = None,
+    ) -> tuple[list[Path], Optional[list[Path]]]:
+        """Create a list of file paths from the input and target data."""
+        input_files = [
+            Path(item) if isinstance(item, str) else item for item in input_data
+        ]
+        if target_data is None:
+            return input_files, None
+        else:
+            target_files = [
+                Path(item) if isinstance(item, str) else item for item in target_data
+            ]
+            validate_source_target_files(input_files, target_files)
+            return input_files, target_files
 
     def _initialize_data_pair(
         self,
-        input_data: Union[Path, str, NDArray, None],
-        target_data: Optional[Union[Path, str, NDArray]],
-    ) -> tuple[Union[Path, NDArray, str, None], Union[Path, str, NDArray, None]]:
+        input_data: SupportedDataType,
+        target_data: Optional[SupportedDataType],
+    ) -> tuple[
+         Optional[Union[list[NDArray], list[Path]]],
+         Optional[Union[list[NDArray], list[Path]]]
+    ]:
         """
         Initialize a pair of input and target data.
 
         Returns
         -------
-        tuple[Union[Path, NDArray, None], Union[Path, str, NDArray]]
+        tuple[Union[list[NDArray], list[Path]], Optional[Union[list[NDArray], list[Path]]]]
             A tuple containing the initialized input and target data.
             For file paths, returns lists of Path objects.
             For numpy arrays, returns the arrays directly.
         """
+        if input_data is None:
+            return None, None
+
         self._validate_input_type_matches_config(input_data)
         self._validate_input_target_type_consistency(input_data, target_data)
 
-        if isinstance(input_data, str) or isinstance(input_data, Path):
-            input_path = Path(input_data)
-            target_path = Path(target_data) if target_data is not None else None
-            input_data, target_data = self._list_files(input_path, target_path)
+        # TODO: figure out the correct type annotations for target data
+        if self.data_type == SupportedData.ARRAY:
+            if isinstance(input_data, np.ndarray):
+                input_array = [input_data]
+                target_array = [target_data] if target_data is not None else None
+                return input_array, target_array
+            elif isinstance(input_data, list):
+                return input_data, target_data
+            else:
+                raise ValueError(f"Unsupported input type for {self.data_type}: {type(input_data)}")
+        elif (
+            self.data_type == SupportedData.TIFF
+            or self.data_type == SupportedData.CUSTOM
+        ):
+            if isinstance(input_data, (str, Path)):
+                input_list, target_list = self._list_files_in_directory(
+                    input_data, target_data
+                )
+            elif isinstance(input_data, list):
+                input_list, target_list = self._convert_paths_to_pathlib(
+                    input_data, target_data
+                )
+            else:
+                raise ValueError(f"Unsupported input type for {self.data_type}: {type(input_data)}")
+            return input_list, target_list
+        else:
+            raise NotImplementedError(f"Unsupported data type: {self.data_type}")
 
-        if isinstance(input_data, np.ndarray):
-            input_data = [input_data]
-            if target_data is not None:
-                target_data = [target_data]
-
-        return input_data, target_data
 
     def setup(self, stage: str) -> None:
         """
