@@ -4,14 +4,14 @@ from careamics.config import (
     N2VAlgorithm,
 )
 from careamics.dataset_ng.dataset import ImageRegionData
-from careamics.lightning.dataset_ng.lightning_modules.base_module import BaseModule
+from careamics.lightning.dataset_ng.lightning_modules.unet_module import UnetModule
 from careamics.transforms import N2VManipulateTorch
 from careamics.utils.logging import get_logger
 
 logger = get_logger(__name__)
 
 
-class N2VModule(BaseModule):
+class N2VModule(UnetModule):
     def __init__(self, algorithm_config: Union[N2VAlgorithm, dict]) -> None:
         super().__init__(algorithm_config)
 

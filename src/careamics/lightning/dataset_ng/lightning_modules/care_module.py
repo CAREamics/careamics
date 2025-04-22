@@ -4,12 +4,12 @@ from careamics.config.algorithms.care_algorithm_model import CAREAlgorithm
 from careamics.dataset_ng.dataset import ImageRegionData
 from careamics.utils.logging import get_logger
 
-from .base_module import BaseModule
+from .unet_module import UnetModule
 
 logger = get_logger(__name__)
 
 
-class CAREModule(BaseModule):
+class CAREModule(UnetModule):
     def __init__(self, algorithm_config: Union[CAREAlgorithm, dict]) -> None:
         super().__init__(algorithm_config)
         assert isinstance(

@@ -18,7 +18,7 @@ from careamics.utils.torch_utils import get_optimizer, get_scheduler
 logger = get_logger(__name__)
 
 
-class BaseModule(L.LightningModule):
+class UnetModule(L.LightningModule):
     def __init__(
         self, algorithm_config: Union[CAREAlgorithm, N2VAlgorithm, N2NAlgorithm, dict]
     ) -> None:
