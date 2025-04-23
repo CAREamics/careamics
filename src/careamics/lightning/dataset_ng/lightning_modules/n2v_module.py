@@ -7,6 +7,7 @@ from careamics.dataset_ng.dataset import ImageRegionData
 from careamics.lightning.dataset_ng.lightning_modules.unet_module import UnetModule
 from careamics.transforms import N2VManipulateTorch
 from careamics.utils.logging import get_logger
+from careamics.losses import n2v_loss
 
 logger = get_logger(__name__)
 
@@ -22,6 +23,7 @@ class N2VModule(UnetModule):
         self.n2v_manipulate = N2VManipulateTorch(
             n2v_manipulate_config=algorithm_config.n2v_config
         )
+        self.loss_func = n2v_loss
 
     def training_step(
         self,
@@ -33,7 +35,7 @@ class N2VModule(UnetModule):
         prediction = self.model(x_masked)
         loss = self.loss_func(prediction, x_original, mask)
 
-        self._log_training_stats(loss)
+        self._log_training_stats(loss, batch_size=x.data.shape[0])
 
         return loss
 
@@ -49,4 +51,4 @@ class N2VModule(UnetModule):
 
         val_loss = self.loss_func(prediction, x_original, mask)
         self.metrics(prediction, x_original)
-        self._log_validation_stats(val_loss)
+        self._log_validation_stats(val_loss, batch_size=x.data.shape[0])

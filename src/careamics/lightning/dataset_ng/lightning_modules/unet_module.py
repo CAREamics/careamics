@@ -9,9 +9,8 @@ from torchmetrics.image import PeakSignalNoiseRatio
 from careamics.config import algorithm_factory
 from careamics.config.algorithms import CAREAlgorithm, N2NAlgorithm, N2VAlgorithm
 from careamics.dataset_ng.dataset import ImageRegionData
-from careamics.losses import loss_factory
-from careamics.models.model_factory import model_factory
 from careamics.transforms import Denormalize
+from careamics.models.unet import UNet
 from careamics.utils.logging import get_logger
 from careamics.utils.torch_utils import get_optimizer, get_scheduler
 
@@ -28,8 +27,7 @@ class UnetModule(L.LightningModule):
             algorithm_config = algorithm_factory(algorithm_config)
 
         self.config = algorithm_config
-        self.model: nn.Module = model_factory(algorithm_config.model)
-        self.loss_func = loss_factory(algorithm_config.loss)
+        self.model: nn.Module = UNet(**algorithm_config.model.model_dump())
 
         self.save_hyperparameters({"algorithm_config": algorithm_config.model_dump()})
 
@@ -41,8 +39,7 @@ class UnetModule(L.LightningModule):
     def forward(self, x: Any) -> Any:
         return self.model(x)
 
-    def _log_training_stats(self, loss: Any) -> None:
-        batch_size = self._trainer.datamodule.config.batch_size
+    def _log_training_stats(self, loss: Any, batch_size: Any) -> None:
         self.log(
             "train_loss",
             loss,
@@ -64,8 +61,7 @@ class UnetModule(L.LightningModule):
             batch_size=batch_size,
         )
 
-    def _log_validation_stats(self, loss: Any) -> None:
-        batch_size = self._trainer.datamodule.config.batch_size
+    def _log_validation_stats(self, loss: Any, batch_size: Any) -> None:
         self.log(
             "val_loss",
             loss,
