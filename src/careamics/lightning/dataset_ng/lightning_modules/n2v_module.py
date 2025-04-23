@@ -5,9 +5,9 @@ from careamics.config import (
 )
 from careamics.dataset_ng.dataset import ImageRegionData
 from careamics.lightning.dataset_ng.lightning_modules.unet_module import UnetModule
+from careamics.losses import n2v_loss
 from careamics.transforms import N2VManipulateTorch
 from careamics.utils.logging import get_logger
-from careamics.losses import n2v_loss
 
 logger = get_logger(__name__)
 

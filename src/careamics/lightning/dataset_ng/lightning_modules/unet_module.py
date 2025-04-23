@@ -9,8 +9,8 @@ from torchmetrics.image import PeakSignalNoiseRatio
 from careamics.config import algorithm_factory
 from careamics.config.algorithms import CAREAlgorithm, N2NAlgorithm, N2VAlgorithm
 from careamics.dataset_ng.dataset import ImageRegionData
-from careamics.transforms import Denormalize
 from careamics.models.unet import UNet
+from careamics.transforms import Denormalize
 from careamics.utils.logging import get_logger
 from careamics.utils.torch_utils import get_optimizer, get_scheduler
 

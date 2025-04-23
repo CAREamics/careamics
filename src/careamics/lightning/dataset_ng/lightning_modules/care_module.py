@@ -1,10 +1,10 @@
 from typing import Any, Union
 
 from careamics.config.algorithms.care_algorithm_model import CAREAlgorithm
-from careamics.dataset_ng.dataset import ImageRegionData
-from careamics.utils.logging import get_logger
 from careamics.config.support import SupportedLoss
+from careamics.dataset_ng.dataset import ImageRegionData
 from careamics.losses import mae_loss, mse_loss
+from careamics.utils.logging import get_logger
 
 from .unet_module import UnetModule
 
