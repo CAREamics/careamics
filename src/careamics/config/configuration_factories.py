@@ -6,7 +6,7 @@ from pydantic import Field, TypeAdapter
 
 from careamics.config.algorithms import CAREAlgorithm, N2NAlgorithm, N2VAlgorithm
 from careamics.config.architectures import UNetModel
-from careamics.config.data import DataConfig
+from careamics.config.data import DataConfig, PatchExtractorConfig
 from careamics.config.support import (
     SupportedArchitecture,
     SupportedPixelManipulation,
@@ -204,6 +204,7 @@ def _create_data_configuration(
     patch_size: list[int],
     batch_size: int,
     augmentations: Union[list[SPATIAL_TRANSFORMS_UNION]],
+    patch_extractor_params: Optional[dict[str, Any]] = None,
     train_dataloader_params: Optional[dict[str, Any]] = None,
     val_dataloader_params: Optional[dict[str, Any]] = None,
 ) -> DataConfig:
@@ -241,6 +242,11 @@ def _create_data_configuration(
         "transforms": augmentations,
     }
     # Don't override defaults set in DataConfig class
+    if patch_extractor_params is not None:
+        data["patch_extractor_params"] = patch_extractor_params
+    else:
+        data["patch_extractor_params"] = PatchExtractorConfig().model_dump()
+
     if train_dataloader_params is not None:
         # DataConfig enforces the presence of `shuffle` key in the dataloader parameters
         if "shuffle" not in train_dataloader_params:
