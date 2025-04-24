@@ -17,21 +17,22 @@ from careamics.utils import get_logger
 
 logger = get_logger(__name__)
 
-
-InputDataType = Union[Path, str, NDArray]
-SupportedDataType = Union[InputDataType, list[InputDataType]]
+ItemType = Union[Path, str, NDArray[Any]]
+InputType = Union[ItemType, list[ItemType], None]
 
 
 class CareamicsDataModule(L.LightningDataModule):
+    """Data module for Careamics dataset."""
+
     def __init__(
         self,
         data_config: DataConfig,
-        train_data: Optional[SupportedDataType] = None,
-        train_data_target: Optional[SupportedDataType] = None,
-        val_data: Optional[SupportedDataType] = None,
-        val_data_target: Optional[SupportedDataType] = None,
-        pred_data: Optional[SupportedDataType] = None,
-        pred_data_target: Optional[SupportedDataType] = None,
+        train_data: Optional[InputType] = None,
+        train_data_target: Optional[InputType] = None,
+        val_data: Optional[InputType] = None,
+        val_data_target: Optional[InputType] = None,
+        pred_data: Optional[InputType] = None,
+        pred_data_target: Optional[InputType] = None,
         read_source_func: Optional[Callable] = None,
         read_kwargs: Optional[dict[str, Any]] = None,
         image_stack_loader: Optional[ImageStackLoader] = None,
@@ -76,12 +77,12 @@ class CareamicsDataModule(L.LightningDataModule):
 
     def _validate_input_target_type_consistency(
         self,
-        input_data: SupportedDataType,
-        target_data: Optional[SupportedDataType],
+        input_data: InputType,
+        target_data: Optional[InputType],
     ) -> None:
         """Validate if the input and target data types are consistent."""
         if input_data is not None and target_data is not None:
-            if type(input_data) != type(target_data):
+            if not isinstance(input_data, type(target_data)):
                 raise ValueError(
                     f"Inputs for input and target must be of the same type or None. "
                     f"Got {type(input_data)} and {type(target_data)}."
@@ -98,50 +99,10 @@ class CareamicsDataModule(L.LightningDataModule):
                     f"Got {type(input_data[0])} and {type(target_data[0])}."
                 )
 
-    def _validate_input_type_matches_config(
-        self, input_data: SupportedDataType
-    ) -> None:
-        """Validate if the input data type matches the configuration."""
-        if isinstance(input_data, np.ndarray):
-            if self.data_type != SupportedData.ARRAY:
-                raise ValueError(
-                    f"Received a numpy array as input, but the data type was set to "
-                    f"{self.data_type}. Set the data type in the configuration "
-                    f"to {SupportedData.ARRAY} to train on numpy arrays."
-                )
-        if isinstance(input_data, list) and self.data_type == SupportedData.ARRAY:
-            if not isinstance(input_data[0], np.ndarray):
-                raise ValueError(
-                    f"Received a list of {type(input_data[0])} as input, but the data type was set to "
-                    f"{self.data_type}. Set the data type in the configuration "
-                    f"to {SupportedData.ARRAY} to train on numpy arrays."
-                )
-
-        if isinstance(input_data, Path) or isinstance(input_data, str):
-            if (
-                self.data_type != SupportedData.TIFF
-                and self.data_type != SupportedData.CUSTOM
-            ):
-                raise ValueError(
-                    f"Received a path as input, but the data type was neither set to "
-                    f"{SupportedData.TIFF} nor {SupportedData.CUSTOM}. "
-                    f"Set the data type in the configuration to {SupportedData.TIFF} or"
-                    f" {SupportedData.CUSTOM} to train on files"
-                )
-
-        if isinstance(input_data, list) and self.data_type == SupportedData.TIFF:
-            if not isinstance(input_data[0], Path) and not isinstance(
-                input_data[0], str
-            ):
-                raise ValueError(
-                    f"Received a list of {type(input_data[0])} as input, but the data type was set to "
-                    f"{self.data_type}. Set the data type in the configuration to {SupportedData.TIFF} to train on files"
-                )
-
     def _list_files_in_directory(
         self,
-        input_data: Union[Path, str],
-        target_data: Optional[Union[Path, str]] = None,
+        input_data,
+        target_data=None,
     ) -> tuple[list[Path], Optional[list[Path]]]:
         """List files from input and target directories."""
         input_data = Path(input_data)
@@ -158,8 +119,8 @@ class CareamicsDataModule(L.LightningDataModule):
 
     def _convert_paths_to_pathlib(
         self,
-        input_data: list[Union[Path, str]],
-        target_data: Optional[list[Union[Path, str]]] = None,
+        input_data,
+        target_data=None,
     ) -> tuple[list[Path], Optional[list[Path]]]:
         """Create a list of file paths from the input and target data."""
         input_files = [
@@ -174,20 +135,82 @@ class CareamicsDataModule(L.LightningDataModule):
             validate_source_target_files(input_files, target_files)
             return input_files, target_files
 
+    def _validate_array_input(
+        self,
+        input_data: InputType,
+        target_data: Optional[InputType],
+    ) -> tuple[Any, Any]:
+        """Validate if the input data is a numpy array."""
+        if isinstance(input_data, np.ndarray):
+            input_array = [input_data]
+            target_array = [target_data] if target_data is not None else None
+            return input_array, target_array
+        elif isinstance(input_data, list):
+            return input_data, target_data
+        else:
+            raise ValueError(
+                f"Unsupported input type for {self.data_type}: {type(input_data)}"
+            )
+
+    def _validate_path_input(
+        self, input_data: InputType, target_data: Optional[InputType]
+    ) -> tuple[list[Path], Optional[list[Path]]]:
+        if isinstance(input_data, (str, Path)):
+            if target_data is not None:
+                assert isinstance(target_data, (str, Path))
+            input_list, target_list = self._list_files_in_directory(
+                input_data, target_data
+            )
+            return input_list, target_list
+        elif isinstance(input_data, list):
+            if target_data is not None:
+                assert isinstance(target_data, list)
+            input_list, target_list = self._convert_paths_to_pathlib(
+                input_data, target_data
+            )
+            return input_list, target_list
+        else:
+            raise ValueError(
+                f"Unsupported input type for {self.data_type}: {type(input_data)}"
+            )
+
+    def _validate_custom_input(self, input_data, target_data) -> tuple[Any, Any]:
+        if isinstance(input_data, (str, Path)):
+            if target_data is not None:
+                assert isinstance(target_data, (str, Path))
+            input_list, target_list = self._list_files_in_directory(
+                input_data, target_data
+            )
+            return input_list, target_list
+        elif isinstance(input_data, list):
+            if isinstance(input_data[0], (str, Path)):
+                if target_data is not None:
+                    assert isinstance(target_data, list)
+                input_list, target_list = self._convert_paths_to_pathlib(
+                    input_data, target_data
+                )
+                return input_list, target_list
+        elif self.image_stack_loader is not None:
+            return input_data, target_data
+        else:
+            raise ValueError(
+                f"If using {self.data_type}, pass a custom "
+                f"image_stack_loader or read_source_func"
+            )
+        return input_data, target_data
+
     def _initialize_data_pair(
         self,
-        input_data: SupportedDataType,
-        target_data: Optional[SupportedDataType],
-    ) -> tuple[
-        Optional[Union[list[NDArray], list[Path]]],
-        Optional[Union[list[NDArray], list[Path]]],
-    ]:
+        input_data: Optional[InputType],
+        target_data: Optional[InputType],
+    ) -> tuple[Any, Any]:
         """
         Initialize a pair of input and target data.
 
         Returns
         -------
-        tuple[Union[list[NDArray], list[Path]], Optional[Union[list[NDArray], list[Path]]]]
+        tuple[Union[list[NDArray], list[Path]],
+        Optional[Union[list[NDArray], list[Path]]]]
             A tuple containing the initialized input and target data.
             For file paths, returns lists of Path objects.
             For numpy arrays, returns the arrays directly.
@@ -195,43 +218,47 @@ class CareamicsDataModule(L.LightningDataModule):
         if input_data is None:
             return None, None
 
-        self._validate_input_type_matches_config(input_data)
         self._validate_input_target_type_consistency(input_data, target_data)
 
-        # TODO: figure out the correct type annotations for target data
         if self.data_type == SupportedData.ARRAY:
             if isinstance(input_data, np.ndarray):
-                input_array = [input_data]
-                target_array = [target_data] if target_data is not None else None
-                return input_array, target_array
+                return self._validate_array_input(input_data, target_data)
             elif isinstance(input_data, list):
-                return input_data, target_data
+                if isinstance(input_data[0], np.ndarray):
+                    return self._validate_array_input(input_data, target_data)
+                else:
+                    raise ValueError(
+                        f"Unsupported input type for {self.data_type}: "
+                        f"{type(input_data[0])}"
+                    )
             else:
                 raise ValueError(
                     f"Unsupported input type for {self.data_type}: {type(input_data)}"
                 )
-        elif (
-            self.data_type == SupportedData.TIFF
-            or self.data_type == SupportedData.CUSTOM
-        ):
+        elif self.data_type == SupportedData.TIFF:
             if isinstance(input_data, (str, Path)):
-                input_list, target_list = self._list_files_in_directory(
-                    input_data, target_data
-                )
+                return self._validate_path_input(input_data, target_data)
             elif isinstance(input_data, list):
-                input_list, target_list = self._convert_paths_to_pathlib(
-                    input_data, target_data
-                )
+                if isinstance(input_data[0], (Path, str)):
+                    return self._validate_path_input(input_data, target_data)
+                else:
+                    raise ValueError(
+                        f"Unsupported input type for {self.data_type}: "
+                        f"{type(input_data[0])}"
+                    )
             else:
                 raise ValueError(
                     f"Unsupported input type for {self.data_type}: {type(input_data)}"
                 )
-            return input_list, target_list
+        elif self.data_type == SupportedData.CUSTOM:
+            return self._validate_custom_input(input_data, target_data)
         else:
             raise NotImplementedError(f"Unsupported data type: {self.data_type}")
 
     def setup(self, stage: str) -> None:
         """
+        Setup datasets.
+
         Lightning hook that is called at the beginning of fit (train + validate),
         validate, test, or predict. Creates the datasets for a given stage.
 
