@@ -23,6 +23,7 @@ InputType = Union[ItemType, list[ItemType], None]
 
 class CareamicsDataModule(L.LightningDataModule):
     """Data module for Careamics dataset."""
+
     @overload
     def __init__(
         self,
