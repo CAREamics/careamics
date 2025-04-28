@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Any, Callable, Optional, Union
+from typing import Any, Callable, Optional, Union, overload
 
 import numpy as np
 import pytorch_lightning as L
@@ -23,16 +23,77 @@ InputType = Union[ItemType, list[ItemType], None]
 
 class CareamicsDataModule(L.LightningDataModule):
     """Data module for Careamics dataset."""
-
+    @overload
     def __init__(
         self,
         data_config: DataConfig,
+        *,
         train_data: Optional[InputType] = None,
         train_data_target: Optional[InputType] = None,
         val_data: Optional[InputType] = None,
         val_data_target: Optional[InputType] = None,
         pred_data: Optional[InputType] = None,
         pred_data_target: Optional[InputType] = None,
+        extension_filter: str = "",
+        val_percentage: Optional[float] = None,
+        val_minimum_split: int = 5,
+        use_in_memory: bool = True,
+    ) -> None:
+        """Standard initialization."""
+        ...
+
+    @overload
+    def __init__(
+        self,
+        data_config: DataConfig,
+        *,
+        train_data: Optional[Any] = None,
+        train_data_target: Optional[Any] = None,
+        val_data: Optional[Any] = None,
+        val_data_target: Optional[Any] = None,
+        pred_data: Optional[Any] = None,
+        pred_data_target: Optional[Any] = None,
+        read_source_func: Callable,
+        read_kwargs: Optional[dict[str, Any]] = None,
+        extension_filter: str = "",
+        val_percentage: Optional[float] = None,
+        val_minimum_split: int = 5,
+        use_in_memory: bool = True,
+    ) -> None:
+        """Initialization with custom read function."""
+        ...
+
+    @overload
+    def __init__(
+        self,
+        data_config: DataConfig,
+        *,
+        train_data: Optional[Any] = None,
+        train_data_target: Optional[Any] = None,
+        val_data: Optional[Any] = None,
+        val_data_target: Optional[Any] = None,
+        pred_data: Optional[Any] = None,
+        pred_data_target: Optional[Any] = None,
+        image_stack_loader: ImageStackLoader,
+        image_stack_loader_kwargs: Optional[dict[str, Any]] = None,
+        extension_filter: str = "",
+        val_percentage: Optional[float] = None,
+        val_minimum_split: int = 5,
+        use_in_memory: bool = True,
+    ) -> None:
+        """Initialization with custom image stack loader."""
+        ...
+
+    def __init__(
+        self,
+        data_config: DataConfig,
+        *,
+        train_data: Optional[Any] = None,
+        train_data_target: Optional[Any] = None,
+        val_data: Optional[Any] = None,
+        val_data_target: Optional[Any] = None,
+        pred_data: Optional[Any] = None,
+        pred_data_target: Optional[Any] = None,
         read_source_func: Optional[Callable] = None,
         read_kwargs: Optional[dict[str, Any]] = None,
         image_stack_loader: Optional[ImageStackLoader] = None,
@@ -222,7 +283,9 @@ class CareamicsDataModule(L.LightningDataModule):
             )
 
     def _validate_custom_input(self, input_data, target_data) -> tuple[Any, Any]:
-        if isinstance(input_data, (str, Path)):
+        if self.image_stack_loader is not None:
+            return input_data, target_data
+        elif isinstance(input_data, (str, Path)):
             if target_data is not None:
                 assert isinstance(target_data, (str, Path))
             input_list, target_list = self._list_files_in_directory(
@@ -237,8 +300,6 @@ class CareamicsDataModule(L.LightningDataModule):
                     input_data, target_data
                 )
                 return input_list, target_list
-        elif self.image_stack_loader is not None:
-            return input_data, target_data
         else:
             raise ValueError(
                 f"If using {self.data_type}, pass a custom "

@@ -4,10 +4,11 @@ from careamics.config import (
     N2VAlgorithm,
 )
 from careamics.dataset_ng.dataset import ImageRegionData
-from careamics.lightning.dataset_ng.lightning_modules.unet_module import UnetModule
 from careamics.losses import n2v_loss
 from careamics.transforms import N2VManipulateTorch
 from careamics.utils.logging import get_logger
+
+from .unet_module import UnetModule
 
 logger = get_logger(__name__)
 
@@ -24,6 +25,14 @@ class N2VModule(UnetModule):
             n2v_manipulate_config=algorithm_config.n2v_config
         )
         self.loss_func = n2v_loss
+
+    def _load_best_checkpoint(self) -> None:
+        logger.warning(
+            "Loading best checkpoint for N2V model. Note that for N2V, "
+            "the checkpoint with the best validation metrics may not necessarily "
+            "have the best denoising performance."
+        )
+        super()._load_best_checkpoint()
 
     def training_step(
         self,
