@@ -28,26 +28,40 @@ def read_csv_logger(experiment_name: str, log_folder: Union[str, Path]) -> dict:
 
     path_log = path / f"version_{version}" / "metrics.csv"
 
-    epochs = []
-    train_losses_tmp = []
-    val_losses_tmp = []
     with open(path_log) as f:
         lines = f.readlines()
 
-        for single_line in lines[1:]:
-            epoch, _, _, train_loss, _, val_loss = single_line.strip().split(",")
+        header = lines[0].strip().split(",")
+        metrics = {value: [] for value in header}
+        print(metrics)
 
-            epochs.append(epoch)
-            train_losses_tmp.append(train_loss)
-            val_losses_tmp.append(val_loss)
+        for single_line in lines[1:]:
+            values = single_line.strip().split(",")
+
+            for k, v in zip(header, values):
+                metrics[k].append(v)
 
     # train and val are not logged on the same row and can have different lengths
     train_epoch = [
-        int(epochs[i]) for i in range(len(epochs)) if train_losses_tmp[i] != ""
+        int(metrics["epoch"][i])
+        for i in range(len(metrics["epoch"]))
+        if metrics["train_loss_epoch"][i] != ""
     ]
-    val_epoch = [int(epochs[i]) for i in range(len(epochs)) if val_losses_tmp[i] != ""]
-    train_losses = [float(loss) for loss in train_losses_tmp if loss != ""]
-    val_losses = [float(loss) for loss in val_losses_tmp if loss != ""]
+    val_epoch = [
+        int(metrics["epoch"][i])
+        for i in range(len(metrics["epoch"]))
+        if metrics["val_loss"][i] != ""
+    ]
+    train_losses = [
+        float(metrics["train_loss_epoch"][i])
+        for i in range(len(metrics["train_loss_epoch"]))
+        if metrics["train_loss_epoch"][i] != ""
+    ]
+    val_losses = [
+        float(metrics["val_loss"][i])
+        for i in range(len(metrics["val_loss"]))
+        if metrics["val_loss"][i] != ""
+    ]
 
     return {
         "train_epoch": train_epoch,

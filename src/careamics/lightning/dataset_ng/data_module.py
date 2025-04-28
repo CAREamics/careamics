@@ -42,6 +42,51 @@ class CareamicsDataModule(L.LightningDataModule):
         val_minimum_split: int = 5,
         use_in_memory: bool = True,
     ) -> None:
+        """
+        Create a lightning datamodule that handles creating datasets for training, validation, and prediction.
+
+        Parameters
+        ----------
+        data_config : DataConfig
+            Pydantic model for CAREamics data configuration.
+        train_data : Optional[InputType]
+            Training data, can be a path to a folder, a list of paths, or a numpy array.
+        train_data_target : Optional[InputType]
+            Training data target, can be a path to a folder,
+            a list of paths, or a numpy array.
+        val_data : Optional[InputType]
+            Validation data, can be a path to a folder,
+            a list of paths, or a numpy array.
+        val_data_target : Optional[InputType]
+            Validation data target, can be a path to a folder,
+            a list of paths, or a numpy array.
+        pred_data : Optional[InputType]
+            Prediction data, can be a path to a folder, a list of paths,
+            or a numpy array.
+        pred_data_target : Optional[InputType]
+            Prediction data target, can be a path to a folder,
+            a list of paths, or a numpy array.
+        read_source_func : Optional[Callable]
+            Function to read the source data, by default None. Only used for `custom`
+            data type (see DataModel).
+        read_kwargs : Optional[dict[str, Any]]
+            The kwargs for the read source function.
+        image_stack_loader : Optional[ImageStackLoader]
+            The image stack loader.
+        image_stack_loader_kwargs : Optional[dict[str, Any]]
+            The image stack loader kwargs.
+        extension_filter : str
+            Filter for file extensions, by default "". Only used for `custom` data types
+            (see DataModel).
+        val_percentage : Optional[float]
+            Percentage of the training data to use for validation. Only
+            used if `val_data` is None.
+        val_minimum_split : int
+            Minimum number of patches or files to split from the training data for
+            validation, by default 5. Only used if `val_data` is None.
+        use_in_memory : bool
+            Load data in memory dataset if possible, by default True.
+        """
         super().__init__()
 
         if train_data is None and val_data is None and pred_data is None:
@@ -71,6 +116,8 @@ class CareamicsDataModule(L.LightningDataModule):
         self.val_data, self.val_data_target = self._initialize_data_pair(
             val_data, val_data_target
         )
+
+        # The pred_data_target can be needed to count metrics on the prediction
         self.pred_data, self.pred_data_target = self._initialize_data_pair(
             pred_data, pred_data_target
         )

@@ -29,8 +29,6 @@ class UnetModule(L.LightningModule):
         self.config = algorithm_config
         self.model: nn.Module = UNet(**algorithm_config.model.model_dump())
 
-        self.save_hyperparameters({"algorithm_config": algorithm_config.model_dump()})
-
         self._best_checkpoint_loaded = False
 
         # TODO: how to support metric evaluation better
@@ -51,7 +49,10 @@ class UnetModule(L.LightningModule):
         )
 
         optimizer = self.optimizers()
-        current_lr = optimizer.param_groups[0]["lr"]
+        if isinstance(optimizer, list):
+            current_lr = optimizer[0].param_groups[0]["lr"]
+        else:
+            current_lr = optimizer.param_groups[0]["lr"]
         self.log(
             "learning_rate",
             current_lr,
