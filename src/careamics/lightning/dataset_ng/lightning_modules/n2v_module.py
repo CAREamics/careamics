@@ -14,6 +14,8 @@ logger = get_logger(__name__)
 
 
 class N2VModule(UnetModule):
+    """CAREamics PyTorch Lightning module for N2V algorithm."""
+
     def __init__(self, algorithm_config: Union[N2VAlgorithm, dict]) -> None:
         super().__init__(algorithm_config)
 
@@ -39,6 +41,7 @@ class N2VModule(UnetModule):
         batch: Union[tuple[ImageRegionData], tuple[ImageRegionData, ImageRegionData]],
         batch_idx: Any,
     ) -> Any:
+        """Training step for N2V model."""
         x = batch[0]
         x_masked, x_original, mask = self.n2v_manipulate(x.data)
         prediction = self.model(x_masked)
@@ -53,6 +56,7 @@ class N2VModule(UnetModule):
         batch: Union[tuple[ImageRegionData], tuple[ImageRegionData, ImageRegionData]],
         batch_idx: Any,
     ) -> None:
+        """Validation step for N2V model."""
         x = batch[0]
 
         x_masked, x_original, mask = self.n2v_manipulate(x.data)

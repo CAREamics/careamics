@@ -18,6 +18,8 @@ logger = get_logger(__name__)
 
 
 class UnetModule(L.LightningModule):
+    """CAREamics PyTorch Lightning module for UNet based algorithms."""
+
     def __init__(
         self, algorithm_config: Union[CAREAlgorithm, N2VAlgorithm, N2NAlgorithm, dict]
     ) -> None:
@@ -35,6 +37,7 @@ class UnetModule(L.LightningModule):
         self.metrics = MetricCollection(PeakSignalNoiseRatio())
 
     def forward(self, x: Any) -> Any:
+        """Default forward method."""
         return self.model(x)
 
     def _log_training_stats(self, loss: Any, batch_size: Any) -> None:
@@ -96,6 +99,7 @@ class UnetModule(L.LightningModule):
         batch_idx: Any,
         load_best_checkpoint=False,
     ) -> Any:
+        """Default predict step."""
         if self._best_checkpoint_loaded is False and load_best_checkpoint:
             self._load_best_checkpoint()
             self._best_checkpoint_loaded = True
@@ -123,6 +127,7 @@ class UnetModule(L.LightningModule):
         return output_batch
 
     def configure_optimizers(self) -> Any:
+        """Configure optimizers."""
         optimizer_func = get_optimizer(self.config.optimizer.name)
         optimizer = optimizer_func(
             self.model.parameters(), **self.config.optimizer.parameters

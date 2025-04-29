@@ -39,9 +39,7 @@ class CareamicsDataModule(L.LightningDataModule):
         val_percentage: Optional[float] = None,
         val_minimum_split: int = 5,
         use_in_memory: bool = True,
-    ) -> None:
-        """Standard initialization."""
-        ...
+    ) -> None: ...
 
     @overload
     def __init__(
@@ -60,9 +58,7 @@ class CareamicsDataModule(L.LightningDataModule):
         val_percentage: Optional[float] = None,
         val_minimum_split: int = 5,
         use_in_memory: bool = True,
-    ) -> None:
-        """Initialization with custom read function."""
-        ...
+    ) -> None: ...
 
     @overload
     def __init__(
@@ -81,9 +77,7 @@ class CareamicsDataModule(L.LightningDataModule):
         val_percentage: Optional[float] = None,
         val_minimum_split: int = 5,
         use_in_memory: bool = True,
-    ) -> None:
-        """Initialization with custom image stack loader."""
-        ...
+    ) -> None: ...
 
     def __init__(
         self,
@@ -105,7 +99,10 @@ class CareamicsDataModule(L.LightningDataModule):
         use_in_memory: bool = True,
     ) -> None:
         """
-        Create a lightning datamodule that handles creating datasets for training, validation, and prediction.
+        Data module for Careamics dataset initialization.
+
+        Create a lightning datamodule that handles creating datasets for training,
+        validation, and prediction.
 
         Parameters
         ----------

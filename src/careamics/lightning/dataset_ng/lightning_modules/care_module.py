@@ -1,4 +1,4 @@
-from typing import Any, Union
+from typing import Any, Callable, Union
 
 from careamics.config.algorithms.care_algorithm_model import CAREAlgorithm
 from careamics.config.algorithms.n2n_algorithm_model import N2NAlgorithm
@@ -13,6 +13,8 @@ logger = get_logger(__name__)
 
 
 class CAREModule(UnetModule):
+    """CAREamics PyTorch Lightning module for CARE algorithm."""
+
     def __init__(self, algorithm_config: Union[CAREAlgorithm, dict]) -> None:
         super().__init__(algorithm_config)
         assert isinstance(
@@ -20,7 +22,7 @@ class CAREModule(UnetModule):
         ), "algorithm_config must be a CAREAlgorithm or a N2NAlgorithm"
         loss = algorithm_config.loss
         if loss == SupportedLoss.MAE:
-            self.loss_func = mae_loss
+            self.loss_func: Callable = mae_loss
         elif loss == SupportedLoss.MSE:
             self.loss_func = mse_loss
         else:
@@ -31,6 +33,7 @@ class CAREModule(UnetModule):
         batch: tuple[ImageRegionData, ImageRegionData],
         batch_idx: Any,
     ) -> Any:
+        """Training step for CARE module."""
         # TODO: add validation to determine if target is initialized
         x, target = batch[0], batch[1]
 
@@ -46,6 +49,7 @@ class CAREModule(UnetModule):
         batch: tuple[ImageRegionData, ImageRegionData],
         batch_idx: Any,
     ) -> None:
+        """Validation step for CARE module."""
         x, target = batch[0], batch[1]
 
         prediction = self.model(x.data)
