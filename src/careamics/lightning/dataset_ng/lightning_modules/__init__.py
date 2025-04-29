@@ -1,9 +1,9 @@
 """CAREamics PyTorch Lightning modules."""
 
-from .care_module import CAREAlgorithm
-from .n2v_module import N2VAlgorithm
+from .care_module import CAREModule
+from .n2v_module import N2VModule
 
 __all__ = [
-    "CAREAlgorithm",
-    "N2VAlgorithm",
+    "CAREModule",
+    "N2VModule",
 ]
