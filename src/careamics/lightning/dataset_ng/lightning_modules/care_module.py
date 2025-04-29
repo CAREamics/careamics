@@ -1,6 +1,7 @@
 from typing import Any, Union
 
 from careamics.config.algorithms.care_algorithm_model import CAREAlgorithm
+from careamics.config.algorithms.n2n_algorithm_model import N2NAlgorithm
 from careamics.config.support import SupportedLoss
 from careamics.dataset_ng.dataset import ImageRegionData
 from careamics.losses import mae_loss, mse_loss
@@ -15,8 +16,8 @@ class CAREModule(UnetModule):
     def __init__(self, algorithm_config: Union[CAREAlgorithm, dict]) -> None:
         super().__init__(algorithm_config)
         assert isinstance(
-            algorithm_config, CAREAlgorithm
-        ), "algorithm_config must be a CAREAlgorithm"
+            algorithm_config, (CAREAlgorithm, N2NAlgorithm)
+        ), "algorithm_config must be a CAREAlgorithm or a N2NAlgorithm"
         loss = algorithm_config.loss
         if loss == SupportedLoss.MAE:
             self.loss_func = mae_loss
