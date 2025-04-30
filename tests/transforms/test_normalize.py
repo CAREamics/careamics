@@ -2,6 +2,7 @@ import numpy as np
 import pytest
 
 from careamics.dataset.dataset_utils.running_stats import compute_normalization_stats
+from careamics.dataset.patching.patching import Stats
 from careamics.transforms import Denormalize, Normalize
 from careamics.transforms.normalize import _reshape_stats
 
@@ -90,3 +91,28 @@ def test_transform_additional_arrays_not_implemented(ordered_array):
 
     with pytest.raises(NotImplementedError):
         norm(array, **additional_arrays)
+
+
+def test_normalize_empty_stats():
+    input_array = np.random.rand(1, 1, 100, 100)
+    input_stats = Stats([input_array.mean()], [input_array.std()])
+    target_array = np.random.rand(1, 1, 100, 100)
+    target_stats = Stats((), ())
+
+    with pytest.raises(ValueError):
+        norm = Normalize(
+            image_means=input_stats.means,
+            image_stds=input_stats.stds,
+            target_means=target_stats.means,
+            target_stds=target_stats.stds,
+        )
+        norm(input_array, target_array)
+
+    with pytest.raises(ValueError):
+        norm = Normalize(
+            image_means=input_stats.means,
+            image_stds=input_stats.stds,
+            target_means=None,
+            target_stds=None,
+        )
+        norm(input_array, target_array)
