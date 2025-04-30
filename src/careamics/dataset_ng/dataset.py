@@ -8,9 +8,9 @@ from numpy.typing import NDArray
 from torch.utils.data import Dataset
 
 from careamics.config import DataConfig, InferenceConfig
+from careamics.config.transformations import NormalizeModel
 from careamics.dataset.patching.patching import Stats
-from careamics.dataset_ng.patch_extractor import PatchExtractor
-from careamics.dataset_ng.patch_extractor.image_stack import GenericImageStack
+from careamics.dataset_ng.patch_extractor import GenericImageStack, PatchExtractor
 from careamics.dataset_ng.patching_strategies import (
     FixedRandomPatchingStrategy,
     PatchingStrategy,
@@ -30,7 +30,7 @@ class Mode(str, Enum):
 
 class ImageRegionData(NamedTuple):
     data: NDArray
-    source: Union[str, Literal["array"]]  # path has to be string for collate
+    source: Union[str, Literal["array"]]
     data_shape: Sequence[int]
     dtype: str  # dtype should be str for collate
     axes: str
@@ -69,7 +69,7 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
                 data_shapes=self.input_extractor.shape,
                 patch_size=self.config.patch_size,
                 # TODO: Add random seed to dataconfig
-                seed=getattr(self.config, "random_seed", None),
+                seed=getattr(self.config, "random_seed", 42),
             )
         elif self.mode == Mode.VALIDATING:
             if isinstance(self.config, InferenceConfig):
@@ -78,7 +78,7 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
                 data_shapes=self.input_extractor.shape,
                 patch_size=self.config.patch_size,
                 # TODO: Add random seed to dataconfig
-                seed=getattr(self.config, "random_seed", None),
+                seed=getattr(self.config, "random_seed", 42),
             )
         elif self.mode == Mode.PREDICTING:
             if not isinstance(self.config, InferenceConfig):
@@ -102,22 +102,46 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
 
     def _initialize_transforms(self) -> Optional[Compose]:
         if isinstance(self.config, DataConfig):
-            return Compose(
-                transform_list=list(self.config.transforms),
-            )
-        # TODO: add TTA
-        return None
+            if self.mode == Mode.TRAINING:
+                # TODO: initialize normalization separately depending on configuration
+                return Compose(
+                    transform_list=[
+                        NormalizeModel(
+                            image_means=self.input_stats.means,
+                            image_stds=self.input_stats.stds,
+                            target_means=self.target_stats.means,
+                            target_stds=self.target_stats.stds,
+                        )
+                    ]
+                    + list(self.config.transforms)
+                )
 
-    def _initialize_statistics(self) -> tuple[Stats, Optional[Stats]]:
+        # TODO: add TTA
+        return Compose(
+            transform_list=[
+                NormalizeModel(
+                    image_means=self.input_stats.means,
+                    image_stds=self.input_stats.stds,
+                    target_means=self.target_stats.means,
+                    target_stds=self.target_stats.stds,
+                )
+            ]
+        )
+
+    def _initialize_statistics(self) -> tuple[Stats, Stats]:
         # TODO: add running stats
         # Currently assume that stats are provided in the configuration
         input_stats = Stats(self.config.image_means, self.config.image_stds)
-        target_stats = None
+
+        # TODO: if stats are not set then target is present
+        #  the transforms break silently
         if isinstance(self.config, DataConfig):
             target_means = self.config.target_means
             target_stds = self.config.target_stds
-            if target_means is not None and target_stds is not None:
-                target_stats = Stats(target_means, target_stds)
+            target_stats = Stats(target_means, target_stds)
+        else:
+            target_stats = Stats((), ())
+
         return input_stats, target_stats
 
     def __len__(self):
@@ -127,9 +151,10 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
         self, patch: np.ndarray, patch_spec: PatchSpecs, extractor: PatchExtractor
     ) -> ImageRegionData:
         data_idx = patch_spec["data_idx"]
+        source = extractor.image_stacks[data_idx].source
         return ImageRegionData(
             data=patch,
-            source=str(extractor.image_stacks[data_idx].source),
+            source=str(source),
             dtype=str(extractor.image_stacks[data_idx].data_dtype),
             data_shape=extractor.image_stacks[data_idx].data_shape,
             # TODO: should it be axes of the original image instead?
@@ -139,7 +164,7 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
 
     def __getitem__(
         self, index: int
-    ) -> tuple[ImageRegionData, Optional[ImageRegionData]]:
+    ) -> Union[tuple[ImageRegionData], tuple[ImageRegionData, ImageRegionData]]:
         patch_spec = self.patching_strategy.get_patch_spec(index)
         input_patch = self.input_extractor.extract_patch(
             data_idx=patch_spec["data_idx"],
@@ -178,8 +203,6 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
                 patch_spec=patch_spec,
                 extractor=self.target_extractor,
             )
+            return input_data, target_data
         else:
-            target_data = None
-
-        # TODO: custom collate_fn to deal with none values
-        return input_data, target_data
+            return (input_data,)
