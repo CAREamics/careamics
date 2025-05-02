@@ -52,6 +52,7 @@ def _test_tiling_output(
         image_regions.append(image_region)
 
     tile_infos = imageregions_to_tileinfos(image_regions)
+    tile_infos = [tile_info[0] for data, tile_info in tile_infos]
     tiles = [image_region.data for image_region in image_regions]
 
     stitched_samples = stitch_prediction(tiles, tile_infos)
