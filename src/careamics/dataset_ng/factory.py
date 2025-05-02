@@ -1,14 +1,15 @@
 from collections.abc import Sequence
 from enum import Enum
 from pathlib import Path
-from typing import Any, Optional, Union
+from typing import Any, Optional, Type, TypeVar, Union, cast, overload
 
+import numpy as np
 from numpy.typing import NDArray
 from typing_extensions import ParamSpec
 
 from careamics.config import DataConfig, InferenceConfig
 from careamics.config.support import SupportedData
-from careamics.dataset_ng.patch_extractor import ImageStackLoader, PatchExtractor
+from careamics.dataset_ng.patch_extractor import PatchExtractor
 from careamics.dataset_ng.patch_extractor.image_stack import (
     GenericImageStack,
     ImageStack,
@@ -41,12 +42,15 @@ class DatasetType(Enum):
     CUSTOM_IMAGE_STACK = "custom_image_stack"
 
 
+SourceType = Sequence[Union[NDArray[Any], Path, ImageStack]]
+# SourceType = Union[Sequence[NDArray[Any]], Sequence[Path], Sequence[ImageStack]]
+
+
 # bit of a mess of if-else statements
 def determine_dataset_type(
     data_type: SupportedData,
     in_memory: bool,
     read_func: Optional[ReadFunc] = None,
-    image_stack_loader: Optional[ImageStackLoader] = None,
 ) -> DatasetType:
     """Determine what the dataset type should be based on the input arguments.
 
@@ -95,17 +99,54 @@ def determine_dataset_type(
                 raise NotImplementedError(
                     "Lazy loading has not been implemented for custom file types yet."
                 )
-        elif image_stack_loader is not None:
+        else:
             # TODO: ignoring im_memory arg
             return DatasetType.CUSTOM_IMAGE_STACK
-        else:
-            raise ValueError(
-                "Found `data_type='custom'` but no `read_func` or `image_stack_loader` "
-                "has been provided."
-            )
     # TODO: ZARR
     else:
         raise ValueError(f"Unrecognized `data_type`, '{data_type}'.")
+
+
+@overload
+def create_dataset(
+    config: Union[DataConfig, InferenceConfig],
+    mode: Mode,
+    inputs: Sequence[NDArray],
+    targets: Optional[Sequence[NDArray]],
+    in_memory: bool,
+) -> CareamicsDataset[InMemoryImageStack]: ...
+
+
+@overload
+def create_dataset(
+    config: Union[DataConfig, InferenceConfig],
+    mode: Mode,
+    inputs: Sequence[Path],
+    targets: Optional[Sequence[Path]],
+    in_memory: bool,
+) -> CareamicsDataset[ImageStack]: ...
+
+
+@overload
+def create_dataset(
+    config: Union[DataConfig, InferenceConfig],
+    mode: Mode,
+    inputs: Sequence[Path],
+    targets: Optional[Sequence[Path]],
+    in_memory: bool,
+    read_func: Optional[ReadFunc] = None,
+    read_kwargs: Optional[dict[str, Any]] = None,
+) -> CareamicsDataset[ImageStack]: ...
+
+
+@overload
+def create_dataset(
+    config: Union[DataConfig, InferenceConfig],
+    mode: Mode,
+    inputs: Sequence[GenericImageStack],
+    targets: Optional[Sequence[GenericImageStack]],
+    in_memory: bool,
+) -> CareamicsDataset[GenericImageStack]: ...
 
 
 # convenience function but should use `create_dataloader` function instead
@@ -113,13 +154,11 @@ def determine_dataset_type(
 def create_dataset(
     config: Union[DataConfig, InferenceConfig],
     mode: Mode,
-    inputs: Any,
-    targets: Any,
+    inputs: SourceType,
+    targets: Optional[SourceType],
     in_memory: bool,
     read_func: Optional[ReadFunc] = None,
     read_kwargs: Optional[dict[str, Any]] = None,
-    image_stack_loader: Optional[ImageStackLoader] = None,
-    image_stack_loader_kwargs: Optional[dict[str, Any]] = None,
 ) -> CareamicsDataset[ImageStack]:
     """
     Convenience function to create the CAREamicsDataset.
@@ -142,11 +181,6 @@ def create_dataset(
         ignored unless the `data_type` in the `config` is "custom".
     read_kwargs : dict of {str, Any}, optional
         Additional key-word arguments to pass to the `read_func`.
-    image_stack_loader : ImageStackLoader, optional
-        A function for custom image stack loading. This argument is ignored unless the
-        `data_type` in the `config` is "custom".
-    image_stack_loader_kwargs : {str, Any}, optional
-        Additional key-word arguments to pass to the `image_stack_loader`.
 
     Returns
     -------
@@ -159,33 +193,25 @@ def create_dataset(
         For an unrecognized `data_type` in the `config`.
     """
     data_type = SupportedData(config.data_type)
-    dataset_type = determine_dataset_type(
-        data_type, in_memory, read_func, image_stack_loader
-    )
+    dataset_type = determine_dataset_type(data_type, in_memory, read_func)
     if dataset_type == DatasetType.ARRAY:
+        inputs, targets = _test_source_types(inputs, targets, np.ndarray)
         return create_array_dataset(config, mode, inputs, targets)
     elif dataset_type == DatasetType.IN_MEM_TIFF:
+        inputs, targets = _test_source_types(inputs, targets, Path)
         return create_tiff_dataset(config, mode, inputs, targets)
     # TODO: Lazy tiff
     elif dataset_type == DatasetType.IN_MEM_CUSTOM_FILE:
         if read_kwargs is None:
             read_kwargs = {}
         assert read_func is not None  # should be true from `determine_dataset_type`
+        inputs, targets = _test_source_types(inputs, targets, Path)
         return create_custom_file_dataset(
             config, mode, inputs, targets, read_func=read_func, read_kwargs=read_kwargs
         )
     elif dataset_type == DatasetType.CUSTOM_IMAGE_STACK:
-        if image_stack_loader_kwargs is None:
-            image_stack_loader_kwargs = {}
-        assert image_stack_loader is not None  # should be true
-        return create_custom_image_stack_dataset(
-            config,
-            mode,
-            inputs,
-            targets,
-            image_stack_loader,
-            **image_stack_loader_kwargs,
-        )
+        inputs, targets = _test_source_type_image_stack(inputs, targets)
+        return create_custom_image_stack_dataset(config, mode, inputs, targets)
     else:
         raise ValueError(f"Unrecognized dataset type, {dataset_type}.")
 
@@ -352,11 +378,8 @@ def create_custom_file_dataset(
 def create_custom_image_stack_dataset(
     config: Union[DataConfig, InferenceConfig],
     mode: Mode,
-    inputs: Any,
-    targets: Optional[Any],
-    image_stack_loader: ImageStackLoader[P, GenericImageStack],
-    *args: P.args,
-    **kwargs: P.kwargs,
+    inputs: Sequence[GenericImageStack],
+    targets: Optional[Sequence[GenericImageStack]],
 ) -> CareamicsDataset[GenericImageStack]:
     """
     Create a CAREamicsDataset from a custom `ImageStack` class.
@@ -386,23 +409,61 @@ def create_custom_image_stack_dataset(
     CareamicsDataset[GenericImageStack]
         A CAREamicsDataset
     """
-    input_extractor = create_custom_image_stack_extractor(
-        inputs,
-        config.axes,
-        image_stack_loader,
-        *args,
-        **kwargs,
-    )
+    input_extractor = create_custom_image_stack_extractor(inputs, config.axes)
     target_extractor: Optional[PatchExtractor[GenericImageStack]]
     if targets is not None:
-        target_extractor = create_custom_image_stack_extractor(
-            targets,
-            config.axes,
-            image_stack_loader,
-            *args,
-            **kwargs,
-        )
+        target_extractor = create_custom_image_stack_extractor(targets, config.axes)
     else:
         target_extractor = None
     dataset = CareamicsDataset(config, mode, input_extractor, target_extractor)
     return dataset
+
+
+# --- utils
+
+ItemTypeVar = TypeVar("ItemTypeVar", NDArray[Any], Path)
+
+
+def _test_source_types(
+    inputs: SourceType,
+    targets: Optional[SourceType],
+    item_type: Type[ItemTypeVar],
+) -> tuple[Sequence[ItemTypeVar], Optional[Sequence[ItemTypeVar]]]:
+    if not _sequence_items_isinstance(inputs, item_type):
+        raise TypeError(f"Input type is not a sequence of {item_type}.")
+    inputs = cast(Sequence[ItemTypeVar], inputs)
+    if targets is not None:
+        if _sequence_items_isinstance(targets, item_type):
+            raise TypeError(f"Input type is not a sequence of {item_type}.")
+    targets = cast(Optional[Sequence[ItemTypeVar]], targets)
+    return inputs, targets
+
+
+# have to test image stack separately because cannot use isinstance for protocols
+# instead test that source is not ndarray or Path and then assume it must be image stack
+def _test_source_type_image_stack(
+    inputs: SourceType, targets: Optional[SourceType]
+) -> tuple[Sequence[ImageStack], Optional[Sequence[ImageStack]]]:
+    if _sequence_items_isinstance(inputs, (Path, np.ndarray)):
+        raise TypeError(
+            "Expected input to be a sequence of `ImageStack` instances if datatype "
+            "'custom' in config and "
+        )
+    inputs = cast(Sequence[ImageStack], inputs)
+    if targets is not None:
+        if _sequence_items_isinstance(targets, (Path, np.ndarray)):
+            raise TypeError(
+                "Expected input to be a sequence of `ImageStack` instances if datatype "
+                "'custom' in config and "
+            )
+        targets = cast(Sequence[ImageStack], inputs)
+    return inputs, targets
+
+
+def _sequence_items_isinstance(
+    sequence: Sequence[Any], class_or_tuple: Union[Type, tuple[Type, ...]]
+) -> bool:
+    for item in sequence:
+        if not isinstance(item, class_or_tuple):
+            return False
+    return True

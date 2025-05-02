@@ -12,12 +12,12 @@ from careamics.config.support import SupportedData
 from careamics.dataset.dataset_utils import list_files, validate_source_target_files
 from careamics.dataset_ng.dataset import Mode
 from careamics.dataset_ng.factory import create_dataset
-from careamics.dataset_ng.patch_extractor import ImageStackLoader
+from careamics.dataset_ng.patch_extractor.image_stack import ImageStack
 from careamics.utils import get_logger
 
 logger = get_logger(__name__)
 
-ItemType = Union[Path, str, NDArray[Any]]
+ItemType = Union[Path, str, NDArray[Any], ImageStack]
 InputType = Union[ItemType, list[ItemType], None]
 
 
@@ -71,8 +71,6 @@ class CareamicsDataModule(L.LightningDataModule):
         val_data_target: Optional[Any] = None,
         pred_data: Optional[Any] = None,
         pred_data_target: Optional[Any] = None,
-        image_stack_loader: ImageStackLoader,
-        image_stack_loader_kwargs: Optional[dict[str, Any]] = None,
         extension_filter: str = "",
         val_percentage: Optional[float] = None,
         val_minimum_split: int = 5,
@@ -91,8 +89,6 @@ class CareamicsDataModule(L.LightningDataModule):
         pred_data_target: Optional[Any] = None,
         read_source_func: Optional[Callable] = None,
         read_kwargs: Optional[dict[str, Any]] = None,
-        image_stack_loader: Optional[ImageStackLoader] = None,
-        image_stack_loader_kwargs: Optional[dict[str, Any]] = None,
         extension_filter: str = "",
         val_percentage: Optional[float] = None,
         val_minimum_split: int = 5,
@@ -160,8 +156,6 @@ class CareamicsDataModule(L.LightningDataModule):
         self.extension_filter: str = extension_filter
         self.read_source_func = read_source_func
         self.read_kwargs = read_kwargs
-        self.image_stack_loader = image_stack_loader
-        self.image_stack_loader_kwargs = image_stack_loader_kwargs
 
         # TODO: implement the validation split logic
         self.val_percentage = val_percentage
@@ -281,9 +275,7 @@ class CareamicsDataModule(L.LightningDataModule):
             )
 
     def _validate_custom_input(self, input_data, target_data) -> tuple[Any, Any]:
-        if self.image_stack_loader is not None:
-            return input_data, target_data
-        elif isinstance(input_data, (str, Path)):
+        if isinstance(input_data, (str, Path)):
             if target_data is not None:
                 assert isinstance(target_data, (str, Path))
             input_list, target_list = self._list_files_in_directory(
@@ -298,11 +290,8 @@ class CareamicsDataModule(L.LightningDataModule):
                     input_data, target_data
                 )
                 return input_list, target_list
-        else:
-            raise ValueError(
-                f"If using {self.data_type}, pass a custom "
-                f"image_stack_loader or read_source_func"
-            )
+        # else: assume type is ImageStack
+        # TODO: need to have cases for list of image stack vs image stack?
         return input_data, target_data
 
     def _initialize_data_pair(
@@ -388,8 +377,6 @@ class CareamicsDataModule(L.LightningDataModule):
                 in_memory=self.use_in_memory,
                 read_func=self.read_source_func,
                 read_kwargs=self.read_kwargs,
-                image_stack_loader=self.image_stack_loader,
-                image_stack_loader_kwargs=self.image_stack_loader_kwargs,
             )
             self.val_dataset = create_dataset(
                 mode=Mode.VALIDATING,
@@ -399,8 +386,6 @@ class CareamicsDataModule(L.LightningDataModule):
                 in_memory=self.use_in_memory,
                 read_func=self.read_source_func,
                 read_kwargs=self.read_kwargs,
-                image_stack_loader=self.image_stack_loader,
-                image_stack_loader_kwargs=self.image_stack_loader_kwargs,
             )
             # TODO: ugly, need to find a better solution
             self.stats = self.train_dataset.input_stats
@@ -413,8 +398,6 @@ class CareamicsDataModule(L.LightningDataModule):
                 in_memory=self.use_in_memory,
                 read_func=self.read_source_func,
                 read_kwargs=self.read_kwargs,
-                image_stack_loader=self.image_stack_loader,
-                image_stack_loader_kwargs=self.image_stack_loader_kwargs,
             )
             self.stats = self.val_dataset.input_stats
         elif stage == "predict":
@@ -426,8 +409,6 @@ class CareamicsDataModule(L.LightningDataModule):
                 in_memory=self.use_in_memory,
                 read_func=self.read_source_func,
                 read_kwargs=self.read_kwargs,
-                image_stack_loader=self.image_stack_loader,
-                image_stack_loader_kwargs=self.image_stack_loader_kwargs,
             )
             self.stats = self.predict_dataset.input_stats
         else:
