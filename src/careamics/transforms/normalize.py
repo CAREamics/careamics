@@ -129,16 +129,27 @@ class Normalize(Transform):
         norm_patch = self._apply(patch, means, stds)
 
         # same for the target patch
-        if (
-            target is not None
-            and self.target_means is not None
-            and self.target_stds is not None
-        ):
+        if target is None:
+            norm_target = None
+        else:
+            if not self.target_means or not self.target_stds:
+                raise ValueError(
+                    "Target means and standard deviations must be provided "
+                    "if target is not None."
+                )
+            if len(self.target_means) == 0 and len(self.target_stds) == 0:
+                raise ValueError(
+                    "Target means and standard deviations must be provided "
+                    "if target is not None."
+                )
+            if len(self.target_means) != target.shape[0]:
+                raise ValueError(
+                    "Target means and standard deviations must have the same length "
+                    "as the target."
+                )
             target_means = _reshape_stats(self.target_means, target.ndim)
             target_stds = _reshape_stats(self.target_stds, target.ndim)
             norm_target = self._apply(target, target_means, target_stds)
-        else:
-            norm_target = None
 
         return norm_patch, norm_target, additional_arrays
 
