@@ -15,7 +15,7 @@ class DataType(Enum):
     OptiMEM100_014 = 10
     SeparateTiffData = 11
     BioSR_MRC = 12
-    HTH23BData = 13  #puncta, in case we have differently sized crops for each channel.
+    HTH23BData = 13  # puncta, in case we have differently sized crops for each channel.
     Care3D = 14
 
 
