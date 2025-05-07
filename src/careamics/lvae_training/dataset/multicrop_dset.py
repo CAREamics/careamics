@@ -157,9 +157,7 @@ class MultiCropDset:
 
         keys = list(img_kwargs.keys())
         self._rotation_transform.add_targets({k: "image" for k in keys})
-        rot_dic = self._rotation_transform(
-            image=img_tuples[0][0], **img_kwargs
-        )
+        rot_dic = self._rotation_transform(image=img_tuples[0][0], **img_kwargs)
 
         rotated_img_tuples = []
         for i, img in enumerate(img_tuples):
