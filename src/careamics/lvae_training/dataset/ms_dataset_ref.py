@@ -2,6 +2,8 @@
 A place for Datasets and Dataloaders.
 """
 
+from collections import defaultdict
+from functools import cache
 from typing import Callable, Tuple, Union
 
 import numpy as np
@@ -10,8 +12,7 @@ from skimage.transform import resize
 from .config import DatasetConfig
 from .types import DataSplitType, TilingMode
 from .utils.empty_patch_fetcher import EmptyPatchFetcher
-from .utils.index_manager import GridIndexManager
-from .utils.index_switcher import IndexSwitcher
+from .utils.index_manager import GridIndexManagerRef
 
 
 class MultiChDloaderRef:
@@ -28,12 +29,9 @@ class MultiChDloaderRef:
         self._fpath = fpath
         self._data = self._noise_data = None
         self.Z = 1
-        self._5Ddata = False
+        self._3Ddata = False  # TODO wtf it was 5D
         self._tiling_mode = data_config.tiling_mode
         # by default, if the noise is present, add it to the input and target.
-        self._disable_noise = False  # to add synthetic noise
-        self._poisson_noise_factor = None
-        self._train_index_switcher = None
         self._depth3D = data_config.depth3D
         self._mode_3D = data_config.mode_3D
         # NOTE: Input is the sum of the different channels. It is not the average of the different channels.
@@ -41,18 +39,6 @@ class MultiChDloaderRef:
         self._num_channels = data_config.num_channels
         self._input_idx = data_config.input_idx
         self._tar_idx_list = data_config.target_idx_list
-
-        if data_config.datasplit_type == DataSplitType.Train:
-            self._datausage_fraction = data_config.trainig_datausage_fraction
-            # assert self._datausage_fraction == 1.0, 'Not supported. Use validtarget_random_fraction and training_validtarget_fraction to get the same effect'
-            self._validtarget_rand_fract = data_config.validtarget_random_fraction
-            # self._validtarget_random_fraction_final = data_config.get('validtarget_random_fraction_final', None)
-            # self._validtarget_random_fraction_stepepoch = data_config.get('validtarget_random_fraction_stepepoch', None)
-            # self._idx_count = 0
-        elif data_config.datasplit_type == DataSplitType.Val:
-            self._datausage_fraction = data_config.validation_datausage_fraction
-        else:
-            self._datausage_fraction = 1.0
 
         self.load_data(
             data_config,
@@ -62,6 +48,8 @@ class MultiChDloaderRef:
             test_fraction=test_fraction,
             allow_generation=data_config.allow_generation,
         )
+
+        self._data_shapes = self.get_data_shapes()
         self._normalized_input = data_config.normalized_input
         self._quantile = 1.0
         self._channelwise_quantile = False
@@ -100,18 +88,10 @@ class MultiChDloaderRef:
             grid_size = data_config.image_size
 
         if self._is_train:
-            self._start_alpha_arr = data_config.start_alpha
+            self._start_alpha_arr = data_config.start_alpha # TODO why only for train?
             self._end_alpha_arr = data_config.end_alpha
 
-            self.set_img_sz(data_config.image_size, grid_size)
-
-            if self._validtarget_rand_fract is not None:
-                self._train_index_switcher = IndexSwitcher(
-                    self.idx_manager, data_config, self._img_sz
-                )
-
-        else:
-            self.set_img_sz(data_config.image_size, grid_size)
+        self.set_img_sz(data_config.image_size, grid_size)
 
         self._return_alpha = False
         self._return_index = False
@@ -183,8 +163,23 @@ class MultiChDloaderRef:
     def enable_noise(self):
         self._disable_noise = False
 
-    def get_data_shape(self):
-        return self._data.shape
+    def get_data_shapes(self):
+        if self._3Ddata:  # TODO we assume images don't have a channel dimension
+            [
+                [
+                    im.shape if len(im.shape) == 4 else (1, *im.shape)
+                    for im in self._data[ch]
+                ]
+                for ch in range(len(self._data))
+            ]
+        else:
+            return [
+                [
+                    im.shape if len(im.shape) == 3 else (1, *im.shape)
+                    for im in self._data[ch]
+                ]
+                for ch in range(len(self._data))
+            ]
 
     def load_data(
         self,
@@ -203,63 +198,9 @@ class MultiChDloaderRef:
             test_fraction=test_fraction,
             allow_generation=allow_generation,
         )
-        self._loaded_data_preprocessing(data_config)
 
-    def _loaded_data_preprocessing(self, data_config):
-        old_shape = self._data.shape
-        if self._datausage_fraction < 1.0:
-            framepixelcount = np.prod(self._data.shape[1:3])
-            pixelcount = int(
-                len(self._data) * framepixelcount * self._datausage_fraction
-            )
-            frame_count = int(np.ceil(pixelcount / framepixelcount))
-            last_frame_reduced_size, _ = IndexSwitcher.get_reduced_frame_size(
-                self._data.shape[:3], self._datausage_fraction
-            )
-            self._data = self._data[:frame_count].copy()
-            if frame_count == 1:
-                self._data = self._data[
-                    :, :last_frame_reduced_size, :last_frame_reduced_size
-                ].copy()
-            print(
-                f"[{self.__class__.__name__}] New data shape: {self._data.shape} Old: {old_shape}"
-            )
-
-        msg = ""
-        if data_config.poisson_noise_factor > 0:
-            self._poisson_noise_factor = data_config.poisson_noise_factor
-            msg += f"Adding Poisson noise with factor {self._poisson_noise_factor}.\t"
-            self._data = np.random.poisson(self._data / self._poisson_noise_factor)
-
-        if data_config.enable_gaussian_noise:
-            synthetic_scale = data_config.synthetic_gaussian_scale
-            msg += f"Adding Gaussian noise with scale {synthetic_scale}"
-            # 0 => noise for input. 1: => noise for all targets.
-            shape = self._data.shape
-            self._noise_data = np.random.normal(
-                0, synthetic_scale, (*shape[:-1], shape[-1] + 1)
-            )
-            if data_config.input_has_dependant_noise:
-                msg += ". Moreover, input has dependent noise"
-                self._noise_data[..., 0] = np.mean(self._noise_data[..., 1:], axis=-1)
-        print(msg)
-
-        if len(self._data.shape) == 5:
-            if self._mode_3D:
-                self._5Ddata = True
-            else:
-                assert self._depth3D == 1, "Depth3D must be 1 for 2D training"
-                self._data = self._data.reshape(-1, *self._data.shape[2:])
-
-        if self._5Ddata:
-            self.Z = self._data.shape[1]
-
-        if self._depth3D > 1:
-            assert self._5Ddata, "Data must be 5D:NxZxHxWxC for 3D data"
-
-        assert (
-            self._data.shape[-1] == self._num_channels
-        ), "Number of channels in data and config do not match."
+    # TODO check for 2D/3D data consistency with config
+    # TODO check number of channels consistency with config
 
     def save_background(self, channel_idx, frame_idx, background_value):
         self._background_values[frame_idx, channel_idx] = background_value
@@ -267,63 +208,23 @@ class MultiChDloaderRef:
     def get_background(self, channel_idx, frame_idx):
         return self._background_values[frame_idx, channel_idx]
 
-    def remove_background(self):
-
-        self._background_values = np.zeros((self._data.shape[0], self._data.shape[-1]))
-
-        if self._background_quantile == 0.0:
-            assert (
-                self._clip_background_noise_to_zero is False
-            ), "This operation currently happens later in this function."
-            return
-
-        if self._data.dtype in [np.uint16]:
-            # unsigned integer creates havoc
-            self._data = self._data.astype(np.int32)
-
-        for ch in range(self._data.shape[-1]):
-            for idx in range(self._data.shape[0]):
-                qval = np.quantile(self._data[idx, ..., ch], self._background_quantile)
-                assert (
-                    np.abs(qval) > 20
-                ), "We are truncating the qval to an integer which will only make sense if it is large enough"
-                # NOTE: Here, there can be an issue if you work with normalized data
-                qval = int(qval)
-                self.save_background(ch, idx, qval)
-                self._data[idx, ..., ch] -= qval
-
-        if self._clip_background_noise_to_zero:
-            self._data[self._data < 0] = 0
 
     def rm_bkground_set_max_val_and_upperclip_data(self, max_val, datasplit_type):
-        self.remove_background()
+        # self.remove_background() # TODO revisit
         self.set_max_val(max_val, datasplit_type)
         self.upperclip_data()
 
     def upperclip_data(self):
-        if isinstance(self.max_val, list):
-            chN = self._data.shape[-1]
-            assert chN == len(self.max_val)
-            for ch in range(chN):
-                ch_data = self._data[..., ch]
-                ch_q = self.max_val[ch]
-                ch_data[ch_data > ch_q] = ch_q
-                self._data[..., ch] = ch_data
-        else:
-            self._data[self._data > self.max_val] = self.max_val
+        for ch_idx, data in enumerate(self._data):
+            if self.max_val[ch_idx] is not None:
+                for idx in range(len(data)):
+                    data[idx][data[idx] > self.max_val[ch_idx]] = self.max_val[ch_idx]
 
     def compute_max_val(self):
-        if self._channelwise_quantile:
-            max_val_arr = [
-                np.quantile(self._data[..., i], self._quantile)
-                for i in range(self._data.shape[-1])
-            ]
-            return max_val_arr
-        else:
-            return np.quantile(self._data, self._quantile)
+        # TODO add channelwise quantile ?
+        return [max([np.quantile(im, self._quantile) for im in ch]) for ch in self._data]
 
     def set_max_val(self, max_val, datasplit_type):
-
         if max_val is None:
             assert datasplit_type == DataSplitType.Train
             self.max_val = self.compute_max_val()
@@ -350,7 +251,7 @@ class MultiChDloaderRef:
         w_start=None,
         w_end=None,
     ):
-        if self._5Ddata:
+        if self._3Ddata:
             if t_list is None:
                 t_list = list(range(self._data.shape[0]))
             if z_start is None:
@@ -398,21 +299,21 @@ class MultiChDloaderRef:
     def get_idx_manager_shapes(
         self, patch_size: int, grid_size: Union[int, Tuple[int, int, int]]
     ):
-        numC = self._data.shape[-1]
-        if self._5Ddata:
-            patch_shape = (1, self._depth3D, patch_size, patch_size, numC)
+        numC = len(self._data_shapes)
+        if self._3Ddata:
+            patch_shape = (1, self._depth3D, patch_size, patch_size)
             if isinstance(grid_size, int):
-                grid_shape = (1, 1, grid_size, grid_size, numC)
+                grid_shape = (1, 1, grid_size, grid_size)
             else:
                 assert len(grid_size) == 3
                 assert all(
                     [g <= p for g, p in zip(grid_size, patch_shape[1:-1])]
                 ), f"Grid size {grid_size} must be less than patch size {patch_shape[1:-1]}"
-                grid_shape = (1, grid_size[0], grid_size[1], grid_size[2], numC)
+                grid_shape = (1, grid_size[0], grid_size[1], grid_size[2])
         else:
             assert isinstance(grid_size, int)
-            grid_shape = (1, grid_size, grid_size, numC)
-            patch_shape = (1, patch_size, patch_size, numC)
+            grid_shape = (1, grid_size, grid_size)
+            patch_shape = (1, patch_size, patch_size)
 
         return patch_shape, grid_shape
 
@@ -426,13 +327,13 @@ class MultiChDloaderRef:
         # hacky way to deal with image shape from new conf
         self._img_sz = image_size[-1]  # TODO revisit!
         self._grid_sz = grid_size
-        shape = self._data.shape
+        shapes = self._data_shapes
 
         patch_shape, grid_shape = self.get_idx_manager_shapes(
             self._img_sz, self._grid_sz
         )
-        self.idx_manager = GridIndexManager(
-            shape, grid_shape, patch_shape, self._tiling_mode
+        self.idx_manager = GridIndexManagerRef(
+            shapes, grid_shape, patch_shape, self._tiling_mode
         )
         # self.set_repeat_factor()
 
@@ -500,7 +401,7 @@ class MultiChDloaderRef:
 
         if self._enable_random_cropping:
             patch_start_loc = self._get_random_hw(h, w)
-            if self._5Ddata:
+            if self._3Ddata:
                 patch_start_loc = (
                     np.random.choice(1 + img_tuples[0].shape[-3] - self._depth3D),
                 ) + patch_start_loc
@@ -529,7 +430,7 @@ class MultiChDloaderRef:
                 np.array(patch_start_loc, dtype=np.int32)
                 + self.idx_manager.patch_shape[1:-1]
             )
-            if self._5Ddata:
+            if self._3Ddata:
                 z_start, h_start, w_start = patch_start_loc
                 z_end, h_end, w_end = patch_end_loc
                 new_img = img[..., z_start:z_end, h_start:h_end, w_start:w_end]
@@ -579,7 +480,7 @@ class MultiChDloaderRef:
                 pad = self.get_begin_end_padding(start_idx, end_idx, max_len)
             padding.append(pad)
         # max() is needed since h_start could be negative.
-        if self._5Ddata:
+        if self._3Ddata:
             new_img = img[
                 ...,
                 valid_slice[0][0] : valid_slice[0][1],
@@ -692,108 +593,86 @@ class MultiChDloaderRef:
         # last dim is channel. we need to take the third and the second last element.
         return loc_list[1:-1]
 
-    def compute_individual_mean_std(self):
-        # numpy 1.19.2 has issues in computing for large arrays. https://github.com/numpy/numpy/issues/8869
-        # mean = np.mean(self._data, axis=(0, 1, 2))
-        # std = np.std(self._data, axis=(0, 1, 2))
-        mean_arr = []
-        std_arr = []
-        for ch_idx in range(self._data.shape[-1]):
-            mean_ = (
-                0.0
-                if self._skip_normalization_using_mean
-                else self._data[..., ch_idx].mean()
+    @cache
+    def crop_probablities(self, ch_idx):
+        sizes = np.array([np.prod(x.shape) for x in self._data[ch_idx]])
+        return sizes / sizes.sum()
+
+    def sample_crop(self, ch_idx):
+        idx = None
+        count = 0
+        while idx is None:
+            count += 1
+            idx = np.random.choice(
+                len(self._data[ch_idx]), p=self.crop_probablities(ch_idx)
             )
-            if self._noise_data is not None:
-                std_ = (
-                    self._data[..., ch_idx] + self._noise_data[..., ch_idx + 1]
-                ).std()
+            data = self._data[ch_idx][idx] #TODO no channel and S dim ?
+            # changed for ndim
+            if all(d >= self._img_sz for d in data.shape[-2:]): #TODO dims are hardcoded
+                h = np.random.randint(0, data.shape[0] - self._img_sz)
+                w = np.random.randint(0, data.shape[1] - self._img_sz)
+                return data[h : h + self._img_sz, w : w + self._img_sz]
+            elif count > 100:
+                raise ValueError("Cannot find a valid crop")
             else:
-                std_ = self._data[..., ch_idx].std()
+                idx = None
 
-            mean_arr.append(mean_)
-            std_arr.append(std_)
+        return None
 
-        mean = np.array(mean_arr)
-        std = np.array(std_arr)
-        if (
-            self._5Ddata
-        ):  # NOTE: IDEALLY this should be only when the model expects 3D data.
-            return mean[None, :, None, None, None], std[None, :, None, None, None]
-
-        return mean[None, :, None, None], std[None, :, None, None]
+    def _l2(self, x):
+        return np.sqrt(np.mean(np.array(x) ** 2))
 
     def compute_mean_std(self, allow_for_validation_data=False):
         """
         Note that we must compute this only for training data.
         """
-        assert (
-            self._is_train is True or allow_for_validation_data
-        ), "This is just allowed for training data"
-        assert self._use_one_mu_std is True, "This is the only supported case"
-
-        if self._input_idx is not None:
-            assert (
-                self._tar_idx_list is not None
-            ), "tar_idx_list must be set if input_idx is set."
-            assert self._noise_data is None, "This is not supported with noise"
-            assert (
-                self._target_separate_normalization is True
-            ), "This is not supported with target_separate_normalization=False"
-
-            mean, std = self.compute_individual_mean_std()
-            mean_dict = {
-                "input": mean[:, self._input_idx : self._input_idx + 1],
-                "target": mean[:, self._tar_idx_list],
-            }
-            std_dict = {
-                "input": std[:, self._input_idx : self._input_idx + 1],
-                "target": std[:, self._tar_idx_list],
-            }
-            return mean_dict, std_dict
+        if self._3Ddata:
+            raise NotImplementedError("Not implemented for 3D data")
 
         if self._input_is_sum:
-            assert self._noise_data is None, "This is not supported with noise"
-            mean = [
-                np.mean(self._data[..., k : k + 1], keepdims=True)
-                for k in range(self._num_channels)
-            ]
-            mean = np.sum(mean, keepdims=True)[0]
-            std = np.linalg.norm(
-                [
-                    np.std(self._data[..., k : k + 1], keepdims=True)
-                    for k in range(self._num_channels)
-                ],
-                keepdims=True,
-            )[0]
+            mean_tar_dict = defaultdict(list)
+            std_tar_dict = defaultdict(list)
+            mean_inp = []
+            std_inp = []
+            for _ in range(30000):
+                crops = []
+                for ch_idx in range(len(self._data)):
+                    crop = self.sample_crop(ch_idx)
+                    mean_tar_dict[ch_idx].append(np.mean(crop))
+                    std_tar_dict[ch_idx].append(np.std(crop))
+                    crops.append(crop)
+
+                inp = 0
+                for img in crops:
+                    inp += img
+
+                mean_inp.append(np.mean(inp))
+                std_inp.append(np.std(inp))
+
+            output_mean = defaultdict(list)
+            output_std = defaultdict(list)
+
+            NC = len(self._data)
+            for ch_idx in range(NC):
+                output_mean["target"].append(np.mean(mean_tar_dict[ch_idx]))
+                output_std["target"].append(self._l2(std_tar_dict[ch_idx]))
+
+            output_mean["target"] = np.array(output_mean["target"]).reshape(NC, 1, 1)
+            output_std["target"] = np.array(output_std["target"]).reshape(NC, 1, 1)
+
+            output_mean["input"] = np.array([np.mean(mean_inp)]).reshape(1, 1, 1)
+            output_std["input"] = np.array([self._l2(std_inp)]).reshape(1, 1, 1)
         else:
-            mean = np.mean(self._data, keepdims=True).reshape(1, 1, 1, 1)
-            if self._noise_data is not None:
-                std = np.std(
-                    self._data + self._noise_data[..., 1:], keepdims=True
-                ).reshape(1, 1, 1, 1)
-            else:
-                std = np.std(self._data, keepdims=True).reshape(1, 1, 1, 1)
+            raise NotImplementedError("Not implemented for non-summed input")
 
-        mean = np.repeat(mean, self._num_channels, axis=1)
-        std = np.repeat(std, self._num_channels, axis=1)
+        return dict(output_mean), dict(output_std)
 
-        if self._skip_normalization_using_mean:
-            mean = np.zeros_like(mean)
+    def set_mean_std(self, mean_dict, std_dict):
+        self._data_mean = mean_dict
+        self._data_std = std_dict
 
-        if self._5Ddata:
-            mean = mean[:, :, None]
-            std = std[:, :, None]
-
-        mean_dict = {"input": mean}  # , 'target':mean}
-        std_dict = {"input": std}  # , 'target':std}
-
-        if self._target_separate_normalization:
-            mean, std = self.compute_individual_mean_std()
-
-        mean_dict["target"] = mean
-        std_dict["target"] = std
-        return mean_dict, std_dict
+    def get_mean_std(self):
+        return self._data_mean, self._data_std
 
     def _get_random_hw(self, h: int, w: int):
         """
@@ -954,7 +833,7 @@ class MultiChDloaderRef:
 
     def _rotate(self, img_tuples, noise_tuples):
 
-        if self._5Ddata:
+        if self._3Ddata:
             return self._rotate3D(img_tuples, noise_tuples)
         else:
             return self._rotate2D(img_tuples, noise_tuples)
@@ -1060,9 +939,6 @@ class MultiChDloaderRef:
         self, index: Union[int, Tuple[int, int]]
     ) -> Tuple[np.ndarray, np.ndarray]:
         # Vera: input can be both real microscopic image and two separate channels that are summed in the code
-
-        if self._train_index_switcher is not None:
-            index = self._get_index_from_valid_target_logic(index)
 
         if (
             self._uncorrelated_channels
@@ -1259,7 +1135,7 @@ class LCMultiChDloaderRef(MultiChDloaderRef):
         h, w = img_tuples[0].shape[-2:]
         if self._enable_random_cropping:
             patch_start_loc = self._get_random_hw(h, w)
-            if self._5Ddata:
+            if self._3Ddata:
                 patch_start_loc = (
                     np.random.choice(img_tuples[0].shape[-3] - self._depth3D),
                 ) + patch_start_loc

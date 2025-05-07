@@ -82,7 +82,7 @@ class DatasetConfig(BaseModel):
     # TODO: why is this not used?
     enable_rotation_aug: Optional[bool] = False
 
-    max_val: Optional[float] = None
+    max_val: Optional[Union[float, tuple]] = None
     """Maximum data in the dataset. Is calculated for train split, and should be 
     externally set for val and test splits."""
 
