@@ -22,6 +22,12 @@ from typing_extensions import Self
 from ..transformations import XYFlipModel, XYRandomRotate90Model
 from ..validators import check_axes_validity, patch_size_ge_than_8_power_of_2
 
+# TODO: how to validate the specific sizes of tiles and overlaps given UNet constraints?
+# TODO: constraints on the patching strategies parameters?
+# TODO: global seed or seed per strategy? how to pass parameters to the strategy?
+# TODO: annotation for the validators?
+# TODO: tiled and sequential have "overlap" vs "overlaps"
+
 
 def np_float_to_scientific_str(x: float) -> str:
     """Return a string scientific representation of a float.
