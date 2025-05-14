@@ -20,13 +20,22 @@ from pydantic import (
 from typing_extensions import Self
 
 from ..transformations import XYFlipModel, XYRandomRotate90Model
-from ..validators import check_axes_validity, patch_size_ge_than_8_power_of_2
+from ..validators import check_axes_validity
+from .patching_strategies import (
+    RandomPatchingModel,
+    SequentialPatchingModel,
+    TiledPatchingModel,
+    WholePatchingModel,
+)
 
 # TODO: how to validate the specific sizes of tiles and overlaps given UNet constraints?
 # TODO: constraints on the patching strategies parameters?
-# TODO: global seed or seed per strategy? how to pass parameters to the strategy?
+# TODO: global seed or seed per strategy?
+# TODO: how to pass parameters to the strategy? submodel Parameters?
 # TODO: annotation for the validators?
 # TODO: tiled and sequential have "overlap" vs "overlaps"
+# TODO: validation axes vs patch sizes
+# TODO: is 3D updated anywhere in the code?
 
 
 def np_float_to_scientific_str(x: float) -> str:
@@ -50,6 +59,14 @@ def np_float_to_scientific_str(x: float) -> str:
 
 Float = Annotated[float, PlainSerializer(np_float_to_scientific_str, return_type=str)]
 """Annotated float type, used to serialize floats to strings."""
+
+PatchingStrategies = Union[
+    RandomPatchingModel,
+    SequentialPatchingModel,
+    TiledPatchingModel,
+    WholePatchingModel,
+]
+"""Patching strategies."""
 
 
 class NGDataConfig(BaseModel):
@@ -77,13 +94,14 @@ class NGDataConfig(BaseModel):
     axes: str
     """Axes of the data, as defined in SupportedAxes."""
 
+    patching: Union[PatchingStrategies]
+    """Patching strategy to use. Note that `tiled` and `whole` are only used for
+    prediction."""
+
+    # Optional fields
     batch_size: int = Field(default=1, ge=1, validate_default=True)
     """Batch size for training."""
 
-    patch_size: Union[list[int]] = Field(..., min_length=2, max_length=3)
-    """Patch size, as used during training."""
-
-    # Optional fields
     image_means: Optional[list[Float]] = Field(
         default=None, min_length=0, max_length=32
     )
@@ -123,36 +141,8 @@ class NGDataConfig(BaseModel):
     val_dataloader_params: dict[str, Any] = Field(default={})
     """Dictionary of PyTorch validation dataloader parameters."""
 
-    @field_validator("patch_size")
-    @classmethod
-    def all_elements_power_of_2_minimum_8(
-        cls, patch_list: Union[list[int]]
-    ) -> Union[list[int]]:
-        """
-        Validate patch size.
-
-        Patch size must be powers of 2 and minimum 8.
-
-        Parameters
-        ----------
-        patch_list : list of int
-            Patch size.
-
-        Returns
-        -------
-        list of int
-            Validated patch size.
-
-        Raises
-        ------
-        ValueError
-            If the patch size is smaller than 8.
-        ValueError
-            If the patch size is not a power of 2.
-        """
-        patch_size_ge_than_8_power_of_2(patch_list)
-
-        return patch_list
+    seed: Optional[int] = Field(default=None, gt=0)
+    """Random seed for reproducibility."""
 
     @field_validator("axes")
     @classmethod
@@ -270,36 +260,36 @@ class NGDataConfig(BaseModel):
 
         return self
 
-    @model_validator(mode="after")
-    def validate_dimensions(self: Self) -> Self:
-        """
-        Validate 2D/3D dimensions between axes, patch size and transforms.
+    # @model_validator(mode="after")
+    # def validate_dimensions(self: Self) -> Self:
+    #     """
+    #     Validate 2D/3D dimensions between axes, patch size and transforms.
 
-        Returns
-        -------
-        Self
-            Validated data model.
+    #     Returns
+    #     -------
+    #     Self
+    #         Validated data model.
 
-        Raises
-        ------
-        ValueError
-            If the transforms are not valid.
-        """
-        if "Z" in self.axes:
-            if len(self.patch_size) != 3:
-                raise ValueError(
-                    f"Patch size must have 3 dimensions if the data is 3D "
-                    f"({self.axes})."
-                )
+    #     Raises
+    #     ------
+    #     ValueError
+    #         If the transforms are not valid.
+    #     """
+    #     if "Z" in self.axes:
+    #         if len(self.patch_size) != 3:
+    #             raise ValueError(
+    #                 f"Patch size must have 3 dimensions if the data is 3D "
+    #                 f"({self.axes})."
+    #             )
 
-        else:
-            if len(self.patch_size) != 2:
-                raise ValueError(
-                    f"Patch size must have 3 dimensions if the data is 3D "
-                    f"({self.axes})."
-                )
+    #     else:
+    #         if len(self.patch_size) != 2:
+    #             raise ValueError(
+    #                 f"Patch size must have 3 dimensions if the data is 3D "
+    #                 f"({self.axes})."
+    #             )
 
-        return self
+    #     return self
 
     def __str__(self) -> str:
         """
@@ -365,15 +355,15 @@ class NGDataConfig(BaseModel):
             target_stds=target_stds,
         )
 
-    def set_3D(self, axes: str, patch_size: list[int]) -> None:
-        """
-        Set 3D parameters.
+    # def set_3D(self, axes: str, patch_size: list[int]) -> None:
+    #     """
+    #     Set 3D parameters.
 
-        Parameters
-        ----------
-        axes : str
-            Axes.
-        patch_size : list of int
-            Patch size.
-        """
-        self._update(axes=axes, patch_size=patch_size)
+    #     Parameters
+    #     ----------
+    #     axes : str
+    #         Axes.
+    #     patch_size : list of int
+    #         Patch size.
+    #     """
+    #     self._update(axes=axes, patch_size=patch_size)
