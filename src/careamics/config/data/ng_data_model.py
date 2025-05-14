@@ -36,6 +36,7 @@ from .patching_strategies import (
 # TODO: tiled and sequential have "overlap" vs "overlaps"
 # TODO: validation axes vs patch sizes
 # TODO: is 3D updated anywhere in the code?
+# TODO: can we tell when it is made for training but has the wrong patching?
 
 
 def np_float_to_scientific_str(x: float) -> str:
