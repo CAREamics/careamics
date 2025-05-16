@@ -1,6 +1,6 @@
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from numpy.typing import NDArray
 from typing_extensions import ParamSpec
@@ -9,6 +9,7 @@ from careamics.dataset_ng.patch_extractor import PatchExtractor
 from careamics.file_io.read import ReadFunc
 
 from .image_stack import (
+    CziImageStack,
     GenericImageStack,
     InMemoryImageStack,
     ZarrImageStack,
@@ -92,6 +93,49 @@ def create_ome_zarr_extractor(
     """
     # NOTE: axes is unused here, in from_ome_zarr the axes are automatically retrieved
     image_stacks = [ZarrImageStack.from_ome_zarr(path) for path in source]
+    return PatchExtractor(image_stacks)
+
+
+# CZI case
+def create_czi_extractor(
+    source: Sequence[Path],
+    axes: str,
+) -> PatchExtractor[CziImageStack]:
+    """
+    Create a patch extractor from a sequence of CZI files.
+
+    If the CZI files contain multiple scenes, one patch extractor will be created for
+    each scene.
+
+    Parameters
+    ----------
+    source: sequence of Path
+        The source files for the data.
+    axes: str
+        Specifies which axes of the data to use and how.
+        If this string ends with "ZYX", the data will consist of 3-D patches.
+        If the data has no Z axis but a T axis, the T axis will be used as
+        3rd dimension.
+        If the string does not end with "ZYX", the data will consist of 2-D patches.
+
+    Returns
+    -------
+    PatchExtractor
+    """
+    if axes.endswith("TYX"):
+        depth_axis = "T"
+    elif "Z" in axes:
+        depth_axis = "auto"
+    else:
+        depth_axis = "none"
+
+    image_stacks = []
+    for path in source:
+        scene_rectangles = CziImageStack.get_bounding_rectangles(path)
+        image_stacks.extend(
+            CziImageStack(path, scene=scene, depth_axis=depth_axis)
+            for scene in scene_rectangles.keys()
+        )
     return PatchExtractor(image_stacks)
 
 
