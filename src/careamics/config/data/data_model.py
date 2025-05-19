@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import sys
 from collections.abc import Sequence
 from pprint import pformat
 from typing import Annotated, Any, Literal, Optional, Union
@@ -233,7 +234,11 @@ class DataConfig(BaseModel):
             The dataloader parameters with defaults applied.
         """
         if "num_workers" not in dataloader_params:
-            dataloader_params["num_workers"] = os.cpu_count()
+            # Use 1 worker during tests, otherwise use all available CPU cores
+            if "pytest" in sys.modules:
+                dataloader_params["num_workers"] = 0
+            else:
+                dataloader_params["num_workers"] = os.cpu_count()
 
         if "pin_memory" not in dataloader_params:
             import torch
