@@ -210,8 +210,17 @@ def create_dataset(
             config, mode, inputs, targets, read_func=read_func, read_kwargs=read_kwargs
         )
     elif dataset_type == DatasetType.CUSTOM_IMAGE_STACK:
-        inputs, targets = _test_source_type_image_stack(inputs, targets)
-        return create_custom_image_stack_dataset(config, mode, inputs, targets)
+        if image_stack_loader_kwargs is None:
+            image_stack_loader_kwargs = {}
+        assert image_stack_loader is not None  # should be true
+        return create_custom_image_stack_dataset(
+            config,
+            mode,
+            inputs,
+            targets,
+            image_stack_loader,
+            **image_stack_loader_kwargs,
+        )
     else:
         raise ValueError(f"Unrecognized dataset type, {dataset_type}.")
 
