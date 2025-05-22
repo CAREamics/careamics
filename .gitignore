@@ -6,6 +6,10 @@
 # torch related
 **/lightning_logs
 **/*.ckpt
+**/csv_logs/*
+
+# data
+*.tif*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
