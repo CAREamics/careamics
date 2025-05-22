@@ -18,7 +18,7 @@ from careamics.utils import get_logger
 logger = get_logger(__name__)
 
 ItemType = Union[Path, str, NDArray[Any], ImageStack]
-InputType = Union[ItemType, list[ItemType], None]
+InputType = Union[ItemType, list[ItemType]]
 
 
 class CareamicsDataModule(L.LightningDataModule):
@@ -126,10 +126,6 @@ class CareamicsDataModule(L.LightningDataModule):
             data type (see DataModel).
         read_kwargs : Optional[dict[str, Any]]
             The kwargs for the read source function.
-        image_stack_loader : Optional[ImageStackLoader]
-            The image stack loader.
-        image_stack_loader_kwargs : Optional[dict[str, Any]]
-            The image stack loader kwargs.
         extension_filter : str
             Filter for file extensions, by default "". Only used for `custom` data types
             (see DataModel).
@@ -290,9 +286,12 @@ class CareamicsDataModule(L.LightningDataModule):
                     input_data, target_data
                 )
                 return input_list, target_list
-        # else: assume type is ImageStack
-        # TODO: need to have cases for list of image stack vs image stack?
-        return input_data, target_data
+            else:
+                # Assume list of ImageStacks
+                return input_data, target_data
+        else:
+            # else: assume type is ImageStack
+            return [input_data], [target_data]
 
     def _initialize_data_pair(
         self,
@@ -310,6 +309,9 @@ class CareamicsDataModule(L.LightningDataModule):
             For file paths, returns lists of Path objects.
             For numpy arrays, returns the arrays directly.
         """
+        # TODO: some checks and guards can be removed because they are already
+        #   present in the dataset factory function.
+
         if input_data is None:
             return None, None
 
