@@ -43,7 +43,7 @@ repos:
     rev: v1.8.0
     hooks:
       - id: numpydoc-validation
-        exclude: "^src/careamics/dataset_ng/.*|^src/careamics/lvae_training/.*|^src/careamics/models/lvae/.*|^src/careamics/losses/lvae/.*|^scripts/.*"
+        exclude: "^src/careamics/dataset_ng/.*|^src/careamics/lvae_training/.*|^src/careamics/models/lvae/.*|^src/careamics/losses/lvae/.*|^scripts/.*|^src/careamics/lightning/dataset_ng/.*"
 
   # # jupyter linting and formatting
   # - repo: https://github.com/nbQA-dev/nbQA

@@ -13,9 +13,6 @@ from .image_stack import (
     InMemoryImageStack,
     ZarrImageStack,
 )
-from .image_stack_loader import (
-    ImageStackLoader,
-)
 
 P = ParamSpec("P")
 
@@ -135,13 +132,10 @@ def create_custom_file_extractor(
     return PatchExtractor(image_stacks)
 
 
-# Custom ImageStackLoader case
+# Custom ImageStack case
 def create_custom_image_stack_extractor(
-    source: Any,
+    source: Sequence[GenericImageStack],
     axes: str,
-    image_stack_loader: ImageStackLoader[P, GenericImageStack],
-    *args: P.args,
-    **kwargs: P.kwargs,
 ) -> PatchExtractor[GenericImageStack]:
     """
     Create a patch extractor using a custom `ImageStackLoader`.
@@ -171,5 +165,4 @@ def create_custom_image_stack_extractor(
     -------
     PatchExtractor
     """
-    image_stacks = image_stack_loader(source, axes, *args, **kwargs)
-    return PatchExtractor(image_stacks)
+    return PatchExtractor(source)
