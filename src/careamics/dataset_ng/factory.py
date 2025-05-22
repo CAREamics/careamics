@@ -1,11 +1,10 @@
 from collections.abc import Sequence
-from enum import Enum
 from pathlib import Path
-from typing import Any, Optional, Type, TypeVar, Union, cast, overload
+from typing import Any, Optional, TypeVar, Union, overload
 
 import numpy as np
 from numpy.typing import NDArray
-from typing_extensions import ParamSpec
+from typing_extensions import TypeIs
 
 from careamics.config import DataConfig, InferenceConfig
 from careamics.config.support import SupportedData
@@ -27,96 +26,21 @@ from careamics.file_io.read import ReadFunc
 
 from .dataset import CareamicsDataset, Mode
 
-P = ParamSpec("P")
+SourceType = Union[Sequence[NDArray[Any]], Sequence[Path], Sequence[ImageStack]]
 
 
-# Enum class used to determine which loading functions should be used
-class DatasetType(Enum):
-    """Labels for the dataset based on the underlying data and how it is loaded."""
-
-    ARRAY = "array"
-    IN_MEM_TIFF = "in_mem_tiff"
-    LAZY_TIFF = "lazy_tiff"
-    IN_MEM_CUSTOM_FILE = "in_mem_custom_file"
-    OME_ZARR = "ome_zarr"
-    CUSTOM_IMAGE_STACK = "custom_image_stack"
-
-
-SourceType = Sequence[Union[NDArray[Any], Path, ImageStack]]
-# SourceType = Union[Sequence[NDArray[Any]], Sequence[Path], Sequence[ImageStack]]
-
-
-# bit of a mess of if-else statements
-def determine_dataset_type(
-    data_type: SupportedData,
-    in_memory: bool,
-    read_func: Optional[ReadFunc] = None,
-) -> DatasetType:
-    """Determine what the dataset type should be based on the input arguments.
-
-    Parameters
-    ----------
-    data_type : SupportedData
-        The underlying datatype.
-    in_memory : bool
-        Whether all the data should be loaded into memory. This is argument is ignored
-        unless the `data_type` is "tiff" or "custom".
-    read_func : ReadFunc, optional
-        A function that can that can be used to load custom data. This argument is
-        ignored unless the `data_type` is "custom".
-    image_stack_loader : ImageStackLoader, optional
-        A function for custom image stack loading. This argument is ignored unless the
-        `data_type` is "custom".
-
-    Returns
-    -------
-    DatasetType
-        The Dataset type.
-
-    Raises
-    ------
-    NotImplementedError
-        For lazy-loading (`in_memory=False`) of a custom file type.
-    ValueError
-        If the `data_type` is "custom" but both `read_func` and `image_stack_loader` are
-        None.
-    ValueError
-        If the `data_type` is unrecognized.
-    """
-    if data_type == SupportedData.ARRAY:
-        # TODO: ignoring in_memory arg, error if False?
-        return DatasetType.ARRAY
-    elif data_type == SupportedData.TIFF:
-        if in_memory:
-            return DatasetType.IN_MEM_TIFF
-        else:
-            return DatasetType.LAZY_TIFF
-    elif data_type == SupportedData.CUSTOM:
-        if read_func is not None:
-            if in_memory:
-                return DatasetType.IN_MEM_CUSTOM_FILE
-            else:
-                raise NotImplementedError(
-                    "Lazy loading has not been implemented for custom file types yet."
-                )
-        else:
-            # TODO: ignoring im_memory arg
-            return DatasetType.CUSTOM_IMAGE_STACK
-    # TODO: ZARR
-    else:
-        raise ValueError(f"Unrecognized `data_type`, '{data_type}'.")
-
-
+# array
 @overload
 def create_dataset(
     config: Union[DataConfig, InferenceConfig],
     mode: Mode,
     inputs: Sequence[NDArray],
     targets: Optional[Sequence[NDArray]],
-    in_memory: bool,
+    in_memory: bool = True,
 ) -> CareamicsDataset[InMemoryImageStack]: ...
 
 
+# tiff or zarr
 @overload
 def create_dataset(
     config: Union[DataConfig, InferenceConfig],
@@ -127,6 +51,7 @@ def create_dataset(
 ) -> CareamicsDataset[ImageStack]: ...
 
 
+# custom file
 @overload
 def create_dataset(
     config: Union[DataConfig, InferenceConfig],
@@ -134,11 +59,12 @@ def create_dataset(
     inputs: Sequence[Path],
     targets: Optional[Sequence[Path]],
     in_memory: bool,
-    read_func: Optional[ReadFunc] = None,
-    read_kwargs: Optional[dict[str, Any]] = None,
+    read_func: Optional[ReadFunc],
+    read_kwargs: Optional[dict[str, Any]],
 ) -> CareamicsDataset[ImageStack]: ...
 
 
+# custom image stack
 @overload
 def create_dataset(
     config: Union[DataConfig, InferenceConfig],
@@ -149,80 +75,76 @@ def create_dataset(
 ) -> CareamicsDataset[GenericImageStack]: ...
 
 
-# convenience function but should use `create_dataloader` function instead
-# For lazy loading custom batch sampler also needs to be set.
 def create_dataset(
     config: Union[DataConfig, InferenceConfig],
     mode: Mode,
     inputs: SourceType,
     targets: Optional[SourceType],
-    in_memory: bool,
+    in_memory: bool = True,
     read_func: Optional[ReadFunc] = None,
     read_kwargs: Optional[dict[str, Any]] = None,
-) -> CareamicsDataset[ImageStack]:
-    """
-    Convenience function to create the CAREamicsDataset.
-
-    Parameters
-    ----------
-    config : DataConfig or InferenceConfig
-        The data configuration.
-    mode : Mode
-        Whether to create the dataset in "training", "validation" or "predicting" mode.
-    inputs : Any
-        The input sources to the dataset.
-    targets : Any, optional
-        The target sources to the dataset.
-    in_memory : bool
-        Whether all the data should be loaded into memory. This is argument is ignored
-        unless the `data_type` in `config` is "tiff" or "custom".
-    read_func : ReadFunc, optional
-        A function that can that can be used to load custom data. This argument is
-        ignored unless the `data_type` in the `config` is "custom".
-    read_kwargs : dict of {str, Any}, optional
-        Additional key-word arguments to pass to the `read_func`.
-
-    Returns
-    -------
-    CareamicsDataset[ImageStack]
-        The CAREamicsDataset
-
-    Raises
-    ------
-    ValueError
-        For an unrecognized `data_type` in the `config`.
-    """
-    data_type = SupportedData(config.data_type)
-    dataset_type = determine_dataset_type(data_type, in_memory, read_func)
-    if dataset_type == DatasetType.ARRAY:
-        inputs, targets = _test_source_types(inputs, targets, np.ndarray)
+) -> CareamicsDataset:
+    if _is_source_item_type(inputs, np.ndarray):
+        if config.data_type != SupportedData.ARRAY:
+            raise ValueError
+        if (targets is not None) and (not _is_source_item_type(targets, np.ndarray)):
+            raise TypeError(
+                "Input and target types do not match, inputs are arrays but found "
+                f"target type '{type(targets[0])}'."
+            )
         return create_array_dataset(config, mode, inputs, targets)
-    elif dataset_type == DatasetType.IN_MEM_TIFF:
-        inputs, targets = _test_source_types(inputs, targets, Path)
+    elif _is_source_item_type(inputs, Path):
+        if (targets is not None) and (not _is_source_item_type(targets, Path)):
+            raise TypeError(
+                "Input and target types do not match, inputs are paths but found "
+                f"target type '{type(targets[0])}'."
+            )
+        return _create_from_paths(
+            config, mode, inputs, targets, in_memory, read_func, read_kwargs
+        )
+    # assume remaining input type option is Sequence[ImageStack]
+    else:
+        if (targets is not None) and (
+            _is_source_item_type(targets, np.ndarray)
+            or _is_source_item_type(targets, Path)
+        ):
+            raise TypeError(
+                f"Input and target types do not match, inputs are '{type(inputs[0])}' "
+                f"but found target type '{type(targets[0])}'."
+            )
+        return create_custom_image_stack_dataset(config, mode, inputs, targets)
+
+
+def _create_from_paths(
+    config: Union[DataConfig, InferenceConfig],
+    mode: Mode,
+    inputs: Sequence[Path],
+    targets: Optional[Sequence[Path]],
+    in_memory: bool = True,
+    read_func: Optional[ReadFunc] = None,
+    read_kwargs: Optional[dict[str, Any]] = None,
+):
+    if config.data_type == SupportedData.TIFF:
         return create_tiff_dataset(config, mode, inputs, targets)
-    # TODO: Lazy tiff
-    elif dataset_type == DatasetType.IN_MEM_CUSTOM_FILE:
+        # TODO: Lazy tiff
+
+    # TODO: add ZARR to supported datatypes once old dataset is deprecated
+    # elif config.data_type == SupportedData.ZARR
+    elif config.data_type == SupportedData.CUSTOM:
+        if read_func is None:
+            raise ValueError(
+                f"Data type '{SupportedData.CUSTOM.value}' has been selected in config "
+                "and input type is `Path` but no `read_func` has been provided."
+            )
         if read_kwargs is None:
             read_kwargs = {}
-        assert read_func is not None  # should be true from `determine_dataset_type`
-        inputs, targets = _test_source_types(inputs, targets, Path)
         return create_custom_file_dataset(
             config, mode, inputs, targets, read_func=read_func, read_kwargs=read_kwargs
         )
-    elif dataset_type == DatasetType.CUSTOM_IMAGE_STACK:
-        if image_stack_loader_kwargs is None:
-            image_stack_loader_kwargs = {}
-        assert image_stack_loader is not None  # should be true
-        return create_custom_image_stack_dataset(
-            config,
-            mode,
-            inputs,
-            targets,
-            image_stack_loader,
-            **image_stack_loader_kwargs,
-        )
     else:
-        raise ValueError(f"Unrecognized dataset type, {dataset_type}.")
+        raise ValueError(
+            f"Data type '{config.data_type}' is not compatible with `Path` input type."
+        )
 
 
 def create_array_dataset(
@@ -430,49 +352,28 @@ def create_custom_image_stack_dataset(
 
 # --- utils
 
-ItemTypeVar = TypeVar("ItemTypeVar", NDArray[Any], Path)
+ItemTypeVar = TypeVar("ItemTypeVar", covariant=True)
 
 
-def _test_source_types(
-    inputs: SourceType,
-    targets: Optional[SourceType],
-    item_type: Type[ItemTypeVar],
-) -> tuple[Sequence[ItemTypeVar], Optional[Sequence[ItemTypeVar]]]:
-    if not _sequence_items_isinstance(inputs, item_type):
-        raise TypeError(f"Input type is not a sequence of {item_type}.")
-    inputs = cast(Sequence[ItemTypeVar], inputs)
-    if targets is not None:
-        if _sequence_items_isinstance(targets, item_type):
-            raise TypeError(f"Input type is not a sequence of {item_type}.")
-    targets = cast(Optional[Sequence[ItemTypeVar]], targets)
-    return inputs, targets
+@overload
+def _is_source_item_type(
+    input: SourceType,
+    item_type: type[NDArray],
+) -> TypeIs[Sequence[NDArray[Any]]]: ...
 
 
-# have to test image stack separately because cannot use isinstance for protocols
-# instead test that source is not ndarray or Path and then assume it must be image stack
-def _test_source_type_image_stack(
-    inputs: SourceType, targets: Optional[SourceType]
-) -> tuple[Sequence[ImageStack], Optional[Sequence[ImageStack]]]:
-    if _sequence_items_isinstance(inputs, (Path, np.ndarray)):
-        raise TypeError(
-            "Expected input to be a sequence of `ImageStack` instances if datatype "
-            "'custom' in config and "
-        )
-    inputs = cast(Sequence[ImageStack], inputs)
-    if targets is not None:
-        if _sequence_items_isinstance(targets, (Path, np.ndarray)):
-            raise TypeError(
-                "Expected input to be a sequence of `ImageStack` instances if datatype "
-                "'custom' in config and "
-            )
-        targets = cast(Sequence[ImageStack], inputs)
-    return inputs, targets
+@overload
+def _is_source_item_type(
+    input: SourceType,
+    item_type: type[Path],
+) -> TypeIs[Sequence[Path]]: ...
 
 
-def _sequence_items_isinstance(
-    sequence: Sequence[Any], class_or_tuple: Union[Type, tuple[Type, ...]]
-) -> bool:
-    for item in sequence:
-        if not isinstance(item, class_or_tuple):
-            return False
-    return True
+# function to narrow the SourceType for mypy
+# can simply check the instance of the first value because SourceType already types all
+# the items as the same type
+def _is_source_item_type(
+    input: SourceType,
+    item_type: Union[type[Path], type[NDArray]],
+) -> Union[TypeIs[Sequence[NDArray[Any]]], TypeIs[Sequence[Path]]]:
+    return isinstance(input[0], item_type)
