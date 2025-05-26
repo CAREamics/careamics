@@ -86,7 +86,10 @@ def create_dataset(
 ) -> CareamicsDataset:
     if _is_source_item_type(inputs, np.ndarray):
         if config.data_type != SupportedData.ARRAY:
-            raise ValueError
+            raise ValueError(
+                "Data type 'array' selected in config, is not compatible with "
+                f"`{type(inputs[0])}` input type."
+            )
         if (targets is not None) and (not _is_source_item_type(targets, np.ndarray)):
             raise TypeError(
                 "Input and target types do not match, inputs are arrays but found "
@@ -104,6 +107,12 @@ def create_dataset(
         )
     # assume remaining input type option is Sequence[ImageStack]
     else:
+        if config.data_type != SupportedData.CUSTOM:
+            raise ValueError(
+                f"Data type `{type(inputs[0])}` is not compatible with selected "
+                f"data type '{config.data_type}'. Please use 'custom' when using "
+                "CAREamics with a custom `ImageStack` class."
+            )
         if (targets is not None) and (
             _is_source_item_type(targets, np.ndarray)
             or _is_source_item_type(targets, Path)
@@ -346,8 +355,7 @@ def create_custom_image_stack_dataset(
         target_extractor = create_custom_image_stack_extractor(targets, config.axes)
     else:
         target_extractor = None
-    dataset = CareamicsDataset(config, mode, input_extractor, target_extractor)
-    return dataset
+    return CareamicsDataset(config, mode, input_extractor, target_extractor)
 
 
 # --- utils
