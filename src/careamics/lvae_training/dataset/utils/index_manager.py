@@ -239,10 +239,13 @@ class GridIndexManagerRef:
     patch_shape: tuple
     tiling_mode: TilingMode
 
-    # Patch is centered on index in the grid, grid size not used in training,
-    # used only during val / test, grid size controls the overlap of the patches
-    # in training you only get random patches every time
-    # For borders - just cropped the data, so it perfectly divisible
+    # This class is used to calculate and store information about patches, and calculate
+    # the total length of the dataset in patches.
+    # It introduces a concept of a grid, to which input images are split.
+    # The grid is defined by the grid_shape and patch_shape, with former controlling the
+    # overlap.
+    # In this reimplementation it can accept multiple channels with different lengths,
+    # and every image can have different shape.
 
     def __post_init__(self):
         if len(self.data_shapes) > 1:
@@ -293,9 +296,7 @@ class GridIndexManagerRef:
             return int(np.floor((shape[dim] - excess_size) / self.grid_shape[dim]))
 
     def total_grid_count(self):
-        """
-        Returns the total number of grids in the dataset.
-        """
+        """Returns the total number of patches in the dataset."""
         len_per_channel = []
         num_patches_per_sample = []
         for channel_data in self.data_shapes:
@@ -308,26 +309,14 @@ class GridIndexManagerRef:
         return len_per_channel, num_patches_per_sample
 
     def grid_count_per_sample(self, shape: tuple):
-        """
-        Returns the total number of grids for one value in the specified dimension.
-        """
-        # assert dim < len(
-        #     shape
-        # ), f"Dimension {dim} is out of bounds for data shape {shape}"
-        # assert dim >= 0, "Dimension must be greater than or equal to 0"
-
-        # if dim == len(shape) - 1:
-        #     return 1
+        """Returns the total number of patches for one dimension."""
         grid_count = []
         for dim in range(len(shape)):
             grid_count.append(self.get_individual_dim_grid_count(shape, dim))
         return grid_count
-        # return self.get_individual_dim_grid_count(shape, dim + 1) * self.get_individual_dim_grid_count(shape, dim + 2)
 
     def get_grid_index(self, shape, dim: int, coordinate: int):
-        """
-        Returns the index of the grid in the specified dimension.
-        """
+        """Returns the index of the patch in the specified dimension."""
         assert dim < len(
             shape
         ), f"Dimension {dim} is out of bounds for data shape {shape}"
@@ -358,9 +347,7 @@ class GridIndexManagerRef:
             raise ValueError(f"Unsupported tiling mode {self.tiling_mode}")
 
     def patch_idx_from_grid_idx(self, shape: tuple, grid_idx: tuple):
-        """
-        Returns the index of the grid in the dataset.
-        """
+        """Returns the index of the patch in the dataset."""
         assert len(grid_idx) == len(
             shape
         ), f"Dimension indices {grid_idx} must have the same dimension as data shape {shape}"
@@ -370,9 +357,7 @@ class GridIndexManagerRef:
         return index
 
     def get_patch_location_from_patch_idx(self, ch_idx: int, patch_idx: int):
-        """
-        Returns the patch location of the grid in the dataset.
-        """
+        """Returns the patch location of the grid in the dataset."""
         grid_location = self.get_location_from_patch_idx(ch_idx, patch_idx)
         offset = self.patch_offset()
         return tuple(np.array(grid_location) - np.concatenate((np.array((0,)), offset)))

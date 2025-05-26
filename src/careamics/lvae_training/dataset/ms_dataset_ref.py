@@ -282,21 +282,10 @@ class MultiChDloaderRef:
         self.idx_manager = GridIndexManagerRef(
             shapes, grid_shape, patch_shape, self._tiling_mode
         )
-        # self.set_repeat_factor()
 
     def __len__(self):
         # If channel length is not equal, return the longest
         return max(self.idx_manager.total_grid_count()[0])
-
-    def set_repeat_factor(self):
-        if self._grid_sz > 1:
-            self._repeat_factor = self.idx_manager.grid_rows(
-                self._grid_sz
-            ) * self.idx_manager.grid_cols(self._grid_sz)
-        else:
-            self._repeat_factor = self.idx_manager.grid_rows(
-                self._img_sz
-            ) * self.idx_manager.grid_cols(self._img_sz)
 
     def _init_msg(
         self,
@@ -346,20 +335,18 @@ class MultiChDloaderRef:
             )
 
         if self._enable_random_cropping:
+            # this parameter is ambiguous. It toggles between random/deterministic patching
             patch_start_loc = self._get_random_hw(h, w)
             if self._3Ddata:
                 patch_start_loc = (
                     np.random.choice(1 + img.shape[-3] - self._depth3D),
                 ) + patch_start_loc
         else:
+            # Patch coordinates are calculated by the index manager.
             patch_start_loc = self._get_deterministic_loc(ch_idx, patch_idx)
         cropped_img = self._crop_flip_img(img, patch_start_loc, False, False)
 
         return cropped_img
-        # {
-        #     "hflip": False,
-        #     "wflip": False,
-        # },
 
     def _crop_img(self, img: np.ndarray, patch_start_loc: tuple):
         if self._tiling_mode in [TilingMode.TrimBoundary, TilingMode.ShiftBoundary]:
@@ -798,6 +785,8 @@ class MultiChDloaderRef:
         self, index: Union[int, tuple[int, int]]
     ) -> tuple[np.ndarray, np.ndarray]:
 
+        # Uncorrelated channels means crops to create the input are taken from different
+        # spatial locations of the image.
         if (
             self._uncorrelated_channels
             and np.random.rand() < self._uncorrelated_channel_probab
@@ -809,14 +798,6 @@ class MultiChDloaderRef:
             # tuple for compatibility with _compute_input. #TODO check
             input_tuples = (self._get_img(0, index),)
 
-        # Replace the content of one of the channels
-        # with background with given probability
-        # if self._empty_patch_replacement_enabled:
-        #     if np.random.rand() < self._empty_patch_replacement_probab:
-        #         img_tuples = self.replace_with_empty_patch(img_tuples)
-
-        # Noise tuples are not needed for the paper
-        # the image tuples are noisy by default
         if self._enable_rotation:
             input_tuples = self._rotate(input_tuples)
 
