@@ -160,7 +160,7 @@ def _create_inputs_ouputs(
             preprocessing=[
                 FixedZeroMeanUnitVarianceDescr(
                     kwargs=FixedZeroMeanUnitVarianceAlongAxisKwargs(
-                        mean=means, std=stds, axis="channel"
+                        mean=means, std=stds, axis="xy"
                     )
                 )
             ],
@@ -172,7 +172,7 @@ def _create_inputs_ouputs(
             postprocessing=[
                 FixedZeroMeanUnitVarianceDescr(
                     kwargs=FixedZeroMeanUnitVarianceAlongAxisKwargs(  # invert norm
-                        mean=inv_means, std=inv_stds, axis="channel"
+                        mean=inv_means, std=inv_stds, axis="xy"
                     )
                 )
             ],
