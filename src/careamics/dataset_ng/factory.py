@@ -87,8 +87,9 @@ def create_dataset(
     if _is_source_item_type(inputs, np.ndarray):
         if config.data_type != SupportedData.ARRAY:
             raise ValueError(
-                "Data type 'array' selected in config, is not compatible with "
-                f"`{type(inputs[0])}` input type."
+                f"Data type `numpy.array` is not compatible with selected "
+                f"data type '{config.data_type}'. Please use 'array' when using "
+                "CAREamics with a custom NumPy arrays."
             )
         if (targets is not None) and (not _is_source_item_type(targets, np.ndarray)):
             raise TypeError(
