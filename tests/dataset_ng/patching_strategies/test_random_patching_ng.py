@@ -13,10 +13,10 @@ from careamics.dataset_ng.patching_strategies.random_patching import (
 @pytest.mark.parametrize(
     "data_shapes,patch_size,expected_patches",
     [
-        [[(2, 1, 32, 32), (1, 1, 19, 37), (3, 1, 14, 9)], (8, 8), 49],
-        [[(2, 1, 32, 32), (1, 1, 19, 37), (3, 1, 14, 9)], (8, 5), 82],
-        [[(2, 1, 32, 32, 32), (1, 1, 19, 37, 23), (3, 1, 14, 9, 12)], (8, 8, 8), 169],
-        [[(2, 1, 32, 32, 32), (1, 1, 19, 37, 23), (3, 1, 14, 9, 12)], (8, 5, 7), 312],
+        [[(2, 1, 32, 32), (1, 1, 19, 37), (3, 1, 14, 9)], (8, 8), 59],
+        [[(2, 1, 32, 32), (1, 1, 19, 37), (3, 1, 14, 9)], (8, 5), 92],
+        [[(2, 1, 32, 32, 32), (1, 1, 19, 37, 23), (3, 1, 14, 9, 12)], (8, 8, 8), 197],
+        [[(2, 1, 32, 32, 32), (1, 1, 19, 37, 23), (3, 1, 14, 9, 12)], (8, 5, 7), 400],
     ],
 )
 def test_calc_patch_bins(data_shapes, patch_size, expected_patches):
@@ -40,10 +40,10 @@ def test_calc_patch_bins(data_shapes, patch_size, expected_patches):
 @pytest.mark.parametrize(
     "data_shape,patch_size,expected_patches",
     [
-        [(1, 1, 19, 37), (8, 8), 11],
-        [(1, 1, 19, 37), (8, 5), 18],
-        [(1, 1, 19, 37, 23), (8, 8, 8), 32],
-        [(1, 1, 19, 37, 23), (8, 5, 7), 58],
+        [(1, 1, 19, 37), (8, 8), 15],
+        [(1, 1, 19, 37), (8, 5), 24],
+        [(1, 1, 19, 37, 23), (8, 8, 8), 45],
+        [(1, 1, 19, 37, 23), (8, 5, 7), 96],
     ],
 )
 def test_n_patches(data_shape, patch_size, expected_patches):

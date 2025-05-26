@@ -5,8 +5,8 @@ import pytest
 import tifffile
 
 from careamics.config import InferenceConfig, create_n2n_configuration
-from careamics.dataset_ng.dataset.dataset import Mode
-from careamics.dataset_ng.dataset.factory import (
+from careamics.dataset_ng.dataset import Mode
+from careamics.dataset_ng.factory import (
     create_array_dataset,
     create_custom_file_dataset,
     create_tiff_dataset,
@@ -36,6 +36,12 @@ def test_from_array(data_shape, patch_size, expected_dataset_len):
         batch_size=1,
         num_epochs=1,
     ).data_config
+    train_data_config.set_means_and_stds(
+        [example_input.mean()],
+        [example_input.std()],
+        [example_target.mean()],
+        [example_target.std()],
+    )
 
     train_dataset = create_array_dataset(
         config=train_data_config,
@@ -79,6 +85,13 @@ def test_from_tiff(tmp_path: Path, data_shape, patch_size, expected_dataset_len)
         batch_size=1,
         num_epochs=1,
     ).data_config
+
+    train_data_config.set_means_and_stds(
+        [example_input.mean()],
+        [example_input.std()],
+        [example_target.mean()],
+        [example_target.std()],
+    )
 
     train_dataset = create_tiff_dataset(
         config=train_data_config,
@@ -154,6 +167,13 @@ def test_from_custom_data_type(patch_size, data_shape):
         batch_size=1,
         num_epochs=1,
     ).data_config
+
+    train_data_config.set_means_and_stds(
+        [example_data.mean()],
+        [example_data.std()],
+        [example_target.mean()],
+        [example_target.std()],
+    )
 
     def read_data_func_test(data):
         return 1 - data

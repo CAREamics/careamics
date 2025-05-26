@@ -6,11 +6,13 @@ from typing import Any, Generic, Literal, NamedTuple, Optional, Union
 import numpy as np
 from numpy.typing import NDArray
 from torch.utils.data import Dataset
+from tqdm.auto import tqdm
 
 from careamics.config import DataConfig, InferenceConfig
+from careamics.config.transformations import NormalizeModel
+from careamics.dataset.dataset_utils.running_stats import WelfordStatistics
 from careamics.dataset.patching.patching import Stats
-from careamics.dataset_ng.patch_extractor import PatchExtractor
-from careamics.dataset_ng.patch_extractor.image_stack import GenericImageStack
+from careamics.dataset_ng.patch_extractor import GenericImageStack, PatchExtractor
 from careamics.dataset_ng.patching_strategies import (
     FixedRandomPatchingStrategy,
     PatchingStrategy,
@@ -30,7 +32,7 @@ class Mode(str, Enum):
 
 class ImageRegionData(NamedTuple):
     data: NDArray
-    source: Union[str, Literal["array"]]  # path has to be string for collate
+    source: Union[str, Literal["array"]]
     data_shape: Sequence[int]
     dtype: str  # dtype should be str for collate
     axes: str
@@ -69,7 +71,7 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
                 data_shapes=self.input_extractor.shape,
                 patch_size=self.config.patch_size,
                 # TODO: Add random seed to dataconfig
-                seed=getattr(self.config, "random_seed", None),
+                seed=getattr(self.config, "random_seed", 42),
             )
         elif self.mode == Mode.VALIDATING:
             if isinstance(self.config, InferenceConfig):
@@ -78,7 +80,7 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
                 data_shapes=self.input_extractor.shape,
                 patch_size=self.config.patch_size,
                 # TODO: Add random seed to dataconfig
-                seed=getattr(self.config, "random_seed", None),
+                seed=getattr(self.config, "random_seed", 42),
             )
         elif self.mode == Mode.PREDICTING:
             if not isinstance(self.config, InferenceConfig):
@@ -102,22 +104,69 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
 
     def _initialize_transforms(self) -> Optional[Compose]:
         if isinstance(self.config, DataConfig):
-            return Compose(
-                transform_list=list(self.config.transforms),
-            )
-        # TODO: add TTA
-        return None
+            if self.mode == Mode.TRAINING:
+                # TODO: initialize normalization separately depending on configuration
+                return Compose(
+                    transform_list=[
+                        NormalizeModel(
+                            image_means=self.input_stats.means,
+                            image_stds=self.input_stats.stds,
+                            target_means=self.target_stats.means,
+                            target_stds=self.target_stats.stds,
+                        )
+                    ]
+                    + list(self.config.transforms)
+                )
 
-    def _initialize_statistics(self) -> tuple[Stats, Optional[Stats]]:
-        # TODO: add running stats
-        # Currently assume that stats are provided in the configuration
-        input_stats = Stats(self.config.image_means, self.config.image_stds)
-        target_stats = None
+        # TODO: add TTA
+        return Compose(
+            transform_list=[
+                NormalizeModel(
+                    image_means=self.input_stats.means,
+                    image_stds=self.input_stats.stds,
+                    target_means=self.target_stats.means,
+                    target_stds=self.target_stats.stds,
+                )
+            ]
+        )
+
+    def _calculate_stats(
+        self, data_extractor: PatchExtractor[GenericImageStack]
+    ) -> Stats:
+        image_stats = WelfordStatistics()
+        n_patches = self.patching_strategy.n_patches
+
+        for idx in tqdm(range(n_patches), desc="Computing statistics"):
+            patch_spec = self.patching_strategy.get_patch_spec(idx)
+            patch = data_extractor.extract_patch(
+                data_idx=patch_spec["data_idx"],
+                sample_idx=patch_spec["sample_idx"],
+                coords=patch_spec["coords"],
+                patch_size=patch_spec["patch_size"],
+            )
+            # TODO: statistics accept SCYX format, while patch is CYX
+            image_stats.update(patch[None, ...], sample_idx=idx)
+
+        image_means, image_stds = image_stats.finalize()
+        return Stats(image_means, image_stds)
+
+    # TODO: add running stats
+    def _initialize_statistics(self) -> tuple[Stats, Stats]:
+        if self.config.image_means is not None and self.config.image_stds is not None:
+            input_stats = Stats(self.config.image_means, self.config.image_stds)
+        else:
+            input_stats = self._calculate_stats(self.input_extractor)
+
+        target_stats = Stats((), ())
         if isinstance(self.config, DataConfig):
-            target_means = self.config.target_means
-            target_stds = self.config.target_stds
-            if target_means is not None and target_stds is not None:
-                target_stats = Stats(target_means, target_stds)
+            if (
+                self.config.target_means is not None
+                and self.config.target_stds is not None
+            ):
+                target_stats = Stats(self.config.target_means, self.config.target_stds)
+            elif self.target_extractor is not None:
+                target_stats = self._calculate_stats(self.target_extractor)
+
         return input_stats, target_stats
 
     def __len__(self):
@@ -127,9 +176,10 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
         self, patch: np.ndarray, patch_spec: PatchSpecs, extractor: PatchExtractor
     ) -> ImageRegionData:
         data_idx = patch_spec["data_idx"]
+        source = extractor.image_stacks[data_idx].source
         return ImageRegionData(
             data=patch,
-            source=str(extractor.image_stacks[data_idx].source),
+            source=str(source),
             dtype=str(extractor.image_stacks[data_idx].data_dtype),
             data_shape=extractor.image_stacks[data_idx].data_shape,
             # TODO: should it be axes of the original image instead?
@@ -139,7 +189,7 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
 
     def __getitem__(
         self, index: int
-    ) -> tuple[ImageRegionData, Optional[ImageRegionData]]:
+    ) -> Union[tuple[ImageRegionData], tuple[ImageRegionData, ImageRegionData]]:
         patch_spec = self.patching_strategy.get_patch_spec(index)
         input_patch = self.input_extractor.extract_patch(
             data_idx=patch_spec["data_idx"],
@@ -178,8 +228,6 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
                 patch_spec=patch_spec,
                 extractor=self.target_extractor,
             )
+            return input_data, target_data
         else:
-            target_data = None
-
-        # TODO: custom collate_fn to deal with none values
-        return input_data, target_data
+            return (input_data,)
