@@ -8,22 +8,22 @@ from typing_extensions import ParamSpec
 
 from careamics.config import DataConfig, InferenceConfig
 from careamics.config.support import SupportedData
-from careamics.file_io.read import ReadFunc
-
-from ..patch_extractor import ImageStackLoader, PatchExtractor
-from ..patch_extractor.image_stack import (
+from careamics.dataset_ng.patch_extractor import ImageStackLoader, PatchExtractor
+from careamics.dataset_ng.patch_extractor.image_stack import (
     GenericImageStack,
     ImageStack,
     InMemoryImageStack,
     ZarrImageStack,
 )
-from ..patch_extractor.patch_extractor_factory import (
+from careamics.dataset_ng.patch_extractor.patch_extractor_factory import (
     create_array_extractor,
     create_custom_file_extractor,
     create_custom_image_stack_extractor,
     create_ome_zarr_extractor,
     create_tiff_extractor,
 )
+from careamics.file_io.read import ReadFunc
+
 from .dataset import CareamicsDataset, Mode
 
 P = ParamSpec("P")
@@ -179,7 +179,12 @@ def create_dataset(
             image_stack_loader_kwargs = {}
         assert image_stack_loader is not None  # should be true
         return create_custom_image_stack_dataset(
-            config, mode, inputs, targets, image_stack_loader, image_stack_loader_kwargs
+            config,
+            mode,
+            inputs,
+            targets,
+            image_stack_loader,
+            **image_stack_loader_kwargs,
         )
     else:
         raise ValueError(f"Unrecognized dataset type, {dataset_type}.")

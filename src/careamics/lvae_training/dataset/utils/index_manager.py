@@ -384,9 +384,7 @@ class GridIndexManagerRef:
         if self.grid_shape[dim_idx] == 1 and self.patch_shape[dim_idx] == 1:
             return dim_idx
         elif self.tiling_mode == TilingMode.ShiftBoundary:
-            excess_size = (
-                self.patch_shape[dim_idx] - self.grid_shape[dim_idx]
-            ) // 2
+            excess_size = (self.patch_shape[dim_idx] - self.grid_shape[dim_idx]) // 2
             if dim < self.get_individual_dim_grid_count(shape, dim_idx) - 1:
                 return dim * self.grid_shape[dim_idx] + excess_size
             else:
@@ -416,7 +414,7 @@ class GridIndexManagerRef:
         grid_count = self.grid_count_per_sample(sample_shape)[1:]
 
         grid_idx = []
-        for i in range(len(grid_count)-1, -1, -1):
+        for i in range(len(grid_count) - 1, -1, -1):
             stride = np.prod(grid_count[:i]) if i > 0 else 1
             grid_idx.insert(0, patch_idx // stride)
             patch_idx %= stride

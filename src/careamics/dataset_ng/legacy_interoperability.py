@@ -17,7 +17,7 @@ from .patching_strategies import TileSpecs
 
 def imageregions_to_tileinfos(
     image_regions: Sequence[ImageRegionData],
-) -> list[TileInformation]:
+) -> list[tuple[NDArray, list[TileInformation]]]:
     """
     Converts a series of `TileSpecs` dictionaries to `TileInformation` pydantic class.
 
@@ -35,6 +35,7 @@ def imageregions_to_tileinfos(
 
     tile_infos: list[TileInformation] = []
 
+    data = [image_region.data for image_region in image_regions]
     tile_specs = [image_region.region_spec for image_region in image_regions]
 
     data_indices: NDArray[np.int_] = np.array(
@@ -73,7 +74,7 @@ def imageregions_to_tileinfos(
             tile_info = _imageregion_to_tileinfo(image_region, last_tile)
             tile_infos.append(tile_info)
 
-    return tile_infos
+    return [(data, [tile_info]) for data, tile_info in zip(data, tile_infos)]
 
 
 def _imageregion_to_tileinfo(
