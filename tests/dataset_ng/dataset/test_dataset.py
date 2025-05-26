@@ -36,6 +36,7 @@ def test_from_array(data_shape, patch_size, expected_dataset_len):
         batch_size=1,
         num_epochs=1,
     ).data_config
+
     train_data_config.set_means_and_stds(
         [example_input.mean()],
         [example_input.std()],

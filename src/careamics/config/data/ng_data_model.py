@@ -37,6 +37,7 @@ from .patching_strategies import (
 # TODO: validation axes vs patch sizes
 # TODO: is 3D updated anywhere in the code?
 # TODO: can we tell when it is made for training but has the wrong patching?
+# TODO: what is the config data type of ImageStacks? custom?
 
 
 def np_float_to_scientific_str(x: float) -> str:
@@ -88,9 +89,9 @@ class NGDataConfig(BaseModel):
     )
 
     # Dataset configuration
+    # TODO what becomes of custom? is custom passing imagestacks?
     data_type: Literal["array", "tiff", "zarr", "custom"]
-    """Type of input data, numpy.ndarray (array) or paths (tiff, zarr and custom), as
-    defined in SupportedData."""
+    """Type of input data."""
 
     axes: str
     """Axes of the data, as defined in SupportedAxes."""
