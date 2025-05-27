@@ -122,14 +122,13 @@ def create_czi_extractor(
     -------
     PatchExtractor
     """
+    depth_axis: Literal["none", "Z", "T", "auto"] = "none"
     if axes.endswith("TYX"):
         depth_axis = "T"
     elif "Z" in axes:
         depth_axis = "auto"
-    else:
-        depth_axis = "none"
 
-    image_stacks = []
+    image_stacks: list[CziImageStack] = []
     for path in source:
         scene_rectangles = CziImageStack.get_bounding_rectangles(path)
         image_stacks.extend(
