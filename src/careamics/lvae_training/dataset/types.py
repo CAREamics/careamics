@@ -2,9 +2,9 @@ from enum import Enum
 
 
 class DataType(Enum):
-    Elisa3DData = 0
+    HTH24Data = 0
     HTLIF24Data = 1
-    Pavia3SeqData = 2
+    PaviaP24Data = 2
     TavernaSox2GolgiV2 = 3
     Dao3ChannelWithInput = 4
     ExpMicroscopyV1 = 5
@@ -15,7 +15,7 @@ class DataType(Enum):
     OptiMEM100_014 = 10
     SeparateTiffData = 11
     BioSR_MRC = 12
-    PunctaRemoval = 13  # for the case when we have a set of differently sized crops for each channel.
+    HTH23BData = 13  # puncta, in case we have differently sized crops for each channel.
     Care3D = 14
 
 
