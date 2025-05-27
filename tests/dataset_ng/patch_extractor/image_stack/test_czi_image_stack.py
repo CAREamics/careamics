@@ -47,7 +47,7 @@ def create_test_czi(file_path: Path, data: NDArray | list[NDArray]):
         ((8, 1, 1, 32, 48), "T", "SCTYX", [1, 1, 8, 32, 48], 0),
         ((8, 1, 1, 32, 48), "auto", "SCTYX", [1, 1, 8, 32, 48], 0),
         # 3-D Time-Series
-        ((8, 1, 16, 32, 48), "none", "SCYX", [8*16, 1, 32, 48], 35),
+        ((8, 1, 16, 32, 48), "none", "SCYX", [8 * 16, 1, 32, 48], 35),
         ((8, 1, 16, 32, 48), "Z", "SCZYX", [8, 1, 16, 32, 48], 7),
         ((8, 1, 16, 32, 48), "T", "SCTYX", [16, 1, 8, 32, 48], 12),
         ((8, 1, 16, 32, 48), "auto", "SCZYX", [8, 1, 16, 32, 48], 5),
@@ -84,7 +84,7 @@ def test_extract_patch(
             sample_idx=sample_idx, coords=coords, patch_size=patch_size
         )
 
-        data_ref = np.moveaxis(data, 2, 1) # (T, Z, C, Y, X)
+        data_ref = np.moveaxis(data, 2, 1)  # (T, Z, C, Y, X)
         data_ref = data_ref.reshape(-1, *data_ref.shape[-3:])
         patch_ref = data_ref[
             sample_idx,
@@ -124,10 +124,7 @@ def test_multiple_scenes(
     ]
 
     # reference data to compare against
-    data_ref = [
-        np.random.randn(*shape).astype(np.float32)
-        for shape in original_shapes
-    ]
+    data_ref = [np.random.randn(*shape).astype(np.float32) for shape in original_shapes]
 
     # save data as a czi file to ininitialise image stack with
     file_path = tmp_path / "test_czi.czi"
