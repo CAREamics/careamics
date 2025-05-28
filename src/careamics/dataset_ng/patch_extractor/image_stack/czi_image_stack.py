@@ -18,8 +18,23 @@ class CziImageStack:
         Path to the CZI file.
 
     scene : int, optional
-        Index of the scene to extract. If not specified, the entire image covering
-        all scenes present in the CZI file will be extracted.
+        Index of the scene to extract.
+
+        A single CZI file can contain multiple "scenes", which are stored alongside each
+        other at different coordinates in the image plane, often separated by empty
+        space. Specifying this argument will read only the single scene with that index
+        from the file. Think of it as cropping the CZI file to the region where that
+        scene is located.
+
+        If no scene index is specified, the entire image will be read. In case it
+        contains multiple scenes, they will all be present in the resulting image.
+        This is usually not desirable due to the empty space between them.
+        In general, only omit this argument or set it to `None` if you know that
+        your CZI file does not contain any scenes.
+
+        The static function :py:meth:`get_bounding_rectangles` can be used to find out
+        how many scenes a given file contains and what their bounding rectangles are.
+
         The scene can also be provided as part of `data_path` by appending an `"@"`
         followed by the scene index to the filename.
 
@@ -47,8 +62,37 @@ class CziImageStack:
         The shape of the data in the order `(SC(Z)YX)`.
     axes : str
         The axes in the CZI file corresponding to the dimensions in `data_shape`.
-        Possible axes are `C`, `T`, `Z`, `Y`, `X`, and `S`. The axis `S` (sample)
-        is special and combines all remaining axes present in the data.
+        The following values can occur:
+
+        - "SCZYX" for 3-D data if `depth_axis` is `"Z"` or `"auto"`.
+        - "SCTYX" for 3-D data if `depth_axis` is `"T"`.
+        - "SCYX" for 2-D time-series if `depth_axis` is `"none"`.
+        - "SCTYX" for 2-D time-series if `depth_axis` is `"T"` or `"auto"`.
+        - "SCYX" for 2-D images.
+
+        The axis `S` (sample) is the only one not mapping one-to-one to an axis in the
+        CZI file but combines all remaining axes present in the file into one.
+
+    Examples
+    --------
+    Create an image stack for the first scene in a CZI file:
+    >>> stack = CziImageStack("path/to/file.czi", scene=0)  # doctest: +SKIP
+
+    Alternatively, the scene index can also be provided as part of the filename.
+    This is mainly intended for re-creating an image stack from the `source` property:
+    >>> stack = CziImageStack("path/to/file.czi@0")  # doctest: +SKIP
+    >>> stack2 = CziImageStack(stack.source)  # doctest: +SKIP
+
+    If the CZI file contains a third dimension (Z or T) but you want to perform 2-D
+    denoising, you need to explicitly set the `depth_axis` to `"none"`:
+    >>> stack_3d = CziImageStack("path/to/file.czi", scene=0)  # doctest: +SKIP
+    >>> stack_3d.axes, stack_3d.data_shape  # doctest: +SKIP
+    ('SCZYX', [4, 1, 10, 512, 512])
+    >>> stack_2d = CziImageStack(  # doctest: +SKIP
+    ...     "path/to/file.czi", scene=0, depth_axis="none"
+    ... )
+    >>> stack_2d.axes, stack_2d.data_shape  # doctest: +SKIP
+    ('SCYX', [40, 1, 512, 512])
     """
 
     def __init__(
@@ -67,8 +111,8 @@ class CziImageStack:
         if scene_matches:
             if scene is not None:
                 raise ValueError(
-                    "Scene index is specified in the filename and as an argument. "
-                    "Please specify only one."
+                    f"Scene index is specified in the filename ({_data_path.name}) and "
+                    f"as an argument ({scene}). Please specify only one."
                 )
             _data_path = _data_path.parent / scene_matches.group(1)
             scene = int(scene_matches.group(2))
@@ -180,10 +224,10 @@ class CziImageStack:
         axes : str
             String specifying the axis order. Examples:
 
-            - "SCZYX" for 3-D data if `depth_axis` is `"Z"`.
+            - "SCZYX" for 3-D data if `depth_axis` is `"Z"` or `"auto"`.
             - "SCTYX" for 3-D data if `depth_axis` is `"T"`.
             - "SCYX" for 2-D time-series if `depth_axis` is `"none"`.
-            - "SCTYX" for 2-D time-series if `depth_axis` is `"T"`.
+            - "SCTYX" for 2-D time-series if `depth_axis` is `"T"` or `"auto"`.
             - "SCYX" for 2-D images.
 
             The axis `S` is the sample dimension and combines all remaining axes

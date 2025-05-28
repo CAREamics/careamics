@@ -156,7 +156,7 @@ def create_dataset(
     Returns
     -------
     CareamicsDataset[ImageStack]
-        The CAREamicsDataset
+        The CAREamicsDataset.
 
     Raises
     ------
@@ -215,7 +215,7 @@ def create_array_dataset(
     Returns
     -------
     CareamicsDataset[InMemoryImageStack]
-        A CAREamicsDataset
+        A CAREamicsDataset.
     """
     input_extractor = create_array_extractor(source=inputs, axes=config.axes)
     target_extractor: Optional[PatchExtractor[InMemoryImageStack]]
@@ -249,7 +249,7 @@ def create_tiff_dataset(
     Returns
     -------
     CareamicsDataset[InMemoryImageStack]
-        A CAREamicsDataset
+        A CAREamicsDataset.
     """
     input_extractor = create_tiff_extractor(
         source=inputs,
@@ -287,7 +287,7 @@ def create_czi_dataset(
     Returns
     -------
     CareamicsDataset[CziImageStack]
-        A CAREamicsDataset
+        A CAREamicsDataset.
     """
 
     input_extractor = create_czi_extractor(source=inputs, axes=config.axes)
@@ -323,7 +323,7 @@ def create_ome_zarr_dataset(
     Returns
     -------
     CareamicsDataset[ZarrImageStack]
-        A CAREamicsDataset
+        A CAREamicsDataset.
     """
 
     input_extractor = create_ome_zarr_extractor(source=inputs, axes=config.axes)
@@ -368,7 +368,7 @@ def create_custom_file_dataset(
     Returns
     -------
     CareamicsDataset[InMemoryImageStack]
-        A CAREamicsDataset
+        A CAREamicsDataset.
     """
     input_extractor = create_custom_file_extractor(
         source=inputs, axes=config.axes, read_func=read_func, read_kwargs=read_kwargs
@@ -422,7 +422,7 @@ def create_custom_image_stack_dataset(
     Returns
     -------
     CareamicsDataset[GenericImageStack]
-        A CAREamicsDataset
+        A CAREamicsDataset.
     """
     input_extractor = create_custom_image_stack_extractor(
         inputs,

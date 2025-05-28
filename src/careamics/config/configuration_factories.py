@@ -563,20 +563,16 @@ def create_care_configuration(
     ...     patch_size=[64, 64],
     ...     batch_size=32,
     ...     num_epochs=100,
-    ...     independent_channels=True,
     ...     n_channels_in=1,
-    ...     n_channels_out=1,
     ... )
-    ... config_3d = create_care_configuration(
+    >>> config_3d = create_care_configuration(
     ...     experiment_name="care_experiment",
     ...     data_type="czi",
     ...     axes="SCZYX",
     ...     patch_size=[16, 64, 64],
     ...     batch_size=16,
     ...     num_epochs=100,
-    ...     independent_channels=True,
     ...     n_channels_in=1,
-    ...     n_channels_out=1,
     ... )
     """
     return Configuration(
@@ -761,20 +757,16 @@ def create_n2n_configuration(
     ...     patch_size=[64, 64],
     ...     batch_size=32,
     ...     num_epochs=100,
-    ...     independent_channels=True,
     ...     n_channels_in=1,
-    ...     n_channels_out=1,
     ... )
-    ... config_3d = create_n2n_configuration(
+    >>> config_3d = create_n2n_configuration(
     ...     experiment_name="n2n_experiment",
     ...     data_type="czi",
     ...     axes="SCZYX",
     ...     patch_size=[16, 64, 64],
     ...     batch_size=16,
     ...     num_epochs=100,
-    ...     independent_channels=True,
     ...     n_channels_in=1,
-    ...     n_channels_out=1,
     ... )
     """
     return Configuration(
@@ -1008,17 +1000,15 @@ def create_n2v_configuration(
     ...     patch_size=[64, 64],
     ...     batch_size=32,
     ...     num_epochs=100,
-    ...     independent_channels=True,
     ...     n_channels=1,
     ... )
-    ... config_3d = create_n2v_configuration(
+    >>> config_3d = create_n2v_configuration(
     ...     experiment_name="n2v_experiment",
     ...     data_type="czi",
     ...     axes="SCZYX",
     ...     patch_size=[16, 64, 64],
     ...     batch_size=16,
     ...     num_epochs=100,
-    ...     independent_channels=True,
     ...     n_channels=1,
     ... )
     """
