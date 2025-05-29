@@ -296,7 +296,13 @@ class GridIndexManagerRef:
             return int(np.floor((shape[dim] - excess_size) / self.grid_shape[dim]))
 
     def total_grid_count(self):
+<<<<<<< HEAD
         """Returns the total number of patches in the dataset."""
+=======
+        """
+        Returns the total number of grids in the dataset.
+        """
+>>>>>>> 3e60ccef (puncta dl draft)
         len_per_channel = []
         num_patches_per_sample = []
         for channel_data in self.data_shapes:
@@ -309,14 +315,36 @@ class GridIndexManagerRef:
         return len_per_channel, num_patches_per_sample
 
     def grid_count_per_sample(self, shape: tuple):
+<<<<<<< HEAD
         """Returns the total number of patches for one dimension."""
+=======
+        """
+        Returns the total number of grids for one value in the specified dimension.
+        """
+        # assert dim < len(
+        #     shape
+        # ), f"Dimension {dim} is out of bounds for data shape {shape}"
+        # assert dim >= 0, "Dimension must be greater than or equal to 0"
+
+        # if dim == len(shape) - 1:
+        #     return 1
+>>>>>>> 3e60ccef (puncta dl draft)
         grid_count = []
         for dim in range(len(shape)):
             grid_count.append(self.get_individual_dim_grid_count(shape, dim))
         return grid_count
+<<<<<<< HEAD
 
     def get_grid_index(self, shape, dim: int, coordinate: int):
         """Returns the index of the patch in the specified dimension."""
+=======
+        # return self.get_individual_dim_grid_count(shape, dim + 1) * self.get_individual_dim_grid_count(shape, dim + 2)
+
+    def get_grid_index(self, shape, dim: int, coordinate: int):
+        """
+        Returns the index of the grid in the specified dimension.
+        """
+>>>>>>> 3e60ccef (puncta dl draft)
         assert dim < len(
             shape
         ), f"Dimension {dim} is out of bounds for data shape {shape}"
@@ -347,7 +375,13 @@ class GridIndexManagerRef:
             raise ValueError(f"Unsupported tiling mode {self.tiling_mode}")
 
     def patch_idx_from_grid_idx(self, shape: tuple, grid_idx: tuple):
+<<<<<<< HEAD
         """Returns the index of the patch in the dataset."""
+=======
+        """
+        Returns the index of the grid in the dataset.
+        """
+>>>>>>> 3e60ccef (puncta dl draft)
         assert len(grid_idx) == len(
             shape
         ), f"Dimension indices {grid_idx} must have the same dimension as data shape {shape}"
@@ -357,7 +391,13 @@ class GridIndexManagerRef:
         return index
 
     def get_patch_location_from_patch_idx(self, ch_idx: int, patch_idx: int):
+<<<<<<< HEAD
         """Returns the patch location of the grid in the dataset."""
+=======
+        """
+        Returns the patch location of the grid in the dataset.
+        """
+>>>>>>> 3e60ccef (puncta dl draft)
         grid_location = self.get_location_from_patch_idx(ch_idx, patch_idx)
         offset = self.patch_offset()
         return tuple(np.array(grid_location) - np.concatenate((np.array((0,)), offset)))
@@ -384,7 +424,13 @@ class GridIndexManagerRef:
         if self.grid_shape[dim_idx] == 1 and self.patch_shape[dim_idx] == 1:
             return dim_idx
         elif self.tiling_mode == TilingMode.ShiftBoundary:
+<<<<<<< HEAD
             excess_size = (self.patch_shape[dim_idx] - self.grid_shape[dim_idx]) // 2
+=======
+            excess_size = (
+                self.patch_shape[dim_idx] - self.grid_shape[dim_idx]
+            ) // 2
+>>>>>>> 3e60ccef (puncta dl draft)
             if dim < self.get_individual_dim_grid_count(shape, dim_idx) - 1:
                 return dim * self.grid_shape[dim_idx] + excess_size
             else:
@@ -414,7 +460,11 @@ class GridIndexManagerRef:
         grid_count = self.grid_count_per_sample(sample_shape)[1:]
 
         grid_idx = []
+<<<<<<< HEAD
         for i in range(len(grid_count) - 1, -1, -1):
+=======
+        for i in range(len(grid_count)-1, -1, -1):
+>>>>>>> 3e60ccef (puncta dl draft)
             stride = np.prod(grid_count[:i]) if i > 0 else 1
             grid_idx.insert(0, patch_idx // stride)
             patch_idx %= stride

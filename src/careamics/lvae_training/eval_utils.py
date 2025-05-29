@@ -660,7 +660,10 @@ def get_single_file_mmse(
     tiles_arr = np.concatenate(tile_mmse, axis=0)
     tile_stds = np.concatenate(tile_stds, axis=0)
     # TODO temporary hack, because of the stupid jupyter!
+<<<<<<< HEAD
     # If a user reruns a cell with class definition, isinstance will return False
+=======
+>>>>>>> 3e60ccef (puncta dl draft)
     if str(MultiChDloaderRef).split(".")[-1] == str(dset.__class__).split(".")[-1]:
         stitch_func = stitch_predictions_general
     else:

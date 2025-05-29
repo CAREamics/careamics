@@ -286,6 +286,19 @@ class MultiChDloaderRef:
     def __len__(self):
         # If channel length is not equal, return the longest
         return max(self.idx_manager.total_grid_count()[0])
+<<<<<<< HEAD
+=======
+
+    def set_repeat_factor(self):
+        if self._grid_sz > 1:
+            self._repeat_factor = self.idx_manager.grid_rows(
+                self._grid_sz
+            ) * self.idx_manager.grid_cols(self._grid_sz)
+        else:
+            self._repeat_factor = self.idx_manager.grid_rows(
+                self._img_sz
+            ) * self.idx_manager.grid_cols(self._img_sz)
+>>>>>>> 3e60ccef (puncta dl draft)
 
     def _init_msg(
         self,
@@ -342,11 +355,21 @@ class MultiChDloaderRef:
                     np.random.choice(1 + img.shape[-3] - self._depth3D),
                 ) + patch_start_loc
         else:
+<<<<<<< HEAD
             # Patch coordinates are calculated by the index manager.
+=======
+>>>>>>> 3e60ccef (puncta dl draft)
             patch_start_loc = self._get_deterministic_loc(ch_idx, patch_idx)
         cropped_img = self._crop_flip_img(img, patch_start_loc, False, False)
 
         return cropped_img
+<<<<<<< HEAD
+=======
+        # {
+        #     "hflip": False,
+        #     "wflip": False,
+        # },
+>>>>>>> 3e60ccef (puncta dl draft)
 
     def _crop_img(self, img: np.ndarray, patch_start_loc: tuple):
         if self._tiling_mode in [TilingMode.TrimBoundary, TilingMode.ShiftBoundary]:
@@ -744,6 +767,7 @@ class MultiChDloaderRef:
                 rotated_img_tuples.append(np.concatenate(temp_arr, axis=0))
 
         return rotated_img_tuples
+<<<<<<< HEAD
 
     def _rotate(self, img_tuples, noise_tuples):
 
@@ -752,6 +776,16 @@ class MultiChDloaderRef:
         else:
             return self._rotate2D(img_tuples, noise_tuples)
 
+=======
+
+    def _rotate(self, img_tuples, noise_tuples):
+
+        if self._3Ddata:
+            return self._rotate3D(img_tuples, noise_tuples)
+        else:
+            return self._rotate2D(img_tuples, noise_tuples)
+
+>>>>>>> 3e60ccef (puncta dl draft)
     def _get_img(self, ch_idx: int, patch_idx: int):
         """
         Loads an image.
@@ -798,6 +832,17 @@ class MultiChDloaderRef:
             # tuple for compatibility with _compute_input. #TODO check
             input_tuples = (self._get_img(0, index),)
 
+<<<<<<< HEAD
+=======
+        # Replace the content of one of the channels
+        # with background with given probability
+        # if self._empty_patch_replacement_enabled:
+        #     if np.random.rand() < self._empty_patch_replacement_probab:
+        #         img_tuples = self.replace_with_empty_patch(img_tuples)
+
+        # Noise tuples are not needed for the paper
+        # the image tuples are noisy by default
+>>>>>>> 3e60ccef (puncta dl draft)
         if self._enable_rotation:
             input_tuples = self._rotate(input_tuples)
 
