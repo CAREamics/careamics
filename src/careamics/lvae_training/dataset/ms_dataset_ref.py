@@ -615,9 +615,9 @@ class MultiChDloaderRef:
         else:
             inp = 0
             for alpha, img in zip(alpha_list, img_tuples):
-                inp += img# * alpha
+                inp += img  # * alpha
 
-            if self._normalized_input is False: # TODO wtf is this ?
+            if self._normalized_input is False:  # TODO wtf is this ?
                 return inp.astype(np.float32)
 
         mean, std = self.get_mean_std_for_input()
@@ -1067,4 +1067,3 @@ class LCMultiChDloaderRef(MultiChDloaderRef):
         _, grid_size = index
         output.append(grid_size)
         return tuple(output)
- 
