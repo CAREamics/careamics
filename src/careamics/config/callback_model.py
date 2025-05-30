@@ -22,10 +22,7 @@ class CheckpointModel(BaseModel):
     https://lightning.ai/docs/pytorch/stable/api/lightning.pytorch.callbacks.ModelCheckpoint.html#modelcheckpoint
     """
 
-    model_config = ConfigDict(
-        validate_assignment=True,
-        validate_default=True
-    )
+    model_config = ConfigDict(validate_assignment=True, validate_default=True)
 
     monitor: Literal["val_loss"] = Field(default="val_loss")
     """Quantity to monitor, currently only `val_loss`."""
@@ -54,17 +51,13 @@ class CheckpointModel(BaseModel):
     auto_insert_metric_name: bool = Field(default=False)
     """When `True`, the checkpoints filenames will contain the metric name."""
 
-    every_n_train_steps: Optional[int] = Field(
-        default=None, ge=1, le=1000
-    )
+    every_n_train_steps: Optional[int] = Field(default=None, ge=1, le=1000)
     """Number of training steps between checkpoints."""
 
     train_time_interval: Optional[timedelta] = Field(default=None)
     """Checkpoints are monitored at the specified time interval."""
 
-    every_n_epochs: Optional[int] = Field(
-        default=None, ge=1, le=100
-    )
+    every_n_epochs: Optional[int] = Field(default=None, ge=1, le=100)
     """Number of epochs between checkpoints."""
 
 
