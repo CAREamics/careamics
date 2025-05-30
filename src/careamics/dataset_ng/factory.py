@@ -179,7 +179,12 @@ def create_dataset(
             image_stack_loader_kwargs = {}
         assert image_stack_loader is not None  # should be true
         return create_custom_image_stack_dataset(
-            config, mode, inputs, targets, image_stack_loader, image_stack_loader_kwargs
+            config,
+            mode,
+            inputs,
+            targets,
+            image_stack_loader,
+            **image_stack_loader_kwargs,
         )
     else:
         raise ValueError(f"Unrecognized dataset type, {dataset_type}.")
