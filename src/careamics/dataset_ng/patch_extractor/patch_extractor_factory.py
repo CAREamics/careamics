@@ -113,20 +113,19 @@ def create_czi_extractor(
         The source files for the data.
     axes: str
         Specifies which axes of the data to use and how.
-        If this string ends with "ZYX", the data will consist of 3-D patches.
-        If the data has no Z axis but a T axis, the T axis will be used as
-        3rd dimension.
+        If this string ends with `"ZYX"` or `"TYX"`, the data will consist of 3-D
+        patches, using `Z` or `T` as third dimension, respectively.
         If the string does not end with "ZYX", the data will consist of 2-D patches.
 
     Returns
     -------
     PatchExtractor
     """
-    depth_axis: Literal["none", "Z", "T", "auto"] = "none"
+    depth_axis: Literal["none", "Z", "T"] = "none"
     if axes.endswith("TYX"):
         depth_axis = "T"
-    elif "Z" in axes:
-        depth_axis = "auto"
+    elif axes.endswith("ZYX"):
+        depth_axis = "Z"
 
     image_stacks: list[CziImageStack] = []
     for path in source:

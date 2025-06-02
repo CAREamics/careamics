@@ -38,17 +38,15 @@ class CziImageStack:
         The scene can also be provided as part of `data_path` by appending an `"@"`
         followed by the scene index to the filename.
 
-    depth_axis : {"none", "Z", "T", "auto"}, default: "auto"
+    depth_axis : {"none", "Z", "T"}, default: "none"
         Which axis to use as depth-axis for providing 3-D patches.
 
         - `"none"`: Only provide 2-D patches. If a Z or T dimension is present in the
           data, they will be combined into the sample dimension `S`.
         - `"Z"`: Use the Z-axis as depth-axis. If a T axis is present as well, it will
-          be used as sample dimensions `S`.
+          be merged into the sample dimensions `S`.
         - `"T"`: Use the T-axis as depth-axis. If a Z axis is present as well, it will
-          be used as sample dimensions `S`.
-        - `"auto"`: Automatically uses a Z or T axis present in the data as depth axis.
-          If both are present, the Z axis takes precedence.
+          be merged into the sample dimensions `S`.
 
     Attributes
     ----------
@@ -64,11 +62,9 @@ class CziImageStack:
         The axes in the CZI file corresponding to the dimensions in `data_shape`.
         The following values can occur:
 
-        - "SCZYX" for 3-D data if `depth_axis` is `"Z"` or `"auto"`.
-        - "SCTYX" for 3-D data if `depth_axis` is `"T"`.
-        - "SCYX" for 2-D time-series if `depth_axis` is `"none"`.
-        - "SCTYX" for 2-D time-series if `depth_axis` is `"T"` or `"auto"`.
-        - "SCYX" for 2-D images.
+        - "SCZYX" for 3-D volumes if `depth_axis` is `"Z"`.
+        - "SCTYX" for time-series if `depth_axis` is `"T"`.
+        - "SCYX" if `depth_axis` is `"none"`.
 
         The axis `S` (sample) is the only one not mapping one-to-one to an axis in the
         CZI file but combines all remaining axes present in the file into one.
@@ -83,23 +79,23 @@ class CziImageStack:
     >>> stack = CziImageStack("path/to/file.czi@0")  # doctest: +SKIP
     >>> stack2 = CziImageStack(stack.source)  # doctest: +SKIP
 
-    If the CZI file contains a third dimension (Z or T) but you want to perform 2-D
-    denoising, you need to explicitly set the `depth_axis` to `"none"`:
-    >>> stack_3d = CziImageStack("path/to/file.czi", scene=0)  # doctest: +SKIP
-    >>> stack_3d.axes, stack_3d.data_shape  # doctest: +SKIP
-    ('SCZYX', [4, 1, 10, 512, 512])
-    >>> stack_2d = CziImageStack(  # doctest: +SKIP
-    ...     "path/to/file.czi", scene=0, depth_axis="none"
-    ... )
+    If the CZI file contains a third dimension (Z or T) and you want to perform 3-D
+    denoising, you need to explicitly set `depth_axis` to `"Z"` or `"T"`:
+    >>> stack_2d = CziImageStack("path/to/file.czi", scene=0)  # doctest: +SKIP
     >>> stack_2d.axes, stack_2d.data_shape  # doctest: +SKIP
     ('SCYX', [40, 1, 512, 512])
+    >>> stack_3d = CziImageStack(  # doctest: +SKIP
+    ...     "path/to/file.czi", scene=0, depth_axis="Z"
+    ... )
+    >>> stack_3d.axes, stack_3d.data_shape  # doctest: +SKIP
+    ('SCZYX', [4, 1, 10, 512, 512])
     """
 
     def __init__(
         self,
         data_path: str | Path,
         scene: int | None = None,
-        depth_axis: Literal["none", "Z", "T", "auto"] = "auto",
+        depth_axis: Literal["none", "Z", "T"] = "none",
     ) -> None:
         _data_path = Path(data_path)
 
@@ -224,11 +220,9 @@ class CziImageStack:
         axes : str
             String specifying the axis order. Examples:
 
-            - "SCZYX" for 3-D data if `depth_axis` is `"Z"` or `"auto"`.
-            - "SCTYX" for 3-D data if `depth_axis` is `"T"`.
-            - "SCYX" for 2-D time-series if `depth_axis` is `"none"`.
-            - "SCTYX" for 2-D time-series if `depth_axis` is `"T"` or `"auto"`.
-            - "SCYX" for 2-D images.
+            - "SCZYX" for 3-D volumes if `depth_axis` is `"Z"`.
+            - "SCTYX" for time-series if `depth_axis` is `"T"`.
+            - "SCYX" if `depth_axis` is `"none"`.
 
             The axis `S` is the sample dimension and combines all remaining axes
             present in the data.
@@ -261,21 +255,23 @@ class CziImageStack:
         has_time = "T" in total_bbox and (total_bbox["T"][1] - total_bbox["T"][0]) > 1
         has_depth = "Z" in total_bbox and (total_bbox["Z"][1] - total_bbox["Z"][0]) > 1
 
-        # Determine whether to use time as depth dimension
-        depth_axis = self._depth_axis
-        if depth_axis == "auto":
-            if has_depth:
-                depth_axis = "Z"
-            elif has_time:
-                depth_axis = "T"
-            else:
-                depth_axis = "none"
-
-        # Determine axis order depending on data type and `depth_axis`
-        if depth_axis == "Z" and has_depth:
+        # Determine axis order depending on `depth_axis`
+        if self._depth_axis == "Z":
             axes = "SCZYX"
-        elif depth_axis == "T" and has_time:
+            if not has_depth:
+                raise RuntimeError(
+                    f"The CZI file {self.data_path} does not contain a Z axis to use "
+                    'for 3-D denoising. Consider setting `axes="YX"` or '
+                    '`depth_axis="none"` to perform 2-D denoising instead.'
+                )
+        elif self._depth_axis == "T":
             axes = "SCTYX"
+            if not has_time:
+                raise RuntimeError(
+                    f"The CZI file {self.data_path} does not contain a T axis to use "
+                    'for 3-D denoising. Consider setting `axes="YX"` or '
+                    '`depth_axis="none"` to perform 2-D denoising instead.'
+                )
         else:
             axes = "SCYX"
 

@@ -1,3 +1,4 @@
+from contextlib import nullcontext
 from pathlib import Path
 from typing import Literal
 
@@ -7,6 +8,9 @@ from numpy.typing import NDArray
 from pylibCZIrw import czi as pyczi
 
 from careamics.dataset_ng.patch_extractor.image_stack import CziImageStack
+
+T_EXPR = "does not contain a T axis"
+Z_EXPR = "does not contain a Z axis"
 
 
 def create_test_czi(file_path: Path, data: NDArray | list[NDArray]):
@@ -29,49 +33,53 @@ def create_test_czi(file_path: Path, data: NDArray | list[NDArray]):
 
 
 @pytest.mark.parametrize(
-    "original_shape, depth_axis, expected_axes, expected_shape, sample_idx",
+    "orig_shape, depth_axis, expected_axes, expected_shape, sample_idx, expect_raise",
     [
         # 2-D Images
-        ((1, 1, 1, 32, 48), "none", "SCYX", [1, 1, 32, 48], 0),
-        ((1, 1, 1, 32, 48), "T", "SCYX", [1, 1, 32, 48], 0),
-        ((1, 1, 1, 32, 48), "Z", "SCYX", [1, 1, 32, 48], 0),
-        ((1, 1, 1, 32, 48), "auto", "SCYX", [1, 1, 32, 48], 0),
+        ((1, 1, 1, 32, 48), "none", "SCYX", [1, 1, 32, 48], 0, nullcontext()),
+        ((1, 1, 1, 32, 48), "T", "", [], 0, pytest.raises(RuntimeError, match=T_EXPR)),
+        ((1, 1, 1, 32, 48), "Z", "", [], 0, pytest.raises(RuntimeError, match=Z_EXPR)),
         # 3-D Volumes
-        ((1, 1, 16, 32, 48), "none", "SCYX", [16, 1, 32, 48], 9),
-        ((1, 1, 16, 32, 48), "T", "SCYX", [16, 1, 32, 48], 9),
-        ((1, 1, 16, 32, 48), "Z", "SCZYX", [1, 1, 16, 32, 48], 0),
-        ((1, 1, 16, 32, 48), "auto", "SCZYX", [1, 1, 16, 32, 48], 0),
+        ((1, 1, 16, 32, 48), "none", "SCYX", [16, 1, 32, 48], 9, nullcontext()),
+        ((1, 1, 16, 32, 48), "T", "", [], 9, pytest.raises(RuntimeError, match=T_EXPR)),
+        ((1, 1, 16, 32, 48), "Z", "SCZYX", [1, 1, 16, 32, 48], 0, nullcontext()),
         # 2-D Time-Series
-        ((8, 1, 1, 32, 48), "none", "SCYX", [8, 1, 32, 48], 3),
-        ((8, 1, 1, 32, 48), "Z", "SCYX", [8, 1, 32, 48], 3),
-        ((8, 1, 1, 32, 48), "T", "SCTYX", [1, 1, 8, 32, 48], 0),
-        ((8, 1, 1, 32, 48), "auto", "SCTYX", [1, 1, 8, 32, 48], 0),
+        ((8, 1, 1, 32, 48), "none", "SCYX", [8, 1, 32, 48], 3, nullcontext()),
+        ((8, 1, 1, 32, 48), "Z", "", [], 3, pytest.raises(RuntimeError, match=Z_EXPR)),
+        ((8, 1, 1, 32, 48), "T", "SCTYX", [1, 1, 8, 32, 48], 0, nullcontext()),
         # 3-D Time-Series
-        ((8, 1, 16, 32, 48), "none", "SCYX", [8 * 16, 1, 32, 48], 35),
-        ((8, 1, 16, 32, 48), "Z", "SCZYX", [8, 1, 16, 32, 48], 7),
-        ((8, 1, 16, 32, 48), "T", "SCTYX", [16, 1, 8, 32, 48], 12),
-        ((8, 1, 16, 32, 48), "auto", "SCZYX", [8, 1, 16, 32, 48], 5),
+        ((8, 1, 16, 32, 48), "none", "SCYX", [8 * 16, 1, 32, 48], 35, nullcontext()),
+        ((8, 1, 16, 32, 48), "Z", "SCZYX", [8, 1, 16, 32, 48], 7, nullcontext()),
+        ((8, 1, 16, 32, 48), "T", "SCTYX", [16, 1, 8, 32, 48], 12, nullcontext()),
         # Multiple channels
-        ((8, 3, 16, 32, 48), "auto", "SCZYX", [8, 3, 16, 32, 48], 2),
+        ((8, 3, 16, 32, 48), "Z", "SCZYX", [8, 3, 16, 32, 48], 2, nullcontext()),
     ],
 )
 def test_extract_patch(
     tmp_path: Path,
-    original_shape: tuple[int, ...],
-    depth_axis: Literal["none", "Z", "T", "auto"],
+    orig_shape: tuple[int, ...],
+    depth_axis: Literal["none", "Z", "T"],
     expected_axes: str,
-    expected_shape: tuple[int, ...],
+    expected_shape: list[int],
     sample_idx: int,
+    expect_raise,
 ):
     # reference data to compare against
-    data = np.random.randn(*original_shape).astype(np.float32)
+    data = np.random.randn(*orig_shape).astype(np.float32)
 
     # save data as a czi file to ininitialise image stack with
     file_path = tmp_path / "test_czi.czi"
     create_test_czi(file_path=file_path, data=data)
 
     # initialise CziImageStack
-    image_stack = CziImageStack(data_path=file_path, depth_axis=depth_axis)
+    with expect_raise:
+        image_stack = CziImageStack(data_path=file_path, depth_axis=depth_axis)
+
+    # stop here if expecting an exception
+    if expected_axes == "":
+        return
+
+    # check axes and shape
     assert image_stack.axes == expected_axes
     assert image_stack.data_shape == expected_shape
 
@@ -140,7 +148,9 @@ def test_multiple_scenes(
 
     # Test reading from individual scenes
     for scene_idx, expected_shape in enumerate(original_shapes):
-        image_stack = CziImageStack(data_path=file_path, scene=scene_idx)
+        image_stack = CziImageStack(
+            data_path=file_path, scene=scene_idx, depth_axis="Z"
+        )
         assert image_stack.data_shape == expected_shape
 
         t = expected_shape[0] - scene_idx - 1
