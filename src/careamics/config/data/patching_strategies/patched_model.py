@@ -1,7 +1,6 @@
 """Generic patching Pydantic model."""
 
 from collections.abc import Sequence
-from typing import Union
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -14,15 +13,15 @@ class PatchedModel(BaseModel):
     name: str
     """The name of the patching strategy."""
 
-    patch_size: Union[Sequence[int]] = Field(..., min_length=2, max_length=3)
+    patch_size: Sequence[int] = Field(..., min_length=2, max_length=3)
     """The size of the patch in each spatial dimensions, each patch size must be a power
     of 2 and larger than 8."""
 
     @field_validator("patch_size")
     @classmethod
     def all_elements_power_of_2_minimum_8(
-        cls, patch_list: Union[Sequence[int]]
-    ) -> Union[Sequence[int]]:
+        cls, patch_list: Sequence[int]
+    ) -> Sequence[int]:
         """
         Validate patch size.
 

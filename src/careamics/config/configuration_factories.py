@@ -6,7 +6,7 @@ from pydantic import Field, TypeAdapter
 
 from careamics.config.algorithms import CAREAlgorithm, N2NAlgorithm, N2VAlgorithm
 from careamics.config.architectures import UNetModel
-from careamics.config.data import DataConfig
+from careamics.config.data import DataConfig, NGDataConfig
 from careamics.config.support import (
     SupportedArchitecture,
     SupportedPixelManipulation,
@@ -259,6 +259,61 @@ def _create_data_configuration(
         "data_type": data_type,
         "axes": axes,
         "patch_size": patch_size,
+        "batch_size": batch_size,
+        "transforms": augmentations,
+    }
+    # Don't override defaults set in DataConfig class
+    if train_dataloader_params is not None:
+        # DataConfig enforces the presence of `shuffle` key in the dataloader parameters
+        if "shuffle" not in train_dataloader_params:
+            train_dataloader_params["shuffle"] = True
+
+        data["train_dataloader_params"] = train_dataloader_params
+
+    if val_dataloader_params is not None:
+        data["val_dataloader_params"] = val_dataloader_params
+
+    return DataConfig(**data)
+
+
+def _create_ng_data_configuration(
+    data_type: Literal["array", "tiff", "custom"],
+    axes: str,
+    patch_size: list[int],
+    batch_size: int,
+    augmentations: Union[list[SPATIAL_TRANSFORMS_UNION]],
+    train_dataloader_params: Optional[dict[str, Any]] = None,
+    val_dataloader_params: Optional[dict[str, Any]] = None,
+) -> NGDataConfig:
+    """
+    Create a dictionary with the parameters of the data model.
+
+    Parameters
+    ----------
+    data_type : {"array", "tiff", "custom"}
+        Type of the data.
+    axes : str
+        Axes of the data.
+    patch_size : list of int
+        Size of the patches along the spatial dimensions.
+    batch_size : int
+        Batch size.
+    augmentations : list of transforms
+        List of transforms to apply.
+    train_dataloader_params : dict
+        Parameters for the training dataloader, see PyTorch notes, by default None.
+    val_dataloader_params : dict
+        Parameters for the validation dataloader, see PyTorch notes, by default None.
+
+    Returns
+    -------
+    NGDataConfig
+        Next-Generation Data model with the specified parameters.
+    """
+    # data model
+    data = {
+        "data_type": data_type,
+        "axes": axes,
         "batch_size": batch_size,
         "transforms": augmentations,
     }

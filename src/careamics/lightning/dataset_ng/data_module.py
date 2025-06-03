@@ -7,7 +7,7 @@ from numpy.typing import NDArray
 from torch.utils.data import DataLoader
 from torch.utils.data._utils.collate import default_collate
 
-from careamics.config.data import DataConfig
+from careamics.config.data.ng_data_model import NGDataConfig
 from careamics.config.support import SupportedData
 from careamics.dataset.dataset_utils import list_files, validate_source_target_files
 from careamics.dataset_ng.dataset import Mode
@@ -27,7 +27,7 @@ class CareamicsDataModule(L.LightningDataModule):
     @overload
     def __init__(
         self,
-        data_config: DataConfig,
+        data_config: NGDataConfig,
         *,
         train_data: Optional[InputType] = None,
         train_data_target: Optional[InputType] = None,
@@ -44,7 +44,7 @@ class CareamicsDataModule(L.LightningDataModule):
     @overload
     def __init__(
         self,
-        data_config: DataConfig,
+        data_config: NGDataConfig,
         *,
         train_data: Optional[InputType] = None,
         train_data_target: Optional[InputType] = None,
@@ -63,7 +63,7 @@ class CareamicsDataModule(L.LightningDataModule):
     @overload
     def __init__(
         self,
-        data_config: DataConfig,
+        data_config: NGDataConfig,
         *,
         train_data: Optional[Any] = None,
         train_data_target: Optional[Any] = None,
@@ -81,7 +81,7 @@ class CareamicsDataModule(L.LightningDataModule):
 
     def __init__(
         self,
-        data_config: DataConfig,
+        data_config: NGDataConfig,
         *,
         train_data: Optional[Any] = None,
         train_data_target: Optional[Any] = None,
@@ -106,7 +106,7 @@ class CareamicsDataModule(L.LightningDataModule):
 
         Parameters
         ----------
-        data_config : DataConfig
+        data_config : NGDataConfig
             Pydantic model for CAREamics data configuration.
         train_data : Optional[InputType]
             Training data, can be a path to a folder, a list of paths, or a numpy array.
@@ -153,7 +153,7 @@ class CareamicsDataModule(L.LightningDataModule):
                 "At least one of train_data, val_data or pred_data must be provided."
             )
 
-        self.config: DataConfig = data_config
+        self.config: NGDataConfig = data_config
         self.data_type: str = data_config.data_type
         self.batch_size: int = data_config.batch_size
         self.use_in_memory: bool = use_in_memory

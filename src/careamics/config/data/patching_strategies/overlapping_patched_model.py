@@ -9,15 +9,29 @@ from .patched_model import PatchedModel
 
 
 class OverlappingPatchedModel(PatchedModel):
-    """Overlapping patching Pydantic model."""
+    """Overlapping patching Pydantic model.
+
+    Attributes
+    ----------
+    name : "overlapping"
+        The name of the patching strategy.
+    patch_size : list of int
+        The size of the patch in each spatial dimension, each patch size must be a power
+        of 2 and larger than 8.
+    overlap : sequence of int, optional
+        The overlap between patches in each spatial dimension. If `None`, no overlap is
+        applied. The overlap must be smaller than the patch size in each spatial
+        dimension, and the number of dimensions be either 2 or 3.
+    """
 
     overlap: Optional[Sequence[int]] = Field(
         default=None,
         min_length=2,
         max_length=3,
     )
-    """The overlap between patches in each spatial dimension, if None, no overlap is
-    applied. The overlap must be smaller than the patch size in each spatial dimension.
+    """The overlap between patches in each spatial dimension. If `None`, no overlap is
+    applied. The overlap must be smaller than the patch size in each spatial dimension,
+    and the number of dimensions be either 2 or 3.
     """
 
     @field_validator("overlap")
