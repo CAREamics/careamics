@@ -56,7 +56,7 @@ dependencies = [
     'zarr<3.0.0',
     'pillow<=11.2.1',
     'matplotlib<=3.10.1',
-    'xarray<2025.3.0'
+    'xarray<2025.3.0',
 ]
 
 [project.optional-dependencies]

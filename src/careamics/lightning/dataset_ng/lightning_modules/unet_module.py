@@ -1,3 +1,5 @@
+"""Generic UNet Lightning DataModule."""
+
 from typing import Any, Union
 
 import pytorch_lightning as L
@@ -18,11 +20,27 @@ logger = get_logger(__name__)
 
 
 class UnetModule(L.LightningModule):
-    """CAREamics PyTorch Lightning module for UNet based algorithms."""
+    """CAREamics PyTorch Lightning module for UNet based algorithms.
+
+    Parameters
+    ----------
+    algorithm_config : CAREAlgorithm, N2VAlgorithm, N2NAlgorithm, or dict
+        Configuration for the algorithm, either as an instance of a specific algorithm
+        class or a dictionary that can be converted to an algorithm instance.
+    """
 
     def __init__(
         self, algorithm_config: Union[CAREAlgorithm, N2VAlgorithm, N2NAlgorithm, dict]
     ) -> None:
+        """Instantiate UNet DataModule.
+
+        Parameters
+        ----------
+        algorithm_config : CAREAlgorithm, N2VAlgorithm, N2NAlgorithm, or dict
+            Configuration for the algorithm, either as an instance of a specific
+            algorithm class or a dictionary that can be converted to an algorithm
+            instance.
+        """
         super().__init__()
 
         if isinstance(algorithm_config, dict):
@@ -37,10 +55,30 @@ class UnetModule(L.LightningModule):
         self.metrics = MetricCollection(PeakSignalNoiseRatio())
 
     def forward(self, x: Any) -> Any:
-        """Default forward method."""
+        """Default forward method.
+
+        Parameters
+        ----------
+        x : Any
+            Input data.
+
+        Returns
+        -------
+        Any
+            Output from the model.
+        """
         return self.model(x)
 
     def _log_training_stats(self, loss: Any, batch_size: Any) -> None:
+        """Log training statistics.
+
+        Parameters
+        ----------
+        loss : Any
+            The loss value for the current training step.
+        batch_size : Any
+            The size of the batch used in the current training step.
+        """
         self.log(
             "train_loss",
             loss,
@@ -66,6 +104,15 @@ class UnetModule(L.LightningModule):
         )
 
     def _log_validation_stats(self, loss: Any, batch_size: Any) -> None:
+        """Log validation statistics.
+
+        Parameters
+        ----------
+        loss : Any
+            The loss value for the current validation step.
+        batch_size : Any
+            The size of the batch used in the current validation step.
+        """
         self.log(
             "val_loss",
             loss,
@@ -78,6 +125,7 @@ class UnetModule(L.LightningModule):
         self.log_dict(self.metrics, on_step=False, on_epoch=True, batch_size=batch_size)
 
     def _load_best_checkpoint(self) -> None:
+        """Load the best checkpoint from the trainer's checkpoint callback."""
         if (
             not hasattr(self.trainer, "checkpoint_callback")
             or self.trainer.checkpoint_callback is None
@@ -99,7 +147,22 @@ class UnetModule(L.LightningModule):
         batch_idx: Any,
         load_best_checkpoint=False,
     ) -> Any:
-        """Default predict step."""
+        """Default predict step.
+
+        Parameters
+        ----------
+        batch : ImageRegionData or (ImageRegionData, ImageRegionData)
+            A tuple containing the input data and optionally the target data.
+        batch_idx : Any
+            The index of the current batch in the prediction loop.
+        load_best_checkpoint : bool, default=False
+            Whether to load the best checkpoint before making predictions.
+
+        Returns
+        -------
+        Any
+            The output batch containing the predictions.
+        """
         if self._best_checkpoint_loaded is False and load_best_checkpoint:
             self._load_best_checkpoint()
             self._best_checkpoint_loaded = True
@@ -127,7 +190,13 @@ class UnetModule(L.LightningModule):
         return output_batch
 
     def configure_optimizers(self) -> Any:
-        """Configure optimizers."""
+        """Configure optimizers.
+
+        Returns
+        -------
+        Any
+            A dictionary containing the optimizer and learning rate scheduler.
+        """
         optimizer_func = get_optimizer(self.config.optimizer.name)
         optimizer = optimizer_func(
             self.model.parameters(), **self.config.optimizer.parameters
