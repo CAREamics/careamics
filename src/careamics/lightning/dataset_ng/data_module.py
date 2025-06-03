@@ -341,7 +341,7 @@ class CareamicsDataModule(L.LightningDataModule):
                 raise ValueError(
                     f"Unsupported input type for {self.data_type}: {type(input_data)}"
                 )
-        elif self.data_type == SupportedData.TIFF:
+        elif self.data_type in (SupportedData.TIFF, SupportedData.CZI):
             if isinstance(input_data, (str, Path)):
                 return self._validate_path_input(input_data, target_data)
             elif isinstance(input_data, list):

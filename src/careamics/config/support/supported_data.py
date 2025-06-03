@@ -16,12 +16,15 @@ class SupportedData(str, BaseEnum):
         Array data.
     TIFF : str
         TIFF image data.
+    CZI : str
+        CZI image data.
     CUSTOM : str
         Custom data.
     """
 
     ARRAY = "array"
     TIFF = "tiff"
+    CZI = "czi"
     CUSTOM = "custom"
     # ZARR = "zarr"
 
@@ -78,6 +81,8 @@ class SupportedData(str, BaseEnum):
             raise NotImplementedError(f"Data '{data_type}' is not loaded from a file.")
         elif data_type == cls.TIFF:
             return "*.tif*"
+        elif data_type == cls.CZI:
+            return "*.czi"
         elif data_type == cls.CUSTOM:
             return "*.*"
         else:
@@ -102,6 +107,8 @@ class SupportedData(str, BaseEnum):
             raise NotImplementedError(f"Data '{data_type}' is not loaded from a file.")
         elif data_type == cls.TIFF:
             return ".tiff"
+        elif data_type == cls.CZI:
+            return ".czi"
         elif data_type == cls.CUSTOM:
             # TODO: improve this message
             raise NotImplementedError("Custom extensions have to be passed elsewhere.")

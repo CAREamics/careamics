@@ -15,8 +15,8 @@ class InferenceConfig(BaseModel):
 
     model_config = ConfigDict(validate_assignment=True, arbitrary_types_allowed=True)
 
-    data_type: Literal["array", "tiff", "custom"]  # As defined in SupportedData
-    """Type of input data: numpy.ndarray (array) or path (tiff or custom)."""
+    data_type: Literal["array", "tiff", "czi", "custom"]  # As defined in SupportedData
+    """Type of input data: numpy.ndarray (array) or path (tiff, czi, or custom)."""
 
     tile_size: Optional[Union[list[int]]] = Field(
         default=None, min_length=2, max_length=3
