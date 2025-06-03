@@ -74,7 +74,9 @@ def imageregions_to_tileinfos(
             tile_info = _imageregion_to_tileinfo(image_region, last_tile)
             tile_infos.append(tile_info)
 
-    return [(data, [tile_info]) for data, tile_info in zip(data, tile_infos)]
+    return [
+        (data, [tile_info]) for data, tile_info in zip(data, tile_infos, strict=False)
+    ]
 
 
 def _imageregion_to_tileinfo(
