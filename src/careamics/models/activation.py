@@ -1,6 +1,7 @@
 """Activations for CAREamics models."""
 
-from typing import Callable, Union
+from collections.abc import Callable
+from typing import Union
 
 import torch.nn as nn
 

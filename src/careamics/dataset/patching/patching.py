@@ -1,8 +1,9 @@
 """Patching functions."""
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Union
+from typing import Union
 
 import numpy as np
 from numpy.typing import NDArray
@@ -89,7 +90,7 @@ def prepare_patches_supervised(
     """
     means, stds, num_samples = 0, 0, 0
     all_patches, all_targets = [], []
-    for train_filename, target_filename in zip(train_files, target_files):
+    for train_filename, target_filename in zip(train_files, target_files, strict=False):
         try:
             sample: np.ndarray = read_source_func(train_filename, axes)
             target: np.ndarray = read_source_func(target_filename, axes)

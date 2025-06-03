@@ -80,7 +80,7 @@ class TilingStrategy:
 
             # combine by using zip
             all_coords, all_stitch_coords, all_crop_coords, all_crop_size = zip(
-                *axis_specs
+                *axis_specs, strict=False
             )
             # patches will be the same for each sample in a stack
             for sample_idx in range(data_shape[0]):
@@ -90,6 +90,7 @@ class TilingStrategy:
                     itertools.product(*all_stitch_coords),
                     itertools.product(*all_crop_coords),
                     itertools.product(*all_crop_size),
+                    strict=False,
                 ):
                     tile_specs.append(
                         {

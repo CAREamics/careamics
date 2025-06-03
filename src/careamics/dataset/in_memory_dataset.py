@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import copy
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable, Optional, Union
+from typing import Any, Optional, Union
 
 import numpy as np
 from torch.utils.data import Dataset
