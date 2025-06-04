@@ -4,7 +4,8 @@ Validator functions.
 These functions are used to validate dimensions and axes of inputs.
 """
 
-from typing import Optional, Union
+from collections.abc import Sequence
+from typing import Optional
 
 _AXES = "STCZYX"
 
@@ -79,14 +80,14 @@ def value_ge_than_8_power_of_2(
 
 
 def patch_size_ge_than_8_power_of_2(
-    patch_list: Optional[Union[list[int], Union[tuple[int, ...]]]],
+    patch_list: Optional[Sequence[int]],
 ) -> None:
     """
     Validate that each entry is greater or equal than 8 and a power of 2.
 
     Parameters
     ----------
-    patch_list : list or typle of int, or None
+    patch_list : Sequenc of int, or None
         Patch size.
 
     Raises
