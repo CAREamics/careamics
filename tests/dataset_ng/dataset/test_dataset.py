@@ -4,7 +4,11 @@ import numpy as np
 import pytest
 import tifffile
 
-from careamics.config import InferenceConfig, create_n2n_configuration
+from careamics.config.configuration_factories import (
+    _create_ng_data_configuration,
+    _list_spatial_augmentations,
+)
+from careamics.config.data import NGDataConfig
 from careamics.dataset_ng.dataset import Mode
 from careamics.dataset_ng.factory import (
     create_array_dataset,
@@ -13,8 +17,6 @@ from careamics.dataset_ng.factory import (
 )
 
 
-# TODO: these tests not deterministic anymore - DataConfig doesn't have random seed
-# could make a mock? temporarily
 @pytest.mark.parametrize(
     "data_shape, patch_size, expected_dataset_len",
     [
@@ -28,14 +30,14 @@ def test_from_array(data_shape, patch_size, expected_dataset_len):
     example_input = rng.random(data_shape)
     example_target = rng.random(data_shape)
 
-    train_data_config = create_n2n_configuration(
-        "test_exp",
+    train_data_config = _create_ng_data_configuration(
         data_type="array",
         axes="YX",
         patch_size=patch_size,
         batch_size=1,
-        num_epochs=1,
-    ).data_config
+        augmentations=_list_spatial_augmentations(),
+        seed=42,
+    )
 
     train_data_config.set_means_and_stds(
         [example_input.mean()],
@@ -78,14 +80,14 @@ def test_from_tiff(tmp_path: Path, data_shape, patch_size, expected_dataset_len)
     tifffile.imwrite(input_file_path, example_input)
     tifffile.imwrite(target_file_path, example_target)
 
-    train_data_config = create_n2n_configuration(
-        "test_exp",
+    train_data_config = _create_ng_data_configuration(
         data_type="tiff",
         axes="YX",
         patch_size=patch_size,
         batch_size=1,
-        num_epochs=1,
-    ).data_config
+        augmentations=_list_spatial_augmentations(),
+        seed=42,
+    )
 
     train_data_config.set_means_and_stds(
         [example_input.mean()],
@@ -122,15 +124,19 @@ def test_prediction_from_array(data_shape, tile_size, tile_overlap):
     rng = np.random.default_rng(42)
     example_data = rng.random(data_shape)
 
-    prediction_config = InferenceConfig(
+    prediction_config = NGDataConfig(
         data_type="array",
-        tile_size=tile_size,
-        tile_overlap=tile_overlap,
+        patching={
+            "name": "tiled",
+            "patch_size": tile_size,
+            "overlap": tile_overlap,
+        },
         axes="YX",
         image_means=(example_data.mean(),),
         image_stds=(example_data.std(),),
-        tta_transforms=False,
+        augmentations=_list_spatial_augmentations(),
         batch_size=1,
+        seed=42,
     )
 
     prediction_dataset = create_array_dataset(
@@ -160,14 +166,14 @@ def test_from_custom_data_type(patch_size, data_shape):
     example_data = rng.random(data_shape)
     example_target = rng.random(data_shape)
 
-    train_data_config = create_n2n_configuration(
-        "test_exp",
+    train_data_config = _create_ng_data_configuration(
         data_type="custom",
         axes="YX",
         patch_size=patch_size,
         batch_size=1,
-        num_epochs=1,
-    ).data_config
+        augmentations=_list_spatial_augmentations(),
+        seed=42,
+    )
 
     train_data_config.set_means_and_stds(
         [example_data.mean()],

@@ -2,13 +2,17 @@
 
 from collections.abc import Sequence
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from careamics.config.validators import patch_size_ge_than_8_power_of_2
 
 
 class PatchedModel(BaseModel):
     """Generic patching Pydantic model."""
+
+    model_config = ConfigDict(
+        extra="ignore",  # default behaviour, make it explicit
+    )
 
     name: str
     """The name of the patching strategy."""

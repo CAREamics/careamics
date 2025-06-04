@@ -38,6 +38,7 @@ from .patching_strategies import (
 # TODO: is 3D updated anywhere in the code?
 # TODO: can we tell when it is made for training but has the wrong patching?
 # TODO: what is the config data type of ImageStacks? custom?
+# TODO: rename to overlaps
 
 
 def np_float_to_scientific_str(x: float) -> str:

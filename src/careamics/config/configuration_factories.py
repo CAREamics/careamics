@@ -1,5 +1,6 @@
 """Convenience functions to create configurations for training and inference."""
 
+from collections.abc import Sequence
 from typing import Annotated, Any, Literal, Optional, Union
 
 from pydantic import Field, TypeAdapter
@@ -49,7 +50,7 @@ def algorithm_factory(
 
 
 def _list_spatial_augmentations(
-    augmentations: Optional[list[SPATIAL_TRANSFORMS_UNION]],
+    augmentations: Optional[list[SPATIAL_TRANSFORMS_UNION]] = None,
 ) -> list[SPATIAL_TRANSFORMS_UNION]:
     """
     List the augmentations to apply.
@@ -279,11 +280,14 @@ def _create_data_configuration(
 def _create_ng_data_configuration(
     data_type: Literal["array", "tiff", "custom"],
     axes: str,
-    patch_size: list[int],
+    patch_size: Sequence[int],
     batch_size: int,
     augmentations: Union[list[SPATIAL_TRANSFORMS_UNION]],
+    patching: Literal["random", "sequential"] = "random",
+    patching_overlaps: Optional[Sequence[int]] = None,
     train_dataloader_params: Optional[dict[str, Any]] = None,
     val_dataloader_params: Optional[dict[str, Any]] = None,
+    seed: Optional[int] = None,
 ) -> NGDataConfig:
     """
     Create a dictionary with the parameters of the data model.
@@ -300,10 +304,20 @@ def _create_ng_data_configuration(
         Batch size.
     augmentations : list of transforms
         List of transforms to apply.
+    patching : {"random", "sequential"}, default="random"
+        Patching strategy to use. If "random", patches are sampled randomly from the
+        data. If "sequential", patches are sampled sequentially from the data.
+    patching_overlaps : Sequence of int, default=None
+        Overlaps between patches in each spatial dimension, only used with "sequential"
+        patching. If `None`, no overlap is applied. The overlap must be smaller than
+        the patch size in each spatial dimension, and the number of dimensions be either
+        2 or 3.
     train_dataloader_params : dict
         Parameters for the training dataloader, see PyTorch notes, by default None.
     val_dataloader_params : dict
         Parameters for the validation dataloader, see PyTorch notes, by default None.
+    seed : int, default=None
+        Random seed for reproducibility. If `None`, no seed is set.
 
     Returns
     -------
@@ -316,10 +330,12 @@ def _create_ng_data_configuration(
         "axes": axes,
         "batch_size": batch_size,
         "transforms": augmentations,
+        "seed": seed,
     }
-    # Don't override defaults set in DataConfig class
+    # don't override defaults set in DataConfig class
     if train_dataloader_params is not None:
-        # DataConfig enforces the presence of `shuffle` key in the dataloader parameters
+        # the presence of `shuffle` key in the dataloader parameters is enforced
+        # by the NGDataConfig class
         if "shuffle" not in train_dataloader_params:
             train_dataloader_params["shuffle"] = True
 
@@ -328,7 +344,14 @@ def _create_ng_data_configuration(
     if val_dataloader_params is not None:
         data["val_dataloader_params"] = val_dataloader_params
 
-    return DataConfig(**data)
+    # add training patching
+    data["patching"] = {
+        "name": patching,
+        "patch_size": patch_size,
+        "overlaps": patching_overlaps,
+    }
+
+    return NGDataConfig(**data)
 
 
 def _create_training_configuration(
