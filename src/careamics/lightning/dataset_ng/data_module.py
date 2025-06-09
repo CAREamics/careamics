@@ -484,5 +484,5 @@ class CareamicsDataModule(L.LightningDataModule):
             self.predict_dataset,
             batch_size=self.batch_size,
             collate_fn=default_collate,
-            # TODO: set appropriate key for params once config changes are merged
+            **self.config.test_dataloader_params,
         )

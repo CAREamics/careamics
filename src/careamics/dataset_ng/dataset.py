@@ -70,7 +70,8 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
         if self.mode == Mode.TRAINING:
             if self.config.patching.name != SupportedPatchingStrategy.RANDOM:
                 raise ValueError(
-                    "Only `random` patching strategy supported during training."
+                    f"Only `random` patching strategy supported during training, got "
+                    f"{self.config.patching.name}."
                 )
 
             patching_strategy = RandomPatchingStrategy(
@@ -81,7 +82,8 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
         elif self.mode == Mode.VALIDATING:
             if self.config.patching.name != SupportedPatchingStrategy.RANDOM:
                 raise ValueError(
-                    "Only `random` patching strategy supported during training."
+                    f"Only `random` patching strategy supported during training, got "
+                    f"{self.config.patching.name}."
                 )
 
             patching_strategy = FixedRandomPatchingStrategy(
@@ -95,8 +97,8 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
                 and self.config.patching.name != SupportedPatchingStrategy.WHOLE
             ):
                 raise ValueError(
-                    "Only `tiled` and `whole` patching strategy supported during "
-                    "training."
+                    f"Only `tiled` and `whole` patching strategy supported during "
+                    f"training, got {self.config.patching.name}."
                 )
             elif self.config.patching.name == SupportedPatchingStrategy.TILED:
                 patching_strategy = TilingStrategy(

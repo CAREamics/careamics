@@ -6,11 +6,14 @@ from careamics.utils import BaseEnum
 class SupportedPatchingStrategy(str, BaseEnum):
     """Patching strategies supported by Careamics."""
 
-    RANDOM = "random"
-    """Random patching strategy."""
+    FIXED_RANDOM = "fixed_random"
+    """Fixed random patching strategy, used during training."""
 
-    SEQUENTIAL = "sequential"
-    """Sequential patching strategy."""
+    RANDOM = "random"
+    """Random patching strategy, used during training."""
+
+    # SEQUENTIAL = "sequential"
+    # """Sequential patching strategy, used during training."""
 
     TILED = "tiled"
     """Tiled patching strategy, used during prediction."""

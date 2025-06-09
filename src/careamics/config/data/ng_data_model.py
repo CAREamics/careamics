@@ -22,7 +22,6 @@ from typing_extensions import Self
 from ..transformations import XYFlipModel, XYRandomRotate90Model
 from ..validators import check_axes_validity
 from .patching_strategies import (
-    FixedRandomPatchingModel,
     RandomPatchingModel,
     SequentialPatchingModel,
     TiledPatchingModel,
@@ -63,7 +62,6 @@ Float = Annotated[float, PlainSerializer(np_float_to_scientific_str, return_type
 """Annotated float type, used to serialize floats to strings."""
 
 PatchingStrategies = Union[
-    FixedRandomPatchingModel,
     RandomPatchingModel,
     SequentialPatchingModel,
     TiledPatchingModel,
@@ -143,6 +141,9 @@ class NGDataConfig(BaseModel):
 
     val_dataloader_params: dict[str, Any] = Field(default={})
     """Dictionary of PyTorch validation dataloader parameters."""
+
+    test_dataloader_params: dict[str, Any] = Field(default={})
+    """Dictionary of PyTorch test dataloader parameters."""
 
     seed: Optional[int] = Field(default=None, gt=0)
     """Random seed for reproducibility."""

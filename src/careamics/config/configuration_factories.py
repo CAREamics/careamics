@@ -283,10 +283,10 @@ def _create_ng_data_configuration(
     patch_size: Sequence[int],
     batch_size: int,
     augmentations: Union[list[SPATIAL_TRANSFORMS_UNION]],
-    patching: Literal["random", "sequential"] = "random",
     patching_overlaps: Optional[Sequence[int]] = None,
     train_dataloader_params: Optional[dict[str, Any]] = None,
     val_dataloader_params: Optional[dict[str, Any]] = None,
+    test_dataloader_params: Optional[dict[str, Any]] = None,
     seed: Optional[int] = None,
 ) -> NGDataConfig:
     """
@@ -304,9 +304,6 @@ def _create_ng_data_configuration(
         Batch size.
     augmentations : list of transforms
         List of transforms to apply.
-    patching : {"random", "sequential"}, default="random"
-        Patching strategy to use. If "random", patches are sampled randomly from the
-        data. If "sequential", patches are sampled sequentially from the data.
     patching_overlaps : Sequence of int, default=None
         Overlaps between patches in each spatial dimension, only used with "sequential"
         patching. If `None`, no overlap is applied. The overlap must be smaller than
@@ -316,6 +313,8 @@ def _create_ng_data_configuration(
         Parameters for the training dataloader, see PyTorch notes, by default None.
     val_dataloader_params : dict
         Parameters for the validation dataloader, see PyTorch notes, by default None.
+    test_dataloader_params : dict
+        Parameters for the test dataloader, see PyTorch notes, by default None.
     seed : int, default=None
         Random seed for reproducibility. If `None`, no seed is set.
 
@@ -344,9 +343,12 @@ def _create_ng_data_configuration(
     if val_dataloader_params is not None:
         data["val_dataloader_params"] = val_dataloader_params
 
+    if test_dataloader_params is not None:
+        data["test_dataloader_params"] = test_dataloader_params
+
     # add training patching
     data["patching"] = {
-        "name": patching,
+        "name": "random",
         "patch_size": patch_size,
         "overlaps": patching_overlaps,
     }
