@@ -20,8 +20,8 @@ class TiledPatchingModel(OverlappingPatchedModel):
     patch_size : sequence of int
         The size of the patch in each spatial dimension, each patch size must be a power
         of 2 and larger than 8.
-    overlap : sequence of int
-        The overlap between patches in each spatial dimension. The overlap must be
+    overlaps : sequence of int
+        The overlaps between patches in each spatial dimension. The overlaps must be
         smaller than the patch size in each spatial dimension, and the number of
         dimensions be either 2 or 3.
     """
@@ -29,12 +29,12 @@ class TiledPatchingModel(OverlappingPatchedModel):
     name: Literal["tiled"] = "tiled"
     """The name of the patching strategy."""
 
-    overlap: Sequence[int] = Field(
+    overlaps: Sequence[int] = Field(
         ...,
         min_length=2,
         max_length=3,
     )
-    """The overlap between patches in each spatial dimension. The overlap must be
+    """The overlaps between patches in each spatial dimension. The overlaps must be
     smaller than the patch size in each spatial dimension, and the number of dimensions
     be either 2 or 3.
     """

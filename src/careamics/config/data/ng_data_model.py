@@ -22,23 +22,22 @@ from typing_extensions import Self
 from ..transformations import XYFlipModel, XYRandomRotate90Model
 from ..validators import check_axes_validity
 from .patching_strategies import (
+    FixedRandomPatchingModel,
     RandomPatchingModel,
     SequentialPatchingModel,
     TiledPatchingModel,
     WholePatchingModel,
 )
 
-# TODO: how to validate the specific sizes of tiles and overlaps given UNet constraints?
-# TODO: constraints on the patching strategies parameters?
-# TODO: global seed or seed per strategy?
-# TODO: how to pass parameters to the strategy? submodel Parameters?
-# TODO: annotation for the validators?
-# TODO: tiled and sequential have "overlap" vs "overlaps"
+# TODO: Validate the specific sizes of tiles and overlaps given UNet constraints
+#   - needs to be done in the Configuration
+#   - patches and overlaps sizes must also be checked against dimensionality
+
+
 # TODO: validation axes vs patch sizes
 # TODO: is 3D updated anywhere in the code?
 # TODO: can we tell when it is made for training but has the wrong patching?
-# TODO: what is the config data type of ImageStacks? custom?
-# TODO: rename to overlaps
+#       - or is the responsibility of the creator?
 
 
 def np_float_to_scientific_str(x: float) -> str:
@@ -64,6 +63,7 @@ Float = Annotated[float, PlainSerializer(np_float_to_scientific_str, return_type
 """Annotated float type, used to serialize floats to strings."""
 
 PatchingStrategies = Union[
+    FixedRandomPatchingModel,
     RandomPatchingModel,
     SequentialPatchingModel,
     TiledPatchingModel,

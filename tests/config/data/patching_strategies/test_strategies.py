@@ -32,4 +32,4 @@ def test_patch_sizes_error(patch_size):
 def test_patch_overlaps_error(patch_size, overlap):
     """Test that the random patching"""
     with pytest.raises(ValueError):
-        OverlappingPatchedModel(patch_size=patch_size, overlap=overlap)
+        OverlappingPatchedModel(patch_size=patch_size, overlaps=overlap)

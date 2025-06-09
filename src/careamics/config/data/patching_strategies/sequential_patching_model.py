@@ -15,9 +15,9 @@ class SequentialPatchingModel(OverlappingPatchedModel):
     patch_size : sequence of int
         The size of the patch in each spatial dimension, each patch size must be a power
         of 2 and larger than 8.
-    overlap : list of int, optional
-        The overlap between patches in each spatial dimension. If `None`, no overlap is
-        applied. The overlap must be smaller than the patch size in each spatial
+    overlaps : list of int, optional
+        The overlaps between patches in each spatial dimension. If `None`, no overlap is
+        applied. The overlaps must be smaller than the patch size in each spatial
         dimension, and the number of dimensions be either 2 or 3.
     """
 
