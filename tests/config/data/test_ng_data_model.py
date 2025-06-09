@@ -18,7 +18,7 @@ from careamics.config.support.supported_patching_strategies import (
         {
             "name": SupportedPatchingStrategy.TILED,
             "patch_size": [16, 16],
-            "overlap": [4, 4],
+            "overlaps": [4, 4],
         },
         {
             "name": SupportedPatchingStrategy.WHOLE,
