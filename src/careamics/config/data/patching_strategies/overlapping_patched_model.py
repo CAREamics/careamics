@@ -34,7 +34,7 @@ class OverlappingPatchedModel(PatchedModel):
     and the number of dimensions be either 2 or 3.
     """
 
-    @field_validator("overlap")
+    @field_validator("overlaps")
     @classmethod
     def overlap_smaller_than_patch_size(
         cls, overlaps: Optional[Sequence[int]], values: ValidationInfo

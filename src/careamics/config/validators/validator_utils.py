@@ -87,7 +87,7 @@ def patch_size_ge_than_8_power_of_2(
 
     Parameters
     ----------
-    patch_list : Sequenc of int, or None
+    patch_list : Sequence of int, or None
         Patch size.
 
     Raises

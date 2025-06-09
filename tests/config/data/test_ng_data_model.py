@@ -10,11 +10,11 @@ from careamics.config.support.supported_patching_strategies import (
     "patching_strategy",
     [
         {"name": SupportedPatchingStrategy.RANDOM, "patch_size": [16, 16]},
-        {
-            "name": SupportedPatchingStrategy.SEQUENTIAL,
-            "patch_size": [16, 16],
-            "overlap": [4, 4],
-        },
+        # {
+        #     "name": SupportedPatchingStrategy.SEQUENTIAL,
+        #     "patch_size": [16, 16],
+        #     "overlap": [4, 4],
+        # },
         {
             "name": SupportedPatchingStrategy.TILED,
             "patch_size": [16, 16],

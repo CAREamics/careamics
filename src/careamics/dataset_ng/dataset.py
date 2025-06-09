@@ -104,7 +104,7 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
                 patching_strategy = TilingStrategy(
                     data_shapes=self.input_extractor.shape,
                     tile_size=self.config.patching.patch_size,
-                    overlaps=self.config.patching.overlap,
+                    overlaps=self.config.patching.overlaps,
                 )
             else:
                 patching_strategy = WholeSamplePatchingStrategy(
