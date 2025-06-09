@@ -331,9 +331,7 @@ class VAEModule(L.LightningModule):
         self.model: nn.Module = model_factory(self.algorithm_config.model)
 
         # supervised_mode
-        self.supervised_mode = (
-            False if self.algorithm_config.algorithm == "hdn" else True
-        )  # TODO find a better way to do this
+        self.supervised_mode = self.algorithm_config.is_supervised
         # create loss function
         self.noise_model: Optional[NoiseModel] = noise_model_factory(
             self.algorithm_config.noise_model
@@ -425,7 +423,11 @@ class VAEModule(L.LightningModule):
         # Logging
         # TODO: implement a separate logging method?
         self.log_dict(loss, on_step=True, on_epoch=True)
-        # self.log("lr", self, on_epoch=True)
+
+        optimizer = self.optimizers()
+        current_lr = optimizer.param_groups[0]["lr"]
+        self.log("learning_rate", current_lr, on_step=False, on_epoch=True, logger=True)
+
         return loss
 
     def validation_step(self, batch: tuple[Tensor, Tensor], batch_idx: Any) -> None:
@@ -500,7 +502,7 @@ class VAEModule(L.LightningModule):
             self.model.reset_for_inference(x.shape)
 
         mmse_list = []
-        for _ in range(self.mmse_count):
+        for _ in range(self.algorithm_config.mmse_count):
             # apply test-time augmentation if available
             if self._trainer.datamodule.prediction_config.tta_transforms:
                 tta = ImageRestorationTTA()
@@ -523,6 +525,7 @@ class VAEModule(L.LightningModule):
             mmse_list.append(output)
 
         mmse = stack(mmse_list).mean(0)
+        std = stack(mmse_list).std(0)
         # TODO better way to unpack if pred logvar
         # Denormalize the output
         denorm = Denormalize(
@@ -533,9 +536,9 @@ class VAEModule(L.LightningModule):
         denormalized_output = denorm(patch=mmse.cpu().numpy())
 
         if len(aux) > 0:  # aux can be tiling information
-            return denormalized_output, *aux
+            return denormalized_output, std, *aux
         else:
-            return denormalized_output
+            return denormalized_output, std
 
     def configure_optimizers(self) -> Any:
         """Configure optimizers and learning rate schedulers.

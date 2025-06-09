@@ -49,6 +49,9 @@ class VAEBasedAlgorithm(BaseModel):
     noise_model_likelihood: Optional[NMLikelihoodConfig] = None
     gaussian_likelihood: Optional[GaussianLikelihoodConfig] = None
 
+    mmse_count: int = 1
+    is_supervised: bool = False
+
     # Optional fields
     optimizer: OptimizerModel = OptimizerModel()
     """Optimizer to use, defined in SupportedOptimizer."""
