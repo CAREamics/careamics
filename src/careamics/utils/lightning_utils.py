@@ -28,10 +28,6 @@ def read_csv_logger(experiment_name: str, log_folder: Union[str, Path]) -> dict:
 
     path_log = path / f"version_{version}" / "metrics.csv"
 
-    epochs = []
-    train_losses_tmp = []
-    val_losses_tmp = []
-
     with open(path_log) as f:
         lines = f.readlines()
 
@@ -40,10 +36,10 @@ def read_csv_logger(experiment_name: str, log_folder: Union[str, Path]) -> dict:
         print(metrics)
 
         for single_line in lines[1:]:
-            epoch, lr, _, train_loss, _, val_loss = single_line.strip().split(",")
-            epochs.append(epoch)
-            train_losses_tmp.append(train_loss)
-            val_losses_tmp.append(val_loss)
+            values = single_line.strip().split(",")
+
+            for k, v in zip(header, values):
+                metrics[k].append(v)
 
     # train and val are not logged on the same row and can have different lengths
     train_epoch = [

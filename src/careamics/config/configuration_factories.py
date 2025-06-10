@@ -298,6 +298,14 @@ def _create_unet_based_algorithm(
         "algorithm": algorithm,
         "loss": loss,
         "model": network_model,
+        "optimizer": {
+            "name": optimizer,
+            "parameters": {} if optimizer_params is None else optimizer_params,
+        },
+        "lr_scheduler": {
+            "name": lr_scheduler,
+            "parameters": {} if lr_scheduler_params is None else lr_scheduler_params,
+        },
     }
 
 

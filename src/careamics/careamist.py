@@ -9,7 +9,6 @@ from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import (
     Callback,
     EarlyStopping,
-    LearningRateMonitor,
     ModelCheckpoint,
 )
 from pytorch_lightning.loggers import CSVLogger, TensorBoardLogger, WandbLogger
@@ -278,8 +277,6 @@ class CAREamist:
                     filename=self.cfg.experiment_name,
                     **self.cfg.training_config.checkpoint_callback.model_dump(),
                 ),
-                ProgressBarCallback(),
-                LearningRateMonitor(),
             ]
         )
         if enable_progress_bar:

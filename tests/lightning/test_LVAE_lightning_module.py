@@ -121,6 +121,7 @@ def create_vae_lightning_model(
         gaussian_likelihood=gaussian_lik_config,
         noise_model=noise_model_config,
         noise_model_likelihood=nm_lik_config,
+        is_supervised= algorithm != "hdn",
     )
 
     return VAEModule(

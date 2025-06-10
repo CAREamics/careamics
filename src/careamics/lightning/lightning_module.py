@@ -402,14 +402,12 @@ class VAEModule(L.LightningModule):
         Any
             Loss value.
         """
-        x, *target = batch
+        x, target = batch
 
         # Forward pass
         out = self.model(x)
         if not self.supervised_mode:
             target = x
-        else:
-            target = target[0]  # TODO find a better way to do this
 
         # Update loss parameters
         self.loss_parameters.kl_params.current_epoch = self.current_epoch
@@ -427,10 +425,13 @@ class VAEModule(L.LightningModule):
         # TODO: implement a separate logging method?
         self.log_dict(loss, on_step=True, on_epoch=True)
 
-        optimizer = self.optimizers()
-        current_lr = optimizer.param_groups[0]["lr"]
-        self.log("learning_rate", current_lr, on_step=False, on_epoch=True, logger=True)
-
+        try:
+            optimizer = self.optimizers()
+            current_lr = optimizer.param_groups[0]["lr"]
+            self.log("learning_rate", current_lr, on_step=False, on_epoch=True, logger=True)
+        except RuntimeError:
+            # This happens when the module is not attached to a trainer, e.g., in tests
+            pass
         return loss
 
     def validation_step(self, batch: tuple[Tensor, Tensor], batch_idx: Any) -> None:
@@ -447,14 +448,12 @@ class VAEModule(L.LightningModule):
         batch_idx : Any
             Batch index.
         """
-        x, *target = batch
+        x, target = batch
 
         # Forward pass
         out = self.model(x)
         if not self.supervised_mode:
             target = x
-        else:
-            target = target[0]
         # Compute loss
         loss = self.loss_func(
             model_outputs=out,
@@ -614,6 +613,7 @@ class VAEModule(L.LightningModule):
         list[float]
             PSNR for each channel in the current batch.
         """
+        # TODO check this! Related to is_supervised which is also wacky
         out_channels = target.shape[1]
 
         # get the reconstructed image
