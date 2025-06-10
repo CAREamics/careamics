@@ -150,6 +150,9 @@ class FCNModule(L.LightningModule):
         self.log(
             "train_loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True
         )
+        optimizer = self.optimizers()
+        current_lr = optimizer.param_groups[0]["lr"]
+        self.log("learning_rate", current_lr, on_step=False, on_epoch=True, logger=True)
         return loss
 
     def validation_step(self, batch: Tensor, batch_idx: Any) -> None:

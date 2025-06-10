@@ -14,10 +14,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from matplotlib.gridspec import GridSpec
-from torch.utils.data import DataLoader, Dataset, Subset
+from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
 
 from careamics.lightning import VAEModule
+from careamics.lvae_training.dataset import MultiChDloaderRef
 from careamics.utils.metrics import scale_invariant_psnr
 
 
@@ -542,7 +543,9 @@ def get_predictions(
             mmse_count=mmse_count,
             num_workers=num_workers,
         )
+        # TODO stitching still not working properly for weirdly shaped images
         # get filename without extension and path
+        # TODO in the ref ds this is the name of a folder not file :(
         filename = dset._fpath.name
         return (
             {filename: stitched_predictions},
@@ -656,8 +659,14 @@ def get_single_file_mmse(
 
     tiles_arr = np.concatenate(tile_mmse, axis=0)
     tile_stds = np.concatenate(tile_stds, axis=0)
-    stitched_predictions = stitch_predictions_new(tiles_arr, dset)
-    stitched_stds = stitch_predictions_new(tile_stds, dset)
+    # TODO temporary hack, because of the stupid jupyter!
+    # If a user reruns a cell with class definition, isinstance will return False
+    if str(MultiChDloaderRef).split(".")[-1] == str(dset.__class__).split(".")[-1]:
+        stitch_func = stitch_predictions_general
+    else:
+        stitch_func = stitch_predictions_new
+    stitched_predictions = stitch_func(tiles_arr, dset)
+    stitched_stds = stitch_func(tile_stds, dset)
     return stitched_predictions, stitched_stds
 
 
@@ -868,6 +877,87 @@ def stitch_predictions_new(predictions, dset):
                     vgs[0], vgs[1] : vge[1], vgs[2] : vge[2], vgs[3] : vge[3], ch_idx
                 ] = predictions[dset_idx][
                     ch_idx, rs[1] : re[1], rs[2] : re[2], rs[3] : re[3]
+                ]
+            else:
+                raise ValueError(f"Unsupported shape {output.shape}")
+
+    return output
+
+
+def stitch_predictions_general(predictions, dset):
+    """Stitching for the dataset with multiple files of different shape."""
+    mng = dset.idx_manager
+
+    # TODO assert all shapes are equal len
+    # adjust number of channels to match with prediction shape #TODO ugly, refac!
+    shapes = []
+    for shape in dset.get_data_shapes()[0]:
+        shapes.append((predictions.shape[1],) + shape[1:])
+
+    output = [np.zeros(shape, dtype=predictions.dtype) for shape in shapes]
+    # frame_shape = dset.get_data_shape()[:-1]
+    for patch_idx in range(predictions.shape[0]):
+        # grid start, grid end
+        # channel_idx is 0 because during prediction we're only use one channel. # TODO revisit this
+        # 0th dimension is sample index in the output list
+        grid_coords = np.array(
+            mng.get_location_from_patch_idx(channel_idx=0, patch_idx=patch_idx),
+            dtype=int,
+        )
+        sample_idx = grid_coords[0]
+        grid_start = grid_coords[1:]
+        # from here on, coordinates are relative to the sample(file in the list of inputs)
+        grid_end = grid_start + mng.grid_shape
+
+        # patch start, patch end
+        patch_start = grid_start - mng.patch_offset()
+        patch_end = patch_start + mng.patch_shape
+
+        # valid grid start, valid grid end
+        valid_grid_start = np.array([max(0, x) for x in grid_start], dtype=int)
+        valid_grid_end = np.array(
+            [min(x, y) for x, y in zip(grid_end, shapes[sample_idx])], dtype=int
+        )
+
+        if mng.tiling_mode == TilingMode.ShiftBoundary:
+            for dim in range(len(valid_grid_start)):
+                if patch_start[dim] == 0:
+                    valid_grid_start[dim] = 0
+                if patch_end[dim] == mng.data_shape[dim]:
+                    valid_grid_end[dim] = mng.data_shape[dim]
+
+        # relative start, relative end. This will be used on pred_tiled
+        relative_start = valid_grid_start - patch_start
+        relative_end = relative_start + (valid_grid_end - valid_grid_start)
+
+        for ch_idx in range(predictions.shape[1]):
+            if len(output[sample_idx].shape) == 3:
+                # starting from 1 because 0th dimension is channel relative to input
+                # channel dimension for stitched output is relative to model output
+                output[sample_idx][
+                    ch_idx,
+                    valid_grid_start[1] : valid_grid_end[1],
+                    valid_grid_start[2] : valid_grid_end[2],
+                ] = predictions[patch_idx][
+                    ch_idx,
+                    relative_start[1] : relative_end[1],
+                    relative_start[2] : relative_end[2],
+                ]
+            elif len(output[sample_idx].shape) == 4:
+                assert (
+                    valid_grid_end[0] - valid_grid_start[0] == 1
+                ), "Only one frame is supported"
+                output[
+                    ch_idx,
+                    valid_grid_start[0],
+                    valid_grid_end[1] : valid_grid_end[1],
+                    valid_grid_start[2] : valid_grid_end[2],
+                    valid_grid_start[3] : valid_grid_end[3],
+                ] = predictions[patch_idx][
+                    ch_idx,
+                    relative_start[1] : relative_end[1],
+                    relative_start[2] : relative_end[2],
+                    relative_start[3] : relative_end[3],
                 ]
             else:
                 raise ValueError(f"Unsupported shape {output.shape}")

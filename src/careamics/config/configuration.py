@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import re
 from pprint import pformat
-from typing import Any, Literal, Union
+from typing import Any, Callable, Literal, Union
 
 from bioimageio.spec.generic.v0_3 import CiteEntry
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic.main import IncEx
 from typing_extensions import Self
 
 from careamics.config.algorithms import (
@@ -299,17 +300,18 @@ class Configuration(BaseModel):
         self,
         *,
         mode: Literal["json", "python"] | str = "python",
-        include: Any | None = None,
-        exclude: Any | None = None,
+        include: IncEx | None = None,
+        exclude: IncEx | None = None,
         context: Any | None = None,
-        by_alias: bool = False,
+        by_alias: bool | None = False,
         exclude_unset: bool = False,
         exclude_defaults: bool = False,
         exclude_none: bool = True,
         round_trip: bool = False,
         warnings: bool | Literal["none", "warn", "error"] = True,
+        fallback: Callable[[Any], Any] | None = None,
         serialize_as_any: bool = False,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """
         Override model_dump method in order to set default values.
 
@@ -339,6 +341,8 @@ class Configuration(BaseModel):
             representation.
         warnings : bool | Literal['none', 'warn', 'error'], default=True
             Whether to emit warnings.
+        fallback : Callable[[Any], Any] | None, default=None
+            A function to call when an unknown value is encountered.
         serialize_as_any : bool, default=False
             Whether to serialize all types as Any.
 
@@ -358,6 +362,7 @@ class Configuration(BaseModel):
             exclude_none=exclude_none,
             round_trip=round_trip,
             warnings=warnings,
+            fallback=fallback,
             serialize_as_any=serialize_as_any,
         )
 

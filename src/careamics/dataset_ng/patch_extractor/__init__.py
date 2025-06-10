@@ -1,7 +1,5 @@
-__all__ = [
-    "PatchExtractor",
-    "PatchExtractorConstructor",
-    "PatchSpecs",
-]
+__all__ = ["GenericImageStack", "ImageStackLoader", "PatchExtractor"]
 
-from .patch_extractor import PatchExtractor, PatchExtractorConstructor, PatchSpecs
+from .image_stack import GenericImageStack
+from .image_stack_loader import ImageStackLoader
+from .patch_extractor import PatchExtractor

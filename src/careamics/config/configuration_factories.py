@@ -242,6 +242,10 @@ def _create_unet_based_algorithm(
     n_channels_out: int,
     use_n2v2: bool = False,
     model_params: Optional[dict] = None,
+    optimizer: Literal["Adam", "Adamax", "SGD"] = "Adam",
+    optimizer_params: Optional[dict[str, Any]] = None,
+    lr_scheduler: Literal["ReduceLROnPlateau", "StepLR"] = "ReduceLROnPlateau",
+    lr_scheduler_params: Optional[dict[str, Any]] = None,
 ) -> dict:
     """
     Create a dictionary with the parameters of the unet based algorithm model.
@@ -260,10 +264,20 @@ def _create_unet_based_algorithm(
         Number of input channels.
     n_channels_out : int
         Number of output channels.
-    use_n2v2 : bool, optional
-        Whether to use N2V2, by default False.
-    model_params : dict
+    use_n2v2 : bool, default=false
+        Whether to use N2V2.
+    model_params : dict, default=None
         UNetModel parameters.
+    optimizer : {"Adam", "Adamax", "SGD"}, default="Adam"
+        Optimizer to use.
+    optimizer_params : dict, default=None
+        Parameters for the optimizer, see PyTorch documentation for more details.
+    lr_scheduler : {"ReduceLROnPlateau", "StepLR"}, default="ReduceLROnPlateau"
+        Learning rate scheduler to use.
+    lr_scheduler_params : dict, default=None
+        Parameters for the learning rate scheduler, see PyTorch documentation for more
+        details.
+
 
     Returns
     -------
@@ -383,7 +397,7 @@ def _create_vae_based_algorithm(
 
 
 def _create_data_configuration(
-    data_type: Literal["array", "tiff", "custom"],
+    data_type: Literal["array", "tiff", "czi", "custom"],
     axes: str,
     patch_size: tuple[int, ...],
     batch_size: int,
@@ -396,7 +410,7 @@ def _create_data_configuration(
 
     Parameters
     ----------
-    data_type : {"array", "tiff", "custom"}
+    data_type : {"array", "tiff", "czi", "custom"}
         Type of the data.
     axes : str
         Axes of the data.
@@ -439,7 +453,9 @@ def _create_data_configuration(
 
 
 def _create_training_configuration(
-    num_epochs: int, logger: Literal["wandb", "tensorboard", "none"]
+    num_epochs: int,
+    logger: Literal["wandb", "tensorboard", "none"],
+    checkpoint_params: Optional[dict[str, Any]] = None,
 ) -> TrainingConfig:
     """
     Create a dictionary with the parameters of the training model.
@@ -450,6 +466,9 @@ def _create_training_configuration(
         Number of epochs.
     logger : {"wandb", "tensorboard", "none"}
         Logger to use.
+    checkpoint_params : dict, default=None
+        Parameters for the checkpoint callback, see PyTorch Lightning documentation
+        (`ModelCheckpoint`) for the list of available parameters.
 
     Returns
     -------
@@ -459,6 +478,7 @@ def _create_training_configuration(
     return TrainingConfig(
         num_epochs=num_epochs,
         logger=None if logger == "none" else logger,
+        checkpoint_callback={} if checkpoint_params is None else checkpoint_params,
     )
 
 
@@ -466,7 +486,7 @@ def _create_training_configuration(
 def _create_supervised_config_dict(
     algorithm: Literal["care", "n2n"],
     experiment_name: str,
-    data_type: Literal["array", "tiff", "custom"],
+    data_type: Literal["array", "tiff", "czi", "custom"],
     axes: str,
     patch_size: tuple[int, ...],
     batch_size: int,
@@ -478,8 +498,13 @@ def _create_supervised_config_dict(
     n_channels_out: Optional[int] = None,
     logger: Literal["wandb", "tensorboard", "none"] = "none",
     model_params: Optional[dict] = None,
+    optimizer: Literal["Adam", "Adamax", "SGD"] = "Adam",
+    optimizer_params: Optional[dict[str, Any]] = None,
+    lr_scheduler: Literal["ReduceLROnPlateau", "StepLR"] = "ReduceLROnPlateau",
+    lr_scheduler_params: Optional[dict[str, Any]] = None,
     train_dataloader_params: Optional[dict[str, Any]] = None,
     val_dataloader_params: Optional[dict[str, Any]] = None,
+    checkpoint_params: Optional[dict[str, Any]] = None,
 ) -> dict:
     """
     Create a configuration for training CARE or Noise2Noise.
@@ -490,7 +515,7 @@ def _create_supervised_config_dict(
         Algorithm to use.
     experiment_name : str
         Name of the experiment.
-    data_type : Literal["array", "tiff", "custom"]
+    data_type : Literal["array", "tiff", "czi", "custom"]
         Type of the data.
     axes : str
         Axes of the data (e.g. SYX).
@@ -514,12 +539,24 @@ def _create_supervised_config_dict(
         Number of channels out.
     logger : Literal["wandb", "tensorboard", "none"], optional
         Logger to use, by default "none".
-    model_params : dict, optional
-        UNetModel parameters, by default {}.
+    model_params : dict, default=None
+        UNetModel parameters.
+    optimizer : {"Adam", "Adamax", "SGD"}, default="Adam"
+        Optimizer to use.
+    optimizer_params : dict, default=None
+        Parameters for the optimizer, see PyTorch documentation for more details.
+    lr_scheduler : {"ReduceLROnPlateau", "StepLR"}, default="ReduceLROnPlateau"
+        Learning rate scheduler to use.
+    lr_scheduler_params : dict, default=None
+        Parameters for the learning rate scheduler, see PyTorch documentation for more
+        details.
     train_dataloader_params : dict
         Parameters for the training dataloader, see PyTorch notes, by default None.
     val_dataloader_params : dict
         Parameters for the validation dataloader, see PyTorch notes, by default None.
+    checkpoint_params : dict, default=None
+        Parameters for the checkpoint callback, see PyTorch Lightning documentation
+        (`ModelCheckpoint`) for the list of available parameters.
 
     Returns
     -------
@@ -560,6 +597,10 @@ def _create_supervised_config_dict(
         n_channels_in=n_channels_in,
         n_channels_out=n_channels_out,
         model_params=model_params,
+        optimizer=optimizer,
+        optimizer_params=optimizer_params,
+        lr_scheduler=lr_scheduler,
+        lr_scheduler_params=lr_scheduler_params,
     )
 
     # data
@@ -577,6 +618,7 @@ def _create_supervised_config_dict(
     training_params = _create_training_configuration(
         num_epochs=num_epochs,
         logger=logger,
+        checkpoint_params=checkpoint_params,
     )
 
     return {
@@ -589,7 +631,7 @@ def _create_supervised_config_dict(
 
 def create_care_configuration(
     experiment_name: str,
-    data_type: Literal["array", "tiff", "custom"],
+    data_type: Literal["array", "tiff", "czi", "custom"],
     axes: str,
     patch_size: tuple[int, ...],
     batch_size: int,
@@ -601,8 +643,13 @@ def create_care_configuration(
     n_channels_out: Optional[int] = None,
     logger: Literal["wandb", "tensorboard", "none"] = "none",
     model_params: Optional[dict] = None,
+    optimizer: Literal["Adam", "Adamax", "SGD"] = "Adam",
+    optimizer_params: Optional[dict[str, Any]] = None,
+    lr_scheduler: Literal["ReduceLROnPlateau", "StepLR"] = "ReduceLROnPlateau",
+    lr_scheduler_params: Optional[dict[str, Any]] = None,
     train_dataloader_params: Optional[dict[str, Any]] = None,
     val_dataloader_params: Optional[dict[str, Any]] = None,
+    checkpoint_params: Optional[dict[str, Any]] = None,
 ) -> Configuration:
     """
     Create a configuration for training CARE.
@@ -629,7 +676,7 @@ def create_care_configuration(
     ----------
     experiment_name : str
         Name of the experiment.
-    data_type : Literal["array", "tiff", "custom"]
+    data_type : Literal["array", "tiff", "czi", "custom"]
         Type of the data.
     axes : str
         Axes of the data (e.g. SYX).
@@ -655,6 +702,15 @@ def create_care_configuration(
         Logger to use.
     model_params : dict, default=None
         UNetModel parameters.
+    optimizer : Literal["Adam", "Adamax", "SGD"], default="Adam"
+        Optimizer to use.
+    optimizer_params : dict, default=None
+        Parameters for the optimizer, see PyTorch documentation for more details.
+    lr_scheduler : Literal["ReduceLROnPlateau", "StepLR"], default="ReduceLROnPlateau"
+        Learning rate scheduler to use.
+    lr_scheduler_params : dict, default=None
+        Parameters for the learning rate scheduler, see PyTorch documentation for more
+        details.
     train_dataloader_params : dict, optional
         Parameters for the training dataloader, see the PyTorch docs for `DataLoader`.
         If left as `None`, the dict `{"shuffle": True}` will be used, this is set in
@@ -663,6 +719,9 @@ def create_care_configuration(
         Parameters for the validation dataloader, see PyTorch the docs for `DataLoader`.
         If left as `None`, the empty dict `{}` will be used, this is set in the
         `GeneralDataConfig`.
+    checkpoint_params : dict, default=None
+        Parameters for the checkpoint callback, see PyTorch Lightning documentation
+        (`ModelCheckpoint`) for the list of available parameters.
 
     Returns
     -------
@@ -735,6 +794,29 @@ def create_care_configuration(
     ...     n_channels_in=3,
     ...     n_channels_out=1 # if applicable
     ... )
+
+    If you would like to train on CZI files, use `"czi"` as `data_type` and `"SCYX"` as
+    `axes` for 2-D or `"SCZYX"` for 3-D denoising. Note that `"SCYX"` can also be used
+    for 3-D data but spatial context along the Z dimension will then not be taken into
+    account.
+    >>> config_2d = create_care_configuration(
+    ...     experiment_name="care_experiment",
+    ...     data_type="czi",
+    ...     axes="SCYX",
+    ...     patch_size=[64, 64],
+    ...     batch_size=32,
+    ...     num_epochs=100,
+    ...     n_channels_in=1,
+    ... )
+    >>> config_3d = create_care_configuration(
+    ...     experiment_name="care_experiment",
+    ...     data_type="czi",
+    ...     axes="SCZYX",
+    ...     patch_size=[16, 64, 64],
+    ...     batch_size=16,
+    ...     num_epochs=100,
+    ...     n_channels_in=1,
+    ... )
     """
     return Configuration(
         **_create_supervised_config_dict(
@@ -752,15 +834,20 @@ def create_care_configuration(
             n_channels_out=n_channels_out,
             logger=logger,
             model_params=model_params,
+            optimizer=optimizer,
+            optimizer_params=optimizer_params,
+            lr_scheduler=lr_scheduler,
+            lr_scheduler_params=lr_scheduler_params,
             train_dataloader_params=train_dataloader_params,
             val_dataloader_params=val_dataloader_params,
+            checkpoint_params=checkpoint_params,
         )
     )
 
 
 def create_n2n_configuration(
     experiment_name: str,
-    data_type: Literal["array", "tiff", "custom"],
+    data_type: Literal["array", "tiff", "czi", "custom"],
     axes: str,
     patch_size: tuple[int, ...],
     batch_size: int,
@@ -772,8 +859,13 @@ def create_n2n_configuration(
     n_channels_out: Optional[int] = None,
     logger: Literal["wandb", "tensorboard", "none"] = "none",
     model_params: Optional[dict] = None,
+    optimizer: Literal["Adam", "Adamax", "SGD"] = "Adam",
+    optimizer_params: Optional[dict[str, Any]] = None,
+    lr_scheduler: Literal["ReduceLROnPlateau", "StepLR"] = "ReduceLROnPlateau",
+    lr_scheduler_params: Optional[dict[str, Any]] = None,
     train_dataloader_params: Optional[dict[str, Any]] = None,
     val_dataloader_params: Optional[dict[str, Any]] = None,
+    checkpoint_params: Optional[dict[str, Any]] = None,
 ) -> Configuration:
     """
     Create a configuration for training Noise2Noise.
@@ -800,7 +892,7 @@ def create_n2n_configuration(
     ----------
     experiment_name : str
         Name of the experiment.
-    data_type : Literal["array", "tiff", "custom"]
+    data_type : Literal["array", "tiff", "czi", "custom"]
         Type of the data.
     axes : str
         Axes of the data (e.g. SYX).
@@ -824,8 +916,17 @@ def create_n2n_configuration(
         Number of channels out.
     logger : Literal["wandb", "tensorboard", "none"], optional
         Logger to use, by default "none".
-    model_params : dict, optional
-        UNetModel parameters, by default {}.
+    model_params : dict, default=None
+        UNetModel parameters.
+    optimizer : Literal["Adam", "Adamax", "SGD"], default="Adam"
+        Optimizer to use.
+    optimizer_params : dict, default=None
+        Parameters for the optimizer, see PyTorch documentation for more details.
+    lr_scheduler : Literal["ReduceLROnPlateau", "StepLR"], default="ReduceLROnPlateau"
+        Learning rate scheduler to use.
+    lr_scheduler_params : dict, default=None
+        Parameters for the learning rate scheduler, see PyTorch documentation for more
+        details.
     train_dataloader_params : dict, optional
         Parameters for the training dataloader, see the PyTorch docs for `DataLoader`.
         If left as `None`, the dict `{"shuffle": True}` will be used, this is set in
@@ -834,6 +935,9 @@ def create_n2n_configuration(
         Parameters for the validation dataloader, see PyTorch the docs for `DataLoader`.
         If left as `None`, the empty dict `{}` will be used, this is set in the
         `GeneralDataConfig`.
+    checkpoint_params : dict, default=None
+        Parameters for the checkpoint callback, see PyTorch Lightning documentation
+        (`ModelCheckpoint`) for the list of available parameters.
 
     Returns
     -------
@@ -906,6 +1010,29 @@ def create_n2n_configuration(
     ...     n_channels_in=3,
     ...     n_channels_out=1 # if applicable
     ... )
+
+    If you would like to train on CZI files, use `"czi"` as `data_type` and `"SCYX"` as
+    `axes` for 2-D or `"SCZYX"` for 3-D denoising. Note that `"SCYX"` can also be used
+    for 3-D data but spatial context along the Z dimension will then not be taken into
+    account.
+    >>> config_2d = create_n2n_configuration(
+    ...     experiment_name="n2n_experiment",
+    ...     data_type="czi",
+    ...     axes="SCYX",
+    ...     patch_size=[64, 64],
+    ...     batch_size=32,
+    ...     num_epochs=100,
+    ...     n_channels_in=1,
+    ... )
+    >>> config_3d = create_n2n_configuration(
+    ...     experiment_name="n2n_experiment",
+    ...     data_type="czi",
+    ...     axes="SCZYX",
+    ...     patch_size=[16, 64, 64],
+    ...     batch_size=16,
+    ...     num_epochs=100,
+    ...     n_channels_in=1,
+    ... )
     """
     return Configuration(
         **_create_supervised_config_dict(
@@ -923,15 +1050,20 @@ def create_n2n_configuration(
             n_channels_out=n_channels_out,
             logger=logger,
             model_params=model_params,
+            optimizer=optimizer,
+            optimizer_params=optimizer_params,
+            lr_scheduler=lr_scheduler,
+            lr_scheduler_params=lr_scheduler_params,
             train_dataloader_params=train_dataloader_params,
             val_dataloader_params=val_dataloader_params,
+            checkpoint_params=checkpoint_params,
         )
     )
 
 
 def create_n2v_configuration(
     experiment_name: str,
-    data_type: Literal["array", "tiff", "custom"],
+    data_type: Literal["array", "tiff", "czi", "custom"],
     axes: str,
     patch_size: tuple[int, ...],
     batch_size: int,
@@ -946,8 +1078,13 @@ def create_n2v_configuration(
     struct_n2v_span: int = 5,
     logger: Literal["wandb", "tensorboard", "none"] = "none",
     model_params: Optional[dict] = None,
+    optimizer: Literal["Adam", "Adamax", "SGD"] = "Adam",
+    optimizer_params: Optional[dict[str, Any]] = None,
+    lr_scheduler: Literal["ReduceLROnPlateau", "StepLR"] = "ReduceLROnPlateau",
+    lr_scheduler_params: Optional[dict[str, Any]] = None,
     train_dataloader_params: Optional[dict[str, Any]] = None,
     val_dataloader_params: Optional[dict[str, Any]] = None,
+    checkpoint_params: Optional[dict[str, Any]] = None,
 ) -> Configuration:
     """
     Create a configuration for training Noise2Void.
@@ -994,7 +1131,7 @@ def create_n2v_configuration(
     ----------
     experiment_name : str
         Name of the experiment.
-    data_type : Literal["array", "tiff", "custom"]
+    data_type : Literal["array", "tiff", "czi", "custom"]
         Type of the data.
     axes : str
         Axes of the data (e.g. SYX).
@@ -1024,8 +1161,17 @@ def create_n2v_configuration(
         Span of the structN2V mask, by default 5.
     logger : Literal["wandb", "tensorboard", "none"], optional
         Logger to use, by default "none".
-    model_params : dict, optional
-        UNetModel parameters, by default None.
+    model_params : dict, default=None
+        UNetModel parameters.
+    optimizer : Literal["Adam", "Adamax", "SGD"], default="Adam"
+        Optimizer to use.
+    optimizer_params : dict, default=None
+        Parameters for the optimizer, see PyTorch documentation for more details.
+    lr_scheduler : Literal["ReduceLROnPlateau", "StepLR"], default="ReduceLROnPlateau"
+        Learning rate scheduler to use.
+    lr_scheduler_params : dict, default=None
+        Parameters for the learning rate scheduler, see PyTorch documentation for more
+        details.
     train_dataloader_params : dict, optional
         Parameters for the training dataloader, see the PyTorch docs for `DataLoader`.
         If left as `None`, the dict `{"shuffle": True}` will be used, this is set in
@@ -1034,6 +1180,9 @@ def create_n2v_configuration(
         Parameters for the validation dataloader, see PyTorch the docs for `DataLoader`.
         If left as `None`, the empty dict `{}` will be used, this is set in the
         `GeneralDataConfig`.
+    checkpoint_params : dict, default=None
+        Parameters for the checkpoint callback, see PyTorch Lightning documentation
+        (`ModelCheckpoint`) for the list of available parameters.
 
     Returns
     -------
@@ -1126,6 +1275,29 @@ def create_n2v_configuration(
     ...     independent_channels=False,
     ...     n_channels=3
     ... )
+
+    If you would like to train on CZI files, use `"czi"` as `data_type` and `"SCYX"` as
+    `axes` for 2-D or `"SCZYX"` for 3-D denoising. Note that `"SCYX"` can also be used
+    for 3-D data but spatial context along the Z dimension will then not be taken into
+    account.
+    >>> config_2d = create_n2v_configuration(
+    ...     experiment_name="n2v_experiment",
+    ...     data_type="czi",
+    ...     axes="SCYX",
+    ...     patch_size=[64, 64],
+    ...     batch_size=32,
+    ...     num_epochs=100,
+    ...     n_channels=1,
+    ... )
+    >>> config_3d = create_n2v_configuration(
+    ...     experiment_name="n2v_experiment",
+    ...     data_type="czi",
+    ...     axes="SCZYX",
+    ...     patch_size=[16, 64, 64],
+    ...     batch_size=16,
+    ...     num_epochs=100,
+    ...     n_channels=1,
+    ... )
     """
     # if there are channels, we need to specify their number
     if "C" in axes and n_channels is None:
@@ -1166,6 +1338,10 @@ def create_n2v_configuration(
         n_channels_out=n_channels,
         use_n2v2=use_n2v2,
         model_params=model_params,
+        optimizer=optimizer,
+        optimizer_params=optimizer_params,
+        lr_scheduler=lr_scheduler,
+        lr_scheduler_params=lr_scheduler_params,
     )
     algorithm_params["n2v_config"] = n2v_transform
 
@@ -1176,6 +1352,174 @@ def create_n2v_configuration(
         patch_size=patch_size,
         batch_size=batch_size,
         augmentations=spatial_transforms,
+        train_dataloader_params=train_dataloader_params,
+        val_dataloader_params=val_dataloader_params,
+    )
+
+    # training
+    training_params = _create_training_configuration(
+        num_epochs=num_epochs,
+        logger=logger,
+        checkpoint_params=checkpoint_params,
+    )
+
+    return Configuration(
+        experiment_name=experiment_name,
+        algorithm_config=algorithm_params,
+        data_config=data_params,
+        training_config=training_params,
+    )
+
+
+# TODO wrap parameters into model, loss etc
+# TODO refac likelihood configs to make it 1. Can it be done ?
+def create_hdn_configuration(
+    experiment_name: str,
+    data_type: Literal["array", "tiff", "custom"],
+    axes: str,
+    patch_size: tuple[int, ...],
+    batch_size: int,
+    num_epochs: int,
+    encoder_conv_strides: tuple[int, ...] = (2, 2),
+    decoder_conv_strides: tuple[int, ...] = (2, 2),
+    multiscale_count: int = 1,
+    z_dims: tuple[int, ...] = (128, 128),
+    output_channels: int = 1,
+    encoder_n_filters: int = 32,
+    decoder_n_filters: int = 32,
+    encoder_dropout: float = 0.0,
+    decoder_dropout: float = 0.0,
+    nonlinearity: Literal[
+        "None", "Sigmoid", "Softmax", "Tanh", "ReLU", "LeakyReLU", "ELU"
+    ] = "ReLU",
+    analytical_kl: bool = False,
+    predict_logvar: Optional[Literal["pixelwise"]] = None,
+    logvar_lowerbound: Union[float, None] = None,
+    logger: Literal["wandb", "tensorboard", "none"] = "none",
+    model_params: Optional[dict] = None,
+    augmentations: Optional[list[Union[XYFlipModel, XYRandomRotate90Model]]] = None,
+    train_dataloader_params: Optional[dict[str, Any]] = None,
+    val_dataloader_params: Optional[dict[str, Any]] = None,
+) -> Configuration:
+    """
+    Create a configuration for training HDN.
+
+    If "Z" is present in `axes`, then `path_size` must be a list of length 3, otherwise
+    2.
+
+    If "C" is present in `axes`, then you need to set `n_channels_in` to the number of
+    channels. Likewise, if you set the number of channels, then "C" must be present in
+    `axes`.
+
+    To set the number of output channels, use the `n_channels_out` parameter. If it is
+    not specified, it will be assumed to be equal to `n_channels_in`.
+
+    By default, all channels are trained independently. To train all channels together,
+    set `independent_channels` to False.
+
+    By setting `augmentations` to `None`, the default transformations (flip in X and Y,
+    rotations by 90 degrees in the XY plane) are applied. Rather than the default
+    transforms, a list of transforms can be passed to the `augmentations` parameter. To
+    disable the transforms, simply pass an empty list.
+
+    The parameters of the UNet can be specified in the `model_params` (passed as a
+    parameter-value dictionary).
+
+    Parameters
+    ----------
+    experiment_name : str
+        Name of the experiment.
+    data_type : Literal["array", "tiff", "custom"]
+        Type of the data.
+    axes : str
+        Axes of the data (e.g. SYX).
+    patch_size : List[int]
+        Size of the patches along the spatial dimensions (e.g. [64, 64]).
+    batch_size : int
+        Batch size.
+    num_epochs : int
+        Number of training epochs.
+    encoder_conv_strides : tuple[int, ...], optional
+        Strides for the encoder convolutional layers, by default (2, 2).
+    decoder_conv_strides : tuple[int, ...], optional
+        Strides for the decoder convolutional layers, by default (2, 2).
+    multiscale_count : int, optional
+        Number of scales in the multiscale architecture, by default 1.
+    z_dims : tuple[int, ...], optional
+        Dimensions of the latent space, by default (128, 128).
+    output_channels : int, optional
+        Number of output channels, by default 1.
+    encoder_n_filters : int, optional
+        Number of filters in the encoder, by default 32.
+    decoder_n_filters : int, optional
+        Number of filters in the decoder, by default 32.
+    encoder_dropout : float, optional
+        Dropout rate for the encoder, by default 0.0.
+    decoder_dropout : float, optional
+        Dropout rate for the decoder, by default 0.0.
+    nonlinearity : Literal, optional
+        Nonlinearity function to use, by default "ReLU".
+    analytical_kl : bool, optional
+        Whether to use analytical KL divergence, by default False.
+    predict_logvar : Literal[None, "pixelwise"], optional
+        Type of log variance prediction, by default None.
+    logvar_lowerbound : Union[float, None], optional
+        Lower bound for the log variance, by default None.
+    logger : Literal["wandb", "tensorboard", "none"], optional
+        Logger to use for training, by default "none".
+    model_params : Optional[dict], optional
+        Parameters for the UNet model, by default None.
+    augmentations : Optional[list[Union[XYFlipModel, XYRandomRotate90Model]]], optional
+        List of augmentations to apply, by default None.
+    train_dataloader_params : Optional[dict[str, Any]], optional
+        Parameters for the training dataloader, by default None.
+    val_dataloader_params : Optional[dict[str, Any]], optional
+        Parameters for the validation dataloader, by default None.
+
+    Returns
+    -------
+    Configuration
+        The configuration object for training HDN.
+    """
+    transform_list = _list_spatial_augmentations(augmentations)
+
+    loss_config = LVAELossConfig(
+        loss_type="hdn", denoisplit_weight=1, musplit_weight=0
+    )  # TODO what are the correct defaults for HDN?
+
+    gaussian_likelihood = GaussianLikelihoodConfig(
+        predict_logvar=predict_logvar, logvar_lowerbound=logvar_lowerbound
+    )
+
+    # algorithm
+    algorithm_params = _create_vae_based_algorithm(
+        algorithm="hdn",
+        loss=loss_config,
+        input_shape=patch_size,
+        encoder_conv_strides=encoder_conv_strides,
+        decoder_conv_strides=decoder_conv_strides,
+        multiscale_count=multiscale_count,
+        z_dims=z_dims,
+        output_channels=output_channels,
+        encoder_n_filters=encoder_n_filters,
+        decoder_n_filters=decoder_n_filters,
+        encoder_dropout=encoder_dropout,
+        decoder_dropout=decoder_dropout,
+        nonlinearity=nonlinearity,
+        predict_logvar=predict_logvar,
+        analytical_kl=analytical_kl,
+        gaussian_likelihood=gaussian_likelihood,
+        nm_likelihood=None,
+        model_params=model_params,
+    )
+
+    # data
+    data_params = _create_data_configuration(
+        data_type=data_type,
+        axes=axes,
+        patch_size=patch_size,
+        batch_size=batch_size,
+        augmentations=transform_list,
         train_dataloader_params=train_dataloader_params,
         val_dataloader_params=val_dataloader_params,
     )

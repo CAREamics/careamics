@@ -63,6 +63,9 @@ class UNetModel(ArchitectureModel):
     """Whether information is processed independently in each channel, used to train
     channels independently."""
 
+    use_batch_norm: bool = Field(default=True, validate_default=True)
+    """Whether to use batch normalization in the model."""
+
     @field_validator("num_channels_init")
     @classmethod
     def validate_num_channels_init(cls, num_channels_init: int) -> int:
