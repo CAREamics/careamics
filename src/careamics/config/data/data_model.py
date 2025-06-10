@@ -95,9 +95,9 @@ class DataConfig(BaseModel):
     )
 
     # Dataset configuration
-    data_type: Literal["array", "tiff", "custom"]
-    """Type of input data, numpy.ndarray (array) or paths (tiff and custom), as defined
-    in SupportedData."""
+    data_type: Literal["array", "tiff", "czi", "custom"]
+    """Type of input data, numpy.ndarray (array) or paths (tiff, czi, and custom), as
+    defined in SupportedData."""
 
     axes: str
     """Axes of the data, as defined in SupportedAxes."""
