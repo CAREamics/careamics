@@ -28,6 +28,10 @@ def read_csv_logger(experiment_name: str, log_folder: Union[str, Path]) -> dict:
 
     path_log = path / f"version_{version}" / "metrics.csv"
 
+    epochs = []
+    train_losses_tmp = []
+    val_losses_tmp = []
+
     with open(path_log) as f:
         lines = f.readlines()
 
