@@ -21,7 +21,7 @@ class SupportedLoss(str, BaseEnum):
     MAE = "mae"
     N2V = "n2v"
     # PN2V = "pn2v"
-    # HDN = "hdn"
+    HDN = "hdn"
     MUSPLIT = "musplit"
     DENOISPLIT = "denoisplit"
     DENOISPLIT_MUSPLIT = "denoisplit_musplit"
