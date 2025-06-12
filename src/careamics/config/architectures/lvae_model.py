@@ -40,7 +40,7 @@ class LVAEModel(ArchitectureModel):
         default="ELU",
     )
 
-    predict_logvar: Literal[None, "pixelwise"] = None
+    predict_logvar: Literal[None, "pixelwise"] = "pixelwise"
     analytical_kl: bool = Field(default=False)
 
     @model_validator(mode="after")

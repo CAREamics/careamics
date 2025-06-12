@@ -402,12 +402,14 @@ class VAEModule(L.LightningModule):
         Any
             Loss value.
         """
-        x, target = batch
+        x, *target = batch
 
         # Forward pass
         out = self.model(x)
         if not self.supervised_mode:
             target = x
+        else:
+            target = target[0] # hacky way to unpack. #TODO probably should be fixed on the datasel level
 
         # Update loss parameters
         self.loss_parameters.kl_params.current_epoch = self.current_epoch
@@ -448,12 +450,14 @@ class VAEModule(L.LightningModule):
         batch_idx : Any
             Batch index.
         """
-        x, target = batch
+        x, *target = batch
 
         # Forward pass
         out = self.model(x)
         if not self.supervised_mode:
             target = x
+        else:
+            target = target[0] # hacky way to unpack. #TODO probably should be fixed on the datasel level
         # Compute loss
         loss = self.loss_func(
             model_outputs=out,
@@ -497,9 +501,10 @@ class VAEModule(L.LightningModule):
         if self._trainer.datamodule.tiled:
             # TODO tile_size should match model input size
             x, *aux = batch
+            x = x[0] if isinstance(x, (list, tuple)) else x # TODO ugly, so far i don't know why x might be a list
             self.model.reset_for_inference(x.shape)  # TODO should it be here ?
         else:
-            x = batch
+            x = batch[0] if isinstance(batch, (list, tuple)) else batch
             aux = []
             self.model.reset_for_inference(x.shape)
 

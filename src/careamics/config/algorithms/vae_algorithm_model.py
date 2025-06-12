@@ -153,6 +153,7 @@ class VAEBasedAlgorithm(BaseModel):
         #             "Gaussian likelihood model `predict_logvar` must be `None` "
         #             "for algorithm `hdn`."
         #         )
+        # TODO check this
         return self
 
     def __str__(self) -> str:

@@ -160,7 +160,7 @@ class CAREamist:
                 self.model = VAEModule(
                     algorithm_config=self.cfg.algorithm_config,
                 )
-                raise NotImplementedError("VAE based algorithms are not implemented.")
+                # raise NotImplementedError("VAE based algorithms are not implemented.")
             else:
                 raise NotImplementedError("Architecture not supported.")
 
@@ -662,7 +662,9 @@ class CAREamist:
             self.cfg.data_config.image_means is None
             or self.cfg.data_config.image_stds is None
         ):
-            raise ValueError("Mean and std must be provided in the configuration.")
+            raise ValueError(
+                "Mean and std must be provided in the configuration. \n Likely reason is that model was not trained"
+            )
 
         # tile size for UNets
         if tile_size is not None:
