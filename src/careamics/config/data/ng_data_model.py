@@ -123,10 +123,10 @@ class NGDataConfig(BaseModel):
     normalization."""
 
     transforms: Sequence[Union[XYFlipModel, XYRandomRotate90Model]] = Field(
-        default=[
+        default=(
             XYFlipModel(),
             XYRandomRotate90Model(),
-        ],
+        ),
         validate_default=True,
     )
     """List of transformations to apply to the data, available transforms are defined

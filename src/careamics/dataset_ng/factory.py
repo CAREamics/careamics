@@ -270,7 +270,7 @@ def create_tiff_dataset(
 
 
 def create_czi_dataset(
-    config: Union[DataConfig, InferenceConfig],
+    config: NGDataConfig,
     mode: Mode,
     inputs: Sequence[Path],
     targets: Optional[Sequence[Path]],

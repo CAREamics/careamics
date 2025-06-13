@@ -282,8 +282,8 @@ def _create_ng_data_configuration(
     axes: str,
     patch_size: Sequence[int],
     batch_size: int,
-    augmentations: Union[list[SPATIAL_TRANSFORMS_UNION]],
-    patching_overlaps: Optional[Sequence[int]] = None,
+    augmentations: list[SPATIAL_TRANSFORMS_UNION],
+    patch_overlaps: Optional[Sequence[int]] = None,
     train_dataloader_params: Optional[dict[str, Any]] = None,
     val_dataloader_params: Optional[dict[str, Any]] = None,
     test_dataloader_params: Optional[dict[str, Any]] = None,
@@ -304,7 +304,7 @@ def _create_ng_data_configuration(
         Batch size.
     augmentations : list of transforms
         List of transforms to apply.
-    patching_overlaps : Sequence of int, default=None
+    patch_overlaps : Sequence of int, default=None
         Overlaps between patches in each spatial dimension, only used with "sequential"
         patching. If `None`, no overlap is applied. The overlap must be smaller than
         the patch size in each spatial dimension, and the number of dimensions be either
@@ -350,7 +350,7 @@ def _create_ng_data_configuration(
     data["patching"] = {
         "name": "random",
         "patch_size": patch_size,
-        "overlaps": patching_overlaps,
+        "overlaps": patch_overlaps,
     }
 
     return NGDataConfig(**data)
