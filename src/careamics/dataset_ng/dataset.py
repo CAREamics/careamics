@@ -8,7 +8,10 @@ from numpy.typing import NDArray
 from torch.utils.data import Dataset
 from tqdm.auto import tqdm
 
-from careamics.config import DataConfig, InferenceConfig
+from careamics.config.data.ng_data_model import NGDataConfig
+from careamics.config.support.supported_patching_strategies import (
+    SupportedPatchingStrategy,
+)
 from careamics.config.transformations import NormalizeModel
 from careamics.dataset.dataset_utils.running_stats import WelfordStatistics
 from careamics.dataset.patching.patching import Stats
@@ -45,7 +48,7 @@ InputType = Union[Sequence[NDArray[Any]], Sequence[Path]]
 class CareamicsDataset(Dataset, Generic[GenericImageStack]):
     def __init__(
         self,
-        data_config: Union[DataConfig, InferenceConfig],
+        data_config: NGDataConfig,
         mode: Mode,
         input_extractor: PatchExtractor[GenericImageStack],
         target_extractor: Optional[PatchExtractor[GenericImageStack]] = None,
@@ -65,33 +68,43 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
     def _initialize_patching_strategy(self) -> PatchingStrategy:
         patching_strategy: PatchingStrategy
         if self.mode == Mode.TRAINING:
-            if isinstance(self.config, InferenceConfig):
-                raise ValueError("Inference config cannot be used for training.")
+            if self.config.patching.name != SupportedPatchingStrategy.RANDOM:
+                raise ValueError(
+                    f"Only `random` patching strategy supported during training, got "
+                    f"{self.config.patching.name}."
+                )
+
             patching_strategy = RandomPatchingStrategy(
                 data_shapes=self.input_extractor.shape,
-                patch_size=self.config.patch_size,
-                # TODO: Add random seed to dataconfig
-                seed=getattr(self.config, "random_seed", 42),
+                patch_size=self.config.patching.patch_size,
+                seed=self.config.seed,
             )
         elif self.mode == Mode.VALIDATING:
-            if isinstance(self.config, InferenceConfig):
-                raise ValueError("Inference config cannot be used for validating.")
+            if self.config.patching.name != SupportedPatchingStrategy.RANDOM:
+                raise ValueError(
+                    f"Only `random` patching strategy supported during training, got "
+                    f"{self.config.patching.name}."
+                )
+
             patching_strategy = FixedRandomPatchingStrategy(
                 data_shapes=self.input_extractor.shape,
-                patch_size=self.config.patch_size,
-                # TODO: Add random seed to dataconfig
-                seed=getattr(self.config, "random_seed", 42),
+                patch_size=self.config.patching.patch_size,
+                seed=self.config.seed,
             )
         elif self.mode == Mode.PREDICTING:
-            if not isinstance(self.config, InferenceConfig):
-                raise ValueError("Inference config must be used for predicting.")
-            if (self.config.tile_size is not None) and (
-                self.config.tile_overlap is not None
+            if (
+                self.config.patching.name != SupportedPatchingStrategy.TILED
+                and self.config.patching.name != SupportedPatchingStrategy.WHOLE
             ):
+                raise ValueError(
+                    f"Only `tiled` and `whole` patching strategy supported during "
+                    f"training, got {self.config.patching.name}."
+                )
+            elif self.config.patching.name == SupportedPatchingStrategy.TILED:
                 patching_strategy = TilingStrategy(
                     data_shapes=self.input_extractor.shape,
-                    tile_size=self.config.tile_size,
-                    overlaps=self.config.tile_overlap,
+                    tile_size=self.config.patching.patch_size,
+                    overlaps=self.config.patching.overlaps,
                 )
             else:
                 patching_strategy = WholeSamplePatchingStrategy(
@@ -103,32 +116,18 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
         return patching_strategy
 
     def _initialize_transforms(self) -> Optional[Compose]:
-        if isinstance(self.config, DataConfig):
-            if self.mode == Mode.TRAINING:
-                # TODO: initialize normalization separately depending on configuration
-                return Compose(
-                    transform_list=[
-                        NormalizeModel(
-                            image_means=self.input_stats.means,
-                            image_stds=self.input_stats.stds,
-                            target_means=self.target_stats.means,
-                            target_stds=self.target_stats.stds,
-                        )
-                    ]
-                    + list(self.config.transforms)
-                )
+        normalize = NormalizeModel(
+            image_means=self.input_stats.means,
+            image_stds=self.input_stats.stds,
+            target_means=self.target_stats.means,
+            target_stds=self.target_stats.stds,
+        )
+        if self.mode == Mode.TRAINING:
+            # TODO: initialize normalization separately depending on configuration
+            return Compose(transform_list=[normalize] + list(self.config.transforms))
 
         # TODO: add TTA
-        return Compose(
-            transform_list=[
-                NormalizeModel(
-                    image_means=self.input_stats.means,
-                    image_stds=self.input_stats.stds,
-                    target_means=self.target_stats.means,
-                    target_stds=self.target_stats.stds,
-                )
-            ]
-        )
+        return Compose(transform_list=[normalize])
 
     def _calculate_stats(
         self, data_extractor: PatchExtractor[GenericImageStack]
@@ -158,14 +157,11 @@ class CareamicsDataset(Dataset, Generic[GenericImageStack]):
             input_stats = self._calculate_stats(self.input_extractor)
 
         target_stats = Stats((), ())
-        if isinstance(self.config, DataConfig):
-            if (
-                self.config.target_means is not None
-                and self.config.target_stds is not None
-            ):
-                target_stats = Stats(self.config.target_means, self.config.target_stds)
-            elif self.target_extractor is not None:
-                target_stats = self._calculate_stats(self.target_extractor)
+
+        if self.config.target_means is not None and self.config.target_stds is not None:
+            target_stats = Stats(self.config.target_means, self.config.target_stds)
+        elif self.target_extractor is not None:
+            target_stats = self._calculate_stats(self.target_extractor)
 
         return input_stats, target_stats
 
