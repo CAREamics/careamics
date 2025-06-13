@@ -24,7 +24,7 @@ class CheckpointModel(BaseModel):
 
     model_config = ConfigDict(validate_assignment=True, validate_default=True)
 
-    monitor: Literal["val_loss"] = Field(default="val_loss")
+    monitor: Optional[str] = Field(default=None)
     """Quantity to monitor, currently only `val_loss`."""
 
     verbose: bool = Field(default=False)
