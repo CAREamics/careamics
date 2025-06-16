@@ -221,7 +221,7 @@ def _create_algorithm_configuration(
 
 
 def _create_data_configuration(
-    data_type: Literal["array", "tiff", "custom"],
+    data_type: Literal["array", "tiff", "czi", "custom"],
     axes: str,
     patch_size: list[int],
     batch_size: int,
@@ -234,7 +234,7 @@ def _create_data_configuration(
 
     Parameters
     ----------
-    data_type : {"array", "tiff", "custom"}
+    data_type : {"array", "tiff", "czi", "custom"}
         Type of the data.
     axes : str
         Axes of the data.
@@ -310,7 +310,7 @@ def _create_training_configuration(
 def _create_supervised_config_dict(
     algorithm: Literal["care", "n2n"],
     experiment_name: str,
-    data_type: Literal["array", "tiff", "custom"],
+    data_type: Literal["array", "tiff", "czi", "custom"],
     axes: str,
     patch_size: list[int],
     batch_size: int,
@@ -339,7 +339,7 @@ def _create_supervised_config_dict(
         Algorithm to use.
     experiment_name : str
         Name of the experiment.
-    data_type : Literal["array", "tiff", "custom"]
+    data_type : Literal["array", "tiff", "czi", "custom"]
         Type of the data.
     axes : str
         Axes of the data (e.g. SYX).
@@ -455,7 +455,7 @@ def _create_supervised_config_dict(
 
 def create_care_configuration(
     experiment_name: str,
-    data_type: Literal["array", "tiff", "custom"],
+    data_type: Literal["array", "tiff", "czi", "custom"],
     axes: str,
     patch_size: list[int],
     batch_size: int,
@@ -500,7 +500,7 @@ def create_care_configuration(
     ----------
     experiment_name : str
         Name of the experiment.
-    data_type : Literal["array", "tiff", "custom"]
+    data_type : Literal["array", "tiff", "czi", "custom"]
         Type of the data.
     axes : str
         Axes of the data (e.g. SYX).
@@ -618,6 +618,29 @@ def create_care_configuration(
     ...     n_channels_in=3,
     ...     n_channels_out=1 # if applicable
     ... )
+
+    If you would like to train on CZI files, use `"czi"` as `data_type` and `"SCYX"` as
+    `axes` for 2-D or `"SCZYX"` for 3-D denoising. Note that `"SCYX"` can also be used
+    for 3-D data but spatial context along the Z dimension will then not be taken into
+    account.
+    >>> config_2d = create_care_configuration(
+    ...     experiment_name="care_experiment",
+    ...     data_type="czi",
+    ...     axes="SCYX",
+    ...     patch_size=[64, 64],
+    ...     batch_size=32,
+    ...     num_epochs=100,
+    ...     n_channels_in=1,
+    ... )
+    >>> config_3d = create_care_configuration(
+    ...     experiment_name="care_experiment",
+    ...     data_type="czi",
+    ...     axes="SCZYX",
+    ...     patch_size=[16, 64, 64],
+    ...     batch_size=16,
+    ...     num_epochs=100,
+    ...     n_channels_in=1,
+    ... )
     """
     return Configuration(
         **_create_supervised_config_dict(
@@ -648,7 +671,7 @@ def create_care_configuration(
 
 def create_n2n_configuration(
     experiment_name: str,
-    data_type: Literal["array", "tiff", "custom"],
+    data_type: Literal["array", "tiff", "czi", "custom"],
     axes: str,
     patch_size: list[int],
     batch_size: int,
@@ -693,7 +716,7 @@ def create_n2n_configuration(
     ----------
     experiment_name : str
         Name of the experiment.
-    data_type : Literal["array", "tiff", "custom"]
+    data_type : Literal["array", "tiff", "czi", "custom"]
         Type of the data.
     axes : str
         Axes of the data (e.g. SYX).
@@ -811,6 +834,29 @@ def create_n2n_configuration(
     ...     n_channels_in=3,
     ...     n_channels_out=1 # if applicable
     ... )
+
+    If you would like to train on CZI files, use `"czi"` as `data_type` and `"SCYX"` as
+    `axes` for 2-D or `"SCZYX"` for 3-D denoising. Note that `"SCYX"` can also be used
+    for 3-D data but spatial context along the Z dimension will then not be taken into
+    account.
+    >>> config_2d = create_n2n_configuration(
+    ...     experiment_name="n2n_experiment",
+    ...     data_type="czi",
+    ...     axes="SCYX",
+    ...     patch_size=[64, 64],
+    ...     batch_size=32,
+    ...     num_epochs=100,
+    ...     n_channels_in=1,
+    ... )
+    >>> config_3d = create_n2n_configuration(
+    ...     experiment_name="n2n_experiment",
+    ...     data_type="czi",
+    ...     axes="SCZYX",
+    ...     patch_size=[16, 64, 64],
+    ...     batch_size=16,
+    ...     num_epochs=100,
+    ...     n_channels_in=1,
+    ... )
     """
     return Configuration(
         **_create_supervised_config_dict(
@@ -841,7 +887,7 @@ def create_n2n_configuration(
 
 def create_n2v_configuration(
     experiment_name: str,
-    data_type: Literal["array", "tiff", "custom"],
+    data_type: Literal["array", "tiff", "czi", "custom"],
     axes: str,
     patch_size: list[int],
     batch_size: int,
@@ -909,7 +955,7 @@ def create_n2v_configuration(
     ----------
     experiment_name : str
         Name of the experiment.
-    data_type : Literal["array", "tiff", "custom"]
+    data_type : Literal["array", "tiff", "czi", "custom"]
         Type of the data.
     axes : str
         Axes of the data (e.g. SYX).
@@ -1052,6 +1098,29 @@ def create_n2v_configuration(
     ...     num_epochs=100,
     ...     independent_channels=False,
     ...     n_channels=3
+    ... )
+
+    If you would like to train on CZI files, use `"czi"` as `data_type` and `"SCYX"` as
+    `axes` for 2-D or `"SCZYX"` for 3-D denoising. Note that `"SCYX"` can also be used
+    for 3-D data but spatial context along the Z dimension will then not be taken into
+    account.
+    >>> config_2d = create_n2v_configuration(
+    ...     experiment_name="n2v_experiment",
+    ...     data_type="czi",
+    ...     axes="SCYX",
+    ...     patch_size=[64, 64],
+    ...     batch_size=32,
+    ...     num_epochs=100,
+    ...     n_channels=1,
+    ... )
+    >>> config_3d = create_n2v_configuration(
+    ...     experiment_name="n2v_experiment",
+    ...     data_type="czi",
+    ...     axes="SCZYX",
+    ...     patch_size=[16, 64, 64],
+    ...     batch_size=16,
+    ...     num_epochs=100,
+    ...     n_channels=1,
     ... )
     """
     # if there are channels, we need to specify their number
