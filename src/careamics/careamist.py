@@ -263,7 +263,7 @@ class CAREamist:
                 HyperParametersCallback(self.cfg),
                 ModelCheckpoint(
                     dirpath=self.work_dir / Path("checkpoints"),
-                    filename=self.cfg.experiment_name,
+                    filename=f"{self.cfg.experiment_name}_{{epoch:02d}}_step_{{step}}",
                     **self.cfg.training_config.checkpoint_callback.model_dump(),
                 ),
             ]
