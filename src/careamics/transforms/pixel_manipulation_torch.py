@@ -75,33 +75,6 @@ def _apply_struct_mask_torch(
     return patch
 
 
-def _odd_jitter_func_torch(step: float, rng: torch.Generator) -> torch.Tensor:
-    """
-    Randomly sample a jitter to be applied to the masking grid.
-
-    This is done to account for cases where the step size is not an integer.
-
-    Parameters
-    ----------
-    step : float
-        Step size of the grid, output of np.linspace.
-    rng : torch.Generator
-        Random number generator.
-
-    Returns
-    -------
-    torch.Tensor
-        Array of random jitter to be added to the grid.
-    """
-    step_floor = torch.floor(torch.tensor(step))
-    odd_jitter = (
-        step_floor
-        if step_floor == step
-        else torch.randint(high=2, size=(1,), generator=rng)
-    )
-    return step_floor if odd_jitter == 0 else step_floor + 1
-
-
 def _get_stratified_coords_torch(
     mask_pixel_perc: float,
     shape: tuple[int, ...],
@@ -112,13 +85,15 @@ def _get_stratified_coords_torch(
 
     # TODO add more details
     Randomly selects the coordinates of the pixels to mask in a stratified way, i.e.
-    the distance between masked pixels is approximately the same.
+    the distance between masked pixels is approximately the same. This is achieved by
+    defining a grid and sampling a pixel in each grid square. The grid is defined such
+    that the resulting density of masked pixels is the desired masked pixel percentage.
 
     Parameters
     ----------
     mask_pixel_perc : float
-        Actual (quasi) percentage of masked pixels across the whole image. Used in
-        calculating the distance between masked pixels across each axis.
+        Actual (quasi) percentage of masked pixels across the whole image. Over many
+        iterations the percentage of masked pixels will converge to this value.
     shape : tuple[int, ...]
         Shape of the input patch.
     rng : torch.Generator or None
@@ -129,11 +104,20 @@ def _get_stratified_coords_torch(
     np.ndarray
         Array of coordinates of the masked pixels.
     """
+    # Implementation logic:
+    #    find a box size s.t sampling 1 pixel within the box will result in the desired
+    # pixel percentage. Make a grid of these boxes and sample 1 pixel in each. Any
+    # subset of this area will have the same expected masked pixel percentage, therefore
+    # we can filter the masked pixels that lie outside the patch size to have a patch
+    # with the desired masked pixel percentage.
+
     batch_size = shape[0]
     spatial_shape = shape[1:]
 
     n_dims = len(spatial_shape)
     expected_area_per_pixel = 1 / (mask_pixel_perc / 100)
+    # TODO: validate in config that expected_area_per_pixel < prod(patch size)
+
     grid_size = expected_area_per_pixel**0.5
     grid_dims = torch.ceil(torch.tensor(spatial_shape) / grid_size).int()
 
@@ -152,7 +136,7 @@ def _get_stratified_coords_torch(
     )
     coords = coords.to(rng.device)
     coords[:, 1:] += offset
-    coords = torch.round(coords).int()
+    coords = torch.floor(coords).int()
 
     # filter pixels out of bounds
     out_of_bounds = (
@@ -161,60 +145,6 @@ def _get_stratified_coords_torch(
     ).any(1)
     coords = coords[~out_of_bounds]
     return coords
-    # if rng is None:
-    #     rng = torch.Generator()
-
-    # # Calculate the maximum distance between masked pixels. Inversely proportional to
-    # # the percentage of masked pixels.
-    # mask_pixel_distance = round((100 / mask_pixel_perc) ** (1 / len(shape)))
-
-    # pixel_coords = []
-    # steps = []
-
-    # # loop over dimensions
-    # for axis_size in shape:
-    #     # number of pixels to mask along the axis
-    #     num_pixels = int(torch.ceil(torch.tensor(axis_size / mask_pixel_distance)))
-
-    #     # create 1D grid of coordinates for the axis
-    #     axis_pixel_coords = torch.linspace(
-    #         0,
-    #         axis_size - (axis_size // num_pixels),
-    #         num_pixels,
-    #         dtype=torch.int32,
-    #     )
-
-    #     # calculate the step size between coordinates
-    #     step = (
-    #         axis_pixel_coords[1] - axis_pixel_coords[0]
-    #         if len(axis_pixel_coords) > 1
-    #         else axis_size
-    #     )
-
-    #     pixel_coords.append(axis_pixel_coords)
-    #     steps.append(step)
-
-    # # create a 2D meshgrid of coordinates
-    # coordinate_grid_list = torch.meshgrid(*pixel_coords, indexing="ij")
-    # coordinate_grid = torch.stack(
-    #     [g.flatten() for g in coordinate_grid_list], dim=-1
-    # ).to(rng.device)
-
-    # # add a random jitter increment so that the coordinates do not lie on the grid
-    # random_increment = torch.randint(
-    #     high=int(_odd_jitter_func_torch(float(max(steps)), rng)),
-    #     size=torch.tensor(coordinate_grid.shape).to(rng.device).tolist(),
-    #     generator=rng,
-    #     device=rng.device,
-    # )
-    # coordinate_grid += random_increment
-
-    # # make sure no coordinate lie outside the range
-    # return torch.clamp(
-    #     coordinate_grid,
-    #     torch.zeros_like(torch.tensor(shape)).to(device=rng.device),
-    #     torch.tensor([v - 1 for v in shape]).to(device=rng.device),
-    # )
 
 
 def uniform_manipulate_torch(
