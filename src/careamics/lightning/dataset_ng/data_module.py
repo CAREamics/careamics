@@ -1,9 +1,5 @@
-<<<<<<< jd/chore/drop_py39
-from collections.abc import Callable
-=======
 """Next-Generation CAREamics DataModule."""
-
->>>>>>> main
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any, Optional, Union, overload
 
@@ -394,9 +390,6 @@ class CareamicsDataModule(L.LightningDataModule):
     def _validate_path_input(
         self, input_data: InputType, target_data: Optional[InputType]
     ) -> tuple[list[Path], Optional[list[Path]]]:
-<<<<<<< jd/chore/drop_py39
-        if isinstance(input_data, str | Path):
-=======
         """Validate if the input data is a path or a list of paths.
 
         Parameters
@@ -413,8 +406,7 @@ class CareamicsDataModule(L.LightningDataModule):
             A tuple containing lists of file paths for input and target data.
             If target_data is None, the second element will be None.
         """
-        if isinstance(input_data, (str, Path)):
->>>>>>> main
+        if isinstance(input_data, str | Path):
             if target_data is not None:
                 assert isinstance(target_data, str | Path)
             input_list, target_list = self._list_files_in_directory(
@@ -519,13 +511,8 @@ class CareamicsDataModule(L.LightningDataModule):
                 raise ValueError(
                     f"Unsupported input type for {self.data_type}: {type(input_data)}"
                 )
-<<<<<<< jd/chore/drop_py39
-        elif self.data_type == SupportedData.TIFF:
-            if isinstance(input_data, str | Path):
-=======
         elif self.data_type in (SupportedData.TIFF, SupportedData.CZI):
-            if isinstance(input_data, (str, Path)):
->>>>>>> main
+            if isinstance(input_data, str | Path):
                 return self._validate_path_input(input_data, target_data)
             elif isinstance(input_data, list):
                 if isinstance(input_data[0], str | Path):
