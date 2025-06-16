@@ -430,7 +430,9 @@ class VAEModule(L.LightningModule):
         try:
             optimizer = self.optimizers()
             current_lr = optimizer.param_groups[0]["lr"]
-            self.log("learning_rate", current_lr, on_step=False, on_epoch=True, logger=True)
+            self.log(
+                "learning_rate", current_lr, on_step=False, on_epoch=True, logger=True
+            )
         except RuntimeError:
             # This happens when the module is not attached to a trainer, e.g., in tests
             pass
