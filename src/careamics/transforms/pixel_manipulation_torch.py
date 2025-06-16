@@ -216,18 +216,21 @@ def uniform_manipulate_torch(
     random_increment = roi_span[
         torch.randint(
             low=min(roi_span),
-            high=max(roi_span) + 1,  # TODO check this, it may exclude one value
-            size=subpatch_centers.shape,
+            high=max(roi_span) + 1,
+            # one less coord dim: we shouldn't add a random increment to the batch coord
+            size=(subpatch_centers.shape[0], subpatch_centers.shape[1] - 1),
             generator=rng,
             device=patch.device,
         )
     ]
 
     # compute the replacement pixel coordinates
-    replacement_coords = torch.clamp(
-        subpatch_centers + random_increment,
-        torch.zeros_like(torch.tensor(patch.shape)).to(device=patch.device),
-        torch.tensor([v - 1 for v in patch.shape]).to(device=patch.device),
+    replacement_coords = subpatch_centers.clone()
+    # only add random increment to the spatial dimensions, not the batch dimension
+    replacement_coords[:, 1:] = torch.clamp(
+        replacement_coords[:, 1:] + random_increment,
+        torch.zeros_like(torch.tensor(patch.shape[1:])).to(device=patch.device),
+        torch.tensor([v - 1 for v in patch.shape[1:]]).to(device=patch.device),
     )
 
     # replace the pixels in the patch
