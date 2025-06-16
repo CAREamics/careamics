@@ -534,7 +534,7 @@ class VAEModule(L.LightningModule):
             mmse_list.append(output)
 
         mmse = stack(mmse_list).mean(0)
-        std = stack(mmse_list).std(0)
+        std = stack(mmse_list).std(0) # TODO why?
         # TODO better way to unpack if pred logvar
         # Denormalize the output
         denorm = Denormalize(
