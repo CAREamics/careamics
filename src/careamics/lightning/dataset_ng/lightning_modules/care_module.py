@@ -1,4 +1,5 @@
 """CARE Lightning DataModule."""
+
 from collections.abc import Callable
 from typing import Any, Union
 
