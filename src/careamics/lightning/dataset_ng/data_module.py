@@ -1,4 +1,5 @@
 """Next-Generation CAREamics DataModule."""
+
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any, Optional, Union, overload
