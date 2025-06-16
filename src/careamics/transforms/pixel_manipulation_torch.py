@@ -83,7 +83,6 @@ def _get_stratified_coords_torch(
     """
     Generate coordinates of the pixels to mask.
 
-    # TODO add more details
     Randomly selects the coordinates of the pixels to mask in a stratified way, i.e.
     the distance between masked pixels is approximately the same. This is achieved by
     defining a grid and sampling a pixel in each grid square. The grid is defined such
@@ -118,7 +117,7 @@ def _get_stratified_coords_torch(
     expected_area_per_pixel = 1 / (mask_pixel_perc / 100)
     # TODO: validate in config that expected_area_per_pixel < prod(patch size)
 
-    grid_size = expected_area_per_pixel**0.5
+    grid_size = expected_area_per_pixel ** (1 / n_dims)
     grid_dims = torch.ceil(torch.tensor(spatial_shape) / grid_size).int()
 
     # coords on a fixed grid
@@ -126,6 +125,7 @@ def _get_stratified_coords_torch(
         torch.meshgrid(
             torch.arange(batch_size, dtype=torch.float),
             *[torch.arange(0, grid_dims[i].item()) * grid_size for i in range(n_dims)],
+            indexing="ij",
         ),
         -1,
     ).reshape(-1, n_dims + 1)
@@ -160,7 +160,7 @@ def uniform_manipulate_torch(
 
     # TODO add more details, especially about batch
 
-    Manipulated pixels are selected unformly selected in a subpatch, away from a grid
+    Manipulated pixels are selected uniformly selected in a subpatch, away from a grid
     with an approximate uniform probability to be selected across the whole patch.
     If `struct_params` is not None, an additional structN2V mask is applied to the
     data, replacing the pixels in the mask with random values (excluding the pixel
@@ -278,7 +278,7 @@ def median_manipulate_torch(
     struct_params : StructMaskParameters or None, optional
         Parameters for the structN2V mask (axis and span).
     rng : torch.default_generator or None, optional
-        Random number generato, by default None.
+        Random number generator, by default None.
 
     Returns
     -------
