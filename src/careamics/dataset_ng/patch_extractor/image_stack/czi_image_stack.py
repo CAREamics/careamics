@@ -1,11 +1,22 @@
+from __future__ import annotations
+
 import re
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 import numpy as np
 from numpy.typing import NDArray
-from pylibCZIrw.czi import CziReader, Rectangle, open_czi
+
+try:
+    from pylibCZIrw.czi import CziReader, Rectangle, open_czi
+
+    pyczi_available = True
+except ImportError:
+    pyczi_available = False
+
+if TYPE_CHECKING:
+    from pylibCZIrw.czi import CziReader, Rectangle, open_czi
 
 
 class CziImageStack:
@@ -97,6 +108,12 @@ class CziImageStack:
         scene: int | None = None,
         depth_axis: Literal["none", "Z", "T"] = "none",
     ) -> None:
+        if not pyczi_available:
+            raise ImportError(
+                "The CZI image stack requires the `pylibCZIrw` package to be installed. "
+                "Please install it with `pip install careamics[czi]`."
+            )
+
         _data_path = Path(data_path)
 
         # Check for scene encoded in filename.
