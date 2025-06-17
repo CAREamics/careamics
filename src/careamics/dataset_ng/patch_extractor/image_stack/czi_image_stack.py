@@ -110,8 +110,8 @@ class CziImageStack:
     ) -> None:
         if not pyczi_available:
             raise ImportError(
-                "The CZI image stack requires the `pylibCZIrw` package to be installed. "
-                "Please install it with `pip install careamics[czi]`."
+                "The CZI image stack requires the `pylibCZIrw` package to be installed."
+                " Please install it with `pip install careamics[czi]`."
             )
 
         _data_path = Path(data_path)
@@ -145,8 +145,9 @@ class CziImageStack:
         self.data_dtype = np.float32
 
     def __del__(self):
-        # Close CZI file
-        self._czi.close()
+        if hasattr(self, "_czi"):
+            # Close CZI file
+            self._czi.close()
 
     def __getstate__(self) -> dict[str, Any]:
         # Remove CziReader object from state to avoid pickling issues
