@@ -40,7 +40,7 @@ class VAEBasedAlgorithm(BaseModel):
     # defined in SupportedAlgorithm
     # TODO: Use supported Enum classes for typing?
     #   - values can still be passed as strings and they will be cast to Enum
-    algorithm: Literal["musplit", "denoisplit"]
+    algorithm: Literal["hdn", "musplit", "denoisplit"]
 
     # NOTE: these are all configs (pydantic models)
     loss: LVAELossConfig
@@ -48,6 +48,9 @@ class VAEBasedAlgorithm(BaseModel):
     noise_model: Optional[MultiChannelNMConfig] = None
     noise_model_likelihood: Optional[NMLikelihoodConfig] = None
     gaussian_likelihood: Optional[GaussianLikelihoodConfig] = None
+
+    mmse_count: int = 1
+    is_supervised: bool = False
 
     # Optional fields
     optimizer: OptimizerModel = OptimizerModel()
@@ -64,6 +67,14 @@ class VAEBasedAlgorithm(BaseModel):
         Self
             The validated model.
         """
+        # hdn
+        if self.algorithm == SupportedAlgorithm.HDN:
+            if self.loss.loss_type != SupportedLoss.HDN:
+                raise ValueError(
+                    f"Algorithm {self.algorithm} only supports loss `hdn`."
+                )
+            if self.model.multiscale_count > 1:
+                raise ValueError("Algorithm `hdn` does not support multiscale models.")
         # musplit
         if self.algorithm == SupportedAlgorithm.MUSPLIT:
             if self.loss.loss_type != SupportedLoss.MUSPLIT:
@@ -108,6 +119,12 @@ class VAEBasedAlgorithm(BaseModel):
                 f"Number of output channels ({self.model.output_channels}) must match "
                 f"the number of noise models ({len(self.noise_model.noise_models)})."
             )
+
+        if self.algorithm == SupportedAlgorithm.HDN:
+            assert self.model.output_channels == 1, (
+                f"Number of output channels ({self.model.output_channels}) must be 1 "
+                "for algorithm `hdn`."
+            )
         return self
 
     @model_validator(mode="after")
@@ -127,6 +144,16 @@ class VAEBasedAlgorithm(BaseModel):
                 "Gaussian likelihood model `predict_logvar` "
                 f"({self.gaussian_likelihood.predict_logvar}).",
             )
+        # if self.algorithm == SupportedAlgorithm.HDN:
+        #     assert (
+        #         self.model.predict_logvar is None
+        #     ), "Model `predict_logvar` must be `None` for algorithm `hdn`."
+        #     if self.gaussian_likelihood is not None:
+        #         assert self.gaussian_likelihood.predict_logvar is None, (
+        #             "Gaussian likelihood model `predict_logvar` must be `None` "
+        #             "for algorithm `hdn`."
+        #         )
+        # TODO check this
         return self
 
     def __str__(self) -> str:

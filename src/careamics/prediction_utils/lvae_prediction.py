@@ -4,7 +4,7 @@ from typing import Any, Optional
 
 import torch
 
-from careamics.models.lvae import LadderVAE as LVAE
+from careamics.models.lvae import LVAE as LVAE
 from careamics.models.lvae.likelihoods import LikelihoodModule
 
 # TODO: convert these functions to lightning module `predict_step`

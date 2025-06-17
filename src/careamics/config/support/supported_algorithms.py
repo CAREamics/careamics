@@ -30,5 +30,5 @@ class SupportedAlgorithm(str, BaseEnum):
     """An image splitting and denoising approach based on ladder VAE architectures."""
 
     # PN2V = "pn2v"
-    # HDN = "hdn"
+    HDN = "hdn"
     # SEG = "segmentation"

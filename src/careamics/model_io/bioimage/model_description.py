@@ -256,10 +256,15 @@ def create_model_description(
         output_path=outputs,
         channel_names=channel_names,
     )
-
+    # module location # TODO refac
+    import_descr = (
+        "careamics.models.lvae.lvae"
+        if config.algorithm_config.model.architecture == "LVAE"
+        else "careamics.models.unet"
+    )
     # weights description
     architecture_descr = ArchitectureFromLibraryDescr(
-        import_from="careamics.models.unet",
+        import_from=import_descr,
         callable=f"{config.algorithm_config.model.architecture}",
         kwargs=config.algorithm_config.model.model_dump(),
     )

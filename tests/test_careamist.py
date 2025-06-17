@@ -156,6 +156,44 @@ def test_train_array(tmp_path: Path, minimum_n2v_configuration: dict):
     assert (tmp_path / "model.zip").exists()
 
 
+@pytest.mark.skip(reason="VAE based models are not supported yet.")
+def test_train_array_vae(tmp_path: Path, minimum_configuration_hdn: dict):
+    """Test that CAREamics can be trained on arrays."""
+    # training data
+    train_array = random_array((128, 128))
+    val_array = random_array((128, 128))
+
+    # create configuration
+    config = Configuration(**minimum_configuration_hdn)
+    config.training_config.num_epochs = 1
+    config.data_config.axes = "YX"
+    config.data_config.batch_size = 2
+    config.data_config.data_type = SupportedData.ARRAY.value
+    config.data_config.patch_size = (64, 64)
+
+    # instantiate CAREamist
+    careamist = CAREamist(source=config, work_dir=tmp_path)
+
+    # train CAREamist
+    careamist.train(train_source=train_array, val_source=val_array)
+
+    # check that it trained
+    assert Path(tmp_path / "checkpoints" / "last.ckpt").exists()
+
+    bmz_input = random_array((64, 64))
+
+    # export to BMZ
+    careamist.export_to_bmz(
+        path_to_archive=tmp_path / "model.zip",
+        friendly_model_name="TopModel",
+        input_array=bmz_input,
+        authors=[{"name": "Amod", "affiliation": "El"}],
+        general_description="A model that just walked in.",
+        data_description="A random array.",
+    )
+    assert (tmp_path / "model.zip").exists()
+
+
 @pytest.mark.parametrize("independent_channels", [False, True])
 def test_train_array_channel(
     tmp_path: Path, minimum_n2v_configuration: dict, independent_channels: bool

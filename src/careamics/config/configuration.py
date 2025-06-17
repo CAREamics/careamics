@@ -13,6 +13,7 @@ from typing_extensions import Self
 
 from careamics.config.algorithms import (
     CAREAlgorithm,
+    HDNAlgorithm,
     N2NAlgorithm,
     N2VAlgorithm,
 )
@@ -23,6 +24,7 @@ ALGORITHMS = Union[
     CAREAlgorithm,
     N2NAlgorithm,
     N2VAlgorithm,
+    HDNAlgorithm,
 ]
 
 

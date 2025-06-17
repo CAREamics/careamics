@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Union
 import torch
 
 from careamics.config.support import SupportedArchitecture
-from careamics.models.lvae import LadderVAE as LVAE
+from careamics.models.lvae import LVAE as LVAE
 from careamics.models.unet import UNet
 from careamics.utils import get_logger
 
