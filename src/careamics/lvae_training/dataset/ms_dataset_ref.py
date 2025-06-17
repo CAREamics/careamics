@@ -616,8 +616,8 @@ class MultiChDloaderRef:
             inp = 0
             for alpha, img in zip(alpha_list, img_tuples):
                 inp += img  # * alpha
-
-            if self._normalized_input is False:  # TODO wtf is this ?
+                # TODO this is specific to puncta task currently, needs revision
+            if self._normalized_input is False:  # TODO what is this ?
                 return inp.astype(np.float32)
 
         mean, std = self.get_mean_std_for_input()
