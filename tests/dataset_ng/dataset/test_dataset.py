@@ -5,7 +5,12 @@ import pytest
 import tifffile
 
 from careamics.config import InferenceConfig, create_n2n_configuration
-from careamics.dataset_ng.dataset.dataset import CareamicsDataset, Mode
+from careamics.dataset_ng.dataset import Mode
+from careamics.dataset_ng.factory import (
+    create_array_dataset,
+    create_custom_file_dataset,
+    create_tiff_dataset,
+)
 
 
 # TODO: these tests not deterministic anymore - DataConfig doesn't have random seed
@@ -31,16 +36,24 @@ def test_from_array(data_shape, patch_size, expected_dataset_len):
         batch_size=1,
         num_epochs=1,
     ).data_config
+    train_data_config.set_means_and_stds(
+        [example_input.mean()],
+        [example_input.std()],
+        [example_target.mean()],
+        [example_target.std()],
+    )
 
-    train_dataset = CareamicsDataset(
-        data_config=train_data_config,
+    train_dataset = create_array_dataset(
+        config=train_data_config,
         mode=Mode.TRAINING,
         inputs=[example_input],
         targets=[example_target],
     )
 
     assert len(train_dataset) == expected_dataset_len
-    sample, target = train_dataset[0]
+    output = train_dataset[0]
+    assert len(output) == 2
+    sample, target = output
     assert sample.data.shape == (1, *patch_size)
     assert target.data.shape == (1, *patch_size)
 
@@ -73,15 +86,24 @@ def test_from_tiff(tmp_path: Path, data_shape, patch_size, expected_dataset_len)
         num_epochs=1,
     ).data_config
 
-    train_dataset = CareamicsDataset(
-        data_config=train_data_config,
+    train_data_config.set_means_and_stds(
+        [example_input.mean()],
+        [example_input.std()],
+        [example_target.mean()],
+        [example_target.std()],
+    )
+
+    train_dataset = create_tiff_dataset(
+        config=train_data_config,
         mode=Mode.TRAINING,
         inputs=[input_file_path],
         targets=[target_file_path],
     )
 
     assert len(train_dataset) == expected_dataset_len
-    sample, target = train_dataset[0]
+    output = train_dataset[0]
+    assert len(output) == 2
+    sample, target = output
     assert sample.data.shape == (1, *patch_size)
     assert target.data.shape == (1, *patch_size)
 
@@ -110,16 +132,18 @@ def test_prediction_from_array(data_shape, tile_size, tile_overlap):
         batch_size=1,
     )
 
-    prediction_dataset = CareamicsDataset(
-        data_config=prediction_config,
+    prediction_dataset = create_array_dataset(
+        config=prediction_config,
         mode=Mode.PREDICTING,
         inputs=[example_data],
+        targets=None,
     )
 
     assert len(prediction_dataset) > 0
-    sample, target = prediction_dataset[0]
+    output = prediction_dataset[0]
+    assert len(output) == 1
+    (sample,) = output
     assert sample.data.shape == (1, *tile_size)
-    assert target is None
 
 
 @pytest.mark.parametrize(
@@ -144,11 +168,18 @@ def test_from_custom_data_type(patch_size, data_shape):
         num_epochs=1,
     ).data_config
 
+    train_data_config.set_means_and_stds(
+        [example_data.mean()],
+        [example_data.std()],
+        [example_target.mean()],
+        [example_target.std()],
+    )
+
     def read_data_func_test(data):
         return 1 - data
 
-    train_dataset = CareamicsDataset(
-        data_config=train_data_config,
+    train_dataset = create_custom_file_dataset(
+        config=train_data_config,
         mode=Mode.TRAINING,
         inputs=[example_data],
         targets=[example_target],
@@ -157,6 +188,8 @@ def test_from_custom_data_type(patch_size, data_shape):
     )
 
     assert len(train_dataset) > 0
-    sample, target = train_dataset[0]
+    output = train_dataset[0]
+    assert len(output) == 2
+    sample, target = output
     assert sample.data.shape == (1, *patch_size)
     assert target.data.shape == (1, *patch_size)

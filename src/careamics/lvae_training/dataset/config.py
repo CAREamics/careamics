@@ -1,4 +1,4 @@
-from typing import Any, Optional
+from typing import Any, Optional, Union
 
 from pydantic import BaseModel, ConfigDict
 
@@ -43,7 +43,7 @@ class DatasetConfig(BaseModel):
     image_size: tuple  # TODO: revisit, new model_config uses tuple
     """Size of one patch of data"""
 
-    grid_size: Optional[int] = None
+    grid_size: Optional[Union[int, tuple[int, int, int]]] = None
     """Frame is divided into square grids of this size. A patch centered on a grid 
     having size `image_size` is returned. Grid size not used in training,
     used only during val / test, grid size controls the overlap of the patches"""
@@ -82,7 +82,7 @@ class DatasetConfig(BaseModel):
     # TODO: why is this not used?
     enable_rotation_aug: Optional[bool] = False
 
-    max_val: Optional[float] = None
+    max_val: Optional[Union[float, tuple]] = None
     """Maximum data in the dataset. Is calculated for train split, and should be 
     externally set for val and test splits."""
 
