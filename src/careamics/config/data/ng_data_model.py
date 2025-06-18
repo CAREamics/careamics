@@ -95,7 +95,7 @@ class NGDataConfig(BaseModel):
     axes: str
     """Axes of the data, as defined in SupportedAxes."""
 
-    patching: Union[PatchingStrategies] = Field(..., discriminator="name")
+    patching: PatchingStrategies = Field(..., discriminator="name")
     """Patching strategy to use. Note that `tiled` and `whole` are only used for
     prediction."""
 
