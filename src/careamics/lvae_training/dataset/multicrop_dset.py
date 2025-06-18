@@ -1,5 +1,5 @@
 """
-Here, we have multiple folders, each containing images of a single channel. 
+Here, we have multiple folders, each containing images of a single channel.
 """
 
 from collections import defaultdict
