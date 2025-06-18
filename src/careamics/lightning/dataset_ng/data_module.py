@@ -9,7 +9,7 @@ from numpy.typing import NDArray
 from torch.utils.data import DataLoader
 from torch.utils.data._utils.collate import default_collate
 
-from careamics.config.data import DataConfig
+from careamics.config.data.ng_data_model import NGDataConfig
 from careamics.config.support import SupportedData
 from careamics.dataset.dataset_utils import list_files, validate_source_target_files
 from careamics.dataset_ng.dataset import Mode
@@ -121,7 +121,7 @@ class CareamicsDataModule(L.LightningDataModule):
     @overload
     def __init__(
         self,
-        data_config: DataConfig,
+        data_config: NGDataConfig,
         *,
         train_data: Optional[InputType] = None,
         train_data_target: Optional[InputType] = None,
@@ -139,7 +139,7 @@ class CareamicsDataModule(L.LightningDataModule):
     @overload
     def __init__(
         self,
-        data_config: DataConfig,
+        data_config: NGDataConfig,
         *,
         train_data: Optional[InputType] = None,
         train_data_target: Optional[InputType] = None,
@@ -155,9 +155,28 @@ class CareamicsDataModule(L.LightningDataModule):
         use_in_memory: bool = True,
     ) -> None: ...
 
+    @overload
     def __init__(
         self,
-        data_config: DataConfig,
+        data_config: NGDataConfig,
+        *,
+        train_data: Optional[Any] = None,
+        train_data_target: Optional[Any] = None,
+        val_data: Optional[Any] = None,
+        val_data_target: Optional[Any] = None,
+        pred_data: Optional[Any] = None,
+        pred_data_target: Optional[Any] = None,
+        image_stack_loader: ImageStackLoader,
+        image_stack_loader_kwargs: Optional[dict[str, Any]] = None,
+        extension_filter: str = "",
+        val_percentage: Optional[float] = None,
+        val_minimum_split: int = 5,
+        use_in_memory: bool = True,
+    ) -> None: ...
+
+    def __init__(
+        self,
+        data_config: NGDataConfig,
         *,
         train_data: Optional[Any] = None,
         train_data_target: Optional[Any] = None,
@@ -182,7 +201,7 @@ class CareamicsDataModule(L.LightningDataModule):
 
         Parameters
         ----------
-        data_config : DataConfig
+        data_config : NGDataConfig
             Pydantic model for CAREamics data configuration.
         train_data : Optional[InputType]
             Training data, can be a path to a folder, a list of paths, or a numpy array.
@@ -229,7 +248,7 @@ class CareamicsDataModule(L.LightningDataModule):
                 "At least one of train_data, val_data or pred_data must be provided."
             )
 
-        self.config: DataConfig = data_config
+        self.config: NGDataConfig = data_config
         self.data_type: str = data_config.data_type
         self.batch_size: int = data_config.batch_size
         self.use_in_memory: bool = use_in_memory
@@ -654,5 +673,5 @@ class CareamicsDataModule(L.LightningDataModule):
             self.predict_dataset,
             batch_size=self.batch_size,
             collate_fn=default_collate,
-            # TODO: set appropriate key for params once config changes are merged
+            **self.config.test_dataloader_params,
         )

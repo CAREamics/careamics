@@ -18,13 +18,13 @@ class SequentialPatchingStrategy:
         self,
         data_shapes: Sequence[Sequence[int]],
         patch_size: Sequence[int],
-        overlap: Optional[Sequence[int]] = None,
+        overlaps: Optional[Sequence[int]] = None,
     ):
         self.data_shapes = data_shapes
         self.patch_size = patch_size
-        if overlap is None:
-            overlap = [0] * len(patch_size)
-        self.overlap = np.asarray(overlap)
+        if overlaps is None:
+            overlaps = [0] * len(patch_size)
+        self.overlaps = np.asarray(overlaps)
 
         self.patch_specs: list[PatchSpecs] = self._initialize_patch_specs()
 
@@ -58,7 +58,7 @@ class SequentialPatchingStrategy:
             data_spatial_shape = data_shape[-len(self.patch_size) :]
             coords_list = [
                 self._compute_coords_1d(
-                    self.patch_size[i], data_spatial_shape[i], self.overlap[i]
+                    self.patch_size[i], data_spatial_shape[i], self.overlaps[i]
                 )
                 for i in range(len(self.patch_size))
             ]

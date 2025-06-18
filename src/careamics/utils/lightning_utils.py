@@ -32,7 +32,7 @@ def read_csv_logger(experiment_name: str, log_folder: Union[str, Path]) -> dict:
         lines = f.readlines()
 
         header = lines[0].strip().split(",")
-        metrics = {value: [] for value in header}
+        metrics: dict[str, list] = {value: [] for value in header}
         print(metrics)
 
         for single_line in lines[1:]:
