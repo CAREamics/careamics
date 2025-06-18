@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from contextlib import nullcontext as does_not_raise
 from pathlib import Path
-from typing import TYPE_CHECKING, Callable, Literal, Union
+from typing import TYPE_CHECKING, Literal, Union
 
 import numpy as np
 import pytest

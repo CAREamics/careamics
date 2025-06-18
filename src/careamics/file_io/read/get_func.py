@@ -1,7 +1,8 @@
 """Module to get read functions."""
 
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable, Protocol, Union
+from typing import Protocol, Union
 
 from numpy.typing import NDArray
 

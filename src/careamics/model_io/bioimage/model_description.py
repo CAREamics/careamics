@@ -148,7 +148,7 @@ def _create_inputs_ouputs(
     inv_means = []
     inv_stds = []
     if means and stds:
-        for mean, std in zip(means, stds):
+        for mean, std in zip(means, stds, strict=False):
             inv_means.append(-mean / (std + eps))
             inv_stds.append(1 / (std + eps) - eps)
 

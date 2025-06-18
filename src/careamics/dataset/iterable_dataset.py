@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import copy
-from collections.abc import Generator
+from collections.abc import Callable, Generator
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Optional
 
 import numpy as np
 from torch.utils.data import IterableDataset
