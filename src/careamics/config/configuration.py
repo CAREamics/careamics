@@ -212,17 +212,18 @@ class Configuration(BaseModel):
         expected_area_per_pixel = 1 / (mask_pixel_perc / 100)
 
         n_dims = 3 if self.algorithm_config.model.is_3D() else 2
+        patch_size_lower_bound = int(np.ceil(expected_area_per_pixel ** (1 / n_dims)))
         required_patch_size = tuple(
-            int(np.ceil(expected_area_per_pixel ** (1 / n_dims))) for _ in range(n_dims)
+            2 ** int(np.ceil(np.log2(patch_size_lower_bound))) for _ in range(n_dims)
         )
         required_mask_pixel_perc = (1 / np.prod(patch_size)) * 100
         if expected_area_per_pixel > np.prod(patch_size):
             raise ValueError(
-                "The probability of creating a blind-spot pixel is "
+                "The probability of creating a blind-spot pixel within a patch is "
                 f"below 1, for a patch size of {patch_size} with a masked pixel "
                 f"percentage of {mask_pixel_perc}%. Either increase the patch size to "
                 f"{required_patch_size} or increase the masked pixel percentage to "
-                f"at least {required_mask_pixel_perc}."
+                f"at least {required_mask_pixel_perc}%."
             )
 
         return self
