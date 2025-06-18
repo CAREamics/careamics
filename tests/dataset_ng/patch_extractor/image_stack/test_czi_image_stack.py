@@ -5,6 +5,10 @@ from typing import Literal
 import numpy as np
 import pytest
 from numpy.typing import NDArray
+
+# skip if fail imports
+pylib = pytest.importorskip("pylibCZIrw")
+
 from pylibCZIrw import czi as pyczi
 
 from careamics.dataset_ng.patch_extractor.image_stack import CziImageStack
@@ -32,6 +36,7 @@ def create_test_czi(file_path: Path, data: NDArray | list[NDArray]):
             xoffs += scene_data.shape[-1] + 20
 
 
+@pytest.mark.czi
 @pytest.mark.parametrize(
     "orig_shape, depth_axis, expected_axes, expected_shape, sample_idx, expect_raise",
     [
@@ -122,6 +127,7 @@ def test_extract_patch(
     np.testing.assert_array_equal(extracted_patch, patch_ref)
 
 
+@pytest.mark.czi
 def test_multiple_scenes(
     tmp_path: Path,
 ):
