@@ -91,8 +91,7 @@ def _get_stratified_coords_torch(
     Parameters
     ----------
     mask_pixel_perc : float
-        Actual (quasi) percentage of masked pixels across the whole image. Over many
-        iterations the percentage of masked pixels will converge to this value.
+        Expected value for percentage of masked pixels across the whole image.
     shape : tuple[int, ...]
         Shape of the input patch.
     rng : torch.Generator or None
@@ -105,22 +104,24 @@ def _get_stratified_coords_torch(
     """
     # Implementation logic:
     #    find a box size s.t sampling 1 pixel within the box will result in the desired
-    # pixel percentage. Make a grid of these boxes and sample 1 pixel in each. Any
-    # subset of this area will have the same expected masked pixel percentage, therefore
-    # we can filter the masked pixels that lie outside the patch size to have a patch
-    # with the desired masked pixel percentage.
+    # pixel percentage. Make a grid of these boxes that cover the patch (the area of
+    # the grid will be greater than or equal to the area of the patch) and sample 1
+    # pixel in each box. The density of masked pixels is an intensive property therefore
+    # any subset of this area will have the desired expected masked pixel percentage.
+    # We can get our desired patch with our desired expected masked pixel percentage by
+    # simply filtering out masked pixels that lie outside of our patch bounds.
 
     batch_size = shape[0]
     spatial_shape = shape[1:]
 
     n_dims = len(spatial_shape)
     expected_area_per_pixel = 1 / (mask_pixel_perc / 100)
-    # TODO: validate in config that expected_area_per_pixel < prod(patch size)
 
+    # keep the grid size in floats for a more accurate expected masked pixel percentage
     grid_size = expected_area_per_pixel ** (1 / n_dims)
     grid_dims = torch.ceil(torch.tensor(spatial_shape) / grid_size).int()
 
-    # coords on a fixed grid
+    # coords on a fixed grid (top left corner)
     coords = torch.stack(
         torch.meshgrid(
             torch.arange(batch_size, dtype=torch.float),
@@ -130,7 +131,8 @@ def _get_stratified_coords_torch(
         -1,
     ).reshape(-1, n_dims + 1)
 
-    # add random offset
+    # add random offset to get a random coord in each grid box
+    # also keep the offset in floats
     offset = (
         torch.rand((len(coords), n_dims), device=rng.device, generator=rng) * grid_size
     )
