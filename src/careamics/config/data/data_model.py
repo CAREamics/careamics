@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+import sys
 from collections.abc import Sequence
 from pprint import pformat
 from typing import Annotated, Any, Literal, Optional, Union
@@ -93,9 +95,9 @@ class DataConfig(BaseModel):
     )
 
     # Dataset configuration
-    data_type: Literal["array", "tiff", "custom"]
-    """Type of input data, numpy.ndarray (array) or paths (tiff and custom), as defined
-    in SupportedData."""
+    data_type: Literal["array", "tiff", "czi", "custom"]
+    """Type of input data, numpy.ndarray (array) or paths (tiff, czi, and custom), as
+    defined in SupportedData."""
 
     axes: str
     """Axes of the data, as defined in SupportedAxes."""
@@ -143,7 +145,7 @@ class DataConfig(BaseModel):
     should include the `shuffle` key, which is set to `True` by default. We strongly
     recommend to keep it as `True` to ensure the best training results."""
 
-    val_dataloader_params: dict[str, Any] = Field(default={})
+    val_dataloader_params: dict[str, Any] = Field(default={}, validate_default=True)
     """Dictionary of PyTorch validation dataloader parameters."""
 
     @field_validator("patch_size")
@@ -209,6 +211,41 @@ class DataConfig(BaseModel):
         check_axes_validity(axes)
 
         return axes
+
+    @field_validator("train_dataloader_params", "val_dataloader_params", mode="before")
+    @classmethod
+    def set_default_dataloader_params(
+        cls, dataloader_params: dict[str, Any]
+    ) -> dict[str, Any]:
+        """
+        Set default dataloader parameters if not provided.
+
+        - If 'num_workers' is not set, it defaults to the number of available CPU cores.
+        - If 'pin_memory' is not set, it defaults to True if CUDA is available.
+
+        Parameters
+        ----------
+        dataloader_params : dict of {str: Any}
+            The dataloader parameters.
+
+        Returns
+        -------
+        dict of {str: Any}
+            The dataloader parameters with defaults applied.
+        """
+        if "num_workers" not in dataloader_params:
+            # Use 1 worker during tests, otherwise use all available CPU cores
+            if "pytest" in sys.modules:
+                dataloader_params["num_workers"] = 0
+            else:
+                dataloader_params["num_workers"] = os.cpu_count()
+
+        if "pin_memory" not in dataloader_params:
+            import torch
+
+            dataloader_params["pin_memory"] = torch.cuda.is_available()
+
+        return dataloader_params
 
     @field_validator("train_dataloader_params")
     @classmethod

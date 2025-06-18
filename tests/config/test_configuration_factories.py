@@ -179,12 +179,23 @@ def test_create_configuration():
     model_params = {
         "depth": 5,
     }
+    optimizer = "SGD"
+    optimizer_params = {
+        "lr": 0.07,
+    }
+    lr_scheduler = "StepLR"
+    lr_scheduler_params = {
+        "step_size": 19,
+    }
     train_dataloader_params = {
         "num_workers": 4,
         "shuffle": True,
     }
     val_dataloader_params = {
         "num_workers": 4,
+    }
+    checkpoint_params = {
+        "every_n_epochs": 9,
     }
 
     # instantiate config
@@ -204,8 +215,13 @@ def test_create_configuration():
             n_channels_out=n_channels_out,
             logger=logger,
             model_params=model_params,
+            optimizer=optimizer,
+            optimizer_params=optimizer_params,
+            lr_scheduler=lr_scheduler,
+            lr_scheduler_params=lr_scheduler_params,
             train_dataloader_params=train_dataloader_params,
             val_dataloader_params=val_dataloader_params,
+            checkpoint_params=checkpoint_params,
         )
     )
 
@@ -223,8 +239,16 @@ def test_create_configuration():
     assert config.algorithm_config.model.num_classes == n_channels_out
     assert config.training_config.logger == logger
     assert config.algorithm_config.model.depth == model_params["depth"]
+    assert config.algorithm_config.optimizer.name == optimizer
+    assert config.algorithm_config.optimizer.parameters == optimizer_params
+    assert config.algorithm_config.lr_scheduler.name == lr_scheduler
+    assert config.algorithm_config.lr_scheduler.parameters == lr_scheduler_params
     assert config.data_config.train_dataloader_params == train_dataloader_params
     assert config.data_config.val_dataloader_params == val_dataloader_params
+    assert (
+        config.training_config.checkpoint_callback.every_n_epochs
+        == checkpoint_params["every_n_epochs"]
+    )
 
 
 def test_supervised_configuration_error_with_channel_axes():
