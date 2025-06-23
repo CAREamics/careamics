@@ -16,7 +16,10 @@ except ImportError:
     pyczi_available = False
 
 if TYPE_CHECKING:
-    from pylibCZIrw.czi import CziReader, Rectangle, open_czi
+    try:
+        from pylibCZIrw.czi import CziReader, Rectangle, open_czi
+    except ImportError:
+        CziReader = Rectangle = open_czi = None  # type: ignore
 
 
 class CziImageStack:
