@@ -3,26 +3,10 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-import torch
 
 from careamics import CAREamist, Configuration
 from careamics.config.support import SupportedData
 from careamics.model_io import export_to_bmz
-
-
-def pytest_configure(config):
-    """
-    Patch torch.device() constructor during pytest runs so that any attempt
-    to use 'mps' is silently redirected to 'cpu'. This avoids breaking CI on macOS.
-    """
-    _original_device_constructor = torch.device.__init__
-
-    def patched_init(self, device_type=None, *args, **kwargs):
-        if str(device_type).lower() == "mps":
-            device_type = "cpu"
-        _original_device_constructor(self, device_type, *args, **kwargs)
-
-    torch.device.__init__ = patched_init
 
 
 @pytest.fixture
