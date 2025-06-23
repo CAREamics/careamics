@@ -45,7 +45,7 @@ def test_manipulate_n2v_torch(strategy):
         roi_size=5, masked_pixel_percentage=5, strategy=strategy.value
     )
     # Create augmentation
-    aug = N2VManipulateTorch(config)
+    aug = N2VManipulateTorch(config, device="cpu")
 
     # Apply augmentation
     augmented = aug(array)
