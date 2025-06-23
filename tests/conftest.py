@@ -11,20 +11,18 @@ from careamics.model_io import export_to_bmz
 
 
 def pytest_configure(config):
-    """Initial configuration for pytest.
-
-    Make sure that we don't use MPS devices during testing. This is specifically done
-    so that the Github CI can run on silicon macOS.
     """
-    original_device = torch.device
+    Patch torch.device() constructor during pytest runs so that any attempt
+    to use 'mps' is silently redirected to 'cpu'. This avoids breaking CI on macOS.
+    """
+    _original_device_constructor = torch.device.__init__
 
-    def no_mps_device(device_type, *args, **kwargs):
-        if str(device_type) == "mps":
-            return original_device("cpu")
-        return original_device(device_type, *args, **kwargs)
+    def patched_init(self, device_type=None, *args, **kwargs):
+        if str(device_type).lower() == "mps":
+            device_type = "cpu"
+        _original_device_constructor(self, device_type, *args, **kwargs)
 
-    # monkey patch torch.device to avoid MPS devices
-    torch.device = no_mps_device
+    torch.device.__init__ = patched_init
 
 
 @pytest.fixture
