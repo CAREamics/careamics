@@ -23,7 +23,6 @@ from ..transformations import XYFlipModel, XYRandomRotate90Model
 from ..validators import check_axes_validity
 from .patching_strategies import (
     RandomPatchingModel,
-    SequentialPatchingModel,
     TiledPatchingModel,
     WholePatchingModel,
 )
@@ -32,11 +31,11 @@ from .patching_strategies import (
 #   - needs to be done in the Configuration
 #   - patches and overlaps sizes must also be checked against dimensionality
 
-
-# TODO: validation axes vs patch sizes
-# TODO: is 3D updated anywhere in the code?
-# TODO: can we tell when it is made for training but has the wrong patching?
-#       - or is the responsibility of the creator?
+# TODO: is 3D updated anywhere in the code in CAREamist/downstream?
+#       - this will be important when swapping the data config in Configuration
+#       - `set_3D` currently not implemented here
+# TODO: we can't tell that the patching strategy is correct
+#       - or is the responsibility of the creator (e.g. conveneince functions)
 
 
 def np_float_to_scientific_str(x: float) -> str:
@@ -63,7 +62,7 @@ Float = Annotated[float, PlainSerializer(np_float_to_scientific_str, return_type
 
 PatchingStrategies = Union[
     RandomPatchingModel,
-    SequentialPatchingModel,
+    # SequentialPatchingModel, # not supported yet
     TiledPatchingModel,
     WholePatchingModel,
 ]
@@ -73,9 +72,14 @@ PatchingStrategies = Union[
 class NGDataConfig(BaseModel):
     """Next-Generation Dataset configuration.
 
+    NGDataConfig are used for both training and prediction, with the patching strategy
+    determining how the data is processed. Note that `random` is the only patching
+    strategy compatible with training, while `tiled` and `whole` are only used for
+    prediction.
+
     If std is specified, mean must be specified as well. Note that setting the std first
     and then the mean (if they were both `None` before) will raise a validation error.
-    Prefer instead `set_mean_and_std` to set both at once. Means and stds are expected
+    Prefer instead `set_means_and_stds` to set both at once. Means and stds are expected
     to be lists of floats, one for each channel. For supervised tasks, the mean and std
     of the target could be different from the input data.
 
@@ -88,7 +92,6 @@ class NGDataConfig(BaseModel):
     )
 
     # Dataset configuration
-    # TODO what becomes of custom? is custom passing imagestacks?
     data_type: Literal["array", "tiff", "zarr", "custom"]
     """Type of input data."""
 
@@ -96,8 +99,8 @@ class NGDataConfig(BaseModel):
     """Axes of the data, as defined in SupportedAxes."""
 
     patching: PatchingStrategies = Field(..., discriminator="name")
-    """Patching strategy to use. Note that `tiled` and `whole` are only used for
-    prediction."""
+    """Patching strategy to use. Note that `random` is the only supported strategy for
+    training, while `tiled` and `whole` are only used for prediction."""
 
     # Optional fields
     batch_size: int = Field(default=1, ge=1, validate_default=True)
@@ -264,36 +267,41 @@ class NGDataConfig(BaseModel):
 
         return self
 
-    # @model_validator(mode="after")
-    # def validate_dimensions(self: Self) -> Self:
-    #     """
-    #     Validate 2D/3D dimensions between axes, patch size and transforms.
+    @model_validator(mode="after")
+    def validate_dimensions(self: Self) -> Self:
+        """
+        Validate 2D/3D dimensions between axes and patch size.
 
-    #     Returns
-    #     -------
-    #     Self
-    #         Validated data model.
+        Returns
+        -------
+        Self
+            Validated data model.
 
-    #     Raises
-    #     ------
-    #     ValueError
-    #         If the transforms are not valid.
-    #     """
-    #     if "Z" in self.axes:
-    #         if len(self.patch_size) != 3:
-    #             raise ValueError(
-    #                 f"Patch size must have 3 dimensions if the data is 3D "
-    #                 f"({self.axes})."
-    #             )
+        Raises
+        ------
+        ValueError
+            If the patch size dimension is not compatible with the axes.
+        """
+        if "Z" in self.axes:
+            if (
+                hasattr(self.patching, "patch_size")
+                and len(self.patching.patch_size) != 3
+            ):
+                raise ValueError(
+                    f"`patch_size` in `patching` must have 3 dimensions if the data is"
+                    f" 3D, got axes {self.axes})."
+                )
+        else:
+            if (
+                hasattr(self.patching, "patch_size")
+                and len(self.patching.patch_size) != 2
+            ):
+                raise ValueError(
+                    f"`patch_size` in `patching` must have 2 dimensions if the data is"
+                    f" 3D, got axes {self.axes})."
+                )
 
-    #     else:
-    #         if len(self.patch_size) != 2:
-    #             raise ValueError(
-    #                 f"Patch size must have 3 dimensions if the data is 3D "
-    #                 f"({self.axes})."
-    #             )
-
-    #     return self
+        return self
 
     def __str__(self) -> str:
         """
