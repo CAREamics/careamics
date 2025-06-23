@@ -3,10 +3,28 @@ from pathlib import Path
 
 import numpy as np
 import pytest
+import torch
 
 from careamics import CAREamist, Configuration
 from careamics.config.support import SupportedData
 from careamics.model_io import export_to_bmz
+
+
+def pytest_configure(config):
+    """Initial configuration for pytest.
+
+    Make sure that we don't use MPS devices during testing. This is specifically done
+    so that the Github CI can run on silicon macOS.
+    """
+    original_device = torch.device
+
+    def no_mps_device(device_type, *args, **kwargs):
+        if str(device_type) == "mps":
+            return original_device("cpu")
+        return original_device(device_type, *args, **kwargs)
+
+    # monkey patch torch.device to avoid MPS devices
+    torch.device = no_mps_device
 
 
 @pytest.fixture
