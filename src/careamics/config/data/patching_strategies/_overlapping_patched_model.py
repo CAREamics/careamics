@@ -5,16 +5,16 @@ from typing import Optional
 
 from pydantic import Field, ValidationInfo, field_validator
 
-from .patched_model import PatchedModel
+from ._patched_model import _PatchedModel
 
 
-class OverlappingPatchedModel(PatchedModel):
+class _OverlappingPatchedModel(_PatchedModel):
     """Overlapping patching Pydantic model.
+
+    This model is only used for inheritance and validation purposes.
 
     Attributes
     ----------
-    name : "overlapping"
-        The name of the patching strategy.
     patch_size : list of int
         The size of the patch in each spatial dimension, each patch size must be a power
         of 2 and larger than 8.

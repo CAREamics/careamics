@@ -7,8 +7,11 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from careamics.config.validators import patch_size_ge_than_8_power_of_2
 
 
-class PatchedModel(BaseModel):
-    """Generic patching Pydantic model."""
+class _PatchedModel(BaseModel):
+    """Generic patching Pydantic model.
+
+    This model is only used for inheritance and validation purposes.
+    """
 
     model_config = ConfigDict(
         extra="ignore",  # default behaviour, make it explicit

@@ -2,10 +2,10 @@
 
 from typing import Literal
 
-from .overlapping_patched_model import OverlappingPatchedModel
+from ._overlapping_patched_model import _OverlappingPatchedModel
 
 
-class SequentialPatchingModel(OverlappingPatchedModel):
+class SequentialPatchingModel(_OverlappingPatchedModel):
     """Sequential patching Pydantic model.
 
     Attributes

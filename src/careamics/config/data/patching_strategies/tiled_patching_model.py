@@ -5,12 +5,12 @@ from typing import Literal
 
 from pydantic import Field
 
-from .overlapping_patched_model import OverlappingPatchedModel
+from ._overlapping_patched_model import _OverlappingPatchedModel
 
 
 # TODO with UNet tiling must obey different rules than sequential tiling
 #   - needs to validated at the level of the configuration
-class TiledPatchingModel(OverlappingPatchedModel):
+class TiledPatchingModel(_OverlappingPatchedModel):
     """Tiled patching Pydantic model.
 
     Attributes
