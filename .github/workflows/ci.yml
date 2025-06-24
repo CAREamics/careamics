@@ -50,8 +50,9 @@ jobs:
       - name: Install Dependencies
         run: |
           python -m pip install -U pip
+          
           # if running a cron job, we add the --pre flag to test against pre-releases
-          python -m pip install .[dev] ${{ github.event_name == 'schedule' && '--pre' || ''  }}
+          python -m pip install .[dev] ${{ github.event_name == 'schedule' && '--pre' || ''  }} ${{ matrix.platform == 'macos-latest' && ' --index-url https://download.pytorch.org/whl/cpu' || '' }}
 
       - name: 🧪 Run Tests
         run: pytest --color=yes -m "not lvae"
