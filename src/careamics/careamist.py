@@ -82,7 +82,6 @@ class CAREamist:
         work_dir: Optional[Union[Path, str]] = None,
         callbacks: Optional[list[Callback]] = None,
         enable_progress_bar: bool = True,
-        accelerator: Literal["auto", "gpu", "mps", "cpu"] = "auto",
     ) -> None: ...
 
     @overload
@@ -92,7 +91,6 @@ class CAREamist:
         work_dir: Optional[Union[Path, str]] = None,
         callbacks: Optional[list[Callback]] = None,
         enable_progress_bar: bool = True,
-        accelerator: Literal["auto", "gpu", "mps", "cpu"] = "auto",
     ) -> None: ...
 
     def __init__(
@@ -101,7 +99,6 @@ class CAREamist:
         work_dir: Optional[Union[Path, str]] = None,
         callbacks: Optional[list[Callback]] = None,
         enable_progress_bar: bool = True,
-        accelerator: Literal["auto", "gpu", "mps", "cpu"] = "auto",
     ) -> None:
         """
         Initialize CAREamist with a configuration object or a path.
@@ -125,8 +122,6 @@ class CAREamist:
         enable_progress_bar : bool
             Whether a progress bar will be displayed during training, validation and
             prediction.
-        accelerator : {"auto", "gpu", "mps", "cpu"}, default="auto"
-            The accelerator to use for training, defined by PyTorch Lightning.
 
         Raises
         ------
@@ -224,7 +219,6 @@ class CAREamist:
             callbacks=self.callbacks,
             default_root_dir=self.work_dir,
             logger=experiment_logger,
-            accelerator=accelerator,
         )
 
         # place holder for the datamodules
