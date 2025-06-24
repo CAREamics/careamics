@@ -52,6 +52,7 @@ jobs:
           python -m pip install -U pip
           
           # if running a cron job, we add the --pre flag to test against pre-releases
+          # if macOS, we attempt to install the CPU version of PyTorch (to be removed once `macos-latest` supports MPS)
           python -m pip install .[dev] ${{ github.event_name == 'schedule' && '--pre' || ''  }} ${{ matrix.platform == 'macos-latest' && ' --index-url https://download.pytorch.org/whl/cpu' || '' }}
 
       - name: 🧪 Run Tests
