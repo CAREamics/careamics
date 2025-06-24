@@ -36,7 +36,7 @@ def test_minimum_configuration_via_object(
     config = Configuration(**minimum_n2v_configuration)
 
     # instantiate CAREamist
-    CAREamist(source=config, work_dir=tmp_path)
+    CAREamist(source=config, work_dir=tmp_path, accelerator="cpu")
 
 
 def test_minimum_configuration_via_path(
@@ -50,7 +50,7 @@ def test_minimum_configuration_via_path(
     path_to_config = save_configuration(config, tmp_path)
 
     # instantiate CAREamist
-    CAREamist(source=path_to_config)
+    CAREamist(source=path_to_config, accelerator="cpu")
 
 
 def test_train_error_target_unsupervised_algorithm(
@@ -63,7 +63,7 @@ def test_train_error_target_unsupervised_algorithm(
 
     # train error with Paths
     config.data_config.data_type = SupportedData.TIFF.value
-    careamics = CAREamist(source=config, work_dir=tmp_path)
+    careamics = CAREamist(source=config, work_dir=tmp_path, accelerator="cpu")
     with pytest.raises(ValueError):
         careamics.train(
             train_source=tmp_path,
@@ -79,7 +79,7 @@ def test_train_error_target_unsupervised_algorithm(
 
     # train error with arrays
     config.data_config.data_type = SupportedData.ARRAY.value
-    careamics = CAREamist(source=config, work_dir=tmp_path)
+    careamics = CAREamist(source=config, work_dir=tmp_path, accelerator="cpu")
     with pytest.raises(ValueError):
         careamics.train(
             train_source=np.ones((32, 32)),
@@ -101,7 +101,7 @@ def test_train_single_array_no_val(tmp_path: Path, minimum_n2v_configuration: di
     config.data_config.patch_size = (8, 8)
 
     # instantiate CAREamist
-    careamist = CAREamist(source=config, work_dir=tmp_path)
+    careamist = CAREamist(source=config, work_dir=tmp_path, accelerator="cpu")
 
     # train CAREamist
     careamist.train(train_source=train_array)
@@ -136,7 +136,7 @@ def test_train_array(tmp_path: Path, minimum_n2v_configuration: dict):
     config.data_config.patch_size = (8, 8)
 
     # instantiate CAREamist
-    careamist = CAREamist(source=config, work_dir=tmp_path)
+    careamist = CAREamist(source=config, work_dir=tmp_path, accelerator="cpu")
 
     # train CAREamist
     careamist.train(train_source=train_array, val_source=val_array)
@@ -177,7 +177,7 @@ def test_train_array_channel(
     config.data_config.patch_size = (8, 8)
 
     # instantiate CAREamist
-    careamist = CAREamist(source=config, work_dir=tmp_path)
+    careamist = CAREamist(source=config, work_dir=tmp_path, accelerator="cpu")
 
     # train CAREamist
     careamist.train(train_source=train_array, val_source=val_array)
@@ -213,7 +213,7 @@ def test_train_array_3d(tmp_path: Path, minimum_n2v_configuration: dict):
     config.data_config.data_type = SupportedData.ARRAY.value
 
     # instantiate CAREamist
-    careamist = CAREamist(source=config, work_dir=tmp_path)
+    careamist = CAREamist(source=config, work_dir=tmp_path, accelerator="cpu")
 
     # train CAREamist
     careamist.train(train_source=train_array, val_source=val_array)
@@ -253,7 +253,7 @@ def test_train_tiff_files_in_memory_no_val(
     config.data_config.patch_size = (8, 8)
 
     # instantiate CAREamist
-    careamist = CAREamist(source=config, work_dir=tmp_path)
+    careamist = CAREamist(source=config, work_dir=tmp_path, accelerator="cpu")
 
     # train CAREamist
     careamist.train(train_source=train_file)
@@ -295,7 +295,7 @@ def test_train_tiff_files_in_memory(tmp_path: Path, minimum_n2v_configuration: d
     config.data_config.patch_size = (8, 8)
 
     # instantiate CAREamist
-    careamist = CAREamist(source=config, work_dir=tmp_path)
+    careamist = CAREamist(source=config, work_dir=tmp_path, accelerator="cpu")
 
     # train CAREamist
     careamist.train(train_source=train_file, val_source=val_file)
