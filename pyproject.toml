@@ -155,6 +155,7 @@ addopts = "-p no:doctest"
 markers = [
     # "gpu: marks tests as requiring gpu",
     "lvae: marks tests as testing lvae",
+    "mps_gh_fail: marks tests as failing on Github macos-latest runner",
 ]
 
 # https://coverage.readthedocs.io/en/6.4/config.html
