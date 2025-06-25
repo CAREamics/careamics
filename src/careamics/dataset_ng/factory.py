@@ -1,12 +1,12 @@
 from collections.abc import Sequence
 from enum import Enum
 from pathlib import Path
-from typing import Any, Optional, Union
+from typing import Any, Optional
 
 from numpy.typing import NDArray
 from typing_extensions import ParamSpec
 
-from careamics.config import DataConfig, InferenceConfig
+from careamics.config.data.ng_data_model import NGDataConfig
 from careamics.config.support import SupportedData
 from careamics.dataset_ng.patch_extractor import ImageStackLoader, PatchExtractor
 from careamics.dataset_ng.patch_extractor.image_stack import (
@@ -116,7 +116,7 @@ def determine_dataset_type(
 # convenience function but should use `create_dataloader` function instead
 # For lazy loading custom batch sampler also needs to be set.
 def create_dataset(
-    config: Union[DataConfig, InferenceConfig],
+    config: NGDataConfig,
     mode: Mode,
     inputs: Any,
     targets: Any,
@@ -198,7 +198,7 @@ def create_dataset(
 
 
 def create_array_dataset(
-    config: Union[DataConfig, InferenceConfig],
+    config: NGDataConfig,
     mode: Mode,
     inputs: Sequence[NDArray[Any]],
     targets: Optional[Sequence[NDArray[Any]]],
@@ -232,7 +232,7 @@ def create_array_dataset(
 
 
 def create_tiff_dataset(
-    config: Union[DataConfig, InferenceConfig],
+    config: NGDataConfig,
     mode: Mode,
     inputs: Sequence[Path],
     targets: Optional[Sequence[Path]],
@@ -270,7 +270,7 @@ def create_tiff_dataset(
 
 
 def create_czi_dataset(
-    config: Union[DataConfig, InferenceConfig],
+    config: NGDataConfig,
     mode: Mode,
     inputs: Sequence[Path],
     targets: Optional[Sequence[Path]],
@@ -306,7 +306,7 @@ def create_czi_dataset(
 
 
 def create_ome_zarr_dataset(
-    config: Union[DataConfig, InferenceConfig],
+    config: NGDataConfig,
     mode: Mode,
     inputs: Sequence[Path],
     targets: Optional[Sequence[Path]],
@@ -342,7 +342,7 @@ def create_ome_zarr_dataset(
 
 
 def create_custom_file_dataset(
-    config: Union[DataConfig, InferenceConfig],
+    config: NGDataConfig,
     mode: Mode,
     inputs: Sequence[Path],
     targets: Optional[Sequence[Path]],
@@ -393,7 +393,7 @@ def create_custom_file_dataset(
 
 
 def create_custom_image_stack_dataset(
-    config: Union[DataConfig, InferenceConfig],
+    config: NGDataConfig,
     mode: Mode,
     inputs: Any,
     targets: Optional[Any],
