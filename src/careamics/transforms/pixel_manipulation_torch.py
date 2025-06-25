@@ -327,15 +327,28 @@ def median_manipulate_torch(
             # For spatial dimensions, coordinates are expanded with offsets, creating
             # spans
             coords_expands.append(
-                (
-                    subpatch_center_coordinates[:, d].unsqueeze(1) + offsets[:, d - 1]
-                ).clamp(0, batch.shape[d] - 1)
+                subpatch_center_coordinates[:, d].unsqueeze(1) + offsets[:, d - 1]
             )  # (num_coordinates, subpatch_size**num_spacial_dims)
+
+    # keep the unclamped version to input nans out of bounds
+    coords_expands_unclamped = torch.stack(coords_expands)
+    # clamp to be able to index rois easily
+    coords_expands = coords_expands_unclamped.clone()
+    for d in range(1, len(batch.shape)):
+        coords_expands[d, ...] = coords_expands[d, ...].clamp(0, batch.shape[d] - 1)
+
+    spatial_shape = torch.tensor(batch.shape[1:])[..., None, None]
+    out_of_bounds = torch.logical_or(
+        0 > coords_expands_unclamped[1:, :, :],
+        coords_expands_unclamped[1:, :, :] > spatial_shape,
+    ).any(dim=0)
 
     # create array of rois by indexing the batch with gathered coordinates
     rois = batch[
         tuple(coords_expands)
     ]  # (num_coordinates, subpatch_size**num_spacial_dims)
+    # set out of bounds to nan
+    rois[out_of_bounds] = torch.nan
 
     if struct_params is not None:
         # Create the structN2V mask
@@ -370,7 +383,8 @@ def median_manipulate_torch(
         )
 
     # compute the medians.
-    medians = rois_filtered.median(dim=1).values  # (num_coordinates,)
+    # use nanmedian to exclude nan values
+    medians = rois_filtered.nanmedian(dim=1).values  # (num_coordinates,)
 
     # Update the output tensor with medians
     output_batch = batch.clone()
