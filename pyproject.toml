@@ -44,14 +44,14 @@ classifiers = [
 dependencies = [
     'numpy<2.0.0',
     'torch>=2.0,<=2.7.1',
-    'torchvision<=0.21.0',
+    'torchvision<=0.22.1',
     'bioimageio.core==0.7',
     'tifffile<=2025.3.13',
     'psutil<=7.0.0',
     'pydantic>=2.11,<=2.12',
     'pytorch_lightning>=2.2,<=2.5.1rc0',
     'pyyaml<=6.0.2,!=6.0.0',
-    'typer>=0.12.3,<=0.15.2',
+    'typer>=0.12.3,<=0.16.0',
     'scikit-image<=0.25.2',
     'zarr<3.0.0',
     'pillow<=11.2.1',
@@ -135,12 +135,19 @@ line-length = 88
 
 # https://mypy.readthedocs.io/en/stable/config_file.html
 [tool.mypy]
+# plugins = ["pydantic.mypy"]
 files = "src/**/"
 strict = false
 # allow_untyped_defs = false
 # allow_untyped_calls = false
 # disallow_any_generics = false
 # ignore_missing_imports = false
+
+# https://docs.pydantic.dev/latest/integrations/mypy/
+# [tool.pydantic-mypy]
+# init_forbid_extra = true
+# init_typed = true
+# warn_required_dynamic_aliases = true
 
 
 # https://docs.pytest.org/en/6.2.x/customize.html

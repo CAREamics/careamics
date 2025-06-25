@@ -27,6 +27,8 @@ class N2VManipulateTorch:
         N2V manipulation configuration.
     seed : Optional[int], optional
         Random seed, by default None.
+    device : str
+        The device on which operations take place, e.g. "cuda", "cpu" or "mps".
 
     Attributes
     ----------
@@ -48,6 +50,7 @@ class N2VManipulateTorch:
         self,
         n2v_manipulate_config: N2VManipulateModel,
         seed: Optional[int] = None,
+        device: Optional[str] = None,
     ):
         """Constructor.
 
@@ -57,6 +60,8 @@ class N2VManipulateTorch:
             N2V manipulation configuration.
         seed : Optional[int], optional
             Random seed, by default None.
+        device : str
+            The device on which operations take place, e.g. "cuda", "cpu" or "mps".
         """
         self.masked_pixel_percentage = n2v_manipulate_config.masked_pixel_percentage
         self.roi_size = n2v_manipulate_config.roi_size
@@ -78,15 +83,16 @@ class N2VManipulateTorch:
 
         # PyTorch random generator
         # TODO refactor into careamics.utils.torch_utils.get_device
-        if torch.cuda.is_available():
-            device = "cuda"
-        elif torch.backends.mps.is_available() and platform.processor() in (
-            "arm",
-            "arm64",
-        ):
-            device = "mps"
-        else:
-            device = "cpu"
+        if device is None:
+            if torch.cuda.is_available():
+                device = "cuda"
+            elif torch.backends.mps.is_available() and platform.processor() in (
+                "arm",
+                "arm64",
+            ):
+                device = "mps"
+            else:
+                device = "cpu"
 
         self.rng = (
             torch.Generator(device=device).manual_seed(seed)

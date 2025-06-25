@@ -1,4 +1,5 @@
 import pytest
+from pydantic import ValidationError
 
 from careamics.config import Configuration
 
@@ -51,3 +52,14 @@ def test_set_3D(minimum_supervised_configuration: dict):
     assert conf.data_config.axes == "SYX"
     assert conf.data_config.patch_size == [64, 64]
     assert conf.algorithm_config.model.conv_dims == 2
+
+
+def test_validate_n2v_mask_pixel_perc(minimum_n2v_configuration):
+
+    minimum_n2v_configuration["data_config"]["patch_size"] = [16, 16]
+    minimum_n2v_configuration["algorithm_config"]["n2v_config"][
+        "masked_pixel_percentage"
+    ] = 0.2
+
+    with pytest.raises(ValidationError):
+        Configuration(**minimum_n2v_configuration)
