@@ -68,7 +68,7 @@ class _OverlappingPatchedModel(_PatchedModel):
                 f"dimensions for patch size."
             )
 
-        if any(o >= p for o, p in zip(overlaps, patch_size)):
+        if any(o >= p for o, p in zip(overlaps, patch_size, strict=False)):
             raise ValueError(
                 f"Overlap must be smaller than the patch size, got {overlaps} versus "
                 f"{patch_size}."
