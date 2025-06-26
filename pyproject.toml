@@ -57,10 +57,13 @@ dependencies = [
     'pillow<=11.2.1',
     'matplotlib<=3.10.1',
     'xarray<2025.3.0',
-    'pylibCZIrw>=4.1.2,<6.0.0',
 ]
 
 [project.optional-dependencies]
+
+# czi format
+czi = ['pylibCZIrw>=4.1.2,<6.0.0']
+
 # development dependencies and tooling
 dev = [
     "pre-commit",
@@ -135,12 +138,19 @@ line-length = 88
 
 # https://mypy.readthedocs.io/en/stable/config_file.html
 [tool.mypy]
+# plugins = ["pydantic.mypy"]
 files = "src/**/"
 strict = false
 # allow_untyped_defs = false
 # allow_untyped_calls = false
 # disallow_any_generics = false
 # ignore_missing_imports = false
+
+# https://docs.pydantic.dev/latest/integrations/mypy/
+# [tool.pydantic-mypy]
+# init_forbid_extra = true
+# init_typed = true
+# warn_required_dynamic_aliases = true
 
 
 # https://docs.pytest.org/en/6.2.x/customize.html
@@ -156,6 +166,7 @@ addopts = "-p no:doctest"
 markers = [
     # "gpu: marks tests as requiring gpu",
     "lvae: marks tests as testing lvae",
+    "czi: marks tests using czi files",
 ]
 
 # https://coverage.readthedocs.io/en/6.4/config.html
