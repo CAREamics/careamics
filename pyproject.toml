@@ -57,10 +57,13 @@ dependencies = [
     'pillow<=11.2.1',
     'matplotlib<=3.10.1',
     'xarray<2025.3.0',
-    'pylibCZIrw>=4.1.2,<6.0.0',
 ]
 
 [project.optional-dependencies]
+
+# czi format
+czi = ['pylibCZIrw>=4.1.2,<6.0.0']
+
 # development dependencies and tooling
 dev = [
     "pre-commit",
@@ -163,6 +166,7 @@ addopts = "-p no:doctest"
 markers = [
     # "gpu: marks tests as requiring gpu",
     "lvae: marks tests as testing lvae",
+    "czi: marks tests using czi files",
 ]
 
 # https://coverage.readthedocs.io/en/6.4/config.html
