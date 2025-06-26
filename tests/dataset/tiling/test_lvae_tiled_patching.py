@@ -64,7 +64,7 @@ def test_compute_tile_info_legacy():
     data_shape = (1, 3, 10, 9)
     tile_size = (1, 3, 4, 4)
     overlaps = (0, 0, 2, 2)
-    stitch_shape = tuple(ts - ov for ts, ov in zip(tile_size, overlaps))
+    stitch_shape = tuple(ts - ov for ts, ov in zip(tile_size, overlaps, strict=False))
 
     grid_index_manager = GridIndexManager(
         data_shape=data_shape,

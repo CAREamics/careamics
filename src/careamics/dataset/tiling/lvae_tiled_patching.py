@@ -78,7 +78,9 @@ def extract_tiles(
                 ...,
                 *[
                     slice(coords, coords + extent)
-                    for coords, extent in zip(crop_coords_start, tile_size)
+                    for coords, extent in zip(
+                        crop_coords_start, tile_size, strict=False
+                    )
                 ],
             )
             tile = sample[crop_slices]
@@ -159,11 +161,14 @@ def compute_tile_info_legacy(
 
     # --- combine start and end
     stitch_coords = tuple(
-        (start, end) for start, end in zip(stitch_coords_start, stitch_coords_end)
+        (start, end)
+        for start, end in zip(stitch_coords_start, stitch_coords_end, strict=False)
     )
     overlap_crop_coords = tuple(
         (start, end)
-        for start, end in zip(overlap_crop_coords_start, overlap_crop_coords_end)
+        for start, end in zip(
+            overlap_crop_coords_start, overlap_crop_coords_end, strict=False
+        )
     )
 
     tile_info = TileInformation(
@@ -229,11 +234,14 @@ def compute_tile_info(
 
     # --- combine start and end
     stitch_coords = tuple(
-        (start, end) for start, end in zip(stitch_coords_start, stitch_coords_end)
+        (start, end)
+        for start, end in zip(stitch_coords_start, stitch_coords_end, strict=False)
     )
     overlap_crop_coords = tuple(
         (start, end)
-        for start, end in zip(overlap_crop_coords_start, overlap_crop_coords_end)
+        for start, end in zip(
+            overlap_crop_coords_start, overlap_crop_coords_end, strict=False
+        )
     )
 
     # --- Check if last tile
@@ -284,7 +292,9 @@ def compute_padding(
     pad_before = overlaps // 2
     pad_after = covered_shape - data_shape[-len(tile_size) :] - pad_before
 
-    return tuple((before, after) for before, after in zip(pad_before, pad_after))
+    return tuple(
+        (before, after) for before, after in zip(pad_before, pad_after, strict=False)
+    )
 
 
 def n_tiles_1d(axis_size: int, tile_size: int, overlap: int) -> int:

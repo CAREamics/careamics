@@ -1,6 +1,7 @@
+from collections.abc import Callable
 from contextlib import nullcontext as does_not_raise
 from pathlib import Path
-from typing import Callable, Literal, Optional
+from typing import Literal, Optional
 
 import numpy as np
 import pytest

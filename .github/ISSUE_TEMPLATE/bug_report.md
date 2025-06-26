@@ -30,7 +30,7 @@ Error message:
 <!-- Please fill in the following information, you can check the package versions using `conda list` -->
 > [!IMPORTANT]
 > - OS: [e.g. iOS]
-> - Python version [e.g. 3.9]
+> - Python version [e.g. 3.12]
 > - PyTorch version [e.g. 2.3]
 > - PyTorch lightning version [e.g. 2.4]
 > - CAREamics version [e.g. 0.0.4]

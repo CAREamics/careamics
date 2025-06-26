@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import numpy as np
+import pytest
 import tifffile
 from typer.testing import CliRunner
 
@@ -8,6 +9,8 @@ from careamics import CAREamist, Configuration
 from careamics.cli.main import app
 from careamics.config import save_configuration
 from careamics.config.support import SupportedData
+
+pytestmark = pytest.mark.mps_gh_fail
 
 runner = CliRunner()
 
