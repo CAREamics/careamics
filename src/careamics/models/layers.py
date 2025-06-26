@@ -114,12 +114,12 @@ class Conv_Block(nn.Module):
         self.batch_norm1 = getattr(nn, f"BatchNorm{conv_dim}d")(
             out_channels * intermediate_channel_multiplier,
             eps=0.001,
-            momentum=0.99,
+            momentum=0.01,
         )
         self.batch_norm2 = getattr(nn, f"BatchNorm{conv_dim}d")(
             out_channels,
             eps=0.001,
-            momentum=0.99,
+            momentum=0.01,
         )
 
         self.dropout = (
